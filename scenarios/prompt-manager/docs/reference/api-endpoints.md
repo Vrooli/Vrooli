@@ -826,6 +826,113 @@ Set roles for a team (replaces all existing roles).
 
 **Response:** Updated roles array.
 
+### GET /api/v1/teams/{id}/org
+
+Get the org chart (manager/report edges) for a team.
+
+**Response:**
+```json
+{
+  "teamId": "engineering",
+  "edges": [
+    { "managerAgentId": "alice", "reportAgentId": "bob" },
+    { "managerAgentId": "alice", "reportAgentId": "charlie" }
+  ]
+}
+```
+
+### PUT /api/v1/teams/{id}/org
+
+Replace all org chart edges for a team.
+
+**Request Body:**
+```json
+{
+  "edges": [
+    { "managerAgentId": "alice", "reportAgentId": "bob" }
+  ]
+}
+```
+
+**Validation Rules:**
+- `managerAgentId` and `reportAgentId` must be team members
+- A report can have only one manager
+- No self-reporting
+- No reporting cycles
+
+### PUT /api/v1/teams/{id}/org/edges/{reportId}
+
+Set a single reporting relationship (single-manager model).
+
+**Request Body:**
+```json
+{
+  "managerAgentId": "alice"
+}
+```
+
+**Response:**
+```json
+{
+  "managerAgentId": "alice",
+  "reportAgentId": "bob"
+}
+```
+
+### DELETE /api/v1/teams/{id}/org/edges/{reportId}
+
+Remove a reporting relationship.
+
+**Response:** `204 No Content`
+
+### GET /api/v1/teams/{id}/members/{agentId}/messages
+
+List inbox messages for a team member.
+
+**Response:**
+```json
+{
+  "teamId": "engineering",
+  "agentId": "bob",
+  "messages": [
+    {
+      "id": "msg-123",
+      "teamId": "engineering",
+      "fromAgentId": "alice",
+      "toAgentId": "bob",
+      "content": "Please review the latest PR.",
+      "createdAt": "2026-02-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+### POST /api/v1/teams/{id}/members/{agentId}/messages
+
+Send a message to a team member.
+
+**Request Body:**
+```json
+{
+  "fromAgentId": "alice",
+  "content": "Please review the latest PR."
+}
+```
+
+**Response:** Created message object with `201 Created`.
+
+### DELETE /api/v1/teams/{id}/members/{agentId}/messages
+
+Clear all messages for a team member.
+
+**Response:** `204 No Content`
+
+### DELETE /api/v1/teams/{id}/members/{agentId}/messages/{messageId}
+
+Delete a single message.
+
+**Response:** `204 No Content`
+
 ---
 
 ## Open Graph Metadata

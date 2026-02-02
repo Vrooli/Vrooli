@@ -3,7 +3,7 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2025-01-25
+2026-02-02
 
 ---
 
@@ -77,7 +77,7 @@ _No significant debt identified._
 
 ## Stability Issues
 
-_None identified._
+_No open crash issues identified. Team editor org chart now guards against self-connections and missing manager labels; relationship panels handle empty states gracefully._
 
 ---
 

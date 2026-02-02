@@ -85,22 +85,32 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 │ 1. Agent .md files (from store/agents/{agent})  │
 │    Personality + operating notes                │
 ├─────────────────────────────────────────────────┤
-│ 2. RESPONSIBILITIES.md (from team members/)    │
-│    Role-specific instructions for this team    │
+│ 2. RESPONSIBILITIES.md (from team members/)     │
+│    Role-specific instructions for this team     │
 ├─────────────────────────────────────────────────┤
-│ 3. Skill references (embedded in markdown)     │
+│ 3. Team Relationships                           │
+│    Reporting lines + coordination commands       │
+├─────────────────────────────────────────────────┤
+│ 4. Team Inbox                                   │
+│    Pending messages from other team members      │
+├─────────────────────────────────────────────────┤
+│ 5. Skill references (embedded in markdown)      │
 │    - Links to skills via prompt-manager skill read │
 ├─────────────────────────────────────────────────┤
-│ 4. HEARTBEAT.md (from team members/)           │
-│    The specific task to execute now            │
+│ 6. HEARTBEAT.md (from team members/)            │
+│    The specific task to execute now             │
 └─────────────────────────────────────────────────┘
 ```
 
 This layered approach means:
 - **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
 - **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
-- **Skills**: "Tools I have available" (linked in markdown)
+- **Team Relationships**: "Who I report to + who I direct" (coordination rules)
+- **Team Inbox**: "Pending messages to act on or reply to"
+- **Skills**: "Tools I have available" (linked in markdown within agent/team files)
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
+
+The Team Relationships section also includes CLI commands for sending and managing inbox messages between team members.
 
 ## Cron Schedule Format
 

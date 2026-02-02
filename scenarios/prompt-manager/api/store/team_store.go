@@ -188,6 +188,47 @@ func (s *FileTeamStore) SetOrgChart(ctx context.Context, teamID string, org *Org
 	return SaveJSON(orgPath, org)
 }
 
+// GetInbox returns the inbox for a team member.
+func (s *FileTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*TeamInbox, error) {
+	// Verify team exists
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return nil, err
+	}
+
+	inboxPath := filepath.Join(s.memberDir(teamID, agentID), "inbox.json")
+	if !FileExists(inboxPath) {
+		return &TeamInbox{
+			BaseEntity: BaseEntity{
+				Kind:          KindTeamInbox,
+				SchemaVersion: CurrentSchemaVersion,
+			},
+			TeamID:   teamID,
+			AgentID:  agentID,
+			Messages: []TeamMessage{},
+		}, nil
+	}
+
+	return LoadJSON[TeamInbox](inboxPath)
+}
+
+// SetInbox stores the inbox for a team member.
+func (s *FileTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *TeamInbox) error {
+	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
+		return err
+	}
+
+	inbox.Kind = KindTeamInbox
+	inbox.SchemaVersion = CurrentSchemaVersion
+	inbox.TeamID = teamID
+	inbox.AgentID = agentID
+	if inbox.Messages == nil {
+		inbox.Messages = []TeamMessage{}
+	}
+
+	inboxPath := filepath.Join(s.memberDir(teamID, agentID), "inbox.json")
+	return SaveJSON(inboxPath, inbox)
+}
+
 // loadTeam loads a team from the teams directory
 func (s *FileTeamStore) loadTeam(teamID string) (*Team, error) {
 	teamPath := filepath.Join(s.teamsDir(), teamID, "team.json")

@@ -119,8 +119,12 @@ export function TeamEditorPanel({
     }
 
     const loadEdges = async () => {
-      const orgEdges = await orgChartService.getEdges(team.id)
-      setEdges(orgEdges)
+      try {
+        const orgEdges = await orgChartService.getEdges(team.id)
+        setEdges(orgEdges)
+      } catch (error) {
+        console.error('[TeamEditorPanel] Failed to load org chart edges:', error)
+      }
     }
     void loadEdges()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-run when team ID changes
@@ -131,6 +135,24 @@ export function TeamEditorPanel({
     if (!team || !selectedMemberId) return null
     return team.members.find((m) => m.agentId === selectedMemberId) ?? null
   }, [team, selectedMemberId])
+
+  const selectedMemberManagerId = useMemo(() => {
+    if (!selectedMemberId) return null
+    return edges.find((edge) => edge.reportId === selectedMemberId)?.managerId ?? null
+  }, [edges, selectedMemberId])
+
+  const selectedMemberManager = useMemo(() => {
+    if (!team || !selectedMemberManagerId) return null
+    return team.members.find((member) => member.agentId === selectedMemberManagerId) ?? null
+  }, [team, selectedMemberManagerId])
+
+  const selectedMemberReports = useMemo(() => {
+    if (!team || !selectedMemberId) return []
+    const reportIds = new Set(
+      edges.filter((edge) => edge.managerId === selectedMemberId).map((edge) => edge.reportId)
+    )
+    return team.members.filter((member) => reportIds.has(member.agentId))
+  }, [team, edges, selectedMemberId])
 
   // Get agent appearance for selected member
   const selectedMemberAppearance = useMemo(() => {
@@ -170,14 +192,22 @@ export function TeamEditorPanel({
   const handleEdgeUpdate = useCallback(
     async (agentId: string, managerId: string | null) => {
       if (!team) return
+      if (managerId === agentId) return
+
+      const previousEdges = edges
 
       // Update local state first
       updateEdge(agentId, managerId)
 
-      // Then sync to API
-      await orgChartService.updateEdge(team.id, agentId, { managerId })
+      try {
+        // Then sync to API
+        await orgChartService.updateEdge(team.id, agentId, { managerId })
+      } catch (error) {
+        console.error('[TeamEditorPanel] Failed to update org chart edge:', error)
+        setEdges(previousEdges)
+      }
     },
-    [team, updateEdge]
+    [team, edges, updateEdge, setEdges]
   )
 
   // Handle add member
@@ -376,6 +406,8 @@ export function TeamEditorPanel({
                           team={team}
                           member={selectedMember}
                           appearance={selectedMemberAppearance}
+                          manager={selectedMemberManager}
+                          directReports={selectedMemberReports}
                           onUpdateMember={onUpdateMember}
                           onRemoveMember={handleRemoveMember}
                           onClose={() => setSelectedMemberId(null)}

@@ -353,10 +353,8 @@ func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the FileTeamStore to access SetRoles (not in interface)
-	fileTeamStore, ok := h.teamStore.(*store.FileTeamStore)
-	if !ok {
-		http.Error(w, "SetRoles not supported", http.StatusInternalServerError)
+	if _, err := h.teamStore.Get(ctx, id); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
 		return
 	}
 
@@ -372,7 +370,7 @@ func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if err := fileTeamStore.SetRoles(ctx, id, roles); err != nil {
+	if err := h.teamStore.SetRoles(ctx, id, roles); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -409,10 +407,7 @@ func (h *Handlers) GetOrgChart(w http.ResponseWriter, r *http.Request) {
 		Edges:  make([]OrgEdgeDTO, 0, len(org.Edges)),
 	}
 	for _, edge := range org.Edges {
-		resp.Edges = append(resp.Edges, OrgEdgeDTO{
-			ManagerAgentID: edge.ManagerAgentID,
-			ReportAgentID:  edge.ReportAgentID,
-		})
+		resp.Edges = append(resp.Edges, orgEdgeToDTO(edge))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -431,10 +426,17 @@ func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the FileTeamStore to access SetOrgChart (not in interface)
-	fileTeamStore, ok := h.teamStore.(*store.FileTeamStore)
-	if !ok {
-		http.Error(w, "SetOrgChart not supported", http.StatusInternalServerError)
+	if _, err := h.teamStore.Get(ctx, id); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+
+	if err := h.validateOrgChartEdges(ctx, id, req.Edges); err != nil {
+		if isValidationError(err) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -443,13 +445,10 @@ func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
 		Edges:  make([]store.OrgEdge, 0, len(req.Edges)),
 	}
 	for _, e := range req.Edges {
-		org.Edges = append(org.Edges, store.OrgEdge{
-			ManagerAgentID: e.ManagerAgentID,
-			ReportAgentID:  e.ReportAgentID,
-		})
+		org.Edges = append(org.Edges, orgEdgeFromDTO(e))
 	}
 
-	if err := fileTeamStore.SetOrgChart(ctx, id, org); err != nil {
+	if err := h.teamStore.SetOrgChart(ctx, id, org); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return

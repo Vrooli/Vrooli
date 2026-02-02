@@ -182,7 +182,17 @@ func (e *Executor) buildPrompt(ctx context.Context, teamID, agentID string) (str
 		parts = append(parts, "# Team Responsibilities (RESPONSIBILITIES.md)\n\n"+responsibilities)
 	}
 
-	// 3. HEARTBEAT.md (the specific task)
+	// 3. Team relationships + coordination commands
+	if section := e.buildRelationshipSection(ctx, teamID, agentID); section != "" {
+		parts = append(parts, section)
+	}
+
+	// 4. Team inbox messages
+	if section := e.buildInboxSection(ctx, teamID, agentID); section != "" {
+		parts = append(parts, section)
+	}
+
+	// 5. HEARTBEAT.md (the specific task)
 	heartbeatInstructions, err := e.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
 	if err == nil && heartbeatInstructions != "" {
 		parts = append(parts, "# Heartbeat Task (HEARTBEAT.md)\n\n"+heartbeatInstructions)
@@ -196,6 +206,101 @@ func (e *Executor) buildPrompt(ctx context.Context, teamID, agentID string) (str
 	}
 
 	return strings.Join(parts, "\n\n---\n\n"), nil
+}
+
+func (e *Executor) buildRelationshipSection(ctx context.Context, teamID, agentID string) string {
+	org, err := e.teamStore.GetOrgChart(ctx, teamID)
+	if err != nil {
+		return ""
+	}
+
+	teamName := teamID
+	if team, err := e.teamStore.Get(ctx, teamID); err == nil && team.DisplayName != "" {
+		teamName = team.DisplayName
+	}
+
+	var managerID string
+	var reportIDs []string
+	for _, edge := range org.Edges {
+		if edge.ReportAgentID == agentID {
+			managerID = edge.ManagerAgentID
+		}
+		if edge.ManagerAgentID == agentID {
+			reportIDs = append(reportIDs, edge.ReportAgentID)
+		}
+	}
+
+	resolveAgentLabel := func(id string) string {
+		if id == "" {
+			return ""
+		}
+		agent, err := e.agentStore.Get(ctx, id)
+		if err != nil || agent.DisplayName == "" || agent.DisplayName == id {
+			return id
+		}
+		return fmt.Sprintf("%s (%s)", agent.DisplayName, id)
+	}
+
+	managerLabel := "None"
+	if managerID != "" {
+		managerLabel = resolveAgentLabel(managerID)
+	}
+
+	var reportsLabel string
+	if len(reportIDs) == 0 {
+		reportsLabel = "None"
+	} else {
+		labels := make([]string, 0, len(reportIDs))
+		for _, reportID := range reportIDs {
+			labels = append(labels, resolveAgentLabel(reportID))
+		}
+		sort.Strings(labels)
+		reportsLabel = strings.Join(labels, ", ")
+	}
+
+	section := "# Team Relationships\n\n"
+	section += fmt.Sprintf("Team: %s (%s)\n", teamName, teamID)
+	section += fmt.Sprintf("Your agent ID: %s\n\n", agentID)
+	section += fmt.Sprintf("- Reports to: %s\n", managerLabel)
+	section += fmt.Sprintf("- Direct reports: %s\n\n", reportsLabel)
+	section += "## Coordination Commands\n\n"
+	section += fmt.Sprintf("- Send a directive: `prompt-manager team message-send %s <recipient-agent-id> --from=%s --content \"...\"`\n", teamID, agentID)
+	section += fmt.Sprintf("- Check your inbox: `prompt-manager team message-list %s %s`\n", teamID, agentID)
+	section += fmt.Sprintf("- Delete a message: `prompt-manager team message-delete %s %s <message-id>`\n", teamID, agentID)
+	section += fmt.Sprintf("- Clear inbox: `prompt-manager team message-clear %s %s`\n", teamID, agentID)
+	return section
+}
+
+func (e *Executor) buildInboxSection(ctx context.Context, teamID, agentID string) string {
+	inbox, err := e.teamStore.GetInbox(ctx, teamID, agentID)
+	if err != nil || len(inbox.Messages) == 0 {
+		return ""
+	}
+
+	messages := make([]store.TeamMessage, len(inbox.Messages))
+	copy(messages, inbox.Messages)
+	sort.SliceStable(messages, func(i, j int) bool {
+		return messages[i].CreatedAt < messages[j].CreatedAt
+	})
+
+	resolveAgentLabel := func(id string) string {
+		agent, err := e.agentStore.Get(ctx, id)
+		if err != nil || agent.DisplayName == "" || agent.DisplayName == id {
+			return id
+		}
+		return fmt.Sprintf("%s (%s)", agent.DisplayName, id)
+	}
+
+	section := "# Team Inbox\n\n"
+	section += fmt.Sprintf("You have %d pending message(s):\n\n", len(messages))
+	for _, message := range messages {
+		fromLabel := resolveAgentLabel(message.FromAgentID)
+		section += fmt.Sprintf("## %s\n\n", message.ID)
+		section += fmt.Sprintf("From: %s\n", fromLabel)
+		section += fmt.Sprintf("Sent: %s\n\n", message.CreatedAt)
+		section += message.Content + "\n\n"
+	}
+	return section
 }
 
 // waitForCompletion polls for run completion and updates config

@@ -22,6 +22,7 @@ const (
 	KindTeam       = "team"
 	KindTeamRoles  = "team-roles"
 	KindOrgChart   = "org-chart"
+	KindTeamInbox  = "team-inbox"
 	KindTeamMember = "team-member"
 )
 

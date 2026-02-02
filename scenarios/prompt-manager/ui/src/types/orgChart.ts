@@ -21,6 +21,10 @@ export interface OrgChartNodeData extends Record<string, unknown> {
   teamRoles: TeamRole[]
   /** Whether this node is currently selected */
   isSelected: boolean
+  /** Manager display name if assigned */
+  managerName?: string
+  /** Number of direct reports */
+  directReportCount: number
   /** Callback when node is clicked */
   onSelect: (agentId: string) => void
 }

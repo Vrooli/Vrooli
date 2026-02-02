@@ -257,6 +257,12 @@ func main() {
 	v1.HandleFunc("/teams/{id}/roles", teamHandlers.SetRoles).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/org", teamHandlers.GetOrgChart).Methods("GET")
 	v1.HandleFunc("/teams/{id}/org", teamHandlers.SetOrgChart).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.UpdateOrgChartEdge).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.DeleteOrgChartEdge).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ListTeamMessages).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.SendTeamMessage).Methods("POST")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ClearTeamMessages).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages/{messageId}", teamHandlers.DeleteTeamMessage).Methods("DELETE")
 
 	// Heartbeat system
 	// Get Vrooli root for working directory

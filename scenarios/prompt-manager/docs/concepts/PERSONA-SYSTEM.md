@@ -47,8 +47,10 @@ You are a senior debugging specialist who works systematically.
 When a heartbeat executes, prompt-manager prepends all agent `.md` files to the task prompt:
 1. Agent markdown files (SOUL.md, AGENTS.md, TOOLS.md, ...)
 2. RESPONSIBILITIES.md (team role)
-3. Effective Skills
-4. HEARTBEAT.md (task)
+3. Team Relationships (reporting lines + coordination commands)
+4. Team Inbox (pending messages)
+5. Effective Skills (embedded in markdown)
+6. HEARTBEAT.md (task)
 
 See [HEARTBEATS.md](HEARTBEATS.md) for the full prompt assembly flow.
 

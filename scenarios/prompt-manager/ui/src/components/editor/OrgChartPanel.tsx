@@ -8,7 +8,7 @@
  * - Toolbar with Add Member, auto-layout, zoom controls
  */
 
-import { useCallback, useMemo, useEffect } from 'react'
+import { useCallback, useMemo, useEffect, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -19,11 +19,12 @@ import {
   type Connection,
   type Edge,
   type OnConnect,
+  type EdgeMouseHandler,
   Panel,
   MarkerType,
 } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
-import { UserPlus, LayoutGrid, Users } from 'lucide-react'
+import { UserPlus, LayoutGrid, Users, Info, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OrgChartNode } from './OrgChartNode'
 import type { TeamDetails } from '@/types/team'
@@ -118,6 +119,8 @@ export function OrgChartPanel({
   onAddMember,
   className,
 }: OrgChartPanelProps) {
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+
   // Build agent appearance map
   const agentAppearances = useMemo(() => {
     const map = new Map<string, AgentAppearance>()
@@ -129,21 +132,64 @@ export function OrgChartPanel({
     return map
   }, [allAgents])
 
+  const memberNames = useMemo(() => {
+    const map = new Map<string, string>()
+    team.members.forEach((member) => {
+      map.set(member.agentId, member.displayName)
+    })
+    return map
+  }, [team.members])
+
+  const managerByReport = useMemo(() => {
+    const map = new Map<string, string>()
+    orgEdges.forEach((edge) => {
+      map.set(edge.reportId, edge.managerId)
+    })
+    return map
+  }, [orgEdges])
+
+  const reportsByManager = useMemo(() => {
+    const map = new Map<string, string[]>()
+    orgEdges.forEach((edge) => {
+      const existing = map.get(edge.managerId)
+      if (existing) {
+        existing.push(edge.reportId)
+      } else {
+        map.set(edge.managerId, [edge.reportId])
+      }
+    })
+    return map
+  }, [orgEdges])
+
   // Convert team members to React Flow nodes
   const initialNodes = useMemo((): OrgChartNodeType[] => {
-    return team.members.map((member): OrgChartNodeType => ({
-      id: member.agentId,
-      type: 'orgMember',
-      position: { x: 0, y: 0 }, // Will be set by dagre
-      data: {
-        member,
-        appearance: agentAppearances.get(member.agentId),
-        teamRoles: team.roles,
-        isSelected: member.agentId === selectedMemberId,
-        onSelect: onSelectMember,
-      },
-    }))
-  }, [team.members, team.roles, agentAppearances, selectedMemberId, onSelectMember])
+    return team.members.map((member): OrgChartNodeType => {
+      const managerId = managerByReport.get(member.agentId)
+      return {
+        id: member.agentId,
+        type: 'orgMember',
+        position: { x: 0, y: 0 }, // Will be set by dagre
+        data: {
+          member,
+          appearance: agentAppearances.get(member.agentId),
+          teamRoles: team.roles,
+          isSelected: member.agentId === selectedMemberId,
+          managerName: managerId ? (memberNames.get(managerId) ?? managerId) : undefined,
+          directReportCount: reportsByManager.get(member.agentId)?.length ?? 0,
+          onSelect: onSelectMember,
+        },
+      }
+    })
+  }, [
+    team.members,
+    team.roles,
+    agentAppearances,
+    selectedMemberId,
+    managerByReport,
+    memberNames,
+    reportsByManager,
+    onSelectMember,
+  ])
 
   // Convert org edges to React Flow edges
   const initialEdges = useMemo((): OrgChartFlowEdge[] => {
@@ -194,10 +240,17 @@ export function OrgChartPanel({
     setEdges(layoutedEdges)
   }, [layoutedEdges, setEdges])
 
+  useEffect(() => {
+    if (selectedEdgeId && !layoutedEdges.some((edge) => edge.id === selectedEdgeId)) {
+      setSelectedEdgeId(null)
+    }
+  }, [layoutedEdges, selectedEdgeId])
+
   // Handle new edge connection (drag to connect)
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
+        if (connection.source === connection.target) return
         // source = manager, target = report
         onEdgeUpdate(connection.target, connection.source)
       }
@@ -211,6 +264,7 @@ export function OrgChartPanel({
       deletedEdges.forEach((edge) => {
         onEdgeUpdate(edge.target, null)
       })
+      setSelectedEdgeId(null)
     },
     [onEdgeUpdate]
   )
@@ -225,7 +279,33 @@ export function OrgChartPanel({
   // Handle background click to deselect
   const onPaneClick = useCallback(() => {
     onSelectMember(null)
+    setSelectedEdgeId(null)
   }, [onSelectMember])
+
+  const onEdgeClick = useCallback<EdgeMouseHandler<OrgChartFlowEdge>>((event, edge) => {
+    event.stopPropagation()
+    setSelectedEdgeId(edge.id)
+  }, [])
+
+  const onNodeClick = useCallback(() => {
+    setSelectedEdgeId(null)
+  }, [])
+
+  const selectedEdge = selectedEdgeId
+    ? flowEdges.find((edge) => edge.id === selectedEdgeId) ?? null
+    : null
+  const selectedManagerName = selectedEdge
+    ? memberNames.get(selectedEdge.source) ?? selectedEdge.source
+    : null
+  const selectedReportName = selectedEdge
+    ? memberNames.get(selectedEdge.target) ?? selectedEdge.target
+    : null
+
+  const handleRemoveSelectedEdge = useCallback(() => {
+    if (!selectedEdge) return
+    onEdgeUpdate(selectedEdge.target, null)
+    setSelectedEdgeId(null)
+  }, [onEdgeUpdate, selectedEdge])
 
   // Empty state
   if (team.members.length === 0) {
@@ -264,6 +344,8 @@ export function OrgChartPanel({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onEdgesDelete={onEdgeDelete}
+        onEdgeClick={onEdgeClick}
+        onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
@@ -286,6 +368,41 @@ export function OrgChartPanel({
           }}
           maskColor="rgba(0, 0, 0, 0.5)"
         />
+
+        {/* Legend + Selected Edge Panel */}
+        <Panel position="top-left" className="flex flex-col gap-2 max-w-xs">
+          <div className="flex items-start gap-2 p-2 rounded-lg bg-card border border-border">
+            <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-xs font-medium">Reporting Lines</p>
+              <p className="text-xs text-muted-foreground">
+                Drag from a manager to a report to set relationships. Each member can report to one
+                manager. Click an edge to remove it.
+              </p>
+            </div>
+          </div>
+          {selectedEdge && (
+            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-card border border-border">
+              <div className="min-w-0">
+                <p className="text-xs font-medium">Selected Relationship</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {selectedManagerName} → {selectedReportName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemoveSelectedEdge}
+                className={cn(
+                  'p-1.5 rounded-md border border-border',
+                  'text-destructive hover:bg-destructive/10 transition-colors'
+                )}
+                title="Remove relationship"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </Panel>
 
         {/* Toolbar Panel */}
         <Panel position="top-right" className="flex gap-2">

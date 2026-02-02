@@ -36,7 +36,7 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 |-----------|---------|---------|
 | `SkillStore` | `store` | CRUD operations for skills |
 | `AgentStore` | `store` | CRUD operations for agents |
-| `TeamStore` | `store` | CRUD operations for teams |
+| `TeamStore` | `store` | CRUD operations for teams, roles, org charts, and inboxes |
 | `RelationStore` | `store` | Team-member relations |
 | `IndexStore` | `store` | Generated index management |
 | `MetricsService` | `skills` | Usage tracking |
@@ -89,6 +89,20 @@ skillHandlers.SetAIIndexer(aiSearchService)  // Called after aisearch.Service is
 ```
 
 **Testing Impact:** Mock tests must call `SetAIIndexer()` or the async indexing code path won't be exercised.
+
+## Org Chart + Inbox Seams
+
+**Org chart validation** lives in `api/teams/org_chart.go` and is exercised through the Teams handlers. The
+validation relies on the `RelationStore` seam (team membership) so tests can control membership without touching
+the filesystem.
+
+**Team inbox persistence** uses the `TeamStore` seam (`GetInbox`/`SetInbox`) with a dedicated file per member:
+
+```
+store/teams/{team-id}/members/{agent-id}/inbox.json
+```
+
+Mock stores can supply inbox content directly for unit tests without requiring file I/O.
 
 ## UI Seams
 

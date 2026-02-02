@@ -66,11 +66,23 @@ type TeamStore interface {
 	// GetRoles returns role definitions for a team
 	GetRoles(ctx context.Context, teamID string) (*TeamRoles, error)
 
+	// SetRoles sets role definitions for a team
+	SetRoles(ctx context.Context, teamID string, roles *TeamRoles) error
+
 	// GetOrgChart returns the org chart for a team
 	GetOrgChart(ctx context.Context, teamID string) (*OrgChart, error)
 
+	// SetOrgChart sets the org chart for a team
+	SetOrgChart(ctx context.Context, teamID string, org *OrgChart) error
+
 	// GetMembers returns all members of a team
 	GetMembers(ctx context.Context, teamID string) ([]TeamMemberRelation, error)
+
+	// GetInbox returns the inbox for a team member
+	GetInbox(ctx context.Context, teamID, agentID string) (*TeamInbox, error)
+
+	// SetInbox stores the inbox for a team member
+	SetInbox(ctx context.Context, teamID, agentID string, inbox *TeamInbox) error
 }
 
 // RelationStore defines operations for relationship storage

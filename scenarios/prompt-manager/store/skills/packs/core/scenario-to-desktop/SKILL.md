@@ -256,9 +256,21 @@ The smoke test protocol emits markers at each stage. Check `last_lifecycle_state
 |------------|---------|--------------|
 | (empty) | App crashed before smoke test code ran | Electron initialization failure, missing deps |
 | `init` | App started smoke test but crashed during initialization | Bundle validation failed, config error |
+| `bundle_resolving` | App is locating bundle directory | Bundle not in extraResources, wrong path |
+| `runtime_starting` | App is spawning bundled runtime | Binary permissions, missing runtime deps |
+| `runtime_healthz` | Waiting for runtime /healthz endpoint | Runtime crashed or still starting |
+| `runtime_readyz` | Waiting for runtime /readyz endpoint | Runtime started but services not ready |
+| `runtime_ports` | Querying runtime /ports endpoint | Services ready but port config wrong |
 | `ready` | App initialized but didn't report result | Server connectivity issue, app logic error |
 | `result` | App reported result but didn't exit cleanly | Cleanup error (usually non-fatal) |
 | `exit` | App completed full lifecycle | Should be success - check for race condition |
+
+**Deployment mode timeouts:**
+
+Different deployment modes have different default timeouts:
+- **bundled**: 60 seconds (runtime needs time to start)
+- **external-server**: 30 seconds (server already running)
+- **cloud-api**: 30 seconds (connects to remote API)
 
 **Structured error markers:**
 
@@ -271,18 +283,39 @@ When the app detects specific failure conditions, it emits `SMOKE_TEST_ERROR kin
 | `validation` | Bundle validation failed | Review errors, rebuild bundle |
 | `runtime` | App crashed during execution | Check logs, verify platform compatibility |
 
+**App-reported errors:**
+
+When smoke tests fail, the CLI surfaces the actual error message from the app's telemetry. Look for `App reported error:` in the output:
+
+```
+Pipeline failed: abc123
+Stage 'smoketest' failed: smoke test did not pass
+
+App reported error: Bundled payload is missing
+  (deployment_mode=bundled, event=smoke_test_failed)
+
+Lifecycle state: bundle_resolving
+  App is locating the bundle directory. Check if bundle is packaged correctly in extraResources.
+```
+
+This tells you exactly what the app failed on, rather than just knowing it failed. The `deployment_mode` context helps narrow down the issue.
+
 **Example troubleshooting flow:**
 ```bash
 # 1. Check smoke test status for error details
 scenario-to-desktop pipeline status <id> --verbose
 
-# 2. Look at last_lifecycle_state in error context
-# - If empty: focus on Electron/platform deps
-# - If "init": check bundle validation
-# - If "ready": check server connectivity
+# 2. Look for "App reported error" - this is the actual failure reason
+# Example: "Bundled payload is missing" → bundle not in extraResources
 
-# 3. If error includes app_error_kind, use that for targeted fix
+# 3. Check last_lifecycle_state for where it failed:
+# - Empty: Electron/platform deps issue
+# - init: Bundle validation failed
+# - bundle_resolving/runtime_*: Bundled mode startup issue
+# - ready: Server connectivity issue
+
+# 4. Use error kind for targeted fixes:
 # - config: regenerate with `pipeline run`
 # - network: verify server with `curl -I <url>`
-# - validation: review bundle validation errors
+# - validation: review and fix bundle issues
 ```

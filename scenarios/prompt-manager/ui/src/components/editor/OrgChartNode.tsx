@@ -35,7 +35,7 @@ const statusStyles: Record<string, string> = {
  * OrgChartNode component.
  */
 function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
-  const { member, appearance, teamRoles, isSelected, onSelect } = data
+  const { member, appearance, teamRoles, isSelected, onSelect, managerName, directReportCount } = data
 
   // Get roles that this member has
   const memberRoles: TeamRole[] = teamRoles.filter((role) => member.roles.includes(role.id))
@@ -100,6 +100,22 @@ function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
                 <span className="px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground rounded-full">
                   +{memberRoles.length - 3}
                 </span>
+              )}
+            </div>
+          )}
+
+          {/* Relationship labels */}
+          {(directReportCount > 0 || managerName) && (
+            <div className="mt-1.5 space-y-0.5">
+              {directReportCount > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Directs {directReportCount} member{directReportCount !== 1 ? 's' : ''}
+                </p>
+              )}
+              {managerName && (
+                <p className="text-[10px] text-muted-foreground">
+                  Reports to {managerName}
+                </p>
               )}
             </div>
           )}

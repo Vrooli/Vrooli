@@ -19,6 +19,7 @@ type MockTeamStore struct {
 	teams    map[string]*store.Team
 	roles    map[string]*store.TeamRoles
 	orgChart map[string]*store.OrgChart
+	inboxes  map[string]map[string]*store.TeamInbox
 	err      error // Inject errors for testing failure paths
 }
 
@@ -27,6 +28,7 @@ func NewMockTeamStore() *MockTeamStore {
 		teams:    make(map[string]*store.Team),
 		roles:    make(map[string]*store.TeamRoles),
 		orgChart: make(map[string]*store.OrgChart),
+		inboxes:  make(map[string]map[string]*store.TeamInbox),
 	}
 }
 
@@ -92,6 +94,7 @@ func (m *MockTeamStore) Delete(ctx context.Context, id string) error {
 	delete(m.teams, id)
 	delete(m.roles, id)
 	delete(m.orgChart, id)
+	delete(m.inboxes, id)
 	return nil
 }
 
@@ -140,6 +143,39 @@ func (m *MockTeamStore) SetOrgChart(ctx context.Context, teamID string, org *sto
 		return fmt.Errorf("team not found: %s", teamID)
 	}
 	m.orgChart[teamID] = org
+	return nil
+}
+
+func (m *MockTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if _, ok := m.teams[teamID]; !ok {
+		return nil, fmt.Errorf("team not found: %s", teamID)
+	}
+	if teamInbox, ok := m.inboxes[teamID]; ok {
+		if inbox, ok := teamInbox[agentID]; ok {
+			return inbox, nil
+		}
+	}
+	return &store.TeamInbox{
+		TeamID:   teamID,
+		AgentID:  agentID,
+		Messages: []store.TeamMessage{},
+	}, nil
+}
+
+func (m *MockTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *store.TeamInbox) error {
+	if m.err != nil {
+		return m.err
+	}
+	if _, ok := m.teams[teamID]; !ok {
+		return fmt.Errorf("team not found: %s", teamID)
+	}
+	if m.inboxes[teamID] == nil {
+		m.inboxes[teamID] = make(map[string]*store.TeamInbox)
+	}
+	m.inboxes[teamID][agentID] = inbox
 	return nil
 }
 
@@ -909,10 +945,8 @@ func TestGetRolesNotFound(t *testing.T) {
 }
 
 // ============== SetRoles Tests ==============
-// Note: SetRoles requires a type assertion to FileTeamStore, which mock doesn't satisfy.
-// These tests verify the handler returns appropriate error for non-FileTeamStore.
 
-func TestSetRolesNotSupported(t *testing.T) {
+func TestSetRoles(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
 	teamStore.teams["team-1"] = &store.Team{
@@ -933,15 +967,20 @@ func TestSetRolesNotSupported(t *testing.T) {
 
 	handlers.SetRoles(w, req)
 
-	// Should return 500 because mock store doesn't implement FileTeamStore type
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status 500 (SetRoles not supported with mock), got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response []RoleDTO
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if len(response) != 1 || response[0].ID != "dev" {
+		t.Errorf("Expected updated roles to include dev, got %+v", response)
 	}
 }
 
 // ============== OrgChart Tests ==============
-// Note: GetOrgChart and SetOrgChart handlers will be added in Phase 2.
-// These tests are placeholder for the OrgChart API tests.
 
 func TestGetOrgChart(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
@@ -996,13 +1035,15 @@ func TestGetOrgChartNotFound(t *testing.T) {
 	}
 }
 
-func TestSetOrgChartNotSupported(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
+func TestSetOrgChart(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
 
 	teamStore.teams["team-1"] = &store.Team{
 		ID:          "team-1",
 		DisplayName: "Test Team",
 	}
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-1"})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
 
 	body := SetOrgChartRequest{
 		Edges: []OrgEdgeDTO{
@@ -1017,8 +1058,184 @@ func TestSetOrgChartNotSupported(t *testing.T) {
 
 	handlers.SetOrgChart(w, req)
 
-	// Should return 500 because mock store doesn't implement FileTeamStore type
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status 500 (SetOrgChart not supported with mock), got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSetOrgChartRejectsNonMember(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Test Team",
+	}
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
+
+	body := SetOrgChartRequest{
+		Edges: []OrgEdgeDTO{
+			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
+		},
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1/org", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.SetOrgChart(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateOrgChartEdge(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Test Team",
+	}
+	teamStore.orgChart["team-1"] = &store.OrgChart{
+		TeamID: "team-1",
+		Edges: []store.OrgEdge{
+			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
+		},
+	}
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-1"})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-2"})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
+
+	body := UpdateOrgEdgeRequest{ManagerAgentID: "manager-2"}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1/org/edges/dev-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "reportId": "dev-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateOrgChartEdge(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	org, _ := teamStore.GetOrgChart(context.Background(), "team-1")
+	if len(org.Edges) != 1 || org.Edges[0].ManagerAgentID != "manager-2" {
+		t.Errorf("Expected updated edge to manager-2, got %+v", org.Edges)
+	}
+}
+
+func TestDeleteOrgChartEdge(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Test Team",
+	}
+	teamStore.orgChart["team-1"] = &store.OrgChart{
+		TeamID: "team-1",
+		Edges: []store.OrgEdge{
+			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
+		},
+	}
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-1"})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
+
+	req := httptest.NewRequest("DELETE", "/teams/team-1/org/edges/dev-1", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "reportId": "dev-1"})
+	w := httptest.NewRecorder()
+
+	handlers.DeleteOrgChartEdge(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("Expected status 204, got %d: %s", w.Code, w.Body.String())
+	}
+
+	org, _ := teamStore.GetOrgChart(context.Background(), "team-1")
+	if len(org.Edges) != 0 {
+		t.Errorf("Expected org chart to be empty, got %+v", org.Edges)
+	}
+}
+
+// ============== Team Message Tests ==============
+
+func TestSendTeamMessage(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Test Team",
+	}
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "sender-1"})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "recipient-1"})
+
+	body := SendTeamMessageRequest{
+		FromAgentID: "sender-1",
+		Content:     "Status update",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/teams/team-1/members/recipient-1/messages", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "recipient-1"})
+	w := httptest.NewRecorder()
+
+	handlers.SendTeamMessage(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var message TeamMessageDTO
+	if err := json.NewDecoder(w.Body).Decode(&message); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if message.FromAgentID != "sender-1" || message.ToAgentID != "recipient-1" {
+		t.Errorf("Unexpected message payload: %+v", message)
+	}
+}
+
+func TestListTeamMessages(t *testing.T) {
+	handlers, teamStore, _, relationStore := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Test Team",
+	}
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "sender-1"})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "recipient-1"})
+
+	inbox := &store.TeamInbox{
+		TeamID:  "team-1",
+		AgentID: "recipient-1",
+		Messages: []store.TeamMessage{
+			{
+				ID:          "msg-1",
+				TeamID:      "team-1",
+				FromAgentID: "sender-1",
+				ToAgentID:   "recipient-1",
+				Content:     "Hello",
+				CreatedAt:   "2026-02-01T00:00:00Z",
+			},
+		},
+	}
+	_ = teamStore.SetInbox(context.Background(), "team-1", "recipient-1", inbox)
+
+	req := httptest.NewRequest("GET", "/teams/team-1/members/recipient-1/messages", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "recipient-1"})
+	w := httptest.NewRecorder()
+
+	handlers.ListTeamMessages(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response TeamInboxResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if len(response.Messages) != 1 || response.Messages[0].ID != "msg-1" {
+		t.Errorf("Expected 1 message, got %+v", response.Messages)
 	}
 }

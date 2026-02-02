@@ -77,10 +77,10 @@ type AgentRuntime struct {
 // Team represents a team entity from team.json
 type Team struct {
 	BaseEntity
-	ID          string        `json:"id"`
-	DisplayName string        `json:"displayName"`
-	Mission     string        `json:"mission,omitempty"`
-	Shared      *TeamShared   `json:"shared,omitempty"`
+	ID          string      `json:"id"`
+	DisplayName string      `json:"displayName"`
+	Mission     string      `json:"mission,omitempty"`
+	Shared      *TeamShared `json:"shared,omitempty"`
 	Timestamps
 }
 
@@ -115,6 +115,24 @@ type OrgChart struct {
 type OrgEdge struct {
 	ManagerAgentID string `json:"managerAgentId"`
 	ReportAgentID  string `json:"reportAgentId"`
+}
+
+// TeamInbox stores inbound messages for a team member.
+type TeamInbox struct {
+	BaseEntity
+	TeamID   string        `json:"teamId"`
+	AgentID  string        `json:"agentId"`
+	Messages []TeamMessage `json:"messages"`
+}
+
+// TeamMessage represents a message sent between team members.
+type TeamMessage struct {
+	ID          string `json:"id"`
+	TeamID      string `json:"teamId"`
+	FromAgentID string `json:"fromAgentId"`
+	ToAgentID   string `json:"toAgentId"`
+	Content     string `json:"content"`
+	CreatedAt   string `json:"createdAt"`
 }
 
 // TeamMemberRelation represents a team-member relationship

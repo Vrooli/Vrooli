@@ -116,6 +116,7 @@ Teams are organizational structures that coordinate multiple agents around a mis
 - **Mission** statement defining the team's purpose
 - **Roles** with descriptions (e.g., "lead", "developer", "reviewer")
 - **Org chart** defining manager/report relationships
+  - Each report can have a single manager (manager → report edges)
 - **Shared documents** path for team-wide resources
 
 **Storage:**

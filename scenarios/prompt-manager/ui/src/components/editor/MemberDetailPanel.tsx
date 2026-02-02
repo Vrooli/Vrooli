@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Trash2, Clock, Play, Pause, Save, FileText, AlertCircle } from 'lucide-react'
+import { X, Trash2, Clock, Play, Pause, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
@@ -26,6 +26,8 @@ interface MemberDetailPanelProps {
   team: TeamDetails
   member: TeamMember
   appearance?: AgentAppearance
+  manager?: TeamMember | null
+  directReports?: TeamMember[]
   onUpdateMember: (agentId: string, request: UpdateMemberRequest) => Promise<TeamMember>
   onRemoveMember: (agentId: string) => Promise<void>
   onClose: () => void
@@ -50,6 +52,8 @@ export function MemberDetailPanel({
   team,
   member,
   appearance,
+  manager = null,
+  directReports = [],
   onUpdateMember,
   onRemoveMember,
   onClose,
@@ -68,6 +72,10 @@ export function MemberDetailPanel({
   // Dirty tracking
   const [isResponsibilitiesDirty, setIsResponsibilitiesDirty] = useState(false)
   const [isInstructionsDirty, setIsInstructionsDirty] = useState(false)
+
+  const reportNames = directReports.map((report) => report.displayName)
+  const displayReports = reportNames.slice(0, 3)
+  const remainingReports = reportNames.length - displayReports.length
 
   // Load member documents and heartbeat config
   useEffect(() => {
@@ -244,6 +252,32 @@ export function MemberDetailPanel({
               <option value="inactive">Inactive</option>
               <option value="pending">Pending</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Relationships */}
+      <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-muted/40">
+        <h4 className="text-xs font-semibold text-muted-foreground mb-2">Relationships</h4>
+        <div className="grid gap-2">
+          <div className="flex items-center gap-2 text-sm">
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Reports to:</span>
+            <span className="text-foreground">
+              {manager ? manager.displayName : 'None'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Direct reports:</span>
+            {directReports.length === 0 ? (
+              <span className="text-foreground">None</span>
+            ) : (
+              <span className="text-foreground">
+                {displayReports.join(', ')}
+                {remainingReports > 0 ? ` +${remainingReports} more` : ''}
+              </span>
+            )}
           </div>
         </div>
       </div>

@@ -4,12 +4,12 @@
   "teamId": "example",
   "edges": [
     {
-      "managerAgentId": "agent-2",
-      "reportAgentId": "agent-5"
+      "managerAgentId": "agent-1",
+      "reportAgentId": "agent-2"
     },
     {
       "managerAgentId": "agent-1",
-      "reportAgentId": "agent-2"
+      "reportAgentId": "agent-5"
     }
   ]
 }

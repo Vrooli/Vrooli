@@ -356,6 +356,7 @@ prompt-manager team show engineering
 # Mission: Build and maintain core platform
 # Roles: lead, developer, reviewer
 # Members: 3 agents
+# Org Chart: alice -> bob
 ```
 
 ### prompt-manager team create
@@ -417,6 +418,62 @@ Manage team roles.
 
 ```bash
 prompt-manager team roles <team-id> [--json]
+```
+
+### prompt-manager team org-list
+
+List org chart relationships.
+
+```bash
+prompt-manager team org-list <team-id> [--json]
+```
+
+### prompt-manager team org-set
+
+Set a reporting relationship (single-manager model).
+
+```bash
+prompt-manager team org-set <team-id> <report-id> <manager-id> [--json]
+```
+
+### prompt-manager team org-remove
+
+Remove a reporting relationship.
+
+```bash
+prompt-manager team org-remove <team-id> <report-id>
+```
+
+### prompt-manager team message-list
+
+List inbox messages for a team member.
+
+```bash
+prompt-manager team message-list <team-id> <agent-id> [--json]
+```
+
+### prompt-manager team message-send
+
+Send a message to a team member.
+
+```bash
+prompt-manager team message-send <team-id> <agent-id> --from=<agent-id> --content="..." [--file=path] [--json]
+```
+
+### prompt-manager team message-delete
+
+Delete a single inbox message.
+
+```bash
+prompt-manager team message-delete <team-id> <agent-id> <message-id>
+```
+
+### prompt-manager team message-clear
+
+Clear all inbox messages for a team member.
+
+```bash
+prompt-manager team message-clear <team-id> <agent-id>
 ```
 
 Shows available roles for a team.
