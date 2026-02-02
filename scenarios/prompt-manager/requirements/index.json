@@ -23,9 +23,7 @@
     "15-version-history-for-skills/module.json",
     "16-agent-crud-operations/module.json",
     "17-team-crud-operations/module.json",
-    "18-agent-skill-relations/module.json",
     "19-team-member-relations/module.json",
-    "20-effective-skills-computation/module.json",
     "21-3d-world-visualization/module.json",
     "22-pack-based-skill-organization/module.json"
   ],
@@ -133,22 +131,10 @@
       "title": "Team CRUD with roles, members, org chart"
     },
     {
-      "id": "MOD-P1-018",
-      "path": "18-agent-skill-relations",
-      "priority": "P1",
-      "title": "Agent-skill assignment management"
-    },
-    {
       "id": "MOD-P1-019",
       "path": "19-team-member-relations",
       "priority": "P1",
       "title": "Team membership with roles"
-    },
-    {
-      "id": "MOD-P1-020",
-      "path": "20-effective-skills-computation",
-      "priority": "P1",
-      "title": "Effective skills computation with team context"
     },
     {
       "id": "MOD-P2-021",

@@ -33,7 +33,6 @@ export interface NormalizedAgentFormState {
   description: string
   status: 'active' | 'inactive' | 'suspended'
   appearance: AgentAppearance
-  skills: string[]
   tags: string[]
 }
 
@@ -46,7 +45,6 @@ export function normalizeAgent(agent: Agent): NormalizedAgentFormState {
     description: agent.description ?? '',
     status: agent.status,
     appearance: agent.appearance ?? { ...DEFAULT_AGENT_COLORS },
-    skills: [...agent.skills],
     tags: [...agent.tags],
   }
 }
@@ -60,7 +58,6 @@ export function createEmptyAgentState(): NormalizedAgentFormState {
     description: '',
     status: 'active',
     appearance: { ...DEFAULT_AGENT_COLORS },
-    skills: [],
     tags: [],
   }
 }
@@ -82,7 +79,6 @@ export function isAgentFormStateEqual(
   if (a.appearance.accent !== b.appearance.accent) return false
 
   // Compare arrays
-  if (!arraysEqual(a.skills, b.skills)) return false
   if (!arraysEqual(a.tags, b.tags)) return false
 
   return true

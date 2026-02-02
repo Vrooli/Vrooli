@@ -23,7 +23,6 @@ type Member struct {
 	BodyColor   string   `json:"bodyColor"`
 	HeadColor   string   `json:"headColor"`
 	AccentColor string   `json:"accentColor"`
-	Skills      []string `json:"skills"`
 	CreatedAt   string   `json:"createdAt"`
 	UpdatedAt   string   `json:"updatedAt"`
 }
@@ -35,7 +34,6 @@ type CreateMemberRequest struct {
 	BodyColor   string   `json:"bodyColor"`
 	HeadColor   string   `json:"headColor"`
 	AccentColor string   `json:"accentColor"`
-	Skills      []string `json:"skills,omitempty"`
 }
 
 // UpdateMemberRequest is the request body for updating a member
@@ -44,7 +42,6 @@ type UpdateMemberRequest struct {
 	BodyColor   *string  `json:"bodyColor,omitempty"`
 	HeadColor   *string  `json:"headColor,omitempty"`
 	AccentColor *string  `json:"accentColor,omitempty"`
-	Skills      []string `json:"skills,omitempty"`
 }
 
 // Commands returns the member command groups using noun-verb pattern.
@@ -131,8 +128,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 
 	fmt.Println("Members:")
 	for _, m := range members {
-		skillCount := len(m.Skills)
-		fmt.Printf("  %s - %d skills [%s]\n", m.Name, skillCount, m.ID)
+		fmt.Printf("  %s [%s]\n", m.Name, m.ID)
 	}
 	return nil
 }
@@ -165,10 +161,6 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	fmt.Printf("Body Color: %s\n", member.BodyColor)
 	fmt.Printf("Head Color: %s\n", member.HeadColor)
 	fmt.Printf("Accent Color: %s\n", member.AccentColor)
-	fmt.Printf("Skills: %d assigned\n", len(member.Skills))
-	if len(member.Skills) > 0 {
-		fmt.Printf("  %s\n", strings.Join(member.Skills, ", "))
-	}
 	fmt.Printf("Created: %s\n", member.CreatedAt)
 	fmt.Printf("Updated: %s\n", member.UpdatedAt)
 	return nil
@@ -179,31 +171,21 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	bodyColor := fs.String("body-color", "#3B82F6", "Body color (hex)")
 	headColor := fs.String("head-color", "#F59E0B", "Head color (hex)")
 	accentColor := fs.String("accent-color", "#10B981", "Accent color (hex)")
-	skills := fs.String("skills", "", "Comma-separated skill IDs")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: member create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2]")
+		return fmt.Errorf("usage: member create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB]")
 	}
 	name := fs.Arg(0)
-
-	var skillList []string
-	if *skills != "" {
-		skillList = strings.Split(*skills, ",")
-		for i, s := range skillList {
-			skillList[i] = strings.TrimSpace(s)
-		}
-	}
 
 	req := CreateMemberRequest{
 		Name:        name,
 		BodyColor:   *bodyColor,
 		HeadColor:   *headColor,
 		AccentColor: *accentColor,
-		Skills:      skillList,
 	}
 
 	var member Member
@@ -227,14 +209,13 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	bodyColor := fs.String("body-color", "", "Body color (hex)")
 	headColor := fs.String("head-color", "", "Head color (hex)")
 	accentColor := fs.String("accent-color", "", "Accent color (hex)")
-	skills := fs.String("skills", "", "Comma-separated skill IDs (replaces existing)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: member update <id> [--name=...] [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2]")
+		return fmt.Errorf("usage: member update <id> [--name=...] [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB]")
 	}
 	memberID := fs.Arg(0)
 
@@ -250,13 +231,6 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 	if *accentColor != "" {
 		req.AccentColor = accentColor
-	}
-	if *skills != "" {
-		skillList := strings.Split(*skills, ",")
-		for i, s := range skillList {
-			skillList[i] = strings.TrimSpace(s)
-		}
-		req.Skills = skillList
 	}
 
 	var member Member

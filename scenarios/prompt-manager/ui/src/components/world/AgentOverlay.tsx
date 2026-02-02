@@ -3,12 +3,12 @@
  *
  * Features:
  * - Close button to exit zoom
- * - Action buttons: Customize, Set Skills, Delete, Duplicate
+ * - Action buttons: Customize, Delete, Duplicate
  * - Draggable positioning
  */
 
 import { useState, useRef, useCallback } from 'react'
-import { X, Palette, Zap, Copy, Trash2, GripVertical } from 'lucide-react'
+import { X, Palette, Copy, Trash2, GripVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 
@@ -17,7 +17,6 @@ interface AgentOverlayProps {
   isVisible: boolean
   onClose: () => void
   onCustomize: () => void
-  onSetSkills: () => void
   onDuplicate: () => void
   onDelete: () => void
 }
@@ -30,7 +29,6 @@ export function AgentOverlay({
   isVisible,
   onClose,
   onCustomize,
-  onSetSkills,
   onDuplicate,
   onDelete,
 }: AgentOverlayProps) {
@@ -153,12 +151,6 @@ export function AgentOverlay({
           onClick={onCustomize}
         />
         <OverlayButton
-          icon={<Zap className="h-4 w-4" />}
-          label="Set Skills"
-          description={`${agent.skills.length} skills assigned`}
-          onClick={onSetSkills}
-        />
-        <OverlayButton
           icon={<Copy className="h-4 w-4" />}
           label="Duplicate"
           description="Create a copy"
@@ -173,27 +165,6 @@ export function AgentOverlay({
         />
       </div>
 
-      {/* Skills preview */}
-      {agent.skills.length > 0 && (
-        <div className="px-3 pb-3">
-          <p className="text-xs text-muted-foreground mb-1">Assigned Skills:</p>
-          <div className="flex flex-wrap gap-1">
-            {agent.skills.slice(0, 4).map((skillId) => (
-              <span
-                key={skillId}
-                className="px-1.5 py-0.5 text-[10px] bg-primary/20 text-primary rounded"
-              >
-                {skillId.substring(0, 8)}...
-              </span>
-            ))}
-            {agent.skills.length > 4 && (
-              <span className="px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                +{agent.skills.length - 4} more
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

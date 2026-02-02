@@ -7,14 +7,14 @@
  * Features:
  * - Header with close button, color badge, editable name, and status toggle
  * - Expandable description
- * - Tabbed interface: Files, Skills, Info
+ * - Tabbed interface: Files, Info
  * - Dirty tracking with save/discard buttons
  * - Undo/redo support
  */
 
 import { useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Folder, Zap, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2 } from 'lucide-react'
+import { X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
@@ -23,18 +23,15 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 
-import { SkillsTab, InfoTab, FilesTab } from './tabs'
+import { InfoTab, FilesTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
-import type { Skill } from '@/types'
 
 interface AgentEditorPanelProps {
   /** Current agent being edited (for read-only metadata) */
   agent: Agent | null
   /** Form state from the editor store */
   formState: NormalizedAgentFormState
-  /** All available skills for the skill picker */
-  allSkills?: Skill[]
   /** Update a single field */
   updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
   /** Update multiple fields at once */
@@ -82,7 +79,6 @@ const STATUS_OPTIONS = ['active', 'inactive', 'suspended'] as const
 export function AgentEditorPanel({
   agent,
   formState,
-  allSkills = [],
   updateField,
   updateFields,
   validation,
@@ -233,7 +229,6 @@ export function AgentEditorPanel({
         {/* Tab List */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
           <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
-          <TabTrigger value="skills" icon={<Zap className="h-4 w-4" />} label="Skills" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </Tabs.List>
 
@@ -256,14 +251,6 @@ export function AgentEditorPanel({
               onDiscard={onDiscard}
               isSaving={isSaving}
               isValid={validation.valid}
-            />
-          </Tabs.Content>
-
-          <Tabs.Content value="skills" className="h-full p-4">
-            <SkillsTab
-              formState={formState}
-              allSkills={allSkills}
-              updateField={updateField}
             />
           </Tabs.Content>
 

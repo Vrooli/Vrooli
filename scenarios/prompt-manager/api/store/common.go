@@ -3,9 +3,9 @@
 //
 // Key concepts:
 // - Skills: Reusable guidance documents stored as skill.json + SKILL.md per skill
-// - Agents: Persistent identities that can be assigned skills and team memberships
-// - Teams: Shared intent, org structure, and policy defaults
-// - Relations: Normalized agent-skill and team-member relationships
+// - Agents: Persistent identities with team memberships and markdown-based skill references
+// - Teams: Shared intent and org structure
+// - Relations: Normalized team-member relationships
 // - Indexes: Generated from entity files, never hand-edited
 //
 // DOC: docs/concepts/STORAGE.md
@@ -22,7 +22,6 @@ const (
 	KindTeam       = "team"
 	KindTeamRoles  = "team-roles"
 	KindOrgChart   = "org-chart"
-	KindAgentSkill = "agent-skill"
 	KindTeamMember = "team-member"
 )
 

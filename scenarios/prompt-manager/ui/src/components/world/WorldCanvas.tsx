@@ -1,9 +1,7 @@
 /**
  * WorldCanvas - Main entry point for the 3D agent visualization.
  *
- * Skill selection is now handled via the sidebar in skill selection mode.
- * When "Set Skills" is clicked on an agent, it triggers the sidebar to
- * enter skill selection mode with checkboxes.
+ * Skill selection is handled via the sidebar for skill operations.
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 // DOC: docs/SEAMS.md#3d-world-testing-seams
@@ -16,7 +14,6 @@ import type { DisplayFormat } from '@/types/world'
 import type { FurnitureInstance } from '@/types/furniture'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
-import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
 import { useFurnitureStore } from '@/stores/furnitureStore'
 import { useAgentData } from '@/hooks/useAgentData'
@@ -106,9 +103,6 @@ export function WorldCanvas({
   // Selection state from centralized Zustand store
   const selectedSkillIds = useSelectionStore((state) => state.selectedSkillIds)
   const setSelectedSkillIds = useSelectionStore((state) => state.setSelectedSkillIds)
-
-  // Skill selection store
-  const enterSkillSelectionMode = useSkillSelectionStore((state) => state.enterSkillSelectionMode)
 
   // Camera store for agent zoom
   const cameraMode = useCameraStore((state) => state.mode)
@@ -273,28 +267,11 @@ export function WorldCanvas({
     setIsCustomizeModalOpen(true)
   }, [])
 
-  const handleSetSkills = useCallback(() => {
-    // Enter skill selection mode via the store
-    // This will trigger the sidebar to show checkboxes
-    if (focusedAgent) {
-      enterSkillSelectionMode(
-        focusedAgent,
-        focusedAgent.skills,
-        async (skillIds) => {
-          await updateAgent(focusedAgent.id, { skills: skillIds })
-        }
-      )
-      // Close the agent overlay so the user can see the sidebar
-      exitZoom()
-    }
-  }, [focusedAgent, enterSkillSelectionMode, updateAgent, exitZoom])
-
   const handleDuplicate = useCallback(async () => {
     if (!focusedAgent) return
     await createAgent({
       displayName: `${focusedAgent.displayName} (Copy)`,
       appearance: focusedAgent.appearance ? { ...focusedAgent.appearance } : undefined,
-      skills: [...focusedAgent.skills],
     })
     exitZoom()
   }, [focusedAgent, createAgent, exitZoom])
@@ -435,7 +412,6 @@ export function WorldCanvas({
         isVisible={cameraMode === 'zoomed-agent'}
         onClose={handleCloseOverlay}
         onCustomize={handleCustomize}
-        onSetSkills={handleSetSkills}
         onDuplicate={() => void handleDuplicate()}
         onDelete={handleDeleteClick}
       />

@@ -15,7 +15,6 @@ type Response struct {
 	DefaultProfileRef string           `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
 	Tags              []string         `json:"tags,omitempty"`
-	Skills            []string         `json:"skills,omitempty"`
 	AgentDir          string           `json:"agentDir,omitempty"`
 	CreatedAt         string           `json:"createdAt"`
 	UpdatedAt         string           `json:"updatedAt"`
@@ -65,7 +64,6 @@ type CreateRequest struct {
 	DefaultProfileRef string           `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
 	Tags              []string         `json:"tags,omitempty"`
-	Skills            []string         `json:"skills,omitempty"`
 }
 
 // UpdateRequest is the request body for updating an agent.
@@ -79,19 +77,6 @@ type UpdateRequest struct {
 	DefaultProfileRef *string          `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
 	Tags              []string         `json:"tags,omitempty"`
-	Skills            []string         `json:"skills,omitempty"`
-}
-
-// SkillAssignmentRequest is the request body for assigning skills to an agent.
-type SkillAssignmentRequest struct {
-	SkillIDs []string `json:"skillIds"`
-}
-
-// EffectiveSkillsResponse is the response for the effective skills endpoint.
-type EffectiveSkillsResponse struct {
-	AgentID string   `json:"agentId"`
-	TeamID  *string  `json:"teamId,omitempty"`
-	Skills  []string `json:"skills"`
 }
 
 // SoulRequest is the request body for setting SOUL.md content.

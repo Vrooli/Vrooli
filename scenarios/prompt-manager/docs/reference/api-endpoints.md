@@ -552,7 +552,7 @@ Get test history for a skill.
 
 [CODE: api/agents/handlers.go]
 
-Agents represent team entities visualized in the 3D world. They can be assigned skills and organized into teams.
+Agents represent team entities visualized in the 3D world. They are organized into teams and reference skills in markdown.
 
 ### GET /api/v1/agents
 
@@ -570,7 +570,6 @@ List all agents.
       "head": "#F59E0B",
       "accent": "#10B981"
     },
-    "skills": ["debugging", "testing"],
     "createdAt": "2024-01-15T10:00:00Z",
     "updatedAt": "2024-01-20T14:30:00Z"
   }
@@ -599,18 +598,16 @@ Create a new agent.
     "body": "#3B82F6",
     "head": "#F59E0B",
     "accent": "#10B981"
-  },
-  "skills": ["debugging"]
+  }
 }
 ```
 
 **Required Fields:** `displayName`
 
-**Optional Fields:** `id` (auto-generated from displayName), `appearance`, `skills`
+**Optional Fields:** `id` (auto-generated from displayName), `appearance`
 
 **Notes:**
 - Colors must be valid hex format: `#RRGGBB`
-- Skills array creates agent-skill relations
 
 ### PUT /api/v1/agents/{id}
 
@@ -625,8 +622,7 @@ Update an existing agent.
     "body": "#FF5733",
     "head": "#3498DB",
     "accent": "#2ECC71"
-  },
-  "skills": ["debugging", "testing", "refactor"]
+  }
 }
 ```
 
@@ -639,35 +635,6 @@ Update an existing agent.
 Delete an agent.
 
 **Response:** `204 No Content`
-
-**Notes:**
-- Also deletes all agent-skill relations
-
-### GET /api/v1/agents/{id}/effective-skills
-
-Get computed effective skill set for an agent.
-
-**Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `teamId` | string | Optional team context for role-based grants |
-
-**Response:**
-```json
-{
-  "agentId": "agent-1",
-  "teamId": "engineering",
-  "skills": ["debugging", "testing", "code-review"]
-}
-```
-
-**Skill Resolution Order:**
-1. Agent explicit skill pins
-2. Agent-skill relations (enabled)
-3. Team role default grants (if teamId provided)
-4. Subtract disabled relations
-
----
 
 ## Teams
 
@@ -720,12 +687,7 @@ Get a single team with full details including roles and members.
       "roles": ["lead"],
       "status": "active"
     }
-  ],
-  "defaults": {
-    "skillGrantsByRole": {
-      "lead": ["code-review", "debugging"]
-    }
-  }
+  ]
 }
 ```
 
@@ -741,18 +703,13 @@ Create a new team.
 {
   "id": "engineering",
   "displayName": "Engineering Team",
-  "mission": "Build great software",
-  "defaults": {
-    "skillGrantsByRole": {
-      "developer": ["debugging", "testing"]
-    }
-  }
+  "mission": "Build great software"
 }
 ```
 
 **Required Fields:** `displayName`
 
-**Optional Fields:** `id` (auto-generated from displayName), `mission`, `defaults`
+**Optional Fields:** `id` (auto-generated from displayName), `mission`
 
 **Response:** Created team object with `201 Created`.
 
@@ -764,12 +721,7 @@ Update an existing team.
 ```json
 {
   "displayName": "Updated Name",
-  "mission": "New mission",
-  "defaults": {
-    "skillGrantsByRole": {
-      "developer": ["debugging"]
-    }
-  }
+  "mission": "New mission"
 }
 ```
 

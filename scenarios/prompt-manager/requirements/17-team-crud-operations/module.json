@@ -1,5 +1,5 @@
 {
-  "description": "Full CRUD operations for team entities including roles, members, org chart, and skill grants by role.",
+  "description": "Full CRUD operations for team entities including roles, members, and org chart.",
   "module_id": "MOD-P0-017",
   "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
   "priority": "P0",
@@ -32,21 +32,21 @@
     {
       "category": "api",
       "dependencies": ["REQ-P0-018"],
-      "description": "Team roles management with role definitions and skill grants by role",
+      "description": "Team roles management with role definitions",
       "id": "REQ-P0-019",
       "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
       "status": "complete",
       "title": "Team Roles Management",
       "validation": [
         {
-          "notes": "Roles can be defined and associated with skill grants",
+          "notes": "Roles can be defined and stored on the team",
           "phase": "unit",
           "ref": "",
           "status": "complete",
           "type": "test"
         },
         {
-          "notes": "skillGrantsByRole mapping correctly configured",
+          "notes": "Roles are persisted and returned with team data",
           "phase": "integration",
           "ref": "",
           "status": "complete",

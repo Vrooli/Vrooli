@@ -6,7 +6,7 @@
 /** Types of head accessories */
 export type HeadAccessoryType = 'none' | 'hat' | 'glasses' | 'crown' | 'headphones' | 'halo'
 
-/** Types of back accessories (auto-computed from skill count) */
+/** Types of back accessories */
 export type BackAccessoryType = 'none' | 'paper' | 'folder' | 'briefcase' | 'backpack'
 
 /** Types of held items */
@@ -34,7 +34,6 @@ export interface HeadAccessory {
 
 /**
  * Back accessory configuration.
- * Usually auto-computed from skill count.
  */
 export interface BackAccessory {
   type: BackAccessoryType

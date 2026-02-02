@@ -75,8 +75,6 @@ store/
 │       ├── roles.json
 │       └── org-chart.json
 ├── relations/
-│   ├── agent-skill/
-│   │   └── agent-1__skill-id.json
 │   └── team-member/
 │       └── team-id__agent-1.json
 ├── indexes/                    # Generated (never hand-edit)
@@ -129,11 +127,6 @@ store/
   "id": "engineering",
   "displayName": "Engineering Team",
   "mission": "Build great software",
-  "defaults": {
-    "skillGrantsByRole": {
-      "developer": ["debugging", "testing"]
-    }
-  },
   "createdAt": "2024-01-15T10:00:00Z",
   "updatedAt": "2024-01-20T14:30:00Z"
 }

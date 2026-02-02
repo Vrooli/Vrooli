@@ -36,7 +36,6 @@ import {
   DisplayResponseSchema,
   AgentSchema,
   AgentArraySchema,
-  EffectiveSkillsResponseSchema,
   SoulResponseSchema,
   AgentFileListResponseSchema,
   AgentFileContentResponseSchema,
@@ -63,7 +62,6 @@ import {
   type Agent,
   type CreateAgentRequest,
   type UpdateAgentRequest,
-  type EffectiveSkillsResponse,
   type SoulResponse,
   type AgentFileListResponse,
   type AgentFileContentResponse,
@@ -538,15 +536,6 @@ class ApiClient {
     await this.requestVoid(`/agents/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
-  }
-
-  async getEffectiveSkills(agentId: string, teamId?: string): Promise<EffectiveSkillsResponse> {
-    const params = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
-    return this.request<EffectiveSkillsResponse>(
-      `/agents/${encodeURIComponent(agentId)}/effective-skills${params}`,
-      undefined,
-      EffectiveSkillsResponseSchema
-    )
   }
 
   // Team methods - aligned with api/teams/handlers.go

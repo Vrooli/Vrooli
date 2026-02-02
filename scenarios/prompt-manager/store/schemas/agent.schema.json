@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vrooli.com/schemas/prompt-manager/agent.schema.json",
   "title": "Agent",
-  "description": "A persistent identity that can be assigned skills and team memberships",
+  "description": "A persistent identity with team memberships and markdown-based skill references",
   "type": "object",
   "required": [
     "kind",
@@ -179,26 +179,6 @@
         "type": "string"
       },
       "description": "Searchable tags for categorization"
-    },
-    "skillPins": {
-      "type": "array",
-      "description": "Inline skill pins for simple cases",
-      "items": {
-        "type": "object",
-        "required": ["skillId"],
-        "properties": {
-          "skillId": {
-            "type": "string",
-            "description": "Reference to skill ID"
-          },
-          "version": {
-            "type": "string",
-            "default": "latest",
-            "description": "Pinned version or 'latest'"
-          }
-        },
-        "additionalProperties": false
-      }
     },
     "runtime": {
       "type": "object",

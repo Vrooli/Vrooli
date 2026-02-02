@@ -16,9 +16,8 @@ type Response struct {
 // TeamDetailsResponse includes full team details.
 type TeamDetailsResponse struct {
 	Response
-	Roles    []RoleDTO    `json:"roles"`
-	Members  []MemberDTO  `json:"members"`
-	Defaults *DefaultsDTO `json:"defaults,omitempty"`
+	Roles   []RoleDTO   `json:"roles"`
+	Members []MemberDTO `json:"members"`
 }
 
 // RoleDTO represents a role in a team.
@@ -36,24 +35,17 @@ type MemberDTO struct {
 	Status      string   `json:"status"`
 }
 
-// DefaultsDTO represents default team policies.
-type DefaultsDTO struct {
-	SkillGrantsByRole map[string][]string `json:"skillGrantsByRole,omitempty"`
-}
-
 // CreateRequest is the request body for creating a team.
 type CreateRequest struct {
-	ID          string       `json:"id,omitempty"`
-	DisplayName string       `json:"displayName"`
-	Mission     string       `json:"mission,omitempty"`
-	Defaults    *DefaultsDTO `json:"defaults,omitempty"`
+	ID          string `json:"id,omitempty"`
+	DisplayName string `json:"displayName"`
+	Mission     string `json:"mission,omitempty"`
 }
 
 // UpdateRequest is the request body for updating a team.
 type UpdateRequest struct {
-	DisplayName *string      `json:"displayName,omitempty"`
-	Mission     *string      `json:"mission,omitempty"`
-	Defaults    *DefaultsDTO `json:"defaults,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
+	Mission     *string `json:"mission,omitempty"`
 }
 
 // AddMemberRequest is the request body for adding a member to a team.

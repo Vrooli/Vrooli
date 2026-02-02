@@ -98,7 +98,7 @@ func main() {
 	templateHandlers := templates.NewHandlers(templates.NewStore(absStoreDir))
 
 	// Agent handlers (new storage-backed, replaces member handlers)
-	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), absStoreDir)
+	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), absStoreDir)
 
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()
@@ -231,7 +231,6 @@ func main() {
 	v1.HandleFunc("/agents/{id}", agentHandlers.Get).Methods("GET")
 	v1.HandleFunc("/agents/{id}", agentHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/agents/{id}", agentHandlers.Delete).Methods("DELETE")
-	v1.HandleFunc("/agents/{id}/effective-skills", agentHandlers.GetEffectiveSkills).Methods("GET")
 	v1.HandleFunc("/agents/{id}/soul", agentHandlers.GetSoul).Methods("GET")
 	v1.HandleFunc("/agents/{id}/soul", agentHandlers.SetSoul).Methods("PUT")
 	v1.HandleFunc("/agents/{id}/files", agentHandlers.ListFiles).Methods("GET")
@@ -272,7 +271,6 @@ func main() {
 	heartbeatExecutor := heartbeat.NewExecutor(
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.Agents().(*store.FileAgentStore),
-		fileStore.Skills(),
 		agentManagerClient,
 		vrooliRoot,
 	)

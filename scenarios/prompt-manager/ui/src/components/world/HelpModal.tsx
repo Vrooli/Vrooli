@@ -108,9 +108,9 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               What are Avatars?
             </h3>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Avatars are visual characters that can have prompts (skills) assigned to them.
-              Each avatar can hold a collection of related prompts, making it easy to organize
-              and manage your prompt library.
+              Avatars are visual characters that represent agents. Their behavior is described
+              in the agent's Markdown files (like SOUL.md), where you can reference skills
+              and instructions in plain text.
             </p>
           </section>
 
@@ -123,7 +123,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               <HelpItem
                 icon={<MousePointer className="h-4 w-4" />}
                 title="Click an Avatar"
-                description="Opens the avatar's menu where you can customize it, assign skills, duplicate, or delete it."
+                description="Opens the avatar's menu where you can customize it, duplicate, or delete it."
               />
               <HelpItem
                 icon={<Move3D className="h-4 w-4" />}

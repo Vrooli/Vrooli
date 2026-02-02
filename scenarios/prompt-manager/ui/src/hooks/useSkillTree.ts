@@ -6,7 +6,6 @@
  * - Selected item tracking
  * - Search/filter state
  * - Tag filtering
- * - Skill selection mode for agents
  * - Auto-expand to selected item
  */
 
@@ -21,8 +20,6 @@ import {
   getPathsToItem,
   getAllTags,
   getAllFolders,
-  countSelectedInSubtree,
-  getAllItemIdsInSubtree,
 } from '@/services/treeService'
 
 interface UseSkillTreeProps {
@@ -70,16 +67,6 @@ interface UseSkillTreeReturn {
   setSelectedFolders: (folders: string[]) => void
   availableFolders: string[]
 
-  // Skill selection mode
-  skillSelectionMode: boolean
-  skillSelectedIds: Set<string>
-  currentAgentId: string | null
-  enterSkillSelectionMode: (agentId: string, currentSkills: string[]) => void
-  exitSkillSelectionMode: () => void
-  toggleSkillSelection: (skillId: string) => void
-  toggleFolderSkillSelection: (node: TreeNode) => void
-  getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
-
   // Sidebar collapse
   isCollapsed: boolean
   toggleCollapse: () => void
@@ -120,11 +107,6 @@ export function useSkillTree({
 
   // Folder filter state (initialized from persistence)
   const [selectedFolders, setSelectedFolders] = useState<string[]>(initialSelectedFolders)
-
-  // Skill selection mode state
-  const [skillSelectionMode, setSkillSelectionMode] = useState(false)
-  const [skillSelectedIds, setSkillSelectedIds] = useState<Set<string>>(new Set())
-  const [currentAgentId, setCurrentMemberId] = useState<string | null>(null)
 
   // Sidebar collapse state (initialized from persistence)
   const [isCollapsed, setIsCollapsed] = useState(initialIsCollapsed)
@@ -217,70 +199,6 @@ export function useSkillTree({
     setIsCollapsed((prev) => !prev)
   }, [])
 
-  // Skill selection mode functions
-  const enterSkillSelectionMode = useCallback((agentId: string, currentSkills: string[]) => {
-    setSkillSelectionMode(true)
-    setCurrentMemberId(agentId)
-    setSkillSelectedIds(new Set(currentSkills))
-  }, [])
-
-  const exitSkillSelectionMode = useCallback(() => {
-    setSkillSelectionMode(false)
-    setCurrentMemberId(null)
-    setSkillSelectedIds(new Set())
-  }, [])
-
-  const toggleSkillSelection = useCallback((skillId: string) => {
-    setSkillSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(skillId)) {
-        next.delete(skillId)
-      } else {
-        next.add(skillId)
-      }
-      return next
-    })
-  }, [])
-
-  const toggleFolderSkillSelection = useCallback((node: TreeNode) => {
-    const allIds = getAllItemIdsInSubtree(node)
-    setSkillSelectedIds((prev) => {
-      const next = new Set(prev)
-      // Check if all are selected
-      const allSelected = allIds.every((id) => prev.has(id))
-
-      if (allSelected) {
-        // Deselect all
-        for (const id of allIds) {
-          next.delete(id)
-        }
-      } else {
-        // Select all
-        for (const id of allIds) {
-          next.add(id)
-        }
-      }
-      return next
-    })
-  }, [])
-
-  const getSkillSelectionState = useCallback(
-    (node: TreeNode): 'none' | 'partial' | 'all' => {
-      if (!node.isCategory && node.itemId) {
-        return skillSelectedIds.has(node.itemId) ? 'all' : 'none'
-      }
-
-      const allIds = getAllItemIdsInSubtree(node)
-      if (allIds.length === 0) return 'none'
-
-      const selectedCount = countSelectedInSubtree(node, skillSelectedIds)
-      if (selectedCount === 0) return 'none'
-      if (selectedCount === allIds.length) return 'all'
-      return 'partial'
-    },
-    [skillSelectedIds]
-  )
-
   // Auto-expand to selected item when selection changes
   useEffect(() => {
     if (selectedItemId) {
@@ -341,16 +259,6 @@ export function useSkillTree({
     selectedFolders,
     setSelectedFolders,
     availableFolders,
-
-    // Skill selection mode
-    skillSelectionMode,
-    skillSelectedIds,
-    currentAgentId,
-    enterSkillSelectionMode,
-    exitSkillSelectionMode,
-    toggleSkillSelection,
-    toggleFolderSkillSelection,
-    getSkillSelectionState,
 
     // Sidebar collapse
     isCollapsed,

@@ -6,7 +6,7 @@ This document explains the migration from the legacy `skills/` storage to the ne
 
 The prompt-manager underwent a storage architecture change to support:
 - **Agents and Teams**: New entity types for organizing skills
-- **Normalized Relations**: Explicit agent-skill and team-member relationships
+- **Normalized Relations**: Explicit team-member relationships
 - **Per-Entity Files**: Each entity has its own directory with structured files
 - **Schema Validation**: JSON Schemas for runtime validation
 - **Pack System**: Skills organized into precedence-ordered packs
@@ -53,7 +53,6 @@ store/
 ├── agents/{agent-id}/
 │   └── agent.json      # Agent definition
 ├── relations/
-│   ├── agent-skill/    # Agent-skill bindings
 │   └── team-member/    # Team-agent bindings
 └── schemas/            # Validation schemas
 ```
@@ -75,7 +74,6 @@ store/
 | `/api/v1/agents/{id}` | GET | Get agent |
 | `/api/v1/agents/{id}` | PUT | Update agent |
 | `/api/v1/agents/{id}` | DELETE | Delete agent |
-| `/api/v1/agents/{id}/effective-skills` | GET | Get computed skill set |
 
 ### Backward Compatibility
 
@@ -87,7 +85,6 @@ The `/api/v1/members` endpoints remain functional by delegating to agent handler
 | `bodyColor` | `appearance.body` |
 | `headColor` | `appearance.head` |
 | `accentColor` | `appearance.accent` |
-| `skills` | From `relations/agent-skill/` |
 
 ## Code Changes
 
@@ -193,17 +190,6 @@ agentHandlers := agents.NewHandlers(
     "head": "#F97316",
     "accent": "#C7D2FE"
   }
-}
-```
-
-Skills are now stored as relations in `relations/agent-skill/`:
-```json
-{
-  "kind": "agent-skill",
-  "agentId": "agent-1",
-  "skillId": "debugging",
-  "pin": "latest",
-  "enabled": true
 }
 ```
 

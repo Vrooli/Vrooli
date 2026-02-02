@@ -11,7 +11,6 @@ import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
 import { ClothingTop, ClothingBottom, FootwearAccessory } from '../accessories/ClothingAccessory'
 import { AgentOverlayGroup } from '../overlays/AgentOverlayGroup'
 import { HoverGlow } from '../effects'
-import { useSkillBackpack } from '../accessories/hooks/useSkillBackpack'
 import { useAccessoryStore } from '@/stores/accessoryStore'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import type { AgentProps } from '@/types/world'
@@ -65,11 +64,6 @@ export function AgentWithAccessories({
 }: AgentWithAccessoriesProps) {
   // Defensive: ensure selectedNodes is always an array
   const selectedNodes = selectedNodesProp ?? []
-  // Defensive: ensure skills is an array before accessing length
-  const skillCount = Array.isArray(agent.skills) ? agent.skills.length : 0
-  // Compute backpack type from skill count
-  const backpackType = useSkillBackpack(skillCount)
-
   // Get stable references from accessory store
   const agentAccessoriesState = useAccessoryStore((state) => state.agentAccessories)
   const accessoryDefaults = useAccessoryStore((state) => state.defaults)
@@ -124,11 +118,13 @@ export function AgentWithAccessories({
       {/* Accessories */}
       {showAccessories && (
         <group position={position}>
-          {/* Auto-computed backpack based on skills */}
-          <BackpackAccessory
-            type={backpackType}
-            skillCount={skillCount}
-          />
+          {/* Back accessory from store */}
+          {storedAccessories.back.type !== 'none' && (
+            <BackpackAccessory
+              type={storedAccessories.back.type}
+              scale={storedAccessories.back.scale}
+            />
+          )}
 
           {/* Head accessory from store */}
           {storedAccessories.head.type !== 'none' && (

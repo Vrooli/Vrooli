@@ -6,8 +6,14 @@ This is an example team to demonstrate the team structure.
 
 Teams enable:
 - Shared context through team documents
-- Role-based skill grants
 - Organizational hierarchy
+
+## Skills
+
+List team-wide skills as markdown references.
+
+Example:
+- code-review: `prompt-manager skill read code-review`
 
 ## How to Use
 

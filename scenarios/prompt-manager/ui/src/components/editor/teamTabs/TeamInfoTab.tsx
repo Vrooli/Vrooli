@@ -100,25 +100,6 @@ export function TeamInfoTab({ team }: TeamInfoTabProps) {
         </section>
       )}
 
-      {/* Skill Grants Summary */}
-      {team.defaults?.skillGrantsByRole && Object.keys(team.defaults.skillGrantsByRole).length > 0 && (
-        <section>
-          <h3 className="text-sm font-medium text-foreground mb-3">Skill Grants Configuration</h3>
-          <dl className="space-y-2">
-            {Object.entries(team.defaults.skillGrantsByRole).map(([roleId, skills]) => {
-              const role = team.roles.find((r) => r.id === roleId)
-              return (
-                <div key={roleId} className="px-3 py-2 bg-muted rounded-lg">
-                  <dt className="text-sm font-medium">{role?.name ?? roleId}</dt>
-                  <dd className="text-xs text-muted-foreground mt-1">
-                    {skills.length} skill{skills.length !== 1 ? 's' : ''} granted
-                  </dd>
-                </div>
-              )
-            })}
-          </dl>
-        </section>
-      )}
     </div>
   )
 }

@@ -18,8 +18,7 @@ The prompt-manager is built on three interconnected domains:
 | Concept | Document | Description |
 |---------|----------|-------------|
 | **Swarm Model** | [SWARM-MODEL.md](concepts/SWARM-MODEL.md) | The 3-domain architecture - how Skills, Agents, and Teams work together |
-| **Relations** | [RELATIONS.md](concepts/RELATIONS.md) | Agent-skill and team-member junction records |
-| **Effective Skills** | [EFFECTIVE-SKILLS.md](concepts/EFFECTIVE-SKILLS.md) | Algorithm for computing an agent's available skills |
+| **Relations** | [RELATIONS.md](concepts/RELATIONS.md) | Team-member junction records |
 | **SOUL System** | [PERSONA-SYSTEM.md](concepts/PERSONA-SYSTEM.md) | Agent personality defined in SOUL.md (+ optional .md files) |
 | **Capability Matching** | [CAPABILITY-MATCHING.md](concepts/CAPABILITY-MATCHING.md) | Skill-to-agent matching based on capabilities |
 

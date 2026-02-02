@@ -23,7 +23,6 @@ type Agent struct {
 	Description string      `json:"description,omitempty"`
 	Status      string      `json:"status"`
 	Appearance  *Appearance `json:"appearance,omitempty"`
-	Skills      []string    `json:"skills,omitempty"`
 	Tags        []string    `json:"tags,omitempty"`
 	CreatedAt   string      `json:"createdAt"`
 	UpdatedAt   string      `json:"updatedAt"`
@@ -42,7 +41,6 @@ type CreateAgentRequest struct {
 	DisplayName string      `json:"displayName"`
 	Description string      `json:"description,omitempty"`
 	Appearance  *Appearance `json:"appearance,omitempty"`
-	Skills      []string    `json:"skills,omitempty"`
 	Tags        []string    `json:"tags,omitempty"`
 }
 
@@ -52,7 +50,6 @@ type UpdateAgentRequest struct {
 	Description *string     `json:"description,omitempty"`
 	Status      *string     `json:"status,omitempty"`
 	Appearance  *Appearance `json:"appearance,omitempty"`
-	Skills      []string    `json:"skills,omitempty"`
 	Tags        []string    `json:"tags,omitempty"`
 }
 
@@ -154,8 +151,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 
 	fmt.Println("Agents:")
 	for _, a := range agents {
-		skillCount := len(a.Skills)
-		fmt.Printf("  %s - %d skills [%s] (%s)\n", a.DisplayName, skillCount, a.ID, a.Status)
+		fmt.Printf("  %s [%s] (%s)\n", a.DisplayName, a.ID, a.Status)
 	}
 	return nil
 }
@@ -195,10 +191,6 @@ func cmdShow(ctx appctx.Context, args []string) error {
 		fmt.Printf("  Head: %s\n", agent.Appearance.Head)
 		fmt.Printf("  Accent: %s\n", agent.Appearance.Accent)
 	}
-	fmt.Printf("Skills: %d assigned\n", len(agent.Skills))
-	if len(agent.Skills) > 0 {
-		fmt.Printf("  %s\n", strings.Join(agent.Skills, ", "))
-	}
 	if len(agent.Tags) > 0 {
 		fmt.Printf("Tags: %s\n", strings.Join(agent.Tags, ", "))
 	}
@@ -213,7 +205,6 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	bodyColor := fs.String("body-color", "#3B82F6", "Body color (hex)")
 	headColor := fs.String("head-color", "#F59E0B", "Head color (hex)")
 	accentColor := fs.String("accent-color", "#10B981", "Accent color (hex)")
-	skills := fs.String("skills", "", "Comma-separated skill IDs")
 	tags := fs.String("tags", "", "Comma-separated tags")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := fs.Parse(args); err != nil {
@@ -221,17 +212,9 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: agent create <name> [--description=...] [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2] [--tags=tag1,tag2]")
+		return fmt.Errorf("usage: agent create <name> [--description=...] [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--tags=tag1,tag2]")
 	}
 	name := fs.Arg(0)
-
-	var skillList []string
-	if *skills != "" {
-		skillList = strings.Split(*skills, ",")
-		for i, s := range skillList {
-			skillList[i] = strings.TrimSpace(s)
-		}
-	}
 
 	var tagList []string
 	if *tags != "" {
@@ -249,7 +232,6 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 			Head:   *headColor,
 			Accent: *accentColor,
 		},
-		Skills: skillList,
 		Tags:   tagList,
 	}
 
@@ -276,7 +258,6 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	bodyColor := fs.String("body-color", "", "Body color (hex)")
 	headColor := fs.String("head-color", "", "Head color (hex)")
 	accentColor := fs.String("accent-color", "", "Accent color (hex)")
-	skills := fs.String("skills", "", "Comma-separated skill IDs (replaces existing)")
 	tags := fs.String("tags", "", "Comma-separated tags (replaces existing)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := fs.Parse(args); err != nil {
@@ -284,7 +265,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: agent update <id> [--name=...] [--description=...] [--status=...] [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2] [--tags=tag1,tag2]")
+		return fmt.Errorf("usage: agent update <id> [--name=...] [--description=...] [--status=...] [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--tags=tag1,tag2]")
 	}
 	agentID := fs.Arg(0)
 
@@ -318,13 +299,6 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 			app.Accent = *accentColor
 		}
 		req.Appearance = app
-	}
-	if *skills != "" {
-		skillList := strings.Split(*skills, ",")
-		for i, s := range skillList {
-			skillList[i] = strings.TrimSpace(s)
-		}
-		req.Skills = skillList
 	}
 	if *tags != "" {
 		tagList := strings.Split(*tags, ",")

@@ -18,18 +18,16 @@ import (
 // Handlers provides HTTP handlers for agent operations.
 type Handlers struct {
 	agentStore    store.AgentStore
-	relationStore store.RelationStore
 	indexStore    store.IndexStore
 	storeDir      string
 }
 
 // NewHandlers creates a new agents handler.
-func NewHandlers(agentStore store.AgentStore, relationStore store.RelationStore, indexStore store.IndexStore, storeDir string) *Handlers {
+func NewHandlers(agentStore store.AgentStore, indexStore store.IndexStore, storeDir string) *Handlers {
 	return &Handlers{
-		agentStore:    agentStore,
-		relationStore: relationStore,
-		indexStore:    indexStore,
-		storeDir:      storeDir,
+		agentStore: agentStore,
+		indexStore: indexStore,
+		storeDir:   storeDir,
 	}
 }
 
@@ -171,19 +169,6 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create skill relations if skills provided
-	if len(req.Skills) > 0 && h.relationStore != nil {
-		for _, skillID := range req.Skills {
-			rel := &store.AgentSkillRelation{
-				AgentID: id,
-				SkillID: skillID,
-				Pin:     "latest",
-				Enabled: true,
-			}
-			_ = h.relationStore.SetAgentSkill(ctx, rel)
-		}
-	}
-
 	// Regenerate index
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateAgents(ctx)
@@ -288,42 +273,6 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update skill relations if skills provided
-	if req.Skills != nil && h.relationStore != nil {
-		// Get existing relations
-		existingRels, _ := h.relationStore.ListAgentSkills(ctx, id)
-		existingMap := make(map[string]bool)
-		for _, rel := range existingRels {
-			existingMap[rel.SkillID] = true
-		}
-
-		// Create set of desired skills
-		desiredMap := make(map[string]bool)
-		for _, skillID := range req.Skills {
-			desiredMap[skillID] = true
-		}
-
-		// Add new relations
-		for _, skillID := range req.Skills {
-			if !existingMap[skillID] {
-				rel := &store.AgentSkillRelation{
-					AgentID: id,
-					SkillID: skillID,
-					Pin:     "latest",
-					Enabled: true,
-				}
-				_ = h.relationStore.SetAgentSkill(ctx, rel)
-			}
-		}
-
-		// Remove old relations
-		for _, rel := range existingRels {
-			if !desiredMap[rel.SkillID] {
-				_ = h.relationStore.DeleteAgentSkill(ctx, id, rel.SkillID)
-			}
-		}
-	}
-
 	// Regenerate index
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateAgents(ctx)
@@ -351,52 +300,12 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete all skill relations for this agent
-	if h.relationStore != nil {
-		rels, _ := h.relationStore.ListAgentSkills(ctx, id)
-		for _, rel := range rels {
-			_ = h.relationStore.DeleteAgentSkill(ctx, id, rel.SkillID)
-		}
-	}
-
 	// Regenerate index
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateAgents(ctx)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// GetEffectiveSkills handles GET /agents/{id}/effective-skills
-func (h *Handlers) GetEffectiveSkills(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// Get optional team context from query param
-	var teamID *string
-	if t := r.URL.Query().Get("teamId"); t != "" {
-		teamID = &t
-	}
-
-	skills, err := h.agentStore.GetEffectiveSkills(ctx, id, teamID)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	resp := EffectiveSkillsResponse{
-		AgentID: id,
-		TeamID:  teamID,
-		Skills:  skills,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // GetSoul handles GET /agents/{id}/soul - returns the SOUL.md content for an agent.
@@ -747,24 +656,6 @@ func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 			TimeoutSeconds:  a.Heartbeat.TimeoutSeconds,
 			MaxMissedBeats:  a.Heartbeat.MaxMissedBeats,
 		}
-	}
-
-	// Get skills from relations
-	if h.relationStore != nil {
-		rels, err := h.relationStore.ListAgentSkills(ctx, a.ID)
-		if err == nil {
-			skills := make([]string, 0, len(rels))
-			for _, rel := range rels {
-				if rel.Enabled {
-					skills = append(skills, rel.SkillID)
-				}
-			}
-			resp.Skills = skills
-		}
-	}
-
-	if resp.Skills == nil {
-		resp.Skills = []string{}
 	}
 
 	return resp

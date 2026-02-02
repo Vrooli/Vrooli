@@ -1,8 +1,7 @@
 /**
  * World component exports.
  *
- * Note: Skill selection is now handled via the sidebar in skill selection mode,
- * rather than a separate overlay component.
+ * Note: Skill operations are handled via the sidebar.
  */
 
 // Core components
@@ -44,10 +43,7 @@ export {
   ClothingTop,
   ClothingBottom,
   FootwearAccessory,
-  useSkillBackpack,
   useAccessoryLoader,
-  getBackpackDescription,
-  getBackpackCapacity,
 } from './accessories'
 
 // Interaction system

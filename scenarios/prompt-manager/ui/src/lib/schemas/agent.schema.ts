@@ -87,8 +87,6 @@ export type AgentHeartbeat = z.infer<typeof AgentHeartbeatSchema>
 /**
  * Agent schema matching the API's Agent type.
  *
- * NOTE: skills array uses nullableStringArray to handle Go's nil slice → null
- * serialization. This ensures arrays are never null/undefined in TypeScript.
  */
 export const AgentSchema = z.object({
   id: z.string(),
@@ -101,7 +99,6 @@ export const AgentSchema = z.object({
   defaultProfileRef: z.string().optional(),
   heartbeat: AgentHeartbeatSchema.nullable().optional(),
   tags: nullableStringArray,
-  skills: nullableStringArray,
   agentDir: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -127,7 +124,6 @@ export const CreateAgentRequestSchema = z.object({
   defaultProfileRef: z.string().optional(),
   heartbeat: AgentHeartbeatSchema.optional(),
   tags: z.array(z.string()).optional(),
-  skills: z.array(z.string()).optional(),
 })
 
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequestSchema>
@@ -146,7 +142,6 @@ export const UpdateAgentRequestSchema = z.object({
   defaultProfileRef: z.string().optional(),
   heartbeat: AgentHeartbeatSchema.optional(),
   tags: z.array(z.string()).optional(),
-  skills: z.array(z.string()).optional(),
 })
 
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequestSchema>
@@ -213,17 +208,6 @@ export const AgentFileRenameRequestSchema = z.object({
 })
 
 export type AgentFileRenameRequest = z.infer<typeof AgentFileRenameRequestSchema>
-
-/**
- * EffectiveSkillsResponse from /agents/{id}/effective-skills.
- */
-export const EffectiveSkillsResponseSchema = z.object({
-  agentId: z.string(),
-  teamId: z.string().nullable().optional(),
-  skills: nullableStringArray,
-})
-
-export type EffectiveSkillsResponse = z.infer<typeof EffectiveSkillsResponseSchema>
 
 /**
  * Default agent colors for new agents.

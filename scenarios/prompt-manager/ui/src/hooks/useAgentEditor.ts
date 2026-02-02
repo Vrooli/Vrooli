@@ -245,7 +245,6 @@ export function useAgentEditor({
       description: state.description,
       status: state.status,
       appearance: state.appearance,
-      skills: state.skills,
       tags: state.tags,
     }
   }, [])

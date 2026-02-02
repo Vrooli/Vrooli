@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 ## 🎯 Overview
-Prompt Manager is a **Skills + Agents + Teams** management system that stores, organizes, and orchestrates reusable skills for AI interactions. It provides a 3D world visualization for agent coordination, pack-based skill organization (core/local/drafts), and team structures with role-based skill grants. The system enables agent swarms to work autonomously by composing skills and coordinating through teams.
+Prompt Manager is a **Skills + Agents + Teams** management system that stores, organizes, and orchestrates reusable skills for AI interactions. It provides a 3D world visualization for agent coordination, pack-based skill organization (core/local/drafts), and team structures with roles and org charts. Agents and teams reference skills directly in their markdown files (SOUL.md, RESPONSIBILITIES.md, TEAM.md), keeping behavior human-readable and flexible while enabling agent swarms to coordinate through shared context.
 
 ## 🧭 Scope & Priorities
 
@@ -9,16 +9,16 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 - CRUD operations for skills via API
 - Agent CRUD operations with appearance, SOUL.md, capabilities, connectors
 - Team CRUD with roles, members, org chart
-- Effective skills computation with team context
 - Pack-based skill organization (core/local/drafts)
 - Full-text search across all skills
 - CLI for quick skill and agent operations
 - Web UI for visual skill management
 - File-based storage for entities (store/skills/, store/agents/, store/teams/)
+- Text-only skill references in agent/team markdown
 
 ### 🟠 P1 – Should have post-launch
 - 3D world visualization for agents using React Three Fiber
-- Agent-skill and team-member relations
+- Team-member relations
 - Semantic search using Qdrant vector database
 - Skill analysis and pattern extraction
 - Skill enhancement suggestions
@@ -47,7 +47,6 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 - API p95 latency under 100ms; AI search under 200ms.
 - UI initial load under 2 seconds on local resources.
 - 3D world renders at 60fps on mid-tier hardware.
-- Effective skills computation under 50ms.
 - Reliable reindexing and status visibility for AI search resources.
 
 ## 🤝 Dependencies & Launch Plan
@@ -58,12 +57,12 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 
 ### Core Capability
 **What permanent capability does this scenario add to Vrooli?**
-Provides a **Skills + Agents + Teams** management system that orchestrates reusable AI behaviors. Skills define capabilities (debugging, testing, etc.), Agents are autonomous entities with SOUL.md personality and capabilities that can be assigned skills, and Teams coordinate multiple agents with role-based skill grants. This creates the foundation for **agent swarms** - coordinated groups of agents that can work autonomously on complex tasks.
+Provides a **Skills + Agents + Teams** management system that orchestrates reusable AI behaviors. Skills define capabilities (debugging, testing, etc.), Agents are autonomous entities with SOUL.md personality and capabilities that reference skills in markdown, and Teams coordinate multiple agents through roles, shared docs, and team context. This creates the foundation for **agent swarms** - coordinated groups of agents that can work autonomously on complex tasks.
 
 ### Intelligence Amplification
 **How does this capability make future agents smarter?**
 - **Skill Composition**: Agents can combine multiple skills to solve complex problems
-- **Effective Skills Computation**: Agents inherit skills from their team roles, enabling organization-level capability management
+- **Text-First Skill Discovery**: Agents read available skills from markdown lists embedded in their SOUL.md or team docs
 - **SOUL.md Management**: Agents have a single personality source defined in SOUL.md
 - **Capability Matching**: Skills declare required capabilities; agents declare provided capabilities
 - **Semantic Search**: Find relevant skills across all packs using vector embeddings
@@ -76,7 +75,7 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
 3. **Content Generation Swarm** - Team handling research, writing, editing, and publishing
 4. **Code Review Swarm** - Agents with different specializations reviewing pull requests
 5. **Customer Support Swarm** - Tiered team handling support escalation
-6. **ecosystem-manager** - Can query for effective skills and agent configurations
+6. **ecosystem-manager** - Can query for agent configurations
 7. **agent-metareasoning-manager** - Can manage meta-level reasoning skills for agents
 
 ## 📊 Success Metrics
@@ -86,7 +85,6 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
   - [x] CRUD operations for skills via API
   - [x] Agent CRUD operations with appearance, SOUL.md, capabilities
   - [x] Team CRUD with roles, members, org chart
-  - [x] Effective skills computation with team context
   - [x] Pack-based skill organization (core/local/drafts)
   - [x] Full-text search across all skills
   - [x] CLI for quick skill and agent operations
@@ -95,7 +93,7 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
 
 - **Should Have (P1)**
   - [x] 3D world visualization for agents
-  - [x] Agent-skill and team-member relations
+  - [x] Team-member relations
   - [x] Semantic search using Qdrant vector database
   - [x] Skill analysis and pattern extraction
   - [x] Skill enhancement suggestions
@@ -129,7 +127,7 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
 ```yaml
 required:
   - resource_name: file-system
-    purpose: Primary data storage for skills, agents, teams, and relations
+    purpose: Primary data storage for skills, agents, teams, and team-member relations
     integration_pattern: File-based JSON store with per-entity directories
     access_method: Go file I/O through api/store/
 
@@ -222,7 +220,7 @@ primary_entities:
           intervalSeconds: int
           timeoutSeconds: int
           maxMissedBeats: int
-        skillPins: [{skillId, version}]  # inline skill pins
+        # Skill references live in SOUL.md and other agent files
         runtime:
           workspaceRef: string
         createdAt: timestamp
@@ -239,23 +237,11 @@ primary_entities:
         shared:
           path: string            # shared docs path
           mountHint: string       # readOnly or readWrite
-        defaults:
-          skillGrantsByRole: map[role][]skillId
         roles: [{id, name, description}]
         orgChart:
           edges: [{managerAgentId, reportAgentId}]
         createdAt: timestamp
         updatedAt: timestamp
-      }
-
-  - name: AgentSkillRelation
-    storage: file-system (store/relations/agent-skill/)
-    schema: |
-      {
-        agentId: string
-        skillId: string
-        pin: string               # version pin
-        enabled: bool
       }
 
   - name: TeamMemberRelation
@@ -301,7 +287,6 @@ endpoints:
     GET /api/v1/agents/{id}: Get agent details
     PUT /api/v1/agents/{id}: Update agent
     DELETE /api/v1/agents/{id}: Delete agent
-    GET /api/v1/agents/{id}/effective-skills: Get computed effective skill set
 
   teams:
     GET /api/v1/teams: List all teams
@@ -346,10 +331,6 @@ built_in_capabilities:
     purpose: Find similar skills using vector similarity
     implementation: Qdrant vector search with fallback to file-based FTS
 
-  - name: effective-skills
-    purpose: Compute agent's available skills from pins + team grants
-    implementation: Recursive resolution of agent pins, relations, and team role grants
-
   - name: 3d-world
     purpose: Visual agent coordination and monitoring
     implementation: React Three Fiber with Zustand state management
@@ -371,20 +352,18 @@ prompt-manager skill use debugging
 
 # CLI workflow - Agents
 prompt-manager agent list
-prompt-manager agent create "Alice" --skills=debugging,testing
+prompt-manager agent create "Alice"
 
 # API workflow
 curl -X POST http://localhost:${API_PORT}/api/v1/search/skills \
   -d '{"query": "error handling", "limit": 10}'
 
-curl http://localhost:${API_PORT}/api/v1/agents/alice/effective-skills?teamId=engineering
+curl http://localhost:${API_PORT}/api/v1/agents/alice
 ```
 
 ## 🔄 Integration Points
 
 ### Inbound
-- Other scenarios can query for effective skills
-- Agents can discover and request skills via effective-skills API
 - Import skills, agents, and teams from external sources
 
 ### Outbound
@@ -400,10 +379,8 @@ curl http://localhost:${API_PORT}/api/v1/agents/alice/effective-skills?teamId=en
 - Number of active agents and teams
 - Search query frequency and success rate
 - Skill reuse across different agents
-- Effective skills computation frequency
 
 ### Business Value
-- Reduced time to create effective skills
 - Improved consistency in AI interactions
 - Agent swarm coordination efficiency
 - Knowledge preservation across agent iterations
@@ -471,8 +448,8 @@ prompt-manager skill revert <id> <version>       # Revert to version
 # Agent Operations
 prompt-manager agent list
 prompt-manager agent show <id>
-prompt-manager agent create <name> [--skills=...] [--body-color=...]
-prompt-manager agent update <id> [--name=...] [--skills=...]
+prompt-manager agent create <name> [--body-color=...]
+prompt-manager agent update <id> [--name=...]
 prompt-manager agent delete <id> [--force]
 
 # Search
@@ -516,7 +493,6 @@ core_endpoints:
   agents: GET /api/v1/agents
   teams: GET /api/v1/teams
   search: GET /api/v1/search/skills
-  effective_skills: GET /api/v1/agents/{id}/effective-skills
 ```
 
 ### CLI Integration
@@ -566,7 +542,6 @@ schema_version: "1.0"
 4. **Researchers**: Experimenting with agent coordination and skill composition
 
 ### Business Value
-- **Time Savings**: 60% reduction in time to find effective skills
 - **Quality Improvement**: 40% better skill effectiveness through reuse
 - **Knowledge Preservation**: No lost knowledge between iterations
 - **Collaboration**: Shared skill library across team

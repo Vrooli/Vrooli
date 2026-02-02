@@ -39,7 +39,6 @@ import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersi
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
-import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCombineStore } from '@/stores/combineStore'
 import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
@@ -157,15 +156,6 @@ export function SkillManagerLayout() {
     searchQuery,
   })
 
-  // Skill selection store
-  const skillSelectionMode = useSkillSelectionStore((state) => state.isActive)
-  const skillSelectedIds = useSkillSelectionStore((state) => state.selectedSkillIds)
-  const skillSelectionTargetAgent = useSkillSelectionStore((state) => state.currentAgent)
-  const exitSkillSelectionMode = useSkillSelectionStore((state) => state.exitSkillSelectionMode)
-  const toggleSkillSelection = useSkillSelectionStore((state) => state.toggleSkillSelection)
-  const toggleMultipleSkills = useSkillSelectionStore((state) => state.toggleMultipleSkills)
-  const saveAndExitSkillSelection = useSkillSelectionStore((state) => state.saveAndExit)
-
   // Combine store
   const combineMode = useCombineStore((state) => state.isActive)
   const combineSelectedIds = useCombineStore((state) => state.selectedSkillIds)
@@ -180,38 +170,6 @@ export function SkillManagerLayout() {
 
   // Combine copy success state (local since it's UI feedback)
   const [combineCopySuccess, setCombineCopySuccess] = useState(false)
-
-  // Skill selection helper functions
-  const handleSkillCheckboxChange = useCallback(
-    (node: TreeNode) => {
-      if (node.isCategory) {
-        // Toggle all items in the folder
-        const allIds = getAllItemIdsInSubtree(node)
-        const allSelected = allIds.every((id) => skillSelectedIds.has(id))
-        toggleMultipleSkills(allIds, !allSelected)
-      } else if (node.itemId) {
-        toggleSkillSelection(node.itemId)
-      }
-    },
-    [skillSelectedIds, toggleSkillSelection, toggleMultipleSkills]
-  )
-
-  const getSkillSelectionState = useCallback(
-    (node: TreeNode): 'none' | 'partial' | 'all' => {
-      if (!node.isCategory && node.itemId) {
-        return skillSelectedIds.has(node.itemId) ? 'all' : 'none'
-      }
-
-      const allIds = getAllItemIdsInSubtree(node)
-      if (allIds.length === 0) return 'none'
-
-      const selectedCount = countSelectedInSubtree(node, skillSelectedIds)
-      if (selectedCount === 0) return 'none'
-      if (selectedCount === allIds.length) return 'all'
-      return 'partial'
-    },
-    [skillSelectedIds]
-  )
 
   // Combine helper functions
   const handleCombineCheckboxChange = useCallback(
@@ -632,7 +590,6 @@ export function SkillManagerLayout() {
         defaultProfileRef: agentFromEditor.defaultProfileRef ?? undefined,
         heartbeat: agentFromEditor.heartbeat ?? undefined,
         tags: [...agentFromEditor.tags],
-        skills: [...agentFromEditor.skills],
       })
       setSelectedAgentId(created.id)
 
@@ -787,7 +744,6 @@ export function SkillManagerLayout() {
       description: state.description,
       status: state.status,
       appearance: state.appearance,
-      skills: state.skills,
       tags: state.tags,
     })
 
@@ -924,13 +880,6 @@ export function SkillManagerLayout() {
         selectedFolders={selectedFolders}
         onSelectedFoldersChange={setSelectedFolders}
         availableFolders={availableFolders}
-        skillSelectionMode={skillSelectionMode}
-        skillSelectedIds={skillSelectedIds}
-        currentAgent={skillSelectionTargetAgent}
-        onSkillSelectionSave={() => void saveAndExitSkillSelection()}
-        onSkillSelectionCancel={exitSkillSelectionMode}
-        getSkillSelectionState={getSkillSelectionState}
-        onSkillCheckboxChange={handleSkillCheckboxChange}
         onDeleteFolder={handleDeleteFolderRequest}
         onCopySkill={(skillId) => void handleCopySkill(skillId)}
         onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
@@ -1039,7 +988,6 @@ export function SkillManagerLayout() {
             {selectedTeamId ? (
               <TeamEditorPanel
                 team={currentTeam ?? null}
-                allSkills={skills}
                 allAgents={agents}
                 onUpdate={async (updates) => {
                   if (selectedTeamId) {
@@ -1076,7 +1024,6 @@ export function SkillManagerLayout() {
               <AgentEditorPanel
                 agent={agentFromEditor}
                 formState={agentFormState}
-                allSkills={skills}
                 updateField={updateAgentField}
                 updateFields={updateAgentFields}
                 validation={agentValidation}
@@ -1174,13 +1121,6 @@ export function SkillManagerLayout() {
                 selectedFolders={selectedFolders}
                 onSelectedFoldersChange={setSelectedFolders}
                 availableFolders={availableFolders}
-                skillSelectionMode={skillSelectionMode}
-                skillSelectedIds={skillSelectedIds}
-                currentAgent={skillSelectionTargetAgent}
-                onSkillSelectionSave={() => void saveAndExitSkillSelection()}
-                onSkillSelectionCancel={exitSkillSelectionMode}
-                getSkillSelectionState={getSkillSelectionState}
-                onSkillCheckboxChange={handleSkillCheckboxChange}
                 onDeleteFolder={handleDeleteFolderRequest}
                 onCopySkill={(skillId) => void handleCopySkill(skillId)}
                 onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}

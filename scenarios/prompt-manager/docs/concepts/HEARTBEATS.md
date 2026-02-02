@@ -88,10 +88,8 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 │ 2. RESPONSIBILITIES.md (from team members/)    │
 │    Role-specific instructions for this team    │
 ├─────────────────────────────────────────────────┤
-│ 3. Effective Skills (computed)                 │
-│    - Agent skillPins                           │
-│    - Agent-skill relations                     │
-│    - Team role grants                          │
+│ 3. Skill references (embedded in markdown)     │
+│    - Links to skills via prompt-manager skill read │
 ├─────────────────────────────────────────────────┤
 │ 4. HEARTBEAT.md (from team members/)           │
 │    The specific task to execute now            │
@@ -101,7 +99,7 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 This layered approach means:
 - **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
 - **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
-- **Skills**: "Tools I have available" (computed from all sources)
+- **Skills**: "Tools I have available" (linked in markdown)
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
 
 ## Cron Schedule Format
@@ -151,4 +149,3 @@ See [CODE: api/heartbeat/client.go] for the client implementation.
 
 - [API Reference: Heartbeat Endpoints](../reference/heartbeat-api.md)
 - [CLI Reference: Heartbeat Commands](../reference/heartbeat-cli.md)
-- [Effective Skills](./EFFECTIVE-SKILLS.md)

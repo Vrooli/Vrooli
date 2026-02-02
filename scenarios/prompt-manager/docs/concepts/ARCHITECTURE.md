@@ -131,8 +131,6 @@ store/
 │       ├── roles.json
 │       └── org-chart.json
 ├── relations/
-│   ├── agent-skill/
-│   │   └── agent-1--skill-id.json
 │   └── team-member/
 │       └── team-id--agent-1.json
 ├── indexes/                    # Generated (never hand-edit)
@@ -203,7 +201,7 @@ The editor exposes **Editor / Preview** view modes so users can inspect markdown
 |------------|-------|---------|
 | Skills, Agents, Teams | API | File system (store/) |
 | Tags, Metrics, Test Results | API | PostgreSQL |
-| Relations (agent-skill, team-member) | API | File system (store/relations/) |
+| Relations (team-member) | API | File system (store/relations/) |
 | Favorites | UI | localStorage |
 | View preferences | UI | Component state |
 | Theme | UI | localStorage |
@@ -242,8 +240,7 @@ See [SEAMS.md](../internal/SEAMS.md) for detailed testing seam documentation.
 
 ### Core Concepts
 - [Swarm Model](SWARM-MODEL.md) - The Skills + Agents + Teams architecture
-- [Relations](RELATIONS.md) - Agent-skill and team-member relations
-- [Effective Skills](EFFECTIVE-SKILLS.md) - Computed skill resolution algorithm
+- [Relations](RELATIONS.md) - Team-member relations
 - [SOUL System](PERSONA-SYSTEM.md) - Agent personality via SOUL.md (plus optional agent .md files)
 - [Capability Matching](CAPABILITY-MATCHING.md) - Skill-to-agent matching
 - [3D World Architecture](3D-WORLD-ARCHITECTURE.md) - Visualization system

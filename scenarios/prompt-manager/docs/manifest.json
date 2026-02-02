@@ -45,12 +45,6 @@
           "title": "Heartbeats & Cron Execution",
           "description": "Autonomous scheduled task execution for team members",
           "audience": ["developers", "users"]
-        },
-        {
-          "path": "concepts/EFFECTIVE-SKILLS.md",
-          "title": "Effective Skills",
-          "description": "How skills are computed from multiple sources for agents",
-          "audience": ["developers"]
         }
       ]
     },

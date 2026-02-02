@@ -24,7 +24,6 @@ export type {
   AgentFileWriteRequest,
   AgentFileCreateRequest,
   AgentFileRenameRequest,
-  EffectiveSkillsResponse,
 } from '@/lib/schemas'
 
 // Re-export default colors constant

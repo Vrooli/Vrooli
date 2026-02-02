@@ -10,9 +10,9 @@ Prompt-manager evolved from a simple skill storage system into a comprehensive *
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        SWARM COORDINATION                                │
 │                                                                          │
-│   ┌─────────────┐    Relations    ┌─────────────┐    Relations          │
-│   │   SKILLS    │◄───────────────►│   AGENTS    │◄──────────────►       │
-│   │             │   agent-skill   │             │   team-member         │
+│   ┌─────────────┐  Text References ┌─────────────┐    Relations         │
+│   │   SKILLS    │◄────────────────►│   AGENTS    │◄──────────────►      │
+│   │             │   (markdown)     │             │   team-member        │
 │   │  behaviors  │                 │  identities │                       │
 │   │  with packs │                 │  + souls   │        ┌─────────────┐│
 │   └─────────────┘                 └─────────────┘        │    TEAMS    ││
@@ -68,7 +68,7 @@ Agents are autonomous AI entities with identity, appearance, SOUL.md personality
 - **Appearance** (body, head, accent colors) for 3D world visualization
 - **SOUL.md** defining personality and behavioral guidance
 - **Capabilities** - what the agent provides and requires (with verbs)
-- **Skill pins** - direct skill assignments with version pins
+- **Skill references** in SOUL.md and other agent files (markdown)
 - **Heartbeat configuration** for health monitoring
 - **Runtime workspace** reference for execution context
 
@@ -100,9 +100,6 @@ store/agents/{agent-id}/
       {"capabilityId": "file-access", "verbs": ["read"]}
     ]
   },
-  "skillPins": [
-    {"skillId": "debugging", "version": "latest"}
-  ],
   "heartbeat": {
     "intervalSeconds": 30,
     "timeoutSeconds": 90,
@@ -113,12 +110,11 @@ store/agents/{agent-id}/
 
 ### Teams
 
-Teams are organizational structures that coordinate multiple agents around a mission with role-based skill grants.
+Teams are organizational structures that coordinate multiple agents around a mission with shared context and roles.
 
 **Key Characteristics:**
 - **Mission** statement defining the team's purpose
 - **Roles** with descriptions (e.g., "lead", "developer", "reviewer")
-- **Skill grants by role** via `defaults.skillGrantsByRole`
 - **Org chart** defining manager/report relationships
 - **Shared documents** path for team-wide resources
 
@@ -140,13 +136,6 @@ store/teams/{team-id}/
     "path": "teams/engineering/shared",
     "mountHint": "readWrite"
   },
-  "defaults": {
-    "skillGrantsByRole": {
-      "developer": ["debugging", "testing", "code-review"],
-      "lead": ["project-planning", "debugging", "testing", "code-review"],
-      "reviewer": ["code-review"]
-    }
-  },
   "roles": [
     {"id": "lead", "name": "Team Lead", "description": "Coordinates team efforts"},
     {"id": "developer", "name": "Developer", "description": "Implements features"},
@@ -163,56 +152,14 @@ store/teams/{team-id}/
 
 ## How They Work Together
 
-The three domains connect through **relations** - normalized junction records that link agents to skills and teams.
+The three domains connect through **relations** for team membership and **markdown references** for skill usage.
 
 ### Flow: Agent Gets Assigned to Team
 
 1. Agent `alice` is created with base capabilities
-2. Agent-skill relations link `alice` to specific skills
+2. Agent files (SOUL.md, RESPONSIBILITIES.md) reference relevant skills in markdown
 3. Team-member relation adds `alice` to `engineering` team with `developer` role
-4. When `alice` needs skills, effective-skills computation runs:
-   - Collects `alice`'s skill pins
-   - Collects enabled agent-skill relations
-   - Adds skills granted by `developer` role in `engineering`
-
-### Data Flow Diagram
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                     EFFECTIVE SKILLS COMPUTATION                       │
-│                                                                        │
-│  Agent Request                                                         │
-│       │                                                                │
-│       ▼                                                                │
-│  ┌─────────────┐                                                       │
-│  │ Agent Store │──────► skillPins (direct assignments)                │
-│  └─────────────┘              │                                        │
-│                               │                                        │
-│  ┌─────────────────┐          │                                        │
-│  │ Relation Store  │──────► agent-skill relations (enabled=true)      │
-│  │ (agent-skill)   │          │                                        │
-│  └─────────────────┘          │                                        │
-│                               ▼                                        │
-│                    ┌──────────────────────┐                           │
-│                    │   Merge skill IDs    │                           │
-│                    └──────────┬───────────┘                           │
-│                               │                                        │
-│  ┌─────────────────┐          │  (if teamId provided)                 │
-│  │ Relation Store  │──────► team-member relation → roles              │
-│  │ (team-member)   │          │                                        │
-│  └─────────────────┘          │                                        │
-│                               ▼                                        │
-│  ┌─────────────┐    ┌──────────────────────┐                          │
-│  │ Team Store  │───►│ skillGrantsByRole    │──► role-granted skills   │
-│  └─────────────┘    └──────────────────────┘         │                │
-│                                                       │                │
-│                               ┌───────────────────────┘                │
-│                               ▼                                        │
-│                    ┌──────────────────────┐                           │
-│                    │  EFFECTIVE SKILL SET │                           │
-│                    └──────────────────────┘                           │
-└──────────────────────────────────────────────────────────────────────┘
-```
+4. When `alice` needs guidance, it reads skill references from its files and team shared docs
 
 ## Use Cases
 
@@ -254,26 +201,25 @@ Team: Content Creators
 Team: Review Squad
   Mission: "Ensure code quality through multi-perspective review"
   Roles:
-    - security: [security-audit, vulnerability-scan]
-    - performance: [perf-analysis, optimization-tips]
-    - style: [code-style, best-practices]
+    - security
+    - performance
+    - style
 
-  Agents assigned to specialized roles, each bringing different skills
+  Agents assigned to specialized roles, with skill references documented in team markdown
 ```
 
 ## Key Benefits
 
 1. **Separation of Concerns**: Skills define what, agents define who, teams define how they coordinate
 2. **Reusability**: Same skill can be used by many agents; same agent can be in multiple teams
-3. **Role-Based Access**: Team roles grant skills without individual assignment
-4. **Scalability**: Add new agents to team, they automatically get role-based skills
-5. **Flexibility**: Override team grants with individual agent-skill relations
+3. **Text-First Skills**: Skills are referenced in markdown, keeping behavior editable and human-readable
+4. **Scalability**: Add new agents to a team to share context and coordination
+5. **Flexibility**: Update skill references without schema migrations or relations
 6. **Observability**: 3D world visualization shows swarm activity in real-time
 
 ## Related Documentation
 
-- [RELATIONS.md](RELATIONS.md) - Agent-skill and team-member relation details
-- [EFFECTIVE-SKILLS.md](EFFECTIVE-SKILLS.md) - Computation algorithm
+- [RELATIONS.md](RELATIONS.md) - Team-member relation details
 - [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent SOUL.md configuration
 - [CAPABILITY-MATCHING.md](CAPABILITY-MATCHING.md) - Skill-to-agent matching
 - [3D-WORLD-ARCHITECTURE.md](3D-WORLD-ARCHITECTURE.md) - Visualization details

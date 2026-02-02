@@ -5,7 +5,7 @@
  * - Category nodes (expandable)
  * - Leaf nodes (selectable skills)
  * - Dirty indicators
- * - Checkbox selection for skill selection mode
+ * - Checkbox selection for combine mode
  */
 
 import { type ReactNode } from 'react'

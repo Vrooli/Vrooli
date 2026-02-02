@@ -81,7 +81,6 @@ export function useAgentData(): UseAgentDataReturn {
         defaultProfileRef: request.defaultProfileRef,
         heartbeat: request.heartbeat,
         tags: request.tags,
-        skills: request.skills,
       })
     },
     onSuccess: () => {

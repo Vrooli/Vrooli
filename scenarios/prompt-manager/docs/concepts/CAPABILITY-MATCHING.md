@@ -318,7 +318,7 @@ Returns suggested capabilities based on skill content analysis.
    Skill "advanced-debugging":
      requires.capabilities: [code-analysis, debugging]
 
-4. Validate and assign
+4. Validate compatibility
    POST /api/v1/validate/skill-assignment
      agentId: alice
      skillId: advanced-debugging
@@ -326,11 +326,10 @@ Returns suggested capabilities based on skill content analysis.
    Response: {valid: true, matchedCapabilities: [code-analysis, debugging]}
 
 5. Use skill
-   Agent alice now has "advanced-debugging" in effective skills
+   Agent alice can reference "advanced-debugging" in SOUL.md
 ```
 
 ## Related Documentation
 
 - [SWARM-MODEL.md](SWARM-MODEL.md) - Overall architecture
-- [EFFECTIVE-SKILLS.md](EFFECTIVE-SKILLS.md) - Skill computation
 - [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent SOUL.md

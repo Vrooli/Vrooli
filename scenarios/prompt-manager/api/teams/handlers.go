@@ -94,12 +94,6 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		Mission:     req.Mission,
 	}
 
-	if req.Defaults != nil {
-		team.Defaults = &store.TeamDefaults{
-			SkillGrantsByRole: req.Defaults.SkillGrantsByRole,
-		}
-	}
-
 	if err := h.teamStore.Create(ctx, team); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			http.Error(w, err.Error(), http.StatusConflict)
@@ -138,11 +132,6 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Mission != nil {
 		updates.Mission = *req.Mission
-	}
-	if req.Defaults != nil {
-		updates.Defaults = &store.TeamDefaults{
-			SkillGrantsByRole: req.Defaults.SkillGrantsByRole,
-		}
 	}
 
 	if err := h.teamStore.Update(ctx, id, updates); err != nil {
@@ -540,11 +529,5 @@ func (h *Handlers) toDetailsResponse(ctx context.Context, t *store.Team) TeamDet
 	}
 
 	// Get defaults
-	if t.Defaults != nil {
-		resp.Defaults = &DefaultsDTO{
-			SkillGrantsByRole: t.Defaults.SkillGrantsByRole,
-		}
-	}
-
 	return resp
 }

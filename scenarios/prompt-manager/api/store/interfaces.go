@@ -44,12 +44,6 @@ type AgentStore interface {
 
 	// Delete removes an agent
 	Delete(ctx context.Context, id string) error
-
-	// GetSkills returns skills assigned to an agent (through relations)
-	GetSkills(ctx context.Context, agentID string) ([]AgentSkillRelation, error)
-
-	// GetEffectiveSkills computes the effective skill set for an agent in a team context
-	GetEffectiveSkills(ctx context.Context, agentID string, teamID *string) ([]string, error)
 }
 
 // TeamStore defines operations for team storage
@@ -81,12 +75,6 @@ type TeamStore interface {
 
 // RelationStore defines operations for relationship storage
 type RelationStore interface {
-	// AgentSkill operations
-	GetAgentSkill(ctx context.Context, agentID, skillID string) (*AgentSkillRelation, error)
-	SetAgentSkill(ctx context.Context, rel *AgentSkillRelation) error
-	DeleteAgentSkill(ctx context.Context, agentID, skillID string) error
-	ListAgentSkills(ctx context.Context, agentID string) ([]AgentSkillRelation, error)
-
 	// TeamMember operations
 	GetTeamMember(ctx context.Context, teamID, agentID string) (*TeamMemberRelation, error)
 	SetTeamMember(ctx context.Context, rel *TeamMemberRelation) error

@@ -11,7 +11,6 @@ export type {
   TeamRole,
   TeamMember,
   TeamMemberStatus,
-  TeamDefaults,
   CreateTeamRequest,
   UpdateTeamRequest,
   AddMemberRequest,

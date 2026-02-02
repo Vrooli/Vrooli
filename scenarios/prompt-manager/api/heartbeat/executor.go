@@ -28,7 +28,6 @@ type ExecutionResult struct {
 type Executor struct {
 	teamStore   *store.FileTeamStore
 	agentStore  *store.FileAgentStore
-	skillStore  store.SkillStore
 	agentClient *AgentManagerClient
 	vrooliRoot  string
 }
@@ -37,14 +36,12 @@ type Executor struct {
 func NewExecutor(
 	teamStore *store.FileTeamStore,
 	agentStore *store.FileAgentStore,
-	skillStore store.SkillStore,
 	agentClient *AgentManagerClient,
 	vrooliRoot string,
 ) *Executor {
 	return &Executor{
 		teamStore:   teamStore,
 		agentStore:  agentStore,
-		skillStore:  skillStore,
 		agentClient: agentClient,
 		vrooliRoot:  vrooliRoot,
 	}
@@ -185,21 +182,7 @@ func (e *Executor) buildPrompt(ctx context.Context, teamID, agentID string) (str
 		parts = append(parts, "# Team Responsibilities (RESPONSIBILITIES.md)\n\n"+responsibilities)
 	}
 
-	// 3. Effective skills
-	teamIDPtr := &teamID
-	effectiveSkills, err := e.agentStore.GetEffectiveSkills(ctx, agentID, teamIDPtr)
-	if err == nil && len(effectiveSkills) > 0 {
-		skillsSection := "# Available Skills\n\n"
-		for _, skillID := range effectiveSkills {
-			skill, content, err := e.skillStore.GetWithContent(ctx, skillID)
-			if err == nil && skill != nil {
-				skillsSection += fmt.Sprintf("## %s\n\n%s\n\n", skill.Name, content)
-			}
-		}
-		parts = append(parts, skillsSection)
-	}
-
-	// 4. HEARTBEAT.md (the specific task)
+	// 3. HEARTBEAT.md (the specific task)
 	heartbeatInstructions, err := e.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
 	if err == nil && heartbeatInstructions != "" {
 		parts = append(parts, "# Heartbeat Task (HEARTBEAT.md)\n\n"+heartbeatInstructions)

@@ -1,8 +1,8 @@
 /**
  * WorldScene - Composes the 3D scene with agents, lights, and controls.
  *
- * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
- * This scene now focuses on agent display with ambient environment.
+ * Note: 3D skill nodes have been removed; this scene focuses on agent display
+ * with an ambient environment.
  *
  * Includes:
  * - Performance monitoring with FPS tracking and auto-adjustment

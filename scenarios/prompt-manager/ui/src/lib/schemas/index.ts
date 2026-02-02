@@ -79,7 +79,6 @@ export {
   AgentFileWriteRequestSchema,
   AgentFileCreateRequestSchema,
   AgentFileRenameRequestSchema,
-  EffectiveSkillsResponseSchema,
   DEFAULT_AGENT_COLORS,
   type AgentStatus,
   type AgentAppearance,
@@ -99,7 +98,6 @@ export {
   type AgentFileWriteRequest,
   type AgentFileCreateRequest,
   type AgentFileRenameRequest,
-  type EffectiveSkillsResponse,
 } from './agent.schema'
 
 // Search schemas
@@ -127,7 +125,6 @@ export {
   TeamMemberStatusSchema,
   TeamRoleSchema,
   TeamMemberSchema,
-  TeamDefaultsSchema,
   TeamSchema,
   TeamArraySchema,
   TeamDetailsSchema,
@@ -139,7 +136,6 @@ export {
   type TeamMemberStatus,
   type TeamRole,
   type TeamMember,
-  type TeamDefaults,
   type Team,
   type TeamDetails,
   type CreateTeamRequest,

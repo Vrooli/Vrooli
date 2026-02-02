@@ -6,7 +6,6 @@
  * - Mode-based tree navigation
  * - Search filtering
  * - Tag filtering
- * - Skill selection mode for agents
  * - Dirty indicators
  * - Collapse/expand controls
  * - New skill button
@@ -14,7 +13,7 @@
 
 import { type ReactNode, type RefObject, useState, useRef, useCallback, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Users, Check, X, Sparkles, Layers } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Users, Sparkles, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType } from '@/types'
@@ -72,14 +71,6 @@ interface SkillTreeSidebarProps {
   selectedFolders: string[]
   onSelectedFoldersChange: (folders: string[]) => void
   availableFolders: string[]
-  // Skill selection mode props
-  skillSelectionMode: boolean
-  skillSelectedIds: Set<string>
-  currentAgent: Agent | null
-  onSkillSelectionSave: () => void
-  onSkillSelectionCancel: () => void
-  getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
-  onSkillCheckboxChange: (node: TreeNode) => void
   // Context menu callbacks
   onDeleteFolder: (skillIds: string[], folderLabel: string) => void
   onCopySkill: (skillId: string) => void
@@ -155,13 +146,6 @@ export function SkillTreeSidebar({
   selectedFolders,
   onSelectedFoldersChange,
   availableFolders,
-  skillSelectionMode,
-  skillSelectedIds,
-  currentAgent,
-  onSkillSelectionSave,
-  onSkillSelectionCancel,
-  getSkillSelectionState,
-  onSkillCheckboxChange,
   onDeleteFolder,
   onCopySkill,
   onMoveToFolder,
@@ -206,9 +190,8 @@ export function SkillTreeSidebar({
   const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
   const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
-  // Active tab state - locked to skills when in skill selection mode
+  // Active tab state
   const [activeTab, setActiveTab] = useState(initialActiveTab)
-  const effectiveTab = skillSelectionMode ? 'skills' : activeTab
 
   // Notify parent when tab changes (for persistence)
   const handleTabChange = useCallback((tab: string) => {
@@ -395,21 +378,6 @@ export function SkillTreeSidebar({
                   Combine Mode
                 </span>
               </div>
-            ) : skillSelectionMode && currentAgent ? (
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: currentAgent.appearance?.body ?? '#6366f1' }}
-                >
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: currentAgent.appearance?.head ?? '#818cf8' }}
-                  />
-                </div>
-                <span className="text-xs font-medium text-foreground">
-                  {skillSelectedIds.size} skill{skillSelectedIds.size !== 1 ? 's' : ''} selected
-                </span>
-              </div>
             ) : dirtyCount > 0 ? (
               <UnsavedChangesMenu
                 dirtyCount={dirtyCount}
@@ -431,7 +399,7 @@ export function SkillTreeSidebar({
             ) : null}
           </div>
           <div className="flex items-center gap-1">
-            {onOpenSettings && !skillSelectionMode && !combineMode && (
+            {onOpenSettings && !combineMode && (
               <button
                 type="button"
                 onClick={onOpenSettings}
@@ -441,7 +409,7 @@ export function SkillTreeSidebar({
                 <Settings className="h-4 w-4" />
               </button>
             )}
-            {!skillSelectionMode && !combineMode && (
+            {!combineMode && (
               <button
                 type="button"
                 onClick={onToggleCollapse}
@@ -456,22 +424,20 @@ export function SkillTreeSidebar({
       </div>
 
       <Tabs.Root
-        value={effectiveTab}
-        onValueChange={skillSelectionMode ? undefined : handleTabChange}
+        value={activeTab}
+        onValueChange={handleTabChange}
         className="flex flex-col flex-1 min-h-0"
       >
         {/* Tab triggers */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border">
           <Tabs.Trigger
             value="skills"
-            disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors',
-              skillSelectionMode && 'cursor-default'
+              'transition-colors'
             )}
             data-testid={selectors.sidebar.tabSkills}
           >
@@ -480,14 +446,12 @@ export function SkillTreeSidebar({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="agents"
-            disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors',
-              skillSelectionMode && 'opacity-50 cursor-not-allowed'
+              'transition-colors'
             )}
             data-testid={selectors.sidebar.tabAgents}
           >
@@ -496,14 +460,12 @@ export function SkillTreeSidebar({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="teams"
-            disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors',
-              skillSelectionMode && 'opacity-50 cursor-not-allowed'
+              'transition-colors'
             )}
           >
             <Users className="h-3.5 w-3.5" />
@@ -522,7 +484,7 @@ export function SkillTreeSidebar({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder={skillSelectionMode ? 'Search skills...' : 'Search skills... (Ctrl+K)'}
+                placeholder="Search skills... (Ctrl+K)"
                 className={cn(
                   'w-full pl-8 pr-3 py-1.5 text-xs',
                   'bg-muted border border-border rounded-md',
@@ -569,7 +531,7 @@ export function SkillTreeSidebar({
                 >
                   <ChevronUp className="h-3 w-3" />
                 </button>
-                {!skillSelectionMode && onEnterCombineMode && (
+                {onEnterCombineMode && (
                   <button
                     type="button"
                     onClick={combineMode ? onExitCombineMode : onEnterCombineMode}
@@ -642,9 +604,9 @@ export function SkillTreeSidebar({
                   expandedNodes={expandedNodes}
                   onToggleNode={onToggleNode}
                   renderItemIcon={renderItemIcon}
-                  showCheckbox={skillSelectionMode || combineMode}
-                  onCheckboxChange={combineMode ? onCombineToggle : onSkillCheckboxChange}
-                  getSelectionState={combineMode ? getCombineSelectionState : getSkillSelectionState}
+                  showCheckbox={combineMode}
+                  onCheckboxChange={combineMode ? onCombineToggle : undefined}
+                  getSelectionState={combineMode ? getCombineSelectionState : undefined}
                   onCategoryContextMenu={handleCategoryContextMenu}
                   onSkillContextMenu={handleSkillContextMenu}
                 />
@@ -695,31 +657,6 @@ export function SkillTreeSidebar({
                 isCopying={isCombineCopying}
                 copySuccess={combineCopySuccess}
               />
-            ) : skillSelectionMode ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onSkillSelectionCancel}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm',
-                    'bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors'
-                  )}
-                >
-                  <X className="h-4 w-4" />
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={onSkillSelectionSave}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm',
-                    'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
-                  )}
-                >
-                  <Check className="h-4 w-4" />
-                  Save Skills
-                </button>
-              </div>
             ) : (
               <button
                 type="button"

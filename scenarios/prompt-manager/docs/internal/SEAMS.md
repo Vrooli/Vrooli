@@ -37,26 +37,10 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | `SkillStore` | `store` | CRUD operations for skills |
 | `AgentStore` | `store` | CRUD operations for agents |
 | `TeamStore` | `store` | CRUD operations for teams |
-| `RelationStore` | `store` | Agent-skill and team-member relations |
+| `RelationStore` | `store` | Team-member relations |
 | `IndexStore` | `store` | Generated index management |
-| `EffectiveSkillsService` | `agents` | Computed skill set resolution |
 | `MetricsService` | `skills` | Usage tracking |
 | `AISearchIndexer` | `skills` | AI search index updates |
-
-### EffectiveSkillsService Interface
-
-```go
-type EffectiveSkillsService interface {
-    // ComputeEffectiveSkills returns all skills available to an agent
-    // If teamId is provided, includes role-based skill grants
-    ComputeEffectiveSkills(agentId string, teamId *string) ([]EffectiveSkill, error)
-
-    // InvalidateCache clears cached effective skills for an agent
-    InvalidateCache(agentId string)
-}
-```
-
-**Testing:** Mock this interface to test components that depend on effective skills without computing the full resolution chain.
 
 ## Store Adapter Layer
 
@@ -168,53 +152,8 @@ const agents = await agentService.getAgents()
 expect(agents).toHaveLength(1)
 ```
 
-## Effective Skills Testing Seam
-
-The effective skills computation involves multiple stores and relations. For testing:
-
-```go
-// Create mock stores
-agentStore := &MockAgentStore{
-    agents: map[string]*Agent{
-        "alice": {
-            ID: "alice",
-            SkillPins: []SkillPin{{SkillId: "debugging", Version: "latest"}},
-        },
-    },
-}
-
-relationStore := &MockRelationStore{
-    agentSkills: map[string][]AgentSkillRelation{
-        "alice": {{SkillId: "testing", Enabled: true}},
-    },
-    teamMembers: map[string][]TeamMemberRelation{
-        "engineering": {{AgentId: "alice", Roles: []string{"developer"}}},
-    },
-}
-
-teamStore := &MockTeamStore{
-    teams: map[string]*Team{
-        "engineering": {
-            Defaults: TeamDefaults{
-                SkillGrantsByRole: map[string][]string{
-                    "developer": {"code-review"},
-                },
-            },
-        },
-    },
-}
-
-// Test effective skills computation
-service := NewEffectiveSkillsService(agentStore, relationStore, teamStore, skillStore)
-skills, err := service.ComputeEffectiveSkills("alice", stringPtr("engineering"))
-
-// Verify: should have debugging (pin), testing (relation), code-review (role)
-assert.Len(t, skills, 3)
-```
-
 ## Related Documentation
 
 - [ARCHITECTURE.md](../concepts/ARCHITECTURE.md) - System architecture overview
-- [EFFECTIVE-SKILLS.md](../concepts/EFFECTIVE-SKILLS.md) - Algorithm documentation
 - [RELATIONS.md](../concepts/RELATIONS.md) - Relation system details
 - [api/TESTING_GUIDE.md](../../api/TESTING_GUIDE.md) - API testing patterns

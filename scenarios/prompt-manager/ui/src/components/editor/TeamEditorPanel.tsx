@@ -6,16 +6,15 @@
  * - Editable mission statement
  * - Split-panel Members tab: Org chart (left) + Member detail (right)
  * - Toggle between Graph and Code views in Members tab
- * - Secondary tabs: Roles, Skills, Info
+ * - Secondary tabs: Roles, Info
  * - Keyboard shortcuts: Escape (close), Ctrl+S (save)
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Shield, Zap, Info, ChevronDown, ChevronUp, GripVertical, Network, Code } from 'lucide-react'
+import { X, Users, Shield, Info, ChevronDown, ChevronUp, GripVertical, Network, Code } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
-import type { Skill } from '@/types'
 import type { Agent } from '@/types/agent'
 import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
@@ -28,7 +27,7 @@ import { OrgChartPanel } from './OrgChartPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
 import { MemberPickerModal } from './teamTabs/MembersTab'
-import { RolesTab, TeamSkillsTab, TeamInfoTab } from './teamTabs'
+import { RolesTab, TeamInfoTab } from './teamTabs'
 
 // ============================================================================
 // Types
@@ -41,8 +40,6 @@ const MEMBERS_VIEW_STORAGE_KEY = 'pm.teamMembersViewMode'
 interface TeamEditorPanelProps {
   /** Current team being edited */
   team: TeamDetails | null
-  /** All available skills for the skill picker */
-  allSkills?: Skill[]
   /** All available agents for the member picker */
   allAgents?: Agent[]
   /** Callback when team data changes */
@@ -66,7 +63,6 @@ interface TeamEditorPanelProps {
  */
 export function TeamEditorPanel({
   team,
-  allSkills = [],
   allAgents = [],
   onUpdate,
   onAddMember,
@@ -318,7 +314,6 @@ export function TeamEditorPanel({
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
           <TabTrigger value="members" icon={<Users className="h-4 w-4" />} label="Members" />
           <TabTrigger value="roles" icon={<Shield className="h-4 w-4" />} label="Roles" />
-          <TabTrigger value="skills" icon={<Zap className="h-4 w-4" />} label="Skills" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </Tabs.List>
 
@@ -403,10 +398,6 @@ export function TeamEditorPanel({
 
           <Tabs.Content value="roles" className="h-full overflow-y-auto p-4">
             <RolesTab team={team} onSetRoles={onSetRoles} />
-          </Tabs.Content>
-
-          <Tabs.Content value="skills" className="h-full overflow-y-auto p-4">
-            <TeamSkillsTab team={team} allSkills={allSkills} onUpdate={onUpdate} />
           </Tabs.Content>
 
           <Tabs.Content value="info" className="h-full overflow-y-auto p-4">

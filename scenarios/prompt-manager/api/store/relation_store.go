@@ -22,78 +22,9 @@ func (s *FileRelationStore) relationsDir() string {
 	return filepath.Join(s.storeDir, "relations")
 }
 
-// agentSkillDir returns the path to agent-skill relations
-func (s *FileRelationStore) agentSkillDir() string {
-	return filepath.Join(s.relationsDir(), "agent-skill")
-}
-
 // teamMemberDir returns the path to team-member relations
 func (s *FileRelationStore) teamMemberDir() string {
 	return filepath.Join(s.relationsDir(), "team-member")
-}
-
-// AgentSkill operations
-
-// GetAgentSkill retrieves an agent-skill relation
-func (s *FileRelationStore) GetAgentSkill(ctx context.Context, agentID, skillID string) (*AgentSkillRelation, error) {
-	filename := fmt.Sprintf("%s__%s.json", agentID, skillID)
-	path := filepath.Join(s.agentSkillDir(), filename)
-	return LoadJSON[AgentSkillRelation](path)
-}
-
-// SetAgentSkill creates or updates an agent-skill relation
-func (s *FileRelationStore) SetAgentSkill(ctx context.Context, rel *AgentSkillRelation) error {
-	rel.Kind = KindAgentSkill
-	rel.SchemaVersion = CurrentSchemaVersion
-
-	filename := fmt.Sprintf("%s__%s.json", rel.AgentID, rel.SkillID)
-	path := filepath.Join(s.agentSkillDir(), filename)
-	return SaveJSON(path, rel)
-}
-
-// DeleteAgentSkill removes an agent-skill relation
-func (s *FileRelationStore) DeleteAgentSkill(ctx context.Context, agentID, skillID string) error {
-	filename := fmt.Sprintf("%s__%s.json", agentID, skillID)
-	path := filepath.Join(s.agentSkillDir(), filename)
-	return DeleteFile(path)
-}
-
-// ListAgentSkills returns all skills for an agent
-func (s *FileRelationStore) ListAgentSkills(ctx context.Context, agentID string) ([]AgentSkillRelation, error) {
-	files, err := ListFiles(s.agentSkillDir(), fmt.Sprintf("%s__*.json", agentID))
-	if err != nil {
-		return nil, fmt.Errorf("listing agent skills: %w", err)
-	}
-
-	var relations []AgentSkillRelation
-	for _, file := range files {
-		rel, err := LoadJSON[AgentSkillRelation](file)
-		if err != nil {
-			continue // Skip malformed relations
-		}
-		relations = append(relations, *rel)
-	}
-
-	return relations, nil
-}
-
-// ListAllAgentSkills returns all agent-skill relations
-func (s *FileRelationStore) ListAllAgentSkills(ctx context.Context) ([]AgentSkillRelation, error) {
-	files, err := ListFiles(s.agentSkillDir(), "*.json")
-	if err != nil {
-		return nil, fmt.Errorf("listing all agent skills: %w", err)
-	}
-
-	var relations []AgentSkillRelation
-	for _, file := range files {
-		rel, err := LoadJSON[AgentSkillRelation](file)
-		if err != nil {
-			continue // Skip malformed relations
-		}
-		relations = append(relations, *rel)
-	}
-
-	return relations, nil
 }
 
 // TeamMember operations

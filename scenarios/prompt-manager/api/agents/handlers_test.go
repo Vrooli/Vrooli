@@ -65,49 +65,6 @@ func (m *MockAgentStore) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *MockAgentStore) GetSkills(ctx context.Context, agentID string) ([]store.AgentSkillRelation, error) {
-	return nil, nil
-}
-
-func (m *MockAgentStore) GetEffectiveSkills(ctx context.Context, agentID string, teamID *string) ([]string, error) {
-	return []string{}, nil
-}
-
-// MockRelationStore implements store.RelationStore for testing
-type MockRelationStore struct{}
-
-func (m *MockRelationStore) GetAgentSkill(ctx context.Context, agentID, skillID string) (*store.AgentSkillRelation, error) {
-	return nil, nil
-}
-
-func (m *MockRelationStore) SetAgentSkill(ctx context.Context, rel *store.AgentSkillRelation) error {
-	return nil
-}
-
-func (m *MockRelationStore) DeleteAgentSkill(ctx context.Context, agentID, skillID string) error {
-	return nil
-}
-
-func (m *MockRelationStore) ListAgentSkills(ctx context.Context, agentID string) ([]store.AgentSkillRelation, error) {
-	return nil, nil
-}
-
-func (m *MockRelationStore) GetTeamMember(ctx context.Context, teamID, agentID string) (*store.TeamMemberRelation, error) {
-	return nil, nil
-}
-
-func (m *MockRelationStore) SetTeamMember(ctx context.Context, rel *store.TeamMemberRelation) error {
-	return nil
-}
-
-func (m *MockRelationStore) DeleteTeamMember(ctx context.Context, teamID, agentID string) error {
-	return nil
-}
-
-func (m *MockRelationStore) ListTeamMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error) {
-	return nil, nil
-}
-
 // MockIndexStore implements store.IndexStore for testing
 type MockIndexStore struct{}
 
@@ -135,7 +92,7 @@ func TestList(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("GET", "/agents", nil)
 	w := httptest.NewRecorder()
@@ -162,7 +119,7 @@ func TestList(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
 
 	body := CreateRequest{
 		DisplayName: "New Agent",
@@ -199,7 +156,7 @@ func TestCreate(t *testing.T) {
 
 func TestCreateMissingDisplayName(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
 
 	body := CreateRequest{}
 	bodyBytes, _ := json.Marshal(body)
@@ -216,7 +173,7 @@ func TestCreateMissingDisplayName(t *testing.T) {
 
 func TestCreateInvalidColor(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
 
 	body := CreateRequest{
 		DisplayName: "New Agent",
@@ -246,7 +203,7 @@ func TestGet(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("GET", "/agents/agent-1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
@@ -270,7 +227,7 @@ func TestGet(t *testing.T) {
 
 func TestGetNotFound(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("GET", "/agents/nonexistent", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
@@ -291,7 +248,7 @@ func TestDelete(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("DELETE", "/agents/agent-1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})

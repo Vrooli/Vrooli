@@ -18,7 +18,6 @@ import type {
   Agent,
   CreateAgentRequest,
   UpdateAgentRequest,
-  EffectiveSkillsResponse,
   AgentFileEntry,
   AgentFileCreateRequest,
   AgentFileRenameRequest,
@@ -190,25 +189,6 @@ export async function deleteAgentFile(agentId: string, path: string): Promise<vo
 export async function deleteAgent(id: string): Promise<void> {
   await api.deleteAgent(id)
   invalidateCache()
-}
-
-/**
- * Get effective skills for an agent.
- *
- * @param agentId - Agent ID
- * @param teamId - Optional team context for role-based grants
- * @returns Computed skill set (empty skills on validation error)
- */
-export async function getEffectiveSkills(agentId: string, teamId?: string): Promise<EffectiveSkillsResponse> {
-  try {
-    return await api.getEffectiveSkills(agentId, teamId)
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      console.warn(`[agentService] Invalid API response for effective skills of ${agentId}:`, error.message)
-      return { agentId, skills: [] }
-    }
-    throw error
-  }
 }
 
 // Re-export animation utilities from agentAnimationService for convenience

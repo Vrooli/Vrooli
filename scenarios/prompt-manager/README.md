@@ -1,16 +1,16 @@
 # Prompt Manager
 
-**Skills + Agents + Teams** management system for Vrooli, providing reusable AI skills, agent coordination, and team-based skill grants with 3D world visualization.
+**Skills + Agents + Teams** management system for Vrooli, providing reusable AI skills, agent coordination, and markdown-based skill references with 3D world visualization.
 
 ## Features
 
 - **Skills Management**: Full CRUD, versioning, AI search, testing, and pack organization (core/local/drafts)
-- **Agents**: Entities with appearance, SOUL.md + agent files, capabilities, connectors, heartbeat, and skill pins
-- **Teams**: Organizational units with roles, members, org chart, and role-based skill grants
+- **Agents**: Entities with appearance, SOUL.md + agent files, capabilities, connectors, and heartbeat
+- **Teams**: Organizational units with roles, members, org chart, and shared docs
 - **3D World Visualization**: Interactive React Three Fiber visualization for agent coordination
 - **Multiple Interfaces**: Web UI, REST API, and command-line tool
-- **Effective Skills**: Computed from agent pins + team role grants
-- **Relations**: Agent-skill assignments and team-member memberships
+- **Text-Only Skills**: Agents and teams reference skills directly in markdown
+- **Relations**: Team-member memberships
 
 ## Quick Start
 
@@ -39,7 +39,7 @@
 │                    prompt-manager                        │
 ├─────────────┬─────────────┬─────────────┬───────────────┤
 │   Skills    │   Agents    │   Teams     │   Relations   │
-│  (packs)    │  (souls)    │  (roles)    │ (assignments) │
+│  (packs)    │  (souls)    │  (roles)    │ (memberships) │
 └─────────────┴─────────────┴─────────────┴───────────────┘
                             │
             ┌───────────────┼───────────────┐
@@ -68,7 +68,7 @@ store/
 │   └── drafts/         # Work-in-progress
 ├── agents/             # Agent entities
 ├── teams/              # Team entities with roles
-├── relations/          # Agent-skill, team-member mappings
+├── relations/          # Team-member mappings
 └── indexes/            # Generated lookup indexes
 ```
 
@@ -90,7 +90,6 @@ store/
 - `GET /api/v1/agents/{id}` - Get agent details
 - `PUT /api/v1/agents/{id}` - Update agent
 - `DELETE /api/v1/agents/{id}` - Delete agent
-- `GET /api/v1/agents/{id}/effective-skills` - Get computed skill set
 
 ### Teams
 - `GET /api/v1/teams` - List all teams
@@ -129,8 +128,8 @@ prompt-manager skill revert <id> <version>       # Revert to version
 # Agent operations
 prompt-manager agent list
 prompt-manager agent show <id>
-prompt-manager agent create <name> [--skills=...] [--body-color=...]
-prompt-manager agent update <id> [--name=...] [--skills=...]
+prompt-manager agent create <name> [--body-color=...]
+prompt-manager agent update <id> [--name=...]
 prompt-manager agent delete <id> [--force]
 
 # Search
@@ -222,7 +221,7 @@ bash deployment/validate.sh
 
 - **Agent Swarms**: Coordinate teams of agents for autonomous work (outreach, bug fixing, etc.)
 - **Skill Libraries**: Build reusable AI capabilities with versioning and search
-- **Team Coordination**: Organize agents into teams with role-based skill grants
+- **Team Coordination**: Organize agents into teams with shared context and roles
 - **Developers**: Debug patterns, code review templates, architecture decisions
 - **Designers**: UX research methods, design system components, user journey analysis
 

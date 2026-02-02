@@ -79,9 +79,6 @@ func (m *MockTeamStore) Update(ctx context.Context, id string, updates *store.Te
 	if updates.Mission != "" {
 		existing.Mission = updates.Mission
 	}
-	if updates.Defaults != nil {
-		existing.Defaults = updates.Defaults
-	}
 	return nil
 }
 
@@ -207,14 +204,6 @@ func (m *MockAgentStore) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *MockAgentStore) GetSkills(ctx context.Context, agentID string) ([]store.AgentSkillRelation, error) {
-	return nil, nil
-}
-
-func (m *MockAgentStore) GetEffectiveSkills(ctx context.Context, agentID string, teamID *string) ([]string, error) {
-	return []string{}, nil
-}
-
 // MockRelationStore implements store.RelationStore for testing
 type MockRelationStore struct {
 	teamMembers map[string]map[string]*store.TeamMemberRelation // teamID -> agentID -> relation
@@ -225,22 +214,6 @@ func NewMockRelationStore() *MockRelationStore {
 	return &MockRelationStore{
 		teamMembers: make(map[string]map[string]*store.TeamMemberRelation),
 	}
-}
-
-func (m *MockRelationStore) GetAgentSkill(ctx context.Context, agentID, skillID string) (*store.AgentSkillRelation, error) {
-	return nil, nil
-}
-
-func (m *MockRelationStore) SetAgentSkill(ctx context.Context, rel *store.AgentSkillRelation) error {
-	return nil
-}
-
-func (m *MockRelationStore) DeleteAgentSkill(ctx context.Context, agentID, skillID string) error {
-	return nil
-}
-
-func (m *MockRelationStore) ListAgentSkills(ctx context.Context, agentID string) ([]store.AgentSkillRelation, error) {
-	return nil, nil
 }
 
 func (m *MockRelationStore) GetTeamMember(ctx context.Context, teamID, agentID string) (*store.TeamMemberRelation, error) {

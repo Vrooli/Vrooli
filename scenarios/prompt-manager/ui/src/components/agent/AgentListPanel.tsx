@@ -34,7 +34,6 @@ export function AgentListPanel({
         head: DEFAULT_AGENT_COLORS.head,
         accent: DEFAULT_AGENT_COLORS.accent,
       },
-      skills: [],
     })
     // Auto-select the newly created agent
     onSelectAgent(newAgent.id)
@@ -100,9 +99,6 @@ export function AgentListPanel({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">
                   {agent.displayName}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {agent.skills.length} skill{agent.skills.length !== 1 ? 's' : ''}
                 </p>
               </div>
 

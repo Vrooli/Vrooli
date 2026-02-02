@@ -5,7 +5,6 @@ import {
   AgentStatusSchema,
   AgentAppearanceSchema,
   CreateAgentRequestSchema,
-  EffectiveSkillsResponseSchema,
   DEFAULT_AGENT_COLORS,
 } from '../agent.schema'
 
@@ -84,37 +83,12 @@ describe('AgentSchema', () => {
     updatedAt: '2024-01-01T00:00:00Z',
   }
 
-  it('should parse a minimal agent with skills default', () => {
+  it('should parse a minimal agent', () => {
     const result = AgentSchema.parse(minimalAgent)
 
     expect(result.id).toBe('agent-1')
     expect(result.displayName).toBe('Test Agent')
     expect(result.status).toBe('active')
-    // Verify default for skills array - prevents crashes
-    expect(result.skills).toEqual([])
-  })
-
-  it('should provide default for skills array - prevents crashes', () => {
-    // This tests the key safety feature: when API omits skills, we get [] not undefined
-    const agent = AgentSchema.parse(minimalAgent)
-
-    expect(Array.isArray(agent.skills)).toBe(true)
-    expect(agent.skills.length).toBe(0)
-
-    // Safe to iterate without crashing
-    expect(() => agent.skills.map((s) => s.toUpperCase())).not.toThrow()
-    expect(() => agent.skills.filter((s) => s.includes('x'))).not.toThrow()
-  })
-
-  it('should preserve provided skills array', () => {
-    const agentWithSkills = {
-      ...minimalAgent,
-      skills: ['skill-1', 'skill-2', 'skill-3'],
-    }
-
-    const result = AgentSchema.parse(agentWithSkills)
-
-    expect(result.skills).toEqual(['skill-1', 'skill-2', 'skill-3'])
   })
 
   it('should parse agent with appearance', () => {
@@ -168,7 +142,6 @@ describe('AgentArraySchema', () => {
         id: 'agent-2',
         displayName: 'Agent 2',
         status: 'inactive',
-        skills: ['skill-1'],
         createdAt: '2024-01-02T00:00:00Z',
         updatedAt: '2024-01-02T00:00:00Z',
       },
@@ -178,9 +151,7 @@ describe('AgentArraySchema', () => {
 
     expect(result).toHaveLength(2)
     expect(result[0]?.id).toBe('agent-1')
-    expect(result[0]?.skills).toEqual([]) // Default applied
     expect(result[1]?.id).toBe('agent-2')
-    expect(result[1]?.skills).toEqual(['skill-1']) // Preserved
   })
 
   it('should parse empty array', () => {
@@ -204,14 +175,12 @@ describe('CreateAgentRequestSchema', () => {
     const request = {
       displayName: 'New Agent',
       appearance: DEFAULT_AGENT_COLORS,
-      skills: ['skill-1'],
     }
 
     const result = CreateAgentRequestSchema.parse(request)
 
     expect(result.displayName).toBe('New Agent')
     expect(result.appearance).toEqual(DEFAULT_AGENT_COLORS)
-    expect(result.skills).toEqual(['skill-1'])
   })
 
   it('should reject empty displayName', () => {
@@ -230,33 +199,6 @@ describe('CreateAgentRequestSchema', () => {
 
     const parseResult = CreateAgentRequestSchema.safeParse(request)
     expect(parseResult.success).toBe(false)
-  })
-})
-
-describe('EffectiveSkillsResponseSchema', () => {
-  it('should parse minimal response with skills default', () => {
-    const response = {
-      agentId: 'agent-1',
-    }
-
-    const result = EffectiveSkillsResponseSchema.parse(response)
-
-    expect(result.agentId).toBe('agent-1')
-    expect(result.skills).toEqual([]) // Default applied
-  })
-
-  it('should preserve provided skills', () => {
-    const response = {
-      agentId: 'agent-1',
-      teamId: 'team-1',
-      skills: ['skill-a', 'skill-b'],
-    }
-
-    const result = EffectiveSkillsResponseSchema.parse(response)
-
-    expect(result.agentId).toBe('agent-1')
-    expect(result.teamId).toBe('team-1')
-    expect(result.skills).toEqual(['skill-a', 'skill-b'])
   })
 })
 

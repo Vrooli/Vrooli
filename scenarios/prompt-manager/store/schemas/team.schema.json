@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vrooli.com/schemas/prompt-manager/team.schema.json",
   "title": "Team",
-  "description": "A group with shared intent, org structure, and policy defaults",
+  "description": "A group with shared intent and org structure",
   "type": "object",
   "required": [
     "kind",
@@ -53,23 +53,6 @@
           "enum": ["readOnly", "readWrite"],
           "default": "readOnly",
           "description": "Access mode hint for runtime"
-        }
-      },
-      "additionalProperties": false
-    },
-    "defaults": {
-      "type": "object",
-      "description": "Default policies for team members",
-      "properties": {
-        "skillGrantsByRole": {
-          "type": "object",
-          "description": "Map of role IDs to skill IDs granted by default",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
         }
       },
       "additionalProperties": false

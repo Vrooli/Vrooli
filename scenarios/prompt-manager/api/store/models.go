@@ -32,7 +32,6 @@ type Agent struct {
 	DefaultProfileRef string             `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *AgentHeartbeat    `json:"heartbeat,omitempty"`
 	Tags              []string           `json:"tags,omitempty"`
-	SkillPins         []SkillPin         `json:"skillPins,omitempty"`
 	Runtime           *AgentRuntime      `json:"runtime,omitempty"`
 	Timestamps
 }
@@ -70,12 +69,6 @@ type AgentHeartbeat struct {
 	MaxMissedBeats  int `json:"maxMissedBeats,omitempty"`
 }
 
-// SkillPin represents an inline skill pin on an agent
-type SkillPin struct {
-	SkillID string `json:"skillId"`
-	Version string `json:"version,omitempty"`
-}
-
 // AgentRuntime contains runtime state pointers
 type AgentRuntime struct {
 	WorkspaceRef string `json:"workspaceRef,omitempty"`
@@ -88,7 +81,6 @@ type Team struct {
 	DisplayName string        `json:"displayName"`
 	Mission     string        `json:"mission,omitempty"`
 	Shared      *TeamShared   `json:"shared,omitempty"`
-	Defaults    *TeamDefaults `json:"defaults,omitempty"`
 	Timestamps
 }
 
@@ -96,11 +88,6 @@ type Team struct {
 type TeamShared struct {
 	Path      string `json:"path"`
 	MountHint string `json:"mountHint,omitempty"` // readOnly or readWrite
-}
-
-// TeamDefaults contains default policies for team members
-type TeamDefaults struct {
-	SkillGrantsByRole map[string][]string `json:"skillGrantsByRole,omitempty"`
 }
 
 // TeamRoles represents role definitions for a team
@@ -128,15 +115,6 @@ type OrgChart struct {
 type OrgEdge struct {
 	ManagerAgentID string `json:"managerAgentId"`
 	ReportAgentID  string `json:"reportAgentId"`
-}
-
-// AgentSkillRelation represents an agent-skill relationship
-type AgentSkillRelation struct {
-	BaseEntity
-	AgentID string `json:"agentId"`
-	SkillID string `json:"skillId"`
-	Pin     string `json:"pin"`
-	Enabled bool   `json:"enabled"`
 }
 
 // TeamMemberRelation represents a team-member relationship

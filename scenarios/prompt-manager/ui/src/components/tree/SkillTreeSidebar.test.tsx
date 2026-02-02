@@ -83,14 +83,6 @@ describe('SkillTreeSidebar', () => {
     selectedFolders: [] as string[],
     onSelectedFoldersChange: vi.fn(),
     availableFolders: ['core', 'local', 'drafts'] as string[],
-    // Skill selection mode props
-    skillSelectionMode: false,
-    skillSelectedIds: new Set<string>(),
-    currentAgent: null,
-    onSkillSelectionSave: vi.fn(),
-    onSkillSelectionCancel: vi.fn(),
-    getSkillSelectionState: vi.fn().mockReturnValue('none' as const),
-    onSkillCheckboxChange: vi.fn(),
     // Context menu callbacks
     onDeleteFolder: vi.fn(),
     onCopySkill: vi.fn(),

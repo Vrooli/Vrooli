@@ -1,8 +1,0 @@
-{
-  "kind": "agent-skill",
-  "schemaVersion": 1,
-  "agentId": "agent-1",
-  "skillId": "invariant-discovery-and-enforcement",
-  "pin": "latest",
-  "enabled": true
-}

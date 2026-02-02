@@ -16,5 +16,4 @@ export {
   getDefaultOffset,
 } from './types'
 
-export { useSkillBackpack, getBackpackDescription, getBackpackCapacity } from './hooks/useSkillBackpack'
 export { useAccessoryLoader, preloadAccessories, hasAccessoryModel, getAvailableAccessoryModels } from './hooks/useAccessoryLoader'

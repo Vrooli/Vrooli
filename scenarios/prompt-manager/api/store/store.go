@@ -28,7 +28,7 @@ func NewFileStore(storeDir string) *FileStore {
 	// Create entity stores
 	skillStore := NewFileSkillStore(storeDir)
 	teamStore := NewFileTeamStore(storeDir, relationStore)
-	agentStore := NewFileAgentStore(storeDir, relationStore, teamStore)
+	agentStore := NewFileAgentStore(storeDir)
 
 	// Create index store (needs all entity stores)
 	indexStore := NewFileIndexStore(storeDir, skillStore, agentStore, teamStore, relationStore)
@@ -87,7 +87,6 @@ func ensureStoreDirectories(storeDir string) {
 		filepath.Join(storeDir, "templates", "agent-files"),
 		filepath.Join(storeDir, "agents"),
 		filepath.Join(storeDir, "teams"),
-		filepath.Join(storeDir, "relations", "agent-skill"),
 		filepath.Join(storeDir, "relations", "team-member"),
 		filepath.Join(storeDir, "indexes"),
 	}

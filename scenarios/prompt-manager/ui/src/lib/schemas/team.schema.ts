@@ -48,19 +48,6 @@ export const TeamMemberSchema = z.object({
 export type TeamMember = z.infer<typeof TeamMemberSchema>
 
 /**
- * TeamDefaults represents default team policies.
- */
-export const TeamDefaultsSchema = z.object({
-  skillGrantsByRole: z
-    .record(z.string(), z.array(z.string()))
-    .nullable()
-    .optional()
-    .transform((val) => val ?? {}),
-})
-
-export type TeamDefaults = z.infer<typeof TeamDefaultsSchema>
-
-/**
  * Team schema matching the API's Response type (brief version).
  */
 export const TeamSchema = z.object({
@@ -81,12 +68,11 @@ export const TeamArraySchema = z.array(TeamSchema)
 
 /**
  * TeamDetails schema matching the API's TeamDetailsResponse type.
- * Extends Team with full details including roles, members, and defaults.
+ * Extends Team with full details including roles and members.
  */
 export const TeamDetailsSchema = TeamSchema.extend({
   roles: z.array(TeamRoleSchema).nullable().optional().transform((val) => val ?? []),
   members: z.array(TeamMemberSchema).nullable().optional().transform((val) => val ?? []),
-  defaults: TeamDefaultsSchema.nullable().optional(),
 })
 
 export type TeamDetails = z.infer<typeof TeamDetailsSchema>
@@ -98,7 +84,6 @@ export const CreateTeamRequestSchema = z.object({
   id: z.string().optional(),
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   mission: z.string().max(500).optional(),
-  defaults: TeamDefaultsSchema.optional(),
 })
 
 export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
@@ -110,7 +95,6 @@ export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
 export const UpdateTeamRequestSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   mission: z.string().max(500).optional(),
-  defaults: TeamDefaultsSchema.optional(),
 })
 
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>

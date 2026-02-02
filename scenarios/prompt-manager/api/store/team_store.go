@@ -120,9 +120,6 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.Shared != nil {
 		team.Shared = updates.Shared
 	}
-	if updates.Defaults != nil {
-		team.Defaults = updates.Defaults
-	}
 
 	team.UpdateTimestamp()
 
