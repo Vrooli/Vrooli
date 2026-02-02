@@ -68,33 +68,6 @@
       },
       "additionalProperties": false
     },
-    "persona": {
-      "type": "object",
-      "description": "Agent personality and behavior configuration",
-      "properties": {
-        "entry": {
-          "type": "string",
-          "description": "Path to persona file (e.g., SOUL.md)"
-        },
-        "voice": {
-          "type": "string",
-          "enum": ["professional", "casual", "technical", "empathetic", "terse"],
-          "description": "Communication style"
-        },
-        "traits": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Personality traits (e.g., meticulous, security-focused)"
-        },
-        "systemPromptPrefix": {
-          "type": "string",
-          "description": "Optional inline prefix for simple cases"
-        }
-      },
-      "additionalProperties": false
-    },
     "capabilities": {
       "type": "object",
       "description": "Capability requirements and provisions",

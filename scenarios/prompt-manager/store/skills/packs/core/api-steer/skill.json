@@ -1,7 +1,7 @@
 {
   "kind": "skill",
   "schemaVersion": 1,
-  "id": "new-skill-1",
+  "id": "api-steer",
   "name": "API Steer",
   "modes": [
     "steer",
@@ -9,7 +9,7 @@
   ],
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 8,
+  "revision": 9,
   "createdAt": "2026-01-30T13:13:00-05:00",
-  "updatedAt": "2026-02-02T02:47:51Z"
+  "updatedAt": "2026-02-02T04:08:33Z"
 }

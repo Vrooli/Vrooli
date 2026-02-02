@@ -160,3 +160,56 @@ After successful pipeline run:
 | macOS | `<scenario>.zip` (contains .app) |
 
 Download via: `scenario-to-desktop download <scenario> <platform> --output <path>`
+
+---
+
+### **10. Smoke Test Troubleshooting**
+
+When smoke tests fail, check these in order:
+
+| Error Kind | Meaning | First Check |
+|------------|---------|-------------|
+| artifact | Build artifact missing/corrupted | `ls -la <artifact>`, rebuild |
+| platform | Missing system deps | Install xvfb (Linux), check signing (Mac) |
+| execution | App crashed | Check stderr for stack traces |
+| validation | App ran but didn't pass | Check app logs for connection errors |
+| timeout | App too slow | Increase timeout or optimize startup |
+
+**Lifecycle marker diagnosis:**
+
+The smoke test protocol emits markers at each stage. Check `last_lifecycle_state` in error context:
+
+| Last State | Meaning | Likely Cause |
+|------------|---------|--------------|
+| (empty) | App crashed before smoke test code ran | Electron initialization failure, missing deps |
+| `init` | App started smoke test but crashed during initialization | Bundle validation failed, config error |
+| `ready` | App initialized but didn't report result | Server connectivity issue, app logic error |
+| `result` | App reported result but didn't exit cleanly | Cleanup error (usually non-fatal) |
+| `exit` | App completed full lifecycle | Should be success - check for race condition |
+
+**Structured error markers:**
+
+When the app detects specific failure conditions, it emits `SMOKE_TEST_ERROR kind=<kind> msg="<message>"`:
+
+| Kind | Meaning | Resolution |
+|------|---------|------------|
+| `config` | Missing/invalid configuration | Regenerate desktop app |
+| `network` | Server unreachable | Verify server is running, check connectivity |
+| `validation` | Bundle validation failed | Review errors, rebuild bundle |
+| `runtime` | App crashed during execution | Check logs, verify platform compatibility |
+
+**Example troubleshooting flow:**
+```bash
+# 1. Check smoke test status for error details
+scenario-to-desktop pipeline status <id> --verbose
+
+# 2. Look at last_lifecycle_state in error context
+# - If empty: focus on Electron/platform deps
+# - If "init": check bundle validation
+# - If "ready": check server connectivity
+
+# 3. If error includes app_error_kind, use that for targeted fix
+# - config: regenerate with `pipeline run`
+# - network: verify server with `curl -I <url>`
+# - validation: review bundle validation errors
+```

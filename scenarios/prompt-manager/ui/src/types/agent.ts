@@ -9,8 +9,6 @@ export type {
   Agent,
   AgentStatus,
   AgentAppearance,
-  AgentPersona,
-  AgentVoice,
   AgentCapability,
   AgentCapabilities,
   AgentConnector,
@@ -18,6 +16,8 @@ export type {
   AgentHeartbeat,
   CreateAgentRequest,
   UpdateAgentRequest,
+  SoulRequest,
+  SoulResponse,
   EffectiveSkillsResponse,
 } from '@/lib/schemas'
 

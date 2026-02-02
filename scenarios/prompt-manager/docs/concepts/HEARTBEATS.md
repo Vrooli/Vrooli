@@ -83,7 +83,7 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 ```
 ┌─────────────────────────────────────────────────┐
 │ 1. SOUL.md (from store/agents/{agent})         │
-│    Agent's personality and voice               │
+│    Agent's personality                          │
 ├─────────────────────────────────────────────────┤
 │ 2. RESPONSIBILITIES.md (from team members/)    │
 │    Role-specific instructions for this team    │

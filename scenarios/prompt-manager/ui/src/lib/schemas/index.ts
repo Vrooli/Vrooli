@@ -62,8 +62,6 @@ export {
 export {
   AgentStatusSchema,
   AgentAppearanceSchema,
-  AgentVoiceSchema,
-  AgentPersonaSchema,
   AgentCapabilitySchema,
   AgentCapabilitiesSchema,
   ConnectorTypeSchema,
@@ -73,12 +71,12 @@ export {
   AgentArraySchema,
   CreateAgentRequestSchema,
   UpdateAgentRequestSchema,
+  SoulRequestSchema,
+  SoulResponseSchema,
   EffectiveSkillsResponseSchema,
   DEFAULT_AGENT_COLORS,
   type AgentStatus,
   type AgentAppearance,
-  type AgentVoice,
-  type AgentPersona,
   type AgentCapability,
   type AgentCapabilities,
   type ConnectorType,
@@ -87,6 +85,8 @@ export {
   type Agent,
   type CreateAgentRequest,
   type UpdateAgentRequest,
+  type SoulRequest,
+  type SoulResponse,
   type EffectiveSkillsResponse,
 } from './agent.schema'
 

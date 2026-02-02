@@ -26,12 +26,6 @@ export const AgentStatusSchema = z.enum(['active', 'inactive', 'suspended'])
 export type AgentStatus = z.infer<typeof AgentStatusSchema>
 
 /**
- * Agent voice/communication style.
- */
-export const AgentVoiceSchema = z.enum(['professional', 'casual', 'technical', 'empathetic', 'terse'])
-export type AgentVoice = z.infer<typeof AgentVoiceSchema>
-
-/**
  * Connector types for external systems.
  */
 export const ConnectorTypeSchema = z.enum(['scenario', 'mcp', 'api'])
@@ -47,18 +41,6 @@ export const AgentAppearanceSchema = z.object({
 })
 
 export type AgentAppearance = z.infer<typeof AgentAppearanceSchema>
-
-/**
- * AgentPersona represents agent personality and behavior configuration.
- */
-export const AgentPersonaSchema = z.object({
-  entry: z.string().optional(),
-  voice: AgentVoiceSchema.optional(),
-  traits: nullableStringArray,
-  systemPromptPrefix: z.string().optional(),
-})
-
-export type AgentPersona = z.infer<typeof AgentPersonaSchema>
 
 /**
  * AgentCapability represents a single capability with verbs.
@@ -114,7 +96,6 @@ export const AgentSchema = z.object({
   description: z.string().optional(),
   status: AgentStatusSchema,
   appearance: AgentAppearanceSchema.nullable().optional(),
-  persona: AgentPersonaSchema.nullable().optional(),
   capabilities: AgentCapabilitiesSchema.nullable().optional(),
   connectors: z.array(AgentConnectorSchema).nullable().optional().transform((val) => val ?? []),
   defaultProfileRef: z.string().optional(),
@@ -140,7 +121,6 @@ export const CreateAgentRequestSchema = z.object({
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   description: z.string().max(500).optional(),
   appearance: AgentAppearanceSchema.optional(),
-  persona: AgentPersonaSchema.optional(),
   capabilities: AgentCapabilitiesSchema.optional(),
   connectors: z.array(AgentConnectorSchema).optional(),
   defaultProfileRef: z.string().optional(),
@@ -160,7 +140,6 @@ export const UpdateAgentRequestSchema = z.object({
   description: z.string().max(500).optional(),
   status: AgentStatusSchema.optional(),
   appearance: AgentAppearanceSchema.optional(),
-  persona: AgentPersonaSchema.optional(),
   capabilities: AgentCapabilitiesSchema.optional(),
   connectors: z.array(AgentConnectorSchema).optional(),
   defaultProfileRef: z.string().optional(),
@@ -170,6 +149,22 @@ export const UpdateAgentRequestSchema = z.object({
 })
 
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequestSchema>
+
+/**
+ * Soul request/response schemas for /agents/{id}/soul.
+ */
+export const SoulRequestSchema = z.object({
+  content: z.string(),
+})
+
+export type SoulRequest = z.infer<typeof SoulRequestSchema>
+
+export const SoulResponseSchema = z.object({
+  agentId: z.string(),
+  content: z.string(),
+})
+
+export type SoulResponse = z.infer<typeof SoulResponseSchema>
 
 /**
  * EffectiveSkillsResponse from /agents/{id}/effective-skills.

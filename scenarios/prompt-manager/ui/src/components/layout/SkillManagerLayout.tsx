@@ -42,6 +42,7 @@ import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCombineStore } from '@/stores/combineStore'
 import { api } from '@/lib/api'
+import * as agentService from '@/services/agentService'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
 import { NewFolderDialog } from '../tree/NewFolderDialog'
@@ -725,7 +726,9 @@ export function SkillManagerLayout() {
     const agent = agents.find((a) => a.id === agentId)
     if (!agent) return
 
-    const state = useAgentEditorStore.getState().getFormState(agentId)
+    const store = useAgentEditorStore.getState()
+    const state = store.getFormState(agentId)
+    const original = store.getOriginalState(agentId)
     if (!state) return
 
     // Build update payload
@@ -734,15 +737,19 @@ export function SkillManagerLayout() {
       description: state.description,
       status: state.status,
       appearance: state.appearance,
-      persona: state.persona,
       skills: state.skills,
       tags: state.tags,
     })
 
+    const soulChanged = state.soul !== (original?.soul ?? '')
+    if (soulChanged) {
+      await agentService.setAgentSoul(agentId, state.soul)
+    }
+
     // Re-fetch the agent to get the updated version
     const updatedAgent = agents.find((a) => a.id === agentId)
     if (updatedAgent) {
-      useAgentEditorStore.getState().markAsSaved(agentId, updatedAgent)
+      useAgentEditorStore.getState().markAsSaved(agentId, updatedAgent, state.soul)
     }
 
     toast({

@@ -119,15 +119,6 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if req.Persona != nil {
-		agent.Persona = &store.AgentPersona{
-			Entry:              req.Persona.Entry,
-			Voice:              req.Persona.Voice,
-			Traits:             req.Persona.Traits,
-			SystemPromptPrefix: req.Persona.SystemPromptPrefix,
-		}
-	}
-
 	if req.Capabilities != nil {
 		agent.Capabilities = &store.AgentCapabilities{}
 		if req.Capabilities.Provides != nil {
@@ -243,14 +234,6 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			Body:   req.Appearance.Body,
 			Head:   req.Appearance.Head,
 			Accent: req.Appearance.Accent,
-		}
-	}
-	if req.Persona != nil {
-		updates.Persona = &store.AgentPersona{
-			Entry:              req.Persona.Entry,
-			Voice:              req.Persona.Voice,
-			Traits:             req.Persona.Traits,
-			SystemPromptPrefix: req.Persona.SystemPromptPrefix,
 		}
 	}
 	if req.Capabilities != nil {
@@ -499,15 +482,6 @@ func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 			Body:   a.Appearance.Body,
 			Head:   a.Appearance.Head,
 			Accent: a.Appearance.Accent,
-		}
-	}
-
-	if a.Persona != nil {
-		resp.Persona = &PersonaDTO{
-			Entry:              a.Persona.Entry,
-			Voice:              a.Persona.Voice,
-			Traits:             a.Persona.Traits,
-			SystemPromptPrefix: a.Persona.SystemPromptPrefix,
 		}
 	}
 

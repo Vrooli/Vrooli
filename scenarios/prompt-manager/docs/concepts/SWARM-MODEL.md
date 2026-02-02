@@ -14,7 +14,7 @@ Prompt-manager evolved from a simple skill storage system into a comprehensive *
 │   │   SKILLS    │◄───────────────►│   AGENTS    │◄──────────────►       │
 │   │             │   agent-skill   │             │   team-member         │
 │   │  behaviors  │                 │  identities │                       │
-│   │  with packs │                 │  + personas │        ┌─────────────┐│
+│   │  with packs │                 │  + souls   │        ┌─────────────┐│
 │   └─────────────┘                 └─────────────┘        │    TEAMS    ││
 │                                                          │             ││
 │                                                          │ coordination││
@@ -62,11 +62,11 @@ store/skills/packs/{pack}/{skill-id}/
 
 ### Agents
 
-Agents are autonomous AI entities with identity, appearance, personas, and capabilities. They are the actors in the swarm.
+Agents are autonomous AI entities with identity, appearance, SOUL.md personality, and capabilities. They are the actors in the swarm.
 
 **Key Characteristics:**
 - **Appearance** (body, head, accent colors) for 3D world visualization
-- **Persona** (voice, traits, system prompt prefix) defining personality
+- **SOUL.md** defining personality and behavioral guidance
 - **Capabilities** - what the agent provides and requires (with verbs)
 - **Skill pins** - direct skill assignments with version pins
 - **Heartbeat configuration** for health monitoring
@@ -75,7 +75,8 @@ Agents are autonomous AI entities with identity, appearance, personas, and capab
 **Storage:**
 ```
 store/agents/{agent-id}/
-└── agent.json
+├── agent.json
+└── SOUL.md
 ```
 
 **Example agent.json:**
@@ -89,11 +90,6 @@ store/agents/{agent-id}/
     "body": "#3B82F6",
     "head": "#F59E0B",
     "accent": "#10B981"
-  },
-  "persona": {
-    "voice": "professional",
-    "traits": ["methodical", "patient", "thorough"],
-    "systemPromptPrefix": "You are Alice, a systematic debugger..."
   },
   "capabilities": {
     "provides": [
@@ -278,6 +274,6 @@ Team: Review Squad
 
 - [RELATIONS.md](RELATIONS.md) - Agent-skill and team-member relation details
 - [EFFECTIVE-SKILLS.md](EFFECTIVE-SKILLS.md) - Computation algorithm
-- [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent persona configuration
+- [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent SOUL.md configuration
 - [CAPABILITY-MATCHING.md](CAPABILITY-MATCHING.md) - Skill-to-agent matching
 - [3D-WORLD-ARCHITECTURE.md](3D-WORLD-ARCHITECTURE.md) - Visualization details

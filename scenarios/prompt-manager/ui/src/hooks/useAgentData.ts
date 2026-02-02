@@ -76,7 +76,6 @@ export function useAgentData(): UseAgentDataReturn {
           head: DEFAULT_AGENT_COLORS.head,
           accent: DEFAULT_AGENT_COLORS.accent,
         },
-        persona: request.persona,
         tags: request.tags,
         skills: request.skills,
       })

@@ -1,5 +1,5 @@
 {
-  "description": "Full CRUD operations for agent entities including appearance, persona, capabilities, connectors, and heartbeat configuration.",
+  "description": "Full CRUD operations for agent entities including appearance, SOUL.md, capabilities, connectors, and heartbeat configuration.",
   "module_id": "MOD-P0-016",
   "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
   "priority": "P0",
@@ -21,7 +21,7 @@
           "type": "test"
         },
         {
-          "notes": "Agent appearance, persona, capabilities validation",
+          "notes": "Agent appearance, SOUL.md, capabilities validation",
           "phase": "unit",
           "ref": "",
           "status": "complete",

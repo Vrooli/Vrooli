@@ -107,6 +107,21 @@ export async function updateAgent(id: string, updates: UpdateAgentRequest): Prom
 }
 
 /**
+ * Get SOUL.md content for an agent.
+ */
+export async function getAgentSoul(agentId: string): Promise<string> {
+  const response = await api.getAgentSoul(agentId)
+  return response.content ?? ''
+}
+
+/**
+ * Update SOUL.md content for an agent.
+ */
+export async function setAgentSoul(agentId: string, content: string): Promise<void> {
+  await api.setAgentSoul(agentId, content)
+}
+
+/**
  * Delete an agent.
  *
  * @param id - Agent ID to delete

@@ -333,4 +333,4 @@ Returns suggested capabilities based on skill content analysis.
 
 - [SWARM-MODEL.md](SWARM-MODEL.md) - Overall architecture
 - [EFFECTIVE-SKILLS.md](EFFECTIVE-SKILLS.md) - Skill computation
-- [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent identity
+- [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent SOUL.md

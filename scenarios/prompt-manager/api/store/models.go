@@ -27,7 +27,6 @@ type Agent struct {
 	Description       string             `json:"description,omitempty"`
 	Status            string             `json:"status"`
 	Appearance        *AgentAppearance   `json:"appearance,omitempty"`
-	Persona           *AgentPersona      `json:"persona,omitempty"`
 	Capabilities      *AgentCapabilities `json:"capabilities,omitempty"`
 	Connectors        []AgentConnector   `json:"connectors,omitempty"`
 	DefaultProfileRef string             `json:"defaultProfileRef,omitempty"`
@@ -43,14 +42,6 @@ type AgentAppearance struct {
 	Body   string `json:"body"`
 	Head   string `json:"head"`
 	Accent string `json:"accent"`
-}
-
-// AgentPersona represents agent personality and behavior configuration
-type AgentPersona struct {
-	Entry              string   `json:"entry,omitempty"`
-	Voice              string   `json:"voice,omitempty"`
-	Traits             []string `json:"traits,omitempty"`
-	SystemPromptPrefix string   `json:"systemPromptPrefix,omitempty"`
 }
 
 // AgentCapability represents a single capability with verbs

@@ -57,7 +57,7 @@ api/
 │   ├── store.go     # File-based storage
 │   └── query.go     # Filtering/search logic
 │
-├── agents/          # Agent management with appearance, persona, capabilities
+├── agents/          # Agent management with appearance, SOUL.md, capabilities
 ├── teams/           # Team management with roles, members, org charts
 ├── tags/            # Tag categorization
 ├── store/           # Storage layer (per-entity files)
@@ -244,7 +244,7 @@ See [SEAMS.md](../internal/SEAMS.md) for detailed testing seam documentation.
 - [Swarm Model](SWARM-MODEL.md) - The Skills + Agents + Teams architecture
 - [Relations](RELATIONS.md) - Agent-skill and team-member relations
 - [Effective Skills](EFFECTIVE-SKILLS.md) - Computed skill resolution algorithm
-- [Persona System](PERSONA-SYSTEM.md) - Agent identity and personality
+- [SOUL System](PERSONA-SYSTEM.md) - Agent personality via SOUL.md
 - [Capability Matching](CAPABILITY-MATCHING.md) - Skill-to-agent matching
 - [3D World Architecture](3D-WORLD-ARCHITECTURE.md) - Visualization system
 

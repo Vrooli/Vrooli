@@ -36,6 +36,7 @@ import {
   AgentSchema,
   AgentArraySchema,
   EffectiveSkillsResponseSchema,
+  SoulResponseSchema,
   AISearchResponseSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
@@ -59,6 +60,7 @@ import {
   type CreateAgentRequest,
   type UpdateAgentRequest,
   type EffectiveSkillsResponse,
+  type SoulResponse,
   type AISearchResponse,
   type AISearchStatus,
   type AIReindexStatus,
@@ -438,6 +440,25 @@ class ApiClient {
     )
   }
 
+  async getAgentSoul(id: string): Promise<SoulResponse> {
+    return this.request<SoulResponse>(
+      `/agents/${encodeURIComponent(id)}/soul`,
+      undefined,
+      SoulResponseSchema
+    )
+  }
+
+  async setAgentSoul(id: string, content: string): Promise<SoulResponse> {
+    return this.request<SoulResponse>(
+      `/agents/${encodeURIComponent(id)}/soul`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      },
+      SoulResponseSchema
+    )
+  }
+
   async deleteAgent(id: string): Promise<void> {
     await this.requestVoid(`/agents/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -584,4 +605,3 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewData | n
 
   return parseOrThrow(LinkPreviewDataSchema, normalized, '/og-metadata')
 }
-

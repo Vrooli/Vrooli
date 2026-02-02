@@ -10,7 +10,6 @@ type Response struct {
 	Description       string           `json:"description,omitempty"`
 	Status            string           `json:"status"`
 	Appearance        *AppearanceDTO   `json:"appearance,omitempty"`
-	Persona           *PersonaDTO      `json:"persona,omitempty"`
 	Capabilities      *CapabilitiesDTO `json:"capabilities,omitempty"`
 	Connectors        []ConnectorDTO   `json:"connectors,omitempty"`
 	DefaultProfileRef string           `json:"defaultProfileRef,omitempty"`
@@ -26,14 +25,6 @@ type AppearanceDTO struct {
 	Body   string `json:"body"`
 	Head   string `json:"head"`
 	Accent string `json:"accent"`
-}
-
-// PersonaDTO represents agent personality and behavior
-type PersonaDTO struct {
-	Entry              string   `json:"entry,omitempty"`
-	Voice              string   `json:"voice,omitempty"`
-	Traits             []string `json:"traits,omitempty"`
-	SystemPromptPrefix string   `json:"systemPromptPrefix,omitempty"`
 }
 
 // CapabilityDTO represents a single capability
@@ -68,7 +59,6 @@ type CreateRequest struct {
 	DisplayName       string           `json:"displayName"`
 	Description       string           `json:"description,omitempty"`
 	Appearance        *AppearanceDTO   `json:"appearance,omitempty"`
-	Persona           *PersonaDTO      `json:"persona,omitempty"`
 	Capabilities      *CapabilitiesDTO `json:"capabilities,omitempty"`
 	Connectors        []ConnectorDTO   `json:"connectors,omitempty"`
 	DefaultProfileRef string           `json:"defaultProfileRef,omitempty"`
@@ -83,7 +73,6 @@ type UpdateRequest struct {
 	Description       *string          `json:"description,omitempty"`
 	Status            *string          `json:"status,omitempty"`
 	Appearance        *AppearanceDTO   `json:"appearance,omitempty"`
-	Persona           *PersonaDTO      `json:"persona,omitempty"`
 	Capabilities      *CapabilitiesDTO `json:"capabilities,omitempty"`
 	Connectors        []ConnectorDTO   `json:"connectors,omitempty"`
 	DefaultProfileRef *string          `json:"defaultProfileRef,omitempty"`

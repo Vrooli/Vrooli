@@ -276,10 +276,18 @@ prompt-manager agent list [--json]
 
 ### prompt-manager agent show
 
-Show agent details including appearance, persona, and assigned skills.
+Show agent details including appearance and assigned skills.
 
 ```bash
 prompt-manager agent show <id> [--json]
+```
+
+### prompt-manager agent soul
+
+Get or set SOUL.md content for an agent.
+
+```bash
+prompt-manager agent soul <id> [--set='content'] [--file=path] [--json]
 ```
 
 ### prompt-manager agent create

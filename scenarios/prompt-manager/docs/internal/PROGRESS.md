@@ -54,7 +54,7 @@ Agent-maintained document tracking development milestones.
 ---
 
 ### Phase 5: Skills + Agents + Teams Evolution (2025-01-30)
-- [x] Agent domain with appearance, persona, capabilities
+- [x] Agent domain with appearance, SOUL.md, capabilities
 - [x] Team domain with roles, members, org charts
 - [x] Agent-skill relations with pins and enablement
 - [x] Team-member relations with role assignments

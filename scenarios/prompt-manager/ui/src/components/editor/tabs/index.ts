@@ -4,5 +4,5 @@
 
 export { AppearanceTab } from './AppearanceTab'
 export { SkillsTab } from './SkillsTab'
-export { PersonaTab } from './PersonaTab'
+export { SoulTab } from './SoulTab'
 export { InfoTab } from './InfoTab'

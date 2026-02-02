@@ -7,7 +7,7 @@
  * Features:
  * - Header with close button, color badge, editable name, and status toggle
  * - Expandable description
- * - Tabbed interface: Persona, Skills, Appearance, Info
+ * - Tabbed interface: Soul, Skills, Appearance, Info
  * - Dirty tracking with save/discard buttons
  * - Undo/redo support
  */
@@ -23,7 +23,7 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 
-import { AppearanceTab, SkillsTab, PersonaTab, InfoTab } from './tabs'
+import { AppearanceTab, SkillsTab, SoulTab, InfoTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
 import type { Skill } from '@/types'
 
@@ -106,7 +106,7 @@ export function AgentEditorPanel({
   void _onDelete
   void _isDeleting
   // Active tab state
-  const [activeTab, setActiveTab] = useState('persona')
+  const [activeTab, setActiveTab] = useState('soul')
 
   // Description expanded state
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
@@ -211,7 +211,7 @@ export function AgentEditorPanel({
       >
         {/* Tab List */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
-          <TabTrigger value="persona" icon={<User className="h-4 w-4" />} label="Persona" />
+          <TabTrigger value="soul" icon={<User className="h-4 w-4" />} label="Soul" />
           <TabTrigger value="skills" icon={<Zap className="h-4 w-4" />} label="Skills" />
           <TabTrigger value="appearance" icon={<Palette className="h-4 w-4" />} label="Appearance" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
@@ -219,8 +219,8 @@ export function AgentEditorPanel({
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto">
-          <Tabs.Content value="persona" className="h-full">
-            <PersonaTab
+          <Tabs.Content value="soul" className="h-full">
+            <SoulTab
               formState={formState}
               originalState={originalState}
               updateField={updateField}

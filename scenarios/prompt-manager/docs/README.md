@@ -20,7 +20,7 @@ The prompt-manager is built on three interconnected domains:
 | **Swarm Model** | [SWARM-MODEL.md](concepts/SWARM-MODEL.md) | The 3-domain architecture - how Skills, Agents, and Teams work together |
 | **Relations** | [RELATIONS.md](concepts/RELATIONS.md) | Agent-skill and team-member junction records |
 | **Effective Skills** | [EFFECTIVE-SKILLS.md](concepts/EFFECTIVE-SKILLS.md) | Algorithm for computing an agent's available skills |
-| **Persona System** | [PERSONA-SYSTEM.md](concepts/PERSONA-SYSTEM.md) | Agent identity, voice, and behavioral traits |
+| **SOUL System** | [PERSONA-SYSTEM.md](concepts/PERSONA-SYSTEM.md) | Agent personality defined in SOUL.md |
 | **Capability Matching** | [CAPABILITY-MATCHING.md](concepts/CAPABILITY-MATCHING.md) | Skill-to-agent matching based on capabilities |
 
 ### Visualization & Storage
@@ -58,7 +58,7 @@ Development documentation for contributors:
 │   │   SKILLS    │◄───────────────►│   AGENTS    │◄──────────────►       │
 │   │             │                 │             │                       │
 │   │  behaviors  │                 │  identities │        ┌─────────────┐│
-│   │  with packs │                 │  + personas │        │    TEAMS    ││
+│   │  with packs │                 │  + souls   │        │    TEAMS    ││
 │   └─────────────┘                 └─────────────┘        │             ││
 │         │                               │                │ coordination││
 │         │                               │                │ + roles     ││
@@ -78,7 +78,7 @@ Development documentation for contributors:
 ## Key Features
 
 - **Pack-based skill organization** - Core, local, and drafts with precedence ordering
-- **Agent personas** - Configurable voice, traits, and system prompts
+- **Agent SOUL.md** - Single source of personality and behavioral guidance
 - **Team role grants** - Automatic skill assignment based on team membership
 - **Effective skills computation** - Unified skill set from all sources
 - **3D visualization** - Monitor and coordinate agent swarms

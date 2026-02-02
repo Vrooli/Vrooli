@@ -7,7 +7,7 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 
 ### 🔴 P0 – Must ship for viability
 - CRUD operations for skills via API
-- Agent CRUD operations with appearance, persona, capabilities, connectors
+- Agent CRUD operations with appearance, SOUL.md, capabilities, connectors
 - Team CRUD with roles, members, org chart
 - Effective skills computation with team context
 - Pack-based skill organization (core/local/drafts)
@@ -58,13 +58,13 @@ Prompt Manager is a **Skills + Agents + Teams** management system that stores, o
 
 ### Core Capability
 **What permanent capability does this scenario add to Vrooli?**
-Provides a **Skills + Agents + Teams** management system that orchestrates reusable AI behaviors. Skills define capabilities (debugging, testing, etc.), Agents are autonomous entities with personas and capabilities that can be assigned skills, and Teams coordinate multiple agents with role-based skill grants. This creates the foundation for **agent swarms** - coordinated groups of agents that can work autonomously on complex tasks.
+Provides a **Skills + Agents + Teams** management system that orchestrates reusable AI behaviors. Skills define capabilities (debugging, testing, etc.), Agents are autonomous entities with SOUL.md personality and capabilities that can be assigned skills, and Teams coordinate multiple agents with role-based skill grants. This creates the foundation for **agent swarms** - coordinated groups of agents that can work autonomously on complex tasks.
 
 ### Intelligence Amplification
 **How does this capability make future agents smarter?**
 - **Skill Composition**: Agents can combine multiple skills to solve complex problems
 - **Effective Skills Computation**: Agents inherit skills from their team roles, enabling organization-level capability management
-- **Persona Management**: Agents have configurable personas, traits, and system prompts for specialized behaviors
+- **SOUL.md Management**: Agents have a single personality source defined in SOUL.md
 - **Capability Matching**: Skills declare required capabilities; agents declare provided capabilities
 - **Semantic Search**: Find relevant skills across all packs using vector embeddings
 - **3D Visualization**: Monitor and coordinate agent swarms through an interactive 3D world
@@ -84,7 +84,7 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
 ### Functional Requirements
 - **Must Have (P0)**
   - [x] CRUD operations for skills via API
-  - [x] Agent CRUD operations with appearance, persona, capabilities
+  - [x] Agent CRUD operations with appearance, SOUL.md, capabilities
   - [x] Team CRUD with roles, members, org chart
   - [x] Effective skills computation with team context
   - [x] Pack-based skill organization (core/local/drafts)
@@ -212,11 +212,7 @@ primary_entities:
           body: string            # hex color
           head: string            # hex color
           accent: string          # hex color
-        persona:
-          entry: string           # persona file path
-          voice: string
-          traits: string[]
-          systemPromptPrefix: string
+        soul: SOUL.md             # personality and behavioral guidance (markdown)
         capabilities:
           provides: [{capabilityId, verbs[]}]
           requires: [{capabilityId, verbs[]}]
