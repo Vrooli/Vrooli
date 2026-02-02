@@ -119,7 +119,40 @@ Building from Linux (recommended):
 
 ---
 
-### **7. Troubleshooting**
+### **7. Preflight Prerequisites**
+
+Before running the pipeline, ensure the scenario is fully built. The preflight stage validates:
+
+**Required before pipeline:**
+1. **Service binaries** - All API/CLI binaries must be compiled for target platforms
+2. **UI assets** - Run `pnpm build` in the UI directory to generate production assets
+3. **Bundle manifest** - The `bundle/bundle.json` must reference valid file paths
+
+**Quick pre-flight checklist:**
+```bash
+# Build scenario (creates binaries + UI)
+cd scenarios/<scenario-name>
+make build
+
+# Verify binaries exist for your platform
+ls -la platforms/electron/bin/api/linux-x64/
+ls -la platforms/electron/bin/cli/linux-x64/
+
+# Verify UI is built
+ls -la platforms/electron/ui/dist/index.html
+```
+
+**Common preflight failures:**
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `service binary validation failed` | Binaries not compiled | Run `make build` in scenario dir |
+| `critical validation checks failed` | UI assets missing | Run `pnpm build` in ui/ dir |
+| `missing asset` | Bundle manifest references non-existent files | Rebuild or fix manifest paths |
+
+---
+
+### **8. Troubleshooting**
 
 Pipeline errors include structured error codes, recovery hints, and step-by-step guidance.
 
@@ -156,6 +189,7 @@ scenario-to-desktop pipeline status <id> --json
 
 | Error Code | Meaning | Recovery |
 |------------|---------|----------|
+| `PREFLIGHT_VALIDATION_FAILED` | Missing binaries or assets | Build scenario first: `make build` |
 | `BUNDLE_INVALID` | Bundle config mismatch | Fix package.json extraResources |
 | `PREFLIGHT_FAILED` | Scenario not ready | Ensure scenario is running |
 | `SMOKE_TEST_FAILED` | App failed validation | Check platform deps (xvfb, etc.) |
@@ -174,7 +208,7 @@ scenario-to-desktop pipeline run my-scenario --wait --debug
 
 ---
 
-### **8. Guardrails**
+### **9. Guardrails**
 
 **Do:**
 - Use `--wait` for all scripted/agent workflows
@@ -188,7 +222,7 @@ scenario-to-desktop pipeline run my-scenario --wait --debug
 
 ---
 
-### **9. Success Artifacts**
+### **10. Success Artifacts**
 
 After successful pipeline run:
 
@@ -202,7 +236,7 @@ Download via: `scenario-to-desktop download <scenario> <platform> --output <path
 
 ---
 
-### **10. Smoke Test Troubleshooting**
+### **11. Smoke Test Troubleshooting**
 
 When smoke tests fail, check these in order:
 

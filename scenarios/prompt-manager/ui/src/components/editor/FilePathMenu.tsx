@@ -10,7 +10,7 @@
  * - Storage location toggle (Core/Local)
  */
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, type ReactNode } from 'react'
 import { ChevronRight, Copy, Check, FolderOpen, HardDrive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FolderType } from '@/types'
@@ -19,9 +19,9 @@ interface FilePathMenuProps {
   /** The filename (e.g., "my-skill.md") */
   file: string
   /** Array of mode segments (e.g., ['mode1', 'mode2']) */
-  modes: string[]
+  modes?: string[]
   /** The folder type (local, core, drafts) */
-  folder: FolderType
+  folder?: FolderType
   /** Called when filename is changed */
   onFileChange: (file: string) => void
   /** Called when folder is changed */
@@ -30,6 +30,22 @@ interface FilePathMenuProps {
   skillDir?: string
   /** Absolute path to SKILL.md file (from API) */
   contentPath?: string
+  /** Override label for the root breadcrumb segment */
+  rootLabel?: string
+  /** Override breadcrumb segments (defaults to modes) */
+  pathSegments?: string[]
+  /** Override file extension (defaults to derived from file) */
+  fileExtension?: string
+  /** Override relative path */
+  relativePath?: string
+  /** Override project path */
+  projectPath?: string
+  /** Override full/absolute path */
+  fullPath?: string
+  /** Disable filename editing */
+  isEditable?: boolean
+  /** Override the trigger icon */
+  triggerIcon?: ReactNode
   /** Additional class names */
   className?: string
 }
@@ -39,19 +55,35 @@ interface FilePathMenuProps {
  */
 export function FilePathMenu({
   file,
-  modes,
+  modes = [],
   folder,
   onFileChange,
   onFolderChange,
   skillDir,
   contentPath,
+  rootLabel,
+  pathSegments,
+  fileExtension,
+  relativePath,
+  projectPath,
+  fullPath,
+  isEditable = true,
+  triggerIcon,
   className,
 }: FilePathMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const extension = (() => {
+    if (fileExtension) {
+      return fileExtension.startsWith('.') ? fileExtension : `.${fileExtension}`
+    }
+    const base = file.split('/').pop() ?? file
+    const lastDot = base.lastIndexOf('.')
+    return lastDot > 0 ? base.slice(lastDot) : ''
+  })()
   // Handle undefined/empty file prop defensively
-  const safeFile = file || 'untitled.md'
-  // Extract filename without .md extension for editing
-  const filenameWithoutExt = safeFile.replace(/\.md$/, '')
+  const safeFile = file || `untitled${extension}`
+  // Extract filename without extension for editing
+  const filenameWithoutExt = extension ? safeFile.slice(0, -extension.length) : safeFile
   const [editingName, setEditingName] = useState(filenameWithoutExt)
   const [copiedRelative, setCopiedRelative] = useState(false)
   const [copiedProject, setCopiedProject] = useState(false)
@@ -67,11 +99,13 @@ export function FilePathMenu({
   // Sync editing name with prop when menu opens
   useEffect(() => {
     if (isOpen) {
-      setEditingName(safeFile.replace(/\.md$/, ''))
+      setEditingName(extension ? safeFile.slice(0, -extension.length) : safeFile)
       // Focus input after a short delay
-      setTimeout(() => inputRef.current?.focus(), 50)
+      if (isEditable) {
+        setTimeout(() => inputRef.current?.focus(), 50)
+      }
     }
-  }, [isOpen, safeFile])
+  }, [isOpen, safeFile, extension, isEditable])
 
   // Calculate position when menu opens
   useLayoutEffect(() => {
@@ -121,8 +155,8 @@ export function FilePathMenu({
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         // Save filename if changed
-        const newFilename = `${editingName.trim()}.md`
-        if (newFilename !== safeFile && editingName.trim()) {
+        const newFilename = `${editingName.trim()}${extension}`
+        if (isEditable && newFilename !== safeFile && editingName.trim()) {
           onFileChange(newFilename)
         }
         setIsOpen(false)
@@ -133,7 +167,7 @@ export function FilePathMenu({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isOpen, editingName, safeFile, onFileChange])
+  }, [isOpen, editingName, safeFile, extension, onFileChange, isEditable])
 
   // Close on Escape
   useEffect(() => {
@@ -141,7 +175,7 @@ export function FilePathMenu({
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setEditingName(safeFile.replace(/\.md$/, '')) // Reset to original
+        setEditingName(extension ? safeFile.slice(0, -extension.length) : safeFile) // Reset to original
         setIsOpen(false)
       }
     }
@@ -150,64 +184,70 @@ export function FilePathMenu({
     return () => {
       document.removeEventListener('keydown', handleEscape)
     }
-  }, [isOpen, safeFile])
+  }, [isOpen, safeFile, extension])
 
   // Build path segments for breadcrumb display only (modes are UI categories, not directory structure)
-  const pathSegments = modes.filter(Boolean)
+  const breadcrumbSegments = (pathSegments ?? modes).filter(Boolean)
+  const rootSegment = rootLabel ?? folder ?? 'path'
 
   // Use server-provided paths when available (ground truth from API)
   // Fall back to constructed paths for backwards compatibility
-  const fullPath = contentPath || skillDir ? `${skillDir}/SKILL.md` : ''
+  const resolvedFullPath = fullPath ?? (contentPath || (skillDir ? `${skillDir}/SKILL.md` : ''))
 
   // Compute project path: relative to project root (useful for coding agents)
   // Extract from absolute path by finding "scenarios/" prefix
-  let projectPath = ''
-  if (contentPath) {
+  let resolvedProjectPath = projectPath ?? ''
+  if (!resolvedProjectPath && contentPath) {
     const scenariosIndex = contentPath.indexOf('scenarios/')
-    projectPath = scenariosIndex !== -1 ? contentPath.slice(scenariosIndex) : contentPath
-  } else if (skillDir) {
+    resolvedProjectPath = scenariosIndex !== -1 ? contentPath.slice(scenariosIndex) : contentPath
+  } else if (!resolvedProjectPath && skillDir) {
     const scenariosIndex = skillDir.indexOf('scenarios/')
-    projectPath = scenariosIndex !== -1 ? `${skillDir.slice(scenariosIndex)}/SKILL.md` : `${skillDir}/SKILL.md`
+    resolvedProjectPath = scenariosIndex !== -1 ? `${skillDir.slice(scenariosIndex)}/SKILL.md` : `${skillDir}/SKILL.md`
   }
 
   // Relative path: just the store-relative path
-  const relativePath = skillDir
+  const resolvedRelativePath = relativePath ?? (skillDir
     ? (skillDir.split('/store/').pop() ?? '') + '/SKILL.md'
-    : `skills/packs/${folder}/${safeFile.replace('.md', '')}/SKILL.md`
+    : folder
+      ? `skills/packs/${folder}/${safeFile.replace(extension, '')}/SKILL.md`
+      : '')
 
   // Copy function - wrapped to avoid returning promise in onClick
   const handleCopyRelative = useCallback(() => {
-    void navigator.clipboard.writeText(relativePath).then(() => {
+    if (!resolvedRelativePath) return
+    void navigator.clipboard.writeText(resolvedRelativePath).then(() => {
       setCopiedRelative(true)
       setTimeout(() => setCopiedRelative(false), 2000)
     }).catch((err: unknown) => {
       console.error('Failed to copy:', err)
     })
-  }, [relativePath])
+  }, [resolvedRelativePath])
 
   const handleCopyProject = useCallback(() => {
-    void navigator.clipboard.writeText(projectPath).then(() => {
+    if (!resolvedProjectPath) return
+    void navigator.clipboard.writeText(resolvedProjectPath).then(() => {
       setCopiedProject(true)
       setTimeout(() => setCopiedProject(false), 2000)
     }).catch((err: unknown) => {
       console.error('Failed to copy:', err)
     })
-  }, [projectPath])
+  }, [resolvedProjectPath])
 
   const handleCopyFull = useCallback(() => {
-    void navigator.clipboard.writeText(fullPath).then(() => {
+    if (!resolvedFullPath) return
+    void navigator.clipboard.writeText(resolvedFullPath).then(() => {
       setCopiedFull(true)
       setTimeout(() => setCopiedFull(false), 2000)
     }).catch((err: unknown) => {
       console.error('Failed to copy:', err)
     })
-  }, [fullPath])
+  }, [resolvedFullPath])
 
   const handleNameKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (editingName.trim()) {
-        onFileChange(`${editingName.trim()}.md`)
+      if (isEditable && editingName.trim()) {
+        onFileChange(`${editingName.trim()}${extension}`)
         setIsOpen(false)
       }
     }
@@ -227,7 +267,7 @@ export function FilePathMenu({
     }
   }
 
-  const storageInfo = getStorageInfo(folder)
+  const storageInfo = folder ? getStorageInfo(folder) : { icon: FolderOpen, label: rootSegment, description: '' }
   const StorageIcon = storageInfo.icon
 
   return (
@@ -244,7 +284,7 @@ export function FilePathMenu({
         )}
         title="Click to view path details"
       >
-        <StorageIcon className="h-3 w-3 text-muted-foreground" />
+        {triggerIcon ?? <StorageIcon className="h-3 w-3 text-muted-foreground" />}
         <span className="font-medium">{safeFile}</span>
       </button>
 
@@ -266,7 +306,7 @@ export function FilePathMenu({
           )}
         >
           {/* Storage location toggle */}
-          {onFolderChange && (
+          {onFolderChange && folder && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-medium block">
                 Storage Location
@@ -307,14 +347,14 @@ export function FilePathMenu({
 
           {/* Path breadcrumb - without "Path" label */}
           <div className="flex items-center flex-wrap gap-1 text-sm">
-            <span className="text-muted-foreground">{folder}</span>
-            {pathSegments.length > 0 && (
+            <span className="text-muted-foreground">{rootSegment}</span>
+            {breadcrumbSegments.length > 0 && (
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
             )}
-            {pathSegments.map((segment, index) => (
+            {breadcrumbSegments.map((segment, index) => (
               <span key={index} className="flex items-center">
                 <span className="text-muted-foreground">{segment}</span>
-                {index < pathSegments.length - 1 && (
+                {index < breadcrumbSegments.length - 1 && (
                   <ChevronRight className="h-3 w-3 text-muted-foreground mx-0.5" />
                 )}
               </span>
@@ -333,15 +373,17 @@ export function FilePathMenu({
                 value={editingName}
                 onChange={(e) => setEditingName(e.target.value)}
                 onKeyDown={handleNameKeyDown}
+                disabled={!isEditable}
                 className={cn(
                   'flex-1 px-2 py-1 text-sm rounded',
                   'bg-muted border border-border',
                   'text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary'
+                  'focus:outline-none focus:ring-2 focus:ring-primary',
+                  !isEditable && 'opacity-60 cursor-not-allowed'
                 )}
-                placeholder="Skill name"
+                placeholder="File name"
               />
-              <span className="text-sm text-muted-foreground">.md</span>
+              {extension && <span className="text-sm text-muted-foreground">{extension}</span>}
             </div>
           </div>
 
@@ -351,57 +393,63 @@ export function FilePathMenu({
               File Path
             </label>
             <p className="text-xs text-muted-foreground font-mono break-all select-all bg-muted/50 px-2 py-1.5 rounded">
-              {projectPath}
+              {resolvedProjectPath || resolvedFullPath || resolvedRelativePath}
             </p>
           </div>
 
           {/* Copy buttons - cleaner design */}
           <div className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={handleCopyRelative}
-              className={cn(
-                'flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm',
-                'hover:bg-muted transition-colors w-full text-left'
-              )}
-            >
-              <span className="text-foreground">Copy relative path</span>
-              {copiedRelative ? (
-                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-              ) : (
-                <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyProject}
-              className={cn(
-                'flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm',
-                'hover:bg-muted transition-colors w-full text-left'
-              )}
-            >
-              <span className="text-foreground">Copy project path</span>
-              {copiedProject ? (
-                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-              ) : (
-                <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyFull}
-              className={cn(
-                'flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm',
-                'hover:bg-muted transition-colors w-full text-left'
-              )}
-            >
-              <span className="text-foreground">Copy full path</span>
-              {copiedFull ? (
-                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-              ) : (
-                <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              )}
-            </button>
+            {resolvedRelativePath && (
+              <button
+                type="button"
+                onClick={handleCopyRelative}
+                className={cn(
+                  'flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm',
+                  'hover:bg-muted transition-colors w-full text-left'
+                )}
+              >
+                <span className="text-foreground">Copy relative path</span>
+                {copiedRelative ? (
+                  <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                ) : (
+                  <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
+            )}
+            {resolvedProjectPath && (
+              <button
+                type="button"
+                onClick={handleCopyProject}
+                className={cn(
+                  'flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm',
+                  'hover:bg-muted transition-colors w-full text-left'
+                )}
+              >
+                <span className="text-foreground">Copy project path</span>
+                {copiedProject ? (
+                  <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                ) : (
+                  <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
+            )}
+            {resolvedFullPath && (
+              <button
+                type="button"
+                onClick={handleCopyFull}
+                className={cn(
+                  'flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm',
+                  'hover:bg-muted transition-colors w-full text-left'
+                )}
+              >
+                <span className="text-foreground">Copy full path</span>
+                {copiedFull ? (
+                  <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                ) : (
+                  <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -16,6 +16,7 @@ type Response struct {
 	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
 	Tags              []string         `json:"tags,omitempty"`
 	Skills            []string         `json:"skills,omitempty"`
+	AgentDir          string           `json:"agentDir,omitempty"`
 	CreatedAt         string           `json:"createdAt"`
 	UpdatedAt         string           `json:"updatedAt"`
 }

@@ -102,6 +102,7 @@ export const AgentSchema = z.object({
   heartbeat: AgentHeartbeatSchema.nullable().optional(),
   tags: nullableStringArray,
   skills: nullableStringArray,
+  agentDir: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

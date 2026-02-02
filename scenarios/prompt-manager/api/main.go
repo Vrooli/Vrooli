@@ -96,7 +96,7 @@ func main() {
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
 
 	// Agent handlers (new storage-backed, replaces member handlers)
-	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Relations(), fileStore.Indexes())
+	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), absStoreDir)
 
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()

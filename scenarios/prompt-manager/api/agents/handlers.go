@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"prompt-manager/store"
@@ -19,14 +20,16 @@ type Handlers struct {
 	agentStore    store.AgentStore
 	relationStore store.RelationStore
 	indexStore    store.IndexStore
+	storeDir      string
 }
 
 // NewHandlers creates a new agents handler.
-func NewHandlers(agentStore store.AgentStore, relationStore store.RelationStore, indexStore store.IndexStore) *Handlers {
+func NewHandlers(agentStore store.AgentStore, relationStore store.RelationStore, indexStore store.IndexStore, storeDir string) *Handlers {
 	return &Handlers{
 		agentStore:    agentStore,
 		relationStore: relationStore,
 		indexStore:    indexStore,
+		storeDir:      storeDir,
 	}
 }
 
@@ -694,6 +697,10 @@ func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 		Tags:              a.Tags,
 		CreatedAt:         a.CreatedAt,
 		UpdatedAt:         a.UpdatedAt,
+	}
+
+	if h.storeDir != "" {
+		resp.AgentDir = filepath.Join(h.storeDir, "agents", a.ID)
 	}
 
 	if a.Appearance != nil {

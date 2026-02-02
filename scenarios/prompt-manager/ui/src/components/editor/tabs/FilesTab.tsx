@@ -37,9 +37,11 @@ import * as agentService from '@/services/agentService'
 import { AppearanceTab } from './AppearanceTab'
 import { EditorActionButtons, SkillContentEditor } from '../SkillContentEditor'
 import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
+import { FilePathMenu } from '../FilePathMenu'
 
 interface FilesTabProps {
   agentId: string
+  agentDir?: string
   formState: NormalizedAgentFormState
   updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
   updateFields: (updates: Partial<NormalizedAgentFormState>) => void
@@ -203,6 +205,7 @@ function isReservedPath(path?: string | null): boolean {
 
 export function FilesTab({
   agentId,
+  agentDir,
   formState,
   updateField,
   updateFields: _updateFields,
@@ -457,6 +460,30 @@ export function FilesTab({
     setRenameSourcePath(null)
   }, [])
 
+  const handleRenameFile = useCallback(
+    async (from: string, to: string): Promise<boolean> => {
+      if (from === to) return true
+      try {
+        await agentService.renameAgentFile(agentId, { from, to })
+        if (selectedPath === from) {
+          skipFileLoadRef.current = to
+          setSelectedPath(to)
+        }
+        ensureExpandedForPath(to)
+        await refreshFiles()
+        return true
+      } catch (error) {
+        console.warn('[FilesTab] File operation failed:', error)
+        toast({
+          title: 'File operation failed',
+          description: 'Check the file name and try again.',
+        })
+        return false
+      }
+    },
+    [agentId, ensureExpandedForPath, refreshFiles, selectedPath, toast]
+  )
+
   const handleConfirmDialog = useCallback(async () => {
     const trimmed = pendingPath.trim()
     if (!trimmed) return
@@ -468,20 +495,11 @@ export function FilesTab({
         await agentService.createAgentFile(agentId, { path: trimmed, content: '' })
         setSelectedPath(trimmed)
         ensureExpandedForPath(trimmed)
+        await refreshFiles()
+        didSucceed = true
       } else if (renameSourcePath) {
-        if (trimmed === renameSourcePath) {
-          handleCloseDialog()
-          return
-        }
-        await agentService.renameAgentFile(agentId, { from: renameSourcePath, to: trimmed })
-        if (selectedPath === renameSourcePath) {
-          skipFileLoadRef.current = trimmed
-          setSelectedPath(trimmed)
-        }
-        ensureExpandedForPath(trimmed)
+        didSucceed = await handleRenameFile(renameSourcePath, trimmed)
       }
-      await refreshFiles()
-      didSucceed = true
     } catch (error) {
       console.warn('[FilesTab] File operation failed:', error)
       toast({
@@ -498,10 +516,11 @@ export function FilesTab({
     dialogMode,
     pendingPath,
     renameSourcePath,
-    refreshFiles,
-    selectedPath,
     ensureExpandedForPath,
     handleCloseDialog,
+    handleRenameFile,
+    refreshFiles,
+    toast,
   ])
 
   const handleDelete = useCallback(
@@ -527,7 +546,7 @@ export function FilesTab({
         setContextMenu(null)
       }
     },
-    [agentId, refreshFiles, selectedPath]
+    [agentId, refreshFiles, selectedPath, toast]
   )
 
   const handleContextMenu = useCallback(
@@ -544,6 +563,54 @@ export function FilesTab({
     },
     []
   )
+
+  const handleRenameSelectedFile = useCallback(
+    async (nextFile: string) => {
+      if (!selectedPath || isDirectorySelected || isReservedSelected) return
+      const parentDir = selectedPath.split('/').slice(0, -1).join('/')
+      const nextPath = parentDir ? `${parentDir}/${nextFile}` : nextFile
+      if (!nextPath || nextPath === selectedPath) return
+      await handleRenameFile(selectedPath, nextPath)
+    },
+    [handleRenameFile, isDirectorySelected, isReservedSelected, selectedPath]
+  )
+
+  const filePathMenu = useMemo<ReactNode | null>(() => {
+    if (!selectedPath || isDirectorySelected) return null
+
+    const segments = selectedPath.split('/').filter(Boolean)
+    const baseName = segments.pop() ?? selectedPath
+    const dirSegments = segments
+
+    const resolvedAgentDir = agentDir ?? ''
+    const fullPath = resolvedAgentDir ? `${resolvedAgentDir}/${selectedPath}` : ''
+
+    let projectPath = ''
+    if (resolvedAgentDir) {
+      const scenariosIndex = resolvedAgentDir.indexOf('scenarios/')
+      const basePath = scenariosIndex !== -1 ? resolvedAgentDir.slice(scenariosIndex) : resolvedAgentDir
+      projectPath = `${basePath}/${selectedPath}`
+    }
+
+    const relativeBase = resolvedAgentDir
+      ? (resolvedAgentDir.split('/store/').pop() ?? '')
+      : `agents/${agentId}`
+    const relativePath = relativeBase ? `${relativeBase}/${selectedPath}` : ''
+
+    return (
+      <FilePathMenu
+        file={baseName}
+        rootLabel="agents"
+        pathSegments={[agentId, ...dirSegments]}
+        onFileChange={(nextFile) => void handleRenameSelectedFile(nextFile)}
+        relativePath={relativePath}
+        projectPath={projectPath}
+        fullPath={fullPath}
+        isEditable={!isReservedSelected}
+        className="flex-shrink-0"
+      />
+    )
+  }, [agentDir, agentId, handleRenameSelectedFile, isDirectorySelected, isReservedSelected, selectedPath])
 
   const templateHeader = useMemo<ReactNode | null>(() => {
     if (!isFileEditorActive || !templateOptions?.length) {
@@ -568,6 +635,18 @@ export function FilesTab({
       </ToolbarDropdown>
     )
   }, [handleApplyTemplate, isFileEditorActive, templateOptions])
+
+  const headerRight = useMemo<ReactNode | null>(() => {
+    if (filePathMenu && templateHeader) {
+      return (
+        <>
+          {filePathMenu}
+          {templateHeader}
+        </>
+      )
+    }
+    return filePathMenu ?? templateHeader
+  }, [filePathMenu, templateHeader])
 
   const isDialogValid = pendingPath.trim().length > 0
 
@@ -679,18 +758,21 @@ export function FilesTab({
                   <div className="text-sm font-semibold">agent.json</div>
                   <div className="text-xs text-muted-foreground">Appearance settings</div>
                 </div>
-                <EditorActionButtons
-                  isDirty={isDirty}
-                  dirtyCount={dirtyCount}
-                  onUndo={onUndo}
-                  onRedo={onRedo}
-                  canUndo={canUndo}
-                  canRedo={canRedo}
-                  onSave={onSave}
-                  onDiscard={onDiscard}
-                  isSaving={isSaving}
-                  isValid={isValid}
-                />
+                <div className="flex items-center gap-2">
+                  {filePathMenu}
+                  <EditorActionButtons
+                    isDirty={isDirty}
+                    dirtyCount={dirtyCount}
+                    onUndo={onUndo}
+                    onRedo={onRedo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
+                    onSave={onSave}
+                    onDiscard={onDiscard}
+                    isSaving={isSaving}
+                    isValid={isValid}
+                  />
+                </div>
               </div>
               <AppearanceTab formState={formState} updateField={updateField} />
             </div>
@@ -719,7 +801,7 @@ export function FilesTab({
                   onDiscard={handleDiscardFile}
                   isSaving={isFileSaving}
                   isValid
-                  headerRight={templateHeader ?? undefined}
+                  headerRight={headerRight ?? undefined}
                   className="h-full"
                 />
               )}

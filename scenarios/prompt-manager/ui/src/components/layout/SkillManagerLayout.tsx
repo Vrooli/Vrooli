@@ -48,6 +48,7 @@ import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
+import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
 
@@ -63,6 +64,7 @@ export function SkillManagerLayout() {
 
   // Dialog states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDeleteAgentDialog, setShowDeleteAgentDialog] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
 
   // Delete folder dialog state
@@ -86,7 +88,9 @@ export function SkillManagerLayout() {
   const {
     agents,
     isLoading: isLoadingAgents,
+    createAgent,
     updateAgent,
+    deleteAgent,
   } = useAgentData()
 
   const {
@@ -325,11 +329,7 @@ export function SkillManagerLayout() {
     agents,
     selectedAgentId,
     onSave: updateAgent,
-    onDelete: (id: string) => {
-      // Agent deletion would go here if implemented
-      console.log('Delete agent:', id)
-      return Promise.resolve()
-    },
+    onDelete: deleteAgent,
   })
 
   // Team editor dirty state - compute count directly (stable primitive)
@@ -614,6 +614,59 @@ export function SkillManagerLayout() {
       console.error('Failed to copy skill:', error)
     }
   }, [createSkill, setSelectedSkillId, isMobile])
+
+  const handleDuplicateAgent = useCallback(async () => {
+    if (!agentFromEditor) return
+
+    try {
+      const created = await createAgent({
+        displayName: `${agentFromEditor.displayName} (Copy)`,
+        description: agentFromEditor.description,
+        appearance: agentFromEditor.appearance ?? {
+          body: DEFAULT_AGENT_COLORS.body,
+          head: DEFAULT_AGENT_COLORS.head,
+          accent: DEFAULT_AGENT_COLORS.accent,
+        },
+        capabilities: agentFromEditor.capabilities ?? undefined,
+        connectors: agentFromEditor.connectors ?? undefined,
+        defaultProfileRef: agentFromEditor.defaultProfileRef ?? undefined,
+        heartbeat: agentFromEditor.heartbeat ?? undefined,
+        tags: [...agentFromEditor.tags],
+        skills: [...agentFromEditor.skills],
+      })
+      setSelectedAgentId(created.id)
+
+      if (isMobile) {
+        setIsMobileSidebarOpen(false)
+      }
+    } catch (error) {
+      console.error('Failed to duplicate agent:', error)
+      toast({
+        title: 'Duplicate failed',
+        description: 'Unable to duplicate agent. Try again.',
+      })
+    }
+  }, [agentFromEditor, createAgent, setSelectedAgentId, isMobile, toast])
+
+  const handleConfirmDeleteAgent = useCallback(async () => {
+    if (!agentFromEditor) {
+      setShowDeleteAgentDialog(false)
+      return
+    }
+
+    try {
+      await deleteCurrentAgent()
+      setSelectedAgentId(null)
+    } catch (error) {
+      console.error('Failed to delete agent:', error)
+      toast({
+        title: 'Delete failed',
+        description: 'Unable to delete agent. Try again.',
+      })
+    } finally {
+      setShowDeleteAgentDialog(false)
+    }
+  }, [agentFromEditor, deleteCurrentAgent, setSelectedAgentId, toast])
 
   // Handle move to folder (update skill modes)
   const handleMoveToFolder = useCallback(async (skillId: string, path: string[]) => {
@@ -1036,7 +1089,8 @@ export function SkillManagerLayout() {
                 onSave={() => void saveCurrentAgent()}
                 onSaveAll={() => void saveAllAgentChanges()}
                 onDiscard={discardAgentChanges}
-                onDelete={() => void deleteCurrentAgent()}
+                onDelete={() => setShowDeleteAgentDialog(true)}
+                onDuplicate={() => void handleDuplicateAgent()}
                 onClose={() => setSelectedAgentId(null)}
                 isSaving={isAgentSaving}
                 isDeleting={isAgentDeleting}
@@ -1185,6 +1239,18 @@ export function SkillManagerLayout() {
         confirmLabel="Delete"
         variant="danger"
         isLoading={isDeleting}
+      />
+
+      {/* Delete agent confirmation dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteAgentDialog}
+        onClose={() => setShowDeleteAgentDialog(false)}
+        onConfirm={() => void handleConfirmDeleteAgent()}
+        title="Delete Agent"
+        message={`Are you sure you want to delete "${agentFromEditor?.displayName}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={isAgentDeleting}
       />
 
       {/* Delete folder confirmation dialog */}

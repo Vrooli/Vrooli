@@ -135,7 +135,7 @@ func TestList(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("GET", "/agents", nil)
 	w := httptest.NewRecorder()
@@ -162,7 +162,7 @@ func TestList(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
 
 	body := CreateRequest{
 		DisplayName: "New Agent",
@@ -199,7 +199,7 @@ func TestCreate(t *testing.T) {
 
 func TestCreateMissingDisplayName(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
 
 	body := CreateRequest{}
 	bodyBytes, _ := json.Marshal(body)
@@ -216,7 +216,7 @@ func TestCreateMissingDisplayName(t *testing.T) {
 
 func TestCreateInvalidColor(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
 
 	body := CreateRequest{
 		DisplayName: "New Agent",
@@ -246,7 +246,7 @@ func TestGet(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("GET", "/agents/agent-1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
@@ -270,7 +270,7 @@ func TestGet(t *testing.T) {
 
 func TestGetNotFound(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("GET", "/agents/nonexistent", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
@@ -291,7 +291,7 @@ func TestDelete(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{}, "")
 
 	req := httptest.NewRequest("DELETE", "/agents/agent-1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})

@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Folder, Zap, User, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Folder, Zap, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
@@ -25,6 +25,7 @@ import { selectors } from '@/constants/selectors'
 
 import { SkillsTab, InfoTab, FilesTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
+import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import type { Skill } from '@/types'
 
 interface AgentEditorPanelProps {
@@ -60,6 +61,8 @@ interface AgentEditorPanelProps {
   onDiscard: () => void
   /** Delete current agent */
   onDelete: () => void
+  /** Duplicate current agent */
+  onDuplicate: () => void
   /** Callback to close the editor */
   onClose: () => void
   /** Whether the agent is being saved */
@@ -92,16 +95,15 @@ export function AgentEditorPanel({
   onSave,
   onSaveAll: _onSaveAll,
   onDiscard,
-  onDelete: _onDelete,
+  onDelete,
+  onDuplicate,
   onClose,
   isSaving = false,
-  isDeleting: _isDeleting = false,
+  isDeleting = false,
   className,
 }: AgentEditorPanelProps) {
-  // TODO: Wire up save all and delete buttons in the actions menu
+  // TODO: Wire up save all button in the actions menu
   void _onSaveAll
-  void _onDelete
-  void _isDeleting
   // Active tab state
   const [activeTab, setActiveTab] = useState('files')
 
@@ -170,6 +172,28 @@ export function AgentEditorPanel({
               Unsaved
             </div>
           )}
+
+          {/* Actions menu */}
+          <ToolbarDropdown
+            icon={<MoreHorizontal className="h-4 w-4" />}
+            label="Agent actions"
+            showChevron={false}
+            align="right"
+            className="p-1.5 rounded-lg"
+          >
+            <DropdownItem
+              onClick={onDuplicate}
+              disabled={isSaving || isDeleting}
+              icon={<Copy className="h-4 w-4" />}
+              label="Duplicate agent"
+            />
+            <DropdownItem
+              onClick={onDelete}
+              disabled={isDeleting}
+              icon={<Trash2 className="h-4 w-4 text-destructive" />}
+              label={isDeleting ? 'Deleting...' : 'Delete agent'}
+            />
+          </ToolbarDropdown>
         </div>
 
         {/* Row 2: Expandable description */}
@@ -218,6 +242,7 @@ export function AgentEditorPanel({
           <Tabs.Content value="files" className="h-full">
             <FilesTab
               agentId={agent.id}
+              agentDir={agent.agentDir ?? undefined}
               formState={formState}
               updateField={updateField}
               updateFields={updateFields}
