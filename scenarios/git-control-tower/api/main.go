@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -238,6 +239,16 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		Any:       query.Get("any") == "true",
 	})
 	if err != nil {
+		var tooLarge *FileTooLargeError
+		if errors.As(err, &tooLarge) {
+			resp.PayloadTooLarge(tooLarge.Error())
+			return
+		}
+		var unsupported *UnsupportedBinaryError
+		if errors.As(err, &unsupported) {
+			resp.UnsupportedMediaType(unsupported.Error())
+			return
+		}
 		resp.InternalError(err.Error())
 		return
 	}

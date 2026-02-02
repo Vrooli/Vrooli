@@ -1,7 +1,7 @@
 {
   "scenario": "git-control-tower",
   "report_version": 1,
-  "generated_at": "2026-01-31T23:04:06.382336219Z",
+  "generated_at": "2026-02-02T04:55:47.257576438Z",
   "dependencies": [
     {
       "name": "ollama",
@@ -216,7 +216,7 @@
   },
   "bundle_manifest": {
     "scenario": "git-control-tower",
-    "generated_at": "2026-01-31T23:04:06.382336219Z",
+    "generated_at": "2026-02-02T04:55:47.257576438Z",
     "files": [
       {
         "path": ".vrooli/service.json",

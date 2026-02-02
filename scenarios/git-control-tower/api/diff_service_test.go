@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -149,6 +151,54 @@ func TestGetDiff_GitError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "simulated git diff failure") {
 		t.Fatalf("expected error to contain 'simulated git diff failure', got: %v", err)
+	}
+}
+
+func TestGetDiff_SourceMode_RejectsLargeFile(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "big.txt"
+	payload := bytes.Repeat([]byte("a"), int(maxDiffFileBytes+1))
+	if err := os.WriteFile(filepath.Join(repoDir, path), payload, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner(),
+		RepoDir: repoDir,
+	}, DiffRequest{
+		Path: path,
+		Mode: ViewModeSource,
+	})
+	if err == nil {
+		t.Fatalf("expected error for large file")
+	}
+	var tooLarge *FileTooLargeError
+	if !errors.As(err, &tooLarge) {
+		t.Fatalf("expected FileTooLargeError, got: %v", err)
+	}
+}
+
+func TestGetDiff_Untracked_RejectsBinary(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "binary.dat"
+	if err := os.WriteFile(filepath.Join(repoDir, path), []byte{0x00, 0x01, 0x02}, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner(),
+		RepoDir: repoDir,
+	}, DiffRequest{
+		Path:      path,
+		Untracked: true,
+		Mode:      ViewModeDiff,
+	})
+	if err == nil {
+		t.Fatalf("expected error for binary file")
+	}
+	var unsupported *UnsupportedBinaryError
+	if !errors.As(err, &unsupported) {
+		t.Fatalf("expected UnsupportedBinaryError, got: %v", err)
 	}
 }
 

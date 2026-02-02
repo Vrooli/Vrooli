@@ -38,6 +38,8 @@ interface DiffViewerProps {
   isReadOnly?: boolean;
 }
 
+const maxHighlightChars = 200000;
+
 // Hook to detect horizontal scroll state
 function useScrollHints(ref: React.RefObject<HTMLElement | null>) {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -74,6 +76,11 @@ function useHighlighting(content: string | undefined, filePath: string | undefin
 
   useEffect(() => {
     if (!content || !filePath) {
+      setHighlighted(null);
+      setIsHighlighting(false);
+      return;
+    }
+    if (content.length > maxHighlightChars) {
       setHighlighted(null);
       setIsHighlighting(false);
       return;

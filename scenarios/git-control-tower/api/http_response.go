@@ -49,6 +49,16 @@ func (r *HTTPResponse) NotFound(message string) {
 	r.Error(http.StatusNotFound, message)
 }
 
+// PayloadTooLarge writes a 413 Payload Too Large error response.
+func (r *HTTPResponse) PayloadTooLarge(message string) {
+	r.Error(http.StatusRequestEntityTooLarge, message)
+}
+
+// UnsupportedMediaType writes a 415 Unsupported Media Type error response.
+func (r *HTTPResponse) UnsupportedMediaType(message string) {
+	r.Error(http.StatusUnsupportedMediaType, message)
+}
+
 // ServiceUnavailable writes a 503 Service Unavailable response.
 func (r *HTTPResponse) ServiceUnavailable(data interface{}) {
 	r.JSON(http.StatusServiceUnavailable, data)

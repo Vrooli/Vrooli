@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -644,7 +645,16 @@ func (r *ExecGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 	}
 
 	// Use git show <commit>:<path> to get file content at that commit
-	args := []string{"-C", repoDir, "show", fmt.Sprintf("%s:%s", commit, path)}
+	object := fmt.Sprintf("%s:%s", commit, path)
+	if size, err := r.catFileSize(ctx, repoDir, object); err == nil {
+		if size > maxDiffFileBytes {
+			return nil, &FileTooLargeError{Path: path, Size: size, Limit: maxDiffFileBytes}
+		}
+	} else {
+		return nil, err
+	}
+
+	args := []string{"-C", repoDir, "show", object}
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
@@ -657,6 +667,24 @@ func (r *ExecGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 		return nil, fmt.Errorf("git show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 	}
 	return nil, fmt.Errorf("git show failed: %w", err)
+}
+
+func (r *ExecGitRunner) catFileSize(ctx context.Context, repoDir string, object string) (int64, error) {
+	args := []string{"-C", repoDir, "cat-file", "-s", object}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return 0, fmt.Errorf("git cat-file -s failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return 0, fmt.Errorf("git cat-file -s failed: %w", err)
+	}
+	size, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse git cat-file size failed: %w", err)
+	}
+	return size, nil
 }
 
 func (r *ExecGitRunner) Branches(ctx context.Context, repoDir string) ([]byte, error) {
@@ -886,7 +914,7 @@ esac`
 		tmpFile.Close()
 
 		// Make executable
-		if err := os.Chmod(tmpPath, 0700); err != nil {
+		if err := os.Chmod(tmpPath, 0o700); err != nil {
 			return fmt.Errorf("failed to make askpass script executable: %w", err)
 		}
 
@@ -969,7 +997,6 @@ func (r *ExecGitRunner) GrepContent(ctx context.Context, repoDir string, opts Gr
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	out, err := cmd.Output()
-
 	// git grep returns exit code 1 when no matches found - this is not an error
 	if err != nil {
 		exitErr := &exec.ExitError{}

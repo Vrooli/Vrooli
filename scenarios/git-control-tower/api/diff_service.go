@@ -1,16 +1,173 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
+
+const (
+	maxDiffFileBytes  int64 = 4 * 1024 * 1024
+	binarySampleBytes       = 8 * 1024
+)
+
+type FileTooLargeError struct {
+	Path  string
+	Size  int64
+	Limit int64
+}
+
+func (e *FileTooLargeError) Error() string {
+	path := e.Path
+	if path == "" {
+		path = "file"
+	}
+	return fmt.Sprintf("file too large to display: %s (%s > %s)", path, formatBytes(e.Size), formatBytes(e.Limit))
+}
+
+type UnsupportedBinaryError struct {
+	Path string
+}
+
+func (e *UnsupportedBinaryError) Error() string {
+	path := e.Path
+	if path == "" {
+		path = "file"
+	}
+	return fmt.Sprintf("binary file not supported for display: %s", path)
+}
+
+type binaryKind int
+
+const (
+	binaryNone binaryKind = iota
+	binaryImage
+	binaryUnsupported
+)
+
+var binaryImageExtensions = map[string]struct{}{
+	".png":  {},
+	".jpg":  {},
+	".jpeg": {},
+	".gif":  {},
+	".svg":  {},
+	".webp": {},
+	".ico":  {},
+	".bmp":  {},
+	".tiff": {},
+}
+
+var binaryUnsupportedExtensions = map[string]struct{}{
+	".pdf": {},
+}
+
+func binaryKindForPath(path string) binaryKind {
+	ext := strings.ToLower(filepath.Ext(path))
+	if _, ok := binaryImageExtensions[ext]; ok {
+		return binaryImage
+	}
+	if _, ok := binaryUnsupportedExtensions[ext]; ok {
+		return binaryUnsupported
+	}
+	return binaryNone
+}
+
+func detectBinaryKind(path string, data []byte) binaryKind {
+	kind := binaryKindForPath(path)
+	if kind != binaryNone {
+		return kind
+	}
+	sample := data
+	if len(sample) > binarySampleBytes {
+		sample = sample[:binarySampleBytes]
+	}
+	if isBinaryData(sample) {
+		return binaryUnsupported
+	}
+	return binaryNone
+}
+
+func isBinaryData(sample []byte) bool {
+	if len(sample) == 0 {
+		return false
+	}
+	if bytes.IndexByte(sample, 0) >= 0 {
+		return true
+	}
+	if !utf8.Valid(sample) {
+		return true
+	}
+	return false
+}
+
+func readFileForDisplay(absPath, displayPath string) ([]byte, int64, error) {
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return nil, 0, err
+	}
+	if info.IsDir() {
+		return nil, 0, fmt.Errorf("path is a directory")
+	}
+	size := info.Size()
+	if size > maxDiffFileBytes {
+		return nil, size, &FileTooLargeError{Path: displayPath, Size: size, Limit: maxDiffFileBytes}
+	}
+
+	file, err := os.Open(absPath)
+	if err != nil {
+		return nil, size, err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxDiffFileBytes+1))
+	if err != nil {
+		return nil, size, err
+	}
+	if int64(len(data)) > maxDiffFileBytes {
+		return nil, size, &FileTooLargeError{Path: displayPath, Size: int64(len(data)), Limit: maxDiffFileBytes}
+	}
+	return data, size, nil
+}
+
+func ensureFileWithinLimit(repoDir, cleanPath string) error {
+	absPath := filepath.Join(repoDir, cleanPath)
+	info, err := os.Stat(absPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("stat file: %w", err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("path is a directory")
+	}
+	if info.Size() > maxDiffFileBytes {
+		return &FileTooLargeError{Path: cleanPath, Size: info.Size(), Limit: maxDiffFileBytes}
+	}
+	return nil
+}
+
+func formatBytes(size int64) string {
+	const kb = 1024
+	const mb = 1024 * 1024
+	if size >= mb {
+		return fmt.Sprintf("%.1f MB", float64(size)/float64(mb))
+	}
+	if size >= kb {
+		return fmt.Sprintf("%.1f KB", float64(size)/float64(kb))
+	}
+	return fmt.Sprintf("%d B", size)
+}
 
 // DiffDeps contains dependencies for diff operations
 type DiffDeps struct {
@@ -54,24 +211,6 @@ func GetDiff(ctx context.Context, deps DiffDeps, req DiffRequest) (*DiffResponse
 	return getTrackedDiff(ctx, deps, req, repoDir, mode)
 }
 
-// isBinaryFile checks if a file is binary based on its extension
-func isBinaryFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	binaryExts := map[string]bool{
-		".png":  true,
-		".jpg":  true,
-		".jpeg": true,
-		".gif":  true,
-		".svg":  true,
-		".webp": true,
-		".ico":  true,
-		".bmp":  true,
-		".tiff": true,
-		".pdf":  true,
-	}
-	return binaryExts[ext]
-}
-
 // getSourceContent returns just the file content without any diff information
 func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir string) (*DiffResponse, error) {
 	cleanPath := cleanFilePath(req.Path)
@@ -82,7 +221,7 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 	var content string
 	var annotatedLines []AnnotatedLine
 	lineCount := 0
-	isBinary := isBinaryFile(cleanPath)
+	binaryKind := binaryKindForPath(cleanPath)
 
 	if req.Commit != "" {
 		// Get file content at a specific commit
@@ -90,7 +229,14 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 		if err != nil {
 			return nil, fmt.Errorf("show file at commit: %w", err)
 		}
-		if isBinary {
+		if int64(len(out)) > maxDiffFileBytes {
+			return nil, &FileTooLargeError{Path: cleanPath, Size: int64(len(out)), Limit: maxDiffFileBytes}
+		}
+		binaryKind = detectBinaryKind(cleanPath, out)
+		if binaryKind == binaryUnsupported {
+			return nil, &UnsupportedBinaryError{Path: cleanPath}
+		}
+		if binaryKind == binaryImage {
 			// Return base64 encoded for binary files
 			content = base64.StdEncoding.EncodeToString(out)
 		} else {
@@ -99,11 +245,15 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 	} else {
 		// Get current file content from working directory
 		absPath := filepath.Join(repoDir, cleanPath)
-		data, err := os.ReadFile(absPath)
+		data, _, err := readFileForDisplay(absPath, cleanPath)
 		if err != nil {
 			return nil, fmt.Errorf("read file: %w", err)
 		}
-		if isBinary {
+		binaryKind = detectBinaryKind(cleanPath, data)
+		if binaryKind == binaryUnsupported {
+			return nil, &UnsupportedBinaryError{Path: cleanPath}
+		}
+		if binaryKind == binaryImage {
 			// Return base64 encoded for binary files
 			content = base64.StdEncoding.EncodeToString(data)
 		} else {
@@ -112,7 +262,7 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 	}
 
 	// Build annotated lines (all lines, no change markers) - only for text files
-	if !isBinary {
+	if binaryKind == binaryNone {
 		lines := strings.Split(content, "\n")
 		annotatedLines = make([]AnnotatedLine, len(lines))
 		for i, line := range lines {
@@ -134,7 +284,7 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 	if req.Untracked {
 		hasDiff = true
 		stats.Files = 1
-		if !isBinary {
+		if binaryKind == binaryNone {
 			stats.Additions = lineCount
 		}
 	} else {
@@ -169,14 +319,19 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 
 // getCommitDiff handles diff for a specific commit
 func getCommitDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir string, mode ViewMode) (*DiffResponse, error) {
-	out, err := deps.Git.ShowCommitDiff(ctx, repoDir, req.Commit, req.Path)
+	cleanPath := cleanFilePath(req.Path)
+	if req.Path != "" && (cleanPath == "" || strings.HasPrefix(cleanPath, "..")) {
+		return nil, fmt.Errorf("invalid path")
+	}
+
+	out, err := deps.Git.ShowCommitDiff(ctx, repoDir, req.Commit, cleanPath)
 	if err != nil {
 		return nil, err
 	}
 
 	parsed := ParseDiffOutput(string(out))
 	parsed.RepoDir = repoDir
-	parsed.Path = req.Path
+	parsed.Path = cleanPath
 	parsed.Staged = false
 	parsed.Untracked = false
 	parsed.Base = req.Commit
@@ -185,13 +340,22 @@ func getCommitDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir 
 
 	// For full_diff mode, get the file content and annotate lines
 	if mode == ViewModeFullDiff && req.Path != "" {
-		cleanPath := cleanFilePath(req.Path)
-		if cleanPath != "" && !strings.HasPrefix(cleanPath, "..") {
-			content, err := deps.Git.ShowFileAtCommit(ctx, repoDir, req.Commit, cleanPath)
-			if err == nil {
-				parsed.FullContent = string(content)
-				parsed.AnnotatedLines = buildAnnotatedLines(string(content), parsed.Hunks)
-			}
+		content, err := deps.Git.ShowFileAtCommit(ctx, repoDir, req.Commit, cleanPath)
+		if err != nil {
+			return nil, err
+		}
+		if int64(len(content)) > maxDiffFileBytes {
+			return nil, &FileTooLargeError{Path: cleanPath, Size: int64(len(content)), Limit: maxDiffFileBytes}
+		}
+		binaryKind := detectBinaryKind(cleanPath, content)
+		if binaryKind == binaryUnsupported {
+			return nil, &UnsupportedBinaryError{Path: cleanPath}
+		}
+		if binaryKind == binaryImage {
+			parsed.FullContent = base64.StdEncoding.EncodeToString(content)
+		} else {
+			parsed.FullContent = string(content)
+			parsed.AnnotatedLines = buildAnnotatedLines(parsed.FullContent, parsed.Hunks)
 		}
 	}
 
@@ -205,28 +369,43 @@ func getUntrackedContent(ctx context.Context, deps DiffDeps, req DiffRequest, re
 		return nil, fmt.Errorf("invalid path")
 	}
 	absPath := filepath.Join(repoDir, cleanPath)
-	content, err := os.ReadFile(absPath)
+	content, _, err := readFileForDisplay(absPath, cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("read file: %w", err)
 	}
-	fileText := string(content)
-	lines := strings.Split(fileText, "\n")
-	lineCount := len(lines)
-	if lineCount > 0 && lines[lineCount-1] == "" {
-		lineCount-- // Don't count empty trailing line
+	binaryKind := detectBinaryKind(cleanPath, content)
+	if binaryKind == binaryUnsupported {
+		return nil, &UnsupportedBinaryError{Path: cleanPath}
+	}
+
+	fileText := ""
+	lines := []string{}
+	lineCount := 0
+	if binaryKind == binaryImage {
+		fileText = base64.StdEncoding.EncodeToString(content)
+	} else {
+		fileText = string(content)
+		lines = strings.Split(fileText, "\n")
+		lineCount = len(lines)
+		if lineCount > 0 && lines[lineCount-1] == "" {
+			lineCount-- // Don't count empty trailing line
+		}
 	}
 
 	// For untracked files, all lines are "added"
-	annotatedLines := make([]AnnotatedLine, len(lines))
-	for i, line := range lines {
-		change := LineChangeAdded
-		if mode == ViewModeSource {
-			change = LineChangeNone
-		}
-		annotatedLines[i] = AnnotatedLine{
-			Number:  i + 1,
-			Content: line,
-			Change:  change,
+	var annotatedLines []AnnotatedLine
+	if binaryKind == binaryNone {
+		annotatedLines = make([]AnnotatedLine, len(lines))
+		for i, line := range lines {
+			change := LineChangeAdded
+			if mode == ViewModeSource {
+				change = LineChangeNone
+			}
+			annotatedLines[i] = AnnotatedLine{
+				Number:  i + 1,
+				Content: line,
+				Change:  change,
+			}
 		}
 	}
 
@@ -246,14 +425,26 @@ func getUntrackedContent(ctx context.Context, deps DiffDeps, req DiffRequest, re
 
 // getTrackedDiff handles diff for tracked files (staged or unstaged)
 func getTrackedDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir string, mode ViewMode) (*DiffResponse, error) {
-	out, err := deps.Git.Diff(ctx, repoDir, req.Path, req.Staged)
+	pathForGit := strings.TrimSpace(req.Path)
+	if pathForGit != "" {
+		cleanPath := cleanFilePath(pathForGit)
+		if cleanPath == "" || strings.HasPrefix(cleanPath, "..") {
+			return nil, fmt.Errorf("invalid path")
+		}
+		if err := ensureFileWithinLimit(repoDir, cleanPath); err != nil {
+			return nil, err
+		}
+		pathForGit = cleanPath
+	}
+
+	out, err := deps.Git.Diff(ctx, repoDir, pathForGit, req.Staged)
 	if err != nil {
 		return nil, err
 	}
 
 	parsed := ParseDiffOutput(string(out))
 	parsed.RepoDir = repoDir
-	parsed.Path = req.Path
+	parsed.Path = pathForGit
 	parsed.Staged = req.Staged
 	parsed.Untracked = req.Untracked
 	parsed.Base = req.Base
@@ -262,14 +453,20 @@ func getTrackedDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir
 
 	// For full_diff mode, get the current file content and annotate lines
 	if mode == ViewModeFullDiff && req.Path != "" {
-		cleanPath := cleanFilePath(req.Path)
-		if cleanPath != "" && !strings.HasPrefix(cleanPath, "..") {
-			absPath := filepath.Join(repoDir, cleanPath)
-			content, err := os.ReadFile(absPath)
-			if err == nil {
-				parsed.FullContent = string(content)
-				parsed.AnnotatedLines = buildAnnotatedLines(string(content), parsed.Hunks)
-			}
+		absPath := filepath.Join(repoDir, pathForGit)
+		content, _, err := readFileForDisplay(absPath, pathForGit)
+		if err != nil {
+			return nil, err
+		}
+		binaryKind := detectBinaryKind(pathForGit, content)
+		if binaryKind == binaryUnsupported {
+			return nil, &UnsupportedBinaryError{Path: pathForGit}
+		}
+		if binaryKind == binaryImage {
+			parsed.FullContent = base64.StdEncoding.EncodeToString(content)
+		} else {
+			parsed.FullContent = string(content)
+			parsed.AnnotatedLines = buildAnnotatedLines(parsed.FullContent, parsed.Hunks)
 		}
 	}
 

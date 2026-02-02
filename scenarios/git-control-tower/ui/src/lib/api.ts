@@ -510,8 +510,19 @@ export interface RemoteURLUpdateResponse {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const error = await res.text();
-    throw new Error(error || `Request failed: ${res.status}`);
+    const text = await res.text();
+    let message = text;
+    if (text) {
+      try {
+        const parsed = JSON.parse(text) as { error?: string };
+        if (parsed?.error) {
+          message = parsed.error;
+        }
+      } catch {
+        // Ignore JSON parse errors; fall back to raw text.
+      }
+    }
+    throw new Error(message || `Request failed: ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
