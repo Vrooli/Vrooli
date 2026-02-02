@@ -16,4 +16,10 @@ export type {
   AddMemberRequest,
   UpdateMemberRequest,
   SetRolesRequest,
+  TeamSharedFileEntry,
+  TeamSharedFileListResponse,
+  TeamSharedFileContentResponse,
+  TeamSharedFileWriteRequest,
+  TeamSharedFileCreateRequest,
+  TeamSharedFileRenameRequest,
 } from '@/lib/schemas'

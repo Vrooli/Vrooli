@@ -127,3 +127,50 @@ export const SetRolesRequestSchema = z.object({
 })
 
 export type SetRolesRequest = z.infer<typeof SetRolesRequestSchema>
+
+/**
+ * Team shared file schemas for /teams/{id}/shared/files endpoints.
+ */
+export const TeamSharedFileEntrySchema = z.object({
+  path: z.string(),
+  isDir: z.boolean(),
+  size: z.number().int().nonnegative().optional(),
+})
+
+export type TeamSharedFileEntry = z.infer<typeof TeamSharedFileEntrySchema>
+
+export const TeamSharedFileListResponseSchema = z.object({
+  teamId: z.string(),
+  files: z.array(TeamSharedFileEntrySchema),
+})
+
+export type TeamSharedFileListResponse = z.infer<typeof TeamSharedFileListResponseSchema>
+
+export const TeamSharedFileContentResponseSchema = z.object({
+  teamId: z.string(),
+  path: z.string(),
+  content: z.string(),
+})
+
+export type TeamSharedFileContentResponse = z.infer<typeof TeamSharedFileContentResponseSchema>
+
+export const TeamSharedFileWriteRequestSchema = z.object({
+  content: z.string(),
+})
+
+export type TeamSharedFileWriteRequest = z.infer<typeof TeamSharedFileWriteRequestSchema>
+
+export const TeamSharedFileCreateRequestSchema = z.object({
+  path: z.string().min(1),
+  content: z.string().optional(),
+  isDir: z.boolean().optional(),
+})
+
+export type TeamSharedFileCreateRequest = z.infer<typeof TeamSharedFileCreateRequestSchema>
+
+export const TeamSharedFileRenameRequestSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+})
+
+export type TeamSharedFileRenameRequest = z.infer<typeof TeamSharedFileRenameRequestSchema>

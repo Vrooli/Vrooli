@@ -48,6 +48,8 @@ import {
   TeamDetailsSchema,
   TeamRoleSchema,
   TeamMemberSchema,
+  TeamSharedFileListResponseSchema,
+  TeamSharedFileContentResponseSchema,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -81,6 +83,10 @@ import {
   type UpdateTeamRequest,
   type AddMemberRequest,
   type UpdateMemberRequest,
+  type TeamSharedFileListResponse,
+  type TeamSharedFileContentResponse,
+  type TeamSharedFileCreateRequest,
+  type TeamSharedFileRenameRequest,
 } from '@/lib/schemas'
 import type { SearchFilters, Folder } from '@/types'
 
@@ -624,6 +630,64 @@ class ApiClient {
         body: JSON.stringify({ roles }),
       },
       TeamRoleSchema.array()
+    )
+  }
+
+  async listTeamSharedFiles(teamId: string): Promise<TeamSharedFileListResponse> {
+    return this.request<TeamSharedFileListResponse>(
+      `/teams/${encodeURIComponent(teamId)}/shared/files`,
+      undefined,
+      TeamSharedFileListResponseSchema
+    )
+  }
+
+  async getTeamSharedFileContent(teamId: string, path: string): Promise<TeamSharedFileContentResponse> {
+    const params = `?path=${encodeURIComponent(path)}`
+    return this.request<TeamSharedFileContentResponse>(
+      `/teams/${encodeURIComponent(teamId)}/shared/files/content${params}`,
+      undefined,
+      TeamSharedFileContentResponseSchema
+    )
+  }
+
+  async setTeamSharedFileContent(teamId: string, path: string, content: string): Promise<void> {
+    const params = `?path=${encodeURIComponent(path)}`
+    await this.requestVoid(
+      `/teams/${encodeURIComponent(teamId)}/shared/files/content${params}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      }
+    )
+  }
+
+  async createTeamSharedFile(teamId: string, request: TeamSharedFileCreateRequest): Promise<void> {
+    await this.requestVoid(
+      `/teams/${encodeURIComponent(teamId)}/shared/files`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }
+    )
+  }
+
+  async renameTeamSharedFile(teamId: string, request: TeamSharedFileRenameRequest): Promise<void> {
+    await this.requestVoid(
+      `/teams/${encodeURIComponent(teamId)}/shared/files/rename`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }
+    )
+  }
+
+  async deleteTeamSharedFile(teamId: string, path: string): Promise<void> {
+    const params = `?path=${encodeURIComponent(path)}`
+    await this.requestVoid(
+      `/teams/${encodeURIComponent(teamId)}/shared/files${params}`,
+      {
+        method: 'DELETE',
+      }
     )
   }
 }

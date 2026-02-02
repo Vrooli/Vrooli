@@ -133,6 +133,12 @@ export {
   AddMemberRequestSchema,
   UpdateMemberRequestSchema,
   SetRolesRequestSchema,
+  TeamSharedFileEntrySchema,
+  TeamSharedFileListResponseSchema,
+  TeamSharedFileContentResponseSchema,
+  TeamSharedFileWriteRequestSchema,
+  TeamSharedFileCreateRequestSchema,
+  TeamSharedFileRenameRequestSchema,
   type TeamMemberStatus,
   type TeamRole,
   type TeamMember,
@@ -143,6 +149,12 @@ export {
   type AddMemberRequest,
   type UpdateMemberRequest,
   type SetRolesRequest,
+  type TeamSharedFileEntry,
+  type TeamSharedFileListResponse,
+  type TeamSharedFileContentResponse,
+  type TeamSharedFileWriteRequest,
+  type TeamSharedFileCreateRequest,
+  type TeamSharedFileRenameRequest,
 } from './team.schema'
 
 // Template schemas

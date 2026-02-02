@@ -3,7 +3,9 @@ package teams
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"os"
 	"strings"
 
 	"prompt-manager/store"
@@ -465,6 +467,223 @@ func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// ListSharedFiles handles GET /teams/{id}/shared/files - lists files in team shared folder.
+func (h *Handlers) ListSharedFiles(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		http.Error(w, "ListSharedFiles not supported", http.StatusInternalServerError)
+		return
+	}
+
+	files, err := fileStore.ListSharedFiles(ctx, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	mapped := make([]TeamSharedFileEntry, 0, len(files))
+	for _, entry := range files {
+		mapped = append(mapped, TeamSharedFileEntry{
+			Path:  entry.Path,
+			IsDir: entry.IsDir,
+			Size:  entry.Size,
+		})
+	}
+
+	resp := TeamSharedFileListResponse{
+		TeamID: id,
+		Files:  mapped,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// GetSharedFile handles GET /teams/{id}/shared/files/content - returns file content.
+func (h *Handlers) GetSharedFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		http.Error(w, "GetSharedFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	content, err := fileStore.ReadSharedFile(ctx, id, path)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "File not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "invalid path") || strings.Contains(err.Error(), "path is required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := TeamSharedFileContentResponse{
+		TeamID:  id,
+		Path:    path,
+		Content: content,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// SetSharedFile handles PUT /teams/{id}/shared/files/content - writes file content.
+func (h *Handlers) SetSharedFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	var req TeamSharedFileWriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		http.Error(w, "SetSharedFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.WriteSharedFile(ctx, id, path, req.Content); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// CreateSharedFile handles POST /teams/{id}/shared/files - creates a new file or directory.
+func (h *Handlers) CreateSharedFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var req TeamSharedFileCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		http.Error(w, "CreateSharedFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.CreateSharedFile(ctx, id, req.Path, req.Content, req.IsDir); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+// RenameSharedFile handles POST /teams/{id}/shared/files/rename - renames a file.
+func (h *Handlers) RenameSharedFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var req TeamSharedFileRenameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.From == "" || req.To == "" {
+		http.Error(w, "from and to are required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		http.Error(w, "RenameSharedFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.RenameSharedFile(ctx, id, req.From, req.To); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteSharedFile handles DELETE /teams/{id}/shared/files - deletes a file or directory.
+func (h *Handlers) DeleteSharedFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		http.Error(w, "DeleteSharedFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.DeleteSharedFile(ctx, id, path); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Helper functions

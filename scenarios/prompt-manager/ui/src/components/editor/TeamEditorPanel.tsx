@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Shield, Info, ChevronDown, ChevronUp, GripVertical, Network, Code } from 'lucide-react'
+import { X, Users, Shield, Info, ChevronDown, ChevronUp, GripVertical, Network, Code, Folder } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -27,7 +27,7 @@ import { OrgChartPanel } from './OrgChartPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
 import { MemberPickerModal } from './teamTabs/MembersTab'
-import { RolesTab, TeamInfoTab } from './teamTabs'
+import { RolesTab, TeamInfoTab, TeamFilesTab } from './teamTabs'
 
 // ============================================================================
 // Types
@@ -338,19 +338,23 @@ export function TeamEditorPanel({
       <Tabs.Root
         value={activeTab}
         onValueChange={setActiveTab}
-        className="flex-1 flex flex-col min-h-0"
+        className="flex-1 flex flex-col min-h-0 overflow-hidden"
       >
         {/* Tab List */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
           <TabTrigger value="members" icon={<Users className="h-4 w-4" />} label="Members" />
+          <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
           <TabTrigger value="roles" icon={<Shield className="h-4 w-4" />} label="Roles" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </Tabs.List>
 
         {/* Tab Content */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Members tab - Split panel layout with view mode toggle */}
-          <Tabs.Content value="members" className="h-full flex flex-col">
+          <Tabs.Content
+            value="members"
+            className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden"
+          >
             {/* View mode toggle toolbar */}
             <div className="flex-shrink-0 flex items-center justify-end gap-2 px-4 py-2 border-b border-border bg-muted/30">
               <MembersViewToggle
@@ -428,11 +432,24 @@ export function TeamEditorPanel({
             </div>
           </Tabs.Content>
 
-          <Tabs.Content value="roles" className="h-full overflow-y-auto p-4">
+          <Tabs.Content
+            value="files"
+            className="flex-1 min-h-0 data-[state=inactive]:hidden"
+          >
+            <TeamFilesTab teamId={team.id} className="h-full min-h-0" />
+          </Tabs.Content>
+
+          <Tabs.Content
+            value="roles"
+            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
+          >
             <RolesTab team={team} onSetRoles={onSetRoles} />
           </Tabs.Content>
 
-          <Tabs.Content value="info" className="h-full overflow-y-auto p-4">
+          <Tabs.Content
+            value="info"
+            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
+          >
             <TeamInfoTab team={team} />
           </Tabs.Content>
         </div>

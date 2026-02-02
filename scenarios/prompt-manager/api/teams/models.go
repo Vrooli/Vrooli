@@ -109,3 +109,41 @@ type SetOrgChartRequest struct {
 type UpdateOrgEdgeRequest struct {
 	ManagerAgentID string `json:"managerAgentId"`
 }
+
+// TeamSharedFileEntry represents a file or directory in a team's shared folder.
+type TeamSharedFileEntry struct {
+	Path  string `json:"path"`
+	IsDir bool   `json:"isDir"`
+	Size  int64  `json:"size,omitempty"`
+}
+
+// TeamSharedFileListResponse is the response for listing shared files.
+type TeamSharedFileListResponse struct {
+	TeamID string                `json:"teamId"`
+	Files  []TeamSharedFileEntry `json:"files"`
+}
+
+// TeamSharedFileContentResponse is the response for shared file content.
+type TeamSharedFileContentResponse struct {
+	TeamID  string `json:"teamId"`
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+// TeamSharedFileWriteRequest is the request body for writing shared file content.
+type TeamSharedFileWriteRequest struct {
+	Content string `json:"content"`
+}
+
+// TeamSharedFileCreateRequest is the request body for creating a shared file or directory.
+type TeamSharedFileCreateRequest struct {
+	Path    string `json:"path"`
+	Content string `json:"content,omitempty"`
+	IsDir   bool   `json:"isDir,omitempty"`
+}
+
+// TeamSharedFileRenameRequest is the request body for renaming a shared file.
+type TeamSharedFileRenameRequest struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}

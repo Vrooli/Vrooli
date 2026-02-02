@@ -344,7 +344,7 @@ describe('SkillTreeSidebar', () => {
       )
 
       expect(screen.getByText('2')).toBeInTheDocument()
-      expect(screen.getByTitle('2 unsaved changes')).toBeInTheDocument()
+      expect(screen.getByTitle('2 unsaved changes - click to expand')).toBeInTheDocument()
     })
   })
 

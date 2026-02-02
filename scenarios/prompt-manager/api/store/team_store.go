@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 )
 
 // FileTeamStore implements TeamStore using the file system
@@ -24,6 +26,13 @@ func NewFileTeamStore(storeDir string, relationStore RelationStore) *FileTeamSto
 // teamsDir returns the path to the teams directory
 func (s *FileTeamStore) teamsDir() string {
 	return filepath.Join(s.storeDir, "teams")
+}
+
+// TeamFileEntry represents a file or directory within a team's shared folder.
+type TeamFileEntry struct {
+	Path  string `json:"path"`
+	IsDir bool   `json:"isDir"`
+	Size  int64  `json:"size,omitempty"`
 }
 
 // List returns all teams
@@ -398,4 +407,203 @@ func (s *FileTeamStore) ListMemberLogs(ctx context.Context, teamID, agentID stri
 	}
 
 	return logs, nil
+}
+
+// ListSharedFiles returns all files and directories under a team's shared folder.
+func (s *FileTeamStore) ListSharedFiles(ctx context.Context, teamID string) ([]TeamFileEntry, error) {
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	sharedDir := s.sharedDir(team)
+	if _, err := os.Stat(sharedDir); err != nil {
+		if os.IsNotExist(err) {
+			return []TeamFileEntry{}, nil
+		}
+		return nil, fmt.Errorf("stat shared directory: %w", err)
+	}
+
+	var entries []TeamFileEntry
+	err = filepath.WalkDir(sharedDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == sharedDir {
+			return nil
+		}
+		if isHiddenFile(d.Name()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		rel, err := filepath.Rel(sharedDir, path)
+		if err != nil {
+			return err
+		}
+
+		info, err := d.Info()
+		size := int64(0)
+		if err == nil {
+			size = info.Size()
+		}
+
+		entries = append(entries, TeamFileEntry{
+			Path:  filepath.ToSlash(rel),
+			IsDir: d.IsDir(),
+			Size:  size,
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing shared files: %w", err)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Path < entries[j].Path
+	})
+
+	return entries, nil
+}
+
+// ReadSharedFile returns file content for a path within the team's shared folder.
+func (s *FileTeamStore) ReadSharedFile(ctx context.Context, teamID, relPath string) (string, error) {
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return "", err
+	}
+
+	fullPath, _, err := s.resolveSharedPath(team, relPath)
+	if err != nil {
+		return "", err
+	}
+
+	return ReadContent(fullPath)
+}
+
+// WriteSharedFile overwrites file content within the team's shared folder.
+func (s *FileTeamStore) WriteSharedFile(ctx context.Context, teamID, relPath, content string) error {
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	fullPath, _, err := s.resolveSharedPath(team, relPath)
+	if err != nil {
+		return err
+	}
+
+	return WriteContent(fullPath, content)
+}
+
+// CreateSharedFile creates a new file or directory within the team's shared folder.
+func (s *FileTeamStore) CreateSharedFile(ctx context.Context, teamID, relPath, content string, isDir bool) error {
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	fullPath, _, err := s.resolveSharedPath(team, relPath)
+	if err != nil {
+		return err
+	}
+	if FileExists(fullPath) {
+		return fmt.Errorf("file already exists: %s", relPath)
+	}
+
+	if isDir {
+		return os.MkdirAll(fullPath, 0o755)
+	}
+
+	return WriteContent(fullPath, content)
+}
+
+// RenameSharedFile renames or moves a file within the team's shared folder.
+func (s *FileTeamStore) RenameSharedFile(ctx context.Context, teamID, fromPath, toPath string) error {
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	fromFull, _, err := s.resolveSharedPath(team, fromPath)
+	if err != nil {
+		return err
+	}
+	toFull, _, err := s.resolveSharedPath(team, toPath)
+	if err != nil {
+		return err
+	}
+
+	if !FileExists(fromFull) {
+		return fmt.Errorf("file not found: %s", fromPath)
+	}
+	if FileExists(toFull) {
+		return fmt.Errorf("target already exists: %s", toPath)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(toFull), 0o755); err != nil {
+		return fmt.Errorf("creating directory: %w", err)
+	}
+
+	return os.Rename(fromFull, toFull)
+}
+
+// DeleteSharedFile deletes a file or directory within the team's shared folder.
+func (s *FileTeamStore) DeleteSharedFile(ctx context.Context, teamID, relPath string) error {
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	fullPath, _, err := s.resolveSharedPath(team, relPath)
+	if err != nil {
+		return err
+	}
+
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", relPath, err)
+	}
+
+	if info.IsDir() {
+		return DeleteDirectory(fullPath)
+	}
+	return DeleteFile(fullPath)
+}
+
+func (s *FileTeamStore) sharedDir(team *Team) string {
+	sharedPath := "shared"
+	if team.Shared != nil && strings.TrimSpace(team.Shared.Path) != "" {
+		sharedPath = team.Shared.Path
+	}
+
+	clean := filepath.Clean(filepath.FromSlash(sharedPath))
+	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+		clean = "shared"
+	}
+
+	return filepath.Join(s.teamsDir(), team.ID, clean)
+}
+
+func (s *FileTeamStore) resolveSharedPath(team *Team, relPath string) (string, string, error) {
+	if strings.TrimSpace(relPath) == "" {
+		return "", "", fmt.Errorf("path is required")
+	}
+
+	clean := filepath.Clean(filepath.FromSlash(relPath))
+	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+		return "", "", fmt.Errorf("invalid path: %s", relPath)
+	}
+
+	sharedDir := s.sharedDir(team)
+	fullPath := filepath.Join(sharedDir, clean)
+
+	rel, err := filepath.Rel(sharedDir, fullPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", "", fmt.Errorf("invalid path: %s", relPath)
+	}
+
+	return fullPath, filepath.ToSlash(clean), nil
 }

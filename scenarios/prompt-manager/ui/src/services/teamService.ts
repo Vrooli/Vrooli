@@ -19,6 +19,9 @@ import type {
   UpdateTeamRequest,
   AddMemberRequest,
   UpdateMemberRequest,
+  TeamSharedFileEntry,
+  TeamSharedFileCreateRequest,
+  TeamSharedFileRenameRequest,
 } from '@/lib/schemas'
 
 // Create cache for teams list
@@ -183,4 +186,48 @@ export async function setTeamRoles(teamId: string, roles: TeamRole[]): Promise<T
   const result = await api.setTeamRoles(teamId, roles)
   invalidateCache()
   return result
+}
+
+/**
+ * List files in a team's shared folder.
+ */
+export async function listTeamSharedFiles(teamId: string): Promise<TeamSharedFileEntry[]> {
+  const response = await api.listTeamSharedFiles(teamId)
+  return response.files
+}
+
+/**
+ * Get content for a team shared file.
+ */
+export async function getTeamSharedFileContent(teamId: string, path: string): Promise<string> {
+  const response = await api.getTeamSharedFileContent(teamId, path)
+  return response.content
+}
+
+/**
+ * Update content for a team shared file.
+ */
+export async function setTeamSharedFileContent(teamId: string, path: string, content: string): Promise<void> {
+  await api.setTeamSharedFileContent(teamId, path, content)
+}
+
+/**
+ * Create a new team shared file or directory.
+ */
+export async function createTeamSharedFile(teamId: string, request: TeamSharedFileCreateRequest): Promise<void> {
+  await api.createTeamSharedFile(teamId, request)
+}
+
+/**
+ * Rename a team shared file.
+ */
+export async function renameTeamSharedFile(teamId: string, request: TeamSharedFileRenameRequest): Promise<void> {
+  await api.renameTeamSharedFile(teamId, request)
+}
+
+/**
+ * Delete a team shared file.
+ */
+export async function deleteTeamSharedFile(teamId: string, path: string): Promise<void> {
+  await api.deleteTeamSharedFile(teamId, path)
 }
