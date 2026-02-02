@@ -121,17 +121,56 @@ Building from Linux (recommended):
 
 ### **7. Troubleshooting**
 
-Pipeline errors include structured codes with recovery guidance:
+Pipeline errors include structured error codes, recovery hints, and step-by-step guidance.
 
-```bash
-# Check detailed status
-scenario-to-desktop pipeline status <id> --verbose
+**When a pipeline fails, the CLI shows:**
+- Error code (e.g., `BUNDLE_INVALID`, `SMOKE_TEST_FAILED`)
+- Recovery hint with specific fix instructions
+- Manual steps to resolve the issue
+- Auto-fix commands when available
+
+**Example failure output:**
+```
+Pipeline failed: 5dd1ca6d-e8a6-8c18-6759-6839539a485c
+Error code: BUNDLE_INVALID
+
+Recovery: Add bundle to extraResources in package.json:
+  "build": { "extraResources": [{ "from": "bundle", "to": "bundle" }] }
+
+Manual steps:
+  1. Check if the bundle directory exists
+  2. Edit package.json to add bundle to extraResources
+  3. Run the pipeline again after fixing the configuration
 ```
 
-**Common recovery:**
+**Get detailed status for any pipeline:**
+```bash
+# View full error details including stage logs
+scenario-to-desktop pipeline status <id> --verbose
+
+# Get raw JSON for programmatic parsing
+scenario-to-desktop pipeline status <id> --json
+```
+
+**Common error codes and recovery:**
+
+| Error Code | Meaning | Recovery |
+|------------|---------|----------|
+| `BUNDLE_INVALID` | Bundle config mismatch | Fix package.json extraResources |
+| `PREFLIGHT_FAILED` | Scenario not ready | Ensure scenario is running |
+| `SMOKE_TEST_FAILED` | App failed validation | Check platform deps (xvfb, etc.) |
+| `BUILD_FAILED` | Electron build error | Review build logs |
+| `GENERATION_FAILED` | Template error | Check scenario service.json |
+
+**Recovery actions:**
 - Transient failures: `scenario-to-desktop pipeline resume <id>`
 - Configuration issues: Follow the recovery hint in error output
 - Deeper issues: `cd scenarios/scenario-to-desktop && make logs`
+
+**Debug mode:** Use `--debug` flag to see raw API responses:
+```bash
+scenario-to-desktop pipeline run my-scenario --wait --debug
+```
 
 ---
 

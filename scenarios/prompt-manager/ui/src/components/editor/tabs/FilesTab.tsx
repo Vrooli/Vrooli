@@ -7,8 +7,27 @@
  * - Clicking any other file opens markdown editor
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { File, FileText, Folder, FolderOpen, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type MouseEvent as ReactMouseEvent,
+} from 'react'
+import {
+  File,
+  FileText,
+  Folder,
+  FolderOpen,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
@@ -17,6 +36,7 @@ import type { AgentFileEntry } from '@/types/agent'
 import * as agentService from '@/services/agentService'
 import { AppearanceTab } from './AppearanceTab'
 import { EditorActionButtons, SkillContentEditor } from '../SkillContentEditor'
+import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
 
 interface FilesTabProps {
   agentId: string
@@ -43,6 +63,84 @@ interface FileNode {
 }
 
 const RESERVED_AGENT_FILE = 'agent.json'
+const RECOMMENDED_AGENT_FILES = ['AGENTS.md', 'SOUL.md', 'TOOLS.md'] as const
+const AGENT_FILE_TEMPLATES: Record<string, { label: string; content: string }[]> = {
+  'AGENTS.MD': [
+    {
+      label: 'OpenClaw-inspired starter',
+      content: `# AGENTS
+
+## Start of Session
+- Read \`SOUL.md\` to align tone and boundaries.
+- Read \`TOOLS.md\` before using any tools.
+- Scan this file for current procedures and priorities.
+
+## Operating Principles
+- Be accurate and candid. If unsure, ask.
+- Prefer small, reversible changes.
+- Keep outputs concise and actionable.
+
+## External Actions
+- Never send messages, make purchases, or trigger external side effects without explicit approval.
+
+## Memory Hygiene
+- Write durable decisions back into the relevant files.
+- If you create a new process, document it here.
+
+## Output Style
+- Use short headings and bullet points.
+- Provide checklists for multi-step tasks.
+`,
+    },
+  ],
+  'SOUL.MD': [
+    {
+      label: 'OpenClaw-inspired starter',
+      content: `# SOUL
+
+## Core Truths
+- Be genuinely helpful, not performatively helpful.
+- Protect privacy and sensitive data.
+- Optimize for clarity and correctness.
+
+## Boundaries
+- No external actions without explicit user approval.
+- If context is missing or ambiguous, ask before assuming.
+
+## Communication Style
+- Direct, calm, and specific.
+- Avoid fluff and avoid sycophancy.
+- Admit uncertainty when it exists.
+
+## Domain Identity (Optional)
+- This agent specializes in: [describe focus].
+`,
+    },
+  ],
+  'TOOLS.MD': [
+    {
+      label: 'Vrooli skill primer',
+      content: `# TOOLS
+
+## Tool Access
+You have access to tools via Vrooli skills. Before using a tool, read its skill.
+
+Use:
+\`prompt-manager skill read <skill-id>\`
+
+## Common Skills
+- browser-automation-studio — Web navigation and UI validation.
+- e2e-testing — End-to-end browser testing.
+- api-steer — API design and integration guidance.
+- cli-steer — CLI ergonomics and conventions.
+
+## Usage Rules
+- Follow skill instructions verbatim.
+- If a tool is missing, request the skill or ask for guidance.
+`,
+    },
+  ],
+}
 
 function buildFileTree(entries: AgentFileEntry[]): FileNode {
   const root: FileNode = { name: '', path: '', isDir: true, children: [] }
@@ -97,6 +195,12 @@ function isMarkdownFile(path: string): boolean {
   return path.toLowerCase().endsWith('.md')
 }
 
+function isReservedPath(path?: string | null): boolean {
+  if (!path) return false
+  const baseName = path.split('/').pop()
+  return baseName?.toLowerCase() === RESERVED_AGENT_FILE
+}
+
 export function FilesTab({
   agentId,
   formState,
@@ -122,20 +226,42 @@ export function FilesTab({
   const [originalContent, setOriginalContent] = useState('')
   const [isFileLoading, setIsFileLoading] = useState(false)
   const [isFileSaving, setIsFileSaving] = useState(false)
-  const [mode, setMode] = useState<'none' | 'add' | 'rename'>('none')
+  const [fileDialogOpen, setFileDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'add' | 'rename'>('add')
   const [pendingPath, setPendingPath] = useState('')
+  const [renameSourcePath, setRenameSourcePath] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    path: string
+    isDir: boolean
+    isReserved: boolean
+  } | null>(null)
+  const skipFileLoadRef = useRef<string | null>(null)
 
   const tree = useMemo(() => buildFileTree(files), [files])
+  const recommendedMissing = useMemo(
+    () =>
+      RECOMMENDED_AGENT_FILES.filter(
+        (name) => !files.some((file) => file.path.toLowerCase() === name.toLowerCase())
+      ),
+    [files]
+  )
 
   const selectedEntry = useMemo(
     () => (selectedPath ? files.find((file) => file.path === selectedPath) : undefined),
     [files, selectedPath]
   )
 
-  const isReservedSelected = selectedPath === RESERVED_AGENT_FILE
+  const isReservedSelected = isReservedPath(selectedPath)
   const isDirectorySelected = selectedEntry?.isDir ?? false
   const isFileEditorActive = Boolean(selectedPath && !isDirectorySelected && !isReservedSelected)
   const isFileDirty = isFileEditorActive && fileContent !== originalContent
+  const selectedTemplateKey = selectedPath ? selectedPath.split('/').pop()?.toUpperCase() : null
+  const templateOptions =
+    selectedTemplateKey && AGENT_FILE_TEMPLATES[selectedTemplateKey]
+      ? AGENT_FILE_TEMPLATES[selectedTemplateKey]
+      : undefined
 
   const refreshFiles = useCallback(async () => {
     try {
@@ -178,8 +304,17 @@ export function FilesTab({
 
   useEffect(() => {
     if (!selectedPath || isDirectorySelected || isReservedSelected) {
+      if (skipFileLoadRef.current === selectedPath) {
+        skipFileLoadRef.current = null
+      }
       setFileContent('')
       setOriginalContent('')
+      setIsFileLoading(false)
+      return
+    }
+
+    if (skipFileLoadRef.current === selectedPath) {
+      skipFileLoadRef.current = null
       setIsFileLoading(false)
       return
     }
@@ -221,6 +356,7 @@ export function FilesTab({
   }, [expandedPaths])
 
   const handleSelectPath = useCallback((path: string, isDir: boolean) => {
+    setContextMenu(null)
     if (path === selectedPath) {
       if (isDir) {
         setExpandedPaths((prev) => {
@@ -283,41 +419,69 @@ export function FilesTab({
     setFileContent(originalContent)
   }, [originalContent])
 
+  const handleApplyTemplate = useCallback(
+    (content: string) => {
+      if (isFileDirty) {
+        const confirmed = window.confirm('Replace the current draft with this template?')
+        if (!confirmed) return
+      }
+      setFileContent(content)
+    },
+    [isFileDirty]
+  )
+
   const handleStartAdd = useCallback(() => {
-    setMode('add')
-    setPendingPath('NEW.md')
-  }, [])
+    setDialogMode('add')
+    setRenameSourcePath(null)
+    setPendingPath(recommendedMissing[0] ?? 'NEW.md')
+    setFileDialogOpen(true)
+    setContextMenu(null)
+  }, [recommendedMissing])
 
-  const handleStartRename = useCallback(() => {
-    if (!selectedPath || isDirectorySelected || isReservedSelected) return
-    setMode('rename')
-    setPendingPath(selectedPath)
-  }, [selectedPath, isDirectorySelected, isReservedSelected])
+  const handleStartRename = useCallback(
+    (path?: string) => {
+      const target = path ?? selectedPath
+      if (!target || isReservedPath(target)) return
+      setDialogMode('rename')
+      setRenameSourcePath(target)
+      setPendingPath(target)
+      setFileDialogOpen(true)
+      setContextMenu(null)
+    },
+    [selectedPath]
+  )
 
-  const handleCancelMode = useCallback(() => {
-    setMode('none')
+  const handleCloseDialog = useCallback(() => {
+    setFileDialogOpen(false)
     setPendingPath('')
+    setRenameSourcePath(null)
   }, [])
 
-  const handleConfirmMode = useCallback(async () => {
+  const handleConfirmDialog = useCallback(async () => {
     const trimmed = pendingPath.trim()
     if (!trimmed) return
 
+    let didSucceed = false
+
     try {
-      if (mode === 'add') {
+      if (dialogMode === 'add') {
         await agentService.createAgentFile(agentId, { path: trimmed, content: '' })
         setSelectedPath(trimmed)
         ensureExpandedForPath(trimmed)
-      } else if (mode === 'rename' && selectedPath) {
-        if (trimmed === selectedPath) {
-          handleCancelMode()
+      } else if (renameSourcePath) {
+        if (trimmed === renameSourcePath) {
+          handleCloseDialog()
           return
         }
-        await agentService.renameAgentFile(agentId, { from: selectedPath, to: trimmed })
-        setSelectedPath(trimmed)
+        await agentService.renameAgentFile(agentId, { from: renameSourcePath, to: trimmed })
+        if (selectedPath === renameSourcePath) {
+          skipFileLoadRef.current = trimmed
+          setSelectedPath(trimmed)
+        }
         ensureExpandedForPath(trimmed)
       }
       await refreshFiles()
+      didSucceed = true
     } catch (error) {
       console.warn('[FilesTab] File operation failed:', error)
       toast({
@@ -325,28 +489,87 @@ export function FilesTab({
         description: 'Check the file name and try again.',
       })
     } finally {
-      setMode('none')
-      setPendingPath('')
+      if (didSucceed) {
+        handleCloseDialog()
+      }
     }
-  }, [agentId, mode, pendingPath, refreshFiles, selectedPath, ensureExpandedForPath, handleCancelMode])
+  }, [
+    agentId,
+    dialogMode,
+    pendingPath,
+    renameSourcePath,
+    refreshFiles,
+    selectedPath,
+    ensureExpandedForPath,
+    handleCloseDialog,
+  ])
 
-  const handleDelete = useCallback(async () => {
-    if (!selectedPath || isDirectorySelected || isReservedSelected) return
-    const confirmed = window.confirm(`Delete ${selectedPath}? This cannot be undone.`)
-    if (!confirmed) return
+  const handleDelete = useCallback(
+    async (path?: string) => {
+      const target = path ?? selectedPath
+      if (!target || isReservedPath(target)) return
+      const confirmed = window.confirm(`Delete ${target}? This cannot be undone.`)
+      if (!confirmed) return
 
-    try {
-      await agentService.deleteAgentFile(agentId, selectedPath)
-      setSelectedPath(null)
-      await refreshFiles()
-    } catch (error) {
-      console.warn('[FilesTab] Failed to delete file:', error)
-      toast({
-        title: 'Unable to delete file',
-        description: 'Check the API server and try again.',
+      try {
+        await agentService.deleteAgentFile(agentId, target)
+        if (selectedPath === target) {
+          setSelectedPath(null)
+        }
+        await refreshFiles()
+      } catch (error) {
+        console.warn('[FilesTab] Failed to delete file:', error)
+        toast({
+          title: 'Unable to delete file',
+          description: 'Check the API server and try again.',
+        })
+      } finally {
+        setContextMenu(null)
+      }
+    },
+    [agentId, refreshFiles, selectedPath]
+  )
+
+  const handleContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>, node: FileNode) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        path: node.path,
+        isDir: node.isDir,
+        isReserved: isReservedPath(node.path),
       })
+    },
+    []
+  )
+
+  const templateHeader = useMemo<ReactNode | null>(() => {
+    if (!isFileEditorActive || !templateOptions?.length) {
+      return null
     }
-  }, [agentId, selectedPath, isDirectorySelected, isReservedSelected, refreshFiles])
+
+    return (
+      <ToolbarDropdown
+        icon={<Sparkles className="h-4 w-4" />}
+        label="Templates"
+        align="right"
+        className="h-8 px-2"
+      >
+        {templateOptions.map((template) => (
+          <DropdownItem
+            key={template.label}
+            onClick={() => handleApplyTemplate(template.content)}
+            icon={<FileText className="h-4 w-4" />}
+            label={template.label}
+          />
+        ))}
+      </ToolbarDropdown>
+    )
+  }, [handleApplyTemplate, isFileEditorActive, templateOptions])
+
+  const isDialogValid = pendingPath.trim().length > 0
 
   const renderNode = (node: FileNode, depth = 0): ReactNode => {
     if (!node.path) {
@@ -366,6 +589,7 @@ export function FilesTab({
         <button
           type="button"
           onClick={() => handleSelectPath(node.path, node.isDir)}
+          onContextMenu={(event) => handleContextMenu(event, node)}
           className={cn(
             'w-full flex items-center gap-2 rounded-md px-2 py-1 text-sm text-left',
             isSelected ? 'bg-primary/15 text-primary' : 'hover:bg-muted'
@@ -381,150 +605,374 @@ export function FilesTab({
   }
 
   return (
-    <div className="h-full flex min-h-0">
-      <div className="w-64 border-r border-border flex flex-col min-h-0">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent Files</span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => void refreshFiles()}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-              title="Refresh"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleStartAdd}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-              title="Add file"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleStartRename}
-              className={cn(
-                'p-1 rounded text-muted-foreground hover:text-foreground',
-                !selectedPath || isDirectorySelected || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-              )}
-              disabled={!selectedPath || isDirectorySelected || isReservedSelected}
-              title="Rename file"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              className={cn(
-                'p-1 rounded text-muted-foreground hover:text-foreground',
-                !selectedPath || isDirectorySelected || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-              )}
-              disabled={!selectedPath || isDirectorySelected || isReservedSelected}
-              title="Delete file"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+    <>
+      <div className="h-full flex min-h-0">
+        <div className="w-64 border-r border-border flex flex-col min-h-0">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent Files</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => void refreshFiles()}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                title="Refresh"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleStartAdd}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                title="Add file"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStartRename()}
+                className={cn(
+                  'p-1 rounded text-muted-foreground hover:text-foreground',
+                  !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
+                )}
+                disabled={!selectedPath || isReservedSelected}
+                title="Rename file"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                className={cn(
+                  'p-1 rounded text-muted-foreground hover:text-foreground',
+                  !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
+                )}
+                disabled={!selectedPath || isReservedSelected}
+                title="Delete file"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-2 py-2">
+            {files.length === 0 ? (
+              <div className="text-xs text-muted-foreground px-2 py-4">
+                No files yet. Create a file to get started.
+              </div>
+            ) : (
+              renderNode(tree)
+            )}
           </div>
         </div>
 
-        {mode !== 'none' && (
-          <div className="px-3 py-2 border-b border-border space-y-2">
-            <Input
-              value={pendingPath}
-              onChange={(event) => setPendingPath(event.target.value)}
-              placeholder="path/to/file.md"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void handleConfirmMode()}
-                className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs"
-              >
-                {mode === 'add' ? 'Create' : 'Rename'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelMode}
-                className="px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
+        <div className="flex-1 min-w-0 flex flex-col">
+          {!selectedPath && (
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+              Select a file to view or edit.
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="flex-1 overflow-y-auto px-2 py-2">
-          {files.length === 0 ? (
-            <div className="text-xs text-muted-foreground px-2 py-4">
-              No files yet. Create a file to get started.
+          {selectedPath && isReservedSelected && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold">agent.json</div>
+                  <div className="text-xs text-muted-foreground">Appearance settings</div>
+                </div>
+                <EditorActionButtons
+                  isDirty={isDirty}
+                  dirtyCount={dirtyCount}
+                  onUndo={onUndo}
+                  onRedo={onRedo}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
+                  onSave={onSave}
+                  onDiscard={onDiscard}
+                  isSaving={isSaving}
+                  isValid={isValid}
+                />
+              </div>
+              <AppearanceTab formState={formState} updateField={updateField} />
             </div>
-          ) : (
-            renderNode(tree)
+          )}
+
+          {selectedPath && isDirectorySelected && (
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+              Select a file to view or edit.
+            </div>
+          )}
+
+          {selectedPath && isFileEditorActive && (
+            <div className="flex-1 min-h-0">
+              {isFileLoading ? (
+                <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+                  Loading file...
+                </div>
+              ) : (
+                <SkillContentEditor
+                  value={fileContent}
+                  originalValue={originalContent}
+                  onChange={setFileContent}
+                  isDirty={isFileDirty}
+                  dirtyCount={isFileDirty ? 1 : 0}
+                  onSave={() => void handleSaveFile()}
+                  onDiscard={handleDiscardFile}
+                  isSaving={isFileSaving}
+                  isValid
+                  headerRight={templateHeader ?? undefined}
+                  className="h-full"
+                />
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        {!selectedPath && (
-          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            Select a file to view or edit.
-          </div>
-        )}
-
-        {selectedPath && isReservedSelected && (
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold">agent.json</div>
-                <div className="text-xs text-muted-foreground">Appearance settings</div>
-              </div>
-              <EditorActionButtons
-                isDirty={isDirty}
-                dirtyCount={dirtyCount}
-                onUndo={onUndo}
-                onRedo={onRedo}
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onSave={onSave}
-                onDiscard={onDiscard}
-                isSaving={isSaving}
-                isValid={isValid}
-              />
-            </div>
-            <AppearanceTab formState={formState} updateField={updateField} />
-          </div>
-        )}
-
-        {selectedPath && isDirectorySelected && (
-          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            Select a file to view or edit.
-          </div>
-        )}
-
-        {selectedPath && isFileEditorActive && (
-          <div className="flex-1 min-h-0">
-            {isFileLoading ? (
-              <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-                Loading file...
-              </div>
-            ) : (
-              <SkillContentEditor
-                value={fileContent}
-                originalValue={originalContent}
-                onChange={setFileContent}
-                isDirty={isFileDirty}
-                dirtyCount={isFileDirty ? 1 : 0}
-                onSave={() => void handleSaveFile()}
-                onDiscard={handleDiscardFile}
-                isSaving={isFileSaving}
-                isValid
-                className="h-full"
-              />
+      {fileDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleCloseDialog}
+          />
+          <div
+            className={cn(
+              'relative w-full max-w-md mx-4 p-4',
+              'bg-card border border-border rounded-lg shadow-xl',
+              'animate-in fade-in-0 zoom-in-95 duration-200'
             )}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground">
+                {dialogMode === 'add' ? 'Create New File' : 'Rename File'}
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseDialog}
+                className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {dialogMode === 'add' && recommendedMissing.length > 0 && (
+              <div className="mb-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Recommended Files
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {recommendedMissing.map((name) => {
+                    const isSelected = pendingPath.trim().toLowerCase() === name.toLowerCase()
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => setPendingPath(name)}
+                        className={cn(
+                          'px-2 py-1 rounded-md text-xs border transition-colors',
+                          isSelected
+                            ? 'bg-primary/20 border-primary text-primary'
+                            : 'border-border text-foreground hover:bg-muted'
+                        )}
+                      >
+                        {name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mb-4 space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="agent-file-path">
+                File path
+              </label>
+              <Input
+                id="agent-file-path"
+                value={pendingPath}
+                onChange={(event) => setPendingPath(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    void handleConfirmDialog()
+                  }
+                }}
+                placeholder="path/to/file.md"
+              />
+              <p className="text-xs text-muted-foreground">
+                You can create folders by including slashes in the path.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCloseDialog}
+                className={cn(
+                  'px-4 py-2 text-sm rounded-lg transition-colors',
+                  'bg-muted hover:bg-muted/80 text-foreground'
+                )}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDialog()}
+                disabled={!isDialogValid}
+                className={cn(
+                  'px-4 py-2 text-sm rounded-lg transition-colors',
+                  'bg-primary hover:bg-primary/90 text-primary-foreground',
+                  !isDialogValid && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {dialogMode === 'add' ? 'Create' : 'Rename'}
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {contextMenu && (
+        <AgentFileContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          path={contextMenu.path}
+          isDir={contextMenu.isDir}
+          isReserved={contextMenu.isReserved}
+          onClose={() => setContextMenu(null)}
+          onRename={() => handleStartRename(contextMenu.path)}
+          onDelete={() => void handleDelete(contextMenu.path)}
+        />
+      )}
+    </>
+  )
+}
+
+interface AgentFileContextMenuProps {
+  x: number
+  y: number
+  path: string
+  isDir: boolean
+  isReserved: boolean
+  onClose: () => void
+  onRename: () => void
+  onDelete: () => void
+}
+
+function AgentFileContextMenu({
+  x,
+  y,
+  path,
+  isDir,
+  isReserved,
+  onClose,
+  onRename,
+  onDelete,
+}: AgentFileContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEscape)
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [onClose])
+
+  useEffect(() => {
+    if (!menuRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+
+    let adjustedX = x
+    let adjustedY = y
+
+    if (x + rect.width > viewportWidth) {
+      adjustedX = viewportWidth - rect.width - 8
+    }
+    if (y + rect.height > viewportHeight) {
+      adjustedY = viewportHeight - rect.height - 8
+    }
+
+    menuRef.current.style.left = `${adjustedX}px`
+    menuRef.current.style.top = `${adjustedY}px`
+  }, [x, y])
+
+  const handleRename = useCallback(() => {
+    if (isReserved) return
+    onRename()
+    onClose()
+  }, [isReserved, onRename, onClose])
+
+  const handleDelete = useCallback(() => {
+    if (isReserved) return
+    onDelete()
+    onClose()
+  }, [isReserved, onDelete, onClose])
+
+  const itemClass = (enabled: boolean, variant: 'default' | 'danger' = 'default') =>
+    cn(
+      'w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm transition-colors',
+      enabled
+        ? variant === 'danger'
+          ? 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'
+          : 'text-foreground hover:bg-muted'
+        : 'text-muted-foreground/50 cursor-not-allowed'
+    )
+
+  const label = isDir ? 'folder' : 'file'
+  const displayName = path.split('/').pop() ?? path
+
+  return (
+    <div
+      ref={menuRef}
+      className={cn(
+        'fixed z-50 min-w-[180px] overflow-visible rounded-md',
+        'bg-popover border border-border shadow-lg',
+        'animate-in fade-in-0 zoom-in-95 duration-100'
+      )}
+      style={{ left: x, top: y }}
+    >
+      <div className="px-2 pt-2 pb-1 text-xs text-muted-foreground truncate">
+        {displayName}
+      </div>
+      <div className="p-1">
+        <button
+          type="button"
+          onClick={handleRename}
+          disabled={isReserved}
+          className={itemClass(!isReserved)}
+        >
+          <Pencil className="h-4 w-4" />
+          <span>Rename {label}</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={isReserved}
+          className={itemClass(!isReserved, 'danger')}
+        >
+          <Trash2 className="h-4 w-4" />
+          <span>Delete {label}</span>
+        </button>
       </div>
     </div>
   )

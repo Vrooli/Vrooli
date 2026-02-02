@@ -12,7 +12,7 @@
  * - Preview toggle renders split view on desktop, preview-only on mobile
  */
 
-import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
+import { useCallback, useRef, useState, useEffect, useMemo, type ReactNode } from 'react'
 import Editor, { DiffEditor, useMonaco, type OnMount, type OnChange } from '@monaco-editor/react'
 import { AlertTriangle, Code, Diff, Eye, Files, Redo2, RotateCcw, Save, Type, Undo2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -296,6 +296,8 @@ interface SkillContentEditorProps extends EditorActionState {
   onChange: (value: string) => void
   error?: string
   className?: string
+  headerLeft?: ReactNode
+  headerRight?: ReactNode
 }
 
 /**
@@ -318,6 +320,8 @@ export function SkillContentEditor({
   isSaving = false,
   isValid = true,
   className,
+  headerLeft,
+  headerRight,
 }: SkillContentEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monaco = useMonaco()
@@ -511,7 +515,27 @@ export function SkillContentEditor({
       )}
     >
       <EditorActionButtons {...editorActionState} variant={variant} />
+      {headerLeft && (
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            variant === 'dark' ? 'text-slate-200' : 'text-muted-foreground'
+          )}
+        >
+          {headerLeft}
+        </div>
+      )}
       <div className="ml-auto flex items-center gap-2">
+        {headerRight && (
+          <div
+            className={cn(
+              'flex items-center gap-2',
+              variant === 'dark' ? 'text-slate-200' : 'text-muted-foreground'
+            )}
+          >
+            {headerRight}
+          </div>
+        )}
         <EditorToggle
           editorType={editorType}
           onEditorTypeChange={handleEditorTypeChange}
