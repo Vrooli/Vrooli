@@ -99,6 +99,32 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	// Generate build ID
 	buildID := fmt.Sprintf("build-%s-%d", scenarioName, time.Now().UnixMilli())
 
+	// Initialize build status in store BEFORE launching async goroutine.
+	// The build service checks if the status exists and exits immediately if not,
+	// so we must create it here first.
+	if s.store != nil {
+		now := time.Unix(s.timeProvider.Now(), 0)
+		initialStatus := &build.Status{
+			BuildID:            buildID,
+			ScenarioName:       scenarioName,
+			Status:             "building",
+			RequestedPlatforms: platforms,
+			PlatformResults:    make(map[string]*build.PlatformResult),
+			CreatedAt:          now,
+			BuildLog:           []string{},
+			ErrorLog:           []string{},
+			Artifacts:          map[string]string{},
+		}
+		// Initialize platform results as pending
+		for _, plt := range platforms {
+			initialStatus.PlatformResults[plt] = &build.PlatformResult{
+				Platform: plt,
+				Status:   "pending",
+			}
+		}
+		s.store.Save(initialStatus)
+	}
+
 	// Start the async build
 	go s.service.PerformScenarioDesktopBuild(
 		buildID,

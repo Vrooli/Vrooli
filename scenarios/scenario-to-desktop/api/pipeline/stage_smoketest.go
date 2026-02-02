@@ -139,6 +139,23 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Generate smoke test ID
 	smokeTestID := fmt.Sprintf("smoke-%s-%d", scenarioName, time.Now().UnixMilli())
 
+	// Initialize smoke test status in store BEFORE launching async goroutine.
+	// The smoke test service checks if the status exists and exits immediately if not,
+	// so we must create it here first.
+	if s.store != nil {
+		now := time.Unix(s.timeProvider.Now(), 0)
+		initialStatus := &smoketest.Status{
+			SmokeTestID:  smokeTestID,
+			ScenarioName: scenarioName,
+			Platform:     currentPlatform,
+			Status:       "running",
+			ArtifactPath: artifactPath,
+			StartedAt:    now,
+			Logs:         []string{},
+		}
+		s.store.Save(initialStatus)
+	}
+
 	// Start the async smoke test
 	go s.service.PerformSmokeTest(ctx, smokeTestID, scenarioName, artifactPath, currentPlatform)
 

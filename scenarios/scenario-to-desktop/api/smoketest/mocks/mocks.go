@@ -428,6 +428,18 @@ type MockOutputParser struct {
 
 	// SequenceFunc allows custom sequence validation logic
 	SequenceFunc func(output string) smoketest.SequenceValidation
+
+	// AppErrorResult is returned by ExtractAppError
+	AppErrorResult *smoketest.AppError
+
+	// AppErrorFunc allows custom app error extraction logic
+	AppErrorFunc func(output string) *smoketest.AppError
+
+	// LifecycleStateResult is returned by ExtractLastLifecycleState
+	LifecycleStateResult string
+
+	// LifecycleStateFunc allows custom lifecycle state extraction logic
+	LifecycleStateFunc func(output string) string
 }
 
 // NewMockOutputParser creates a new mock output parser.
@@ -449,6 +461,22 @@ func (m *MockOutputParser) ValidateSequence(output string) smoketest.SequenceVal
 		return m.SequenceFunc(output)
 	}
 	return m.SequenceResult
+}
+
+// ExtractAppError parses SMOKE_TEST_ERROR markers from output.
+func (m *MockOutputParser) ExtractAppError(output string) *smoketest.AppError {
+	if m.AppErrorFunc != nil {
+		return m.AppErrorFunc(output)
+	}
+	return m.AppErrorResult
+}
+
+// ExtractLastLifecycleState returns the last lifecycle marker reached.
+func (m *MockOutputParser) ExtractLastLifecycleState(output string) string {
+	if m.LifecycleStateFunc != nil {
+		return m.LifecycleStateFunc(output)
+	}
+	return m.LifecycleStateResult
 }
 
 // MockEnvironmentReader implements smoketest.EnvironmentReader for testing.

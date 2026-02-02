@@ -132,6 +132,15 @@ type OutputParser interface {
 	// ValidateSequence performs detailed validation of the smoke test output sequence.
 	// It checks that markers appear in the correct order: init -> ready -> passed -> exit.
 	ValidateSequence(output string) SequenceValidation
+
+	// ExtractAppError parses SMOKE_TEST_ERROR markers from output.
+	// Returns nil if no app error marker is found.
+	ExtractAppError(output string) *AppError
+
+	// ExtractLastLifecycleState returns the last lifecycle marker reached.
+	// Returns empty string if no lifecycle markers are found.
+	// Possible values: "init", "ready", "result", "exit"
+	ExtractLastLifecycleState(output string) string
 }
 
 // TelemetryChainExecutor orchestrates the telemetry collection fallback chain.

@@ -426,6 +426,15 @@ func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, art
 		output = execResult.Combined
 	}
 
+	// Check for app-reported structured errors first (highest priority)
+	if appError := s.outputParser.ExtractAppError(output); appError != nil {
+		s.recordTypedFailure(smokeTestID, NewAppReportedError(appError))
+		return
+	}
+
+	// Extract last lifecycle state for error context
+	lastState := s.outputParser.ExtractLastLifecycleState(output)
+
 	result := s.outputParser.ParseResult(output)
 
 	// Update telemetry upload status
@@ -450,18 +459,27 @@ func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, art
 	// Check execution error
 	if execErr != nil {
 		smokeErr := s.buildExecutionError(execErr, execResult, displayCommand, platform)
+		// Add lifecycle state to error context for debugging
+		if lastState != "" {
+			smokeErr.Context["last_lifecycle_state"] = lastState
+		}
 		s.recordTypedFailure(smokeTestID, smokeErr)
 		return
 	}
 
 	// Check for success marker
 	if !result.Passed {
+		context := map[string]string{
+			"expected": "SMOKE_TEST_RESULT=passed",
+			"platform": platform,
+		}
+		// Add lifecycle state to help diagnose where failure occurred
+		if lastState != "" {
+			context["last_lifecycle_state"] = lastState
+		}
 		s.recordTypedFailure(smokeTestID, NewValidationError(
 			"smoke test did not report success",
-			map[string]string{
-				"expected": "SMOKE_TEST_RESULT=passed",
-				"platform": platform,
-			},
+			context,
 		))
 		return
 	}

@@ -332,3 +332,81 @@ func NewCancelledError(msg string) *Error {
 		},
 	}
 }
+
+// NewAppReportedError creates an error from app-side structured error output.
+// This is used when the app emits SMOKE_TEST_ERROR markers that we can parse.
+func NewAppReportedError(appErr *AppError) *Error {
+	kind := ErrKindExecution // Default
+	switch appErr.Kind {
+	case "config":
+		kind = ErrKindArtifact
+	case "network":
+		kind = ErrKindExecution
+	case "validation":
+		kind = ErrKindValidation
+	case "runtime":
+		kind = ErrKindExecution
+	}
+
+	return &Error{
+		Kind:            kind,
+		Message:         fmt.Sprintf("App reported error: %s", appErr.Message),
+		Context:         map[string]string{"app_error_kind": appErr.Kind},
+		Recoverable:     kind == ErrKindExecution,
+		SuggestedAction: getRecoveryForAppError(appErr.Kind),
+		ManualSteps:     getManualStepsForAppError(appErr.Kind),
+	}
+}
+
+// getRecoveryForAppError returns a recovery suggestion based on the app error kind.
+func getRecoveryForAppError(kind string) string {
+	switch kind {
+	case "config":
+		return "Check build configuration and regenerate the desktop app"
+	case "network":
+		return "Verify the server is running and reachable, check network connectivity"
+	case "validation":
+		return "Review bundle validation errors and rebuild the bundle"
+	case "runtime":
+		return "Check app startup logs and verify platform compatibility"
+	default:
+		return RecoveryPaths[ErrKindExecution]
+	}
+}
+
+// getManualStepsForAppError returns manual resolution steps based on the app error kind.
+func getManualStepsForAppError(kind string) []string {
+	switch kind {
+	case "config":
+		return []string{
+			"Verify build configuration files exist and are valid",
+			"Regenerate the desktop app with scenario-to-desktop",
+			"Check for missing or corrupted bundle files",
+		}
+	case "network":
+		return []string{
+			"Verify the target server is running: curl -I <server-url>",
+			"Check if the server port is accessible",
+			"Verify network connectivity and firewall settings",
+			"Increase SMOKE_TEST_TIMEOUT_MS if server startup is slow",
+		}
+	case "validation":
+		return []string{
+			"Review the bundle validation output for specific errors",
+			"Rebuild the bundle with scenario-to-desktop",
+			"Verify all required assets are present in the bundle",
+		}
+	case "runtime":
+		return []string{
+			"Check if the application can run manually",
+			"Verify all dependencies are installed",
+			"Check system logs for crash information",
+			"Try running with --verbose flag for more output",
+		}
+	default:
+		return []string{
+			"Review the smoke test output for error details",
+			"Check app startup logs",
+		}
+	}
+}

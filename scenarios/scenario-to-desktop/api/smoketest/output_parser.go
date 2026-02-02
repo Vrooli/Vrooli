@@ -1,6 +1,15 @@
 package smoketest
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+// AppError represents a structured error reported by the app via SMOKE_TEST_ERROR marker.
+type AppError struct {
+	Kind    string // config, network, runtime, validation
+	Message string
+}
 
 // DefaultOutputParser implements OutputParser using configurable markers.
 type DefaultOutputParser struct {
@@ -10,6 +19,42 @@ type DefaultOutputParser struct {
 // NewOutputParser creates a new output parser with the given config.
 func NewOutputParser(config Config) *DefaultOutputParser {
 	return &DefaultOutputParser{config: config}
+}
+
+// appErrorRegex matches SMOKE_TEST_ERROR kind=<kind> msg="<message>"
+// The message can contain escaped quotes (\")
+var appErrorRegex = regexp.MustCompile(`SMOKE_TEST_ERROR kind=(\w+) msg="((?:[^"\\]|\\.)*)"`)
+
+// ExtractAppError parses SMOKE_TEST_ERROR markers from output.
+// Returns nil if no app error marker is found.
+func (p *DefaultOutputParser) ExtractAppError(output string) *AppError {
+	matches := appErrorRegex.FindStringSubmatch(output)
+	if len(matches) == 3 {
+		// Unescape the message (replace \" with ")
+		message := strings.ReplaceAll(matches[2], `\"`, `"`)
+		return &AppError{Kind: matches[1], Message: message}
+	}
+	return nil
+}
+
+// ExtractLastLifecycleState returns the last lifecycle marker reached.
+// Returns empty string if no lifecycle markers are found.
+// Possible values: "init", "ready", "result", "exit"
+func (p *DefaultOutputParser) ExtractLastLifecycleState(output string) string {
+	lastState := ""
+	if p.config.InitMarker != "" && strings.Contains(output, p.config.InitMarker) {
+		lastState = "init"
+	}
+	if p.config.ReadyMarker != "" && strings.Contains(output, p.config.ReadyMarker) {
+		lastState = "ready"
+	}
+	if strings.Contains(output, p.config.SuccessMarker) || strings.Contains(output, "SMOKE_TEST_RESULT=failed") {
+		lastState = "result"
+	}
+	if p.config.ExitMarker != "" && strings.Contains(output, p.config.ExitMarker) {
+		lastState = "exit"
+	}
+	return lastState
 }
 
 // ParseResult analyzes smoke test output and returns the result.

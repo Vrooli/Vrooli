@@ -303,3 +303,144 @@ func TestOutputParser_ValidateSequence_LineNumbers(t *testing.T) {
 		t.Errorf("Second stage: got name=%q line=%d, want name=passed line=4", result.Stages[1].Name, result.Stages[1].LineNumber)
 	}
 }
+
+func TestOutputParser_ExtractAppError(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name        string
+		output      string
+		wantError   bool
+		wantKind    string
+		wantMessage string
+	}{
+		{
+			name:      "no error marker",
+			output:    "SMOKE_TEST_RESULT=passed",
+			wantError: false,
+		},
+		{
+			name:        "config error",
+			output:      `SMOKE_TEST_ERROR kind=config msg="Missing bundle.json"`,
+			wantError:   true,
+			wantKind:    "config",
+			wantMessage: "Missing bundle.json",
+		},
+		{
+			name:        "network error",
+			output:      `Starting app...\nSMOKE_TEST_ERROR kind=network msg="Server not ready within timeout"`,
+			wantError:   true,
+			wantKind:    "network",
+			wantMessage: "Server not ready within timeout",
+		},
+		{
+			name:        "validation error",
+			output:      `SMOKE_TEST_ERROR kind=validation msg="Bundle validation failed: missing binary"`,
+			wantError:   true,
+			wantKind:    "validation",
+			wantMessage: "Bundle validation failed: missing binary",
+		},
+		{
+			name:        "runtime error",
+			output:      `SMOKE_TEST_ERROR kind=runtime msg="Unexpected crash during startup"`,
+			wantError:   true,
+			wantKind:    "runtime",
+			wantMessage: "Unexpected crash during startup",
+		},
+		{
+			name:      "malformed error marker",
+			output:    `SMOKE_TEST_ERROR kind=config`,
+			wantError: false, // missing msg field
+		},
+		{
+			name:        "error with escaped quotes",
+			output:      `SMOKE_TEST_ERROR kind=config msg="File \"config.json\" not found"`,
+			wantError:   true,
+			wantKind:    "config",
+			wantMessage: `File "config.json" not found`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractAppError(tt.output)
+			if tt.wantError {
+				if result == nil {
+					t.Fatal("Expected app error, got nil")
+				}
+				if result.Kind != tt.wantKind {
+					t.Errorf("Kind = %q, want %q", result.Kind, tt.wantKind)
+				}
+				if result.Message != tt.wantMessage {
+					t.Errorf("Message = %q, want %q", result.Message, tt.wantMessage)
+				}
+			} else {
+				if result != nil {
+					t.Errorf("Expected nil, got %+v", result)
+				}
+			}
+		})
+	}
+}
+
+func TestOutputParser_ExtractLastLifecycleState(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name      string
+		output    string
+		wantState string
+	}{
+		{
+			name:      "empty output",
+			output:    "",
+			wantState: "",
+		},
+		{
+			name:      "only init marker",
+			output:    "SMOKE_TEST_INIT=started",
+			wantState: "init",
+		},
+		{
+			name:      "init and ready",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true",
+			wantState: "ready",
+		},
+		{
+			name:      "full success sequence",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_EXIT=clean",
+			wantState: "exit",
+		},
+		{
+			name:      "failed result",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=failed some error",
+			wantState: "result",
+		},
+		{
+			name:      "passed result without exit",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed",
+			wantState: "result",
+		},
+		{
+			name:      "markers in reverse order still finds last",
+			output:    "SMOKE_TEST_EXIT=clean\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_INIT=started",
+			wantState: "exit", // exit is the "highest" state
+		},
+		{
+			name:      "unrelated output",
+			output:    "Starting application...\nServer ready\nDone",
+			wantState: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractLastLifecycleState(tt.output)
+			if result != tt.wantState {
+				t.Errorf("ExtractLastLifecycleState() = %q, want %q", result, tt.wantState)
+			}
+		})
+	}
+}

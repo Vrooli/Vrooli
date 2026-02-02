@@ -70,7 +70,7 @@ func NewApp() (*App, error) {
 		telemetry:    telemetry.New(core.APIClient),
 		system:       system.New(core.APIClient),
 	}
-	app.core.SetCommands(app.registerCommands())
+	app.core.SetCommandsWithSubgroups(app.registerCommands(), app.registerSubcommandGroups())
 	return app, nil
 }
 
@@ -80,6 +80,7 @@ func (a *App) Run(args []string) error {
 }
 
 func (a *App) registerCommands() []cliapp.CommandGroup {
+	// Flat commands for simple operations
 	health := cliapp.CommandGroup{
 		Title: "Health & Status",
 		Commands: []cliapp.Command{
@@ -92,66 +93,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			{Name: "templates", NeedsAPI: true, Description: "List available desktop templates", Run: a.system.TemplatesList},
 			{Name: "template", NeedsAPI: true, Description: "Get template details: template <type>", Run: a.system.TemplateGet},
-		},
-	}
-
-	pipelineGroup := cliapp.CommandGroup{
-		Title: "Pipeline",
-		Commands: []cliapp.Command{
-			{Name: "pipeline-run", NeedsAPI: true, Description: "Start a new pipeline: pipeline-run <scenario> [--stages ...] [--platforms ...] [--wait] [--timeout N]", Run: a.pipeline.Run},
-			{Name: "pipeline-status", NeedsAPI: true, Description: "Get pipeline status: pipeline-status <id> [--verbose]", Run: a.pipeline.Status},
-			{Name: "pipeline-resume", NeedsAPI: true, Description: "Resume a stopped pipeline: pipeline-resume <id>", Run: a.pipeline.Resume},
-			{Name: "pipeline-cancel", NeedsAPI: true, Description: "Cancel a running pipeline: pipeline-cancel <id>", Run: a.pipeline.Cancel},
-			{Name: "pipeline-list", NeedsAPI: true, Description: "List all pipelines", Run: a.pipeline.List},
-			{Name: "pipeline-active", NeedsAPI: true, Description: "Get active pipeline for scenario: pipeline-active <scenario>", Run: a.pipeline.Active},
-			{Name: "pipeline-create", NeedsAPI: true, Description: "Create new pipeline for scenario: pipeline-create <scenario>", Run: a.pipeline.Create},
-			{Name: "pipeline-reset", NeedsAPI: true, Description: "Reset active pipeline for scenario: pipeline-reset <scenario>", Run: a.pipeline.Reset},
-			{Name: "pipeline-history", NeedsAPI: true, Description: "Get pipeline history: pipeline-history <scenario> [--limit N]", Run: a.pipeline.History},
-			{Name: "pipeline-start", NeedsAPI: true, Description: "Start active pipeline: pipeline-start <scenario> [--stages ...] [--platforms ...] [--wait] [--timeout N]", Run: a.pipeline.Start},
-		},
-	}
-
-	telemetryGroup := cliapp.CommandGroup{
-		Title: "Telemetry",
-		Commands: []cliapp.Command{
-			{Name: "telemetry-ingest", NeedsAPI: true, Description: "Ingest telemetry from file: telemetry-ingest <scenario> --file <path>", Run: a.telemetry.Ingest},
-			{Name: "telemetry-summary", NeedsAPI: true, Description: "Get telemetry summary: telemetry-summary <scenario>", Run: a.telemetry.Summary},
-			{Name: "telemetry-insights", NeedsAPI: true, Description: "Get telemetry insights: telemetry-insights <scenario>", Run: a.telemetry.Insights},
-			{Name: "telemetry-tail", NeedsAPI: true, Description: "Get recent telemetry: telemetry-tail <scenario> [--limit N]", Run: a.telemetry.Tail},
-			{Name: "telemetry-download", NeedsAPI: true, Description: "Download telemetry file: telemetry-download <scenario> [--output <path>]", Run: a.telemetry.Download},
-			{Name: "telemetry-delete", NeedsAPI: true, Description: "Delete telemetry: telemetry-delete <scenario>", Run: a.telemetry.Delete},
-		},
-	}
-
-	signingGroup := cliapp.CommandGroup{
-		Title: "Code Signing",
-		Commands: []cliapp.Command{
-			{Name: "signing-get", NeedsAPI: true, Description: "Get signing config: signing-get <scenario>", Run: a.signing.Get},
-			{Name: "signing-set", NeedsAPI: true, Description: "Set signing config: signing-set <scenario> --config <json>", Run: a.signing.Set},
-			{Name: "signing-delete", NeedsAPI: true, Description: "Delete signing config: signing-delete <scenario>", Run: a.signing.Delete},
-			{Name: "signing-validate", NeedsAPI: true, Description: "Validate signing config: signing-validate <scenario>", Run: a.signing.Validate},
-			{Name: "signing-ready", NeedsAPI: true, Description: "Check signing readiness: signing-ready <scenario>", Run: a.signing.Ready},
-			{Name: "signing-prerequisites", NeedsAPI: true, Description: "List available signing tools", Run: a.signing.Prerequisites},
-			{Name: "signing-discover", NeedsAPI: true, Description: "Discover certificates: signing-discover <platform>", Run: a.signing.Discover},
-			{Name: "signing-generate-key", NeedsAPI: true, Description: "Generate Linux GPG key: signing-generate-key <scenario> --name <name> --email <email>", Run: a.signing.GenerateKey},
-		},
-	}
-
-	distributionGroup := cliapp.CommandGroup{
-		Title: "Distribution",
-		Commands: []cliapp.Command{
-			{Name: "dist-targets", NeedsAPI: true, Description: "List distribution targets", Run: a.distribution.TargetsList},
-			{Name: "dist-target-get", NeedsAPI: true, Description: "Get distribution target: dist-target-get <name>", Run: a.distribution.TargetGet},
-			{Name: "dist-target-create", NeedsAPI: true, Description: "Create distribution target: dist-target-create --config <json>", Run: a.distribution.TargetCreate},
-			{Name: "dist-target-update", NeedsAPI: true, Description: "Update distribution target: dist-target-update <name> --config <json>", Run: a.distribution.TargetUpdate},
-			{Name: "dist-target-delete", NeedsAPI: true, Description: "Delete distribution target: dist-target-delete <name>", Run: a.distribution.TargetDelete},
-			{Name: "dist-target-test", NeedsAPI: true, Description: "Test distribution target: dist-target-test <name>", Run: a.distribution.TargetTest},
-			{Name: "dist-validate", NeedsAPI: true, Description: "Validate all distribution targets", Run: a.distribution.Validate},
-			{Name: "dist-check-credentials", NeedsAPI: true, Description: "Check distribution credentials", Run: a.distribution.CheckCredentials},
-			{Name: "distribute", NeedsAPI: true, Description: "Start distribution: distribute <scenario> --artifacts <paths>", Run: a.distribution.Distribute},
-			{Name: "dist-status", NeedsAPI: true, Description: "Get distribution status: dist-status <id>", Run: a.distribution.Status},
-			{Name: "dist-cancel", NeedsAPI: true, Description: "Cancel distribution: dist-cancel <id>", Run: a.distribution.Cancel},
-			{Name: "dist-list", NeedsAPI: true, Description: "List all distributions", Run: a.distribution.List},
 		},
 	}
 
@@ -171,15 +112,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	wine := cliapp.CommandGroup{
-		Title: "Wine (Windows builds on Linux)",
-		Commands: []cliapp.Command{
-			{Name: "wine-check", NeedsAPI: true, Description: "Check Wine installation status", Run: a.system.WineCheck},
-			{Name: "wine-install", NeedsAPI: true, Description: "Install Wine: wine-install --method <flatpak|appimage>", Run: a.system.WineInstall},
-			{Name: "wine-status", NeedsAPI: true, Description: "Get Wine install status: wine-status <id>", Run: a.system.WineStatus},
-		},
-	}
-
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -187,5 +119,93 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, templates, pipelineGroup, telemetryGroup, signingGroup, distributionGroup, records, download, wine, config}
+	return []cliapp.CommandGroup{health, templates, records, download, config}
+}
+
+func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
+	// Pipeline subcommands
+	pipelineGroup := cliapp.SubcommandGroup{
+		Name:        "pipeline",
+		Description: "Build pipeline operations (run 'pipeline help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "run", Description: "Start a new pipeline: run <scenario> [--stages ...] [--platforms ...] [--wait]", Run: a.pipeline.Run},
+			{Name: "status", Description: "Get pipeline status: status <id> [--verbose]", Run: a.pipeline.Status},
+			{Name: "resume", Description: "Resume a stopped pipeline: resume <id>", Run: a.pipeline.Resume},
+			{Name: "cancel", Description: "Cancel a running pipeline: cancel <id>", Run: a.pipeline.Cancel},
+			{Name: "list", Description: "List all pipelines", Run: a.pipeline.List},
+			{Name: "active", Description: "Get active pipeline for scenario: active <scenario>", Run: a.pipeline.Active},
+			{Name: "create", Description: "Create new pipeline for scenario: create <scenario>", Run: a.pipeline.Create},
+			{Name: "reset", Description: "Reset active pipeline for scenario: reset <scenario>", Run: a.pipeline.Reset},
+			{Name: "history", Description: "Get pipeline history: history <scenario> [--limit N]", Run: a.pipeline.History},
+			{Name: "start", Description: "Start active pipeline: start <scenario> [--stages ...] [--platforms ...] [--wait]", Run: a.pipeline.Start},
+		},
+	}
+
+	// Telemetry subcommands
+	telemetryGroup := cliapp.SubcommandGroup{
+		Name:        "telemetry",
+		Description: "Deployment telemetry (run 'telemetry help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "ingest", Description: "Ingest telemetry from file: ingest <scenario> --file <path>", Run: a.telemetry.Ingest},
+			{Name: "summary", Description: "Get telemetry summary: summary <scenario>", Run: a.telemetry.Summary},
+			{Name: "insights", Description: "Get AI-generated insights: insights <scenario>", Run: a.telemetry.Insights},
+			{Name: "tail", Description: "Get recent telemetry: tail <scenario> [--limit N]", Run: a.telemetry.Tail},
+			{Name: "download", Description: "Download telemetry file: download <scenario> [--output <path>]", Run: a.telemetry.Download},
+			{Name: "delete", Description: "Delete telemetry: delete <scenario>", Run: a.telemetry.Delete},
+		},
+	}
+
+	// Signing subcommands
+	signingGroup := cliapp.SubcommandGroup{
+		Name:        "signing",
+		Description: "Code signing configuration (run 'signing help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "get", Description: "Get signing config: get <scenario>", Run: a.signing.Get},
+			{Name: "set", Description: "Set signing config: set <scenario> --config <json>", Run: a.signing.Set},
+			{Name: "delete", Description: "Delete signing config: delete <scenario>", Run: a.signing.Delete},
+			{Name: "validate", Description: "Validate signing config: validate <scenario>", Run: a.signing.Validate},
+			{Name: "ready", Description: "Check signing readiness: ready <scenario>", Run: a.signing.Ready},
+			{Name: "prerequisites", Description: "List available signing tools", Run: a.signing.Prerequisites},
+			{Name: "discover", Description: "Discover certificates: discover <platform>", Run: a.signing.Discover},
+			{Name: "generate-key", Description: "Generate Linux GPG key: generate-key <scenario> --name <name> --email <email>", Run: a.signing.GenerateKey},
+		},
+	}
+
+	// Distribution subcommands
+	distGroup := cliapp.SubcommandGroup{
+		Name:        "dist",
+		Description: "Distribution management (run 'dist help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "targets", Description: "List distribution targets", Run: a.distribution.TargetsList},
+			{Name: "target-get", Description: "Get distribution target: target-get <name>", Run: a.distribution.TargetGet},
+			{Name: "target-create", Description: "Create distribution target: target-create --config <json>", Run: a.distribution.TargetCreate},
+			{Name: "target-update", Description: "Update distribution target: target-update <name> --config <json>", Run: a.distribution.TargetUpdate},
+			{Name: "target-delete", Description: "Delete distribution target: target-delete <name>", Run: a.distribution.TargetDelete},
+			{Name: "target-test", Description: "Test distribution target: target-test <name>", Run: a.distribution.TargetTest},
+			{Name: "validate", Description: "Validate all distribution targets", Run: a.distribution.Validate},
+			{Name: "check-credentials", Description: "Check distribution credentials", Run: a.distribution.CheckCredentials},
+			{Name: "run", Description: "Start distribution: run <scenario> --artifacts <paths>", Run: a.distribution.Distribute},
+			{Name: "status", Description: "Get distribution status: status <id>", Run: a.distribution.Status},
+			{Name: "cancel", Description: "Cancel distribution: cancel <id>", Run: a.distribution.Cancel},
+			{Name: "list", Description: "List all distributions", Run: a.distribution.List},
+		},
+	}
+
+	// Wine subcommands
+	wineGroup := cliapp.SubcommandGroup{
+		Name:        "wine",
+		Description: "Wine for Windows builds on Linux (run 'wine help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "check", Description: "Check Wine installation status", Run: a.system.WineCheck},
+			{Name: "install", Description: "Install Wine: install --method <flatpak|appimage>", Run: a.system.WineInstall},
+			{Name: "status", Description: "Get Wine install status: status <id>", Run: a.system.WineStatus},
+		},
+	}
+
+	return []cliapp.SubcommandGroup{pipelineGroup, telemetryGroup, signingGroup, distGroup, wineGroup}
 }
