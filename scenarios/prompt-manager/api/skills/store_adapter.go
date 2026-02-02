@@ -331,3 +331,16 @@ func (a *StoreAdapter) fromMetadata(m Metadata, pack string) store.Skill {
 		Pack: pack,
 	}
 }
+
+// Rename changes a skill's ID by renaming its directory and updating skill.json.
+// Returns the updated skill metadata with the new ID.
+func (a *StoreAdapter) Rename(oldID, newID string) (*Metadata, error) {
+	ctx := context.Background()
+	skill, err := a.fileStore.Rename(ctx, oldID, newID)
+	if err != nil {
+		return nil, err
+	}
+
+	meta := a.toMetadata(*skill)
+	return &meta, nil
+}

@@ -153,8 +153,8 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	}
 
 	// Queue the generation
-	buildID := fmt.Sprintf("gen-%s-%d", scenarioName, time.Now().UnixMilli())
 	buildStatus := s.service.QueueBuild(desktopConfig, metadata, true)
+	buildID := buildStatus.BuildID
 
 	// Wait for generation to complete (poll with cancellation support)
 	desktopPath, err := s.waitForGeneration(ctx, buildID, buildStatus)
@@ -198,12 +198,11 @@ func (s *GenerateStage) waitForGeneration(ctx context.Context, buildID string, i
 		case <-timeout:
 			return "", fmt.Errorf("generation timed out after %v", DefaultGenerationTimeout)
 		case <-ticker.C:
-			// FIX: Poll fresh status from store instead of checking stale pointer
-			// The QueueBuild function spawns an async goroutine that updates the store,
-			// so we must query the store directly to see the latest status.
+			// Poll fresh status from store. QueueBuild spawns an async goroutine
+			// that updates the store, so we query the store for latest status.
 			if s.buildStore == nil {
-				// Fallback to checking initialStatus if no store configured
-				// (this maintains backward compatibility but won't see async updates)
+				// Fallback to checking initialStatus if no store configured.
+				// This won't see async updates, but covers simple/test cases.
 				switch initialStatus.Status {
 				case BuildStatusReady:
 					return initialStatus.OutputPath, nil

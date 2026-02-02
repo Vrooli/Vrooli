@@ -49,6 +49,10 @@ type SkillStore interface {
 
 	// SaveVersions saves version files for a folder.
 	SaveVersions(folder string, versions map[string]*VersionFile) error
+
+	// Rename changes a skill's ID by renaming its directory and updating skill.json.
+	// Returns the updated skill with the new ID.
+	Rename(oldID, newID string) (*Metadata, error)
 }
 
 // MetricsService defines the interface for skill metrics operations.

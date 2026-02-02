@@ -309,14 +309,57 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	// Track old filename for potential rename
 	oldFile := skill.File
 
-	// Update fields
+	// Check if this is a skill ID rename (file field change means ID change)
 	if req.File != nil && *req.File != "" {
-		// Validate new filename
+		// Validate new filename and extract ID
 		newFile := *req.File
 		if !strings.HasSuffix(newFile, ".md") {
 			newFile = newFile + ".md"
 		}
-		skill.File = newFile
+		newID := strings.TrimSuffix(filepath.Base(newFile), ".md")
+
+		// If the ID is changing, perform a rename operation
+		if newID != id {
+			renamedSkill, err := h.store.Rename(id, newID)
+			if err != nil {
+				// Check for known error types
+				errStr := err.Error()
+				if strings.Contains(errStr, "already exists") {
+					http.Error(w, errStr, http.StatusConflict)
+					return
+				}
+				if strings.Contains(errStr, "invalid skill ID format") {
+					http.Error(w, errStr, http.StatusBadRequest)
+					return
+				}
+				http.Error(w, errStr, http.StatusInternalServerError)
+				return
+			}
+
+			// Update AI index: delete old, index new
+			h.triggerDeleteAsync(id)
+			h.triggerIndexAsync(newID)
+
+			// Migrate metrics (best effort)
+			if oldMetrics, err := h.metrics.Get(id); err == nil && oldMetrics != nil {
+				// Copy usage data to new ID, then delete old
+				for i := 0; i < oldMetrics.UsageCount; i++ {
+					_, _, _ = h.metrics.RecordUsage(newID)
+				}
+				if oldMetrics.EffectivenessRating != nil {
+					_ = h.metrics.SetRating(newID, *oldMetrics.EffectivenessRating, oldMetrics.Notes)
+				}
+				_ = h.metrics.Delete(id)
+			}
+
+			// Continue with the renamed skill and new ID
+			skill = renamedSkill
+			id = newID
+			folder = targetFolder // After rename, folder stays same
+		} else {
+			// Just update the file field (no actual ID change)
+			skill.File = newFile
+		}
 	}
 	if req.Name != nil {
 		skill.Name = *req.Name

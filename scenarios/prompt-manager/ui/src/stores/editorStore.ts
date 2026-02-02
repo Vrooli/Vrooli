@@ -257,6 +257,12 @@ interface EditorStoreActions {
   removePrompt: (promptId: string) => void
 
   /**
+   * Move prompt state from old ID to new ID (e.g., after rename).
+   * This preserves edit state when a skill is renamed.
+   */
+  movePromptState: (oldId: string, newId: string) => void
+
+  /**
    * Hydrate the store from localStorage on mount.
    */
   hydrate: () => void
@@ -535,6 +541,27 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const { prompts } = get()
     const newPrompts = new Map(prompts)
     newPrompts.delete(promptId)
+    set({ prompts: newPrompts })
+    persistState(newPrompts)
+  },
+
+  movePromptState: (oldId, newId) => {
+    const { prompts } = get()
+    const state = prompts.get(oldId)
+    if (!state) return
+
+    // Create new prompts map with renamed entry
+    const newPrompts = new Map(prompts)
+    newPrompts.delete(oldId)
+
+    // Update file field to reflect new ID
+    const newFile = `${newId}.md`
+    newPrompts.set(newId, {
+      ...state,
+      original: { ...state.original, file: newFile },
+      current: { ...state.current, file: newFile },
+    })
+
     set({ prompts: newPrompts })
     persistState(newPrompts)
   },

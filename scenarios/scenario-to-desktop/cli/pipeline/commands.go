@@ -87,11 +87,7 @@ func (c *Commands) Run(args []string) error {
 
 	// If blocking mode, the response is a Status object
 	if *wait {
-		var status struct {
-			PipelineID string `json:"pipeline_id"`
-			Status     string `json:"status"`
-			Error      string `json:"error,omitempty"`
-		}
+		var status pipelineStatus
 		if err := json.Unmarshal(body, &status); err != nil {
 			cliutil.PrintJSON(body)
 			return nil
@@ -102,9 +98,7 @@ func (c *Commands) Run(args []string) error {
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
-			if status.Error != "" {
-				fmt.Printf("Error: %s\n", status.Error)
-			}
+			printPipelineError(&status)
 			return fmt.Errorf("pipeline failed")
 		} else {
 			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
@@ -157,29 +151,33 @@ func (c *Commands) Status(args []string) error {
 		return nil
 	}
 
-	var resp struct {
-		PipelineID string `json:"pipeline_id"`
-		Status     string `json:"status"`
-		Progress   int    `json:"progress"`
-		Stages     map[string]struct {
-			Status    string `json:"status"`
-			StartedAt string `json:"started_at"`
-			EndedAt   string `json:"ended_at"`
-		} `json:"stages"`
-	}
+	var resp pipelineStatus
 	if err := json.Unmarshal(body, &resp); err != nil {
 		cliutil.PrintJSON(body)
 		return nil
 	}
 
+	// Also parse progress for display
+	var progressResp struct {
+		Progress int `json:"progress_percent"`
+	}
+	_ = json.Unmarshal(body, &progressResp)
+
 	fmt.Printf("Pipeline: %s\n", resp.PipelineID)
-	fmt.Printf("Status: %s (%d%% complete)\n", resp.Status, resp.Progress)
+	fmt.Printf("Status: %s (%d%% complete)\n", resp.Status, progressResp.Progress)
 	if len(resp.Stages) > 0 {
 		fmt.Println("Stages:")
 		for name, stage := range resp.Stages {
 			fmt.Printf("  %-12s %s\n", name+":", stage.Status)
 		}
 	}
+
+	// Show error details for failed pipelines
+	if resp.Status == "failed" {
+		fmt.Println()
+		printPipelineError(&resp)
+	}
+
 	return nil
 }
 
@@ -452,11 +450,7 @@ func (c *Commands) Start(args []string) error {
 
 	// If blocking mode, the response is a Status object
 	if *wait {
-		var status struct {
-			PipelineID string `json:"pipeline_id"`
-			Status     string `json:"status"`
-			Error      string `json:"error,omitempty"`
-		}
+		var status pipelineStatus
 		if err := json.Unmarshal(body, &status); err != nil {
 			cliutil.PrintJSON(body)
 			return nil
@@ -467,9 +461,7 @@ func (c *Commands) Start(args []string) error {
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
-			if status.Error != "" {
-				fmt.Printf("Error: %s\n", status.Error)
-			}
+			printPipelineError(&status)
 			return fmt.Errorf("pipeline failed")
 		} else {
 			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
@@ -492,6 +484,123 @@ func (c *Commands) Start(args []string) error {
 	fmt.Printf("Pipeline started: %s\n", resp.Pipeline.PipelineID)
 	fmt.Printf("Check status: %s pipeline-status %s\n", appName, resp.Pipeline.PipelineID)
 	return nil
+}
+
+// pipelineStatus represents a full pipeline status response with error info.
+type pipelineStatus struct {
+	PipelineID string                  `json:"pipeline_id"`
+	Status     string                  `json:"status"`
+	Error      string                  `json:"error,omitempty"`
+	Stages     map[string]*stageResult `json:"stages,omitempty"`
+}
+
+// stageResult represents a stage result with optional error info.
+type stageResult struct {
+	Status    string          `json:"status"`
+	Error     string          `json:"error,omitempty"`
+	ErrorInfo *stageErrorInfo `json:"error_info,omitempty"`
+	Logs      []string        `json:"logs,omitempty"`
+}
+
+// stageErrorInfo contains structured error information for stage failures.
+type stageErrorInfo struct {
+	Code         string      `json:"code,omitempty"`
+	Message      string      `json:"message,omitempty"`
+	Recovery     string      `json:"recovery,omitempty"`
+	RecoveryHint string      `json:"recovery_hint,omitempty"`
+	AutoFix      *autoFix    `json:"auto_fix,omitempty"`
+	ManualSteps  []string    `json:"manual_steps,omitempty"`
+	Diagnostic   *diagnostic `json:"diagnostic,omitempty"`
+}
+
+// autoFix contains an auto-fix command suggestion.
+type autoFix struct {
+	Command     string `json:"command,omitempty"`
+	Description string `json:"description,omitempty"`
+	Safe        bool   `json:"safe,omitempty"`
+}
+
+// diagnostic contains process diagnostic information.
+type diagnostic struct {
+	Process *processDiagnostic `json:"process,omitempty"`
+}
+
+// processDiagnostic contains process execution details.
+type processDiagnostic struct {
+	LastOutput string `json:"last_output,omitempty"`
+	ExitCode   int    `json:"exit_code,omitempty"`
+}
+
+// printPipelineError prints detailed error information from a failed pipeline.
+func printPipelineError(status *pipelineStatus) {
+	// Print the top-level error if present
+	if status.Error != "" {
+		fmt.Printf("Error: %s\n", status.Error)
+	}
+
+	// Find the failed stage and print its error info
+	for stageName, stage := range status.Stages {
+		if stage.Status != "failed" {
+			continue
+		}
+
+		// Print stage error if different from top-level error
+		if stage.Error != "" && stage.Error != status.Error {
+			fmt.Printf("Stage '%s' failed: %s\n", stageName, stage.Error)
+		}
+
+		// Print rich error info if available
+		if stage.ErrorInfo != nil {
+			info := stage.ErrorInfo
+
+			// Error code for programmatic use
+			if info.Code != "" {
+				fmt.Printf("Error code: %s\n", info.Code)
+			}
+
+			// Recovery guidance
+			if info.RecoveryHint != "" {
+				fmt.Printf("\nRecovery: %s\n", info.RecoveryHint)
+			} else if info.Recovery != "" {
+				fmt.Printf("\nRecovery action: %s\n", info.Recovery)
+			}
+
+			// Auto-fix suggestion
+			if info.AutoFix != nil && info.AutoFix.Command != "" {
+				safeLabel := ""
+				if info.AutoFix.Safe {
+					safeLabel = " (safe to run)"
+				}
+				fmt.Printf("\nAuto-fix%s:\n  %s\n", safeLabel, info.AutoFix.Command)
+				if info.AutoFix.Description != "" {
+					fmt.Printf("  → %s\n", info.AutoFix.Description)
+				}
+			}
+
+			// Manual steps
+			if len(info.ManualSteps) > 0 {
+				fmt.Printf("\nManual steps:\n")
+				for i, step := range info.ManualSteps {
+					fmt.Printf("  %d. %s\n", i+1, step)
+				}
+			}
+
+			// Last output from process (truncated)
+			if info.Diagnostic != nil && info.Diagnostic.Process != nil {
+				if info.Diagnostic.Process.LastOutput != "" {
+					output := info.Diagnostic.Process.LastOutput
+					// Truncate if too long
+					if len(output) > 500 {
+						output = output[:500] + "...(truncated)"
+					}
+					fmt.Printf("\nLast output:\n%s\n", output)
+				}
+			}
+		}
+
+		// Only show first failed stage
+		break
+	}
 }
 
 // reorderArgsForFlags moves flag arguments before positional arguments.

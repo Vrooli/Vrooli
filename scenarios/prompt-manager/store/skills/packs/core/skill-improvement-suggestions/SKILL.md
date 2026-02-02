@@ -193,6 +193,86 @@ Length itself is a cost. Every token the agent reads is a token it pays for. Eve
 
 **The goal:** Maximum clarity in minimum words. Every sentence should earn its place.
 
+#### **3.6 Duplicating Tool Output**
+
+Skills often explain things the tool already tells users—startup instructions, error recovery, or usage hints that appear in CLI output.
+
+**Real example: scenario-to-desktop (before improvement)**
+
+The skill included a section on how to start the service:
+```
+3. **Start scenario-to-desktop**:
+   cd scenarios/scenario-to-desktop && make start
+   scenario-to-desktop status  # Verify running
+```
+
+But when the CLI is run while stopped, it already shows:
+```
+Error: scenario-to-desktop API is not reachable.
+
+To auto-start the scenario:
+  scenario-to-desktop --auto-start status
+
+Or start manually:
+  vrooli scenario start scenario-to-desktop
+```
+
+**The fix:** Trust tool error messages. Don't duplicate them in skills.
+
+**Key insight:** If a tool provides actionable guidance on error/startup, the skill doesn't need to repeat it. This reduces skill size and eliminates a source of drift.
+
+#### **3.7 Verbose Command References**
+
+Skills that list every command and flag create two problems: (1) high token cost, and (2) drift when the CLI changes but the skill doesn't.
+
+**Real example: scenario-to-desktop (before improvement)**
+
+The skill had ~380 lines documenting 40+ commands with all their flags—essentially duplicating `--help` output.
+
+**The fix:** Restructure the CLI with subcommand groups that have their own help:
+```bash
+# Before: skill documents every command
+scenario-to-desktop pipeline-run <scenario> [--stages ...] [--platforms ...] [--wait]
+scenario-to-desktop pipeline-status <id> [--verbose] [--json]
+scenario-to-desktop telemetry-ingest <scenario> --file <path>
+# ... 37 more commands with flags
+
+# After: skill says "run help for details"
+scenario-to-desktop pipeline help
+scenario-to-desktop telemetry help
+```
+
+**Result:** Skill shrinks from ~540 to ~160 lines. Command documentation lives in the tool (always accurate, no drift).
+
+**Key insight:** If a skill lists >5 commands with flags, consider whether the CLI should support `<group> help` subcommands. This is a tool improvement that enables a simpler skill.
+
+#### **3.8 Async Patterns When Sync Works**
+
+Async workflows require explaining polling loops, status checking, and sleep patterns. If the tool supports blocking mode, the skill can be much simpler.
+
+**Real example: scenario-to-desktop (before improvement)**
+
+The skill explained async pipeline execution:
+```bash
+# Start async (returns immediately)
+scenario-to-desktop pipeline-run my-scenario --platforms linux
+
+# Poll for completion
+while true; do
+  scenario-to-desktop pipeline-status $ID
+  sleep 10
+done
+```
+
+**The fix:** If the tool supports `--wait`, make that the default recommendation:
+```bash
+scenario-to-desktop pipeline run my-scenario --platforms linux --wait
+```
+
+**Result:** One line instead of a polling loop. The skill becomes a reference card, not a tutorial.
+
+**Key insight:** When you see a skill explaining polling/status-checking patterns, ask: Could the tool support `--wait` instead? That's a tool improvement suggestion.
+
 ---
 
 ### **4. Three Categories of Suggestions**
@@ -477,5 +557,7 @@ When analyzing {{SKILL}}, produce this structured report:
 The goal is not to find fault. The goal is to find leverage.
 
 A skill that works "well enough" might still have a 10x improvement hiding in it—a tool that eliminates five steps, a paragraph that clarifies a common misunderstanding, a decision tree that prevents inconsistent choices.
+
+**Tool design and skill design are coupled.** Sometimes the right fix isn't better documentation—it's a better tool. When a tool improvement enables a simpler skill (e.g., adding `<group> help` subcommands so the skill doesn't need to list every flag), that's often the highest-value suggestion. Look for these opportunities.
 
 Every improvement you surface becomes permanent intelligence that helps all future agents. This is how Vrooli gets smarter over time. Do this well.

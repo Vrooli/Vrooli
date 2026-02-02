@@ -1,538 +1,162 @@
 ## Tools focus: Scenario to Desktop
 
-Convert any Vrooli scenario into a cross-platform desktop application (Windows, macOS, Linux) using the scenario-to-desktop CLI. This skill covers the full pipeline: generation, building, signing, distribution, and telemetry.
+Convert any Vrooli scenario into a cross-platform desktop application (Windows, macOS, Linux) using the scenario-to-desktop CLI. The tool creates Electron wrappers that connect to your running scenario.
 
-The scenario-to-desktop tool creates Electron wrappers that connect to your running scenario. Currently, **thin client mode (external-server) is production-ready**; bundled mode is under development.
-
-Required reading:
-- `prompt-manager skills read skill-principles`
+**Current status:** Thin client mode (external-server) is production-ready. Bundled mode is under development.
 
 ---
 
 ### **1. When to Use This Tool**
 
-| Scenario | CLI Command |
-|----------|-------------|
-| Convert web app to desktop | `scenario-to-desktop pipeline-run <scenario> --platforms win,mac,linux` |
-| Check build status | `scenario-to-desktop pipeline-status <id>` |
-| Download built installers | `scenario-to-desktop download <scenario> <platform>` |
-| Collect deployment telemetry | `scenario-to-desktop telemetry-ingest <scenario> --file <path>` |
-| Configure code signing | `scenario-to-desktop signing-set <scenario> --config <json>` |
-| Distribute to users | `scenario-to-desktop distribute <scenario> --artifacts <paths>` |
+| Goal | Command |
+|------|---------|
+| Build desktop app | `scenario-to-desktop pipeline run <scenario> --platforms linux --wait` |
+| Download installer | `scenario-to-desktop download <scenario> <platform>` |
+| Collect telemetry | `scenario-to-desktop telemetry ingest <scenario> --file <path>` |
+| Configure signing | `scenario-to-desktop signing set <scenario> --config <json>` |
+
+**Scope boundaries:**
+- **In scope:** Scenarios with web UIs, Windows/macOS/Linux installers, code signing, telemetry
+- **Out of scope:** API-only scenarios, mobile apps, bundled/offline mode (not ready)
 
 ---
 
-### **1.1 Scope Boundaries**
+### **2. Command Reference**
 
-**In scope:**
-- Converting scenarios with web UIs to cross-platform desktop apps
-- Building installers for Windows (NSIS), macOS (ZIP/DMG), Linux (AppImage/DEB)
-- Code signing configuration and validation
-- Distribution to GitHub Releases, S3, and other targets
-- Deployment telemetry collection and analysis
+The CLI uses **subcommand groups**. Run `<group> help` for detailed options:
 
-**Out of scope:**
-- API-only scenarios (no UI)
-- Mobile app generation (iOS/Android)
-- Bundled/offline apps (not production-ready)
-- Web deployment or SaaS packaging
+| Group | Purpose | Help command |
+|-------|---------|--------------|
+| `pipeline` | Build pipeline operations | `scenario-to-desktop pipeline help` |
+| `telemetry` | Deployment telemetry | `scenario-to-desktop telemetry help` |
+| `signing` | Code signing config | `scenario-to-desktop signing help` |
+| `dist` | Distribution targets | `scenario-to-desktop dist help` |
+| `wine` | Windows builds on Linux | `scenario-to-desktop wine help` |
 
----
+**Global options** (all commands):
+- `--api-base <url>`: Override API URL
+- `--auto-start`: Start scenario if not running
+- `--no-color` / `--color`: Control ANSI output
 
-### **2. Prerequisites**
-
-Before generating desktop apps:
-
-1. **Target scenario must be running** - The preflight stage validates this automatically and provides clear errors if not reachable
-2. **Scenario must have a built UI** - The bundle stage checks for `ui/dist/` and fails with guidance if missing
-3. **Start scenario-to-desktop**:
-   ```bash
-   cd scenarios/scenario-to-desktop && make start
-   scenario-to-desktop status  # Verify running
-   ```
-
-If prerequisites are missing, the pipeline will fail with specific guidance on what to fix.
+**Flat commands:**
+- `status` - Check API health
+- `templates` / `template <type>` - List/get desktop templates
+- `download <scenario> <platform>` - Download built installer
+- `records` / `records-move` / `records-delete` - Manage desktop records
+- `configure` - CLI settings
 
 ---
 
-### **3. CLI Command Reference**
+### **3. Primary Workflow**
 
-**Global Options** (apply to all commands):
-- `--api-base <url>`: Override API base URL (default: auto-detected)
-- `--auto-start`: Auto-start the scenario if not running
-- `--no-color`: Disable ANSI color output
-- `--color`: Force-enable ANSI color output
-
-#### **3.1 Health & Status**
+Always use `--wait` for synchronous execution (blocks until complete, proper exit codes):
 
 ```bash
-# Check API health and system status
-scenario-to-desktop status [--json]
+# Build desktop app for Linux
+scenario-to-desktop pipeline run my-scenario --platforms linux --wait
+
+# Download the built installer
+scenario-to-desktop download my-scenario linux --output my-scenario.AppImage
 ```
 
-#### **3.2 Templates**
+**Pipeline stages:** `bundle` → `preflight` → `generate` → `build` → (optional: `distribution`, `smoketest`)
+
+**Common options:**
+- `--platforms win,mac,linux` - Target platforms (default: all)
+- `--stages generate,build` - Run specific stages only
+- `--timeout 900` - Max wait in seconds (default: 600)
+
+---
+
+### **4. Telemetry Workflow**
+
+Collect and analyze telemetry from deployed desktop apps:
 
 ```bash
-# List available desktop templates
-scenario-to-desktop templates [--json]
+# Ingest telemetry file from user
+scenario-to-desktop telemetry ingest my-scenario --file user-telemetry.jsonl
 
-# Get specific template details
-scenario-to-desktop template <type>
-# Types: universal (or 'basic' alias), advanced, multi_window, kiosk
-# Note: 'basic' is a backward compatibility alias for 'universal'
+# View summary and AI insights
+scenario-to-desktop telemetry summary my-scenario
+scenario-to-desktop telemetry insights my-scenario
 ```
 
-#### **3.3 Pipeline (Main Workflow)**
-
-The pipeline is the primary way to convert a scenario to desktop. It runs stages: bundle, preflight, generate, build, smoketest, distribution.
-
-```bash
-# Start a full pipeline run (async - returns immediately)
-scenario-to-desktop pipeline-run <scenario> [--stages <stages>] [--platforms win,mac,linux]
-
-# Start and wait for completion (recommended for agents/scripts)
-scenario-to-desktop pipeline-run <scenario> --wait [--timeout 600]
-
-# Check pipeline status
-scenario-to-desktop pipeline-status <id> [--verbose] [--json]
-
-# List all pipelines
-scenario-to-desktop pipeline-list [--json]
-
-# Get active pipeline for a scenario
-scenario-to-desktop pipeline-active <scenario> [--no-create]
-
-# Create a new pipeline for a scenario
-scenario-to-desktop pipeline-create <scenario>
-
-# Start the active pipeline (async)
-scenario-to-desktop pipeline-start <scenario> [--stages <stages>] [--platforms <platforms>]
-
-# Start the active pipeline and wait (recommended for agents/scripts)
-scenario-to-desktop pipeline-start <scenario> --wait [--timeout 600]
-
-# Resume a stopped pipeline
-scenario-to-desktop pipeline-resume <id>
-
-# Cancel a running pipeline
-scenario-to-desktop pipeline-cancel <id>
-
-# Reset active pipeline
-scenario-to-desktop pipeline-reset <scenario>
-
-# View pipeline history
-scenario-to-desktop pipeline-history <scenario> [--limit N]
-```
-
-**Pipeline stages:** `bundle`, `preflight`, `generate`, `build`, `distribution`, `smoketest`
-
-Note: The `distribution` stage is automatically skipped unless `--distribute` is specified. The `smoketest` stage runs after distribution to validate the final artifacts.
-
-**Command distinction:**
-- `pipeline-run <scenario>`: Creates a new pipeline AND starts it (one command, most common use case)
-- `pipeline-create` + `pipeline-start`: Separate creation and execution (useful when you need to configure between steps)
-- `pipeline-active`: Gets the most recent pipeline (creates if none exists)
-
-**Blocking mode flags:**
-- `--wait`: Block until pipeline completes (recommended for agents and scripts)
-- `--timeout N`: Max wait time in seconds (default: 600, i.e., 10 minutes)
-
-**Example: Full pipeline run**
-```bash
-# Run full pipeline for all platforms (async)
-scenario-to-desktop pipeline-run my-scenario --platforms win,mac,linux
-
-# Run and wait for completion (blocking)
-scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
-
-# Run only generate and build stages for Linux
-scenario-to-desktop pipeline-run my-scenario --stages generate,build --platforms linux
-```
-
-**Note:** If `--platforms` is omitted, all platforms (win, mac, linux) are built by default. Verify platform selection in `pipeline-status` output under the `config.platforms` field.
-
-**Error handling:** Pipeline errors include structured codes (e.g., `BUILD_FAILED`, `PREFLIGHT_VALIDATION_FAILED`) with recovery guidance. Use `--json` output to access the full error structure for automation, or let the CLI display human-readable recovery hints.
-
-#### **3.4 Download Built Packages**
-
-```bash
-# Download built installer for a platform
-scenario-to-desktop download <scenario> <platform> [--output <path>]
-# Platforms: win, mac, linux
-
-# Examples
-scenario-to-desktop download my-scenario win --output my-app-setup.exe
-scenario-to-desktop download my-scenario linux --output my-app.AppImage
-scenario-to-desktop download my-scenario mac --output my-app.zip
-```
-
-#### **3.5 Desktop Records**
-
-```bash
-# List all desktop generation records
-scenario-to-desktop records [--json]
-
-# Move desktop wrapper to destination
-scenario-to-desktop records-move <id> [--target destination|custom] [--path <path>]
-
-# Delete desktop app for a scenario
-scenario-to-desktop records-delete <scenario>
-```
-
-#### **3.6 Telemetry**
-
-Collect and analyze telemetry from deployed desktop apps.
-
-```bash
-# Ingest telemetry from file
-scenario-to-desktop telemetry-ingest <scenario> --file <path> [--source cli]
-
-# Get telemetry summary
-scenario-to-desktop telemetry-summary <scenario> [--json]
-
-# Get AI-generated insights
-scenario-to-desktop telemetry-insights <scenario> [--json]
-
-# Get recent telemetry entries
-scenario-to-desktop telemetry-tail <scenario> [--limit N] [--json]
-
-# Download telemetry file
-scenario-to-desktop telemetry-download <scenario> [--output <path>]
-
-# Delete telemetry data
-scenario-to-desktop telemetry-delete <scenario>
-```
-
-**Telemetry file locations by platform:**
+**Telemetry file locations:**
 - Windows: `%APPDATA%\<App Name>\deployment-telemetry.jsonl`
 - macOS: `~/Library/Application Support/<App Name>/deployment-telemetry.jsonl`
 - Linux: `~/.config/<App Name>/deployment-telemetry.jsonl`
 
-#### **3.7 Code Signing**
-
-Configure code signing for trusted distribution.
-
-```bash
-# Get signing configuration
-scenario-to-desktop signing-get <scenario> [--json]
-
-# Set signing configuration
-scenario-to-desktop signing-set <scenario> --config <json|@file.json>
-
-# Delete signing configuration
-scenario-to-desktop signing-delete <scenario>
-
-# Validate signing configuration
-scenario-to-desktop signing-validate <scenario>
-
-# Check if signing is ready for all platforms
-scenario-to-desktop signing-ready <scenario> [--json]
-
-# List available signing tools
-scenario-to-desktop signing-prerequisites [--json]
-
-# Discover certificates on a platform
-scenario-to-desktop signing-discover <platform>
-# Platforms: windows, macos, linux
-
-# Generate GPG key for Linux signing
-scenario-to-desktop signing-generate-key <scenario> \
-  --name "Developer Name" \
-  --email "dev@example.com" \
-  [--passphrase <pass>] [--passphrase-env <var>] [--force]
-```
-
-#### **3.8 Distribution**
-
-Distribute built packages to various targets (GitHub Releases, S3, etc.).
-
-```bash
-# List distribution targets
-scenario-to-desktop dist-targets [--json]
-
-# Get distribution target details
-scenario-to-desktop dist-target-get <name> [--json]
-
-# Create distribution target
-scenario-to-desktop dist-target-create --config <json|@file.json>
-
-# Update distribution target
-scenario-to-desktop dist-target-update <name> --config <json|@file.json>
-
-# Delete distribution target
-scenario-to-desktop dist-target-delete <name>
-
-# Test distribution target connectivity
-scenario-to-desktop dist-target-test <name>
-
-# Validate all distribution targets
-scenario-to-desktop dist-validate [--json]
-
-# Check distribution credentials
-scenario-to-desktop dist-check-credentials [--json]
-
-# Start distribution
-scenario-to-desktop distribute <scenario> --artifacts <paths> [--targets <names>]
-
-# Check distribution status
-scenario-to-desktop dist-status <id> [--json]
-
-# Cancel distribution
-scenario-to-desktop dist-cancel <id>
-
-# List all distributions
-scenario-to-desktop dist-list [--json]
-```
-
-#### **3.9 Wine (Windows Builds on Linux)**
-
-Wine is required for building Windows installers on Linux.
-
-```bash
-# Check Wine installation status
-scenario-to-desktop wine-check [--json]
-
-# Install Wine
-scenario-to-desktop wine-install --method <flatpak|flatpak-auto|appimage>
-
-# Check Wine installation status
-scenario-to-desktop wine-status <install_id> [--json]
-```
-
-#### **3.10 Configuration**
-
-```bash
-# Configure CLI settings
-scenario-to-desktop configure
-
-# Set API base URL
-scenario-to-desktop configure api_base
-
-# Set API token
-scenario-to-desktop configure token
-```
-
 ---
 
-### **4. Common Workflows**
-
-#### **4.1 Basic Desktop App Generation**
+### **5. Code Signing Workflow**
 
 ```bash
-# 1. Start scenario-to-desktop
-cd scenarios/scenario-to-desktop && make start
+# Check available signing tools
+scenario-to-desktop signing prerequisites
 
-# 2. Run full pipeline (--wait blocks until complete)
-scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
+# Discover existing certificates
+scenario-to-desktop signing discover linux
 
-# 3. Download built installer
-scenario-to-desktop download my-scenario linux --output my-scenario.AppImage
+# For Linux, generate GPG key if needed
+scenario-to-desktop signing generate-key my-scenario --name "My Company" --email "dev@example.com"
+
+# Set and validate signing config
+scenario-to-desktop signing set my-scenario --config @signing.json
+scenario-to-desktop signing validate my-scenario
 ```
-
-For async operation (monitoring manually), omit `--wait` and poll with `pipeline-status <id>`.
-
-> **Note:** For agents/scripts, always use `--wait` for proper exit codes and error reporting.
-
-#### **4.2 Collect User Telemetry**
-
-```bash
-# After users run the desktop app, collect their telemetry
-# 1. Get the telemetry file from user (platform-specific paths above)
-
-# 2. Ingest the telemetry
-scenario-to-desktop telemetry-ingest my-scenario --file user-telemetry.jsonl
-
-# 3. View summary
-scenario-to-desktop telemetry-summary my-scenario
-
-# 4. Get AI insights
-scenario-to-desktop telemetry-insights my-scenario
-```
-
-#### **4.3 Set Up Code Signing**
-
-```bash
-# 1. Check what signing tools are available
-scenario-to-desktop signing-prerequisites
-
-# 2. Discover existing certificates
-scenario-to-desktop signing-discover windows
-scenario-to-desktop signing-discover macos
-scenario-to-desktop signing-discover linux
-
-# 3. For Linux, generate a GPG key if needed
-scenario-to-desktop signing-generate-key my-scenario \
-  --name "My Company" --email "dev@mycompany.com"
-
-# 4. Set signing configuration
-scenario-to-desktop signing-set my-scenario --config @signing-config.json
-
-# 5. Validate configuration
-scenario-to-desktop signing-validate my-scenario
-
-# 6. Check readiness
-scenario-to-desktop signing-ready my-scenario
-```
-
-#### **4.4 Distribute to GitHub Releases**
-
-```bash
-# 1. Create GitHub distribution target
-scenario-to-desktop dist-target-create --config '{
-  "name": "github-releases",
-  "type": "github",
-  "enabled": true,
-  "config": {
-    "repo": "owner/repo",
-    "token_env": "GITHUB_TOKEN"
-  }
-}'
-
-# 2. Test the target
-scenario-to-desktop dist-target-test github-releases
-
-# 3. Distribute built artifacts
-scenario-to-desktop distribute my-scenario \
-  --artifacts "dist/my-app.exe,dist/my-app.AppImage,dist/my-app.zip" \
-  --targets github-releases
-
-# 4. Monitor distribution
-scenario-to-desktop dist-status <distribution-id>
-
-# 5. Verify distribution completed
-scenario-to-desktop dist-status <distribution-id> --json | jq '.status'
-# Expected: "completed"
-
-# For GitHub Releases, verify via gh CLI
-gh release view v<version> --repo owner/repo
-```
-
-#### **4.5 Agent/Scripted Workflows**
-
-For automated pipelines (agents, CI/CD, scripts), use `--wait` to block until completion with proper exit codes:
-
-```bash
-#!/bin/bash
-set -e
-
-# Run and wait - blocks until complete or fail
-scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
-
-# Download artifacts (only reached on success due to set -e)
-scenario-to-desktop download my-scenario linux --output my-scenario.AppImage
-```
-
-On failure, the CLI displays structured error info including recovery hints, auto-fix suggestions, and manual steps.
-
----
-
-### **5. Deployment Modes**
-
-| Mode | Status | CLI Flag |
-|------|--------|----------|
-| `external-server` (Thin Client) | Production-ready | Default |
-| `cloud-api` | Stub | Future |
-| `bundled` | Stub | Future |
 
 ---
 
 ### **6. Cross-Platform Build Matrix**
 
-Building from Linux (recommended for single-machine builds):
+Building from Linux (recommended):
 
-| Target | Format | Build on Linux | Notes |
-|--------|--------|----------------|-------|
-| Linux | AppImage, DEB | Native | Recommended |
-| Windows | NSIS (.exe) | Via Wine | Works reliably |
-| Windows | MSI | Via Wine (unstable) | Use CI for production |
-| macOS | ZIP | Native | Contains .app bundle |
-| macOS | DMG, PKG | macOS only | Requires `hdiutil` |
+| Target | Format | Notes |
+|--------|--------|-------|
+| Linux | AppImage, DEB | Native |
+| Windows | NSIS (.exe) | Via Wine (use `wine check`/`wine install`) |
+| macOS | ZIP | Native; DMG/PKG requires actual macOS |
 
 ---
 
 ### **7. Troubleshooting**
 
-The pipeline provides structured error feedback with recovery guidance. When failures occur:
+Pipeline errors include structured codes with recovery guidance:
 
 ```bash
-# Check detailed status with error info
-scenario-to-desktop pipeline-status <id> --verbose
-
-# JSON output includes full error structure for automation
-scenario-to-desktop pipeline-status <id> --json
+# Check detailed status
+scenario-to-desktop pipeline status <id> --verbose
 ```
 
-**Error output includes:**
-- Error code (e.g., `BUILD_FAILED`, `PREFLIGHT_VALIDATION_FAILED`)
-- Recovery hint with next steps
-- Auto-fix command when available
-- Manual steps for complex issues
-
-**Common recovery patterns:**
-- For transient failures: `pipeline-resume <id>` or `pipeline-reset <scenario>`
-- For configuration issues: Follow the recovery hint in the error output
-- For deeper issues: `cd scenarios/scenario-to-desktop && make logs`
-
-**Platform-specific notes:**
-- Windows builds on Linux require Wine: use `wine-check` and `wine-install` commands
-- macOS DMG/PKG builds require actual macOS (ZIP works cross-platform)
+**Common recovery:**
+- Transient failures: `scenario-to-desktop pipeline resume <id>`
+- Configuration issues: Follow the recovery hint in error output
+- Deeper issues: `cd scenarios/scenario-to-desktop && make logs`
 
 ---
 
 ### **8. Guardrails**
 
 **Do:**
-- Always use lifecycle commands: `make start`, `make stop`
-- Verify target scenario is running before generation
-- Use thin client mode for production deployments
-- Collect telemetry from testers for debugging
+- Use `--wait` for all scripted/agent workflows
+- Verify target scenario is running before generation (preflight checks this)
+- Use thin client mode for production
 
 **Do NOT:**
-- Run API binary directly (`./api/scenario-to-desktop-api`)
-- Use bundled mode in production (not ready yet)
+- Use bundled mode in production (not ready)
 - Expect MSI builds to work reliably via Wine
 - Build DMG/PKG on Linux (requires macOS)
 
 ---
 
-### **9. Output Expectations**
+### **9. Success Artifacts**
 
-**You may:**
-- Generate desktop wrappers for any scenario with a UI
-- Build installers for Windows, macOS, and Linux
-- Configure code signing for trusted distribution
-- Distribute to various targets (GitHub, S3, etc.)
-- Collect and analyze deployment telemetry
+After successful pipeline run:
 
-**You must:**
-- Verify target scenario is running before generation
-- Use appropriate deployment mode (thin client for production)
-- Test generated apps before distribution
-- Document any build issues in the scenario's PROBLEMS.md
+| Platform | File |
+|----------|------|
+| Linux | `<scenario>.AppImage` |
+| Windows | `<scenario>-Setup.exe` |
+| macOS | `<scenario>.zip` (contains .app) |
 
-**You must NOT:**
-- Bypass lifecycle commands for starting/stopping services
-- Use bundled mode in production (not ready)
-- Distribute apps without testing on target platforms
-- Ignore telemetry from user deployments
-
----
-
-### **10. Success Artifacts**
-
-After a successful pipeline run, you should have:
-
-| Platform | File | Location |
-|----------|------|----------|
-| Linux | `<scenario>.AppImage` | Downloaded via `download` command |
-| Windows | `<scenario>-Setup.exe` | Downloaded via `download` command |
-| macOS | `<scenario>.zip` (contains .app) | Downloaded via `download` command |
-
-The pipeline status will show:
-```json
-{
-  "status": "completed",
-  "progress_percent": 100,
-  "stages": { "bundle": {"status": "completed"}, "preflight": {"status": "completed"}, ... }
-}
-```
+Download via: `scenario-to-desktop download <scenario> <platform> --output <path>`

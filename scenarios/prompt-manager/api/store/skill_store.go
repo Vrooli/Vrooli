@@ -7,8 +7,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 )
+
+// skillIDRegex validates skill IDs: lowercase letters, numbers, hyphens.
+// Must start with a letter, not end with a hyphen.
+var skillIDRegex = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+
+// isValidSkillID validates that a skill ID follows naming conventions.
+func isValidSkillID(id string) bool {
+	if len(id) == 0 || len(id) > 64 {
+		return false
+	}
+	return skillIDRegex.MatchString(id)
+}
 
 // FileSkillStore implements SkillStore using the file system
 type FileSkillStore struct {
@@ -292,4 +305,57 @@ func (s *FileSkillStore) GetVersionHistory(ctx context.Context, id string) ([]Hi
 func (s *FileSkillStore) loadSkill(pack, skillID string) (*Skill, error) {
 	skillPath := filepath.Join(s.packsDir(), pack, skillID, "skill.json")
 	return LoadJSON[Skill](skillPath)
+}
+
+// Rename renames a skill by changing its directory name and updating skill.json.
+// This is an atomic operation: if any step fails, the original state is preserved.
+func (s *FileSkillStore) Rename(ctx context.Context, oldID, newID string) (*Skill, error) {
+	// Validate new ID format
+	if !isValidSkillID(newID) {
+		return nil, fmt.Errorf("invalid skill ID format: %s", newID)
+	}
+
+	// Get the existing skill to find its pack
+	skill, err := s.Get(ctx, oldID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check new ID doesn't already exist
+	if _, err := s.Get(ctx, newID); err == nil {
+		return nil, fmt.Errorf("skill already exists: %s", newID)
+	}
+
+	oldDir := filepath.Join(s.packsDir(), skill.Pack, oldID)
+	newDir := filepath.Join(s.packsDir(), skill.Pack, newID)
+
+	// Rename the directory
+	if err := os.Rename(oldDir, newDir); err != nil {
+		return nil, fmt.Errorf("renaming skill directory: %w", err)
+	}
+
+	// Update skill.json with new ID
+	skill.ID = newID
+	skill.UpdateTimestamp()
+
+	skillJSONPath := filepath.Join(newDir, "skill.json")
+	if err := SaveJSON(skillJSONPath, skill); err != nil {
+		// Rollback: rename directory back
+		_ = os.Rename(newDir, oldDir)
+		return nil, fmt.Errorf("updating skill.json: %w", err)
+	}
+
+	// Add history entry
+	entry := HistoryEntry{
+		Version:   skill.Revision,
+		Timestamp: skill.UpdatedAt,
+		Action:    "renamed",
+		Summary:   fmt.Sprintf("Renamed from %s to %s", oldID, newID),
+	}
+	if err := AppendJSONL(filepath.Join(newDir, "history.jsonl"), entry); err != nil {
+		// Non-fatal: history is supplementary
+		fmt.Printf("[skill_store] Warning: failed to write history for rename: %v\n", err)
+	}
+
+	return skill, nil
 }

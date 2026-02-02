@@ -92,6 +92,31 @@ func (m *MockStore) SaveVersions(folder string, versions map[string]*VersionFile
 	return nil
 }
 
+func (m *MockStore) Rename(oldID, newID string) (*Metadata, error) {
+	// Find and rename the skill
+	for folder, skills := range m.skills {
+		for i, p := range skills {
+			if p.ID == oldID {
+				// Update the ID
+				m.skills[folder][i].ID = newID
+				m.skills[folder][i].File = newID + ".md"
+				updated := m.skills[folder][i]
+
+				// Move content
+				oldKey := folder + "/" + oldID + ".md"
+				newKey := folder + "/" + newID + ".md"
+				if content, ok := m.contents[oldKey]; ok {
+					m.contents[newKey] = content
+					delete(m.contents, oldKey)
+				}
+
+				return &updated, nil
+			}
+		}
+	}
+	return nil, errors.New("skill not found")
+}
+
 // MockMetricsService implements MetricsService for testing.
 type MockMetricsService struct{}
 

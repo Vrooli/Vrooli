@@ -105,6 +105,31 @@ func (m *MockSkillStore) SaveVersions(folder string, versions map[string]*skills
 	return nil
 }
 
+func (m *MockSkillStore) Rename(oldID, newID string) (*skills.Metadata, error) {
+	// Find and rename the skill
+	for folder, skillList := range m.skills {
+		for i, p := range skillList {
+			if p.ID == oldID {
+				// Update the ID
+				m.skills[folder][i].ID = newID
+				m.skills[folder][i].File = newID + ".md"
+				updated := m.skills[folder][i]
+
+				// Move content
+				oldKey := folder + "/" + oldID + ".md"
+				newKey := folder + "/" + newID + ".md"
+				if content, ok := m.contents[oldKey]; ok {
+					m.contents[newKey] = content
+					delete(m.contents, oldKey)
+				}
+
+				return &updated, nil
+			}
+		}
+	}
+	return nil, errors.New("skill not found")
+}
+
 func (m *MockSkillStore) AddSkill(folder string, skill skills.Metadata, content string) {
 	m.skills[folder] = append(m.skills[folder], skill)
 	// Extract filename from the skill.File path for content storage

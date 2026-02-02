@@ -412,7 +412,11 @@ export function SkillManagerLayout() {
   const handleSaveCurrentSkill = useCallback(async () => {
     const result = await saveCurrentSkill()
     showSaveResultToast(result, false)
-  }, [saveCurrentSkill, showSaveResultToast])
+    // If skill was renamed, update selection to new ID
+    if (result.newId) {
+      setSelectedSkillId(result.newId)
+    }
+  }, [saveCurrentSkill, showSaveResultToast, setSelectedSkillId])
 
   const handleSaveAllChanges = useCallback(async () => {
     const result = await saveAllChanges()
@@ -684,6 +688,7 @@ export function SkillManagerLayout() {
       tags: state.tags,
       draft: state.draft,
       folder: state.folder,
+      file: state.file, // Include file for rename detection
     }
     // Only include icon if it has a value
     if (state.icon) {
@@ -694,13 +699,23 @@ export function SkillManagerLayout() {
     const results = await updateSkills(updates)
     const result = results.get(skillId)
     if (result && !(result instanceof Error)) {
-      useEditorStore.getState().markAsSaved(skillId, result)
+      // Check if ID changed (rename operation)
+      if (result.id !== skillId) {
+        useEditorStore.getState().movePromptState(skillId, result.id)
+        useEditorStore.getState().markAsSaved(result.id, result)
+        // Update selection if this was the currently selected skill
+        if (selectedSkillId === skillId) {
+          setSelectedSkillId(result.id)
+        }
+      } else {
+        useEditorStore.getState().markAsSaved(skillId, result)
+      }
       toast({
         title: 'Skill saved',
         description: `"${state.name}" has been saved.`,
       })
     }
-  }, [skills, updateSkills])
+  }, [skills, updateSkills, selectedSkillId, setSelectedSkillId])
 
   const handleDiscardSkillById = useCallback((skillId: string) => {
     useEditorStore.getState().discardChanges(skillId)
