@@ -61,7 +61,7 @@
     "extraResources": [
       {
         "from": "{{SCENARIO_DIST_PATH}}",
-        "to": "app",
+        "to": "{{SCENARIO_DIST_PATH}}",
         "filter": ["**/*"]
       }
     ],

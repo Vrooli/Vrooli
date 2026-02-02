@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	runtimeapi "scenario-to-desktop-runtime/api"
 )
 
 // TestBuildStage tests the build stage.
@@ -270,6 +272,85 @@ func TestStageExecuteWithMissingService(t *testing.T) {
 		result := stage.Execute(ctx, input)
 		if result.Status != StatusFailed {
 			t.Error("expected failed status when service is nil")
+		}
+	})
+}
+
+// TestExtractValidationErrors tests the helper function for extracting validation errors.
+func TestExtractValidationErrors(t *testing.T) {
+	t.Run("empty validation result", func(t *testing.T) {
+		result := &runtimeapi.BundleValidationResult{Valid: true}
+		errs := extractValidationErrors(result)
+		if len(errs) != 0 {
+			t.Errorf("expected 0 errors, got %d", len(errs))
+		}
+	})
+
+	t.Run("with errors", func(t *testing.T) {
+		result := &runtimeapi.BundleValidationResult{
+			Valid: false,
+			Errors: []runtimeapi.BundleError{
+				{Code: "ERR001", Service: "api", Message: "missing config"},
+				{Code: "ERR002", Service: "ui", Message: "invalid entry point"},
+			},
+		}
+		errs := extractValidationErrors(result)
+		if len(errs) != 2 {
+			t.Errorf("expected 2 errors, got %d", len(errs))
+		}
+		if errs[0] != "[ERR001] api: missing config" {
+			t.Errorf("unexpected error format: %s", errs[0])
+		}
+	})
+
+	t.Run("with missing binaries", func(t *testing.T) {
+		result := &runtimeapi.BundleValidationResult{
+			Valid: false,
+			MissingBinaries: []runtimeapi.MissingBinary{
+				{ServiceID: "api", Platform: "linux", Path: "/bin/api"},
+			},
+		}
+		errs := extractValidationErrors(result)
+		if len(errs) != 1 {
+			t.Errorf("expected 1 error, got %d", len(errs))
+		}
+		if errs[0] != "missing binary: /bin/api (api/linux)" {
+			t.Errorf("unexpected error format: %s", errs[0])
+		}
+	})
+
+	t.Run("with missing assets", func(t *testing.T) {
+		result := &runtimeapi.BundleValidationResult{
+			Valid: false,
+			MissingAssets: []runtimeapi.MissingAsset{
+				{ServiceID: "ui", Path: "/assets/logo.png"},
+			},
+		}
+		errs := extractValidationErrors(result)
+		if len(errs) != 1 {
+			t.Errorf("expected 1 error, got %d", len(errs))
+		}
+		if errs[0] != "missing asset: /assets/logo.png (ui)" {
+			t.Errorf("unexpected error format: %s", errs[0])
+		}
+	})
+
+	t.Run("with all types", func(t *testing.T) {
+		result := &runtimeapi.BundleValidationResult{
+			Valid: false,
+			Errors: []runtimeapi.BundleError{
+				{Code: "ERR001", Service: "api", Message: "error 1"},
+			},
+			MissingBinaries: []runtimeapi.MissingBinary{
+				{ServiceID: "api", Platform: "linux", Path: "/bin/api"},
+			},
+			MissingAssets: []runtimeapi.MissingAsset{
+				{ServiceID: "ui", Path: "/assets/logo.png"},
+			},
+		}
+		errs := extractValidationErrors(result)
+		if len(errs) != 3 {
+			t.Errorf("expected 3 errors, got %d", len(errs))
 		}
 	})
 }

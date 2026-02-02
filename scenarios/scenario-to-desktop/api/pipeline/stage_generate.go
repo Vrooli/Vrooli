@@ -142,6 +142,14 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		desktopConfig.BundleRuntimeRoot = input.BundleResult.BundleDir
 	}
 
+	// For bundled deployment mode, extraResources should point to the bundle directory
+	// (relative to the electron output path) instead of the source ui/dist path.
+	// The bundle stage has already packaged all assets (UI, binaries, manifest) into
+	// platforms/electron/bundle/, so we reference that directory.
+	if desktopConfig.DeploymentMode == "bundled" {
+		desktopConfig.ScenarioPath = "bundle"
+	}
+
 	result.Logs = append(result.Logs,
 		fmt.Sprintf("Deployment mode: %s", desktopConfig.DeploymentMode),
 		fmt.Sprintf("Template type: %s", templateType),

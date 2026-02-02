@@ -153,8 +153,15 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	copied = append(copied, destManifest)
 
 	for _, svc := range m.Services {
-		// Skip UI services - Electron handles UI bundling separately
+		// UI services are pre-built static assets (HTML/CSS/JS), not compiled binaries.
+		// We copy their entry points and assets to make the bundle fully self-contained,
+		// which allows preflight to validate everything before the Electron build.
 		if isUIService(svc.Type) {
+			uiCopied, err := p.stageUIService(svc, appAbs, bundleDir, manifestRoot)
+			if err != nil {
+				return nil, err
+			}
+			copied = append(copied, uiCopied...)
 			continue
 		}
 
@@ -324,8 +331,82 @@ func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifes
 
 // Helper functions
 
-// isUIService returns true if the service type indicates a UI/frontend service
-// that should be skipped during bundling (Electron handles these separately).
+// stageUIService copies a UI service's entry point and assets to the bundle.
+// UI services contain pre-built static assets (HTML/CSS/JS from a build tool like Vite),
+// not compiled binaries. We include them in the bundle to:
+//   1. Make the bundle fully self-contained and portable
+//   2. Allow preflight to validate all assets before the Electron build
+//   3. Ensure the desktop app has everything it needs without external dependencies
+//
+// The entry point (typically index.html) is specified in the service's Binaries map,
+// and additional assets are listed in the Assets array.
+func (p *DefaultPackager) stageUIService(svc bundlemanifest.Service, appPath, bundleDir, manifestRoot string) ([]string, error) {
+	var copied []string
+
+	// UI services have their entry point in the Binaries map (e.g., "ui/dist/index.html").
+	// All platforms share the same entry point, so we only need to copy once.
+	// We use the first platform's binary path as the canonical entry.
+	var entryPath string
+	for _, bin := range svc.Binaries {
+		if bin.Path != "" {
+			entryPath = bin.Path
+			break
+		}
+	}
+
+	if entryPath != "" {
+		// The entry path in the manifest is relative to the bundle root.
+		// We need to find the source by looking in the app directory.
+		srcPath := filepath.Join(appPath, entryPath)
+		if _, err := os.Stat(srcPath); err != nil {
+			// Try relative to manifest root as fallback
+			srcPath = filepath.Join(manifestRoot, entryPath)
+			if _, err := os.Stat(srcPath); err != nil {
+				return nil, fmt.Errorf("UI entry point not found for %s: tried %s and %s",
+					svc.ID, filepath.Join(appPath, entryPath), srcPath)
+			}
+		}
+
+		dstPath := p.fileOps.NormalizeBundlePath(entryPath)
+		dst, err := resolveBundlePath(p.fileOps, bundleDir, dstPath)
+		if err != nil {
+			return nil, fmt.Errorf("stage UI entry for %s: %w", svc.ID, err)
+		}
+		if err := p.fileOps.CopyPath(srcPath, dst); err != nil {
+			return nil, fmt.Errorf("copy UI entry for %s: %w", svc.ID, err)
+		}
+		copied = append(copied, dst)
+	}
+
+	// Copy all UI assets (JS chunks, CSS, images, fonts, etc.)
+	for _, asset := range svc.Assets {
+		// Try to find the asset in the app directory first
+		srcPath := filepath.Join(appPath, asset.Path)
+		if _, err := os.Stat(srcPath); err != nil {
+			// Fall back to manifest root
+			srcPath = filepath.Join(manifestRoot, asset.Path)
+			if _, err := os.Stat(srcPath); err != nil {
+				return nil, fmt.Errorf("UI asset not found for %s: %s", svc.ID, asset.Path)
+			}
+		}
+
+		dstPath := p.fileOps.NormalizeBundlePath(asset.Path)
+		dst, err := resolveBundlePath(p.fileOps, bundleDir, dstPath)
+		if err != nil {
+			return nil, fmt.Errorf("stage UI asset %s: %w", asset.Path, err)
+		}
+		if err := p.fileOps.CopyPath(srcPath, dst); err != nil {
+			return nil, fmt.Errorf("copy UI asset %s: %w", asset.Path, err)
+		}
+		copied = append(copied, dst)
+	}
+
+	return copied, nil
+}
+
+// isUIService returns true if the service type indicates a UI/frontend service.
+// UI services contain pre-built static assets rather than compiled binaries,
+// and are handled differently during bundling (see stageUIService).
 func isUIService(serviceType string) bool {
 	switch serviceType {
 	case "ui", "ui-bundle", "frontend", "web":

@@ -3,10 +3,11 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/shared/errors"
+
+	runtimeapi "scenario-to-desktop-runtime/api"
 )
 
 // PreflightStage implements the preflight validation stage of the pipeline.
@@ -87,9 +88,12 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	manifestPath := input.BundleResult.ManifestPath
-	bundleRoot := filepath.Dir(input.BundleResult.BundleDir)
+	bundleRoot := input.BundleResult.BundleDir
 
-	result.Logs = append(result.Logs, fmt.Sprintf("Validating bundle: %s", bundleRoot))
+	result.Logs = append(result.Logs,
+		fmt.Sprintf("Bundle root: %s", bundleRoot),
+		fmt.Sprintf("Manifest: %s", manifestPath),
+	)
 
 	// Build preflight request
 	request := preflight.Request{
@@ -122,6 +126,69 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 		return result
 	}
 
+	// Enforce bundle validation policy - fail if validation errors exist
+	if response.Validation != nil && !response.Validation.Valid {
+		validationErrors := extractValidationErrors(response.Validation)
+		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
+			fmt.Errorf("bundle validation failed with %d errors", len(validationErrors)),
+			validationErrors,
+		))
+		result.Details = response
+		return result
+	}
+
+	// Fail if any service fingerprints have errors (missing binaries, etc.)
+	var fingerprintErrors []string
+	for _, fp := range response.Fingerprints {
+		if fp.Error != "" {
+			// Include resolved path in error message for easier debugging
+			errMsg := fmt.Sprintf("service %s (%s): %s", fp.ServiceID, fp.Platform, fp.Error)
+			if fp.BinaryResolvedPath != "" {
+				errMsg = fmt.Sprintf("%s (resolved: %s)", errMsg, fp.BinaryResolvedPath)
+			} else if fp.BinaryPath != "" {
+				errMsg = fmt.Sprintf("%s (path: %s)", errMsg, fp.BinaryPath)
+			}
+			fingerprintErrors = append(fingerprintErrors, errMsg)
+		}
+	}
+	if len(fingerprintErrors) > 0 {
+		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
+			fmt.Errorf("service binary validation failed for %d services", len(fingerprintErrors)),
+			fingerprintErrors,
+		).WithRecovery(errors.RecoveryFixInput, "Ensure all service binaries are built before running the pipeline. "+
+			"Run 'make build' in the scenario directory to build binaries.").
+			WithManualSteps([]string{
+				"Check that the scenario has been fully built",
+				"Verify binaries exist at the paths shown in the errors above",
+				"For cross-platform builds, ensure binaries are compiled for each target platform",
+			}))
+		result.Details = response
+		return result
+	}
+
+	// Fail if any critical validation checks failed
+	var criticalFailures []string
+	for _, check := range response.Checks {
+		if check.Status == "fail" && check.Step == "validation" {
+			criticalFailures = append(criticalFailures,
+				fmt.Sprintf("%s: %s", check.Name, check.Detail))
+		}
+	}
+	if len(criticalFailures) > 0 {
+		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
+			fmt.Errorf("%d critical validation checks failed", len(criticalFailures)),
+			criticalFailures,
+		).WithRecovery(errors.RecoveryFixInput, "Fix the validation errors listed above. "+
+			"Common causes: missing UI build (run 'pnpm build' in ui/), missing assets, or incorrect manifest configuration.").
+			WithManualSteps([]string{
+				"Review each failed validation check above",
+				"Build the UI if assets are missing: cd ui && pnpm build",
+				"Verify the bundle manifest references correct file paths",
+			}))
+		result.Details = response
+		return result
+	}
+
 	// Update input for next stage
 	input.PreflightResult = response
 
@@ -130,11 +197,33 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 		fmt.Sprintf("Preflight status: %s", response.Status),
 	)
 
-	// Add validation details
-	if response.Validation != nil {
-		result.Logs = append(result.Logs,
-			fmt.Sprintf("Validation checks: %d passed", len(response.Checks)),
-		)
+	// Add fingerprint summary (successful binary validations)
+	if len(response.Fingerprints) > 0 {
+		validCount := 0
+		for _, fp := range response.Fingerprints {
+			if fp.Error == "" && fp.BinarySHA256 != "" {
+				validCount++
+			}
+		}
+		if validCount > 0 {
+			result.Logs = append(result.Logs,
+				fmt.Sprintf("Binary fingerprints validated: %d services", validCount),
+			)
+		}
+	}
+
+	// Add validation details with accurate pass/fail counts
+	if response.Validation != nil && len(response.Checks) > 0 {
+		passedCount, failedCount, warnCount := countCheckResults(response.Checks)
+		if failedCount == 0 && warnCount == 0 {
+			result.Logs = append(result.Logs,
+				fmt.Sprintf("Validation checks: %d passed", passedCount),
+			)
+		} else {
+			result.Logs = append(result.Logs,
+				fmt.Sprintf("Validation checks: %d passed, %d failed, %d warnings", passedCount, failedCount, warnCount),
+			)
+		}
 	}
 
 	// Add readiness info
@@ -143,4 +232,34 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	return result
+}
+
+// extractValidationErrors converts BundleValidationResult to string slice for error reporting.
+func extractValidationErrors(v *runtimeapi.BundleValidationResult) []string {
+	var errs []string
+	for _, e := range v.Errors {
+		errs = append(errs, fmt.Sprintf("[%s] %s: %s", e.Code, e.Service, e.Message))
+	}
+	for _, mb := range v.MissingBinaries {
+		errs = append(errs, fmt.Sprintf("missing binary: %s (%s/%s)", mb.Path, mb.ServiceID, mb.Platform))
+	}
+	for _, ma := range v.MissingAssets {
+		errs = append(errs, fmt.Sprintf("missing asset: %s (%s)", ma.Path, ma.ServiceID))
+	}
+	return errs
+}
+
+// countCheckResults counts checks by status.
+func countCheckResults(checks []preflight.Check) (passed, failed, warnings int) {
+	for _, check := range checks {
+		switch check.Status {
+		case "pass":
+			passed++
+		case "fail":
+			failed++
+		case "warning", "warn":
+			warnings++
+		}
+	}
+	return
 }

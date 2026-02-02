@@ -3,6 +3,7 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -15,6 +16,29 @@ import (
 )
 
 const appName = "scenario-to-desktop"
+
+// ErrAlreadyPrinted is a sentinel error indicating the error was already printed to the user.
+// This prevents duplicate error output when the error is returned up the call stack.
+type ErrAlreadyPrinted struct {
+	Err error
+}
+
+func (e *ErrAlreadyPrinted) Error() string {
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	return "error already printed"
+}
+
+func (e *ErrAlreadyPrinted) Unwrap() error {
+	return e.Err
+}
+
+// IsAlreadyPrinted checks if an error is an ErrAlreadyPrinted.
+func IsAlreadyPrinted(err error) bool {
+	var ap *ErrAlreadyPrinted
+	return errors.As(err, &ap)
+}
 
 // Commands provides pipeline CLI commands.
 type Commands struct {
@@ -45,6 +69,7 @@ func (c *Commands) Run(args []string) error {
 	platforms := fs.String("platforms", "", "Comma-separated target platforms (default: current platform)")
 	wait := fs.Bool("wait", false, "Block until pipeline completes (recommended for scripts/agents)")
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
+	debug := fs.Bool("debug", false, "Show full JSON response on error")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
@@ -77,7 +102,15 @@ func (c *Commands) Run(args []string) error {
 
 	body, err := c.api.Request("POST", c.apiPath("/pipeline/run"), query, req)
 	if err != nil {
-		return err
+		// In blocking mode, the API returns an error but the response body may contain
+		// a full pipeline status with rich error info. Try to extract it.
+		if *wait {
+			if printed := printPipelineAPIError(err, *debug); printed {
+				return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
+			}
+		}
+		printAPIError(err, *debug)
+		return &ErrAlreadyPrinted{Err: err}
 	}
 
 	if *jsonOutput {
@@ -99,7 +132,7 @@ func (c *Commands) Run(args []string) error {
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
 			printPipelineError(&status)
-			return fmt.Errorf("pipeline failed")
+			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
 		} else {
 			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
 			return nil
@@ -404,6 +437,7 @@ func (c *Commands) Start(args []string) error {
 	platforms := fs.String("platforms", "", "Comma-separated target platforms")
 	wait := fs.Bool("wait", false, "Block until pipeline completes (recommended for scripts/agents)")
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
+	debug := fs.Bool("debug", false, "Show full JSON response on error")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
@@ -440,7 +474,15 @@ func (c *Commands) Start(args []string) error {
 		body, err = c.api.Request("POST", c.apiPath("/scenarios/"+scenario+"/pipeline/start"), query, nil)
 	}
 	if err != nil {
-		return err
+		// In blocking mode, the API returns an error but the response body may contain
+		// a full pipeline status with rich error info. Try to extract it.
+		if *wait {
+			if printed := printPipelineAPIError(err, *debug); printed {
+				return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
+			}
+		}
+		printAPIError(err, *debug)
+		return &ErrAlreadyPrinted{Err: err}
 	}
 
 	if *jsonOutput {
@@ -462,7 +504,7 @@ func (c *Commands) Start(args []string) error {
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
 			printPipelineError(&status)
-			return fmt.Errorf("pipeline failed")
+			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
 		} else {
 			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
 			return nil
@@ -603,6 +645,51 @@ func printPipelineError(status *pipelineStatus) {
 	}
 }
 
+// printPipelineAPIError attempts to extract a pipeline status from an API error response
+// and print rich error information. Returns true if it successfully printed pipeline error info.
+func printPipelineAPIError(err error, debug bool) bool {
+	var apiErr *cliutil.APIError
+	if !errors.As(err, &apiErr) || len(apiErr.RawResponse) == 0 {
+		return false
+	}
+
+	// Try to parse the response as a pipeline status
+	var status pipelineStatus
+	if parseErr := json.Unmarshal(apiErr.RawResponse, &status); parseErr != nil {
+		return false
+	}
+
+	// Check if this is a valid pipeline status with error info
+	if status.PipelineID == "" {
+		return false
+	}
+
+	// Print pipeline failure info
+	fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
+	printPipelineError(&status)
+
+	if debug {
+		fmt.Println("\n--- Debug: Raw Response ---")
+		cliutil.PrintJSON(apiErr.RawResponse)
+	}
+
+	return true
+}
+
+// printAPIError displays a structured API error with recovery information.
+func printAPIError(err error, debug bool) {
+	var apiErr *cliutil.APIError
+	if errors.As(err, &apiErr) && apiErr.IsStructured() {
+		fmt.Print(apiErr.FormatConcise())
+		if debug && len(apiErr.RawResponse) > 0 {
+			fmt.Println("\n--- Debug: Raw Response ---")
+			cliutil.PrintJSON(apiErr.RawResponse)
+		}
+	} else {
+		fmt.Printf("Error: %s\n", err)
+	}
+}
+
 // reorderArgsForFlags moves flag arguments before positional arguments.
 // Go's flag package stops parsing at the first non-flag argument, so we need
 // to ensure flags come first for them to be parsed correctly.
@@ -647,6 +734,7 @@ func isBooleanFlag(flag string) bool {
 		"json":      true,
 		"no-create": true,
 		"force":     true,
+		"debug":     true,
 	}
 	return booleanFlags[name]
 }

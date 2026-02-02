@@ -1392,11 +1392,14 @@ async function runSmokeTest(): Promise<void> {
 
     try {
         if (isBundledMode) {
-            const bundleRoot = await resolveBundleRoot();
-            if (!bundleRoot) {
-                SmokeTestProtocol.error("config", "Bundled payload is missing");
-                throw new Error("Bundled payload is missing");
+            const bundleResolution = await resolveBundleRootWithDiagnostics();
+            if (!bundleResolution.found || !bundleResolution.path) {
+                const pathsChecked = bundleResolution.candidatesChecked.join(", ");
+                const errorMsg = `Bundled payload is missing. Checked: [${pathsChecked}]. Fix: Add bundle to extraResources in package.json`;
+                SmokeTestProtocol.error("config", errorMsg);
+                throw new Error(errorMsg);
             }
+            const bundleRoot = bundleResolution.path;
             const manifestPath = path.join(bundleRoot, "bundle.json");
             if (!(await pathExists(manifestPath))) {
                 SmokeTestProtocol.error("config", `Bundled manifest missing at ${manifestPath}`);
@@ -1738,7 +1741,23 @@ async function allocateIpcPort(host: string, preferred: number): Promise<{ port:
     return { port, changed: port !== preferred };
 }
 
+/** Result of bundle root resolution with diagnostic context */
+interface BundleResolutionResult {
+    found: boolean;
+    path: string | null;
+    candidatesChecked: string[];
+}
+
 async function resolveBundleRoot(): Promise<string | null> {
+    const result = await resolveBundleRootWithDiagnostics();
+    return result.path;
+}
+
+/**
+ * Resolves the bundle root directory with full diagnostic information.
+ * Returns the paths checked for debugging when bundle is not found.
+ */
+async function resolveBundleRootWithDiagnostics(): Promise<BundleResolutionResult> {
     const bundleRoot = BUNDLED_RUNTIME.ROOT || "bundle";
     const candidates = [
         path.join(process.resourcesPath, bundleRoot),
@@ -1747,11 +1766,20 @@ async function resolveBundleRoot(): Promise<string | null> {
 
     for (const candidate of candidates) {
         if (await pathExists(candidate)) {
-            return candidate;
+            console.log(`[Desktop App] Bundle found at: ${candidate}`);
+            return { found: true, path: candidate, candidatesChecked: candidates };
         }
     }
 
-    return null;
+    // Log diagnostic info when bundle is not found
+    console.error(`[Desktop App] Bundle not found. Checked locations:`);
+    for (const candidate of candidates) {
+        console.error(`  - ${candidate}`);
+    }
+    console.error(`[Desktop App] This usually means the bundle directory was not included in electron-builder extraResources.`);
+    console.error(`[Desktop App] Fix: Add to package.json: "extraResources": [{ "from": "bundle", "to": "bundle" }]`);
+
+    return { found: false, path: null, candidatesChecked: candidates };
 }
 
 async function waitForFile(filePath: string, timeoutMs = 15000): Promise<void> {
@@ -1820,10 +1848,12 @@ async function findChromiumPath(bundleRoot: string, manifestPath: string): Promi
 }
 
 async function startBundledRuntime(): Promise<string> {
-    const bundleRoot = await resolveBundleRoot();
-    if (!bundleRoot) {
-        throw new Error("Bundled payload is missing. Regenerate or reinstall the desktop app.");
+    const bundleResolution = await resolveBundleRootWithDiagnostics();
+    if (!bundleResolution.found || !bundleResolution.path) {
+        const pathsChecked = bundleResolution.candidatesChecked.join(", ");
+        throw new Error(`Bundled payload is missing. Checked: [${pathsChecked}]. Fix: Add bundle to extraResources in package.json, then regenerate or reinstall the desktop app.`);
     }
+    const bundleRoot = bundleResolution.path;
 
     const manifestPath = path.join(bundleRoot, "bundle.json");
     if (!(await pathExists(manifestPath))) {
