@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 
@@ -79,6 +80,28 @@ type AvailabilityStatus struct {
 	Message      string `json:"message,omitempty"`
 }
 
+// ReindexResponse represents the response from a reindex operation.
+type ReindexResponse struct {
+	Indexed int    `json:"indexed"`
+	Skipped int    `json:"skipped"`
+	Errors  int    `json:"errors"`
+	Message string `json:"message"`
+}
+
+// ReindexStatus represents the status of a reindex job.
+type ReindexStatus struct {
+	Running    bool   `json:"running"`
+	StartedAt  string `json:"startedAt,omitempty"`
+	FinishedAt string `json:"finishedAt,omitempty"`
+	Indexed    int    `json:"indexed"`
+	Skipped    int    `json:"skipped"`
+	Errors     int    `json:"errors"`
+	Total      int    `json:"total"`
+	Message    string `json:"message,omitempty"`
+	Canceled   bool   `json:"canceled,omitempty"`
+	Error      string `json:"error,omitempty"`
+}
+
 // Commands returns the search command group.
 func Commands(ctx appctx.Context) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
@@ -91,6 +114,42 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Description: "Search skills (AI-powered by default, --text for text-only)",
 				Run: func(args []string) error {
 					return cmdSearch(ctx, args)
+				},
+			},
+			{
+				Name:        "search-status",
+				Aliases:     []string{"search status"},
+				NeedsAPI:    true,
+				Description: "Check AI search availability and indexed skill count",
+				Run: func(args []string) error {
+					return cmdStatus(ctx, args)
+				},
+			},
+			{
+				Name:        "search-reindex",
+				Aliases:     []string{"search reindex"},
+				NeedsAPI:    true,
+				Description: "Start full reindex of skills into vector database",
+				Run: func(args []string) error {
+					return cmdReindex(ctx, args)
+				},
+			},
+			{
+				Name:        "search-reindex-status",
+				Aliases:     []string{"search reindex status", "search reindex-status"},
+				NeedsAPI:    true,
+				Description: "Check progress of ongoing reindex operation",
+				Run: func(args []string) error {
+					return cmdReindexStatus(ctx, args)
+				},
+			},
+			{
+				Name:        "search-reindex-cancel",
+				Aliases:     []string{"search reindex cancel", "search reindex-cancel"},
+				NeedsAPI:    true,
+				Description: "Cancel an active reindex operation",
+				Run: func(args []string) error {
+					return cmdReindexCancel(ctx, args)
 				},
 			},
 		},
@@ -296,4 +355,252 @@ func reorderFlagArgs(args []string, flagsWithValues map[string]bool) []string {
 	}
 
 	return append(flagArgs, positional...)
+}
+
+// cmdStatus checks AI search availability and displays status.
+func cmdStatus(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("search-status", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	fs.Bool("j", false, "Output as JSON (shorthand)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	// Check if -j was used
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "j" {
+			*jsonOut = true
+		}
+	})
+
+	var status AvailabilityStatus
+	if err := ctx.Get("/search/ai/status", &status); err != nil {
+		return fmt.Errorf("failed to get AI search status: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(status)
+	}
+
+	fmt.Println("AI Search Status")
+	fmt.Println("----------------")
+	fmt.Printf("Available:      %s\n", boolToYesNo(status.Available))
+	fmt.Printf("Ollama:         %s\n", boolToConnected(status.Ollama))
+	fmt.Printf("Qdrant:         %s\n", boolToConnected(status.Qdrant))
+	fmt.Printf("Indexed Skills: %d\n", status.IndexedCount)
+	if status.Message != "" {
+		fmt.Printf("Message:        %s\n", status.Message)
+	}
+	return nil
+}
+
+// cmdReindex starts a full reindex of skills into the vector database.
+func cmdReindex(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("search-reindex", flag.ContinueOnError)
+	wait := fs.Bool("wait", false, "Wait for reindex to complete")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	fs.Bool("j", false, "Output as JSON (shorthand)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	// Check if -j was used
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "j" {
+			*jsonOut = true
+		}
+	})
+
+	var resp ReindexStatus
+	if err := ctx.Post("/search/ai/reindex", nil, &resp); err != nil {
+		return fmt.Errorf("failed to start reindex: %w", err)
+	}
+
+	// If not running after our request, it means it was already running
+	if !resp.Running && resp.Message == "" {
+		resp.Message = "Reindex already in progress"
+	}
+
+	if *jsonOut && !*wait {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if !*wait {
+		if resp.Message != "" {
+			fmt.Println(resp.Message)
+		} else {
+			fmt.Println("Reindex started")
+		}
+		fmt.Println("Use 'search reindex-status' to monitor progress")
+		return nil
+	}
+
+	// Wait mode: poll until completion
+	fmt.Println("Reindexing skills...")
+	startTime := time.Now()
+
+	for {
+		var status ReindexStatus
+		if err := ctx.Get("/search/ai/reindex/status", &status); err != nil {
+			return fmt.Errorf("failed to get reindex status: %w", err)
+		}
+
+		if !status.Running {
+			// Reindex complete
+			if *jsonOut {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(status)
+			}
+
+			duration := time.Since(startTime)
+			fmt.Println()
+			if status.Canceled {
+				fmt.Println("Reindex canceled")
+			} else if status.Error != "" {
+				fmt.Printf("Reindex failed: %s\n", status.Error)
+			} else {
+				fmt.Println("Reindex complete")
+			}
+			fmt.Printf("  Indexed:  %d\n", status.Indexed)
+			fmt.Printf("  Skipped:  %d\n", status.Skipped)
+			fmt.Printf("  Errors:   %d\n", status.Errors)
+			fmt.Printf("  Duration: %.1fs\n", duration.Seconds())
+			return nil
+		}
+
+		// Print progress
+		progress := status.Indexed + status.Skipped + status.Errors
+		fmt.Printf("Progress: %d/%d indexed, %d skipped, %d errors\n",
+			status.Indexed, status.Total, status.Skipped, status.Errors)
+
+		// Don't print progress again if we're almost done
+		if progress >= status.Total {
+			time.Sleep(500 * time.Millisecond)
+		} else {
+			time.Sleep(2 * time.Second)
+		}
+	}
+}
+
+// cmdReindexStatus checks the progress of an ongoing reindex operation.
+func cmdReindexStatus(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("search-reindex-status", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	fs.Bool("j", false, "Output as JSON (shorthand)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	// Check if -j was used
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "j" {
+			*jsonOut = true
+		}
+	})
+
+	var status ReindexStatus
+	if err := ctx.Get("/search/ai/reindex/status", &status); err != nil {
+		return fmt.Errorf("failed to get reindex status: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(status)
+	}
+
+	fmt.Println("Reindex Status")
+	fmt.Println("--------------")
+	fmt.Printf("Running:    %s\n", boolToYesNo(status.Running))
+
+	if status.StartedAt != "" {
+		fmt.Printf("Started:    %s\n", status.StartedAt)
+	}
+	if status.FinishedAt != "" {
+		fmt.Printf("Finished:   %s\n", status.FinishedAt)
+	}
+
+	if status.Total > 0 {
+		progress := status.Indexed + status.Skipped + status.Errors
+		percent := 0
+		if status.Total > 0 {
+			percent = (progress * 100) / status.Total
+		}
+		fmt.Printf("Progress:   %d/%d (%d%%)\n", progress, status.Total, percent)
+	}
+
+	fmt.Printf("  Indexed:  %d\n", status.Indexed)
+	fmt.Printf("  Skipped:  %d\n", status.Skipped)
+	fmt.Printf("  Errors:   %d\n", status.Errors)
+
+	if status.Canceled {
+		fmt.Println("  (canceled)")
+	}
+	if status.Error != "" {
+		fmt.Printf("Error:      %s\n", status.Error)
+	}
+	if status.Message != "" {
+		fmt.Printf("Message:    %s\n", status.Message)
+	}
+
+	return nil
+}
+
+// cmdReindexCancel cancels an active reindex operation.
+func cmdReindexCancel(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("search-reindex-cancel", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	fs.Bool("j", false, "Output as JSON (shorthand)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	// Check if -j was used
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "j" {
+			*jsonOut = true
+		}
+	})
+
+	var status ReindexStatus
+	if err := ctx.Post("/search/ai/reindex/cancel", nil, &status); err != nil {
+		return fmt.Errorf("failed to cancel reindex: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(status)
+	}
+
+	if status.Canceled {
+		fmt.Println("Reindex canceled")
+	} else if !status.Running {
+		fmt.Println("No reindex operation running")
+	} else {
+		fmt.Println("Cancel request sent")
+	}
+
+	return nil
+}
+
+// boolToYesNo converts a boolean to "yes" or "no".
+func boolToYesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}
+
+// boolToConnected converts a boolean to "connected" or "disconnected".
+func boolToConnected(b bool) string {
+	if b {
+		return "connected"
+	}
+	return "disconnected"
 }

@@ -3,7 +3,9 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"os"
 	"strings"
 
 	"prompt-manager/store"
@@ -461,6 +463,223 @@ func (h *Handlers) SetSoul(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// ListFiles handles GET /agents/{id}/files - lists files in agent folder.
+func (h *Handlers) ListFiles(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "ListFiles not supported", http.StatusInternalServerError)
+		return
+	}
+
+	files, err := fileStore.ListFiles(ctx, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	mapped := make([]AgentFileEntry, 0, len(files))
+	for _, entry := range files {
+		mapped = append(mapped, AgentFileEntry{
+			Path:  entry.Path,
+			IsDir: entry.IsDir,
+			Size:  entry.Size,
+		})
+	}
+
+	resp := AgentFileListResponse{
+		AgentID: id,
+		Files:   mapped,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// GetFile handles GET /agents/{id}/files/content - returns file content.
+func (h *Handlers) GetFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "GetFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	content, err := fileStore.ReadFile(ctx, id, path)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "File not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "invalid path") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := AgentFileContentResponse{
+		AgentID: id,
+		Path:    path,
+		Content: content,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// SetFile handles PUT /agents/{id}/files/content - writes file content.
+func (h *Handlers) SetFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	var req AgentFileWriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "SetFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.WriteFile(ctx, id, path, req.Content); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// CreateFile handles POST /agents/{id}/files - creates a new file or directory.
+func (h *Handlers) CreateFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var req AgentFileCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "CreateFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.CreateFile(ctx, id, req.Path, req.Content, req.IsDir); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+// RenameFile handles POST /agents/{id}/files/rename - renames a file.
+func (h *Handlers) RenameFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var req AgentFileRenameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.From == "" || req.To == "" {
+		http.Error(w, "from and to are required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "RenameFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.RenameFile(ctx, id, req.From, req.To); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteFile handles DELETE /agents/{id}/files - deletes a file or directory.
+func (h *Handlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "DeleteFile not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.DeleteFile(ctx, id, path); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Helper functions

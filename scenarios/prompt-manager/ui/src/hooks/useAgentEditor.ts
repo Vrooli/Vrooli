@@ -14,7 +14,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { Agent, UpdateAgentRequest } from '@/types/agent'
 import type { ValidationResult, SaveResult } from '@/types/entityEditorStore'
-import * as agentService from '@/services/agentService'
 import {
   useAgentEditorStore,
   type NormalizedAgentFormState,
@@ -85,7 +84,6 @@ export function useAgentEditor({
 
   // Track if we've fetched full agent data for the current selection
   const fetchedAgentRef = useRef<string | null>(null)
-  const fetchedSoulRef = useRef<string | null>(null)
 
   // Get store actions
   const initializeAgent = useAgentEditorStore((state) => state.initializeAgent)
@@ -94,7 +92,6 @@ export function useAgentEditor({
   const storeUndo = useAgentEditorStore((state) => state.undo)
   const storeRedo = useAgentEditorStore((state) => state.redo)
   const markAsSaved = useAgentEditorStore((state) => state.markAsSaved)
-  const setSoulContent = useAgentEditorStore((state) => state.setSoulContent)
   const discardChanges = useAgentEditorStore((state) => state.discardChanges)
   const storeDiscardAll = useAgentEditorStore((state) => state.discardAllChanges)
   const removeAgent = useAgentEditorStore((state) => state.removeAgent)
@@ -198,33 +195,10 @@ export function useAgentEditor({
     fetchedAgentRef.current = selectedAgentId
   }, [selectedAgentId, agents, isHydrated, initializeAgent])
 
-  // Fetch SOUL.md content for the selected agent
-  useEffect(() => {
-    if (!selectedAgentId || !isHydrated) return
-    if (fetchedSoulRef.current === selectedAgentId) return
-
-    let cancelled = false
-
-    agentService.getAgentSoul(selectedAgentId)
-      .then((content) => {
-        if (cancelled) return
-        setSoulContent(selectedAgentId, content)
-        fetchedSoulRef.current = selectedAgentId
-      })
-      .catch((error) => {
-        console.warn(`[useAgentEditor] Failed to load SOUL.md for ${selectedAgentId}:`, error)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedAgentId, isHydrated, setSoulContent])
-
   // Reset fetch ref when selection changes
   useEffect(() => {
     if (!selectedAgentId) {
       fetchedAgentRef.current = null
-      fetchedSoulRef.current = null
     }
   }, [selectedAgentId])
 
@@ -284,13 +258,9 @@ export function useAgentEditor({
 
     setIsSaving(true)
     try {
-      const soulChanged = formState.soul !== (originalState?.soul ?? '')
       const updateRequest = formStateToUpdateRequest(formState)
       const savedAgent = await onSave(currentAgent.id, updateRequest)
-      if (soulChanged) {
-        await agentService.setAgentSoul(currentAgent.id, formState.soul)
-      }
-      markAsSaved(currentAgent.id, savedAgent, formState.soul)
+      markAsSaved(currentAgent.id, savedAgent)
       return { success: true, savedCount: 1, failedCount: 0, errors: [] }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -303,7 +273,7 @@ export function useAgentEditor({
     } finally {
       setIsSaving(false)
     }
-  }, [currentAgent, isDirty, validation.valid, formState, originalState, formStateToUpdateRequest, onSave, markAsSaved])
+  }, [currentAgent, isDirty, validation.valid, formState, formStateToUpdateRequest, onSave, markAsSaved])
 
   // Save all pending changes
   const saveAllChanges = useCallback(async (): Promise<SaveResult> => {
@@ -321,7 +291,6 @@ export function useAgentEditor({
 
       for (const id of dirtyIds) {
         const state = store.getFormState(id)
-        const original = store.getOriginalState(id)
         const storeValidation = store.getValidation(id)
         const agent = agents.find((a) => a.id === id)
 
@@ -330,11 +299,7 @@ export function useAgentEditor({
         try {
           const updateRequest = formStateToUpdateRequest(state)
           const savedAgent = await onSave(id, updateRequest)
-          const soulChanged = state.soul !== (original?.soul ?? '')
-          if (soulChanged) {
-            await agentService.setAgentSoul(id, state.soul)
-          }
-          markAsSaved(id, savedAgent, state.soul)
+          markAsSaved(id, savedAgent)
           savedCount++
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unknown error'

@@ -167,6 +167,53 @@ export const SoulResponseSchema = z.object({
 export type SoulResponse = z.infer<typeof SoulResponseSchema>
 
 /**
+ * Agent file schemas for /agents/{id}/files endpoints.
+ */
+export const AgentFileEntrySchema = z.object({
+  path: z.string(),
+  isDir: z.boolean(),
+  size: z.number().int().nonnegative().optional(),
+})
+
+export type AgentFileEntry = z.infer<typeof AgentFileEntrySchema>
+
+export const AgentFileListResponseSchema = z.object({
+  agentId: z.string(),
+  files: z.array(AgentFileEntrySchema),
+})
+
+export type AgentFileListResponse = z.infer<typeof AgentFileListResponseSchema>
+
+export const AgentFileContentResponseSchema = z.object({
+  agentId: z.string(),
+  path: z.string(),
+  content: z.string(),
+})
+
+export type AgentFileContentResponse = z.infer<typeof AgentFileContentResponseSchema>
+
+export const AgentFileWriteRequestSchema = z.object({
+  content: z.string(),
+})
+
+export type AgentFileWriteRequest = z.infer<typeof AgentFileWriteRequestSchema>
+
+export const AgentFileCreateRequestSchema = z.object({
+  path: z.string().min(1),
+  content: z.string().optional(),
+  isDir: z.boolean().optional(),
+})
+
+export type AgentFileCreateRequest = z.infer<typeof AgentFileCreateRequestSchema>
+
+export const AgentFileRenameRequestSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+})
+
+export type AgentFileRenameRequest = z.infer<typeof AgentFileRenameRequestSchema>
+
+/**
  * EffectiveSkillsResponse from /agents/{id}/effective-skills.
  */
 export const EffectiveSkillsResponseSchema = z.object({

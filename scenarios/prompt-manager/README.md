@@ -5,7 +5,7 @@
 ## Features
 
 - **Skills Management**: Full CRUD, versioning, AI search, testing, and pack organization (core/local/drafts)
-- **Agents**: Entities with appearance, SOUL.md personality, capabilities, connectors, heartbeat, and skill pins
+- **Agents**: Entities with appearance, SOUL.md + agent files, capabilities, connectors, heartbeat, and skill pins
 - **Teams**: Organizational units with roles, members, org chart, and role-based skill grants
 - **3D World Visualization**: Interactive React Three Fiber visualization for agent coordination
 - **Multiple Interfaces**: Web UI, REST API, and command-line tool

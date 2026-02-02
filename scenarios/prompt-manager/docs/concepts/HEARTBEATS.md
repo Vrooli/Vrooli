@@ -82,8 +82,8 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ 1. SOUL.md (from store/agents/{agent})         │
-│    Agent's personality                          │
+│ 1. Agent .md files (from store/agents/{agent})  │
+│    Personality + operating notes                │
 ├─────────────────────────────────────────────────┤
 │ 2. RESPONSIBILITIES.md (from team members/)    │
 │    Role-specific instructions for this team    │
@@ -99,7 +99,7 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 ```
 
 This layered approach means:
-- **SOUL.md**: "Who I am" (global, persists across teams)
+- **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
 - **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
 - **Skills**: "Tools I have available" (computed from all sources)
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)

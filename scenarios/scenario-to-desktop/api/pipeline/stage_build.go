@@ -2,7 +2,10 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -52,6 +55,90 @@ func NewBuildStage(opts ...BuildStageOption) *BuildStage {
 	return s
 }
 
+// BundleValidationResult contains the result of bundle configuration validation.
+type BundleValidationResult struct {
+	Valid           bool
+	BundleExists    bool
+	BundlePath      string
+	IncludedInBuild bool
+	Error           string
+	Suggestion      string
+}
+
+// validateBundleConfiguration checks if the bundle directory exists and is properly
+// configured in package.json extraResources. Returns a validation result with details.
+func validateBundleConfiguration(desktopPath string) *BundleValidationResult {
+	result := &BundleValidationResult{Valid: true}
+
+	// Check if bundle directory exists
+	bundlePath := filepath.Join(desktopPath, "bundle")
+	if info, err := os.Stat(bundlePath); err == nil && info.IsDir() {
+		result.BundleExists = true
+		result.BundlePath = bundlePath
+	} else {
+		// No bundle directory - external server mode, no validation needed
+		result.BundleExists = false
+		return result
+	}
+
+	// Bundle exists, verify it's included in package.json extraResources
+	packagePath := filepath.Join(desktopPath, "package.json")
+	packageData, err := os.ReadFile(packagePath)
+	if err != nil {
+		result.Valid = false
+		result.Error = fmt.Sprintf("Cannot read package.json: %v", err)
+		result.Suggestion = "Ensure package.json exists in the desktop directory"
+		return result
+	}
+
+	// Parse package.json to check extraResources
+	var packageJSON struct {
+		Build struct {
+			ExtraResources []interface{} `json:"extraResources"`
+		} `json:"build"`
+	}
+	if err := json.Unmarshal(packageData, &packageJSON); err != nil {
+		result.Valid = false
+		result.Error = fmt.Sprintf("Invalid package.json format: %v", err)
+		result.Suggestion = "Fix the JSON syntax in package.json"
+		return result
+	}
+
+	// Check if bundle is included in extraResources
+	result.IncludedInBuild = false
+	for _, resource := range packageJSON.Build.ExtraResources {
+		switch r := resource.(type) {
+		case string:
+			if strings.Contains(r, "bundle") {
+				result.IncludedInBuild = true
+				break
+			}
+		case map[string]interface{}:
+			// Check "from" field for bundle reference
+			if from, ok := r["from"].(string); ok {
+				if strings.Contains(from, "bundle") {
+					result.IncludedInBuild = true
+					break
+				}
+			}
+		}
+	}
+
+	if !result.IncludedInBuild {
+		result.Valid = false
+		result.Error = fmt.Sprintf("Bundle directory exists at '%s' but is not included in electron-builder extraResources", bundlePath)
+		result.Suggestion = `Add bundle to extraResources in package.json:
+  "build": {
+    "extraResources": [
+      { "from": "bundle", "to": "bundle" },
+      ...existing resources...
+    ]
+  }`
+	}
+
+	return result
+}
+
 // Name returns the stage name.
 func (s *BuildStage) Name() string {
 	return StageBuild
@@ -85,6 +172,35 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	if desktopPath == "" {
 		failStage(result, s.timeProvider, errors.ErrBuildDesktopPathMissing())
 		return result
+	}
+
+	// Validate bundle configuration before starting build
+	// This catches misconfigurations early (before smoke test) with clear guidance
+	bundleValidation := validateBundleConfiguration(desktopPath)
+	if !bundleValidation.Valid {
+		failStage(result, s.timeProvider, errors.New(errors.CodeBundleInvalid, bundleValidation.Error).
+			InDomain("build").
+			WithRecovery(errors.RecoveryFixInput, bundleValidation.Suggestion).
+			WithManualSteps([]string{
+				"Check if the bundle directory exists: " + bundleValidation.BundlePath,
+				"Edit package.json to add bundle to extraResources",
+				"Run the pipeline again after fixing the configuration",
+			}).
+			WithDetails(map[string]interface{}{
+				"bundle_path":       bundleValidation.BundlePath,
+				"bundle_exists":     bundleValidation.BundleExists,
+				"included_in_build": bundleValidation.IncludedInBuild,
+			}))
+		result.Logs = append(result.Logs,
+			"Bundle configuration validation failed:",
+			"  "+bundleValidation.Error,
+			"  Suggestion: "+bundleValidation.Suggestion,
+		)
+		return result
+	}
+
+	if bundleValidation.BundleExists {
+		result.Logs = append(result.Logs, fmt.Sprintf("Bundle configuration validated: %s", bundleValidation.BundlePath))
 	}
 
 	scenarioName := input.Config.ScenarioName

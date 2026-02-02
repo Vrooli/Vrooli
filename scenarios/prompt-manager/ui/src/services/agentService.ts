@@ -14,7 +14,15 @@
 import { api } from '@/lib/api'
 import { createCacheManager } from '@/lib/cache'
 import { ValidationError } from '@/lib/schemas'
-import type { Agent, CreateAgentRequest, UpdateAgentRequest, EffectiveSkillsResponse } from '@/lib/schemas'
+import type {
+  Agent,
+  CreateAgentRequest,
+  UpdateAgentRequest,
+  EffectiveSkillsResponse,
+  AgentFileEntry,
+  AgentFileCreateRequest,
+  AgentFileRenameRequest,
+} from '@/lib/schemas'
 
 // Create cache for agents list
 const agentsCache = createCacheManager<Agent[]>()
@@ -111,7 +119,7 @@ export async function updateAgent(id: string, updates: UpdateAgentRequest): Prom
  */
 export async function getAgentSoul(agentId: string): Promise<string> {
   const response = await api.getAgentSoul(agentId)
-  return response.content ?? ''
+  return response.content
 }
 
 /**
@@ -119,6 +127,50 @@ export async function getAgentSoul(agentId: string): Promise<string> {
  */
 export async function setAgentSoul(agentId: string, content: string): Promise<void> {
   await api.setAgentSoul(agentId, content)
+}
+
+/**
+ * List files in an agent folder.
+ */
+export async function listAgentFiles(agentId: string): Promise<AgentFileEntry[]> {
+  const response = await api.listAgentFiles(agentId)
+  return response.files
+}
+
+/**
+ * Get file content for an agent file.
+ */
+export async function getAgentFileContent(agentId: string, path: string): Promise<string> {
+  const response = await api.getAgentFileContent(agentId, path)
+  return response.content
+}
+
+/**
+ * Update file content for an agent file.
+ */
+export async function setAgentFileContent(agentId: string, path: string, content: string): Promise<void> {
+  await api.setAgentFileContent(agentId, path, content)
+}
+
+/**
+ * Create a new file for an agent.
+ */
+export async function createAgentFile(agentId: string, request: AgentFileCreateRequest): Promise<void> {
+  await api.createAgentFile(agentId, request)
+}
+
+/**
+ * Rename an agent file.
+ */
+export async function renameAgentFile(agentId: string, request: AgentFileRenameRequest): Promise<void> {
+  await api.renameAgentFile(agentId, request)
+}
+
+/**
+ * Delete an agent file.
+ */
+export async function deleteAgentFile(agentId: string, path: string): Promise<void> {
+  await api.deleteAgentFile(agentId, path)
 }
 
 /**

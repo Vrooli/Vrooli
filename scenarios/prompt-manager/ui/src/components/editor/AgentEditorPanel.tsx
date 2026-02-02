@@ -7,14 +7,14 @@
  * Features:
  * - Header with close button, color badge, editable name, and status toggle
  * - Expandable description
- * - Tabbed interface: Soul, Skills, Appearance, Info
+ * - Tabbed interface: Files, Skills, Info
  * - Dirty tracking with save/discard buttons
  * - Undo/redo support
  */
 
 import { useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Palette, Zap, User, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Folder, Zap, User, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
@@ -23,7 +23,7 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 
-import { AppearanceTab, SkillsTab, SoulTab, InfoTab } from './tabs'
+import { SkillsTab, InfoTab, FilesTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
 import type { Skill } from '@/types'
 
@@ -32,8 +32,6 @@ interface AgentEditorPanelProps {
   agent: Agent | null
   /** Form state from the editor store */
   formState: NormalizedAgentFormState
-  /** Original state for dirty comparison */
-  originalState: NormalizedAgentFormState | null
   /** All available skills for the skill picker */
   allSkills?: Skill[]
   /** Update a single field */
@@ -81,7 +79,6 @@ const STATUS_OPTIONS = ['active', 'inactive', 'suspended'] as const
 export function AgentEditorPanel({
   agent,
   formState,
-  originalState,
   allSkills = [],
   updateField,
   updateFields,
@@ -106,7 +103,7 @@ export function AgentEditorPanel({
   void _onDelete
   void _isDeleting
   // Active tab state
-  const [activeTab, setActiveTab] = useState('soul')
+  const [activeTab, setActiveTab] = useState('files')
 
   // Description expanded state
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
@@ -211,18 +208,17 @@ export function AgentEditorPanel({
       >
         {/* Tab List */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
-          <TabTrigger value="soul" icon={<User className="h-4 w-4" />} label="Soul" />
+          <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
           <TabTrigger value="skills" icon={<Zap className="h-4 w-4" />} label="Skills" />
-          <TabTrigger value="appearance" icon={<Palette className="h-4 w-4" />} label="Appearance" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </Tabs.List>
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto">
-          <Tabs.Content value="soul" className="h-full">
-            <SoulTab
+          <Tabs.Content value="files" className="h-full">
+            <FilesTab
+              agentId={agent.id}
               formState={formState}
-              originalState={originalState}
               updateField={updateField}
               updateFields={updateFields}
               isDirty={isDirty}
@@ -242,13 +238,6 @@ export function AgentEditorPanel({
             <SkillsTab
               formState={formState}
               allSkills={allSkills}
-              updateField={updateField}
-            />
-          </Tabs.Content>
-
-          <Tabs.Content value="appearance" className="h-full p-4">
-            <AppearanceTab
-              formState={formState}
               updateField={updateField}
             />
           </Tabs.Content>

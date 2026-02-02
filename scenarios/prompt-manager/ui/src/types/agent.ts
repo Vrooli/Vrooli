@@ -18,6 +18,12 @@ export type {
   UpdateAgentRequest,
   SoulRequest,
   SoulResponse,
+  AgentFileEntry,
+  AgentFileListResponse,
+  AgentFileContentResponse,
+  AgentFileWriteRequest,
+  AgentFileCreateRequest,
+  AgentFileRenameRequest,
   EffectiveSkillsResponse,
 } from '@/lib/schemas'
 

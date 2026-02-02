@@ -33,7 +33,6 @@ export interface NormalizedAgentFormState {
   description: string
   status: 'active' | 'inactive' | 'suspended'
   appearance: AgentAppearance
-  soul: string
   skills: string[]
   tags: string[]
 }
@@ -41,13 +40,12 @@ export interface NormalizedAgentFormState {
 /**
  * Normalize an Agent from the API to NormalizedAgentFormState.
  */
-export function normalizeAgent(agent: Agent, soul = ''): NormalizedAgentFormState {
+export function normalizeAgent(agent: Agent): NormalizedAgentFormState {
   return {
     displayName: agent.displayName,
     description: agent.description ?? '',
     status: agent.status,
     appearance: agent.appearance ?? { ...DEFAULT_AGENT_COLORS },
-    soul,
     skills: [...agent.skills],
     tags: [...agent.tags],
   }
@@ -62,7 +60,6 @@ export function createEmptyAgentState(): NormalizedAgentFormState {
     description: '',
     status: 'active',
     appearance: { ...DEFAULT_AGENT_COLORS },
-    soul: '',
     skills: [],
     tags: [],
   }
@@ -83,8 +80,6 @@ export function isAgentFormStateEqual(
   if (a.appearance.body !== b.appearance.body) return false
   if (a.appearance.head !== b.appearance.head) return false
   if (a.appearance.accent !== b.appearance.accent) return false
-
-  if (a.soul !== b.soul) return false
 
   // Compare arrays
   if (!arraysEqual(a.skills, b.skills)) return false
@@ -227,10 +222,7 @@ interface AgentEditorStoreActions {
   redo: (agentId: string) => void
 
   /** Mark an agent as saved (update original to match current) */
-  markAsSaved: (agentId: string, savedAgent: Agent, savedSoul?: string) => void
-
-  /** Set SOUL.md content without marking the agent dirty */
-  setSoulContent: (agentId: string, content: string) => void
+  markAsSaved: (agentId: string, savedAgent: Agent) => void
 
   /** Discard changes for a specific agent */
   discardChanges: (agentId: string) => void
@@ -293,7 +285,7 @@ export const useAgentEditorStore = create<AgentEditorStore>((set, get) => ({
     const existing = agents.get(agentId)
     if (existing) {
       // Update original if the agent changed (e.g., saved elsewhere)
-      const newOriginal = normalizeAgent(agent, existing.original.soul ?? '')
+      const newOriginal = normalizeAgent(agent)
       if (!isAgentFormStateEqual(existing.original, newOriginal)) {
         const newAgents = new Map(agents)
         newAgents.set(agentId, {
@@ -447,13 +439,12 @@ export const useAgentEditorStore = create<AgentEditorStore>((set, get) => ({
     persistState(newAgents)
   },
 
-  markAsSaved: (agentId, savedAgent, savedSoul) => {
+  markAsSaved: (agentId, savedAgent) => {
     const { agents } = get()
     const state = agents.get(agentId)
     if (!state) return
 
-    const soulValue = savedSoul ?? state.current.soul ?? ''
-    const newOriginal = normalizeAgent(savedAgent, soulValue)
+    const newOriginal = normalizeAgent(savedAgent)
     const newState: AgentEditState = {
       ...state,
       original: newOriginal,
@@ -461,28 +452,6 @@ export const useAgentEditorStore = create<AgentEditorStore>((set, get) => ({
       undoStack: [],
       redoStack: [],
       lastModifiedAt: Date.now(),
-    }
-
-    const newAgents = new Map(agents)
-    newAgents.set(agentId, newState)
-    set({ agents: newAgents })
-    persistState(newAgents)
-  },
-
-  setSoulContent: (agentId, content) => {
-    const { agents } = get()
-    const state = agents.get(agentId)
-    if (!state) return
-
-    const soulDirty = state.current.soul !== state.original.soul
-    if (soulDirty) {
-      return
-    }
-
-    const newState: AgentEditState = {
-      ...state,
-      original: { ...state.original, soul: content },
-      current: { ...state.current, soul: content },
     }
 
     const newAgents = new Map(agents)
@@ -545,13 +514,7 @@ export const useAgentEditorStore = create<AgentEditorStore>((set, get) => ({
 
     const agents = new Map<string, AgentEditState>()
     for (const [id, state] of Object.entries(persisted.entities)) {
-      const original = { ...state.original, soul: state.original.soul ?? '' }
-      const current = { ...state.current, soul: state.current.soul ?? '' }
-      agents.set(id, {
-        ...state,
-        original,
-        current,
-      })
+      agents.set(id, state)
     }
 
     set({ agents, isHydrated: true })

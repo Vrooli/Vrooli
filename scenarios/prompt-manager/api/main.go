@@ -232,6 +232,12 @@ func main() {
 	v1.HandleFunc("/agents/{id}/effective-skills", agentHandlers.GetEffectiveSkills).Methods("GET")
 	v1.HandleFunc("/agents/{id}/soul", agentHandlers.GetSoul).Methods("GET")
 	v1.HandleFunc("/agents/{id}/soul", agentHandlers.SetSoul).Methods("PUT")
+	v1.HandleFunc("/agents/{id}/files", agentHandlers.ListFiles).Methods("GET")
+	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.GetFile).Methods("GET")
+	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.SetFile).Methods("PUT")
+	v1.HandleFunc("/agents/{id}/files", agentHandlers.CreateFile).Methods("POST")
+	v1.HandleFunc("/agents/{id}/files/rename", agentHandlers.RenameFile).Methods("POST")
+	v1.HandleFunc("/agents/{id}/files", agentHandlers.DeleteFile).Methods("DELETE")
 
 	// Team routes
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes())

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 )
 
 // FileAgentStore implements AgentStore using the file system
@@ -77,6 +79,11 @@ func (s *FileAgentStore) Create(ctx context.Context, agent *Agent) error {
 	// Write agent.json
 	if err := SaveJSON(filepath.Join(agentDir, "agent.json"), agent); err != nil {
 		return fmt.Errorf("writing agent.json: %w", err)
+	}
+
+	// Seed default agent files (optional, user can delete/rename)
+	if err := s.ensureDefaultAgentFiles(agentDir); err != nil {
+		return fmt.Errorf("creating default agent files: %w", err)
 	}
 
 	return nil
@@ -222,4 +229,220 @@ func (s *FileAgentStore) SetSoul(ctx context.Context, agentID string, content st
 
 	soulPath := filepath.Join(s.agentsDir(), agentID, "SOUL.md")
 	return WriteContent(soulPath, content)
+}
+
+// AgentFileEntry represents a file or directory within an agent folder.
+type AgentFileEntry struct {
+	Path  string `json:"path"`
+	IsDir bool   `json:"isDir"`
+	Size  int64  `json:"size,omitempty"`
+}
+
+// ListFiles returns all files and directories under an agent folder.
+func (s *FileAgentStore) ListFiles(ctx context.Context, agentID string) ([]AgentFileEntry, error) {
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return nil, err
+	}
+
+	agentDir := filepath.Join(s.agentsDir(), agentID)
+	var entries []AgentFileEntry
+
+	err := filepath.WalkDir(agentDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == agentDir {
+			return nil
+		}
+		if isHiddenFile(d.Name()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		rel, err := filepath.Rel(agentDir, path)
+		if err != nil {
+			return err
+		}
+
+		info, err := d.Info()
+		size := int64(0)
+		if err == nil {
+			size = info.Size()
+		}
+
+		entries = append(entries, AgentFileEntry{
+			Path:  filepath.ToSlash(rel),
+			IsDir: d.IsDir(),
+			Size:  size,
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing agent files: %w", err)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Path < entries[j].Path
+	})
+
+	return entries, nil
+}
+
+// ReadFile returns file content for a path within an agent folder.
+func (s *FileAgentStore) ReadFile(ctx context.Context, agentID, relPath string) (string, error) {
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return "", err
+	}
+
+	fullPath, _, err := s.resolveAgentPath(agentID, relPath)
+	if err != nil {
+		return "", err
+	}
+
+	return ReadContent(fullPath)
+}
+
+// WriteFile overwrites file content within an agent folder.
+func (s *FileAgentStore) WriteFile(ctx context.Context, agentID, relPath, content string) error {
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return err
+	}
+	if isReservedAgentFile(relPath) {
+		return fmt.Errorf("cannot modify reserved file: %s", relPath)
+	}
+
+	fullPath, _, err := s.resolveAgentPath(agentID, relPath)
+	if err != nil {
+		return err
+	}
+
+	return WriteContent(fullPath, content)
+}
+
+// CreateFile creates a new file or directory within an agent folder.
+func (s *FileAgentStore) CreateFile(ctx context.Context, agentID, relPath, content string, isDir bool) error {
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return err
+	}
+	if isReservedAgentFile(relPath) {
+		return fmt.Errorf("cannot create reserved file: %s", relPath)
+	}
+
+	fullPath, _, err := s.resolveAgentPath(agentID, relPath)
+	if err != nil {
+		return err
+	}
+	if FileExists(fullPath) {
+		return fmt.Errorf("file already exists: %s", relPath)
+	}
+
+	if isDir {
+		return os.MkdirAll(fullPath, 0o755)
+	}
+
+	return WriteContent(fullPath, content)
+}
+
+// RenameFile renames or moves a file within an agent folder.
+func (s *FileAgentStore) RenameFile(ctx context.Context, agentID, fromPath, toPath string) error {
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return err
+	}
+	if isReservedAgentFile(fromPath) || isReservedAgentFile(toPath) {
+		return fmt.Errorf("cannot rename reserved file")
+	}
+
+	fromFull, _, err := s.resolveAgentPath(agentID, fromPath)
+	if err != nil {
+		return err
+	}
+	toFull, _, err := s.resolveAgentPath(agentID, toPath)
+	if err != nil {
+		return err
+	}
+
+	if !FileExists(fromFull) {
+		return fmt.Errorf("file not found: %s", fromPath)
+	}
+	if FileExists(toFull) {
+		return fmt.Errorf("target already exists: %s", toPath)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(toFull), 0o755); err != nil {
+		return fmt.Errorf("creating directory: %w", err)
+	}
+
+	return os.Rename(fromFull, toFull)
+}
+
+// DeleteFile deletes a file or directory within an agent folder.
+func (s *FileAgentStore) DeleteFile(ctx context.Context, agentID, relPath string) error {
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return err
+	}
+	if isReservedAgentFile(relPath) {
+		return fmt.Errorf("cannot delete reserved file: %s", relPath)
+	}
+
+	fullPath, _, err := s.resolveAgentPath(agentID, relPath)
+	if err != nil {
+		return err
+	}
+
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", relPath, err)
+	}
+
+	if info.IsDir() {
+		return DeleteDirectory(fullPath)
+	}
+	return DeleteFile(fullPath)
+}
+
+func (s *FileAgentStore) ensureDefaultAgentFiles(agentDir string) error {
+	defaultFiles := map[string]string{
+		"SOUL.md":   "# SOUL\n\nWho I am, how I communicate, and my boundaries.\n",
+		"AGENTS.md": "# AGENTS\n\nOperating procedures for this agent.\n",
+		"TOOLS.md":  "# TOOLS\n\nTooling notes and preferences.\n",
+	}
+
+	for name, content := range defaultFiles {
+		path := filepath.Join(agentDir, name)
+		if FileExists(path) {
+			continue
+		}
+		if err := WriteContent(path, content); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *FileAgentStore) resolveAgentPath(agentID, relPath string) (string, string, error) {
+	if strings.TrimSpace(relPath) == "" {
+		return "", "", fmt.Errorf("path is required")
+	}
+
+	clean := filepath.Clean(filepath.FromSlash(relPath))
+	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+		return "", "", fmt.Errorf("invalid path: %s", relPath)
+	}
+
+	agentDir := filepath.Join(s.agentsDir(), agentID)
+	fullPath := filepath.Join(agentDir, clean)
+
+	rel, err := filepath.Rel(agentDir, fullPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", "", fmt.Errorf("invalid path: %s", relPath)
+	}
+
+	return fullPath, filepath.ToSlash(clean), nil
+}
+
+func isReservedAgentFile(path string) bool {
+	return strings.EqualFold(filepath.Base(filepath.FromSlash(path)), "agent.json")
 }

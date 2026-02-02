@@ -103,3 +103,41 @@ type SoulResponse struct {
 	AgentID string `json:"agentId"`
 	Content string `json:"content"`
 }
+
+// AgentFileEntry represents a file or directory in an agent folder.
+type AgentFileEntry struct {
+	Path  string `json:"path"`
+	IsDir bool   `json:"isDir"`
+	Size  int64  `json:"size,omitempty"`
+}
+
+// AgentFileListResponse is the response for listing agent files.
+type AgentFileListResponse struct {
+	AgentID string           `json:"agentId"`
+	Files   []AgentFileEntry `json:"files"`
+}
+
+// AgentFileContentResponse is the response for file content operations.
+type AgentFileContentResponse struct {
+	AgentID string `json:"agentId"`
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+// AgentFileWriteRequest is the request body for writing file content.
+type AgentFileWriteRequest struct {
+	Content string `json:"content"`
+}
+
+// AgentFileCreateRequest is the request body for creating a file or directory.
+type AgentFileCreateRequest struct {
+	Path    string `json:"path"`
+	Content string `json:"content,omitempty"`
+	IsDir   bool   `json:"isDir,omitempty"`
+}
+
+// AgentFileRenameRequest is the request body for renaming a file.
+type AgentFileRenameRequest struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}

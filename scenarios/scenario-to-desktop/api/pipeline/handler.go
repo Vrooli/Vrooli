@@ -89,6 +89,21 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/scenarios/{name}/pipeline/start", h.handleStartActivePipeline).Methods("POST")
 }
 
+// extendWriteDeadline extends the HTTP response write deadline for long-running blocking requests.
+// This prevents "i/o timeout" errors when the pipeline takes longer than the default WriteTimeout.
+// Returns true if the deadline was successfully extended, false if the ResponseController is not supported.
+func extendWriteDeadline(w http.ResponseWriter, timeout time.Duration) bool {
+	rc := http.NewResponseController(w)
+	// Add 30 seconds buffer to ensure we have time to write the response after pipeline completes
+	deadline := time.Now().Add(timeout + 30*time.Second)
+	if err := rc.SetWriteDeadline(deadline); err != nil {
+		// ResponseController not supported by this ResponseWriter - continue without extension
+		// This can happen with certain middleware that wraps the ResponseWriter
+		return false
+	}
+	return true
+}
+
 // handleRun handles POST /api/v1/pipeline/run
 // Query params:
 //   - block: if "true", wait for pipeline completion before returning (default: false)
@@ -124,6 +139,10 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if block {
+		// Extend the write deadline to accommodate long-running pipelines
+		// This prevents "i/o timeout" errors when writing the response
+		extendWriteDeadline(w, time.Duration(timeoutSecs)*time.Second)
+
 		// Blocking mode: wait for pipeline completion
 		status, err := h.orchestrator.RunPipelineBlocking(r.Context(), &config, timeoutSecs)
 		if err != nil {
@@ -517,6 +536,10 @@ func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Reque
 	}
 
 	if block {
+		// Extend the write deadline to accommodate long-running pipelines
+		// This prevents "i/o timeout" errors when writing the response
+		extendWriteDeadline(w, time.Duration(timeoutSecs)*time.Second)
+
 		// Blocking mode: wait for pipeline completion
 		status, err := h.manager.StartActivePipelineBlocking(r.Context(), scenarioName, config, timeoutSecs)
 		if err != nil {

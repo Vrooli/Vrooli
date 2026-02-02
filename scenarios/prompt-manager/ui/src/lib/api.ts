@@ -37,6 +37,8 @@ import {
   AgentArraySchema,
   EffectiveSkillsResponseSchema,
   SoulResponseSchema,
+  AgentFileListResponseSchema,
+  AgentFileContentResponseSchema,
   AISearchResponseSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
@@ -61,6 +63,10 @@ import {
   type UpdateAgentRequest,
   type EffectiveSkillsResponse,
   type SoulResponse,
+  type AgentFileListResponse,
+  type AgentFileContentResponse,
+  type AgentFileCreateRequest,
+  type AgentFileRenameRequest,
   type AISearchResponse,
   type AISearchStatus,
   type AIReindexStatus,
@@ -456,6 +462,64 @@ class ApiClient {
         body: JSON.stringify({ content }),
       },
       SoulResponseSchema
+    )
+  }
+
+  async listAgentFiles(id: string): Promise<AgentFileListResponse> {
+    return this.request<AgentFileListResponse>(
+      `/agents/${encodeURIComponent(id)}/files`,
+      undefined,
+      AgentFileListResponseSchema
+    )
+  }
+
+  async getAgentFileContent(id: string, path: string): Promise<AgentFileContentResponse> {
+    const params = `?path=${encodeURIComponent(path)}`
+    return this.request<AgentFileContentResponse>(
+      `/agents/${encodeURIComponent(id)}/files/content${params}`,
+      undefined,
+      AgentFileContentResponseSchema
+    )
+  }
+
+  async setAgentFileContent(id: string, path: string, content: string): Promise<void> {
+    const params = `?path=${encodeURIComponent(path)}`
+    await this.requestVoid(
+      `/agents/${encodeURIComponent(id)}/files/content${params}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      }
+    )
+  }
+
+  async createAgentFile(id: string, request: AgentFileCreateRequest): Promise<void> {
+    await this.requestVoid(
+      `/agents/${encodeURIComponent(id)}/files`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }
+    )
+  }
+
+  async renameAgentFile(id: string, request: AgentFileRenameRequest): Promise<void> {
+    await this.requestVoid(
+      `/agents/${encodeURIComponent(id)}/files/rename`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }
+    )
+  }
+
+  async deleteAgentFile(id: string, path: string): Promise<void> {
+    const params = `?path=${encodeURIComponent(path)}`
+    await this.requestVoid(
+      `/agents/${encodeURIComponent(id)}/files${params}`,
+      {
+        method: 'DELETE',
+      }
     )
   }
 

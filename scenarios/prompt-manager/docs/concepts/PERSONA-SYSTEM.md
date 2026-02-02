@@ -13,8 +13,14 @@ behavior, and identity.
 ```
 store/agents/{agent-id}/
 ├── agent.json
-└── SOUL.md
+├── SOUL.md
+├── AGENTS.md
+└── TOOLS.md
 ```
+
+Additional markdown files can live alongside `SOUL.md` (for example `AGENTS.md` and `TOOLS.md`).
+All `.md` files in the agent folder are included when building heartbeat prompts, with `SOUL.md`
+ordered first when present.
 
 ## SOUL.md Content
 
@@ -38,8 +44,8 @@ You are a senior debugging specialist who works systematically.
 
 ## Prompt Usage
 
-When a heartbeat executes, prompt-manager prepends SOUL.md to the task prompt:
-1. SOUL.md (agent personality)
+When a heartbeat executes, prompt-manager prepends all agent `.md` files to the task prompt:
+1. Agent markdown files (SOUL.md, AGENTS.md, TOOLS.md, ...)
 2. RESPONSIBILITIES.md (team role)
 3. Effective Skills
 4. HEARTBEAT.md (task)
@@ -56,4 +62,3 @@ See [HEARTBEATS.md](HEARTBEATS.md) for the full prompt assembly flow.
 - Keep SOUL.md concise and stable
 - Avoid task-specific instructions (use skills for that)
 - Update SOUL.md when an agent’s role changes
-

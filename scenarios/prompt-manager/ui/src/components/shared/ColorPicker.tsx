@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 /**
  * Default color preset palette.
  */
-export const COLOR_PRESETS = [
+const COLOR_PRESETS = [
   '#6366f1', // indigo
   '#8b5cf6', // violet
   '#ec4899', // pink

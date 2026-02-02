@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -140,10 +141,42 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 func (e *Executor) buildPrompt(ctx context.Context, teamID, agentID string) (string, error) {
 	var parts []string
 
-	// 1. Agent's SOUL.md (global personality)
-	soul, err := e.agentStore.GetSoul(ctx, agentID)
-	if err == nil && soul != "" {
-		parts = append(parts, "# Agent Personality (SOUL.md)\n\n"+soul)
+	// 1. Agent markdown files (global personality + notes)
+	agentFiles, err := e.agentStore.ListFiles(ctx, agentID)
+	if err == nil && len(agentFiles) > 0 {
+		var markdownFiles []store.AgentFileEntry
+		for _, entry := range agentFiles {
+			if entry.IsDir {
+				continue
+			}
+			if strings.HasSuffix(strings.ToLower(entry.Path), ".md") {
+				markdownFiles = append(markdownFiles, entry)
+			}
+		}
+
+		if len(markdownFiles) > 0 {
+			sort.Slice(markdownFiles, func(i, j int) bool {
+				a := strings.ToLower(markdownFiles[i].Path)
+				b := strings.ToLower(markdownFiles[j].Path)
+				if a == "soul.md" {
+					return b != "soul.md"
+				}
+				if b == "soul.md" {
+					return false
+				}
+				return a < b
+			})
+
+			section := "# Agent Files (Markdown)\n\n"
+			for _, entry := range markdownFiles {
+				content, err := e.agentStore.ReadFile(ctx, agentID, entry.Path)
+				if err != nil {
+					continue
+				}
+				section += fmt.Sprintf("## %s\n\n%s\n\n", entry.Path, content)
+			}
+			parts = append(parts, section)
+		}
 	}
 
 	// 2. Team member RESPONSIBILITIES.md
