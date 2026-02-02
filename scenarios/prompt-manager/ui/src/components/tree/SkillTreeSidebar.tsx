@@ -30,6 +30,7 @@ import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
 import { CombineActionBar } from './CombineActionBar'
+import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { getAISearchStatus } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
@@ -38,9 +39,17 @@ import { useSelectionStore } from '@/stores/selectionStore'
 interface SkillTreeSidebarProps {
   treeNodes: TreeNode[]
   skills: Skill[]
+  /** All agents for name lookup in unsaved changes menu */
+  agents?: Agent[]
   selectedItemId: string | null
   onSelectItem: (id: string) => void
   dirtyItemIds: Set<string>
+  /** Separate dirty skill IDs for unsaved menu (defaults to dirtyItemIds if not provided) */
+  dirtySkillIds?: Set<string>
+  /** Dirty agent IDs for unsaved menu */
+  dirtyAgentIds?: Set<string>
+  /** Dirty team member IDs for unsaved menu */
+  dirtyTeamMemberIds?: Set<string>
   expandedNodes: Set<string>
   onToggleNode: (nodeId: string) => void
   renderItemIcon?: (skill: Skill) => ReactNode
@@ -93,6 +102,25 @@ interface SkillTreeSidebarProps {
   initialActiveTab?: string
   /** Callback when active tab changes (for persistence) */
   onActiveTabChange?: (tab: string) => void
+  // Unsaved changes menu callbacks
+  /** Callback to select/open a skill from unsaved menu */
+  onSelectSkillFromMenu?: (skillId: string) => void
+  /** Callback to select/open an agent from unsaved menu */
+  onSelectAgentFromMenu?: (agentId: string) => void
+  /** Callback to save a specific skill */
+  onSaveSkill?: (skillId: string) => Promise<void>
+  /** Callback to discard changes for a specific skill */
+  onDiscardSkill?: (skillId: string) => void
+  /** Callback to save a specific agent */
+  onSaveAgent?: (agentId: string) => Promise<void>
+  /** Callback to discard changes for a specific agent */
+  onDiscardAgent?: (agentId: string) => void
+  /** Callback to save all changes */
+  onSaveAll?: () => Promise<void>
+  /** Callback to discard all changes */
+  onDiscardAll?: () => void
+  /** Whether save operation is in progress */
+  isSaving?: boolean
   className?: string
 }
 
@@ -102,9 +130,13 @@ interface SkillTreeSidebarProps {
 export function SkillTreeSidebar({
   treeNodes,
   skills,
+  agents = [],
   selectedItemId,
   onSelectItem,
   dirtyItemIds,
+  dirtySkillIds,
+  dirtyAgentIds = new Set(),
+  dirtyTeamMemberIds = new Set(),
   expandedNodes,
   onToggleNode,
   renderItemIcon,
@@ -148,6 +180,15 @@ export function SkillTreeSidebar({
   combineCopySuccess = false,
   initialActiveTab = 'skills',
   onActiveTabChange,
+  onSelectSkillFromMenu,
+  onSelectAgentFromMenu,
+  onSaveSkill,
+  onDiscardSkill,
+  onSaveAgent,
+  onDiscardAgent,
+  onSaveAll,
+  onDiscardAll,
+  isSaving = false,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -306,14 +347,10 @@ export function SkillTreeSidebar({
           >
             <PanelLeftOpen className="h-4 w-4" />
           </button>
-          {dirtyCount > 0 && (
-            <span
-              className="w-6 h-6 flex items-center justify-center text-[10px] font-medium bg-amber-500/20 text-amber-400 rounded-full"
-              title={`${dirtyCount} unsaved changes`}
-            >
-              {dirtyCount}
-            </span>
-          )}
+          <UnsavedChangesCollapsedBadge
+            dirtyCount={dirtyCount}
+            onClick={onToggleCollapse}
+          />
           {onOpenSettings && (
             <button
               type="button"
@@ -374,9 +411,23 @@ export function SkillTreeSidebar({
                 </span>
               </div>
             ) : dirtyCount > 0 ? (
-              <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/20 text-amber-400 rounded">
-                {dirtyCount} unsaved
-              </span>
+              <UnsavedChangesMenu
+                dirtyCount={dirtyCount}
+                dirtySkillIds={dirtySkillIds ?? dirtyItemIds}
+                dirtyAgentIds={dirtyAgentIds}
+                dirtyTeamMemberIds={dirtyTeamMemberIds}
+                skills={skills}
+                agents={agents}
+                onSelectSkill={onSelectSkillFromMenu}
+                onSelectAgent={onSelectAgentFromMenu}
+                onSaveSkill={onSaveSkill}
+                onDiscardSkill={onDiscardSkill}
+                onSaveAgent={onSaveAgent}
+                onDiscardAgent={onDiscardAgent}
+                onSaveAll={onSaveAll}
+                onDiscardAll={onDiscardAll}
+                isSaving={isSaving}
+              />
             ) : null}
           </div>
           <div className="flex items-center gap-1">

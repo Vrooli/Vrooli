@@ -20,11 +20,6 @@ Required reading:
 | Configure code signing | `scenario-to-desktop signing-set <scenario> --config <json>` |
 | Distribute to users | `scenario-to-desktop distribute <scenario> --artifacts <paths>` |
 
-**When NOT to use this tool:**
-- Scenarios without a UI (API-only scenarios)
-- Mobile app generation (out of scope)
-- Bundled offline apps (not production-ready yet)
-
 ---
 
 ### **1.1 Scope Boundaries**
@@ -48,32 +43,15 @@ Required reading:
 
 Before generating desktop apps:
 
-1. **Target scenario is running and reachable**
+1. **Target scenario must be running** - The preflight stage validates this automatically and provides clear errors if not reachable
+2. **Scenario must have a built UI** - The bundle stage checks for `ui/dist/` and fails with guidance if missing
+3. **Start scenario-to-desktop**:
    ```bash
-   curl -s http://localhost:<SCENARIO_PORT>/api/health || \
-   curl -s https://app-monitor.<domain>/apps/<scenario>/proxy/api/health
+   cd scenarios/scenario-to-desktop && make start
+   scenario-to-desktop status  # Verify running
    ```
 
-   If not running:
-   ```bash
-   cd scenarios/<scenario> && make start
-   # Wait for health check to pass
-   curl --retry 5 --retry-delay 3 http://localhost:<SCENARIO_PORT>/api/health
-   ```
-
-2. **Scenario has a built UI**
-   - Check: `scenarios/<scenario>/ui/dist/` exists and contains built assets
-   - If missing: `cd scenarios/<scenario>/ui && pnpm install && pnpm build`
-
-3. **Start scenario-to-desktop**
-   ```bash
-   cd scenarios/scenario-to-desktop
-   make start    # PREFERRED
-   # or: vrooli scenario start scenario-to-desktop
-
-   # Verify it's running
-   scenario-to-desktop status
-   ```
+If prerequisites are missing, the pipeline will fail with specific guidance on what to fix.
 
 ---
 
@@ -172,6 +150,8 @@ scenario-to-desktop pipeline-run my-scenario --stages generate,build --platforms
 ```
 
 **Note:** If `--platforms` is omitted, all platforms (win, mac, linux) are built by default. Verify platform selection in `pipeline-status` output under the `config.platforms` field.
+
+**Error handling:** Pipeline errors include structured codes (e.g., `BUILD_FAILED`, `PREFLIGHT_VALIDATION_FAILED`) with recovery guidance. Use `--json` output to access the full error structure for automation, or let the CLI display human-readable recovery hints.
 
 #### **3.4 Download Built Packages**
 
@@ -338,46 +318,20 @@ scenario-to-desktop configure token
 
 #### **4.1 Basic Desktop App Generation**
 
-**For interactive use (monitor manually):**
 ```bash
-# 1. Start the scenario-to-desktop service
+# 1. Start scenario-to-desktop
 cd scenarios/scenario-to-desktop && make start
 
-# 2. Verify system status
-scenario-to-desktop status
-
-# 3. Run the full pipeline (async - returns immediately)
-scenario-to-desktop pipeline-run my-scenario --platforms win,mac,linux
-
-# 4. Monitor progress
-scenario-to-desktop pipeline-status <pipeline-id> --verbose
-
-# 5. Download built installers after completion
-scenario-to-desktop download my-scenario linux
-```
-
-**For agents/scripts (recommended):**
-```bash
-# 1. Start the scenario-to-desktop service
-cd scenarios/scenario-to-desktop && make start
-
-# 2. Run and wait for completion - blocks until done
+# 2. Run full pipeline (--wait blocks until complete)
 scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
 
-# 3. Download built installers (with verification)
-scenario-to-desktop download my-scenario linux --output my-scenario.AppImage || {
-  echo "Download failed - check pipeline status"
-  exit 1
-}
-
-# 4. Verify download
-[ -f my-scenario.AppImage ] && file my-scenario.AppImage | grep -q "ELF" || {
-  echo "Invalid or missing AppImage"
-  exit 1
-}
+# 3. Download built installer
+scenario-to-desktop download my-scenario linux --output my-scenario.AppImage
 ```
 
-> **Note:** For agent/scripted workflows, always use `--wait`. See Section 4.5 for details and EOF handling.
+For async operation (monitoring manually), omit `--wait` and poll with `pipeline-status <id>`.
+
+> **Note:** For agents/scripts, always use `--wait` for proper exit codes and error reporting.
 
 #### **4.2 Collect User Telemetry**
 
@@ -455,52 +409,20 @@ gh release view v<version> --repo owner/repo
 
 #### **4.5 Agent/Scripted Workflows**
 
-For automated pipelines (agents, CI/CD, scripts), always use `--wait` to block until completion:
+For automated pipelines (agents, CI/CD, scripts), use `--wait` to block until completion with proper exit codes:
 
-```bash
-# Run and wait - blocks until complete, fail, or timeout
-scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
-
-# Check exit code
-if [ $? -eq 0 ]; then
-    echo "Success - downloading artifacts"
-    scenario-to-desktop download my-scenario linux
-else
-    echo "Pipeline failed"
-    exit 1
-fi
-```
-
-**Why use `--wait` for agents:**
-1. Single command to start and wait for completion
-2. Proper exit codes for scripting (0 = success, non-zero = failure)
-3. No need to poll `pipeline-status` manually
-4. Timeout protection prevents indefinite hangs
-
-**Exit codes (with `--wait`):**
-
-| Code | Meaning |
-|------|---------|
-| 0 | Completed successfully |
-| Non-zero | Failed (check error in output) |
-
-**Full automated workflow example:**
 ```bash
 #!/bin/bash
 set -e
 
-SCENARIO="my-scenario"
-PLATFORMS="linux"
-TIMEOUT=900
+# Run and wait - blocks until complete or fail
+scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
 
-echo "Building desktop app for $SCENARIO..."
-scenario-to-desktop pipeline-run "$SCENARIO" --platforms "$PLATFORMS" --wait --timeout "$TIMEOUT"
-
-echo "Downloading artifacts..."
-scenario-to-desktop download "$SCENARIO" linux --output "${SCENARIO}.AppImage"
-
-echo "Build complete: ${SCENARIO}.AppImage"
+# Download artifacts (only reached on success due to set -e)
+scenario-to-desktop download my-scenario linux --output my-scenario.AppImage
 ```
+
+On failure, the CLI displays structured error info including recovery hints, auto-fix suggestions, and manual steps.
 
 ---
 
@@ -530,113 +452,30 @@ Building from Linux (recommended for single-machine builds):
 
 ### **7. Troubleshooting**
 
-#### **7.1 Wine Build Issues**
-
-**"spawn wine ENOENT"**
-```bash
-# Check Wine status
-scenario-to-desktop wine-check
-
-# Install Wine if needed
-scenario-to-desktop wine-install --method flatpak-auto
-```
-
-**"Wine: installed ... - not usable"**
-Wine is installed but not properly configured for use.
-```bash
-# Try reinstalling with a different method
-scenario-to-desktop wine-install --method appimage
-
-# Or verify flatpak Wine configuration
-flatpak run --command=wine org.winehq.Wine --version
-```
-
-#### **7.2 Pipeline Failures**
+The pipeline provides structured error feedback with recovery guidance. When failures occur:
 
 ```bash
-# Check detailed status
+# Check detailed status with error info
 scenario-to-desktop pipeline-status <id> --verbose
 
-# Reset and retry
-scenario-to-desktop pipeline-reset my-scenario
-scenario-to-desktop pipeline-start my-scenario
+# JSON output includes full error structure for automation
+scenario-to-desktop pipeline-status <id> --json
 ```
 
-#### **7.3 Signing Issues**
+**Error output includes:**
+- Error code (e.g., `BUILD_FAILED`, `PREFLIGHT_VALIDATION_FAILED`)
+- Recovery hint with next steps
+- Auto-fix command when available
+- Manual steps for complex issues
 
-```bash
-# Validate signing configuration
-scenario-to-desktop signing-validate my-scenario
+**Common recovery patterns:**
+- For transient failures: `pipeline-resume <id>` or `pipeline-reset <scenario>`
+- For configuration issues: Follow the recovery hint in the error output
+- For deeper issues: `cd scenarios/scenario-to-desktop && make logs`
 
-# Check readiness per platform
-scenario-to-desktop signing-ready my-scenario --json
-```
-
-#### **7.4 Bundled Mode Errors**
-
-**"Error: Bundled payload is missing"**
-This error indicates bundled mode was attempted, which is not production-ready.
-
-```bash
-# Ensure you're using thin client mode (default)
-scenario-to-desktop pipeline-run my-scenario --platforms linux
-# Do NOT use --deployment-mode bundled (not supported yet)
-```
-
-#### **7.5 Telemetry Issues**
-
-**"Error: invalid telemetry format"**
-```bash
-# Validate JSONL format
-head -1 telemetry.jsonl | jq .
-
-# Check for corrupted lines
-jq -c . telemetry.jsonl 2>&1 | grep -n "parse error"
-```
-
-**"No telemetry data available"**
-- Verify the app has been run at least once
-- Check platform-specific telemetry paths (Section 3.6)
-- Ensure user has read permissions on the telemetry file
-
-**Telemetry file not found**
-```bash
-# Platform-specific default locations:
-# Windows: %APPDATA%\<App Name>\deployment-telemetry.jsonl
-# macOS:   ~/Library/Application Support/<App Name>/deployment-telemetry.jsonl
-# Linux:   ~/.config/<App Name>/deployment-telemetry.jsonl
-```
-
-#### **7.6 Generate Stage Failures**
-
-**"build status not found in store"**
-This indicates an internal state synchronization issue.
-```bash
-# Reset the pipeline state and retry
-scenario-to-desktop pipeline-reset my-scenario
-scenario-to-desktop pipeline-start my-scenario --platforms linux
-```
-
-If the error persists:
-1. Check API logs: `make logs` in `scenarios/scenario-to-desktop`
-2. Restart the service: `make stop && make start`
-3. File a bug if reproducible
-
-#### **7.7 EOF Error with `--wait`**
-
-When using `--wait` on long-running pipelines, you may encounter an EOF error if the HTTP connection times out. This does NOT necessarily mean the pipeline failed:
-
-```bash
-# If you see: Error: request failed: ... EOF
-
-# Check if pipeline actually completed:
-scenario-to-desktop pipeline-status <id> --json | jq '.status'
-# May show "completed" even after EOF error
-
-# For very long builds, prefer async + polling:
-scenario-to-desktop pipeline-run my-scenario --platforms linux  # async
-watch -n 10 'scenario-to-desktop pipeline-status <id>'          # poll
-```
+**Platform-specific notes:**
+- Windows builds on Linux require Wine: use `wine-check` and `wine-install` commands
+- macOS DMG/PKG builds require actual macOS (ZIP works cross-platform)
 
 ---
 

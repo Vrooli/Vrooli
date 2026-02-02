@@ -38,6 +38,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCombineStore } from '@/stores/combineStore'
 import { api } from '@/lib/api'
@@ -46,7 +47,7 @@ import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeS
 import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
-import type { Skill, CreateSkillRequest } from '@/types'
+import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
 
@@ -665,6 +666,101 @@ export function SkillManagerLayout() {
     return <Icon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
   }, [])
 
+  // Individual save/discard callbacks for unsaved changes menu
+  const handleSaveSkillById = useCallback(async (skillId: string) => {
+    const skill = skills.find((s) => s.id === skillId)
+    if (!skill) return
+
+    const state = useEditorStore.getState().getFormState(skillId)
+    if (!state) return
+
+    // Build update payload from form state
+    const updates = new Map<string, UpdateSkillRequest>()
+    const updatePayload: UpdateSkillRequest = {
+      name: state.name,
+      description: state.description,
+      content: state.content,
+      modes: state.modes,
+      tags: state.tags,
+      draft: state.draft,
+      folder: state.folder,
+    }
+    // Only include icon if it has a value
+    if (state.icon) {
+      updatePayload.icon = state.icon
+    }
+    updates.set(skillId, updatePayload)
+
+    const results = await updateSkills(updates)
+    const result = results.get(skillId)
+    if (result && !(result instanceof Error)) {
+      useEditorStore.getState().markAsSaved(skillId, result)
+      toast({
+        title: 'Skill saved',
+        description: `"${state.name}" has been saved.`,
+      })
+    }
+  }, [skills, updateSkills])
+
+  const handleDiscardSkillById = useCallback((skillId: string) => {
+    useEditorStore.getState().discardChanges(skillId)
+  }, [])
+
+  const handleSaveAgentById = useCallback(async (agentId: string) => {
+    const agent = agents.find((a) => a.id === agentId)
+    if (!agent) return
+
+    const state = useAgentEditorStore.getState().getFormState(agentId)
+    if (!state) return
+
+    // Build update payload
+    await updateAgent(agentId, {
+      displayName: state.displayName,
+      description: state.description,
+      status: state.status,
+      appearance: state.appearance,
+      persona: state.persona,
+      skills: state.skills,
+      tags: state.tags,
+    })
+
+    // Re-fetch the agent to get the updated version
+    const updatedAgent = agents.find((a) => a.id === agentId)
+    if (updatedAgent) {
+      useAgentEditorStore.getState().markAsSaved(agentId, updatedAgent)
+    }
+
+    toast({
+      title: 'Agent saved',
+      description: `"${state.displayName}" has been saved.`,
+    })
+  }, [agents, updateAgent])
+
+  const handleDiscardAgentById = useCallback((agentId: string) => {
+    useAgentEditorStore.getState().discardChanges(agentId)
+  }, [])
+
+  // Combined save all / discard all for the menu
+  const handleSaveAllFromMenu = useCallback(async () => {
+    // Save all skills
+    if (skillDirtyCount > 0) {
+      await saveAllChanges()
+    }
+    // Save all agents
+    if (agentDirtyCount > 0) {
+      await saveAllAgentChanges()
+    }
+    toast({
+      title: 'All changes saved',
+      description: `Saved ${skillDirtyCount + agentDirtyCount} item${skillDirtyCount + agentDirtyCount !== 1 ? 's' : ''}.`,
+    })
+  }, [skillDirtyCount, agentDirtyCount, saveAllChanges, saveAllAgentChanges])
+
+  const handleDiscardAllFromMenu = useCallback(() => {
+    useEditorStore.getState().discardAllChanges()
+    useAgentEditorStore.getState().discardAllChanges()
+  }, [])
+
   // Keyboard shortcuts (defined after callbacks so they're available)
   useKeyboardShortcuts({
     onSave: () => {
@@ -736,9 +832,13 @@ export function SkillManagerLayout() {
       <SkillTreeSidebar
         treeNodes={filteredTreeNodes}
         skills={skills}
+        agents={agents}
         selectedItemId={selectedSkillId}
         onSelectItem={handleSelectItem}
         dirtyItemIds={combinedDirtyIds}
+        dirtySkillIds={dirtyItemIds}
+        dirtyAgentIds={dirtyAgentIds}
+        dirtyTeamMemberIds={teamDirtyMemberIds}
         expandedNodes={expandedNodes}
         onToggleNode={toggleNode}
         renderItemIcon={renderItemIcon}
@@ -782,6 +882,15 @@ export function SkillManagerLayout() {
         combineCopySuccess={combineCopySuccess}
         initialActiveTab={activeTab}
         onActiveTabChange={setActiveTab}
+        onSelectSkillFromMenu={setSelectedSkillId}
+        onSelectAgentFromMenu={setSelectedAgentId}
+        onSaveSkill={handleSaveSkillById}
+        onDiscardSkill={handleDiscardSkillById}
+        onSaveAgent={handleSaveAgentById}
+        onDiscardAgent={handleDiscardAgentById}
+        onSaveAll={handleSaveAllFromMenu}
+        onDiscardAll={handleDiscardAllFromMenu}
+        isSaving={isSaving || isAgentSaving}
       />
     </PanelErrorBoundary>
   )
@@ -975,9 +1084,13 @@ export function SkillManagerLayout() {
               <SkillTreeSidebar
                 treeNodes={filteredTreeNodes}
                 skills={skills}
+                agents={agents}
                 selectedItemId={selectedSkillId}
                 onSelectItem={handleSelectItem}
                 dirtyItemIds={combinedDirtyIds}
+                dirtySkillIds={dirtyItemIds}
+                dirtyAgentIds={dirtyAgentIds}
+                dirtyTeamMemberIds={teamDirtyMemberIds}
                 expandedNodes={expandedNodes}
                 onToggleNode={toggleNode}
                 renderItemIcon={renderItemIcon}
@@ -1019,6 +1132,21 @@ export function SkillManagerLayout() {
                 combineCopySuccess={combineCopySuccess}
                 initialActiveTab={activeTab}
                 onActiveTabChange={setActiveTab}
+                onSelectSkillFromMenu={(id) => {
+                  setSelectedSkillId(id)
+                  setIsMobileSidebarOpen(false)
+                }}
+                onSelectAgentFromMenu={(id) => {
+                  setSelectedAgentId(id)
+                  setIsMobileSidebarOpen(false)
+                }}
+                onSaveSkill={handleSaveSkillById}
+                onDiscardSkill={handleDiscardSkillById}
+                onSaveAgent={handleSaveAgentById}
+                onDiscardAgent={handleDiscardAgentById}
+                onSaveAll={handleSaveAllFromMenu}
+                onDiscardAll={handleDiscardAllFromMenu}
+                isSaving={isSaving || isAgentSaving}
                 className="border-r-0"
               />
             </div>
