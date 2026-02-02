@@ -161,7 +161,10 @@ func (c *Commands) Status(args []string) error {
 	fs := flag.NewFlagSet("pipeline-status", flag.ContinueOnError)
 	verbose := fs.Bool("verbose", false, "Include detailed stage logs")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+
+	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
+	reordered := reorderArgsForFlags(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 
@@ -219,7 +222,9 @@ func (c *Commands) Status(args []string) error {
 func (c *Commands) Resume(args []string) error {
 	fs := flag.NewFlagSet("pipeline-resume", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+
+	reordered := reorderArgsForFlags(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 
@@ -247,7 +252,9 @@ func (c *Commands) Resume(args []string) error {
 func (c *Commands) Cancel(args []string) error {
 	fs := flag.NewFlagSet("pipeline-cancel", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+
+	reordered := reorderArgsForFlags(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 
@@ -317,7 +324,9 @@ func (c *Commands) Active(args []string) error {
 	fs := flag.NewFlagSet("pipeline-active", flag.ContinueOnError)
 	noCreate := fs.Bool("no-create", false, "Don't create if none exists")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+
+	reordered := reorderArgsForFlags(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 
@@ -349,7 +358,9 @@ func (c *Commands) Active(args []string) error {
 func (c *Commands) Create(args []string) error {
 	fs := flag.NewFlagSet("pipeline-create", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+
+	reordered := reorderArgsForFlags(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 
@@ -377,7 +388,9 @@ func (c *Commands) Create(args []string) error {
 func (c *Commands) Reset(args []string) error {
 	fs := flag.NewFlagSet("pipeline-reset", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+
+	reordered := reorderArgsForFlags(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 
@@ -406,7 +419,9 @@ func (c *Commands) History(args []string) error {
 	fs := flag.NewFlagSet("pipeline-history", flag.ContinueOnError)
 	limit := fs.Int("limit", 10, "Number of pipelines to return")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+
+	reordered := reorderArgsForFlags(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 

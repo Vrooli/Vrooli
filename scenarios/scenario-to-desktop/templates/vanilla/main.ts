@@ -1926,10 +1926,12 @@ async function startBundledRuntime(): Promise<string> {
     ];
 
     const chromiumPath = await findChromiumPath(bundleRoot, manifestPath);
-    const runtimeEnv = { ...process.env };
+    const runtimeEnv: Record<string, string | undefined> = { ...process.env };
     if (chromiumPath && !runtimeEnv.ELECTRON_CHROMIUM_PATH) {
         runtimeEnv.ELECTRON_CHROMIUM_PATH = chromiumPath;
     }
+    // Bundled binaries cannot rebuild themselves - skip staleness checks that look for go.mod
+    runtimeEnv.VROOLI_API_SKIP_STALE_CHECK = "true";
 
     // In smoke test mode, capture stderr to emit structured error on crash
     const stdioCfg: "inherit" | ["inherit", "inherit", "pipe"] = isSmokeTest
@@ -1944,6 +1946,16 @@ async function startBundledRuntime(): Promise<string> {
     // Track stderr for smoke test error reporting
     let runtimeStderr = "";
     let runtimeExitedUnexpectedly = false;
+    let stderrErrorEmitted = false;
+
+    // Patterns that indicate specific runtime errors - emit structured markers for these
+    const runtimeErrorPatterns: Array<{ pattern: RegExp; kind: "config" | "network" | "runtime" | "validation"; message: string }> = [
+        { pattern: /no go\.mod|staleness check/i, kind: "config", message: "Go binary staleness check failed - VROOLI_API_SKIP_STALE_CHECK should be set" },
+        { pattern: /ECONNREFUSED|connection refused/i, kind: "network", message: "Connection refused - target service may not be running" },
+        { pattern: /ENOENT|no such file/i, kind: "config", message: "Required file or binary not found in bundle" },
+        { pattern: /permission denied|EACCES/i, kind: "runtime", message: "Permission denied accessing file or port" },
+        { pattern: /address already in use|EADDRINUSE/i, kind: "network", message: "Port already in use - another instance may be running" },
+    ];
 
     if (isSmokeTest && runtimeProcess.stderr) {
         runtimeProcess.stderr.on("data", (data: Buffer) => {
@@ -1951,6 +1963,17 @@ async function startBundledRuntime(): Promise<string> {
             runtimeStderr += chunk;
             // Also write to process stderr so it appears in logs
             process.stderr.write(chunk);
+
+            // Emit structured error for first matching pattern (avoid spam)
+            if (!stderrErrorEmitted) {
+                for (const { pattern, kind, message } of runtimeErrorPatterns) {
+                    if (pattern.test(chunk)) {
+                        SmokeTestProtocol.error(kind, message);
+                        stderrErrorEmitted = true;
+                        break;
+                    }
+                }
+            }
         });
     }
 

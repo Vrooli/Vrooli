@@ -17,29 +17,72 @@ import (
 // DefaultMaxOutputBytes is the default maximum output size (10MB).
 const DefaultMaxOutputBytes = 10 * 1024 * 1024
 
+// DefaultKillGracePeriod is how long to wait for a process to exit after being killed.
+const DefaultKillGracePeriod = 2 * time.Second
+
+// ProcessExecutorOption configures a DefaultProcessExecutor.
+type ProcessExecutorOption func(*DefaultProcessExecutor)
+
+// WithClock sets the clock for time-based operations.
+func WithClock(clock Clock) ProcessExecutorOption {
+	return func(e *DefaultProcessExecutor) {
+		e.clock = clock
+	}
+}
+
+// WithOutputLimit sets the maximum output size.
+func WithOutputLimit(maxBytes int) ProcessExecutorOption {
+	return func(e *DefaultProcessExecutor) {
+		if maxBytes > 0 {
+			e.maxOutputBytes = maxBytes
+		}
+	}
+}
+
+// WithKillGracePeriod sets how long to wait for process exit after kill.
+func WithKillGracePeriod(d time.Duration) ProcessExecutorOption {
+	return func(e *DefaultProcessExecutor) {
+		if d > 0 {
+			e.killGracePeriod = d
+		}
+	}
+}
+
+// WithOnProcessStarted sets a callback invoked when the process starts.
+// This is primarily for testing - allows tests to know when to cancel.
+func WithOnProcessStarted(fn func()) ProcessExecutorOption {
+	return func(e *DefaultProcessExecutor) {
+		e.onProcessStarted = fn
+	}
+}
+
 // DefaultProcessExecutor implements ProcessExecutor using real process execution.
 type DefaultProcessExecutor struct {
-	logger         Logger
-	maxOutputBytes int
+	logger           Logger
+	maxOutputBytes   int
+	clock            Clock
+	killGracePeriod  time.Duration
+	onProcessStarted func() // testing hook: called when process starts
 }
 
 // NewProcessExecutor creates a new process executor.
-func NewProcessExecutor(logger Logger) *DefaultProcessExecutor {
-	return &DefaultProcessExecutor{
-		logger:         logger,
-		maxOutputBytes: DefaultMaxOutputBytes,
+func NewProcessExecutor(logger Logger, opts ...ProcessExecutorOption) *DefaultProcessExecutor {
+	e := &DefaultProcessExecutor{
+		logger:          logger,
+		maxOutputBytes:  DefaultMaxOutputBytes,
+		clock:           RealClock{},
+		killGracePeriod: DefaultKillGracePeriod,
 	}
+	for _, opt := range opts {
+		opt(e)
+	}
+	return e
 }
 
 // NewProcessExecutorWithLimit creates a new process executor with a custom output limit.
+// Deprecated: Use NewProcessExecutor with WithOutputLimit option instead.
 func NewProcessExecutorWithLimit(logger Logger, maxOutputBytes int) *DefaultProcessExecutor {
-	if maxOutputBytes <= 0 {
-		maxOutputBytes = DefaultMaxOutputBytes
-	}
-	return &DefaultProcessExecutor{
-		logger:         logger,
-		maxOutputBytes: maxOutputBytes,
-	}
+	return NewProcessExecutor(logger, WithOutputLimit(maxOutputBytes))
 }
 
 // Execute runs a command and returns combined stdout/stderr output.
@@ -82,7 +125,7 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 	cmd.Stdout = io.MultiWriter(stdoutWriter, combinedWriter)
 	cmd.Stderr = io.MultiWriter(stderrWriter, combinedWriter)
 
-	startTime := time.Now()
+	startTime := e.clock.Now()
 
 	type execResult struct {
 		err error
@@ -90,12 +133,16 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 	resultCh := make(chan execResult, 1)
 
 	go func() {
+		// Notify test hooks that the process is starting (before cmd.Run blocks)
+		if e.onProcessStarted != nil {
+			e.onProcessStarted()
+		}
 		err := cmd.Run()
 		resultCh <- execResult{err: err}
 	}()
 
 	buildResult := func() *ExecutionResult {
-		duration := time.Since(startTime)
+		duration := e.clock.Now().Sub(startTime)
 		truncatedBytes := stdoutWriter.truncatedBytes + stderrWriter.truncatedBytes
 		result := &ExecutionResult{
 			Stdout:         stdoutWriter.String(),
@@ -127,7 +174,7 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 				return result, fmt.Errorf("command timed out after %s", timeout)
 			}
 			return result, fmt.Errorf("command cancelled")
-		case <-time.After(2 * time.Second):
+		case <-e.clock.After(e.killGracePeriod):
 			result := buildResult()
 			if execCtx.Err() == context.DeadlineExceeded {
 				return result, fmt.Errorf("command timed out after %s", timeout)
