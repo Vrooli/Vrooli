@@ -14,6 +14,7 @@
  * - POST /api/v1/tags - create tag
  * - POST /api/v1/skills/{id}/test - test with Ollama
  * - GET /api/v1/skills/{id}/test-history - get test history
+ * - GET /api/v1/agent-file-templates - list agent file templates
  *
  * All API responses are validated at runtime using Zod schemas to prevent
  * crashes from mismatched API responses.
@@ -39,6 +40,7 @@ import {
   SoulResponseSchema,
   AgentFileListResponseSchema,
   AgentFileContentResponseSchema,
+  AgentFileTemplateListResponseSchema,
   AISearchResponseSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
@@ -67,6 +69,7 @@ import {
   type AgentFileContentResponse,
   type AgentFileCreateRequest,
   type AgentFileRenameRequest,
+  type AgentFileTemplateListResponse,
   type AISearchResponse,
   type AISearchStatus,
   type AIReindexStatus,
@@ -470,6 +473,14 @@ class ApiClient {
       `/agents/${encodeURIComponent(id)}/files`,
       undefined,
       AgentFileListResponseSchema
+    )
+  }
+
+  async getAgentFileTemplates(): Promise<AgentFileTemplateListResponse> {
+    return this.request<AgentFileTemplateListResponse>(
+      '/agent-file-templates',
+      undefined,
+      AgentFileTemplateListResponseSchema
     )
   }
 

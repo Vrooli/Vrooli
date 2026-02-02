@@ -628,7 +628,7 @@ export function SkillManagerLayout() {
           accent: DEFAULT_AGENT_COLORS.accent,
         },
         capabilities: agentFromEditor.capabilities ?? undefined,
-        connectors: agentFromEditor.connectors ?? undefined,
+        connectors: agentFromEditor.connectors,
         defaultProfileRef: agentFromEditor.defaultProfileRef ?? undefined,
         heartbeat: agentFromEditor.heartbeat ?? undefined,
         tags: [...agentFromEditor.tags],
@@ -646,7 +646,7 @@ export function SkillManagerLayout() {
         description: 'Unable to duplicate agent. Try again.',
       })
     }
-  }, [agentFromEditor, createAgent, setSelectedAgentId, isMobile, toast])
+  }, [agentFromEditor, createAgent, setSelectedAgentId, isMobile])
 
   const handleConfirmDeleteAgent = useCallback(async () => {
     if (!agentFromEditor) {
@@ -666,7 +666,7 @@ export function SkillManagerLayout() {
     } finally {
       setShowDeleteAgentDialog(false)
     }
-  }, [agentFromEditor, deleteCurrentAgent, setSelectedAgentId, toast])
+  }, [agentFromEditor, deleteCurrentAgent, setSelectedAgentId])
 
   // Handle move to folder (update skill modes)
   const handleMoveToFolder = useCallback(async (skillId: string, path: string[]) => {

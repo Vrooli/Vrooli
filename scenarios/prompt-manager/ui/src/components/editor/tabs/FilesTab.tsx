@@ -64,85 +64,14 @@ interface FileNode {
   children: FileNode[]
 }
 
+interface TemplateOption {
+  id: string
+  label: string
+  content: string
+}
+
 const RESERVED_AGENT_FILE = 'agent.json'
 const RECOMMENDED_AGENT_FILES = ['AGENTS.md', 'SOUL.md', 'TOOLS.md'] as const
-const AGENT_FILE_TEMPLATES: Record<string, { label: string; content: string }[]> = {
-  'AGENTS.MD': [
-    {
-      label: 'OpenClaw-inspired starter',
-      content: `# AGENTS
-
-## Start of Session
-- Read \`SOUL.md\` to align tone and boundaries.
-- Read \`TOOLS.md\` before using any tools.
-- Scan this file for current procedures and priorities.
-
-## Operating Principles
-- Be accurate and candid. If unsure, ask.
-- Prefer small, reversible changes.
-- Keep outputs concise and actionable.
-
-## External Actions
-- Never send messages, make purchases, or trigger external side effects without explicit approval.
-
-## Memory Hygiene
-- Write durable decisions back into the relevant files.
-- If you create a new process, document it here.
-
-## Output Style
-- Use short headings and bullet points.
-- Provide checklists for multi-step tasks.
-`,
-    },
-  ],
-  'SOUL.MD': [
-    {
-      label: 'OpenClaw-inspired starter',
-      content: `# SOUL
-
-## Core Truths
-- Be genuinely helpful, not performatively helpful.
-- Protect privacy and sensitive data.
-- Optimize for clarity and correctness.
-
-## Boundaries
-- No external actions without explicit user approval.
-- If context is missing or ambiguous, ask before assuming.
-
-## Communication Style
-- Direct, calm, and specific.
-- Avoid fluff and avoid sycophancy.
-- Admit uncertainty when it exists.
-
-## Domain Identity (Optional)
-- This agent specializes in: [describe focus].
-`,
-    },
-  ],
-  'TOOLS.MD': [
-    {
-      label: 'Vrooli skill primer',
-      content: `# TOOLS
-
-## Tool Access
-You have access to tools via Vrooli skills. Before using a tool, read its skill.
-
-Use:
-\`prompt-manager skill read <skill-id>\`
-
-## Common Skills
-- browser-automation-studio — Web navigation and UI validation.
-- e2e-testing — End-to-end browser testing.
-- api-steer — API design and integration guidance.
-- cli-steer — CLI ergonomics and conventions.
-
-## Usage Rules
-- Follow skill instructions verbatim.
-- If a tool is missing, request the skill or ask for guidance.
-`,
-    },
-  ],
-}
 
 function buildFileTree(entries: AgentFileEntry[]): FileNode {
   const root: FileNode = { name: '', path: '', isDir: true, children: [] }
@@ -229,6 +158,7 @@ export function FilesTab({
   const [originalContent, setOriginalContent] = useState('')
   const [isFileLoading, setIsFileLoading] = useState(false)
   const [isFileSaving, setIsFileSaving] = useState(false)
+  const [templateOptionsByFile, setTemplateOptionsByFile] = useState<Record<string, TemplateOption[]>>({})
   const [fileDialogOpen, setFileDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'add' | 'rename'>('add')
   const [pendingPath, setPendingPath] = useState('')
@@ -260,11 +190,8 @@ export function FilesTab({
   const isDirectorySelected = selectedEntry?.isDir ?? false
   const isFileEditorActive = Boolean(selectedPath && !isDirectorySelected && !isReservedSelected)
   const isFileDirty = isFileEditorActive && fileContent !== originalContent
-  const selectedTemplateKey = selectedPath ? selectedPath.split('/').pop()?.toUpperCase() : null
-  const templateOptions =
-    selectedTemplateKey && AGENT_FILE_TEMPLATES[selectedTemplateKey]
-      ? AGENT_FILE_TEMPLATES[selectedTemplateKey]
-      : undefined
+  const selectedTemplateKey = selectedPath ? selectedPath.split('/').pop()?.toLowerCase() : null
+  const templateOptions = selectedTemplateKey ? templateOptionsByFile[selectedTemplateKey] : undefined
 
   const refreshFiles = useCallback(async () => {
     try {
@@ -282,6 +209,43 @@ export function FilesTab({
   useEffect(() => {
     void refreshFiles()
   }, [refreshFiles])
+
+  useEffect(() => {
+    let cancelled = false
+    agentService.listAgentFileTemplates()
+      .then((templates) => {
+        if (cancelled) return
+        const next: Record<string, TemplateOption[]> = {}
+        for (const template of templates) {
+          const key = template.fileName.toLowerCase()
+          const option: TemplateOption = {
+            id: template.id,
+            label: template.name,
+            content: template.content,
+          }
+          if (!next[key]) {
+            next[key] = [option]
+          } else {
+            next[key].push(option)
+          }
+        }
+        for (const key of Object.keys(next)) {
+          next[key]?.sort((a, b) => a.label.localeCompare(b.label))
+        }
+        setTemplateOptionsByFile(next)
+      })
+      .catch((error: unknown) => {
+        console.warn('[FilesTab] Failed to load templates:', error)
+        toast({
+          title: 'Unable to load templates',
+          description: 'Check the API server and try again.',
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     setExpandedPaths(new Set())
@@ -481,7 +445,7 @@ export function FilesTab({
         return false
       }
     },
-    [agentId, ensureExpandedForPath, refreshFiles, selectedPath, toast]
+    [agentId, ensureExpandedForPath, refreshFiles, selectedPath]
   )
 
   const handleConfirmDialog = useCallback(async () => {
@@ -520,7 +484,6 @@ export function FilesTab({
     handleCloseDialog,
     handleRenameFile,
     refreshFiles,
-    toast,
   ])
 
   const handleDelete = useCallback(
@@ -546,7 +509,7 @@ export function FilesTab({
         setContextMenu(null)
       }
     },
-    [agentId, refreshFiles, selectedPath, toast]
+    [agentId, refreshFiles, selectedPath]
   )
 
   const handleContextMenu = useCallback(
@@ -626,7 +589,7 @@ export function FilesTab({
       >
         {templateOptions.map((template) => (
           <DropdownItem
-            key={template.label}
+            key={template.id}
             onClick={() => handleApplyTemplate(template.content)}
             icon={<FileText className="h-4 w-4" />}
             label={template.label}

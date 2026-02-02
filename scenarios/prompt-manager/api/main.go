@@ -25,6 +25,7 @@ import (
 	"prompt-manager/store"
 	"prompt-manager/tags"
 	"prompt-manager/teams"
+	"prompt-manager/templates"
 	"prompt-manager/testing"
 
 	"github.com/vrooli/api-core/database"
@@ -94,6 +95,7 @@ func main() {
 	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, absStoreDir)
 	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
+	templateHandlers := templates.NewHandlers(templates.NewStore(absStoreDir))
 
 	// Agent handlers (new storage-backed, replaces member handlers)
 	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), absStoreDir)
@@ -238,6 +240,9 @@ func main() {
 	v1.HandleFunc("/agents/{id}/files", agentHandlers.CreateFile).Methods("POST")
 	v1.HandleFunc("/agents/{id}/files/rename", agentHandlers.RenameFile).Methods("POST")
 	v1.HandleFunc("/agents/{id}/files", agentHandlers.DeleteFile).Methods("DELETE")
+
+	// Agent file templates
+	v1.HandleFunc("/agent-file-templates", templateHandlers.ListAgentFileTemplates).Methods("GET")
 
 	// Team routes
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes())

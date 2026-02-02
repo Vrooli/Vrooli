@@ -22,6 +22,7 @@ import type {
   AgentFileEntry,
   AgentFileCreateRequest,
   AgentFileRenameRequest,
+  AgentFileTemplate,
 } from '@/lib/schemas'
 
 // Create cache for agents list
@@ -135,6 +136,14 @@ export async function setAgentSoul(agentId: string, content: string): Promise<vo
 export async function listAgentFiles(agentId: string): Promise<AgentFileEntry[]> {
   const response = await api.listAgentFiles(agentId)
   return response.files
+}
+
+/**
+ * List available agent file templates.
+ */
+export async function listAgentFileTemplates(): Promise<AgentFileTemplate[]> {
+  const response = await api.getAgentFileTemplates()
+  return response.templates
 }
 
 /**

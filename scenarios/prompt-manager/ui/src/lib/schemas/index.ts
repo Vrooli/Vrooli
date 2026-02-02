@@ -148,3 +148,11 @@ export {
   type UpdateMemberRequest,
   type SetRolesRequest,
 } from './team.schema'
+
+// Template schemas
+export {
+  AgentFileTemplateSchema,
+  AgentFileTemplateListResponseSchema,
+  type AgentFileTemplate,
+  type AgentFileTemplateListResponse,
+} from './template.schema'

@@ -84,6 +84,7 @@ func ensureStoreDirectories(storeDir string) {
 		filepath.Join(storeDir, "skills", "packs", "core"),
 		filepath.Join(storeDir, "skills", "packs", "local"),
 		filepath.Join(storeDir, "skills", "packs", "drafts"),
+		filepath.Join(storeDir, "templates", "agent-files"),
 		filepath.Join(storeDir, "agents"),
 		filepath.Join(storeDir, "teams"),
 		filepath.Join(storeDir, "relations", "agent-skill"),
