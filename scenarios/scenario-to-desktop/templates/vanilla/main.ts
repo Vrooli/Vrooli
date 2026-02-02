@@ -1931,12 +1931,40 @@ async function startBundledRuntime(): Promise<string> {
         runtimeEnv.ELECTRON_CHROMIUM_PATH = chromiumPath;
     }
 
+    // In smoke test mode, capture stderr to emit structured error on crash
+    const stdioCfg: "inherit" | ["inherit", "inherit", "pipe"] = isSmokeTest
+        ? ["inherit", "inherit", "pipe"]
+        : "inherit";
+
     runtimeProcess = spawn(runtimePath, args, {
-        stdio: "inherit",
+        stdio: stdioCfg,
         env: runtimeEnv,
     });
+
+    // Track stderr for smoke test error reporting
+    let runtimeStderr = "";
+    let runtimeExitedUnexpectedly = false;
+
+    if (isSmokeTest && runtimeProcess.stderr) {
+        runtimeProcess.stderr.on("data", (data: Buffer) => {
+            const chunk = data.toString();
+            runtimeStderr += chunk;
+            // Also write to process stderr so it appears in logs
+            process.stderr.write(chunk);
+        });
+    }
+
     runtimeProcess.on("exit", (code, signal) => {
         void recordTelemetry("bundled_runtime_exit", { code, signal });
+
+        // In smoke test mode, emit structured error if runtime crashed unexpectedly
+        if (isSmokeTest && code !== 0 && code !== null) {
+            runtimeExitedUnexpectedly = true;
+            const errorMsg = runtimeStderr.trim()
+                ? `Bundled runtime crashed (exit ${code}): ${runtimeStderr.slice(0, 200)}`
+                : `Bundled runtime crashed with exit code ${code}`;
+            SmokeTestProtocol.error("runtime", errorMsg);
+        }
     });
 
     await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
@@ -2045,6 +2073,12 @@ async function startScenarioServer() {
     console.log(`[Desktop App] Starting scenario server: ${serverPath}`);
 
     try {
+        // In smoke test mode, capture stderr for error reporting
+        const serverStdioCfg: "inherit" | ["inherit", "inherit", "pipe"] = isSmokeTest
+            ? ["inherit", "inherit", "pipe"]
+            : "inherit";
+        let serverStderr = "";
+
         if (APP_CONFIG.SERVER_TYPE === "node") {
             serverProcess = fork(serverPath, [], {
                 env: {
@@ -2053,7 +2087,7 @@ async function startScenarioServer() {
                     DESKTOP_MODE: "true",
                     API_ENDPOINT: APP_CONFIG.API_ENDPOINT,
                 },
-                stdio: "inherit",
+                stdio: serverStdioCfg,
             });
         } else if (APP_CONFIG.SERVER_TYPE === "executable") {
             serverProcess = spawn(serverPath, [], {
@@ -2063,7 +2097,7 @@ async function startScenarioServer() {
                     DESKTOP_MODE: "true",
                     API_ENDPOINT: APP_CONFIG.API_ENDPOINT,
                 },
-                stdio: "inherit",
+                stdio: serverStdioCfg,
             });
         }
 
@@ -2073,13 +2107,33 @@ async function startScenarioServer() {
         });
 
         if (serverProcess) {
+            // Capture stderr in smoke test mode
+            if (isSmokeTest && serverProcess.stderr) {
+                serverProcess.stderr.on("data", (data: Buffer) => {
+                    const chunk = data.toString();
+                    serverStderr += chunk;
+                    process.stderr.write(chunk);
+                });
+            }
+
             serverProcess.on("error", (error) => {
                 console.error(`[Desktop App] Server process error: ${error}`);
-                dialog.showErrorBox("Server Error", `Failed to start scenario server: ${error.message}`);
+                if (isSmokeTest) {
+                    SmokeTestProtocol.error("runtime", `Server process error: ${error.message}`);
+                } else {
+                    dialog.showErrorBox("Server Error", `Failed to start scenario server: ${error.message}`);
+                }
             });
 
             serverProcess.on("exit", (code, signal) => {
                 console.log(`[Desktop App] Server process exited with code ${code} and signal ${signal}`);
+                // In smoke test mode, emit error on unexpected exit
+                if (isSmokeTest && code !== 0 && code !== null) {
+                    const errorMsg = serverStderr.trim()
+                        ? `Server crashed (exit ${code}): ${serverStderr.slice(0, 200)}`
+                        : `Server crashed with exit code ${code}`;
+                    SmokeTestProtocol.error("runtime", errorMsg);
+                }
             });
         }
     } catch (error) {

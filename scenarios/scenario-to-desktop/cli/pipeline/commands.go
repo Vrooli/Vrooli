@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -542,6 +543,42 @@ type stageResult struct {
 	Error     string          `json:"error,omitempty"`
 	ErrorInfo *stageErrorInfo `json:"error_info,omitempty"`
 	Logs      []string        `json:"logs,omitempty"`
+	Details   json.RawMessage `json:"details,omitempty"`
+}
+
+// getSmokeTestDetails extracts smoke test details from the raw JSON details.
+func (s *stageResult) getSmokeTestDetails() *smokeTestDetails {
+	if len(s.Details) == 0 {
+		return nil
+	}
+	var details smokeTestDetails
+	if err := json.Unmarshal(s.Details, &details); err != nil {
+		return nil
+	}
+	// Check if we actually got meaningful data - now also check error_context
+	if details.LastStdout == "" && details.LastStderr == "" && len(details.ErrorContext) == 0 {
+		return nil
+	}
+	return &details
+}
+
+// getStderr returns stderr from either LastStderr or ErrorContext.
+func (d *smokeTestDetails) getStderr() string {
+	if d.LastStderr != "" {
+		return d.LastStderr
+	}
+	if d.ErrorContext != nil {
+		return d.ErrorContext["stderr"]
+	}
+	return ""
+}
+
+// getLifecycleState returns the last lifecycle state from ErrorContext.
+func (d *smokeTestDetails) getLifecycleState() string {
+	if d.ErrorContext != nil {
+		return d.ErrorContext["last_lifecycle_state"]
+	}
+	return ""
 }
 
 // stageErrorInfo contains structured error information for stage failures.
@@ -573,6 +610,136 @@ type processDiagnostic struct {
 	ExitCode   int    `json:"exit_code,omitempty"`
 }
 
+// smokeTestDetails contains smoke test execution details from the API response.
+type smokeTestDetails struct {
+	LastStdout   string            `json:"last_stdout,omitempty"`
+	LastStderr   string            `json:"last_stderr,omitempty"`
+	Error        string            `json:"error,omitempty"`
+	ErrorKind    int               `json:"error_kind,omitempty"`
+	ErrorContext map[string]string `json:"error_context,omitempty"`
+	CurrentState string            `json:"current_state,omitempty"`
+}
+
+// stderrPattern represents a pattern to match in stderr with associated recovery hint.
+type stderrPattern struct {
+	pattern  *regexp.Regexp
+	hint     string
+	category string // For grouping related errors
+}
+
+// stderrPatterns contains patterns to match common errors in stderr.
+var stderrPatterns = []stderrPattern{
+	{
+		pattern:  regexp.MustCompile(`no go\.mod|unable to resolve paths for staleness`),
+		hint:     "The bundled binary is trying to find Go source files. Ensure VROOLI_API_SKIP_STALE_CHECK=true is set in the bundle environment.",
+		category: "go_module",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)permission denied`),
+		hint:     "Check file permissions. Ensure the artifact is executable: chmod +x <artifact>",
+		category: "permissions",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)GLIBC.*not found|version.*GLIBC`),
+		hint:     "System GLIBC version mismatch. The binary was built for a different Linux version. Rebuild on a compatible system or use a container.",
+		category: "glibc",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)ENOENT|no such file or directory`),
+		hint:     "Required file or dependency not found. Check the bundle contains all required files.",
+		category: "missing_file",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)EACCES|access denied`),
+		hint:     "Access denied. Check permissions and ensure the app isn't blocked by security software.",
+		category: "access",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)libgtk|libX11|cannot open shared object|libGL`),
+		hint:     "Missing system library. Install Electron dependencies: sudo apt-get install libgtk-3-0 libnotify4 libnss3 libxss1",
+		category: "shared_lib",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)ECONNREFUSED|connection refused`),
+		hint:     "Server connection refused. Ensure the target server is running and accessible.",
+		category: "connection",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)ETIMEDOUT|timeout|timed out`),
+		hint:     "Connection or operation timed out. Check network connectivity and increase timeout if needed.",
+		category: "timeout",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)out of memory|OOM|heap`),
+		hint:     "Out of memory. The system may not have enough RAM. Try closing other applications.",
+		category: "memory",
+	},
+	{
+		pattern:  regexp.MustCompile(`(?i)segmentation fault|SIGSEGV`),
+		hint:     "App crashed with segmentation fault. This may indicate a binary incompatibility or corrupted artifact.",
+		category: "crash",
+	},
+}
+
+// analyzeStderr matches stderr against known patterns and returns a targeted hint.
+func analyzeStderr(stderr string) string {
+	for _, p := range stderrPatterns {
+		if p.pattern.MatchString(stderr) {
+			return p.hint
+		}
+	}
+	return ""
+}
+
+// lifecycleStateDescription returns a human-readable description of where the failure occurred.
+func lifecycleStateDescription(state string) string {
+	switch state {
+	case "":
+		return "App crashed before smoke test initialization code ran. This usually indicates an Electron startup failure or missing dependencies."
+	case "init":
+		return "App started smoke test but crashed during initialization. A bundled service likely failed to start."
+	case "ready":
+		return "App initialized but failed during server connectivity check. The target server may not be running or accessible."
+	case "result":
+		return "App reported a result but crashed during cleanup. This is usually non-fatal."
+	case "exit":
+		return "App completed the smoke test lifecycle. If still failing, there may be a race condition in result reporting."
+	default:
+		return fmt.Sprintf("App reached state '%s' before failing.", state)
+	}
+}
+
+// smokeTestErrorPattern matches SMOKE_TEST_ERROR markers in app output.
+// Format: SMOKE_TEST_ERROR kind=<kind> msg="<message>"
+var smokeTestErrorPattern = regexp.MustCompile(`SMOKE_TEST_ERROR kind=(\w+) msg="([^"]+)"`)
+
+// extractSmokeTestErrorHint extracts the first config/validation error from smoke test output.
+// Returns the error message if found, empty string otherwise.
+func extractSmokeTestErrorHint(stdout, stderr string) string {
+	// Check stdout first (where structured markers are written)
+	matches := smokeTestErrorPattern.FindAllStringSubmatch(stdout, -1)
+	for _, match := range matches {
+		if len(match) >= 3 {
+			kind := match[1]
+			msg := match[2]
+			// Prioritize config errors as they're most actionable
+			if kind == "config" || kind == "validation" {
+				return msg
+			}
+		}
+	}
+
+	// Check stderr as fallback
+	matches = smokeTestErrorPattern.FindAllStringSubmatch(stderr, -1)
+	for _, match := range matches {
+		if len(match) >= 3 {
+			return match[2] // Return first error found
+		}
+	}
+
+	return ""
+}
+
 // printPipelineError prints detailed error information from a failed pipeline.
 func printPipelineError(status *pipelineStatus) {
 	// Print the top-level error if present
@@ -591,6 +758,25 @@ func printPipelineError(status *pipelineStatus) {
 			fmt.Printf("Stage '%s' failed: %s\n", stageName, stage.Error)
 		}
 
+		// For smoketest failures, extract and display rich diagnostic information
+		var smokeDetails *smokeTestDetails
+		if stageName == "smoketest" {
+			smokeDetails = stage.getSmokeTestDetails()
+		}
+
+		// Print lifecycle state context for smoke test failures
+		if smokeDetails != nil {
+			lifecycleState := smokeDetails.getLifecycleState()
+			if lifecycleState != "" || smokeDetails.CurrentState != "" {
+				state := lifecycleState
+				if state == "" {
+					state = smokeDetails.CurrentState
+				}
+				fmt.Printf("\nLifecycle state: %s\n", state)
+				fmt.Printf("  %s\n", lifecycleStateDescription(state))
+			}
+		}
+
 		// Print rich error info if available
 		if stage.ErrorInfo != nil {
 			info := stage.ErrorInfo
@@ -600,8 +786,40 @@ func printPipelineError(status *pipelineStatus) {
 				fmt.Printf("Error code: %s\n", info.Code)
 			}
 
-			// Recovery guidance
-			if info.RecoveryHint != "" {
+			// For smoketest failures, build a prioritized recovery hint:
+			// 1. Pattern-matched stderr analysis (most specific)
+			// 2. SMOKE_TEST_ERROR markers from app
+			// 3. Generic recovery hint
+			recoveryHint := ""
+			if smokeDetails != nil {
+				stderr := smokeDetails.getStderr()
+
+				// First, try to analyze stderr for common patterns
+				if stderr != "" {
+					recoveryHint = analyzeStderr(stderr)
+				}
+
+				// If no pattern match, try SMOKE_TEST_ERROR markers
+				if recoveryHint == "" {
+					recoveryHint = extractSmokeTestErrorHint(smokeDetails.LastStdout, smokeDetails.LastStderr)
+				}
+
+				// Show stderr prominently if it contains useful info
+				if stderr != "" && !strings.Contains(stderr, "ExperimentalWarning") {
+					stderrDisplay := strings.TrimSpace(stderr)
+					if len(stderrDisplay) > 500 {
+						stderrDisplay = stderrDisplay[:500] + "...(truncated)"
+					}
+					if stderrDisplay != "" {
+						fmt.Printf("\nRoot cause (stderr):\n  %s\n", strings.ReplaceAll(stderrDisplay, "\n", "\n  "))
+					}
+				}
+			}
+
+			// Recovery guidance - prefer specific hint over generic
+			if recoveryHint != "" {
+				fmt.Printf("\nRecovery: %s\n", recoveryHint)
+			} else if info.RecoveryHint != "" {
 				fmt.Printf("\nRecovery: %s\n", info.RecoveryHint)
 			} else if info.Recovery != "" {
 				fmt.Printf("\nRecovery action: %s\n", info.Recovery)
@@ -627,9 +845,9 @@ func printPipelineError(status *pipelineStatus) {
 				}
 			}
 
-			// Last output from process (truncated)
+			// Last output from process (truncated) - only show if no stderr already displayed
 			if info.Diagnostic != nil && info.Diagnostic.Process != nil {
-				if info.Diagnostic.Process.LastOutput != "" {
+				if info.Diagnostic.Process.LastOutput != "" && smokeDetails == nil {
 					output := info.Diagnostic.Process.LastOutput
 					// Truncate if too long
 					if len(output) > 500 {

@@ -139,7 +139,26 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	}
 	if input.BundleResult != nil {
 		desktopConfig.BundleManifestPath = input.BundleResult.ManifestPath
-		desktopConfig.BundleRuntimeRoot = input.BundleResult.BundleDir
+		// Use relative path "bundle" instead of absolute source path.
+		// electron-builder copies bundle/ to resources/bundle via extraResources,
+		// so the packaged app must look for "bundle" relative to resources path.
+		desktopConfig.BundleRuntimeRoot = "bundle"
+	}
+
+	// Validate that BundleRuntimeRoot is never an absolute path.
+	// Absolute paths would be embedded in the generated code and break after packaging
+	// since the app runs from a different location than where it was built.
+	if desktopConfig.BundleRuntimeRoot != "" && filepath.IsAbs(desktopConfig.BundleRuntimeRoot) {
+		failStage(result, s.timeProvider, errors.New(errors.CodeConfigInvalid,
+			fmt.Sprintf("BundleRuntimeRoot must be a relative path, got absolute path: %s", desktopConfig.BundleRuntimeRoot)).
+			WithRecovery(errors.RecoveryFixInput,
+				"BundleRuntimeRoot should be 'bundle' (relative) so the packaged app finds assets in resources/bundle").
+			WithManualSteps([]string{
+				"Check that BundleRuntimeRoot is set to 'bundle' (relative path)",
+				"The electron-builder extraResources config copies bundle/ to resources/bundle",
+				"Absolute paths break after packaging because the app runs from a different location",
+			}))
+		return result
 	}
 
 	// For bundled deployment mode, extraResources should point to the bundle directory
