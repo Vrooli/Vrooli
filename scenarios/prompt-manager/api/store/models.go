@@ -80,6 +80,8 @@ type Team struct {
 	ID          string      `json:"id"`
 	DisplayName string      `json:"displayName"`
 	Mission     string      `json:"mission,omitempty"`
+	Enabled     bool        `json:"enabled"`
+	EnabledSet  bool        `json:"-"`
 	Shared      *TeamShared `json:"shared,omitempty"`
 	Timestamps
 }

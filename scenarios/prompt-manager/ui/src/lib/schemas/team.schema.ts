@@ -54,6 +54,7 @@ export const TeamSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   mission: z.string().optional(),
+  enabled: z.boolean().optional().default(false),
   memberCount: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -95,6 +96,7 @@ export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
 export const UpdateTeamRequestSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   mission: z.string().max(500).optional(),
+  enabled: z.boolean().optional(),
 })
 
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>

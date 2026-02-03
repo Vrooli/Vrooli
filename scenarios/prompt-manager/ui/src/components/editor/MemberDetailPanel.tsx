@@ -361,7 +361,7 @@ export function MemberDetailPanel({
             </p>
             {team.roles.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">
-                No roles defined. Add roles in the Roles tab.
+                No roles defined. Add roles in the Info tab.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">

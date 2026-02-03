@@ -126,8 +126,18 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// Schedule if enabled
-	if config.Enabled && h.scheduler != nil {
+	if config.Enabled && team.Enabled && h.scheduler != nil {
 		if err := h.scheduler.Schedule(teamID, agentID, config.Schedule); err != nil {
 			// Log error but don't fail - config is saved
 			config.Enabled = false
@@ -170,6 +180,16 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// Apply updates
 	if req.Schedule != nil {
 		config.Schedule = *req.Schedule
@@ -189,7 +209,7 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	// Handle schedule changes
 	if h.scheduler != nil {
-		if config.Enabled && (!wasEnabled || req.Schedule != nil) {
+		if config.Enabled && team.Enabled && (!wasEnabled || req.Schedule != nil) {
 			// Need to (re)schedule
 			if err := h.scheduler.Schedule(teamID, agentID, config.Schedule); err != nil {
 				config.Enabled = false
@@ -197,7 +217,7 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Invalid cron schedule: "+err.Error(), http.StatusBadRequest)
 				return
 			}
-		} else if !config.Enabled && wasEnabled {
+		} else if (!config.Enabled && wasEnabled) || (!team.Enabled && wasEnabled) {
 			// Need to unschedule
 			h.scheduler.Unschedule(teamID, agentID)
 		}

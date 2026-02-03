@@ -81,6 +81,9 @@ func (m *MockTeamStore) Update(ctx context.Context, id string, updates *store.Te
 	if updates.Mission != "" {
 		existing.Mission = updates.Mission
 	}
+	if updates.EnabledSet {
+		existing.Enabled = updates.Enabled
+	}
 	return nil
 }
 
@@ -326,7 +329,7 @@ func setupTestHandlers() (*Handlers, *MockTeamStore, *MockAgentStore, *MockRelat
 	agentStore := NewMockAgentStore()
 	relationStore := NewMockRelationStore()
 	indexStore := &MockIndexStore{}
-	handlers := NewHandlers(teamStore, agentStore, relationStore, indexStore)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, indexStore, nil)
 	return handlers, teamStore, agentStore, relationStore
 }
 

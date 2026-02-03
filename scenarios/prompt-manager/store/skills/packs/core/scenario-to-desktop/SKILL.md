@@ -53,10 +53,10 @@ Always use `--wait` for synchronous execution (blocks until complete, proper exi
 
 ```bash
 # Build desktop app for Linux
-scenario-to-desktop pipeline run my-scenario --platforms linux --wait
+scenario-to-desktop pipeline run {{TARGET}} --platforms linux --wait
 
 # Download the built installer
-scenario-to-desktop download my-scenario linux --output my-scenario.AppImage
+scenario-to-desktop download {{TARGET}} linux --output {{TARGET}}.AppImage
 ```
 
 **Pipeline stages:** `bundle` → `preflight` → `generate` → `build` → (optional: `distribution`, `smoketest`)
@@ -74,11 +74,11 @@ Collect and analyze telemetry from deployed desktop apps:
 
 ```bash
 # Ingest telemetry file from user
-scenario-to-desktop telemetry ingest my-scenario --file user-telemetry.jsonl
+scenario-to-desktop telemetry ingest {{TARGET}} --file user-telemetry.jsonl
 
 # View summary and AI insights
-scenario-to-desktop telemetry summary my-scenario
-scenario-to-desktop telemetry insights my-scenario
+scenario-to-desktop telemetry summary {{TARGET}}
+scenario-to-desktop telemetry insights {{TARGET}}
 ```
 
 **Telemetry file locations:**
@@ -98,11 +98,11 @@ scenario-to-desktop signing prerequisites
 scenario-to-desktop signing discover linux
 
 # For Linux, generate GPG key if needed
-scenario-to-desktop signing generate-key my-scenario --name "My Company" --email "dev@example.com"
+scenario-to-desktop signing generate-key {{TARGET}} --name "My Company" --email "dev@example.com"
 
 # Set and validate signing config
-scenario-to-desktop signing set my-scenario --config @signing.json
-scenario-to-desktop signing validate my-scenario
+scenario-to-desktop signing set {{TARGET}} --config @signing.json
+scenario-to-desktop signing validate {{TARGET}}
 ```
 
 ---
@@ -203,7 +203,7 @@ scenario-to-desktop pipeline status <id> --json
 
 **Debug mode:** Use `--debug` flag to see raw API responses:
 ```bash
-scenario-to-desktop pipeline run my-scenario --wait --debug
+scenario-to-desktop pipeline run {{TARGET}} --wait --debug
 ```
 
 ---

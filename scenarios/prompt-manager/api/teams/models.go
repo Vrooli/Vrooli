@@ -8,6 +8,7 @@ type Response struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"displayName"`
 	Mission     string `json:"mission,omitempty"`
+	Enabled     bool   `json:"enabled"`
 	MemberCount int    `json:"memberCount"`
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
@@ -69,6 +70,7 @@ type CreateRequest struct {
 type UpdateRequest struct {
 	DisplayName *string `json:"displayName,omitempty"`
 	Mission     *string `json:"mission,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
 }
 
 // AddMemberRequest is the request body for adding a member to a team.

@@ -4,11 +4,12 @@
   "id": "example",
   "displayName": "Example Team",
   "mission": "Demonstrate the team structure and serve as a template for new teams.",
+  "enabled": true,
   "shared": {
     "path": "shared/",
     "mountHint": "readOnly"
   },
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-01-31T12:00:00Z",
-  "updatedAt": "2026-01-31T12:00:00Z"
+  "updatedAt": "2026-02-03T04:13:15Z"
 }

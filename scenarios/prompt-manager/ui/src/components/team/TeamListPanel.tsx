@@ -86,8 +86,13 @@ export function TeamListPanel({
               data-team-id={team.id}
             >
               {/* Team icon */}
-              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-primary/20">
-                <Users className="h-4 w-4 text-primary" />
+              <div
+                className={cn(
+                  'w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center',
+                  team.enabled ? 'bg-primary/20' : 'bg-muted'
+                )}
+              >
+                <Users className={cn('h-4 w-4', team.enabled ? 'text-primary' : 'text-muted-foreground')} />
               </div>
 
               {/* Team info */}
@@ -95,9 +100,21 @@ export function TeamListPanel({
                 <p className="text-sm font-medium text-foreground truncate">
                   {team.displayName}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
-                </p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>
+                    {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
+                  </span>
+                  <span
+                    className={cn(
+                      'px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide',
+                      team.enabled
+                        ? 'bg-emerald-500/15 text-emerald-500'
+                        : 'bg-slate-500/20 text-slate-400'
+                    )}
+                  >
+                    {team.enabled ? 'On' : 'Off'}
+                  </span>
+                </div>
               </div>
 
               {/* Actions */}

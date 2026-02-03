@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -16,20 +17,39 @@ import (
 
 // Handlers provides HTTP handlers for team operations.
 type Handlers struct {
-	teamStore     store.TeamStore
-	agentStore    store.AgentStore
-	relationStore store.RelationStore
-	indexStore    store.IndexStore
+	teamStore          store.TeamStore
+	agentStore         store.AgentStore
+	relationStore      store.RelationStore
+	indexStore         store.IndexStore
+	heartbeatScheduler HeartbeatScheduler
 }
 
 // NewHandlers creates a new teams handler.
-func NewHandlers(teamStore store.TeamStore, agentStore store.AgentStore, relationStore store.RelationStore, indexStore store.IndexStore) *Handlers {
+func NewHandlers(
+	teamStore store.TeamStore,
+	agentStore store.AgentStore,
+	relationStore store.RelationStore,
+	indexStore store.IndexStore,
+	heartbeatScheduler HeartbeatScheduler,
+) *Handlers {
 	return &Handlers{
-		teamStore:     teamStore,
-		agentStore:    agentStore,
-		relationStore: relationStore,
-		indexStore:    indexStore,
+		teamStore:          teamStore,
+		agentStore:         agentStore,
+		relationStore:      relationStore,
+		indexStore:         indexStore,
+		heartbeatScheduler: heartbeatScheduler,
 	}
+}
+
+// HeartbeatScheduler defines the scheduler behavior needed by team handlers.
+type HeartbeatScheduler interface {
+	Schedule(teamID, agentID, schedule string) error
+	Unschedule(teamID, agentID string)
+}
+
+// SetHeartbeatScheduler attaches a scheduler after handlers are constructed.
+func (h *Handlers) SetHeartbeatScheduler(scheduler HeartbeatScheduler) {
+	h.heartbeatScheduler = scheduler
 }
 
 // List handles GET /teams - returns all teams.
@@ -135,6 +155,10 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Mission != nil {
 		updates.Mission = *req.Mission
 	}
+	if req.Enabled != nil {
+		updates.Enabled = *req.Enabled
+		updates.EnabledSet = true
+	}
 
 	if err := h.teamStore.Update(ctx, id, updates); err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -148,6 +172,10 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	// Regenerate index
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
+	}
+
+	if req.Enabled != nil {
+		h.updateHeartbeatSchedules(ctx, id, *req.Enabled)
 	}
 
 	// Get updated team
@@ -688,6 +716,36 @@ func (h *Handlers) DeleteSharedFile(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 
+func (h *Handlers) updateHeartbeatSchedules(ctx context.Context, teamID string, enable bool) {
+	if h.heartbeatScheduler == nil {
+		return
+	}
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return
+	}
+
+	configs, err := fileStore.ListHeartbeatConfigs(ctx, teamID)
+	if err != nil {
+		log.Printf("Warning: Failed to list heartbeat configs for team %s: %v", teamID, err)
+		return
+	}
+
+	for _, config := range configs {
+		if enable {
+			if !config.Enabled {
+				continue
+			}
+			if err := h.heartbeatScheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
+				log.Printf("Warning: Failed to schedule heartbeat for %s/%s: %v", config.TeamID, config.AgentID, err)
+			}
+			continue
+		}
+		h.heartbeatScheduler.Unschedule(config.TeamID, config.AgentID)
+	}
+}
+
 func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 	memberCount := 0
 	if h.relationStore != nil {
@@ -701,6 +759,7 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 		ID:          t.ID,
 		DisplayName: t.DisplayName,
 		Mission:     t.Mission,
+		Enabled:     t.Enabled,
 		MemberCount: memberCount,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,

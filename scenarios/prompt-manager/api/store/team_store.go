@@ -126,6 +126,9 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.Mission != "" {
 		team.Mission = updates.Mission
 	}
+	if updates.EnabledSet {
+		team.Enabled = updates.Enabled
+	}
 	if updates.Shared != nil {
 		team.Shared = updates.Shared
 	}

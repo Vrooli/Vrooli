@@ -6,13 +6,13 @@
  * - Editable mission statement
  * - Split-panel Members tab: Org chart (left) + Member detail (right)
  * - Toggle between Graph and Code views in Members tab
- * - Secondary tabs: Roles, Info
+ * - Tabs: Info, Members, Files
  * - Keyboard shortcuts: Escape (close), Ctrl+S (save)
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Shield, Info, ChevronDown, ChevronUp, GripVertical, Network, Code, Folder } from 'lucide-react'
+import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Network, Code, Folder, Power } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -27,7 +27,7 @@ import { OrgChartPanel } from './OrgChartPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
 import { MemberPickerModal } from './teamTabs/MembersTab'
-import { RolesTab, TeamInfoTab, TeamFilesTab } from './teamTabs'
+import { TeamInfoTab, TeamFilesTab } from './teamTabs'
 
 // ============================================================================
 // Types
@@ -73,7 +73,7 @@ export function TeamEditorPanel({
   className,
 }: TeamEditorPanelProps) {
   // Active tab state
-  const [activeTab, setActiveTab] = useState('members')
+  const [activeTab, setActiveTab] = useState('info')
 
   // Mission expanded state
   const [isMissionExpanded, setIsMissionExpanded] = useState(false)
@@ -188,6 +188,11 @@ export function TeamEditorPanel({
     [team, onUpdate]
   )
 
+  const handleToggleTeam = useCallback(async () => {
+    if (!team) return
+    await onUpdate({ enabled: !team.enabled })
+  }, [team, onUpdate])
+
   // Handle edge update
   const handleEdgeUpdate = useCallback(
     async (agentId: string, managerId: string | null) => {
@@ -300,10 +305,28 @@ export function TeamEditorPanel({
             />
           </div>
 
-          {/* Member count badge */}
-          <span className="px-2 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full">
-            {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Member count badge */}
+            <span className="px-2 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full">
+              {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleToggleTeam()}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors',
+                team.enabled
+                  ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'
+                  : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+              )}
+              title={team.enabled ? 'Turn team off' : 'Turn team on'}
+              aria-label={team.enabled ? 'Turn team off' : 'Turn team on'}
+              aria-pressed={team.enabled}
+            >
+              <Power className="h-3.5 w-3.5" />
+              {team.enabled ? 'Team On' : 'Team Off'}
+            </button>
+          </div>
         </div>
 
         {/* Row 2: Expandable mission */}
@@ -342,10 +365,9 @@ export function TeamEditorPanel({
       >
         {/* Tab List */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
+          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
           <TabTrigger value="members" icon={<Users className="h-4 w-4" />} label="Members" />
           <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
-          <TabTrigger value="roles" icon={<Shield className="h-4 w-4" />} label="Roles" />
-          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </Tabs.List>
 
         {/* Tab Content */}
@@ -433,24 +455,17 @@ export function TeamEditorPanel({
           </Tabs.Content>
 
           <Tabs.Content
+            value="info"
+            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
+          >
+            <TeamInfoTab team={team} onSetRoles={onSetRoles} />
+          </Tabs.Content>
+
+          <Tabs.Content
             value="files"
             className="flex-1 min-h-0 data-[state=inactive]:hidden"
           >
             <TeamFilesTab teamId={team.id} className="h-full min-h-0" />
-          </Tabs.Content>
-
-          <Tabs.Content
-            value="roles"
-            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
-          >
-            <RolesTab team={team} onSetRoles={onSetRoles} />
-          </Tabs.Content>
-
-          <Tabs.Content
-            value="info"
-            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
-          >
-            <TeamInfoTab team={team} />
           </Tabs.Content>
         </div>
       </Tabs.Root>

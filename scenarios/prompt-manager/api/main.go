@@ -244,7 +244,7 @@ func main() {
 	v1.HandleFunc("/agent-file-templates", templateHandlers.ListAgentFileTemplates).Methods("GET")
 
 	// Team routes
-	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes())
+	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
 	v1.HandleFunc("/teams", teamHandlers.List).Methods("GET")
 	v1.HandleFunc("/teams", teamHandlers.Create).Methods("POST")
 	v1.HandleFunc("/teams/{id}", teamHandlers.Get).Methods("GET")
@@ -292,6 +292,7 @@ func main() {
 		heartbeatScheduler,
 		heartbeatExecutor,
 	)
+	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 
 	// Start scheduler (doesn't auto-start heartbeats - they must be explicitly enabled)
 	go func() {
@@ -302,6 +303,9 @@ func main() {
 		// Load enabled heartbeats from all teams
 		teams, _ := fileStore.Teams().List(context.Background())
 		for _, team := range teams {
+			if !team.Enabled {
+				continue
+			}
 			configs, _ := fileStore.Teams().(*store.FileTeamStore).ListHeartbeatConfigs(context.Background(), team.ID)
 			for _, config := range configs {
 				if config.Enabled {

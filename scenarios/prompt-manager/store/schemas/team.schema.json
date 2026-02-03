@@ -40,6 +40,11 @@
       "maxLength": 500,
       "description": "Team's purpose statement"
     },
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the team is enabled for scheduled heartbeats"
+    },
     "shared": {
       "type": "object",
       "description": "Team shared documents configuration",
