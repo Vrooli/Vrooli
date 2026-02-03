@@ -112,6 +112,16 @@ This layered approach means:
 
 The Team Relationships section also includes CLI commands for sending and managing inbox messages between team members.
 
+## Prompt Pipeline UI
+
+The Team Members heartbeat UI exposes a **Prompt Pipeline** view that mirrors the exact prompt assembly order (Agent Files → Responsibilities → Relationships → Inbox → Heartbeat Task). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts. The UI loads the assembled prompt through `/prompt-preview` and renders each section so operators can see precisely what will run on the next heartbeat.
+
+- [CODE: ui/src/components/editor/MemberDetailPanel.tsx] - Shared member detail panel pipeline
+- [CODE: ui/src/components/editor/TeamEditorPanel.tsx] - Members layout wiring (graph + list)
+- [CODE: api/heartbeat/handlers.go] - `POST /prompt-preview` endpoint used by the pipeline view
+
+The pipeline preview uses **saved** agent + team files. Save `RESPONSIBILITIES.md` or `HEARTBEAT.md` updates before refreshing the preview.
+
 ## Cron Schedule Format
 
 The schedule uses standard cron expression format with optional seconds:

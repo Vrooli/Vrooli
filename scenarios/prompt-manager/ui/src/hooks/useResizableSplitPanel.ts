@@ -21,6 +21,8 @@ interface UseResizableSplitPanelOptions {
   minWidth?: number
   /** Maximum ratio of container width (0-1) */
   maxWidthRatio?: number
+  /** Which side the resizable panel is anchored to */
+  anchor?: 'left' | 'right'
   /** localStorage key for persistence */
   storageKey?: string
 }
@@ -43,6 +45,7 @@ export function useResizableSplitPanel(
     defaultWidth = DEFAULT_WIDTH,
     minWidth = MIN_WIDTH,
     maxWidthRatio = MAX_WIDTH_RATIO,
+    anchor = 'left',
     storageKey = 'pm.editorSplitWidth',
   } = options
 
@@ -102,7 +105,8 @@ export function useResizableSplitPanel(
       if (!resizeRef.current) return
 
       const delta = e.clientX - resizeRef.current.startX
-      const newWidth = resizeRef.current.startWidth + delta
+      const direction = anchor === 'right' ? -1 : 1
+      const newWidth = resizeRef.current.startWidth + delta * direction
       const clampedWidth = Math.max(minWidth, Math.min(resizeRef.current.maxWidth, newWidth))
       setWidth(clampedWidth)
     }
@@ -125,7 +129,7 @@ export function useResizableSplitPanel(
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [isResizing, minWidth])
+  }, [anchor, isResizing, minWidth])
 
   // Handler to start resizing
   const handleResizeStart = useCallback(

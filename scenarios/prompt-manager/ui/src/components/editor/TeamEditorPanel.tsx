@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Network, Code, Folder, Power } from 'lucide-react'
+import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -20,6 +20,7 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 import * as orgChartService from '@/services/orgChartService'
 
@@ -75,6 +76,8 @@ export function TeamEditorPanel({
   // Active tab state
   const [activeTab, setActiveTab] = useState('info')
 
+  const isMobile = useIsMobile()
+
   // Mission expanded state
   const [isMissionExpanded, setIsMissionExpanded] = useState(false)
 
@@ -108,6 +111,7 @@ export function TeamEditorPanel({
     defaultWidth: 400,
     minWidth: 280,
     maxWidthRatio: 0.6,
+    anchor: 'right',
     storageKey: 'pm.teamEditorSplitWidth',
   })
 
@@ -160,6 +164,17 @@ export function TeamEditorPanel({
     const agent = allAgents.find((a) => a.id === selectedMemberId)
     return agent?.appearance ?? undefined
   }, [selectedMemberId, allAgents])
+
+  const showDetailOnly = Boolean(isMobile && selectedMember)
+  const detailPanelWidth: number | string = showDetailOnly ? '100%' : width
+
+  const handleSwitchToGraph = useCallback(() => {
+    setMembersViewMode('graph')
+  }, [])
+
+  const handleSwitchToCode = useCallback(() => {
+    setMembersViewMode('code')
+  }, [])
 
   // Available agents (not already members)
   const availableAgents = useMemo(() => {
@@ -377,37 +392,32 @@ export function TeamEditorPanel({
             value="members"
             className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden"
           >
-            {/* View mode toggle toolbar */}
-            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-4 py-2 border-b border-border bg-muted/30">
-              <MembersViewToggle
-                viewMode={membersViewMode}
-                onViewModeChange={setMembersViewMode}
-              />
-            </div>
-
             {/* Content area */}
             <div className="flex-1 min-h-0">
               {membersViewMode === 'graph' ? (
                 <div
                   ref={containerRef}
-                  className="h-full flex"
+                  className={cn('h-full flex', isResizing && 'select-none')}
                 >
                   {/* Left panel: Org Chart */}
-                  <div className="flex-1 min-w-0 h-full">
-                    <OrgChartPanel
-                      team={team}
-                      edges={edges}
-                      allAgents={allAgents}
-                      selectedMemberId={selectedMemberId}
+                  {!showDetailOnly && (
+                    <div className="flex-1 min-w-0 h-full">
+                      <OrgChartPanel
+                        team={team}
+                        edges={edges}
+                        allAgents={allAgents}
+                        selectedMemberId={selectedMemberId}
                       onSelectMember={setSelectedMemberId}
                       onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
                       onAddMember={() => setShowMemberPicker(true)}
+                      onSwitchToCode={handleSwitchToCode}
                       className="h-full"
                     />
                   </div>
+                )}
 
                   {/* Resize handle + Right panel: Member detail (conditional) */}
-                  {selectedMember && (
+                  {selectedMember && !showDetailOnly && (
                     <>
                       {/* Resize handle */}
                       <div
@@ -422,25 +432,30 @@ export function TeamEditorPanel({
                           <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </div>
-
-                      {/* Right panel: Member detail */}
-                      <div
-                        style={{ width }}
-                        className="flex-shrink-0 h-full border-l border-border overflow-hidden"
-                      >
-                        <MemberDetailPanel
-                          team={team}
-                          member={selectedMember}
-                          appearance={selectedMemberAppearance}
-                          manager={selectedMemberManager}
-                          directReports={selectedMemberReports}
-                          onUpdateMember={onUpdateMember}
-                          onRemoveMember={handleRemoveMember}
-                          onClose={() => setSelectedMemberId(null)}
-                          className="h-full"
-                        />
-                      </div>
                     </>
+                  )}
+
+                  {/* Right panel: Member detail */}
+                  {selectedMember && (
+                    <div
+                      style={{ width: detailPanelWidth }}
+                      className={cn(
+                        'flex-shrink-0 h-full overflow-hidden',
+                        !showDetailOnly && 'border-l border-border'
+                      )}
+                    >
+                      <MemberDetailPanel
+                        team={team}
+                        member={selectedMember}
+                        appearance={selectedMemberAppearance}
+                        manager={selectedMemberManager}
+                        directReports={selectedMemberReports}
+                        onUpdateMember={onUpdateMember}
+                        onRemoveMember={handleRemoveMember}
+                        onClose={() => setSelectedMemberId(null)}
+                        className="h-full"
+                      />
+                    </div>
                   )}
                 </div>
               ) : (
@@ -448,6 +463,7 @@ export function TeamEditorPanel({
                   team={team}
                   edges={edges}
                   readOnly
+                  onSwitchToGraph={handleSwitchToGraph}
                   className="h-full"
                 />
               )}
@@ -506,51 +522,5 @@ function TabTrigger({ value, icon, label }: TabTriggerProps) {
       {icon}
       {label}
     </Tabs.Trigger>
-  )
-}
-
-/**
- * Toggle component for switching between Graph and Code view modes.
- */
-interface MembersViewToggleProps {
-  viewMode: MembersViewMode
-  onViewModeChange: (mode: MembersViewMode) => void
-  className?: string
-}
-
-function MembersViewToggle({ viewMode, onViewModeChange, className }: MembersViewToggleProps) {
-  return (
-    <div className={cn('flex items-center rounded-lg bg-muted p-0.5', className)}>
-      <button
-        type="button"
-        onClick={() => onViewModeChange('graph')}
-        className={cn(
-          'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
-          viewMode === 'graph'
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title="Graph view - Visual org chart"
-        aria-pressed={viewMode === 'graph'}
-      >
-        <Network className="h-3.5 w-3.5" />
-        Graph
-      </button>
-      <button
-        type="button"
-        onClick={() => onViewModeChange('code')}
-        className={cn(
-          'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
-          viewMode === 'code'
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title="Code view - YAML representation"
-        aria-pressed={viewMode === 'code'}
-      >
-        <Code className="h-3.5 w-3.5" />
-        Code
-      </button>
-    </div>
   )
 }

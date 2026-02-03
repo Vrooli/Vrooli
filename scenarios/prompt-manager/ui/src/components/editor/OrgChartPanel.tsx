@@ -24,7 +24,7 @@ import {
   MarkerType,
 } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
-import { UserPlus, LayoutGrid, Users, Info, Trash2 } from 'lucide-react'
+import { UserPlus, LayoutGrid, Users, Info, Trash2, Code } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OrgChartNode } from './OrgChartNode'
 import type { TeamDetails } from '@/types/team'
@@ -45,6 +45,7 @@ interface OrgChartPanelProps {
   onSelectMember: (agentId: string | null) => void
   onEdgeUpdate: (agentId: string, managerId: string | null) => void
   onAddMember: () => void
+  onSwitchToCode?: () => void
   className?: string
 }
 
@@ -55,6 +56,7 @@ interface OrgChartPanelProps {
 const NODE_WIDTH = 200
 const NODE_HEIGHT = 80
 const LAYOUT_DIRECTION = 'TB' // Top to bottom
+type LayoutDirection = 'TB' | 'LR'
 
 // ============================================================================
 // Node Types
@@ -117,9 +119,11 @@ export function OrgChartPanel({
   onSelectMember,
   onEdgeUpdate,
   onAddMember,
+  onSwitchToCode,
   className,
 }: OrgChartPanelProps) {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(LAYOUT_DIRECTION)
 
   // Build agent appearance map
   const agentAppearances = useMemo(() => {
@@ -215,8 +219,8 @@ export function OrgChartPanel({
 
   // Apply layout
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(
-    () => getLayoutedElements(initialNodes, initialEdges),
-    [initialNodes, initialEdges]
+    () => getLayoutedElements(initialNodes, initialEdges, layoutDirection),
+    [initialNodes, initialEdges, layoutDirection]
   )
 
   // React Flow state - use type assertions since hooks don't preserve generics
@@ -271,10 +275,12 @@ export function OrgChartPanel({
 
   // Handle auto-layout button
   const handleAutoLayout = useCallback(() => {
-    const { nodes: newNodes, edges: newEdges } = getLayoutedElements(nodes, flowEdges)
+    const nextDirection: LayoutDirection = layoutDirection === 'TB' ? 'LR' : 'TB'
+    const { nodes: newNodes, edges: newEdges } = getLayoutedElements(nodes, flowEdges, nextDirection)
+    setLayoutDirection(nextDirection)
     setNodes(newNodes)
     setEdges(newEdges)
-  }, [nodes, flowEdges, setNodes, setEdges])
+  }, [layoutDirection, nodes, flowEdges, setNodes, setEdges])
 
   // Handle background click to deselect
   const onPaneClick = useCallback(() => {
@@ -319,17 +325,32 @@ export function OrgChartPanel({
           <p className="text-sm text-muted-foreground/70 max-w-xs mx-auto mb-4">
             Add your first team member to start building your org chart.
           </p>
-          <button
-            type="button"
-            onClick={onAddMember}
-            className={cn(
-              'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg',
-              'bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={onAddMember}
+              className={cn(
+                'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg',
+                'bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
+              )}
+            >
+              <UserPlus className="h-4 w-4" />
+              Add First Member
+            </button>
+            {onSwitchToCode && (
+              <button
+                type="button"
+                onClick={onSwitchToCode}
+                className={cn(
+                  'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg',
+                  'bg-card border border-border text-foreground hover:bg-muted transition-colors'
+                )}
+              >
+                <Code className="h-4 w-4" />
+                Code View
+              </button>
             )}
-          >
-            <UserPlus className="h-4 w-4" />
-            Add First Member
-          </button>
+          </div>
         </div>
       </div>
     )
@@ -406,6 +427,21 @@ export function OrgChartPanel({
 
         {/* Toolbar Panel */}
         <Panel position="top-right" className="flex gap-2">
+          {onSwitchToCode && (
+            <button
+              type="button"
+              onClick={onSwitchToCode}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg',
+                'bg-card border border-border text-foreground',
+                'hover:bg-muted transition-colors'
+              )}
+              title="Switch to code view"
+            >
+              <Code className="h-3.5 w-3.5" />
+              Code View
+            </button>
+          )}
           <button
             type="button"
             onClick={handleAutoLayout}
@@ -414,10 +450,10 @@ export function OrgChartPanel({
               'bg-card border border-border text-foreground',
               'hover:bg-muted transition-colors'
             )}
-            title="Auto-layout nodes"
+            title={`Switch layout direction (${layoutDirection === 'TB' ? 'vertical' : 'horizontal'})`}
           >
             <LayoutGrid className="h-3.5 w-3.5" />
-            Layout
+            {layoutDirection === 'TB' ? 'Layout: Vertical' : 'Layout: Horizontal'}
           </button>
           <button
             type="button"

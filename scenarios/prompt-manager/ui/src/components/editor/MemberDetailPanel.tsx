@@ -3,18 +3,20 @@
  *
  * Features:
  * - Header with avatar, name, status dropdown
- * - Roles section with chip toggles
+ * - Overview tab with roles, schedule, and prompt pipeline
  * - Responsibilities.md markdown editor
- * - Heartbeat section with schedule + instructions.md
+ * - Heartbeat instructions editor
  * - Remove member button
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { X, Trash2, Clock, Play, Pause, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { X, Trash2, Clock, Play, Pause, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, RefreshCw, Copy, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
+import { toast } from '@/hooks/use-toast'
+import * as agentService from '@/services/agentService'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 
@@ -44,6 +46,134 @@ const statusStyles: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
 }
 
+type PipelineSectionKey =
+  | 'agent-files'
+  | 'responsibilities'
+  | 'relationships'
+  | 'inbox'
+  | 'heartbeat-task'
+
+interface PipelineSectionDefinition {
+  key: PipelineSectionKey
+  title: string
+  headers: string[]
+  description: string
+  emptyMessage: string
+}
+
+interface PipelineSection extends PipelineSectionDefinition {
+  content: string
+  missing: boolean
+  note?: string
+}
+
+interface AgentFileBlock {
+  path: string
+  content: string
+}
+
+const PIPELINE_SECTIONS: PipelineSectionDefinition[] = [
+  {
+    key: 'agent-files',
+    title: 'Agent Files',
+    headers: ['Agent Files (Markdown)'],
+    description: 'SOUL.md and other agent markdown files (personality + operating notes).',
+    emptyMessage: 'No agent markdown files were included.',
+  },
+  {
+    key: 'responsibilities',
+    title: 'Responsibilities',
+    headers: ['Team Responsibilities (RESPONSIBILITIES.md)'],
+    description: 'Role-specific instructions for this team member.',
+    emptyMessage: 'No responsibilities are set for this member yet.',
+  },
+  {
+    key: 'relationships',
+    title: 'Relationships',
+    headers: ['Team Relationships'],
+    description: 'Reporting lines plus coordination commands.',
+    emptyMessage: 'No relationship context is available yet.',
+  },
+  {
+    key: 'inbox',
+    title: 'Inbox',
+    headers: ['Team Inbox'],
+    description: 'Pending messages from other team members.',
+    emptyMessage: 'No pending inbox messages.',
+  },
+  {
+    key: 'heartbeat-task',
+    title: 'Heartbeat Task',
+    headers: ['Heartbeat Task (HEARTBEAT.md)', 'Heartbeat Task'],
+    description: 'The exact task this member will execute on each heartbeat.',
+    emptyMessage: 'No heartbeat task is defined yet.',
+  },
+]
+
+function parsePromptSections(prompt: string): Map<string, string> {
+  const sections = new Map<string, string>()
+  if (!prompt) {
+    return sections
+  }
+  const chunks = prompt.split(/\n\n---\n\n/)
+  for (const chunk of chunks) {
+    const trimmed = chunk.trim()
+    if (!trimmed) continue
+    const firstLine = trimmed.split('\n')[0]?.trim()
+    if (!firstLine) continue
+    const header = firstLine.replace(/^#+\s*/, '').trim()
+    if (!header) continue
+    sections.set(header, trimmed)
+  }
+  return sections
+}
+
+function stripHeader(section: string): string {
+  const lines = section.split('\n')
+  if (lines.length <= 1) return ''
+  return lines.slice(1).join('\n').trim()
+}
+
+function buildPipelineSections(prompt: string): PipelineSection[] {
+  const sections = parsePromptSections(prompt)
+  return PIPELINE_SECTIONS.map((def) => {
+    const matchedHeader = def.headers.find((entry) => sections.has(entry))
+    const rawSection = matchedHeader ? sections.get(matchedHeader) ?? '' : ''
+    const content = rawSection ? stripHeader(rawSection) : ''
+    const missing = !rawSection || !content
+    let note: string | undefined
+    if (def.key === 'heartbeat-task' && matchedHeader === 'Heartbeat Task') {
+      note = 'No heartbeat instructions defined. Default task inserted.'
+    }
+    return {
+      ...def,
+      content,
+      missing,
+      note,
+    }
+  })
+}
+
+function extractAgentFileBlocks(sectionContent: string): AgentFileBlock[] {
+  if (!sectionContent) return []
+  const matches = [...sectionContent.matchAll(/^##\s+(.+\.md)\s*$/gm)]
+  if (matches.length === 0) return []
+
+  const blocks: AgentFileBlock[] = []
+  for (let i = 0; i < matches.length; i += 1) {
+    const match = matches[i]
+    if (!match) continue
+    const fullMatch = match[0] ?? ''
+    const heading = match[1]
+    if (!heading) continue
+    const start = (match.index ?? 0) + fullMatch.length
+    const end = matches[i + 1]?.index ?? sectionContent.length
+    const content = sectionContent.slice(start, end).trim()
+    blocks.push({ path: heading.trim(), content })
+  }
+  return blocks
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -60,7 +190,7 @@ export function MemberDetailPanel({
   className,
 }: MemberDetailPanelProps) {
   // Local state
-  const [activeSection, setActiveSection] = useState<'roles' | 'responsibilities' | 'heartbeat'>('roles')
+  const [activeSection, setActiveSection] = useState<'overview' | 'responsibilities' | 'heartbeat'>('overview')
   const [responsibilities, setResponsibilities] = useState('')
   const [heartbeatInstructions, setHeartbeatInstructions] = useState('')
   const [heartbeatConfig, setHeartbeatConfig] = useState<HeartbeatConfig | null>(null)
@@ -68,6 +198,11 @@ export function MemberDetailPanel({
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [promptPreview, setPromptPreview] = useState('')
+  const [promptError, setPromptError] = useState<string | null>(null)
+  const [isPromptLoading, setIsPromptLoading] = useState(false)
+  const [showPipeline, setShowPipeline] = useState(false)
+  const [isRelationshipsExpanded, setIsRelationshipsExpanded] = useState(true)
 
   // Dirty tracking
   const [isResponsibilitiesDirty, setIsResponsibilitiesDirty] = useState(false)
@@ -96,6 +231,9 @@ export function MemberDetailPanel({
         }
         setIsResponsibilitiesDirty(false)
         setIsInstructionsDirty(false)
+        setPromptPreview('')
+        setPromptError(null)
+        setShowPipeline(false)
       } catch (err) {
         console.warn('Failed to load member data:', err)
         setError('Failed to load member data')
@@ -207,6 +345,47 @@ export function MemberDetailPanel({
     }
   }, [team.id, member.agentId])
 
+  // DOC: docs/concepts/HEARTBEATS.md#prompt-pipeline-ui
+  const loadPromptPreview = useCallback(async () => {
+    setIsPromptLoading(true)
+    setPromptError(null)
+    try {
+      const response = await agentService.previewAgentPrompt(member.agentId, team.id)
+      setPromptPreview(response.prompt)
+    } catch (err) {
+      console.error('Failed to load prompt preview:', err)
+      setPromptPreview('')
+      setPromptError('Unable to build prompt preview. Check the API and try again.')
+    } finally {
+      setIsPromptLoading(false)
+    }
+  }, [member.agentId, team.id])
+
+  const pipelineSections = useMemo(() => buildPipelineSections(promptPreview), [promptPreview])
+
+  const handleCopyPrompt = useCallback(async () => {
+    if (!promptPreview) return
+    try {
+      await navigator.clipboard.writeText(promptPreview)
+      toast({
+        title: 'Prompt copied',
+        description: 'The full prompt is now in your clipboard.',
+      })
+    } catch (err) {
+      console.error('Failed to copy prompt:', err)
+      toast({
+        title: 'Copy failed',
+        description: 'Unable to copy the prompt. Try again.',
+      })
+    }
+  }, [promptPreview])
+
+  useEffect(() => {
+    if (activeSection !== 'overview' || !showPipeline) return
+    if (promptPreview || isPromptLoading) return
+    void loadPromptPreview()
+  }, [activeSection, showPipeline, promptPreview, isPromptLoading, loadPromptPreview])
+
   // Handle remove member
   const handleRemove = useCallback(async () => {
     if (!confirm(`Remove ${member.displayName} from the team?`)) return
@@ -258,43 +437,58 @@ export function MemberDetailPanel({
 
       {/* Relationships */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-muted/40">
-        <h4 className="text-xs font-semibold text-muted-foreground mb-2">Relationships</h4>
-        <div className="grid gap-2">
-          <div className="flex items-center gap-2 text-sm">
-            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Reports to:</span>
-            <span className="text-foreground">
-              {manager ? manager.displayName : 'None'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Direct reports:</span>
-            {directReports.length === 0 ? (
-              <span className="text-foreground">None</span>
-            ) : (
-              <span className="text-foreground">
-                {displayReports.join(', ')}
-                {remainingReports > 0 ? ` +${remainingReports} more` : ''}
-              </span>
+        <button
+          type="button"
+          onClick={() => setIsRelationshipsExpanded((prev) => !prev)}
+          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          aria-expanded={isRelationshipsExpanded}
+        >
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 transition-transform',
+              isRelationshipsExpanded ? 'rotate-0' : '-rotate-90'
             )}
+          />
+          Relationships
+        </button>
+        {isRelationshipsExpanded && (
+          <div className="grid gap-2 mt-2">
+            <div className="flex items-center gap-2 text-sm">
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Reports to:</span>
+              <span className="text-foreground">
+                {manager ? manager.displayName : 'None'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Direct reports:</span>
+              {directReports.length === 0 ? (
+                <span className="text-foreground">None</span>
+              ) : (
+                <span className="text-foreground">
+                  {displayReports.join(', ')}
+                  {remainingReports > 0 ? ` +${remainingReports} more` : ''}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Section tabs */}
       <div className="flex-shrink-0 flex border-b border-border">
         <button
           type="button"
-          onClick={() => setActiveSection('roles')}
+          onClick={() => setActiveSection('overview')}
           className={cn(
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
-            activeSection === 'roles'
+            activeSection === 'overview'
               ? 'text-primary border-b-2 border-primary'
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          Roles
+          Overview
         </button>
         <button
           type="button"
@@ -346,91 +540,46 @@ export function MemberDetailPanel({
         )}
 
         {/* Loading skeleton */}
-        {isLoading && activeSection !== 'roles' && (
+        {isLoading && activeSection !== 'overview' && (
           <div className="space-y-4 animate-pulse">
             <div className="h-4 bg-muted rounded w-1/3" />
             <div className="h-32 bg-muted rounded" />
           </div>
         )}
 
-        {/* Roles section */}
-        {activeSection === 'roles' && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Toggle roles to assign or remove from this member.
-            </p>
-            {team.roles.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">
-                No roles defined. Add roles in the Info tab.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {team.roles.map((role) => (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => void handleToggleRole(role.id)}
-                    className={cn(
-                      'px-3 py-1.5 text-sm font-medium rounded-full transition-colors',
-                      member.roles.includes(role.id)
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary'
-                    )}
-                  >
-                    {role.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Responsibilities section */}
-        {activeSection === 'responsibilities' && !isLoading && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm font-medium">RESPONSIBILITIES.md</label>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleSaveResponsibilities()}
-                disabled={!isResponsibilitiesDirty || isSaving}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                  isResponsibilitiesDirty
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed'
-                )}
-              >
-                <Save className="h-3.5 w-3.5" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-            <textarea
-              value={responsibilities}
-              onChange={(e) => {
-                setResponsibilities(e.target.value)
-                setIsResponsibilitiesDirty(true)
-              }}
-              className={cn(
-                'w-full h-64 px-3 py-2 text-sm font-mono',
-                'bg-muted border border-border rounded-lg',
-                'text-foreground placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary',
-                'resize-none'
-              )}
-              placeholder="# Responsibilities
-
-Describe what this agent is responsible for in this team..."
-            />
-          </div>
-        )}
-
-        {/* Heartbeat section */}
-        {activeSection === 'heartbeat' && !isLoading && (
+        {/* Overview section */}
+        {activeSection === 'overview' && (
           <div className="space-y-6">
+            {/* Roles */}
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Toggle roles to assign or remove from this member.
+              </p>
+              {team.roles.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">
+                  No roles defined. Add roles in the Info tab.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {team.roles.map((role) => (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => void handleToggleRole(role.id)}
+                      className={cn(
+                        'px-3 py-1.5 text-sm font-medium rounded-full transition-colors',
+                        member.roles.includes(role.id)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary'
+                      )}
+                    >
+                      {role.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Schedule */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -535,47 +684,235 @@ Describe what this agent is responsible for in this team..."
               )}
             </div>
 
-            {/* Heartbeat instructions */}
+            {/* Prompt pipeline */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  <label className="text-sm font-medium">HEARTBEAT.md</label>
+                  <label className="text-sm font-medium">Prompt Pipeline</label>
                 </div>
                 <button
                   type="button"
-                  onClick={() => void handleSaveInstructions()}
-                  disabled={!isInstructionsDirty || isSaving}
+                  onClick={() => setShowPipeline((prev) => !prev)}
                   className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                    isInstructionsDirty
+                    'px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                    showPipeline
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   )}
                 >
-                  <Save className="h-3.5 w-3.5" />
-                  {isSaving ? 'Saving...' : 'Save'}
+                  {showPipeline ? 'Hide' : 'Show'}
                 </button>
               </div>
 
-              <textarea
-                value={heartbeatInstructions}
-                onChange={(e) => {
-                  setHeartbeatInstructions(e.target.value)
-                  setIsInstructionsDirty(true)
-                }}
+              {showPipeline && (
+                <div className="space-y-4 rounded-lg border border-border bg-muted/40 p-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Preview uses saved agent + team files. Save changes, then refresh to update.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void loadPromptPreview()}
+                        disabled={isPromptLoading}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
+                          'text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors',
+                          isPromptLoading && 'opacity-50 cursor-not-allowed'
+                        )}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Refresh
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyPrompt()}
+                        disabled={!promptPreview}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
+                          'text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors',
+                          !promptPreview && 'opacity-50 cursor-not-allowed'
+                        )}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {isPromptLoading ? (
+                    <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+                      Building prompt preview...
+                    </div>
+                  ) : promptError ? (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {promptError}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {pipelineSections.map((section, index) => {
+                        const agentFiles = section.key === 'agent-files'
+                          ? extractAgentFileBlocks(section.content)
+                          : []
+                        return (
+                          <div
+                            key={section.key}
+                            className="rounded-lg border border-border bg-background px-3 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-semibold text-muted-foreground">
+                                  {index + 1}
+                                </span>
+                                <p className="text-xs font-medium text-foreground">{section.title}</p>
+                              </div>
+                              <span
+                                className={cn(
+                                  'px-2 py-0.5 text-[11px] rounded-full',
+                                  section.missing
+                                    ? 'bg-amber-500/10 text-amber-500'
+                                    : 'bg-emerald-500/10 text-emerald-500'
+                                )}
+                              >
+                                {section.missing ? 'Not set' : 'Included'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-1">{section.description}</p>
+                            {section.note && (
+                              <p className="text-[11px] text-amber-500 mt-2">{section.note}</p>
+                            )}
+                            {section.missing ? (
+                              <p className="text-[11px] text-muted-foreground mt-2">{section.emptyMessage}</p>
+                            ) : section.key === 'agent-files' && agentFiles.length > 0 ? (
+                              <div className="mt-3 space-y-2">
+                                {agentFiles.map((file) => (
+                                  <details
+                                    key={file.path}
+                                    className="rounded-lg border border-border bg-muted/40 px-3 py-2"
+                                  >
+                                    <summary className="cursor-pointer text-[11px] font-medium text-foreground">
+                                      {file.path}
+                                    </summary>
+                                    <pre className="mt-2 whitespace-pre-wrap text-[11px] text-muted-foreground">
+                                      {file.content || 'Empty file.'}
+                                    </pre>
+                                  </details>
+                                ))}
+                              </div>
+                            ) : (
+                              <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
+                                {section.content || section.emptyMessage}
+                              </pre>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {promptPreview && !isPromptLoading && !promptError && (
+                    <details className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                      <summary className="cursor-pointer text-[11px] font-medium text-foreground">
+                        Full prompt preview
+                      </summary>
+                      <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
+                        {promptPreview}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Responsibilities section */}
+        {activeSection === 'responsibilities' && !isLoading && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <label className="text-sm font-medium">RESPONSIBILITIES.md</label>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleSaveResponsibilities()}
+                disabled={!isResponsibilitiesDirty || isSaving}
                 className={cn(
-                  'w-full h-48 px-3 py-2 text-sm font-mono',
-                  'bg-muted border border-border rounded-lg',
-                  'text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary',
-                  'resize-none'
+                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                  isResponsibilitiesDirty
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
                 )}
-                placeholder="# Heartbeat Task
+              >
+                <Save className="h-3.5 w-3.5" />
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+            <textarea
+              value={responsibilities}
+              onChange={(e) => {
+                setResponsibilities(e.target.value)
+                setIsResponsibilitiesDirty(true)
+              }}
+              className={cn(
+                'w-full h-64 px-3 py-2 text-sm font-mono',
+                'bg-muted border border-border rounded-lg',
+                'text-foreground placeholder:text-muted-foreground',
+                'focus:outline-none focus:ring-2 focus:ring-primary',
+                'resize-none'
+              )}
+              placeholder="# Responsibilities
+
+Describe what this agent is responsible for in this team..."
+            />
+          </div>
+        )}
+
+        {/* Heartbeat section */}
+        {activeSection === 'heartbeat' && !isLoading && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <label className="text-sm font-medium">HEARTBEAT.md</label>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleSaveInstructions()}
+                disabled={!isInstructionsDirty || isSaving}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                  isInstructionsDirty
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
+                )}
+              >
+                <Save className="h-3.5 w-3.5" />
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+
+            <textarea
+              value={heartbeatInstructions}
+              onChange={(e) => {
+                setHeartbeatInstructions(e.target.value)
+                setIsInstructionsDirty(true)
+              }}
+              className={cn(
+                'w-full h-48 px-3 py-2 text-sm font-mono',
+                'bg-muted border border-border rounded-lg',
+                'text-foreground placeholder:text-muted-foreground',
+                'focus:outline-none focus:ring-2 focus:ring-primary',
+                'resize-none'
+              )}
+              placeholder="# Heartbeat Task
 
 Describe what this agent should do on each heartbeat..."
-              />
-            </div>
+            />
           </div>
         )}
       </div>

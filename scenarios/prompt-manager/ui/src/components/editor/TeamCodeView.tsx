@@ -11,6 +11,7 @@
 import { useCallback, useMemo, useRef, useEffect } from 'react'
 import Editor, { type OnMount, type OnChange } from '@monaco-editor/react'
 import YAML from 'yaml'
+import { Network } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails } from '@/types/team'
 import type { OrgEdge } from '@/types/orgChart'
@@ -24,6 +25,7 @@ interface TeamCodeViewProps {
   edges: OrgEdge[]
   onTeamChange?: (updates: TeamYamlData) => void
   readOnly?: boolean
+  onSwitchToGraph?: () => void
   className?: string
 }
 
@@ -160,6 +162,7 @@ export function TeamCodeView({
   edges,
   onTeamChange,
   readOnly = false,
+  onSwitchToGraph,
   className,
 }: TeamCodeViewProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
@@ -223,6 +226,21 @@ export function TeamCodeView({
           <span className="text-xs text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
             Read-only
           </span>
+        )}
+        {onSwitchToGraph && (
+          <button
+            type="button"
+            onClick={onSwitchToGraph}
+            className={cn(
+              'ml-auto flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md',
+              'bg-slate-800 text-slate-200 border border-slate-700',
+              'hover:bg-slate-700 transition-colors'
+            )}
+            title="Switch to graph view"
+          >
+            <Network className="h-3.5 w-3.5" />
+            Graph View
+          </button>
         )}
       </div>
 
