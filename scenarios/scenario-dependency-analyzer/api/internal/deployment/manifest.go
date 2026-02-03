@@ -332,6 +332,17 @@ func buildServiceForFolder(scenarioName, scenarioPath string, folder DetectedFol
 	}
 }
 
+// getHealthEndpoint returns the health endpoint path for a service from the
+// service.json lifecycle config. Falls back to "/health" if not specified.
+func getHealthEndpoint(cfg *types.ServiceConfig, serviceName string) string {
+	if cfg != nil && cfg.Lifecycle != nil && cfg.Lifecycle.Health != nil {
+		if endpoint, ok := cfg.Lifecycle.Health.Endpoints[serviceName]; ok && endpoint != "" {
+			return endpoint
+		}
+	}
+	return "/health"
+}
+
 // buildAPIServiceFromFolder creates an API service skeleton from a detected folder.
 func buildAPIServiceFromFolder(scenarioName, scenarioPath string, folder DetectedFolder, cfg *types.ServiceConfig) *types.BundleSkeletonService {
 	binaryBase := fmt.Sprintf("%s-%s", scenarioName, folder.Name)
@@ -357,7 +368,7 @@ func buildAPIServiceFromFolder(scenarioName, scenarioPath string, folder Detecte
 		},
 		Health: types.BundleSkeletonHealth{
 			Type:     "http",
-			Path:     "/health",
+			Path:     getHealthEndpoint(cfg, folder.Name),
 			PortName: folder.Name,
 			Interval: 2000,
 			Timeout:  15000,
@@ -478,7 +489,7 @@ func buildUIServiceFromFolder(scenarioName, scenarioPath string, folder Detected
 		},
 		Health: types.BundleSkeletonHealth{
 			Type:     "http",
-			Path:     "/health",
+			Path:     getHealthEndpoint(cfg, "ui"),
 			PortName: "ui",
 			Interval: 2000,
 			Timeout:  10000,

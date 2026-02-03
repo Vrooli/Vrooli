@@ -331,9 +331,24 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 		return fmt.Errorf("listen on %d: %w", port, err)
 	}
 
+	// Determine health path from manifest (defaults to "/health" if not specified).
+	healthPath := svc.Health.Path
+	if healthPath == "" {
+		healthPath = "/health"
+	}
+
 	// SPA-friendly file server: serve files when they exist; otherwise fallback to index.html for SPA routes.
 	fileServer := http.FileServer(http.Dir(serveRoot))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Health endpoint for the embedded static server.
+		// Returns a proper JSON response so health checks pass.
+		if r.URL.Path == healthPath {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
+
 		// Proxy API/WS to the backend service if available.
 		if apiProxy != nil && (strings.HasPrefix(r.URL.Path, "/api") || strings.HasPrefix(strings.ToLower(r.URL.Path), "/ws")) {
 			apiProxy.ServeHTTP(w, r)

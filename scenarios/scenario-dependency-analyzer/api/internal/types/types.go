@@ -26,7 +26,7 @@ type ServiceConfig struct {
 	Ports       map[string]interface{} `json:"ports"`
 	Resources   map[string]Resource    `json:"resources"`
 	Scenarios   map[string]interface{} `json:"scenarios"`
-	Lifecycle   interface{}            `json:"lifecycle"`
+	Lifecycle   *ServiceLifecycle      `json:"lifecycle"`
 
 	// Common fields
 	Dependencies struct {
@@ -34,6 +34,19 @@ type ServiceConfig struct {
 		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
 	} `json:"dependencies"`
 	Deployment *ServiceDeployment `json:"deployment"`
+}
+
+// ServiceLifecycle represents the lifecycle configuration in service.json v2.0.
+type ServiceLifecycle struct {
+	Version string               `json:"version"`
+	Health  *ServiceHealthConfig `json:"health"`
+}
+
+// ServiceHealthConfig represents health check configuration in service.json.
+type ServiceHealthConfig struct {
+	Description        string            `json:"description"`
+	Endpoints          map[string]string `json:"endpoints"` // e.g., {"api": "/health", "ui": "/health"}
+	StartupGracePeriod int               `json:"startup_grace_period"`
 }
 
 // Resource describes a single resource dependency declaration.
