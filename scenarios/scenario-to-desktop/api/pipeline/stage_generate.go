@@ -161,6 +161,17 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 						desktopConfig.BundleIPC.Port,
 						desktopConfig.BundleIPC.AuthTokenRel))
 			}
+
+			// Extract UI service configuration from manifest content.
+			// This ensures the Electron app knows which service ID and port name
+			// to use for resolving the UI port, instead of relying on defaults.
+			uiSvcID, uiPortName := extractBundleUIServiceConfig(input.BundleResult.ManifestContent)
+			if uiSvcID != "" {
+				desktopConfig.BundleUISvcID = uiSvcID
+				desktopConfig.BundleUIPortName = uiPortName
+				result.Logs = append(result.Logs,
+					fmt.Sprintf("Bundle UI service: id=%s port_name=%s", uiSvcID, uiPortName))
+			}
 		}
 	}
 
@@ -312,4 +323,51 @@ func extractBundleIPCConfig(content map[string]interface{}) *generation.BundleIP
 	}
 
 	return config
+}
+
+// extractBundleUIServiceConfig extracts UI service configuration from manifest content.
+// Returns the service ID and port name for the Electron app to resolve the UI port.
+func extractBundleUIServiceConfig(content map[string]interface{}) (serviceID string, portName string) {
+	servicesRaw, ok := content["services"]
+	if !ok {
+		return "", ""
+	}
+
+	services, ok := servicesRaw.([]interface{})
+	if !ok {
+		return "", ""
+	}
+
+	for _, svcRaw := range services {
+		svc, ok := svcRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		svcType, _ := svc["type"].(string)
+		if svcType != "ui-bundle" && svcType != "ui" && svcType != "frontend" {
+			continue
+		}
+
+		serviceID, _ = svc["id"].(string)
+		if serviceID == "" {
+			continue
+		}
+
+		// Extract port name from ports.requested[0].name
+		if portsRaw, ok := svc["ports"].(map[string]interface{}); ok {
+			if reqRaw, ok := portsRaw["requested"].([]interface{}); ok && len(reqRaw) > 0 {
+				if firstPort, ok := reqRaw[0].(map[string]interface{}); ok {
+					if name, ok := firstPort["name"].(string); ok && name != "" {
+						return serviceID, name
+					}
+				}
+			}
+		}
+
+		// Default port name for UI services
+		return serviceID, "ui"
+	}
+
+	return "", ""
 }
