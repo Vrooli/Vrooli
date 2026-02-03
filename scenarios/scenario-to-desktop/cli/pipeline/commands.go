@@ -133,7 +133,7 @@ func (c *Commands) Run(args []string) error {
 		}
 
 		if status.Status == "completed" {
-			fmt.Printf("Pipeline completed: %s\n", status.PipelineID)
+			printPipelineSuccess(&status)
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
@@ -522,7 +522,7 @@ func (c *Commands) Start(args []string) error {
 		}
 
 		if status.Status == "completed" {
-			fmt.Printf("Pipeline completed: %s\n", status.PipelineID)
+			printPipelineSuccess(&status)
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
@@ -553,10 +553,14 @@ func (c *Commands) Start(args []string) error {
 
 // pipelineStatus represents a full pipeline status response with error info.
 type pipelineStatus struct {
-	PipelineID string                  `json:"pipeline_id"`
-	Status     string                  `json:"status"`
-	Error      string                  `json:"error,omitempty"`
-	Stages     map[string]*stageResult `json:"stages,omitempty"`
+	PipelineID     string                  `json:"pipeline_id"`
+	Status         string                  `json:"status"`
+	ScenarioName   string                  `json:"scenario_name,omitempty"`
+	FinalArtifacts map[string]string       `json:"final_artifacts,omitempty"`
+	StartedAt      int64                   `json:"started_at,omitempty"`
+	CompletedAt    int64                   `json:"completed_at,omitempty"`
+	Error          string                  `json:"error,omitempty"`
+	Stages         map[string]*stageResult `json:"stages,omitempty"`
 }
 
 // stageResult represents a stage result with optional error info.
@@ -891,6 +895,54 @@ func extractSmokeTestErrorHint(stdout, stderr string) string {
 	}
 
 	return ""
+}
+
+// printPipelineSuccess prints helpful information after a successful pipeline.
+// Includes scenario name, duration, artifact locations, and next steps.
+func printPipelineSuccess(status *pipelineStatus) {
+	fmt.Printf("Pipeline completed: %s\n", status.PipelineID)
+	fmt.Println()
+
+	// Scenario name
+	if status.ScenarioName != "" {
+		fmt.Printf("Scenario: %s\n", status.ScenarioName)
+	}
+
+	// Duration
+	if status.StartedAt > 0 && status.CompletedAt > 0 {
+		durationSec := status.CompletedAt - status.StartedAt
+		if durationSec >= 60 {
+			minutes := durationSec / 60
+			seconds := durationSec % 60
+			fmt.Printf("Duration: %dm %ds\n", minutes, seconds)
+		} else {
+			fmt.Printf("Duration: %ds\n", durationSec)
+		}
+	}
+
+	// Artifacts
+	if len(status.FinalArtifacts) > 0 {
+		fmt.Println()
+		fmt.Println("Artifacts:")
+		for platform, path := range status.FinalArtifacts {
+			fmt.Printf("  %s: %s\n", platform, path)
+		}
+	}
+
+	// Next steps
+	fmt.Println()
+	fmt.Println("Next steps:")
+	if len(status.FinalArtifacts) == 1 {
+		// Single artifact - suggest running it directly
+		for _, path := range status.FinalArtifacts {
+			fmt.Printf("  Run the app:     %s\n", path)
+			break
+		}
+	} else if len(status.FinalArtifacts) > 1 {
+		fmt.Printf("  Run an artifact from the paths listed above\n")
+	}
+	fmt.Printf("  View full logs:  %s pipeline-status %s --verbose\n", appName, status.PipelineID)
+	fmt.Printf("  View as JSON:    %s pipeline-status %s --json\n", appName, status.PipelineID)
 }
 
 // printPipelineError prints detailed error information from a failed pipeline.
