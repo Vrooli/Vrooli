@@ -37,6 +37,7 @@ with a `spec.json` file and optional context files. This design:
 - Provides version control for backlog evolution
 - Allows offline editing and review
 - Integrates with existing Git workflows
+- Enables inline editing (with diff + save) in the UI for rapid iteration on backlog files. [CODE: ui/src/components/ui/file-preview.tsx]
 
 ### Three Deployment Surfaces
 

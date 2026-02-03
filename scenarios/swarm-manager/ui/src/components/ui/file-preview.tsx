@@ -11,9 +11,23 @@
  * [REQ:REQ-P0-004] File preview for backlog details page
  */
 
-import { useEffect, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Check, Code, Copy, Eye, FileCode, FileImage, FileText, Info, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Editor, { DiffEditor } from "@monaco-editor/react";
+import {
+  Check,
+  Code,
+  Copy,
+  Diff,
+  Eye,
+  FileCode,
+  FileImage,
+  FileText,
+  Info,
+  Loader2,
+  RotateCcw,
+  Save,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions, getFileExtension } from "../../lib";
 import { backlogService } from "../../services";
@@ -113,38 +127,106 @@ function renderMarkdown(content: string): string {
 }
 
 /**
- * Renders code with line numbers.
+ * Returns the Monaco language identifier for a file.
  */
-function CodeView({ content, fileName }: { content: string; fileName: string }) {
-  const lines = content.split("\n");
+function getMonacoLanguage(fileName: string): string {
   const ext = getFileExtension(fileName);
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <tbody>
-          {lines.map((line, i) => (
-            <tr key={i} className="hover:bg-slate-700/30">
-              <td className="select-none px-3 py-0.5 text-right text-slate-600 border-r border-slate-700 w-10">
-                {i + 1}
-              </td>
-              <td className="px-3 py-0.5 whitespace-pre font-mono text-slate-300">
-                {line || " "}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="absolute top-2 right-2 text-xs text-slate-600 uppercase">
-        {ext}
-      </div>
-    </div>
-  );
+  const languageMap: Record<string, string> = {
+    js: "javascript",
+    jsx: "javascript",
+    ts: "typescript",
+    tsx: "typescript",
+    json: "json",
+    md: "markdown",
+    markdown: "markdown",
+    yaml: "yaml",
+    yml: "yaml",
+    toml: "toml",
+    html: "html",
+    css: "css",
+    scss: "scss",
+    go: "go",
+    py: "python",
+    rs: "rust",
+    java: "java",
+    c: "c",
+    cpp: "cpp",
+    h: "cpp",
+    sh: "shell",
+    bash: "shell",
+    zsh: "shell",
+    sql: "sql",
+    graphql: "graphql",
+    proto: "protobuf",
+    xml: "xml",
+  };
+  return languageMap[ext] ?? "plaintext";
 }
+
+/**
+ * Maps file extensions to reasonable content types for saving.
+ */
+function getContentTypeForFile(fileName: string): string {
+  const ext = getFileExtension(fileName);
+  switch (ext) {
+    case "json":
+      return "application/json";
+    case "md":
+    case "markdown":
+      return "text/markdown";
+    case "yaml":
+    case "yml":
+      return "text/yaml";
+    case "toml":
+      return "text/plain";
+    case "html":
+      return "text/html";
+    case "css":
+    case "scss":
+      return "text/css";
+    case "xml":
+      return "text/xml";
+    case "sql":
+      return "text/plain";
+    default:
+      return "text/plain";
+  }
+}
+
+const DEFAULT_EDITOR_OPTIONS = {
+  minimap: { enabled: false },
+  wordWrap: "on",
+  lineNumbers: "on",
+  fontSize: 13,
+  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+  tabSize: 2,
+  scrollBeyondLastLine: false,
+  padding: { top: 12, bottom: 12 },
+  renderLineHighlight: "line",
+  cursorBlinking: "smooth",
+  smoothScrolling: true,
+  scrollbar: {
+    vertical: "auto",
+    horizontal: "auto",
+    verticalScrollbarSize: 8,
+    horizontalScrollbarSize: 8,
+  },
+  overviewRulerBorder: false,
+  hideCursorInOverviewRuler: true,
+  folding: true,
+  foldingStrategy: "indentation",
+  automaticLayout: true,
+} as const;
+
+type FileDraftState = {
+  original: string;
+  draft: string;
+};
 
 /**
  * FilePreview component that fetches and renders file content.
  */
+// DOC: docs/internal/INTENT.md#git-tracked-backlog
 export function FilePreview({
   backlogKind,
   backlogName,
@@ -157,17 +239,27 @@ export function FilePreview({
   stickyHeader = false,
   "data-testid": testId,
 }: FilePreviewProps) {
+  const queryClient = useQueryClient();
   const fileType = getFileType(fileName);
+  const isImage = fileType === "image";
+  const isEditable = fileType !== "image";
+  const editorLanguage = useMemo(() => getMonacoLanguage(fileName), [fileName]);
+  const contentQueryKey = useMemo(
+    () => ["backlog", backlogKind, backlogName, "files", filePath, "content"],
+    [backlogKind, backlogName, filePath]
+  );
+  const [fileStateByPath, setFileStateByPath] = useState<Record<string, FileDraftState>>({});
   const [showMobilePath, setShowMobilePath] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [markdownView, setMarkdownView] = useState<"rendered" | "raw">("rendered");
+  const [markdownView, setMarkdownView] = useState<"rendered" | "raw">("raw");
+  const [isDiffMode, setIsDiffMode] = useState(false);
+  const fileState = fileStateByPath[filePath];
+  const isDirty = Boolean(fileState && fileState.draft !== fileState.original);
 
   useEffect(() => {
     setShowMobilePath(false);
-  }, [filePath]);
-
-  useEffect(() => {
-    setMarkdownView("rendered");
+    setMarkdownView("raw");
+    setIsDiffMode(false);
   }, [filePath]);
 
   useEffect(() => {
@@ -176,21 +268,138 @@ export function FilePreview({
     return () => clearTimeout(timeout);
   }, [copied]);
 
-  // For images, we build the URL directly instead of fetching content
-  const isImage = fileType === "image";
-
-  // Fetch file content for non-image files
   const {
     data: content,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ["backlog", backlogKind, backlogName, "files", filePath, "content"],
+    queryKey: contentQueryKey,
     queryFn: () => backlogService.getFileContent(backlogKind, backlogName, filePath),
     enabled: !isImage,
     ...defaultQueryOptions,
+    refetchOnWindowFocus: defaultQueryOptions.refetchOnWindowFocus && !isDirty,
   });
+
+  useEffect(() => {
+    if (typeof content !== "string") return;
+    setFileStateByPath((prev) => {
+      const existing = prev[filePath];
+      if (!existing) {
+        return { ...prev, [filePath]: { original: content, draft: content } };
+      }
+      if (existing.original === content) return prev;
+      if (existing.draft !== existing.original) return prev;
+      return { ...prev, [filePath]: { original: content, draft: content } };
+    });
+  }, [content, filePath]);
+
+  const draftContent = fileState?.draft ?? content ?? "";
+  const originalContent = fileState?.original ?? content ?? "";
+
+  useEffect(() => {
+    if (!isDirty) {
+      setIsDiffMode(false);
+    }
+  }, [isDirty]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (nextContent: string) =>
+      backlogService.saveFileContent(
+        backlogKind,
+        backlogName,
+        filePath,
+        nextContent,
+        getContentTypeForFile(fileName)
+      ),
+    onSuccess: (_result, nextContent) => {
+      setFileStateByPath((prev) => {
+        return {
+          ...prev,
+          [filePath]: {
+            original: nextContent,
+            draft: nextContent,
+          },
+        };
+      });
+      queryClient.setQueryData(contentQueryKey, nextContent);
+      queryClient.invalidateQueries({
+        queryKey: ["backlog", backlogKind, backlogName, "files"],
+      });
+      if (filePath.endsWith("spec.json")) {
+        queryClient.invalidateQueries({
+          queryKey: ["backlog", backlogKind, backlogName],
+        });
+      }
+    },
+  });
+
+  useEffect(() => {
+    saveMutation.reset();
+  }, [filePath, saveMutation]);
+
+  const isSaving = saveMutation.isPending;
+  const saveErrorMessage =
+    saveMutation.error instanceof Error
+      ? saveMutation.error.message
+      : saveMutation.error
+        ? "Unable to save file."
+        : "";
+
+  const handleDraftChange = useCallback(
+    (nextValue?: string) => {
+      const normalized = nextValue ?? "";
+      setFileStateByPath((prev) => {
+        const existing =
+          prev[filePath] ??
+          (typeof content === "string"
+            ? { original: content, draft: content }
+            : { original: "", draft: "" });
+        if (existing.draft === normalized) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [filePath]: {
+            original: existing.original,
+            draft: normalized,
+          },
+        };
+      });
+    },
+    [content, filePath]
+  );
+
+  const handleDiscard = useCallback(() => {
+    setFileStateByPath((prev) => {
+      const existing = prev[filePath];
+      if (existing) {
+        return {
+          ...prev,
+          [filePath]: {
+            original: existing.original,
+            draft: existing.original,
+          },
+        };
+      }
+      if (typeof content === "string") {
+        return {
+          ...prev,
+          [filePath]: {
+            original: content,
+            draft: content,
+          },
+        };
+      }
+      return prev;
+    });
+    setIsDiffMode(false);
+  }, [content, filePath]);
+
+  const handleSave = useCallback(() => {
+    if (!isEditable || !isDirty || isSaving) return;
+    saveMutation.mutate(draftContent);
+  }, [draftContent, isDirty, isEditable, isSaving, saveMutation]);
 
   const handleCopyPath = async () => {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -205,9 +414,25 @@ export function FilePreview({
     setShowMobilePath(true);
   };
 
-  const showMarkdownToggle = fileType === "markdown";
+  const showMarkdownToggle = fileType === "markdown" && !isDiffMode;
   const markdownToggleLabel =
     markdownView === "rendered" ? "Show raw markdown" : "Show rendered markdown";
+  const showEditor = isEditable && !isDiffMode && (fileType !== "markdown" || markdownView === "raw");
+  const showRenderedMarkdown =
+    fileType === "markdown" && markdownView === "rendered" && !isDiffMode;
+  const showDiff = isEditable && isDiffMode && !isLoading && !error;
+  const canSave = isEditable && isDirty && !isSaving && !isLoading && !error;
+  const canDiscard = isEditable && isDirty && !isSaving;
+  const canToggleDiff = isEditable && isDirty && !isSaving;
+
+  const actionButtonClass = (enabled: boolean, active = false) =>
+    cn(
+      "rounded-full p-1 transition-colors",
+      enabled
+        ? "text-slate-300 hover:bg-slate-700/60 hover:text-white"
+        : "text-slate-600 cursor-not-allowed",
+      active && enabled && "bg-slate-700/60 text-white"
+    );
 
   return (
     <div
@@ -238,13 +463,62 @@ export function FilePreview({
           >
             {filePath}
           </span>
+          {isEditable && (
+            <>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!canSave}
+                className={cn(
+                  "rounded-full p-1 transition-colors",
+                  canSave
+                    ? "bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30"
+                    : "text-slate-600 cursor-not-allowed"
+                )}
+                aria-label="Save changes"
+                title={canSave ? "Save changes" : "No changes to save"}
+                data-testid="file-preview-save"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscard}
+                disabled={!canDiscard}
+                className={actionButtonClass(canDiscard)}
+                aria-label="Discard changes"
+                title={canDiscard ? "Discard changes" : "No changes to discard"}
+                data-testid="file-preview-discard"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+              {isDirty && (
+                <button
+                  type="button"
+                  onClick={() => setIsDiffMode((prev) => !prev)}
+                  disabled={!canToggleDiff}
+                  className={actionButtonClass(canToggleDiff, isDiffMode)}
+                  aria-label="Toggle diff"
+                  aria-pressed={isDiffMode}
+                  title={isDiffMode ? "Hide diff" : "Show diff"}
+                  data-testid="file-preview-diff-toggle"
+                >
+                  <Diff className="h-4 w-4" />
+                </button>
+              )}
+            </>
+          )}
           {showMarkdownToggle && (
             <button
               type="button"
               onClick={() =>
                 setMarkdownView((prev) => (prev === "rendered" ? "raw" : "rendered"))
               }
-              className="rounded-full p-1 text-slate-400 hover:bg-slate-700/60 hover:text-slate-200"
+              className={actionButtonClass(true)}
               aria-label={markdownToggleLabel}
               title={markdownToggleLabel}
             >
@@ -269,6 +543,11 @@ export function FilePreview({
           {headerActions}
         </div>
       </div>
+      {saveErrorMessage && (
+        <div className="border-b border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          {saveErrorMessage}
+        </div>
+      )}
       {compactHeader && showMobilePath && (
         <div className="sm:hidden flex items-center justify-between gap-2 border-b border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-slate-400">
           <span className="truncate">{filePath}</span>
@@ -287,7 +566,7 @@ export function FilePreview({
       {/* Content */}
       <div
         className={cn(
-          "relative min-h-[200px] max-h-[600px] overflow-auto",
+          "relative flex-1 min-h-0 overflow-hidden",
           contentClassName
         )}
       >
@@ -319,46 +598,44 @@ export function FilePreview({
           </div>
         )}
 
-        {/* Markdown preview */}
-        {!isImage && !isLoading && !error && content && fileType === "markdown" && markdownView === "rendered" && (
-          <div
-            className="p-4 prose prose-invert max-w-none"
-            data-testid="file-preview-markdown"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+        {!isImage && !isLoading && !error && showDiff && (
+          <DiffEditor
+            height="100%"
+            language={editorLanguage}
+            original={originalContent}
+            modified={draftContent}
+            theme="vs-dark"
+            data-testid="file-preview-diff"
+            options={{
+              ...DEFAULT_EDITOR_OPTIONS,
+              readOnly: true,
+              renderSideBySide: !compactHeader,
+            }}
           />
         )}
 
-        {!isImage && !isLoading && !error && content && fileType === "markdown" && markdownView === "raw" && (
-          <pre
-            className="p-4 font-mono text-sm text-slate-300 whitespace-pre-wrap"
-            data-testid="file-preview-markdown-raw"
-          >
-            {content}
-          </pre>
+        {!isImage && !isLoading && !error && showRenderedMarkdown && (
+          <div
+            className="h-full overflow-auto p-4 prose prose-invert max-w-none"
+            data-testid="file-preview-markdown"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(draftContent) }}
+          />
         )}
 
-        {/* Code preview */}
-        {!isImage && !isLoading && !error && content && fileType === "code" && (
-          <div className="relative bg-slate-900" data-testid="file-preview-code">
-            <CodeView content={content} fileName={fileName} />
-          </div>
-        )}
-
-        {/* Text preview */}
-        {!isImage && !isLoading && !error && content && fileType === "text" && (
-          <pre
-            className="p-4 font-mono text-sm text-slate-300 whitespace-pre-wrap"
-            data-testid="file-preview-text"
-          >
-            {content}
-          </pre>
-        )}
-
-        {/* Empty content */}
-        {!isImage && !isLoading && !error && content === "" && (
-          <div className="flex items-center justify-center p-8 text-slate-500">
-            This file is empty
-          </div>
+        {!isImage && !isLoading && !error && showEditor && (
+          <Editor
+            height="100%"
+            language={editorLanguage}
+            value={draftContent}
+            onChange={handleDraftChange}
+            path={filePath}
+            theme="vs-dark"
+            data-testid="file-preview-editor"
+            options={{
+              ...DEFAULT_EDITOR_OPTIONS,
+              readOnly: !isEditable,
+            }}
+          />
         )}
       </div>
     </div>

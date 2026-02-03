@@ -9,7 +9,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, Files, CheckSquare, Square } from "lucide-react";
 import { Button } from "../ui/button";
-import { FileTree, getAllFilePathsFromTree } from "../ui/file-tree";
+import { FileTree } from "../ui/file-tree";
 import type { ScenarioFile, PreserveFilesPreset } from "../../types";
 
 const PRESETS: { value: PreserveFilesPreset | ""; label: string; description: string }[] = [
@@ -92,6 +92,23 @@ function matchesPattern(path: string, pattern: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Collect all file paths in the scenario tree (files only).
+ */
+function collectFilePaths(file: ScenarioFile): string[] {
+  if (file.type === "file") {
+    return [file.path];
+  }
+  if (!file.children) {
+    return [];
+  }
+  return file.children.flatMap(collectFilePaths);
+}
+
+function getAllFilePathsFromTree(files: ScenarioFile[]): string[] {
+  return files.flatMap(collectFilePaths);
 }
 
 /**

@@ -12,6 +12,7 @@ import { FilePreview } from "./file-preview";
 vi.mock("../../services", () => ({
   backlogService: {
     getFileContent: vi.fn(),
+    saveFileContent: vi.fn(),
   },
 }));
 
@@ -83,6 +84,12 @@ describe("FilePreview", () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByTestId("file-preview-editor")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("Show rendered markdown"));
+
+    await waitFor(() => {
       expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
     });
   });
@@ -100,18 +107,24 @@ describe("FilePreview", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+      expect(screen.getByTestId("file-preview-editor")).toBeInTheDocument();
     });
 
-    const toggleButton = screen.getByLabelText("Show raw markdown");
+    const toggleButton = screen.getByLabelText("Show rendered markdown");
     fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-markdown-raw")).toBeInTheDocument();
+      expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("Show raw markdown"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-preview-editor")).toBeInTheDocument();
     });
   });
 
-  it("renders code files with code view", async () => {
+  it("renders code files with editor", async () => {
     vi.mocked(backlogService.getFileContent).mockResolvedValue("function test() {\n  return true;\n}");
 
     renderWithProviders(
@@ -124,7 +137,7 @@ describe("FilePreview", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-code")).toBeInTheDocument();
+      expect(screen.getByTestId("file-preview-editor")).toBeInTheDocument();
     });
   });
 
@@ -141,10 +154,50 @@ describe("FilePreview", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-text")).toBeInTheDocument();
+      expect(screen.getByTestId("file-preview-editor")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("file-preview-text")).toHaveTextContent("Plain text content");
+    expect(screen.getByTestId("file-preview-editor")).toHaveValue("Plain text content");
+  });
+
+  it("saves edited content and shows diff mode", async () => {
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("Original content");
+    vi.mocked(backlogService.saveFileContent).mockResolvedValue({
+      name: "notes.txt",
+      path: "notes.txt",
+      type: "file",
+    });
+
+    renderWithProviders(
+      <FilePreview
+        backlogKind="idea"
+        backlogName="test-idea"
+        filePath="notes.txt"
+        fileName="notes.txt"
+      />
+    );
+
+    const editor = await screen.findByTestId("file-preview-editor");
+    fireEvent.change(editor, { target: { value: "Updated content" } });
+
+    const diffToggle = await screen.findByTestId("file-preview-diff-toggle");
+    fireEvent.click(diffToggle);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-preview-diff")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("file-preview-save"));
+
+    await waitFor(() => {
+      expect(backlogService.saveFileContent).toHaveBeenCalledWith(
+        "idea",
+        "test-idea",
+        "notes.txt",
+        "Updated content",
+        "text/plain"
+      );
+    });
   });
 
   it("renders image preview for image files", () => {

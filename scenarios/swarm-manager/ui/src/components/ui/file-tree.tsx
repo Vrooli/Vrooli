@@ -39,6 +39,7 @@ export interface FileTreeProps {
   selectedPaths?: Set<string>;
   /** Callback when selection changes (for checkbox mode) */
   onSelectionChange?: (selectedPaths: Set<string>) => void;
+  className?: string;
   "data-testid"?: string;
 }
 
@@ -240,6 +241,7 @@ export function FileTree({
   selectionMode = "single",
   selectedPaths,
   onSelectionChange,
+  className,
   "data-testid": testId,
 }: FileTreeProps) {
   // Internal handler for checkbox changes
@@ -260,7 +262,10 @@ export function FileTree({
   if (files.length === 0) {
     return (
       <div
-        className="rounded-lg border border-white/10 bg-slate-800/30 p-6 text-center"
+        className={cn(
+          "rounded-lg border border-white/10 bg-slate-800/30 p-6 text-center",
+          className
+        )}
         data-testid={testId ?? "file-tree"}
       >
         <Folder className="mx-auto h-8 w-8 text-slate-600" />
@@ -271,7 +276,10 @@ export function FileTree({
 
   return (
     <div
-      className="rounded-lg border border-white/10 bg-slate-800/30 py-2"
+      className={cn(
+        "rounded-lg border border-white/10 bg-slate-800/30 py-2",
+        className
+      )}
       data-testid={testId ?? "file-tree"}
     >
       {files.map((file) => (
@@ -287,11 +295,4 @@ export function FileTree({
       ))}
     </div>
   );
-}
-
-/**
- * Helper to get all file paths from a file tree (for select all functionality)
- */
-export function getAllFilePathsFromTree(files: TreeFile[]): string[] {
-  return files.flatMap(getAllFilePaths);
 }

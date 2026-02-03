@@ -656,6 +656,7 @@ export function BacklogDetailsPage() {
             files={files ?? []}
             onFileSelect={handleFileSelect}
             selectedPath={selectedFile?.path}
+            className="lg:rounded-none lg:border-0 lg:bg-transparent lg:py-0"
             data-testid={selectors.backlogDetails.fileTree}
           />
         )}
