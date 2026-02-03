@@ -1,3 +1,5 @@
 # Distribution config (contains credential env var references)
 .vrooli/distribution.json
 cli/browser-automation-studio-linux.AppImage
+cli/cli
+git-control-tower-linux.AppImage

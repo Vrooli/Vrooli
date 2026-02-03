@@ -102,13 +102,15 @@ var categoryMap = map[ErrorCode]SemanticCategory{
 	CodePlatformUnsupported: CategoryConfiguration,
 
 	// Generation domain errors
-	CodeWrapperNotFound:     CategoryResourceMissing,
-	CodeTemplateNotFound:    CategoryResourceMissing,
-	CodeTemplateError:       CategoryTerminal,
-	CodeGenerationFailed:    CategoryExecution,
-	CodeConfigInvalid:       CategoryConfiguration,
-	CodeScenarioNotFound:    CategoryResourceMissing,
-	CodeScenarioPathInvalid: CategoryConfiguration,
+	CodeWrapperNotFound:       CategoryResourceMissing,
+	CodeTemplateNotFound:      CategoryResourceMissing,
+	CodeTemplateError:         CategoryTerminal,
+	CodeGenerationFailed:      CategoryExecution,
+	CodeConfigInvalid:         CategoryConfiguration,
+	CodeScenarioNotFound:      CategoryResourceMissing,
+	CodeScenarioPathInvalid:   CategoryConfiguration,
+	CodeScenarioUnbundleable:  CategoryConfiguration,
+	CodeExternalDependencyReq: CategoryConfiguration,
 
 	// Preflight domain errors
 	CodePreflightFailed:    CategoryConfiguration,
@@ -187,13 +189,15 @@ const (
 	CodePlatformUnsupported ErrorCode = "PLATFORM_UNSUPPORTED"
 
 	// Generation domain errors
-	CodeWrapperNotFound     ErrorCode = "WRAPPER_NOT_FOUND"
-	CodeTemplateNotFound    ErrorCode = "TEMPLATE_NOT_FOUND"
-	CodeTemplateError       ErrorCode = "TEMPLATE_ERROR"
-	CodeGenerationFailed    ErrorCode = "GENERATION_FAILED"
-	CodeConfigInvalid       ErrorCode = "CONFIG_INVALID"
-	CodeScenarioNotFound    ErrorCode = "SCENARIO_NOT_FOUND"
-	CodeScenarioPathInvalid ErrorCode = "SCENARIO_PATH_INVALID"
+	CodeWrapperNotFound       ErrorCode = "WRAPPER_NOT_FOUND"
+	CodeTemplateNotFound      ErrorCode = "TEMPLATE_NOT_FOUND"
+	CodeTemplateError         ErrorCode = "TEMPLATE_ERROR"
+	CodeGenerationFailed      ErrorCode = "GENERATION_FAILED"
+	CodeConfigInvalid         ErrorCode = "CONFIG_INVALID"
+	CodeScenarioNotFound      ErrorCode = "SCENARIO_NOT_FOUND"
+	CodeScenarioPathInvalid   ErrorCode = "SCENARIO_PATH_INVALID"
+	CodeScenarioUnbundleable  ErrorCode = "SCENARIO_UNBUNDLEABLE"
+	CodeExternalDependencyReq ErrorCode = "EXTERNAL_DEPENDENCY_REQUIRED"
 
 	// Preflight domain errors
 	CodePreflightFailed    ErrorCode = "PREFLIGHT_FAILED"
@@ -534,13 +538,15 @@ var httpStatusMap = map[ErrorCode]int{
 	CodePlatformUnsupported: http.StatusBadRequest,
 
 	// Generation domain
-	CodeWrapperNotFound:     http.StatusNotFound,
-	CodeTemplateNotFound:    http.StatusNotFound,
-	CodeTemplateError:       http.StatusInternalServerError,
-	CodeGenerationFailed:    http.StatusInternalServerError,
-	CodeConfigInvalid:       http.StatusBadRequest,
-	CodeScenarioNotFound:    http.StatusNotFound,
-	CodeScenarioPathInvalid: http.StatusBadRequest,
+	CodeWrapperNotFound:       http.StatusNotFound,
+	CodeTemplateNotFound:      http.StatusNotFound,
+	CodeTemplateError:         http.StatusInternalServerError,
+	CodeGenerationFailed:      http.StatusInternalServerError,
+	CodeConfigInvalid:         http.StatusBadRequest,
+	CodeScenarioNotFound:      http.StatusNotFound,
+	CodeScenarioPathInvalid:   http.StatusBadRequest,
+	CodeScenarioUnbundleable:  http.StatusBadRequest,
+	CodeExternalDependencyReq: http.StatusBadRequest,
 
 	// Preflight domain
 	CodePreflightFailed:    http.StatusInternalServerError,
@@ -1025,6 +1031,37 @@ func ErrScenarioNotFound(scenario string) *DomainError {
 	return New(CodeScenarioNotFound, "scenario not found").
 		WithDetail("scenario", scenario).
 		InDomain("generation")
+}
+
+// ErrScenarioUnbundleable creates an error indicating a scenario cannot run in bundled mode.
+// This occurs when a scenario has required dependencies that cannot be packaged into a desktop app.
+// The alternatives parameter can include swap options if available.
+func ErrScenarioUnbundleable(scenario, resource, reason string, alternatives []string) *DomainError {
+	steps := []string{
+		fmt.Sprintf("Use --deployment-mode external-server to connect to a running server with %s", resource),
+	}
+	if len(alternatives) > 0 {
+		steps = append(steps,
+			fmt.Sprintf("Or configure dependency swap: %s → %s (requires scenario API support)", resource, strings.Join(alternatives, " or ")))
+	}
+	steps = append(steps,
+		"Or ensure the required resource is running locally before starting the desktop app",
+		"See docs/deployment/tiers/tier-2-desktop.md for deployment mode options",
+	)
+
+	err := New(CodeScenarioUnbundleable,
+		fmt.Sprintf("scenario '%s' cannot run in bundled mode: requires '%s'", scenario, resource)).
+		WithDetail("scenario", scenario).
+		WithDetail("required_resource", resource).
+		WithRecovery(RecoveryFixInput, reason).
+		WithManualSteps(steps).
+		InDomain("preflight")
+
+	if len(alternatives) > 0 {
+		err = err.WithDetail("alternatives", alternatives)
+	}
+
+	return err
 }
 
 // ErrTemplateNotFound creates a template not found error.
@@ -1739,7 +1776,7 @@ func ErrSmokeTestExecutionFailed(cause error, context map[string]string) *Domain
 			"Check if the application can run manually",
 			"Verify all dependencies are installed",
 			"Check system logs for crash information",
-			"Try running with --verbose flag for more output",
+			"Use --show-output with 'pipeline run' to see full app output",
 		}).
 		InDomain("smoketest")
 

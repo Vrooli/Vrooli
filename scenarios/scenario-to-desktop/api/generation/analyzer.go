@@ -35,6 +35,69 @@ type ServiceJSON struct {
 			Range  string `json:"range"`
 		} `json:"ui"`
 	} `json:"ports"`
+	Dependencies struct {
+		Resources map[string]ResourceDependency `json:"resources"`
+	} `json:"dependencies"`
+}
+
+// ResourceDependency describes a scenario's dependency on an external resource.
+type ResourceDependency struct {
+	Type        string `json:"type"`
+	Enabled     bool   `json:"enabled"`
+	Required    bool   `json:"required"`
+	Description string `json:"description"`
+}
+
+// DeploymentResourceDependency extends ResourceDependency with platform support metadata.
+// This is used when parsing the deployment.dependencies.resources section of service.json.
+type DeploymentResourceDependency struct {
+	ResourceType    string                         `json:"resource_type"`
+	PlatformSupport map[string]PlatformTierSupport `json:"platform_support"`
+	SwappableWith   []SwapOption                   `json:"swappable_with"`
+	PackagingHints  []string                       `json:"packaging_hints"`
+}
+
+// PlatformTierSupport describes a resource's support status for a deployment tier.
+type PlatformTierSupport struct {
+	Supported    bool     `json:"supported"`
+	FitnessScore float64  `json:"fitness_score"`
+	Reason       string   `json:"reason"`
+	Alternatives []string `json:"alternatives"`
+	Notes        string   `json:"notes"`
+}
+
+// SwapOption describes an alternative resource that can replace the current one.
+type SwapOption struct {
+	ID           string `json:"id"`
+	Relationship string `json:"relationship"`
+	Notes        string `json:"notes"`
+}
+
+// DeploymentSection represents the deployment metadata in service.json.
+type DeploymentSection struct {
+	Dependencies struct {
+		Resources map[string]DeploymentResourceDependency `json:"resources"`
+	} `json:"dependencies"`
+}
+
+// FullServiceJSON extends ServiceJSON with deployment metadata for platform support.
+type FullServiceJSON struct {
+	ServiceJSON
+	Deployment DeploymentSection `json:"deployment"`
+}
+
+// FallbackUnbundleableResources is used ONLY when a resource has no
+// platform_support metadata in the scenario's service.json.
+// Prefer using the scenario's declared metadata over this list.
+var FallbackUnbundleableResources = map[string]bool{
+	"postgres":      true,
+	"redis":         true,
+	"qdrant":        true,
+	"mysql":         true,
+	"mongodb":       true,
+	"elasticsearch": true,
+	"rabbitmq":      true,
+	"kafka":         true,
 }
 
 // UIPackageJSON represents relevant fields from ui/package.json.
@@ -98,6 +161,165 @@ func (a *DefaultAnalyzer) ValidateScenarioForDesktop(scenarioName string) error 
 	}
 
 	return nil
+}
+
+// BundleabilityResult contains the result of checking if a scenario can be bundled.
+type BundleabilityResult struct {
+	Bundleable           bool
+	UnbundleableReason   string
+	RequiredResources    []string
+	UnbundleableResource string
+	Alternatives         []string      // Available swap alternatives for the unbundleable resource
+	Warnings             []SwapWarning // Warnings about resources that require swaps
+}
+
+// SwapWarning indicates a resource requires a swap for desktop bundling.
+type SwapWarning struct {
+	Resource     string   // The resource that requires a swap
+	Alternatives []string // Available alternatives (e.g., ["sqlite"] for postgres)
+	Message      string   // Human-readable warning message
+}
+
+// CheckBundleability checks if a scenario can be packaged in bundled mode.
+// Returns a BundleabilityResult indicating whether bundled mode is possible
+// and which resources prevent it if not.
+//
+// This method uses a data-driven approach:
+// 1. Primary: Check scenario's deployment.dependencies.resources.<name>.platform_support.tier-2-desktop
+// 2. Fallback: Use FallbackUnbundleableResources for resources without metadata
+//
+// If a resource is not supported but has alternatives/swaps declared, the method
+// returns a warning but allows the build to proceed.
+func (a *DefaultAnalyzer) CheckBundleability(scenarioName string) (*BundleabilityResult, error) {
+	metadata, err := a.AnalyzeScenario(scenarioName)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &BundleabilityResult{
+		Bundleable:        true,
+		RequiredResources: metadata.RequiredResources,
+		Warnings:          []SwapWarning{},
+	}
+
+	// Read full service.json with deployment metadata
+	fullServiceJSON, err := a.readFullServiceJSON(metadata.ScenarioPath)
+	if err != nil {
+		// Fall back to the old approach if we can't read deployment metadata
+		return a.checkBundleabilityFallback(result)
+	}
+
+	// Check each required resource
+	for _, resourceName := range metadata.RequiredResources {
+		// Look for deployment metadata for this resource
+		deployDep, hasDeploymentMetadata := fullServiceJSON.Deployment.Dependencies.Resources[resourceName]
+
+		if hasDeploymentMetadata {
+			// Check tier-2-desktop support
+			desktopSupport, hasTierSupport := deployDep.PlatformSupport["tier-2-desktop"]
+
+			if hasTierSupport && !desktopSupport.Supported {
+				// Resource explicitly not supported for desktop
+				alternatives := a.getAlternatives(deployDep, desktopSupport)
+
+				if len(alternatives) == 0 {
+					// No swap available - fail
+					result.Bundleable = false
+					result.UnbundleableResource = resourceName
+					result.UnbundleableReason = desktopSupport.Reason
+					if result.UnbundleableReason == "" {
+						result.UnbundleableReason = fmt.Sprintf(
+							"Resource '%s' is not supported for desktop bundling", resourceName)
+					}
+					return result, nil
+				}
+
+				// Has swap declared - warn but allow
+				result.Warnings = append(result.Warnings, SwapWarning{
+					Resource:     resourceName,
+					Alternatives: alternatives,
+					Message: fmt.Sprintf(
+						"Scenario requires '%s' which is not supported for desktop bundling. "+
+							"A swap to '%s' is declared. "+
+							"NOTE: Dependency swaps require supporting code in the scenario's API. "+
+							"If smoke test fails at runtime_readyz, verify the scenario implements the swapped backend.",
+						resourceName, strings.Join(alternatives, " or ")),
+				})
+			}
+		} else {
+			// No deployment metadata - use fallback detection
+			if FallbackUnbundleableResources[resourceName] {
+				result.Bundleable = false
+				result.UnbundleableResource = resourceName
+				result.UnbundleableReason = fmt.Sprintf(
+					"Scenario requires '%s' which cannot be bundled into a desktop application. "+
+						"No tier-2-desktop platform support is declared in the scenario's service.json.",
+					resourceName)
+				return result, nil
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// getAlternatives extracts alternative resources from deployment metadata.
+func (a *DefaultAnalyzer) getAlternatives(dep DeploymentResourceDependency, tierSupport PlatformTierSupport) []string {
+	alternatives := make([]string, 0)
+
+	// First check tier-specific alternatives
+	alternatives = append(alternatives, tierSupport.Alternatives...)
+
+	// Then check swappable_with from the resource itself
+	for _, swap := range dep.SwappableWith {
+		// Avoid duplicates
+		found := false
+		for _, alt := range alternatives {
+			if alt == swap.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			alternatives = append(alternatives, swap.ID)
+		}
+	}
+
+	return alternatives
+}
+
+// checkBundleabilityFallback uses the legacy hard-coded approach when deployment metadata is unavailable.
+func (a *DefaultAnalyzer) checkBundleabilityFallback(result *BundleabilityResult) (*BundleabilityResult, error) {
+	for _, resource := range result.RequiredResources {
+		if FallbackUnbundleableResources[resource] {
+			result.Bundleable = false
+			result.UnbundleableResource = resource
+			result.UnbundleableReason = fmt.Sprintf(
+				"Scenario requires '%s' which cannot be bundled into a desktop application. "+
+					"Use --deployment-mode external-server to connect to a running server instead.",
+				resource)
+			break
+		}
+	}
+
+	return result, nil
+}
+
+// readFullServiceJSON reads and parses .vrooli/service.json with deployment metadata.
+func (a *DefaultAnalyzer) readFullServiceJSON(scenarioPath string) (*FullServiceJSON, error) {
+	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read service.json: %w", err)
+	}
+
+	var fullServiceJSON FullServiceJSON
+	if err := json.Unmarshal(data, &fullServiceJSON); err != nil {
+		return nil, fmt.Errorf("failed to parse service.json: %w", err)
+	}
+
+	return &fullServiceJSON, nil
 }
 
 // CreateDesktopConfigFromMetadata generates a DesktopConfig from analyzed metadata.
@@ -236,6 +458,13 @@ func (a *DefaultAnalyzer) readServiceJSON(metadata *ScenarioMetadata) error {
 			if _, err := fmt.Sscanf(parts[0], "%d", &port); err == nil {
 				metadata.UIPort = port
 			}
+		}
+	}
+
+	// Extract required resources from dependencies
+	for name, dep := range serviceJSON.Dependencies.Resources {
+		if dep.Required && dep.Enabled {
+			metadata.RequiredResources = append(metadata.RequiredResources, name)
 		}
 	}
 

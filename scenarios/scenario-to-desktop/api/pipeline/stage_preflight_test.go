@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/bundle"
+	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 )
 
@@ -92,7 +93,8 @@ func TestPreflightStage_BundleRootResolution(t *testing.T) {
 
 	input := &StageInput{
 		Config: &Config{
-			ScenarioName: "test",
+			ScenarioName:   "test",
+			DeploymentMode: DeploymentModeBundled, // Explicitly set bundled mode for this test
 		},
 		BundleResult: &bundle.PackageResult{
 			BundleDir:    bundleDir,
@@ -181,7 +183,8 @@ func TestPreflightStage_BinaryPathResolution(t *testing.T) {
 
 	input := &StageInput{
 		Config: &Config{
-			ScenarioName: "test",
+			ScenarioName:   "test",
+			DeploymentMode: DeploymentModeBundled, // Explicitly set bundled mode for this test
 		},
 		BundleResult: &bundle.PackageResult{
 			BundleDir:    bundleDir,
@@ -216,7 +219,10 @@ func TestPreflightStage_NoBundleResult(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config:       &Config{ScenarioName: "test"},
+		Config: &Config{
+			ScenarioName:   "test",
+			DeploymentMode: DeploymentModeBundled, // Bundled mode requires bundle result
+		},
 		BundleResult: nil, // Missing bundle result
 		Logger:       &mockLogger{},
 	}
@@ -230,4 +236,267 @@ func TestPreflightStage_NoBundleResult(t *testing.T) {
 	if mockSvc.lastRequest != nil {
 		t.Error("preflight service should not be called when bundle result is missing")
 	}
+}
+
+// =============================================================================
+// Mock bundleability checker for testing fail-fast behavior
+// =============================================================================
+
+type mockBundleabilityChecker struct {
+	result *generation.BundleabilityResult
+	err    error
+}
+
+func (m *mockBundleabilityChecker) CheckBundleability(scenarioName string) (*generation.BundleabilityResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.result, nil
+}
+
+// TestPreflightStage_Bundleability_FailsFast verifies that unbundleable scenarios fail early.
+func TestPreflightStage_Bundleability_FailsFast(t *testing.T) {
+	// Create a temp directory structure for the bundle
+	tmpDir := t.TempDir()
+	bundleDir := filepath.Join(tmpDir, "platforms", "electron", "bundle")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	manifestPath := filepath.Join(bundleDir, "bundle.json")
+	manifestContent := `{
+		"schema_version": "v0.1",
+		"target": "desktop",
+		"app": {"name": "test", "version": "1.0.0"},
+		"ipc": {"host": "127.0.0.1", "port": 39200, "auth_token_path": "runtime/token"},
+		"telemetry": {"file": "telemetry.jsonl"},
+		"services": []
+	}`
+	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	mockSvc := &mockPreflightService{}
+	mockTime := &mockTimeProvider{now: time.Now().Unix()}
+	mockBundleCheck := &mockBundleabilityChecker{
+		result: &generation.BundleabilityResult{
+			Bundleable:           false,
+			UnbundleableResource: "postgres",
+			UnbundleableReason:   "Requires external database server",
+			Alternatives:         []string{"sqlite"},
+		},
+	}
+
+	stage := NewPreflightStage(
+		WithPreflightService(mockSvc),
+		WithPreflightTimeProvider(mockTime),
+		WithBundleabilityChecker(mockBundleCheck),
+	)
+
+	input := &StageInput{
+		Config: &Config{
+			ScenarioName:   "test-scenario",
+			DeploymentMode: DeploymentModeBundled,
+		},
+		BundleResult: &bundle.PackageResult{
+			BundleDir:    bundleDir,
+			ManifestPath: manifestPath,
+		},
+		Logger: &mockLogger{},
+	}
+
+	result := stage.Execute(context.Background(), input)
+
+	// Should fail fast without calling preflight service
+	if result.Status != StatusFailed {
+		t.Errorf("expected status %q, got %q", StatusFailed, result.Status)
+	}
+
+	if mockSvc.lastRequest != nil {
+		t.Error("preflight service should not be called when scenario is unbundleable")
+	}
+
+	// Error should mention the resource
+	if result.Error == "" {
+		t.Error("expected error message")
+	}
+}
+
+// TestPreflightStage_Bundleability_WarnsWithSwap verifies that scenarios with swaps proceed with warning.
+func TestPreflightStage_Bundleability_WarnsWithSwap(t *testing.T) {
+	tmpDir := t.TempDir()
+	bundleDir := filepath.Join(tmpDir, "platforms", "electron", "bundle")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	manifestPath := filepath.Join(bundleDir, "bundle.json")
+	manifestContent := `{
+		"schema_version": "v0.1",
+		"target": "desktop",
+		"app": {"name": "test", "version": "1.0.0"},
+		"ipc": {"host": "127.0.0.1", "port": 39200, "auth_token_path": "runtime/token"},
+		"telemetry": {"file": "telemetry.jsonl"},
+		"services": []
+	}`
+	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	mockSvc := &mockPreflightService{}
+	mockTime := &mockTimeProvider{now: time.Now().Unix()}
+	mockBundleCheck := &mockBundleabilityChecker{
+		result: &generation.BundleabilityResult{
+			Bundleable:        true,
+			RequiredResources: []string{"postgres"},
+			Warnings: []generation.SwapWarning{
+				{
+					Resource:     "postgres",
+					Alternatives: []string{"sqlite"},
+					Message:      "Scenario requires 'postgres' which is not supported. Swap to 'sqlite' declared.",
+				},
+			},
+		},
+	}
+
+	stage := NewPreflightStage(
+		WithPreflightService(mockSvc),
+		WithPreflightTimeProvider(mockTime),
+		WithBundleabilityChecker(mockBundleCheck),
+	)
+
+	input := &StageInput{
+		Config: &Config{
+			ScenarioName:   "test-scenario",
+			DeploymentMode: DeploymentModeBundled,
+		},
+		BundleResult: &bundle.PackageResult{
+			BundleDir:    bundleDir,
+			ManifestPath: manifestPath,
+		},
+		Logger: &mockLogger{},
+	}
+
+	result := stage.Execute(context.Background(), input)
+
+	// Should proceed (preflight service should be called)
+	if mockSvc.lastRequest == nil {
+		t.Error("preflight service should be called when scenario has swap declared")
+	}
+
+	// Should complete successfully
+	if result.Status != StatusCompleted {
+		t.Errorf("expected status %q, got %q (error: %s)", StatusCompleted, result.Status, result.Error)
+	}
+
+	// Should have warning in logs
+	hasWarning := false
+	for _, log := range result.Logs {
+		if containsSubstring(log, "Warning") && containsSubstring(log, "postgres") {
+			hasWarning = true
+			break
+		}
+	}
+	if !hasWarning {
+		t.Errorf("expected warning about postgres swap in logs, got: %v", result.Logs)
+	}
+}
+
+// TestPreflightStage_Bundleability_ExternalServer_SkipsCheck verifies check is skipped for external-server mode.
+func TestPreflightStage_Bundleability_ExternalServer_SkipsCheck(t *testing.T) {
+	tmpDir := t.TempDir()
+	bundleDir := filepath.Join(tmpDir, "platforms", "electron", "bundle")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	manifestPath := filepath.Join(bundleDir, "bundle.json")
+	manifestContent := `{
+		"schema_version": "v0.1",
+		"target": "desktop",
+		"app": {"name": "test", "version": "1.0.0"},
+		"ipc": {"host": "127.0.0.1", "port": 39200, "auth_token_path": "runtime/token"},
+		"telemetry": {"file": "telemetry.jsonl"},
+		"services": []
+	}`
+	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	mockSvc := &mockPreflightService{}
+	mockTime := &mockTimeProvider{now: time.Now().Unix()}
+
+	bundleCheckCalled := false
+	mockBundleCheck := &mockBundleabilityChecker{
+		result: &generation.BundleabilityResult{
+			Bundleable:           false,
+			UnbundleableResource: "postgres",
+			UnbundleableReason:   "Requires external database server",
+		},
+	}
+
+	// Wrap to track if called
+	originalResult := mockBundleCheck.result
+	mockBundleCheck = &mockBundleabilityChecker{
+		result: originalResult,
+	}
+
+	stage := NewPreflightStage(
+		WithPreflightService(mockSvc),
+		WithPreflightTimeProvider(mockTime),
+		WithBundleabilityChecker(&trackingBundleabilityChecker{
+			inner:  mockBundleCheck,
+			called: &bundleCheckCalled,
+		}),
+	)
+
+	input := &StageInput{
+		Config: &Config{
+			ScenarioName:   "test-scenario",
+			DeploymentMode: DeploymentModeExternalServer, // External server mode - should skip check
+		},
+		BundleResult: &bundle.PackageResult{
+			BundleDir:    bundleDir,
+			ManifestPath: manifestPath,
+		},
+		Logger: &mockLogger{},
+	}
+
+	result := stage.Execute(context.Background(), input)
+
+	// Bundleability check should not be called for external-server mode
+	if bundleCheckCalled {
+		t.Error("bundleability check should not be called for external-server mode")
+	}
+
+	// Should be skipped (external-server mode skips preflight entirely)
+	if result.Status != StatusSkipped {
+		t.Errorf("expected status %q, got %q (error: %s)", StatusSkipped, result.Status, result.Error)
+	}
+}
+
+// trackingBundleabilityChecker wraps a checker to track if it was called.
+type trackingBundleabilityChecker struct {
+	inner  *mockBundleabilityChecker
+	called *bool
+}
+
+func (t *trackingBundleabilityChecker) CheckBundleability(scenarioName string) (*generation.BundleabilityResult, error) {
+	*t.called = true
+	return t.inner.CheckBundleability(scenarioName)
+}
+
+// containsSubstring is a helper for checking if a string contains a substring.
+func containsSubstring(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

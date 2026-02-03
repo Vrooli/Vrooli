@@ -162,11 +162,11 @@ func TestPreflightStage(t *testing.T) {
 		}
 	})
 
-	t.Run("CanSkip when not skipped", func(t *testing.T) {
+	t.Run("CanSkip when not skipped in bundled mode", func(t *testing.T) {
 		stage := NewPreflightStage()
-		input := &StageInput{Config: &Config{SkipPreflight: false}}
+		input := &StageInput{Config: &Config{SkipPreflight: false, DeploymentMode: DeploymentModeBundled}}
 		if stage.CanSkip(input) {
-			t.Error("expected CanSkip to return false when SkipPreflight is false")
+			t.Error("expected CanSkip to return false when SkipPreflight is false in bundled mode")
 		}
 	})
 

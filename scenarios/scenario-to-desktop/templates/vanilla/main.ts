@@ -2021,6 +2021,9 @@ async function startBundledRuntime(): Promise<string> {
 
     // Emit granular stage marker for smoke test diagnostics
     if (isSmokeTest) SmokeTestProtocol.stage.waitingForToken();
+    // Log the expected token path for debugging token mismatch issues
+    console.log(`[Desktop App] Waiting for runtime auth token at: ${tokenPath}`);
+    console.log(`[Desktop App] Token path config: BUNDLED_RUNTIME.TOKEN_REL=${BUNDLED_RUNTIME.TOKEN_REL}`);
     await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
 
     // Emit granular stage marker for smoke test diagnostics

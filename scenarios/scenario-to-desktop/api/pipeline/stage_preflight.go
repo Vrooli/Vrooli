@@ -4,16 +4,23 @@ import (
 	"context"
 	"fmt"
 
+	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/shared/errors"
 
 	runtimeapi "scenario-to-desktop-runtime/api"
 )
 
+// BundleabilityChecker checks if a scenario can run in bundled mode.
+type BundleabilityChecker interface {
+	CheckBundleability(scenarioName string) (*generation.BundleabilityResult, error)
+}
+
 // PreflightStage implements the preflight validation stage of the pipeline.
 type PreflightStage struct {
-	service      preflight.Service
-	timeProvider TimeProvider
+	service              preflight.Service
+	bundleabilityChecker BundleabilityChecker
+	timeProvider         TimeProvider
 }
 
 // PreflightStageOption configures a PreflightStage.
@@ -23,6 +30,13 @@ type PreflightStageOption func(*PreflightStage)
 func WithPreflightService(svc preflight.Service) PreflightStageOption {
 	return func(s *PreflightStage) {
 		s.service = svc
+	}
+}
+
+// WithBundleabilityChecker sets the bundleability checker for validating bundled mode.
+func WithBundleabilityChecker(checker BundleabilityChecker) PreflightStageOption {
+	return func(s *PreflightStage) {
+		s.bundleabilityChecker = checker
 	}
 }
 
@@ -75,6 +89,41 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 
 	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
+	}
+
+	// FAIL-FAST: Check if scenario can run in bundled mode BEFORE doing expensive work.
+	// This catches scenarios with required external dependencies (like PostgreSQL)
+	// that cannot be packaged into a desktop application.
+	if input.Config.GetDeploymentMode() == DeploymentModeBundled && s.bundleabilityChecker != nil {
+		bundleability, err := s.bundleabilityChecker.CheckBundleability(input.Config.ScenarioName)
+		if err != nil {
+			result.Logs = append(result.Logs,
+				fmt.Sprintf("Warning: bundleability check failed: %v", err))
+			// Continue anyway - the check is best-effort
+		} else if !bundleability.Bundleable {
+			failStage(result, s.timeProvider, errors.ErrScenarioUnbundleable(
+				input.Config.ScenarioName,
+				bundleability.UnbundleableResource,
+				bundleability.UnbundleableReason,
+				bundleability.Alternatives,
+			))
+			return result
+		} else {
+			// Log warnings about resources that require swaps
+			for _, warning := range bundleability.Warnings {
+				result.Logs = append(result.Logs,
+					fmt.Sprintf("Warning: %s", warning.Message))
+			}
+			if len(bundleability.RequiredResources) > 0 {
+				if len(bundleability.Warnings) > 0 {
+					result.Logs = append(result.Logs,
+						fmt.Sprintf("Scenario requires resources: %v (proceeding with declared swaps)", bundleability.RequiredResources))
+				} else {
+					result.Logs = append(result.Logs,
+						fmt.Sprintf("Scenario requires resources: %v (all bundleable)", bundleability.RequiredResources))
+				}
+			}
+		}
 	}
 
 	if s.service == nil {

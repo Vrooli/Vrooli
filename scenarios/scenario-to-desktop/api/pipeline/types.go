@@ -465,6 +465,15 @@ func (c *Config) GetStopOnFailure() bool {
 }
 
 // GetDeploymentMode returns the deployment mode with default "bundled".
+//
+// IMPORTANT: "bundled" is the default and MUST remain so. Bundled mode creates
+// a fully self-contained desktop application that:
+//   - Works offline without any external dependencies
+//   - Includes all UI assets, API binaries, and runtime
+//   - Is the most common deployment mode for production desktop apps
+//
+// Other modes (external-server, cloud-api, proxy) are thin-client modes that
+// require a running server. These should be explicitly requested when needed.
 func (c *Config) GetDeploymentMode() string {
 	if c.DeploymentMode == "" {
 		return DeploymentModeBundled

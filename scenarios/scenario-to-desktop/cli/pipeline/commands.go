@@ -68,9 +68,11 @@ func (c *Commands) Run(args []string) error {
 	fs := flag.NewFlagSet("pipeline-run", flag.ContinueOnError)
 	stages := fs.String("stages", "", "Comma-separated stages to run")
 	platforms := fs.String("platforms", "", "Comma-separated target platforms (default: current platform)")
+	deploymentMode := fs.String("deployment-mode", "", "Deployment mode: bundled (default), external-server, cloud-api, proxy")
 	wait := fs.Bool("wait", false, "Block until pipeline completes (recommended for scripts/agents)")
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
 	debug := fs.Bool("debug", false, "Show full JSON response on error")
+	showOutput := fs.Bool("show-output", false, "Show app stdout/stderr on failure (useful for debugging)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
@@ -80,7 +82,7 @@ func (c *Commands) Run(args []string) error {
 	}
 
 	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: pipeline-run <scenario> [--stages bundle,preflight,generate,build,smoketest,distribution] [--platforms win,mac,linux] [--wait] [--timeout N]")
+		return fmt.Errorf("usage: pipeline-run <scenario> [--deployment-mode bundled|external-server] [--stages bundle,...] [--platforms win,mac,linux] [--wait] [--timeout N]")
 	}
 
 	scenario := fs.Args()[0]
@@ -92,6 +94,9 @@ func (c *Commands) Run(args []string) error {
 	}
 	if *stages != "" {
 		req["stages"] = strings.Split(*stages, ",")
+	}
+	if *deploymentMode != "" {
+		req["deployment_mode"] = *deploymentMode
 	}
 
 	// Build query params for blocking mode
@@ -106,7 +111,7 @@ func (c *Commands) Run(args []string) error {
 		// In blocking mode, the API returns an error but the response body may contain
 		// a full pipeline status with rich error info. Try to extract it.
 		if *wait {
-			if printed := printPipelineAPIError(err, *debug); printed {
+			if printed := printPipelineAPIError(err, *debug, *showOutput); printed {
 				return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
 			}
 		}
@@ -132,7 +137,7 @@ func (c *Commands) Run(args []string) error {
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
-			printPipelineError(&status)
+			printPipelineError(&status, *showOutput)
 			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
 		} else {
 			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
@@ -160,6 +165,7 @@ func (c *Commands) Run(args []string) error {
 func (c *Commands) Status(args []string) error {
 	fs := flag.NewFlagSet("pipeline-status", flag.ContinueOnError)
 	verbose := fs.Bool("verbose", false, "Include detailed stage logs")
+	showOutput := fs.Bool("show-output", false, "Show app stdout/stderr on failure (useful for debugging)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
@@ -212,7 +218,7 @@ func (c *Commands) Status(args []string) error {
 	// Show error details for failed pipelines
 	if resp.Status == "failed" {
 		fmt.Println()
-		printPipelineError(&resp)
+		printPipelineError(&resp, *showOutput)
 	}
 
 	return nil
@@ -454,6 +460,7 @@ func (c *Commands) Start(args []string) error {
 	wait := fs.Bool("wait", false, "Block until pipeline completes (recommended for scripts/agents)")
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
 	debug := fs.Bool("debug", false, "Show full JSON response on error")
+	showOutput := fs.Bool("show-output", false, "Show app stdout/stderr on failure (useful for debugging)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
@@ -493,7 +500,7 @@ func (c *Commands) Start(args []string) error {
 		// In blocking mode, the API returns an error but the response body may contain
 		// a full pipeline status with rich error info. Try to extract it.
 		if *wait {
-			if printed := printPipelineAPIError(err, *debug); printed {
+			if printed := printPipelineAPIError(err, *debug, *showOutput); printed {
 				return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
 			}
 		}
@@ -519,7 +526,7 @@ func (c *Commands) Start(args []string) error {
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
-			printPipelineError(&status)
+			printPipelineError(&status, *showOutput)
 			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
 		} else {
 			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
@@ -622,6 +629,15 @@ func (d *smokeTestDetails) getAppReportedErrorContext() string {
 	return ""
 }
 
+// getProgressStages extracts SMOKE_TEST_STAGE markers from stdout.
+// Returns the stages completed before failure.
+func (d *smokeTestDetails) getProgressStages() []string {
+	if d == nil {
+		return nil
+	}
+	return extractProgressStages(d.LastStdout)
+}
+
 // stageErrorInfo contains structured error information for stage failures.
 type stageErrorInfo struct {
 	Code         string      `json:"code,omitempty"`
@@ -663,6 +679,29 @@ type smokeTestDetails struct {
 	AppSessionID          string               `json:"app_session_id,omitempty"`
 	AppReportedErrorStale bool                 `json:"app_reported_error_stale,omitempty"`
 	ErrorSessionMismatch  bool                 `json:"error_session_mismatch,omitempty"`
+	Logs                  []string             `json:"logs,omitempty"`
+}
+
+// getPrereqWarnings extracts prerequisite check warnings from logs.
+// Returns warnings that may be relevant to the failure.
+func (d *smokeTestDetails) getPrereqWarnings() []string {
+	if d == nil || len(d.Logs) == 0 {
+		return nil
+	}
+
+	var warnings []string
+	prereqWarningPattern := regexp.MustCompile(`\[prereq:(\w+)\].*\(suggestion: ([^)]+)\)`)
+
+	for _, log := range d.Logs {
+		matches := prereqWarningPattern.FindStringSubmatch(log)
+		if len(matches) >= 3 {
+			// Extract the warning type and suggestion
+			warningType := matches[1]
+			suggestion := matches[2]
+			warnings = append(warnings, fmt.Sprintf("%s: %s", warningType, suggestion))
+		}
+	}
+	return warnings
 }
 
 // appReportedErrorDTO represents an error extracted from app telemetry.
@@ -757,6 +796,8 @@ func lifecycleStateDescription(state string) string {
 		return "App is locating the bundle directory. Check if bundle is packaged correctly in extraResources."
 	case "runtime_starting":
 		return "App is spawning the bundled runtime process. Check runtime binary permissions and dependencies."
+	case "waiting_for_token":
+		return "App is waiting for runtime auth token file. The runtime process started but may not be creating its token. Check if the bundled API supports --token-path flag."
 	case "runtime_healthz":
 		return "App is waiting for runtime /healthz endpoint. The runtime may still be starting or crashed."
 	case "runtime_readyz":
@@ -777,6 +818,53 @@ func lifecycleStateDescription(state string) string {
 // smokeTestErrorPattern matches SMOKE_TEST_ERROR markers in app output.
 // Format: SMOKE_TEST_ERROR kind=<kind> msg="<message>"
 var smokeTestErrorPattern = regexp.MustCompile(`SMOKE_TEST_ERROR kind=(\w+) msg="([^"]+)"`)
+
+// smokeTestStagePattern matches SMOKE_TEST_STAGE markers in app output.
+var smokeTestStagePattern = regexp.MustCompile(`SMOKE_TEST_STAGE=(\w+)`)
+
+// extractProgressStages extracts SMOKE_TEST_STAGE markers from stdout.
+// Returns the stages in order, representing how far the app progressed.
+func extractProgressStages(stdout string) []string {
+	if stdout == "" {
+		return nil
+	}
+	matches := smokeTestStagePattern.FindAllStringSubmatch(stdout, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	var stages []string
+	seen := make(map[string]bool)
+	for _, match := range matches {
+		if len(match) >= 2 {
+			stage := match[1]
+			// Avoid duplicates while preserving order
+			if !seen[stage] {
+				seen[stage] = true
+				stages = append(stages, stage)
+			}
+		}
+	}
+	return stages
+}
+
+// stageDisplayName returns a human-friendly name for a smoke test stage.
+func stageDisplayName(stage string) string {
+	names := map[string]string{
+		"bundle_resolving":  "Bundle resolved",
+		"runtime_starting":  "Runtime starting",
+		"waiting_for_token": "Waiting for auth token",
+		"runtime_healthz":   "Runtime health check",
+		"runtime_readyz":    "Waiting for services ready",
+		"runtime_ports":     "Getting port configuration",
+		"ready":             "App ready",
+		"result":            "Smoke test completed",
+	}
+	if name, ok := names[stage]; ok {
+		return name
+	}
+	return stage
+}
 
 // extractSmokeTestErrorHint extracts the first config/validation error from smoke test output.
 // Returns the error message if found, empty string otherwise.
@@ -806,7 +894,8 @@ func extractSmokeTestErrorHint(stdout, stderr string) string {
 }
 
 // printPipelineError prints detailed error information from a failed pipeline.
-func printPipelineError(status *pipelineStatus) {
+// When showOutput is true, it displays the full stdout/stderr from the smoke test.
+func printPipelineError(status *pipelineStatus, showOutput bool) {
 	// Print the top-level error if present
 	if status.Error != "" {
 		fmt.Printf("Error: %s\n", status.Error)
@@ -829,33 +918,70 @@ func printPipelineError(status *pipelineStatus) {
 			smokeDetails = stage.getSmokeTestDetails()
 		}
 
-		// Print app-reported error prominently if available (most actionable info)
+		// Determine if app-reported error is stale/mismatched
+		appErrorIsStale := smokeDetails != nil && (smokeDetails.ErrorSessionMismatch || smokeDetails.AppReportedErrorStale)
+
+		// When app error is stale, show lifecycle state FIRST as the primary issue
+		// Otherwise, show app error first (it's the most actionable info)
 		if smokeDetails != nil {
 			appError := smokeDetails.getAppReportedError()
-			if appError != "" {
-				fmt.Printf("\nApp reported error: %s\n", appError)
-				if ctx := smokeDetails.getAppReportedErrorContext(); ctx != "" {
-					fmt.Printf("  (%s)\n", ctx)
+			lifecycleState := smokeDetails.getLifecycleState()
+			if lifecycleState == "" {
+				lifecycleState = smokeDetails.CurrentState
+			}
+
+			if appErrorIsStale {
+				// Stale error: Show lifecycle state as primary, app error as historical context
+				if lifecycleState != "" {
+					fmt.Printf("\nLifecycle state: %s\n", lifecycleState)
+					fmt.Printf("  %s\n", lifecycleStateDescription(lifecycleState))
 				}
-				// Display staleness/mismatch warnings
-				if smokeDetails.ErrorSessionMismatch {
-					fmt.Printf("  ⚠️  WARNING: This error may be from a previous session (session ID mismatch)\n")
-				} else if smokeDetails.AppReportedErrorStale {
-					fmt.Printf("  ⚠️  WARNING: This error timestamp predates the current smoke test\n")
+
+				// Show stale app error as secondary info
+				if appError != "" {
+					fmt.Printf("\nHistorical context (from previous session):\n")
+					fmt.Printf("  Previous error: %s\n", appError)
+					if ctx := smokeDetails.getAppReportedErrorContext(); ctx != "" {
+						fmt.Printf("  (%s)\n", ctx)
+					}
+					fmt.Printf("  ⚠️  Note: This error is from a different session and may not reflect the current issue.\n")
+					fmt.Printf("  The current run reached '%s' state before timing out.\n", lifecycleState)
+				}
+			} else {
+				// Fresh error: Show app error prominently first
+				if appError != "" {
+					fmt.Printf("\nApp reported error: %s\n", appError)
+					if ctx := smokeDetails.getAppReportedErrorContext(); ctx != "" {
+						fmt.Printf("  (%s)\n", ctx)
+					}
+				}
+
+				// Then show lifecycle state context
+				if lifecycleState != "" {
+					fmt.Printf("\nLifecycle state: %s\n", lifecycleState)
+					fmt.Printf("  %s\n", lifecycleStateDescription(lifecycleState))
 				}
 			}
-		}
 
-		// Print lifecycle state context for smoke test failures
-		if smokeDetails != nil {
-			lifecycleState := smokeDetails.getLifecycleState()
-			if lifecycleState != "" || smokeDetails.CurrentState != "" {
-				state := lifecycleState
-				if state == "" {
-					state = smokeDetails.CurrentState
+			// Show progress summary from stdout SMOKE_TEST_STAGE markers
+			if stages := smokeDetails.getProgressStages(); len(stages) > 0 {
+				fmt.Printf("\nApp progress (from stdout markers):\n")
+				for i, stage := range stages {
+					if i == len(stages)-1 {
+						// Last stage - this is where it got stuck
+						fmt.Printf("  ⏳ %s (timed out here)\n", stageDisplayName(stage))
+					} else {
+						fmt.Printf("  ✓ %s\n", stageDisplayName(stage))
+					}
 				}
-				fmt.Printf("\nLifecycle state: %s\n", state)
-				fmt.Printf("  %s\n", lifecycleStateDescription(state))
+			}
+
+			// Show prereq warnings that may be relevant to the failure
+			if prereqWarnings := smokeDetails.getPrereqWarnings(); len(prereqWarnings) > 0 {
+				fmt.Printf("\nPotential issues detected during prerequisites:\n")
+				for _, warning := range prereqWarnings {
+					fmt.Printf("  ⚠️  %s\n", warning)
+				}
 			}
 		}
 
@@ -940,6 +1066,20 @@ func printPipelineError(status *pipelineStatus) {
 			}
 		}
 
+		// Show full stdout/stderr when --show-output is enabled
+		if showOutput && smokeDetails != nil {
+			if smokeDetails.LastStdout != "" {
+				fmt.Printf("\n--- App stdout ---\n%s\n", smokeDetails.LastStdout)
+			}
+			if smokeDetails.LastStderr != "" {
+				fmt.Printf("\n--- App stderr ---\n%s\n", smokeDetails.LastStderr)
+			}
+			if smokeDetails.LastStdout == "" && smokeDetails.LastStderr == "" {
+				fmt.Printf("\n--- No app output captured ---\n")
+				fmt.Printf("Tip: App may have crashed before producing output. Check system logs.\n")
+			}
+		}
+
 		// Only show first failed stage
 		break
 	}
@@ -947,7 +1087,7 @@ func printPipelineError(status *pipelineStatus) {
 
 // printPipelineAPIError attempts to extract a pipeline status from an API error response
 // and print rich error information. Returns true if it successfully printed pipeline error info.
-func printPipelineAPIError(err error, debug bool) bool {
+func printPipelineAPIError(err error, debug bool, showOutput bool) bool {
 	var apiErr *cliutil.APIError
 	if !errors.As(err, &apiErr) || len(apiErr.RawResponse) == 0 {
 		return false
@@ -966,7 +1106,7 @@ func printPipelineAPIError(err error, debug bool) bool {
 
 	// Print pipeline failure info
 	fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
-	printPipelineError(&status)
+	printPipelineError(&status, showOutput)
 
 	if debug {
 		fmt.Println("\n--- Debug: Raw Response ---")
@@ -1029,12 +1169,13 @@ func isBooleanFlag(flag string) bool {
 	name := strings.TrimLeft(flag, "-")
 
 	booleanFlags := map[string]bool{
-		"wait":      true,
-		"verbose":   true,
-		"json":      true,
-		"no-create": true,
-		"force":     true,
-		"debug":     true,
+		"wait":        true,
+		"verbose":     true,
+		"json":        true,
+		"no-create":   true,
+		"force":       true,
+		"debug":       true,
+		"show-output": true,
 	}
 	return booleanFlags[name]
 }

@@ -192,7 +192,7 @@ func NewExecutionError(msg string, cause error, context map[string]string) *Erro
 			"Check if the application can run manually",
 			"Verify all dependencies are installed",
 			"Check system logs for crash information",
-			"Try running with --verbose flag for more output",
+			"Use --show-output with 'pipeline run' to see full app output",
 		},
 	}
 }
@@ -401,7 +401,7 @@ func getManualStepsForAppError(kind string) []string {
 			"Check if the application can run manually",
 			"Verify all dependencies are installed",
 			"Check system logs for crash information",
-			"Try running with --verbose flag for more output",
+			"Use --show-output with 'pipeline run' to see full app output",
 		}
 	default:
 		return []string{

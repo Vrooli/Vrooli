@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"time"
 
+	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/validation"
 )
 
@@ -121,9 +122,13 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 
 	// Default stages if none provided
 	if len(o.stages) == 0 {
+		// Create analyzer for bundleability checking in preflight stage
+		// NewAnalyzer expects vrooliRoot (parent of scenarios directory), not scenarioRoot
+		vrooliRoot := filepath.Dir(o.scenarioRoot)
+		analyzer := generation.NewAnalyzer(vrooliRoot)
 		o.stages = []Stage{
 			NewBundleStage(WithScenarioRoot(o.scenarioRoot)),
-			NewPreflightStage(),
+			NewPreflightStage(WithBundleabilityChecker(analyzer)),
 			NewGenerateStage(WithGenerateScenarioRoot(o.scenarioRoot)),
 			NewBuildStage(),
 			NewSmokeTestStage(),

@@ -132,6 +132,10 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	}
 
 	// Apply pipeline config overrides
+	// Always use the pipeline's computed deployment mode (with default "bundled").
+	// This ensures the generated code matches the pipeline's behavior.
+	// GetDeploymentMode() returns "bundled" by default, which creates fully
+	// self-contained desktop applications - the most common production use case.
 	desktopConfig.DeploymentMode = input.Config.GetDeploymentMode()
 	desktopConfig.Platforms = input.Config.Platforms
 	if input.Config.ProxyURL != "" {
@@ -143,6 +147,21 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		// electron-builder copies bundle/ to resources/bundle via extraResources,
 		// so the packaged app must look for "bundle" relative to resources path.
 		desktopConfig.BundleRuntimeRoot = "bundle"
+
+		// Extract IPC configuration from manifest content.
+		// This is critical for bundled mode: the token path in bundle.json must be
+		// passed through to the template generator, otherwise the desktop app will
+		// wait for a token file at the wrong path and timeout.
+		if input.BundleResult.ManifestContent != nil {
+			desktopConfig.BundleIPC = extractBundleIPCConfig(input.BundleResult.ManifestContent)
+			if desktopConfig.BundleIPC != nil {
+				result.Logs = append(result.Logs,
+					fmt.Sprintf("Bundle IPC: host=%s port=%d token_path=%s",
+						desktopConfig.BundleIPC.Host,
+						desktopConfig.BundleIPC.Port,
+						desktopConfig.BundleIPC.AuthTokenRel))
+			}
+		}
 	}
 
 	// Validate that BundleRuntimeRoot is never an absolute path.
@@ -258,4 +277,39 @@ func (s *GenerateStage) waitForGeneration(ctx context.Context, buildID string, i
 			}
 		}
 	}
+}
+
+// extractBundleIPCConfig extracts IPC configuration from manifest content.
+// The manifest content is a map[string]interface{} parsed from bundle.json.
+// Returns nil if IPC config is not present or cannot be extracted.
+func extractBundleIPCConfig(content map[string]interface{}) *generation.BundleIPCConfig {
+	ipcRaw, ok := content["ipc"]
+	if !ok {
+		return nil
+	}
+
+	ipc, ok := ipcRaw.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	config := &generation.BundleIPCConfig{}
+
+	// Extract host
+	if host, ok := ipc["host"].(string); ok {
+		config.Host = host
+	}
+
+	// Extract port (JSON numbers come as float64)
+	if port, ok := ipc["port"].(float64); ok {
+		config.Port = int(port)
+	}
+
+	// Extract auth_token_path - this is critical!
+	// The bundle.json uses "auth_token_path" as the key.
+	if tokenPath, ok := ipc["auth_token_path"].(string); ok {
+		config.AuthTokenRel = tokenPath
+	}
+
+	return config
 }

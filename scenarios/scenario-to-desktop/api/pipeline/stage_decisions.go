@@ -14,22 +14,22 @@ import (
 // ShouldSkipPreflight returns true if the preflight stage should be skipped.
 // Skip conditions:
 //   - Config.SkipPreflight is explicitly true
-//   - Deployment mode is "proxy" (no bundle to validate)
+//   - Deployment mode is a thin-client mode (no bundle to validate)
 func ShouldSkipPreflight(config *Config) bool {
 	if config == nil {
 		return false
 	}
-	return config.SkipPreflight || config.GetDeploymentMode() == DeploymentModeProxy
+	return config.SkipPreflight || IsThinClientMode(config.GetDeploymentMode())
 }
 
 // ShouldSkipBundle returns true if the bundle stage should be skipped.
 // Skip conditions:
-//   - Deployment mode is "proxy" (no bundling needed)
+//   - Deployment mode is a thin-client mode (no bundling needed)
 func ShouldSkipBundle(config *Config) bool {
 	if config == nil {
 		return false
 	}
-	return config.GetDeploymentMode() == DeploymentModeProxy
+	return IsThinClientMode(config.GetDeploymentMode())
 }
 
 // ShouldSkipSmokeTest returns true if the smoke test stage should be skipped.

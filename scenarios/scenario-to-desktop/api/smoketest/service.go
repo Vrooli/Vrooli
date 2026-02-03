@@ -552,7 +552,9 @@ func (s *DefaultService) buildExecutionError(execErr error, execResult *Executio
 	// Use timeout error type if this is a timeout with good progress
 	if isTimeout(execErr) && isLateLifecycleStage(lifecycleState) {
 		err.Kind = ErrKindTimeout
-		err.SuggestedAction = RecoveryPaths[ErrKindTimeout]
+		// Use lifecycle-specific recovery hints instead of generic timeout hint
+		err.SuggestedAction = getLifecycleRecoveryHint(lifecycleState)
+		err.ManualSteps = getLifecycleManualSteps(lifecycleState)
 	}
 
 	// Add process diagnostics if available
@@ -571,6 +573,81 @@ func (s *DefaultService) buildExecutionError(execErr error, execResult *Executio
 	}
 
 	return err
+}
+
+// getLifecycleRecoveryHint returns a specific recovery hint based on the lifecycle state.
+func getLifecycleRecoveryHint(state string) string {
+	switch state {
+	case "waiting_for_token":
+		return "Runtime started but isn't creating auth token. Check if bundled API supports --token-path flag and is configured correctly in bundle.json"
+	case "runtime_starting":
+		return "Runtime binary started but may have crashed. Check if bundled API binary is compatible with this platform and has correct permissions"
+	case "runtime_healthz":
+		return "Runtime is not responding to health checks. The bundled API may have crashed during startup or is misconfigured"
+	case "runtime_readyz":
+		return "Runtime started but services aren't ready. This usually means the scenario requires external dependencies (like PostgreSQL) that cannot be bundled. Use --deployment-mode external-server to connect to a running server instead"
+	case "runtime_ports":
+		return "Runtime services are ready but port configuration failed. Check bundle.json for correct port mappings"
+	case "result":
+		return "App completed smoke test but didn't exit cleanly. This is usually non-fatal - check for cleanup errors"
+	default:
+		return RecoveryPaths[ErrKindTimeout]
+	}
+}
+
+// getLifecycleManualSteps returns specific manual steps based on the lifecycle state.
+func getLifecycleManualSteps(state string) []string {
+	switch state {
+	case "waiting_for_token":
+		return []string{
+			"Check bundle.json for correct API binary configuration",
+			"Verify the bundled API supports --token-path flag: ./api --help",
+			"Run the bundled API manually with same flags to see startup errors",
+			"Check if token directory is writable: ls -la ~/.config/<app>/runtime/",
+			"Increase timeout if API startup is legitimately slow",
+		}
+	case "runtime_starting":
+		return []string{
+			"Check if bundled API binary has execute permissions: chmod +x ./api",
+			"Verify binary is compatible with this platform (x64 vs arm64)",
+			"Run the bundled API binary manually to see error messages",
+			"Check for missing shared libraries: ldd ./api",
+		}
+	case "runtime_healthz":
+		return []string{
+			"Check bundled API logs for startup errors",
+			"Verify API is listening on expected port: curl http://localhost:<port>/healthz",
+			"Check if required environment variables are set",
+			"Review bundle.json for correct healthz endpoint configuration",
+		}
+	case "runtime_readyz":
+		return []string{
+			"LIKELY CAUSE: Scenario requires external dependencies (PostgreSQL, Redis) that cannot be bundled",
+			"SOLUTION: Use --deployment-mode external-server to connect to a running server with these dependencies",
+			"Check scenario's .vrooli/service.json for required resources under dependencies.resources",
+			"If bundled mode is needed, ensure all required resources are running and accessible",
+			"Review API logs for specific connection errors: scenario-to-desktop pipeline status <id> --verbose",
+		}
+	case "runtime_ports":
+		return []string{
+			"Review bundle.json for correct port configuration",
+			"Check if expected ports are free: netstat -tlnp | grep <port>",
+			"Verify API returns expected port information from /ports endpoint",
+		}
+	case "result":
+		return []string{
+			"Check app logs for cleanup errors",
+			"This is usually non-fatal - smoke test likely passed",
+			"Verify app exits with code 0 after successful test",
+		}
+	default:
+		return []string{
+			"Increase SMOKE_TEST_TIMEOUT_MS environment variable",
+			"Check if app startup is slow due to large assets",
+			"Profile app initialization to identify bottlenecks",
+			"Verify network connectivity if app makes startup requests",
+		}
+	}
 }
 
 // buildExecutionErrorMessage creates a descriptive error message based on
@@ -625,7 +702,7 @@ func isTimeout(err error) bool {
 // successful initialization (past bundle resolving).
 func isLateLifecycleStage(state string) bool {
 	switch state {
-	case "runtime_starting", "waiting_for_token", "result":
+	case "runtime_starting", "waiting_for_token", "runtime_healthz", "runtime_readyz", "runtime_ports", "result":
 		return true
 	default:
 		return false

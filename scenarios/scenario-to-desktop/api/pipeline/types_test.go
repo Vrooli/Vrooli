@@ -31,17 +31,24 @@ func TestConfigGetStopOnFailure(t *testing.T) {
 }
 
 func TestConfigGetDeploymentMode(t *testing.T) {
-	t.Run("empty returns bundled", func(t *testing.T) {
+	t.Run("empty returns bundled (default)", func(t *testing.T) {
 		c := Config{}
-		if c.GetDeploymentMode() != "bundled" {
-			t.Errorf("expected 'bundled', got %q", c.GetDeploymentMode())
+		if c.GetDeploymentMode() != DeploymentModeBundled {
+			t.Errorf("expected %q, got %q", DeploymentModeBundled, c.GetDeploymentMode())
 		}
 	})
 
-	t.Run("explicit value", func(t *testing.T) {
-		c := Config{DeploymentMode: "proxy"}
-		if c.GetDeploymentMode() != "proxy" {
-			t.Errorf("expected 'proxy', got %q", c.GetDeploymentMode())
+	t.Run("explicit bundled", func(t *testing.T) {
+		c := Config{DeploymentMode: DeploymentModeBundled}
+		if c.GetDeploymentMode() != DeploymentModeBundled {
+			t.Errorf("expected %q, got %q", DeploymentModeBundled, c.GetDeploymentMode())
+		}
+	})
+
+	t.Run("explicit proxy", func(t *testing.T) {
+		c := Config{DeploymentMode: DeploymentModeProxy}
+		if c.GetDeploymentMode() != DeploymentModeProxy {
+			t.Errorf("expected %q, got %q", DeploymentModeProxy, c.GetDeploymentMode())
 		}
 	})
 }

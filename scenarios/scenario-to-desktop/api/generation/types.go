@@ -117,6 +117,10 @@ type ScenarioMetadata struct {
 	Tags            []string
 	ServiceJSONPath string
 	PackageJSONPath string
+
+	// RequiredResources lists external resources the scenario requires (e.g., "postgres", "redis").
+	// Used to determine if the scenario can run in bundled mode.
+	RequiredResources []string
 }
 
 // BuildStatus represents the status of a desktop build.

@@ -203,6 +203,7 @@ func NewServer(port int) *Server {
 		),
 		pipeline.NewPreflightStage(
 			pipeline.WithPreflightService(preflightService),
+			pipeline.WithBundleabilityChecker(scenarioAnalyzer),
 		),
 		pipeline.NewGenerateStage(
 			pipeline.WithGenerateScenarioRoot(scenarioRoot),

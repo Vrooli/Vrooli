@@ -140,12 +140,33 @@ const (
 const (
 	// DeploymentModeProxy creates a desktop app that proxies to a running web server.
 	// No bundling is required; the app loads from a URL.
+	// Note: "proxy" is a legacy name; prefer "external-server" for new code.
 	DeploymentModeProxy = "proxy"
+
+	// DeploymentModeExternalServer creates a thin-client desktop app that connects
+	// to a running Vrooli server. No bundling is required.
+	// This is the recommended mode for scenarios with external dependencies (e.g., PostgreSQL).
+	DeploymentModeExternalServer = "external-server"
+
+	// DeploymentModeCloudAPI creates a desktop app that connects to a cloud API.
+	// Similar to external-server but for cloud deployments.
+	DeploymentModeCloudAPI = "cloud-api"
 
 	// DeploymentModeBundled creates a desktop app with the UI bundled inside.
 	// Requires the bundle stage to package UI assets.
 	DeploymentModeBundled = "bundled"
 )
+
+// IsThinClientMode returns true if the deployment mode is a thin-client mode
+// (external-server, cloud-api, or proxy) that doesn't require bundling.
+func IsThinClientMode(mode string) bool {
+	switch mode {
+	case DeploymentModeExternalServer, DeploymentModeCloudAPI, DeploymentModeProxy:
+		return true
+	default:
+		return false
+	}
+}
 
 // Build status constants.
 // These replace magic strings in build result handling.

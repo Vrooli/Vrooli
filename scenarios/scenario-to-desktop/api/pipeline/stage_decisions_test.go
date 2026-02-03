@@ -28,14 +28,24 @@ func TestShouldSkipPreflight(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "deployment_mode external-server returns true",
+			config:   &Config{DeploymentMode: DeploymentModeExternalServer},
+			expected: true,
+		},
+		{
+			name:     "deployment_mode cloud-api returns true",
+			config:   &Config{DeploymentMode: DeploymentModeCloudAPI},
+			expected: true,
+		},
+		{
 			name:     "deployment_mode bundled returns false",
 			config:   &Config{DeploymentMode: DeploymentModeBundled},
 			expected: false,
 		},
 		{
-			name:     "default deployment mode returns false",
+			name:     "default deployment mode returns false (bundled)",
 			config:   &Config{},
-			expected: false,
+			expected: false, // Default is bundled, which requires preflight
 		},
 		{
 			name:     "skip_preflight with proxy returns true",
@@ -71,14 +81,24 @@ func TestShouldSkipBundle(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "deployment_mode external-server returns true",
+			config:   &Config{DeploymentMode: DeploymentModeExternalServer},
+			expected: true,
+		},
+		{
+			name:     "deployment_mode cloud-api returns true",
+			config:   &Config{DeploymentMode: DeploymentModeCloudAPI},
+			expected: true,
+		},
+		{
 			name:     "deployment_mode bundled returns false",
 			config:   &Config{DeploymentMode: DeploymentModeBundled},
 			expected: false,
 		},
 		{
-			name:     "default deployment mode returns false",
+			name:     "default deployment mode returns false (bundled)",
 			config:   &Config{},
-			expected: false,
+			expected: false, // Default is bundled, which requires bundle stage
 		},
 	}
 
@@ -550,6 +570,54 @@ func TestCanRunStagesInParallel(t *testing.T) {
 			result := CanRunStagesInParallel(tt.stageA, tt.stageB)
 			if result != tt.expected {
 				t.Errorf("CanRunStagesInParallel() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsThinClientMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     string
+		expected bool
+	}{
+		{
+			name:     "external-server is thin client",
+			mode:     DeploymentModeExternalServer,
+			expected: true,
+		},
+		{
+			name:     "cloud-api is thin client",
+			mode:     DeploymentModeCloudAPI,
+			expected: true,
+		},
+		{
+			name:     "proxy is thin client",
+			mode:     DeploymentModeProxy,
+			expected: true,
+		},
+		{
+			name:     "bundled is not thin client",
+			mode:     DeploymentModeBundled,
+			expected: false,
+		},
+		{
+			name:     "empty is not thin client",
+			mode:     "",
+			expected: false,
+		},
+		{
+			name:     "unknown mode is not thin client",
+			mode:     "unknown",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsThinClientMode(tt.mode)
+			if result != tt.expected {
+				t.Errorf("IsThinClientMode(%q) = %v, want %v", tt.mode, result, tt.expected)
 			}
 		})
 	}

@@ -2050,11 +2050,11 @@ func TestService_NonTimeoutError_KeepsGenericMessage(t *testing.T) {
 
 	executor := mocks.NewMockProcessExecutor()
 	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
-		Stdout:   `SMOKE_TEST_INIT=started
+		Stdout: `SMOKE_TEST_INIT=started
 SMOKE_TEST_STAGE=bundle_resolving
 SMOKE_TEST_STAGE=runtime_starting
 SMOKE_TEST_STAGE=waiting_for_token`,
-		Stderr:   "",
+		Stderr: "",
 		Combined: `SMOKE_TEST_INIT=started
 SMOKE_TEST_STAGE=bundle_resolving
 SMOKE_TEST_STAGE=runtime_starting

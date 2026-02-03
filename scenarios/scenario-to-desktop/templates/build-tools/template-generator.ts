@@ -342,7 +342,20 @@ class DesktopTemplateGenerator {
             BUNDLED_RUNTIME_ROOT: this.config.bundle_runtime_root || 'bundle',
             BUNDLED_RUNTIME_IPC_HOST: this.config.bundle_ipc?.host || '127.0.0.1',
             BUNDLED_RUNTIME_IPC_PORT: this.config.bundle_ipc?.port || 47710,
-            BUNDLED_RUNTIME_TOKEN_PATH: this.config.bundle_ipc?.auth_token_path || 'runtime/auth-token',
+            // CRITICAL: Token path must match bundle.json exactly!
+            // If bundle_ipc.auth_token_path is not provided, we use a default.
+            // This default MUST match what the runtime creates, or the desktop app will timeout.
+            BUNDLED_RUNTIME_TOKEN_PATH: (() => {
+                const tokenPath = this.config.bundle_ipc?.auth_token_path || 'runtime/auth-token';
+                if (this.config.deployment_mode === 'bundled') {
+                    const source = this.config.bundle_ipc?.auth_token_path ? 'bundle.json' : 'default';
+                    console.log(`🔑 Token path: ${tokenPath} (source: ${source})`);
+                    if (!this.config.bundle_ipc?.auth_token_path) {
+                        console.warn(`⚠️  Using default token path - ensure runtime uses same path or bundled mode may fail!`);
+                    }
+                }
+                return tokenPath;
+            })(),
             BUNDLED_RUNTIME_UI_SERVICE: this.config.bundle_ui_service_id || '',
             BUNDLED_RUNTIME_UI_PORT_NAME: this.config.bundle_ui_port_name || 'http',
             BUNDLED_RUNTIME_TELEMETRY_UPLOAD_URL: this.config.bundle_telemetry_upload_url || '',

@@ -97,7 +97,7 @@ func LifecycleStateDescription(state string) string {
 		"runtime_starting":  "App is spawning the bundled runtime process. Check runtime binary permissions and dependencies.",
 		"waiting_for_token": "App is waiting for runtime auth token file. The runtime process started but may not be creating its token.",
 		"runtime_healthz":   "App is waiting for runtime /healthz endpoint. The runtime may still be starting or crashed.",
-		"runtime_readyz":    "App is waiting for runtime /readyz endpoint. Runtime started but services not ready.",
+		"runtime_readyz":    "App is waiting for runtime /readyz endpoint. Runtime started but services not ready. A bundled service likely failed to start.",
 		"runtime_ports":     "App is querying runtime /ports endpoint. Services are ready but port configuration may be wrong.",
 		"ready":             "App initialized successfully but didn't report final result. Check for server connectivity issues.",
 		"result":            "App reported result but didn't exit cleanly. This is usually non-fatal.",
