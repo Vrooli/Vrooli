@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2 } from 'lucide-react'
+import { X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
@@ -26,6 +26,7 @@ import { selectors } from '@/constants/selectors'
 import { InfoTab, FilesTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
+import { AgentPromptPreviewDialog } from './AgentPromptPreviewDialog'
 
 interface AgentEditorPanelProps {
   /** Current agent being edited (for read-only metadata) */
@@ -36,6 +37,8 @@ interface AgentEditorPanelProps {
   updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
   /** Update multiple fields at once */
   updateFields: (updates: Partial<NormalizedAgentFormState>) => void
+  /** Sync file order on rename */
+  renameFileOrderPath: (fromPath: string, toPath: string, isDir: boolean) => void
   /** Validation result */
   validation: ValidationResult
   /** Whether the form has unsaved changes */
@@ -81,6 +84,7 @@ export function AgentEditorPanel({
   formState,
   updateField,
   updateFields,
+  renameFileOrderPath,
   validation,
   isDirty,
   dirtyCount,
@@ -105,6 +109,7 @@ export function AgentEditorPanel({
 
   // Description expanded state
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
+  const [isPromptPreviewOpen, setIsPromptPreviewOpen] = useState(false)
 
   // Empty state when no agent selected
   if (!agent) {
@@ -143,6 +148,16 @@ export function AgentEditorPanel({
 
           {/* Agent color badge - uses form state */}
           <AgentColorBadge appearance={formState.appearance} size="md" />
+
+          <button
+            type="button"
+            onClick={() => setIsPromptPreviewOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
+            title="Preview constructed prompt"
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </button>
 
           {/* Editable name - uses form state */}
           <div className="flex-1 min-w-0">
@@ -241,6 +256,7 @@ export function AgentEditorPanel({
               formState={formState}
               updateField={updateField}
               updateFields={updateFields}
+              renameFileOrderPath={renameFileOrderPath}
               isDirty={isDirty}
               dirtyCount={dirtyCount}
               onUndo={onUndo}
@@ -259,6 +275,14 @@ export function AgentEditorPanel({
           </Tabs.Content>
         </div>
       </Tabs.Root>
+
+      <AgentPromptPreviewDialog
+        isOpen={isPromptPreviewOpen}
+        onClose={() => setIsPromptPreviewOpen(false)}
+        agentId={agent.id}
+        agentName={formState.displayName || agent.displayName}
+        hasUnsavedChanges={isDirty}
+      />
     </div>
   )
 }

@@ -636,6 +636,32 @@ Delete an agent.
 
 **Response:** `204 No Content`
 
+### POST /api/v1/prompt-preview
+
+Preview the fully constructed prompt for an agent. Optionally include a team context to
+match heartbeat execution.
+
+**Request Body:**
+```json
+{
+  "agentId": "agent-1",
+  "teamId": "engineering"
+}
+```
+
+**Response:**
+```json
+{
+  "agentId": "agent-1",
+  "teamId": "engineering",
+  "prompt": "# Agent Files (Markdown)\n\n..."
+}
+```
+
+**Errors:**
+- `400` - Missing agentId or no content available
+- `404` - Agent or team not found
+
 ## Teams
 
 [CODE: api/teams/handlers.go]

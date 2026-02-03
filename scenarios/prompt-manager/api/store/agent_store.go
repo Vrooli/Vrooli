@@ -14,6 +14,27 @@ type FileAgentStore struct {
 	storeDir string
 }
 
+var defaultAgentMarkdownOrder = []string{"SOUL.md", "AGENTS.md", "TOOLS.md"}
+
+var defaultAgentMarkdownFiles = []struct {
+	name    string
+	content string
+}{
+	{
+		name:    "SOUL.md",
+		content: "# SOUL\n\nWho I am, how I communicate, and my boundaries.\n",
+	},
+	{
+		name: "AGENTS.md",
+		content: "# AGENTS\n\nOperating procedures for this agent.\n\n## Skills\n\n" +
+			"List skills as markdown references.\n\nExample:\n- e2e-testing: `prompt-manager skill read e2e-testing`\n",
+	},
+	{
+		name:    "TOOLS.md",
+		content: "# TOOLS\n\nTooling notes and preferences.\n",
+	},
+}
+
 // NewFileAgentStore creates a new file-based agent store
 func NewFileAgentStore(storeDir string) *FileAgentStore {
 	return &FileAgentStore{
@@ -63,6 +84,9 @@ func (s *FileAgentStore) Create(ctx context.Context, agent *Agent) error {
 	if agent.Status == "" {
 		agent.Status = AgentStatusActive
 	}
+	if len(agent.FileOrder) == 0 {
+		agent.FileOrder = append([]string{}, defaultAgentMarkdownOrder...)
+	}
 	agent.Timestamps = NewTimestamps()
 
 	agentDir := filepath.Join(s.agentsDir(), agent.ID)
@@ -101,6 +125,9 @@ func (s *FileAgentStore) Update(ctx context.Context, id string, updates *Agent) 
 	}
 	if updates.Appearance != nil {
 		agent.Appearance = updates.Appearance
+	}
+	if updates.FileOrder != nil {
+		agent.FileOrder = updates.FileOrder
 	}
 	if updates.Runtime != nil {
 		agent.Runtime = updates.Runtime
@@ -290,6 +317,11 @@ func (s *FileAgentStore) RenameFile(ctx context.Context, agentID, fromPath, toPa
 	if !FileExists(fromFull) {
 		return fmt.Errorf("file not found: %s", fromPath)
 	}
+	info, err := os.Stat(fromFull)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", fromPath, err)
+	}
+	isDir := info.IsDir()
 	if FileExists(toFull) {
 		return fmt.Errorf("target already exists: %s", toPath)
 	}
@@ -298,7 +330,15 @@ func (s *FileAgentStore) RenameFile(ctx context.Context, agentID, fromPath, toPa
 		return fmt.Errorf("creating directory: %w", err)
 	}
 
-	return os.Rename(fromFull, toFull)
+	if err := os.Rename(fromFull, toFull); err != nil {
+		return err
+	}
+
+	if err := s.updateAgentFileOrderForRename(ctx, agentID, fromPath, toPath, isDir); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteFile deletes a file or directory within an agent folder.
@@ -327,23 +367,76 @@ func (s *FileAgentStore) DeleteFile(ctx context.Context, agentID, relPath string
 }
 
 func (s *FileAgentStore) ensureDefaultAgentFiles(agentDir string) error {
-	defaultFiles := map[string]string{
-		"SOUL.md":   "# SOUL\n\nWho I am, how I communicate, and my boundaries.\n",
-		"AGENTS.md": "# AGENTS\n\nOperating procedures for this agent.\n\n## Skills\n\nList skills as markdown references.\n\nExample:\n- e2e-testing: `prompt-manager skill read e2e-testing`\n",
-		"TOOLS.md":  "# TOOLS\n\nTooling notes and preferences.\n",
-	}
-
-	for name, content := range defaultFiles {
-		path := filepath.Join(agentDir, name)
+	for _, entry := range defaultAgentMarkdownFiles {
+		path := filepath.Join(agentDir, entry.name)
 		if FileExists(path) {
 			continue
 		}
-		if err := WriteContent(path, content); err != nil {
+		if err := WriteContent(path, entry.content); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (s *FileAgentStore) updateAgentFileOrderForRename(ctx context.Context, agentID, fromPath, toPath string, isDir bool) error {
+	agent, err := s.Get(ctx, agentID)
+	if err != nil {
+		return err
+	}
+
+	updatedOrder, changed := updateFileOrderForRename(agent.FileOrder, fromPath, toPath, isDir)
+	if !changed {
+		return nil
+	}
+
+	agent.FileOrder = updatedOrder
+	agent.UpdateTimestamp()
+
+	agentPath := filepath.Join(s.agentsDir(), agentID, "agent.json")
+	return SaveJSON(agentPath, agent)
+}
+
+func updateFileOrderForRename(fileOrder []string, fromPath, toPath string, isDir bool) ([]string, bool) {
+	if len(fileOrder) == 0 {
+		return fileOrder, false
+	}
+
+	fromNormalized := strings.Trim(filepath.ToSlash(fromPath), "/")
+	toNormalized := strings.Trim(filepath.ToSlash(toPath), "/")
+	fromLower := strings.ToLower(fromNormalized)
+
+	updated := make([]string, 0, len(fileOrder))
+	changed := false
+
+	for _, entry := range fileOrder {
+		entryNormalized := strings.Trim(filepath.ToSlash(entry), "/")
+		entryLower := strings.ToLower(entryNormalized)
+
+		switch {
+		case entryLower == fromLower:
+			changed = true
+			if strings.HasSuffix(strings.ToLower(toNormalized), ".md") {
+				updated = append(updated, toNormalized)
+			}
+		case isDir && strings.HasPrefix(entryLower, fromLower+"/"):
+			changed = true
+			suffix := entryNormalized[len(fromNormalized):]
+			next := toNormalized + suffix
+			if strings.HasSuffix(strings.ToLower(next), ".md") {
+				updated = append(updated, next)
+			}
+		default:
+			updated = append(updated, entry)
+		}
+	}
+
+	if !changed {
+		return fileOrder, false
+	}
+
+	return updated, true
 }
 
 func (s *FileAgentStore) resolveAgentPath(agentID, relPath string) (string, string, error) {

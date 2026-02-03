@@ -34,6 +34,7 @@ export interface NormalizedAgentFormState {
   status: 'active' | 'inactive' | 'suspended'
   appearance: AgentAppearance
   tags: string[]
+  fileOrder: string[]
 }
 
 /**
@@ -46,6 +47,7 @@ export function normalizeAgent(agent: Agent): NormalizedAgentFormState {
     status: agent.status,
     appearance: agent.appearance ?? { ...DEFAULT_AGENT_COLORS },
     tags: [...agent.tags],
+    fileOrder: [...agent.fileOrder],
   }
 }
 
@@ -59,6 +61,7 @@ export function createEmptyAgentState(): NormalizedAgentFormState {
     status: 'active',
     appearance: { ...DEFAULT_AGENT_COLORS },
     tags: [],
+    fileOrder: [],
   }
 }
 
@@ -80,6 +83,7 @@ export function isAgentFormStateEqual(
 
   // Compare arrays
   if (!arraysEqual(a.tags, b.tags)) return false
+  if (!arraysEqual(a.fileOrder, b.fileOrder)) return false
 
   return true
 }
@@ -93,6 +97,56 @@ function arraysEqual(a: string[], b: string[]): boolean {
     if (a[i] !== b[i]) return false
   }
   return true
+}
+
+function renameFileOrderEntries(
+  fileOrder: string[],
+  fromPath: string,
+  toPath: string,
+  isDir: boolean
+): { nextOrder: string[]; changed: boolean } {
+  if (fileOrder.length === 0) {
+    return { nextOrder: fileOrder, changed: false }
+  }
+
+  const normalize = (value: string) => value.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  const fromNormalized = normalize(fromPath)
+  const toNormalized = normalize(toPath)
+  const fromLower = fromNormalized.toLowerCase()
+
+  let changed = false
+  const nextOrder: string[] = []
+
+  for (const entry of fileOrder) {
+    const entryNormalized = normalize(entry)
+    const entryLower = entryNormalized.toLowerCase()
+
+    if (entryLower === fromLower) {
+      changed = true
+      if (toNormalized.toLowerCase().endsWith('.md')) {
+        nextOrder.push(toNormalized)
+      }
+      continue
+    }
+
+    if (isDir && entryLower.startsWith(`${fromLower}/`)) {
+      changed = true
+      const suffix = entryNormalized.slice(fromNormalized.length)
+      const nextPath = `${toNormalized}${suffix}`
+      if (nextPath.toLowerCase().endsWith('.md')) {
+        nextOrder.push(nextPath)
+      }
+      continue
+    }
+
+    nextOrder.push(entry)
+  }
+
+  if (!changed) {
+    return { nextOrder: fileOrder, changed: false }
+  }
+
+  return { nextOrder, changed: true }
 }
 
 /**
@@ -210,6 +264,9 @@ interface AgentEditorStoreActions {
 
   /** Update multiple fields at once (single undo entry) */
   updateFields: (agentId: string, updates: Partial<NormalizedAgentFormState>) => void
+
+  /** Update fileOrder entries after a file rename without flagging as dirty */
+  renameFileOrderPath: (agentId: string, fromPath: string, toPath: string, isDir: boolean) => void
 
   /** Undo the last change for an agent */
   undo: (agentId: string) => void
@@ -368,6 +425,63 @@ export const useAgentEditorStore = create<AgentEditorStore>((set, get) => ({
       current: newCurrent,
       undoStack: newUndoStack,
       redoStack: [],
+      lastModifiedAt: Date.now(),
+    }
+
+    const newAgents = new Map(agents)
+    newAgents.set(agentId, newState)
+    set({ agents: newAgents })
+    persistState(newAgents)
+  },
+
+  renameFileOrderPath: (agentId, fromPath, toPath, isDir) => {
+    const { agents } = get()
+    const state = agents.get(agentId)
+    if (!state) return
+
+    const applyRename = (
+      snapshot: NormalizedAgentFormState
+    ): { nextState: NormalizedAgentFormState; changed: boolean } => {
+      const { nextOrder, changed } = renameFileOrderEntries(snapshot.fileOrder, fromPath, toPath, isDir)
+      if (!changed) {
+        return { nextState: snapshot, changed: false }
+      }
+      return {
+        nextState: {
+          ...snapshot,
+          fileOrder: nextOrder,
+        },
+        changed: true,
+      }
+    }
+
+    const updateStack = (
+      stack: AgentSnapshot[]
+    ): { nextStack: AgentSnapshot[]; changed: boolean } => {
+      let stackChanged = false
+      const nextStack = stack.map((snapshot) => {
+        const { nextState, changed } = applyRename(snapshot.state)
+        if (!changed) return snapshot
+        stackChanged = true
+        return { ...snapshot, state: nextState }
+      })
+      return { nextStack, changed: stackChanged }
+    }
+
+    const { nextState: newOriginal, changed: originalChanged } = applyRename(state.original)
+    const { nextState: newCurrent, changed: currentChanged } = applyRename(state.current)
+    const { nextStack: newUndoStack, changed: undoChanged } = updateStack(state.undoStack)
+    const { nextStack: newRedoStack, changed: redoChanged } = updateStack(state.redoStack)
+
+    const didChange = originalChanged || currentChanged || undoChanged || redoChanged
+    if (!didChange) return
+
+    const newState: AgentEditState = {
+      ...state,
+      original: newOriginal,
+      current: newCurrent,
+      undoStack: newUndoStack,
+      redoStack: newRedoStack,
       lastModifiedAt: Date.now(),
     }
 

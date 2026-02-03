@@ -13,6 +13,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type ReactNode,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
@@ -21,9 +22,12 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  GripVertical,
+  ListChecks,
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Sparkles,
   Trash2,
   X,
@@ -45,6 +49,7 @@ interface FilesTabProps {
   formState: NormalizedAgentFormState
   updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
   updateFields: (updates: Partial<NormalizedAgentFormState>) => void
+  renameFileOrderPath: (fromPath: string, toPath: string, isDir: boolean) => void
   isDirty: boolean
   dirtyCount: number
   onUndo: () => void
@@ -72,6 +77,18 @@ interface TemplateOption {
 
 const RESERVED_AGENT_FILE = 'agent.json'
 const RECOMMENDED_AGENT_FILES = ['AGENTS.md', 'SOUL.md', 'TOOLS.md'] as const
+
+function buildDefaultFileOrder(paths: string[]): string[] {
+  const normalized = [...paths]
+  normalized.sort((a, b) => {
+    const aLower = a.toLowerCase()
+    const bLower = b.toLowerCase()
+    if (aLower === 'soul.md') return bLower === 'soul.md' ? 0 : -1
+    if (bLower === 'soul.md') return 1
+    return aLower.localeCompare(bLower)
+  })
+  return normalized
+}
 
 function buildFileTree(entries: AgentFileEntry[]): FileNode {
   const root: FileNode = { name: '', path: '', isDir: true, children: [] }
@@ -138,6 +155,7 @@ export function FilesTab({
   formState,
   updateField,
   updateFields: _updateFields,
+  renameFileOrderPath,
   isDirty,
   dirtyCount,
   onUndo,
@@ -163,6 +181,7 @@ export function FilesTab({
   const [dialogMode, setDialogMode] = useState<'add' | 'rename'>('add')
   const [pendingPath, setPendingPath] = useState('')
   const [renameSourcePath, setRenameSourcePath] = useState<string | null>(null)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -180,6 +199,45 @@ export function FilesTab({
       ),
     [files]
   )
+
+  const markdownFiles = useMemo(
+    () => files.filter((file) => !file.isDir && isMarkdownFile(file.path)),
+    [files]
+  )
+  const markdownPaths = useMemo(
+    () => markdownFiles.map((file) => file.path),
+    [markdownFiles]
+  )
+  const defaultFileOrder = useMemo(
+    () => buildDefaultFileOrder(markdownPaths),
+    [markdownPaths]
+  )
+  const hasExplicitOrder = formState.fileOrder.length > 0
+  const fileOrder = hasExplicitOrder ? formState.fileOrder : defaultFileOrder
+  const markdownPathMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const path of markdownPaths) {
+      map.set(path.toLowerCase(), path)
+    }
+    return map
+  }, [markdownPaths])
+  const orderEntries = useMemo(
+    () =>
+      fileOrder.map((path) => ({
+        path,
+        exists: markdownPathMap.has(path.toLowerCase()),
+      })),
+    [fileOrder, markdownPathMap]
+  )
+  const missingOrderEntries = useMemo(() => {
+    if (!hasExplicitOrder) return []
+    return formState.fileOrder.filter((path) => !markdownPathMap.has(path.toLowerCase()))
+  }, [formState.fileOrder, hasExplicitOrder, markdownPathMap])
+  const unlistedFiles = useMemo(() => {
+    if (!hasExplicitOrder) return []
+    const orderSet = new Set(formState.fileOrder.map((path) => path.toLowerCase()))
+    return defaultFileOrder.filter((path) => !orderSet.has(path.toLowerCase()))
+  }, [defaultFileOrder, formState.fileOrder, hasExplicitOrder])
 
   const selectedEntry = useMemo(
     () => (selectedPath ? files.find((file) => file.path === selectedPath) : undefined),
@@ -386,6 +444,72 @@ export function FilesTab({
     setFileContent(originalContent)
   }, [originalContent])
 
+  const handleSetDefaultFileOrder = useCallback(() => {
+    if (defaultFileOrder.length === 0) return
+    updateField('fileOrder', defaultFileOrder)
+  }, [defaultFileOrder, updateField])
+
+  const handleAddUnlistedFiles = useCallback(() => {
+    if (unlistedFiles.length === 0) return
+    const next = [...formState.fileOrder, ...unlistedFiles]
+    updateField('fileOrder', next)
+  }, [formState.fileOrder, unlistedFiles, updateField])
+
+  const handleRemoveMissingEntries = useCallback(() => {
+    if (missingOrderEntries.length === 0) return
+    const missingSet = new Set(missingOrderEntries.map((path) => path.toLowerCase()))
+    const next = formState.fileOrder.filter((path) => !missingSet.has(path.toLowerCase()))
+    updateField('fileOrder', next)
+  }, [formState.fileOrder, missingOrderEntries, updateField])
+
+  const reorderFileOrder = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex) return
+      const next = [...fileOrder]
+      const [moved] = next.splice(fromIndex, 1)
+      if (!moved) return
+      next.splice(toIndex, 0, moved)
+      updateField('fileOrder', next)
+    },
+    [fileOrder, updateField]
+  )
+
+  const handleDragStart = useCallback(
+    (index: number) => (event: ReactDragEvent<HTMLDivElement>) => {
+      setDraggedIndex(index)
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', String(index))
+    },
+    []
+  )
+
+  const handleDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+    },
+    []
+  )
+
+  const handleDrop = useCallback(
+    (index: number) => (event: ReactDragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      const fallbackIndex = Number(event.dataTransfer.getData('text/plain'))
+      const fromIndex = draggedIndex ?? (Number.isNaN(fallbackIndex) ? null : fallbackIndex)
+      if (fromIndex === null) {
+        setDraggedIndex(null)
+        return
+      }
+      reorderFileOrder(fromIndex, index)
+      setDraggedIndex(null)
+    },
+    [draggedIndex, reorderFileOrder]
+  )
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedIndex(null)
+  }, [])
+
   const handleApplyTemplate = useCallback(
     (content: string) => {
       if (isFileDirty) {
@@ -429,6 +553,8 @@ export function FilesTab({
       if (from === to) return true
       try {
         await agentService.renameAgentFile(agentId, { from, to })
+        const sourceEntry = files.find((entry) => entry.path.toLowerCase() === from.toLowerCase())
+        renameFileOrderPath(from, to, sourceEntry?.isDir ?? false)
         if (selectedPath === from) {
           skipFileLoadRef.current = to
           setSelectedPath(to)
@@ -445,7 +571,7 @@ export function FilesTab({
         return false
       }
     },
-    [agentId, ensureExpandedForPath, refreshFiles, selectedPath]
+    [agentId, ensureExpandedForPath, files, refreshFiles, renameFileOrderPath, selectedPath]
   )
 
   const handleConfirmDialog = useCallback(async () => {
@@ -719,7 +845,7 @@ export function FilesTab({
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold">agent.json</div>
-                  <div className="text-xs text-muted-foreground">Appearance settings</div>
+                  <div className="text-xs text-muted-foreground">Appearance + file ordering</div>
                 </div>
                 <div className="flex items-center gap-2">
                   {filePathMenu}
@@ -738,6 +864,121 @@ export function FilesTab({
                 </div>
               </div>
               <AppearanceTab formState={formState} updateField={updateField} />
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold">Prompt File Order</div>
+                    <div className="text-xs text-muted-foreground">
+                      Drag to reorder how markdown files are assembled for this agent.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSetDefaultFileOrder}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={defaultFileOrder.length === 0}
+                    title="Reset to default order"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset default
+                  </button>
+                </div>
+
+                {!hasExplicitOrder && defaultFileOrder.length > 0 && (
+                  <div className="rounded-md border border-dashed border-border/80 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                    Using the default order (SOUL.md first, then A–Z). Set an explicit order to
+                    customize.
+                  </div>
+                )}
+
+                {hasExplicitOrder && (missingOrderEntries.length > 0 || unlistedFiles.length > 0) && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90 space-y-1">
+                    {missingOrderEntries.length > 0 && (
+                      <div>
+                        Missing files in order: {missingOrderEntries.join(', ')}
+                      </div>
+                    )}
+                    {unlistedFiles.length > 0 && (
+                      <div>
+                        Unlisted markdown files: {unlistedFiles.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {orderEntries.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">
+                    No markdown files found yet. Create one to start ordering.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {orderEntries.map((entry, index) => (
+                      <div
+                        key={`${entry.path}-${index}`}
+                        role="button"
+                        tabIndex={0}
+                        draggable={orderEntries.length > 1}
+                        onDragStart={handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop(index)}
+                        onDragEnd={handleDragEnd}
+                        className={cn(
+                          'flex items-center gap-2 rounded-md border px-2.5 py-2 text-xs',
+                          entry.exists ? 'border-border/70 bg-background/70' : 'border-amber-500/40 bg-amber-500/10',
+                          orderEntries.length > 1 && 'cursor-grab active:cursor-grabbing',
+                          draggedIndex === index && 'opacity-60'
+                        )}
+                      >
+                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/70" />
+                        <span className="flex-1 truncate">{entry.path}</span>
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+                            entry.exists
+                              ? 'bg-emerald-500/15 text-emerald-200'
+                              : 'bg-amber-500/20 text-amber-200'
+                          )}
+                        >
+                          {entry.exists ? 'Ready' : 'Missing'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {!hasExplicitOrder && defaultFileOrder.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleSetDefaultFileOrder}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <ListChecks className="h-3.5 w-3.5" />
+                      Use default order
+                    </button>
+                  )}
+                  {unlistedFiles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAddUnlistedFiles}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add unlisted files
+                    </button>
+                  )}
+                  {missingOrderEntries.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveMissingEntries}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <ListChecks className="h-3.5 w-3.5" />
+                      Remove missing entries
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

@@ -32,6 +32,7 @@ type Agent struct {
 	DefaultProfileRef string             `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *AgentHeartbeat    `json:"heartbeat,omitempty"`
 	Tags              []string           `json:"tags,omitempty"`
+	FileOrder         []string           `json:"fileOrder,omitempty"`
 	Runtime           *AgentRuntime      `json:"runtime,omitempty"`
 	Timestamps
 }

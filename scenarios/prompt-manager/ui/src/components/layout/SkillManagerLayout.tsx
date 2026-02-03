@@ -269,6 +269,7 @@ export function SkillManagerLayout() {
     formState: agentFormState,
     updateField: updateAgentField,
     updateFields: updateAgentFields,
+    renameFileOrderPath: renameAgentFileOrderPath,
     validation: agentValidation,
     isDirty: isAgentDirty,
     dirtyAgentIds,
@@ -590,6 +591,7 @@ export function SkillManagerLayout() {
         defaultProfileRef: agentFromEditor.defaultProfileRef ?? undefined,
         heartbeat: agentFromEditor.heartbeat ?? undefined,
         tags: [...agentFromEditor.tags],
+        fileOrder: [...agentFromEditor.fileOrder],
       })
       setSelectedAgentId(created.id)
 
@@ -1026,6 +1028,7 @@ export function SkillManagerLayout() {
                 formState={agentFormState}
                 updateField={updateAgentField}
                 updateFields={updateAgentFields}
+                renameFileOrderPath={renameAgentFileOrderPath}
                 validation={agentValidation}
                 isDirty={isAgentDirty}
                 dirtyCount={agentDirtyCount}

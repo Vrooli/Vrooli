@@ -10,22 +10,24 @@
  * - Editable roles list
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Clock, Hash, Users, Shield, Target } from 'lucide-react'
-import type { TeamDetails, TeamRole } from '@/types/team'
+import type { TeamDetails, TeamRole, UpdateTeamRequest } from '@/types/team'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
+import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
 import { RolesTab } from './RolesTab'
 
 interface TeamInfoTabProps {
   team: TeamDetails
   onSetRoles: (roles: TeamRole[]) => Promise<TeamRole[]>
+  onUpdate: (updates: UpdateTeamRequest) => Promise<void>
 }
 
 /**
  * Info display tab component for teams.
  */
-export function TeamInfoTab({ team, onSetRoles }: TeamInfoTabProps) {
+export function TeamInfoTab({ team, onSetRoles, onUpdate }: TeamInfoTabProps) {
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
@@ -34,6 +36,13 @@ export function TeamInfoTab({ team, onSetRoles }: TeamInfoTabProps) {
     if (!dateString) return 'Unknown'
     return new Date(dateString).toLocaleString()
   }
+
+  const handleMissionChange = useCallback(
+    (value: string) => {
+      void onUpdate({ mission: value })
+    },
+    [onUpdate]
+  )
 
   const formatRelativeTime = (date: Date) => {
     const diffMs = date.getTime() - Date.now()
@@ -121,15 +130,18 @@ export function TeamInfoTab({ team, onSetRoles }: TeamInfoTabProps) {
       </section>
 
       {/* Mission */}
-      {team.mission && (
-        <section>
-          <h3 className="text-sm font-medium text-foreground mb-3">Mission</h3>
-          <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-            <Target className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-foreground">{team.mission}</p>
-          </div>
-        </section>
-      )}
+      <section>
+        <h3 className="text-sm font-medium text-foreground mb-3">Mission</h3>
+        <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+          <Target className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <ExpandableDescription
+            value={team.mission ?? ''}
+            onChange={handleMissionChange}
+            placeholder="Add a mission statement..."
+            className="flex-1"
+          />
+        </div>
+      </section>
 
       {/* Upcoming Heartbeats */}
       <section>

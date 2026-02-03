@@ -272,6 +272,7 @@ export function WorldCanvas({
     await createAgent({
       displayName: `${focusedAgent.displayName} (Copy)`,
       appearance: focusedAgent.appearance ? { ...focusedAgent.appearance } : undefined,
+      fileOrder: [...focusedAgent.fileOrder],
     })
     exitZoom()
   }, [focusedAgent, createAgent, exitZoom])

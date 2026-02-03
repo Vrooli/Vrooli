@@ -17,9 +17,9 @@ import (
 
 // Handlers provides HTTP handlers for agent operations.
 type Handlers struct {
-	agentStore    store.AgentStore
-	indexStore    store.IndexStore
-	storeDir      string
+	agentStore store.AgentStore
+	indexStore store.IndexStore
+	storeDir   string
 }
 
 // NewHandlers creates a new agents handler.
@@ -151,6 +151,14 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
+	if req.FileOrder != nil {
+		normalized, err := normalizeFileOrder(req.FileOrder)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		agent.FileOrder = normalized
+	}
 
 	if req.Heartbeat != nil {
 		agent.Heartbeat = &store.AgentHeartbeat{
@@ -266,6 +274,14 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Tags != nil {
 		updates.Tags = req.Tags
+	}
+	if req.FileOrder != nil {
+		normalized, err := normalizeFileOrder(req.FileOrder)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		updates.FileOrder = normalized
 	}
 
 	if err := h.agentStore.Update(ctx, id, updates); err != nil {
@@ -604,6 +620,7 @@ func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 		Status:            a.Status,
 		DefaultProfileRef: a.DefaultProfileRef,
 		Tags:              a.Tags,
+		FileOrder:         a.FileOrder,
 		CreatedAt:         a.CreatedAt,
 		UpdatedAt:         a.UpdatedAt,
 	}
@@ -659,4 +676,38 @@ func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 	}
 
 	return resp
+}
+
+func normalizeFileOrder(fileOrder []string) ([]string, error) {
+	if len(fileOrder) == 0 {
+		return []string{}, nil
+	}
+
+	normalized := make([]string, 0, len(fileOrder))
+	seen := make(map[string]struct{}, len(fileOrder))
+
+	for _, entry := range fileOrder {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "" {
+			return nil, errors.New("fileOrder entries must be non-empty")
+		}
+
+		clean := filepath.Clean(filepath.FromSlash(trimmed))
+		if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+			return nil, errors.New("fileOrder entries must be relative file paths")
+		}
+		if !strings.HasSuffix(strings.ToLower(clean), ".md") {
+			return nil, errors.New("fileOrder entries must point to .md files")
+		}
+
+		key := strings.ToLower(clean)
+		if _, exists := seen[key]; exists {
+			return nil, errors.New("fileOrder entries must be unique")
+		}
+		seen[key] = struct{}{}
+
+		normalized = append(normalized, filepath.ToSlash(clean))
+	}
+
+	return normalized, nil
 }

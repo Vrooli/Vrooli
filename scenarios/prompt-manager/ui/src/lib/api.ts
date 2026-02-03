@@ -15,6 +15,7 @@
  * - POST /api/v1/skills/{id}/test - test with Ollama
  * - GET /api/v1/skills/{id}/test-history - get test history
  * - GET /api/v1/agent-file-templates - list agent file templates
+ * - POST /api/v1/prompt-preview - preview constructed prompts
  *
  * All API responses are validated at runtime using Zod schemas to prevent
  * crashes from mismatched API responses.
@@ -40,6 +41,7 @@ import {
   AgentFileListResponseSchema,
   AgentFileContentResponseSchema,
   AgentFileTemplateListResponseSchema,
+  PromptPreviewResponseSchema,
   AISearchResponseSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
@@ -70,6 +72,7 @@ import {
   type AgentFileCreateRequest,
   type AgentFileRenameRequest,
   type AgentFileTemplateListResponse,
+  type PromptPreviewResponse,
   type AISearchResponse,
   type AISearchStatus,
   type AIReindexStatus,
@@ -535,6 +538,17 @@ class ApiClient {
       {
         method: 'DELETE',
       }
+    )
+  }
+
+  async previewPrompt(agentId: string, teamId?: string): Promise<PromptPreviewResponse> {
+    return this.request<PromptPreviewResponse>(
+      '/prompt-preview',
+      {
+        method: 'POST',
+        body: JSON.stringify({ agentId, teamId }),
+      },
+      PromptPreviewResponseSchema
     )
   }
 

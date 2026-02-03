@@ -88,3 +88,16 @@ type MemberDocResponse struct {
 	AgentID string `json:"agentId"`
 	Content string `json:"content"`
 }
+
+// PromptPreviewRequest is the request body for previewing a built prompt.
+type PromptPreviewRequest struct {
+	AgentID string `json:"agentId"`
+	TeamID  string `json:"teamId,omitempty"`
+}
+
+// PromptPreviewResponse returns the assembled prompt text.
+type PromptPreviewResponse struct {
+	AgentID string `json:"agentId"`
+	TeamID  string `json:"teamId,omitempty"`
+	Prompt  string `json:"prompt"`
+}

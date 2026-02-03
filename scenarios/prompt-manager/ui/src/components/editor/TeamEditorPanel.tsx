@@ -458,7 +458,7 @@ export function TeamEditorPanel({
             value="info"
             className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
           >
-            <TeamInfoTab team={team} onSetRoles={onSetRoles} />
+            <TeamInfoTab team={team} onSetRoles={onSetRoles} onUpdate={onUpdate} />
           </Tabs.Content>
 
           <Tabs.Content

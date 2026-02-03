@@ -79,6 +79,7 @@ export {
   AgentFileWriteRequestSchema,
   AgentFileCreateRequestSchema,
   AgentFileRenameRequestSchema,
+  PromptPreviewResponseSchema,
   DEFAULT_AGENT_COLORS,
   type AgentStatus,
   type AgentAppearance,
@@ -98,6 +99,7 @@ export {
   type AgentFileWriteRequest,
   type AgentFileCreateRequest,
   type AgentFileRenameRequest,
+  type PromptPreviewResponse,
 } from './agent.schema'
 
 // Search schemas

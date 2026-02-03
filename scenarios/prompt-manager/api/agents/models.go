@@ -15,6 +15,7 @@ type Response struct {
 	DefaultProfileRef string           `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
 	Tags              []string         `json:"tags,omitempty"`
+	FileOrder         []string         `json:"fileOrder,omitempty"`
 	AgentDir          string           `json:"agentDir,omitempty"`
 	CreatedAt         string           `json:"createdAt"`
 	UpdatedAt         string           `json:"updatedAt"`
@@ -64,6 +65,7 @@ type CreateRequest struct {
 	DefaultProfileRef string           `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
 	Tags              []string         `json:"tags,omitempty"`
+	FileOrder         []string         `json:"fileOrder,omitempty"`
 }
 
 // UpdateRequest is the request body for updating an agent.
@@ -77,6 +79,7 @@ type UpdateRequest struct {
 	DefaultProfileRef *string          `json:"defaultProfileRef,omitempty"`
 	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
 	Tags              []string         `json:"tags,omitempty"`
+	FileOrder         []string         `json:"fileOrder,omitempty"`
 }
 
 // SoulRequest is the request body for setting SOUL.md content.

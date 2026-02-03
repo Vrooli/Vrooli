@@ -9,7 +9,12 @@
     "head": "#F97316",
     "accent": "#C7D2FE"
   },
-  "revision": 2,
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 4,
   "createdAt": "2026-01-22T23:01:43Z",
-  "updatedAt": "2026-02-01T22:07:44Z"
+  "updatedAt": "2026-02-03T14:52:59Z"
 }

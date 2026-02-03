@@ -22,6 +22,7 @@ import type {
   AgentFileCreateRequest,
   AgentFileRenameRequest,
   AgentFileTemplate,
+  PromptPreviewResponse,
 } from '@/lib/schemas'
 
 // Create cache for agents list
@@ -179,6 +180,13 @@ export async function renameAgentFile(agentId: string, request: AgentFileRenameR
  */
 export async function deleteAgentFile(agentId: string, path: string): Promise<void> {
   await api.deleteAgentFile(agentId, path)
+}
+
+/**
+ * Preview the constructed prompt for an agent.
+ */
+export async function previewAgentPrompt(agentId: string, teamId?: string): Promise<PromptPreviewResponse> {
+  return api.previewPrompt(agentId, teamId)
 }
 
 /**

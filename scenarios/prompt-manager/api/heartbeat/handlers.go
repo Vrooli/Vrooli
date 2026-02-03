@@ -2,7 +2,9 @@ package heartbeat
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -51,6 +53,43 @@ func (h *Handlers) ListHeartbeats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(responses)
+}
+
+// PreviewPrompt handles POST /prompt-preview - builds a prompt preview for an agent (optionally within a team).
+func (h *Handlers) PreviewPrompt(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req PromptPreviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.AgentID) == "" {
+		http.Error(w, "agentId is required", http.StatusBadRequest)
+		return
+	}
+
+	if h.executor == nil {
+		http.Error(w, "Prompt preview not available", http.StatusInternalServerError)
+		return
+	}
+
+	prompt, err := h.executor.BuildPrompt(ctx, req.TeamID, req.AgentID)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent or team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(PromptPreviewResponse{
+		AgentID: req.AgentID,
+		TeamID:  req.TeamID,
+		Prompt:  prompt,
+	})
 }
 
 // GetHeartbeat handles GET /teams/{id}/heartbeats/{agentId} - gets heartbeat config

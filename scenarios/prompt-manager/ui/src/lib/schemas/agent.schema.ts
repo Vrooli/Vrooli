@@ -99,6 +99,7 @@ export const AgentSchema = z.object({
   defaultProfileRef: z.string().optional(),
   heartbeat: AgentHeartbeatSchema.nullable().optional(),
   tags: nullableStringArray,
+  fileOrder: nullableStringArray,
   agentDir: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -124,6 +125,7 @@ export const CreateAgentRequestSchema = z.object({
   defaultProfileRef: z.string().optional(),
   heartbeat: AgentHeartbeatSchema.optional(),
   tags: z.array(z.string()).optional(),
+  fileOrder: z.array(z.string()).optional(),
 })
 
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequestSchema>
@@ -142,6 +144,7 @@ export const UpdateAgentRequestSchema = z.object({
   defaultProfileRef: z.string().optional(),
   heartbeat: AgentHeartbeatSchema.optional(),
   tags: z.array(z.string()).optional(),
+  fileOrder: z.array(z.string()).optional(),
 })
 
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequestSchema>
@@ -208,6 +211,17 @@ export const AgentFileRenameRequestSchema = z.object({
 })
 
 export type AgentFileRenameRequest = z.infer<typeof AgentFileRenameRequestSchema>
+
+/**
+ * Prompt preview response for /prompt-preview.
+ */
+export const PromptPreviewResponseSchema = z.object({
+  agentId: z.string(),
+  teamId: z.string().optional(),
+  prompt: z.string(),
+})
+
+export type PromptPreviewResponse = z.infer<typeof PromptPreviewResponseSchema>
 
 /**
  * Default agent colors for new agents.

@@ -180,6 +180,13 @@
       },
       "description": "Searchable tags for categorization"
     },
+    "fileOrder": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ordered list of markdown files to include in prompt assembly"
+    },
     "runtime": {
       "type": "object",
       "description": "Pointers to runtime state (owned by workspace-sandbox)",

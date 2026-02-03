@@ -38,6 +38,7 @@ interface UseAgentEditorReturn {
   // Form operations
   updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
   updateFields: (updates: Partial<NormalizedAgentFormState>) => void
+  renameFileOrderPath: (fromPath: string, toPath: string, isDir: boolean) => void
   resetForm: () => void
 
   // Validation
@@ -89,6 +90,7 @@ export function useAgentEditor({
   const initializeAgent = useAgentEditorStore((state) => state.initializeAgent)
   const storeUpdateField = useAgentEditorStore((state) => state.updateField)
   const storeUpdateFields = useAgentEditorStore((state) => state.updateFields)
+  const storeRenameFileOrderPath = useAgentEditorStore((state) => state.renameFileOrderPath)
   const storeUndo = useAgentEditorStore((state) => state.undo)
   const storeRedo = useAgentEditorStore((state) => state.redo)
   const markAsSaved = useAgentEditorStore((state) => state.markAsSaved)
@@ -220,6 +222,14 @@ export function useAgentEditor({
     [selectedAgentId, storeUpdateFields]
   )
 
+  const renameFileOrderPath = useCallback(
+    (fromPath: string, toPath: string, isDir: boolean) => {
+      if (!selectedAgentId) return
+      storeRenameFileOrderPath(selectedAgentId, fromPath, toPath, isDir)
+    },
+    [selectedAgentId, storeRenameFileOrderPath]
+  )
+
   // Reset form to original state
   const resetForm = useCallback(() => {
     if (!selectedAgentId) return
@@ -246,6 +256,7 @@ export function useAgentEditor({
       status: state.status,
       appearance: state.appearance,
       tags: state.tags,
+      fileOrder: state.fileOrder,
     }
   }, [])
 
@@ -353,6 +364,7 @@ export function useAgentEditor({
     // Form operations
     updateField,
     updateFields,
+    renameFileOrderPath,
     resetForm,
 
     // Validation
