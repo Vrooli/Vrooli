@@ -93,6 +93,10 @@ type Service struct {
 	GPU          *GPURequirements       `json:"gpu,omitempty"`
 	Critical     *bool                  `json:"critical,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	// DistRoot is the directory to serve static files from for ui-bundle services.
+	// If not specified, the runtime will automatically detect it by finding index.html
+	// in the assets list and using its parent directory.
+	DistRoot string `json:"dist_root,omitempty"`
 }
 
 // BuildConfig specifies how to compile a service binary when not pre-built.

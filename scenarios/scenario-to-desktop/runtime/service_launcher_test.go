@@ -1099,3 +1099,181 @@ func TestStartServicesAsync_OnlyStartsOnce(t *testing.T) {
 	// Second call should be a no-op
 	s.startServicesAsync() // Should not panic or start again
 }
+
+// =============================================================================
+// resolveUIDistRoot Tests
+// =============================================================================
+
+func TestResolveUIDistRoot_ExplicitDistRoot(t *testing.T) {
+	tmp := t.TempDir()
+	s := &Supervisor{
+		opts: Options{
+			BundlePath: tmp,
+		},
+	}
+
+	svc := manifest.Service{
+		ID:       "ui",
+		Type:     "ui-bundle",
+		DistRoot: "custom/dist/path",
+		Assets: []manifest.Asset{
+			{Path: "ui/dist/assets/app.js"},
+			{Path: "ui/dist/index.html"},
+		},
+	}
+
+	got, err := s.resolveUIDistRoot(svc)
+	if err != nil {
+		t.Fatalf("resolveUIDistRoot() error = %v", err)
+	}
+
+	want := filepath.Join(tmp, "custom/dist/path")
+	if got != want {
+		t.Errorf("resolveUIDistRoot() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveUIDistRoot_FindIndexHtml(t *testing.T) {
+	tmp := t.TempDir()
+	s := &Supervisor{
+		opts: Options{
+			BundlePath: tmp,
+		},
+	}
+
+	// This simulates the bug scenario: first asset is in assets/ subdirectory,
+	// but index.html is at the dist root. The function should find index.html
+	// and use its parent directory.
+	svc := manifest.Service{
+		ID:   "ui",
+		Type: "ui-bundle",
+		Assets: []manifest.Asset{
+			{Path: "ui/dist/assets/abap-BdImnpbu.js"},  // First asset in subdirectory
+			{Path: "ui/dist/assets/app-xyz123.js"},    // Another asset
+			{Path: "ui/dist/assets/styles-abc456.css"}, // Another asset
+			{Path: "ui/dist/index.html"},               // Entry point at dist root
+		},
+	}
+
+	got, err := s.resolveUIDistRoot(svc)
+	if err != nil {
+		t.Fatalf("resolveUIDistRoot() error = %v", err)
+	}
+
+	want := filepath.Join(tmp, "ui/dist")
+	if got != want {
+		t.Errorf("resolveUIDistRoot() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveUIDistRoot_IndexHtmlAtRoot(t *testing.T) {
+	tmp := t.TempDir()
+	s := &Supervisor{
+		opts: Options{
+			BundlePath: tmp,
+		},
+	}
+
+	// Simple case: index.html is the first asset
+	svc := manifest.Service{
+		ID:   "ui",
+		Type: "ui-bundle",
+		Assets: []manifest.Asset{
+			{Path: "dist/index.html"},
+			{Path: "dist/assets/main.js"},
+		},
+	}
+
+	got, err := s.resolveUIDistRoot(svc)
+	if err != nil {
+		t.Fatalf("resolveUIDistRoot() error = %v", err)
+	}
+
+	want := filepath.Join(tmp, "dist")
+	if got != want {
+		t.Errorf("resolveUIDistRoot() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveUIDistRoot_NoIndexHtmlNoDistRoot(t *testing.T) {
+	tmp := t.TempDir()
+	s := &Supervisor{
+		opts: Options{
+			BundlePath: tmp,
+		},
+	}
+
+	// No index.html and no dist_root - should error
+	svc := manifest.Service{
+		ID:   "ui",
+		Type: "ui-bundle",
+		Assets: []manifest.Asset{
+			{Path: "ui/dist/assets/app.js"},
+			{Path: "ui/dist/assets/styles.css"},
+		},
+	}
+
+	_, err := s.resolveUIDistRoot(svc)
+	if err == nil {
+		t.Fatal("resolveUIDistRoot() expected error when no index.html and no dist_root")
+	}
+
+	// Error should mention both options
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "dist_root") {
+		t.Errorf("error should mention dist_root, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "index.html") {
+		t.Errorf("error should mention index.html, got: %s", errMsg)
+	}
+}
+
+func TestResolveUIDistRoot_EmptyAssets(t *testing.T) {
+	tmp := t.TempDir()
+	s := &Supervisor{
+		opts: Options{
+			BundlePath: tmp,
+		},
+	}
+
+	// No assets at all
+	svc := manifest.Service{
+		ID:     "ui",
+		Type:   "ui-bundle",
+		Assets: []manifest.Asset{},
+	}
+
+	_, err := s.resolveUIDistRoot(svc)
+	if err == nil {
+		t.Fatal("resolveUIDistRoot() expected error when assets is empty")
+	}
+}
+
+func TestResolveUIDistRoot_ExplicitDistRootOverridesIndexHtml(t *testing.T) {
+	tmp := t.TempDir()
+	s := &Supervisor{
+		opts: Options{
+			BundlePath: tmp,
+		},
+	}
+
+	// Both dist_root and index.html present - dist_root takes precedence
+	svc := manifest.Service{
+		ID:       "ui",
+		Type:     "ui-bundle",
+		DistRoot: "explicit/path",
+		Assets: []manifest.Asset{
+			{Path: "different/path/index.html"},
+		},
+	}
+
+	got, err := s.resolveUIDistRoot(svc)
+	if err != nil {
+		t.Fatalf("resolveUIDistRoot() error = %v", err)
+	}
+
+	want := filepath.Join(tmp, "explicit/path")
+	if got != want {
+		t.Errorf("resolveUIDistRoot() = %q, want %q (explicit dist_root should take precedence)", got, want)
+	}
+}

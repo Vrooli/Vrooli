@@ -298,15 +298,12 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 		return fmt.Errorf("allocate port for %s: %w", svc.ID, err)
 	}
 
-	// Determine asset root from first asset entry.
-	if len(svc.Assets) == 0 || svc.Assets[0].Path == "" {
-		return fmt.Errorf("ui-bundle %s has no assets defined", svc.ID)
+	// Determine the dist root directory to serve static files from.
+	// Priority: 1) explicit dist_root, 2) find index.html in assets, 3) error
+	serveRoot, err := s.resolveUIDistRoot(svc)
+	if err != nil {
+		return err
 	}
-	assetRoot := filepath.Dir(svc.Assets[0].Path)
-	if assetRoot == "" || assetRoot == "." {
-		assetRoot = filepath.Dir(svc.Assets[0].Path)
-	}
-	serveRoot := manifest.ResolvePath(s.opts.BundlePath, assetRoot)
 
 	// Verify assets exist.
 	if err := s.ensureAssets(svc); err != nil {
@@ -446,6 +443,37 @@ func (s *Supervisor) resolveAPIPort() int {
 		}
 	}
 	return 0
+}
+
+// resolveUIDistRoot determines the directory to serve static files from for a ui-bundle service.
+// It uses the following priority:
+//  1. Explicit dist_root field in the service config
+//  2. Automatic detection by finding index.html in the assets list
+//  3. Error if neither works
+//
+// This approach ensures the serve root is always correct regardless of how assets are organized
+// (e.g., assets in a subdirectory like "ui/dist/assets/").
+func (s *Supervisor) resolveUIDistRoot(svc manifest.Service) (string, error) {
+	// Priority 1: Explicit dist_root takes precedence
+	if svc.DistRoot != "" {
+		return manifest.ResolvePath(s.opts.BundlePath, svc.DistRoot), nil
+	}
+
+	// Priority 2: Find index.html in assets - its parent directory is the dist root
+	for _, asset := range svc.Assets {
+		if filepath.Base(asset.Path) == "index.html" {
+			distRoot := filepath.Dir(asset.Path)
+			return manifest.ResolvePath(s.opts.BundlePath, distRoot), nil
+		}
+	}
+
+	// Priority 3: Error with clear guidance
+	return "", fmt.Errorf(
+		"ui-bundle %s: cannot determine dist root. "+
+			"Either add 'dist_root' to the service config, or ensure index.html is in the assets list. "+
+			"Assets found: %d",
+		svc.ID, len(svc.Assets),
+	)
 }
 
 // stopServices stops all services in reverse dependency order.
