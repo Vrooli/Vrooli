@@ -6,7 +6,6 @@
  * - expandedNodes: Which tree nodes are expanded
  * - selectedTags: Active tag filters
  *
- * Note: Search query is intentionally NOT persisted as it's typically transient.
  * Sidebar width is persisted separately by useResizableSidebar.
  */
 
@@ -31,6 +30,14 @@ export interface SidebarPersistedState {
   activeTab: string
   /** Search query for skills */
   searchQuery: string
+  /** Search mode for skills */
+  searchMode: 'quick' | 'content'
+  /** Content search options */
+  contentSearchOptions: {
+    caseSensitive: boolean
+    wholeWord: boolean
+    regex: boolean
+  }
 }
 
 const DEFAULT_STATE: SidebarPersistedState = {
@@ -40,6 +47,12 @@ const DEFAULT_STATE: SidebarPersistedState = {
   selectedFolders: [],
   activeTab: 'skills',
   searchQuery: '',
+  searchMode: 'quick',
+  contentSearchOptions: {
+    caseSensitive: false,
+    wholeWord: false,
+    regex: false,
+  },
 }
 
 /**
@@ -63,6 +76,18 @@ export function loadSidebarState(): SidebarPersistedState {
       selectedFolders: Array.isArray(parsed.selectedFolders) ? parsed.selectedFolders : DEFAULT_STATE.selectedFolders,
       activeTab: typeof parsed.activeTab === 'string' ? parsed.activeTab : DEFAULT_STATE.activeTab,
       searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : DEFAULT_STATE.searchQuery,
+      searchMode: parsed.searchMode === 'content' ? 'content' : DEFAULT_STATE.searchMode,
+      contentSearchOptions: {
+        caseSensitive: typeof parsed.contentSearchOptions?.caseSensitive === 'boolean'
+          ? parsed.contentSearchOptions.caseSensitive
+          : DEFAULT_STATE.contentSearchOptions.caseSensitive,
+        wholeWord: typeof parsed.contentSearchOptions?.wholeWord === 'boolean'
+          ? parsed.contentSearchOptions.wholeWord
+          : DEFAULT_STATE.contentSearchOptions.wholeWord,
+        regex: typeof parsed.contentSearchOptions?.regex === 'boolean'
+          ? parsed.contentSearchOptions.regex
+          : DEFAULT_STATE.contentSearchOptions.regex,
+      },
     }
   } catch {
     return DEFAULT_STATE
@@ -95,6 +120,14 @@ export interface UseSidebarPersistenceOptions {
   activeTab: string
   /** Current search query */
   searchQuery: string
+  /** Current search mode */
+  searchMode: 'quick' | 'content'
+  /** Current content search options */
+  contentSearchOptions: {
+    caseSensitive: boolean
+    wholeWord: boolean
+    regex: boolean
+  }
 }
 
 export interface UseSidebarPersistenceReturn {
@@ -110,7 +143,16 @@ export interface UseSidebarPersistenceReturn {
  * 2. Pass current state to the hook - it auto-persists on changes
  */
 export function useSidebarPersistence(options: UseSidebarPersistenceOptions): UseSidebarPersistenceReturn {
-  const { isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery } = options
+  const {
+    isCollapsed,
+    expandedNodes,
+    selectedTags,
+    selectedFolders,
+    activeTab,
+    searchQuery,
+    searchMode,
+    contentSearchOptions,
+  } = options
 
   // Debounce timer ref
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -131,6 +173,8 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         selectedFolders,
         activeTab,
         searchQuery,
+        searchMode,
+        contentSearchOptions,
       })
     }, DEBOUNCE_MS)
 
@@ -139,7 +183,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         clearTimeout(timerRef.current)
       }
     }
-  }, [isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery])
+  }, [isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery, searchMode, contentSearchOptions])
 
   const getInitialState = useCallback((): SidebarPersistedState => {
     return loadSidebarState()

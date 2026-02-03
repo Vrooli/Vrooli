@@ -168,6 +168,30 @@ export async function searchSkills(query: string): Promise<Skill[]> {
 }
 
 /**
+ * Content search - line-level content matches.
+ *
+ * @param query - Search query
+ * @param options - Content search options
+ * @returns Content search response
+ */
+export async function searchSkillContent(
+  query: string,
+  options?: {
+    tags?: string[]
+    folders?: string[]
+    caseSensitive?: boolean
+    wholeWord?: boolean
+    regex?: boolean
+    limit?: number
+  }
+) {
+  return api.searchSkillContent({
+    query,
+    ...options,
+  })
+}
+
+/**
  * Get all unique tags from skills.
  *
  * @returns Array of unique tags sorted alphabetically

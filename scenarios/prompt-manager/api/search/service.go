@@ -2,6 +2,8 @@
 package search
 
 import (
+	"errors"
+	"regexp"
 	"strings"
 
 	"prompt-manager/skills"
@@ -11,6 +13,9 @@ import (
 type Service struct {
 	store skills.SkillStore
 }
+
+// ErrInvalidPattern indicates the search pattern could not be compiled.
+var ErrInvalidPattern = errors.New("invalid search pattern")
 
 // NewService creates a new search service.
 func NewService(store skills.SkillStore) *Service {
@@ -70,6 +75,98 @@ func (s *Service) Search(query SearchQuery) (*SearchResponse, error) {
 	return &SearchResponse{
 		Results: results,
 		Total:   len(results),
+		Query:   query.Query,
+	}, nil
+}
+
+// SearchContent performs content-only search across skill bodies.
+func (s *Service) SearchContent(query ContentSearchQuery) (*ContentSearchResponse, error) {
+	trimmed := strings.TrimSpace(query.Query)
+	if trimmed == "" {
+		return &ContentSearchResponse{
+			Matches: []ContentSearchMatch{},
+			Total:   0,
+			Query:   query.Query,
+		}, nil
+	}
+
+	pattern, err := compileContentPattern(trimmed, query)
+	if err != nil {
+		return nil, err
+	}
+
+	allSkills, err := s.store.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	tagSet := normalizeTagSet(query.Tags)
+	folderSet := normalizeFolderSet(query.Folders)
+
+	limit := query.Limit
+	if limit <= 0 {
+		limit = 200
+	}
+
+	matches := make([]ContentSearchMatch, 0)
+	limitReached := false
+
+	for _, skill := range allSkills {
+		folder, filename := s.extractFolderAndFile(skill.File)
+		if len(folderSet) > 0 && !folderSet[folder] {
+			continue
+		}
+		if len(tagSet) > 0 && !skillHasAnyTag(skill, tagSet) {
+			continue
+		}
+
+		content, err := s.store.GetContent(folder, filename)
+		if err != nil {
+			continue
+		}
+
+		lines := strings.Split(content, "\n")
+		for i, line := range lines {
+			indices := pattern.FindAllStringIndex(line, -1)
+			if len(indices) == 0 {
+				continue
+			}
+
+			ranges := make([]MatchRange, 0, len(indices))
+			for _, idx := range indices {
+				if len(idx) != 2 || idx[0] == idx[1] {
+					continue
+				}
+				ranges = append(ranges, MatchRange{Start: idx[0], End: idx[1]})
+			}
+			if len(ranges) == 0 {
+				continue
+			}
+
+			matches = append(matches, ContentSearchMatch{
+				SkillID:     skill.ID,
+				SkillName:   skill.Name,
+				File:        skill.File,
+				Folder:      folder,
+				LineNumber:  i + 1,
+				Line:        line,
+				MatchRanges: ranges,
+			})
+
+			if len(matches) >= limit {
+				limitReached = true
+				break
+			}
+		}
+
+		if limitReached {
+			break
+		}
+	}
+
+	return &ContentSearchResponse{
+		Matches: matches,
+		Total:   len(matches),
 		Query:   query.Query,
 	}, nil
 }
@@ -184,4 +281,62 @@ func (s *Service) extractFolderAndFile(file string) (folder, filename string) {
 		return parts[0], parts[1]
 	}
 	return "", file
+}
+
+func compileContentPattern(query string, opts ContentSearchQuery) (*regexp.Regexp, error) {
+	pattern := query
+	if !opts.Regex {
+		pattern = regexp.QuoteMeta(pattern)
+	}
+	if opts.WholeWord {
+		pattern = `\b` + pattern + `\b`
+	}
+	if !opts.CaseSensitive {
+		pattern = `(?i)` + pattern
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, errors.Join(ErrInvalidPattern, err)
+	}
+	return re, nil
+}
+
+func normalizeTagSet(tags []string) map[string]bool {
+	if len(tags) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(tags))
+	for _, tag := range tags {
+		trimmed := strings.TrimSpace(tag)
+		if trimmed == "" {
+			continue
+		}
+		set[trimmed] = true
+	}
+	return set
+}
+
+func normalizeFolderSet(folders []string) map[string]bool {
+	if len(folders) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(folders))
+	for _, folder := range folders {
+		trimmed := strings.TrimSpace(folder)
+		if trimmed == "" {
+			continue
+		}
+		set[trimmed] = true
+	}
+	return set
+}
+
+func skillHasAnyTag(skill skills.Metadata, tagSet map[string]bool) bool {
+	for _, tag := range skill.Tags {
+		if tagSet[tag] {
+			return true
+		}
+	}
+	return false
 }

@@ -531,7 +531,7 @@ prompt-manager test history <skill-id> [--json]
 Search skills by content, name, or tags.
 
 ```bash
-prompt-manager search <query> [--tag=...] [--folder=...] [--limit=N] [--text] [--output=results|combined|both] [--format=xml|markdown|json] [--render-limit=N] [--json]
+prompt-manager search <query> [--tag=...] [--folder=...] [--content] [--text] [--case-sensitive] [--whole-word] [--regex] [--limit=N] [--output=results|combined|both] [--format=xml|markdown|json] [--render-limit=N] [--json]
 ```
 
 **Options:**
@@ -540,7 +540,11 @@ prompt-manager search <query> [--tag=...] [--folder=...] [--limit=N] [--text] [-
 | `--tag` | Filter by tag |
 | `--folder` | Filter by folder |
 | `--limit` | Maximum number of results |
+| `--content` | Search within skill contents (line-level matches) |
 | `--text` | Force text-only search (skip AI) |
+| `--case-sensitive` | Case-sensitive content search |
+| `--whole-word` | Whole word matching for content search |
+| `--regex` | Treat query as regex for content search |
 | `--output` | Output mode |
 | `--format` | Combined output format |
 | `--render-limit` | Limit number of skills rendered in combined output |

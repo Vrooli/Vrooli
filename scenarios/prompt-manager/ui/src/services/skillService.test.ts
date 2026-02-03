@@ -18,6 +18,7 @@ import {
   updateSkills,
   deleteSkill,
   searchSkills,
+  searchSkillContent,
   getAllTags,
   invalidateCache,
 } from './skillService'
@@ -33,6 +34,7 @@ vi.mock('@/lib/api', () => ({
     updateSkill: vi.fn(),
     deleteSkill: vi.fn(),
     searchSkills: vi.fn(),
+    searchSkillContent: vi.fn(),
   },
 }))
 
@@ -375,6 +377,47 @@ describe('skillService', () => {
       const results = await searchSkills('uppercase')
 
       expect(results).toHaveLength(1)
+    })
+  })
+
+  describe('searchSkillContent', () => {
+    it('should call api.searchSkillContent with options', async () => {
+      const response = {
+        matches: [
+          {
+            skillId: 'test-1',
+            skillName: 'Test Skill',
+            file: 'local/test-skill.md',
+            folder: 'local',
+            lineNumber: 2,
+            line: 'Example line',
+            matchRanges: [{ start: 0, end: 7 }],
+          },
+        ],
+        total: 1,
+        query: 'Example',
+      }
+      vi.mocked(api.searchSkillContent).mockResolvedValue(response)
+
+      const result = await searchSkillContent('Example', {
+        tags: ['tag1'],
+        folders: ['local'],
+        caseSensitive: true,
+        wholeWord: true,
+        regex: false,
+        limit: 50,
+      })
+
+      expect(api.searchSkillContent).toHaveBeenCalledWith({
+        query: 'Example',
+        tags: ['tag1'],
+        folders: ['local'],
+        caseSensitive: true,
+        wholeWord: true,
+        regex: false,
+        limit: 50,
+      })
+      expect(result).toEqual(response)
     })
   })
 

@@ -14,6 +14,7 @@
  * - POST /api/v1/tags - create tag
  * - POST /api/v1/skills/{id}/test - test with Ollama
  * - GET /api/v1/skills/{id}/test-history - get test history
+ * - GET /api/v1/search/skills/content - content search
  * - GET /api/v1/agent-file-templates - list agent file templates
  * - POST /api/v1/prompt-preview - preview constructed prompts
  *
@@ -45,6 +46,7 @@ import {
   AISearchResponseSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
+  ContentSearchResponseSchema,
   LinkPreviewDataSchema,
   TeamArraySchema,
   TeamDetailsSchema,
@@ -76,6 +78,7 @@ import {
   type AISearchResponse,
   type AISearchStatus,
   type AIReindexStatus,
+  type ContentSearchResponse,
   type LinkPreviewData,
   type FolderType,
   type Team,
@@ -138,6 +141,19 @@ export interface AISearchRequest {
   output?: 'results' | 'combined' | 'both'
   format?: DisplayFormat
   renderLimit?: number
+}
+
+/**
+ * Content search request parameters.
+ */
+export interface ContentSearchRequest {
+  query: string
+  tags?: string[]
+  folders?: string[]
+  caseSensitive?: boolean
+  wholeWord?: boolean
+  regex?: boolean
+  limit?: number
 }
 
 class ApiClient {
@@ -365,6 +381,33 @@ class ApiClient {
       skill.description.toLowerCase().includes(lowerQuery) ||
       skill.content.toLowerCase().includes(lowerQuery) ||
       skill.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+    )
+  }
+
+  // Content Search - line-level content matches
+  async searchSkillContent(request: ContentSearchRequest): Promise<ContentSearchResponse> {
+    const params = new URLSearchParams()
+    params.set('q', request.query)
+    if (request.tags) {
+      for (const tag of request.tags) {
+        params.append('tag', tag)
+      }
+    }
+    if (request.folders) {
+      for (const folder of request.folders) {
+        params.append('folder', folder)
+      }
+    }
+    if (request.caseSensitive) params.set('caseSensitive', 'true')
+    if (request.wholeWord) params.set('wholeWord', 'true')
+    if (request.regex) params.set('regex', 'true')
+    if (request.limit) params.set('limit', request.limit.toString())
+
+    const queryString = params.toString()
+    return this.request<ContentSearchResponse>(
+      `/search/skills/content${queryString ? `?${queryString}` : ''}`,
+      undefined,
+      ContentSearchResponseSchema
     )
   }
 

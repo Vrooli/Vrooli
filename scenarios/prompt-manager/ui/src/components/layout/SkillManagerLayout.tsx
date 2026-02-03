@@ -46,7 +46,7 @@ import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeS
 import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
-import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
+import type { Skill, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
@@ -119,6 +119,13 @@ export function SkillManagerLayout() {
   // Active tab state (managed here for persistence)
   const [activeTab, setActiveTab] = useState(initialSidebarState.activeTab)
 
+  const [searchMode, setSearchMode] = useState<SkillSearchMode>(
+    initialSidebarState.searchMode
+  )
+  const [contentSearchOptions, setContentSearchOptions] = useState<ContentSearchOptions>(
+    initialSidebarState.contentSearchOptions
+  )
+
   // Tree state (expansion, filtering, collapse - but NOT selection)
   const {
     filteredTreeNodes,
@@ -154,6 +161,8 @@ export function SkillManagerLayout() {
     selectedFolders,
     activeTab,
     searchQuery,
+    searchMode,
+    contentSearchOptions,
   })
 
   // Combine store
@@ -869,6 +878,10 @@ export function SkillManagerLayout() {
         renderItemIcon={renderItemIcon}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        searchMode={searchMode}
+        onSearchModeChange={setSearchMode}
+        contentSearchOptions={contentSearchOptions}
+        onContentSearchOptionsChange={setContentSearchOptions}
         isCollapsed={isCollapsed}
         onToggleCollapse={toggleCollapse}
         onExpandAll={expandAll}
@@ -1113,6 +1126,10 @@ export function SkillManagerLayout() {
                 renderItemIcon={renderItemIcon}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                searchMode={searchMode}
+                onSearchModeChange={setSearchMode}
+                contentSearchOptions={contentSearchOptions}
+                onContentSearchOptionsChange={setContentSearchOptions}
                 isCollapsed={false}
                 onToggleCollapse={() => {}}
                 onExpandAll={expandAll}

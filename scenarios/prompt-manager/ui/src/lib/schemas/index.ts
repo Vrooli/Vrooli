@@ -111,6 +111,9 @@ export {
   AISearchRequestSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
+  ContentMatchRangeSchema,
+  ContentSearchMatchSchema,
+  ContentSearchResponseSchema,
   LinkPreviewDataSchema,
   type AISearchResult,
   type AISearchOutput,
@@ -119,6 +122,9 @@ export {
   type AISearchRequest,
   type AISearchStatus,
   type AIReindexStatus,
+  type ContentMatchRange,
+  type ContentSearchMatch,
+  type ContentSearchResponse,
   type LinkPreviewData,
 } from './search.schema'
 

@@ -109,6 +109,42 @@ export const AIReindexStatusSchema = z.object({
 export type AIReindexStatus = z.infer<typeof AIReindexStatusSchema>
 
 /**
+ * Content search match range.
+ */
+export const ContentMatchRangeSchema = z.object({
+  start: z.number(),
+  end: z.number(),
+})
+
+export type ContentMatchRange = z.infer<typeof ContentMatchRangeSchema>
+
+/**
+ * Content search match.
+ */
+export const ContentSearchMatchSchema = z.object({
+  skillId: z.string(),
+  skillName: z.string(),
+  file: z.string(),
+  folder: z.string(),
+  lineNumber: z.number(),
+  line: z.string(),
+  matchRanges: z.array(ContentMatchRangeSchema).nullable().optional().transform((val) => val ?? []),
+})
+
+export type ContentSearchMatch = z.infer<typeof ContentSearchMatchSchema>
+
+/**
+ * Content search response.
+ */
+export const ContentSearchResponseSchema = z.object({
+  matches: z.array(ContentSearchMatchSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+})
+
+export type ContentSearchResponse = z.infer<typeof ContentSearchResponseSchema>
+
+/**
  * Link preview data from OpenGraph metadata.
  */
 export const LinkPreviewDataSchema = z.object({

@@ -44,6 +44,20 @@ export interface SearchFilters {
   modes?: string[]
 }
 
+/**
+ * Sidebar search mode.
+ */
+export type SkillSearchMode = 'quick' | 'content'
+
+/**
+ * Content search options (UI state).
+ */
+export interface ContentSearchOptions {
+  caseSensitive: boolean
+  wholeWord: boolean
+  regex: boolean
+}
+
 // Theme types for UI settings
 export type Theme = 'light' | 'dark' | 'system'
 

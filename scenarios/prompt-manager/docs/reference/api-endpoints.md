@@ -273,6 +273,48 @@ Full-text search across skills.
 
 ---
 
+### GET /api/v1/search/skills/content
+
+Content-only search across skill bodies (line-level matches).
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `q` | string | Search query (required) |
+| `tag` | string | Filter by tag (repeatable or comma-separated) |
+| `folder` | string | Filter by folder (repeatable or comma-separated) |
+| `caseSensitive` | boolean | Case-sensitive matching |
+| `wholeWord` | boolean | Whole word matching |
+| `regex` | boolean | Treat query as regex |
+| `limit` | integer | Max number of matches (default: 200) |
+
+**Response:**
+```json
+{
+  "matches": [
+    {
+      "skillId": "debugging",
+      "skillName": "Debugging",
+      "file": "core/debugging.md",
+      "folder": "core",
+      "lineNumber": 42,
+      "line": "Use systematic debugging to isolate failures.",
+      "matchRanges": [
+        { "start": 14, "end": 23 }
+      ]
+    }
+  ],
+  "total": 1,
+  "query": "debugging"
+}
+```
+
+**Notes:**
+- Matches are line-level with character ranges for highlights.
+- Invalid regex returns `400 Bad Request`.
+
+---
+
 ## AI Search
 
 ### POST /api/v1/search/ai

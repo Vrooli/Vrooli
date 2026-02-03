@@ -30,6 +30,29 @@ type SearchResult struct {
 	Highlight   string   `json:"highlight,omitempty"`
 }
 
+type MatchRange struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
+}
+
+// ContentSearchMatch represents a line-level content search match.
+type ContentSearchMatch struct {
+	SkillID     string       `json:"skillId"`
+	SkillName   string       `json:"skillName"`
+	File        string       `json:"file"`
+	Folder      string       `json:"folder"`
+	LineNumber  int          `json:"lineNumber"`
+	Line        string       `json:"line"`
+	MatchRanges []MatchRange `json:"matchRanges"`
+}
+
+// ContentSearchResponse wraps content search results.
+type ContentSearchResponse struct {
+	Matches []ContentSearchMatch `json:"matches"`
+	Total   int                  `json:"total"`
+	Query   string               `json:"query"`
+}
+
 // SearchResponse wraps search results with metadata (text search)
 type SearchResponse struct {
 	Results []SearchResult `json:"results"`
@@ -158,17 +181,25 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 
 func cmdSearch(ctx appctx.Context, args []string) error {
 	args = reorderFlagArgs(args, map[string]bool{
-		"tag":          true,
-		"folder":       true,
-		"limit":        true,
-		"output":       true,
-		"format":       true,
-		"render-limit": true,
+		"tag":            true,
+		"folder":         true,
+		"limit":          true,
+		"output":         true,
+		"format":         true,
+		"render-limit":   true,
+		"content":        false,
+		"case-sensitive": false,
+		"whole-word":     false,
+		"regex":          false,
 	})
 	fs := flag.NewFlagSet("search", flag.ContinueOnError)
 	tag := fs.String("tag", "", "Filter by tag")
 	folder := fs.String("folder", "", "Filter by folder (core|local|drafts)")
+	contentOnly := fs.Bool("content", false, "Search within skill contents (line-level matches)")
 	textOnly := fs.Bool("text", false, "Force text-only search (skip AI)")
+	caseSensitive := fs.Bool("case-sensitive", false, "Case-sensitive content search")
+	wholeWord := fs.Bool("whole-word", false, "Whole word matching for content search")
+	regex := fs.Bool("regex", false, "Treat query as regex for content search")
 	limit := fs.Int("limit", 5, "Maximum number of results")
 	output := fs.String("output", "results", "Output mode (results|combined|both)")
 	format := fs.String("format", "xml", "Combined output format (xml|markdown|json)")
@@ -179,7 +210,7 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 && *tag == "" && *folder == "" {
-		return fmt.Errorf("usage: search <query> [--text] [--limit=N] [--output=results|combined|both] [--format=xml|markdown|json] [--render-limit=N] [--tag=...] [--folder=...] [--json]")
+		return fmt.Errorf("usage: search <query> [--content] [--text] [--case-sensitive] [--whole-word] [--regex] [--limit=N] [--output=results|combined|both] [--format=xml|markdown|json] [--render-limit=N] [--tag=...] [--folder=...] [--json]")
 	}
 
 	query := ""
@@ -189,6 +220,13 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 
 	if query == "" && outputIncludesCombined(*output) {
 		return fmt.Errorf("combined output requires a query")
+	}
+
+	if *contentOnly {
+		if query == "" {
+			return fmt.Errorf("content search requires a query")
+		}
+		return contentSearch(ctx, query, *tag, *folder, *limit, *caseSensitive, *wholeWord, *regex, *jsonOut)
 	}
 
 	// For filters-only queries (no text query), use text search
@@ -309,6 +347,168 @@ func textSearch(ctx appctx.Context, query, tag, folder string, jsonOut bool) err
 		}
 	}
 	return nil
+}
+
+func contentSearch(ctx appctx.Context, query, tag, folder string, limit int, caseSensitive, wholeWord, regex, jsonOut bool) error {
+	params := url.Values{}
+	params.Set("q", query)
+	if tag != "" {
+		params.Set("tag", tag)
+	}
+	if folder != "" {
+		params.Set("folder", folder)
+	}
+	if limit > 0 {
+		params.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if caseSensitive {
+		params.Set("caseSensitive", "true")
+	}
+	if wholeWord {
+		params.Set("wholeWord", "true")
+	}
+	if regex {
+		params.Set("regex", "true")
+	}
+
+	var resp ContentSearchResponse
+	if err := ctx.GetWithQuery("/search/skills/content", params, &resp); err != nil {
+		return fmt.Errorf("content search failed: %w", err)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No content matches found for: %s\n", query)
+		return nil
+	}
+
+	grouped := groupContentMatches(resp.Matches)
+	fmt.Printf("Content Matches (%d found):\n", resp.Total)
+	for _, group := range grouped {
+		fmt.Printf("  %s (%d matches)\n", group.File, len(group.Matches))
+		for _, match := range group.Matches {
+			line := highlightMatchLine(match.Line, match.MatchRanges, 120)
+			fmt.Printf("    %d: %s\n", match.LineNumber, line)
+		}
+	}
+
+	return nil
+}
+
+type contentMatchGroup struct {
+	File    string
+	Matches []ContentSearchMatch
+}
+
+func groupContentMatches(matches []ContentSearchMatch) []contentMatchGroup {
+	order := make([]string, 0)
+	byFile := make(map[string][]ContentSearchMatch)
+	for _, match := range matches {
+		if _, ok := byFile[match.File]; !ok {
+			order = append(order, match.File)
+		}
+		byFile[match.File] = append(byFile[match.File], match)
+	}
+
+	grouped := make([]contentMatchGroup, 0, len(order))
+	for _, file := range order {
+		grouped = append(grouped, contentMatchGroup{
+			File:    file,
+			Matches: byFile[file],
+		})
+	}
+
+	return grouped
+}
+
+func highlightMatchLine(line string, ranges []MatchRange, maxLen int) string {
+	if len(line) <= maxLen {
+		return applyRanges(line, ranges)
+	}
+	if len(ranges) == 0 {
+		return truncate(line, maxLen)
+	}
+
+	start := ranges[0].Start - maxLen/3
+	if start < 0 {
+		start = 0
+	}
+	end := start + maxLen
+	if end > len(line) {
+		end = len(line)
+		start = end - maxLen
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	window := line[start:end]
+	windowRanges := make([]MatchRange, 0, len(ranges))
+	for _, r := range ranges {
+		if r.End <= start || r.Start >= end {
+			continue
+		}
+		windowRanges = append(windowRanges, MatchRange{
+			Start: max(0, r.Start-start),
+			End:   min(end-start, r.End-start),
+		})
+	}
+
+	prefix := ""
+	suffix := ""
+	if start > 0 {
+		prefix = "..."
+	}
+	if end < len(line) {
+		suffix = "..."
+	}
+
+	return prefix + applyRanges(window, windowRanges) + suffix
+}
+
+func applyRanges(line string, ranges []MatchRange) string {
+	if len(ranges) == 0 {
+		return line
+	}
+
+	var builder strings.Builder
+	cursor := 0
+	for _, r := range ranges {
+		if r.Start < cursor {
+			continue
+		}
+		if r.Start > len(line) {
+			break
+		}
+		builder.WriteString(line[cursor:r.Start])
+		builder.WriteString("[")
+		builder.WriteString(line[r.Start:r.End])
+		builder.WriteString("]")
+		cursor = r.End
+	}
+	if cursor < len(line) {
+		builder.WriteString(line[cursor:])
+	}
+	return builder.String()
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // truncate shortens a string to maxLen characters.

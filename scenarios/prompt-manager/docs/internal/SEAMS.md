@@ -42,6 +42,23 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | `MetricsService` | `skills` | Usage tracking |
 | `AISearchIndexer` | `skills` | AI search index updates |
 
+### Search Service Seam
+
+The `search.Service` provides a dedicated seam for text and content search, isolating
+search behavior from HTTP handlers and the UI:
+
+```
+HTTP handler (/search/skills, /search/skills/content)
+  ↓
+search.Service (Search / SearchContent)
+  ↓
+skills.SkillStore (GetAll + GetContent)
+```
+
+`SearchContent` is the authoritative boundary for line-level matching behavior
+(case sensitivity, whole word matching, regex parsing), which makes it testable
+without touching the HTTP layer or filesystem.
+
 ## Store Adapter Layer
 
 The skills domain uses a `StoreAdapter` to bridge the legacy handler interface with the new file-based store:
@@ -121,6 +138,10 @@ hooks/           // React Query hooks
   ↓
 components/      // UI components
 ```
+
+Content search follows the same seam: UI components call `searchSkillContent`
+in `skillService.ts`, which delegates to the API client and returns structured
+match data for rendering.
 
 ### Cache Layer
 

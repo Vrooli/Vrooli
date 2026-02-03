@@ -209,6 +209,7 @@ func main() {
 
 	// Search routes
 	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
+	v1.HandleFunc("/search/skills/content", searchHandlers.ContentSearch).Methods("GET")
 
 	// AI Search routes
 	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
