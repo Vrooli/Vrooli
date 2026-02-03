@@ -444,3 +444,179 @@ func TestOutputParser_ExtractLastLifecycleState(t *testing.T) {
 		})
 	}
 }
+
+func TestOutputParser_ExtractLastLifecycleState_GranularBundledMode(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name      string
+		output    string
+		wantState string
+	}{
+		{
+			name:      "bundle_resolving stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving",
+			wantState: "bundle_resolving",
+		},
+		{
+			name:      "runtime_starting stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting",
+			wantState: "runtime_starting",
+		},
+		{
+			name:      "waiting_for_token stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting\nSMOKE_TEST_STAGE=waiting_for_token",
+			wantState: "waiting_for_token",
+		},
+		{
+			name:      "runtime_healthz stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting\nSMOKE_TEST_STAGE=waiting_for_token\nSMOKE_TEST_STAGE=runtime_healthz",
+			wantState: "runtime_healthz",
+		},
+		{
+			name:      "runtime_readyz stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=runtime_healthz\nSMOKE_TEST_STAGE=runtime_readyz",
+			wantState: "runtime_readyz",
+		},
+		{
+			name:      "runtime_ports stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=runtime_readyz\nSMOKE_TEST_STAGE=runtime_ports",
+			wantState: "runtime_ports",
+		},
+		{
+			name:      "granular stages followed by ready",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_ports\nSMOKE_TEST_READY=true",
+			wantState: "ready",
+		},
+		{
+			name:      "full bundled mode sequence",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting\nSMOKE_TEST_STAGE=waiting_for_token\nSMOKE_TEST_STAGE=runtime_healthz\nSMOKE_TEST_STAGE=runtime_readyz\nSMOKE_TEST_STAGE=runtime_ports\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_EXIT=clean",
+			wantState: "exit",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractLastLifecycleState(tt.output)
+			if result != tt.wantState {
+				t.Errorf("ExtractLastLifecycleState() = %q, want %q", result, tt.wantState)
+			}
+		})
+	}
+}
+
+// TestOutputParser_RealWorldOutput tests with actual output from a failed smoke test.
+func TestOutputParser_RealWorldOutput(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	// This is the exact output from a real smoke test failure
+	realOutput := `SMOKE_TEST_INIT=started
+[Desktop App] Telemetry initialized at /home/user/.config/app/deployment-telemetry.jsonl
+[Desktop App] Bundle found at: /tmp/.mount_AppXYZ/resources/bundle
+SMOKE_TEST_STAGE=bundle_resolving
+[Desktop App] Bundle found at: /tmp/.mount_AppXYZ/resources/bundle
+[Desktop App] IPC port 39200 was busy; using 41385 instead
+[Desktop App] Performing pre-flight bundle validation...
+[Desktop App] Pre-flight bundle validation passed
+SMOKE_TEST_STAGE=runtime_starting
+runtime ready — IPC listening on 127.0.0.1:41385 (dry-run=false)
+`
+	result := parser.ExtractLastLifecycleState(realOutput)
+	if result != "runtime_starting" {
+		t.Errorf("ExtractLastLifecycleState() = %q, want %q", result, "runtime_starting")
+	}
+}
+
+func TestOutputParser_ExtractSessionID(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name          string
+		output        string
+		wantSessionID string
+	}{
+		{
+			name:          "empty output",
+			output:        "",
+			wantSessionID: "",
+		},
+		{
+			name:          "init marker without session_id (old format)",
+			output:        "SMOKE_TEST_INIT=started",
+			wantSessionID: "",
+		},
+		{
+			name:          "init marker with session_id",
+			output:        "SMOKE_TEST_INIT=started session_id=d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+			wantSessionID: "d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+		},
+		{
+			name:          "init marker with session_id embedded in other output",
+			output:        "Starting app...\nSMOKE_TEST_INIT=started session_id=abc12345-6789-0abc-def1-234567890abc\nDone",
+			wantSessionID: "abc12345-6789-0abc-def1-234567890abc",
+		},
+		{
+			name:          "init marker with additional data after session_id",
+			output:        "SMOKE_TEST_INIT=started session_id=d41a6b0c-1b88-41bb-abe6-2d89a3538eac extra=data",
+			wantSessionID: "d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+		},
+		{
+			name:          "invalid session_id format (uppercase)",
+			output:        "SMOKE_TEST_INIT=started session_id=D41A6B0C-1B88-41BB-ABE6-2D89A3538EAC",
+			wantSessionID: "", // regex only matches lowercase
+		},
+		{
+			name:          "no init marker but has session_id text elsewhere",
+			output:        "session_id=d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+			wantSessionID: "", // must be part of SMOKE_TEST_INIT marker
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractSessionID(tt.output)
+			if result != tt.wantSessionID {
+				t.Errorf("ExtractSessionID() = %q, want %q", result, tt.wantSessionID)
+			}
+		})
+	}
+}
+
+func TestLifecycleStateDescription(t *testing.T) {
+	tests := []struct {
+		state        string
+		wantSubstr   string
+		wantNonEmpty bool
+	}{
+		// Basic states
+		{"", "crashed before", true},
+		{"init", "crashed during initialization", true},
+		{"ready", "server connectivity", true},
+		{"result", "didn't exit cleanly", true},
+		{"exit", "completed full lifecycle", true},
+		// Granular bundled-mode states
+		{"bundle_resolving", "bundle directory", true},
+		{"runtime_starting", "spawning the bundled runtime", true},
+		{"waiting_for_token", "auth token file", true},
+		{"runtime_healthz", "/healthz endpoint", true},
+		{"runtime_readyz", "/readyz endpoint", true},
+		{"runtime_ports", "/ports endpoint", true},
+		// Unknown state
+		{"unknown_state", "Unknown state", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.state, func(t *testing.T) {
+			got := LifecycleStateDescription(tt.state)
+			if tt.wantNonEmpty && got == "" {
+				t.Error("Expected non-empty description")
+			}
+			if tt.wantSubstr != "" && !containsSubstring(got, tt.wantSubstr) {
+				t.Errorf("LifecycleStateDescription(%q) = %q, want substring %q", tt.state, got, tt.wantSubstr)
+			}
+		})
+	}
+}

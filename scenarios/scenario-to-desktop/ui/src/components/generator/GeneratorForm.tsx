@@ -225,7 +225,7 @@ export function GeneratorForm({
   }, [isBundled, resetPreflight]);
 
   // Wrapper for running preflight with the right config
-  const runPreflight = useCallback(
+  const _runPreflight = useCallback(
     async (secretsOverride?: Record<string, string>, configOverride?: Partial<PipelineConfig>) => {
       if (!scenarioName) return;
       const manifestPath = bundleManifestPath.trim();

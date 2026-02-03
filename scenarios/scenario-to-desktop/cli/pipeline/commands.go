@@ -596,6 +596,32 @@ func (d *smokeTestDetails) getLifecycleState() string {
 	return ""
 }
 
+// getAppReportedError returns formatted app-reported error info if available.
+func (d *smokeTestDetails) getAppReportedError() string {
+	if d.AppReportedError == nil || d.AppReportedError.Message == "" {
+		return ""
+	}
+	return d.AppReportedError.Message
+}
+
+// getAppReportedErrorContext returns additional context about the app-reported error.
+func (d *smokeTestDetails) getAppReportedErrorContext() string {
+	if d.AppReportedError == nil {
+		return ""
+	}
+	var parts []string
+	if d.AppReportedError.DeploymentMode != "" {
+		parts = append(parts, fmt.Sprintf("deployment_mode=%s", d.AppReportedError.DeploymentMode))
+	}
+	if d.AppReportedError.Event != "" {
+		parts = append(parts, fmt.Sprintf("event=%s", d.AppReportedError.Event))
+	}
+	if len(parts) > 0 {
+		return strings.Join(parts, ", ")
+	}
+	return ""
+}
+
 // stageErrorInfo contains structured error information for stage failures.
 type stageErrorInfo struct {
 	Code         string      `json:"code,omitempty"`
@@ -627,12 +653,25 @@ type processDiagnostic struct {
 
 // smokeTestDetails contains smoke test execution details from the API response.
 type smokeTestDetails struct {
-	LastStdout   string            `json:"last_stdout,omitempty"`
-	LastStderr   string            `json:"last_stderr,omitempty"`
-	Error        string            `json:"error,omitempty"`
-	ErrorKind    int               `json:"error_kind,omitempty"`
-	ErrorContext map[string]string `json:"error_context,omitempty"`
-	CurrentState string            `json:"current_state,omitempty"`
+	LastStdout            string               `json:"last_stdout,omitempty"`
+	LastStderr            string               `json:"last_stderr,omitempty"`
+	Error                 string               `json:"error,omitempty"`
+	ErrorKind             int                  `json:"error_kind,omitempty"`
+	ErrorContext          map[string]string    `json:"error_context,omitempty"`
+	CurrentState          string               `json:"current_state,omitempty"`
+	AppReportedError      *appReportedErrorDTO `json:"app_reported_error,omitempty"`
+	AppSessionID          string               `json:"app_session_id,omitempty"`
+	AppReportedErrorStale bool                 `json:"app_reported_error_stale,omitempty"`
+	ErrorSessionMismatch  bool                 `json:"error_session_mismatch,omitempty"`
+}
+
+// appReportedErrorDTO represents an error extracted from app telemetry.
+type appReportedErrorDTO struct {
+	Event          string `json:"event"`
+	Message        string `json:"message"`
+	DeploymentMode string `json:"deployment_mode,omitempty"`
+	SessionID      string `json:"session_id,omitempty"`
+	Timestamp      string `json:"timestamp,omitempty"`
 }
 
 // stderrPattern represents a pattern to match in stderr with associated recovery hint.
@@ -713,6 +752,17 @@ func lifecycleStateDescription(state string) string {
 		return "App crashed before smoke test initialization code ran. This usually indicates an Electron startup failure or missing dependencies."
 	case "init":
 		return "App started smoke test but crashed during initialization. A bundled service likely failed to start."
+	// Granular bundled-mode states (occur between init and ready)
+	case "bundle_resolving":
+		return "App is locating the bundle directory. Check if bundle is packaged correctly in extraResources."
+	case "runtime_starting":
+		return "App is spawning the bundled runtime process. Check runtime binary permissions and dependencies."
+	case "runtime_healthz":
+		return "App is waiting for runtime /healthz endpoint. The runtime may still be starting or crashed."
+	case "runtime_readyz":
+		return "App is waiting for runtime /readyz endpoint. Runtime started but services not ready."
+	case "runtime_ports":
+		return "App is querying runtime /ports endpoint. Services are ready but port configuration may be wrong."
 	case "ready":
 		return "App initialized but failed during server connectivity check. The target server may not be running or accessible."
 	case "result":
@@ -777,6 +827,23 @@ func printPipelineError(status *pipelineStatus) {
 		var smokeDetails *smokeTestDetails
 		if stageName == "smoketest" {
 			smokeDetails = stage.getSmokeTestDetails()
+		}
+
+		// Print app-reported error prominently if available (most actionable info)
+		if smokeDetails != nil {
+			appError := smokeDetails.getAppReportedError()
+			if appError != "" {
+				fmt.Printf("\nApp reported error: %s\n", appError)
+				if ctx := smokeDetails.getAppReportedErrorContext(); ctx != "" {
+					fmt.Printf("  (%s)\n", ctx)
+				}
+				// Display staleness/mismatch warnings
+				if smokeDetails.ErrorSessionMismatch {
+					fmt.Printf("  ⚠️  WARNING: This error may be from a previous session (session ID mismatch)\n")
+				} else if smokeDetails.AppReportedErrorStale {
+					fmt.Printf("  ⚠️  WARNING: This error timestamp predates the current smoke test\n")
+				}
+			}
 		}
 
 		// Print lifecycle state context for smoke test failures

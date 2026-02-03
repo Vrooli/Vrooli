@@ -329,11 +329,11 @@ func TestHandleLogs(t *testing.T) {
 		server := NewServer(rt, "test-token")
 
 		logPath := filepath.Join(rt.appDataDir, "logs", "api.log")
-		if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		logContent := "line1\nline2\nline3\nline4\nline5"
-		if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
+		if err := os.WriteFile(logPath, []byte(logContent), 0o644); err != nil {
 			t.Fatal(err)
 		}
 

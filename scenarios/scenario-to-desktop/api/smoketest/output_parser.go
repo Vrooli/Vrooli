@@ -25,6 +25,9 @@ func NewOutputParser(config Config) *DefaultOutputParser {
 // The message can contain escaped quotes (\")
 var appErrorRegex = regexp.MustCompile(`SMOKE_TEST_ERROR kind=(\w+) msg="((?:[^"\\]|\\.)*)"`)
 
+// sessionIDRegex matches SMOKE_TEST_INIT=started session_id=<uuid>
+var sessionIDRegex = regexp.MustCompile(`SMOKE_TEST_INIT=started session_id=([a-f0-9-]+)`)
+
 // ExtractAppError parses SMOKE_TEST_ERROR markers from output.
 // Returns nil if no app error marker is found.
 func (p *DefaultOutputParser) ExtractAppError(output string) *AppError {
@@ -39,12 +42,39 @@ func (p *DefaultOutputParser) ExtractAppError(output string) *AppError {
 
 // ExtractLastLifecycleState returns the last lifecycle marker reached.
 // Returns empty string if no lifecycle markers are found.
-// Possible values: "init", "ready", "result", "exit"
+// Possible values (in order of progression):
+// Basic: "init", "ready", "result", "exit"
+// Granular (bundled mode): "bundle_resolving", "runtime_starting", "runtime_healthz", "runtime_readyz", "runtime_ports"
 func (p *DefaultOutputParser) ExtractLastLifecycleState(output string) string {
 	lastState := ""
+
+	// Basic lifecycle markers
 	if p.config.InitMarker != "" && strings.Contains(output, p.config.InitMarker) {
 		lastState = "init"
 	}
+
+	// Granular bundled-mode lifecycle markers (these occur between init and ready)
+	granular := p.config.GranularLifecycleMarkers
+	if granular.BundleResolving != "" && strings.Contains(output, granular.BundleResolving) {
+		lastState = "bundle_resolving"
+	}
+	if granular.RuntimeStarting != "" && strings.Contains(output, granular.RuntimeStarting) {
+		lastState = "runtime_starting"
+	}
+	if granular.WaitingForToken != "" && strings.Contains(output, granular.WaitingForToken) {
+		lastState = "waiting_for_token"
+	}
+	if granular.RuntimeHealthz != "" && strings.Contains(output, granular.RuntimeHealthz) {
+		lastState = "runtime_healthz"
+	}
+	if granular.RuntimeReadyz != "" && strings.Contains(output, granular.RuntimeReadyz) {
+		lastState = "runtime_readyz"
+	}
+	if granular.RuntimePorts != "" && strings.Contains(output, granular.RuntimePorts) {
+		lastState = "runtime_ports"
+	}
+
+	// Continue with basic markers
 	if p.config.ReadyMarker != "" && strings.Contains(output, p.config.ReadyMarker) {
 		lastState = "ready"
 	}
@@ -55,6 +85,28 @@ func (p *DefaultOutputParser) ExtractLastLifecycleState(output string) string {
 		lastState = "exit"
 	}
 	return lastState
+}
+
+// LifecycleStateDescription returns a human-readable description for a lifecycle state.
+// This helps users understand where the app failed during startup.
+func LifecycleStateDescription(state string) string {
+	descriptions := map[string]string{
+		"":                  "App crashed before smoke test code ran. Check for missing dependencies or Electron initialization failures.",
+		"init":              "App started smoke test but crashed during initialization. A bundled service likely failed to start.",
+		"bundle_resolving":  "App is locating the bundle directory. Check if bundle is packaged correctly in extraResources.",
+		"runtime_starting":  "App is spawning the bundled runtime process. Check runtime binary permissions and dependencies.",
+		"waiting_for_token": "App is waiting for runtime auth token file. The runtime process started but may not be creating its token.",
+		"runtime_healthz":   "App is waiting for runtime /healthz endpoint. The runtime may still be starting or crashed.",
+		"runtime_readyz":    "App is waiting for runtime /readyz endpoint. Runtime started but services not ready.",
+		"runtime_ports":     "App is querying runtime /ports endpoint. Services are ready but port configuration may be wrong.",
+		"ready":             "App initialized successfully but didn't report final result. Check for server connectivity issues.",
+		"result":            "App reported result but didn't exit cleanly. This is usually non-fatal.",
+		"exit":              "App completed full lifecycle. Should be success - check for race conditions if failed.",
+	}
+	if desc, ok := descriptions[state]; ok {
+		return desc
+	}
+	return "Unknown state: " + state
 }
 
 // ParseResult analyzes smoke test output and returns the result.
@@ -154,4 +206,14 @@ func (p *DefaultOutputParser) ValidateSequence(output string) SequenceValidation
 	}
 
 	return validation
+}
+
+// ExtractSessionID parses the session ID from the SMOKE_TEST_INIT marker.
+// Returns empty string if no session ID is found.
+func (p *DefaultOutputParser) ExtractSessionID(output string) string {
+	matches := sessionIDRegex.FindStringSubmatch(output)
+	if len(matches) == 2 {
+		return matches[1]
+	}
+	return ""
 }

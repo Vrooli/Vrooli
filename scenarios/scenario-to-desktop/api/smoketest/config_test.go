@@ -147,3 +147,144 @@ func TestConfig_DefaultTimeout(t *testing.T) {
 		t.Errorf("DefaultConfig TimeoutMS() = %d, want %d", config.TimeoutMS(), expectedMS)
 	}
 }
+
+func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
+	tests := []struct {
+		name           string
+		config         smoketest.Config
+		deploymentMode string
+		wantDuration   time.Duration
+	}{
+		{
+			name: "bundled mode uses BundledModeTimeoutSeconds",
+			config: smoketest.Config{
+				TimeoutSeconds:            30,
+				BundledModeTimeoutSeconds: 60,
+			},
+			deploymentMode: "bundled",
+			wantDuration:   60 * time.Second,
+		},
+		{
+			name: "external-server mode uses ExternalServerModeTimeoutSeconds",
+			config: smoketest.Config{
+				TimeoutSeconds:                   30,
+				ExternalServerModeTimeoutSeconds: 20,
+			},
+			deploymentMode: "external-server",
+			wantDuration:   20 * time.Second,
+		},
+		{
+			name: "cloud-api mode uses ExternalServerModeTimeoutSeconds",
+			config: smoketest.Config{
+				TimeoutSeconds:                   30,
+				ExternalServerModeTimeoutSeconds: 25,
+			},
+			deploymentMode: "cloud-api",
+			wantDuration:   25 * time.Second,
+		},
+		{
+			name: "unknown mode falls back to default TimeoutSeconds",
+			config: smoketest.Config{
+				TimeoutSeconds:            45,
+				BundledModeTimeoutSeconds: 60,
+			},
+			deploymentMode: "unknown",
+			wantDuration:   45 * time.Second,
+		},
+		{
+			name: "bundled mode falls back to default when BundledModeTimeoutSeconds is 0",
+			config: smoketest.Config{
+				TimeoutSeconds:            30,
+				BundledModeTimeoutSeconds: 0,
+			},
+			deploymentMode: "bundled",
+			wantDuration:   30 * time.Second,
+		},
+		{
+			name: "external-server falls back to default when ExternalServerModeTimeoutSeconds is 0",
+			config: smoketest.Config{
+				TimeoutSeconds:                   30,
+				ExternalServerModeTimeoutSeconds: 0,
+			},
+			deploymentMode: "external-server",
+			wantDuration:   30 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.config.TimeoutForDeploymentMode(tt.deploymentMode)
+			if got != tt.wantDuration {
+				t.Errorf("TimeoutForDeploymentMode(%q) = %v, want %v", tt.deploymentMode, got, tt.wantDuration)
+			}
+		})
+	}
+}
+
+func TestConfig_TimeoutMSForDeploymentMode(t *testing.T) {
+	config := smoketest.Config{
+		TimeoutSeconds:                   30,
+		BundledModeTimeoutSeconds:        60,
+		ExternalServerModeTimeoutSeconds: 20,
+	}
+
+	tests := []struct {
+		deploymentMode string
+		wantMS         int
+	}{
+		{"bundled", 60000},
+		{"external-server", 20000},
+		{"cloud-api", 20000},
+		{"unknown", 30000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.deploymentMode, func(t *testing.T) {
+			got := config.TimeoutMSForDeploymentMode(tt.deploymentMode)
+			if got != tt.wantMS {
+				t.Errorf("TimeoutMSForDeploymentMode(%q) = %d, want %d", tt.deploymentMode, got, tt.wantMS)
+			}
+		})
+	}
+}
+
+func TestDefaultConfig_DeploymentModeTimeouts(t *testing.T) {
+	config := smoketest.DefaultConfig()
+
+	// Verify bundled mode gets longer timeout
+	bundledTimeout := config.TimeoutForDeploymentMode("bundled")
+	if bundledTimeout != 60*time.Second {
+		t.Errorf("Bundled mode timeout = %v, want 60s", bundledTimeout)
+	}
+
+	// Verify external-server mode uses default
+	externalTimeout := config.TimeoutForDeploymentMode("external-server")
+	if externalTimeout != 30*time.Second {
+		t.Errorf("External-server mode timeout = %v, want 30s", externalTimeout)
+	}
+}
+
+func TestDefaultConfig_GranularLifecycleMarkers(t *testing.T) {
+	config := smoketest.DefaultConfig()
+	markers := config.GranularLifecycleMarkers
+
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"BundleResolving", markers.BundleResolving, "SMOKE_TEST_STAGE=bundle_resolving"},
+		{"RuntimeStarting", markers.RuntimeStarting, "SMOKE_TEST_STAGE=runtime_starting"},
+		{"RuntimeHealthz", markers.RuntimeHealthz, "SMOKE_TEST_STAGE=runtime_healthz"},
+		{"RuntimeReadyz", markers.RuntimeReadyz, "SMOKE_TEST_STAGE=runtime_readyz"},
+		{"RuntimePorts", markers.RuntimePorts, "SMOKE_TEST_STAGE=runtime_ports"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.name, tt.got, tt.want)
+			}
+		})
+	}
+}

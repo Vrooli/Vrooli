@@ -440,6 +440,12 @@ type MockOutputParser struct {
 
 	// LifecycleStateFunc allows custom lifecycle state extraction logic
 	LifecycleStateFunc func(output string) string
+
+	// SessionIDResult is returned by ExtractSessionID
+	SessionIDResult string
+
+	// SessionIDFunc allows custom session ID extraction logic
+	SessionIDFunc func(output string) string
 }
 
 // NewMockOutputParser creates a new mock output parser.
@@ -477,6 +483,14 @@ func (m *MockOutputParser) ExtractLastLifecycleState(output string) string {
 		return m.LifecycleStateFunc(output)
 	}
 	return m.LifecycleStateResult
+}
+
+// ExtractSessionID parses the session ID from the SMOKE_TEST_INIT marker.
+func (m *MockOutputParser) ExtractSessionID(output string) string {
+	if m.SessionIDFunc != nil {
+		return m.SessionIDFunc(output)
+	}
+	return m.SessionIDResult
 }
 
 // MockEnvironmentReader implements smoketest.EnvironmentReader for testing.
@@ -803,4 +817,109 @@ func (m *MockClock) Advance(d time.Duration) {
 // Set sets the mock clock to a specific time.
 func (m *MockClock) Set(t time.Time) {
 	m.CurrentTime = t
+}
+
+// MockTelemetryErrorExtractor implements smoketest.TelemetryErrorExtractor for testing.
+type MockTelemetryErrorExtractor struct {
+	// ExtractErrorsResult is returned by ExtractErrors
+	ExtractErrorsResult struct {
+		Errors []smoketest.TelemetryError
+		Err    error
+	}
+
+	// ExtractErrorsFunc allows custom extract logic
+	ExtractErrorsFunc func(telemetryPath string, limit int) ([]smoketest.TelemetryError, error)
+
+	// ExtractLatestErrorResult is returned by ExtractLatestError
+	ExtractLatestErrorResult struct {
+		Error *smoketest.TelemetryError
+		Err   error
+	}
+
+	// ExtractLatestErrorFunc allows custom extract logic
+	ExtractLatestErrorFunc func(telemetryPath string) (*smoketest.TelemetryError, error)
+
+	// ExtractLatestErrorForSessionResult is returned by ExtractLatestErrorForSession
+	ExtractLatestErrorForSessionResult struct {
+		Error *smoketest.TelemetryError
+		Err   error
+	}
+
+	// ExtractLatestErrorForSessionFunc allows custom extract logic
+	ExtractLatestErrorForSessionFunc func(telemetryPath, sessionID string) (*smoketest.TelemetryError, error)
+
+	// ExtractErrorsCalls records all ExtractErrors calls
+	ExtractErrorsCalls []ExtractErrorsCall
+
+	// ExtractLatestErrorCalls records all ExtractLatestError calls
+	ExtractLatestErrorCalls []string
+
+	// ExtractLatestErrorForSessionCalls records all ExtractLatestErrorForSession calls
+	ExtractLatestErrorForSessionCalls []ExtractLatestErrorForSessionCall
+}
+
+// ExtractErrorsCall records an ExtractErrors invocation.
+type ExtractErrorsCall struct {
+	TelemetryPath string
+	Limit         int
+}
+
+// ExtractLatestErrorForSessionCall records an ExtractLatestErrorForSession invocation.
+type ExtractLatestErrorForSessionCall struct {
+	TelemetryPath string
+	SessionID     string
+}
+
+// NewMockTelemetryErrorExtractor creates a new mock telemetry error extractor.
+func NewMockTelemetryErrorExtractor() *MockTelemetryErrorExtractor {
+	return &MockTelemetryErrorExtractor{
+		ExtractErrorsCalls:                []ExtractErrorsCall{},
+		ExtractLatestErrorCalls:           []string{},
+		ExtractLatestErrorForSessionCalls: []ExtractLatestErrorForSessionCall{},
+	}
+}
+
+// ExtractErrors reads a telemetry file and extracts any error events.
+func (m *MockTelemetryErrorExtractor) ExtractErrors(telemetryPath string, limit int) ([]smoketest.TelemetryError, error) {
+	m.ExtractErrorsCalls = append(m.ExtractErrorsCalls, ExtractErrorsCall{
+		TelemetryPath: telemetryPath,
+		Limit:         limit,
+	})
+	if m.ExtractErrorsFunc != nil {
+		return m.ExtractErrorsFunc(telemetryPath, limit)
+	}
+	return m.ExtractErrorsResult.Errors, m.ExtractErrorsResult.Err
+}
+
+// ExtractLatestError returns the most recent error from a telemetry file.
+func (m *MockTelemetryErrorExtractor) ExtractLatestError(telemetryPath string) (*smoketest.TelemetryError, error) {
+	m.ExtractLatestErrorCalls = append(m.ExtractLatestErrorCalls, telemetryPath)
+	if m.ExtractLatestErrorFunc != nil {
+		return m.ExtractLatestErrorFunc(telemetryPath)
+	}
+	return m.ExtractLatestErrorResult.Error, m.ExtractLatestErrorResult.Err
+}
+
+// ExtractLatestErrorForSession returns the most recent error matching the given session ID.
+func (m *MockTelemetryErrorExtractor) ExtractLatestErrorForSession(telemetryPath, sessionID string) (*smoketest.TelemetryError, error) {
+	m.ExtractLatestErrorForSessionCalls = append(m.ExtractLatestErrorForSessionCalls, ExtractLatestErrorForSessionCall{
+		TelemetryPath: telemetryPath,
+		SessionID:     sessionID,
+	})
+	if m.ExtractLatestErrorForSessionFunc != nil {
+		return m.ExtractLatestErrorForSessionFunc(telemetryPath, sessionID)
+	}
+	return m.ExtractLatestErrorForSessionResult.Error, m.ExtractLatestErrorForSessionResult.Err
+}
+
+// WithLatestError configures the mock to return a specific error.
+func (m *MockTelemetryErrorExtractor) WithLatestError(err *smoketest.TelemetryError) *MockTelemetryErrorExtractor {
+	m.ExtractLatestErrorResult.Error = err
+	return m
+}
+
+// WithLatestErrorForSession configures the mock to return a specific error for session-filtered extraction.
+func (m *MockTelemetryErrorExtractor) WithLatestErrorForSession(err *smoketest.TelemetryError) *MockTelemetryErrorExtractor {
+	m.ExtractLatestErrorForSessionResult.Error = err
+	return m
 }

@@ -23,14 +23,15 @@ type DefaultService struct {
 	logger            Logger
 
 	// New injected components
-	config            Config
-	executor          ProcessExecutor
-	platformResolver  PlatformResolver
-	telemetryResolver TelemetryPathResolver
-	outputParser      OutputParser
-	fileSystem        FileSystem
-	prereqChecker     PrerequisiteCheckerI
-	envReader         EnvironmentReader
+	config             Config
+	executor           ProcessExecutor
+	platformResolver   PlatformResolver
+	telemetryResolver  TelemetryPathResolver
+	outputParser       OutputParser
+	fileSystem         FileSystem
+	prereqChecker      PrerequisiteCheckerI
+	envReader          EnvironmentReader
+	telemetryExtractor TelemetryErrorExtractor
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -46,19 +47,21 @@ func NewService(
 	fileSystem FileSystem,
 	logger Logger,
 	port int,
+	telemetryExtractor TelemetryErrorExtractor,
 ) *DefaultService {
 	return &DefaultService{
-		store:             store,
-		cancelManager:     cancelManager,
-		telemetryIngestor: telemetryIngestor,
-		config:            config,
-		executor:          executor,
-		platformResolver:  platformResolver,
-		telemetryResolver: telemetryResolver,
-		outputParser:      outputParser,
-		fileSystem:        fileSystem,
-		logger:            logger,
-		port:              port,
+		store:              store,
+		cancelManager:      cancelManager,
+		telemetryIngestor:  telemetryIngestor,
+		config:             config,
+		executor:           executor,
+		platformResolver:   platformResolver,
+		telemetryResolver:  telemetryResolver,
+		outputParser:       outputParser,
+		fileSystem:         fileSystem,
+		logger:             logger,
+		port:               port,
+		telemetryExtractor: telemetryExtractor,
 	}
 }
 
@@ -79,21 +82,23 @@ func NewDefaultSmokeTestService(
 	telemetryResolver := NewTelemetryPathResolver(config, envReader, fs)
 	outputParser := NewOutputParser(config)
 	prereqChecker := NewPrerequisiteChecker(envReader, fs, executor)
+	telemetryExtractor := NewTelemetryErrorExtractor(fs)
 
 	return &DefaultService{
-		store:             store,
-		cancelManager:     cancelManager,
-		telemetryIngestor: telemetryIngestor,
-		config:            config,
-		executor:          executor,
-		platformResolver:  platformResolver,
-		telemetryResolver: telemetryResolver,
-		outputParser:      outputParser,
-		fileSystem:        fs,
-		logger:            logger,
-		port:              port,
-		prereqChecker:     prereqChecker,
-		envReader:         envReader,
+		store:              store,
+		cancelManager:      cancelManager,
+		telemetryIngestor:  telemetryIngestor,
+		config:             config,
+		executor:           executor,
+		platformResolver:   platformResolver,
+		telemetryResolver:  telemetryResolver,
+		outputParser:       outputParser,
+		fileSystem:         fs,
+		logger:             logger,
+		port:               port,
+		prereqChecker:      prereqChecker,
+		envReader:          envReader,
+		telemetryExtractor: telemetryExtractor,
 	}
 }
 
@@ -426,6 +431,19 @@ func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, art
 		output = execResult.Combined
 	}
 
+	// Debug: Log output details for lifecycle state extraction troubleshooting
+	outputPreview := output
+	if len(outputPreview) > 300 {
+		outputPreview = outputPreview[:300] + "..."
+	}
+	s.logger.Info("smoke_test_processing_results",
+		"smoke_test_id", smokeTestID,
+		"output_length", len(output),
+		"output_preview", outputPreview,
+		"has_init_marker", strings.Contains(output, "SMOKE_TEST_INIT=started"),
+		"has_session_id_marker", strings.Contains(output, "session_id="),
+	)
+
 	// Check for app-reported structured errors first (highest priority)
 	if appError := s.outputParser.ExtractAppError(output); appError != nil {
 		s.recordTypedFailure(smokeTestID, NewAppReportedError(appError))
@@ -434,6 +452,23 @@ func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, art
 
 	// Extract last lifecycle state for error context
 	lastState := s.outputParser.ExtractLastLifecycleState(output)
+
+	// Extract session ID from SMOKE_TEST_INIT marker for telemetry correlation
+	appSessionID := s.outputParser.ExtractSessionID(output)
+
+	// Debug: Log extraction results
+	s.logger.Info("smoke_test_extraction_results",
+		"smoke_test_id", smokeTestID,
+		"lifecycle_state", lastState,
+		"session_id", appSessionID,
+		"session_id_empty", appSessionID == "",
+	)
+
+	// Store extracted lifecycle state and session ID in status for debugging
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.ExtractedLifecycleState = lastState
+		status.AppSessionID = appSessionID
+	})
 
 	result := s.outputParser.ParseResult(output)
 
@@ -453,16 +488,12 @@ func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, art
 	// Attempt telemetry fallback if upload didn't succeed
 	if !result.TelemetryUploaded {
 		s.transitionTo(smokeTestID, StateTelemetryFallback, "attempting fallback")
-		s.attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output)
+		s.attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output, appSessionID)
 	}
 
 	// Check execution error
 	if execErr != nil {
-		smokeErr := s.buildExecutionError(execErr, execResult, displayCommand, platform)
-		// Add lifecycle state to error context for debugging
-		if lastState != "" {
-			smokeErr.Context["last_lifecycle_state"] = lastState
-		}
+		smokeErr := s.buildExecutionError(execErr, execResult, displayCommand, platform, lastState)
 		s.recordTypedFailure(smokeTestID, smokeErr)
 		return
 	}
@@ -501,15 +532,28 @@ func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, art
 }
 
 // buildExecutionError creates an Error with process diagnostics.
-func (s *DefaultService) buildExecutionError(execErr error, execResult *ExecutionResult, displayCommand, platform string) *Error {
-	err := NewExecutionError(
-		"smoke test process failed",
-		execErr,
-		map[string]string{
-			"command":  displayCommand,
-			"platform": platform,
-		},
-	)
+// The lifecycleState parameter allows customizing the error message based on
+// how far the app progressed before failing.
+func (s *DefaultService) buildExecutionError(execErr error, execResult *ExecutionResult, displayCommand, platform, lifecycleState string) *Error {
+	// Determine error message based on lifecycle state and error type
+	message := s.buildExecutionErrorMessage(execErr, lifecycleState)
+
+	// Build context map
+	context := map[string]string{
+		"command":  displayCommand,
+		"platform": platform,
+	}
+	if lifecycleState != "" {
+		context["last_lifecycle_state"] = lifecycleState
+	}
+
+	err := NewExecutionError(message, execErr, context)
+
+	// Use timeout error type if this is a timeout with good progress
+	if isTimeout(execErr) && isLateLifecycleStage(lifecycleState) {
+		err.Kind = ErrKindTimeout
+		err.SuggestedAction = RecoveryPaths[ErrKindTimeout]
+	}
 
 	// Add process diagnostics if available
 	if execResult != nil {
@@ -529,11 +573,66 @@ func (s *DefaultService) buildExecutionError(execErr error, execResult *Executio
 	return err
 }
 
-func (s *DefaultService) attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output string) {
-	if s.telemetryIngestor == nil {
-		return
+// buildExecutionErrorMessage creates a descriptive error message based on
+// the error type and how far the app progressed through its lifecycle.
+func (s *DefaultService) buildExecutionErrorMessage(execErr error, lifecycleState string) string {
+	isTimeoutErr := isTimeout(execErr)
+
+	// If app reached a late lifecycle stage before timeout, provide informative message
+	if isTimeoutErr && isLateLifecycleStage(lifecycleState) {
+		switch lifecycleState {
+		case "waiting_for_token":
+			return "app started successfully but timed out waiting for authentication"
+		case "runtime_starting":
+			return "app initialized but timed out during runtime startup"
+		case "result":
+			return "app reached success state but timed out before completion"
+		default:
+			return "app started but timed out before completing smoke test"
+		}
 	}
 
+	// Early stage timeout - app may have failed to start
+	if isTimeoutErr {
+		switch lifecycleState {
+		case "init":
+			return "app timed out during initialization"
+		case "bundle_resolving":
+			return "app timed out while resolving bundle"
+		case "":
+			return "app timed out before producing any lifecycle markers"
+		default:
+			return fmt.Sprintf("app timed out at %s stage", lifecycleState)
+		}
+	}
+
+	// Non-timeout execution error
+	return "smoke test process failed"
+}
+
+// isTimeout checks if the error indicates a timeout.
+func isTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "timed out") ||
+		strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "context deadline exceeded")
+}
+
+// isLateLifecycleStage returns true if the app reached a stage indicating
+// successful initialization (past bundle resolving).
+func isLateLifecycleStage(state string) bool {
+	switch state {
+	case "runtime_starting", "waiting_for_token", "result":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *DefaultService) attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output, appSessionID string) {
 	// Try to extract path from output first
 	telemetryPath := s.telemetryResolver.ExtractFromOutput(output)
 	if telemetryPath == "" {
@@ -549,6 +648,61 @@ func (s *DefaultService) attemptTelemetryFallback(smokeTestID, scenarioName, pla
 			"smoke_test_id", smokeTestID,
 			"reason", "telemetry path not found",
 		)
+		return
+	}
+
+	// Extract app-reported errors from telemetry - this is critical for debugging
+	// Use session-filtered extraction to only get errors from this specific run
+	if s.telemetryExtractor != nil {
+		// First try to get error matching this session
+		appErr, err := s.telemetryExtractor.ExtractLatestErrorForSession(telemetryPath, appSessionID)
+		sessionMismatch := false
+
+		// If no session-matching error but we have a session ID, try getting latest error anyway
+		// and flag it as a mismatch (may still be useful for debugging)
+		if err == nil && appErr == nil && appSessionID != "" {
+			appErr, err = s.telemetryExtractor.ExtractLatestError(telemetryPath)
+			if appErr != nil {
+				sessionMismatch = true
+			}
+		}
+
+		if err == nil && appErr != nil {
+			// Get smoke test start time to check for staleness
+			var startTime time.Time
+			if status, ok := s.store.Get(smokeTestID); ok {
+				startTime = status.StartedAt
+			}
+
+			isStale := IsErrorStale(appErr, startTime)
+
+			s.store.Update(smokeTestID, func(status *Status) {
+				status.AppReportedError = appErr
+				status.ErrorSessionMismatch = sessionMismatch
+				status.AppReportedErrorStale = isStale
+
+				logMsg := fmt.Sprintf("App-reported error: %s", FormatTelemetryError(appErr))
+				if sessionMismatch {
+					logMsg += " (WARNING: session mismatch - may be from previous run)"
+				} else if isStale {
+					logMsg += " (WARNING: timestamp predates this smoke test)"
+				}
+				status.Logs = append(status.Logs, logMsg)
+			})
+			s.logger.Info("smoke_test_app_error_extracted",
+				"smoke_test_id", smokeTestID,
+				"error_event", appErr.Event,
+				"error_message", appErr.Message,
+				"error_session_id", appErr.SessionID,
+				"app_session_id", appSessionID,
+				"session_mismatch", sessionMismatch,
+				"is_stale", isStale,
+			)
+		}
+	}
+
+	// Skip telemetry ingestion if no ingestor is configured
+	if s.telemetryIngestor == nil {
 		return
 	}
 

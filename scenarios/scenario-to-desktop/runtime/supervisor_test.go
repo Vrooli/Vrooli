@@ -141,6 +141,7 @@ func (m *mockSupervisorRuntime) Shutdown(_ context.Context) error { return nil }
 func (m *mockSupervisorRuntime) ServiceStatuses() map[string]health.Status {
 	return m.statuses
 }
+
 func (m *mockSupervisorRuntime) PortMap() map[string]map[string]int {
 	return map[string]map[string]int{}
 }

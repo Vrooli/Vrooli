@@ -71,8 +71,8 @@ func (c *Commands) Status(args []string) error {
 
 	var health map[string]interface{}
 	var status map[string]interface{}
-	json.Unmarshal(healthBody, &health)
-	json.Unmarshal(statusBody, &status)
+	_ = json.Unmarshal(healthBody, &health)
+	_ = json.Unmarshal(statusBody, &status)
 
 	fmt.Printf("Health: %v\n", health["status"])
 	if svc, ok := status["service"].(map[string]interface{}); ok {

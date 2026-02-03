@@ -604,10 +604,7 @@ func (s *Supervisor) AllServicesReady() bool {
 			return false
 		}
 	}
-	if !hasReadyCandidate {
-		return false
-	}
-	return true
+	return hasReadyCandidate
 }
 
 // ServiceStatuses returns a copy of all service statuses.

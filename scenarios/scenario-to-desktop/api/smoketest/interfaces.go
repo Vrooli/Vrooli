@@ -141,6 +141,10 @@ type OutputParser interface {
 	// Returns empty string if no lifecycle markers are found.
 	// Possible values: "init", "ready", "result", "exit"
 	ExtractLastLifecycleState(output string) string
+
+	// ExtractSessionID parses the session ID from the SMOKE_TEST_INIT marker.
+	// Returns empty string if no session ID is found.
+	ExtractSessionID(output string) string
 }
 
 // TelemetryChainExecutor orchestrates the telemetry collection fallback chain.
@@ -192,6 +196,40 @@ type Clock interface {
 
 	// After waits for the duration to elapse and then sends the current time on the returned channel.
 	After(d time.Duration) <-chan time.Time
+}
+
+// TelemetryError represents an error extracted from telemetry data.
+type TelemetryError struct {
+	// Event is the telemetry event type (e.g., "smoke_test_failed").
+	Event string `json:"event"`
+
+	// Message is the error message from the app.
+	Message string `json:"message"`
+
+	// DeploymentMode is the app's deployment mode when the error occurred.
+	DeploymentMode string `json:"deployment_mode,omitempty"`
+
+	// SessionID is the telemetry session ID.
+	SessionID string `json:"session_id,omitempty"`
+
+	// Timestamp is when the error occurred.
+	Timestamp string `json:"timestamp,omitempty"`
+}
+
+// TelemetryErrorExtractor extracts error information from telemetry files.
+type TelemetryErrorExtractor interface {
+	// ExtractErrors reads a telemetry file and extracts any error events.
+	// Returns errors in reverse chronological order (most recent first).
+	ExtractErrors(telemetryPath string, limit int) ([]TelemetryError, error)
+
+	// ExtractLatestError returns the most recent error from a telemetry file.
+	// Returns nil if no errors are found.
+	ExtractLatestError(telemetryPath string) (*TelemetryError, error)
+
+	// ExtractLatestErrorForSession returns the most recent error matching the given session ID.
+	// Falls back to ExtractLatestError if sessionID is empty.
+	// Returns nil if no matching errors are found.
+	ExtractLatestErrorForSession(telemetryPath, sessionID string) (*TelemetryError, error)
 }
 
 // RealClock is a Clock implementation that uses the standard time package.

@@ -122,10 +122,28 @@ type Status struct {
 	Transitions  []StateTransition `json:"transitions,omitempty"`
 
 	// Execution details for debugging
-	LastStdout      string `json:"last_stdout,omitempty"`
-	LastStderr      string `json:"last_stderr,omitempty"`
-	RetryCount      int    `json:"retry_count,omitempty"`
-	OutputTruncated bool   `json:"output_truncated,omitempty"`
+	LastStdout              string `json:"last_stdout,omitempty"`
+	LastStderr              string `json:"last_stderr,omitempty"`
+	RetryCount              int    `json:"retry_count,omitempty"`
+	OutputTruncated         bool   `json:"output_truncated,omitempty"`
+	ExtractedLifecycleState string `json:"extracted_lifecycle_state,omitempty"` // Debug: lifecycle state extracted from output
+
+	// AppReportedError contains the actual error from the app's telemetry
+	// when available. This provides more specific diagnostic information
+	// than generic lifecycle state interpretations.
+	AppReportedError *TelemetryError `json:"app_reported_error,omitempty"`
+
+	// AppSessionID is the session ID extracted from the SMOKE_TEST_INIT marker.
+	// Used to correlate errors from the telemetry file with this specific run.
+	AppSessionID string `json:"app_session_id,omitempty"`
+
+	// AppReportedErrorStale indicates the app-reported error is from before the smoke test started.
+	// This suggests the error may be from a previous session.
+	AppReportedErrorStale bool `json:"app_reported_error_stale,omitempty"`
+
+	// ErrorSessionMismatch indicates the app-reported error's session ID doesn't match the current run.
+	// This definitively shows the error is from a different session.
+	ErrorSessionMismatch bool `json:"error_session_mismatch,omitempty"`
 }
 
 // CancelResponse represents the response from cancelling a smoke test.

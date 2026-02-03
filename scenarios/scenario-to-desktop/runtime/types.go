@@ -123,4 +123,3 @@ var (
 
 // DefaultPortRange is the fallback range when not specified in manifest.
 var DefaultPortRange = ports.DefaultRange
-

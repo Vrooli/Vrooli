@@ -197,12 +197,12 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"instance_id":    info.InstanceID,
-		"started_at":     startedAt,
-		"app_data_dir":   info.AppDataDir,
-		"bundle_root":    info.BundleRoot,
-		"dry_run":        info.DryRun,
-		"manifest_hash":  info.ManifestHash,
+		"instance_id":   info.InstanceID,
+		"started_at":    startedAt,
+		"app_data_dir":  info.AppDataDir,
+		"bundle_root":   info.BundleRoot,
+		"dry_run":       info.DryRun,
+		"manifest_hash": info.ManifestHash,
 		"manifest_schema": func() string {
 			if manifest == nil {
 				return ""

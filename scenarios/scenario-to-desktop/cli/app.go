@@ -1,12 +1,13 @@
 package main
 
 import (
+	"time"
+
 	"scenario-to-desktop/cli/distribution"
 	"scenario-to-desktop/cli/pipeline"
 	"scenario-to-desktop/cli/signing"
 	"scenario-to-desktop/cli/system"
 	"scenario-to-desktop/cli/telemetry"
-	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

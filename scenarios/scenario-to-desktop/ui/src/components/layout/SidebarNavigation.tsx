@@ -110,7 +110,7 @@ function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, c
   const stageStatus = usePipelineStore(stageSelector);
 
   // Get pipeline status for configuration section special handling
-  const pipelineStatusValue = usePipelineStore((s) => s.pipelineStatus?.status);
+  const _pipelineStatusValue = usePipelineStore((s) => s.pipelineStatus?.status);
   const pipelineStages = usePipelineStore((s) => s.pipelineStatus?.stages);
 
   // Configuration section status logic:

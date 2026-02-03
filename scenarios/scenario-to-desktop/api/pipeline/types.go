@@ -125,8 +125,8 @@ type PipelineStateTransition struct {
 	From       PipelineState `json:"from"`
 	To         PipelineState `json:"to"`
 	Timestamp  time.Time     `json:"timestamp"`
-	Stage      string        `json:"stage,omitempty"`      // Current stage when transition occurred
-	Message    string        `json:"message,omitempty"`    // Optional context message
+	Stage      string        `json:"stage,omitempty"`       // Current stage when transition occurred
+	Message    string        `json:"message,omitempty"`     // Optional context message
 	DurationMs int64         `json:"duration_ms,omitempty"` // Time spent in From state (ms)
 }
 

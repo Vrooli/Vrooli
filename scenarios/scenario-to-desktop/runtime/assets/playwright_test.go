@@ -239,10 +239,10 @@ func TestApplyPlaywrightConventions(t *testing.T) {
 		bundleDir := t.TempDir()
 
 		chromiumPath := filepath.Join(bundleDir, "browsers", "chromium")
-		if err := os.MkdirAll(filepath.Dir(chromiumPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(chromiumPath), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(chromiumPath, []byte("fake chromium"), 0755); err != nil {
+		if err := os.WriteFile(chromiumPath, []byte("fake chromium"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 

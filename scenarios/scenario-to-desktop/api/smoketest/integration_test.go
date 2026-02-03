@@ -88,6 +88,7 @@ func TestIntegration_SuccessfulSmokeTest(t *testing.T) {
 		fs,
 		logger,
 		8080,
+		nil, // telemetryExtractor - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -175,6 +176,7 @@ func TestIntegration_TimeoutBehavior(t *testing.T) {
 		fs,
 		logger,
 		8080,
+		nil, // telemetryExtractor - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -253,6 +255,7 @@ func TestIntegration_StderrCapture(t *testing.T) {
 		fs,
 		logger,
 		8080,
+		nil, // telemetryExtractor - not needed for this test
 	)
 
 	// Set environment to trigger stderr output

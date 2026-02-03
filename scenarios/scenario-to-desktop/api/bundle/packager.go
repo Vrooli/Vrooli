@@ -334,9 +334,9 @@ func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifes
 // stageUIService copies a UI service's entry point and assets to the bundle.
 // UI services contain pre-built static assets (HTML/CSS/JS from a build tool like Vite),
 // not compiled binaries. We include them in the bundle to:
-//   1. Make the bundle fully self-contained and portable
-//   2. Allow preflight to validate all assets before the Electron build
-//   3. Ensure the desktop app has everything it needs without external dependencies
+//  1. Make the bundle fully self-contained and portable
+//  2. Allow preflight to validate all assets before the Electron build
+//  3. Ensure the desktop app has everything it needs without external dependencies
 //
 // The entry point (typically index.html) is specified in the service's Binaries map,
 // and additional assets are listed in the Assets array.

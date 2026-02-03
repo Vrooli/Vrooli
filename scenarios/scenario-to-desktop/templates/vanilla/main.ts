@@ -207,8 +207,8 @@ const smokeTestUploadURL = process.env.SMOKE_TEST_UPLOAD_URL || "";
  * - Avoid being flagged by linters/cleanup scripts targeting console.log
  */
 const SmokeTestProtocol = {
-    /** Emit when smoke test mode is detected and starting */
-    init: () => console.info("SMOKE_TEST_INIT=started"),
+    /** Emit when smoke test mode is detected and starting, includes session_id for correlation */
+    init: () => console.info(`SMOKE_TEST_INIT=started session_id=${sessionId}`),
 
     /** Emit when app initialization completes and server is reachable */
     ready: () => console.info("SMOKE_TEST_READY=true"),
@@ -229,6 +229,25 @@ const SmokeTestProtocol = {
     /** Emit structured error for pipeline to parse */
     error: (kind: "config" | "network" | "runtime" | "validation", message: string) => {
         console.info(`SMOKE_TEST_ERROR kind=${kind} msg="${message.replace(/"/g, '\\"')}"`);
+    },
+
+    /**
+     * Granular stage markers for bundled runtime startup.
+     * These help diagnose where the app fails during the complex bundled mode startup.
+     */
+    stage: {
+        /** Emitted when resolving the bundle path */
+        bundleResolving: () => console.info("SMOKE_TEST_STAGE=bundle_resolving"),
+        /** Emitted when spawning the runtime process */
+        runtimeStarting: () => console.info("SMOKE_TEST_STAGE=runtime_starting"),
+        /** Emitted when waiting for runtime auth token file */
+        waitingForToken: () => console.info("SMOKE_TEST_STAGE=waiting_for_token"),
+        /** Emitted when waiting for runtime /healthz endpoint */
+        runtimeHealthz: () => console.info("SMOKE_TEST_STAGE=runtime_healthz"),
+        /** Emitted when waiting for runtime /readyz endpoint */
+        runtimeReadyz: () => console.info("SMOKE_TEST_STAGE=runtime_readyz"),
+        /** Emitted when querying runtime /ports endpoint */
+        runtimePorts: () => console.info("SMOKE_TEST_STAGE=runtime_ports"),
     },
 };
 const smokeTestTimeoutCandidate = Number(process.env.SMOKE_TEST_TIMEOUT_MS || "");
@@ -1790,6 +1809,10 @@ async function waitForFile(filePath: string, timeoutMs = 15000): Promise<void> {
         }
         await new Promise((resolve) => setTimeout(resolve, 150));
     }
+    // Emit structured error before throwing so smoke test service can capture it
+    if (isSmokeTest) {
+        SmokeTestProtocol.error("runtime", `Timed out waiting for file: ${filePath}`);
+    }
     throw new Error(`file not found within timeout: ${filePath}`);
 }
 
@@ -1848,6 +1871,9 @@ async function findChromiumPath(bundleRoot: string, manifestPath: string): Promi
 }
 
 async function startBundledRuntime(): Promise<string> {
+    // Emit granular stage marker for smoke test diagnostics
+    if (isSmokeTest) SmokeTestProtocol.stage.bundleResolving();
+
     const bundleResolution = await resolveBundleRootWithDiagnostics();
     if (!bundleResolution.found || !bundleResolution.path) {
         const pathsChecked = bundleResolution.candidatesChecked.join(", ");
@@ -1938,6 +1964,9 @@ async function startBundledRuntime(): Promise<string> {
         ? ["inherit", "inherit", "pipe"]
         : "inherit";
 
+    // Emit granular stage marker for smoke test diagnostics
+    if (isSmokeTest) SmokeTestProtocol.stage.runtimeStarting();
+
     runtimeProcess = spawn(runtimePath, args, {
         stdio: stdioCfg,
         env: runtimeEnv,
@@ -1990,7 +2019,12 @@ async function startBundledRuntime(): Promise<string> {
         }
     });
 
+    // Emit granular stage marker for smoke test diagnostics
+    if (isSmokeTest) SmokeTestProtocol.stage.waitingForToken();
     await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+
+    // Emit granular stage marker for smoke test diagnostics
+    if (isSmokeTest) SmokeTestProtocol.stage.runtimeHealthz();
     await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
 
     // Comprehensive validation via runtime API (includes checksum verification)
@@ -2026,6 +2060,9 @@ async function startBundledRuntime(): Promise<string> {
 
     await ensureRuntimeSecretsIfNeeded();
 
+    // Emit granular stage marker for smoke test diagnostics
+    if (isSmokeTest) SmokeTestProtocol.stage.runtimeReadyz();
+
     const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
     while (Date.now() < readyDeadline) {
         try {
@@ -2038,6 +2075,9 @@ async function startBundledRuntime(): Promise<string> {
         }
         await new Promise((resolve) => setTimeout(resolve, 350));
     }
+
+    // Emit granular stage marker for smoke test diagnostics
+    if (isSmokeTest) SmokeTestProtocol.stage.runtimePorts();
 
     const ports = await runtimeRequest<{ services: Record<string, Record<string, number>> }>("/ports");
     const serviceId = BUNDLED_RUNTIME.UI_SERVICE || Object.keys((ports as any).services || {})[0];
@@ -3168,4 +3208,32 @@ process.on("uncaughtException", (error) => {
 
 process.on("unhandledRejection", (reason, promise) => {
     console.error("[Desktop App] Unhandled rejection at:", promise, "reason:", reason);
+});
+
+// Handle SIGTERM gracefully to record telemetry before process is killed
+// This is especially important during smoke tests where the process may be killed due to timeout
+process.on("SIGTERM", async () => {
+    console.log("[Desktop App] Received SIGTERM, recording final telemetry...");
+    try {
+        // Record that we were terminated externally
+        await recordTelemetry("smoke_test_failed", {
+            error: "Process terminated by SIGTERM (external timeout)",
+            signal: "SIGTERM",
+        }, "error");
+
+        // Try to upload telemetry if configured
+        if (smokeTestUploadURL && telemetryFilePath) {
+            try {
+                await uploadTelemetryFile(telemetryFilePath, smokeTestUploadURL, "sigterm", true);
+                console.log("[Desktop App] Telemetry uploaded before exit");
+            } catch (uploadError) {
+                console.error("[Desktop App] Failed to upload telemetry:", uploadError);
+            }
+        }
+    } catch (telemetryError) {
+        console.error("[Desktop App] Failed to record final telemetry:", telemetryError);
+    }
+
+    // Exit with error code to indicate abnormal termination
+    process.exit(1);
 });
