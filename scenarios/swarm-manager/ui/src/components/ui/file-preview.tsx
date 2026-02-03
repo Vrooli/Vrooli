@@ -11,8 +11,9 @@
  * [REQ:REQ-P0-004] File preview for backlog details page
  */
 
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileCode, FileImage, FileText, Loader2 } from "lucide-react";
+import { Check, Code, Copy, Eye, FileCode, FileImage, FileText, Info, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions, getFileExtension } from "../../lib";
 import { backlogService } from "../../services";
@@ -30,6 +31,14 @@ export interface FilePreviewProps {
   fileName: string;
   /** Optional className for styling */
   className?: string;
+  /** Optional className for the content area */
+  contentClassName?: string;
+  /** Optional header actions aligned to the right */
+  headerActions?: ReactNode;
+  /** Compact header layout (optimized for mobile) */
+  compactHeader?: boolean;
+  /** Make header sticky within the preview */
+  stickyHeader?: boolean;
   /** data-testid attribute */
   "data-testid"?: string;
 }
@@ -142,9 +151,30 @@ export function FilePreview({
   filePath,
   fileName,
   className,
+  contentClassName,
+  headerActions,
+  compactHeader = false,
+  stickyHeader = false,
   "data-testid": testId,
 }: FilePreviewProps) {
   const fileType = getFileType(fileName);
+  const [showMobilePath, setShowMobilePath] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [markdownView, setMarkdownView] = useState<"rendered" | "raw">("rendered");
+
+  useEffect(() => {
+    setShowMobilePath(false);
+  }, [filePath]);
+
+  useEffect(() => {
+    setMarkdownView("rendered");
+  }, [filePath]);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = setTimeout(() => setCopied(false), 1600);
+    return () => clearTimeout(timeout);
+  }, [copied]);
 
   // For images, we build the URL directly instead of fetching content
   const isImage = fileType === "image";
@@ -162,27 +192,105 @@ export function FilePreview({
     ...defaultQueryOptions,
   });
 
+  const handleCopyPath = async () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(filePath);
+        setCopied(true);
+        return;
+      } catch {
+        // Fall through to showing the path if copy fails.
+      }
+    }
+    setShowMobilePath(true);
+  };
+
+  const showMarkdownToggle = fileType === "markdown";
+  const markdownToggleLabel =
+    markdownView === "rendered" ? "Show raw markdown" : "Show rendered markdown";
+
   return (
     <div
       className={cn(
-        "rounded-lg border border-white/10 bg-slate-800/30 overflow-hidden",
+        "rounded-lg border border-white/10 bg-slate-800/30 overflow-hidden flex flex-col",
         className
       )}
       data-testid={testId ?? "file-preview"}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-slate-800/50">
+      <div
+        className={cn(
+          "flex items-center gap-2 border-b border-white/10 bg-slate-800/50",
+          compactHeader ? "px-3 py-2 sm:px-4 sm:py-3" : "px-4 py-3",
+          stickyHeader && "sticky top-0 z-20 backdrop-blur"
+        )}
+      >
         <FileIcon type={fileType} />
         <span className="font-medium text-slate-200 truncate" data-testid="file-preview-name">
           {fileName}
         </span>
-        <span className="text-xs text-slate-500 ml-auto">
-          {filePath}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <span
+            className={cn(
+              "text-xs text-slate-500 max-w-[220px] truncate",
+              compactHeader && "hidden sm:inline"
+            )}
+          >
+            {filePath}
+          </span>
+          {showMarkdownToggle && (
+            <button
+              type="button"
+              onClick={() =>
+                setMarkdownView((prev) => (prev === "rendered" ? "raw" : "rendered"))
+              }
+              className="rounded-full p-1 text-slate-400 hover:bg-slate-700/60 hover:text-slate-200"
+              aria-label={markdownToggleLabel}
+              title={markdownToggleLabel}
+            >
+              {markdownView === "rendered" ? (
+                <Code className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          )}
+          {compactHeader && (
+            <button
+              type="button"
+              onClick={() => setShowMobilePath((prev) => !prev)}
+              className="sm:hidden rounded-full p-1 text-slate-400 hover:bg-slate-700/60 hover:text-slate-200"
+              aria-label="Toggle file path"
+              title="Show file path"
+            >
+              <Info className="h-4 w-4" />
+            </button>
+          )}
+          {headerActions}
+        </div>
       </div>
+      {compactHeader && showMobilePath && (
+        <div className="sm:hidden flex items-center justify-between gap-2 border-b border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-slate-400">
+          <span className="truncate">{filePath}</span>
+          <button
+            type="button"
+            onClick={handleCopyPath}
+            className="rounded-full p-1 text-slate-300 hover:bg-slate-800/70 hover:text-white"
+            aria-label="Copy file path"
+            title={copied ? "Copied" : "Copy file path"}
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </button>
+        </div>
+      )}
 
       {/* Content */}
-      <div className="relative min-h-[200px] max-h-[600px] overflow-auto">
+      <div
+        className={cn(
+          "relative min-h-[200px] max-h-[600px] overflow-auto",
+          contentClassName
+        )}
+      >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-800/50">
             <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
@@ -205,19 +313,28 @@ export function FilePreview({
             <img
               src={`/api/v1/backlog/${backlogKind}/${backlogName}/files/${filePath}`}
               alt={fileName}
-              className="max-w-full max-h-[500px] object-contain"
+              className="max-w-full max-h-full object-contain"
               data-testid="file-preview-image"
             />
           </div>
         )}
 
         {/* Markdown preview */}
-        {!isImage && !isLoading && !error && content && fileType === "markdown" && (
+        {!isImage && !isLoading && !error && content && fileType === "markdown" && markdownView === "rendered" && (
           <div
             className="p-4 prose prose-invert max-w-none"
             data-testid="file-preview-markdown"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
           />
+        )}
+
+        {!isImage && !isLoading && !error && content && fileType === "markdown" && markdownView === "raw" && (
+          <pre
+            className="p-4 font-mono text-sm text-slate-300 whitespace-pre-wrap"
+            data-testid="file-preview-markdown-raw"
+          >
+            {content}
+          </pre>
         )}
 
         {/* Code preview */}

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilePreview } from "./file-preview";
 
@@ -84,6 +84,30 @@ describe("FilePreview", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+    });
+  });
+
+  it("toggles markdown rendering between rendered and raw", async () => {
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("# Hello World\n\nThis is a test.");
+
+    renderWithProviders(
+      <FilePreview
+        backlogKind="idea"
+        backlogName="test-idea"
+        filePath="README.md"
+        fileName="README.md"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+    });
+
+    const toggleButton = screen.getByLabelText("Show raw markdown");
+    fireEvent.click(toggleButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-preview-markdown-raw")).toBeInTheDocument();
     });
   });
 

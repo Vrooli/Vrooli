@@ -78,6 +78,7 @@ describe("BacklogDetailsPage", () => {
     });
     vi.clearAllMocks();
     useBacklogStore.getState().reset();
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("Spec content");
   });
 
   const renderPage = (kind = "idea", name = "test-idea") => {
