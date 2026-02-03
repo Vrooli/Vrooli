@@ -74,13 +74,20 @@
             background: linear-gradient(90deg, {{SPLASH_ACCENT_COLOR}}, {{SPLASH_ACCENT_COLOR}}aa);
             border-radius: 2px;
             width: 0%;
-            animation: loadingProgress 3s ease-in-out infinite;
+            transition: width 0.3s ease-out;
+        }
+
+        /* Indeterminate animation when progress is unknown */
+        .loading-progress.indeterminate {
+            width: 30%;
+            animation: indeterminate 1.5s infinite ease-in-out;
         }
 
         .loading-text {
             font-size: 12px;
             opacity: 0.7;
-            animation: pulse 1.5s ease-in-out infinite;
+            min-height: 18px; /* Prevent layout shift */
+            transition: opacity 0.2s ease;
         }
 
         .spinner {
@@ -101,6 +108,39 @@
             text-align: center;
         }
 
+        .escape-hint {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 9px;
+            opacity: 0.3;
+            text-align: right;
+        }
+
+        /* Error state */
+        .error-container {
+            display: none;
+            text-align: center;
+            max-width: 300px;
+        }
+
+        .error-container.visible {
+            display: block;
+        }
+
+        .error-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #ff6b6b;
+        }
+
+        .error-message {
+            font-size: 12px;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -116,10 +156,9 @@
             100% { transform: rotate(360deg); }
         }
 
-        @keyframes loadingProgress {
-            0% { width: 0%; }
-            50% { width: 70%; }
-            100% { width: 100%; }
+        @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
         }
 
         /* Dark mode adjustments */
@@ -128,7 +167,7 @@
                 background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
                 color: #ffffff;
             }
-            
+
             .loading-bar {
                 background: rgba(255, 255, 255, 0.1);
             }
@@ -140,7 +179,7 @@
                 background: #000000;
                 color: #ffffff;
             }
-            
+
             .app-icon {
                 border: 2px solid #ffffff;
             }
@@ -154,77 +193,153 @@
             .loading-progress {
                 animation: none;
             }
-            
+
             .spinner {
                 animation: none;
                 border: 2px solid {{SPLASH_ACCENT_COLOR}};
+            }
+
+            .loading-progress.indeterminate {
+                animation: none;
+                width: 50%;
             }
         }
     </style>
 </head>
 <body>
-    <div class="splash-container">
+    <div class="splash-container" id="loading-view">
         <img src="{{APP_ICON_PATH}}" alt="{{APP_DISPLAY_NAME}} Icon" class="app-icon" onerror="this.style.display='none'">
-        
+
         <div class="app-name">{{APP_DISPLAY_NAME}}</div>
         <div class="app-description">{{APP_DESCRIPTION}}</div>
-        
+
         <div class="loading-container">
             <div class="spinner"></div>
             <div class="loading-bar">
-                <div class="loading-progress"></div>
+                <div class="loading-progress indeterminate" id="progress-bar"></div>
             </div>
-            <div class="loading-text">Starting application...</div>
+            <div class="loading-text" id="status-text">Starting application...</div>
         </div>
     </div>
-    
+
+    <div class="error-container" id="error-view">
+        <div class="error-title" id="error-title">Error</div>
+        <div class="error-message" id="error-message"></div>
+    </div>
+
     <div class="powered-by">
         Powered by scenario-to-desktop
     </div>
 
+    <div class="escape-hint">
+        Press ESC to cancel
+    </div>
+
     <script>
-        // Update loading text dynamically
-        const loadingText = document.querySelector('.loading-text');
-        const messages = [
-            'Initializing...',
-            'Loading components...',
-            'Starting server...',
-            'Preparing interface...',
-            'Almost ready...'
-        ];
-        
-        let messageIndex = 0;
-        const updateMessage = () => {
-            if (messageIndex < messages.length) {
-                loadingText.textContent = messages[messageIndex];
-                messageIndex++;
-                setTimeout(updateMessage, 800);
+        // Elements
+        const statusText = document.getElementById('status-text');
+        const progressBar = document.getElementById('progress-bar');
+        const loadingView = document.getElementById('loading-view');
+        const errorView = document.getElementById('error-view');
+        const errorTitle = document.getElementById('error-title');
+        const errorMessage = document.getElementById('error-message');
+
+        /**
+         * Update the status display based on IPC message from main process.
+         * This replaces the old timer-based message rotation.
+         */
+        function updateStatus(status) {
+            if (!status) return;
+
+            // Update status text
+            if (status.message) {
+                statusText.textContent = status.message;
+            }
+
+            // Update progress bar
+            if (typeof status.progress === 'number') {
+                progressBar.classList.remove('indeterminate');
+                progressBar.style.width = `${Math.min(100, Math.max(0, status.progress))}%`;
             } else {
-                loadingText.textContent = 'Loading complete!';
+                progressBar.classList.add('indeterminate');
             }
-        };
-        
-        // Start message rotation after initial delay
-        setTimeout(updateMessage, 500);
-        
-        // Add some interactive feedback
-        document.addEventListener('click', () => {
-            document.body.style.transform = 'scale(0.98)';
-            setTimeout(() => {
-                document.body.style.transform = 'scale(1)';
-            }, 100);
-        });
-        
-        // Accessibility: Allow ESC to skip splash (for testing)
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                console.log('Splash screen skip requested');
-                // This would be handled by the main process
+
+            // Handle error state
+            if (status.phase === 'error' && status.error) {
+                showError(status.error.title, status.error.message);
+            } else {
+                hideError();
             }
-        });
-        
-        // Log splash screen load
-        console.log('{{APP_DISPLAY_NAME}} splash screen loaded');
+        }
+
+        /**
+         * Show error view and hide loading view.
+         */
+        function showError(title, message) {
+            errorTitle.textContent = title || 'Error';
+            errorMessage.textContent = message || 'An unknown error occurred.';
+            loadingView.style.display = 'none';
+            errorView.classList.add('visible');
+        }
+
+        /**
+         * Hide error view and show loading view.
+         */
+        function hideError() {
+            errorView.classList.remove('visible');
+            loadingView.style.display = 'block';
+        }
+
+        /**
+         * Handle escape key press.
+         * Notifies main process to allow user to cancel startup.
+         */
+        function handleEscape() {
+            if (window.splashAPI) {
+                window.splashAPI.notifyEscape();
+            } else {
+                // Fallback: log to console (main process listens via webContents)
+                console.log('Splash screen escape requested');
+            }
+        }
+
+        // Initialize splash window behavior
+        function initialize() {
+            console.log('{{APP_DISPLAY_NAME}} splash screen loaded');
+
+            // Set up IPC listener for status updates
+            if (window.splashAPI) {
+                window.splashAPI.onStatusUpdate(updateStatus);
+                window.splashAPI.notifyReady();
+                console.log('Splash IPC connected');
+            } else {
+                console.warn('splashAPI not available - running in fallback mode');
+                // Fallback: show indeterminate progress with generic message
+                // This should only happen in development or if preload fails
+            }
+
+            // Set up escape key handler
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    handleEscape();
+                }
+            });
+
+            // Add some interactive feedback for click
+            document.addEventListener('click', () => {
+                document.body.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    document.body.style.transform = 'scale(1)';
+                }, 100);
+            });
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initialize);
+        } else {
+            initialize();
+        }
     </script>
 </body>
 </html>

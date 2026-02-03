@@ -588,6 +588,8 @@ func getLifecycleRecoveryHint(state string) string {
 		return "Runtime started but services aren't ready. This usually means the scenario requires external dependencies (like PostgreSQL) that cannot be bundled. Use --deployment-mode external-server to connect to a running server instead"
 	case "runtime_ports":
 		return "Runtime services are ready but port configuration failed. Check bundle.json for correct port mappings"
+	case "ui_server_check":
+		return "UI server is reachable but returned a non-2xx HTTP status. The server may be returning 404 (not found) or another error status"
 	case "result":
 		return "App completed smoke test but didn't exit cleanly. This is usually non-fatal - check for cleanup errors"
 	default:
@@ -633,6 +635,14 @@ func getLifecycleManualSteps(state string) []string {
 			"Review bundle.json for correct port configuration",
 			"Check if expected ports are free: netstat -tlnp | grep <port>",
 			"Verify API returns expected port information from /ports endpoint",
+		}
+	case "ui_server_check":
+		return []string{
+			"The UI server is returning a non-2xx HTTP status code (e.g., 404)",
+			"Check the app output for the exact status code received",
+			"Verify the UI service is configured correctly in bundle.json",
+			"For SPAs, ensure the server is configured to serve index.html for all routes",
+			"Test the URL manually: curl -I http://127.0.0.1:<port>/",
 		}
 	case "result":
 		return []string{

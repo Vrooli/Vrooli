@@ -639,14 +639,14 @@ exports.default = async function notarizing(context) {
     private async createSourceStructure(): Promise<void> {
         const srcDir = path.join(this.outputPath, 'src');
         await fs.mkdir(srcDir, { recursive: true });
-        
+
         // Move template files to src/ if they exist in root
-        const filesToMove = ['main.ts', 'preload.ts', 'splash.html'];
-        
+        const filesToMove = ['main.ts', 'preload.ts', 'splash.html', 'splash-preload.ts'];
+
         for (const fileName of filesToMove) {
             const rootPath = path.join(this.outputPath, fileName);
             const srcPath = path.join(srcDir, fileName);
-            
+
             try {
                 await fs.access(rootPath);
                 await fs.rename(rootPath, srcPath);
@@ -655,6 +655,40 @@ exports.default = async function notarizing(context) {
                 // File doesn't exist or already in src, skip
             }
         }
+
+        // Move splash/ directory to src/splash/ if it exists in root
+        const splashRootPath = path.join(this.outputPath, 'splash');
+        const splashSrcPath = path.join(srcDir, 'splash');
+
+        try {
+            const stat = await fs.stat(splashRootPath);
+            if (stat.isDirectory()) {
+                await this.moveDirectory(splashRootPath, splashSrcPath);
+                console.log(`📁 Moved splash/ to src/splash/`);
+            }
+        } catch {
+            // Directory doesn't exist or already in src, skip
+        }
+    }
+
+    private async moveDirectory(source: string, destination: string): Promise<void> {
+        await fs.mkdir(destination, { recursive: true });
+
+        const entries = await fs.readdir(source, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const sourcePath = path.join(source, entry.name);
+            const destPath = path.join(destination, entry.name);
+
+            if (entry.isDirectory()) {
+                await this.moveDirectory(sourcePath, destPath);
+            } else {
+                await fs.rename(sourcePath, destPath);
+            }
+        }
+
+        // Remove the now-empty source directory
+        await fs.rmdir(source);
     }
     
     private async setupAssets(): Promise<void> {

@@ -808,6 +808,8 @@ func lifecycleStateDescription(state string) string {
 		return "App is waiting for runtime /readyz endpoint. Runtime started but services not ready."
 	case "runtime_ports":
 		return "App is querying runtime /ports endpoint. Services are ready but port configuration may be wrong."
+	case "ui_server_check":
+		return "App is verifying the UI server responds with HTTP 2xx. The server is returning an error status code (e.g., 404 Not Found)."
 	case "ready":
 		return "App initialized but failed during server connectivity check. The target server may not be running or accessible."
 	case "result":
@@ -861,6 +863,7 @@ func stageDisplayName(stage string) string {
 		"runtime_healthz":   "Runtime health check",
 		"runtime_readyz":    "Waiting for services ready",
 		"runtime_ports":     "Getting port configuration",
+		"ui_server_check":   "Verifying UI server",
 		"ready":             "App ready",
 		"result":            "Smoke test completed",
 	}

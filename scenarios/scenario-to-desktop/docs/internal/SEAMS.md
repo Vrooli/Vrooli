@@ -1019,6 +1019,144 @@ export const selectIsBusy = (state: PipelineStore) =>
 
 ---
 
+## Desktop App Template Seams (Feb 2026)
+
+### Splash Window Architecture
+
+The splash window in the Electron template has been refactored to follow proper seam architecture and responsibility boundaries.
+
+#### 1. Splash Window Manager Seam (`SplashWindowManager`)
+**Location**: `templates/vanilla/splash/manager.ts`
+**Purpose**: Manages splash window lifecycle with proper separation of concerns
+
+**Interface**:
+```typescript
+interface ISplashWindowManager {
+    create(): Promise<boolean>;
+    updateStatus(status: SplashStatus): void;
+    close(): Promise<SplashCloseResult>;
+    isVisible(): boolean;
+    onEscapePressed(callback: () => void): void;
+}
+```
+
+**Responsibilities**:
+- Window creation and destruction
+- Status communication via IPC
+- Escape key handling for emergency exit
+
+**NOT responsible for**:
+- Application startup logic
+- Error dialog display
+- Main window management
+
+**Testing Seams**:
+- `IWindowFactory`: Mock Electron BrowserWindow creation
+- `IPathResolver`: Mock path resolution for different environments
+- `IIpcMain`: Mock IPC operations
+
+**Status**: ✅ Implemented
+
+#### 2. Server Readiness Seam (`checkServerReadiness`)
+**Location**: `templates/vanilla/splash/server-readiness.ts`
+**Purpose**: Validates server readiness with proper status code checking
+
+**Interface**:
+```typescript
+interface IHttpClient {
+    get(url: string, timeoutMs: number): Promise<{ statusCode: number; body?: string }>;
+}
+
+interface ITimer {
+    now(): number;
+    sleep(ms: number): Promise<void>;
+}
+
+function checkServerReadiness(
+    httpClient: IHttpClient,
+    config: ReadinessConfig,
+    timer?: ITimer,
+    onProgress?: ReadinessProgressCallback
+): Promise<ReadinessResult>;
+```
+
+**Key Design Decisions**:
+- **Only accepts 2xx responses**: Fixes bug where 404 was considered "ready"
+- **Configurable acceptable status codes**: Can customize per deployment
+- **Optional content validation**: For extra validation beyond status code
+- **Progress reporting**: For UI feedback during long waits
+
+**Testing Seams**:
+- `IHttpClient`: Mock HTTP requests without network
+- `ITimer`: Mock timing for deterministic tests
+
+**Status**: ✅ Implemented
+
+#### 3. Splash IPC Channel Seam
+**Location**: `templates/vanilla/splash/types.ts`, `templates/vanilla/splash-preload.ts`
+**Purpose**: Secure communication between main process and splash window
+
+**Channels**:
+```typescript
+const SPLASH_IPC_CHANNELS = {
+    STATUS_UPDATE: "splash:status-update",  // Main → Splash
+    ESCAPE_PRESSED: "splash:escape-pressed", // Splash → Main
+    READY: "splash:ready",                   // Splash → Main
+};
+```
+
+**API exposed to splash renderer**:
+```typescript
+interface SplashAPI {
+    onStatusUpdate(callback: (status: SplashStatus) => void): void;
+    offStatusUpdate(callback: (status: SplashStatus) => void): void;
+    notifyEscape(): void;
+    notifyReady(): void;
+}
+```
+
+**Status**: ✅ Implemented
+
+### Bug Fixes Applied
+
+#### 1. Focus Trapping Fix
+**Problem**: `alwaysOnTop: true` caused splash window to trap focus, making error dialogs inaccessible
+**Solution**: Changed default to `alwaysOnTop: false`
+**Files**: `templates/vanilla/splash/types.ts` (DEFAULT_SPLASH_CONFIG)
+
+#### 2. Timer-Based Messages Fix
+**Problem**: Splash showed "Loading complete!" based on timer, not actual app state
+**Solution**: IPC-based status updates from main process
+**Files**: `templates/vanilla/splash.html`, `templates/vanilla/splash-preload.ts`
+
+#### 3. Server Readiness 404 Bug Fix
+**Problem**: 404 responses were treated as "server ready"
+**Solution**: Only accept 2xx status codes as ready
+**Files**: `templates/vanilla/splash/server-readiness.ts`
+
+#### 4. Error Dialog Z-Order Fix
+**Problem**: Error dialog appeared behind splash window
+**Solution**: Use `destroy()` instead of `close()` with delay before showing dialog
+**Files**: `templates/vanilla/splash/manager.ts`, `templates/vanilla/main.ts`
+
+### Test Coverage
+
+Test files:
+- `templates/vanilla/splash/__tests__/server-readiness.test.ts` - Server readiness checking
+- `templates/vanilla/splash/__tests__/manager.test.ts` - Splash window manager
+
+Key test scenarios:
+- ✅ Splash window creation with correct options
+- ✅ Status updates via IPC
+- ✅ Window close with proper cleanup
+- ✅ Escape key handling
+- ✅ Server readiness rejects 404 responses
+- ✅ Server readiness accepts 2xx responses
+- ✅ Timeout handling with progress reporting
+- ✅ Content validation support
+
+---
+
 ## Architecture Principles Applied
 
 1. **Seam-at-the-Boundary**: Browser APIs (clipboard, downloads, file reading) now have explicit seams
@@ -1027,3 +1165,4 @@ export const selectIsBusy = (state: PipelineStore) =>
 4. **Mock-Friendly**: All seams designed with testing in mind
 5. **Incremental Improvement**: Each seam enforcement iteration makes the codebase more testable
 6. **Idempotency by Design**: Pipeline operations are safe to retry without creating duplicates
+7. **Event-Driven Communication**: Splash window uses IPC for status updates, not timers

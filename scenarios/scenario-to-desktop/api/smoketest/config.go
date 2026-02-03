@@ -77,6 +77,9 @@ type GranularLifecycleMarkers struct {
 
 	// RuntimePorts indicates querying the /ports endpoint.
 	RuntimePorts string
+
+	// UIServerCheck indicates checking if the UI server returns a valid response.
+	UIServerCheck string
 }
 
 // DefaultConfig returns the default smoke test configuration.
@@ -103,6 +106,7 @@ func DefaultConfig() Config {
 			RuntimeHealthz:  "SMOKE_TEST_STAGE=runtime_healthz",
 			RuntimeReadyz:   "SMOKE_TEST_STAGE=runtime_readyz",
 			RuntimePorts:    "SMOKE_TEST_STAGE=runtime_ports",
+			UIServerCheck:   "SMOKE_TEST_STAGE=ui_server_check",
 		},
 	}
 }

@@ -73,6 +73,9 @@ func (p *DefaultOutputParser) ExtractLastLifecycleState(output string) string {
 	if granular.RuntimePorts != "" && strings.Contains(output, granular.RuntimePorts) {
 		lastState = "runtime_ports"
 	}
+	if granular.UIServerCheck != "" && strings.Contains(output, granular.UIServerCheck) {
+		lastState = "ui_server_check"
+	}
 
 	// Continue with basic markers
 	if p.config.ReadyMarker != "" && strings.Contains(output, p.config.ReadyMarker) {
@@ -99,6 +102,7 @@ func LifecycleStateDescription(state string) string {
 		"runtime_healthz":   "App is waiting for runtime /healthz endpoint. The runtime may still be starting or crashed.",
 		"runtime_readyz":    "App is waiting for runtime /readyz endpoint. Runtime started but services not ready. A bundled service likely failed to start.",
 		"runtime_ports":     "App is querying runtime /ports endpoint. Services are ready but port configuration may be wrong.",
+		"ui_server_check":   "App is verifying the UI server responds with HTTP 2xx. The server may be returning an error status (e.g., 404).",
 		"ready":             "App initialized successfully but didn't report final result. Check for server connectivity issues.",
 		"result":            "App reported result but didn't exit cleanly. This is usually non-fatal.",
 		"exit":              "App completed full lifecycle. Should be success - check for race conditions if failed.",
