@@ -151,9 +151,10 @@ See [CODE: api/heartbeat/client.go] for the client implementation.
 ## Safety Considerations
 
 1. **Off by Default**: Heartbeats must be explicitly enabled
-2. **Profile Controls**: Agent-manager profiles control permissions and resources
-3. **Logging**: All executions are logged for audit
-4. **Manual Override**: Heartbeats can be manually triggered for testing
+2. **Team Gating**: Heartbeats (scheduled or manual) only run when the team is enabled
+3. **Profile Controls**: Agent-manager profiles control permissions and resources
+4. **Logging**: All executions are logged for audit
+5. **Manual Override**: Heartbeats can be manually triggered for testing
 
 ## Related Documentation
 

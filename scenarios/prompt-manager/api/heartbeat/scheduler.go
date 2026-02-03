@@ -6,8 +6,20 @@ import (
 	"sync"
 	"time"
 
+	"prompt-manager/store"
+
 	"github.com/robfig/cron/v3"
 )
+
+// HeartbeatExecutor defines the execution behavior used by the scheduler.
+type HeartbeatExecutor interface {
+	Execute(ctx context.Context, teamID, agentID, profileKey string) (*ExecutionResult, error)
+}
+
+// HeartbeatConfigStore defines access to heartbeat configurations for scheduling.
+type HeartbeatConfigStore interface {
+	GetHeartbeatConfig(ctx context.Context, teamID, agentID string) (*store.HeartbeatConfig, error)
+}
 
 // ScheduledHeartbeat represents a scheduled heartbeat with its timer
 type ScheduledHeartbeat struct {
@@ -24,20 +36,22 @@ type Scheduler struct {
 	mu          sync.RWMutex
 	cron        *cron.Cron
 	scheduled   map[string]*ScheduledHeartbeat // key: teamID/agentID
-	executor    *Executor
+	executor    HeartbeatExecutor
 	running     bool
 	profileKey  string
 	agentClient *AgentManagerClient
+	configStore HeartbeatConfigStore
 }
 
 // NewScheduler creates a new heartbeat scheduler
-func NewScheduler(executor *Executor, agentClient *AgentManagerClient) *Scheduler {
+func NewScheduler(executor HeartbeatExecutor, agentClient *AgentManagerClient, configStore HeartbeatConfigStore) *Scheduler {
 	return &Scheduler{
 		cron:        cron.New(cron.WithSeconds()),
 		scheduled:   make(map[string]*ScheduledHeartbeat),
 		executor:    executor,
 		profileKey:  "prompt-manager-heartbeat",
 		agentClient: agentClient,
+		configStore: configStore,
 	}
 }
 
@@ -184,7 +198,27 @@ func (s *Scheduler) IsScheduled(teamID, agentID string) bool {
 func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string) {
 	log.Printf("Executing heartbeat for %s/%s", teamID, agentID)
 
-	result, err := s.executor.Execute(ctx, teamID, agentID, s.profileKey)
+	profileKey := s.profileKey
+	if s.configStore != nil {
+		config, err := s.configStore.GetHeartbeatConfig(ctx, teamID, agentID)
+		if err != nil {
+			log.Printf("Heartbeat execution aborted for %s/%s: %v", teamID, agentID, err)
+			return
+		}
+		if config == nil {
+			log.Printf("Heartbeat execution aborted for %s/%s: config not found", teamID, agentID)
+			return
+		}
+		if !config.Enabled {
+			log.Printf("Heartbeat execution skipped for %s/%s: config disabled", teamID, agentID)
+			return
+		}
+		if config.ProfileKey != "" {
+			profileKey = config.ProfileKey
+		}
+	}
+
+	result, err := s.executor.Execute(ctx, teamID, agentID, profileKey)
 	if err != nil {
 		log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)
 		return

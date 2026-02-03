@@ -121,6 +121,21 @@ store/teams/{team-id}/members/{agent-id}/inbox.json
 
 Mock stores can supply inbox content directly for unit tests without requiring file I/O.
 
+## Heartbeat Seams
+
+Heartbeat execution uses two explicit seams:
+
+- **Scheduler → Executor**: `heartbeat.Scheduler` depends on the `HeartbeatExecutor` interface, allowing
+  tests to substitute fake executors to validate scheduling behavior without running agent-manager.
+- **Scheduler → Config Store**: `heartbeat.Scheduler` depends on `HeartbeatConfigStore` to resolve
+  per-member profile keys and enabled state at run time.
+
+Member cleanup is centralized in the team handlers:
+
+- **Member cleanup**: `teams.Handlers.cleanupMemberData` unschedules heartbeats and deletes
+  `store/teams/{team-id}/members/{agent-id}/` via the file store when available.
+  Tests can assert scheduler calls while keeping file I/O isolated to temporary directories.
+
 ## UI Seams
 
 ### Service Layer

@@ -6,6 +6,9 @@ API endpoints for managing heartbeat configurations and member documents.
 
 All endpoints are prefixed with `/api/v1`.
 
+**Membership requirement:** Endpoints scoped to a specific team member require that
+the agent is currently a member of the team. Requests for non-members return `404`.
+
 ---
 
 ## Heartbeat Configuration
@@ -159,6 +162,10 @@ POST /teams/{teamId}/heartbeats/{agentId}/trigger
   "logPath": "2026-02-01T15-30-00Z.log"
 }
 ```
+
+**Errors:**
+- `404 Not Found` - Team, member, or heartbeat config not found
+- `409 Conflict` - Team is disabled (turn the team on to run heartbeats)
 
 ---
 

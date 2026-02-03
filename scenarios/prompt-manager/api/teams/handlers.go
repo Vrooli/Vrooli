@@ -191,6 +191,8 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	h.updateHeartbeatSchedules(ctx, id, false)
+
 	// Delete all team member relations first
 	if h.relationStore != nil {
 		members, _ := h.relationStore.ListTeamMembers(ctx, id)
@@ -328,6 +330,8 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+
+	h.cleanupMemberData(ctx, teamID, agentID)
 
 	if err := h.relationStore.DeleteTeamMember(ctx, teamID, agentID); err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -743,6 +747,21 @@ func (h *Handlers) updateHeartbeatSchedules(ctx context.Context, teamID string, 
 			continue
 		}
 		h.heartbeatScheduler.Unschedule(config.TeamID, config.AgentID)
+	}
+}
+
+func (h *Handlers) cleanupMemberData(ctx context.Context, teamID, agentID string) {
+	if h.heartbeatScheduler != nil {
+		h.heartbeatScheduler.Unschedule(teamID, agentID)
+	}
+
+	fileStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		return
+	}
+
+	if err := fileStore.DeleteMemberData(ctx, teamID, agentID); err != nil {
+		log.Printf("Warning: Failed to delete member data for %s/%s: %v", teamID, agentID, err)
 	}
 }
 

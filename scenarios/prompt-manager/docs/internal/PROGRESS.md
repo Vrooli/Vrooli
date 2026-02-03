@@ -3,7 +3,7 @@
 Agent-maintained document tracking development milestones.
 
 ## Last Updated
-2025-01-25
+2026-02-03
 
 ---
 
@@ -61,6 +61,12 @@ Agent-maintained document tracking development milestones.
 - [x] Effective skills computation API
 - [x] 3D world visualization with React Three Fiber
 - [x] Documentation update to reflect 3-domain architecture
+
+### Phase 6: Heartbeat Lifecycle Hardening (2026-02-03)
+- [x] Scheduler resolves per-member profile keys
+- [x] Manual trigger and executor handle missing configs safely
+- [x] Team/member deletion unschedules heartbeats and cleans member data
+- [x] Added regression tests for scheduler, executor, and cleanup flows
 
 ---
 

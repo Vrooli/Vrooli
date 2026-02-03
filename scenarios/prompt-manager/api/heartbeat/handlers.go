@@ -1,6 +1,7 @@
 package heartbeat
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,18 +17,38 @@ import (
 
 // Handlers provides HTTP handlers for heartbeat operations
 type Handlers struct {
-	teamStore *store.FileTeamStore
-	scheduler *Scheduler
-	executor  *Executor
+	teamStore     *store.FileTeamStore
+	relationStore store.RelationStore
+	scheduler     *Scheduler
+	executor      *Executor
 }
 
 // NewHandlers creates new heartbeat handlers
-func NewHandlers(teamStore *store.FileTeamStore, scheduler *Scheduler, executor *Executor) *Handlers {
+func NewHandlers(teamStore *store.FileTeamStore, relationStore store.RelationStore, scheduler *Scheduler, executor *Executor) *Handlers {
 	return &Handlers{
-		teamStore: teamStore,
-		scheduler: scheduler,
-		executor:  executor,
+		teamStore:     teamStore,
+		relationStore: relationStore,
+		scheduler:     scheduler,
+		executor:      executor,
 	}
+}
+
+var errMemberNotFound = errors.New("team member not found")
+
+func (h *Handlers) requireMember(ctx context.Context, teamID, agentID string) error {
+	if h.relationStore == nil {
+		return errors.New("relation store not configured")
+	}
+	if agentID == "" {
+		return errors.New("agentId is required")
+	}
+	if _, err := h.relationStore.GetTeamMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return errMemberNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 // ListHeartbeats handles GET /teams/{id}/heartbeats - lists all heartbeat configs for a team
@@ -99,6 +120,23 @@ func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -136,6 +174,24 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// Check if config already exists
 	existing, _ := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 	if existing != nil {
@@ -157,16 +213,6 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, "Team not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	team, err := h.teamStore.Get(ctx, teamID)
-	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Team not found", http.StatusNotFound)
 			return
@@ -198,6 +244,24 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	var req UpdateHeartbeatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -216,16 +280,6 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	if config == nil {
 		http.Error(w, "Heartbeat config not found", http.StatusNotFound)
-		return
-	}
-
-	team, err := h.teamStore.Get(ctx, teamID)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, "Team not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -273,6 +327,23 @@ func (h *Handlers) DeleteHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// Unschedule first
 	if h.scheduler != nil {
 		h.scheduler.Unschedule(teamID, agentID)
@@ -298,8 +369,29 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	result, err := h.executor.TriggerManual(ctx, teamID, agentID)
 	if err != nil {
+		if IsTeamDisabled(err) {
+			http.Error(w, "Team is disabled; enable the team to run heartbeats", http.StatusConflict)
+			return
+		}
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -327,6 +419,23 @@ func (h *Handlers) ListLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	logs, err := h.teamStore.ListMemberLogs(ctx, teamID, agentID)
 	if err != nil {
@@ -356,10 +465,28 @@ func (h *Handlers) ListLogs(w http.ResponseWriter, r *http.Request) {
 
 // GetLog handles GET /teams/{id}/heartbeats/{agentId}/logs/{logId} - gets log content
 func (h *Handlers) GetLog(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 	logID := vars["logId"]
+
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Ensure logID has .log extension
 	if !strings.HasSuffix(logID, ".log") {
@@ -391,6 +518,23 @@ func (h *Handlers) GetResponsibilities(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	content, err := h.teamStore.GetResponsibilities(ctx, teamID, agentID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -417,6 +561,23 @@ func (h *Handlers) SetResponsibilities(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	var req MemberDocRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -450,6 +611,23 @@ func (h *Handlers) GetHeartbeatInstructions(w http.ResponseWriter, r *http.Reque
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	content, err := h.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -476,6 +654,23 @@ func (h *Handlers) SetHeartbeatInstructions(w http.ResponseWriter, r *http.Reque
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	var req MemberDocRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

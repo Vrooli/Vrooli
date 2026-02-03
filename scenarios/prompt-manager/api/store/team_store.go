@@ -252,6 +252,23 @@ func (s *FileTeamStore) memberDir(teamID, agentID string) string {
 	return filepath.Join(s.teamsDir(), teamID, "members", agentID)
 }
 
+// DeleteMemberData removes all stored files for a team member (heartbeat config, inbox, logs, docs).
+func (s *FileTeamStore) DeleteMemberData(ctx context.Context, teamID, agentID string) error {
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return err
+	}
+
+	memberDir := s.memberDir(teamID, agentID)
+	if _, err := os.Stat(memberDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat member directory: %w", err)
+	}
+
+	return DeleteDirectory(memberDir)
+}
+
 // EnsureMemberDir creates the member directory structure if it doesn't exist
 func (s *FileTeamStore) EnsureMemberDir(ctx context.Context, teamID, agentID string) error {
 	// Verify team exists

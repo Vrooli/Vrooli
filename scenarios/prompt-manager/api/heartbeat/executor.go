@@ -57,6 +57,19 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		StartedAt: startedAt,
 	}
 
+	// Enforce team-level heartbeat gating before any prompt or config work.
+	team, err := e.teamStore.Get(ctx, teamID)
+	if err != nil {
+		result.Error = fmt.Errorf("getting team: %w", err)
+		result.Status = store.HeartbeatStatusFailed
+		return result, result.Error
+	}
+	if err := validateTeamEnabled(team); err != nil {
+		result.Error = fmt.Errorf("heartbeat blocked: %w", err)
+		result.Status = store.HeartbeatStatusFailed
+		return result, result.Error
+	}
+
 	// Build the prompt
 	prompt, err := e.BuildPrompt(ctx, teamID, agentID)
 	if err != nil {
@@ -69,6 +82,11 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	config, err := e.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 	if err != nil {
 		result.Error = fmt.Errorf("getting heartbeat config: %w", err)
+		result.Status = store.HeartbeatStatusFailed
+		return result, result.Error
+	}
+	if config == nil {
+		result.Error = fmt.Errorf("heartbeat config not found")
 		result.Status = store.HeartbeatStatusFailed
 		return result, result.Error
 	}
@@ -161,6 +179,9 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	if configErr != nil {
 		return
 	}
+	if config == nil {
+		return
+	}
 
 	if err != nil {
 		config.LastExecution = &store.HeartbeatExecResult{
@@ -226,9 +247,12 @@ func (e *Executor) TriggerManual(ctx context.Context, teamID, agentID string) (*
 	if err != nil {
 		return nil, fmt.Errorf("getting heartbeat config: %w", err)
 	}
+	if config == nil {
+		return nil, fmt.Errorf("heartbeat config not found")
+	}
 
 	profileKey := "prompt-manager-heartbeat"
-	if config != nil && config.ProfileKey != "" {
+	if config.ProfileKey != "" {
 		profileKey = config.ProfileKey
 	}
 

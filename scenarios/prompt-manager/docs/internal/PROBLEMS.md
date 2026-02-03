@@ -3,7 +3,7 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-02-02
+2026-02-03
 
 ---
 
@@ -37,7 +37,7 @@ _No significant debt identified._
 | skills/ | Good | handlers_test.go, query_test.go exist |
 | tags/ | None | Needs handler tests |
 | agents/ | None | Needs handler tests |
-| teams/ | None | Needs handler tests |
+| teams/ | Partial | Heartbeat cleanup + handler coverage exists; expand org chart + messaging tests |
 | store/ | None | Needs relation and index tests |
 | testing/ | None | Needs handler tests with mock Ollama |
 | search/ | None | Needs handler tests |
@@ -78,6 +78,89 @@ _No significant debt identified._
 ## Stability Issues
 
 _No open crash issues identified. Team editor org chart now guards against self-connections and missing manager labels; relationship panels handle empty states gracefully._
+
+---
+
+## Root Cause Analyses (Resolved)
+
+### Heartbeat trigger crashes when config is missing
+
+**Hypotheses**
+1. Trigger handler skips config checks, leading to nil dereference inside executor.
+2. Executor assumes heartbeat config exists because scheduling only happens for enabled configs.
+
+**Test/Verification**
+- Manual trigger without `heartbeat.json` returns `404` and does not panic.
+- Unit test: `api/heartbeat/executor_test.go#TestExecutorExecuteFailsWhenConfigMissing`.
+
+**Root Cause**
+- `Executor.Execute` and `TriggerManual` assumed `GetHeartbeatConfig` never returns `nil`, causing unsafe dereferences.
+
+**Fix**
+- Guard against nil configs and return a not-found error before updating state.
+
+**Prevention**
+- Added explicit nil checks and regression tests.
+
+---
+
+### Scheduler ignores per-member profileKey
+
+**Hypotheses**
+1. Scheduler uses a hard-coded default profile key for all runs.
+2. Profile key is only honored in manual trigger path.
+
+**Test/Verification**
+- Scheduler uses `profileKey` from config in `api/heartbeat/scheduler_test.go#TestSchedulerUsesConfigProfileKey`.
+
+**Root Cause**
+- Scheduler did not consult per-member heartbeat config when executing scheduled runs.
+
+**Fix**
+- Introduced a config-store seam in the scheduler and resolved profile key at execution time.
+
+**Prevention**
+- Added scheduler unit tests covering default and custom profile keys.
+
+---
+
+### Removing a team member leaves scheduled heartbeats and member data
+
+**Hypotheses**
+1. Member removal only deletes the relation file and does not clean related member files.
+2. Scheduler has no lifecycle hook to unschedule per-member entries when membership changes.
+
+**Test/Verification**
+- Member removal now unschedules and deletes the member directory in `api/teams/handlers_cleanup_test.go#TestRemoveMemberCleansDataAndUnschedules`.
+
+**Root Cause**
+- Cleanup responsibilities were split across domains with no explicit boundary for member teardown.
+
+**Fix**
+- Added `FileTeamStore.DeleteMemberData` and a handler-level cleanup step to unschedule + remove member data.
+
+**Prevention**
+- Centralized cleanup logic and added regression test.
+
+---
+
+### Deleting a team leaves scheduled heartbeats active
+
+**Hypotheses**
+1. Team delete path does not inform the heartbeat scheduler.
+2. Scheduler retains cron entries independently of file store deletion.
+
+**Test/Verification**
+- Team deletion now unschedules all member heartbeats in `api/teams/handlers_cleanup_test.go#TestDeleteTeamUnschedulesHeartbeats`.
+
+**Root Cause**
+- Team deletion flow skipped scheduler teardown and relied solely on file deletion.
+
+**Fix**
+- Unschedule all team heartbeats before deleting team files.
+
+**Prevention**
+- Added explicit scheduler cleanup and a regression test.
 
 ---
 

@@ -287,9 +287,14 @@ func main() {
 		agentManagerClient,
 		vrooliRoot,
 	)
-	heartbeatScheduler := heartbeat.NewScheduler(heartbeatExecutor, agentManagerClient)
+	heartbeatScheduler := heartbeat.NewScheduler(
+		heartbeatExecutor,
+		agentManagerClient,
+		fileStore.Teams().(*store.FileTeamStore),
+	)
 	heartbeatHandlers := heartbeat.NewHandlers(
 		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Relations(),
 		heartbeatScheduler,
 		heartbeatExecutor,
 	)
