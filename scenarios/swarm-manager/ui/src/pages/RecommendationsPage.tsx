@@ -9,6 +9,7 @@ import { Filter, Zap, Settings, ArrowRight, CheckCircle2, XCircle, RefreshCw, Ch
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
+import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { selectors } from "../consts/selectors";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { agentManagerService, recommendationsService, settingsService } from "../services";
@@ -264,7 +265,10 @@ export function RecommendationsPage() {
         )}
 
         {filteredRecommendations.length > 0 && (
-          <div className="space-y-3" data-testid={selectors.recommendations.list}>
+          <ResponsiveList
+            data-testid={selectors.recommendations.list}
+            columns="md:grid-cols-2 xl:grid-cols-3"
+          >
             {filteredRecommendations.map((rec) => (
               <RecommendationCard
                 key={rec.id}
@@ -277,7 +281,7 @@ export function RecommendationsPage() {
                 agentAvailable={agentAvailable}
               />
             ))}
-          </div>
+          </ResponsiveList>
         )}
       </div>
     </div>
@@ -311,8 +315,11 @@ function RecommendationCard({
   const canStart = !isStarted && recommendation.status !== "rejected" && agentAvailable;
 
   return (
-    <Card padding="lg" data-testid={selectors.recommendations.cardByName({ name: recommendation.id })}>
-      <div className="flex items-start justify-between gap-4">
+    <ResponsiveListItem
+      className="py-4 md:p-6 lg:p-8"
+      data-testid={selectors.recommendations.cardByName({ name: recommendation.id })}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-3 text-sm">
             <span className={`uppercase tracking-wider ${statusColor}`}>{recommendation.status}</span>
@@ -359,6 +366,6 @@ function RecommendationCard({
           </Button>
         </div>
       </div>
-    </Card>
+    </ResponsiveListItem>
   );
 }

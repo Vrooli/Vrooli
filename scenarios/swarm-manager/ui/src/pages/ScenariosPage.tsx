@@ -26,6 +26,7 @@ import { Filter, Package, ArrowRight, Circle, X, ChevronDown, Play, Square, Refr
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
+import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
 import { TagList } from "../components/ui/tag-list";
 import { capitalize } from "../lib";
@@ -350,13 +351,17 @@ export function ScenariosPage() {
         )}
 
         {filteredScenarios.length > 0 && (
-          <div className="space-y-3" data-testid={selectors.scenarios.list}>
+          <ResponsiveList
+            data-testid={selectors.scenarios.list}
+            columns="md:grid-cols-2 xl:grid-cols-3"
+          >
             {filteredScenarios.map((scenario) => {
               const StatusIcon = SCENARIO_STATUS_ICONS[scenario.status] || Circle;
               return (
-                <div
+                <ResponsiveListItem
                   key={scenario.name}
-                  className="group block cursor-pointer rounded-xl border border-white/10 bg-slate-800/30 p-4 transition hover:border-cyan-500/50 hover:bg-slate-800/50"
+                  className="group cursor-pointer"
+                  interactive
                   data-testid={selectors.scenarios.cardByName({ name: scenario.name })}
                   role="link"
                   tabIndex={0}
@@ -453,10 +458,10 @@ export function ScenariosPage() {
                       <ArrowRight className="h-4 w-4 text-slate-500 opacity-0 transition group-hover:opacity-100" />
                     </div>
                   </div>
-                </div>
+                </ResponsiveListItem>
               );
             })}
-          </div>
+          </ResponsiveList>
         )}
       </div>
     </div>

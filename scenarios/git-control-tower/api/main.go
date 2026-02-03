@@ -15,7 +15,7 @@ import (
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
@@ -53,7 +53,7 @@ func NewServer() (*Server, error) {
 	}
 
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver:       "sqlite3",
+		Driver:       "sqlite", // modernc.org/sqlite registers as "sqlite" (not "sqlite3")
 		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,

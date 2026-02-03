@@ -16,12 +16,14 @@ import type { StatusItem } from "./status-legend.types";
 interface StatusLegendProps {
   items: StatusItem[];
   title?: string;
+  compact?: boolean;
   "data-testid"?: string;
 }
 
 export function StatusLegend({
   items,
   title = "Status Guide",
+  compact = false,
   "data-testid": testId,
 }: StatusLegendProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -33,13 +35,14 @@ export function StatusLegend({
         className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-slate-200 transition-colors"
         aria-expanded={isExpanded}
         aria-label={`${isExpanded ? "Hide" : "Show"} status legend`}
+        title={compact ? title : undefined}
       >
         <HelpCircle className="h-3.5 w-3.5" />
-        <span>{title}</span>
+        <span className={compact ? "hidden sm:inline" : ""}>{title}</span>
         {isExpanded ? (
-          <ChevronUp className="h-3 w-3" />
+          <ChevronUp className={compact ? "hidden sm:inline h-3 w-3" : "h-3 w-3"} />
         ) : (
-          <ChevronDown className="h-3 w-3" />
+          <ChevronDown className={compact ? "hidden sm:inline h-3 w-3" : "h-3 w-3"} />
         )}
       </button>
 

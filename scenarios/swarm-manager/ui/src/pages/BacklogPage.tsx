@@ -25,6 +25,8 @@ import { Plus, Filter, Lightbulb, ArrowRight, Clock, Terminal, X, ChevronDown, S
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
+import { FloatingActionButton } from "../components/ui/floating-action-button";
+import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
 import { StatusLegend } from "../components/ui/status-legend";
 import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.constants";
@@ -178,102 +180,117 @@ export function BacklogPage() {
 
   return (
     <div className="space-y-6" data-testid={selectors.backlog.page}>
-      <WelcomeHint data-testid={selectors.backlog.welcomeHint} />
-
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <Tabs value={activeKind} onValueChange={(value) => setActiveKind(value as BacklogKind)}>
-            <TabsList className="flex flex-wrap gap-1" data-testid={selectors.backlog.kindTabs}>
-              {BACKLOG_KIND_TABS.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <TabsTrigger key={tab.kind} value={tab.kind} className="gap-2">
-                    <Icon className="h-4 w-4" />
-                    {tab.label}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </Tabs>
-          <Button data-testid={selectors.backlog.createButton} onClick={() => setShowCreate(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {activeTab.ctaLabel}
-          </Button>
+        <div className="order-2 md:order-1">
+          <WelcomeHint data-testid={selectors.backlog.welcomeHint} />
         </div>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <SearchBar
-              placeholder={`Search ${KIND_LABELS[activeKind].toLowerCase()} backlog...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              data-testid={selectors.backlog.search}
-            />
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="Filter backlog"
-                data-testid={selectors.backlog.filter}
-                onClick={() => setShowFilters(!showFilters)}
-                className={statusFilter ? "border-cyan-500/50" : ""}
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
-              {showFilters && (
-                <div className="absolute left-0 top-full z-10 mt-2 w-56 rounded-lg border border-white/10 bg-slate-800 p-3 shadow-xl">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-200">Filters</span>
-                    {statusFilter && (
-                      <button
-                        onClick={() => setStatusFilter("")}
-                        className="text-xs text-slate-400 hover:text-slate-200"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <label htmlFor="backlog-status-filter" className="text-xs text-slate-400">
-                      Status
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="backlog-status-filter"
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as BacklogStatus | "")}
-                        className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                      >
-                        <option value="">All statuses</option>
-                        {STATUS_OPTIONS.map((option) => (
-                          <option key={option} value={option}>
-                            {formatBacklogStatus(option)}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <StatusLegend
-              items={BACKLOG_STATUS_LEGEND_ITEMS}
-              title="Status Guide"
-              data-testid={selectors.backlog.statusLegend}
-            />
+        <div className="order-1 md:order-2 flex flex-col gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <Tabs value={activeKind} onValueChange={(value) => setActiveKind(value as BacklogKind)} className="w-full">
+              <div className="-mx-6 md:mx-0">
+                <TabsList
+                  className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 md:w-auto md:flex-wrap md:overflow-visible md:rounded-md md:bg-slate-800/50 md:p-1"
+                  data-testid={selectors.backlog.kindTabs}
+                >
+                  {BACKLOG_KIND_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <TabsTrigger key={tab.kind} value={tab.kind} className="gap-2">
+                        <Icon className="h-4 w-4" />
+                        {tab.label}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
+            </Tabs>
+            <Button
+              data-testid={selectors.backlog.createButton}
+              onClick={() => setShowCreate(true)}
+              className="hidden md:inline-flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {activeTab.ctaLabel}
+            </Button>
           </div>
 
-          {kindItems.length > 0 && (
-            <div className="flex items-center gap-3 text-sm text-slate-400" data-testid={selectors.backlog.summaryStats}>
-              <span>{stats.total} item{stats.total !== 1 ? "s" : ""}</span>
-              {stats.ready > 0 && (
-                <span className="text-cyan-400" data-testid={selectors.backlog.readyCount}>
-                  {stats.ready} ready to queue
-                </span>
-              )}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchBar
+                placeholder={`Search ${KIND_LABELS[activeKind].toLowerCase()} backlog...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                data-testid={selectors.backlog.search}
+                widthClass="w-full sm:w-80"
+              />
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Filter backlog"
+                  data-testid={selectors.backlog.filter}
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={statusFilter ? "border-cyan-500/50" : ""}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                {showFilters && (
+                  <div className="absolute left-0 top-full z-10 mt-2 w-56 rounded-lg border border-white/10 bg-slate-800 p-3 shadow-xl">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-200">Filters</span>
+                      {statusFilter && (
+                        <button
+                          onClick={() => setStatusFilter("")}
+                          className="text-xs text-slate-400 hover:text-slate-200"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <label htmlFor="backlog-status-filter" className="text-xs text-slate-400">
+                        Status
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="backlog-status-filter"
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value as BacklogStatus | "")}
+                          className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+                        >
+                          <option value="">All statuses</option>
+                          {STATUS_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {formatBacklogStatus(option)}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <StatusLegend
+                items={BACKLOG_STATUS_LEGEND_ITEMS}
+                title="Status Guide"
+                compact
+                data-testid={selectors.backlog.statusLegend}
+              />
             </div>
-          )}
+
+            {kindItems.length > 0 && (
+              <div className="flex items-center gap-3 text-sm text-slate-400" data-testid={selectors.backlog.summaryStats}>
+                <span>{stats.total} item{stats.total !== 1 ? "s" : ""}</span>
+                {stats.ready > 0 && (
+                  <span className="text-cyan-400" data-testid={selectors.backlog.readyCount}>
+                    {stats.ready} ready to queue
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -339,12 +356,14 @@ export function BacklogPage() {
               <Clock className="h-4 w-4 text-cyan-400" />
               <span>Continue Working</span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid={selectors.backlog.continueList}>
+            <ResponsiveList data-testid={selectors.backlog.continueList}>
               {continueWorkingItems.map((item) => (
-                <Link
+                <ResponsiveListItem
+                  as={Link}
                   key={`continue-${item.kind}-${item.name}`}
                   to={`/backlog/${item.kind}/${item.name}`}
-                  className="group flex items-center gap-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 transition hover:border-cyan-500/50 hover:bg-cyan-500/10"
+                  interactive
+                  className="group flex items-center gap-3 md:border-cyan-500/30 md:bg-cyan-500/5 md:hover:border-cyan-500/50 md:hover:bg-cyan-500/10"
                 >
                   <span
                     className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
@@ -356,9 +375,9 @@ export function BacklogPage() {
                     </p>
                   </div>
                   <ArrowRight className="h-4 w-4 text-cyan-400 opacity-0 transition group-hover:opacity-100" />
-                </Link>
+                </ResponsiveListItem>
               ))}
-            </div>
+            </ResponsiveList>
           </div>
         )}
 
@@ -388,12 +407,14 @@ export function BacklogPage() {
             {continueWorkingItems.length > 0 && (
               <div className="text-sm font-medium text-slate-400">All {activeTab.label} Items</div>
             )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid={selectors.backlog.grid}>
+            <ResponsiveList data-testid={selectors.backlog.grid}>
               {filteredItems.map((item) => (
-                <Link
+                <ResponsiveListItem
+                  as={Link}
                   key={`${item.kind}-${item.name}`}
                   to={`/backlog/${item.kind}/${item.name}`}
-                  className="group rounded-xl border border-white/10 bg-slate-800/30 p-4 transition hover:border-cyan-500/50 hover:bg-slate-800/50"
+                  interactive
+                  className="group block"
                   data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
                 >
                   <div className="flex items-start justify-between">
@@ -420,12 +441,20 @@ export function BacklogPage() {
                     <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
                   </div>
-                </Link>
+                </ResponsiveListItem>
               ))}
-            </div>
+            </ResponsiveList>
           </div>
         )}
       </div>
+
+      <FloatingActionButton
+        icon={<Plus className="h-5 w-5" />}
+        label={activeTab.ctaLabel}
+        onClick={() => setShowCreate(true)}
+        disabled={createMutation.isPending}
+        className="md:hidden"
+      />
 
       <BacklogFormDialog
         isOpen={showCreate}
