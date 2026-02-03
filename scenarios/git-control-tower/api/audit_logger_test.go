@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// [REQ:GCT-OT-P0-007] PostgreSQL audit logging tests
+// [REQ:GCT-OT-P0-007] SQLite audit logging tests
 
 func TestFakeAuditLogger_Log(t *testing.T) {
 	logger := NewFakeAuditLogger()

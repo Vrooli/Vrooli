@@ -5,19 +5,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 // AuditLogger abstracts audit logging operations to enable testing.
 // This is a seam for isolating database side effects.
 //
-// Production code uses PostgresAuditLogger which writes to the database.
+// Production code uses SQLiteAuditLogger which writes to the database.
 // Test code can use FakeAuditLogger to verify logging without database access.
 //
 // SEAM BOUNDARY: All audit logging must flow through this interface.
-// [REQ:GCT-OT-P0-007] PostgreSQL audit logging
+// [REQ:GCT-OT-P0-007] SQLite audit logging
 type AuditLogger interface {
 	// Log records an audit entry.
 	// Returns error only for unexpected failures (not for graceful degradation).
@@ -30,25 +29,25 @@ type AuditLogger interface {
 	IsConfigured() bool
 }
 
-// PostgresAuditLogger implements AuditLogger using PostgreSQL.
-type PostgresAuditLogger struct {
+// SQLiteAuditLogger implements AuditLogger using SQLite.
+type SQLiteAuditLogger struct {
 	db *sql.DB
 }
 
-// NewPostgresAuditLogger creates a new PostgreSQL audit logger.
+// NewSQLiteAuditLogger creates a new SQLite audit logger.
 // Returns nil if db is nil (graceful degradation).
-func NewPostgresAuditLogger(db *sql.DB) *PostgresAuditLogger {
+func NewSQLiteAuditLogger(db *sql.DB) *SQLiteAuditLogger {
 	if db == nil {
 		return nil
 	}
-	return &PostgresAuditLogger{db: db}
+	return &SQLiteAuditLogger{db: db}
 }
 
-func (l *PostgresAuditLogger) IsConfigured() bool {
+func (l *SQLiteAuditLogger) IsConfigured() bool {
 	return l != nil && l.db != nil
 }
 
-func (l *PostgresAuditLogger) Log(ctx context.Context, entry AuditEntry) error {
+func (l *SQLiteAuditLogger) Log(ctx context.Context, entry AuditEntry) error {
 	if !l.IsConfigured() {
 		return nil // Graceful degradation
 	}
@@ -58,7 +57,16 @@ func (l *PostgresAuditLogger) Log(ctx context.Context, entry AuditEntry) error {
 		entry.Timestamp = time.Now().UTC()
 	}
 
-	// Serialize metadata to JSON
+	// Serialize paths and metadata to JSON
+	var pathsJSON []byte
+	if len(entry.Paths) > 0 {
+		var err error
+		pathsJSON, err = json.Marshal(entry.Paths)
+		if err != nil {
+			return fmt.Errorf("failed to marshal paths: %w", err)
+		}
+	}
+
 	var metadataJSON []byte
 	if entry.Metadata != nil {
 		var err error
@@ -73,20 +81,20 @@ func (l *PostgresAuditLogger) Log(ctx context.Context, entry AuditEntry) error {
 			operation, repo_dir, branch, paths,
 			commit_hash, commit_message, success, error_message,
 			created_at, metadata
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := l.db.ExecContext(ctx, query,
 		entry.Operation,
 		entry.RepoDir,
 		entry.Branch,
-		pq.Array(entry.Paths),
+		nullableJSON(pathsJSON),
 		entry.CommitHash,
 		entry.CommitMessage,
 		entry.Success,
 		entry.Error,
-		entry.Timestamp,
-		metadataJSON,
+		formatTimestamp(entry.Timestamp),
+		nullableJSON(metadataJSON),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert audit entry: %w", err)
@@ -95,7 +103,7 @@ func (l *PostgresAuditLogger) Log(ctx context.Context, entry AuditEntry) error {
 	return nil
 }
 
-func (l *PostgresAuditLogger) Query(ctx context.Context, req AuditQueryRequest) (*AuditQueryResponse, error) {
+func (l *SQLiteAuditLogger) Query(ctx context.Context, req AuditQueryRequest) (*AuditQueryResponse, error) {
 	if !l.IsConfigured() {
 		return &AuditQueryResponse{
 			Entries:   []AuditEntry{},
@@ -112,27 +120,22 @@ func (l *PostgresAuditLogger) Query(ctx context.Context, req AuditQueryRequest) 
 		WHERE 1=1
 	`
 	args := []interface{}{}
-	argNum := 1
 
 	if req.Operation != "" {
-		query += fmt.Sprintf(" AND operation = $%d", argNum)
+		query += " AND operation = ?"
 		args = append(args, req.Operation)
-		argNum++
 	}
 	if req.Branch != "" {
-		query += fmt.Sprintf(" AND branch = $%d", argNum)
+		query += " AND branch = ?"
 		args = append(args, req.Branch)
-		argNum++
 	}
 	if !req.Since.IsZero() {
-		query += fmt.Sprintf(" AND created_at >= $%d", argNum)
-		args = append(args, req.Since)
-		argNum++
+		query += " AND created_at >= ?"
+		args = append(args, formatTimestamp(req.Since))
 	}
 	if !req.Until.IsZero() {
-		query += fmt.Sprintf(" AND created_at <= $%d", argNum)
-		args = append(args, req.Until)
-		argNum++
+		query += " AND created_at <= ?"
+		args = append(args, formatTimestamp(req.Until))
 	}
 
 	// Get total count
@@ -145,12 +148,11 @@ func (l *PostgresAuditLogger) Query(ctx context.Context, req AuditQueryRequest) 
 	// Add ordering and pagination
 	query += " ORDER BY created_at DESC"
 	if req.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT $%d", argNum)
+		query += " LIMIT ?"
 		args = append(args, req.Limit)
-		argNum++
 	}
 	if req.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET $%d", argNum)
+		query += " OFFSET ?"
 		args = append(args, req.Offset)
 	}
 
@@ -163,30 +165,39 @@ func (l *PostgresAuditLogger) Query(ctx context.Context, req AuditQueryRequest) 
 	entries := []AuditEntry{}
 	for rows.Next() {
 		var entry AuditEntry
-		var paths pq.StringArray
-		var metadataJSON []byte
+		var pathsJSON sql.NullString
+		var metadataJSON sql.NullString
+		var errorMessage sql.NullString
+		var createdAt string
 
 		err := rows.Scan(
 			&entry.ID,
 			&entry.Operation,
 			&entry.RepoDir,
 			&entry.Branch,
-			&paths,
+			&pathsJSON,
 			&entry.CommitHash,
 			&entry.CommitMessage,
 			&entry.Success,
-			&entry.Error,
-			&entry.Timestamp,
+			&errorMessage,
+			&createdAt,
 			&metadataJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan audit entry: %w", err)
 		}
 
-		entry.Paths = paths
-		if len(metadataJSON) > 0 {
-			if err := json.Unmarshal(metadataJSON, &entry.Metadata); err != nil {
-				// Non-fatal: continue with nil metadata
+		entry.Error = errorMessage.String
+		entry.Timestamp = parseTimestamp(createdAt)
+
+		if pathsJSON.Valid && strings.TrimSpace(pathsJSON.String) != "" {
+			if err := json.Unmarshal([]byte(pathsJSON.String), &entry.Paths); err != nil {
+				entry.Paths = nil
+			}
+		}
+
+		if metadataJSON.Valid && strings.TrimSpace(metadataJSON.String) != "" {
+			if err := json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata); err != nil {
 				entry.Metadata = nil
 			}
 		}
@@ -222,4 +233,28 @@ func (l *NoOpAuditLogger) Query(_ context.Context, _ AuditQueryRequest) (*AuditQ
 		Entries:   []AuditEntry{},
 		Timestamp: time.Now().UTC(),
 	}, nil
+}
+
+func formatTimestamp(ts time.Time) string {
+	return ts.UTC().Format(time.RFC3339Nano)
+}
+
+func parseTimestamp(raw string) time.Time {
+	if raw == "" {
+		return time.Time{}
+	}
+
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		return time.Time{}
+	}
+
+	return parsed
+}
+
+func nullableJSON(payload []byte) interface{} {
+	if len(payload) == 0 {
+		return nil
+	}
+	return string(payload)
 }

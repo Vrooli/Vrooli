@@ -216,13 +216,13 @@ The `AuditLogger` interface abstracts audit logging operations:
 - `Query` - Retrieve audit entries matching a request
 - `IsConfigured` - Check if audit logging is available
 
-### Production Implementation: PostgresAuditLogger
+### Production Implementation: SQLiteAuditLogger
 
-The `PostgresAuditLogger` writes audit entries to the `git_audit_log` PostgreSQL table:
+The `SQLiteAuditLogger` writes audit entries to the `git_audit_log` SQLite table:
 
 ```go
 srv := &Server{
-    audit: NewPostgresAuditLogger(db),
+    audit: NewSQLiteAuditLogger(db),
 }
 ```
 

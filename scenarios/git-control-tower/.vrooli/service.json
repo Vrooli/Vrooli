@@ -73,19 +73,11 @@
           "timeout": 5000,
           "interval": 30000,
           "critical": false
-        },
-        {
-          "name": "postgres_connection",
-          "type": "postgres",
-          "target": "vrooli",
-          "critical": true,
-          "timeout": 3000,
-          "interval": 60000
         }
       ]
     },
     "setup": {
-      "description": "Initialize Git Control Tower (build + install + schema)",
+      "description": "Initialize Git Control Tower (build + install)",
       "condition": {
         "checks": [
           {
@@ -134,11 +126,6 @@
           "name": "build-ui",
           "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "initialize-database",
-          "run": "if [ -f initialization/postgres/schema.sql ]; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql &> /dev/null || echo '⚠️  Schema initialization skipped (psql connection failed)'; else echo '⚠️  No schema.sql found (ok for scaffold)'; fi",
-          "description": "Initialize database schema (best-effort; safe to skip in scaffold)"
         },
         {
           "name": "show-urls",
@@ -199,11 +186,11 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
+      "sqlite": {
+        "type": "sqlite",
         "enabled": true,
         "required": true,
-        "description": "Audit logs and metadata storage (uses shared vrooli database)"
+        "description": "Audit log and metadata storage (local SQLite database)"
       },
       "redis": {
         "type": "redis",

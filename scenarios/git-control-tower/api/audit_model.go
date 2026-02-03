@@ -3,7 +3,7 @@ package main
 import "time"
 
 // AuditOperation represents the type of operation being audited.
-// [REQ:GCT-OT-P0-007] PostgreSQL audit logging
+// [REQ:GCT-OT-P0-007] SQLite audit logging
 type AuditOperation string
 
 const (

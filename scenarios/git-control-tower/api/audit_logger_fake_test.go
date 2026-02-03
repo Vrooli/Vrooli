@@ -8,7 +8,7 @@ import (
 // FakeAuditLogger implements AuditLogger without a database.
 // Use this in tests to verify audit logging behavior.
 //
-// [REQ:GCT-OT-P0-007] PostgreSQL audit logging
+// [REQ:GCT-OT-P0-007] SQLite audit logging
 type FakeAuditLogger struct {
 	// Entries stores all logged entries.
 	Entries []AuditEntry

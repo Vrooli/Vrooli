@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0.0  
-> **Last Updated**: 2025-12-16  
+> **Last Updated**: 2026-02-03  
 > **Status**: Initialized (scaffold)  
 > **Canonical Reference**: PRD Control Tower
 
@@ -20,7 +20,7 @@
 - [ ] OT-P0-004 | Stage/unstage operations | Stage/unstage specific files or by scope (scenario/resource) via POST endpoints
 - [ ] OT-P0-005 | Commit composition API | Create commits with conventional commit message validation, returns commit hash
 - [ ] OT-P0-006 | Push/pull status | Check if push needed with safety checks for behind-remote scenarios
-- [ ] OT-P0-007 | PostgreSQL audit logging | Logs all mutating operations (stage, unstage, commit) to database with graceful degradation
+- [ ] OT-P0-007 | SQLite audit logging | Logs all mutating operations (stage, unstage, commit) to database with graceful degradation
 - [ ] OT-P0-008 | CLI command parity | CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)
 
 ### 🟠 P1 – Should have post-launch
@@ -36,12 +36,12 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go for API, React + Vite + TypeScript for UI, CLI wrapper for agent ergonomics.
-- Data + storage expectations: PostgreSQL for audit logs/metadata; optional Redis for caching.
+- Data + storage expectations: SQLite for audit logs/metadata; optional Redis for caching.
 - Integration strategy: Operate on the local Vrooli repository working tree (single-repo focus) and expose safe, structured endpoints for agent consumption.
 - Non-goals / guardrails: Not a git server; no multi-repo support initially; no remote push/pull by default (status-only unless explicitly expanded); avoid requiring agents to parse raw CLI output.
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: PostgreSQL (audit logs) and a git binary available in `PATH`.
+- Required resources: SQLite (audit logs) and a git binary available in `PATH`.
 - Optional resources: Ollama + OpenRouter (AI commit message suggestions), Redis (diff/status caching).
 - Operational risks: Large repos require pagination/caching; missing database must degrade gracefully; missing git binary should fail fast with clear health errors.
 - Launch sequencing: Build API + UI, start services via lifecycle, validate `/health`, then iterate operational targets (P0 → P1 → P2) with requirements-linked tests.
