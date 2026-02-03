@@ -1,6 +1,6 @@
 ## Meta focus: Skill Principles
 
-Guide for creating and updating skills that keep agent decisions consistent without over-prescription. Applies to every category (Steer, Search, Tools, Meta).
+Guide for creating and updating skills that keep agent decisions consistent without over-prescription. Applies to every category (Steer, Search, Tools, Practice, Meta).
 
 ---
 
@@ -11,6 +11,7 @@ Skills are reusable, principle-based guidance that create shared mental models a
 **Good:**
 - "Prefer boundary validation at system edges"
 - "Handle all states explicitly: loading, error, empty, success"
+- "Generate falsifiable hypotheses before debugging"
 
 **Avoid:**
 - "Edit src/components/Button.tsx line 42"
@@ -40,6 +41,7 @@ Use the category that matches the skill's primary outcome (this is `modes[0]` in
 | Build or improve scenario behavior | Steer | Architecture, quality, reliability |
 | Find or map information | Search | Discovery, coverage, evidence |
 | Use a tool/resource/scenario | Tools | Correct operation, safety, efficiency |
+| Apply a systematic engineering methodology | Practice | Process rigor, repeatability, knowledge capture |
 | Define or govern the skill system | Meta | Skill coherence, policy, lifecycle |
 
 Decision check:
@@ -50,6 +52,8 @@ Is the skill about finding information or tracing implementation?
   -> Search
 Is the skill about using a tool or resource correctly?
   -> Tools
+Is the skill about HOW to approach a class of problems systematically?
+  -> Practice
 Is the skill about how skills should be written or governed?
   -> Meta
 ```
@@ -71,10 +75,10 @@ Every skill must include:
 When a skill depends on another, reference it explicitly using the prompt-manager CLI pattern.
 
 Required reading:
-- `prompt-manager skills read <skill-id>`
+- `prompt-manager skill read <skill-id>`
 
 Optional reading:
-- `prompt-manager skills read <skill-id> <skill-id>`
+- `prompt-manager skill read <skill-id> <skill-id>`
 
 Only require what is essential; keep optional lists short and relevant.
 
@@ -82,14 +86,12 @@ Only require what is essential; keep optional lists short and relevant.
 
 ### **6. Registration and Metadata**
 
-1. Create or update the markdown file in `scenarios/prompt-manager/skills/core/` (or `drafts/` for WIP).
-2. Add/update the entry in `metadata.json` with:
-   - `id` (kebab-case, stable)
-   - `file` (matches filename)
-   - `name`, `description`
-   - `modes` (category first)
-   - timestamps
-3. Verify the skill loads correctly in prompt-manager.
+1. Create the skill directory in `scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`
+2. Add the following files:
+   - `SKILL.md` - skill content
+   - `skill.json` - metadata with `id`, `name`, `description`, `modes`, `tags`
+3. Run `prompt-manager skill sync` to pick up changes
+4. Verify via `prompt-manager skill show <id>`
 
 ---
 
@@ -105,8 +107,8 @@ Before creating a new skill:
 ### **8. Output Expectations**
 
 You may:
-- Add or update skill markdown files
-- Update `metadata.json` entries
+- Add or update skill files in the packs directory
+- Create new skill directories for genuinely new mental models
 
 You must:
 - Preserve principle-based guidance style
