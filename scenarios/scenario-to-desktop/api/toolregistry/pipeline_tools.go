@@ -96,6 +96,10 @@ func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 					Default:     StringValue("basic"),
 					Description: "Electron template type: basic (single window), advanced (multi-window), kiosk",
 				},
+				"location_mode": {
+					Type:        "string",
+					Description: "Output location mode: proper (default), staging, or temp. Staging/temp keep outputs under scenario-to-desktop/data/staging.",
+				},
 				"distribute": {
 					Type:        "boolean",
 					Default:     BoolValue(false),

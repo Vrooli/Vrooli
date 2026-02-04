@@ -378,6 +378,9 @@ func (s *DefaultService) resolveOutputPath(config *DesktopConfig, buildID string
 
 	switch mode {
 	case "temp", "staging":
+		if config.OutputPath != "" {
+			return config.OutputPath, destinationPath
+		}
 		return s.stagingOutputPath(config.AppName, buildID), destinationPath
 	case "custom":
 		if config.OutputPath != "" {

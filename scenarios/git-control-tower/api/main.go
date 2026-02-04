@@ -15,11 +15,11 @@ import (
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
 
 	"git-control-tower/ssh"
 )
@@ -38,6 +38,7 @@ type Server struct {
 	audit   AuditLogger
 	sandbox *WorkspaceSandboxClient
 	sshDeps ssh.SSHDeps
+	repos   *RepoService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -65,6 +66,9 @@ func NewServer() (*Server, error) {
 	if err := ensureAuditSchema(db); err != nil {
 		return nil, fmt.Errorf("audit schema initialization failed: %w", err)
 	}
+	if err := ensureRepoSchema(db); err != nil {
+		return nil, fmt.Errorf("repo schema initialization failed: %w", err)
+	}
 
 	// Initialize audit logger with graceful degradation
 	var auditLogger AuditLogger
@@ -84,6 +88,7 @@ func NewServer() (*Server, error) {
 		sandbox: NewWorkspaceSandboxClient(5 * time.Second),
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
+	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
 
 	srv.setupRoutes()
 	return srv, nil
@@ -102,6 +107,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/status", s.handleRepoStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/diff", s.handleDiff).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/history", s.handleRepoHistory).Methods("GET")
+	// Repo registry endpoints
+	s.router.HandleFunc("/api/v1/repos", s.handleRepoList).Methods("GET")
+	s.router.HandleFunc("/api/v1/repos/active", s.handleRepoActive).Methods("GET")
+	s.router.HandleFunc("/api/v1/repos/active", s.handleRepoSetActive).Methods("POST")
+	s.router.HandleFunc("/api/v1/repos/open", s.handleRepoOpen).Methods("POST")
+	s.router.HandleFunc("/api/v1/repos/clone", s.handleRepoClone).Methods("POST")
+	s.router.HandleFunc("/api/v1/repos/{id}", s.handleRepoRemove).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/repo/stage", s.handleStage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/unstage", s.handleUnstage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/commit", s.handleCommit).Methods("POST")
@@ -149,38 +161,30 @@ func (s *Server) Router() http.Handler {
 // by the health package with Critical priority.
 
 func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
-	status, err := GetRepoStatus(ctx, RepoStatusDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	status, err := GetRepoStatus(hctx.Ctx, RepoStatusDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	})
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(status)
+	hctx.Resp.OK(status)
 }
 
 func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	limit := 30
 	includeParam := strings.TrimSpace(r.URL.Query().Get("include"))
@@ -188,7 +192,7 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed <= 0 {
-			resp.BadRequest("limit must be a positive integer")
+			hctx.Resp.BadRequest("limit must be a positive integer")
 			return
 		}
 		if parsed > 200 {
@@ -197,31 +201,27 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
-	history, err := GetRepoHistory(ctx, RepoHistoryDeps{
-		Git:          s.git,
-		RepoDir:      repoDir,
+	history, err := GetRepoHistory(hctx.Ctx, RepoHistoryDeps{
+		Git:          hctx.Git,
+		RepoDir:      hctx.RepoDir,
 		Limit:        limit,
 		IncludeFiles: includeFiles,
 	})
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(history)
+	hctx.Resp.OK(history)
 }
 
 // [REQ:GCT-OT-P0-003] File diff endpoint
 func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	// Parse query parameters
 	query := r.URL.Query()
@@ -238,9 +238,9 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		mode = ViewModeDiff
 	}
 
-	diff, err := GetDiff(ctx, DiffDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	diff, err := GetDiff(hctx.Ctx, DiffDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, DiffRequest{
 		Path:      query.Get("path"),
 		Staged:    query.Get("staged") == "true",
@@ -253,32 +253,28 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var tooLarge *FileTooLargeError
 		if errors.As(err, &tooLarge) {
-			resp.PayloadTooLarge(tooLarge.Error())
+			hctx.Resp.PayloadTooLarge(tooLarge.Error())
 			return
 		}
 		var unsupported *UnsupportedBinaryError
 		if errors.As(err, &unsupported) {
-			resp.UnsupportedMediaType(unsupported.Error())
+			hctx.Resp.UnsupportedMediaType(unsupported.Error())
 			return
 		}
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(diff)
+	hctx.Resp.OK(diff)
 }
 
 // [REQ:GCT-OT-P0-004] Stage/unstage operations
 func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req StageRequest
 	if !ParseJSONBody(w, r, &req) {
@@ -288,15 +284,15 @@ func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := StageFiles(ctx, StagingDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := StageFiles(hctx.Ctx, StagingDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 
 	// [REQ:GCT-OT-P0-007] Audit logging for stage operation
 	auditEntry := AuditEntry{
 		Operation: AuditOpStage,
-		RepoDir:   repoDir,
+		RepoDir:   hctx.RepoDir,
 		Paths:     req.Paths,
 		Success:   result != nil && result.Success,
 	}
@@ -316,27 +312,23 @@ func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req UnstageRequest
 	if !ParseJSONBody(w, r, &req) {
@@ -346,15 +338,15 @@ func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := UnstageFiles(ctx, StagingDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := UnstageFiles(hctx.Ctx, StagingDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 
 	// [REQ:GCT-OT-P0-007] Audit logging for unstage operation
 	auditEntry := AuditEntry{
 		Operation: AuditOpUnstage,
-		RepoDir:   repoDir,
+		RepoDir:   hctx.RepoDir,
 		Paths:     req.Paths,
 		Success:   result != nil && result.Success,
 	}
@@ -374,37 +366,33 @@ func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // [REQ:GCT-OT-P0-005] Commit composition API
 func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req CommitRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := CreateCommit(ctx, CommitDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := CreateCommit(hctx.Ctx, CommitDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 
 	// [REQ:GCT-OT-P0-007] Audit logging for commit operation
@@ -414,7 +402,7 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	auditEntry := AuditEntry{
 		Operation:     AuditOpCommit,
-		RepoDir:       repoDir,
+		RepoDir:       hctx.RepoDir,
 		CommitMessage: commitMessage,
 		Success:       result != nil && result.Success,
 	}
@@ -438,28 +426,24 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // [REQ:GCT-OT-P0-006] Push/pull status
 func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	// Parse query parameters
 	query := r.URL.Query()
@@ -468,29 +452,25 @@ func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
 		Remote: query.Get("remote"),
 	}
 
-	result, err := GetSyncStatus(ctx, SyncStatusDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := GetSyncStatus(hctx.Ctx, SyncStatusDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleDiscard handles POST /api/v1/repo/discard
 func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req DiscardRequest
 	if !ParseJSONBody(w, r, &req) {
@@ -498,19 +478,19 @@ func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(req.Paths) == 0 {
-		resp.BadRequest("paths are required")
+		hctx.Resp.BadRequest("paths are required")
 		return
 	}
 
-	result, err := DiscardFiles(ctx, DiscardDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := DiscardFiles(hctx.Ctx, DiscardDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 
 	// Audit logging for discard operation
 	auditEntry := AuditEntry{
 		Operation: AuditOpDiscard,
-		RepoDir:   repoDir,
+		RepoDir:   hctx.RepoDir,
 		Paths:     req.Paths,
 		Success:   result != nil && result.Success,
 	}
@@ -530,28 +510,24 @@ func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleIgnore handles POST /api/v1/repo/ignore
 func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req IgnoreRequest
 	if !ParseJSONBody(w, r, &req) {
@@ -559,18 +535,18 @@ func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.TrimSpace(req.Path) == "" {
-		resp.BadRequest("path is required")
+		hctx.Resp.BadRequest("path is required")
 		return
 	}
 
-	result, err := IgnorePath(ctx, IgnoreDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := IgnorePath(hctx.Ctx, IgnoreDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 
 	auditEntry := AuditEntry{
 		Operation: AuditOpIgnore,
-		RepoDir:   repoDir,
+		RepoDir:   hctx.RepoDir,
 		Paths:     []string{req.Path},
 		Success:   result != nil && result.Success,
 	}
@@ -589,43 +565,39 @@ func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handlePush handles POST /api/v1/repo/push
 func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 60*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req PushRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := PushToRemote(ctx, PushPullDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := PushToRemote(hctx.Ctx, PushPullDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 
 	// Audit logging for push operation
 	auditEntry := AuditEntry{
 		Operation: AuditOpPush,
-		RepoDir:   repoDir,
+		RepoDir:   hctx.RepoDir,
 		Success:   result != nil && result.Success,
 		Metadata: map[string]interface{}{
 			"remote": result.Remote,
@@ -645,43 +617,39 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handlePull handles POST /api/v1/repo/pull
 func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 60*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req PullRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := PullFromRemote(ctx, PushPullDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := PullFromRemote(hctx.Ctx, PushPullDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 
 	// Audit logging for pull operation
 	auditEntry := AuditEntry{
 		Operation: AuditOpPull,
-		RepoDir:   repoDir,
+		RepoDir:   hctx.RepoDir,
 		Success:   result != nil && result.Success,
 		Metadata: map[string]interface{}{
 			"remote":        result.Remote,
@@ -702,47 +670,43 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleUpstreamAction handles POST /api/v1/repo/upstream-action
 func (s *Server) handleUpstreamAction(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 60*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req UpstreamActionRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := RunUpstreamAction(ctx, PushPullDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := RunUpstreamAction(hctx.Ctx, PushPullDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // [REQ:GCT-OT-P0-007] Audit log query endpoint
@@ -788,59 +752,51 @@ func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
 
 // handleListCredentials handles GET /api/v1/credentials
 func (s *Server) handleListCredentials(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
-	result, err := ListCredentials(ctx, CredentialsDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := ListCredentials(hctx.Ctx, CredentialsDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	})
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleSaveCredential handles POST /api/v1/credentials
 func (s *Server) handleSaveCredential(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req CredentialSaveRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := SaveCredential(ctx, CredentialsDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := SaveCredential(hctx.Ctx, CredentialsDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleDeleteCredential handles DELETE /api/v1/credentials/{id}
@@ -872,64 +828,56 @@ func (s *Server) handleDeleteCredential(w http.ResponseWriter, r *http.Request) 
 
 // handleTestCredential handles POST /api/v1/credentials/test
 func (s *Server) handleTestCredential(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req CredentialTestRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := TestCredential(ctx, CredentialsDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := TestCredential(hctx.Ctx, CredentialsDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleUpdateRemoteURL handles POST /api/v1/repo/remote/url
 func (s *Server) handleUpdateRemoteURL(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req RemoteURLUpdateRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := UpdateRemoteURL(ctx, CredentialsDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := UpdateRemoteURL(hctx.Ctx, CredentialsDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // Keep this in sync with initialization/sqlite/schema.sql.
@@ -954,6 +902,26 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_branch ON git_audit_log(branch);
 CREATE INDEX IF NOT EXISTS idx_audit_log_op_created ON git_audit_log(operation, created_at DESC);
 `
 
+const repoSchemaSQL = `
+CREATE TABLE IF NOT EXISTS git_repos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    path TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    remote_url TEXT,
+    added_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    last_opened_at TEXT,
+    is_favorite INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_git_repos_last_opened ON git_repos(last_opened_at DESC);
+CREATE INDEX IF NOT EXISTS idx_git_repos_added_at ON git_repos(added_at DESC);
+
+CREATE TABLE IF NOT EXISTS git_repo_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+`
+
 func ensureAuditSchema(db *sql.DB) error {
 	if db == nil {
 		return nil
@@ -963,6 +931,27 @@ func ensureAuditSchema(db *sql.DB) error {
 	defer cancel()
 
 	for _, statement := range strings.Split(auditSchemaSQL, ";") {
+		stmt := strings.TrimSpace(statement)
+		if stmt == "" {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("apply schema: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func ensureRepoSchema(db *sql.DB) error {
+	if db == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for _, statement := range strings.Split(repoSchemaSQL, ";") {
 		stmt := strings.TrimSpace(statement)
 		if stmt == "" {
 			continue

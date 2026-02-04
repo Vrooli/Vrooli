@@ -17,13 +17,15 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
 import type { ViewingCommit } from "../App";
-import { BranchSelector, type BranchActions } from "./BranchSelector";
+import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
 
 interface StatusHeaderProps {
   status?: RepoStatus;
   health?: HealthResponse;
   syncStatus?: SyncStatusResponse;
   branchActions?: BranchActions;
+  repoActions?: RepoActions;
+  onRepoChange?: (repoId: string | null) => void;
   isLoading: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
@@ -42,6 +44,8 @@ export function StatusHeader({
   health,
   syncStatus,
   branchActions,
+  repoActions,
+  onRepoChange,
   isLoading,
   onRefresh,
   onOpenSettings,
@@ -177,7 +181,13 @@ export function StatusHeader({
         {/* Branch Info */}
         <div className="flex items-center gap-2" data-testid="branch-info">
           {branchActions ? (
-            <BranchSelector status={status} syncStatus={syncStatus} actions={branchActions} />
+            <BranchSelector
+              status={status}
+              syncStatus={syncStatus}
+              actions={branchActions}
+              repoActions={repoActions}
+              onRepoChange={onRepoChange}
+            />
           ) : (
             <>
               <GitBranch className="h-4 w-4 text-slate-400" />

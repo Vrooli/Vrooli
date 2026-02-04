@@ -11,7 +11,7 @@ import (
 type Packager interface {
 	// Package packages a bundle from the given app path and manifest.
 	// framework specifies the target framework (e.g., "electron") which determines the bundle output path.
-	Package(appPath, manifestPath, framework string, requestedPlatforms []string) (*PackageResult, error)
+	Package(appPath, manifestPath, framework string, requestedPlatforms []string, outputRoot ...string) (*PackageResult, error)
 }
 
 // RuntimeResolver locates the runtime source directory.

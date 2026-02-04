@@ -9,6 +9,7 @@ interface RelatedFilesPanelProps {
   forPath: string;
   onBack: () => void;
   onSelectFile: (path: string) => void;
+  repoId?: string | null;
 }
 
 // Group related files by relation type
@@ -162,8 +163,13 @@ function FileItem({ file, onSelect }: { file: RelatedFile; onSelect: () => void 
   );
 }
 
-export function RelatedFilesPanel({ forPath, onBack, onSelectFile }: RelatedFilesPanelProps) {
-  const { data, isLoading, error } = useRelatedFiles(forPath);
+export function RelatedFilesPanel({
+  forPath,
+  onBack,
+  onSelectFile,
+  repoId
+}: RelatedFilesPanelProps) {
+  const { data, isLoading, error } = useRelatedFiles(forPath, true, repoId);
 
   // Section collapse states
   const [importsCollapsed, setImportsCollapsed] = useState(false);

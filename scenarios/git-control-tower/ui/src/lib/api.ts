@@ -1,6 +1,15 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
+const REPO_HEADER = "X-Repo-Id";
+
+function buildRepoHeaders(repoId?: string) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (repoId) {
+    headers[REPO_HEADER] = repoId;
+  }
+  return headers;
+}
 
 // ============================================================================
 // Type Definitions
@@ -16,6 +25,50 @@ export interface HealthResponse {
     git: { status: string; message?: string };
     repo: { status: string; message?: string };
   };
+}
+
+export interface RepoRecord {
+  id: number;
+  path: string;
+  name: string;
+  remote_url?: string;
+  added_at: string;
+  last_opened_at?: string;
+  favorite?: boolean;
+}
+
+export interface RepoListResponse {
+  repos: RepoRecord[];
+  active_id?: number;
+  timestamp: string;
+}
+
+export interface RepoActiveResponse {
+  repo?: RepoRecord;
+  timestamp: string;
+}
+
+export interface RepoOpenRequest {
+  path: string;
+}
+
+export interface RepoCloneRequest {
+  url: string;
+  destination: string;
+}
+
+export interface RepoActiveRequest {
+  id: number;
+}
+
+export interface RepoMutationResponse {
+  repo?: RepoRecord;
+  timestamp: string;
+}
+
+export interface RepoRemoveResponse {
+  removed: boolean;
+  timestamp: string;
 }
 
 export interface RepoBranchStatus {
@@ -536,10 +589,10 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return handleResponse<HealthResponse>(res);
 }
 
-export async function fetchRepoStatus(): Promise<RepoStatus> {
+export async function fetchRepoStatus(repoId?: string): Promise<RepoStatus> {
   const url = buildApiUrl("/repo/status", { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<RepoStatus>(res);
@@ -547,7 +600,8 @@ export async function fetchRepoStatus(): Promise<RepoStatus> {
 
 export async function fetchRepoHistory(
   limit = 30,
-  includeFiles = false
+  includeFiles = false,
+  repoId?: string
 ): Promise<RepoHistoryResponse> {
   const params = new URLSearchParams();
   if (limit > 0) params.set("limit", String(limit));
@@ -555,7 +609,7 @@ export async function fetchRepoHistory(
 
   const url = buildApiUrl(`/repo/history?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<RepoHistoryResponse>(res);
@@ -567,7 +621,8 @@ export async function fetchDiff(
   untracked = false,
   commit?: string,
   mode: ViewMode = "diff",
-  any = false
+  any = false,
+  repoId?: string
 ): Promise<DiffResponse> {
   const params = new URLSearchParams();
   if (path) params.set("path", path);
@@ -579,161 +634,181 @@ export async function fetchDiff(
 
   const url = buildApiUrl(`/repo/diff?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<DiffResponse>(res);
 }
 
-export async function stageFiles(request: StageRequest): Promise<StageResponse> {
+export async function stageFiles(request: StageRequest, repoId?: string): Promise<StageResponse> {
   const url = buildApiUrl("/repo/stage", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<StageResponse>(res);
 }
 
-export async function unstageFiles(request: UnstageRequest): Promise<UnstageResponse> {
+export async function unstageFiles(request: UnstageRequest, repoId?: string): Promise<UnstageResponse> {
   const url = buildApiUrl("/repo/unstage", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<UnstageResponse>(res);
 }
 
-export async function createCommit(request: CommitRequest): Promise<CommitResponse> {
+export async function createCommit(request: CommitRequest, repoId?: string): Promise<CommitResponse> {
   const url = buildApiUrl("/repo/commit", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<CommitResponse>(res);
 }
 
-export async function discardFiles(request: DiscardRequest): Promise<DiscardResponse> {
+export async function discardFiles(request: DiscardRequest, repoId?: string): Promise<DiscardResponse> {
   const url = buildApiUrl("/repo/discard", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<DiscardResponse>(res);
 }
 
-export async function ignoreFile(request: IgnoreRequest): Promise<IgnoreResponse> {
+export async function ignoreFile(request: IgnoreRequest, repoId?: string): Promise<IgnoreResponse> {
   const url = buildApiUrl("/repo/ignore", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<IgnoreResponse>(res);
 }
 
-export async function pushToRemote(request: PushRequest = {}): Promise<PushResponse> {
+export async function pushToRemote(
+  request: PushRequest = {},
+  repoId?: string
+): Promise<PushResponse> {
   const url = buildApiUrl("/repo/push", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<PushResponse>(res);
 }
 
-export async function pullFromRemote(request: PullRequest = {}): Promise<PullResponse> {
+export async function pullFromRemote(
+  request: PullRequest = {},
+  repoId?: string
+): Promise<PullResponse> {
   const url = buildApiUrl("/repo/pull", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<PullResponse>(res);
 }
 
 export async function runUpstreamAction(
-  request: UpstreamActionRequest
+  request: UpstreamActionRequest,
+  repoId?: string
 ): Promise<UpstreamActionResponse> {
   const url = buildApiUrl("/repo/upstream-action", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<UpstreamActionResponse>(res);
 }
 
-export async function fetchSyncStatus(doFetch = false): Promise<SyncStatusResponse> {
+export async function fetchSyncStatus(
+  doFetch = false,
+  repoId?: string
+): Promise<SyncStatusResponse> {
   const params = new URLSearchParams();
   if (doFetch) params.set("fetch", "true");
 
   const url = buildApiUrl(`/repo/sync-status?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<SyncStatusResponse>(res);
 }
 
-export async function fetchApprovedChanges(): Promise<ApprovedChangesResponse> {
+export async function fetchApprovedChanges(repoId?: string): Promise<ApprovedChangesResponse> {
   const url = buildApiUrl("/repo/approved-changes", { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<ApprovedChangesResponse>(res);
 }
 
 export async function fetchApprovedChangesPreview(
-  request: ApprovedChangesPreviewRequest
+  request: ApprovedChangesPreviewRequest,
+  repoId?: string
 ): Promise<ApprovedChangesResponse> {
   const url = buildApiUrl("/repo/approved-changes/preview", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<ApprovedChangesResponse>(res);
 }
 
-export async function fetchBranches(): Promise<RepoBranchesResponse> {
+export async function fetchBranches(repoId?: string): Promise<RepoBranchesResponse> {
   const url = buildApiUrl("/repo/branches", { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<RepoBranchesResponse>(res);
 }
 
-export async function createBranch(request: CreateBranchRequest): Promise<BranchCreateResponse> {
+export async function createBranch(
+  request: CreateBranchRequest,
+  repoId?: string
+): Promise<BranchCreateResponse> {
   const url = buildApiUrl("/repo/branch/create", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<BranchCreateResponse>(res);
 }
 
-export async function switchBranch(request: SwitchBranchRequest): Promise<BranchSwitchResponse> {
+export async function switchBranch(
+  request: SwitchBranchRequest,
+  repoId?: string
+): Promise<BranchSwitchResponse> {
   const url = buildApiUrl("/repo/branch/switch", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<BranchSwitchResponse>(res);
 }
 
-export async function publishBranch(request: PublishBranchRequest = {}): Promise<BranchPublishResponse> {
+export async function publishBranch(
+  request: PublishBranchRequest = {},
+  repoId?: string
+): Promise<BranchPublishResponse> {
   const url = buildApiUrl("/repo/branch/publish", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<BranchPublishResponse>(res);
@@ -743,7 +818,8 @@ export async function fetchFiles(
   pattern?: string,
   limit = 1000,
   deep = false,
-  timeout = 5000
+  timeout = 5000,
+  repoId?: string
 ): Promise<FileTreeResponse> {
   const params = new URLSearchParams();
   if (pattern) params.set("pattern", pattern);
@@ -753,25 +829,31 @@ export async function fetchFiles(
 
   const url = buildApiUrl(`/repo/files?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<FileTreeResponse>(res);
 }
 
-export async function fetchRelatedFiles(path: string): Promise<RelatedFilesResponse> {
+export async function fetchRelatedFiles(
+  path: string,
+  repoId?: string
+): Promise<RelatedFilesResponse> {
   const params = new URLSearchParams();
   params.set("path", path);
 
   const url = buildApiUrl(`/repo/related?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<RelatedFilesResponse>(res);
 }
 
-export async function searchContent(request: ContentSearchRequest): Promise<ContentSearchResponse> {
+export async function searchContent(
+  request: ContentSearchRequest,
+  repoId?: string
+): Promise<ContentSearchResponse> {
   const params = new URLSearchParams();
   params.set("query", request.query);
   if (request.case_sensitive) params.set("case_sensitive", "true");
@@ -785,19 +867,19 @@ export async function searchContent(request: ContentSearchRequest): Promise<Cont
 
   const url = buildApiUrl(`/repo/search/content?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<ContentSearchResponse>(res);
 }
 
-export async function fetchDirectoryContents(path = ""): Promise<DirListResponse> {
+export async function fetchDirectoryContents(path = "", repoId?: string): Promise<DirListResponse> {
   const params = new URLSearchParams();
   if (path) params.set("path", path);
 
   const url = buildApiUrl(`/repo/files/dir?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<DirListResponse>(res);
@@ -816,11 +898,14 @@ export interface DeletePathResponse {
   timestamp: string;
 }
 
-export async function deletePath(request: DeletePathRequest): Promise<DeletePathResponse> {
+export async function deletePath(
+  request: DeletePathRequest,
+  repoId?: string
+): Promise<DeletePathResponse> {
   const url = buildApiUrl("/repo/files/delete", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<DeletePathResponse>(res);
@@ -830,52 +915,127 @@ export async function deletePath(request: DeletePathRequest): Promise<DeletePath
 // Credentials API Functions
 // ============================================================================
 
-export async function fetchCredentials(): Promise<CredentialsListResponse> {
+export async function fetchCredentials(repoId?: string): Promise<CredentialsListResponse> {
   const url = buildApiUrl("/credentials", { baseUrl: API_BASE });
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     cache: "no-store"
   });
   return handleResponse<CredentialsListResponse>(res);
 }
 
-export async function saveCredential(request: CredentialSaveRequest): Promise<CredentialSaveResponse> {
+export async function saveCredential(
+  request: CredentialSaveRequest,
+  repoId?: string
+): Promise<CredentialSaveResponse> {
   const url = buildApiUrl("/credentials", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<CredentialSaveResponse>(res);
 }
 
-export async function deleteCredential(id: string): Promise<CredentialDeleteResponse> {
+export async function deleteCredential(
+  id: string,
+  repoId?: string
+): Promise<CredentialDeleteResponse> {
   const url = buildApiUrl(`/credentials/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" }
+    headers: buildRepoHeaders(repoId)
   });
   return handleResponse<CredentialDeleteResponse>(res);
 }
 
-export async function testCredential(request: CredentialTestRequest): Promise<CredentialTestResponse> {
+export async function testCredential(
+  request: CredentialTestRequest,
+  repoId?: string
+): Promise<CredentialTestResponse> {
   const url = buildApiUrl("/credentials/test", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
   return handleResponse<CredentialTestResponse>(res);
 }
 
-export async function updateRemoteURL(request: RemoteURLUpdateRequest): Promise<RemoteURLUpdateResponse> {
+export async function updateRemoteURL(
+  request: RemoteURLUpdateRequest,
+  repoId?: string
+): Promise<RemoteURLUpdateResponse> {
   const url = buildApiUrl("/repo/remote/url", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request)
+  });
+  return handleResponse<RemoteURLUpdateResponse>(res);
+}
+
+// ============================================================================
+// Repo Registry API Functions
+// ============================================================================
+
+export async function fetchRepos(): Promise<RepoListResponse> {
+  const url = buildApiUrl("/repos", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<RepoListResponse>(res);
+}
+
+export async function fetchActiveRepo(): Promise<RepoActiveResponse> {
+  const url = buildApiUrl("/repos/active", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<RepoActiveResponse>(res);
+}
+
+export async function openRepo(request: RepoOpenRequest): Promise<RepoMutationResponse> {
+  const url = buildApiUrl("/repos/open", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request)
   });
-  return handleResponse<RemoteURLUpdateResponse>(res);
+  return handleResponse<RepoMutationResponse>(res);
+}
+
+export async function cloneRepo(request: RepoCloneRequest): Promise<RepoMutationResponse> {
+  const url = buildApiUrl("/repos/clone", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<RepoMutationResponse>(res);
+}
+
+export async function setActiveRepo(request: RepoActiveRequest): Promise<RepoMutationResponse> {
+  const url = buildApiUrl("/repos/active", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<RepoMutationResponse>(res);
+}
+
+export async function removeRepo(id: number): Promise<RepoRemoveResponse> {
+  const url = buildApiUrl(`/repos/${encodeURIComponent(String(id))}`, {
+    baseUrl: API_BASE
+  });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" }
+  });
+  return handleResponse<RepoRemoveResponse>(res);
 }
 
 // ============================================================================

@@ -453,6 +453,7 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 		config.DeploymentMode = userConfig.DeploymentMode
 		config.Framework = userConfig.Framework
 		config.TemplateType = userConfig.TemplateType
+		config.LocationMode = userConfig.LocationMode
 		config.WebhookURL = userConfig.WebhookURL
 		config.ProxyURL = userConfig.ProxyURL
 		config.BundleManifestPath = userConfig.BundleManifestPath

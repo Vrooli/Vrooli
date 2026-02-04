@@ -34,6 +34,7 @@ interface ProjectTreeViewProps {
   onScrollComplete?: () => void;
   onDeletePath?: (path: string, isDir: boolean) => void;
   onBlameFile?: (path: string) => void;
+  repoId?: string | null;
 }
 
 interface LazyTreeNode {
@@ -46,7 +47,9 @@ interface LazyTreeNode {
   isLoading?: boolean;
 }
 
-const statusStyleMap: Record<string, string> = {
+type StatusCode = "D" | "M" | "A" | "R" | "U" | "?";
+
+const statusStyleMap: Record<StatusCode, string> = {
   D: "text-red-400 border-red-500/40 bg-red-500/10",
   M: "text-amber-300 border-amber-500/40 bg-amber-500/10",
   A: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10",
@@ -261,11 +264,12 @@ export const ProjectTreeView = memo(function ProjectTreeView({
   onScrollComplete,
   onDeletePath,
   onBlameFile,
+  repoId,
 }: ProjectTreeViewProps) {
   const queryClient = useQueryClient();
 
   // Fetch root directory
-  const rootQuery = useDirectoryContents("", true);
+  const rootQuery = useDirectoryContents("", true, repoId);
 
   // Track expanded folders
   const [expanded, setExpanded] = useState<Set<string>>(() =>
@@ -317,7 +321,7 @@ export const ProjectTreeView = memo(function ProjectTreeView({
         try {
           // Check if already in cache
           const cached = queryClient.getQueryData<DirListResponse>(
-            queryKeys.directoryContents(path)
+            queryKeys.directoryContents(path, repoId)
           );
 
           if (cached) {
@@ -328,8 +332,8 @@ export const ProjectTreeView = memo(function ProjectTreeView({
             });
           } else {
             // Fetch and cache
-            const data = await fetchDirectoryContents(path);
-            queryClient.setQueryData(queryKeys.directoryContents(path), data);
+            const data = await fetchDirectoryContents(path, repoId ?? undefined);
+            queryClient.setQueryData(queryKeys.directoryContents(path, repoId), data);
             setFetchedDirs((prev) => {
               const next = new Map(prev);
               next.set(path, data.entries.map(entryToNode));
@@ -376,14 +380,14 @@ export const ProjectTreeView = memo(function ProjectTreeView({
           try {
             // Check React Query cache first
             let data = queryClient.getQueryData<DirListResponse>(
-              queryKeys.directoryContents(path)
+              queryKeys.directoryContents(path, repoId)
             );
 
             if (!data) {
               // Fetch from API
-              data = await fetchDirectoryContents(path);
+              data = await fetchDirectoryContents(path, repoId ?? undefined);
               // Cache the result
-              queryClient.setQueryData(queryKeys.directoryContents(path), data);
+              queryClient.setQueryData(queryKeys.directoryContents(path, repoId), data);
             }
 
             // Store the children
@@ -418,7 +422,7 @@ export const ProjectTreeView = memo(function ProjectTreeView({
         });
       }
     },
-    [expanded, fetchedDirs, queryClient]
+    [expanded, fetchedDirs, queryClient, repoId]
   );
 
   const handleSelect = useCallback(
@@ -496,11 +500,11 @@ export const ProjectTreeView = memo(function ProjectTreeView({
             setLoadingPaths((prev) => new Set(prev).add(path));
             try {
               let data = queryClient.getQueryData<DirListResponse>(
-                queryKeys.directoryContents(path)
+                queryKeys.directoryContents(path, repoId)
               );
               if (!data) {
-                data = await fetchDirectoryContents(path);
-                queryClient.setQueryData(queryKeys.directoryContents(path), data);
+                data = await fetchDirectoryContents(path, repoId ?? undefined);
+                queryClient.setQueryData(queryKeys.directoryContents(path, repoId), data);
               }
               setFetchedDirs((prev) => {
                 const next = new Map(prev);

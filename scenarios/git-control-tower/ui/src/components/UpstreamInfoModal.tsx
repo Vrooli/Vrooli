@@ -13,6 +13,7 @@ interface UpstreamInfoModalProps {
   ahead?: number;
   behind?: number;
   onClose: () => void;
+  repoId?: string | null;
 }
 
 function getRemoteName(upstreamRef?: string) {
@@ -27,7 +28,8 @@ export function UpstreamInfoModal({
   upstreamRef,
   ahead = 0,
   behind = 0,
-  onClose
+  onClose,
+  repoId
 }: UpstreamInfoModalProps) {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -131,7 +133,7 @@ export function UpstreamInfoModal({
     if (!selectedAction || selectedAction.disabled || !selectedAction.request) return;
     setRunState({ status: "running" });
     try {
-      const result = await runUpstreamAction(selectedAction.request);
+      const result = await runUpstreamAction(selectedAction.request, repoId ?? undefined);
       if (!result.success) {
         setRunState({
           status: "error",
@@ -143,9 +145,9 @@ export function UpstreamInfoModal({
         status: "success",
         message: "Action completed successfully."
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
     } catch (error) {
       setRunState({
         status: "error",

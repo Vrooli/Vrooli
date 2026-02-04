@@ -9,15 +9,11 @@ import (
 
 // handleFiles handles GET /api/v1/repo/files
 func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
-	// Use request context for cancellation when client disconnects
-	ctx := r.Context()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	// Parse query parameters
 	query := r.URL.Query()
@@ -30,7 +26,7 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 	if limitStr := query.Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
-			resp.BadRequest("limit must be a positive integer")
+			hctx.Resp.BadRequest("limit must be a positive integer")
 			return
 		}
 		req.Limit = limit
@@ -40,85 +36,79 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 	if timeoutStr := query.Get("timeout"); timeoutStr != "" {
 		timeout, err := strconv.Atoi(timeoutStr)
 		if err != nil || timeout <= 0 {
-			resp.BadRequest("timeout must be a positive integer")
+			hctx.Resp.BadRequest("timeout must be a positive integer")
 			return
 		}
 		req.Timeout = timeout
 	}
 
-	result, err := GetFileTree(ctx, FileDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := GetFileTree(hctx.Ctx, FileDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleDirectoryList handles GET /api/v1/repo/files/dir?path=<dir>
 // path="" returns root contents, path="src/components" returns that folder's contents
 func (s *Server) handleDirectoryList(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	// Parse query parameters - path is optional, empty means root
 	dirPath := r.URL.Query().Get("path")
 
-	result, err := GetDirectoryContents(ctx, FileDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := GetDirectoryContents(hctx.Ctx, FileDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, dirPath)
 	if err != nil {
 		// Check if it's a "not found" type error
 		if strings.Contains(err.Error(), "not found") {
-			resp.NotFound(err.Error())
+			hctx.Resp.NotFound(err.Error())
 			return
 		}
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleRelatedFiles handles GET /api/v1/repo/related
 func (s *Server) handleRelatedFiles(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	// Parse query parameters
 	path := r.URL.Query().Get("path")
 	if strings.TrimSpace(path) == "" {
-		resp.BadRequest("path query parameter is required")
+		hctx.Resp.BadRequest("path query parameter is required")
 		return
 	}
 
 	// Get related files using the related files service
-	related, err := GetRelatedFiles(ctx, FileDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	related, err := GetRelatedFiles(hctx.Ctx, FileDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, path)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(&RelatedFilesResponse{
+	hctx.Resp.OK(&RelatedFilesResponse{
 		Path:      path,
 		Related:   related,
 		Timestamp: time.Now().UTC(),
@@ -128,47 +118,41 @@ func (s *Server) handleRelatedFiles(w http.ResponseWriter, r *http.Request) {
 // handleDeletePath handles POST /api/v1/repo/files/delete
 // Deletes a file or directory from the filesystem
 func (s *Server) handleDeletePath(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req DeletePathRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := DeletePath(ctx, FileDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := DeletePath(hctx.Ctx, FileDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
 	if !result.Success {
-		resp.UnprocessableEntity(result)
+		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 // handleContentSearch handles GET /api/v1/repo/search/content
 // Searches file contents using git grep
 func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	// Parse query parameters
 	query := r.URL.Query()
@@ -185,7 +169,7 @@ func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
 	if contextStr := query.Get("context_lines"); contextStr != "" {
 		contextLines, err := strconv.Atoi(contextStr)
 		if err != nil || contextLines < 0 {
-			resp.BadRequest("context_lines must be a non-negative integer")
+			hctx.Resp.BadRequest("context_lines must be a non-negative integer")
 			return
 		}
 		req.ContextLines = contextLines
@@ -195,7 +179,7 @@ func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
 	if limitStr := query.Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
-			resp.BadRequest("limit must be a positive integer")
+			hctx.Resp.BadRequest("limit must be a positive integer")
 			return
 		}
 		req.Limit = limit
@@ -205,25 +189,25 @@ func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
 	if timeoutStr := query.Get("timeout"); timeoutStr != "" {
 		timeout, err := strconv.Atoi(timeoutStr)
 		if err != nil || timeout <= 0 {
-			resp.BadRequest("timeout must be a positive integer")
+			hctx.Resp.BadRequest("timeout must be a positive integer")
 			return
 		}
 		req.Timeout = timeout
 	}
 
-	result, err := SearchContent(ctx, ContentSearchDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
+	result, err := SearchContent(hctx.Ctx, ContentSearchDeps{
+		Git:     hctx.Git,
+		RepoDir: hctx.RepoDir,
 	}, req)
 	if err != nil {
 		// Check if it's a validation error
 		if strings.Contains(err.Error(), "query") || strings.Contains(err.Error(), "regex") {
-			resp.BadRequest(err.Error())
+			hctx.Resp.BadRequest(err.Error())
 			return
 		}
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }

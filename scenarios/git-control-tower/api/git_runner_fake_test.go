@@ -48,6 +48,7 @@ type FakeGitRunner struct {
 	DiscardError         error
 	PushError            error
 	PullError            error
+	CloneError           error
 	LogError             error
 	RemoveFromIndexError error
 	BranchesError        error
@@ -130,15 +131,15 @@ func NewFakeGitRunner() *FakeGitRunner {
 				LastCommitAt: now,
 			},
 		},
-		Staged:       make(map[string]string),
-		Unstaged:     make(map[string]string),
-		Untracked:    []string{},
-		Conflicts:    []string{},
-		IsRepository: true,
-		GitAvailable: true,
-		RepoRoot:     "/fake/repo",
-		ConfigValues: map[string]string{},
-		Calls:        []FakeGitCall{},
+		Staged:            make(map[string]string),
+		Unstaged:          make(map[string]string),
+		Untracked:         []string{},
+		Conflicts:         []string{},
+		IsRepository:      true,
+		GitAvailable:      true,
+		RepoRoot:          "/fake/repo",
+		ConfigValues:      map[string]string{},
+		Calls:             []FakeGitCall{},
 		PushUpdatesRemote: true,
 	}
 }
@@ -512,6 +513,20 @@ func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 		f.Branch.Behind = 0
 	}
 
+	return nil
+}
+
+// Clone simulates cloning a repository to a destination.
+func (f *FakeGitRunner) Clone(ctx context.Context, destination string, url string) error {
+	f.recordCall("Clone", destination, url)
+
+	if f.CloneError != nil {
+		return f.CloneError
+	}
+
+	if strings.TrimSpace(destination) != "" {
+		f.RepoRoot = destination
+	}
 	return nil
 }
 

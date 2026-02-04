@@ -472,6 +472,9 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 		if configUpdates.TemplateType != "" {
 			s.Config.TemplateType = configUpdates.TemplateType
 		}
+		if configUpdates.LocationMode != "" {
+			s.Config.LocationMode = configUpdates.LocationMode
+		}
 		if configUpdates.ProxyURL != "" {
 			s.Config.ProxyURL = configUpdates.ProxyURL
 		}

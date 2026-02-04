@@ -8,6 +8,7 @@ export interface PipelineConfig {
   platforms?: string[];
   deployment_mode?: "bundled" | "proxy";
   template_type?: string;
+  location_mode?: "proper" | "staging" | "temp" | "custom" | string;
   proxy_url?: string;
   bundle_manifest_path?: string;
   skip_preflight?: boolean;

@@ -23,6 +23,7 @@ interface FileSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectFile: (path: string, lineNumber?: number) => void;
+  repoId?: string | null;
 }
 
 // localStorage keys
@@ -35,7 +36,7 @@ function getFileHistory(): string[] {
   try {
     const stored = localStorage.getItem(FILE_HISTORY_KEY);
     if (!stored) return [];
-    const parsed = JSON.parse(stored);
+    const parsed: unknown = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((item): item is string => typeof item === "string");
   } catch {
@@ -86,7 +87,7 @@ function fuzzyMatch(path: string, query: string): boolean {
   // Check if all query characters appear in order
   let pathIdx = 0;
   for (let i = 0; i < lowerQuery.length; i++) {
-    const char = lowerQuery[i];
+    const char = lowerQuery.charAt(i);
     const found = lowerPath.indexOf(char, pathIdx);
     if (found === -1) return false;
     pathIdx = found + 1;
@@ -105,7 +106,7 @@ function fuzzyScore(path: string, query: string): number {
   let consecutive = 0;
 
   for (let i = 0; i < lowerQuery.length; i++) {
-    const char = lowerQuery[i];
+    const char = lowerQuery.charAt(i);
     const found = lowerPath.indexOf(char, pathIdx);
     if (found === -1) return -1;
 
@@ -300,7 +301,12 @@ function highlightContent(content: string, query: string, isRegex: boolean, case
   );
 }
 
-export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchModalProps) {
+export function FileSearchModal({
+  isOpen,
+  onClose,
+  onSelectFile,
+  repoId
+}: FileSearchModalProps) {
   const [searchMode, setSearchMode] = useState<SearchMode>(getSavedSearchMode);
   const [query, setQuery] = useState("");
   const [isDeepSearch, setIsDeepSearch] = useState(false);
@@ -338,7 +344,8 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
   } = useFileSearch(
     searchMode === "files" ? debouncedQuery || undefined : undefined,
     isDeepSearch,
-    isOpen && searchMode === "files"
+    isOpen && searchMode === "files",
+    repoId
   );
 
   // Content search options
@@ -358,7 +365,8 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
   } = useContentSearch(
     searchMode === "content" ? debouncedQuery : "",
     contentSearchOptions,
-    isOpen && searchMode === "content" && debouncedQuery.length >= 2
+    isOpen && searchMode === "content" && debouncedQuery.length >= 2,
+    repoId
   );
 
   // Filter and sort files based on query
@@ -441,35 +449,6 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
-  // Handle keyboard navigation
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    // Tab to switch modes
-    if (event.key === "Tab" && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-      event.preventDefault();
-      handleModeSwitch(searchMode === "files" ? "content" : "files");
-      return;
-    }
-
-    switch (event.key) {
-      case "ArrowDown":
-        event.preventDefault();
-        setSelectedIndex((prev) => Math.min(prev + 1, totalNavigableItems - 1));
-        break;
-      case "ArrowUp":
-        event.preventDefault();
-        setSelectedIndex((prev) => Math.max(prev - 1, 0));
-        break;
-      case "Enter":
-        event.preventDefault();
-        handleEnterKey();
-        break;
-      case "Escape":
-        event.preventDefault();
-        onClose();
-        break;
-    }
-  }, [searchMode, totalNavigableItems, handleModeSwitch, onClose]);
-
   // Handle Enter key selection
   const handleEnterKey = useCallback(() => {
     if (searchMode === "files") {
@@ -533,6 +512,35 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
     onSelectFile,
     onClose
   ]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
+    // Tab to switch modes
+    if (event.key === "Tab" && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      handleModeSwitch(searchMode === "files" ? "content" : "files");
+      return;
+    }
+
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        setSelectedIndex((prev) => Math.min(prev + 1, totalNavigableItems - 1));
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        setSelectedIndex((prev) => Math.max(prev - 1, 0));
+        break;
+      case "Enter":
+        event.preventDefault();
+        handleEnterKey();
+        break;
+      case "Escape":
+        event.preventDefault();
+        onClose();
+        break;
+    }
+  }, [searchMode, totalNavigableItems, handleModeSwitch, handleEnterKey, onClose]);
 
   // Handle click outside
   const handleBackdropClick = useCallback((event: React.MouseEvent) => {

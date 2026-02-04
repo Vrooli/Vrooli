@@ -136,6 +136,7 @@ type PipelineConfig struct {
 	Platforms           []string
 	DeploymentMode      string
 	TemplateType        string
+	LocationMode        string
 	StopAfterStage      string
 	SkipPreflight       bool
 	SkipSmokeTest       bool

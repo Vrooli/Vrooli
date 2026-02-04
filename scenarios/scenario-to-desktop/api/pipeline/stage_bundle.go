@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/shared/errors"
@@ -104,6 +105,17 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	if framework == "" {
 		framework = "electron"
 	}
+	outputRoot, desktopPath := resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, framework)
+
+	if input.Config != nil && input.Config.Clean {
+		if desktopPath != "" && strings.Contains(desktopPath, filepath.Join("platforms", framework)) {
+			appendInfo(result, "Cleaning desktop output: %s", desktopPath)
+			if err := os.RemoveAll(desktopPath); err != nil {
+				failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
+				return result
+			}
+		}
+	}
 
 	// Determine manifest path
 	manifestPath := input.Config.BundleManifestPath
@@ -141,7 +153,7 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	}
 
 	// Run the packager
-	packageResult, err := s.packager.Package(scenarioPath, manifestPath, framework, input.Config.Platforms)
+	packageResult, err := s.packager.Package(scenarioPath, manifestPath, framework, input.Config.Platforms, outputRoot)
 	if err != nil {
 		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
 		return result

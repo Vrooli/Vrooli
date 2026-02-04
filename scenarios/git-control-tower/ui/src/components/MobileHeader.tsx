@@ -19,13 +19,15 @@ import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
 import type { ViewingCommit } from "../App";
-import { BranchSelector, type BranchActions } from "./BranchSelector";
+import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
 
 interface MobileHeaderProps {
   status?: RepoStatus;
   health?: HealthResponse;
   syncStatus?: SyncStatusResponse;
   branchActions?: BranchActions;
+  repoActions?: RepoActions;
+  onRepoChange?: (repoId: string | null) => void;
   isLoading: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
@@ -42,6 +44,8 @@ export function MobileHeader({
   health,
   syncStatus,
   branchActions,
+  repoActions,
+  onRepoChange,
   isLoading,
   onRefresh,
   onOpenSettings,
@@ -118,6 +122,8 @@ export function MobileHeader({
               status={status}
               syncStatus={syncStatus}
               actions={branchActions}
+              repoActions={repoActions}
+              onRepoChange={onRepoChange}
               variant="mobile"
             />
           ) : (

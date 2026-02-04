@@ -78,6 +78,10 @@ type GitRunner interface {
 	// Returns an error if the pull fails (e.g., conflicts).
 	Pull(ctx context.Context, repoDir string, remote string, branch string) error
 
+	// Clone clones a remote repository into the destination directory.
+	// Uses git clone <url> <destination>.
+	Clone(ctx context.Context, destination string, url string) error
+
 	// LogGraph returns a git log graph for recent commits.
 	// Use a limit to cap the number of log entries.
 	LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error)
@@ -504,6 +508,23 @@ func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 			return fmt.Errorf("git pull failed: %w (%s)", err, strings.TrimSpace(string(out)))
 		}
 		return fmt.Errorf("git pull failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) Clone(ctx context.Context, destination string, url string) error {
+	args := []string{"clone", url}
+	if strings.TrimSpace(destination) != "" {
+		args = append(args, destination)
+	}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git clone failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git clone failed: %w", err)
 	}
 	return nil
 }

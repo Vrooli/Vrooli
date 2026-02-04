@@ -9,103 +9,87 @@ import (
 )
 
 func (s *Server) handleRepoBranches(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
-	result, err := ListBranches(ctx, BranchDeps{Git: s.git, RepoDir: repoDir})
+	result, err := ListBranches(hctx.Ctx, BranchDeps{Git: hctx.Git, RepoDir: hctx.RepoDir})
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 func (s *Server) handleBranchCreate(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req CreateBranchRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := CreateBranch(ctx, BranchDeps{Git: s.git, RepoDir: repoDir}, req)
+	result, err := CreateBranch(hctx.Ctx, BranchDeps{Git: hctx.Git, RepoDir: hctx.RepoDir}, req)
 	branchName := strings.TrimSpace(req.Name)
-	logBranchAudit(s, repoDir, AuditOpBranchCreate, branchName, result != nil && result.Success, err)
+	logBranchAudit(s, hctx.RepoDir, AuditOpBranchCreate, branchName, result != nil && result.Success, err)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 func (s *Server) handleBranchSwitch(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req SwitchBranchRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := SwitchBranch(ctx, BranchDeps{Git: s.git, RepoDir: repoDir}, req)
+	result, err := SwitchBranch(hctx.Ctx, BranchDeps{Git: hctx.Git, RepoDir: hctx.RepoDir}, req)
 	branchName := strings.TrimSpace(req.Name)
-	logBranchAudit(s, repoDir, AuditOpBranchSwitch, branchName, result != nil && result.Success, err)
+	logBranchAudit(s, hctx.RepoDir, AuditOpBranchSwitch, branchName, result != nil && result.Success, err)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 func (s *Server) handleBranchPublish(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req PublishBranchRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	result, err := PublishBranch(ctx, BranchDeps{Git: s.git, RepoDir: repoDir}, req)
+	result, err := PublishBranch(hctx.Ctx, BranchDeps{Git: hctx.Git, RepoDir: hctx.RepoDir}, req)
 	branchName := strings.TrimSpace(req.Branch)
 	if branchName == "" && result != nil {
 		branchName = result.Branch
 	}
-	logBranchAudit(s, repoDir, AuditOpBranchPublish, branchName, result != nil && result.Success, err)
+	logBranchAudit(s, hctx.RepoDir, AuditOpBranchPublish, branchName, result != nil && result.Success, err)
 	if err != nil {
-		resp.InternalError(err.Error())
+		hctx.Resp.InternalError(err.Error())
 		return
 	}
-	resp.OK(result)
+	hctx.Resp.OK(result)
 }
 
 func logBranchAudit(s *Server, repoDir string, op AuditOperation, branch string, success bool, err error) {

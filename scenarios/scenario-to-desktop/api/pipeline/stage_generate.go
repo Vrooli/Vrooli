@@ -138,6 +138,9 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	// self-contained desktop applications - the most common production use case.
 	desktopConfig.DeploymentMode = input.Config.GetDeploymentMode()
 	desktopConfig.Platforms = input.Config.Platforms
+	if input.Config.LocationMode != "" {
+		desktopConfig.LocationMode = input.Config.LocationMode
+	}
 	if input.Config.ProxyURL != "" {
 		desktopConfig.ProxyURL = input.Config.ProxyURL
 	}
@@ -197,6 +200,35 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	// platforms/electron/bundle/, so we reference that directory.
 	if desktopConfig.DeploymentMode == "bundled" {
 		desktopConfig.ScenarioPath = "bundle"
+	}
+
+	// Resolve staging output path when requested so bundle + build share a stable location.
+	scenarioPath := input.ScenarioPath
+	if scenarioPath == "" {
+		scenarioPath = filepath.Join(s.scenarioRoot, scenarioName)
+	}
+	resolvedDesktopPath := ""
+	if isStagingLocation(input.Config.LocationMode) {
+		if input.BundleResult != nil && input.BundleResult.BundleDir != "" {
+			resolvedDesktopPath = filepath.Dir(input.BundleResult.BundleDir)
+		} else {
+			_, resolvedDesktopPath = resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, desktopConfig.Framework)
+		}
+		if resolvedDesktopPath != "" {
+			desktopConfig.OutputPath = resolvedDesktopPath
+			result.Logs = append(result.Logs, fmt.Sprintf("Staging output path: %s", resolvedDesktopPath))
+		}
+	} else {
+		_, resolvedDesktopPath = resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, desktopConfig.Framework)
+	}
+
+	// Clean thin-client outputs here (bundle stage is skipped).
+	if input.Config.Clean && ShouldSkipBundle(input.Config) && resolvedDesktopPath != "" {
+		result.Logs = append(result.Logs, fmt.Sprintf("Cleaning desktop output: %s", resolvedDesktopPath))
+		if err := os.RemoveAll(resolvedDesktopPath); err != nil {
+			failStage(result, s.timeProvider, errors.ErrGenerationFailed(err).WithDetail("output_path", resolvedDesktopPath))
+			return result
+		}
 	}
 
 	result.Logs = append(result.Logs,

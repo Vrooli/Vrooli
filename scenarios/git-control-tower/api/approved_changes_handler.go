@@ -1,61 +1,51 @@
 package main
 
 import (
-	"context"
 	"net/http"
-	"strings"
 	"time"
 )
 
 func (s *Server) handleApprovedChanges(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
-	preview, err := s.sandbox.GetCommitPreview(ctx, repoDir)
+	preview, err := s.sandbox.GetCommitPreview(hctx.Ctx, hctx.RepoDir)
 	if err != nil {
-		resp.OK(ApprovedChangesResponse{
+		hctx.Resp.OK(ApprovedChangesResponse{
 			Available: false,
 			Warning:   err.Error(),
 		})
 		return
 	}
 
-	resp.OK(normalizeApprovedChanges(preview))
+	hctx.Resp.OK(normalizeApprovedChanges(preview))
 }
 
 func (s *Server) handleApprovedChangesPreview(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		resp.BadRequest("repository root could not be resolved")
+	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	if hctx == nil {
 		return
 	}
+	defer hctx.Cancel()
 
 	var req ApprovedChangesPreviewRequest
 	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
-	preview, err := s.sandbox.GetCommitPreviewForPaths(ctx, repoDir, req.Paths)
+	preview, err := s.sandbox.GetCommitPreviewForPaths(hctx.Ctx, hctx.RepoDir, req.Paths)
 	if err != nil {
-		resp.OK(ApprovedChangesResponse{
+		hctx.Resp.OK(ApprovedChangesResponse{
 			Available: false,
 			Warning:   err.Error(),
 		})
 		return
 	}
 
-	resp.OK(normalizeApprovedChanges(preview))
+	hctx.Resp.OK(normalizeApprovedChanges(preview))
 }
 
 func normalizeApprovedChanges(preview *workspaceSandboxCommitPreview) ApprovedChangesResponse {

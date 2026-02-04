@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchHealth,
@@ -28,6 +29,12 @@ import {
   deleteCredential,
   testCredential,
   updateRemoteURL,
+  fetchRepos,
+  fetchActiveRepo,
+  openRepo,
+  cloneRepo,
+  setActiveRepo,
+  removeRepo,
   fetchSSHKeys,
   generateSSHKey,
   getSSHPublicKey,
@@ -56,6 +63,9 @@ import {
   type CredentialSaveRequest,
   type CredentialTestRequest,
   type RemoteURLUpdateRequest,
+  type RepoOpenRequest,
+  type RepoCloneRequest,
+  type RepoActiveRequest,
   type SSHListKeysResponse,
   type SSHGenerateKeyRequest,
   type SSHGetPublicKeyRequest,
@@ -65,22 +75,72 @@ import {
 
 export const queryKeys = {
   health: ["health"] as const,
-  repoStatus: ["repo", "status"] as const,
-  repoHistory: (limit?: number, includeFiles?: boolean) =>
-    ["repo", "history", limit, includeFiles] as const,
-  syncStatus: ["repo", "sync-status"] as const,
-  branches: ["repo", "branches"] as const,
-  diff: (path?: string, staged?: boolean, untracked?: boolean, commit?: string, mode?: ViewMode, any?: boolean) =>
-    ["repo", "diff", path, staged, untracked, commit, mode, any] as const,
-  approvedChanges: ["repo", "approved-changes"] as const,
-  files: (pattern?: string, deep?: boolean) => ["repo", "files", pattern, deep] as const,
-  relatedFiles: (path: string) => ["repo", "related", path] as const,
-  directoryContents: (path: string) => ["repo", "dir", path] as const,
-  contentSearch: (query: string, opts?: Partial<ContentSearchRequest>) =>
-    ["repo", "search", "content", query, opts] as const,
-  credentials: ["credentials"] as const,
-  sshKeys: ["ssh", "keys"] as const
+  repoStatus: (repoId?: string | null) => ["repo", "status", repoId ?? "default"] as const,
+  repoHistory: (limit?: number, includeFiles?: boolean, repoId?: string | null) =>
+    ["repo", "history", repoId ?? "default", limit, includeFiles] as const,
+  syncStatus: (repoId?: string | null) => ["repo", "sync-status", repoId ?? "default"] as const,
+  branches: (repoId?: string | null) => ["repo", "branches", repoId ?? "default"] as const,
+  diff: (
+    path?: string,
+    staged?: boolean,
+    untracked?: boolean,
+    commit?: string,
+    mode?: ViewMode,
+    any?: boolean,
+    repoId?: string | null
+  ) => ["repo", "diff", repoId ?? "default", path, staged, untracked, commit, mode, any] as const,
+  approvedChanges: (repoId?: string | null) =>
+    ["repo", "approved-changes", repoId ?? "default"] as const,
+  files: (pattern?: string, deep?: boolean, repoId?: string | null) =>
+    ["repo", "files", repoId ?? "default", pattern, deep] as const,
+  relatedFiles: (path: string, repoId?: string | null) =>
+    ["repo", "related", repoId ?? "default", path] as const,
+  directoryContents: (path: string, repoId?: string | null) =>
+    ["repo", "dir", repoId ?? "default", path] as const,
+  contentSearch: (query: string, opts?: Partial<ContentSearchRequest>, repoId?: string | null) =>
+    ["repo", "search", "content", repoId ?? "default", query, opts] as const,
+  credentials: (repoId?: string | null) => ["credentials", repoId ?? "default"] as const,
+  sshKeys: ["ssh", "keys"] as const,
+  repos: ["repos"] as const,
+  activeRepo: ["repos", "active"] as const
 };
+
+const REPO_STORAGE_KEY = "gct.activeRepoId";
+
+function readStoredRepoId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.localStorage.getItem(REPO_STORAGE_KEY);
+    return value && value.trim().length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistRepoId(repoId: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (repoId && repoId.trim().length > 0) {
+      window.localStorage.setItem(REPO_STORAGE_KEY, repoId);
+    } else {
+      window.localStorage.removeItem(REPO_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage errors; repo selection still works in-memory.
+  }
+}
+
+export function useRepoSelection() {
+  const [repoId, setRepoIdState] = useState<string | null>(() => readStoredRepoId());
+
+  const setRepoId = useCallback((next: string | null) => {
+    const normalized = next && next.trim().length > 0 ? next : null;
+    setRepoIdState(normalized);
+    persistRepoId(normalized);
+  }, []);
+
+  return { repoId, setRepoId };
+}
 
 export function useHealth() {
   return useQuery({
@@ -90,215 +150,231 @@ export function useHealth() {
   });
 }
 
-export function useRepoStatus() {
+export function useRepoStatus(repoId?: string | null) {
   return useQuery({
-    queryKey: queryKeys.repoStatus,
-    queryFn: fetchRepoStatus,
+    queryKey: queryKeys.repoStatus(repoId),
+    queryFn: () => fetchRepoStatus(repoId ?? undefined),
     refetchInterval: 5000
   });
 }
 
-export function useRepoHistory(limit = 30, includeFiles = false) {
+export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null) {
   return useQuery<RepoHistoryResponse, Error>({
-    queryKey: queryKeys.repoHistory(limit, includeFiles),
-    queryFn: () => fetchRepoHistory(limit, includeFiles),
+    queryKey: queryKeys.repoHistory(limit, includeFiles, repoId),
+    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined),
     refetchInterval: 30000
   });
 }
 
-export function useDiff(path?: string, staged = false, untracked = false, commit?: string, mode: ViewMode = "diff", any = false) {
+export function useDiff(
+  path?: string,
+  staged = false,
+  untracked = false,
+  commit?: string,
+  mode: ViewMode = "diff",
+  any = false,
+  repoId?: string | null
+) {
   return useQuery({
-    queryKey: queryKeys.diff(path, staged, untracked, commit, mode, any),
-    queryFn: () => fetchDiff(path, staged, untracked, commit, mode, any),
+    queryKey: queryKeys.diff(path, staged, untracked, commit, mode, any, repoId),
+    queryFn: () => fetchDiff(path, staged, untracked, commit, mode, any, repoId ?? undefined),
     // Only enable when we have a valid path, especially important for "any" file viewing
     enabled: Boolean(path)
   });
 }
 
-export function useStageFiles() {
+export function useStageFiles(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: StageRequest) => stageFiles(request),
+    mutationFn: (request: StageRequest) => stageFiles(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     }
   });
 }
 
-export function useUnstageFiles() {
+export function useUnstageFiles(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: UnstageRequest) => unstageFiles(request),
+    mutationFn: (request: UnstageRequest) => unstageFiles(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     }
   });
 }
 
-export function useSyncStatus() {
+export function useSyncStatus(repoId?: string | null) {
   return useQuery({
-    queryKey: queryKeys.syncStatus,
-    queryFn: () => fetchSyncStatus(false),
+    queryKey: queryKeys.syncStatus(repoId),
+    queryFn: () => fetchSyncStatus(false, repoId ?? undefined),
     refetchInterval: 5000
   });
 }
 
-export function useCommit() {
+export function useCommit(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: CommitRequest) => createCommit(request),
+    mutationFn: (request: CommitRequest) => createCommit(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
     }
   });
 }
 
-export function useDiscardFiles() {
+export function useDiscardFiles(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: DiscardRequest) => discardFiles(request),
+    mutationFn: (request: DiscardRequest) => discardFiles(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     }
   });
 }
 
-export function useIgnoreFile() {
+export function useIgnoreFile(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: IgnoreRequest) => ignoreFile(request),
+    mutationFn: (request: IgnoreRequest) => ignoreFile(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     }
   });
 }
 
-export function usePush() {
+export function usePush(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: PushRequest = {}) => pushToRemote(request),
+    mutationFn: (request: PushRequest = {}) => pushToRemote(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     }
   });
 }
 
-export function usePull() {
+export function usePull(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: PullRequest = {}) => pullFromRemote(request),
+    mutationFn: (request: PullRequest = {}) => pullFromRemote(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     }
   });
 }
 
-export function useApprovedChanges() {
+export function useApprovedChanges(repoId?: string | null) {
   return useQuery({
-    queryKey: queryKeys.approvedChanges,
-    queryFn: fetchApprovedChanges,
+    queryKey: queryKeys.approvedChanges(repoId),
+    queryFn: () => fetchApprovedChanges(repoId ?? undefined),
     refetchInterval: 5000
   });
 }
 
-export function useApprovedChangesPreview() {
+export function useApprovedChangesPreview(repoId?: string | null) {
   return useMutation({
-    mutationFn: (request: ApprovedChangesPreviewRequest) => fetchApprovedChangesPreview(request)
+    mutationFn: (request: ApprovedChangesPreviewRequest) =>
+      fetchApprovedChangesPreview(request, repoId ?? undefined)
   });
 }
 
-export function useBranches() {
+export function useBranches(repoId?: string | null) {
   return useQuery({
-    queryKey: queryKeys.branches,
-    queryFn: fetchBranches,
+    queryKey: queryKeys.branches(repoId),
+    queryFn: () => fetchBranches(repoId ?? undefined),
     refetchInterval: 30000
   });
 }
 
-export function useCreateBranch() {
+export function useCreateBranch(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: CreateBranchRequest) => createBranch(request),
+    mutationFn: (request: CreateBranchRequest) => createBranch(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
     }
   });
 }
 
-export function useSwitchBranch() {
+export function useSwitchBranch(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: SwitchBranchRequest) => switchBranch(request),
+    mutationFn: (request: SwitchBranchRequest) => switchBranch(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
     }
   });
 }
 
-export function usePublishBranch() {
+export function usePublishBranch(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: PublishBranchRequest = {}) => publishBranch(request),
+    mutationFn: (request: PublishBranchRequest = {}) => publishBranch(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
     }
   });
 }
 
-export function useFileSearch(pattern?: string, deep = false, enabled = true) {
+export function useFileSearch(
+  pattern?: string,
+  deep = false,
+  enabled = true,
+  repoId?: string | null
+) {
   return useQuery<FileTreeResponse, Error>({
-    queryKey: queryKeys.files(pattern, deep),
-    queryFn: () => fetchFiles(pattern, 1000, deep, 5000),
+    queryKey: queryKeys.files(pattern, deep, repoId),
+    queryFn: () => fetchFiles(pattern, 1000, deep, 5000, repoId ?? undefined),
     enabled
   });
 }
 
-export function useRelatedFiles(path: string, enabled = true) {
+export function useRelatedFiles(path: string, enabled = true, repoId?: string | null) {
   return useQuery<RelatedFilesResponse, Error>({
-    queryKey: queryKeys.relatedFiles(path),
-    queryFn: () => fetchRelatedFiles(path),
+    queryKey: queryKeys.relatedFiles(path, repoId),
+    queryFn: () => fetchRelatedFiles(path, repoId ?? undefined),
     enabled: enabled && Boolean(path)
   });
 }
 
-export function useDirectoryContents(path: string, enabled = true) {
+export function useDirectoryContents(path: string, enabled = true, repoId?: string | null) {
   return useQuery<DirListResponse, Error>({
-    queryKey: queryKeys.directoryContents(path),
-    queryFn: () => fetchDirectoryContents(path),
+    queryKey: queryKeys.directoryContents(path, repoId),
+    queryFn: () => fetchDirectoryContents(path, repoId ?? undefined),
     enabled,
     staleTime: 30000 // Cache for 30 seconds
   });
 }
 
-export function useDeletePath() {
+export function useDeletePath(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: DeletePathRequest) => deletePath(request),
+    mutationFn: (request: DeletePathRequest) => deletePath(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
       // Invalidate all directory contents caches since structure changed
-      queryClient.invalidateQueries({ queryKey: ["repo", "dir"] });
+      queryClient.invalidateQueries({
+        queryKey: ["repo", "dir", repoId ?? "default"]
+      });
     }
   });
 }
@@ -306,12 +382,13 @@ export function useDeletePath() {
 export function useContentSearch(
   query: string,
   options: Omit<ContentSearchRequest, "query"> = {},
-  enabled = true
+  enabled = true,
+  repoId?: string | null
 ) {
   const request: ContentSearchRequest = { query, ...options };
   return useQuery<ContentSearchResponse, Error>({
-    queryKey: queryKeys.contentSearch(query, options),
-    queryFn: () => searchContent(request),
+    queryKey: queryKeys.contentSearch(query, options, repoId),
+    queryFn: () => searchContent(request, repoId ?? undefined),
     enabled: enabled && query.length >= 2 // Minimum 2 characters
   });
 }
@@ -320,49 +397,113 @@ export function useContentSearch(
 // Credentials Hooks
 // ============================================================================
 
-export function useCredentials() {
+export function useCredentials(repoId?: string | null) {
   return useQuery<CredentialsListResponse, Error>({
-    queryKey: queryKeys.credentials,
-    queryFn: fetchCredentials
+    queryKey: queryKeys.credentials(repoId),
+    queryFn: () => fetchCredentials(repoId ?? undefined)
   });
 }
 
-export function useSaveCredential() {
+export function useSaveCredential(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: CredentialSaveRequest) => saveCredential(request),
+    mutationFn: (request: CredentialSaveRequest) => saveCredential(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credentials });
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials(repoId) });
     }
   });
 }
 
-export function useDeleteCredential() {
+export function useDeleteCredential(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => deleteCredential(id),
+    mutationFn: (id: string) => deleteCredential(id, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credentials });
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials(repoId) });
     }
   });
 }
 
-export function useTestCredential() {
+export function useTestCredential(repoId?: string | null) {
   return useMutation({
-    mutationFn: (request: CredentialTestRequest) => testCredential(request)
+    mutationFn: (request: CredentialTestRequest) => testCredential(request, repoId ?? undefined)
   });
 }
 
-export function useUpdateRemoteURL() {
+export function useUpdateRemoteURL(repoId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: RemoteURLUpdateRequest) => updateRemoteURL(request),
+    mutationFn: (request: RemoteURLUpdateRequest) => updateRemoteURL(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credentials });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+    }
+  });
+}
+
+// ============================================================================
+// Repo Registry Hooks
+// ============================================================================
+
+export function useRepos() {
+  return useQuery({
+    queryKey: queryKeys.repos,
+    queryFn: fetchRepos,
+    refetchInterval: 30000
+  });
+}
+
+export function useActiveRepo() {
+  return useQuery({
+    queryKey: queryKeys.activeRepo,
+    queryFn: fetchActiveRepo,
+    refetchInterval: 30000
+  });
+}
+
+export function useOpenRepo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: RepoOpenRequest) => openRepo(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
+    }
+  });
+}
+
+export function useCloneRepo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: RepoCloneRequest) => cloneRepo(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
+    }
+  });
+}
+
+export function useSetActiveRepo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: RepoActiveRequest) => setActiveRepo(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
+    }
+  });
+}
+
+export function useRemoveRepo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => removeRepo(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
     }
   });
 }

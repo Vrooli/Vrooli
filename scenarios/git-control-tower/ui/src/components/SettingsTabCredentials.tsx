@@ -29,10 +29,13 @@ import {
 } from "../lib/hooks";
 import type { SSHKeyInfo } from "../lib/api";
 
+const EMPTY_SSH_KEYS: SSHKeyInfo[] = [];
+
 interface SettingsTabCredentialsProps {
   remoteUrl?: string;
   hasUpstream?: boolean;
   isMobile: boolean;
+  repoId?: string | null;
 }
 
 // URL conversion helpers
@@ -62,7 +65,7 @@ function convertHTTPSToSSH(httpsUrl: string): string {
   const trimmed = httpsUrl.trim();
 
   if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
-    let rest = trimmed.replace(/^https?:\/\//, "");
+    const rest = trimmed.replace(/^https?:\/\//, "");
     const parts = rest.split("/");
     if (parts.length >= 2) {
       const host = parts[0];
@@ -85,12 +88,13 @@ function detectUrlType(url: string): "https" | "ssh" {
 export function SettingsTabCredentials({
   remoteUrl,
   hasUpstream,
-  isMobile
+  isMobile,
+  repoId
 }: SettingsTabCredentialsProps) {
-  const credentialsQuery = useCredentials();
-  const saveMutation = useSaveCredential();
-  const testMutation = useTestCredential();
-  const updateUrlMutation = useUpdateRemoteURL();
+  const credentialsQuery = useCredentials(repoId);
+  const saveMutation = useSaveCredential(repoId);
+  const testMutation = useTestCredential(repoId);
+  const updateUrlMutation = useUpdateRemoteURL(repoId);
 
   // SSH hooks
   const sshKeysQuery = useSSHKeys();
@@ -132,12 +136,13 @@ export function SettingsTabCredentials({
   );
 
   // Get SSH keys
-  const sshKeys = sshKeysQuery.data?.keys ?? [];
+  const sshKeys = sshKeysQuery.data?.keys ?? EMPTY_SSH_KEYS;
 
   // Auto-select first key if none selected
   useEffect(() => {
-    if (isSSH && sshKeys.length > 0 && !selectedKeyPath) {
-      setSelectedKeyPath(sshKeys[0].path);
+    const firstKey = sshKeys[0];
+    if (isSSH && firstKey && !selectedKeyPath) {
+      setSelectedKeyPath(firstKey.path);
     }
   }, [isSSH, sshKeys, selectedKeyPath]);
 

@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, EyeOff, FileText, X } from "lucide-react";
+import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -283,11 +283,13 @@ export function GitHistory({
     const scopeMap = new Map<string, { id: string; label: string; count: number }>();
     const order: string[] = [];
     const ensureScope = (id: string, label: string) => {
-      if (!scopeMap.has(id)) {
-        scopeMap.set(id, { id, label, count: 0 });
+      const existing = scopeMap.get(id);
+      const scope = existing ?? { id, label, count: 0 };
+      if (!existing) {
+        scopeMap.set(id, scope);
         order.push(id);
       }
-      return scopeMap.get(id)!;
+      return scope;
     };
 
     if (detailsAvailable) {
@@ -318,13 +320,17 @@ export function GitHistory({
 
     return order
       .map((id) => {
-        const scope = scopeMap.get(id)!;
+        const scope = scopeMap.get(id);
+        if (!scope) return null;
         return {
           ...scope,
           display: detailsAvailable ? `${scope.label} (${scope.count})` : scope.label
         };
       })
-      .filter((scope) => scope.count > 0);
+      .filter((scope): scope is NonNullable<typeof scope> => {
+        if (!scope) return false;
+        return scope.count > 0;
+      });
   }, [detailsAvailable, entries, groupingEnabled, normalizedRules, resolveScopeForPath, workingSetPaths]);
 
   const workingSetSet = useMemo(() => new Set(workingSetPaths), [workingSetPaths]);

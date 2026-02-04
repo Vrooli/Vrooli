@@ -1,7 +1,7 @@
 {
   "scenario": "git-control-tower",
   "report_version": 1,
-  "generated_at": "2026-02-03T13:33:14.044337947Z",
+  "generated_at": "2026-02-04T14:34:17.34204794Z",
   "dependencies": [
     {
       "name": "ollama",
@@ -33,42 +33,6 @@
             "anthropic",
             "openrouter"
           ]
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95
-        }
-      },
-      "source": "declared"
-    },
-    {
-      "name": "postgres",
-      "type": "resource",
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.6
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1
-        },
-        "mobile": {
-          "supported": false,
-          "fitness_score": 0.2,
-          "reason": "Database should be remote for mobile deployments",
-          "alternatives": [
-            "saas-variant",
-            "cloud-variant"
-          ]
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.95
         },
         "server": {
           "supported": true,
@@ -143,15 +107,45 @@
         }
       },
       "source": "declared"
+    },
+    {
+      "name": "sqlite",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.9
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": true,
+          "fitness_score": 0.4
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.85
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
     }
   ],
   "aggregates": {
     "desktop": {
-      "fitness_score": 0.75,
+      "fitness_score": 0.825,
       "dependency_count": 4,
       "blocking_dependencies": [
-        "ollama",
-        "postgres"
+        "ollama"
       ],
       "estimated_requirements": {
         "ram_mb": 0,
@@ -178,13 +172,13 @@
       }
     },
     "mobile": {
-      "fitness_score": 0.2,
+      "fitness_score": 0.25,
       "dependency_count": 4,
       "blocking_dependencies": [
         "ollama",
-        "postgres",
         "redis",
-        "resource-openrouter"
+        "resource-openrouter",
+        "sqlite"
       ],
       "estimated_requirements": {
         "ram_mb": 0,
@@ -193,7 +187,7 @@
       }
     },
     "saas": {
-      "fitness_score": 0.7625000000000001,
+      "fitness_score": 0.7375,
       "dependency_count": 4,
       "blocking_dependencies": [
         "ollama"
@@ -216,7 +210,7 @@
   },
   "bundle_manifest": {
     "scenario": "git-control-tower",
-    "generated_at": "2026-02-03T13:33:14.044337947Z",
+    "generated_at": "2026-02-04T14:34:17.34204794Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -296,41 +290,6 @@
         }
       },
       {
-        "name": "postgres",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.2,
-            "reason": "Database should be remote for mobile deployments",
-            "alternatives": [
-              "saas-variant",
-              "cloud-variant"
-            ]
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.95
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
         "name": "redis",
         "type": "resource",
         "tier_support": {
@@ -367,6 +326,36 @@
       },
       {
         "name": "resource-openrouter",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.9
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": true,
+            "fitness_score": 0.4
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.85
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      },
+      {
+        "name": "sqlite",
         "type": "resource",
         "tier_support": {
           "desktop": {
@@ -582,17 +571,6 @@
     "missing_tiers": null,
     "secret_requirements": [
       {
-        "dependency_name": "postgres",
-        "dependency_type": "resource",
-        "secret_type": "database_credentials",
-        "required_secrets": [
-          "postgres_password",
-          "postgres_user"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
-        "priority": "required"
-      },
-      {
         "dependency_name": "redis",
         "dependency_type": "resource",
         "secret_type": "cache_credentials",
@@ -627,17 +605,6 @@
         "impact_description": "Better scalability and reliability"
       },
       {
-        "original_resource": "postgres",
-        "alternative_resource": "supabase",
-        "reason": "Managed PostgreSQL with built-in APIs",
-        "applicable_tiers": [
-          "mobile",
-          "saas"
-        ],
-        "relationship": "managed_service",
-        "impact_description": "Eliminates database management overhead"
-      },
-      {
         "original_resource": "redis",
         "alternative_resource": "in-memory-cache",
         "reason": "Embedded caching for desktop deployments",
@@ -649,8 +616,8 @@
       }
     ],
     "recommendations": [
-      "Configure 2 secret(s) for dependencies - see secrets-manager playbooks",
-      "Consider 4 resource swap(s) for deployment optimization"
+      "Configure 1 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 3 resource swap(s) for deployment optimization"
     ]
   }
 }

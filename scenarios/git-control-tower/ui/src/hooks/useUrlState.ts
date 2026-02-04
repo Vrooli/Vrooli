@@ -150,7 +150,7 @@ export function useUrlState(options: UseUrlStateOptions = {}): UseUrlStateReturn
 
   // Handle browser back/forward navigation
   useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
+    const handlePopState = () => {
       // Parse state from URL (more reliable than event.state)
       const state = parseUrlState(window.location.search);
       lastStateRef.current = state;

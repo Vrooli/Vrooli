@@ -53,6 +53,12 @@ import {
   useSwitchBranch,
   usePublishBranch,
   useDeletePath,
+  useRepos,
+  useOpenRepo,
+  useCloneRepo,
+  useSetActiveRepo,
+  useRemoveRepo,
+  useRepoSelection,
   queryKeys
 } from "./lib/hooks";
 
@@ -60,6 +66,7 @@ const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
 
 export default function App() {
   const queryClient = useQueryClient();
+  const { repoId, setRepoId } = useRepoSelection();
   const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
@@ -282,9 +289,12 @@ export default function App() {
   );
   const stackSlots = useMemo(() => {
     const remaining = new Set(stackPanels);
-    const middle = remaining.has("history") ? "history" : stackPanels[0];
+    const fallbackPanel: LayoutSection = "diff";
+    const middle = remaining.has("history") ? "history" : stackPanels[0] ?? fallbackPanel;
     remaining.delete(middle);
-    const bottom = remaining.has("commit") ? "commit" : stackPanels[1] ?? stackPanels[0];
+    const bottom = remaining.has("commit")
+      ? "commit"
+      : stackPanels[1] ?? stackPanels[0] ?? fallbackPanel;
     remaining.delete(bottom);
     const top = Array.from(remaining)[0] ?? middle;
     return { top, middle, bottom };
@@ -308,19 +318,20 @@ export default function App() {
 
   // Queries
   const healthQuery = useHealth();
-  const statusQuery = useRepoStatus();
+  const statusQuery = useRepoStatus(repoId);
   // Always fetch entry details for commit viewing and blame mode filtering
   const historyNeedsDetails = true;
-  const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails);
-  const syncStatusQuery = useSyncStatus();
-  const approvedChangesQuery = useApprovedChanges();
+  const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails, repoId);
+  const syncStatusQuery = useSyncStatus(repoId);
+  const approvedChangesQuery = useApprovedChanges(repoId);
   const diffQuery = useDiff(
     selectedFile,
     viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
     viewingCommit || isViewingAnyFile ? false : selectedIsUntracked,
     viewingCommit?.hash,
     isViewingAnyFile ? "source" : viewMode,
-    isViewingAnyFile
+    isViewingAnyFile,
+    repoId
   );
   const pushTargetRef =
     syncStatusQuery.data?.upstream ?? statusQuery.data?.branch.upstream;
@@ -337,19 +348,24 @@ export default function App() {
     : "Set upstream before amending";
 
   // Mutations
-  const stageMutation = useStageFiles();
-  const unstageMutation = useUnstageFiles();
-  const commitMutation = useCommit();
-  const discardMutation = useDiscardFiles();
-  const ignoreMutation = useIgnoreFile();
-  const pushMutation = usePush();
-  const pullMutation = usePull();
-  const approvedPreviewMutation = useApprovedChangesPreview();
-  const branchesQuery = useBranches();
-  const createBranchMutation = useCreateBranch();
-  const switchBranchMutation = useSwitchBranch();
-  const publishBranchMutation = usePublishBranch();
-  const deletePathMutation = useDeletePath();
+  const stageMutation = useStageFiles(repoId);
+  const unstageMutation = useUnstageFiles(repoId);
+  const commitMutation = useCommit(repoId);
+  const discardMutation = useDiscardFiles(repoId);
+  const ignoreMutation = useIgnoreFile(repoId);
+  const pushMutation = usePush(repoId);
+  const pullMutation = usePull(repoId);
+  const approvedPreviewMutation = useApprovedChangesPreview(repoId);
+  const branchesQuery = useBranches(repoId);
+  const createBranchMutation = useCreateBranch(repoId);
+  const switchBranchMutation = useSwitchBranch(repoId);
+  const publishBranchMutation = usePublishBranch(repoId);
+  const deletePathMutation = useDeletePath(repoId);
+  const reposQuery = useRepos();
+  const openRepoMutation = useOpenRepo();
+  const cloneRepoMutation = useCloneRepo();
+  const setActiveRepoMutation = useSetActiveRepo();
+  const removeRepoMutation = useRemoveRepo();
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
   const isDeleting = deletePathMutation.isPending;
@@ -364,25 +380,22 @@ export default function App() {
   // Handlers
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.health });
-    queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+    queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     queryClient.invalidateQueries({
-      queryKey: queryKeys.repoHistory(historyLimit, historyNeedsDetails)
+      queryKey: queryKeys.repoHistory(historyLimit, historyNeedsDetails, repoId)
     });
-    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
-    queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
-    queryClient.invalidateQueries({ queryKey: queryKeys.branches });
+    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
     if (selectedFile) {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.diff(selectedFile, selectedIsStaged, selectedIsUntracked)
-      });
+      queryClient.invalidateQueries({ queryKey: ["repo", "diff", repoId ?? "default"] });
     }
   }, [
     historyLimit,
     historyNeedsDetails,
     queryClient,
-    selectedFile,
-    selectedIsStaged,
-    selectedIsUntracked
+    repoId,
+    selectedFile
   ]);
 
   const branchActions = useMemo(
@@ -406,6 +419,55 @@ export default function App() {
       publishBranchMutation.isPending,
       publishBranchMutation.mutateAsync
     ]
+  );
+
+  const repoActions = useMemo(
+    () => ({
+      repos: reposQuery.data,
+      isLoading: reposQuery.isLoading,
+      openRepo: openRepoMutation.mutateAsync,
+      cloneRepo: cloneRepoMutation.mutateAsync,
+      setActiveRepo: setActiveRepoMutation.mutateAsync,
+      removeRepo: removeRepoMutation.mutateAsync,
+      isOpening: openRepoMutation.isPending,
+      isCloning: cloneRepoMutation.isPending,
+      isSettingActive: setActiveRepoMutation.isPending,
+      isRemoving: removeRepoMutation.isPending
+    }),
+    [
+      reposQuery.data,
+      reposQuery.isLoading,
+      openRepoMutation.isPending,
+      openRepoMutation.mutateAsync,
+      cloneRepoMutation.isPending,
+      cloneRepoMutation.mutateAsync,
+      setActiveRepoMutation.isPending,
+      setActiveRepoMutation.mutateAsync,
+      removeRepoMutation.isPending,
+      removeRepoMutation.mutateAsync
+    ]
+  );
+
+  useEffect(() => {
+    if (repoId || !reposQuery.data?.active_id) return;
+    setRepoId(String(reposQuery.data.active_id));
+  }, [repoId, reposQuery.data?.active_id, setRepoId]);
+
+  useEffect(() => {
+    setSelectedFile(undefined);
+    setSelectedFiles([]);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    setViewingCommit(null);
+    setIsViewingAnyFile(false);
+    setShowRelatedFiles(false);
+  }, [repoId]);
+
+  const handleRepoChange = useCallback(
+    (nextRepoId: string | null) => {
+      setRepoId(nextRepoId);
+    },
+    [setRepoId]
   );
 
   const orderedFiles = useMemo(() => {
@@ -574,7 +636,7 @@ export default function App() {
       const clickedStillSelected = nextSelection.some((entry) => selectionKey(entry) === nextKey);
       const primary = clickedStillSelected
         ? nextEntry
-        : nextSelection[nextSelection.length - 1];
+        : nextSelection[nextSelection.length - 1] ?? nextEntry;
       setSelectedFile(primary.path);
       setSelectedIsStaged(primary.staged);
       setSelectedIsUntracked(!primary.staged && untrackedSet.has(primary.path));
@@ -616,13 +678,13 @@ export default function App() {
             }
             pathsToStage.forEach((stagedPath) => {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, false)
+                queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, true)
+                queryKey: queryKeys.diff(stagedPath, false, true, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, true, false)
+                queryKey: queryKeys.diff(stagedPath, true, false, undefined, "diff", false, repoId)
               });
             });
             // Show warning notice if there were warnings (e.g., ignored files)
@@ -636,7 +698,7 @@ export default function App() {
         }
       );
     },
-    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles]
+    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId]
   );
 
   const handleUnstageFile = useCallback(
@@ -658,20 +720,20 @@ export default function App() {
             }
             pathsToUnstage.forEach((unstagedPath) => {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, false)
+                queryKey: queryKeys.diff(unstagedPath, false, false, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, true)
+                queryKey: queryKeys.diff(unstagedPath, false, true, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, true, false)
+                queryKey: queryKeys.diff(unstagedPath, true, false, undefined, "diff", false, repoId)
               });
             });
           }
         }
       );
     },
-    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles]
+    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId]
   );
 
   const handleStageAll = useCallback(() => {
@@ -762,12 +824,12 @@ export default function App() {
             setSelectedFiles((prev) =>
               prev.filter((entry) => entry.staged || !paths.includes(entry.path))
             );
-            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
           }
         }
       );
     },
-    [discardMutation, queryClient, selectedFile]
+    [discardMutation, queryClient, selectedFile, repoId]
   );
 
   const handleDiscardFile = useCallback(
@@ -783,12 +845,12 @@ export default function App() {
             setSelectedFiles((prev) =>
               prev.filter((entry) => !(entry.path === path && !entry.staged))
             );
-            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
           }
         }
       );
     },
-    [discardMutation, queryClient, selectedFile]
+    [discardMutation, queryClient, selectedFile, repoId]
   );
 
   const handleDiscardMultiple = useCallback(() => {
@@ -805,7 +867,7 @@ export default function App() {
       }
       setSelectedFiles((prev) => prev.filter((entry) => entry.staged || !allPaths.includes(entry.path)));
       setPendingDiscardFiles(null);
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     };
 
     // Handle tracked and untracked separately since API requires specific untracked flag
@@ -827,7 +889,7 @@ export default function App() {
     } else if (untrackedPaths.length > 0) {
       discardMutation.mutate({ paths: untrackedPaths, untracked: true }, { onSuccess: cleanup });
     }
-  }, [pendingDiscardFiles, discardMutation, queryClient, selectedFile]);
+  }, [pendingDiscardFiles, discardMutation, queryClient, selectedFile, repoId]);
 
   const handleIgnoreFile = useCallback(
     (path: string) => {
@@ -839,12 +901,12 @@ export default function App() {
               setSelectedFile(undefined);
             }
             setSelectedFiles((prev) => prev.filter((entry) => entry.path !== path));
-            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
           }
         }
       );
     },
-    [ignoreMutation, queryClient, selectedFile]
+    [ignoreMutation, queryClient, selectedFile, repoId]
   );
 
   const handleConfirmDiscard = useCallback(
@@ -944,9 +1006,9 @@ export default function App() {
 
   const handlePush = useCallback(() => {
     setPushNotice(null);
-    fetchSyncStatus(true)
+    fetchSyncStatus(true, repoId ?? undefined)
       .then((freshStatus) => {
-        queryClient.setQueryData(queryKeys.syncStatus, freshStatus);
+        queryClient.setQueryData(queryKeys.syncStatus(repoId), freshStatus);
         if (freshStatus.fetch_error) {
           setPushNotice({
             tone: "warning",
@@ -1006,7 +1068,7 @@ export default function App() {
       .catch(() => {
         pushMutation.mutate({});
       });
-  }, [pushMutation, queryClient, statusQuery.data?.branch.head]);
+  }, [pushMutation, queryClient, statusQuery.data?.branch.head, repoId]);
 
   const handlePull = useCallback(() => {
     pullMutation.mutate({});
@@ -1368,6 +1430,12 @@ export default function App() {
 
     if (selectedFiles.length > 0) {
       const fallback = selectedFiles[selectedFiles.length - 1];
+      if (!fallback) {
+        setSelectedFile(undefined);
+        setSelectedIsStaged(false);
+        setSelectedIsUntracked(false);
+        return;
+      }
       setSelectedFile(fallback.path);
       setSelectedIsStaged(fallback.staged);
       setSelectedIsUntracked(!fallback.staged && untrackedSet.has(fallback.path));
@@ -1609,6 +1677,7 @@ export default function App() {
               forPath={relatedFilesForPath}
               onBack={handleBackFromRelatedFiles}
               onSelectFile={handleSelectRelatedFile}
+              repoId={repoId}
             />
           );
         }
@@ -1687,6 +1756,7 @@ export default function App() {
             onScrollComplete={handleScrollComplete}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            repoId={repoId}
           />
         );
       case "history":
@@ -1853,6 +1923,7 @@ export default function App() {
                 // On mobile, switch to diff view after selecting a file
                 setMobileActivePanel("diff");
               }}
+              repoId={repoId}
             />
           );
         }
@@ -1937,6 +2008,7 @@ export default function App() {
             onScrollComplete={handleScrollComplete}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            repoId={repoId}
           />
         );
       case "diff":
@@ -2065,6 +2137,8 @@ export default function App() {
           health={healthQuery.data}
           syncStatus={syncStatusQuery.data}
           branchActions={branchActions}
+          repoActions={repoActions}
+          onRepoChange={handleRepoChange}
           isLoading={statusQuery.isLoading || healthQuery.isLoading}
           onRefresh={handleRefresh}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -2189,6 +2263,7 @@ export default function App() {
         <SettingsModal
           isOpen={isSettingsOpen}
           repoDir={repoDir}
+          repoId={repoId}
           syncStatus={syncStatusQuery.data}
           preset={layoutPreset}
           primaryPanel={primaryPanel}
@@ -2207,6 +2282,7 @@ export default function App() {
           upstreamRef={pushTargetRef}
           ahead={upstreamAhead}
           behind={upstreamBehind}
+          repoId={repoId}
           onClose={() => setIsUpstreamInfoOpen(false)}
         />
         <DiscardConfirmationModal
@@ -2228,6 +2304,7 @@ export default function App() {
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
           onSelectFile={handleSelectAnyFile}
+          repoId={repoId}
         />
       </div>
     );
@@ -2245,6 +2322,8 @@ export default function App() {
         health={healthQuery.data}
         syncStatus={syncStatusQuery.data}
         branchActions={branchActions}
+        repoActions={repoActions}
+        onRepoChange={handleRepoChange}
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -2398,6 +2477,7 @@ export default function App() {
       <SettingsModal
         isOpen={isSettingsOpen}
         repoDir={repoDir}
+        repoId={repoId}
         syncStatus={syncStatusQuery.data}
         preset={layoutPreset}
         primaryPanel={primaryPanel}
@@ -2416,6 +2496,7 @@ export default function App() {
         upstreamRef={pushTargetRef}
         ahead={upstreamAhead}
         behind={upstreamBehind}
+        repoId={repoId}
         onClose={() => setIsUpstreamInfoOpen(false)}
       />
       <DiscardConfirmationModal
@@ -2437,6 +2518,7 @@ export default function App() {
         isOpen={isFileSearchOpen}
         onClose={() => setIsFileSearchOpen(false)}
         onSelectFile={handleSelectAnyFile}
+        repoId={repoId}
       />
     </div>
   );

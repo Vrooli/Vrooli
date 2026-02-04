@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 type HandlerContext struct {
 	Git     GitRunner
 	RepoDir string
+	RepoID  int64
 	Ctx     context.Context
 	Resp    *HTTPResponse
 	Cancel  context.CancelFunc
@@ -23,23 +25,49 @@ type HandlerContext struct {
 //
 // DECISION BOUNDARY: This is where we determine if a request has a valid repository context.
 // All repo-dependent handlers should use this to ensure consistent error handling.
-func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, timeout time.Duration) *HandlerContext {
+func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, repos *RepoService, timeout time.Duration) *HandlerContext {
 	resp := NewResponse(w)
 
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	// Note: caller must defer cancel() if HandlerContext is returned non-nil
 	// We store cancel in closure for cleanup on error paths
 
-	repoDir := git.ResolveRepoRoot(ctx)
-	if strings.TrimSpace(repoDir) == "" {
-		cancel()
-		resp.BadRequest("repository root could not be resolved")
-		return nil
+	var repoDir string
+	var repoID int64
+	if repos != nil {
+		resolved, err := repos.Resolve(ctx, r)
+		if err != nil {
+			cancel()
+			repoErr := RepoError{}
+			if errors.As(err, &repoErr) {
+				switch repoErr.Kind {
+				case RepoErrorNotFound:
+					resp.NotFound(repoErr.Error())
+				case RepoErrorInvalid, RepoErrorMissing:
+					resp.BadRequest(repoErr.Error())
+				default:
+					resp.BadRequest(repoErr.Error())
+				}
+			} else {
+				resp.BadRequest(err.Error())
+			}
+			return nil
+		}
+		repoDir = resolved.Path
+		repoID = resolved.ID
+	} else {
+		repoDir = git.ResolveRepoRoot(ctx)
+		if strings.TrimSpace(repoDir) == "" {
+			cancel()
+			resp.BadRequest("repository root could not be resolved")
+			return nil
+		}
 	}
 
 	return &HandlerContext{
 		Git:     git,
 		RepoDir: repoDir,
+		RepoID:  repoID,
 		Ctx:     ctx,
 		Resp:    resp,
 		Cancel:  cancel,

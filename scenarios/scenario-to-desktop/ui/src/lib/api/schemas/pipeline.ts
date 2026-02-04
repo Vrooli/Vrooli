@@ -28,6 +28,7 @@ export const PipelineConfigSchema = z.object({
   scenario_name: z.string(),
   template_type: z.string().optional(),
   deployment_mode: DeploymentModeSchema.optional(),
+  location_mode: z.string().optional(),
   proxy_url: z.string().optional(),
   platforms: z.array(PlatformSchema).optional(),
   stop_after_stage: StageNameSchema.optional(),

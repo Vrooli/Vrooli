@@ -69,6 +69,8 @@ func (c *Commands) Run(args []string) error {
 	stages := fs.String("stages", "", "Comma-separated stages to run")
 	platforms := fs.String("platforms", "", "Comma-separated target platforms (default: current platform)")
 	deploymentMode := fs.String("deployment-mode", "", "Deployment mode: bundled (default), external-server, cloud-api, proxy")
+	locationMode := fs.String("location-mode", "", "Output location: proper (default), staging, temp")
+	clean := fs.Bool("clean", false, "Remove existing desktop output before running the pipeline")
 	wait := fs.Bool("wait", false, "Block until pipeline completes (recommended for scripts/agents)")
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
 	debug := fs.Bool("debug", false, "Show full JSON response on error")
@@ -82,7 +84,7 @@ func (c *Commands) Run(args []string) error {
 	}
 
 	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: pipeline-run <scenario> [--deployment-mode bundled|external-server] [--stages bundle,...] [--platforms win,mac,linux] [--wait] [--timeout N]")
+		return fmt.Errorf("usage: pipeline-run <scenario> [--deployment-mode bundled|external-server] [--location-mode proper|staging] [--clean] [--stages bundle,...] [--platforms win,mac,linux] [--wait] [--timeout N]")
 	}
 
 	scenario := fs.Args()[0]
@@ -97,6 +99,12 @@ func (c *Commands) Run(args []string) error {
 	}
 	if *deploymentMode != "" {
 		req["deployment_mode"] = *deploymentMode
+	}
+	if *locationMode != "" {
+		req["location_mode"] = *locationMode
+	}
+	if *clean {
+		req["clean"] = true
 	}
 
 	// Build query params for blocking mode

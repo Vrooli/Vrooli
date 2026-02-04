@@ -221,7 +221,7 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 	var content string
 	var annotatedLines []AnnotatedLine
 	lineCount := 0
-	binaryKind := binaryKindForPath(cleanPath)
+	var binaryKind binaryKind
 
 	if req.Commit != "" {
 		// Get file content at a specific commit

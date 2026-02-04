@@ -41,6 +41,7 @@ func (e *PipelineExecutor) RunPipeline(ctx context.Context, toolArgs map[string]
 		Platforms:           args.GetStringArray(toolArgs, "platforms"),
 		DeploymentMode:      args.GetString(toolArgs, "deployment_mode", "bundled"),
 		TemplateType:        args.GetString(toolArgs, "template_type", "basic"),
+		LocationMode:        args.GetString(toolArgs, "location_mode", ""),
 		StopAfterStage:      args.GetString(toolArgs, "stop_after_stage", ""),
 		SkipPreflight:       args.GetBool(toolArgs, "skip_preflight", false),
 		SkipSmokeTest:       args.GetBool(toolArgs, "skip_smoke_test", false),

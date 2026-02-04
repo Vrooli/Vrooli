@@ -97,7 +97,8 @@ func NewPackager(opts ...PackagerOption) *DefaultPackager {
 
 // Package packages a bundle from the given app path and manifest.
 // framework specifies the target framework (e.g., "electron") which determines the bundle output path.
-func (p *DefaultPackager) Package(appPath, manifestPath, framework string, requestedPlatforms []string) (*PackageResult, error) {
+// outputRoot optionally overrides where the bundle is written (defaults to appPath).
+func (p *DefaultPackager) Package(appPath, manifestPath, framework string, requestedPlatforms []string, outputRoot ...string) (*PackageResult, error) {
 	if appPath == "" || manifestPath == "" {
 		return nil, errors.New("app_path and bundle_manifest_path are required")
 	}
@@ -111,6 +112,15 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	}
 	if info, err := os.Stat(appAbs); err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("app_path must be an existing directory: %w", err)
+	}
+
+	outputRootAbs := appAbs
+	if len(outputRoot) > 0 && outputRoot[0] != "" {
+		rootAbs, err := filepath.Abs(outputRoot[0])
+		if err != nil {
+			return nil, fmt.Errorf("resolve output root: %w", err)
+		}
+		outputRootAbs = rootAbs
 	}
 
 	manifestAbs, err := filepath.Abs(manifestPath)
@@ -138,7 +148,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 		return nil, err
 	}
 
-	bundleDir := filepath.Join(appAbs, "platforms", framework, "bundle")
+	bundleDir := filepath.Join(outputRootAbs, "platforms", framework, "bundle")
 	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create bundle dir: %w", err)
 	}
@@ -275,7 +285,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 		copied = append(copied, runtimePath)
 	}
 
-	if err := ensureBundleExtraResources(appAbs); err != nil {
+	if err := ensureBundleExtraResources(outputRootAbs, framework); err != nil {
 		return nil, fmt.Errorf("update package.json: %w", err)
 	}
 
@@ -450,8 +460,11 @@ func resolveBundlePath(fileOps FileOperations, root, rel string) (string, error)
 	return clean, nil
 }
 
-func ensureBundleExtraResources(appDir string) error {
-	pkgPath := filepath.Join(appDir, "package.json")
+func ensureBundleExtraResources(outputRoot, framework string) error {
+	if framework == "" {
+		framework = "electron"
+	}
+	pkgPath := filepath.Join(outputRoot, "platforms", framework, "package.json")
 
 	// Skip if no package.json (Go-only scenarios, etc.)
 	if _, err := os.Stat(pkgPath); os.IsNotExist(err) {

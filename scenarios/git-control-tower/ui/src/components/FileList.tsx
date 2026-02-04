@@ -109,6 +109,7 @@ interface FileListProps {
   onScrollComplete?: () => void;
   onDeletePath?: (path: string, isDir: boolean) => void;
   onBlameFile?: (path: string) => void;
+  repoId?: string | null;
 }
 
 interface FileSectionProps {
@@ -702,6 +703,7 @@ export function FileList({
   onScrollComplete,
   onDeletePath,
   onBlameFile,
+  repoId,
 }: FileListProps) {
   const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
@@ -907,21 +909,22 @@ export function FileList({
     >();
     const groupOrder: string[] = [];
     const ensureGroup = (id: string, label: string, displayPrefix: string) => {
-      if (!groupMap.has(id)) {
-        groupMap.set(id, {
-          id,
-          label,
-          displayPrefixes: new Set<string>(),
-          files: {
-            conflicts: [],
-            staged: [],
-            unstaged: [],
-            untracked: [],
-          },
-        });
+      const existing = groupMap.get(id);
+      const group = existing ?? {
+        id,
+        label,
+        displayPrefixes: new Set<string>(),
+        files: {
+          conflicts: [],
+          staged: [],
+          unstaged: [],
+          untracked: [],
+        },
+      };
+      if (!existing) {
+        groupMap.set(id, group);
         groupOrder.push(id);
       }
-      const group = groupMap.get(id)!;
       if (displayPrefix) {
         group.displayPrefixes.add(displayPrefix);
       }
@@ -969,15 +972,17 @@ export function FileList({
     (files?.untracked ?? []).forEach((file) => addFile(file, "untracked"));
 
     const filledGroups = groupOrder
-      .map((id) => groupMap.get(id)!)
-      .filter(
-        (group) =>
+      .map((id) => groupMap.get(id))
+      .filter((group): group is NonNullable<typeof group> => {
+        if (!group) return false;
+        return (
           group.files.conflicts.length +
             group.files.staged.length +
             group.files.unstaged.length +
             group.files.untracked.length >
-          0,
-      );
+          0
+        );
+      });
     const hasOther =
       otherGroup.files.conflicts.length +
         otherGroup.files.staged.length +
@@ -991,7 +996,8 @@ export function FileList({
       );
       let displayPrefix = "";
       if (prefixes.length === 1) {
-        displayPrefix = prefixes[0];
+        const [firstPrefix] = prefixes;
+        displayPrefix = firstPrefix ?? "";
       } else if (prefixes.length > 1) {
         displayPrefix = `${prefixes.length} prefixes`;
       }
@@ -1189,6 +1195,7 @@ export function FileList({
                     onScrollComplete={onScrollComplete}
                     onDeletePath={onDeletePath}
                     onBlameFile={onBlameFile}
+                    repoId={repoId}
                   />
                 ) : groupingActive ? (
                   groupedSections.map((group) => {

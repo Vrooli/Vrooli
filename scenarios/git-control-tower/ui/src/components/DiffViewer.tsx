@@ -252,7 +252,6 @@ function HunkDisplay({ hunk, index }: { hunk: DiffHunk; index: number }) {
       {/* Hunk lines */}
       <div className="divide-y divide-slate-800/30">
         {hunk.lines.map((line, lineIdx) => {
-          const isAddition = line.startsWith("+") && !line.startsWith("+++");
           const isDeletion = line.startsWith("-") && !line.startsWith("---");
           const lineNum = isDeletion ? undefined : currentLine;
 
@@ -441,9 +440,12 @@ export function DiffViewer({
     selectedFile && !isLoading && !error && diff?.has_diff && isBinaryDiff && !showBinary;
 
   // Determine what content to show
-  const hasAnnotatedLines = diff?.annotated_lines && diff.annotated_lines.length > 0;
+  const annotatedLines = diff?.annotated_lines ?? [];
+  const hunks = diff?.hunks ?? [];
+  const fullContent = diff?.full_content ?? "";
+  const hasAnnotatedLines = annotatedLines.length > 0;
   const hasFullContent = diff?.full_content !== undefined;
-  const hasHunks = diff?.hunks && diff.hunks.length > 0;
+  const hasHunks = hunks.length > 0;
 
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
@@ -609,7 +611,7 @@ export function DiffViewer({
           {/* Source mode - just the file content */}
           {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "source" && hasFullContent && (
             <SourceView
-              content={diff!.full_content!}
+              content={fullContent}
               highlightedLines={highlightedLines}
             />
           )}
@@ -617,7 +619,7 @@ export function DiffViewer({
           {/* Full + Diff mode - full file with change annotations */}
           {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "full_diff" && hasAnnotatedLines && (
             <FullFileView
-              annotatedLines={diff!.annotated_lines!}
+              annotatedLines={annotatedLines}
               highlightedLines={highlightedLines}
               showChangeMarkers={true}
             />
@@ -626,7 +628,7 @@ export function DiffViewer({
           {/* Diff mode - traditional hunk view */}
           {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "diff" && hasHunks && (
             <div data-testid="diff-content">
-              {diff!.hunks!.map((hunk, index) => (
+              {hunks.map((hunk, index) => (
                 <HunkDisplay key={index} hunk={hunk} index={index} />
               ))}
             </div>
@@ -635,7 +637,7 @@ export function DiffViewer({
           {/* Fallback for untracked files in diff mode (show full content) */}
           {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "diff" && !hasHunks && hasFullContent && isUntracked && (
             <SourceView
-              content={diff!.full_content!}
+              content={fullContent}
               highlightedLines={highlightedLines}
             />
           )}
@@ -644,12 +646,12 @@ export function DiffViewer({
           {selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && (() => {
             const fileType = getFileTypeInfo(selectedFile);
             if (fileType.category === "markdown") {
-              return <MarkdownPreview content={diff!.full_content!} />;
+              return <MarkdownPreview content={fullContent} />;
             }
             if (fileType.category === "image" && fileType.mimeType) {
               return (
                 <ImagePreview
-                  src={`data:${fileType.mimeType};base64,${diff!.full_content}`}
+                  src={`data:${fileType.mimeType};base64,${fullContent}`}
                   alt={selectedFile}
                 />
               );

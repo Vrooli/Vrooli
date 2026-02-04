@@ -12,6 +12,7 @@ export type SettingsTab = "layout" | "credentials";
 interface SettingsModalProps {
   isOpen: boolean;
   repoDir?: string;
+  repoId?: string | null;
   syncStatus?: SyncStatusResponse;
   // Layout props
   preset: LayoutPreset;
@@ -32,6 +33,7 @@ const tabLabels: Record<SettingsTab, string> = {
 export function SettingsModal({
   isOpen,
   repoDir,
+  repoId,
   syncStatus,
   preset,
   primaryPanel,
@@ -114,6 +116,7 @@ export function SettingsModal({
               remoteUrl={remoteUrl}
               hasUpstream={hasUpstream}
               isMobile={true}
+              repoId={repoId}
             />
           )}
         </div>
@@ -199,6 +202,7 @@ export function SettingsModal({
               remoteUrl={remoteUrl}
               hasUpstream={hasUpstream}
               isMobile={false}
+              repoId={repoId}
             />
           )}
         </div>

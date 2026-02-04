@@ -49,12 +49,16 @@ export function BottomSheet({
 
   // Handle touch gestures for swipe-to-dismiss
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    startYRef.current = e.touches[0].clientY;
+    const touch = e.touches[0];
+    if (!touch) return;
+    startYRef.current = touch.clientY;
     currentYRef.current = 0;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const deltaY = e.touches[0].clientY - startYRef.current;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const deltaY = touch.clientY - startYRef.current;
     // Only allow dragging down
     if (deltaY > 0 && sheetRef.current) {
       currentYRef.current = deltaY;

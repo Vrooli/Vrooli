@@ -128,7 +128,7 @@ func TestEnsureBundleExtraResources(t *testing.T) {
 	t.Run("package.json not found returns nil", func(t *testing.T) {
 		// ensureBundleExtraResources gracefully handles missing package.json
 		// (e.g., Go-only scenarios don't have package.json)
-		err := ensureBundleExtraResources("/nonexistent/path")
+		err := ensureBundleExtraResources("/nonexistent/path", "electron")
 		if err != nil {
 			t.Errorf("expected no error for nonexistent path, got: %v", err)
 		}
@@ -136,12 +136,15 @@ func TestEnsureBundleExtraResources(t *testing.T) {
 
 	t.Run("invalid JSON", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		pkgPath := filepath.Join(tmpDir, "package.json")
+		pkgPath := filepath.Join(tmpDir, "platforms", "electron", "package.json")
+		if err := os.MkdirAll(filepath.Dir(pkgPath), 0o755); err != nil {
+			t.Fatalf("failed to create package.json directory: %v", err)
+		}
 		if err := os.WriteFile(pkgPath, []byte("not valid json"), 0o644); err != nil {
 			t.Fatalf("failed to write package.json: %v", err)
 		}
 
-		err := ensureBundleExtraResources(tmpDir)
+		err := ensureBundleExtraResources(tmpDir, "electron")
 		if err == nil {
 			t.Error("expected error for invalid JSON")
 		}
@@ -149,13 +152,16 @@ func TestEnsureBundleExtraResources(t *testing.T) {
 
 	t.Run("adds bundle extra resources", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		pkgPath := filepath.Join(tmpDir, "package.json")
+		pkgPath := filepath.Join(tmpDir, "platforms", "electron", "package.json")
+		if err := os.MkdirAll(filepath.Dir(pkgPath), 0o755); err != nil {
+			t.Fatalf("failed to create package.json directory: %v", err)
+		}
 		initial := []byte(`{"name": "test"}`)
 		if err := os.WriteFile(pkgPath, initial, 0o644); err != nil {
 			t.Fatalf("failed to write package.json: %v", err)
 		}
 
-		err := ensureBundleExtraResources(tmpDir)
+		err := ensureBundleExtraResources(tmpDir, "electron")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -173,13 +179,16 @@ func TestEnsureBundleExtraResources(t *testing.T) {
 
 	t.Run("preserves existing bundle entry", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		pkgPath := filepath.Join(tmpDir, "package.json")
+		pkgPath := filepath.Join(tmpDir, "platforms", "electron", "package.json")
+		if err := os.MkdirAll(filepath.Dir(pkgPath), 0o755); err != nil {
+			t.Fatalf("failed to create package.json directory: %v", err)
+		}
 		initial := []byte(`{"name":"test","build":{"extraResources":[{"from":"bundle","to":"bundle"}]}}`)
 		if err := os.WriteFile(pkgPath, initial, 0o644); err != nil {
 			t.Fatalf("failed to write package.json: %v", err)
 		}
 
-		err := ensureBundleExtraResources(tmpDir)
+		err := ensureBundleExtraResources(tmpDir, "electron")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

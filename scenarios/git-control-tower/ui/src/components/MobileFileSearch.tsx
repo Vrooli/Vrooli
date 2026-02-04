@@ -24,6 +24,7 @@ interface MobileFileSearchProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectFile: (path: string, lineNumber?: number) => void;
+  repoId?: string | null;
 }
 
 // localStorage keys
@@ -36,7 +37,7 @@ function getFileHistory(): string[] {
   try {
     const stored = localStorage.getItem(FILE_HISTORY_KEY);
     if (!stored) return [];
-    const parsed = JSON.parse(stored);
+    const parsed: unknown = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((item): item is string => typeof item === "string");
   } catch {
@@ -84,7 +85,7 @@ function fuzzyMatch(path: string, query: string): boolean {
 
   let pathIdx = 0;
   for (let i = 0; i < lowerQuery.length; i++) {
-    const char = lowerQuery[i];
+    const char = lowerQuery.charAt(i);
     const found = lowerPath.indexOf(char, pathIdx);
     if (found === -1) return false;
     pathIdx = found + 1;
@@ -103,7 +104,7 @@ function fuzzyScore(path: string, query: string): number {
   let consecutive = 0;
 
   for (let i = 0; i < lowerQuery.length; i++) {
-    const char = lowerQuery[i];
+    const char = lowerQuery.charAt(i);
     const found = lowerPath.indexOf(char, pathIdx);
     if (found === -1) return -1;
 
@@ -283,7 +284,12 @@ function highlightContent(content: string, query: string, isRegex: boolean, case
   );
 }
 
-export function MobileFileSearch({ isOpen, onClose, onSelectFile }: MobileFileSearchProps) {
+export function MobileFileSearch({
+  isOpen,
+  onClose,
+  onSelectFile,
+  repoId
+}: MobileFileSearchProps) {
   const [searchMode, setSearchMode] = useState<SearchMode>(getSavedSearchMode);
   const [query, setQuery] = useState("");
   const [isDeepSearch, setIsDeepSearch] = useState(false);
@@ -319,7 +325,8 @@ export function MobileFileSearch({ isOpen, onClose, onSelectFile }: MobileFileSe
   } = useFileSearch(
     searchMode === "files" ? debouncedQuery || undefined : undefined,
     isDeepSearch,
-    isOpen && searchMode === "files"
+    isOpen && searchMode === "files",
+    repoId
   );
 
   // Content search options
@@ -339,7 +346,8 @@ export function MobileFileSearch({ isOpen, onClose, onSelectFile }: MobileFileSe
   } = useContentSearch(
     searchMode === "content" ? debouncedQuery : "",
     contentSearchOptions,
-    isOpen && searchMode === "content" && debouncedQuery.length >= 2
+    isOpen && searchMode === "content" && debouncedQuery.length >= 2,
+    repoId
   );
 
   // Filter and sort files based on query
@@ -427,13 +435,21 @@ export function MobileFileSearch({ isOpen, onClose, onSelectFile }: MobileFileSe
       event.preventDefault();
       if (searchMode === "files") {
         if (query && filteredFiles.length > 0) {
-          handleSelectFile(filteredFiles[0]);
+          const firstFile = filteredFiles[0];
+          if (firstFile) {
+            handleSelectFile(firstFile);
+          }
         } else if (!query && recentFiles.length > 0) {
-          handleSelectRecentFile(recentFiles[0]);
+          const recent = recentFiles[0];
+          if (recent) {
+            handleSelectRecentFile(recent);
+          }
         }
       } else if (searchMode === "content") {
-        if (groupedContentResults.length > 0 && groupedContentResults[0].matches.length > 0) {
-          handleSelectMatch(groupedContentResults[0].matches[0]);
+        const firstGroup = groupedContentResults[0];
+        const firstMatch = firstGroup?.matches[0];
+        if (firstMatch) {
+          handleSelectMatch(firstMatch);
         }
       }
     }
