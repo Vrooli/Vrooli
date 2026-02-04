@@ -150,6 +150,14 @@ export const ADMIN_PAGE_DEFINITIONS: AdminPageDefinition[] = [
     documentation: { ...ADMIN_GUIDE_DOC, anchor: 'downloads' },
   },
   {
+    id: 'remote-profiles',
+    name: 'Remote Profiles',
+    description: 'Manage remote admin sessions for deployed suites.',
+    route: '/admin/remote-profiles',
+    routePattern: '/admin/remote-profiles',
+    documentation: { ...ADMIN_GUIDE_DOC, anchor: 'remote-profiles' },
+  },
+  {
     id: 'usage',
     name: 'Usage',
     description: 'Monthly AI credit usage reporting.',

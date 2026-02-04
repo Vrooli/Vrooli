@@ -331,6 +331,7 @@ db.QueryRow("SELECT * FROM admin_users WHERE email = '" + email + "'")
 | Passwords | bcrypt hash (never plaintext) |
 | Stripe Restricted Key (`STRIPE_SECRET_KEY`) | Encrypted in `payment_settings` |
 | Webhook Secret | Encrypted in `payment_settings` |
+| Remote profile sessions (`admin_session`) | Encrypted in `remote_profiles` |
 | Session Secret | Environment variable only |
 
 ---
@@ -342,6 +343,8 @@ db.QueryRow("SELECT * FROM admin_users WHERE email = '" + email + "'")
 | Variable | Purpose | Required |
 |----------|---------|----------|
 | `SESSION_SECRET` | Encrypts session cookies | **Yes** in production |
+| `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` | Encrypts stored remote admin sessions | **Yes** in production |
+| `LPBS_API_KEY_ENCRYPTION_KEY` | Encrypts stored AI provider API keys | **Yes** in production |
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks | Yes if using Stripe |
 | `DATABASE_URL` | Database connection (use SSL) | Yes |
 | `ADMIN_DEFAULT_EMAIL` | Override default admin email | No (default: `admin@localhost`) |
@@ -352,6 +355,8 @@ db.QueryRow("SELECT * FROM admin_users WHERE email = '" + email + "'")
 ```bash
 # Generate secure values
 SESSION_SECRET=$(openssl rand -base64 32)
+LPBS_REMOTE_PROFILE_ENCRYPTION_KEY=$(openssl rand -base64 32)
+LPBS_API_KEY_ENCRYPTION_KEY=$(openssl rand -base64 32)
 
 # Admin credentials (override defaults for production)
 ADMIN_DEFAULT_EMAIL=admin@yourdomain.com
@@ -374,6 +379,7 @@ DATABASE_URL=postgres://user:pass@host:5432/db?sslmode=require
 
 - [ ] **Change default admin credentials** - Either set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` environment variables, or change via `/admin/profile` after first login
 - [ ] **Set SESSION_SECRET** - Generate cryptographically random 32+ byte key
+- [ ] **Set encryption keys** - `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` and `LPBS_API_KEY_ENCRYPTION_KEY` in production
 - [ ] **Enable HTTPS** - All traffic must be encrypted
 - [ ] **Set Secure cookie flag** - Modify `auth.go` line 99: `session.Options.Secure = true`
 - [ ] **Configure CORS** - Restrict to your production domain only

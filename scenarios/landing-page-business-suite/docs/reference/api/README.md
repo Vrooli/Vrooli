@@ -11,7 +11,8 @@ audience: ["developers"]
 This document provides an overview of the REST API exposed by this landing page. All endpoints use JSON for request/response bodies unless otherwise noted.
 
 **Implementation Files:**
-- [CODE: api/main.go] - Server initialization and route registration
+- [CODE: api/main.go] - Server initialization and lifecycle wiring
+- [CODE: api/routes.go] - Route registration by domain
 - [CODE: api/stripe_handlers.go] - Payment endpoints
 - [CODE: api/variant_handlers.go] - Variant management endpoints
 - [CODE: api/metrics_handlers.go] - Analytics tracking endpoints

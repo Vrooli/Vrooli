@@ -19,6 +19,7 @@ import { SectionEditor } from './surfaces/admin-portal/routes/SectionEditor';
 import { AgentCustomization } from './surfaces/admin-portal/routes/AgentCustomization';
 import { BillingSettings } from './surfaces/admin-portal/routes/BillingSettings';
 import { DownloadSettings } from './surfaces/admin-portal/routes/DownloadSettings';
+import { RemoteProfiles } from './surfaces/admin-portal/routes/RemoteProfiles';
 import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSettings';
 import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
 import { FeedbackManagement } from './surfaces/admin-portal/routes/FeedbackManagement';
@@ -241,6 +242,14 @@ export default function App() {
                     element={(
                       <AdminRoute name="DownloadSettings">
                         <DownloadSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/remote-profiles"
+                    element={(
+                      <AdminRoute name="RemoteProfiles">
+                        <RemoteProfiles />
                       </AdminRoute>
                     )}
                   />

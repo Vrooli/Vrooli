@@ -280,6 +280,14 @@
             "description": "Secret key used for encrypting session cookies. Must be kept private and should be unique per deployment.",
             "required": true,
             "default_hint": "Generate with: openssl rand -base64 32"
+          },
+          {
+            "secret_id": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
+            "classification": "service",
+            "label": "Remote Profile Encryption Key",
+            "description": "Encrypts stored remote admin sessions for remote profiles. Required in production deployments.",
+            "required": false,
+            "default_hint": "Generate with: openssl rand -base64 32"
           }
         ]
       }

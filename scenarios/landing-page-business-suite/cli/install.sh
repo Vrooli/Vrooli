@@ -2,7 +2,5 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scenarios/landing-page-business-suite/cli"
-source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/landing-page-business-suite" "landing-page-business-suite"
+"${APP_ROOT}/packages/cli-core/install.sh" "scenarios/landing-page-business-suite/cli" --name "landing-page-business-suite"

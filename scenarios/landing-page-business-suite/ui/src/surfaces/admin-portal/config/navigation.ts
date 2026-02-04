@@ -18,6 +18,7 @@ import {
   LayoutDashboard,
   Bot,
   Tag,
+  Server,
 } from 'lucide-react';
 import type { NavigationConfig } from './navigation.types';
 
@@ -168,6 +169,14 @@ export const NAVIGATION_CONFIG: NavigationConfig = {
           testId: 'nav-downloads',
         },
         {
+          id: 'remote-profiles',
+          name: 'Remote Profiles',
+          description: 'Manage remote admin sessions for deployments',
+          icon: Server,
+          path: '/admin/remote-profiles',
+          testId: 'nav-remote-profiles',
+        },
+        {
           id: 'usage',
           name: 'Usage',
           description: 'Monitor credit consumption',
@@ -265,6 +274,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   '/admin/apps': 'Apps Dashboard',
   '/admin/app-limits': 'App Limits',
   '/admin/downloads': 'Downloads',
+  '/admin/remote-profiles': 'Remote Profiles',
   '/admin/usage': 'Usage',
   '/admin/branding': 'Branding',
   '/admin/customization': 'Customization',

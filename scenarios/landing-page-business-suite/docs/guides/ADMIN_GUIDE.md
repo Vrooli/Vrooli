@@ -74,6 +74,8 @@ This section mirrors the UI navigation config. If you update `NAVIGATION_CONFIG`
   - [CODE: ui/src/surfaces/admin-portal/routes/AppsManagement.tsx]
 - Downloads (`/admin/downloads`): App registry, installers, hosting, and artifacts.
   - [CODE: ui/src/surfaces/admin-portal/routes/DownloadSettings.tsx]
+- Remote Profiles (`/admin/remote-profiles`): Remote admin sessions for deployed suites.
+  - [CODE: ui/src/surfaces/admin-portal/routes/RemoteProfiles.tsx]
 - Usage (`/admin/usage`): Monthly AI credit usage reporting.
   - [CODE: ui/src/surfaces/admin-portal/routes/UsageDashboard.tsx]
 - Tier Limits (`/admin/tier-limits`): Credit limits per subscription tier.
@@ -211,6 +213,19 @@ The Downloads page (`/admin/downloads`) manages:
 - Previewing the public landing page download section.
 
 Downloads are gated by subscription status in the public experience.
+
+### Remote Profiles
+
+Remote Profiles (`/admin/remote-profiles`) let admins store encrypted sessions for deployed
+landing-page-business-suite instances so automation can route admin tasks through the local API.
+Use this page to create a profile, authenticate to the remote admin portal, verify session status,
+and revoke access when needed.
+
+#### Troubleshooting
+
+- **"Remote session expired"**: Click Login to refresh the session cookie.
+- **"API base must include /api/v1"**: Use the full remote API base URL (for example, `https://your-domain/api/v1`).
+- **Remote test failures**: Confirm the deployment is reachable and the admin credentials are valid.
 
 ### Usage
 

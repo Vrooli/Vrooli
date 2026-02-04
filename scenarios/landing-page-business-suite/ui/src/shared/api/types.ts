@@ -213,6 +213,23 @@ export interface DownloadApp {
   platforms: DownloadAsset[];
 }
 
+export type RemoteProfileStatus = 'unknown' | 'active' | 'expired' | 'error';
+
+export interface RemoteProfile {
+  id: number;
+  tag: string;
+  label?: string | null;
+  api_base: string;
+  status: RemoteProfileStatus;
+  has_session: boolean;
+  session_expires_at?: string;
+  last_login_at?: string;
+  last_used_at?: string;
+  created_by?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type SectionType =
   | 'hero'
   | 'features'

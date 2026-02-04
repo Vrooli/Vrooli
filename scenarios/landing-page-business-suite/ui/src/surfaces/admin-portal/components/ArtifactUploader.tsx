@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Upload, RefreshCw, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { Upload, RefreshCw, CheckCircle2, X } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { Callout } from './Callout';
 import { inputBaseClassName } from './formFieldClasses';

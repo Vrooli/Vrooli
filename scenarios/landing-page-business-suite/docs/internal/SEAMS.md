@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Seams & Architecture
 
-> **Last Updated**: 2026-01-26
+> **Last Updated**: 2026-02-04
 > **Purpose**: Document deliberate boundaries (seams) where behavior can vary or be substituted without invasive changes
 
 ## Overview
@@ -88,6 +88,19 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   UI content and A/B variants are isolated behind services so new presentations do not touch SQL.
 - **SEO composition** (`seo_service.go`)  
   Combines site branding defaults with per-variant SEO config and drives sitemap/robots responses. Handlers call the service; admin UI uses the `seoController` + shared API client instead of direct `fetch` calls to keep transport concerns separate from editing logic.
+
+---
+
+## Remote Profiles & Proxy Seam (NEW)
+
+- **Remote profile service** (`api/remote_profiles_service.go`)  
+  Centralizes remote admin sessions in one place and encrypts stored `admin_session` cookies at rest. The service owns validation of remote API bases, session storage, and status updates so handlers remain transport-only.
+
+- **HTTP client seam** (`RemoteProfileService.httpClient`)  
+  All remote admin calls flow through an injected `HTTPDoer`, making login/test/proxy flows testable with `httptest.Server` or mock clients.
+
+- **Proxy allowlist seam** (`remoteProfileProxyAllowlist`)  
+  Only explicitly allowlisted `/admin/*` endpoints can be proxied, preventing accidental exposure of unrelated admin routes.
 
 ---
 

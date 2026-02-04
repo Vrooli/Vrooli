@@ -63,17 +63,8 @@ export function DownloadSettings() {
 
   const {
     storageSettings,
-    storageLoading,
-    storageSaving,
-    storageError,
     storageSuccess,
-    storageForm,
-    setStorageForm,
-    credentialsForm,
-    setCredentialsForm,
     loadStorage,
-    handleSaveStorage,
-    handleTestStorage,
     artifactsLoading,
     artifactsError,
     artifactsQuery,
@@ -90,9 +81,6 @@ export function DownloadSettings() {
     loadArtifacts,
     handleApplyArtifact,
     handleSetArtifactAsCurrent,
-    uploadState,
-    setUploadState,
-    handleUploadArtifact,
   } = useDownloadHosting({ activeTab, loadApps, getFirstAppKey });
 
   // Build apps list for ArtifactUploader (convert form values to DownloadApp shape)

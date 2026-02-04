@@ -16,6 +16,7 @@ This document describes the system architecture of landing pages generated from 
 - [CODE: api/landing_config_service.go] - Landing page configuration service
 - [CODE: api/variant_handlers.go] - A/B testing variant endpoints
 - [CODE: api/plan_store.go] - File-based plan catalog (pricing source of truth)
+- [CODE: api/remote_profiles_service.go] - Remote profile storage + proxy service
 
 ## Table of Contents
 
@@ -130,7 +131,8 @@ api/
 │   ├── variant_service      # Variant selection
 │   ├── content_service      # Section CRUD
 │   ├── metrics_service      # Event processing
-│   └── download_service     # Entitlement gating
+│   ├── download_service     # Entitlement gating
+│   └── remote_profiles_service # Remote admin sessions + proxying
 ├── auth.go                  # Session middleware
 ├── logging.go               # Structured logging
 └── initialization/

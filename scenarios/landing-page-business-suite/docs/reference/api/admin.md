@@ -1,6 +1,6 @@
 ---
 title: "Admin Endpoints"
-description: "Admin portal management APIs"
+description: "Admin portal management APIs (auth, branding, assets, remote profiles)"
 category: "reference"
 order: 7
 audience: ["developers"]
@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Admin Endpoints
 
-Endpoints for admin portal authentication, branding, and asset management.
+Endpoints for admin portal authentication, branding, asset management, and remote profile management.
 
 ## Authentication
 
@@ -136,6 +136,177 @@ Updates the admin email and/or password. `current_password` is required for all 
 - `400 Bad Request` - Missing fields or weak password
 - `401 Unauthorized` - Current password invalid
 - `409 Conflict` - Email already in use
+
+---
+
+## Remote Profiles
+
+Remote profiles let the admin UI/CLI manage a deployed LPBS instance by storing an encrypted
+`admin_session` cookie and proxying allowlisted admin requests. Remote sessions are encrypted
+at rest using `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` (or `LPBS_API_KEY_ENCRYPTION_KEY` fallback).
+
+### GET /admin/remote-profiles
+
+Lists configured remote profiles.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "profiles": [
+    {
+      "id": 1,
+      "tag": "prod",
+      "label": "Production",
+      "api_base": "https://example.com/api/v1",
+      "status": "active",
+      "has_session": true,
+      "session_expires_at": "2026-02-04T18:15:00Z",
+      "last_login_at": "2026-02-04T17:15:00Z",
+      "last_used_at": "2026-02-04T17:45:00Z",
+      "created_by": 1,
+      "created_at": "2026-02-04T17:00:00Z",
+      "updated_at": "2026-02-04T17:45:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### POST /admin/remote-profiles
+
+Creates a new remote profile.
+
+**Authentication:** Admin session required
+
+**Request:**
+```json
+{
+  "tag": "prod",
+  "label": "Production",
+  "api_base": "https://example.com/api/v1"
+}
+```
+
+**Notes:**
+- `api_base` must end with `/api/v1` (the remote LPBS API base)
+- HTTPS is required in production environments
+
+**Response:** Remote profile object (see list response)
+
+**Errors:**
+- `409 Conflict` - Tag already exists
+- `400 Bad Request` - Invalid tag or api_base
+
+---
+
+### PUT /admin/remote-profiles/{id}
+
+Updates a remote profile.
+
+**Authentication:** Admin session required
+
+**Request (partial fields allowed):**
+```json
+{
+  "label": "Production (VPS)",
+  "api_base": "https://example.com/api/v1"
+}
+```
+
+**Response:** Updated remote profile object
+
+---
+
+### DELETE /admin/remote-profiles/{id}
+
+Deletes a remote profile.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+---
+
+### POST /admin/remote-profiles/{id}/login
+
+Logs in to the remote LPBS instance and stores the remote session cookie.
+
+**Authentication:** Admin session required
+
+**Request:**
+```json
+{
+  "email": "admin@localhost",
+  "password": "changeme123"
+}
+```
+
+**Response:** Updated remote profile object
+
+**Errors:**
+- `401 Unauthorized` - Remote credentials invalid
+
+---
+
+### POST /admin/remote-profiles/{id}/logout
+
+Clears the stored remote session cookie.
+
+**Authentication:** Admin session required
+
+**Response:** Updated remote profile object
+
+---
+
+### POST /admin/remote-profiles/{id}/test
+
+Validates the stored remote session.
+
+**Authentication:** Admin session required
+
+**Response:** Updated remote profile object
+
+**Errors:**
+- `401 Unauthorized` - Remote session expired
+
+---
+
+### POST /admin/remote-profiles/{id}/proxy
+
+Proxies an allowlisted remote admin request using the stored remote session cookie.
+
+**Authentication:** Admin session required
+
+**Request:**
+```json
+{
+  "method": "POST",
+  "path": "/admin/download-artifacts/commit",
+  "query": { "bundle_key": "landing-page" },
+  "headers": { "Content-Type": "application/json" },
+  "body": {
+    "artifact_id": 42,
+    "app_key": "landing-suite",
+    "platform": "windows"
+  }
+}
+```
+
+**Allowlisted paths (prefix match):**
+- `/admin/download-storage`
+- `/admin/download-artifacts`
+- `/admin/download-assets`
+- `/admin/download-apps`
+
+**Response:** Pass-through status + body from remote LPBS
 
 ---
 

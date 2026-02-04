@@ -711,7 +711,7 @@ func TestDownloadHostingService_ListArtifacts_Pagination(t *testing.T) {
 	}
 
 	// Test first page
-	result, err := service.ListArtifacts(ctx, "list_test", "", "", 1, 5)
+	result, err := service.ListArtifacts(ctx, "list_test", "", "", "", 1, 5)
 	if err != nil {
 		t.Fatalf("ListArtifacts failed: %v", err)
 	}
@@ -726,7 +726,7 @@ func TestDownloadHostingService_ListArtifacts_Pagination(t *testing.T) {
 	}
 
 	// Test second page
-	result, err = service.ListArtifacts(ctx, "list_test", "", "", 2, 5)
+	result, err = service.ListArtifacts(ctx, "list_test", "", "", "", 2, 5)
 	if err != nil {
 		t.Fatalf("ListArtifacts failed: %v", err)
 	}
@@ -1153,7 +1153,7 @@ func TestDownloadHostingService_ListArtifacts_WithSearchQuery(t *testing.T) {
 	}
 
 	// Search for "alpha"
-	result, err := service.ListArtifacts(ctx, "search_test", "alpha", "", 1, 50)
+	result, err := service.ListArtifacts(ctx, "search_test", "alpha", "", "", 1, 50)
 	if err != nil {
 		t.Fatalf("ListArtifacts failed: %v", err)
 	}
@@ -1202,7 +1202,7 @@ func TestDownloadHostingService_ListArtifacts_WithPlatformFilter(t *testing.T) {
 	}
 
 	// Filter by platform
-	result, err := service.ListArtifacts(ctx, "platform_test", "", "windows", 1, 50)
+	result, err := service.ListArtifacts(ctx, "platform_test", "", "windows", "", 1, 50)
 	if err != nil {
 		t.Fatalf("ListArtifacts failed: %v", err)
 	}

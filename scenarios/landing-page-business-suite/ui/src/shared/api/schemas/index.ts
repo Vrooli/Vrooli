@@ -21,6 +21,9 @@ export * from './variants.schema';
 // Downloads schemas and types
 export * from './downloads.schema';
 
+// Remote profiles schemas and types
+export * from './remoteProfiles.schema';
+
 // Auth schemas and types
 export * from './auth.schema';
 

@@ -16,6 +16,26 @@ CREATE TABLE IF NOT EXISTS admin_users (
 
 CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
 
+-- Remote Profiles Table (Admin-managed remote connections)
+-- Stores encrypted admin_session cookies for remote LPBS instances
+CREATE TABLE IF NOT EXISTS remote_profiles (
+    id SERIAL PRIMARY KEY,
+    tag VARCHAR(100) UNIQUE NOT NULL,
+    label TEXT,
+    api_base TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'unknown' CHECK (status IN ('unknown','active','expired','error')),
+    encrypted_session TEXT,
+    session_expires_at TIMESTAMP,
+    last_login_at TIMESTAMP,
+    last_used_at TIMESTAMP,
+    created_by INTEGER REFERENCES admin_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_remote_profiles_tag ON remote_profiles(tag);
+CREATE INDEX IF NOT EXISTS idx_remote_profiles_status ON remote_profiles(status);
+
 -- Metrics Events Table (OT-P0-019 through OT-P0-022)
 -- Stores analytics events (variant_slug is stored as text, not FK)
 CREATE TABLE IF NOT EXISTS metrics_events (
