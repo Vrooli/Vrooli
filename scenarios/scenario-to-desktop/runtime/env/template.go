@@ -56,6 +56,17 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 	// Bundled services should skip api-core staleness checks (no source modules in bundle).
 	env["VROOLI_API_SKIP_STALE_CHECK"] = "true"
 
+	// NOTE: The following Vrooli lifecycle env vars are intentionally NOT set by the runtime:
+	//
+	// - VROOLI_ROOT: Monorepo root - not applicable for standalone desktop apps.
+	//   Scenarios should check VROOLI_DESKTOP_MODE and handle standalone case.
+	//
+	// - SCENARIO_ROOT: Scenario directory in monorepo - not applicable because
+	//   the scenario is bundled. Use BUNDLE_ROOT for bundled assets.
+	//
+	// These may be set by the Electron shell (main.ts) if needed:
+	// - VROOLI_LIFECYCLE_MANAGED, VROOLI_DESKTOP_MODE, VROOLI_DATA, port env vars
+
 	// Prepend bundle-local bins to PATH so staged CLIs are discoverable.
 	pathSep := string(os.PathListSeparator)
 	binPaths := []string{

@@ -2284,9 +2284,24 @@ async function startBundledRuntime(): Promise<string> {
     runtimeEnv.VROOLI_API_SKIP_STALE_CHECK = "true";
 
     // Bridge to Vrooli lifecycle - bundled Go binaries require these env vars
-    // DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+    // DOC: docs/internal/SEAMS.md#port-environment-seam
     runtimeEnv.VROOLI_LIFECYCLE_MANAGED = "true";
     runtimeEnv.VROOLI_DESKTOP_MODE = "true";
+
+    // Set data directory for scenarios that use VROOLI_DATA for storage
+    // This maps to the app's userData directory which is isolated per-app
+    runtimeEnv.VROOLI_DATA = appData;
+    console.log(`[Desktop App] Setting VROOLI_DATA=${appData}`);
+
+    // NOTE: The following Vrooli lifecycle env vars are intentionally NOT set:
+    //
+    // - VROOLI_ROOT: Points to the Vrooli monorepo root in development. Not applicable
+    //   for standalone desktop apps. Scenarios should check VROOLI_DESKTOP_MODE and
+    //   handle the standalone case (e.g., prompt user to select paths via UI).
+    //
+    // - SCENARIO_ROOT: Points to the scenario directory in the monorepo. Not applicable
+    //   because the scenario is bundled into the app, not in a directory structure.
+    //   Use BUNDLE_ROOT (set by runtime) if you need to reference bundled assets.
 
     // Set ALL port env vars from PORTS config
     // This is critical for Go binaries that call requireEnv("API_PORT"), etc.
