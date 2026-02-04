@@ -140,6 +140,18 @@ code, pre {
   border-radius: calc(var(--radius) - 2px);
 }
 
+/* Search match highlighting in Monaco Editor */
+.monaco-editor .search-match-highlight {
+  background-color: rgba(59, 130, 246, 0.35) !important;
+  border-radius: 2px;
+  outline: 1px solid rgba(59, 130, 246, 0.6);
+}
+
+.dark .monaco-editor .search-match-highlight {
+  background-color: rgba(96, 165, 250, 0.3) !important;
+  outline: 1px solid rgba(96, 165, 250, 0.5);
+}
+
 /* Custom button hover effects */
 .button-glow {
   position: relative;

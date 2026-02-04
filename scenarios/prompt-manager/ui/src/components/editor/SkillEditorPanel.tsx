@@ -24,6 +24,7 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
+import type { ContentSearchMatch } from '@/lib/schemas'
 import { SkillContentEditor } from './SkillContentEditor'
 import { FilePathMenu } from './FilePathMenu'
 import { ScopeSelector } from './ScopeSelector'
@@ -75,6 +76,9 @@ interface SkillEditorPanelProps {
   isSaving: boolean
   isDeleting: boolean
 
+  // Search highlighting
+  searchMatches?: ContentSearchMatch[]
+
   className?: string
 }
 
@@ -103,6 +107,7 @@ export function SkillEditorPanel({
   onDisplaySkills,
   isSaving,
   isDeleting,
+  searchMatches = [],
   className,
 }: SkillEditorPanelProps) {
   // Access the selection store for closing the editor
@@ -280,6 +285,7 @@ export function SkillEditorPanel({
             onDiscard={onDiscard}
             isSaving={isSaving}
             isValid={validation.valid}
+            searchMatches={searchMatches}
             className="h-full"
           />
         </div>

@@ -247,6 +247,8 @@ interface SkillTreeSidebarProps {
   onDiscardAll?: () => void
   /** Whether save operation is in progress */
   isSaving?: boolean
+  /** Callback when content search matches change (for editor highlighting) */
+  onContentMatchesChange?: (matches: ContentSearchMatch[]) => void
   className?: string
 }
 
@@ -312,6 +314,7 @@ export function SkillTreeSidebar({
   onSaveAll,
   onDiscardAll,
   isSaving = false,
+  onContentMatchesChange,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -452,6 +455,15 @@ export function SkillTreeSidebar({
     if (searchMode !== 'content') return
     setExpandedContentFiles(new Set(groupedContentMatches.map((group) => group.file)))
   }, [groupedContentMatches, searchMode])
+
+  // Notify parent when content matches change (for editor highlighting)
+  useEffect(() => {
+    console.log('[SearchHighlight] Sidebar notifying parent:', {
+      matchCount: contentMatches.length,
+      hasCallback: !!onContentMatchesChange,
+    })
+    onContentMatchesChange?.(contentMatches)
+  }, [contentMatches, onContentMatchesChange])
 
   const handleCategoryContextMenu = useCallback((node: TreeNode, x: number, y: number) => {
     setSkillContextMenu(null) // Close any open skill menu

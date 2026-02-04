@@ -27,6 +27,7 @@ import {
   type MarkdownIssue,
   type RoundTripResult,
 } from '@/services/content/validation'
+import type { ContentSearchMatch } from '@/lib/schemas'
 
 export type EditorType = 'code' | 'wysiwyg'
 export type ViewMode = 'edit' | 'preview'
@@ -295,6 +296,8 @@ interface SkillContentEditorProps extends EditorActionState {
   originalValue?: string | null
   onChange: (value: string) => void
   error?: string
+  /** Search matches to highlight in the editor */
+  searchMatches?: ContentSearchMatch[]
   className?: string
   headerLeft?: ReactNode
   headerRight?: ReactNode
@@ -308,6 +311,7 @@ export function SkillContentEditor({
   originalValue,
   onChange,
   error,
+  searchMatches = [],
   isDirty = false,
   dirtyCount = 0,
   onUndo,
@@ -324,6 +328,8 @@ export function SkillContentEditor({
   headerRight,
 }: SkillContentEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
+  const searchDecorationsRef = useRef<string[]>([])
+  const [editorReady, setEditorReady] = useState(false)
   const monaco = useMonaco()
   const isMobile = useIsMobile()
   const {
@@ -416,6 +422,76 @@ export function SkillContentEditor({
     }
   }, [monaco, validationIssues])
 
+  // Apply search match decorations to Monaco editor
+  // Also depends on `value` to re-apply after content changes (e.g., switching skills)
+  useEffect(() => {
+    console.log('[SearchHighlight] Effect running:', {
+      hasMonaco: !!monaco,
+      hasEditor: !!editorRef.current,
+      editorReady,
+      editorType,
+      matchCount: searchMatches.length,
+    })
+
+    if (!monaco || !editorRef.current || !editorReady) return
+    // Only apply when in code mode (not wysiwyg)
+    if (editorType !== 'code') return
+
+    const editor = editorRef.current
+
+    // Use requestAnimationFrame to ensure Monaco has processed any pending updates
+    const frameId = requestAnimationFrame(() => {
+      const model = editor.getModel()
+      if (!model || model.isDisposed()) return
+
+      // Build decorations for search matches
+      const decorations: Parameters<typeof editor.deltaDecorations>[1] = []
+
+      for (const match of searchMatches) {
+        // Each matchRange is a character position within the line
+        for (const range of match.matchRanges) {
+          decorations.push({
+            range: new monaco.Range(
+              match.lineNumber,
+              range.start + 1, // Monaco uses 1-based columns
+              match.lineNumber,
+              range.end + 1
+            ),
+            options: {
+              inlineClassName: 'search-match-highlight',
+              overviewRuler: {
+                color: '#3b82f6',
+                position: monaco.editor.OverviewRulerLane.Center,
+              },
+            },
+          })
+        }
+      }
+
+      console.log('[SearchHighlight] Applying decorations:', decorations.length)
+
+      // Apply decorations using deltaDecorations (handles adding/removing efficiently)
+      searchDecorationsRef.current = editor.deltaDecorations(
+        searchDecorationsRef.current,
+        decorations
+      )
+    })
+
+    // Cleanup decorations when component unmounts or matches change
+    return () => {
+      cancelAnimationFrame(frameId)
+      const model = editor.getModel()
+      // Clear decorations if editor still exists
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- model may be disposed at cleanup time
+      if (model && !model.isDisposed()) {
+        searchDecorationsRef.current = editor.deltaDecorations(
+          searchDecorationsRef.current,
+          []
+        )
+      }
+    }
+  }, [monaco, searchMatches, editorType, editorReady, value])
+
   // Handle mode switching with validation warning and round-trip blocking
   const handleEditorTypeChange = useCallback(
     (newType: EditorType) => {
@@ -448,6 +524,7 @@ export function SkillContentEditor({
   // Handle editor mount
   const handleEditorMount: OnMount = useCallback((editor) => {
     editorRef.current = editor
+    setEditorReady(true)
     // Focus editor on mount
     editor.focus()
   }, [])

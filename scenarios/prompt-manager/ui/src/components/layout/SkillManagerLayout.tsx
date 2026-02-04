@@ -47,6 +47,7 @@ import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
+import type { ContentSearchMatch } from '@/lib/schemas'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
@@ -125,6 +126,25 @@ export function SkillManagerLayout() {
   const [contentSearchOptions, setContentSearchOptions] = useState<ContentSearchOptions>(
     initialSidebarState.contentSearchOptions
   )
+
+  // Content search matches (for editor highlighting)
+  const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([])
+
+  // Filter matches to only those for the currently selected skill
+  const currentSkillMatches = useMemo(() => {
+    if (!selectedSkillId || searchMode !== 'content') {
+      console.log('[SearchHighlight] No matches - selectedSkillId:', selectedSkillId, 'searchMode:', searchMode)
+      return []
+    }
+    const filtered = contentMatches.filter((match) => match.skillId === selectedSkillId)
+    console.log('[SearchHighlight] Filtering matches:', {
+      totalMatches: contentMatches.length,
+      selectedSkillId,
+      filteredCount: filtered.length,
+      sampleMatch: contentMatches[0],
+    })
+    return filtered
+  }, [contentMatches, selectedSkillId, searchMode])
 
   // Tree state (expansion, filtering, collapse - but NOT selection)
   const {
@@ -922,6 +942,7 @@ export function SkillManagerLayout() {
         onSaveAll={handleSaveAllFromMenu}
         onDiscardAll={handleDiscardAllFromMenu}
         isSaving={isSaving || isAgentSaving}
+        onContentMatchesChange={setContentMatches}
       />
     </PanelErrorBoundary>
   )
@@ -1081,6 +1102,7 @@ export function SkillManagerLayout() {
                 onSelectSkill={handleSelectItem}
                 isSaving={isSaving}
                 isDeleting={isDeleting}
+                searchMatches={currentSkillMatches}
                 className="h-full"
               />
             )}
@@ -1174,6 +1196,7 @@ export function SkillManagerLayout() {
                 onSaveAll={handleSaveAllFromMenu}
                 onDiscardAll={handleDiscardAllFromMenu}
                 isSaving={isSaving || isAgentSaving}
+                onContentMatchesChange={setContentMatches}
                 className="border-r-0"
               />
             </div>
