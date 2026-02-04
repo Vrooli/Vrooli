@@ -84,7 +84,7 @@ func main() {
 
 	// Initialize domain components (seams for testing)
 	// Use the store adapter to bridge new storage to existing handlers
-	skillStoreAdapter := skills.NewStoreAdapter(fileStore.FileSkills())
+	skillStoreAdapter := skills.NewStoreAdapter(fileStore.FileSkills(), store.NewFileContentIO())
 	metricsRepo := metrics.NewRepository(db)
 	tagsRepo := tags.NewRepository(db)
 	testingRepo := testing.NewRepository(db)

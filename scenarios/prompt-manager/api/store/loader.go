@@ -133,3 +133,22 @@ func DeleteDirectory(path string) error {
 	}
 	return nil
 }
+
+// FileContentIO implements ContentIO using the real filesystem.
+// This is the production implementation.
+type FileContentIO struct{}
+
+// NewFileContentIO creates a new FileContentIO instance
+func NewFileContentIO() *FileContentIO {
+	return &FileContentIO{}
+}
+
+// ReadContent reads content from a file path
+func (f *FileContentIO) ReadContent(path string) (string, error) {
+	return ReadContent(path)
+}
+
+// WriteContent writes content to a file path, creating directories as needed
+func (f *FileContentIO) WriteContent(path, content string) error {
+	return WriteContent(path, content)
+}

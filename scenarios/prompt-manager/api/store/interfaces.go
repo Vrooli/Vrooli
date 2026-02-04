@@ -26,6 +26,14 @@ type SkillStore interface {
 
 	// GetVersionHistory returns version history for a skill
 	GetVersionHistory(ctx context.Context, id string) ([]HistoryEntry, error)
+
+	// ContentPath returns the absolute path where a skill's content is stored.
+	// Used by adapters for direct content operations during move operations.
+	ContentPath(pack, skillID string) string
+
+	// Rename changes a skill's ID by renaming its directory and updating skill.json.
+	// Returns the updated skill with the new ID.
+	Rename(ctx context.Context, oldID, newID string) (*Skill, error)
 }
 
 // AgentStore defines operations for agent storage
@@ -125,4 +133,16 @@ type Store interface {
 	Teams() TeamStore
 	Relations() RelationStore
 	Indexes() IndexStore
+}
+
+// ContentIO abstracts filesystem operations for skill content.
+// This is the testing seam for filesystem interactions in the adapter layer.
+// Production: Uses real filesystem via FileContentIO
+// Testing: Uses MockContentIO for side-effect-free tests
+type ContentIO interface {
+	// ReadContent reads content from a file path
+	ReadContent(path string) (string, error)
+
+	// WriteContent writes content to a file path, creating directories as needed
+	WriteContent(path, content string) error
 }

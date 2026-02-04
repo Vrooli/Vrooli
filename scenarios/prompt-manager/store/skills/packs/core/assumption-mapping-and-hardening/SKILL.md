@@ -156,6 +156,6 @@ You **must**:
 * reduce the likelihood that future changes silently break hidden assumptions
 * avoid superficial changes that do not materially improve robustness
 
-Focus this loop on **practical, targeted assumption hardening** that makes the scenario more resilient to real-world variation and evolution, without overcomplicating the design or drifting from the PRD.
+Focus on **practical, targeted assumption hardening** that makes the scenario more resilient to real-world variation and evolution, without overcomplicating the design or drifting from the PRD.
 
 Avoid “security theater”–style changes; only introduce checks and adjustments that genuinely reduce risk or clarify behavior.

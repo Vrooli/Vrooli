@@ -121,4 +121,4 @@ By the end of this loop, the scenario should:
 
 Avoid superficial changes (e.g. pure renames or file shuffling) that do not materially improve **who is responsible for what**.
 
-Focus this loop on **practical, targeted boundary clarifications** that make the scenario easier to evolve safely and correctly over many future agent loops.
+Focus on **practical, targeted boundary clarifications** that make the scenario easier to evolve safely and correctly over many future agent loops.

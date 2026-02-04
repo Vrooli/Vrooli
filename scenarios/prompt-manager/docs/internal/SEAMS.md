@@ -87,11 +87,35 @@ The skills domain uses a `StoreAdapter` to bridge the legacy handler interface w
 └────────────────────────────────────────────────────────┘
 ```
 
+### Change Detection Seam
+
+The `StoreAdapter.SaveMetadata()` function includes a change detection seam that prevents
+spurious updates when skill metadata hasn't actually changed. This is critical because
+`FileSkillStore.Update()` always:
+1. Increments the `revision` counter
+2. Appends to `history.jsonl`
+3. Writes `skill.json`
+
+Without change detection, saving all skills in a pack (even unchanged ones) would cause
+all skills to get revision increments and history entries.
+
+**Implementation:**
+- `metadataChanged(old, new Metadata) bool` - compares meaningful fields
+- `stringSliceEqual(a, b []string) bool` - compares slice contents
+- `stringPtrEqual(a, b *string) bool` - nil-safe pointer comparison
+
+**Fields Compared:** Name, Description, Modes, Tags, Icon, Draft, TargetToolID, DefaultScope
+**Fields NOT Compared:** ID (identity), File (derived), CreatedAt/UpdatedAt (timestamps)
+
+**Testing:** The `MockSkillStore.UpdateCalls` slice tracks which skill IDs had `Update()`
+called on them, allowing tests to verify that only changed skills are updated.
+
 ### Testing Implications
 
 1. **Unit tests** can mock at the `SkillStore` level (adapter interface)
 2. **Integration tests** should test the full adapter → FileStore chain
 3. When debugging, determine whether the issue is in the adapter translation or underlying store
+4. **Change detection tests** verify that `UpdateCalls` only contains IDs of actually-changed skills
 
 ## Circular Dependency Handling
 

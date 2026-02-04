@@ -17,20 +17,29 @@ import (
 
 // StoreAdapter adapts store.SkillStore (pack-based) to skills.SkillStore (folder-based).
 // This allows existing handlers to work unchanged while reading from the new storage.
+//
+// Testing seams:
+// - skillStore: The underlying pack-based skill store (mockable via store.SkillStore interface)
+// - contentIO: Filesystem operations for direct content access (mockable via store.ContentIO)
 type StoreAdapter struct {
-	fileStore *store.FileSkillStore
+	skillStore store.SkillStore
+	contentIO  store.ContentIO
 }
 
-// NewStoreAdapter creates a new store adapter.
-func NewStoreAdapter(fileStore *store.FileSkillStore) *StoreAdapter {
-	return &StoreAdapter{fileStore: fileStore}
+// NewStoreAdapter creates a new store adapter with the given skill store and content I/O.
+// For production use, pass store.NewFileContentIO() for contentIO.
+func NewStoreAdapter(skillStore store.SkillStore, contentIO store.ContentIO) *StoreAdapter {
+	return &StoreAdapter{
+		skillStore: skillStore,
+		contentIO:  contentIO,
+	}
 }
 
 // GetAll returns all skills from active packs, converting to the old Metadata format.
 // Implements skills.SkillStore.GetAll()
 func (a *StoreAdapter) GetAll() ([]Metadata, error) {
 	ctx := context.Background()
-	skills, err := a.fileStore.List(ctx)
+	skills, err := a.skillStore.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +56,7 @@ func (a *StoreAdapter) GetAll() ([]Metadata, error) {
 // Implements skills.SkillStore.FindByID()
 func (a *StoreAdapter) FindByID(id string) (*Metadata, string, error) {
 	ctx := context.Background()
-	skill, err := a.fileStore.Get(ctx, id)
+	skill, err := a.skillStore.Get(ctx, id)
 	if err != nil {
 		return nil, "", err
 	}
@@ -60,7 +69,7 @@ func (a *StoreAdapter) FindByID(id string) (*Metadata, string, error) {
 // Implements skills.SkillStore.LoadMetadata()
 func (a *StoreAdapter) LoadMetadata(folder string) ([]Metadata, error) {
 	ctx := context.Background()
-	skills, err := a.fileStore.List(ctx)
+	skills, err := a.skillStore.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -76,19 +85,22 @@ func (a *StoreAdapter) LoadMetadata(folder string) ([]Metadata, error) {
 
 // SaveMetadata saves skill metadata - delegates to individual skill updates.
 // In the new storage model, each skill has its own skill.json.
+// IMPORTANT: Only calls Update() on skills that have actually changed to avoid
+// spurious revision increments and history.jsonl entries.
 // Implements skills.SkillStore.SaveMetadata()
 func (a *StoreAdapter) SaveMetadata(folder string, skills []Metadata) error {
 	ctx := context.Background()
 
-	// Get existing skills in this pack for deletion detection
+	// Get existing skills in this pack for deletion detection and change comparison
 	existing, err := a.LoadMetadata(folder)
 	if err != nil {
 		return err
 	}
 
-	existingIDs := make(map[string]bool)
+	// Build map of existing skills by ID for efficient lookup and change detection
+	existingByID := make(map[string]Metadata)
 	for _, s := range existing {
-		existingIDs[s.ID] = true
+		existingByID[s.ID] = s
 	}
 
 	incomingIDs := make(map[string]bool)
@@ -97,9 +109,9 @@ func (a *StoreAdapter) SaveMetadata(folder string, skills []Metadata) error {
 	}
 
 	// Handle deletions - skills in existing but not in incoming
-	for id := range existingIDs {
+	for id := range existingByID {
 		if !incomingIDs[id] {
-			if err := a.fileStore.Delete(ctx, id); err != nil {
+			if err := a.skillStore.Delete(ctx, id); err != nil {
 				return fmt.Errorf("deleting skill %s: %w", id, err)
 			}
 		}
@@ -109,24 +121,86 @@ func (a *StoreAdapter) SaveMetadata(folder string, skills []Metadata) error {
 	for _, meta := range skills {
 		skill := a.fromMetadata(meta, folder)
 
-		if existingIDs[meta.ID] {
-			// Update existing skill (metadata only, content handled separately)
-			if err := a.fileStore.Update(ctx, meta.ID, &skill, nil); err != nil {
-				return fmt.Errorf("updating skill %s: %w", meta.ID, err)
+		if existingMeta, exists := existingByID[meta.ID]; exists {
+			// Only update if metadata has actually changed
+			// This prevents spurious revision increments and history entries
+			if metadataChanged(existingMeta, meta) {
+				if err := a.skillStore.Update(ctx, meta.ID, &skill, nil); err != nil {
+					return fmt.Errorf("updating skill %s: %w", meta.ID, err)
+				}
 			}
+			// Skip Update() if nothing changed - preserves revision and history
 		} else {
 			// Create new skill - need content
 			content, err := a.GetContent(folder, meta.File)
 			if err != nil {
 				content = "" // May not exist yet
 			}
-			if err := a.fileStore.Create(ctx, folder, &skill, content); err != nil {
+			if err := a.skillStore.Create(ctx, folder, &skill, content); err != nil {
 				return fmt.Errorf("creating skill %s: %w", meta.ID, err)
 			}
 		}
 	}
 
 	return nil
+}
+
+// metadataChanged returns true if the two Metadata values differ in any
+// meaningful field. Used to avoid spurious Update() calls that would
+// increment revision and append to history.jsonl.
+//
+// Fields compared: Name, Description, Modes, Tags, Icon, Draft, TargetToolID, DefaultScope
+// Fields NOT compared: ID (identity), File (derived), CreatedAt/UpdatedAt (timestamps)
+func metadataChanged(old, new Metadata) bool {
+	if old.Name != new.Name {
+		return true
+	}
+	if old.Description != new.Description {
+		return true
+	}
+	if old.Icon != new.Icon {
+		return true
+	}
+	if old.Draft != new.Draft {
+		return true
+	}
+	if old.DefaultScope != new.DefaultScope {
+		return true
+	}
+	if !stringSliceEqual(old.Modes, new.Modes) {
+		return true
+	}
+	if !stringSliceEqual(old.Tags, new.Tags) {
+		return true
+	}
+	if !stringPtrEqual(old.TargetToolID, new.TargetToolID) {
+		return true
+	}
+	return false
+}
+
+// stringSliceEqual returns true if two string slices have the same elements in the same order.
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// stringPtrEqual returns true if two *string pointers are equal (both nil, or both non-nil with same value).
+func stringPtrEqual(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }
 
 // GetContent reads a skill's markdown content.
@@ -150,11 +224,17 @@ func (a *StoreAdapter) GetContent(folder, filename string) (string, error) {
 		id = id[:len(id)-len(ext)]
 	}
 
-	_, content, err := a.fileStore.GetWithContent(ctx, id)
-	if err != nil {
-		return "", err
+	// First try to get content through the store (skill exists)
+	_, content, err := a.skillStore.GetWithContent(ctx, id)
+	if err == nil {
+		return content, nil
 	}
-	return content, nil
+
+	// Skill doesn't exist in store yet - try reading directly from disk
+	// This handles the case during move operations where content was
+	// pre-written by SaveContent but skill.json doesn't exist yet
+	contentPath := a.skillStore.ContentPath(folder, id)
+	return a.contentIO.ReadContent(contentPath)
 }
 
 // SaveContent writes a skill's markdown content.
@@ -177,16 +257,19 @@ func (a *StoreAdapter) SaveContent(folder, filename, content string) error {
 		id = id[:len(id)-len(ext)]
 	}
 
-	// Check if skill exists - if so, update; otherwise this is part of a create
-	skill, err := a.fileStore.Get(ctx, id)
+	// Check if skill exists - if so, update; otherwise write directly to disk
+	// This handles the case where SaveContent is called during a move operation
+	// before the skill exists in the target folder
+	skill, err := a.skillStore.Get(ctx, id)
 	if err != nil {
-		// Skill doesn't exist yet - content will be saved during Create
-		// Return nil to allow the create flow to continue
-		return nil
+		// Skill doesn't exist yet - write content directly to target location
+		// so that SaveMetadata can find it when creating the skill
+		contentPath := a.skillStore.ContentPath(folder, id)
+		return a.contentIO.WriteContent(contentPath, content)
 	}
 
 	// Update with new content
-	return a.fileStore.Update(ctx, id, skill, &content)
+	return a.skillStore.Update(ctx, id, skill, &content)
 }
 
 // DeleteContent removes a skill's markdown file.
@@ -202,7 +285,7 @@ func (a *StoreAdapter) DeleteContent(folder, filename string) error {
 // Implements skills.SkillStore.GetVersions()
 func (a *StoreAdapter) GetVersions(skillID string) ([]SkillVersion, error) {
 	ctx := context.Background()
-	entries, err := a.fileStore.GetVersionHistory(ctx, skillID)
+	entries, err := a.skillStore.GetVersionHistory(ctx, skillID)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +421,7 @@ func (a *StoreAdapter) fromMetadata(m Metadata, pack string) store.Skill {
 // Returns the updated skill metadata with the new ID.
 func (a *StoreAdapter) Rename(oldID, newID string) (*Metadata, error) {
 	ctx := context.Background()
-	skill, err := a.fileStore.Rename(ctx, oldID, newID)
+	skill, err := a.skillStore.Rename(ctx, oldID, newID)
 	if err != nil {
 		return nil, err
 	}

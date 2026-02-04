@@ -309,8 +309,15 @@ func (s *FileSkillStore) loadSkill(pack, skillID string) (*Skill, error) {
 	return LoadJSON[Skill](skillPath)
 }
 
+// ContentPath returns the path where a skill's content would be stored.
+// This is useful for pre-writing content during move operations.
+func (s *FileSkillStore) ContentPath(pack, skillID string) string {
+	return filepath.Join(s.packsDir(), pack, skillID, "SKILL.md")
+}
+
 // Rename renames a skill by changing its directory name and updating skill.json.
 // This is an atomic operation: if any step fails, the original state is preserved.
+// Implements store.SkillStore.Rename()
 func (s *FileSkillStore) Rename(ctx context.Context, oldID, newID string) (*Skill, error) {
 	// Validate new ID format
 	if !isValidSkillID(newID) {
