@@ -126,6 +126,12 @@ export interface IWindowStateManager {
 }
 
 /**
+ * Window events that can be listened to.
+ * Includes close, resize, move, and fullscreen state changes.
+ */
+export type WindowEvent = "close" | "resize" | "move" | "enter-full-screen" | "leave-full-screen";
+
+/**
  * Interface for a managed window.
  * Abstracted from Electron's BrowserWindow for testability.
  * DOC: docs/internal/SEAMS.md#window-state-managed-window
@@ -133,6 +139,8 @@ export interface IWindowStateManager {
 export interface IManagedWindow {
     /** Get the window bounds (position and size) when not maximized */
     getNormalBounds(): { x: number; y: number; width: number; height: number };
+    /** Get current window bounds */
+    getBounds(): { x: number; y: number; width: number; height: number };
     /** Check if window is maximized */
     isMaximized(): boolean;
     /** Check if window is in full-screen mode */
@@ -140,9 +148,9 @@ export interface IManagedWindow {
     /** Check if window has been destroyed */
     isDestroyed(): boolean;
     /** Register event listener */
-    on(event: "close" | "resize" | "move", callback: () => void): void;
+    on(event: WindowEvent, callback: () => void): void;
     /** Remove event listener */
-    removeListener(event: "close" | "resize" | "move", callback: () => void): void;
+    removeListener(event: WindowEvent, callback: () => void): void;
 }
 
 /**

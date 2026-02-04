@@ -324,6 +324,109 @@ describe("WindowStateManager", () => {
             assertTrue(storage.lastSavedState.isMaximized);
         });
 
+        test("captures fullscreen state via events (not isFullScreen at close time)", async () => {
+            // This test verifies the fix for the macOS timing issue where
+            // the fullscreen exit animation completes before the close event fires,
+            // causing isFullScreen() to return false at close time.
+            //
+            // The fix tracks fullscreen state via enter/leave-full-screen events.
+
+            const storage = createMockStorage(SAVED_STATE);
+            const displayProvider = createMockDisplayProvider();
+            const manager = new WindowStateManager({ storage, displayProvider });
+            const window = createMockWindow(
+                { x: 100, y: 100, width: 800, height: 600 },
+                false,
+                false // Initially not fullscreen
+            );
+
+            await manager.getInitialState();
+            manager.manage(window);
+
+            // User enters fullscreen
+            window.fullScreen = true;
+            window.triggerEvent("enter-full-screen");
+
+            // Simulate macOS behavior: fullscreen exits before close event fires
+            // The isFullScreen() method returns false, but we should still save as fullscreen
+            window.fullScreen = false;
+
+            // Trigger close event
+            window.triggerEvent("close");
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
+            assertNotNull(storage.lastSavedState);
+            // Should be true because we track via events, not isFullScreen() at close time
+            assertTrue(
+                storage.lastSavedState.isFullScreen,
+                "Fullscreen state should be captured via events, not isFullScreen() at close time"
+            );
+        });
+
+        test("tracks fullscreen state changes correctly through multiple toggles", async () => {
+            const storage = createMockStorage(SAVED_STATE);
+            const displayProvider = createMockDisplayProvider();
+            const manager = new WindowStateManager({ storage, displayProvider });
+            const window = createMockWindow();
+
+            await manager.getInitialState();
+            manager.manage(window);
+
+            // Enter fullscreen
+            window.triggerEvent("enter-full-screen");
+
+            // Leave fullscreen
+            window.triggerEvent("leave-full-screen");
+
+            // Enter fullscreen again
+            window.triggerEvent("enter-full-screen");
+
+            // Close while tracked state is fullscreen
+            window.triggerEvent("close");
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
+            assertNotNull(storage.lastSavedState);
+            assertTrue(storage.lastSavedState.isFullScreen);
+        });
+
+        test("preserves fullscreen state when leave-full-screen fires after close (macOS/Linux behavior)", async () => {
+            // On macOS and some Linux environments, when closing a fullscreen window:
+            // 1. close event fires
+            // 2. fullscreen exit animation plays
+            // 3. leave-full-screen fires
+            //
+            // The fullscreen state should be preserved for saving even though
+            // leave-full-screen fires after close.
+
+            const storage = createMockStorage(SAVED_STATE);
+            const displayProvider = createMockDisplayProvider();
+            const manager = new WindowStateManager({ storage, displayProvider });
+            const window = createMockWindow();
+
+            await manager.getInitialState();
+            manager.manage(window);
+
+            // User enters fullscreen
+            window.triggerEvent("enter-full-screen");
+
+            // User closes window while in fullscreen
+            window.triggerEvent("close");
+
+            // Fullscreen exit happens AFTER close on macOS/Linux
+            window.triggerEvent("leave-full-screen");
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
+            assertNotNull(storage.lastSavedState);
+            // Should be true because we preserve state when closing
+            assertTrue(
+                storage.lastSavedState.isFullScreen,
+                "Fullscreen state should be preserved when leave-full-screen fires after close"
+            );
+        });
+
         test("detaches from previous window when managing new one", async () => {
             const storage = createMockStorage(SAVED_STATE);
             const displayProvider = createMockDisplayProvider();

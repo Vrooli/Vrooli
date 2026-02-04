@@ -1842,8 +1842,9 @@ async function createMainWindow() {
     // Initialize window state manager to restore position/size from previous session
     const storage = createWindowStateStorage(app, fs, path);
     const displayProvider = createDisplayProvider(screen);
+    const debugLogPath = path.join(app.getPath("userData"), "window-state-debug.log");
     windowStateManager = new WindowStateManager(
-        { storage, displayProvider },
+        { storage, displayProvider, debugLogPath },
         {
             defaultWidth: APP_CONFIG.WINDOW_WIDTH,
             defaultHeight: APP_CONFIG.WINDOW_HEIGHT,
@@ -1854,14 +1855,21 @@ async function createMainWindow() {
 
     // Get restored state (or defaults if first launch / display changed)
     const windowState = await windowStateManager.getInitialState();
+    const shouldRestoreFullScreen = windowStateManager.wasFullScreen();
     console.log("[Desktop App] Window state:", windowState);
+    console.log("[Desktop App] Will restore fullscreen:", shouldRestoreFullScreen);
 
     const appIcon = getAppIcon();
     mainWindow = new BrowserWindow({
-        x: windowState.x,
-        y: windowState.y,
-        width: windowState.width,
-        height: windowState.height,
+        // Only set position/size if NOT restoring fullscreen (avoids flicker)
+        ...(!shouldRestoreFullScreen && {
+            x: windowState.x,
+            y: windowState.y,
+            width: windowState.width,
+            height: windowState.height,
+        }),
+        // Set fullscreen in constructor for reliable restoration on Linux
+        fullscreen: shouldRestoreFullScreen,
         show: false,
         backgroundColor: APP_CONFIG.WINDOW_BACKGROUND,
         title: APP_CONFIG.WINDOW_TITLE,
@@ -3565,18 +3573,28 @@ app.whenReady().then(async () => {
             await mainWindow!.loadURL(targetUrl);
         }
 
+        // Restore maximized state - must happen BEFORE show() on Windows/macOS,
+        // but AFTER show() with a delay on Linux due to WM timing issues.
+        // Note: Fullscreen is set in BrowserWindow constructor for reliable restoration
+        // DOC: docs/internal/SEAMS.md#window-state-persistence
+        const shouldMaximize = windowStateManager?.wasMaximized() ?? false;
+        console.log("[Desktop App] Restoring window state - maximize:", shouldMaximize);
+
+        if (shouldMaximize && process.platform !== "linux") {
+            mainWindow!.maximize();
+        }
+
         // Close splash and show main window
         updateSplashStatus("ready", "Ready!", 100);
         await closeSplashWindow();
         mainWindow!.show();
 
-        // Restore maximized/fullscreen state from previous session
-        // DOC: docs/internal/SEAMS.md#window-state-persistence
-        if (windowStateManager?.wasMaximized()) {
+        // Linux WM quirk: maximize() called before show() gets reverted by the WM.
+        // We must wait for the WM to finish processing the show event.
+        // See: https://github.com/electron/electron/issues/10388
+        if (shouldMaximize && process.platform === "linux") {
+            await new Promise(resolve => setTimeout(resolve, 50));
             mainWindow!.maximize();
-        }
-        if (windowStateManager?.wasFullScreen()) {
-            mainWindow!.setFullScreen(true);
         }
 
         mainWindow!.focus();
