@@ -126,6 +126,7 @@ type RemoteProfileService struct {
 	db            *sql.DB
 	encryptionKey []byte
 	httpClient    HTTPDoer
+	now           func() time.Time
 	dialects      *DialectHelper
 }
 
@@ -149,10 +150,12 @@ func NewRemoteProfileServiceWithOptions(db *sql.DB, client HTTPDoer, dialect str
 	if err != nil {
 		return nil, err
 	}
+	now := time.Now
 	return &RemoteProfileService{
 		db:            db,
 		encryptionKey: key,
 		httpClient:    client,
+		now:           now,
 		dialects:      NewDialectHelper(dialect),
 	}, nil
 }
@@ -345,7 +348,7 @@ func (s *RemoteProfileService) List(ctx context.Context) ([]RemoteProfile, error
 		if err != nil {
 			return nil, err
 		}
-		profiles = append(profiles, rec.toProfile())
+		profiles = append(profiles, rec.toProfile(s.nowTime()))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -713,7 +716,7 @@ func (s *RemoteProfileService) GetByID(ctx context.Context, id int64) (*RemotePr
 	if err != nil {
 		return nil, err
 	}
-	profile := rec.toProfile()
+	profile := rec.toProfile(s.nowTime())
 	return &profile, nil
 }
 
@@ -868,8 +871,15 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 		}
 	}
 
-	expiresAt := deriveCookieExpiry(cookie)
+	expiresAt := deriveCookieExpiry(cookie, s.nowTime())
 	return cookie.Value, expiresAt, nil
+}
+
+func (s *RemoteProfileService) nowTime() time.Time {
+	if s == nil || s.now == nil {
+		return time.Now()
+	}
+	return s.now()
 }
 
 func (s *RemoteProfileService) remoteSessionCheck(ctx context.Context, apiBase string, sessionValue string) (bool, error) {
@@ -999,7 +1009,7 @@ func extractRemoteErrorMessage(body []byte) string {
 	return msg
 }
 
-func deriveCookieExpiry(cookie *http.Cookie) *time.Time {
+func deriveCookieExpiry(cookie *http.Cookie, now time.Time) *time.Time {
 	if cookie == nil {
 		return nil
 	}
@@ -1008,7 +1018,7 @@ func deriveCookieExpiry(cookie *http.Cookie) *time.Time {
 		return &expiry
 	}
 	if cookie.MaxAge > 0 {
-		expiry := time.Now().Add(time.Duration(cookie.MaxAge) * time.Second).UTC()
+		expiry := now.Add(time.Duration(cookie.MaxAge) * time.Second).UTC()
 		return &expiry
 	}
 	return nil
@@ -1038,13 +1048,13 @@ type remoteProfileRecord struct {
 	UpdatedAt        time.Time
 }
 
-func (r *remoteProfileRecord) toProfile() RemoteProfile {
+func (r *remoteProfileRecord) toProfile(now time.Time) RemoteProfile {
 	status := r.Status
 	if status == "" {
 		status = remoteProfileStatusUnknown
 	}
 	hasSession := r.EncryptedSession.Valid && r.EncryptedSession.String != ""
-	if r.SessionExpiresAt.Valid && time.Now().After(r.SessionExpiresAt.Time) {
+	if r.SessionExpiresAt.Valid && now.After(r.SessionExpiresAt.Time) {
 		status = remoteProfileStatusExpired
 	}
 	return RemoteProfile{

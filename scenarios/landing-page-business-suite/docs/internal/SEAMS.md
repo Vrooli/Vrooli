@@ -99,6 +99,12 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 - **HTTP client seam** (`RemoteProfileService.httpClient`)  
   All remote admin calls flow through an injected `HTTPDoer`, making login/test/proxy flows testable with `httptest.Server` or mock clients.
 
+- **Handler boundary seam** (`RemoteProfileManager` in `remote_profiles_handlers.go`)  
+  Admin handlers depend on a narrow interface instead of the concrete service. This keeps transport code decoupled from persistence and lets tests stub behavior without standing up the full service.
+
+- **Clock seam** (`RemoteProfileService.now`)  
+  Session-expiry evaluation and cookie-derived expirations use an injected clock, keeping time-sensitive logic deterministic in tests.
+
 - **Proxy allowlist seam** (`remoteProfileProxyAllowlist`)  
   Only explicitly allowlisted `/admin/*` endpoints can be proxied, preventing accidental exposure of unrelated admin routes.
 

@@ -1,11 +1,25 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 )
 
-func handleAdminListRemoteProfiles(svc *RemoteProfileService) http.HandlerFunc {
+type adminEmailResolver func(*http.Request) (string, bool)
+
+type RemoteProfileManager interface {
+	List(ctx context.Context) ([]RemoteProfile, error)
+	Create(ctx context.Context, req RemoteProfileCreateRequest, createdByEmail string) (*RemoteProfile, error)
+	Update(ctx context.Context, id int64, req RemoteProfileUpdateRequest) (*RemoteProfile, error)
+	Delete(ctx context.Context, id int64) error
+	Login(ctx context.Context, id int64, email string, password string) (*RemoteProfile, error)
+	Logout(ctx context.Context, id int64) (*RemoteProfile, error)
+	Test(ctx context.Context, id int64) (*RemoteProfile, error)
+	Proxy(ctx context.Context, id int64, req RemoteProfileProxyRequest) (*RemoteProxyResponse, error)
+}
+
+func handleAdminListRemoteProfiles(svc RemoteProfileManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		profiles, err := svc.List(r.Context())
 		if err != nil {
@@ -22,14 +36,17 @@ func handleAdminListRemoteProfiles(svc *RemoteProfileService) http.HandlerFunc {
 	}
 }
 
-func handleAdminCreateRemoteProfile(s *Server) http.HandlerFunc {
+func handleAdminCreateRemoteProfile(svc RemoteProfileManager, resolveEmail adminEmailResolver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req RemoteProfileCreateRequest
 		if !decodeJSONBody(w, r, &req) {
 			return
 		}
-		email, _ := s.sessionAdminEmail(r)
-		profile, err := s.remoteProfileService.Create(r.Context(), req, email)
+		email := ""
+		if resolveEmail != nil {
+			email, _ = resolveEmail(r)
+		}
+		profile, err := svc.Create(r.Context(), req, email)
 		if err != nil {
 			if writeRemoteProfileError(w, err) {
 				return
@@ -44,7 +61,7 @@ func handleAdminCreateRemoteProfile(s *Server) http.HandlerFunc {
 	}
 }
 
-func handleAdminUpdateRemoteProfile(svc *RemoteProfileService) http.HandlerFunc {
+func handleAdminUpdateRemoteProfile(svc RemoteProfileManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {
@@ -70,7 +87,7 @@ func handleAdminUpdateRemoteProfile(svc *RemoteProfileService) http.HandlerFunc 
 	}
 }
 
-func handleAdminDeleteRemoteProfile(svc *RemoteProfileService) http.HandlerFunc {
+func handleAdminDeleteRemoteProfile(svc RemoteProfileManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {
@@ -91,7 +108,7 @@ func handleAdminDeleteRemoteProfile(svc *RemoteProfileService) http.HandlerFunc 
 	}
 }
 
-func handleAdminRemoteProfileLogin(svc *RemoteProfileService) http.HandlerFunc {
+func handleAdminRemoteProfileLogin(svc RemoteProfileManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {
@@ -121,7 +138,7 @@ func handleAdminRemoteProfileLogin(svc *RemoteProfileService) http.HandlerFunc {
 	}
 }
 
-func handleAdminRemoteProfileLogout(svc *RemoteProfileService) http.HandlerFunc {
+func handleAdminRemoteProfileLogout(svc RemoteProfileManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {
@@ -143,7 +160,7 @@ func handleAdminRemoteProfileLogout(svc *RemoteProfileService) http.HandlerFunc 
 	}
 }
 
-func handleAdminRemoteProfileTest(svc *RemoteProfileService) http.HandlerFunc {
+func handleAdminRemoteProfileTest(svc RemoteProfileManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {
@@ -165,7 +182,7 @@ func handleAdminRemoteProfileTest(svc *RemoteProfileService) http.HandlerFunc {
 	}
 }
 
-func handleAdminRemoteProfileProxy(svc *RemoteProfileService) http.HandlerFunc {
+func handleAdminRemoteProfileProxy(svc RemoteProfileManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {

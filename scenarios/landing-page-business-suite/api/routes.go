@@ -93,7 +93,7 @@ func registerAdminCoreRoutes(s *Server) {
 
 func registerRemoteProfileRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(handleAdminListRemoteProfiles(s.remoteProfileService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(handleAdminCreateRemoteProfile(s))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(handleAdminCreateRemoteProfile(s.remoteProfileService, s.sessionAdminEmail))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(handleAdminUpdateRemoteProfile(s.remoteProfileService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(handleAdminDeleteRemoteProfile(s.remoteProfileService))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/login", s.requireAdmin(handleAdminRemoteProfileLogin(s.remoteProfileService))).Methods("POST")
