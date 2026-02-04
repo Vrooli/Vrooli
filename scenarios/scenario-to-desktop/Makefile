@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt fmt-go fmt-ui vet lint lint-go lint-ui check docker-build docker-run health docs version validate runtime-validate
+.PHONY: help start run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt fmt-go fmt-ui vet lint lint-go lint-ui check docker-build docker-run health docs version validate runtime-validate lint-templates typecheck-templates test-templates check-templates templates-deps
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -266,6 +266,32 @@ dev-deps: ## Install development dependencies
 	@echo "$(GREEN)✓ Development dependencies installed$(RESET)"
 
 # ============================================================================
+# TEMPLATE LINTING & TYPE-CHECKING
+# ============================================================================
+
+TEMPLATES_DIR := templates/vanilla
+
+lint-templates: ## Lint vanilla template TypeScript files
+	@echo "$(BLUE)🔍 Linting vanilla templates...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm run lint
+
+typecheck-templates: ## Type-check vanilla template TypeScript files
+	@echo "$(BLUE)🔍 Type-checking vanilla templates...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm run typecheck
+
+test-templates: ## Run vanilla template tests
+	@echo "$(BLUE)🧪 Testing vanilla templates...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm run test
+
+check-templates: typecheck-templates lint-templates test-templates ## Full template validation
+	@echo "$(GREEN)✓ All template checks passed$(RESET)"
+
+templates-deps: ## Install template development dependencies
+	@echo "$(BLUE)📦 Installing template dependencies...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm install
+	@echo "$(GREEN)✓ Template dependencies installed$(RESET)"
+
+# ============================================================================
 # SHORTCUTS
 # ============================================================================
 
@@ -280,3 +306,6 @@ l: logs
 c: clean
 b: build
 ba: build-all
+lt: lint-templates
+tt: typecheck-templates
+ct: check-templates

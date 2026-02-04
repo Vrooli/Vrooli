@@ -41,6 +41,7 @@ export interface IPathResolver {
  * Seam for testing IPC without Electron.
  */
 export interface IIpcMain {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Matches Electron's IPC API signature
     on(channel: string, listener: (event: IpcMainEvent, ...args: any[]) => void): void;
     removeAllListeners(channel: string): void;
 }
@@ -64,6 +65,7 @@ export interface SplashManagerDeps {
     /** Optional clipboard for copy operations */
     clipboard?: IClipboard;
     /** Optional logger for debugging */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Logger args are intentionally flexible
     log?: (message: string, ...args: any[]) => void;
 }
 
@@ -88,6 +90,7 @@ export class SplashWindowManager implements ISplashWindowManager {
     private retryCallback: (() => void) | null = null;
     private readonly config: SplashWindowConfig;
     private readonly deps: SplashManagerDeps;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Logger args are intentionally flexible
     private readonly log: (message: string, ...args: any[]) => void;
 
     constructor(

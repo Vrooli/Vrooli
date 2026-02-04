@@ -257,16 +257,39 @@ class DesktopTemplateGenerator {
     private async getTemplateFiles(dirPath: string): Promise<TemplateFile[]> {
         const files: TemplateFile[] = [];
         const entries = await fs.readdir(dirPath, { withFileTypes: true });
-        
+
+        // Files that are dev-only and should NOT be copied to generated projects
+        const devOnlyFiles = new Set([
+            'package.json',        // Dev-only package (distinct from package.json.template)
+            'tsconfig.dev.json',   // Dev-only tsconfig
+            'eslint.config.js',    // Dev-only ESLint config
+            '.gitignore',          // Templates have their own gitignore; generated projects get one via generateGitIgnore()
+        ]);
+
+        // Directories that are dev-only and should NOT be copied
+        const devOnlyDirs = new Set([
+            'node_modules',        // Never copy node_modules
+            '__tests__',           // Test directories are dev-only
+        ]);
+
         for (const entry of entries) {
             const fullPath = path.join(dirPath, entry.name);
-            
+
             if (entry.isDirectory()) {
+                // Skip dev-only directories
+                if (devOnlyDirs.has(entry.name)) {
+                    continue;
+                }
                 const subFiles = await this.getTemplateFiles(fullPath);
                 files.push(...subFiles);
             } else {
+                // Skip dev-only files at the root of vanilla/
                 const relativePath = path.relative(path.join(this.templateBasePath, 'vanilla'), fullPath);
-                const targetPath = entry.name.endsWith('.template') 
+                if (devOnlyFiles.has(entry.name) && !relativePath.includes(path.sep)) {
+                    continue;
+                }
+
+                const targetPath = entry.name.endsWith('.template')
                     ? relativePath.replace('.template', '')
                     : relativePath;
                 
@@ -694,18 +717,22 @@ exports.default = async function notarizing(context) {
             }
         }
 
-        // Move splash/ directory to src/splash/ if it exists in root
-        const splashRootPath = path.join(this.outputPath, 'splash');
-        const splashSrcPath = path.join(srcDir, 'splash');
+        // Move module directories to src/ if they exist in root
+        const dirsToMove = ['splash', 'window-state'];
 
-        try {
-            const stat = await fs.stat(splashRootPath);
-            if (stat.isDirectory()) {
-                await this.moveDirectory(splashRootPath, splashSrcPath);
-                console.log(`📁 Moved splash/ to src/splash/`);
+        for (const dirName of dirsToMove) {
+            const rootPath = path.join(this.outputPath, dirName);
+            const srcPath = path.join(srcDir, dirName);
+
+            try {
+                const stat = await fs.stat(rootPath);
+                if (stat.isDirectory()) {
+                    await this.moveDirectory(rootPath, srcPath);
+                    console.log(`📁 Moved ${dirName}/ to src/${dirName}/`);
+                }
+            } catch {
+                // Directory doesn't exist or already in src, skip
             }
-        } catch {
-            // Directory doesn't exist or already in src, skip
         }
     }
 

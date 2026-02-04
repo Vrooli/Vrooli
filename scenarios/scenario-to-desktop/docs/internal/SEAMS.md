@@ -1409,3 +1409,195 @@ This is a breaking change by design. Desktop apps built with the old system (har
 8. **Post-Success Validation**: Smoke tests now include stability delay to catch delayed crashes (Feb 2026)
 9. **User-Visible Error Diagnostics**: Errors shown in splash with logs, stderr, and exit codes (Feb 2026)
 10. **Graceful Degradation**: Error UI allows retry for recoverable errors, quit via ESC for all errors (Feb 2026)
+
+---
+
+## Window State Persistence Seam (Feb 2026)
+
+### Overview
+
+The Window State Persistence Seam enables desktop apps to remember window position, size, and display state across restarts. This is a critical UX feature that makes apps feel native and professional.
+
+### Architecture
+
+The module follows separation of concerns with clear responsibility boundaries:
+
+```
+window-state/
+├── types.ts       # Type definitions and interfaces
+├── storage.ts     # File I/O abstraction (IStateStorage seam)
+├── display.ts     # Display/screen abstraction (IDisplayProvider seam)
+├── validator.ts   # Pure validation functions (no mocks needed)
+├── manager.ts     # Orchestration (WindowStateManager)
+├── index.ts       # Public API exports
+└── __tests__/     # Co-located tests
+    ├── validator.test.ts
+    └── manager.test.ts
+```
+
+### Responsibility Zones
+
+| Component | Responsibility | NOT Responsible For |
+|-----------|----------------|---------------------|
+| `WindowStateManager` | Orchestration, loading/saving | File I/O, display enumeration, validation logic |
+| `WindowStateStorage` | File persistence | State validation, window management |
+| `ElectronDisplayProvider` | Display enumeration | State persistence, window management |
+| `validator.ts` | State validation (pure functions) | I/O, window management |
+
+### Testing Seams
+
+#### 1. IStateStorage Seam
+**Location**: `templates/vanilla/window-state/types.ts`
+**Purpose**: Abstracts state persistence for testing without filesystem
+
+```typescript
+interface IStateStorage {
+    load(): Promise<WindowState | null>;
+    save(state: WindowState): Promise<void>;
+}
+```
+
+**Usage**: Tests inject mock storage to verify load/save behavior without disk I/O.
+
+#### 2. IDisplayProvider Seam
+**Location**: `templates/vanilla/window-state/types.ts`
+**Purpose**: Abstracts display/screen enumeration for testing multi-monitor scenarios
+
+```typescript
+interface IDisplayProvider {
+    getAllDisplays(): DisplayBounds[];
+    getPrimaryDisplay(): DisplayBounds;
+    getDisplayAtPoint(x: number, y: number): DisplayBounds | null;
+}
+```
+
+**Usage**: Tests inject mock display provider to simulate multi-monitor setups, display disconnection, etc.
+
+#### 3. IManagedWindow Seam
+**Location**: `templates/vanilla/window-state/types.ts`
+**Purpose**: Abstracts BrowserWindow for testing without Electron
+
+```typescript
+interface IManagedWindow {
+    getNormalBounds(): { x: number; y: number; width: number; height: number };
+    isMaximized(): boolean;
+    isFullScreen(): boolean;
+    isDestroyed(): boolean;
+    on(event: "close" | "resize" | "move", callback: () => void): void;
+    removeListener(event: string, callback: () => void): void;
+}
+```
+
+**Usage**: Tests inject mock window to verify event handling and state capture.
+
+#### 4. IFileSystem Seam
+**Location**: `templates/vanilla/window-state/storage.ts`
+**Purpose**: Abstracts filesystem operations in storage layer
+
+```typescript
+interface IFileSystem {
+    readFile(path: string): Promise<string>;
+    writeFile(path: string, content: string): Promise<void>;
+    exists(path: string): Promise<boolean>;
+}
+```
+
+**Usage**: Storage tests inject mock filesystem to verify JSON serialization, error handling.
+
+### Pure Functions (No Mocks Needed)
+
+The `validator.ts` module contains pure functions that are trivially testable:
+
+```typescript
+// All pure functions - no dependencies, no side effects
+validateWindowState(state, displays, primaryDisplay, config): ValidationResult
+checkWindowVisibility(state, displays): { isVisible: boolean; reason?: string }
+calculateVisibleArea(state, display): number
+centerOnDisplay(state, display): WindowState
+applyMinimumSize(state, config): WindowState
+clampToDisplay(state, display): WindowState
+findWindowDisplay(state, displays, primaryDisplay): DisplayBounds
+```
+
+### Usage Pattern in main.ts
+
+```typescript
+// In createMainWindow():
+const storage = createWindowStateStorage(app, fs, path);
+const displayProvider = createDisplayProvider(screen);
+windowStateManager = new WindowStateManager(
+    { storage, displayProvider },
+    {
+        defaultWidth: APP_CONFIG.WINDOW_WIDTH,
+        defaultHeight: APP_CONFIG.WINDOW_HEIGHT,
+        minWidth: 400,
+        minHeight: 300,
+    }
+);
+
+const windowState = await windowStateManager.getInitialState();
+
+mainWindow = new BrowserWindow({
+    x: windowState.x,
+    y: windowState.y,
+    width: windowState.width,
+    height: windowState.height,
+    // ... other options
+});
+
+windowStateManager.manage(mainWindow);
+
+// After window.show():
+if (windowStateManager.wasMaximized()) mainWindow.maximize();
+if (windowStateManager.wasFullScreen()) mainWindow.setFullScreen(true);
+```
+
+### Key Design Decisions
+
+1. **Save on close, not resize/move**: Avoids excessive disk writes and captures final state accurately
+2. **Use getNormalBounds()**: Gets the "restored" size even when window is maximized
+3. **Validate against displays**: Handles disconnected monitors gracefully
+4. **Separate maximized/fullscreen restore**: Must be called after show() to work correctly
+5. **Factory functions for production**: `createWindowStateStorage()`, `createDisplayProvider()` wire Electron dependencies
+
+### Test Coverage
+
+Test files:
+- `templates/vanilla/window-state/__tests__/validator.test.ts` - Pure validation functions
+- `templates/vanilla/window-state/__tests__/manager.test.ts` - Manager orchestration
+
+Key test scenarios:
+- ✅ Load saved state with valid position
+- ✅ Return defaults when no saved state
+- ✅ Reposition window when off-screen (display disconnected)
+- ✅ Handle storage errors gracefully
+- ✅ Save state on window close
+- ✅ Capture maximized/fullscreen state correctly
+- ✅ Multi-monitor: restore to secondary display
+- ✅ Multi-monitor: move to primary when secondary disconnected
+- ✅ Minimum size constraints
+- ✅ Window visibility calculation
+- ✅ Display-to-window center point mapping
+
+### State File Location
+
+State is saved to the app's userData directory:
+- **Linux**: `~/.config/<app-name>/window-state.json`
+- **macOS**: `~/Library/Application Support/<app-name>/window-state.json`
+- **Windows**: `%APPDATA%\<app-name>\window-state.json`
+
+### State Schema
+
+```typescript
+interface WindowState {
+    x?: number;              // Screen x coordinate
+    y?: number;              // Screen y coordinate
+    width: number;           // Window width in pixels
+    height: number;          // Window height in pixels
+    isMaximized: boolean;    // Whether window was maximized
+    isFullScreen: boolean;   // Whether window was in full-screen
+    displayId?: number;      // ID of display (for multi-monitor)
+}
+```
+
+**Status**: ✅ Implemented
