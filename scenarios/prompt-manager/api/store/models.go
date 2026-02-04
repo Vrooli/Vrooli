@@ -12,6 +12,7 @@ type Skill struct {
 	Status       string         `json:"status"`
 	Entry        string         `json:"entry"`
 	TargetToolID *string        `json:"targetToolId,omitempty"`
+	DefaultScope string         `json:"defaultScope,omitempty"` // Default scope skill to include
 	Requires     *SkillRequires `json:"requires,omitempty"`
 	Timestamps
 

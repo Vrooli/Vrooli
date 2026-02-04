@@ -124,16 +124,7 @@ Add or refine tests that assert:
 
 ---
 
-### **8. Maintain Scenario Constraints**
-
-* Do **not** change core product behavior or business rules except where required to fix obviously unsafe or misleading failure behavior.
-* Do **not** add new features unrelated to failure handling or graceful degradation.
-* Ensure all changes remain consistent with the PRD, operational targets, and test-driven requirements.
-* When in doubt, choose **safer, localized adjustments** over broad systemic changes, and surface larger change recommendations in notes or comments.
-
----
-
-### **9. Output Expectations**
+### **8. Output Expectations**
 
 By the end of this loop, the scenario should:
 

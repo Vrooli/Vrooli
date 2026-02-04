@@ -2,15 +2,13 @@
 
 Convert any Vrooli scenario into a cross-platform desktop application (Windows, macOS, Linux) using the scenario-to-desktop CLI. The tool creates Electron wrappers that connect to your running scenario.
 
-**Current status:** Thin client mode (external-server) is production-ready. Bundled mode is under development.
-
 ---
 
 ### **1. When to Use This Tool**
 
 | Goal | Command |
 |------|---------|
-| Build desktop app | `scenario-to-desktop pipeline run <scenario> --platforms linux --wait` |
+| Build desktop app | `scenario-to-desktop pipeline run <scenario> --platforms linux --clean --wait` |
 | Download installer | `scenario-to-desktop download <scenario> <platform>` |
 | Collect telemetry | `scenario-to-desktop telemetry ingest <scenario> --file <path>` |
 | Configure signing | `scenario-to-desktop signing set <scenario> --config <json>` |
@@ -49,14 +47,11 @@ The CLI uses **subcommand groups**. Run `<group> help` for detailed options:
 
 ### **3. Primary Workflow**
 
-Always use `--wait` for synchronous execution (blocks until complete, proper exit codes):
+Always use `--clean` to ensure fresh builds, and `--wait` for synchronous execution (blocks until complete, proper exit codes):
 
 ```bash
 # Build desktop app for Linux
-scenario-to-desktop pipeline run {{TARGET}} --platforms linux --wait
-
-# Download the built installer
-scenario-to-desktop download {{TARGET}} linux --output {{TARGET}}.AppImage
+scenario-to-desktop pipeline run {{TARGET}} --platforms linux --clean --wait
 ```
 
 **Pipeline stages:** `bundle` → `preflight` → `generate` → `build` → (optional: `distribution`, `smoketest`)

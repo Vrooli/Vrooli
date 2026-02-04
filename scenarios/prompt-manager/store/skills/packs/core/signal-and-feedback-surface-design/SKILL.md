@@ -110,16 +110,7 @@ Avoid changing signal formats in ways that would silently break existing consume
 
 ---
 
-### **8. Maintain Scenario Constraints**
-
-* Do **not** change core business logic or workflows beyond what’s required to expose better signals.
-* Do **not** add new product features unrelated to observability or feedback.
-* Keep all changes aligned with the PRD, operational targets, and test requirements.
-* Prefer **incremental, localized improvements** over broad rewrites of logging or status systems.
-
----
-
-### **9. Output Expectations**
+### **8. Output Expectations**
 
 You may update:
 

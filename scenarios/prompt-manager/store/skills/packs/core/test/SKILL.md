@@ -79,19 +79,6 @@ Optional reading:
 
 ---
 
-### **6. Maintain Scenario Constraints**
-
-* Do **not** change core business logic, APIs, or workflows except when strictly necessary to improve testability in a clean, minimal way.
-* Do **not** introduce new features unrelated to test quality and coverage.
-* Ensure all changes remain consistent with the scenario’s PRD, operational targets, and architectural goals.
-* Preserve or improve existing completeness metrics; never “game” them by:
-
-  * deleting valid tests,
-  * weakening assertions,
-  * or writing superficial tests that don’t catch real failures.
-
----
-
 ### **6. Memory Management with Visited Tracker**
 
 To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:

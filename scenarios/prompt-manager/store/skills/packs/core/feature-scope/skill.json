@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "feature-scope",
+  "name": "Feature Scope",
+  "description": "Add functionality while maintaining stability",
+  "modes": [
+    "scope"
+  ],
+  "tags": [
+    "scope",
+    "feature",
+    "constraints"
+  ],
+  "icon": "plus-circle",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 27,
+  "createdAt": "2026-02-03T00:00:00Z",
+  "updatedAt": "2026-02-04T12:50:18Z"
+}

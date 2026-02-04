@@ -708,19 +708,7 @@ Update `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md`:
 
 ---
 
-### 11. Maintain Scenario Constraints
-
-* Do **not** change `{{TARGET}}`'s core workflows, APIs, or business logic
-* Do **not** introduce new features unrelated to portability
-* Do **not** remove Tier 1 (local stack) functionality while adding portability
-* Do **not** swap resources without documenting limitations
-* Do **not** break existing tests - portability changes should be additive
-* Prefer **feature detection** over tier-specific code paths
-* Keep **abstractions minimal** - don't over-engineer for hypothetical platforms
-
----
-
-### 12. Output Expectations
+### 11. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/`:
 - Add environment variable fallback chains

@@ -26,6 +26,7 @@ import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
 import { SkillContentEditor } from './SkillContentEditor'
 import { FilePathMenu } from './FilePathMenu'
+import { ScopeSelector } from './ScopeSelector'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import { WorldCanvas } from '@/components/world'
 import { IconSelector } from '../shared/IconSelector'
@@ -227,7 +228,7 @@ export function SkillEditorPanel({
             className="text-muted-foreground"
           />
 
-          {/* Row 3: Tags and File path menu */}
+          {/* Row 3: Tags, DefaultScope (for steer skills), and File path menu */}
           <div className="flex items-center gap-4 flex-wrap">
             <TagChipsEditor
               value={formState.tags}
@@ -236,6 +237,16 @@ export function SkillEditorPanel({
               placeholder="Add tags..."
               className="flex-1 min-w-0"
             />
+
+            {/* Default scope selector - only show for steer skills */}
+            {formState.modes.includes('steer') && (
+              <ScopeSelector
+                value={formState.defaultScope}
+                onChange={(v) => onFieldChange('defaultScope', v)}
+                allSkills={allSkills}
+                className="flex-shrink-0"
+              />
+            )}
 
             {/* File path menu with filename, breadcrumb, copy actions, and storage toggle */}
             <FilePathMenu

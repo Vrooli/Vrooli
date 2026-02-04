@@ -133,16 +133,7 @@ If an improvement would require a broad redesign or major backend changes, **do 
 
 ---
 
-### **8. Maintain Scenario Constraints**
-
-* Do **not** change core business rules, pricing models, or system-of-record logic.
-* Do **not** repurpose the scenario into a different product.
-* Ensure all changes remain aligned with the PRD, operational targets, and test-driven requirements.
-* Respect any existing design system or component library; work with it rather than fighting it.
-
----
-
-### **9. Output Expectations**
+### **8. Output Expectations**
 
 By the end of this loop, you should:
 

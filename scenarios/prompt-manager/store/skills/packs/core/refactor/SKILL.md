@@ -51,13 +51,7 @@ Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by 
   * core flows
   * shared utilities
   * heavily reused components or modules
-* Avoid broad, cosmetic renames or mass edits that don’t significantly improve clarity, structure, or safety.
-
-### **7. Maintain Scenario Constraints**
-
-* Do **not** introduce new product features in this phase.
-* Do **not** change user-facing copy, UX flows, or visual design except where necessary to support structural improvements.
-* Ensure all changes remain aligned with the scenario’s PRD, operational targets, and test-driven requirements.
+* Avoid broad, cosmetic renames or mass edits that don't significantly improve clarity, structure, or safety.
 
 ### **7. Memory Management with Tidiness Manager**
 

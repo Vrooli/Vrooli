@@ -211,6 +211,7 @@ export function normalizedStateToUpdateRequest(
     modes: state.modes,
     tags: state.tags, // Already an array
     icon: state.icon || undefined,
+    defaultScope: state.defaultScope || undefined,
     draft: state.draft,
     folder: state.folder,
   }
@@ -241,6 +242,7 @@ export function legacyToNormalizedState(
     modes: formState.modes,
     tags: parseTags(formState.tags), // Parse comma-separated string
     icon: formState.icon,
+    defaultScope: '', // Legacy state doesn't have defaultScope
     draft: formState.draft,
     folder: formState.folder,
   }

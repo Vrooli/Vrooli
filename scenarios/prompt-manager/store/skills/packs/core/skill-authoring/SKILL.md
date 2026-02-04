@@ -143,14 +143,7 @@ Every skill must explicitly define what's IN scope and OUT of scope. This preven
 - List what should NOT be changed
 - Name adjacent concerns that belong to other skills
 
-**Example:**
-```markdown
-### **Maintain Scenario Constraints**
-
-* Do **not** change the scenario's core workflows, APIs, or business logic
-* Do **not** introduce new features unrelated to [skill focus]
-* Prefer **incremental, localized improvements** over ambitious rewrites
-```
+**Note:** Session-level constraints (do not add features, preserve behavior, etc.) are now handled by **scope skills** rather than inline constraint sections. Skills with `defaultScope` in their metadata will automatically include the appropriate scope when loaded with `--with-scope`.
 
 ---
 
@@ -158,13 +151,14 @@ Every skill must explicitly define what's IN scope and OUT of scope. This preven
 
 Skills follow a consistent structure that makes them scannable and predictable:
 
-1. **Focus statement** - What this skill steers toward  
-2. **Tooling prerequisites** - Required setup (optional)  
-3. **Core principles** - Numbered sections with convergence patterns where applicable  
-8. **Audit section** - Assessment checklist for existing codebases (optional, see below)  
-9. **Memory management** - Comment/documentation guidelines and integration with memory-related tools (e.g. visited-tracker, knowledge-observatory)  
-10. **Scenario constraints** - What's out of scope  
-11. **Output expectations** - What can/must be changed  
+1. **Focus statement** - What this skill steers toward
+2. **Tooling prerequisites** - Required setup (optional)
+3. **Core principles** - Numbered sections with convergence patterns where applicable
+4. **Audit section** - Assessment checklist for existing codebases (optional, see below)
+5. **Memory management** - Comment/documentation guidelines and integration with memory-related tools (e.g. visited-tracker, knowledge-observatory)
+6. **Output expectations** - What can/must be changed
+
+**Note:** Session-level constraints are handled by scope skills (e.g., `refactor-scope`, `feature-scope`) rather than inline sections. Set `defaultScope` in skill metadata when appropriate.  
 
 The exact number of principle sections varies, but the structure should feel consistent.
 

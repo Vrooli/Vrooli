@@ -94,22 +94,7 @@ Do not weaken existing tests to make refactors pass; instead, align tests with c
 
 * * *
 
-### **6\. Maintain Scenario Constraints**
-
-\* Do **not** introduce new product features in this phase.  
-\* Do **not** change business rules unless:  
-\* the current behavior clearly contradicts the PRD or operational targets, or  
-\* the behavior is obviously incorrect or inconsistent across the scenario.  
-\* Keep all changes aligned with:  
-\* the PRD and operational targets  
-\* existing test-driven requirements  
-\* the scenario’s architectural goals
-
-When you discover decisions that seem wrong but are risky to change, prefer to **clarify and document them**, and surface a recommendation rather than partially rewriting them.
-
-* * *
-
-### **7\. Output Expectations**
+### **6\. Output Expectations**
 
 You may update:
 

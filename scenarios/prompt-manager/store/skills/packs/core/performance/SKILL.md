@@ -50,16 +50,7 @@ Where appropriate, introduce **debouncing**, **throttling**, or **batching** of 
 * For large collections or heavy views, consider patterns that **render less at once** (conditional rendering, chunked views, virtualization) when they fit naturally into the existing design.
 * Only introduce performance-oriented abstractions if they **reduce** complexity or clearly improve maintainability.
 
-### **6. Maintain Scenario Constraints**
-
-* Do **not** change the scenario’s core workflows, APIs, or business logic.
-* Do **not** remove safeguards, validation, or tests purely to make things “faster.”
-* Ensure all performance improvements remain consistent with:
-  * the PRD and operational targets
-  * existing tests and requirements
-  * the scenario’s architectural direction
-
-### **7. Safe Optimizations & Non-Gaming**
+### **6. Safe Optimizations & Non-Gaming**
 
 * Do **not** “optimize” by:
   * hiding slow operations without actually improving them

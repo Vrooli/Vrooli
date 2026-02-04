@@ -201,16 +201,7 @@ Favor **small, coherent improvements** over wide, speculative changes.
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** introduce new product features in this phase.
-* Do **not** change core workflows or business rules except where clearly necessary to make error handling internally consistent.
-* Ensure all changes respect the scenario’s PRD, operational targets, and test-driven requirements.
-* Keep user experience and agent behavior at least as smooth as before, ideally more predictable under failure.
-
----
-
-### **7.5 Memory Management with Visited Tracker**
+### **7. Memory Management with Visited Tracker**
 
 To ensure **systematic coverage without repetition**, use `visited-tracker`:
 

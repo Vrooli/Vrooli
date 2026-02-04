@@ -839,19 +839,7 @@ Update `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 
 ---
 
-### 14. Maintain Scenario Constraints
-
-* Do **not** change `{{TARGET}}`'s core workflows, APIs, or business logic unrelated to storage
-* Do **not** introduce new features unrelated to storage architecture
-* Do **not** change database schema without ensuring idempotency
-* Do **not** add storage backends that aren't declared in service.json
-* Do **not** use raw SQL in business logic layers (use repository pattern)
-* Prefer **additive changes** (new columns with defaults) over destructive changes
-* Keep abstraction layers **minimal** - don't over-engineer for hypothetical backends
-
----
-
-### 15. Output Expectations
+### 14. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/`:
 - Add or modify service.json resource declarations

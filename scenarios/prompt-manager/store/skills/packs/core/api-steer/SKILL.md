@@ -365,16 +365,7 @@ When inheriting or improving an existing scenario API, first establish the curre
 
 ---
 
-### 12. Maintain Scenario Constraints
-
-* Do **not** introduce new product features under the banner of “API cleanup.”
-* Do **not** break existing API clients (other scenarios, UI, CLI) without a compatibility plan.
-* Prefer incremental refactors that improve organization and consistency without large rewrites.
-* Preserve operational targets (latency, reliability, correctness); API polish must not degrade them.
-
----
-
-### 13. Output Expectations
+### 12. Output Expectations
 
 You may:
 - Re-organize endpoint modules to better match bounded contexts

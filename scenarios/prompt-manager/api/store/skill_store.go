@@ -226,6 +226,8 @@ func (s *FileSkillStore) Update(ctx context.Context, id string, updates *Skill, 
 	if updates.Requires != nil {
 		skill.Requires = updates.Requires
 	}
+	// DefaultScope is always applied (empty string clears it)
+	skill.DefaultScope = updates.DefaultScope
 
 	skill.UpdateTimestamp()
 

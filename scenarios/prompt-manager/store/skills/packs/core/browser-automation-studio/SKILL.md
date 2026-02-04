@@ -538,17 +538,7 @@ For automated testing patterns, see the **e2e-testing** skill section on "Authen
 
 ---
 
-### **11. Maintain Scenario Constraints**
-
-* This skill is for **using** BAS to investigate and validate, not modifying BAS itself
-* Do **not** edit `bas/registry.json` manually - it's auto-generated
-* Do **not** hardcode selectors in workflows - always use `@selector/` references
-* Do **not** modify scenario business logic to make tests pass
-* Use artifacts to **diagnose** issues, then fix in source code appropriately
-
----
-
-### **12. Output Expectations**
+### **11. Output Expectations**
 
 When using BAS for investigation, document findings in `docs/internal/PROBLEMS.md` under the E2E Issues section:
 

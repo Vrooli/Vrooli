@@ -58,13 +58,7 @@ Optional reading:
   * no overflow or clipping
 * Do not introduce layout assumptions (e.g., sidebars, footers) unless they already fit naturally with the existing design.
 
-### **6. Maintain Scenario Constraints**
-
-* Do **not** change the scenario's core workflows, APIs, or business logic.
-* Do **not** introduce new features unrelated to UX improvement.
-* Ensure all changes remain within the scenario's architectural goals, PRD, and test-driven requirements.
-
-### **7. Memory Management with Visited Tracker**
+### **6. Memory Management with Visited Tracker**
 
 To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
 

@@ -1,6 +1,6 @@
 ## Steer focus: Assumption Mapping & Hardening
 
-Prioritize **discovering, validating, and safely handling assumptions** in this scenario’s code, tests, configuration, and interactions.
+Prioritize **discovering, validating, and safely handling assumptions** in this scenario's code, tests, configuration, and interactions.
 
 Your goal is to make important assumptions **explicit, verified, and robust**, so the scenario is harder to break as it evolves.
 
@@ -21,7 +21,7 @@ Systematically scan the scenario (code, tests, configuration, comments) to uncov
 
 * **User behavior**
   * assumed user flows (what they do first, what they never do)
-  * assumed input quality (e.g. “they won’t paste huge blobs”)
+  * assumed input quality (e.g. “they won't paste huge blobs”)
   * assumptions about permissions or roles
 
 * **External systems & APIs**
@@ -78,7 +78,7 @@ Turn fragile, implicit assumptions into **explicit, verifiable behavior**:
 
 * Add **targeted comments or docstrings** only where necessary:
   * clarify assumptions that cannot be easily enforced in code
-  * describe why certain shortcuts are safe in this scenario’s context
+  * describe why certain shortcuts are safe in this scenario's context
 
 Prefer enforced assumptions (validation + tests) over comments alone.
 
@@ -111,29 +111,18 @@ Do not introduce confusing complexity; aim for **simple, explicit, defensive** b
 ### **5. Align Assumptions with Domain & PRD**
 
 * Cross-check assumptions against:
-  * the scenario’s PRD and operational targets
+  * the scenario's PRD and operational targets
   * technical requirements and tests
-* Remove assumptions that conflict with the domain’s intent.
+* Remove assumptions that conflict with the domain's intent.
 * Where the domain truly guarantees an assumption (e.g. “this field always exists”), ensure this is:
   * documented in the appropriate place (e.g. type definitions, central schema, or comments)
   * validated at the boundary where data enters the system
 
-This keeps assumptions **coherent with the scenario’s actual purpose**.
+This keeps assumptions **coherent with the scenario's actual purpose**.
 
 ---
 
-### **6. Maintain Scenario Constraints**
-
-* Do **not** add new features in this phase.
-* Do **not** change business rules or workflows unless they are clearly incorrect relative to the PRD and fixing them is required to handle assumptions properly.
-* Avoid large-scale rewrites; prefer **localized improvements** that reduce risk and clarify behavior.
-* Keep public interfaces and external contracts stable where possible; if you must change them, update all call sites consistently and retain behavior expectations.
-
-When you discover a necessary but **high-risk or broad change**, document it clearly rather than partially implementing it.
-
----
-
-### **7. Documentation**
+### **6. Documentation**
 
 Update `docs/internal/ASSUMPTIONS.md` to record your findings:
 

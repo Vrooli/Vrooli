@@ -590,18 +590,7 @@ visited-tracker exclude <file-path> \
 
 ---
 
-### 14. Maintain Scenario Constraints
-
-* Do **not** add features to CLI that don't exist in the API
-* Do **not** implement business logic in CLI (call the API instead)
-* Do **not** create bash-only scripts for CLI functionality
-* Do **not** bypass cli-core utilities with custom implementations
-* Do **not** hardcode configuration (use env vars, flags, config files)
-* Prefer **incremental migration** to cli-core over complete rewrites (unless CLI is non-Go)
-
----
-
-### 15. Output Expectations
+### 14. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/cli/`:
 - Migrate existing CLI to use cli-core patterns

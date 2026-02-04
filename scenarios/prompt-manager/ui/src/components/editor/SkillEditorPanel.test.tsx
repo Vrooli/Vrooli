@@ -71,6 +71,7 @@ function createFormState(overrides: Partial<NormalizedFormState> = {}): Normaliz
     modes: ['development'],
     tags: ['tag1'],  // Now an array
     icon: '',
+    defaultScope: '',
     draft: false,
     folder: 'local',
     ...overrides,

@@ -543,16 +543,7 @@ visited-tracker campaigns note \
 
 ---
 
-### **9. Maintain Scenario Constraints**
-
-* Do **not** change the scenario's core workflows, APIs, or business logic
-* Do **not** introduce new features unrelated to React stability
-* Do **not** replace the existing Protobuf/API setup; work within it
-* Prefer **incremental, localized improvements** over ambitious rewrites
-
----
-
-### **10. Output Expectations**
+### **9. Output Expectations**
 
 You may update:
 * Error boundary placement and fallback UIs

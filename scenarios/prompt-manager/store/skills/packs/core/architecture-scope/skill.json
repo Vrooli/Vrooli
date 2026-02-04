@@ -1,0 +1,15 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "architecture-scope",
+  "name": "Architecture Scope",
+  "description": "Reducing technical debt without changing functionality",
+  "modes": [
+    "scope"
+  ],
+  "status": "draft",
+  "entry": "SKILL.md",
+  "revision": 2,
+  "createdAt": "2026-02-04T12:49:58Z",
+  "updatedAt": "2026-02-04T12:50:18Z"
+}

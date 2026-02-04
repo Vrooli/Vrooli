@@ -98,16 +98,7 @@ If a more radical merging would be beneficial but risky, describe it in comments
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** introduce new product capabilities or flows in this phase.
-* Do **not** change business rules except where needed to resolve obvious inconsistencies exposed by domain cleanup.
-* Ensure all changes remain aligned with the scenario’s PRD, operational targets, and test-driven requirements.
-* Avoid any refactor that requires large configuration or deployment changes within this loop.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 

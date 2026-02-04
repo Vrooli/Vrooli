@@ -102,17 +102,7 @@ If you identify naming or conceptual issues that require a **large, cross-cuttin
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** add new product features during this phase.
-* Do **not** change business rules, permissions, or domain logic except where a minor adjustment is needed to resolve an obvious inconsistency uncovered by vocabulary alignment.
-* Keep all changes aligned with the PRD, operational targets, and test-driven requirements.
-
-Favor **clarity and conceptual honesty** over cleverness or brevity.
-
----
-
-### **8. Documentation**
+### **7. Documentation**
 
 Update `docs/concepts/GLOSSARY.md` (user-facing) to record the unified vocabulary:
 

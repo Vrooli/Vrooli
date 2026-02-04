@@ -75,6 +75,8 @@ type ReadRequest struct {
 	AllowMissing *bool    `json:"allowMissing,omitempty"`
 	Output       string   `json:"output,omitempty"`
 	Format       string   `json:"format,omitempty"`
+	WithScope    bool     `json:"withScope,omitempty"`
+	Scope        string   `json:"scope,omitempty"`
 }
 
 // ReadIssue captures missing identifiers
@@ -305,6 +307,7 @@ func cmdRead(ctx appctx.Context, args []string) error {
 		"output":  true,
 		"format":  true,
 		"sep":     true,
+		"scope":   true,
 	})
 	fs := flag.NewFlagSet("read", flag.ContinueOnError)
 	resolve := fs.String("resolve", "auto", "Resolution mode (auto|id|file|name)")
@@ -314,12 +317,14 @@ func cmdRead(ctx appctx.Context, args []string) error {
 	output := fs.String("output", "auto", "Output mode (skills|combined|both|auto)")
 	format := fs.String("format", "xml", "Combined output format (xml|markdown|json)")
 	copyOut := fs.Bool("copy", false, "Copy combined output to clipboard")
+	withScope := fs.Bool("with-scope", false, "Include default scope skill from first skill")
+	scope := fs.String("scope", "", "Explicit scope skill to include")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--strict] [--copy] [--json]")
+		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--with-scope] [--scope=<scope-id>] [--strict] [--copy] [--json]")
 	}
 
 	req := ReadRequest{
@@ -327,6 +332,8 @@ func cmdRead(ctx appctx.Context, args []string) error {
 		Resolve:     *resolve,
 		Output:      strings.ToLower(strings.TrimSpace(*output)),
 		Format:      strings.ToLower(strings.TrimSpace(*format)),
+		WithScope:   *withScope,
+		Scope:       *scope,
 	}
 
 	var resp ReadResponse

@@ -90,18 +90,51 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle scope inclusion
+	var scopeSkill *Response
+	if req.Scope != "" {
+		// Explicit scope requested
+		scopeMatches := resolveIdentifier(req.Scope, "id", indexed)
+		if len(scopeMatches) == 1 {
+			s, err := h.buildReadResponse(scopeMatches[0], req.Variables)
+			if err == nil {
+				scopeSkill = &s
+			}
+		}
+	} else if req.WithScope && len(responses) > 0 {
+		// Use default scope from first skill with one
+		for _, skill := range responses {
+			if skill.DefaultScope != "" {
+				scopeMatches := resolveIdentifier(skill.DefaultScope, "id", indexed)
+				if len(scopeMatches) == 1 {
+					s, err := h.buildReadResponse(scopeMatches[0], req.Variables)
+					if err == nil {
+						scopeSkill = &s
+					}
+				}
+				break
+			}
+		}
+	}
+	resp.ScopeSkill = scopeSkill
+
 	if outputIncludesSkills(output) {
 		resp.Skills = responses
 	}
 
 	if outputIncludesCombined(output) {
-		combined, normalizedFormat, err := RenderCombined(responses, req.Format)
+		// Include scope skill at the beginning of combined output
+		toRender := responses
+		if scopeSkill != nil {
+			toRender = append([]Response{*scopeSkill}, responses...)
+		}
+		combined, normalizedFormat, err := RenderCombined(toRender, req.Format)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		resp.Combined = combined
-		resp.SkillCount = len(responses)
+		resp.SkillCount = len(toRender)
 		resp.TotalTokens = (len(combined) + 3) / 4
 		resp.Format = normalizedFormat
 	}

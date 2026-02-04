@@ -103,16 +103,7 @@ If you detect a seam that **should** exist but requires a major redesign, docume
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** add new product features in this phase.
-* Do **not** change business rules or UX flows except where strictly required to fix issues caused by unclear boundaries.
-* Ensure all changes remain consistent with the scenario’s PRD, operational targets, and test-driven requirements.
-* Prefer **clarity and explicit boundaries** over clever abstractions that are hard to understand.
-
----
-
-### **8. Documentation**
+### **7. Documentation**
 
 Update `docs/internal/SEAMS.md` to reflect your findings:
 

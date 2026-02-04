@@ -111,22 +111,7 @@ The goal is to **stabilize true rules**, not freeze accidental behavior.
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** add unrelated features in this phase.
-* Do **not** change core product behavior unless:
-  * it clearly contradicts the PRD or operational targets, and
-  * the change is necessary to correct an invariant violation.
-* Ensure all changes:
-  * keep the scenario fully functional
-  * respect existing tests and completeness metrics
-  * stay aligned with the scenario’s architecture and goals
-
-If you identify a necessary but **large, risky invariants overhaul**, describe it in comments or notes instead of partially implementing it.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may:
 

@@ -42,6 +42,7 @@ export function normalizeSkill(skill: Skill): NormalizedFormState {
     modes: [...skill.modes],
     tags: [...skill.tags],
     icon: skill.icon ?? '',
+    defaultScope: skill.defaultScope ?? '',
     draft: skill.draft,
     folder: skill.folder,
   }
@@ -59,6 +60,7 @@ export function createEmptyNormalizedState(): NormalizedFormState {
     modes: [],
     tags: [],
     icon: '',
+    defaultScope: '',
     draft: true,
     folder: 'local',
   }
@@ -78,6 +80,7 @@ export function isFormStateEqual(
   if (a.draft !== b.draft) return false
   if (a.folder !== b.folder) return false
   if (a.icon !== b.icon) return false
+  if (a.defaultScope !== b.defaultScope) return false
 
   // Compare arrays
   if (!arraysEqual(a.modes, b.modes)) return false

@@ -106,16 +106,7 @@ If you identify a lever that would require a large migration or ecosystem-wide c
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** add new business features in this phase.
-* Do **not** change core workflows solely to justify a new lever.
-* Stay aligned with the scenario’s PRD, operational targets, and test-driven requirements.
-* Avoid using this phase to “game” metrics; the goal is **operational steerability**, not synthetic completeness.
-
----
-
-### **8. Documentation**
+### **7. Documentation**
 
 Update `docs/reference/configuration.md` (user-facing) to document the control surface:
 

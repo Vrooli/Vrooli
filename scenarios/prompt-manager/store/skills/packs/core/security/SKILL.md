@@ -76,15 +76,6 @@ If a larger change is needed (e.g. rotating secrets, changing deployment configs
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** change the scenario’s core product behavior or user-facing workflows beyond what’s necessary to improve security.
-* Do **not** add new features unrelated to security hardening.
-* Ensure all changes remain aligned with the scenario’s PRD, architectural goals, and test-driven requirements.
-* When in doubt between a risky “big rewrite” and a safer incremental improvement, choose the **safer incremental** option and surface the larger change as a recommendation.
-
----
-
 ### **7. Memory Management with Visited Tracker**
 
 To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:

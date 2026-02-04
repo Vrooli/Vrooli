@@ -232,6 +232,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		Tags:         req.Tags,
 		Icon:         req.Icon,
 		TargetToolID: req.TargetToolID,
+		DefaultScope: req.DefaultScope,
 		Draft:        req.Draft,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -381,6 +382,9 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Draft != nil {
 		skill.Draft = *req.Draft
+	}
+	if req.DefaultScope != nil {
+		skill.DefaultScope = *req.DefaultScope
 	}
 
 	skill.UpdatedAt = time.Now().Format(time.RFC3339)
@@ -656,6 +660,7 @@ func (h *Handlers) toResponse(p Metadata) Response {
 		Tags:         p.Tags,
 		Icon:         p.Icon,
 		TargetToolID: p.TargetToolID,
+		DefaultScope: p.DefaultScope,
 		Draft:        p.Draft,
 		CreatedAt:    p.CreatedAt,
 		UpdatedAt:    p.UpdatedAt,

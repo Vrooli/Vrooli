@@ -121,16 +121,7 @@ If you identify a major timing or concurrency redesign that is too large for thi
 
 ---
 
-### **8. Maintain Scenario Constraints**
-
-* Do **not** introduce new product features in this phase.
-* Do **not** change business rules or core workflows except to fix clear timing-related bugs or inconsistencies.
-* Ensure all changes remain consistent with the PRD, operational targets, and test-driven requirements.
-* Prefer **predictability, clarity, and robustness** over clever timing tricks.
-
----
-
-### **9. Output Expectations**
+### **8. Output Expectations**
 
 By the end of this loop, the scenario should:
 

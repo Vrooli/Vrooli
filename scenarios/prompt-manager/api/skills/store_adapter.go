@@ -297,6 +297,7 @@ func (a *StoreAdapter) toMetadata(s store.Skill) Metadata {
 		Tags:         s.Tags,
 		Icon:         s.Icon,
 		TargetToolID: s.TargetToolID,
+		DefaultScope: s.DefaultScope,
 		Draft:        draft,
 		CreatedAt:    s.CreatedAt,
 		UpdatedAt:    s.UpdatedAt,
@@ -324,6 +325,7 @@ func (a *StoreAdapter) fromMetadata(m Metadata, pack string) store.Skill {
 		Status:       status,
 		Entry:        "SKILL.md",
 		TargetToolID: m.TargetToolID,
+		DefaultScope: m.DefaultScope,
 		Timestamps: store.Timestamps{
 			CreatedAt: m.CreatedAt,
 			UpdatedAt: m.UpdatedAt,

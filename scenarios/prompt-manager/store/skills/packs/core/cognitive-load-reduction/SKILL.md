@@ -112,16 +112,7 @@ If you discover areas that need substantial redesign, describe them in comments 
 
 ---
 
-### **8. Maintain Scenario Constraints**
-
-* Do **not** add new product features in this phase.
-* Do **not** change business rules or domain semantics, except to fix clearly incorrect or contradictory behavior.
-* Ensure all changes remain aligned with the scenario’s PRD, operational targets, and test-driven requirements.
-* Prefer changes that will make future loops (and future agents) more effective and less error-prone.
-
----
-
-### **9. Documentation**
+### **8. Documentation**
 
 Update the **Architecture Clarity Notes** section of `docs/internal/SEAMS.md` to record your findings:
 

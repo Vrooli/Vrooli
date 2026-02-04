@@ -109,16 +109,7 @@ Avoid masking inconsistencies with wording; resolve or surface them clearly.
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** introduce new product features or major behavior changes in this phase.
-* Do **not** relax validation, security, or robustness in the name of simplicity.
-* Ensure all changes remain consistent with the PRD, operational targets, architectural goals, and test-driven requirements.
-* Prefer changes that **reduce future confusion and surprise** over clever abstractions.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 

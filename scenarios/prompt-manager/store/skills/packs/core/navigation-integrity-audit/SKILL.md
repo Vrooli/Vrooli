@@ -108,19 +108,7 @@ Avoid major routing overhauls in this phase; focus on making current flows **pre
 
 ---
 
-### 7. Maintain Scenario Constraints
-
-* Do **not** introduce new features unrelated to navigation integrity.
-* Do **not** re-architect the entire routing system in this phase.
-* Keep all changes aligned with the scenario’s:
-  * PRD
-  * operational targets
-  * test-driven requirements
-* When faced with a choice between a risky global change and a smaller, safer improvement, choose the **safer incremental fix** and surface larger redesign ideas as recommendations.
-
----
-
-### 8. Output Expectations
+### 7. Output Expectations
 
 You may update:
 

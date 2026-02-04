@@ -933,18 +933,7 @@ visited-tracker campaigns note \
 
 ---
 
-### 10. Maintain Scenario Constraints
-
-* Do **not** change `{{TARGET}}`'s core business logic beyond what's needed for testability
-* Do **not** add tests (that's the `test` skill's job)—focus on infrastructure
-* Do **not** increase test coverage—focus on making coverage *possible*
-* Do **not** refactor production code without adding corresponding test infrastructure
-* Prefer **minimal interface definitions** over heavy abstraction layers
-* Keep testability improvements **incremental and reversible**
-
----
-
-### 11. Output Expectations
+### 10. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/`:
 - Add mock packages (`api/*/mocks/`, `ui/src/test-utils/mocks/`)

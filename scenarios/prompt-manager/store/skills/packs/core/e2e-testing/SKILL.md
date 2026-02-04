@@ -518,18 +518,7 @@ visited-tracker campaigns note \
 
 ---
 
-### **8. Maintain Scenario Constraints**
-
-* Do **not** change core business logic to make tests pass
-* Do **not** weaken assertions to avoid failures
-* Do **not** skip flaky tests without documenting root cause
-* Prefer **fixing the issue** over working around it in tests
-* E2E tests must validate **desired behavior**, not current (possibly buggy) behavior
-* All selectors must go through the registry - no hardcoded `[data-testid="..."]` in workflows
-
----
-
-### **9. Documentation**
+### **8. Documentation**
 
 Update the **E2E Issues** section of `docs/internal/PROBLEMS.md`:
 

@@ -123,18 +123,7 @@ Do not weaken coverage to accommodate poor idempotency; improve the implementati
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** change product behavior unless it produces incorrect or unsafe replay semantics.
-* Do **not** introduce new user-facing features.
-* Keep the scenario fully functional and regression-free.
-* Ensure all changes remain aligned with PRD goals, architectural boundaries, and test-driven requirements.
-
-When encountering a high-risk idempotency flaw that requires a substantial architectural change, document the needed improvement rather than partially implementing a risky rewrite.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 

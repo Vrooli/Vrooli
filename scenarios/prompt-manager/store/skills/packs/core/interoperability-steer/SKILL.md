@@ -718,19 +718,7 @@ Update `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`:
 
 ---
 
-### 11. Maintain Scenario Constraints
-
-* Do **not** change `{{TARGET}}`'s core workflows, APIs, or business logic unrelated to interoperability
-* Do **not** introduce new features unrelated to type-safe contracts
-* Do **not** add proto schemas for one-off features—design for reuse
-* Do **not** introduce breaking changes without deprecation cycle
-* Do **not** manually edit files in `gen/`—always regenerate
-* Prefer **additive schema evolution** over breaking changes
-* Keep proto package structure aligned with `{{TARGET}}`'s domain boundaries
-
----
-
-### 12. Output Expectations
+### 11. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/`:
 - Add or modify proto schemas following layer architecture

@@ -88,20 +88,7 @@ This helps future changes remain safe even as the implementation evolves.
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** introduce new product features in this phase.
-* Do **not** change core business rules or workflows except where necessary to fix clear inconsistencies revealed by this audit.
-* Ensure all changes:
-  * stay aligned with the PRD and operational targets
-  * respect existing invariants and tests
-  * do not weaken security, UX, or other quality-focused constraints.
-
-When you discover a change axis that would require a large redesign to support properly, **document the recommendation** rather than attempting an unsafe partial rewrite in this loop.
-
----
-
-### **8. Documentation**
+### **7. Documentation**
 
 Update the **Change Axes** section of `docs/internal/SEAMS.md` to record your findings:
 

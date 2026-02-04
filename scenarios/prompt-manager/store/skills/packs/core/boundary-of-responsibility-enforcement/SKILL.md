@@ -99,16 +99,7 @@ If you discover a responsibility tangle that would require a broad, risky change
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** add new end-user features in this phase.
-* Do **not** change core workflows or business rules except where necessary to fix obvious inconsistencies caused by responsibility confusion.
-* Ensure all changes respect the scenario’s PRD, operational targets, and existing test-driven requirements.
-* Favor **steady, incremental tightening** of boundaries over disruptive reorganizations.
-
----
-
-### **8. Documentation**
+### **7. Documentation**
 
 Update `docs/internal/SEAMS.md` to reflect your findings:
 

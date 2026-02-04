@@ -99,18 +99,7 @@ Document or encode these behaviors so future changes don’t break continuity as
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** add entirely new product flows or major features in this phase.
-* Do **not** change business rules or semantics of completion unless necessary to fix obvious contradictions revealed by continuity concerns.
-* Ensure all changes stay aligned with the PRD, operational targets, and test-driven requirements.
-* Prefer **incremental improvements** to continuity and resumption over large, risky rewrites.
-
-If you discover the need for a broader redesign, describe it clearly rather than partially implementing it.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 

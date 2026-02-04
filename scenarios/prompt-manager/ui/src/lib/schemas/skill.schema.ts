@@ -39,6 +39,7 @@ export const SkillSchema = z.object({
   tags: nullableStringArray,
   icon: z.string().nullable().optional(),
   targetToolId: z.string().nullable().optional(),
+  defaultScope: z.string().nullable().optional(), // Default scope skill to include with this skill
   draft: z.boolean().nullable().optional().transform((val) => val ?? false),
   folder: FolderTypeSchema,
   skillDir: z.string().nullable().optional(),    // Absolute path to skill directory
@@ -88,6 +89,7 @@ export const UpdateSkillRequestSchema = z.object({
   tags: z.array(z.string()).optional(),
   icon: z.string().optional(),
   targetToolId: z.string().nullable().optional(),
+  defaultScope: z.string().optional(), // Default scope skill ID
   draft: z.boolean().optional(),
   folder: FolderTypeSchema.optional(),
 })

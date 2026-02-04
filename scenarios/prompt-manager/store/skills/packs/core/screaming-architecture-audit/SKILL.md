@@ -124,16 +124,7 @@ If you identify a necessary but **high-risk, broad architectural change**, descr
 
 ---
 
-### **7. Maintain Scenario Constraints**
-
-* Do **not** add new product features in this phase.
-* Do **not** change business rules or workflows except where needed to fix obvious inconsistencies or bugs revealed by architectural clarification.
-* Ensure all changes stay consistent with the PRD, operational targets, and test-driven requirements.
-* Prefer **clarity, cohesion, and explicitness** over cleverness or abstraction for its own sake.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 By the end of this loop, the scenario should:
 

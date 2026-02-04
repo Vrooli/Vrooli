@@ -13,6 +13,7 @@ type Metadata struct {
 	Tags         []string `json:"tags"`
 	Icon         string   `json:"icon,omitempty"`
 	TargetToolID *string  `json:"targetToolId"`
+	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include with this skill
 	Draft        bool     `json:"draft"`
 	CreatedAt    string   `json:"createdAt"`
 	UpdatedAt    string   `json:"updatedAt"`
@@ -34,6 +35,7 @@ type Response struct {
 	Tags                []string   `json:"tags"`
 	Icon                string     `json:"icon,omitempty"`
 	TargetToolID        *string    `json:"targetToolId,omitempty"`
+	DefaultScope        string     `json:"defaultScope,omitempty"` // Default scope skill to include with this skill
 	Draft               bool       `json:"draft"`
 	Folder              string     `json:"folder"`
 	SkillDir            string     `json:"skillDir,omitempty"`    // Absolute path to skill directory
@@ -63,6 +65,7 @@ type CreateRequest struct {
 	Tags         []string `json:"tags"`
 	Icon         string   `json:"icon,omitempty"`
 	TargetToolID *string  `json:"targetToolId,omitempty"`
+	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include
 	Draft        bool     `json:"draft"`
 	Folder       string   `json:"folder"` // "local" or "drafts" only
 }
@@ -77,6 +80,7 @@ type UpdateRequest struct {
 	Tags         []string `json:"tags,omitempty"`
 	Icon         *string  `json:"icon,omitempty"`
 	TargetToolID *string  `json:"targetToolId,omitempty"`
+	DefaultScope *string  `json:"defaultScope,omitempty"` // Default scope skill to include
 	Draft        *bool    `json:"draft,omitempty"`
 	Folder       *string  `json:"folder,omitempty"` // Move skill to different folder
 }
@@ -135,6 +139,8 @@ type ReadRequest struct {
 	Output       string            `json:"output,omitempty"`       // "skills", "combined", or "both"
 	Format       string            `json:"format,omitempty"`       // "xml", "markdown", or "json" (for combined output)
 	Variables    map[string]string `json:"variables,omitempty"`    // Values for {{VAR}} substitution
+	WithScope    bool              `json:"withScope,omitempty"`    // Include default scope from first skill
+	Scope        string            `json:"scope,omitempty"`        // Explicit scope skill to include
 }
 
 // ReadIssue captures missing identifiers.
@@ -168,4 +174,5 @@ type ReadResponse struct {
 	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
 	Resolve     string          `json:"resolve"`
 	Output      string          `json:"output,omitempty"`
+	ScopeSkill  *Response       `json:"scopeSkill,omitempty"` // Included scope skill (if requested)
 }

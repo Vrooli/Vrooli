@@ -21,6 +21,7 @@ export interface NormalizedFormState {
   modes: string[] // Always array
   tags: string[] // Always array (not comma-separated)
   icon: string // Always string (never null/undefined)
+  defaultScope: string // Default scope skill ID (empty string if none)
   draft: boolean
   folder: FolderType
 }

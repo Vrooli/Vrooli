@@ -61,17 +61,7 @@ Clear documentation ensures future loops can build on your discoveries.
 * Avoid superficial variations (renaming, cosmetic tweaks, minor reorganizations).
 * Aim for **meaningful divergence** that expands the scenario’s design space.
 
-### **5. Maintain Scenario Constraints**
-
-* Do **not** modify core workflows, APIs, business logic, or system boundaries.
-* Do **not** introduce new dependencies that conflict with the scenario’s platform or architecture.
-* Ensure all experiments respect:
-  * PRD and operational targets  
-  * test-driven requirements  
-  * structure and anti-pattern checks  
-* Experiments must **never** compromise reliability, even temporarily.
-
-### **6. Ensure Stability Throughout Exploration**
+### **5. Ensure Stability Throughout Exploration**
 
 * The scenario must remain:
   * functional
