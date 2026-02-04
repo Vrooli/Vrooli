@@ -1139,6 +1139,106 @@ interface SplashAPI {
 **Solution**: Use `destroy()` instead of `close()` with delay before showing dialog
 **Files**: `templates/vanilla/splash/manager.ts`, `templates/vanilla/main.ts`
 
+### Runtime Exit Monitoring Seam (Feb 2026)
+
+#### 4. Runtime Exit Tracking
+**Location**: `templates/vanilla/main.ts` (lines 100-133)
+**Purpose**: Module-level tracking for runtime process exit status, enabling smoke tests to detect runtime crashes after server ready check.
+
+**Interface**:
+```typescript
+interface RuntimeExitInfo {
+    exited: boolean;
+    code: number | null;
+    signal: NodeJS.Signals | null;
+    stderr: string;
+    exitedAt: Date | null;
+}
+
+function resetRuntimeExitTracking(): void;
+function hasRuntimeExitedUnexpectedly(): boolean;
+```
+
+**Key Design Decisions**:
+- **Module-level state**: Exit info persists across async boundaries
+- **Stderr capture**: Always captures stderr for error diagnostics
+- **Post-success stability check**: 2-second delay after server ready to catch delayed crashes
+
+**Status**: ✅ Implemented
+
+### Enhanced Splash Error Display (Feb 2026)
+
+#### 5. Splash Error Display with Log Panel
+**Location**: `templates/vanilla/splash/manager.ts`, `templates/vanilla/splash.html`, `templates/vanilla/splash-preload.ts`
+**Purpose**: Display detailed error information in splash window instead of closing and showing dialog
+
+**Extended SplashAPI Interface**:
+```typescript
+interface SplashAPI {
+    // ... existing methods ...
+    onLogAppend(callback: (entry: SplashLogEntry) => void): void;
+    onLogClear(callback: () => void): void;
+    copyLogs(): void;
+    onCopyLogsResult(callback: (result: CopyLogsResult) => void): void;
+    retry(): void;
+}
+```
+
+**Extended ISplashWindowManager Interface**:
+```typescript
+interface ISplashWindowManager {
+    // ... existing methods ...
+    appendLog(entry: SplashLogEntry): void;
+    clearLogs(): void;
+    onCopyLogs(callback: () => string): void;
+    onRetry(callback: () => void): void;
+}
+```
+
+**Extended SplashStatus Error Details**:
+```typescript
+interface SplashStatus {
+    error?: {
+        title: string;
+        message: string;
+        recoverable: boolean;
+        logs?: string[];        // Diagnostic logs
+        stderr?: string;        // Runtime stderr output
+        exitCode?: number | null; // Process exit code
+        suggestion?: string;    // User-friendly recovery hint
+    };
+}
+```
+
+**IPC Channels Added**:
+```typescript
+SPLASH_IPC_CHANNELS = {
+    // ... existing channels ...
+    LOG_APPEND: "splash:log-append",
+    LOG_CLEAR: "splash:log-clear",
+    COPY_LOGS: "splash:copy-logs",
+    COPY_LOGS_RESULT: "splash:copy-logs-result",
+    RETRY: "splash:retry",
+};
+```
+
+**Status**: ✅ Implemented
+
+#### 6. Clipboard Seam for Splash Manager
+**Location**: `templates/vanilla/splash/manager.ts`
+**Purpose**: Abstract clipboard operations for testability
+
+**Interface**:
+```typescript
+interface IClipboard {
+    writeText(text: string): void;
+}
+```
+
+**Usage**: Injected into `SplashWindowManager` via `SplashManagerDeps.clipboard`
+
+**Status**: ✅ Implemented
+
 ### Test Coverage
 
 Test files:
@@ -1154,6 +1254,143 @@ Key test scenarios:
 - ✅ Server readiness accepts 2xx responses
 - ✅ Timeout handling with progress reporting
 - ✅ Content validation support
+- ✅ Log append/clear via IPC (Feb 2026)
+- ✅ Copy logs with clipboard integration (Feb 2026)
+- ✅ Retry callback handling (Feb 2026)
+- ✅ Error status with full details (Feb 2026)
+
+---
+
+## Port Environment Seam (Feb 2026)
+
+### Overview
+
+The Port Environment Seam ensures that all port environment variables from `service.json` are properly injected into bundled Go runtimes at startup. This solves the critical issue where Go binaries calling `requireEnv("API_PORT")` would exit with code 1 because the environment variable was never set.
+
+### Data Flow
+
+```
+service.json
+    ↓ ports.api.env_var = "API_PORT", ports.api.port = 18700
+    ↓ ports.ui.env_var = "UI_PORT", ports.ui.port = 36400
+
+analyzer.go extracts ALL ports dynamically
+    ↓ metadata.Ports["api"] = {EnvVar: "API_PORT", Port: 18700}
+    ↓ metadata.Ports["ui"] = {EnvVar: "UI_PORT", Port: 36400}
+
+DesktopConfig.Ports populated
+    ↓ config.Ports = metadata.Ports
+
+template-generator.ts
+    ↓ PORTS_CONFIG = {"api":{"envVar":"API_PORT","port":18700},...}
+
+main.ts at startup
+    ↓ const PORTS = {"api":{"envVar":"API_PORT","port":18700},...}
+
+main.ts at spawn (startBundledRuntime)
+    ↓ runtimeEnv["API_PORT"] = "18700"
+    ↓ runtimeEnv["UI_PORT"] = "36400"
+    ↓ runtimeEnv["VROOLI_LIFECYCLE_MANAGED"] = "true"
+    ↓ runtimeEnv["VROOLI_DESKTOP_MODE"] = "true"
+
+Go binary receives ALL env vars
+    ↓ requireEnv("API_PORT") ✓ returns "18700"
+```
+
+### Components
+
+#### 1. ScenarioMetadata.Ports
+**Location**: [CODE: api/generation/types.go#PortConfig]
+**Purpose**: Stores extracted port configurations from service.json
+**Structure**:
+```go
+type PortConfig struct {
+    EnvVar      string `json:"env_var"`      // e.g., "API_PORT"
+    Port        int    `json:"port"`         // Default port number
+    Description string `json:"description"`  // Human-readable description
+}
+
+type ScenarioMetadata struct {
+    // ... other fields ...
+    Ports map[string]PortConfig `json:"ports,omitempty"`
+}
+```
+
+#### 2. Dynamic Port Extraction
+**Location**: [CODE: api/generation/analyzer.go#readServiceJSON]
+**Purpose**: Extracts ALL ports from service.json, not just hardcoded api/ui
+**Behavior**:
+- Iterates over all keys in `service.json.ports`
+- Skips ports without `env_var` defined
+- Extracts port number from `port` field or first value in `range`
+
+#### 3. DesktopConfig.Ports
+**Location**: [CODE: api/generation/types.go#DesktopConfig]
+**Purpose**: Passes port configuration to template generator
+**Flow**: `ScenarioMetadata.Ports` → `DesktopConfig.Ports` → template variables
+
+#### 4. PORTS_CONFIG Template Variable
+**Location**: [CODE: templates/build-tools/template-generator.ts#buildPortsConfig]
+**Purpose**: Serializes port config for injection into main.ts
+**Format**: JSON object with camelCase keys for TypeScript compatibility
+
+#### 5. PORTS Constant in main.ts
+**Location**: [CODE: templates/vanilla/main.ts:77]
+**Purpose**: Holds port configuration at runtime
+**Usage**: Iterated at spawn time to set environment variables
+
+#### 6. Environment Injection at Spawn
+**Location**: [CODE: templates/vanilla/main.ts:2293]
+**Purpose**: Sets all port env vars before spawning bundled runtime
+**Implementation**:
+```typescript
+for (const [portKey, portConfig] of Object.entries(PORTS)) {
+    if (portConfig.envVar && portConfig.port) {
+        runtimeEnv[portConfig.envVar] = String(portConfig.port);
+    }
+}
+```
+
+### Lifecycle Environment Variables
+
+In addition to port env vars, the seam sets these lifecycle markers:
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `VROOLI_LIFECYCLE_MANAGED` | `"true"` | Signals Go code it's running under Vrooli lifecycle management |
+| `VROOLI_DESKTOP_MODE` | `"true"` | Signals Go code it's running in desktop/bundled mode |
+| `VROOLI_API_SKIP_STALE_CHECK` | `"true"` | Skips go.mod staleness checks (bundled binaries can't rebuild) |
+
+### Bundle Schema Extension
+
+The bundle.json schema also supports `env_var` for future runtime auto-injection:
+
+**Locations**:
+- [CODE: runtime/manifest/manifest.go#PortRequest] - Runtime schema
+- [CODE: ../deployment-manager/api/bundles/manifest.go#RequestedPort] - Bundle generation schema
+
+```go
+type PortRequest struct {
+    Name           string    `json:"name"`
+    EnvVar         string    `json:"env_var,omitempty"` // e.g., "API_PORT"
+    Range          PortRange `json:"range"`
+    RequiresSocket bool      `json:"requires_socket,omitempty"`
+}
+```
+
+### Testing
+
+To verify the seam is working:
+
+1. **Build a desktop app**: `cd scenarios/git-control-tower && make desktop-build`
+2. **Launch and check logs**: Look for `[Desktop App] Setting API_PORT=18700`
+3. **Verify app starts**: Should not exit with code 1 due to missing env vars
+4. **Check telemetry**: `tail ~/.config/git-control-tower-desktop/deployment-telemetry.jsonl`
+   - Should see `"event":"app_ready"`, not `"event":"bundled_runtime_exit"` with code 1
+
+### Breaking Change Notice
+
+This is a breaking change by design. Desktop apps built with the old system (hardcoded APIPort/UIPort, no env var injection) must be rebuilt with the new pipeline. The old approach was fundamentally broken and could not work.
 
 ---
 
@@ -1166,3 +1403,6 @@ Key test scenarios:
 5. **Incremental Improvement**: Each seam enforcement iteration makes the codebase more testable
 6. **Idempotency by Design**: Pipeline operations are safe to retry without creating duplicates
 7. **Event-Driven Communication**: Splash window uses IPC for status updates, not timers
+8. **Post-Success Validation**: Smoke tests now include stability delay to catch delayed crashes (Feb 2026)
+9. **User-Visible Error Diagnostics**: Errors shown in splash with logs, stderr, and exit codes (Feb 2026)
+10. **Graceful Degradation**: Error UI allows retry for recoverable errors, quit via ESC for all errors (Feb 2026)

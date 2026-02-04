@@ -31,6 +31,7 @@ export {
 export type {
     IPathResolver,
     IIpcMain,
+    IClipboard,
     SplashManagerDeps,
 } from "./manager";
 

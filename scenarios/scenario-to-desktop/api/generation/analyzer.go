@@ -10,6 +10,14 @@ import (
 	"scenario-to-desktop-api/shared/path"
 )
 
+// ServiceJSONPortDef represents a port definition from service.json.
+type ServiceJSONPortDef struct {
+	EnvVar      string `json:"env_var"`
+	Port        int    `json:"port"`
+	Range       string `json:"range"`
+	Description string `json:"description"`
+}
+
 // ServiceJSON represents the structure of .vrooli/service.json.
 type ServiceJSON struct {
 	Service struct {
@@ -25,16 +33,9 @@ type ServiceJSON struct {
 			Email string `json:"email"`
 		} `json:"maintainers"`
 	} `json:"service"`
-	Ports struct {
-		API struct {
-			EnvVar string `json:"env_var"`
-			Range  string `json:"range"`
-		} `json:"api"`
-		UI struct {
-			EnvVar string `json:"env_var"`
-			Range  string `json:"range"`
-		} `json:"ui"`
-	} `json:"ports"`
+	// Ports is a map of port names to their definitions.
+	// This supports dynamic port keys (api, ui, websocket, etc.)
+	Ports        map[string]ServiceJSONPortDef `json:"ports"`
 	Dependencies struct {
 		Resources map[string]ResourceDependency `json:"resources"`
 	} `json:"dependencies"`
@@ -335,18 +336,22 @@ func (a *DefaultAnalyzer) CreateDesktopConfigFromMetadata(metadata *ScenarioMeta
 	externalServerURL := ""
 	externalAPIURL := ""
 
+	// Extract UI and API ports from the Ports map
+	uiPort := 3000
+	apiPort := 4000
+	if portCfg, ok := metadata.Ports["ui"]; ok && portCfg.Port > 0 {
+		uiPort = portCfg.Port
+	}
+	if portCfg, ok := metadata.Ports["api"]; ok && portCfg.Port > 0 {
+		apiPort = portCfg.Port
+	}
+
 	// Check if scenario has an API
 	apiPath := filepath.Join(metadata.ScenarioPath, "api")
 	if info, err := os.Stat(apiPath); err == nil && info.IsDir() {
 		serverType = "external"
-		externalServerURL = fmt.Sprintf("http://localhost:%d", metadata.UIPort)
-		if metadata.UIPort == 0 {
-			externalServerURL = "http://localhost:3000"
-		}
-		externalAPIURL = fmt.Sprintf("http://localhost:%d", metadata.APIPort)
-		if metadata.APIPort == 0 {
-			externalAPIURL = "http://localhost:4000"
-		}
+		externalServerURL = fmt.Sprintf("http://localhost:%d", uiPort)
+		externalAPIURL = fmt.Sprintf("http://localhost:%d", apiPort)
 		serverPath = externalServerURL
 		apiEndpoint = externalAPIURL
 	}
@@ -361,7 +366,7 @@ func (a *DefaultAnalyzer) CreateDesktopConfigFromMetadata(metadata *ScenarioMeta
 		AppID:          metadata.AppID,
 
 		ServerType:        serverType,
-		ServerPort:        metadata.UIPort,
+		ServerPort:        uiPort,
 		ServerPath:        serverPath,
 		APIEndpoint:       apiEndpoint,
 		ScenarioPath:      metadata.UIDistPath,
@@ -400,6 +405,9 @@ func (a *DefaultAnalyzer) CreateDesktopConfigFromMetadata(metadata *ScenarioMeta
 			"splashTextColor":       "#cdd6f4",
 			"splashAccentColor":     "#89b4fa",
 		},
+
+		// Copy ports configuration for template generation
+		Ports: metadata.Ports,
 	}
 
 	return config, nil
@@ -442,22 +450,30 @@ func (a *DefaultAnalyzer) readServiceJSON(metadata *ScenarioMetadata) error {
 		metadata.Author = serviceJSON.Service.Maintainers[0].Name
 	}
 
-	if serviceJSON.Ports.API.Range != "" {
-		parts := strings.Split(serviceJSON.Ports.API.Range, "-")
-		if len(parts) == 2 {
-			var port int
-			if _, err := fmt.Sscanf(parts[0], "%d", &port); err == nil {
-				metadata.APIPort = port
+	// Extract ALL ports dynamically from service.json
+	// DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+	metadata.Ports = make(map[string]PortConfig)
+	for portKey, portDef := range serviceJSON.Ports {
+		if portDef.EnvVar == "" {
+			continue // Skip ports without env_var defined
+		}
+
+		port := portDef.Port
+		if port == 0 && portDef.Range != "" {
+			// Extract first port from range if explicit port not set
+			parts := strings.Split(portDef.Range, "-")
+			if len(parts) >= 1 {
+				var rangePort int
+				if _, err := fmt.Sscanf(parts[0], "%d", &rangePort); err == nil {
+					port = rangePort
+				}
 			}
 		}
-	}
-	if serviceJSON.Ports.UI.Range != "" {
-		parts := strings.Split(serviceJSON.Ports.UI.Range, "-")
-		if len(parts) == 2 {
-			var port int
-			if _, err := fmt.Sscanf(parts[0], "%d", &port); err == nil {
-				metadata.UIPort = port
-			}
+
+		metadata.Ports[portKey] = PortConfig{
+			EnvVar:      portDef.EnvVar,
+			Port:        port,
+			Description: portDef.Description,
 		}
 	}
 
@@ -532,11 +548,25 @@ func (a *DefaultAnalyzer) setDefaults(metadata *ScenarioMetadata) {
 	if metadata.AppID == "" {
 		metadata.AppID = fmt.Sprintf("com.vrooli.%s", metadata.Name)
 	}
-	if metadata.APIPort == 0 {
-		metadata.APIPort = 3000
+	// Initialize Ports map if nil
+	if metadata.Ports == nil {
+		metadata.Ports = make(map[string]PortConfig)
 	}
-	if metadata.UIPort == 0 {
-		metadata.UIPort = 5173
+	// Set default API port if not defined
+	if _, ok := metadata.Ports["api"]; !ok {
+		metadata.Ports["api"] = PortConfig{
+			EnvVar:      "API_PORT",
+			Port:        3000,
+			Description: "API port",
+		}
+	}
+	// Set default UI port if not defined
+	if _, ok := metadata.Ports["ui"]; !ok {
+		metadata.Ports["ui"] = PortConfig{
+			EnvVar:      "UI_PORT",
+			Port:        5173,
+			Description: "UI port",
+		}
 	}
 }
 

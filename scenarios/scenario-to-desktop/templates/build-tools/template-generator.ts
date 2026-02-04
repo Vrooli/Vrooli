@@ -108,6 +108,15 @@ interface DesktopConfig {
         // Whether to enable auto-update on startup
         auto_check?: boolean;
     };
+
+    // Port configuration for all service ports
+    // Key is the port name (e.g., "api", "ui", "websocket")
+    // Value includes env_var and default port
+    ports?: Record<string, {
+        env_var: string;
+        port: number;
+        description?: string;
+    }>;
 }
 
 interface TemplateFile {
@@ -392,14 +401,43 @@ class DesktopTemplateGenerator {
 
             // Auth configuration
             LPBS_URL: this.config.lpbs_url || 'https://vrooli.com',
+
+            // Port configuration - all ports with env_var names for runtime injection
+            // DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+            PORTS_CONFIG: JSON.stringify(
+                this.buildPortsConfig(),
+                null,
+                0  // No indentation for minimal output
+            ),
         };
-        
+
         // Merge template-specific variables
         if (templateConfig.template_variables) {
             Object.assign(variables, templateConfig.template_variables);
         }
-        
+
         return variables;
+    }
+
+    /**
+     * Build the PORTS configuration object for template injection.
+     * Transforms the config.ports map into a format suitable for main.ts.
+     * DOC: docs/internal/SEAMS.md#port-environment-seam
+     */
+    private buildPortsConfig(): Record<string, { envVar: string; port: number }> {
+        const ports = this.config.ports || {};
+        const result: Record<string, { envVar: string; port: number }> = {};
+
+        for (const [portKey, portDef] of Object.entries(ports)) {
+            if (portDef.env_var) {
+                result[portKey] = {
+                    envVar: portDef.env_var,
+                    port: portDef.port || 0,
+                };
+            }
+        }
+
+        return result;
     }
     
     private getPublishConfig(): any {

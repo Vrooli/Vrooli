@@ -72,6 +72,10 @@ const BUNDLED_RUNTIME = {
 	DOCS_URL: "docs/deployment/tiers/tier-2-desktop.md",
 };
 
+// Port configuration from service.json - used for env var injection at runtime spawn
+// DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+const PORTS: Record<string, { envVar: string; port: number }> = {{PORTS_CONFIG}};
+
 // Update/auto-updater configuration
 const UPDATE_CONFIG = {
 	// Update channel: dev, beta, or stable
@@ -96,6 +100,48 @@ let appSessionStartedAt: string | null = null;
 let appSessionReadyAt: string | null = null;
 let appSessionFailureMessage: string | null = null;
 let appSessionRecorded = false;
+
+// ===== RUNTIME EXIT TRACKING =====
+// DOC: docs/internal/SEAMS.md#runtime-exit-monitoring
+// Module-level tracking for runtime process exit status.
+// This allows smoke tests to detect runtime crashes after server ready check.
+interface RuntimeExitInfo {
+    exited: boolean;
+    code: number | null;
+    signal: NodeJS.Signals | null;
+    stderr: string;
+    exitedAt: Date | null;
+}
+let runtimeExitInfo: RuntimeExitInfo = {
+    exited: false,
+    code: null,
+    signal: null,
+    stderr: "",
+    exitedAt: null,
+};
+/** Reset runtime exit tracking (called before starting new runtime) */
+function resetRuntimeExitTracking(): void {
+    runtimeExitInfo = {
+        exited: false,
+        code: null,
+        signal: null,
+        stderr: "",
+        exitedAt: null,
+    };
+}
+/** Check if runtime has exited unexpectedly (non-zero exit or signal) */
+function hasRuntimeExitedUnexpectedly(): boolean {
+    if (!runtimeExitInfo.exited) return false;
+    // Exit code 0 is normal shutdown, null with signal means killed
+    return runtimeExitInfo.code !== 0;
+}
+
+// ===== SMOKETEST STABILITY CONFIGURATION =====
+// DOC: docs/internal/SEAMS.md#smoketest-stability-validation
+// Post-success stability delay ensures runtime stays alive after server check passes.
+// This catches race conditions where runtime crashes immediately after responding.
+const POST_SUCCESS_STABILITY_DELAY_MS = 2000; // Wait 2 seconds after server ready
+const STABILITY_CHECK_INTERVAL_MS = 200; // Check every 200ms during stability period
 
 // ===== APP STORAGE CONFIGURATION =====
 // Storage root is within userData directory for security and proper app isolation
@@ -1491,6 +1537,28 @@ async function runSmokeTest(): Promise<void> {
             runtimeUrl = await startBundledRuntime();
             SmokeTestProtocol.stage.uiServerCheck();
             await checkServerReady(runtimeUrl, smokeTestTimeoutMs);
+
+            // POST-SUCCESS STABILITY CHECK
+            // DOC: docs/internal/SEAMS.md#smoketest-stability-validation
+            // Wait a short period after server ready to catch runtime crashes that occur
+            // after initial health checks pass. This catches the race condition where
+            // the runtime exits with code 1 immediately after responding to health checks.
+            console.log(`[Smoke Test] Server ready, performing ${POST_SUCCESS_STABILITY_DELAY_MS}ms stability check...`);
+            const stabilityStartTime = Date.now();
+            while (Date.now() - stabilityStartTime < POST_SUCCESS_STABILITY_DELAY_MS) {
+                // Check if runtime has exited during stability period
+                if (hasRuntimeExitedUnexpectedly()) {
+                    const exitInfo = runtimeExitInfo;
+                    const errorMsg = exitInfo.stderr.trim()
+                        ? `Runtime crashed during stability check (exit ${exitInfo.code}): ${exitInfo.stderr.slice(0, 200)}`
+                        : `Runtime crashed during stability check with exit code ${exitInfo.code}`;
+                    console.error(`[Smoke Test] ${errorMsg}`);
+                    SmokeTestProtocol.error("runtime", errorMsg);
+                    throw new Error(errorMsg);
+                }
+                await new Promise(resolve => setTimeout(resolve, STABILITY_CHECK_INTERVAL_MS));
+            }
+            console.log("[Smoke Test] Stability check passed - runtime remained stable");
         } else if (APP_CONFIG.SERVER_TYPE === "static") {
             const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
             if (!(await pathExists(staticPath))) {
@@ -1501,6 +1569,17 @@ async function runSmokeTest(): Promise<void> {
             runtimeUrl = SERVER_URL;
             SmokeTestProtocol.stage.uiServerCheck();
             await checkServerReady(SERVER_URL, smokeTestTimeoutMs);
+        }
+
+        // Final runtime check before declaring success
+        if (isBundledMode && hasRuntimeExitedUnexpectedly()) {
+            const exitInfo = runtimeExitInfo;
+            const errorMsg = exitInfo.stderr.trim()
+                ? `Runtime crashed before completion (exit ${exitInfo.code}): ${exitInfo.stderr.slice(0, 200)}`
+                : `Runtime crashed before completion with exit code ${exitInfo.code}`;
+            console.error(`[Smoke Test] ${errorMsg}`);
+            SmokeTestProtocol.error("runtime", errorMsg);
+            throw new Error(errorMsg);
         }
 
         SmokeTestProtocol.ready();
@@ -1562,6 +1641,7 @@ async function createSplashWindow(): Promise<void> {
         app,
         ipcMain,
         path,
+        clipboard,
         {
             // Override defaults for this app
             alwaysOnTop: false, // IMPORTANT: Prevents focus trapping
@@ -1626,6 +1706,110 @@ function updateSplashStatus(phase: StartupPhase, customMessage?: string, progres
     };
 
     splashManager.updateStatus(status);
+}
+
+/**
+ * Show an error in the splash window with detailed logs.
+ * DOC: docs/internal/SEAMS.md#splash-error-display
+ *
+ * This keeps the splash window open and displays the error with logs,
+ * giving users better visibility into what went wrong.
+ */
+function showSplashError(
+    title: string,
+    message: string,
+    options: {
+        recoverable?: boolean;
+        suggestion?: string;
+        logs?: string[];
+        stderr?: string;
+        exitCode?: number | null;
+    } = {}
+): void {
+    if (!splashManager) return;
+
+    // Build error object conditionally to satisfy exactOptionalPropertyTypes
+    const errorDetails: SplashStatus["error"] = {
+        title,
+        message,
+        recoverable: options.recoverable ?? false,
+    };
+    if (options.logs !== undefined) errorDetails.logs = options.logs;
+    if (options.stderr !== undefined) errorDetails.stderr = options.stderr;
+    if (options.exitCode !== undefined) errorDetails.exitCode = options.exitCode;
+    if (options.suggestion !== undefined) errorDetails.suggestion = options.suggestion;
+
+    const status: SplashStatus = {
+        phase: "error",
+        message: title,
+        error: errorDetails,
+    };
+
+    splashManager.updateStatus(status);
+}
+
+/**
+ * Build startup logs from runtime exit info and other sources.
+ * Collects relevant diagnostic information for error display.
+ */
+function buildStartupErrorLogs(): string[] {
+    const logs: string[] = [];
+
+    // Add recent console logs if available
+    logs.push(`Session ID: ${sessionId}`);
+    logs.push(`Deployment Mode: ${APP_CONFIG.DEPLOYMENT_MODE}`);
+    logs.push(`Server Type: ${APP_CONFIG.SERVER_TYPE}`);
+
+    if (runtimeExitInfo.exited) {
+        logs.push(`Runtime Exit Code: ${runtimeExitInfo.code}`);
+        if (runtimeExitInfo.signal) {
+            logs.push(`Runtime Signal: ${runtimeExitInfo.signal}`);
+        }
+        if (runtimeExitInfo.exitedAt) {
+            logs.push(`Exit Time: ${runtimeExitInfo.exitedAt.toISOString()}`);
+        }
+    }
+
+    return logs;
+}
+
+/**
+ * Set up error handlers on the splash window.
+ * Registers callbacks for escape, retry, and copy logs actions.
+ *
+ * @param options - Configuration for error handlers
+ * @param options.recoverable - If true, set up retry handler
+ * @param options.includeStderr - If true, include stderr in copied logs
+ */
+function setupSplashErrorHandlers(options: {
+    recoverable?: boolean;
+    includeStderr?: boolean;
+} = {}): void {
+    if (!splashManager) return;
+
+    // Set up escape handler to allow user to quit
+    splashManager.onEscapePressed(() => {
+        console.log("[Desktop App] User pressed escape on error screen, quitting...");
+        app.quit();
+    });
+
+    // Set up retry handler if error is recoverable
+    if (options.recoverable) {
+        splashManager.onRetry(() => {
+            console.log("[Desktop App] User requested retry, restarting app...");
+            app.relaunch();
+            app.quit();
+        });
+    }
+
+    // Set up copy logs handler
+    splashManager.onCopyLogs(() => {
+        const logs = buildStartupErrorLogs();
+        if (options.includeStderr && runtimeExitInfo.stderr) {
+            logs.push("", "--- Runtime stderr ---", runtimeExitInfo.stderr);
+        }
+        return logs.join("\n");
+    });
 }
 
 /**
@@ -2099,10 +2283,26 @@ async function startBundledRuntime(): Promise<string> {
     // Bundled binaries cannot rebuild themselves - skip staleness checks that look for go.mod
     runtimeEnv.VROOLI_API_SKIP_STALE_CHECK = "true";
 
-    // In smoke test mode, capture stderr to emit structured error on crash
-    const stdioCfg: "inherit" | ["inherit", "inherit", "pipe"] = isSmokeTest
-        ? ["inherit", "inherit", "pipe"]
-        : "inherit";
+    // Bridge to Vrooli lifecycle - bundled Go binaries require these env vars
+    // DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+    runtimeEnv.VROOLI_LIFECYCLE_MANAGED = "true";
+    runtimeEnv.VROOLI_DESKTOP_MODE = "true";
+
+    // Set ALL port env vars from PORTS config
+    // This is critical for Go binaries that call requireEnv("API_PORT"), etc.
+    for (const [portKey, portConfig] of Object.entries(PORTS)) {
+        if (portConfig.envVar && portConfig.port) {
+            runtimeEnv[portConfig.envVar] = String(portConfig.port);
+            console.log(`[Desktop App] Setting ${portConfig.envVar}=${portConfig.port} (port: ${portKey})`);
+        }
+    }
+
+    // Reset module-level runtime exit tracking before starting new runtime
+    resetRuntimeExitTracking();
+
+    // Always capture stderr for debugging (previously only in smoke test mode)
+    // This enables better error messages in splash screen and telemetry
+    const stdioCfg: "inherit" | ["inherit", "inherit", "pipe"] = ["inherit", "inherit", "pipe"];
 
     // Emit granular stage marker for smoke test diagnostics
     if (isSmokeTest) SmokeTestProtocol.stage.runtimeStarting();
@@ -2114,9 +2314,7 @@ async function startBundledRuntime(): Promise<string> {
         env: runtimeEnv,
     });
 
-    // Track stderr for smoke test error reporting
-    let runtimeStderr = "";
-    let runtimeExitedUnexpectedly = false;
+    // Track stderr for error reporting (used by both smoke test and normal mode)
     let stderrErrorEmitted = false;
 
     // Patterns that indicate specific runtime errors - emit structured markers for these
@@ -2128,15 +2326,17 @@ async function startBundledRuntime(): Promise<string> {
         { pattern: /address already in use|EADDRINUSE/i, kind: "network", message: "Port already in use - another instance may be running" },
     ];
 
-    if (isSmokeTest && runtimeProcess.stderr) {
+    // Always capture stderr for debugging (not just in smoke test mode)
+    if (runtimeProcess.stderr) {
         runtimeProcess.stderr.on("data", (data: Buffer) => {
             const chunk = data.toString();
-            runtimeStderr += chunk;
+            // Accumulate stderr in module-level tracking for error messages
+            runtimeExitInfo.stderr += chunk;
             // Also write to process stderr so it appears in logs
             process.stderr.write(chunk);
 
-            // Emit structured error for first matching pattern (avoid spam)
-            if (!stderrErrorEmitted) {
+            // In smoke test mode, emit structured error for first matching pattern
+            if (isSmokeTest && !stderrErrorEmitted) {
                 for (const { pattern, kind, message } of runtimeErrorPatterns) {
                     if (pattern.test(chunk)) {
                         SmokeTestProtocol.error(kind, message);
@@ -2149,13 +2349,18 @@ async function startBundledRuntime(): Promise<string> {
     }
 
     runtimeProcess.on("exit", (code, signal) => {
+        // Update module-level tracking
+        runtimeExitInfo.exited = true;
+        runtimeExitInfo.code = code;
+        runtimeExitInfo.signal = signal;
+        runtimeExitInfo.exitedAt = new Date();
+
         void recordTelemetry("bundled_runtime_exit", { code, signal });
 
         // In smoke test mode, emit structured error if runtime crashed unexpectedly
         if (isSmokeTest && code !== 0 && code !== null) {
-            runtimeExitedUnexpectedly = true;
-            const errorMsg = runtimeStderr.trim()
-                ? `Bundled runtime crashed (exit ${code}): ${runtimeStderr.slice(0, 200)}`
+            const errorMsg = runtimeExitInfo.stderr.trim()
+                ? `Bundled runtime crashed (exit ${code}): ${runtimeExitInfo.stderr.slice(0, 200)}`
                 : `Bundled runtime crashed with exit code ${code}`;
             SmokeTestProtocol.error("runtime", errorMsg);
         }
@@ -3205,16 +3410,26 @@ app.whenReady().then(async () => {
         if (isBundledMode) {
             if (!BUNDLED_RUNTIME.SUPPORTED) {
                 const message = `Bundled builds require a bundle.json payload. Regenerate with DEPLOYMENT_MODE=external-server if you intended a thin client. Docs: ${BUNDLED_RUNTIME.DOCS_URL}`;
-                // Close splash BEFORE showing error dialog to prevent z-order issues
-                await closeSplashWindow();
-                dialog.showErrorBox("Bundled Mode Unavailable", message);
                 void recordTelemetry("bundled_mode_blocked", {
                     docsUrl: BUNDLED_RUNTIME.DOCS_URL,
                 }, "warn");
                 appSessionFailureMessage = message;
                 await recordAppSessionOutcome(message);
-                app.quit();
-                return;
+
+                // Show error in splash window with logs
+                showSplashError(
+                    "Bundled Mode Unavailable",
+                    message,
+                    {
+                        recoverable: false, // This is a configuration error, not retriable
+                        suggestion: `Regenerate the app with DEPLOYMENT_MODE=external-server, or ensure bundle.json is present. See: ${BUNDLED_RUNTIME.DOCS_URL}`,
+                        logs: buildStartupErrorLogs(),
+                    }
+                );
+
+                setupSplashErrorHandlers({ recoverable: false });
+
+                return; // Don't quit immediately - let user see error
             }
 
             updateSplashStatus("validating-bundle");
@@ -3224,14 +3439,26 @@ app.whenReady().then(async () => {
             } catch (startupError) {
                 console.error("[Desktop App] Bundled runtime failed to start", startupError);
                 await recordTelemetry("bundled_runtime_failed", { error: String(startupError) }, "error");
-                // Close splash BEFORE showing error dialog to prevent z-order issues
-                await closeSplashWindow();
-                dialog.showErrorBox("Bundled Startup Error", String(startupError));
                 await shutdownRuntime();
                 appSessionFailureMessage = String(startupError);
                 await recordAppSessionOutcome(String(startupError));
-                app.quit();
-                return;
+
+                // Show error in splash window with logs instead of closing and showing dialog
+                showSplashError(
+                    "Bundled Startup Error",
+                    String(startupError),
+                    {
+                        recoverable: true,
+                        suggestion: "Try restarting the application. If the problem persists, check the logs below.",
+                        logs: buildStartupErrorLogs(),
+                        ...(runtimeExitInfo.stderr ? { stderr: runtimeExitInfo.stderr } : {}),
+                        ...(runtimeExitInfo.code !== null ? { exitCode: runtimeExitInfo.code } : {}),
+                    }
+                );
+
+                setupSplashErrorHandlers({ recoverable: true, includeStderr: true });
+
+                return; // Don't quit immediately - let user see error and choose action
             }
         } else {
             if (shouldBootstrapLocalVrooli) {
@@ -3250,13 +3477,23 @@ app.whenReady().then(async () => {
                     void autoUploadTelemetryIfConfigured("startup");
                 } catch (secretError) {
                     await recordTelemetry("runtime_secrets_missing", { error: String(secretError) }, "error");
-                    // Close splash BEFORE showing error dialog to prevent z-order issues
-                    await closeSplashWindow();
-                    dialog.showErrorBox("Secrets required", String(secretError));
                     appSessionFailureMessage = String(secretError);
                     await recordAppSessionOutcome(String(secretError));
-                    app.quit();
-                    return;
+
+                    // Show error in splash window with logs
+                    showSplashError(
+                        "Secrets Required",
+                        String(secretError),
+                        {
+                            recoverable: true,
+                            suggestion: "Configure the required secrets and restart the application.",
+                            logs: buildStartupErrorLogs(),
+                        }
+                    );
+
+                    setupSplashErrorHandlers({ recoverable: true });
+
+                    return; // Don't quit immediately - let user see error and choose action
                 }
             }
         }
@@ -3296,11 +3533,7 @@ app.whenReady().then(async () => {
     } catch (error) {
         console.error("[Desktop App] Startup error:", error);
 
-        // IMPORTANT: Close splash window BEFORE showing error dialog
-        // This prevents z-order issues where the error dialog appears behind the splash
-        await closeSplashWindow();
-
-        // Clean up resources
+        // Clean up resources but keep splash open
         if (runtimeProcess) {
             await shutdownRuntime();
         }
@@ -3309,15 +3542,28 @@ app.whenReady().then(async () => {
             serverProcess = null;
         }
 
-        // Now show the error dialog (splash is gone, so it will be visible)
-        dialog.showErrorBox("Startup Error", `Failed to start ${APP_CONFIG.APP_DISPLAY_NAME}: ${error}`);
-
         void recordTelemetry("startup_error", {
             message: String(error),
         }, "error");
         appSessionFailureMessage = String(error);
         await recordAppSessionOutcome(String(error));
-        app.quit();
+
+        // Show error in splash window with logs instead of closing and showing dialog
+        showSplashError(
+            "Startup Error",
+            `Failed to start ${APP_CONFIG.APP_DISPLAY_NAME}: ${error}`,
+            {
+                recoverable: true,
+                suggestion: "Try restarting the application. If the problem persists, check the logs below for details.",
+                logs: buildStartupErrorLogs(),
+                ...(runtimeExitInfo.stderr ? { stderr: runtimeExitInfo.stderr } : {}),
+                ...(runtimeExitInfo.code !== null ? { exitCode: runtimeExitInfo.code } : {}),
+            }
+        );
+
+        setupSplashErrorHandlers({ recoverable: true, includeStderr: true });
+
+        // Don't quit immediately - let user see error and choose action
     }
 });
 

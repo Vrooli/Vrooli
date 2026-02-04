@@ -435,47 +435,6 @@ export function MemberDetailPanel({
         </div>
       </div>
 
-      {/* Relationships */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-muted/40">
-        <button
-          type="button"
-          onClick={() => setIsRelationshipsExpanded((prev) => !prev)}
-          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          aria-expanded={isRelationshipsExpanded}
-        >
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 transition-transform',
-              isRelationshipsExpanded ? 'rotate-0' : '-rotate-90'
-            )}
-          />
-          Relationships
-        </button>
-        {isRelationshipsExpanded && (
-          <div className="grid gap-2 mt-2">
-            <div className="flex items-center gap-2 text-sm">
-              <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Reports to:</span>
-              <span className="text-foreground">
-                {manager ? manager.displayName : 'None'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Direct reports:</span>
-              {directReports.length === 0 ? (
-                <span className="text-foreground">None</span>
-              ) : (
-                <span className="text-foreground">
-                  {displayReports.join(', ')}
-                  {remainingReports > 0 ? ` +${remainingReports} more` : ''}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Section tabs */}
       <div className="flex-shrink-0 flex border-b border-border">
         <button
@@ -550,6 +509,47 @@ export function MemberDetailPanel({
         {/* Overview section */}
         {activeSection === 'overview' && (
           <div className="space-y-6">
+            {/* Relationships */}
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-3">
+              <button
+                type="button"
+                onClick={() => setIsRelationshipsExpanded((prev) => !prev)}
+                className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                aria-expanded={isRelationshipsExpanded}
+              >
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 transition-transform',
+                    isRelationshipsExpanded ? 'rotate-0' : '-rotate-90'
+                  )}
+                />
+                Relationships
+              </button>
+              {isRelationshipsExpanded && (
+                <div className="grid gap-2 mt-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Reports to:</span>
+                    <span className="text-foreground">
+                      {manager ? manager.displayName : 'None'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Direct reports:</span>
+                    {directReports.length === 0 ? (
+                      <span className="text-foreground">None</span>
+                    ) : (
+                      <span className="text-foreground">
+                        {displayReports.join(', ')}
+                        {remainingReports > 0 ? ` +${remainingReports} more` : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Roles */}
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">

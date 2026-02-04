@@ -72,7 +72,8 @@
       "documents": [
         { "path": "../PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
         { "path": "../PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
-        { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
+        { "path": "internal/SEAMS.md", "title": "Seams", "description": "Integration points, boundaries, and architectural seams" },
+        { "path": "internal/ASSUMPTIONS.md", "title": "Assumptions", "description": "Documented assumptions and hardening status" },
         { "path": "../RESEARCH.md", "title": "Research", "description": "Research notes and open questions" }
       ]
     }

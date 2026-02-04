@@ -13,7 +13,7 @@ import type {
     SplashStatus,
     SplashWindowConfig,
 } from "../types";
-import type { IPathResolver, IIpcMain, SplashManagerDeps } from "../manager";
+import type { IPathResolver, IIpcMain, IClipboard, SplashManagerDeps } from "../manager";
 import { SplashWindowManager } from "../manager";
 import { DEFAULT_SPLASH_CONFIG, SPLASH_IPC_CHANNELS } from "../types";
 
@@ -78,30 +78,41 @@ function createMockIpcMain(): IIpcMain & { listeners: Map<string, Function[]> } 
     };
 }
 
+// Mock Clipboard
+function createMockClipboard(): IClipboard & { writeText: jest.Mock } {
+    return {
+        writeText: jest.fn(),
+    };
+}
+
 function createMockDeps(overrides?: Partial<{
     windowFactory: ReturnType<typeof createMockWindowFactory>;
     pathResolver: IPathResolver;
     ipcMain: ReturnType<typeof createMockIpcMain>;
+    clipboard: ReturnType<typeof createMockClipboard>;
 }>): {
     deps: SplashManagerDeps;
     mocks: {
         windowFactory: ReturnType<typeof createMockWindowFactory>;
         pathResolver: IPathResolver;
         ipcMain: ReturnType<typeof createMockIpcMain>;
+        clipboard: ReturnType<typeof createMockClipboard>;
     };
 } {
     const windowFactory = overrides?.windowFactory ?? createMockWindowFactory();
     const pathResolver = overrides?.pathResolver ?? createMockPathResolver();
     const ipcMain = overrides?.ipcMain ?? createMockIpcMain();
+    const clipboard = overrides?.clipboard ?? createMockClipboard();
 
     return {
         deps: {
             windowFactory,
             pathResolver,
             ipcMain,
+            clipboard,
             log: jest.fn(), // Silence logs in tests
         },
-        mocks: { windowFactory, pathResolver, ipcMain },
+        mocks: { windowFactory, pathResolver, ipcMain, clipboard },
     };
 }
 
@@ -430,5 +441,237 @@ describe("regression: error dialogs should appear after splash closes", () => {
 
         // destroy() should be called, not close()
         expect(mocks.windowFactory.window.destroy).toHaveBeenCalled();
+    });
+});
+
+describe("appendLog()", () => {
+    it("sends log entry via IPC to the window", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        const entry = {
+            timestamp: new Date(),
+            level: "info" as const,
+            message: "Test log message",
+        };
+        manager.appendLog(entry);
+
+        expect(mocks.windowFactory.window.webContents.send).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.LOG_APPEND,
+            entry
+        );
+    });
+
+    it("does nothing if window is not created", () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+
+        manager.appendLog({
+            timestamp: new Date(),
+            level: "info",
+            message: "Test",
+        });
+
+        expect(mocks.windowFactory.window.webContents.send).not.toHaveBeenCalled();
+    });
+
+    it("does nothing if window is destroyed", async () => {
+        const windowFactory = createMockWindowFactory();
+        windowFactory.window.isDestroyed.mockReturnValue(true);
+        const { deps, mocks } = createMockDeps({ windowFactory });
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        manager.appendLog({
+            timestamp: new Date(),
+            level: "info",
+            message: "Test",
+        });
+
+        expect(mocks.windowFactory.window.webContents.send).not.toHaveBeenCalled();
+    });
+});
+
+describe("clearLogs()", () => {
+    it("sends clear command via IPC to the window", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        manager.clearLogs();
+
+        expect(mocks.windowFactory.window.webContents.send).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.LOG_CLEAR
+        );
+    });
+
+    it("does nothing if window is not created", () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+
+        manager.clearLogs();
+
+        expect(mocks.windowFactory.window.webContents.send).not.toHaveBeenCalled();
+    });
+});
+
+describe("onCopyLogs()", () => {
+    it("sets up IPC listener for copy logs request", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        expect(mocks.ipcMain.on).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.COPY_LOGS,
+            expect.any(Function)
+        );
+    });
+
+    it("calls callback and copies to clipboard when copy is requested", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        const callback = jest.fn().mockReturnValue("Log content");
+        manager.onCopyLogs(callback);
+
+        // Simulate copy request from IPC
+        const copyListener = mocks.ipcMain.listeners.get(SPLASH_IPC_CHANNELS.COPY_LOGS)?.[0];
+        copyListener?.({} as any);
+
+        expect(callback).toHaveBeenCalled();
+        expect(mocks.clipboard.writeText).toHaveBeenCalledWith("Log content");
+    });
+
+    it("sends success result back to window", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        const callback = jest.fn().mockReturnValue("Log content");
+        manager.onCopyLogs(callback);
+
+        // Simulate copy request from IPC
+        const copyListener = mocks.ipcMain.listeners.get(SPLASH_IPC_CHANNELS.COPY_LOGS)?.[0];
+        copyListener?.({} as any);
+
+        expect(mocks.windowFactory.window.webContents.send).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.COPY_LOGS_RESULT,
+            { success: true, logs: "Log content" }
+        );
+    });
+
+    it("sends error result if callback throws", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        const callback = jest.fn().mockImplementation(() => {
+            throw new Error("Callback error");
+        });
+        manager.onCopyLogs(callback);
+
+        // Simulate copy request from IPC
+        const copyListener = mocks.ipcMain.listeners.get(SPLASH_IPC_CHANNELS.COPY_LOGS)?.[0];
+        copyListener?.({} as any);
+
+        expect(mocks.windowFactory.window.webContents.send).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.COPY_LOGS_RESULT,
+            { success: false, error: "Error: Callback error" }
+        );
+    });
+});
+
+describe("onRetry()", () => {
+    it("sets up IPC listener for retry request", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        expect(mocks.ipcMain.on).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.RETRY,
+            expect.any(Function)
+        );
+    });
+
+    it("calls callback when retry is requested", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        const callback = jest.fn();
+        manager.onRetry(callback);
+
+        // Simulate retry request from IPC
+        const retryListener = mocks.ipcMain.listeners.get(SPLASH_IPC_CHANNELS.RETRY)?.[0];
+        retryListener?.({} as any);
+
+        expect(callback).toHaveBeenCalled();
+    });
+
+    it("does not throw if callback is not registered", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        // Don't register callback, simulate retry request
+        const retryListener = mocks.ipcMain.listeners.get(SPLASH_IPC_CHANNELS.RETRY)?.[0];
+
+        expect(() => retryListener?.({} as any)).not.toThrow();
+    });
+});
+
+describe("IPC listener cleanup", () => {
+    it("removes copy logs listener on close", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        await manager.close();
+
+        expect(mocks.ipcMain.removeAllListeners).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.COPY_LOGS
+        );
+    });
+
+    it("removes retry listener on close", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        await manager.close();
+
+        expect(mocks.ipcMain.removeAllListeners).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.RETRY
+        );
+    });
+});
+
+describe("error status with details", () => {
+    it("sends error status with full details to window", async () => {
+        const { deps, mocks } = createMockDeps();
+        const manager = new SplashWindowManager(deps);
+        await manager.create();
+
+        const status: SplashStatus = {
+            phase: "error",
+            message: "Startup Error",
+            error: {
+                title: "Startup Error",
+                message: "Failed to start",
+                recoverable: true,
+                suggestion: "Try restarting",
+                logs: ["Log 1", "Log 2"],
+                stderr: "Error output",
+                exitCode: 1,
+            },
+        };
+        manager.updateStatus(status);
+
+        expect(mocks.windowFactory.window.webContents.send).toHaveBeenCalledWith(
+            SPLASH_IPC_CHANNELS.STATUS_UPDATE,
+            status
+        );
     });
 });

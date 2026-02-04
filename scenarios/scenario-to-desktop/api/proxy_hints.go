@@ -161,9 +161,10 @@ func (s *Server) buildLocalProxyHint(scenario string) *ProxyHint {
 	if err != nil {
 		return nil
 	}
-	port := metadata.UIPort
-	if port == 0 {
-		port = 3000
+	// Extract UI port from the Ports map
+	port := 3000
+	if portCfg, ok := metadata.Ports["ui"]; ok && portCfg.Port > 0 {
+		port = portCfg.Port
 	}
 	proxyURL := fmt.Sprintf("http://localhost:%d/", port)
 	normalized, err := normalizeProxyURL(proxyURL)

@@ -138,8 +138,11 @@ type ServicePorts struct {
 	Requested []PortRequest `json:"requested,omitempty"`
 }
 
+// PortRequest defines a requested port with optional environment variable binding.
+// DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
 type PortRequest struct {
 	Name           string    `json:"name"`
+	EnvVar         string    `json:"env_var,omitempty"` // Environment variable name (e.g., "API_PORT")
 	Range          PortRange `json:"range"`
 	RequiresSocket bool      `json:"requires_socket,omitempty"`
 }

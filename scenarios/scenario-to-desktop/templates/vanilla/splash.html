@@ -121,11 +121,16 @@
         .error-container {
             display: none;
             text-align: center;
-            max-width: 300px;
+            max-width: 350px;
         }
 
         .error-container.visible {
             display: block;
+        }
+
+        .error-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
         }
 
         .error-title {
@@ -139,6 +144,124 @@
             font-size: 12px;
             opacity: 0.8;
             line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .error-suggestion {
+            font-size: 11px;
+            opacity: 0.6;
+            line-height: 1.4;
+            margin-bottom: 16px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .error-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .error-btn {
+            padding: 8px 16px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .error-btn-primary {
+            background: {{SPLASH_ACCENT_COLOR}};
+            color: white;
+        }
+
+        .error-btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: inherit;
+        }
+
+        .error-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .error-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Log panel */
+        .log-panel {
+            margin-top: 12px;
+            text-align: left;
+        }
+
+        .log-toggle {
+            font-size: 11px;
+            opacity: 0.6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .log-toggle:hover {
+            opacity: 0.9;
+        }
+
+        .log-toggle-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .log-toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .log-content {
+            display: none;
+            max-height: 120px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            padding: 8px;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        .log-content.visible {
+            display: block;
+        }
+
+        .log-entry {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.warn {
+            color: #ffa500;
+        }
+
+        .log-entry.info {
+            opacity: 0.8;
+        }
+
+        .copy-success {
+            font-size: 10px;
+            color: #4CAF50;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .copy-success.visible {
+            opacity: 1;
         }
 
         @keyframes fadeIn {
@@ -223,8 +346,22 @@
     </div>
 
     <div class="error-container" id="error-view">
-        <div class="error-title" id="error-title">Error</div>
+        <div class="error-icon">⚠️</div>
+        <div class="error-title" id="error-title">Startup Error</div>
         <div class="error-message" id="error-message"></div>
+        <div class="error-suggestion" id="error-suggestion" style="display: none;"></div>
+        <div class="error-buttons">
+            <button class="error-btn error-btn-secondary" id="copy-logs-btn">📋 Copy Logs</button>
+            <button class="error-btn error-btn-primary" id="retry-btn" style="display: none;">🔄 Retry</button>
+        </div>
+        <span class="copy-success" id="copy-success">Copied!</span>
+        <div class="log-panel">
+            <div class="log-toggle" id="log-toggle">
+                <span class="log-toggle-icon" id="log-toggle-icon">▶</span>
+                <span>Show Details</span>
+            </div>
+            <div class="log-content" id="log-content"></div>
+        </div>
     </div>
 
     <div class="powered-by">
@@ -243,6 +380,16 @@
         const errorView = document.getElementById('error-view');
         const errorTitle = document.getElementById('error-title');
         const errorMessage = document.getElementById('error-message');
+        const errorSuggestion = document.getElementById('error-suggestion');
+        const copyLogsBtn = document.getElementById('copy-logs-btn');
+        const retryBtn = document.getElementById('retry-btn');
+        const copySuccess = document.getElementById('copy-success');
+        const logToggle = document.getElementById('log-toggle');
+        const logToggleIcon = document.getElementById('log-toggle-icon');
+        const logContent = document.getElementById('log-content');
+
+        // Log storage
+        let logs = [];
 
         /**
          * Update the status display based on IPC message from main process.
@@ -266,7 +413,7 @@
 
             // Handle error state
             if (status.phase === 'error' && status.error) {
-                showError(status.error.title, status.error.message);
+                showError(status.error);
             } else {
                 hideError();
             }
@@ -275,9 +422,40 @@
         /**
          * Show error view and hide loading view.
          */
-        function showError(title, message) {
-            errorTitle.textContent = title || 'Error';
-            errorMessage.textContent = message || 'An unknown error occurred.';
+        function showError(error) {
+            errorTitle.textContent = error.title || 'Startup Error';
+            errorMessage.textContent = error.message || 'An unknown error occurred.';
+
+            // Show suggestion if provided
+            if (error.suggestion) {
+                errorSuggestion.textContent = error.suggestion;
+                errorSuggestion.style.display = 'block';
+            } else {
+                errorSuggestion.style.display = 'none';
+            }
+
+            // Show retry button if error is recoverable
+            if (error.recoverable) {
+                retryBtn.style.display = 'inline-block';
+            } else {
+                retryBtn.style.display = 'none';
+            }
+
+            // Add logs if provided in error
+            if (error.logs && error.logs.length > 0) {
+                error.logs.forEach(log => appendLogEntry({ level: 'info', message: log }));
+            }
+
+            // Add stderr if provided
+            if (error.stderr) {
+                appendLogEntry({ level: 'error', message: `[stderr] ${error.stderr}` });
+            }
+
+            // Add exit code info if provided
+            if (error.exitCode !== undefined && error.exitCode !== null) {
+                appendLogEntry({ level: 'error', message: `Process exited with code ${error.exitCode}` });
+            }
+
             loadingView.style.display = 'none';
             errorView.classList.add('visible');
         }
@@ -288,6 +466,76 @@
         function hideError() {
             errorView.classList.remove('visible');
             loadingView.style.display = 'block';
+        }
+
+        /**
+         * Append a log entry to the log panel.
+         */
+        function appendLogEntry(entry) {
+            const timestamp = entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+            const logLine = `[${timestamp}] ${entry.message}`;
+            logs.push(logLine);
+
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${entry.level || 'info'}`;
+            logEntry.textContent = logLine;
+            logContent.appendChild(logEntry);
+
+            // Auto-scroll to bottom
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        /**
+         * Clear all logs from the panel.
+         */
+        function clearLogs() {
+            logs = [];
+            logContent.innerHTML = '';
+        }
+
+        /**
+         * Toggle log panel visibility.
+         */
+        function toggleLogs() {
+            const isVisible = logContent.classList.toggle('visible');
+            logToggleIcon.classList.toggle('expanded', isVisible);
+            logToggle.querySelector('span:last-child').textContent = isVisible ? 'Hide Details' : 'Show Details';
+        }
+
+        /**
+         * Copy logs to clipboard.
+         */
+        async function copyLogs() {
+            if (window.splashAPI && window.splashAPI.copyLogs) {
+                window.splashAPI.copyLogs();
+            } else {
+                // Fallback: use clipboard API directly
+                try {
+                    await navigator.clipboard.writeText(logs.join('\n'));
+                    showCopySuccess();
+                } catch (err) {
+                    console.error('Failed to copy logs:', err);
+                }
+            }
+        }
+
+        /**
+         * Show copy success indicator.
+         */
+        function showCopySuccess() {
+            copySuccess.classList.add('visible');
+            setTimeout(() => {
+                copySuccess.classList.remove('visible');
+            }, 2000);
+        }
+
+        /**
+         * Request retry from main process.
+         */
+        function requestRetry() {
+            if (window.splashAPI && window.splashAPI.retry) {
+                window.splashAPI.retry();
+            }
         }
 
         /**
@@ -310,12 +558,27 @@
             // Set up IPC listener for status updates
             if (window.splashAPI) {
                 window.splashAPI.onStatusUpdate(updateStatus);
+
+                // Set up log streaming listener
+                if (window.splashAPI.onLogAppend) {
+                    window.splashAPI.onLogAppend(appendLogEntry);
+                }
+                if (window.splashAPI.onLogClear) {
+                    window.splashAPI.onLogClear(clearLogs);
+                }
+                if (window.splashAPI.onCopyLogsResult) {
+                    window.splashAPI.onCopyLogsResult((result) => {
+                        if (result.success) {
+                            // Logs were copied by main process
+                            showCopySuccess();
+                        }
+                    });
+                }
+
                 window.splashAPI.notifyReady();
                 console.log('Splash IPC connected');
             } else {
                 console.warn('splashAPI not available - running in fallback mode');
-                // Fallback: show indeterminate progress with generic message
-                // This should only happen in development or if preload fails
             }
 
             // Set up escape key handler
@@ -325,12 +588,19 @@
                 }
             });
 
-            // Add some interactive feedback for click
-            document.addEventListener('click', () => {
-                document.body.style.transform = 'scale(0.98)';
-                setTimeout(() => {
-                    document.body.style.transform = 'scale(1)';
-                }, 100);
+            // Set up button handlers
+            copyLogsBtn.addEventListener('click', copyLogs);
+            retryBtn.addEventListener('click', requestRetry);
+            logToggle.addEventListener('click', toggleLogs);
+
+            // Add some interactive feedback for click (only on body, not buttons)
+            document.body.addEventListener('click', (e) => {
+                if (e.target === document.body || e.target.closest('.splash-container')) {
+                    document.body.style.transform = 'scale(0.98)';
+                    setTimeout(() => {
+                        document.body.style.transform = 'scale(1)';
+                    }, 100);
+                }
             });
         }
 

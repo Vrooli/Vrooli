@@ -39,7 +39,30 @@ export interface SplashStatus {
         title: string;
         message: string;
         recoverable: boolean;
+        /** Detailed logs for debugging (shown in expandable panel) */
+        logs?: string[];
+        /** Stderr output from runtime process */
+        stderr?: string;
+        /** Exit code if process crashed */
+        exitCode?: number | null;
+        /** Suggested action for user */
+        suggestion?: string;
     };
+}
+
+/**
+ * Log entry for streaming to splash window.
+ * DOC: docs/internal/SEAMS.md#splash-log-streaming
+ */
+export interface SplashLogEntry {
+    /** Timestamp of the log entry */
+    timestamp: Date;
+    /** Log level */
+    level: "info" | "warn" | "error";
+    /** Log message */
+    message: string;
+    /** Optional source/component */
+    source?: string;
 }
 
 /**
@@ -88,6 +111,7 @@ export interface SplashCloseResult {
 /**
  * Interface for the splash window manager.
  * This is the main seam for testing splash window behavior.
+ * DOC: docs/internal/SEAMS.md#splash-window-manager
  */
 export interface ISplashWindowManager {
     /**
@@ -119,6 +143,29 @@ export interface ISplashWindowManager {
      * @param callback - Function to call on escape
      */
     onEscapePressed(callback: () => void): void;
+
+    /**
+     * Append a log entry to the splash window's log panel.
+     * @param entry - The log entry to append
+     */
+    appendLog(entry: SplashLogEntry): void;
+
+    /**
+     * Clear all logs from the splash window's log panel.
+     */
+    clearLogs(): void;
+
+    /**
+     * Register a callback for when user requests to copy logs.
+     * @param callback - Function that returns the logs to copy
+     */
+    onCopyLogs(callback: () => string): void;
+
+    /**
+     * Register a callback for when user requests retry.
+     * @param callback - Function to call on retry
+     */
+    onRetry(callback: () => void): void;
 }
 
 /**
@@ -140,6 +187,16 @@ export const SPLASH_IPC_CHANNELS = {
     ESCAPE_PRESSED: "splash:escape-pressed",
     /** Splash -> Main: Splash ready (loaded) */
     READY: "splash:ready",
+    /** Main -> Splash: Append log entry */
+    LOG_APPEND: "splash:log-append",
+    /** Main -> Splash: Clear all logs */
+    LOG_CLEAR: "splash:log-clear",
+    /** Splash -> Main: Request to copy logs to clipboard */
+    COPY_LOGS: "splash:copy-logs",
+    /** Main -> Splash: Confirm logs copied */
+    COPY_LOGS_RESULT: "splash:copy-logs-result",
+    /** Splash -> Main: Request retry */
+    RETRY: "splash:retry",
 } as const;
 
 /**

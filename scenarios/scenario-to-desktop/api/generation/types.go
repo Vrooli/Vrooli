@@ -68,6 +68,10 @@ type DesktopConfig struct {
 
 	// Auto-update configuration
 	UpdateConfig *UpdateConfig `json:"update_config,omitempty"`
+
+	// Ports maps port keys to their configuration for template generation.
+	// Used to inject all port env vars into the bundled runtime.
+	Ports map[string]PortConfig `json:"ports,omitempty"`
 }
 
 // UpdateConfig configures auto-updates for the desktop application.
@@ -99,6 +103,14 @@ type BundleIPCConfig struct {
 	AuthTokenRel string `json:"auth_token_path,omitempty"`
 }
 
+// PortConfig represents a single port configuration from service.json.
+// DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+type PortConfig struct {
+	EnvVar      string `json:"env_var"`     // e.g., "API_PORT"
+	Port        int    `json:"port"`        // Default port number
+	Description string `json:"description"` // Human-readable description
+}
+
 // ScenarioMetadata contains extracted information about a scenario.
 type ScenarioMetadata struct {
 	Name            string
@@ -110,13 +122,16 @@ type ScenarioMetadata struct {
 	AppID           string
 	HasUI           bool
 	UIDistPath      string
-	UIPort          int
-	APIPort         int
 	ScenarioPath    string
 	Category        string
 	Tags            []string
 	ServiceJSONPath string
 	PackageJSONPath string
+
+	// Ports maps port keys to their configuration.
+	// Key is the port name (e.g., "api", "ui", "websocket").
+	// Value includes env_var name and default port.
+	Ports map[string]PortConfig `json:"ports,omitempty"`
 
 	// RequiredResources lists external resources the scenario requires (e.g., "postgres", "redis").
 	// Used to determine if the scenario can run in bundled mode.

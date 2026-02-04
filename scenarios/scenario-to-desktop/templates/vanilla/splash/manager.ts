@@ -19,6 +19,7 @@ import type {
     ISplashWindowManager,
     IWindowFactory,
     SplashCloseResult,
+    SplashLogEntry,
     SplashStatus,
     SplashWindowConfig,
 } from "./types";
@@ -45,6 +46,14 @@ export interface IIpcMain {
 }
 
 /**
+ * Interface for clipboard operations.
+ * Seam for testing clipboard without Electron.
+ */
+export interface IClipboard {
+    writeText(text: string): void;
+}
+
+/**
  * Dependencies required by SplashWindowManager.
  * Injecting these allows testing without Electron.
  */
@@ -52,6 +61,8 @@ export interface SplashManagerDeps {
     windowFactory: IWindowFactory;
     pathResolver: IPathResolver;
     ipcMain: IIpcMain;
+    /** Optional clipboard for copy operations */
+    clipboard?: IClipboard;
     /** Optional logger for debugging */
     log?: (message: string, ...args: any[]) => void;
 }
@@ -73,6 +84,8 @@ export interface SplashManagerDeps {
 export class SplashWindowManager implements ISplashWindowManager {
     private window: BrowserWindow | null = null;
     private escapeCallbacks: Array<() => void> = [];
+    private copyLogsCallback: (() => string) | null = null;
+    private retryCallback: (() => void) | null = null;
     private readonly config: SplashWindowConfig;
     private readonly deps: SplashManagerDeps;
     private readonly log: (message: string, ...args: any[]) => void;
@@ -172,6 +185,37 @@ export class SplashWindowManager implements ISplashWindowManager {
         // Listen for splash ready notification
         this.deps.ipcMain.on(SPLASH_IPC_CHANNELS.READY, () => {
             this.log("Splash window reports ready");
+        });
+
+        // Listen for copy logs request
+        this.deps.ipcMain.on(SPLASH_IPC_CHANNELS.COPY_LOGS, () => {
+            this.log("Copy logs requested from splash window");
+            if (this.copyLogsCallback && this.window && !this.window.isDestroyed()) {
+                try {
+                    const logs = this.copyLogsCallback();
+                    // Copy to clipboard if clipboard is available
+                    if (this.deps.clipboard) {
+                        this.deps.clipboard.writeText(logs);
+                        this.log("Logs copied to clipboard");
+                    }
+                    this.window.webContents.send(SPLASH_IPC_CHANNELS.COPY_LOGS_RESULT, { success: true, logs });
+                } catch (error) {
+                    this.log("Error getting logs for copy:", error);
+                    this.window.webContents.send(SPLASH_IPC_CHANNELS.COPY_LOGS_RESULT, { success: false, error: String(error) });
+                }
+            }
+        });
+
+        // Listen for retry request
+        this.deps.ipcMain.on(SPLASH_IPC_CHANNELS.RETRY, () => {
+            this.log("Retry requested from splash window");
+            if (this.retryCallback) {
+                try {
+                    this.retryCallback();
+                } catch (error) {
+                    this.log("Error in retry callback:", error);
+                }
+            }
         });
     }
 
@@ -277,16 +321,70 @@ export class SplashWindowManager implements ISplashWindowManager {
     }
 
     /**
+     * Append a log entry to the splash window's log panel.
+     *
+     * @param entry - The log entry to append
+     */
+    appendLog(entry: SplashLogEntry): void {
+        if (!this.window || this.window.isDestroyed()) {
+            return;
+        }
+
+        try {
+            this.window.webContents.send(SPLASH_IPC_CHANNELS.LOG_APPEND, entry);
+        } catch (error) {
+            this.log("Failed to append log:", error);
+        }
+    }
+
+    /**
+     * Clear all logs from the splash window's log panel.
+     */
+    clearLogs(): void {
+        if (!this.window || this.window.isDestroyed()) {
+            return;
+        }
+
+        try {
+            this.window.webContents.send(SPLASH_IPC_CHANNELS.LOG_CLEAR);
+        } catch (error) {
+            this.log("Failed to clear logs:", error);
+        }
+    }
+
+    /**
+     * Register a callback for when user requests to copy logs.
+     *
+     * @param callback - Function that returns the logs to copy
+     */
+    onCopyLogs(callback: () => string): void {
+        this.copyLogsCallback = callback;
+    }
+
+    /**
+     * Register a callback for when user requests retry.
+     *
+     * @param callback - Function to call on retry
+     */
+    onRetry(callback: () => void): void {
+        this.retryCallback = callback;
+    }
+
+    /**
      * Clean up resources.
      */
     private cleanup(): void {
         this.window = null;
         this.escapeCallbacks = [];
+        this.copyLogsCallback = null;
+        this.retryCallback = null;
 
         // Remove IPC listeners
         try {
             this.deps.ipcMain.removeAllListeners(SPLASH_IPC_CHANNELS.ESCAPE_PRESSED);
             this.deps.ipcMain.removeAllListeners(SPLASH_IPC_CHANNELS.READY);
+            this.deps.ipcMain.removeAllListeners(SPLASH_IPC_CHANNELS.COPY_LOGS);
+            this.deps.ipcMain.removeAllListeners(SPLASH_IPC_CHANNELS.RETRY);
         } catch (error) {
             this.log("Error removing IPC listeners:", error);
         }
@@ -304,6 +402,7 @@ export function createSplashManager(
     app: Electron.App,
     ipcMain: Electron.IpcMain,
     path: { join: (...args: string[]) => string },
+    clipboard: Electron.Clipboard,
     config?: Partial<SplashWindowConfig>
 ): SplashWindowManager {
     const deps: SplashManagerDeps = {
@@ -317,6 +416,9 @@ export function createSplashManager(
         ipcMain: {
             on: (channel, listener) => ipcMain.on(channel, listener),
             removeAllListeners: (channel) => ipcMain.removeAllListeners(channel),
+        },
+        clipboard: {
+            writeText: (text) => clipboard.writeText(text),
         },
         log: (...args) => console.log("[Desktop App]", ...args),
     };

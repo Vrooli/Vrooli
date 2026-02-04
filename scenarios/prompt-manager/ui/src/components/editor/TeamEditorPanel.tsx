@@ -168,6 +168,12 @@ export function TeamEditorPanel({
   const showDetailOnly = Boolean(isMobile && selectedMember)
   const detailPanelWidth: number | string = showDetailOnly ? '100%' : width
 
+  useEffect(() => {
+    if (showDetailOnly && activeTab !== 'members') {
+      setActiveTab('members')
+    }
+  }, [showDetailOnly, activeTab])
+
   const handleSwitchToGraph = useCallback(() => {
     setMembersViewMode('graph')
   }, [])
@@ -286,91 +292,93 @@ export function TeamEditorPanel({
   return (
     <div className={cn('h-full flex flex-col bg-card/50', className)}>
       {/* Header */}
-      <div
-        className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
-        data-testid={selectors.teamEditor.header}
-      >
-        {/* Row 1: Close, Icon, Name, Member count */}
-        <div className="flex items-center gap-3">
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            aria-label="Close editor"
-            title="Close (Esc)"
-          >
-            <X className="h-5 w-5" />
-          </button>
+      {!showDetailOnly && (
+        <div
+          className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
+          data-testid={selectors.teamEditor.header}
+        >
+          {/* Row 1: Close, Icon, Name, Member count */}
+          <div className="flex items-center gap-3">
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label="Close editor"
+              title="Close (Esc)"
+            >
+              <X className="h-5 w-5" />
+            </button>
 
-          {/* Team icon */}
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary/20">
-              <Users className="h-5 w-5 text-primary" />
+            {/* Team icon */}
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary/20">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+
+            {/* Editable name */}
+            <div className="flex-1 min-w-0">
+              <InlineEditableText
+                value={team.displayName}
+                onChange={(value) => void handleNameChange(value)}
+                placeholder="Team name"
+                className="text-lg font-semibold"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Member count badge */}
+              <span className="px-2 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full">
+                {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleToggleTeam()}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors',
+                  team.enabled
+                    ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'
+                    : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+                )}
+                title={team.enabled ? 'Turn team off' : 'Turn team on'}
+                aria-label={team.enabled ? 'Turn team off' : 'Turn team on'}
+                aria-pressed={team.enabled}
+              >
+                <Power className="h-3.5 w-3.5" />
+                {team.enabled ? 'Team On' : 'Team Off'}
+              </button>
             </div>
           </div>
 
-          {/* Editable name */}
-          <div className="flex-1 min-w-0">
-            <InlineEditableText
-              value={team.displayName}
-              onChange={(value) => void handleNameChange(value)}
-              placeholder="Team name"
-              className="text-lg font-semibold"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Member count badge */}
-            <span className="px-2 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full">
-              {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
-            </span>
+          {/* Row 2: Expandable mission */}
+          <div className="flex items-start gap-2">
             <button
               type="button"
-              onClick={() => void handleToggleTeam()}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors',
-                team.enabled
-                  ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'
-                  : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
-              )}
-              title={team.enabled ? 'Turn team off' : 'Turn team on'}
-              aria-label={team.enabled ? 'Turn team off' : 'Turn team on'}
-              aria-pressed={team.enabled}
+              onClick={() => setIsMissionExpanded(!isMissionExpanded)}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Power className="h-3.5 w-3.5" />
-              {team.enabled ? 'Team On' : 'Team Off'}
+              {isMissionExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
             </button>
+            {isMissionExpanded ? (
+              <ExpandableDescription
+                value={team.mission ?? ''}
+                onChange={(value) => void handleMissionChange(value)}
+                placeholder="Add a mission statement..."
+                className="flex-1"
+              />
+            ) : (
+              <p className="flex-1 text-sm text-muted-foreground truncate">
+                {team.mission || 'No mission statement'}
+              </p>
+            )}
           </div>
         </div>
-
-        {/* Row 2: Expandable mission */}
-        <div className="flex items-start gap-2">
-          <button
-            type="button"
-            onClick={() => setIsMissionExpanded(!isMissionExpanded)}
-            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {isMissionExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-          {isMissionExpanded ? (
-            <ExpandableDescription
-              value={team.mission ?? ''}
-              onChange={(value) => void handleMissionChange(value)}
-              placeholder="Add a mission statement..."
-              className="flex-1"
-            />
-          ) : (
-            <p className="flex-1 text-sm text-muted-foreground truncate">
-              {team.mission || 'No mission statement'}
-            </p>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Tabs */}
       <Tabs.Root
@@ -379,11 +387,13 @@ export function TeamEditorPanel({
         className="flex-1 flex flex-col min-h-0 overflow-hidden"
       >
         {/* Tab List */}
-        <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
-          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
-          <TabTrigger value="members" icon={<Users className="h-4 w-4" />} label="Members" />
-          <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
-        </Tabs.List>
+        {!showDetailOnly && (
+          <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
+            <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
+            <TabTrigger value="members" icon={<Users className="h-4 w-4" />} label="Members" />
+            <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
+          </Tabs.List>
+        )}
 
         {/* Tab Content */}
         <div className="flex-1 min-h-0 flex flex-col">
