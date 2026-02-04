@@ -160,15 +160,7 @@ For scenarios with services that listen on ports:
 }
 ```
 
-**Desktop bundles:** The Electron main.ts must inject these before spawning:
-
-```typescript
-// In Electron main.ts (automatically handled by scenario-to-desktop)
-runtimeEnv.API_PORT = String(PORTS.api.port);
-runtimeEnv.UI_PORT = String(PORTS.ui.port);
-runtimeEnv.VROOLI_LIFECYCLE_MANAGED = "true";
-runtimeEnv.VROOLI_DESKTOP_MODE = "true";
-```
+**Desktop bundles:** The Electron main.ts injects these automatically (handled by scenario-to-desktop template generation - you don't write this code).
 
 **Scenario code:** Should have sensible defaults, not hard requirements:
 
@@ -186,17 +178,19 @@ port := requireEnv("API_PORT") // Crashes if not set
 
 #### 3.1 Resource Fitness by Tier
 
-| Resource | Tier 2 Desktop | Tier 3 Mobile | Tier 4 Cloud | Swap To |
-|----------|----------------|---------------|--------------|---------|
-| **PostgreSQL** | 0.3 (Wine/native) | 0.0 (impossible) | 0.95 | **SQLite** |
+| Resource | Tier 2 Desktop | Tier 3 Mobile | Tier 4 Cloud | Portable Alternative |
+|----------|----------------|---------------|--------------|----------------------|
+| **PostgreSQL** | 0.3 (Wine/native) | 0.0 (impossible) | 0.95 | **SQLite** (pure Go) |
 | **Redis** | 0.5 (embedded possible) | 0.3 (limited) | 0.9 | In-memory cache |
-| **Ollama** | 0.0 (always-on server) | 0.0 | 0.95 | **OpenRouter API** |
+| **Ollama** | 0.0 (always-on server) | 0.0 | 0.95 | **OpenRouter** (as fallback) |
 | **Browserless** | 0.6 (bundled driver) | 0.0 | 0.9 | Bundled Playwright |
 | **Neo4j** | 0.6 (heavy) | 0.0 | 0.95 | SQLite + JSON |
 | **MinIO** | 0.7 (can embed) | 0.4 | 0.9 | Filesystem + cloud |
 | **Qdrant** | 0.5 (resource-heavy) | 0.2 | 0.9 | SQLite FTS |
 
-**Fitness scoring:** >= 0.9 = ship-ready, < 0.6 = swap required
+**Fitness scoring:** >= 0.9 = ship-ready, < 0.6 = needs alternative
+
+**Special case - Ollama:** Unlike databases, Ollama's value is being free and local. Don't replace it - make it **optional** with OpenRouter as a fallback for desktop/mobile where Ollama isn't available. Users who want free local AI can still install Ollama; others pay for OpenRouter convenience.
 
 #### 3.2 SQLite as Portable Database
 
@@ -223,12 +217,58 @@ func getSQLitePath() string {
 
 See `resources/sqlite/README.md` for comprehensive SQLite guidance.
 
-#### 3.3 Decision Tree: Resource Swapping
+#### 3.3 Full Replacement vs Runtime Swap
+
+There are two strategies for handling non-portable resources:
+
+| Strategy | Description | When to Use |
+|----------|-------------|-------------|
+| **Full Replacement** | Remove non-portable resource entirely, use only portable one | Portable resource is "good enough" for all use cases |
+| **Runtime Swap** | Support both resources, select at runtime based on environment | Non-portable resource offers significant advantages you actually need |
+
+**Decision Tree: Replacement vs Swap**
 
 ```
-                    Does {{TARGET}} depend on this resource?
-                                        │
-                                       YES
+        Does the non-portable resource offer features you ACTUALLY USE
+        that the portable alternative cannot provide?
+                                │
+                ┌───────────────┴───────────────┐
+               NO                              YES
+                │                               │
+                ▼                               ▼
+        FULL REPLACEMENT              What features specifically?
+        (simpler, preferred)                    │
+                                    ┌───────────┴───────────┐
+                                    │                       │
+                            Concurrent writes?      Advanced queries?
+                            (multi-user)            (JSON ops, FTS)
+                                    │                       │
+                                    ▼                       ▼
+                            Is this a              Can you work
+                            multi-user app?        around it?
+                                    │                       │
+                            ┌───────┴───────┐       ┌───────┴───────┐
+                           YES             NO      YES             NO
+                            │               │       │               │
+                            ▼               ▼       ▼               ▼
+                      RUNTIME SWAP    FULL REPL  FULL REPL    RUNTIME SWAP
+```
+
+**Examples:**
+
+| Scenario | Resource | Decision | Reasoning |
+|----------|----------|----------|-----------|
+| Simple CRUD app | PostgreSQL | **Full replacement** → SQLite | No concurrent writes needed, SQLite is fine |
+| Multi-user SaaS + desktop | PostgreSQL | **Runtime swap** | Cloud needs concurrent writes, desktop is single-user |
+| AI chat app | Ollama | **Runtime swap** (optional) | Ollama free+local is valuable; OpenRouter as fallback |
+| Workflow storage | PostgreSQL | **Full replacement** → SQLite | Workflows are per-user, no need for postgres |
+
+**Steer toward full replacement** unless you have a compelling reason to maintain both. Supporting multiple backends adds complexity, tests, and potential bugs. If SQLite handles your use case, just use SQLite everywhere.
+
+#### 3.4 Decision Tree: Which Portable Alternative?
+
+```
+                    What type of resource is non-portable?
                                         │
                         ┌───────────────┴───────────────┐
                         ▼                               ▼
@@ -236,36 +276,74 @@ See `resources/sqlite/README.md` for comprehensive SQLite guidance.
                 (postgres, redis)                 (ollama, etc.)
                         │                               │
                         ▼                               ▼
-            ┌───────────┴───────────┐         ┌───────┴───────┐
-            │                       │         │               │
-      Structured data?      Cache/session?   Local model?   API-based?
-            │                       │         │               │
-            ▼                       ▼         ▼               ▼
-    → SQLite (pure Go)     → In-memory    → OpenRouter   → OK (portable)
-      with modernc.org       or SQLite      or remote
-                              for TTL        inference
+            ┌───────────┴───────────┐         Make Ollama OPTIONAL
+            │                       │         with OpenRouter fallback
+      Structured data?      Cache/session?    (preserves free+local value)
+            │                       │
+            ▼                       ▼
+    → SQLite (pure Go)     → In-memory cache
+      with modernc.org       or SQLite for
+                              persistent sessions
 ```
 
-#### 3.4 Swap Declaration in Bundle Manifest
+#### 3.5 Documenting Resource Strategy
 
-When preparing for bundling, document swaps:
+Document your resource strategy in service.json or bundle manifest:
 
 ```json
+// For FULL REPLACEMENT - just use the portable resource
 {
-  "swaps": [
-    {
-      "original": "postgres",
-      "replacement": "sqlite",
-      "reason": "Desktop bundle cannot run PostgreSQL server",
-      "limitations": "Single-user file store; no concurrent writers"
-    },
-    {
-      "original": "ollama",
-      "replacement": "openrouter",
-      "reason": "Desktop cannot run always-on LLM server",
-      "limitations": "Requires internet; API costs"
+  "dependencies": {
+    "resources": {
+      "sqlite": {
+        "type": "sqlite",
+        "enabled": true,
+        "description": "Primary storage (portable, no server required)"
+      }
     }
-  ]
+  }
+}
+
+// For RUNTIME SWAP - document both with selection logic
+{
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": false,
+        "description": "Production storage (Tier 1/4)"
+      },
+      "sqlite": {
+        "type": "sqlite",
+        "enabled": true,
+        "required": false,
+        "description": "Portable storage (Tier 2/3)"
+      }
+    }
+  },
+  "notes": {
+    "storage_selection": "Uses STORAGE_BACKEND env var; defaults to sqlite if postgres unavailable"
+  }
+}
+
+// For OPTIONAL RESOURCE with fallback (Ollama pattern)
+{
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "description": "Local AI inference (free, optional)"
+      }
+    }
+  },
+  "capabilities": {
+    "ai_providers": ["ollama", "openrouter"],
+    "ai_fallback": "openrouter",
+    "ai_note": "Ollama preferred (free+local); OpenRouter used when Ollama unavailable"
+  }
 }
 ```
 
@@ -394,12 +472,11 @@ Don't assume specific ports are available:
 // ✅ CORRECT: Configurable with sensible default
 port := getEnvInt("API_PORT", 18700)
 
-// ✅ ALSO CORRECT: Request from allocator
-port, err := portAllocator.Allocate("api", PortRange{Min: 18000, Max: 19000})
-
 // ❌ WRONG: Hardcoded port
 listener, _ := net.Listen("tcp", ":8080") // May conflict
 ```
+
+**Note:** Port injection for bundled desktop apps is handled automatically by scenario-to-desktop's template generation. You don't need to write Electron code - just ensure your scenario code reads port values from environment variables with sensible defaults.
 
 #### 6.3 Offline Capability
 
@@ -488,18 +565,34 @@ cat scenarios/{{TARGET}}/.vrooli/service.json | jq '.dependencies.resources'
 
 #### 8.2 Red Flags Checklist
 
+**Environment Variables:**
 - [ ] Uses `VROOLI_ROOT` without `VROOLI_DESKTOP_MODE` check
 - [ ] Uses `SCENARIO_ROOT` without fallback to `BUNDLE_ROOT`
 - [ ] Uses `VROOLI_DATA` without `APP_DATA_DIR` fallback
-- [ ] Depends on PostgreSQL without SQLite alternative
-- [ ] Depends on Redis without in-memory fallback
-- [ ] Depends on Ollama without remote inference option
+- [ ] Port env vars with no default (crashes if not set)
+
+**Resource Dependencies:**
+- [ ] Depends on PostgreSQL with no portable alternative (SQLite)
+- [ ] Depends on Redis with no in-memory fallback
+- [ ] Depends on Ollama with no fallback (should be optional with OpenRouter)
+- [ ] Runtime swap complexity where full replacement would suffice
+
+**Build & Compilation:**
 - [ ] Uses `github.com/mattn/go-sqlite3` (CGO required)
 - [ ] Has CGO imports that block static builds
+- [ ] `CGO_ENABLED=0 go build` fails
+
+**Filesystem & Paths:**
 - [ ] Hardcoded paths with `/home/`, `~/.vrooli/`, `/tmp/`
+- [ ] Unix path separators instead of `filepath.Join()`
+- [ ] Writes outside of `APP_DATA_DIR` or user-selected paths
+
+**Network:**
 - [ ] Fixed port numbers without environment override
 - [ ] `localhost` without `127.0.0.1` alternative in CORS
-- [ ] Infrastructure secrets required at runtime (not swapped for desktop)
+
+**Secrets:**
+- [ ] Infrastructure secrets required at runtime (DB passwords, etc.)
 
 #### 8.3 Document Findings
 
@@ -525,9 +618,9 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md
 | SCENARIO_ROOT | | | |
 
 ## Resource Dependencies
-| Resource | Fitness (Desktop) | Swap Required? | Swap To |
-|----------|-------------------|----------------|---------|
-| | | | |
+| Resource | Fitness (Desktop) | Strategy | Alternative | Reasoning |
+|----------|-------------------|----------|-------------|-----------|
+| | | Full Replace / Runtime Swap / Optional | | |
 
 ## Build Status
 - [ ] CGO_ENABLED=0 builds successfully
