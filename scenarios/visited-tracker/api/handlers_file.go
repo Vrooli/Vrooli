@@ -68,6 +68,7 @@ func updateFileNotesHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "File notes updated successfully",
 	})
 }
+
 func updateFilePriorityHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignIDStr := vars["id"]
@@ -126,6 +127,7 @@ func updateFilePriorityHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "File priority updated successfully",
 	})
 }
+
 func toggleFileExclusionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignIDStr := vars["id"]
@@ -244,7 +246,7 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.Files) == 0 {
+	if len(req.Files) == 0 && len(req.FileNotes) == 0 {
 		http.Error(w, `{"error": "files array cannot be empty"}`, http.StatusBadRequest)
 		return
 	}
@@ -255,9 +257,19 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resolution := resolveTargets(campaign, req.Files, req.FileNotes)
+	if len(resolution.Unmatched) > 0 {
+		logger.Printf("⚠️ Unmatched exclude patterns: %v", resolution.Unmatched)
+	}
+
+	if len(resolution.Paths) == 0 {
+		http.Error(w, `{"error": "files array cannot be empty"}`, http.StatusBadRequest)
+		return
+	}
+
 	// Normalize paths using campaign location
 	normalizedPaths := make(map[string]string) // maps original path -> absolute path
-	for _, filePath := range req.Files {
+	for _, filePath := range resolution.Paths {
 		_, absPath := normalizeFilePath(campaign, filePath)
 		normalizedPaths[filePath] = absPath
 	}
@@ -266,7 +278,7 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 	updatedFiles := make([]string, 0)
 
 	// Update files
-	for _, filePath := range req.Files {
+	for _, filePath := range resolution.Paths {
 		absPath := normalizedPaths[filePath]
 		found := false
 
@@ -274,7 +286,10 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 			file := &campaign.TrackedFiles[i]
 			if file.AbsolutePath == absPath {
 				file.Excluded = req.Excluded
-				if req.Reason != nil {
+				if note, ok := resolution.Notes[filePath]; ok {
+					noteValue := note
+					file.Notes = &noteValue
+				} else if req.Reason != nil {
 					file.Notes = req.Reason
 				}
 				excludedCount++
@@ -298,10 +313,14 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("✅ Bulk excluded %d files in campaign: %s", excludedCount, campaign.Name)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	response := map[string]interface{}{
 		"excluded_count": excludedCount,
 		"files":          updatedFiles,
-	})
+	}
+	if len(resolution.Unmatched) > 0 {
+		response["unmatched_patterns"] = resolution.Unmatched
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 // resetCampaignHandler - POST /api/v1/campaigns/{id}/reset

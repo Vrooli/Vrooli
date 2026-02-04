@@ -39,7 +39,7 @@ func TestVisitHandler(t *testing.T) {
 
 	// Create the required directory structure
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 
@@ -64,7 +64,7 @@ func TestVisitHandler(t *testing.T) {
 
 	// Test visit request
 	visitReq := VisitRequest{
-		Files:   []string{"test.go", "main.go"},
+		Files:   VisitFiles{Paths: []string{"test.go", "main.go"}},
 		Context: strPtr("test-visit"),
 		Agent:   strPtr("unit-test"),
 	}
@@ -131,7 +131,7 @@ func TestVisitHandler(t *testing.T) {
 
 	// Test empty files
 	emptyReq := VisitRequest{
-		Files: []string{},
+		Files: VisitFiles{Paths: []string{}},
 	}
 	jsonBody, _ = json.Marshal(emptyReq)
 	req = httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/visit", bytes.NewReader(jsonBody))
@@ -143,6 +143,100 @@ func TestVisitHandler(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for empty files, got %d", w.Code)
+	}
+}
+
+func TestVisitHandlerFileNotesWithGlobs(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	tempDir, err := ioutil.TempDir("", "visited-tracker-visit-glob-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	originalWd, _ := os.Getwd()
+	defer os.Chdir(originalWd)
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp dir: %v", err)
+	}
+
+	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
+		t.Fatalf("Failed to create data directory: %v", err)
+	}
+
+	workDir := filepath.Join(tempDir, "work")
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("Failed to create work directory: %v", err)
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(workDir, "alpha.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(workDir, "beta.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	campaign := &Campaign{
+		ID:                 uuid.New(),
+		Name:               "test-visit-glob-campaign",
+		FromAgent:          "unit-test",
+		CreatedAt:          time.Now().UTC(),
+		UpdatedAt:          time.Now().UTC(),
+		Status:             "active",
+		Patterns:           []string{"**/*"},
+		Location:           strPtr("work"),
+		Metadata:           make(map[string]interface{}),
+		TrackedFiles:       []TrackedFile{},
+		Visits:             []Visit{},
+		StructureSnapshots: []StructureSnapshot{},
+	}
+
+	if err := saveCampaign(campaign); err != nil {
+		t.Fatalf("Failed to save test campaign: %v", err)
+	}
+
+	visitReq := VisitRequest{
+		FileNotes: map[string]string{"**/*.go": "Reviewed"},
+	}
+
+	jsonBody, _ := json.Marshal(visitReq)
+	req := httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/visit", bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+	w := httptest.NewRecorder()
+
+	visitHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Response should be valid JSON: %v", err)
+	}
+
+	if recorded, ok := response["recorded"].(float64); !ok || recorded != 2 {
+		t.Fatalf("Expected 2 visits recorded, got %v", response["recorded"])
+	}
+
+	updatedCampaign, err := loadCampaign(campaign.ID)
+	if err != nil {
+		t.Fatalf("Should be able to load updated campaign: %v", err)
+	}
+
+	if len(updatedCampaign.TrackedFiles) != 2 {
+		t.Fatalf("Expected 2 tracked files, got %d", len(updatedCampaign.TrackedFiles))
+	}
+
+	for _, trackedFile := range updatedCampaign.TrackedFiles {
+		if trackedFile.Notes == nil || *trackedFile.Notes != "Reviewed" {
+			t.Fatalf("Expected notes to be 'Reviewed' for %s, got %v", trackedFile.FilePath, trackedFile.Notes)
+		}
 	}
 }
 
@@ -168,7 +262,7 @@ func TestAdjustVisitHandler(t *testing.T) {
 
 	// Create the required directory structure
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 

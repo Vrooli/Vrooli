@@ -34,7 +34,7 @@ func TestUpdateFileNotesHandler(t *testing.T) {
 	}
 
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 
@@ -164,6 +164,109 @@ func TestUpdateFileNotesHandler(t *testing.T) {
 	}
 }
 
+func TestBulkExcludeWithFileNotesAndGlobs(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	tempDir, err := ioutil.TempDir("", "visited-tracker-bulk-exclude-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	originalWd, _ := os.Getwd()
+	defer os.Chdir(originalWd)
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp dir: %v", err)
+	}
+
+	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
+		t.Fatalf("Failed to create data directory: %v", err)
+	}
+
+	workDir := filepath.Join(tempDir, "work", "nested")
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("Failed to create work directory: %v", err)
+	}
+
+	alphaPath := filepath.Join(tempDir, "work", "alpha.go")
+	betaPath := filepath.Join(workDir, "beta.go")
+	if err := ioutil.WriteFile(alphaPath, []byte("package main"), 0o644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	if err := ioutil.WriteFile(betaPath, []byte("package main"), 0o644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	campaign := &Campaign{
+		ID:        uuid.New(),
+		Name:      "test-bulk-exclude-campaign",
+		FromAgent: "unit-test",
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		Status:    "active",
+		Patterns:  []string{"**/*"},
+		Location:  strPtr("work"),
+		Metadata:  make(map[string]interface{}),
+		TrackedFiles: []TrackedFile{
+			{
+				ID:           uuid.New(),
+				FilePath:     "alpha.go",
+				AbsolutePath: alphaPath,
+				VisitCount:   0,
+				Metadata:     make(map[string]interface{}),
+			},
+			{
+				ID:           uuid.New(),
+				FilePath:     filepath.Join("nested", "beta.go"),
+				AbsolutePath: betaPath,
+				VisitCount:   0,
+				Metadata:     make(map[string]interface{}),
+			},
+		},
+		Visits:             []Visit{},
+		StructureSnapshots: []StructureSnapshot{},
+	}
+
+	if err := saveCampaign(campaign); err != nil {
+		t.Fatalf("Failed to save test campaign: %v", err)
+	}
+
+	reqBody := BulkExcludeRequest{
+		Files:     []string{"**/*.go"},
+		FileNotes: map[string]string{"**/*.go": "Already clean"},
+		Excluded:  true,
+	}
+
+	jsonBody, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/files/exclude", bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+	w := httptest.NewRecorder()
+
+	bulkExcludeFilesHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	updatedCampaign, err := loadCampaign(campaign.ID)
+	if err != nil {
+		t.Fatalf("Failed to load updated campaign: %v", err)
+	}
+
+	for _, trackedFile := range updatedCampaign.TrackedFiles {
+		if !trackedFile.Excluded {
+			t.Fatalf("Expected file to be excluded: %s", trackedFile.FilePath)
+		}
+		if trackedFile.Notes == nil || *trackedFile.Notes != "Already clean" {
+			t.Fatalf("Expected notes to be 'Already clean' for %s, got %v", trackedFile.FilePath, trackedFile.Notes)
+		}
+	}
+}
+
 func TestUpdateFilePriorityHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -182,7 +285,7 @@ func TestUpdateFilePriorityHandler(t *testing.T) {
 	}
 
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 
@@ -330,7 +433,7 @@ func TestToggleFileExclusionHandler(t *testing.T) {
 	}
 
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 
@@ -481,5 +584,4 @@ func TestToggleFileExclusionHandler(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for invalid JSON, got %d", w.Code)
 	}
-
 }

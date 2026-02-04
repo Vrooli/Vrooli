@@ -73,12 +73,14 @@ show_help() {
     echo ""
     echo "Visit Options:"
     echo "  --note TEXT                  Add note to visited file(s)"
+    echo "  --file-note PATH NOTE        Add note for specific path (repeatable, supports globs)"
     echo "  --context CONTEXT            Visit context (security/performance/bug/docs)"
     echo "  --agent AGENT                AI model or agent name"
     echo "  --conversation ID            Conversation ID for grouping visits"
     echo ""
     echo "Exclude Options:"
     echo "  --reason TEXT                Reason for exclusion (stored as file note)"
+    echo "  --file-reason PATH REASON    Reason for specific path (repeatable, supports globs)"
     echo ""
     echo "Query Options:"
     echo "  --limit N                    Number of files to return"
@@ -96,6 +98,11 @@ show_help() {
     echo "  visited-tracker visit ui/src/App.tsx --tag ux --location scenarios/X/ui --note 'Improved accessibility'"
     echo "  visited-tracker exclude ui/src/App.tsx --tag ux --location scenarios/X/ui --reason 'All UX work complete'"
     echo "  visited-tracker campaigns note --location scenarios/X/ui --tag ux --note 'Handoff: focus on state mgmt'"
+    echo ""
+    echo "  # Multi-file notes in one command (globs supported)"
+    echo "  visited-tracker visit --location scenarios/X/ui --tag ux \\"
+    echo "    --file-note 'src/pages/**/*.tsx' 'Updated headings + ARIA labels' \\"
+    echo "    --file-note 'src/lib/error-utils.ts' 'Replaced unsafe JSON.parse'"
     echo ""
     echo "  # Traditional workflow with explicit campaign ID"
     echo "  visited-tracker campaigns create --name my-review --pattern '**/*.js'"
@@ -279,6 +286,8 @@ record_visit() {
     local agent=""
     local conversation=""
     local note=""
+    local file_note_paths=()
+    local file_note_notes=()
     local location=""
     local tag=""
     local pattern="**/*"
@@ -302,6 +311,15 @@ record_visit() {
             --note)
                 note="$2"
                 shift 2
+                ;;
+            --file-note)
+                if [[ $# -lt 3 ]]; then
+                    echo -e "${RED}Error: --file-note requires PATH and NOTE${NC}" >&2
+                    exit 1
+                fi
+                file_note_paths+=("$2")
+                file_note_notes+=("$3")
+                shift 3
                 ;;
             --location)
                 location="$2"
@@ -330,9 +348,9 @@ record_visit() {
         esac
     done
 
-    if [[ ${#files[@]} -eq 0 ]]; then
+    if [[ ${#files[@]} -eq 0 && ${#file_note_paths[@]} -eq 0 ]]; then
         echo -e "${RED}Error: At least one file required${NC}" >&2
-        echo "Usage: visited-tracker visit FILE1 [FILE2...] [--note NOTE] [--tag TAG] [--location LOCATION] [--name NAME]" >&2
+        echo "Usage: visited-tracker visit FILE1 [FILE2...] [--note NOTE] [--file-note PATH NOTE] [--tag TAG] [--location LOCATION] [--name NAME]" >&2
         exit 1
     fi
 
@@ -342,14 +360,51 @@ record_visit() {
     fi
 
     # Build JSON payload with optional file_notes
+    local all_files=()
+    local -A seen_files=()
+    for file in "${files[@]}" "${file_note_paths[@]}"; do
+        if [[ -z "$file" ]]; then
+            continue
+        fi
+        if [[ -z "${seen_files[$file]+x}" ]]; then
+            seen_files[$file]=1
+            all_files+=("$file")
+        fi
+    done
+
+    if [[ ${#all_files[@]} -eq 0 ]]; then
+        echo -e "${RED}Error: At least one file required${NC}" >&2
+        exit 1
+    fi
+
     local files_json
-    files_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)
+    files_json=$(printf '%s\n' "${all_files[@]}" | jq -R . | jq -s .)
 
     local payload
-    if [[ -n "$note" ]]; then
-        # Build file_notes map with same note for all files
+    if [[ -n "$note" || ${#file_note_paths[@]} -gt 0 ]]; then
+        # Build file_notes map (global note + per-file overrides)
+        local base_notes_json="{}"
+        if [[ -n "$note" ]]; then
+            base_notes_json=$(printf '%s\n' "${all_files[@]}" | jq -R . | jq -s 'map({key: ., value: "'"$note"'"}) | from_entries')
+        fi
+
+        local override_notes_json="{}"
+        if [[ ${#file_note_paths[@]} -gt 0 ]]; then
+            local note_paths_json
+            local note_values_json
+            note_paths_json=$(printf '%s\n' "${file_note_paths[@]}" | jq -R . | jq -s .)
+            note_values_json=$(printf '%s\n' "${file_note_notes[@]}" | jq -R . | jq -s .)
+            override_notes_json=$(jq -n \
+                --argjson paths "$note_paths_json" \
+                --argjson notes "$note_values_json" \
+                'reduce range(0; $paths | length) as $i ({}; . + {($paths[$i]): $notes[$i]})')
+        fi
+
         local file_notes_json
-        file_notes_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s 'map({key: ., value: "'"$note"'"}) | from_entries')
+        file_notes_json=$(jq -n \
+            --argjson base "$base_notes_json" \
+            --argjson overrides "$override_notes_json" \
+            '$base + $overrides')
 
         payload=$(jq -n \
             --argjson files "$files_json" \
@@ -392,6 +447,8 @@ record_visit() {
 
         if [[ -n "$note" ]]; then
             echo -e "${BLUE}Note:${NC} $note"
+        elif [[ ${#file_note_paths[@]} -gt 0 ]]; then
+            echo -e "${BLUE}Notes:${NC} file-specific"
         fi
 
         # Show visit counts for each file
@@ -471,6 +528,8 @@ sync_structure() {
 exclude_file() {
     local files=()
     local reason=""
+    local file_reason_paths=()
+    local file_reason_notes=()
     local location=""
     local tag=""
     local pattern="**/*"
@@ -482,6 +541,15 @@ exclude_file() {
             --reason)
                 reason="$2"
                 shift 2
+                ;;
+            --file-reason)
+                if [[ $# -lt 3 ]]; then
+                    echo -e "${RED}Error: --file-reason requires PATH and REASON${NC}" >&2
+                    exit 1
+                fi
+                file_reason_paths+=("$2")
+                file_reason_notes+=("$3")
+                shift 3
                 ;;
             --location)
                 location="$2"
@@ -510,9 +578,9 @@ exclude_file() {
         esac
     done
 
-    if [[ ${#files[@]} -eq 0 ]]; then
+    if [[ ${#files[@]} -eq 0 && ${#file_reason_paths[@]} -eq 0 ]]; then
         echo -e "${RED}Error: At least one file required${NC}" >&2
-        echo "Usage: visited-tracker exclude FILE1 [FILE2...] [--reason REASON] [--tag TAG] [--location LOCATION] [--name NAME]" >&2
+        echo "Usage: visited-tracker exclude FILE1 [FILE2...] [--reason REASON] [--file-reason PATH REASON] [--tag TAG] [--location LOCATION] [--name NAME]" >&2
         exit 1
     fi
 
@@ -522,17 +590,48 @@ exclude_file() {
     fi
 
     # Build bulk exclude payload
+    local all_files=()
+    local -A seen_files=()
+    for file in "${files[@]}" "${file_reason_paths[@]}"; do
+        if [[ -z "$file" ]]; then
+            continue
+        fi
+        if [[ -z "${seen_files[$file]+x}" ]]; then
+            seen_files[$file]=1
+            all_files+=("$file")
+        fi
+    done
+
+    if [[ ${#all_files[@]} -eq 0 ]]; then
+        echo -e "${RED}Error: At least one file required${NC}" >&2
+        exit 1
+    fi
+
     local files_json
-    files_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)
+    files_json=$(printf '%s\n' "${all_files[@]}" | jq -R . | jq -s .)
 
     local payload
-    if [[ -n "$reason" ]]; then
+    if [[ -n "$reason" || ${#file_reason_paths[@]} -gt 0 ]]; then
+        local file_notes_json="{}"
+        if [[ ${#file_reason_paths[@]} -gt 0 ]]; then
+            local reason_paths_json
+            local reason_values_json
+            reason_paths_json=$(printf '%s\n' "${file_reason_paths[@]}" | jq -R . | jq -s .)
+            reason_values_json=$(printf '%s\n' "${file_reason_notes[@]}" | jq -R . | jq -s .)
+            file_notes_json=$(jq -n \
+                --argjson paths "$reason_paths_json" \
+                --argjson notes "$reason_values_json" \
+                'reduce range(0; $paths | length) as $i ({}; . + {($paths[$i]): $notes[$i]})')
+        fi
+
         payload=$(jq -n \
             --argjson files "$files_json" \
             --arg reason "$reason" \
+            --argjson file_notes "$file_notes_json" \
             '{
                 files: $files,
-                reason: $reason,
+                reason: (if $reason == "" then null else $reason end),
+                file_notes: (if $file_notes == {} then null else $file_notes end),
                 excluded: true
             }')
     else
@@ -556,6 +655,8 @@ exclude_file() {
         echo -e "${GREEN}✓ Excluded $excluded_count file(s)${NC}"
         if [[ -n "$reason" ]]; then
             echo -e "${BLUE}Reason:${NC} $reason"
+        elif [[ ${#file_reason_paths[@]} -gt 0 ]]; then
+            echo -e "${BLUE}Reasons:${NC} file-specific"
         fi
 
         # Show files from response

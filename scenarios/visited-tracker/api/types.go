@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -89,12 +92,44 @@ type CreateCampaignRequest struct {
 
 // VisitRequest contains parameters for recording file visits
 type VisitRequest struct {
-	Files          interface{}            `json:"files"` // Can be []string or []FileVisit
+	Files          VisitFiles             `json:"files,omitempty"`
 	Context        *string                `json:"context,omitempty"`
 	Agent          *string                `json:"agent,omitempty"`
 	ConversationID *string                `json:"conversation_id,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 	FileNotes      map[string]string      `json:"file_notes,omitempty"` // Map of file_path -> note
+}
+
+// VisitFiles supports multiple JSON formats for visit targets.
+type VisitFiles struct {
+	Paths []string
+}
+
+var errInvalidFiles = errors.New("invalid files format")
+
+func (v *VisitFiles) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		return nil
+	}
+
+	var paths []string
+	if err := json.Unmarshal(data, &paths); err == nil {
+		v.Paths = paths
+		return nil
+	}
+
+	var fileVisits []FileVisit
+	if err := json.Unmarshal(data, &fileVisits); err == nil {
+		for _, visit := range fileVisits {
+			if visit.Path == "" {
+				continue
+			}
+			v.Paths = append(v.Paths, visit.Path)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("%w: files must be an array of strings or objects with path", errInvalidFiles)
 }
 
 // FileVisit represents a single file visit with optional context
@@ -128,7 +163,8 @@ type AdjustVisitRequest struct {
 
 // BulkExcludeRequest contains parameters for bulk excluding files
 type BulkExcludeRequest struct {
-	Files    []string `json:"files"`
-	Reason   *string  `json:"reason,omitempty"`
-	Excluded bool     `json:"excluded"`
+	Files     []string          `json:"files,omitempty"`
+	Reason    *string           `json:"reason,omitempty"`
+	FileNotes map[string]string `json:"file_notes,omitempty"`
+	Excluded  bool              `json:"excluded"`
 }

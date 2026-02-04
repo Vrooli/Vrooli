@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -21,6 +22,10 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req VisitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if errors.Is(err, errInvalidFiles) {
+			http.Error(w, `{"error": "Invalid files format"}`, http.StatusBadRequest)
+			return
+		}
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
@@ -36,23 +41,18 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse files from request
-	var filePaths []string
-	switch files := req.Files.(type) {
-	case []interface{}:
-		for _, f := range files {
-			if path, ok := f.(string); ok {
-				filePaths = append(filePaths, path)
-			}
-		}
-	case []string:
-		filePaths = files
-	default:
-		http.Error(w, `{"error": "Invalid files format"}`, http.StatusBadRequest)
+	filePaths := req.Files.Paths
+	if len(filePaths) == 0 && len(req.FileNotes) == 0 {
+		http.Error(w, `{"error": "No files specified"}`, http.StatusBadRequest)
 		return
 	}
 
-	if len(filePaths) == 0 {
+	resolution := resolveTargets(campaign, filePaths, req.FileNotes)
+	if len(resolution.Unmatched) > 0 {
+		logger.Printf("⚠️ Unmatched visit patterns: %v", resolution.Unmatched)
+	}
+
+	if len(resolution.Paths) == 0 {
 		http.Error(w, `{"error": "No files specified"}`, http.StatusBadRequest)
 		return
 	}
@@ -60,7 +60,7 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 	recordedCount := 0
 
 	// Record visits for each file
-	for _, filePath := range filePaths {
+	for _, filePath := range resolution.Paths {
 		// Normalize path using campaign location
 		relativePath, absolutePath := normalizeFilePath(campaign, filePath)
 
@@ -123,8 +123,8 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process file notes if provided
-	if req.FileNotes != nil && len(req.FileNotes) > 0 {
-		for filePath, note := range req.FileNotes {
+	if len(resolution.Notes) > 0 {
+		for filePath, note := range resolution.Notes {
 			// Normalize the path using campaign location
 			_, absPath := normalizeFilePath(campaign, filePath)
 
@@ -132,7 +132,8 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 			for i := range campaign.TrackedFiles {
 				file := &campaign.TrackedFiles[i]
 				if file.AbsolutePath == absPath {
-					file.Notes = &note
+					noteValue := note
+					file.Notes = &noteValue
 					break
 				}
 			}
@@ -151,11 +152,16 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("📝 Recorded %d visits for campaign: %s", recordedCount, campaign.Name)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	response := map[string]interface{}{
 		"recorded": recordedCount,
-		"files":    filePaths,
-	})
+		"files":    resolution.Paths,
+	}
+	if len(resolution.Unmatched) > 0 {
+		response["unmatched_patterns"] = resolution.Unmatched
+	}
+	json.NewEncoder(w).Encode(response)
 }
+
 func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
