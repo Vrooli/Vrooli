@@ -40,6 +40,7 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorBoundary } from "../components/ui/error-boundary";
 import { ErrorState } from "../components/ui/error-state";
+import { Input } from "../components/ui/input";
 import { FileTree } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
 import { FileUpload } from "../components/ui/file-upload";
@@ -571,26 +572,25 @@ export function BacklogDetailsPage() {
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-3 pb-4 pt-4">
         <div className="space-y-3 lg:hidden">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              type="text"
-              value={fileSearch}
-              onChange={(event) => setFileSearch(event.target.value)}
-              placeholder="Search files"
-              className="w-full rounded-full border border-white/10 bg-slate-900/60 px-9 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            />
-            {fileSearch.trim().length > 0 && (
-              <button
-                type="button"
-                onClick={() => setFileSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <Input
+            type="text"
+            value={fileSearch}
+            onChange={(event) => setFileSearch(event.target.value)}
+            placeholder="Search files"
+            leftIcon={<Search className="h-4 w-4" />}
+            rightSlot={
+              fileSearch.trim().length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setFileSearch("")}
+                  className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null
+            }
+          />
           {recentFiles.length > 0 && fileSearch.trim().length === 0 && (
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-wider text-slate-500">Recent files</p>

@@ -4,16 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/httputil"
 )
-
-// StatusResponse reports agent-manager integration status.
-type StatusResponse struct {
-	Enabled   bool   `json:"enabled"`
-	Available bool   `json:"available"`
-	URL       string `json:"url,omitempty"`
-	ProfileID string `json:"profileId,omitempty"`
-}
 
 // Handler exposes agent-manager status endpoints.
 type Handler struct {
@@ -32,19 +25,21 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 // Status returns agent-manager availability.
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
-	response := StatusResponse{}
+	response := &apipb.AgentManagerStatusResponse{}
 	if h.service != nil {
 		response.Enabled = h.service.IsEnabled()
 		if response.Enabled {
 			response.Available = h.service.IsAvailable(r.Context())
-			if url, err := h.service.ResolveURL(r.Context()); err == nil {
-				response.URL = url
+			if url, err := h.service.ResolveURL(r.Context()); err == nil && url != "" {
+				response.Url = &url
 			}
 		}
-		response.ProfileID = h.service.GetProfileID()
+		if profileID := h.service.GetProfileID(); profileID != "" {
+			response.ProfileId = &profileID
+		}
 	}
 
-	if err := httputil.JSON(w, response); err != nil {
+	if err := httputil.ProtoJSON(w, response); err != nil {
 		httputil.InternalError(w, "[agent-manager] status", "failed to encode response")
 	}
 }

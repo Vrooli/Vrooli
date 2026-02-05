@@ -10,10 +10,10 @@
  * Related PRD targets: OT-P1-010
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HelpCircle, Info, RefreshCw } from "lucide-react";
-import { useBlocker } from "react-router-dom";
+import { UNSAFE_NavigationContext } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
@@ -30,9 +30,57 @@ const REC_MODE_HINTS = {
   yolo: "Low-risk recommendations are auto-approved after a brief delay. High-risk changes still require approval.",
 } as const;
 
+type NavigationContextValue = React.ContextType<typeof UNSAFE_NavigationContext>;
+type NavigationBlockerTransaction = { retry: () => void };
+type NavigationBlocker = (tx: NavigationBlockerTransaction) => void;
+type NavigatorWithBlock = NavigationContextValue["navigator"] & {
+  block: (blocker: NavigationBlocker) => () => void;
+};
+
+function supportsNavigationBlock(
+  navigator: NavigationContextValue["navigator"]
+): navigator is NavigatorWithBlock {
+  return typeof (navigator as { block?: unknown }).block === "function";
+}
+
+function useNavigationBlocker(when: boolean, message: string) {
+  // BrowserRouter doesn't support useBlocker; use history.block when available.
+  const { navigator } = useContext(UNSAFE_NavigationContext);
+  const whenRef = useRef(when);
+  const messageRef = useRef(message);
+
+  useEffect(() => {
+    whenRef.current = when;
+  }, [when]);
+
+  useEffect(() => {
+    messageRef.current = message;
+  }, [message]);
+
+  useEffect(() => {
+    if (!supportsNavigationBlock(navigator)) {
+      return;
+    }
+
+    const unblock = navigator.block((tx) => {
+      if (!whenRef.current) {
+        tx.retry();
+        return;
+      }
+
+      if (window.confirm(messageRef.current)) {
+        unblock();
+        tx.retry();
+      }
+    });
+
+    return unblock;
+  }, [navigator]);
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient();
-  const { data: settings, isLoading, error, refetch } = useQuery({
+  const { data: settings, isLoading, error, refetch } = useQuery<Settings, Error>({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,
@@ -77,17 +125,10 @@ export function SettingsPage() {
     isDirtyRef.current = isDirty;
   }, [isDirty]);
 
-  const blocker = useBlocker(isDirty);
-
-  useEffect(() => {
-    if (blocker.state !== "blocked") return;
-    const confirmLeave = window.confirm("You have unsaved settings changes. Leave without saving?");
-    if (confirmLeave) {
-      blocker.proceed();
-    } else {
-      blocker.reset();
-    }
-  }, [blocker]);
+  useNavigationBlocker(
+    isDirty,
+    "You have unsaved settings changes. Leave without saving?"
+  );
 
   useEffect(() => {
     if (!isDirty) return;
@@ -134,7 +175,7 @@ export function SettingsPage() {
   if (error) {
     return (
       <div className="space-y-6" data-testid={selectors.settings.page}>
-        <ErrorState error={error as Error} title="Unable to load settings" onRetry={() => refetch()} />
+        <ErrorState error={error} title="Unable to load settings" onRetry={() => refetch()} />
       </div>
     );
   }

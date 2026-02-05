@@ -28,6 +28,7 @@ import {
   QueueBacklogItemResponseSchema,
   BacklogResearchResponseSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+import { AgentManagerStatusResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/agent_manager_pb";
 import {
   ListRecommendationsResponseSchema,
   RecommendationResponseSchema,
@@ -162,6 +163,7 @@ function createProtoSchema<Shape extends Message>(
       return z.NEVER;
     }
     try {
+      // fromJson accepts both proto field names and JSON names; only ignoreUnknownFields needed.
       const message = fromJson(schema, value, {
         ignoreUnknownFields: true,
       });
@@ -250,6 +252,10 @@ export const backlogResearchResponseSchema = createProtoSchema(
 export const listScenariosResponseSchema = createProtoSchema(
   ListScenariosResponseSchema,
   "scenarios list"
+);
+export const agentManagerStatusResponseSchema = createProtoSchema(
+  AgentManagerStatusResponseSchema,
+  "agent-manager status"
 );
 export const scenarioResponseSchema = createProtoSchema(
   ScenarioResponseSchema,

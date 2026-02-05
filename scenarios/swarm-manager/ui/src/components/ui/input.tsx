@@ -2,7 +2,7 @@
  * Input Component
  *
  * A styled input component with CVA variants for consistent form inputs
- * across the application. Supports left icons and different sizes.
+ * across the application. Supports left icons, right-side slots, and sizes.
  */
 
 import { forwardRef } from "react";
@@ -35,6 +35,8 @@ export interface InputProps
     VariantProps<typeof inputVariants> {
   /** Optional icon to display on the left side */
   leftIcon?: React.ReactNode;
+  /** Optional element to render on the right side (e.g., clear button) */
+  rightSlot?: React.ReactNode;
 }
 
 /**
@@ -48,21 +50,35 @@ export interface InputProps
  * // With left icon
  * <Input leftIcon={<Search className="h-4 w-4" />} placeholder="Search..." />
  *
+ * // With right slot (e.g., clear button)
+ * <Input rightSlot={<button>Clear</button>} placeholder="Search..." />
+ *
  * // Error variant
  * <Input variant="error" placeholder="Invalid input" />
  * ```
  */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, variant, size, leftIcon, ...props }, ref) => {
-    if (leftIcon) {
+  ({ className, variant, size, leftIcon, rightSlot, ...props }, ref) => {
+    if (leftIcon || rightSlot) {
       return (
         <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            {leftIcon}
-          </div>
+          {leftIcon && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              {leftIcon}
+            </div>
+          )}
+          {rightSlot && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              {rightSlot}
+            </div>
+          )}
           <input
             ref={ref}
-            className={cn(inputVariants({ variant, size, className }), "pl-10")}
+            className={cn(
+              inputVariants({ variant, size, className }),
+              leftIcon && "pl-10",
+              rightSlot && "pr-10"
+            )}
             {...props}
           />
         </div>

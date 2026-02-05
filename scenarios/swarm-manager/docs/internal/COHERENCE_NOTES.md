@@ -13,6 +13,7 @@
 **Observations**:
 - Backlog form state consolidated into a focused Zustand store, removing multi-field `useState` scatter in the dialog.
 - BacklogDetailsPage still holds 10+ local UI state values; consider a page-level UI store if additional panels or cross-component state is added.
+- BacklogDetails file search now uses the shared Input component with a right-side action slot for clearer design-system alignment.
 
 ## Duplication
 
@@ -26,6 +27,8 @@
 
 1. ✅ Moved backlog form state into `src/stores/backlog-form-store.ts`
 2. ✅ Promoted `BacklogFormValues` to `src/types/domain.ts` for shared typing
+3. ✅ Replaced bespoke file search input with shared `Input` + right-slot affordance for consistent styling
+4. ✅ Removed arbitrary `top-[180px]` spacing in ScenarioDetailsPage (now uses `top-44`)
 
 ## Follow-ups
 

@@ -551,7 +551,7 @@ export function ScenarioDetailsPage() {
       {/* "Customize files" link shown below delete dialog when archive is checked */}
       {showDeleteDialog && archiveOnDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto relative top-[180px] w-full max-w-md">
+          <div className="pointer-events-auto relative top-44 w-full max-w-md">
             <div className="rounded-lg border border-white/10 bg-slate-800/95 p-3 shadow-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

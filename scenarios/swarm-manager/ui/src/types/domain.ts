@@ -28,6 +28,7 @@ import type {
   DeleteScenarioResponse as ProtoDeleteScenarioResponse,
   UpdateScenarioMetadataRequest as ProtoUpdateScenarioMetadataRequest,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
+import type { AgentManagerStatusResponse as ProtoAgentManagerStatusResponse } from "@vrooli/proto-types/swarm-manager/v1/api/agent_manager_pb";
 import type { BacklogResearchResponse as ProtoBacklogResearchResponse } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 
 type ProtoMessage<T extends Message> = Omit<T, "$typeName" | "$unknown">;
@@ -236,12 +237,7 @@ export type Recommendation = ProtoMessage<ProtoRecommendation>;
 // Agent Manager Domain
 // ============================================================================
 
-export interface AgentManagerStatus {
-  enabled: boolean;
-  available: boolean;
-  url?: string;
-  profileId?: string;
-}
+export type AgentManagerStatus = ProtoMessage<ProtoAgentManagerStatusResponse>;
 
 // ============================================================================
 // Settings Domain

@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// AGENT MANAGER API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// HTTP API contracts for agent-manager integration status.
+//
+// USAGE CONTEXTS:
+//   - UI services validating agent-manager status responses
+//   - API handlers emitting agent-manager status
+//
+// =============================================================================
+
+// AgentManagerStatusResponse reports agent-manager integration status.
+message AgentManagerStatusResponse {
+  // Whether agent-manager integration is enabled.
+  bool enabled = 1;
+
+  // Whether agent-manager is reachable.
+  bool available = 2;
+
+  // Base URL for agent-manager (when available).
+  optional string url = 3 [(buf.validate.field).string.uri = true];
+
+  // Active agent-manager profile identifier.
+  // @format uuid
+  optional string profile_id = 4 [(buf.validate.field).string.uuid = true];
+}
