@@ -6,6 +6,9 @@ Your goal is to ensure 3D codebases achieve **60fps rendering without React re-r
 
 Do **not** break existing functionality, regress visual fidelity, or introduce new features. All changes must maintain or improve performance and structural consistency.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### **0. Why This Skill Exists**
@@ -463,25 +466,7 @@ After auditing, update `docs/internal/R3F_COHERENCE_NOTES.md`:
 
 ### **8. Memory Management with Visited Tracker**
 
-For systematic coverage without repetition:
-
-**At session start:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}}/ui \
-  --pattern "**/*.{ts,tsx}" \
-  --tag r3f-coherence \
-  --name "{{TARGET}} - R3F Coherence" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}}/ui \
-  --tag r3f-coherence \
-  --note "<summary: what patterns were fixed, what optimizations applied>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}/ui` and TAG set to `r3f-coherence`.
 
 ---
 

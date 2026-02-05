@@ -7,7 +7,7 @@ Your goal is to ensure the target scenario's CLI is **cross-platform, feature-co
 Do **not** break functionality, regress tests, or introduce features that don't exist in the API. All CLI changes must maintain feature parity with the API.
 
 Required reading:
-- `prompt-manager skills read api-steer`
+- `prompt-manager skills read api-steer visited-tracker-tools`
 
 Optional reading:
 - `prompt-manager skills read interoperability-steer`
@@ -560,33 +560,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/CLI_AUDIT.md`:
 
 ### 13. Memory Management with Visited Tracker
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}}/cli \
-  --pattern "**/*.go" \
-  --tag cli-steer \
-  --name "{{TARGET}} - CLI Steer" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}}/cli \
-  --tag cli-steer \
-  --note "<summary of improvements made>"
-```
-
-**When a file is already well-structured:**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}}/cli \
-  --tag cli-steer \
-  --reason "Follows cli-core patterns correctly"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}/cli` and TAG set to `cli-steer`.
 
 ---
 

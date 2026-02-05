@@ -6,6 +6,9 @@ Your goal is to ensure the target scenario **communicates reliably** with shared
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's interoperability posture.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 Optional reading:
 - `prompt-manager skills read api-steer`
 
@@ -658,42 +661,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`:
 
 ### 9. Memory Management with Visited Tracker
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.{ts,tsx,go}" \
-  --tag interoperability \
-  --name "{{TARGET}} - Interoperability" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag interoperability \
-  --note "<summary of interop improvements made and what remains>"
-```
-
-**When a file is irrelevant (no API/proto consumption):**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag interoperability \
-  --reason "No API boundaries or proto consumption"
-```
-
-**Before ending your session:**
-```bash
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}} \
-  --tag interoperability \
-  --name "{{TARGET}} - Interoperability" \
-  --note "<overall progress summary, anti-patterns found, priority fixes>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `interoperability`.
 
 ---
 

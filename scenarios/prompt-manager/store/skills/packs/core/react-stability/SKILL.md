@@ -6,6 +6,9 @@ Your goal is to ensure the UI **degrades gracefully** under unexpected data, use
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve overall completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### **0. Tooling Prerequisites (Run First)**
@@ -496,50 +499,7 @@ When creating or modifying API contracts:
 
 ### **8. Memory Management with Visited Tracker**
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}}/ui \
-  --pattern "**/*.{ts,tsx}" \
-  --tag react-stability \
-  --name "{{TARGET}} - React Stability" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}}/ui \
-  --tag react-stability \
-  --note "<summary of stability improvements made and what remains>"
-```
-
-**When a file is irrelevant (config, build scripts, etc.):**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}}/ui \
-  --tag react-stability \
-  --reason "Not a React component - build config/server/tooling/types/etc."
-```
-
-**When a file is fully hardened:**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}}/ui \
-  --tag react-stability \
-  --reason "All stability improvements complete"
-```
-
-**Before ending your session:**
-```bash
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}}/ui \
-  --tag react-stability \
-  --name "{{TARGET}} - React Stability" \
-  --note "<overall progress summary, crash-prone areas identified>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}/ui` and TAG set to `react-stability`.
 
 ---
 

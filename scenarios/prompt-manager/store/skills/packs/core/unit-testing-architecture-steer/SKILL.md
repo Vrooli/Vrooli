@@ -6,6 +6,9 @@ Your goal is to ensure the target scenario has **professional test architecture*
 
 Do **not** focus on test coverage percentages or fixing failing tests. This skill is about the **backbone** of unit testing, not the content of individual tests.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### 0. Why This Skill Exists
@@ -893,43 +896,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/UNIT_TEST_ARCHITECTU
 
 ### 9. Memory Management with Visited Tracker
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-# Get files needing architecture review
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.{go,ts,tsx}" \
-  --tag unit-test-architecture \
-  --name "{{TARGET}} - Unit Test Architecture" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag unit-test-architecture \
-  --note "<summary: testability issues found, DI patterns needed, mock organization>"
-```
-
-**When a file has good test architecture:**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag unit-test-architecture \
-  --reason "Good testability: DI used, interface-based, proper isolation"
-```
-
-**Before ending your session:**
-```bash
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}} \
-  --tag unit-test-architecture \
-  --name "{{TARGET}} - Unit Test Architecture" \
-  --note "<overall progress summary, patterns established, remaining work>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `unit-test-architecture`.
 
 ---
 

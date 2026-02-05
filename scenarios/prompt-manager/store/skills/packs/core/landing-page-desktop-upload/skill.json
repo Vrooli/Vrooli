@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "landing-page-desktop-upload",
+  "name": "Landing Page Desktop Uploads",
+  "description": "Upload scenario-to-desktop installers into landing-page-business-suite downloads locally or via remote profiles",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "landing-page-business-suite",
+    "downloads",
+    "desktop",
+    "upload",
+    "remote-profiles",
+    "scenario-to-desktop"
+  ],
+  "icon": "upload",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-04T23:30:00Z",
+  "updatedAt": "2026-02-04T23:30:00Z"
+}

@@ -2,6 +2,9 @@
 
 Prioritize **extracting, standardizing, and consolidating utilities** so shared logic is consistent, discoverable, and testable. The goal is to prevent duplication and drift while keeping utilities sharply scoped and aligned to screaming architecture.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### **0. Why This Skill Exists**
@@ -257,23 +260,7 @@ YYYY-MM-DD
 
 ### **9. Memory Management with Visited Tracker**
 
-To avoid re-auditing the same files:
-
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.{ts,tsx,js,jsx}" \
-  --tag utils-unification \
-  --limit 5
-```
-
-After reviewing a file:
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag utils-unification \
-  --note "<summary of duplicated logic or consolidation>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `utils-unification`.
 
 ---
 

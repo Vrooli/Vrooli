@@ -293,6 +293,8 @@ The memory loop has two complementary parts:
 
 Use both together for skills involving systematic codebase work.
 
+Follow `prompt-manager skills read visited-tracker-tools` for full usage, per-file notes, and globbing.
+
 **visited-tracker commands:**
 ```bash
 # At session start: find files not yet analyzed

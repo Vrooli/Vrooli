@@ -6,6 +6,9 @@ Your goal is to ensure `{{TARGET}}` can be **bundled, distributed, and run** on 
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's portability.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### 0. Why This Skill Exists
@@ -648,42 +651,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md
 
 ### 9. Memory Management with Visited Tracker
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.{go,ts}" \
-  --tag cross-platform-readiness \
-  --name "{{TARGET}} - Cross-Platform Readiness" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag cross-platform-readiness \
-  --note "<summary: env var fallbacks added, SQLite swap implemented, etc.>"
-```
-
-**When a file is irrelevant (no portability concerns):**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag cross-platform-readiness \
-  --reason "Pure business logic, no platform dependencies"
-```
-
-**Before ending your session:**
-```bash
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}} \
-  --tag cross-platform-readiness \
-  --name "{{TARGET}} - Cross-Platform Readiness" \
-  --note "<overall progress, remaining portability issues>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `cross-platform-readiness`.
 
 ---
 

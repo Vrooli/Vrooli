@@ -6,6 +6,9 @@ Your goal is to turn “something went wrong” into **clear categories with exp
 
 Do **not** regress tests, weaken protections, or introduce unrelated features. All changes must maintain or improve completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### **1. Clarify Error Domains & Categories**
@@ -203,33 +206,7 @@ Favor **small, coherent improvements** over wide, speculative changes.
 
 ### **7. Memory Management with Visited Tracker**
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.{ts,tsx,go}" \
-  --tag error-semantics \
-  --name "{{TARGET}} - Error Semantics" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag error-semantics \
-  --note "<what error patterns were found/improved, what remains>"
-```
-
-**When a file has no error handling concerns:**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag error-semantics \
-  --reason "No error handling - pure types/utils/constants"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `error-semantics`.
 
 ---
 

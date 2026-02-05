@@ -6,6 +6,9 @@ Your goal is to ensure the target scenario's storage layer is **production-ready
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's storage architecture.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### 0. Why This Skill Exists
@@ -779,42 +782,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 
 ### 12. Memory Management with Visited Tracker
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.{go,ts}" \
-  --tag storage-architecture \
-  --name "{{TARGET}} - Storage Architecture" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag storage-architecture \
-  --note "<summary: connection patterns fixed, repository added, etc.>"
-```
-
-**When a file is irrelevant (no storage code):**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag storage-architecture \
-  --reason "No storage or database code"
-```
-
-**Before ending your session:**
-```bash
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}} \
-  --tag storage-architecture \
-  --name "{{TARGET}} - Storage Architecture" \
-  --note "<overall progress summary, patterns established, remaining work>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `storage-architecture`.
 
 ---
 

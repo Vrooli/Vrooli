@@ -7,6 +7,9 @@ Focus on validating **requirements and user-visible behavior**, not implementati
 
 For CLI commands and artifact analysis, see the **browser-automation-studio** skill.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 Optional reading:
 - `prompt-manager skills read browser-automation-studio`
 
@@ -478,43 +481,7 @@ bas/
 
 ### **7. Memory Management with Visited Tracker**
 
-Track E2E test coverage systematically across sessions:
-
-**At session start:**
-```bash
-# Get least-visited workflow files
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}}/bas \
-  --pattern "**/*.json" \
-  --tag e2e \
-  --name "{{TARGET}} - E2E Coverage" \
-  --limit 5
-```
-
-**After analyzing/updating a workflow:**
-```bash
-visited-tracker visit <workflow-path> \
-  --location scenarios/{{TARGET}}/bas \
-  --tag e2e \
-  --note "<summary: assertions added, coverage gaps, linked requirements>"
-```
-
-**When workflow is complete:**
-```bash
-visited-tracker exclude <workflow-path> \
-  --location scenarios/{{TARGET}}/bas \
-  --tag e2e \
-  --reason "Comprehensive coverage - all assertions validated against requirements"
-```
-
-**Before ending session:**
-```bash
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}}/bas \
-  --tag e2e \
-  --name "{{TARGET}} - E2E Coverage" \
-  --note "<progress summary, remaining gaps, priority areas>"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}/bas` and TAG set to `e2e`.
 
 ---
 

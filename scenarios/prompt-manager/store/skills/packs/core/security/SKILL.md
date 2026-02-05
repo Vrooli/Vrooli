@@ -4,6 +4,9 @@ Prioritize **improving the security posture** of this scenario across its UI, AP
 
 Do **not** break functionality, regress tests, or weaken existing protections. All changes must maintain or improve overall completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 Focus on **practical, high-impact security improvements**, guided by these principles:
 
 ---
@@ -78,70 +81,7 @@ If a larger change is needed (e.g. rotating secrets, changing deployment configs
 
 ### **7. Memory Management with Visited Tracker**
 
-To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
-
-**At the start of each iteration:**
-```bash
-# Get 5 least-visited files with auto-campaign creation
-# Include ALL file types since security concerns span code, config, env, etc.
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*" \
-  --tag security \
-  --name "{{TARGET}} - Security Hardening" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-# Record your visit with specific notes about improvements and remaining work
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag security \
-  --note "<summary of security improvements made and what remains>"
-```
-
-**When a file is irrelevant to security (docs, README, generated assets, etc.):**
-```bash
-# Mark it excluded so it doesn't resurface - this is NOT security-sensitive
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag security \
-  --reason "Not security-sensitive - documentation/generated/assets/etc."
-```
-
-**When a file is fully hardened:**
-```bash
-# Mark it excluded so it doesn't resurface in future queries
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag security \
-  --reason "All security hardening complete - validated inputs, safe outputs, proper access control"
-```
-
-**Before ending your session:**
-```bash
-# Add campaign note for handoff context to the next iteration
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}} \
-  --tag security \
-  --name "{{TARGET}} - Security Hardening" \
-  --note "<overall progress summary, patterns observed, priority areas for next iteration>"
-```
-
-**Interpreting the response:**
-- Prioritize files with **high staleness_score (>7.0)** - neglected files needing attention
-- Focus on **low visit_count (0-2)** - files not yet analyzed
-- Review **notes from previous visits** - understand context and remaining work
-- Check **coverage_percent** - track systematic progress toward 100%
-
-**Note format guidelines:**
-- **File notes**: Be specific about what you secured and what still needs work
-  - ✅ Good: "Added input validation, sanitized outputs, improved error messages. Still need to add rate limiting to API endpoints."
-  - ❌ Bad: "Made some security improvements"
-- **Campaign notes**: Provide strategic context for the next agent
-  - ✅ Good: "Completed 16/45 files (36%). Focus areas: API auth needs centralization, env vars contain hardcoded secrets, file upload lacks validation"
-  - ❌ Bad: "Made progress on security"
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `security`.
 
 ---
 

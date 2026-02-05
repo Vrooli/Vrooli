@@ -6,6 +6,9 @@ Your goal is to ensure the codebase remains **well-organized, consistent, and fr
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve overall structure and consistency.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### **0. Why This Skill Exists**
@@ -549,33 +552,7 @@ After running the audit, create or update `docs/internal/COHERENCE_NOTES.md`:
 
 ### **7. Memory Management with Visited Tracker**
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}}/ui \
-  --pattern "**/*.{ts,tsx}" \
-  --tag react-coherence \
-  --name "{{TARGET}} - React Coherence" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}}/ui \
-  --tag react-coherence \
-  --note "<summary: what was consolidated, what patterns were aligned>"
-```
-
-**When a file follows all patterns correctly:**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}}/ui \
-  --tag react-coherence \
-  --reason "Already follows coherence patterns"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}/ui` and TAG set to `react-coherence`.
 
 ---
 

@@ -6,6 +6,9 @@ Your goal is to ensure documentation remains accurate, discoverable, and tightly
 
 Do **not** change core business logic or introduce new features. All changes focus on documentation structure, references, and validation infrastructure.
 
+Required reading:
+- `prompt-manager skills read visited-tracker-tools`
+
 ---
 
 ### **1. Why This Skill Exists**
@@ -345,33 +348,7 @@ fi
 
 ### **7. Memory Management with Visited Tracker**
 
-To ensure **systematic coverage without repetition**, use `visited-tracker`:
-
-**At the start of each iteration:**
-```bash
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.md" \
-  --tag documentation-health \
-  --name "{{TARGET}} - Documentation Health" \
-  --limit 5
-```
-
-**After analyzing each file:**
-```bash
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag documentation-health \
-  --note "<summary: what was validated, what references were added>"
-```
-
-**When a file meets all documentation standards:**
-```bash
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag documentation-health \
-  --reason "Documentation complete and references valid"
-```
+Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `documentation-health`.
 
 ---
 
