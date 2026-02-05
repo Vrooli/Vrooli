@@ -335,6 +335,23 @@ is_valid_json() {
     [ "$status" -eq 0 ]
 }
 
+@test "CLI coverage supports location and tag auto-lookup" {
+    if ! service_running; then
+        skip "Service not running"
+    fi
+
+    run visited-tracker campaigns find-or-create --location "$TEST_FILE_DIR" --tag "cli-coverage" --json
+    [ "$status" -eq 0 ]
+    campaign_id=$(echo "$output" | jq -r '.campaign.id')
+    [ -n "$campaign_id" ]
+
+    run visited-tracker coverage --location "$TEST_FILE_DIR" --tag "cli-coverage"
+    [ "$status" -eq 0 ]
+
+    run visited-tracker campaigns delete "$campaign_id"
+    [ "$status" -eq 0 ]
+}
+
 @test "CLI coverage json output is valid" {
     if ! service_running; then
         skip "Service not running"
@@ -368,6 +385,24 @@ is_valid_json() {
     run visited-tracker status
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Status: " ]]
+}
+
+@test "CLI status supports location and tag auto-lookup" {
+    if ! service_running; then
+        skip "Service not running"
+    fi
+
+    run visited-tracker campaigns find-or-create --location "$TEST_FILE_DIR" --tag "cli-status" --json
+    [ "$status" -eq 0 ]
+    campaign_id=$(echo "$output" | jq -r '.campaign.id')
+    [ -n "$campaign_id" ]
+
+    run visited-tracker status --location "$TEST_FILE_DIR" --tag "cli-status"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Visited Tracker Status" ]]
+
+    run visited-tracker campaigns delete "$campaign_id"
+    [ "$status" -eq 0 ]
 }
 
 ################################################################################

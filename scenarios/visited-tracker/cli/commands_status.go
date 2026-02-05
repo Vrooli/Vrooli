@@ -10,6 +10,10 @@ import (
 
 func (a *App) cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+	location := fs.String("location", "", "Campaign location")
+	tag := fs.String("tag", "", "Campaign tag")
+	pattern := fs.String("pattern", "", "File pattern")
+	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -47,7 +51,12 @@ func (a *App) cmdStatus(args []string) error {
 		fmt.Println()
 	}
 
-	campaignID, err := a.resolveCampaignID(campaignAutoOptions{}, true)
+	campaignID, err := a.resolveCampaignID(campaignAutoOptions{
+		location: *location,
+		tag:      *tag,
+		pattern:  *pattern,
+		name:     *name,
+	}, true)
 	if err != nil {
 		fmt.Println("Coverage Overview:")
 		fmt.Println("  Coverage data not available (no campaigns found)")

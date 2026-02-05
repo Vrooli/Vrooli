@@ -161,12 +161,21 @@ func (a *App) cmdCoverage(args []string) error {
 	fs.SetOutput(io.Discard)
 	patterns := fs.String("patterns", "", "Comma-separated patterns (optional)")
 	groupBy := fs.String("group-by", "", "Group coverage (currently ignored)")
+	location := fs.String("location", "", "Campaign location")
+	tag := fs.String("tag", "", "Campaign tag")
+	pattern := fs.String("pattern", "", "File pattern")
+	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	campaignID, err := a.resolveCampaignID(campaignAutoOptions{}, *jsonOutput)
+	campaignID, err := a.resolveCampaignID(campaignAutoOptions{
+		location: *location,
+		tag:      *tag,
+		pattern:  *pattern,
+		name:     *name,
+	}, *jsonOutput)
 	if err != nil {
 		return err
 	}
