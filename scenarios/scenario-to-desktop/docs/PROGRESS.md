@@ -22,7 +22,9 @@
 
 ## Current State
 
-- **Overall Status**: Production Ready (architecture well-aligned)
+- **Overall Status**: Production Ready (bundled mode is the recommended default)
+- **Bundled Mode**: Fully operational - creates complete offline desktop applications
+- **Thin Client Mode**: Available for shared-server scenarios
 - **Tests**: 19/19 packages passing (100%)
 - **Completeness Score**: 49/100 (validation penalties for requirement grouping)
 

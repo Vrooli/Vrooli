@@ -79,7 +79,7 @@ scenario-to-desktop/
 │   │
 │   └── build-tools/              # Template generator system
 │
-├── runtime/                      # Bundled runtime for offline apps (future)
+├── runtime/                      # Bundled runtime for offline apps (production-ready)
 │
 └── docs/                         # Documentation
     ├── OVERVIEW.md               # Current vs roadmap
@@ -300,7 +300,32 @@ const WINDOW_WIDTH = 1200;
 
 ## Deployment Modes
 
-### Mode 1: Thin Client (Production Ready)
+### Mode 1: Bundled App (Recommended Default)
+
+```
+┌───────────────────────────────────────────┐
+│              Desktop App                  │
+│  ┌─────────────────────────────────────┐ │
+│  │  UI  │  API Binary  │  Runtime      │ │
+│  └─────────────────────────────────────┘ │
+│         Everything runs locally           │
+└───────────────────────────────────────────┘
+```
+
+**How It Works:**
+1. Complete offline package (UI + API + runtime supervisor)
+2. No server required—everything runs locally
+3. Automatic service health monitoring and restart
+4. Uses deployment-manager orchestration
+
+**Use When:**
+- Users need offline operation (most scenarios)
+- Full independence from central server
+- Best end-user experience with no server dependencies
+
+**Status:** Production-ready, **strongly recommended default**
+
+### Mode 2: Thin Client (Alternative)
 
 ```
 ┌─────────────────┐         ┌────────────────────────────┐
@@ -316,36 +341,11 @@ const WINDOW_WIDTH = 1200;
 4. Zero offline capability
 
 **Use When:**
-- You have a Vrooli server already running
-- You want to distribute UI-only thin clients
-- Users need network connectivity
+- Multiple users need to connect to the same backend
+- Real-time data sharing between users
+- You already have server infrastructure
 
-**Status:** Production-ready, recommended for immediate use
-
-### Mode 2: Bundled App (In Development)
-
-```
-┌───────────────────────────────────────────┐
-│              Desktop App                  │
-│  ┌─────────────────────────────────────┐ │
-│  │  UI  │  API Binary  │  Runtime      │ │
-│  └─────────────────────────────────────┘ │
-│         Everything runs locally           │
-└───────────────────────────────────────────┘
-```
-
-**How It Works:**
-1. Complete offline package (UI + API + runtime)
-2. No server required—everything runs locally
-3. Ideal for offline-first applications
-4. Uses deployment-manager orchestration
-
-**Use When:**
-- Users need offline operation
-- Full independence from central server
-- Portable applications
-
-**Status:** Under development in `runtime/` directory
+**Status:** Production-ready, for shared-server scenarios
 
 ---
 

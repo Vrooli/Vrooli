@@ -14,13 +14,15 @@ requirements/
 
 ## Requirements Status
 
-**Overall Progress**: Electron thin-client path is functional; other frameworks and bundled modes remain future work.
+**Overall Progress**: Both bundled offline mode (recommended) and thin-client mode are production-ready.
 
 ### Stable Today ✅
+- **Bundled offline mode** (recommended default) - complete offline desktop applications with runtime supervisor
 - Template generation for Electron (multiple template configs)
+- Thin-client mode for shared-server scenarios
 - Development tooling (CLI, API, UI) and accompanying tests
 - Native features in templates (tray, menus, file dialogs)
-- API integration patterns (secure IPC, external server wiring)
+- API integration patterns (secure IPC, bundled runtime wiring)
 - Auto-updater hooks available (requires manual signing/publish setup)
 
 ### Partial / Requires Environment ⚠️

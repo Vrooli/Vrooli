@@ -16,7 +16,7 @@ The process of creating a desktop wrapper from a scenario's web UI. Takes the sc
 ### Deployment Mode
 How the desktop app connects to its backend:
 - **external-server**: Thin client connecting to a remote Vrooli server
-- **bundled**: Standalone app with embedded API and runtime (in development)
+- **bundled**: Standalone app with embedded API and runtime (recommended default)
 - **cloud-api**: Future mode for cloud-native APIs
 
 ### Server Type
@@ -172,7 +172,7 @@ Automated verification that the built desktop app launches correctly, connects t
 A desktop app that contains only the UI and connects to a remote Vrooli server for all API operations. Requires network connectivity.
 
 ### Bundled App
-A self-contained desktop app with embedded UI, API binary, and runtime. Operates completely offline. (In development)
+A self-contained desktop app with embedded UI, API binary, and runtime. Operates completely offline. (Recommended default)
 
 ### App Monitor
 Vrooli's Cloudflare tunnel service that provides public HTTPS URLs for locally-running scenarios. Used to expose thin client backends.

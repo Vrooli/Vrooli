@@ -235,7 +235,7 @@ consumed_events:
 
 **Operational risks**:
 - Cross-platform packaging requires electron-builder plus Wine/macOS CI runners
-- Bundled mode remains in progress; thin-client is the supported default
+- Code signing and notarization require manual certificate setup
 
 **Launch sequencing**:
 1. Start scenario-to-desktop (`make start` or `vrooli scenario start scenario-to-desktop`)

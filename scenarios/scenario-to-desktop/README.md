@@ -1,14 +1,13 @@
 # 🖥️ Scenario-to-Desktop
 
-> **Two modes available:**
-> - **Thin Client** (UI only) - Bundles UI; connects to running Tier 1 server
-> - **Bundled App** (offline) - Full offline package with UI + API + runtime. Use `deployment-manager deploy-desktop` for the automated pipeline.
+> **Bundled Offline Mode is the strongly recommended default.**
+> Creates complete offline desktop applications with all services bundled - no server required.
 
-Transform Vrooli scenarios into desktop applications. scenario-to-desktop generates Electron wrappers that can either connect to a remote Vrooli server (thin client) or run completely offline with bundled services (bundled mode).
+Transform Vrooli scenarios into professional desktop applications. scenario-to-desktop generates Electron wrappers with full offline capability using the bundled runtime supervisor.
 
-## Bundled Desktop Apps (Recommended)
+## Bundled Desktop Apps (Recommended Default)
 
-For complete offline desktop applications, use the **deployment-manager** orchestration:
+**This is the recommended approach for most scenarios.** Creates complete offline desktop applications:
 
 ```bash
 # Create a deployment profile
@@ -21,27 +20,38 @@ deployment-manager deploy-desktop --profile my-profile
 This handles:
 - Bundle manifest generation with dependency swaps
 - Cross-compilation of API binaries for all platforms
-- Electron wrapper generation
+- Electron wrapper generation with runtime supervisor
 - Platform installers (Windows/macOS/Linux)
-- Runtime supervisor bundling
+- Automatic service health monitoring and restart
+- Secret management and secure configuration
 
 See [Hello Desktop Tutorial](../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
 
-## Thin Client Mode (Connect to Server)
+### Why Bundled Mode?
+- **Complete offline operation** - users don't need internet or server access
+- **Self-contained** - all services, databases, and resources bundled inside
+- **Professional experience** - automatic service management, health checks, and recovery
+- **Easy distribution** - single installer file, works anywhere
 
-For UI-only builds that connect to a running Vrooli server:
+## Thin Client Mode (Alternative)
+
+For scenarios where multiple users need to share a backend, or you want smaller installers:
+
+**When to use thin client:**
+- Multiple users connecting to the same server
+- Real-time data sharing between users
+- You already have infrastructure running
 
 **Limitations:**
-- **UI-only bundles** – copies `ui/dist` assets into the Electron wrapper
 - **Requires server** – API and resources must run elsewhere
-- **Secrets on server** – auth/session traffic forwards to running scenario
 - **No offline mode** – requires network connection to server
+- **UI-only bundles** – copies `ui/dist` assets into the Electron wrapper
 
 ## Thin-Client Workflow (connect to your Vrooli server)
 
-> **New:** The scenario-to-desktop UI now generates wrappers, runs `npm install/build/dist` for Windows/macOS/Linux, and ingests telemetry directly. The manual steps below are still useful for debugging or when you need to script the process yourself.
+> **Note:** Bundled mode is now the recommended default. Use thin client only when you specifically need multiple users connecting to a shared server.
 
-Thin clients are just remote controls for the full Vrooli stack that is already running your scenario. Until bundling lands, desktop builds must follow this routine:
+Thin clients are remote controls for a Vrooli stack running your scenario elsewhere:
 
 1. **Confirm `vrooli` exists on the host running the scenario.** Run `vrooli --version`. If missing, install it and run `./scripts/manage.sh setup --yes yes` once.
 2. **Start the scenario** with `vrooli scenario start <name>` (or `make start`). Wait until `vrooli scenario status <name>` reports healthy.
@@ -124,10 +134,11 @@ Preflight spins up the bundled runtime control API to validate manifests, secret
 
 ### Generator UI Upgrades
 
-- **Deployment intent picker** highlights Thin Client (ready today) vs Cloud API / Bundled (stubs). Selecting anything other than Thin Client surfaces a "coming soon" warning so builders don’t think offline bundles ship yet.
-- **Server strategy select** lets you choose between external, static, embedded Node, or executable launches. External remains the golden path; the others stay available for experiments.
-- **Proxy connection group** captures the Cloudflare/app-monitor URL right inside the Web UI, shows detected hints, and lets you test the proxy before building. You can also opt-in to have the desktop wrapper run `vrooli setup/start/stop` per build.
-- **Scenario inventory button** now expands into the same mini wizard, so "Generate Desktop" can’t happen without forcing a conscious deployment choice.
+- **Deployment intent picker** defaults to Bundled mode (recommended) with Thin Client available for shared-server scenarios. Cloud API remains a future stub.
+- **Server strategy select** lets you choose between bundled (recommended), external, static, embedded Node, or executable launches.
+- **Bundled mode workflow** guides you through the deployment-manager pipeline for complete offline packages.
+- **Proxy connection group** (for thin client) captures the Cloudflare/app-monitor URL, shows detected hints, and lets you test the proxy before building.
+- **Scenario inventory button** expands into the deployment wizard, defaulting to bundled mode.
 
 ## 📚 Documentation
 - Docs manifest for UI tab: `docs/manifest.json`
@@ -139,7 +150,7 @@ Preflight spins up the bundled runtime control API to validate manifests, secret
 
 ## 🎯 Overview
 
-scenario-to-desktop is a **permanent intelligence capability** for packaging scenarios. In v1 it focuses on rapid thin clients with native menus and distribution scaffolding. Offline capability, auto-updates, and bundled resources are roadmap items coordinated through the deployment hub.
+scenario-to-desktop is a **permanent intelligence capability** for packaging scenarios as professional desktop applications. The recommended approach is **bundled mode**, which creates complete offline applications with all services included. Thin client mode remains available for shared-server scenarios.
 
 ### Core Value Proposition
 
@@ -172,31 +183,39 @@ scenario-to-desktop/
 
 ## 🚀 Quick Start
 
-1) **Start the scenario with lifecycle**  
+### Bundled Desktop Apps (Recommended)
+
+```bash
+# Create a deployment profile
+deployment-manager profile create my-profile my-scenario --tier 2
+
+# Build everything (binaries, Electron wrapper, installers)
+deployment-manager deploy-desktop --profile my-profile
+```
+
+This creates complete offline desktop installers for Windows, macOS, and Linux.
+
+See [Hello Desktop Tutorial](../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
+
+### Thin Client Mode (Alternative)
+
+For shared-server scenarios:
+
+1) **Start scenario-to-desktop**
 ```bash
 cd scenarios/scenario-to-desktop
-make start        # preferred; or: vrooli scenario start scenario-to-desktop
+make start
 ```
 
-2) **Open the UI → Scenario Inventory**  
-Paste the LAN or Cloudflare/app-monitor proxy URL for the target scenario, keep `Deployment Mode = Thin Client`, pick platforms (Win/macOS/Linux), and click **Generate Desktop**.
+2) **Open the UI → Scenario Inventory**
+Select `Deployment Mode = Thin Client`, paste the proxy URL, pick platforms, and click **Generate Desktop**.
 
-3) **Download installers + telemetry**  
-Built artifacts stay listed after refresh; collect `deployment-telemetry.jsonl` via the UI or `scenario-to-desktop telemetry collect`.
+3) **Download installers**
+Built artifacts stay listed; collect telemetry via the UI or CLI.
 
-4) **Stop when done**  
+4) **Stop when done**
 ```bash
-make stop   # or: vrooli scenario stop scenario-to-desktop
-```
-
-CLI-only/manual config example:
-```bash
-scenario-to-desktop generate <scenario> \
-  --deployment-mode external-server \
-  --server-type external \
-  --server-url https://app-monitor.<domain>/apps/<scenario>/proxy/ \
-  --api-url https://app-monitor.<domain>/apps/<scenario>/proxy/api/ \
-  --auto-manage-vrooli=false
+make stop
 ```
 
 Full walkthroughs: see `docs/QUICKSTART.md` and `docs/deployment-modes.md`.
@@ -323,7 +342,7 @@ ssh -L 4444:localhost:37842 user@server
 # Set SERVER_PATH to http://localhost:4444/apps/picker-wheel/
 ```
 
-Until deployment-manager lands, **desktop builds = glorified browsers** that rely on one of these reachability patterns.
+For thin client mode, your desktop app connects to the server using one of these reachability patterns.
 
 
 ## 💼 Use Cases & Examples
@@ -959,4 +978,4 @@ cd ui && npm install && npm start
 
 *scenario-to-desktop is part of Vrooli's recursive intelligence system, where every capability built becomes a permanent tool for building even more advanced capabilities. Each desktop app generated contributes to the ever-expanding intelligence of the platform.*
 
-**Version**: 1.0.0 | **Status**: Thin-client + bundled (deployment-manager pipeline); cloud mode stubbed | **License**: MIT
+**Version**: 1.0.0 | **Status**: Bundled offline mode (recommended default) + thin-client mode; cloud mode stubbed | **License**: MIT
