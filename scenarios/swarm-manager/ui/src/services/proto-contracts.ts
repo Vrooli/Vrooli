@@ -13,6 +13,12 @@ import type {
   BacklogItem,
   BacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
+import type { Recommendation } from "@vrooli/proto-types/swarm-manager/v1/domain/recommendation_pb";
+import type {
+  RecommendationSources,
+  RecommendationAutoSync,
+  Settings,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type { Scenario } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
 import {
   BacklogItemResponseSchema,
@@ -20,7 +26,13 @@ import {
   BacklogFileResponseSchema,
   ListBacklogItemsResponseSchema,
   QueueBacklogItemResponseSchema,
+  BacklogResearchResponseSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+import {
+  ListRecommendationsResponseSchema,
+  RecommendationResponseSchema,
+} from "@vrooli/proto-types/swarm-manager/v1/api/recommendations_pb";
+import { SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import {
   ListScenariosResponseSchema,
   ScenarioResponseSchema,
@@ -28,19 +40,106 @@ import {
   ScenarioFilesResponseSchema,
   DeleteScenarioRequestSchema,
   PreserveFilesRequestSchema,
+  type DeleteScenarioResponse,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type { ScenarioFile } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type {
   BacklogItem as BacklogItemDomain,
   BacklogFile as BacklogFileDomain,
+  Recommendation as RecommendationDomain,
+  RecommendationAutoSync as RecommendationAutoSyncDomain,
+  RecommendationSources as RecommendationSourcesDomain,
+  RecommendationMode,
   Scenario as ScenarioDomain,
   ScenarioFile as ScenarioFileDomain,
   DeleteScenarioResponse as DeleteScenarioDomain,
+  Settings as SettingsDomain,
+  ThemePreference,
+} from "../types";
+import {
+  BACKLOG_KINDS,
+  BACKLOG_RESEARCH_TARGETS,
+  BACKLOG_STATUSES,
+  SCENARIO_STATUSES,
 } from "../types";
 
 const validator = createValidator();
 
 type ProtoSchema<Shape extends Message> = z.ZodType<Shape, z.ZodTypeDef, unknown>;
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null) {
+    return true;
+  }
+  const valueType = typeof value;
+  if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+  if (valueType === "object") {
+    return Object.values(value as Record<string, unknown>).every(isJsonValue);
+  }
+  return false;
+}
+
+const backlogStatusSet = new Set<string>(BACKLOG_STATUSES);
+const backlogKindSet = new Set<string>(BACKLOG_KINDS);
+const backlogResearchTargetSet = new Set<string>(BACKLOG_RESEARCH_TARGETS);
+const scenarioStatusSet = new Set<string>(SCENARIO_STATUSES);
+const fileTypeSet = new Set<string>(["file", "directory"]);
+const DEFAULT_RECOMMENDATION_SOURCES: RecommendationSourcesDomain = {
+  problems: true,
+  completeness: true,
+  tests: true,
+  coverage: true,
+  customFocus: true,
+  scenarioNotes: true,
+};
+const DEFAULT_RECOMMENDATION_AUTOSYNC: RecommendationAutoSyncDomain = {
+  enabled: false,
+  interval: "1h",
+  lastRefresh: "",
+  nextRefresh: "",
+  refreshScope: "manual",
+};
+
+function isBacklogStatus(value: unknown): value is BacklogItemDomain["status"] {
+  return typeof value === "string" && backlogStatusSet.has(value);
+}
+
+function isBacklogKind(value: unknown): value is BacklogItemDomain["kind"] {
+  return typeof value === "string" && backlogKindSet.has(value);
+}
+
+function isBacklogResearchTarget(value: unknown): value is BacklogItemDomain["researchTarget"] {
+  return typeof value === "string" && backlogResearchTargetSet.has(value);
+}
+
+function isScenarioStatus(value: unknown): value is ScenarioDomain["status"] {
+  return typeof value === "string" && scenarioStatusSet.has(value);
+}
+
+function isFileType(value: unknown): value is BacklogFileDomain["type"] {
+  return typeof value === "string" && fileTypeSet.has(value);
+}
+
+function isThemePreference(value: unknown): value is ThemePreference {
+  return value === "dark" || value === "light" || value === "system";
+}
+
+function normalizeThemePreference(value?: string): ThemePreference {
+  return isThemePreference(value) ? value : "dark";
+}
+
+function isRecommendationMode(value: unknown): value is RecommendationMode {
+  return value === "off" || value === "suggestions" || value === "yolo";
+}
+
+function normalizeRecommendationMode(value?: string): RecommendationMode {
+  return isRecommendationMode(value) ? value : "off";
+}
 
 function toFiniteNumber(value: number | bigint | undefined): number | undefined {
   if (typeof value === "bigint") {
@@ -55,9 +154,15 @@ function createProtoSchema<Shape extends Message>(
   label: string
 ): ProtoSchema<Shape> {
   return z.unknown().transform<Shape>((value, ctx) => {
+    if (!isJsonValue(value)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid ${label} response`,
+      });
+      return z.NEVER;
+    }
     try {
-      const jsonValue = value as JsonValue;
-      const message = fromJson(schema, jsonValue, {
+      const message = fromJson(schema, value, {
         ignoreUnknownFields: true,
       });
       const validation = validator.validate(schema, message);
@@ -138,6 +243,10 @@ export const queueBacklogResponseSchema = createProtoSchema(
   QueueBacklogItemResponseSchema,
   "backlog queue"
 );
+export const backlogResearchResponseSchema = createProtoSchema(
+  BacklogResearchResponseSchema,
+  "backlog research"
+);
 export const listScenariosResponseSchema = createProtoSchema(
   ListScenariosResponseSchema,
   "scenarios list"
@@ -154,42 +263,59 @@ export const scenarioFilesResponseSchema = createProtoSchema(
   ScenarioFilesResponseSchema,
   "scenario files"
 );
+export const listRecommendationsResponseSchema = createProtoSchema(
+  ListRecommendationsResponseSchema,
+  "recommendations list"
+);
+export const recommendationResponseSchema = createProtoSchema(
+  RecommendationResponseSchema,
+  "recommendation"
+);
+export const settingsResponseSchema = createProtoSchema(
+  SettingsResponseSchema,
+  "settings"
+);
 
 export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema };
 
 export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
+  const status = isBacklogStatus(protoItem.status) ? protoItem.status : "backlog";
+  const kind = isBacklogKind(protoItem.kind) ? protoItem.kind : "idea";
+  const researchTarget = isBacklogResearchTarget(protoItem.researchTarget) ? protoItem.researchTarget : undefined;
   return {
     name: protoItem.name ?? "",
     title: protoItem.title ?? "",
     description: protoItem.description ?? "",
-    status: (protoItem.status as BacklogItemDomain["status"]) || "backlog",
+    status,
     priority: protoItem.priority ?? 0,
     tags: protoItem.tags ?? [],
     created: protoItem.created ?? "",
     updated: protoItem.updated ?? "",
-    kind: (protoItem.kind as BacklogItemDomain["kind"]) || "idea",
-    ...(protoItem.researchTarget ? { researchTarget: protoItem.researchTarget as BacklogItemDomain["researchTarget"] } : {}),
+    kind,
+    ...(researchTarget ? { researchTarget } : {}),
   };
 }
 
 export function mapProtoBacklogFile(protoFile: BacklogFile): BacklogFileDomain {
   const size = toFiniteNumber(protoFile.size);
   const children = protoFile.children?.map(mapProtoBacklogFile) ?? [];
+  const fileType = isFileType(protoFile.type) ? protoFile.type : "file";
   return {
     name: protoFile.name ?? "",
     path: protoFile.path ?? "",
-    type: (protoFile.type as BacklogFileDomain["type"]) || "file",
+    type: fileType,
     ...(size !== undefined ? { size } : {}),
     ...(children.length > 0 ? { children } : {}),
   };
 }
 
 export function mapProtoScenario(protoScenario: Scenario): ScenarioDomain {
+  const status = isScenarioStatus(protoScenario.status) ? protoScenario.status : "unknown";
   return {
     name: protoScenario.name ?? "",
     displayName: protoScenario.displayName ?? "",
     description: protoScenario.description ?? "",
-    status: (protoScenario.status as ScenarioDomain["status"]) || "unknown",
+    status,
     priority: protoScenario.priority ?? 0,
     completenessScore:
       typeof protoScenario.completenessScore === "number"
@@ -204,29 +330,85 @@ export function mapProtoScenario(protoScenario: Scenario): ScenarioDomain {
 export function mapProtoScenarioFile(protoFile: ScenarioFile): ScenarioFileDomain {
   const size = toFiniteNumber(protoFile.size);
   const children = protoFile.children?.map(mapProtoScenarioFile) ?? [];
+  const fileType = isFileType(protoFile.type) ? protoFile.type : "file";
   return {
     name: protoFile.name ?? "",
     path: protoFile.path ?? "",
-    type: (protoFile.type as ScenarioFileDomain["type"]) || "file",
+    type: fileType,
     ...(size !== undefined ? { size } : {}),
     ...(children.length > 0 ? { children } : {}),
   };
 }
 
 export function mapDeleteScenarioResponse(
-  protoResponse: {
-    name: string;
-    archived: boolean;
-    message: string;
-    backlogIdeaName?: string;
-    preservedFiles?: string[];
-  }
+  protoResponse: DeleteScenarioResponse
 ): DeleteScenarioDomain {
   return {
     name: protoResponse.name,
     archived: protoResponse.archived,
     message: protoResponse.message,
-    ...(protoResponse.backlogIdeaName ? { backlogIdeaName: protoResponse.backlogIdeaName } : {}),
-    ...(protoResponse.preservedFiles?.length ? { preservedFiles: protoResponse.preservedFiles } : {}),
+    backlogIdeaName: protoResponse.backlogIdeaName,
+    preservedFiles: protoResponse.preservedFiles,
+  };
+}
+
+export function mapProtoRecommendation(
+  protoRecommendation: Recommendation
+): RecommendationDomain {
+  return {
+    id: protoRecommendation.id ?? "",
+    scenarioName: protoRecommendation.scenarioName ?? "",
+    type: protoRecommendation.type ?? "",
+    description: protoRecommendation.description ?? "",
+    status: protoRecommendation.status ?? "",
+    priority: protoRecommendation.priority ?? 0,
+    created: protoRecommendation.created ?? "",
+    ...(protoRecommendation.source ? { source: protoRecommendation.source } : {}),
+    ...(protoRecommendation.taskId ? { taskId: protoRecommendation.taskId } : {}),
+    ...(protoRecommendation.runId ? { runId: protoRecommendation.runId } : {}),
+    ...(protoRecommendation.startedAt ? { startedAt: protoRecommendation.startedAt } : {}),
+    ...(protoRecommendation.startedBy ? { startedBy: protoRecommendation.startedBy } : {}),
+    ...(protoRecommendation.autoApproved !== undefined
+      ? { autoApproved: protoRecommendation.autoApproved }
+      : {}),
+  };
+}
+
+export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
+  const sources = mapProtoRecommendationSources(protoSettings.recommendationSources);
+  const autoSync = mapProtoRecommendationAutoSync(protoSettings.recommendationAutoSync);
+  return {
+    theme: normalizeThemePreference(protoSettings.theme),
+    recommendationMode: normalizeRecommendationMode(protoSettings.recommendationMode),
+    customFocus: protoSettings.customFocus ?? "",
+    insightsEnabled: protoSettings.insightsEnabled ?? false,
+    insightsAutoAnalyze: protoSettings.insightsAutoAnalyze ?? false,
+    recommendationSources: sources,
+    recommendationAutoSync: autoSync,
+  };
+}
+
+function mapProtoRecommendationSources(
+  protoSources?: RecommendationSources
+): RecommendationSourcesDomain {
+  return {
+    problems: protoSources?.problems ?? DEFAULT_RECOMMENDATION_SOURCES.problems,
+    completeness: protoSources?.completeness ?? DEFAULT_RECOMMENDATION_SOURCES.completeness,
+    tests: protoSources?.tests ?? DEFAULT_RECOMMENDATION_SOURCES.tests,
+    coverage: protoSources?.coverage ?? DEFAULT_RECOMMENDATION_SOURCES.coverage,
+    customFocus: protoSources?.customFocus ?? DEFAULT_RECOMMENDATION_SOURCES.customFocus,
+    scenarioNotes: protoSources?.scenarioNotes ?? DEFAULT_RECOMMENDATION_SOURCES.scenarioNotes,
+  };
+}
+
+function mapProtoRecommendationAutoSync(
+  protoAutoSync?: RecommendationAutoSync
+): RecommendationAutoSyncDomain {
+  return {
+    enabled: protoAutoSync?.enabled ?? DEFAULT_RECOMMENDATION_AUTOSYNC.enabled,
+    interval: protoAutoSync?.interval ?? DEFAULT_RECOMMENDATION_AUTOSYNC.interval,
+    lastRefresh: protoAutoSync?.lastRefresh ?? DEFAULT_RECOMMENDATION_AUTOSYNC.lastRefresh,
+    nextRefresh: protoAutoSync?.nextRefresh ?? DEFAULT_RECOMMENDATION_AUTOSYNC.nextRefresh,
+    refreshScope: protoAutoSync?.refreshScope ?? DEFAULT_RECOMMENDATION_AUTOSYNC.refreshScope,
   };
 }

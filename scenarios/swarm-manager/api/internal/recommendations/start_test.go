@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/testutil"
@@ -76,11 +78,11 @@ func TestHandler_StartRecommendationSuccess(t *testing.T) {
 
 	testutil.AssertStatusCreated(t, recorder)
 
-	response := testutil.DecodeJSON[RecommendationResponse](t, recorder)
-	if response.Recommendation.TaskID != "task-1" || response.Recommendation.RunID != "run-1" {
+	response := testutil.DecodeProtoJSON(t, recorder, &apipb.RecommendationResponse{})
+	if response.Recommendation.GetTaskId() != "task-1" || response.Recommendation.GetRunId() != "run-1" {
 		t.Fatalf("expected run identifiers to be set")
 	}
-	if response.Recommendation.StartedAt == "" {
+	if response.Recommendation.GetStartedAt() == "" {
 		t.Fatalf("expected startedAt to be set")
 	}
 
@@ -249,14 +251,14 @@ func TestHandler_StartRecommendationYoloAutoApprove(t *testing.T) {
 
 	testutil.AssertStatusCreated(t, recorder)
 
-	response := testutil.DecodeJSON[RecommendationResponse](t, recorder)
-	if response.Recommendation.Status != StatusApproved {
-		t.Fatalf("expected status approved, got %s", response.Recommendation.Status)
+	response := testutil.DecodeProtoJSON(t, recorder, &apipb.RecommendationResponse{})
+	if response.Recommendation.GetStatus() != string(StatusApproved) {
+		t.Fatalf("expected status approved, got %s", response.Recommendation.GetStatus())
 	}
-	if !response.Recommendation.AutoApproved {
+	if !response.Recommendation.GetAutoApproved() {
 		t.Fatalf("expected autoApproved true")
 	}
-	if response.Recommendation.StartedBy != "yolo" {
-		t.Fatalf("expected startedBy yolo, got %q", response.Recommendation.StartedBy)
+	if response.Recommendation.GetStartedBy() != "yolo" {
+		t.Fatalf("expected startedBy yolo, got %q", response.Recommendation.GetStartedBy())
 	}
 }

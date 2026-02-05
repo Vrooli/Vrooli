@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/testutil"
 )
 
@@ -22,8 +24,8 @@ func TestHandler_GetViaRouter(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[SettingsResponse](t, rec)
-	if resp.Settings.Theme == "" {
+	resp := testutil.DecodeProtoJSON(t, rec, &apipb.SettingsResponse{})
+	if resp.GetSettings().GetTheme() == "" {
 		t.Fatalf("expected settings to be populated")
 	}
 }

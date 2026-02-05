@@ -29,6 +29,16 @@ export const BACKLOG_RESEARCH_TARGETS: BacklogResearchTarget[] = [
   "unspecified",
 ];
 
+export const BACKLOG_STATUSES: BacklogStatus[] = [
+  "backlog",
+  "researching",
+  "ready",
+  "queued",
+  "in_progress",
+  "completed",
+  "archived",
+];
+
 export const BACKLOG_RESEARCH_TARGET_LABELS: Record<BacklogResearchTarget, string> = {
   idea: "Idea",
   fix: "Fix",
@@ -70,6 +80,8 @@ export const SCENARIO_STATUS_ICONS: Record<ScenarioStatus, LucideIcon> = {
   error: AlertCircle,
   unknown: Circle,
 };
+
+export const SCENARIO_STATUSES: ScenarioStatus[] = ["running", "stopped", "error", "unknown"];
 
 /**
  * Maps scenario status to tailwind text color classes

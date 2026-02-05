@@ -17,6 +17,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
@@ -59,37 +61,6 @@ type Recommendation struct {
 	StartedAt    string               `json:"startedAt,omitempty"`
 	StartedBy    string               `json:"startedBy,omitempty"`
 	AutoApproved bool                 `json:"autoApproved,omitempty"`
-}
-
-// RecommendationPatch updates an existing recommendation.
-type RecommendationPatch struct {
-	Status *RecommendationStatus `json:"status,omitempty"`
-}
-
-// StartRequest allows optional overrides when starting a recommendation.
-type StartRequest struct {
-	Prompt      string `json:"prompt,omitempty"`
-	ScopePath   string `json:"scopePath,omitempty"`
-	ProjectRoot string `json:"projectRoot,omitempty"`
-	CreatedBy   string `json:"createdBy,omitempty"`
-}
-
-// ListResponse wraps recommendation listings.
-type ListResponse struct {
-	Recommendations []Recommendation `json:"recommendations"`
-}
-
-// RecommendationResponse wraps recommendation responses.
-type RecommendationResponse struct {
-	Recommendation Recommendation `json:"recommendation"`
-}
-
-// CreateRequest accepts manual recommendation creation.
-type CreateRequest struct {
-	Scenario    string             `json:"scenarioName"`
-	Type        RecommendationType `json:"type"`
-	Description string             `json:"description"`
-	Priority    int                `json:"priority"`
 }
 
 // Store persists recommendations in JSON.
@@ -339,7 +310,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cfg.RecommendationMode == "off" {
-		if err := httputil.JSON(w, ListResponse{Recommendations: []Recommendation{}}); err != nil {
+		resp := &apipb.ListRecommendationsResponse{Recommendations: nil}
+		if err := httputil.ProtoJSON(w, resp); err != nil {
 			httputil.InternalError(w, "[recommendations] list", "failed to encode response")
 		}
 		return
@@ -367,7 +339,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items = filterRecommendations(items, r)
-	if err := httputil.JSON(w, ListResponse{Recommendations: items}); err != nil {
+	resp := &apipb.ListRecommendationsResponse{Recommendations: recommendationsToProto(items)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[recommendations] list", "failed to encode response")
 	}
 }
@@ -381,7 +354,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	if cfg.RecommendationMode == "off" {
-		if err := httputil.JSON(w, ListResponse{Recommendations: []Recommendation{}}); err != nil {
+		resp := &apipb.ListRecommendationsResponse{Recommendations: nil}
+		if err := httputil.ProtoJSON(w, resp); err != nil {
 			httputil.InternalError(w, "[recommendations] refresh", "failed to encode response")
 		}
 		return
@@ -406,21 +380,27 @@ func (h *Handler) Refresh(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	if err := httputil.JSON(w, ListResponse{Recommendations: items}); err != nil {
+	resp := &apipb.ListRecommendationsResponse{Recommendations: recommendationsToProto(items)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[recommendations] refresh", "failed to encode response")
 	}
 }
 
 // Create creates a manual recommendation.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var req CreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req apipb.CreateRecommendationRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 		httputil.BadRequest(w, "[recommendations] create", "invalid request body")
 		return
 	}
+	if !httputil.ValidateProtoRequest(w, "[recommendations] create", "invalid request body", &req) {
+		return
+	}
 
-	if err := validateCreateRequest(req); err != nil {
-		httputil.BadRequest(w, "[recommendations] create", err.Error())
+	scenarioName := strings.TrimSpace(req.ScenarioName)
+	description := strings.TrimSpace(req.Description)
+	if scenarioName == "" || description == "" {
+		httputil.BadRequest(w, "[recommendations] create", "scenarioName and description are required")
 		return
 	}
 
@@ -432,11 +412,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	rec := Recommendation{
 		ID:          idgen.Generate(),
-		Scenario:    strings.TrimSpace(req.Scenario),
-		Type:        req.Type,
-		Description: strings.TrimSpace(req.Description),
+		Scenario:    scenarioName,
+		Type:        RecommendationType(req.Type),
+		Description: description,
 		Status:      StatusPending,
-		Priority:    clampPriority(req.Priority),
+		Priority:    clampPriority(int(req.Priority)),
 		Created:     time.Now().UTC().Format(time.RFC3339),
 		Source:      "manual",
 	}
@@ -447,7 +427,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := httputil.JSONWithStatus(w, http.StatusCreated, RecommendationResponse{Recommendation: rec}); err != nil {
+	resp := &apipb.RecommendationResponse{Recommendation: recommendationToProto(rec)}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[recommendations] create", "failed to encode response")
 	}
 }
@@ -460,8 +441,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var patch RecommendationPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	var patch apipb.UpdateRecommendationRequest
+	if err := httputil.DecodeProtoJSON(r, &patch); err != nil {
 		httputil.BadRequest(w, "[recommendations] update", "invalid request body")
 		return
 	}
@@ -470,9 +451,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httputil.BadRequest(w, "[recommendations] update", "status is required")
 		return
 	}
-
-	if !isValidStatus(*patch.Status) {
-		httputil.BadRequest(w, "[recommendations] update", "invalid status")
+	if !httputil.ValidateProtoRequest(w, "[recommendations] update", "invalid request body", &patch) {
 		return
 	}
 
@@ -482,7 +461,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, found := updateStatus(items, id, *patch.Status)
+	updated, found := updateStatus(items, id, RecommendationStatus(*patch.Status))
 	if !found {
 		httputil.NotFound(w, "[recommendations] update", "recommendation not found")
 		return
@@ -494,7 +473,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rec := findByID(updated, id)
-	if err := httputil.JSON(w, RecommendationResponse{Recommendation: rec}); err != nil {
+	resp := &apipb.RecommendationResponse{Recommendation: recommendationToProto(rec)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[recommendations] update", "failed to encode response")
 	}
 }
@@ -507,10 +487,13 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req StartRequest
+	var req apipb.StartRecommendationRequest
 	if r.Body != nil && r.ContentLength != 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 			httputil.BadRequest(w, "[recommendations] start", "invalid request body")
+			return
+		}
+		if !httputil.ValidateProtoRequest(w, "[recommendations] start", "invalid request body", &req) {
 			return
 		}
 	}
@@ -549,7 +532,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		h.agentService = service
 	}
 
-	scopePath := strings.TrimSpace(req.ScopePath)
+	scopePath := strings.TrimSpace(readOptionalString(req.ScopePath))
 	if scopePath == "" {
 		if strings.TrimSpace(rec.Scenario) != "" {
 			scopePath = filepath.Join("scenarios", rec.Scenario)
@@ -558,12 +541,12 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	projectRoot := strings.TrimSpace(readOptionalString(req.ProjectRoot))
 	if projectRoot == "" {
 		projectRoot = "."
 	}
 
-	createdBy := strings.TrimSpace(req.CreatedBy)
+	createdBy := strings.TrimSpace(readOptionalString(req.CreatedBy))
 	if createdBy == "" {
 		createdBy = "swarm-manager"
 	}
@@ -573,7 +556,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		Scenario:         rec.Scenario,
 		Type:             string(rec.Type),
 		Description:      rec.Description,
-		Prompt:           strings.TrimSpace(req.Prompt),
+		Prompt:           strings.TrimSpace(readOptionalString(req.Prompt)),
 		ScopePath:        scopePath,
 		ProjectRoot:      projectRoot,
 		CreatedBy:        createdBy,
@@ -618,9 +601,72 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := httputil.JSONWithStatus(w, http.StatusCreated, RecommendationResponse{Recommendation: rec}); err != nil {
+	resp := &apipb.RecommendationResponse{Recommendation: recommendationToProto(rec)}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[recommendations] start", "failed to encode response")
 	}
+}
+
+func recommendationsToProto(items []Recommendation) []*domainpb.Recommendation {
+	if len(items) == 0 {
+		return nil
+	}
+	result := make([]*domainpb.Recommendation, 0, len(items))
+	for _, item := range items {
+		result = append(result, recommendationToProto(item))
+	}
+	return result
+}
+
+func recommendationToProto(rec Recommendation) *domainpb.Recommendation {
+	protoRec := &domainpb.Recommendation{
+		Id:           rec.ID,
+		ScenarioName: rec.Scenario,
+		Type:         string(rec.Type),
+		Description:  rec.Description,
+		Status:       string(rec.Status),
+		Priority:     int32(rec.Priority),
+		Created:      rec.Created,
+	}
+	if value := optionalString(rec.Source); value != nil {
+		protoRec.Source = value
+	}
+	if value := optionalString(rec.TaskID); value != nil {
+		protoRec.TaskId = value
+	}
+	if value := optionalString(rec.RunID); value != nil {
+		protoRec.RunId = value
+	}
+	if value := optionalString(rec.StartedAt); value != nil {
+		protoRec.StartedAt = value
+	}
+	if value := optionalString(rec.StartedBy); value != nil {
+		protoRec.StartedBy = value
+	}
+	if rec.AutoApproved {
+		protoRec.AutoApproved = optionalBool(rec.AutoApproved)
+	}
+	return protoRec
+}
+
+func optionalString(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func optionalBool(value bool) *bool {
+	result := value
+	return &result
+}
+
+func readOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func normalizeList(items []Recommendation) []Recommendation {
@@ -643,22 +689,6 @@ func normalizeList(items []Recommendation) []Recommendation {
 		}
 	}
 	return items
-}
-
-func validateCreateRequest(req CreateRequest) error {
-	if strings.TrimSpace(req.Scenario) == "" {
-		return errors.New("scenarioName is required")
-	}
-	if strings.TrimSpace(req.Description) == "" {
-		return errors.New("description is required")
-	}
-	if !isValidType(req.Type) {
-		return errors.New("invalid recommendation type")
-	}
-	if req.Priority < 1 || req.Priority > 5 {
-		return errors.New("priority must be between 1 and 5")
-	}
-	return nil
 }
 
 func isValidType(t RecommendationType) bool {

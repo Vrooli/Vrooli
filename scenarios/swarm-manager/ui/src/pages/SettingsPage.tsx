@@ -141,9 +141,18 @@ export function SettingsPage() {
 
   if (!form) return null;
 
-  const recommendationSourceEntries = Object.keys(form.recommendationSources)
-    .filter((key): key is keyof Settings["recommendationSources"] => key in form.recommendationSources)
-    .map((key) => ({ key, value: form.recommendationSources[key] }));
+  const recommendationSourceKeys: Array<keyof Settings["recommendationSources"]> = [
+    "problems",
+    "completeness",
+    "tests",
+    "coverage",
+    "customFocus",
+    "scenarioNotes",
+  ];
+  const recommendationSourceEntries = recommendationSourceKeys.map((key) => ({
+    key,
+    value: form.recommendationSources[key],
+  }));
 
   return (
     <div className="space-y-6" data-testid={selectors.settings.page}>

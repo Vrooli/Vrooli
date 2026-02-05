@@ -86,6 +86,32 @@ class QueueBacklogItemResponse(_message.Message):
     created: str
     def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ...) -> None: ...
 
+class BacklogResearchRequest(_message.Message):
+    __slots__ = ("prompt", "scope_path", "project_root", "mode", "target_kind")
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_PATH_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_ROOT_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
+    prompt: str
+    scope_path: str
+    project_root: str
+    mode: str
+    target_kind: str
+    def __init__(self, prompt: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., mode: _Optional[str] = ..., target_kind: _Optional[str] = ...) -> None: ...
+
+class BacklogResearchResponse(_message.Message):
+    __slots__ = ("task_id", "run_id", "base_url", "created")
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    BASE_URL_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    run_id: str
+    base_url: str
+    created: str
+    def __init__(self, task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ...) -> None: ...
+
 class ConvertBacklogItemRequest(_message.Message):
     __slots__ = ("target_kind", "target_name")
     TARGET_KIND_FIELD_NUMBER: _ClassVar[int]

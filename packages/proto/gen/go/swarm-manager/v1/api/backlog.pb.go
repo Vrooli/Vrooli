@@ -518,6 +518,157 @@ func (x *QueueBacklogItemResponse) GetCreated() string {
 	return ""
 }
 
+// BacklogResearchRequest captures optional fields for spawning a research agent.
+type BacklogResearchRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Additional prompt context.
+	Prompt *string `protobuf:"bytes,1,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
+	// Optional scope path override.
+	ScopePath *string `protobuf:"bytes,2,opt,name=scope_path,json=scopePath,proto3,oneof" json:"scope_path,omitempty"`
+	// Optional project root override.
+	ProjectRoot *string `protobuf:"bytes,3,opt,name=project_root,json=projectRoot,proto3,oneof" json:"project_root,omitempty"`
+	// Optional research mode.
+	Mode *string `protobuf:"bytes,4,opt,name=mode,proto3,oneof" json:"mode,omitempty"`
+	// Optional research target for research items.
+	TargetKind    *string `protobuf:"bytes,5,opt,name=target_kind,json=targetKind,proto3,oneof" json:"target_kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BacklogResearchRequest) Reset() {
+	*x = BacklogResearchRequest{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BacklogResearchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BacklogResearchRequest) ProtoMessage() {}
+
+func (x *BacklogResearchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BacklogResearchRequest.ProtoReflect.Descriptor instead.
+func (*BacklogResearchRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *BacklogResearchRequest) GetPrompt() string {
+	if x != nil && x.Prompt != nil {
+		return *x.Prompt
+	}
+	return ""
+}
+
+func (x *BacklogResearchRequest) GetScopePath() string {
+	if x != nil && x.ScopePath != nil {
+		return *x.ScopePath
+	}
+	return ""
+}
+
+func (x *BacklogResearchRequest) GetProjectRoot() string {
+	if x != nil && x.ProjectRoot != nil {
+		return *x.ProjectRoot
+	}
+	return ""
+}
+
+func (x *BacklogResearchRequest) GetMode() string {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return ""
+}
+
+func (x *BacklogResearchRequest) GetTargetKind() string {
+	if x != nil && x.TargetKind != nil {
+		return *x.TargetKind
+	}
+	return ""
+}
+
+// BacklogResearchResponse returns agent-manager identifiers for research runs.
+type BacklogResearchResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	BaseUrl       string                 `protobuf:"bytes,3,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Created       string                 `protobuf:"bytes,4,opt,name=created,proto3" json:"created,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BacklogResearchResponse) Reset() {
+	*x = BacklogResearchResponse{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BacklogResearchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BacklogResearchResponse) ProtoMessage() {}
+
+func (x *BacklogResearchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BacklogResearchResponse.ProtoReflect.Descriptor instead.
+func (*BacklogResearchResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *BacklogResearchResponse) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *BacklogResearchResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *BacklogResearchResponse) GetBaseUrl() string {
+	if x != nil {
+		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *BacklogResearchResponse) GetCreated() string {
+	if x != nil {
+		return x.Created
+	}
+	return ""
+}
+
 // ConvertBacklogItemRequest moves a backlog item to another kind.
 type ConvertBacklogItemRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -531,7 +682,7 @@ type ConvertBacklogItemRequest struct {
 
 func (x *ConvertBacklogItemRequest) Reset() {
 	*x = ConvertBacklogItemRequest{}
-	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[8]
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +694,7 @@ func (x *ConvertBacklogItemRequest) String() string {
 func (*ConvertBacklogItemRequest) ProtoMessage() {}
 
 func (x *ConvertBacklogItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[8]
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +707,7 @@ func (x *ConvertBacklogItemRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConvertBacklogItemRequest.ProtoReflect.Descriptor instead.
 func (*ConvertBacklogItemRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{8}
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ConvertBacklogItemRequest) GetTargetKind() string {
@@ -616,7 +767,25 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\atask_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n" +
 	"\x06run_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n" +
 	"\bbase_url\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abaseUrl\x12!\n" +
-	"\acreated\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\"\x97\x01\n" +
+	"\acreated\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\"\xee\x02\n" +
+	"\x16BacklogResearchRequest\x12\x1b\n" +
+	"\x06prompt\x18\x01 \x01(\tH\x00R\x06prompt\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"scope_path\x18\x02 \x01(\tH\x01R\tscopePath\x88\x01\x01\x12&\n" +
+	"\fproject_root\x18\x03 \x01(\tH\x02R\vprojectRoot\x88\x01\x01\x12Y\n" +
+	"\x04mode\x18\x04 \x01(\tB@\xbaH=r;R\aclarifyR\asuggestR\aenhanceR\bresearchR\aexploreR\vinvestigateH\x03R\x04mode\x88\x01\x01\x12L\n" +
+	"\vtarget_kind\x18\x05 \x01(\tB&\xbaH#r!R\x04ideaR\x03fixR\aexecuteR\vunspecifiedH\x04R\n" +
+	"targetKind\x88\x01\x01B\t\n" +
+	"\a_promptB\r\n" +
+	"\v_scope_pathB\x0f\n" +
+	"\r_project_rootB\a\n" +
+	"\x05_modeB\x0e\n" +
+	"\f_target_kind\"\xa2\x01\n" +
+	"\x17BacklogResearchResponse\x12 \n" +
+	"\atask_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n" +
+	"\x06run_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n" +
+	"\bbase_url\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abaseUrl\x12!\n" +
+	"\acreated\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\"\x97\x01\n" +
 	"\x19ConvertBacklogItemRequest\x12D\n" +
 	"\vtarget_kind\x18\x01 \x01(\tB#\xbaH r\x1eR\x04ideaR\bresearchR\x03fixR\aexecuteR\n" +
 	"targetKind\x12$\n" +
@@ -636,7 +805,7 @@ func file_swarm_manager_v1_api_backlog_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_backlog_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
 	(*CreateBacklogItemRequest)(nil),  // 0: swarm_manager.v1.CreateBacklogItemRequest
 	(*UpdateBacklogItemRequest)(nil),  // 1: swarm_manager.v1.UpdateBacklogItemRequest
@@ -646,16 +815,18 @@ var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
 	(*BacklogFileResponse)(nil),       // 5: swarm_manager.v1.BacklogFileResponse
 	(*QueueBacklogItemRequest)(nil),   // 6: swarm_manager.v1.QueueBacklogItemRequest
 	(*QueueBacklogItemResponse)(nil),  // 7: swarm_manager.v1.QueueBacklogItemResponse
-	(*ConvertBacklogItemRequest)(nil), // 8: swarm_manager.v1.ConvertBacklogItemRequest
-	(*domain.BacklogItem)(nil),        // 9: swarm_manager.v1.BacklogItem
-	(*domain.BacklogFile)(nil),        // 10: swarm_manager.v1.BacklogFile
+	(*BacklogResearchRequest)(nil),    // 8: swarm_manager.v1.BacklogResearchRequest
+	(*BacklogResearchResponse)(nil),   // 9: swarm_manager.v1.BacklogResearchResponse
+	(*ConvertBacklogItemRequest)(nil), // 10: swarm_manager.v1.ConvertBacklogItemRequest
+	(*domain.BacklogItem)(nil),        // 11: swarm_manager.v1.BacklogItem
+	(*domain.BacklogFile)(nil),        // 12: swarm_manager.v1.BacklogFile
 }
 var file_swarm_manager_v1_api_backlog_proto_depIdxs = []int32{
-	9,  // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
-	9,  // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
-	10, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
-	10, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
-	9,  // 4: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	11, // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
+	11, // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	12, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
+	12, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	11, // 4: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
 	5,  // [5:5] is the sub-list for method output_type
 	5,  // [5:5] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
@@ -672,13 +843,14 @@ func file_swarm_manager_v1_api_backlog_proto_init() {
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[1].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[6].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[8].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_backlog_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_backlog_proto_rawDesc), len(file_swarm_manager_v1_api_backlog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/backlog.proto.
  */
 export const file_swarm_manager_v1_api_backlog: GenFile = /*@__PURE__*/
-  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2FwaS9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIscCChhDcmVhdGVCYWNrbG9nSXRlbVJlcXVlc3QSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIWCgV0aXRsZRgCIAEoCUIHukgEcgIQARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEiAKCHByaW9yaXR5GAQgASgFQgm6SAYaBBgKKAFIAYgBARIWCgR0YWdzGAUgAygJQgi6SAWSAQIYARIxCgRraW5kGAYgASgJQiO6SCByHlIEaWRlYVIIcmVzZWFyY2hSA2ZpeFIHZXhlY3V0ZRJECg9yZXNlYXJjaF90YXJnZXQYByABKAlCJrpII3IhUgRpZGVhUgNmaXhSB2V4ZWN1dGVSC3Vuc3BlY2lmaWVkSAKIAQFCDgoMX2Rlc2NyaXB0aW9uQgsKCV9wcmlvcml0eUISChBfcmVzZWFyY2hfdGFyZ2V0IrQCChhVcGRhdGVCYWNrbG9nSXRlbVJlcXVlc3QSFgoFdGl0bGUYASABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAiABKAkSXAoGc3RhdHVzGAMgASgJQky6SElyR1IHYmFja2xvZ1ILcmVzZWFyY2hpbmdSBXJlYWR5UgZxdWV1ZWRSC2luX3Byb2dyZXNzUgljb21wbGV0ZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAQgASgFQgm6SAYaBBgKKAESFgoEdGFncxgFIAMoCUIIukgFkgECGAESRAoPcmVzZWFyY2hfdGFyZ2V0GAYgASgJQia6SCNyIVIEaWRlYVIDZml4UgdleGVjdXRlUgt1bnNwZWNpZmllZEgAiAEBQhIKEF9yZXNlYXJjaF90YXJnZXQiSAoYTGlzdEJhY2tsb2dJdGVtc1Jlc3BvbnNlEiwKBWl0ZW1zGAEgAygLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nSXRlbSJCChNCYWNrbG9nSXRlbVJlc3BvbnNlEisKBGl0ZW0YASABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dJdGVtIkQKFEJhY2tsb2dGaWxlc1Jlc3BvbnNlEiwKBWZpbGVzGAEgAygLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nRmlsZSJCChNCYWNrbG9nRmlsZVJlc3BvbnNlEisKBGZpbGUYASABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dGaWxlIlsKF1F1ZXVlQmFja2xvZ0l0ZW1SZXF1ZXN0EjIKCW9wZXJhdGlvbhgBIAEoCUIaukgXchVSCWdlbmVyYXRvclIIaW1wcm92ZXJIAIgBAUIMCgpfb3BlcmF0aW9uIq8BChhRdWV1ZUJhY2tsb2dJdGVtUmVzcG9uc2USKwoEaXRlbRgBIAEoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0l0ZW0SGAoHdGFza19pZBgCIAEoCUIHukgEcgIQARIXCgZydW5faWQYAyABKAlCB7pIBHICEAESGQoIYmFzZV91cmwYBCABKAlCB7pIBHICEAESGAoHY3JlYXRlZBgFIAEoCUIHukgEcgIQASJ/ChlDb252ZXJ0QmFja2xvZ0l0ZW1SZXF1ZXN0EjgKC3RhcmdldF9raW5kGAEgASgJQiO6SCByHlIEaWRlYVIIcmVzZWFyY2hSA2ZpeFIHZXhlY3V0ZRIYCgt0YXJnZXRfbmFtZRgCIAEoCUgAiAEBQg4KDF90YXJnZXRfbmFtZUJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_backlog]);
+  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2FwaS9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIscCChhDcmVhdGVCYWNrbG9nSXRlbVJlcXVlc3QSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIWCgV0aXRsZRgCIAEoCUIHukgEcgIQARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEiAKCHByaW9yaXR5GAQgASgFQgm6SAYaBBgKKAFIAYgBARIWCgR0YWdzGAUgAygJQgi6SAWSAQIYARIxCgRraW5kGAYgASgJQiO6SCByHlIEaWRlYVIIcmVzZWFyY2hSA2ZpeFIHZXhlY3V0ZRJECg9yZXNlYXJjaF90YXJnZXQYByABKAlCJrpII3IhUgRpZGVhUgNmaXhSB2V4ZWN1dGVSC3Vuc3BlY2lmaWVkSAKIAQFCDgoMX2Rlc2NyaXB0aW9uQgsKCV9wcmlvcml0eUISChBfcmVzZWFyY2hfdGFyZ2V0IrQCChhVcGRhdGVCYWNrbG9nSXRlbVJlcXVlc3QSFgoFdGl0bGUYASABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAiABKAkSXAoGc3RhdHVzGAMgASgJQky6SElyR1IHYmFja2xvZ1ILcmVzZWFyY2hpbmdSBXJlYWR5UgZxdWV1ZWRSC2luX3Byb2dyZXNzUgljb21wbGV0ZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAQgASgFQgm6SAYaBBgKKAESFgoEdGFncxgFIAMoCUIIukgFkgECGAESRAoPcmVzZWFyY2hfdGFyZ2V0GAYgASgJQia6SCNyIVIEaWRlYVIDZml4UgdleGVjdXRlUgt1bnNwZWNpZmllZEgAiAEBQhIKEF9yZXNlYXJjaF90YXJnZXQiSAoYTGlzdEJhY2tsb2dJdGVtc1Jlc3BvbnNlEiwKBWl0ZW1zGAEgAygLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nSXRlbSJCChNCYWNrbG9nSXRlbVJlc3BvbnNlEisKBGl0ZW0YASABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dJdGVtIkQKFEJhY2tsb2dGaWxlc1Jlc3BvbnNlEiwKBWZpbGVzGAEgAygLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nRmlsZSJCChNCYWNrbG9nRmlsZVJlc3BvbnNlEisKBGZpbGUYASABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLkJhY2tsb2dGaWxlIlsKF1F1ZXVlQmFja2xvZ0l0ZW1SZXF1ZXN0EjIKCW9wZXJhdGlvbhgBIAEoCUIaukgXchVSCWdlbmVyYXRvclIIaW1wcm92ZXJIAIgBAUIMCgpfb3BlcmF0aW9uIq8BChhRdWV1ZUJhY2tsb2dJdGVtUmVzcG9uc2USKwoEaXRlbRgBIAEoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0l0ZW0SGAoHdGFza19pZBgCIAEoCUIHukgEcgIQARIXCgZydW5faWQYAyABKAlCB7pIBHICEAESGQoIYmFzZV91cmwYBCABKAlCB7pIBHICEAESGAoHY3JlYXRlZBgFIAEoCUIHukgEcgIQASK8AgoWQmFja2xvZ1Jlc2VhcmNoUmVxdWVzdBITCgZwcm9tcHQYASABKAlIAIgBARIXCgpzY29wZV9wYXRoGAIgASgJSAGIAQESGQoMcHJvamVjdF9yb290GAMgASgJSAKIAQESUwoEbW9kZRgEIAEoCUJAukg9cjtSB2NsYXJpZnlSB3N1Z2dlc3RSB2VuaGFuY2VSCHJlc2VhcmNoUgdleHBsb3JlUgtpbnZlc3RpZ2F0ZUgDiAEBEkAKC3RhcmdldF9raW5kGAUgASgJQia6SCNyIVIEaWRlYVIDZml4UgdleGVjdXRlUgt1bnNwZWNpZmllZEgEiAEBQgkKB19wcm9tcHRCDQoLX3Njb3BlX3BhdGhCDwoNX3Byb2plY3Rfcm9vdEIHCgVfbW9kZUIOCgxfdGFyZ2V0X2tpbmQigQEKF0JhY2tsb2dSZXNlYXJjaFJlc3BvbnNlEhgKB3Rhc2tfaWQYASABKAlCB7pIBHICEAESFwoGcnVuX2lkGAIgASgJQge6SARyAhABEhkKCGJhc2VfdXJsGAMgASgJQge6SARyAhABEhgKB2NyZWF0ZWQYBCABKAlCB7pIBHICEAEifwoZQ29udmVydEJhY2tsb2dJdGVtUmVxdWVzdBI4Cgt0YXJnZXRfa2luZBgBIAEoCUIjukggch5SBGlkZWFSCHJlc2VhcmNoUgNmaXhSB2V4ZWN1dGUSGAoLdGFyZ2V0X25hbWUYAiABKAlIAIgBAUIOCgxfdGFyZ2V0X25hbWVCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_backlog]);
 
 /**
  * CreateBacklogItemRequest defines the payload for creating a new backlog item.
@@ -272,6 +272,89 @@ export const QueueBacklogItemResponseSchema: GenMessage<QueueBacklogItemResponse
   messageDesc(file_swarm_manager_v1_api_backlog, 7);
 
 /**
+ * BacklogResearchRequest captures optional fields for spawning a research agent.
+ *
+ * @generated from message swarm_manager.v1.BacklogResearchRequest
+ */
+export type BacklogResearchRequest = Message<"swarm_manager.v1.BacklogResearchRequest"> & {
+  /**
+   * Additional prompt context.
+   *
+   * @generated from field: optional string prompt = 1;
+   */
+  prompt?: string;
+
+  /**
+   * Optional scope path override.
+   *
+   * @generated from field: optional string scope_path = 2;
+   */
+  scopePath?: string;
+
+  /**
+   * Optional project root override.
+   *
+   * @generated from field: optional string project_root = 3;
+   */
+  projectRoot?: string;
+
+  /**
+   * Optional research mode.
+   *
+   * @generated from field: optional string mode = 4;
+   */
+  mode?: string;
+
+  /**
+   * Optional research target for research items.
+   *
+   * @generated from field: optional string target_kind = 5;
+   */
+  targetKind?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.BacklogResearchRequest.
+ * Use `create(BacklogResearchRequestSchema)` to create a new message.
+ */
+export const BacklogResearchRequestSchema: GenMessage<BacklogResearchRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 8);
+
+/**
+ * BacklogResearchResponse returns agent-manager identifiers for research runs.
+ *
+ * @generated from message swarm_manager.v1.BacklogResearchResponse
+ */
+export type BacklogResearchResponse = Message<"swarm_manager.v1.BacklogResearchResponse"> & {
+  /**
+   * @generated from field: string task_id = 1;
+   */
+  taskId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string base_url = 3;
+   */
+  baseUrl: string;
+
+  /**
+   * @generated from field: string created = 4;
+   */
+  created: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.BacklogResearchResponse.
+ * Use `create(BacklogResearchResponseSchema)` to create a new message.
+ */
+export const BacklogResearchResponseSchema: GenMessage<BacklogResearchResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_backlog, 9);
+
+/**
  * ConvertBacklogItemRequest moves a backlog item to another kind.
  *
  * @generated from message swarm_manager.v1.ConvertBacklogItemRequest
@@ -297,5 +380,5 @@ export type ConvertBacklogItemRequest = Message<"swarm_manager.v1.ConvertBacklog
  * Use `create(ConvertBacklogItemRequestSchema)` to create a new message.
  */
 export const ConvertBacklogItemRequestSchema: GenMessage<ConvertBacklogItemRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_backlog, 8);
+  messageDesc(file_swarm_manager_v1_api_backlog, 10);
 

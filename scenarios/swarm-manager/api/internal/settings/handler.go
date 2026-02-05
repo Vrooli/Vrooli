@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/storage"
 )
@@ -77,11 +79,6 @@ type RecommendationAutoSyncPatch struct {
 	LastRefresh  *string `json:"lastRefresh,omitempty"`
 	NextRefresh  *string `json:"nextRefresh,omitempty"`
 	RefreshScope *string `json:"refreshScope,omitempty"`
-}
-
-// SettingsResponse wraps settings responses for consistency.
-type SettingsResponse struct {
-	Settings Settings `json:"settings"`
 }
 
 // Store persists settings on disk.
@@ -249,7 +246,8 @@ func (h *Handler) Get(w http.ResponseWriter, _ *http.Request) {
 		httputil.InternalError(w, "[settings] get", "failed to load settings")
 		return
 	}
-	if err := httputil.JSON(w, SettingsResponse{Settings: settings}); err != nil {
+	resp := &apipb.SettingsResponse{Settings: settingsToProto(settings)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[settings] get", "failed to encode response")
 		return
 	}
@@ -257,14 +255,17 @@ func (h *Handler) Get(w http.ResponseWriter, _ *http.Request) {
 
 // Update applies a partial settings update and persists it.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	var patch SettingsPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	var req apipb.UpdateSettingsRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 		httputil.BadRequest(w, "[settings] update", "invalid request body")
 		return
 	}
 
-	if patch == (SettingsPatch{}) {
+	if isEmptyUpdateSettingsRequest(&req) {
 		httputil.BadRequest(w, "[settings] update", "no settings provided")
+		return
+	}
+	if !httputil.ValidateProtoRequest(w, "[settings] update", "invalid request body", &req) {
 		return
 	}
 
@@ -274,6 +275,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	patch := settingsPatchFromProto(&req)
 	updated := applyPatch(current, patch)
 	if err := h.store.Save(updated); err != nil {
 		if errors.Is(err, errInvalidTheme) || errors.Is(err, errInvalidRecommendationMode) {
@@ -293,7 +295,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		time.Now().UTC().Format(time.RFC3339),
 	)
 
-	if err := httputil.JSON(w, SettingsResponse{Settings: updated}); err != nil {
+	resp := &apipb.SettingsResponse{Settings: settingsToProto(updated)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[settings] update", "failed to encode response")
 		return
 	}
@@ -361,4 +364,114 @@ func applyAutoSyncPatch(current *RecommendationAutoSync, patch *RecommendationAu
 	if patch.RefreshScope != nil {
 		current.RefreshScope = strings.TrimSpace(*patch.RefreshScope)
 	}
+}
+
+func settingsToProto(settings Settings) *domainpb.Settings {
+	return &domainpb.Settings{
+		Theme:               settings.Theme,
+		RecommendationMode:  settings.RecommendationMode,
+		CustomFocus:         optionalString(settings.CustomFocus),
+		InsightsEnabled:     settings.InsightsEnabled,
+		InsightsAutoAnalyze: settings.InsightsAutoAnalyze,
+		RecommendationSources: &domainpb.RecommendationSources{
+			Problems:      settings.RecommendationSources.Problems,
+			Completeness:  settings.RecommendationSources.Completeness,
+			Tests:         settings.RecommendationSources.Tests,
+			Coverage:      settings.RecommendationSources.Coverage,
+			CustomFocus:   settings.RecommendationSources.CustomFocus,
+			ScenarioNotes: settings.RecommendationSources.ScenarioNotes,
+		},
+		RecommendationAutoSync: &domainpb.RecommendationAutoSync{
+			Enabled:      settings.RecommendationAutoSync.Enabled,
+			Interval:     settings.RecommendationAutoSync.Interval,
+			LastRefresh:  settings.RecommendationAutoSync.LastRefresh,
+			NextRefresh:  settings.RecommendationAutoSync.NextRefresh,
+			RefreshScope: settings.RecommendationAutoSync.RefreshScope,
+		},
+	}
+}
+
+func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
+	patch := SettingsPatch{}
+	if req == nil {
+		return patch
+	}
+	if req.Theme != nil {
+		patch.Theme = req.Theme
+	}
+	if req.RecommendationMode != nil {
+		patch.RecommendationMode = req.RecommendationMode
+	}
+	if req.CustomFocus != nil {
+		patch.CustomFocus = req.CustomFocus
+	}
+	if req.InsightsEnabled != nil {
+		patch.InsightsEnabled = req.InsightsEnabled
+	}
+	if req.InsightsAutoAnalyze != nil {
+		patch.InsightsAutoAnalyze = req.InsightsAutoAnalyze
+	}
+	if req.RecommendationSources != nil {
+		sources := &RecommendationSourcesPatch{}
+		if req.RecommendationSources.Problems != nil {
+			sources.Problems = req.RecommendationSources.Problems
+		}
+		if req.RecommendationSources.Completeness != nil {
+			sources.Completeness = req.RecommendationSources.Completeness
+		}
+		if req.RecommendationSources.Tests != nil {
+			sources.Tests = req.RecommendationSources.Tests
+		}
+		if req.RecommendationSources.Coverage != nil {
+			sources.Coverage = req.RecommendationSources.Coverage
+		}
+		if req.RecommendationSources.CustomFocus != nil {
+			sources.CustomFocus = req.RecommendationSources.CustomFocus
+		}
+		if req.RecommendationSources.ScenarioNotes != nil {
+			sources.ScenarioNotes = req.RecommendationSources.ScenarioNotes
+		}
+		patch.RecommendationSources = sources
+	}
+	if req.RecommendationAutoSync != nil {
+		autoSync := &RecommendationAutoSyncPatch{}
+		if req.RecommendationAutoSync.Enabled != nil {
+			autoSync.Enabled = req.RecommendationAutoSync.Enabled
+		}
+		if req.RecommendationAutoSync.Interval != nil {
+			autoSync.Interval = req.RecommendationAutoSync.Interval
+		}
+		if req.RecommendationAutoSync.LastRefresh != nil {
+			autoSync.LastRefresh = req.RecommendationAutoSync.LastRefresh
+		}
+		if req.RecommendationAutoSync.NextRefresh != nil {
+			autoSync.NextRefresh = req.RecommendationAutoSync.NextRefresh
+		}
+		if req.RecommendationAutoSync.RefreshScope != nil {
+			autoSync.RefreshScope = req.RecommendationAutoSync.RefreshScope
+		}
+		patch.RecommendationAutoSync = autoSync
+	}
+	return patch
+}
+
+func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
+	if req == nil {
+		return true
+	}
+	return req.Theme == nil &&
+		req.RecommendationMode == nil &&
+		req.CustomFocus == nil &&
+		req.InsightsEnabled == nil &&
+		req.InsightsAutoAnalyze == nil &&
+		req.RecommendationSources == nil &&
+		req.RecommendationAutoSync == nil
+}
+
+func optionalString(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }

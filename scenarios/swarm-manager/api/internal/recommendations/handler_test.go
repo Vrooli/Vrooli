@@ -10,9 +10,12 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"google.golang.org/protobuf/encoding/protojson"
 
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
+	"swarm-manager/internal/testutil"
 )
 
 func TestEngine_GenerateProblemsRecommendation(t *testing.T) {
@@ -79,10 +82,7 @@ func TestHandler_ListModeOffReturnsEmpty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", recorder.Code)
 	}
 
-	var response ListResponse
-	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
+	response := testutil.DecodeProtoJSON(t, recorder, &apipb.ListRecommendationsResponse{})
 	if len(response.Recommendations) != 0 {
 		t.Fatalf("expected empty list, got %d", len(response.Recommendations))
 	}
@@ -98,13 +98,13 @@ func TestHandler_CreateAndUpdate(t *testing.T) {
 		settingsStore: settings.NewStore(filepath.Join(dir, "settings.json")),
 	}
 
-	createPayload := CreateRequest{
-		Scenario:    "demo",
-		Type:        TypeDocs,
-		Description: "Add documentation",
-		Priority:    3,
+	createPayload := &apipb.CreateRecommendationRequest{
+		ScenarioName: "demo",
+		Type:         "docs",
+		Description:  "Add documentation",
+		Priority:     3,
 	}
-	body, _ := json.Marshal(createPayload)
+	body, _ := protojson.MarshalOptions{UseProtoNames: true}.Marshal(createPayload)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/recommendations", bytes.NewReader(body))
 	recorder := httptest.NewRecorder()
@@ -114,26 +114,20 @@ func TestHandler_CreateAndUpdate(t *testing.T) {
 		t.Fatalf("expected 201, got %d", recorder.Code)
 	}
 
-	var created RecommendationResponse
-	if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
+	created := testutil.DecodeProtoJSON(t, recorder, &apipb.RecommendationResponse{})
 
-	patch := RecommendationPatch{Status: ptrStatus(StatusApproved)}
-	patchBody, _ := json.Marshal(patch)
+	status := "approved"
+	patch := &apipb.UpdateRecommendationRequest{Status: &status}
+	patchBody, _ := protojson.MarshalOptions{UseProtoNames: true}.Marshal(patch)
 
-	updateReq := httptest.NewRequest(http.MethodPatch, "/api/v1/recommendations/"+created.Recommendation.ID, bytes.NewReader(patchBody))
+	updateReq := httptest.NewRequest(http.MethodPatch, "/api/v1/recommendations/"+created.Recommendation.Id, bytes.NewReader(patchBody))
 	updateRec := httptest.NewRecorder()
-	updateReq = muxSetVars(updateReq, map[string]string{"id": created.Recommendation.ID})
+	updateReq = muxSetVars(updateReq, map[string]string{"id": created.Recommendation.Id})
 	handler.Update(updateRec, updateReq)
 
 	if updateRec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", updateRec.Code)
 	}
-}
-
-func ptrStatus(status RecommendationStatus) *RecommendationStatus {
-	return &status
 }
 
 // muxSetVars is a helper to inject mux vars in unit tests.

@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// SETTINGS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain settings
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// User-configurable settings for Swarm Manager. These values are persisted
+// locally and surfaced through the settings API for the UI.
+//
+// USAGE CONTEXTS:
+//   - API responses for settings endpoints
+//   - UI data models (settings page, recommendations gating)
+//
+// =============================================================================
+
+// RecommendationSources controls which inputs are used to generate recommendations.
+message RecommendationSources {
+  bool problems = 1;
+  bool completeness = 2;
+  bool tests = 3;
+  bool coverage = 4;
+  bool custom_focus = 5;
+  bool scenario_notes = 6;
+}
+
+// RecommendationAutoSync controls automatic refresh behavior.
+message RecommendationAutoSync {
+  // Whether auto-sync is enabled.
+  bool enabled = 1;
+
+  // Refresh interval (e.g. "15m", "1h").
+  string interval = 2;
+
+  // RFC3339 timestamp of last refresh.
+  // @format rfc3339
+  string last_refresh = 3;
+
+  // RFC3339 timestamp of next refresh.
+  // @format rfc3339
+  string next_refresh = 4;
+
+  // Refresh scope ("manual" | "scheduled").
+  string refresh_scope = 5;
+}
+
+// Settings captures persisted configuration for Swarm Manager.
+message Settings {
+  // UI theme preference.
+  string theme = 1 [(buf.validate.field).string = { in: ["dark", "light", "system"] }];
+
+  // Recommendation engine mode.
+  string recommendation_mode = 2 [(buf.validate.field).string = { in: ["off", "suggestions", "yolo"] }];
+
+  // Optional custom focus for recommendations.
+  optional string custom_focus = 3;
+
+  // Whether insights engine is enabled.
+  bool insights_enabled = 4;
+
+  // Auto-analyze on scenario changes.
+  bool insights_auto_analyze = 5;
+
+  // Recommendation data sources.
+  RecommendationSources recommendation_sources = 6;
+
+  // Auto-sync configuration.
+  RecommendationAutoSync recommendation_auto_sync = 7;
+}

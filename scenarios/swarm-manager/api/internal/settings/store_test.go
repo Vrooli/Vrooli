@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"swarm-manager/internal/testutil"
 )
 
 func TestStore_SaveInvalidTheme(t *testing.T) {
@@ -119,21 +122,18 @@ func TestHandler_UpdateAutoSyncAndSources(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
-	var response SettingsResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-
-	if !response.Settings.RecommendationAutoSync.Enabled {
+	response := testutil.DecodeProtoJSON(t, rec, &apipb.SettingsResponse{})
+	settings := response.GetSettings()
+	if !settings.GetRecommendationAutoSync().GetEnabled() {
 		t.Fatalf("expected auto sync enabled")
 	}
-	if response.Settings.RecommendationAutoSync.Interval != "30m" {
-		t.Fatalf("expected interval trimmed to 30m, got %q", response.Settings.RecommendationAutoSync.Interval)
+	if settings.GetRecommendationAutoSync().GetInterval() != "30m" {
+		t.Fatalf("expected interval trimmed to 30m, got %q", settings.GetRecommendationAutoSync().GetInterval())
 	}
-	if response.Settings.RecommendationAutoSync.RefreshScope != "scheduled" {
-		t.Fatalf("expected refresh scope trimmed to scheduled, got %q", response.Settings.RecommendationAutoSync.RefreshScope)
+	if settings.GetRecommendationAutoSync().GetRefreshScope() != "scheduled" {
+		t.Fatalf("expected refresh scope trimmed to scheduled, got %q", settings.GetRecommendationAutoSync().GetRefreshScope())
 	}
-	if response.Settings.RecommendationSources.Coverage != false {
+	if settings.GetRecommendationSources().GetCoverage() != false {
 		t.Fatalf("expected coverage disabled")
 	}
 }

@@ -50,6 +50,30 @@ var archivePresets = map[string][]string{
 	"all-planning":  {"PRD.md", "README.md", "docs/**", "requirements/**", "specs/**", "planning/**", "design/**", ".vrooli/**", "*.md"},
 }
 
+func normalizePreserveFilesRequest(req *apipb.PreserveFilesRequest) {
+	if req == nil {
+		return
+	}
+	if req.Preset != nil {
+		normalized := strings.ToLower(strings.TrimSpace(*req.Preset))
+		if normalized == "" {
+			req.Preset = nil
+		} else {
+			req.Preset = &normalized
+		}
+	}
+	if len(req.Paths) > 0 {
+		trimmed := make([]string, 0, len(req.Paths))
+		for _, path := range req.Paths {
+			candidate := strings.TrimSpace(path)
+			if candidate != "" {
+				trimmed = append(trimmed, candidate)
+			}
+		}
+		req.Paths = trimmed
+	}
+}
+
 // Scenario represents a deployed application in the Vrooli ecosystem.
 // [REQ:REQ-P0-006] Scenario data structure for catalog listing
 // [REQ:REQ-P0-007] Includes metadata for greenfield toggle and recommendations
@@ -454,6 +478,9 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 		httputil.BadRequest(w, "[scenarios] update", "invalid request body")
 		return
 	}
+	if !httputil.ValidateProtoRequest(w, "[scenarios] update", "invalid request body", &req) {
+		return
+	}
 
 	// Load existing metadata
 	metadata, _, err := h.loadMetadata(source.Path)
@@ -724,6 +751,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		var req apipb.DeleteScenarioRequest
 		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 			httputil.BadRequest(w, "[scenarios] delete", "invalid request body")
+			return
+		}
+		if req.PreserveFiles != nil {
+			normalizePreserveFilesRequest(req.PreserveFiles)
+		}
+		if !httputil.ValidateProtoRequest(w, "[scenarios] delete", "invalid request body", &req) {
 			return
 		}
 		preserveFiles = req.PreserveFiles

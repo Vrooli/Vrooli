@@ -2,40 +2,19 @@
  * Settings Service - Data access layer for settings persistence
  */
 
-import { z } from "zod";
+import { UpdateSettingsRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type { Settings, RecommendationSources, RecommendationAutoSync } from "../types";
-
-const recommendationSourcesSchema = z.object({
-  problems: z.boolean().optional(),
-  completeness: z.boolean().optional(),
-  tests: z.boolean().optional(),
-  coverage: z.boolean().optional(),
-  customFocus: z.boolean().optional(),
-  scenarioNotes: z.boolean().optional(),
-});
-
-const recommendationAutoSyncSchema = z.object({
-  enabled: z.boolean().optional(),
-  interval: z.string().optional(),
-  lastRefresh: z.string().optional(),
-  nextRefresh: z.string().optional(),
-  refreshScope: z.string().optional(),
-});
-
-const settingsSchema = z.object({
-  settings: z.object({
-    theme: z.enum(["dark", "light", "system"]).optional(),
-    recommendationMode: z.enum(["off", "suggestions", "yolo"]).optional(),
-    customFocus: z.string().optional(),
-    insightsEnabled: z.boolean().optional(),
-    insightsAutoAnalyze: z.boolean().optional(),
-    recommendationSources: recommendationSourcesSchema.optional(),
-    recommendationAutoSync: recommendationAutoSyncSchema.optional(),
-  }),
-});
+import {
+  buildMessage,
+  mapProtoSettings,
+  parseProtoResponse,
+  requireProtoField,
+  settingsResponseSchema,
+  toProtoJson,
+} from "./proto-contracts";
 
 const DEFAULT_SOURCES: RecommendationSources = {
   problems: true,
@@ -97,29 +76,43 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
   return {
     async get(): Promise<Settings> {
       const data = await apiClient.get<unknown>(API_ENDPOINTS.settings);
-      const parsed = settingsSchema.safeParse(data);
-      if (!parsed.success) {
-        throw new Error("Invalid settings response");
-      }
-      return normalizeSettings(parsed.data.settings);
+      const parsed = parseProtoResponse(settingsResponseSchema, data, "settings");
+      return normalizeSettings(mapProtoSettings(requireProtoField(parsed.settings, "settings")));
     },
 
     async update(patch: SettingsPatch): Promise<Settings> {
-      const payload = {
+      const message = buildMessage(UpdateSettingsRequestSchema, {
         theme: patch.theme,
         recommendationMode: patch.recommendationMode,
         customFocus: patch.customFocus,
         insightsEnabled: patch.insightsEnabled,
         insightsAutoAnalyze: patch.insightsAutoAnalyze,
-        recommendationSources: patch.recommendationSources,
-        recommendationAutoSync: patch.recommendationAutoSync,
-      };
-      const data = await apiClient.put<unknown>(API_ENDPOINTS.settings, payload);
-      const parsed = settingsSchema.safeParse(data);
-      if (!parsed.success) {
-        throw new Error("Invalid settings response");
-      }
-      return normalizeSettings(parsed.data.settings);
+        recommendationSources: patch.recommendationSources
+          ? {
+              problems: patch.recommendationSources.problems,
+              completeness: patch.recommendationSources.completeness,
+              tests: patch.recommendationSources.tests,
+              coverage: patch.recommendationSources.coverage,
+              customFocus: patch.recommendationSources.customFocus,
+              scenarioNotes: patch.recommendationSources.scenarioNotes,
+            }
+          : undefined,
+        recommendationAutoSync: patch.recommendationAutoSync
+          ? {
+              enabled: patch.recommendationAutoSync.enabled,
+              interval: patch.recommendationAutoSync.interval,
+              lastRefresh: patch.recommendationAutoSync.lastRefresh,
+              nextRefresh: patch.recommendationAutoSync.nextRefresh,
+              refreshScope: patch.recommendationAutoSync.refreshScope,
+            }
+          : undefined,
+      });
+      const data = await apiClient.put<unknown>(
+        API_ENDPOINTS.settings,
+        toProtoJson(UpdateSettingsRequestSchema, message)
+      );
+      const parsed = parseProtoResponse(settingsResponseSchema, data, "settings");
+      return normalizeSettings(mapProtoSettings(requireProtoField(parsed.settings, "settings")));
     },
   };
 }

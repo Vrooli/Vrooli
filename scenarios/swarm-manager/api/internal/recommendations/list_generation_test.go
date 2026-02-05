@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/testutil"
@@ -45,8 +46,8 @@ func TestHandler_ListGeneratesWhenEmpty(t *testing.T) {
 
 	storePath := filepath.Join(root, "recs.json")
 	handler := &Handler{
-		store:         NewStore(storePath),
-		engine:        newTestEngine(scenariosDir, []scenarios.ScenarioSource{
+		store: NewStore(storePath),
+		engine: newTestEngine(scenariosDir, []scenarios.ScenarioSource{
 			makeScenarioSource("demo", "Demo", scenarioPath, "demo"),
 		}),
 		settingsStore: settings.NewStore(settingsPath),
@@ -57,7 +58,7 @@ func TestHandler_ListGeneratesWhenEmpty(t *testing.T) {
 	handler.List(rec, req)
 
 	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[ListResponse](t, rec)
+	resp := testutil.DecodeProtoJSON(t, rec, &apipb.ListRecommendationsResponse{})
 	if len(resp.Recommendations) == 0 {
 		t.Fatalf("expected recommendations, got none")
 	}

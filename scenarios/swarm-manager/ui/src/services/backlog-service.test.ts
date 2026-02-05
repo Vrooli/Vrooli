@@ -130,7 +130,16 @@ describe("Backlog Service", () => {
 
       const result = await service.update("idea", "my-idea", updates);
 
-      expect(mockApiClient.put).toHaveBeenCalledWith("/backlog/idea/my-idea", updates);
+      expect(mockApiClient.put).toHaveBeenCalledWith(
+        "/backlog/idea/my-idea",
+        expect.objectContaining({
+          title: "Updated Title",
+          description: "Original description",
+          status: "backlog",
+          priority: 1,
+          tags: [],
+        })
+      );
       expect(result).toEqual(updatedItem);
     });
   });

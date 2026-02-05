@@ -39,6 +39,9 @@ describe("MainLayout", () => {
       recommendationAutoSync: {
         enabled: false,
         interval: "1h",
+        lastRefresh: "",
+        nextRefresh: "",
+        refreshScope: "manual",
       },
     });
   });

@@ -141,6 +141,22 @@ func validateCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) strin
 	return ""
 }
 
+func normalizeCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) {
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		req.Name = strings.TrimSpace(req.Title)
+	}
+	req.Kind = strings.ToLower(strings.TrimSpace(req.Kind))
+	if req.ResearchTarget != nil {
+		normalized := strings.ToLower(strings.TrimSpace(*req.ResearchTarget))
+		if normalized == "" {
+			req.ResearchTarget = nil
+		} else {
+			req.ResearchTarget = &normalized
+		}
+	}
+}
+
 func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest) string {
 	if strings.TrimSpace(req.Title) == "" {
 		return "title is required"
@@ -238,15 +254,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
 }
 
-// ResearchRequest captures optional fields for spawning a research agent.
-type ResearchRequest struct {
-	Prompt      string `json:"prompt,omitempty"`
-	ScopePath   string `json:"scopePath,omitempty"`
-	ProjectRoot string `json:"projectRoot,omitempty"`
-	Mode        string `json:"mode,omitempty"`
-	TargetKind  string `json:"targetKind,omitempty"`
-}
-
 // ResearchMode describes the intent for idea agent work.
 type ResearchMode string
 
@@ -285,12 +292,33 @@ func validateResearchModeForKind(kind BacklogKind, mode ResearchMode) error {
 	return nil
 }
 
-// AgentRunResponse returns agent-manager identifiers.
-type AgentRunResponse struct {
-	TaskID  string `json:"taskId"`
-	RunID   string `json:"runId"`
-	BaseURL string `json:"baseUrl"`
-	Created string `json:"created"`
+func normalizeResearchRequest(req *apipb.BacklogResearchRequest) {
+	if req == nil {
+		return
+	}
+	if req.Mode != nil {
+		trimmed := strings.ToLower(strings.TrimSpace(*req.Mode))
+		if trimmed == "" {
+			req.Mode = nil
+		} else {
+			req.Mode = &trimmed
+		}
+	}
+	if req.TargetKind != nil {
+		trimmed := strings.ToLower(strings.TrimSpace(*req.TargetKind))
+		if trimmed == "" {
+			req.TargetKind = nil
+		} else {
+			req.TargetKind = &trimmed
+		}
+	}
+}
+
+func readOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // List returns all backlog items.
@@ -354,6 +382,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req apipb.CreateBacklogItemRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 		httputil.BadRequest(w, "[backlog] create", "invalid request body")
+		return
+	}
+	normalizeCreateBacklogItemRequest(&req)
+	if !httputil.ValidateProtoRequest(w, "[backlog] create", "invalid request body", &req) {
 		return
 	}
 	if validationErr := validateCreateBacklogItemRequest(&req); validationErr != "" {
@@ -465,6 +497,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	var update apipb.UpdateBacklogItemRequest
 	if err := httputil.DecodeProtoJSON(r, &update); err != nil {
 		httputil.BadRequest(w, "[backlog] update", "invalid request body")
+		return
+	}
+	if !httputil.ValidateProtoRequest(w, "[backlog] update", "invalid request body", &update) {
 		return
 	}
 	if validationErr := validateUpdateBacklogItemRequest(&update); validationErr != "" {
@@ -820,6 +855,17 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			httputil.BadRequest(w, "[backlog] queue", "invalid request body")
 			return
 		}
+		if req.Operation != nil {
+			normalized := strings.ToLower(strings.TrimSpace(*req.Operation))
+			if normalized == "" {
+				req.Operation = nil
+			} else {
+				req.Operation = &normalized
+			}
+		}
+		if !httputil.ValidateProtoRequest(w, "[backlog] queue", "invalid request body", &req) {
+			return
+		}
 		if validationErr := validateQueueBacklogItemRequest(&req); validationErr != "" {
 			httputil.BadRequest(w, "[backlog] queue", validationErr)
 			return
@@ -885,22 +931,26 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req ResearchRequest
+	var req apipb.BacklogResearchRequest
 	if r.Body != nil && r.ContentLength != 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 			httputil.BadRequest(w, "[backlog] research", "invalid request body")
+			return
+		}
+		normalizeResearchRequest(&req)
+		if !httputil.ValidateProtoRequest(w, "[backlog] research", "invalid request body", &req) {
 			return
 		}
 	}
 
-	mode := parseResearchMode(req.Mode)
+	mode := parseResearchMode(readOptionalString(req.Mode))
 	if err := validateResearchModeForKind(kind, mode); err != nil {
 		httputil.BadRequest(w, "[backlog] research", err.Error())
 		return
 	}
 
-	if kind == KindResearch && strings.TrimSpace(req.TargetKind) != "" {
-		normalized, err := normalizeResearchTarget(req.TargetKind)
+	if kind == KindResearch && req.TargetKind != nil {
+		normalized, err := normalizeResearchTarget(*req.TargetKind)
 		if err != nil {
 			httputil.BadRequest(w, "[backlog] research", err.Error())
 			return
@@ -912,11 +962,11 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	scopePath := strings.TrimSpace(req.ScopePath)
+	scopePath := strings.TrimSpace(readOptionalString(req.ScopePath))
 	if scopePath == "" {
 		scopePath = h.itemDir(kind, item.Name)
 	}
-	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	projectRoot := strings.TrimSpace(readOptionalString(req.ProjectRoot))
 	if projectRoot == "" {
 		projectRoot = "."
 	}
@@ -928,8 +978,8 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	}
 
 	prompt := h.buildResearchPromptFromLoader(item, mode)
-	if strings.TrimSpace(req.Prompt) != "" {
-		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(req.Prompt)
+	if strings.TrimSpace(readOptionalString(req.Prompt)) != "" {
+		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(readOptionalString(req.Prompt))
 	}
 
 	runResult, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{
@@ -952,12 +1002,13 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := httputil.JSONWithStatus(w, http.StatusCreated, AgentRunResponse{
-		TaskID:  runResult.TaskID,
-		RunID:   runResult.RunID,
-		BaseURL: runResult.BaseURL,
+	resp := &apipb.BacklogResearchResponse{
+		TaskId:  runResult.TaskID,
+		RunId:   runResult.RunID,
+		BaseUrl: runResult.BaseURL,
 		Created: runResult.CreatedAt,
-	}); err != nil {
+	}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[backlog] research", "failed to encode response")
 	}
 }
@@ -974,8 +1025,12 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 		httputil.BadRequest(w, "[backlog] convert", "invalid request body")
 		return
 	}
+	req.TargetKind = strings.ToLower(strings.TrimSpace(req.TargetKind))
 	if strings.TrimSpace(req.TargetKind) == "" {
 		httputil.BadRequest(w, "[backlog] convert", "target_kind is required")
+		return
+	}
+	if !httputil.ValidateProtoRequest(w, "[backlog] convert", "invalid request body", &req) {
 		return
 	}
 

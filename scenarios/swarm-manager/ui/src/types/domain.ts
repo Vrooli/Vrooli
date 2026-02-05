@@ -9,6 +9,29 @@
  * DOC: docs/internal/INTENT.md#module-responsibilities
  */
 
+import type { Message } from "@bufbuild/protobuf";
+import type {
+  BacklogItem as ProtoBacklogItem,
+  BacklogFile as ProtoBacklogFile,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
+import type { Scenario as ProtoScenario } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
+import type { Recommendation as ProtoRecommendation } from "@vrooli/proto-types/swarm-manager/v1/domain/recommendation_pb";
+import type {
+  Settings as ProtoSettings,
+  RecommendationSources as ProtoRecommendationSources,
+  RecommendationAutoSync as ProtoRecommendationAutoSync,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
+import type {
+  ScenarioFile as ProtoScenarioFile,
+  PreserveFilesRequest as ProtoPreserveFilesRequest,
+  DeleteScenarioRequest as ProtoDeleteScenarioRequest,
+  DeleteScenarioResponse as ProtoDeleteScenarioResponse,
+  UpdateScenarioMetadataRequest as ProtoUpdateScenarioMetadataRequest,
+} from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
+import type { BacklogResearchResponse as ProtoBacklogResearchResponse } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+
+type ProtoMessage<T extends Message> = Omit<T, "$typeName" | "$unknown">;
+
 // ============================================================================
 // Backlog Domain
 // ============================================================================
@@ -38,28 +61,14 @@ export type BacklogResearchTarget = "idea" | "fix" | "execute" | "unspecified";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export interface BacklogItem {
-  /** Unique identifier (folder name) */
-  name: string;
-  /** Human-readable title */
-  title: string;
-  /** Detailed description of the item */
-  description: string;
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "researchTarget"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
-  /** Priority level (1 = highest) */
-  priority: number;
-  /** Categorization tags */
-  tags: string[];
-  /** ISO timestamp of creation */
-  created: string;
-  /** ISO timestamp of last update */
-  updated: string;
   /** Backlog category */
   kind: BacklogKind;
   /** Research target (research items only) */
   researchTarget?: BacklogResearchTarget;
-}
+};
 
 /**
  * Form values for creating or editing a backlog item.
@@ -83,18 +92,14 @@ export type BacklogFileType = "file" | "directory";
 /**
  * Represents a file or directory within a backlog folder.
  */
-export interface BacklogFile {
-  /** File or directory name */
-  name: string;
-  /** Relative path from the backlog root */
-  path: string;
+export type BacklogFile = Omit<ProtoMessage<ProtoBacklogFile>, "type" | "size" | "children"> & {
   /** Whether this is a file or directory */
   type: BacklogFileType;
   /** File size in bytes (only for files) */
   size?: number;
   /** Child files (only for directories) */
   children?: BacklogFile[];
-}
+};
 
 /**
  * Supported agent workflows for idea refinement (idea backlog items).
@@ -156,37 +161,16 @@ export type ScenarioStatus = "running" | "stopped" | "error" | "unknown";
  * A scenario represents a deployed application in the Vrooli ecosystem.
  * [REQ:REQ-P0-007] Includes metadata for greenfield toggle and recommendations
  */
-export interface Scenario {
-  /** Unique identifier (folder name) */
-  name: string;
-  /** Human-readable name from service.json */
-  displayName: string;
-  /** Scenario description */
-  description: string;
+export type Scenario = Omit<ProtoMessage<ProtoScenario>, "status"> & {
   /** Current runtime state */
   status: ScenarioStatus;
-  /** Priority level for development focus */
-  priority: number;
-  /** Completeness score (0-100) if available */
-  completenessScore?: number;
-  /** Whether this is a new scenario without existing code */
-  isGreenfield: boolean;
-  /** Categorization tags */
-  tags: string[];
-  /** Whether recommendations engine is enabled for this scenario */
-  recommendationsEnabled: boolean;
-}
+};
 
 /**
  * Request to update scenario metadata
  * [REQ:REQ-P0-007] Update metadata for greenfield and recommendations
  */
-export interface UpdateScenarioMetadataRequest {
-  /** Set to toggle greenfield status */
-  isGreenfield?: boolean;
-  /** Set to enable/disable recommendations */
-  recommendationsEnabled?: boolean;
-}
+export type UpdateScenarioMetadataRequest = ProtoMessage<ProtoUpdateScenarioMetadataRequest>;
 
 /**
  * File type in the scenario file tree
@@ -196,18 +180,14 @@ export type ScenarioFileType = "file" | "directory";
 /**
  * Represents a file or directory within a scenario folder.
  */
-export interface ScenarioFile {
-  /** File or directory name */
-  name: string;
-  /** Relative path from the scenario root */
-  path: string;
+export type ScenarioFile = Omit<ProtoMessage<ProtoScenarioFile>, "type" | "size" | "children"> & {
   /** Whether this is a file or directory */
   type: ScenarioFileType;
   /** File size in bytes (only for files) */
   size?: number;
   /** Child files (only for directories) */
   children?: ScenarioFile[];
-}
+};
 
 /**
  * Available presets for file preservation during archive
@@ -217,37 +197,26 @@ export type PreserveFilesPreset = "documentation" | "requirements" | "planning" 
 /**
  * Request to specify which files to preserve when archiving
  */
-export interface PreserveFilesRequest {
-  /** Explicit paths to preserve (supports glob patterns like "docs/**") */
-  paths?: string[];
+export type PreserveFilesRequest = Partial<
+  Omit<ProtoMessage<ProtoPreserveFilesRequest>, "preset">
+> & {
   /** Preset name: "documentation", "requirements", "planning", "all-planning" */
   preset?: PreserveFilesPreset;
-}
+};
 
 /**
  * Request body for DELETE /api/v1/scenarios/{name}
  */
-export interface DeleteScenarioRequest {
+export type DeleteScenarioRequest = Omit<ProtoMessage<ProtoDeleteScenarioRequest>, "preserveFiles"> & {
   /** Optional file preservation settings when archiving */
   preserveFiles?: PreserveFilesRequest;
-}
+};
 
 /**
  * Response from scenario deletion
  * [REQ:REQ-P0-008] Deletion confirmation with archive status
  */
-export interface DeleteScenarioResponse {
-  /** Name of the deleted scenario */
-  name: string;
-  /** Whether the scenario was archived to backlog (idea) */
-  archived: boolean;
-  /** Human-readable message describing the result */
-  message: string;
-  /** Name of the backlog idea created (if archived) */
-  backlogIdeaName?: string;
-  /** List of files that were preserved */
-  preservedFiles?: string[];
-}
+export type DeleteScenarioResponse = ProtoMessage<ProtoDeleteScenarioResponse>;
 
 // ============================================================================
 // Recommendations Domain
@@ -256,37 +225,12 @@ export interface DeleteScenarioResponse {
 /**
  * Valid states for a recommendation
  */
-export type RecommendationStatus = "pending" | "approved" | "rejected";
+export type RecommendationStatus = ProtoMessage<ProtoRecommendation>["status"];
 
 /**
  * A recommendation is a system-generated suggestion for improvement.
  */
-export interface Recommendation {
-  /** Unique identifier */
-  id: string;
-  /** Target scenario name */
-  scenarioName: string;
-  /** Type of improvement */
-  type: "test" | "feature" | "refactor" | "docs";
-  /** Description of the recommendation */
-  description: string;
-  /** Current state */
-  status: RecommendationStatus;
-  /** Priority level (1 = highest) */
-  priority: number;
-  /** ISO timestamp of creation */
-  created: string;
-  /** Optional agent-manager task id when started */
-  taskId?: string;
-  /** Optional agent-manager run id when started */
-  runId?: string;
-  /** ISO timestamp when started */
-  startedAt?: string;
-  /** Source of start action */
-  startedBy?: string;
-  /** Whether auto-approved (YOLO) */
-  autoApproved?: boolean;
-}
+export type Recommendation = ProtoMessage<ProtoRecommendation>;
 
 // ============================================================================
 // Agent Manager Domain
@@ -304,6 +248,11 @@ export interface AgentManagerStatus {
 // ============================================================================
 
 /**
+ * Theme preference for the UI.
+ */
+export type ThemePreference = "dark" | "light" | "system";
+
+/**
  * Recommendation engine operating mode
  */
 export type RecommendationMode = "off" | "suggestions" | "yolo";
@@ -311,52 +260,31 @@ export type RecommendationMode = "off" | "suggestions" | "yolo";
 /**
  * Recommendation data sources configuration
  */
-export interface RecommendationSources {
-  problems: boolean;
-  completeness: boolean;
-  tests: boolean;
-  coverage: boolean;
-  customFocus: boolean;
-  scenarioNotes: boolean;
-}
+export type RecommendationSources = ProtoMessage<ProtoRecommendationSources>;
 
 /**
  * Recommendation auto-sync configuration
  */
-export interface RecommendationAutoSync {
-  enabled: boolean;
-  interval: string;
-  lastRefresh?: string;
-  nextRefresh?: string;
-  refreshScope?: string;
-}
+export type RecommendationAutoSync = ProtoMessage<ProtoRecommendationAutoSync>;
 
 /**
  * User preferences and configuration
  */
-export interface Settings {
+export type Settings = Omit<
+  ProtoMessage<ProtoSettings>,
+  "recommendationSources" | "recommendationAutoSync" | "recommendationMode" | "theme"
+> & {
   /** UI theme preference */
-  theme: "dark" | "light" | "system";
-  /** Recommendation engine mode */
+  theme: ThemePreference;
+  /** Recommendation engine operating mode */
   recommendationMode: RecommendationMode;
-  /** Optional custom focus for recommendations */
-  customFocus?: string;
-  /** Whether insights engine is enabled */
-  insightsEnabled: boolean;
-  /** Auto-analyze on scenario changes */
-  insightsAutoAnalyze: boolean;
   /** Recommendation data sources */
   recommendationSources: RecommendationSources;
   /** Auto-sync for recommendation refresh */
   recommendationAutoSync: RecommendationAutoSync;
-}
+};
 
 /**
  * Research agent spawn response
  */
-export interface ResearchResponse {
-  taskId: string;
-  runId: string;
-  baseUrl: string;
-  created: string;
-}
+export type ResearchResponse = ProtoMessage<ProtoBacklogResearchResponse>;

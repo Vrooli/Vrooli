@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/settings.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// SETTINGS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports settings
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager settings.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// SettingsResponse returns current settings.
+message SettingsResponse {
+  Settings settings = 1;
+}
+
+// RecommendationSourcesPatch allows partial updates of recommendation sources.
+message RecommendationSourcesPatch {
+  optional bool problems = 1;
+  optional bool completeness = 2;
+  optional bool tests = 3;
+  optional bool coverage = 4;
+  optional bool custom_focus = 5;
+  optional bool scenario_notes = 6;
+}
+
+// RecommendationAutoSyncPatch allows partial updates of auto sync settings.
+message RecommendationAutoSyncPatch {
+  optional bool enabled = 1;
+  optional string interval = 2;
+  optional string last_refresh = 3;
+  optional string next_refresh = 4;
+  optional string refresh_scope = 5;
+}
+
+// UpdateSettingsRequest applies partial settings updates.
+message UpdateSettingsRequest {
+  // Optional theme override.
+  optional string theme = 1 [(buf.validate.field).string = { in: ["", "dark", "light", "system"] }];
+
+  // Optional recommendation mode override.
+  optional string recommendation_mode = 2 [(buf.validate.field).string = { in: ["", "off", "suggestions", "yolo"] }];
+
+  // Optional custom focus override.
+  optional string custom_focus = 3;
+
+  // Optional insights enabled override.
+  optional bool insights_enabled = 4;
+
+  // Optional insights auto-analyze override.
+  optional bool insights_auto_analyze = 5;
+
+  // Optional recommendation sources patch.
+  optional RecommendationSourcesPatch recommendation_sources = 6;
+
+  // Optional recommendation auto-sync patch.
+  optional RecommendationAutoSyncPatch recommendation_auto_sync = 7;
+}

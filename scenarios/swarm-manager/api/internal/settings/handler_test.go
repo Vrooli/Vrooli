@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"swarm-manager/internal/testutil"
 )
 
 func TestStore_LoadDefaults(t *testing.T) {
@@ -70,15 +73,12 @@ func TestHandler_UpdatePartial(t *testing.T) {
 		t.Fatalf("expected 200, got %d", router.Code)
 	}
 
-	var response SettingsResponse
-	if err := json.Unmarshal(router.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode response: %v", err)
+	response := testutil.DecodeProtoJSON(t, router, &apipb.SettingsResponse{})
+	settings := response.GetSettings()
+	if settings.GetTheme() != "light" {
+		t.Errorf("expected theme light, got %s", settings.GetTheme())
 	}
-
-	if response.Settings.Theme != "light" {
-		t.Errorf("expected theme light, got %s", response.Settings.Theme)
-	}
-	if response.Settings.RecommendationSources.Tests != false {
+	if settings.GetRecommendationSources().GetTests() != false {
 		t.Errorf("expected recommendationSources.tests false")
 	}
 }

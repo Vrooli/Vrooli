@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/testutil"
@@ -71,8 +74,8 @@ func TestHandler_ListRefreshMergesRecommendations(t *testing.T) {
 	}
 
 	handler := &Handler{
-		store:         NewStore(storePath),
-		engine:        newTestEngine(scenariosDir, []scenarios.ScenarioSource{
+		store: NewStore(storePath),
+		engine: newTestEngine(scenariosDir, []scenarios.ScenarioSource{
 			makeScenarioSource("demo", "Demo", scenarioPath, "demo"),
 		}),
 		settingsStore: settings.NewStore(settingsPath),
@@ -86,11 +89,11 @@ func TestHandler_ListRefreshMergesRecommendations(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[ListResponse](t, rec)
+	resp := testutil.DecodeProtoJSON(t, rec, &apipb.ListRecommendationsResponse{})
 	if len(resp.Recommendations) < 2 {
 		t.Fatalf("expected merged recommendations, got %d", len(resp.Recommendations))
 	}
-	if !containsID(resp.Recommendations, "manual-1") {
+	if !containsRecommendationID(resp.Recommendations, "manual-1") {
 		t.Fatalf("expected manual recommendation to be preserved")
 	}
 }
@@ -121,4 +124,13 @@ func TestHandler_ListLoadError(t *testing.T) {
 	handler.List(rec, req)
 
 	testutil.AssertStatus(t, rec, http.StatusInternalServerError)
+}
+
+func containsRecommendationID(items []*domainpb.Recommendation, id string) bool {
+	for _, item := range items {
+		if item.GetId() == id {
+			return true
+		}
+	}
+	return false
 }

@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/testutil"
 )
@@ -96,7 +98,7 @@ func TestHandler_RefreshModeOff(t *testing.T) {
 	handler.Refresh(rec, req)
 
 	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[ListResponse](t, rec)
+	resp := testutil.DecodeProtoJSON(t, rec, &apipb.ListRecommendationsResponse{})
 	if len(resp.Recommendations) != 0 {
 		t.Fatalf("expected empty list, got %d", len(resp.Recommendations))
 	}

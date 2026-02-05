@@ -8,10 +8,19 @@ import "swarm-manager/v1/domain/backlog.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
 // =============================================================================
-// BACKLOG API CONTRACTS
+// BACKLOG API
 // =============================================================================
 //
-// CRUD requests/responses for backlog items.
+// @layer 5
+// @domain api
+// @imports backlog
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager backlog operations.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
 //
 // =============================================================================
 
@@ -102,6 +111,44 @@ message QueueBacklogItemResponse {
   string run_id = 3 [(buf.validate.field).string.min_len = 1];
   string base_url = 4 [(buf.validate.field).string.min_len = 1];
   string created = 5 [(buf.validate.field).string.min_len = 1];
+}
+
+// BacklogResearchRequest captures optional fields for spawning a research agent.
+message BacklogResearchRequest {
+  // Additional prompt context.
+  optional string prompt = 1;
+
+  // Optional scope path override.
+  optional string scope_path = 2;
+
+  // Optional project root override.
+  optional string project_root = 3;
+
+  // Optional research mode.
+  optional string mode = 4 [(buf.validate.field).string = { in: [
+    "clarify",
+    "suggest",
+    "enhance",
+    "research",
+    "explore",
+    "investigate"
+  ] }];
+
+  // Optional research target for research items.
+  optional string target_kind = 5 [(buf.validate.field).string = { in: [
+    "idea",
+    "fix",
+    "execute",
+    "unspecified"
+  ] }];
+}
+
+// BacklogResearchResponse returns agent-manager identifiers for research runs.
+message BacklogResearchResponse {
+  string task_id = 1 [(buf.validate.field).string.min_len = 1];
+  string run_id = 2 [(buf.validate.field).string.min_len = 1];
+  string base_url = 3 [(buf.validate.field).string.min_len = 1];
+  string created = 4 [(buf.validate.field).string.min_len = 1];
 }
 
 // ConvertBacklogItemRequest moves a backlog item to another kind.

@@ -18,6 +18,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // WriteJSONFile creates a JSON file at the specified path.
@@ -98,6 +101,16 @@ func DecodeJSON[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 		t.Fatalf("Failed to decode response JSON: %v", err)
 	}
 	return result
+}
+
+// DecodeProtoJSON decodes the response body as proto JSON into the provided message.
+func DecodeProtoJSON[T proto.Message](t *testing.T, rec *httptest.ResponseRecorder, msg T) T {
+	t.Helper()
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(rec.Body.Bytes(), msg); err != nil {
+		t.Fatalf("Failed to decode proto JSON: %v", err)
+	}
+	return msg
 }
 
 // ReadJSONFile reads and decodes a JSON file into the provided value.

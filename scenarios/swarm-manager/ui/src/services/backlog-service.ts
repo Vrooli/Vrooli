@@ -23,8 +23,10 @@ import {
   QueueBacklogItemRequestSchema,
   UpdateBacklogItemRequestSchema,
   ConvertBacklogItemRequestSchema,
+  BacklogResearchRequestSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import {
+  backlogResearchResponseSchema,
   backlogFileResponseSchema,
   backlogFilesResponseSchema,
   backlogItemResponseSchema,
@@ -229,12 +231,18 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         targetKind?: BacklogResearchTarget;
       }
     ): Promise<ResearchResponse> {
-      const data = await apiClient.post<unknown>(API_ENDPOINTS.backlogResearch(kind, name), payload ?? {});
-      const parsed = data as ResearchResponse;
-      if (!parsed || typeof parsed.runId !== "string") {
-        throw new Error("Invalid research response");
-      }
-      return parsed;
+      const message = buildMessage(BacklogResearchRequestSchema, {
+        prompt: payload?.prompt,
+        scopePath: payload?.scopePath,
+        projectRoot: payload?.projectRoot,
+        mode: payload?.mode,
+        targetKind: payload?.targetKind,
+      });
+      const data = await apiClient.post<unknown>(
+        API_ENDPOINTS.backlogResearch(kind, name),
+        toProtoJson(BacklogResearchRequestSchema, message)
+      );
+      return parseProtoResponse(backlogResearchResponseSchema, data, "backlog research");
     },
 
     async convert(

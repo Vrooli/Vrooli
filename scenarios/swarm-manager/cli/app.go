@@ -265,7 +265,7 @@ type BacklogItem struct {
 	Created        string   `json:"created"`
 	Updated        string   `json:"updated"`
 	Kind           string   `json:"kind"`
-	ResearchTarget string   `json:"researchTarget,omitempty"`
+	ResearchTarget string   `json:"research_target,omitempty"`
 }
 
 // BacklogItemResponse wraps a single backlog item response.
@@ -292,17 +292,17 @@ type CreateBacklogRequest struct {
 // QueueBacklogResponse wraps queue response for backlog items.
 type QueueBacklogResponse struct {
 	Item    BacklogItem `json:"item"`
-	TaskID  string      `json:"taskId"`
-	RunID   string      `json:"runId"`
-	BaseURL string      `json:"baseUrl"`
+	TaskID  string      `json:"task_id"`
+	RunID   string      `json:"run_id"`
+	BaseURL string      `json:"base_url"`
 	Created string      `json:"created"`
 }
 
 // ResearchResponse represents research run metadata.
 type ResearchResponse struct {
-	TaskID  string `json:"taskId"`
-	RunID   string `json:"runId"`
-	BaseURL string `json:"baseUrl"`
+	TaskID  string `json:"task_id"`
+	RunID   string `json:"run_id"`
+	BaseURL string `json:"base_url"`
 	Created string `json:"created"`
 }
 
@@ -339,7 +339,7 @@ type DeleteScenarioResponse struct {
 // Recommendation represents a recommendation item.
 type Recommendation struct {
 	ID          string `json:"id"`
-	Scenario    string `json:"scenarioName"`
+	Scenario    string `json:"scenario_name"`
 	Type        string `json:"type"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
