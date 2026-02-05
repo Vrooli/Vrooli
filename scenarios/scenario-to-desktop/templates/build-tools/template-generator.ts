@@ -258,18 +258,24 @@ class DesktopTemplateGenerator {
         const files: TemplateFile[] = [];
         const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
-        // Files that are dev-only and should NOT be copied to generated projects
+        // Files that are dev-only and should NOT be copied to generated projects.
+        // These files exist in templates/vanilla/ for developing and testing the template itself,
+        // but generated desktop apps don't need them - they get their own configs via generation.
         const devOnlyFiles = new Set([
             'package.json',        // Dev-only package (distinct from package.json.template)
-            'tsconfig.dev.json',   // Dev-only tsconfig
+            'tsconfig.dev.json',   // Dev-only tsconfig for template development (uses rootDir: ".")
+            'vitest.config.ts',    // Dev-only test config for template module unit tests
             'eslint.config.js',    // Dev-only ESLint config
             '.gitignore',          // Templates have their own gitignore; generated projects get one via generateGitIgnore()
         ]);
 
-        // Directories that are dev-only and should NOT be copied
+        // Directories that are dev-only and should NOT be copied to generated projects.
+        // These exist in templates/vanilla/ for development purposes only.
         const devOnlyDirs = new Set([
-            'node_modules',        // Never copy node_modules
-            '__tests__',           // Test directories are dev-only
+            'node_modules',        // Never copy node_modules - generated apps run npm install
+            '__tests__',           // Test directories are dev-only (unit tests for template modules)
+            'test-utils',          // Shared test mocks - only needed for template development
+            'examples',            // Example code for template developers, not needed in production
         ]);
 
         for (const entry of entries) {
@@ -289,10 +295,19 @@ class DesktopTemplateGenerator {
                     continue;
                 }
 
-                const targetPath = entry.name.endsWith('.template')
+                let targetPath = entry.name.endsWith('.template')
                     ? relativePath.replace('.template', '')
                     : relativePath;
-                
+
+                // CRITICAL: The 'bundle/' directory has a naming collision:
+                // - templates/vanilla/bundle/ contains TypeScript code for bundle validation
+                // - The actual bundle payload (created by bundle stage) is also at bundle/
+                // To avoid collision, redirect bundle module files directly to src/bundle/.
+                // This keeps the actual bundle payload at root level where electron-builder expects it.
+                if (targetPath.startsWith('bundle' + path.sep) || targetPath.startsWith('bundle/')) {
+                    targetPath = path.join('src', targetPath);
+                }
+
                 // Determine if file should be processed as template
                 // Always process: .template files, and common code/config files that may contain variables
                 const templateExtensions = ['.ts', '.js', '.json', '.html', '.md', '.yml', '.yaml', '.xml', '.sh'];
@@ -717,8 +732,26 @@ exports.default = async function notarizing(context) {
             }
         }
 
-        // Move module directories to src/ if they exist in root
-        const dirsToMove = ['splash', 'window-state'];
+        // Move module directories to src/ if they exist in root.
+        // These are the production modules that main.ts imports (e.g., import { ... } from './telemetry').
+        // All modules must be in src/ alongside main.ts for imports to resolve correctly.
+        //
+        // IMPORTANT: 'bundle' is NOT in this list because there's a naming collision:
+        // - templates/vanilla/bundle/ contains TypeScript code for bundle validation
+        // - The actual bundle payload created by the bundle stage is also at bundle/
+        // For bundled deployments, electron-builder's extraResources expects bundle/ at the root.
+        // The template's bundle/ module files are copied directly to src/bundle/ by processTemplateFiles()
+        // without going through this move step, preserving the actual bundle at the root.
+        const dirsToMove = [
+            'auth',          // Authentication (magic link, token management)
+            // 'bundle' intentionally excluded - see comment above
+            'ipc',           // Inter-process communication handlers
+            'runtime',       // Bundled runtime process management
+            'splash',        // Splash screen lifecycle
+            'storage',       // App data storage (userData directory)
+            'telemetry',     // Event recording and upload
+            'window-state',  // Window position/size persistence
+        ];
 
         for (const dirName of dirsToMove) {
             const rootPath = path.join(this.outputPath, dirName);

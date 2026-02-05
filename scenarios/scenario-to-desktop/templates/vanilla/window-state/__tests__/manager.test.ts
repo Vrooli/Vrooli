@@ -7,6 +7,7 @@
  * Uses mock factories injected via the testing seams.
  */
 
+import { describe, test, expect, vi } from "vitest";
 import { WindowStateManager } from "../manager";
 import type {
     IStateStorage,
@@ -15,59 +16,6 @@ import type {
     WindowState,
     DisplayBounds,
 } from "../types";
-
-// ===== Simple Test Runner =====
-// This allows tests to run without a specific test framework
-// Must be defined before use due to ESM hoisting rules
-
-type TestFn = () => void | Promise<void>;
-const tests: Array<{ name: string; fn: TestFn; suite: string; parent: string }> = [];
-let currentSuite = "";
-let currentParent = "";
-
-function describe(name: string, fn: () => void): void {
-    const prevParent = currentParent;
-    const prevSuite = currentSuite;
-    if (currentParent) {
-        currentParent = `${currentParent} > ${name}`;
-    } else {
-        currentParent = name;
-    }
-    currentSuite = name;
-    fn();
-    currentSuite = prevSuite;
-    currentParent = prevParent;
-}
-
-function test(name: string, fn: TestFn): void {
-    tests.push({ name, fn, suite: currentSuite, parent: currentParent });
-}
-
-// ===== Test Runner Agnostic Assertions =====
-
-function assertEquals<T>(actual: T, expected: T, message?: string): void {
-    if (actual !== expected) {
-        throw new Error(message ?? `Expected ${expected} but got ${actual}`);
-    }
-}
-
-function assertTrue(actual: boolean, message?: string): void {
-    if (!actual) {
-        throw new Error(message ?? `Expected true but got ${actual}`);
-    }
-}
-
-function assertFalse(actual: boolean, message?: string): void {
-    if (actual) {
-        throw new Error(message ?? `Expected false but got ${actual}`);
-    }
-}
-
-function assertNotNull<T>(actual: T | null | undefined, message?: string): asserts actual is T {
-    if (actual === null || actual === undefined) {
-        throw new Error(message ?? `Expected non-null value but got ${actual}`);
-    }
-}
 
 // ===== Mock Factories =====
 
@@ -97,7 +45,8 @@ function createMockDisplayProvider(
     displays: DisplayBounds[] = [{ id: 1, x: 0, y: 0, width: 1920, height: 1080 }],
     primaryDisplay?: DisplayBounds
 ): IDisplayProvider {
-    const primary = primaryDisplay ?? displays[0];
+    const defaultDisplay: DisplayBounds = { id: 1, x: 0, y: 0, width: 1920, height: 1080 };
+    const primary = primaryDisplay ?? displays[0] ?? defaultDisplay;
     return {
         getAllDisplays: () => displays,
         getPrimaryDisplay: () => primary,
@@ -135,6 +84,9 @@ function createMockWindow(
         destroyed: false,
         eventHandlers,
         getNormalBounds: function () {
+            return this.bounds;
+        },
+        getBounds: function () {
             return this.bounds;
         },
         isMaximized: function () {
@@ -205,10 +157,10 @@ describe("WindowStateManager", () => {
 
             const state = await manager.getInitialState();
 
-            assertEquals(state.x, 200);
-            assertEquals(state.y, 150);
-            assertEquals(state.width, 1000);
-            assertEquals(state.height, 700);
+            expect(state.x).toBe(200);
+            expect(state.y).toBe(150);
+            expect(state.width).toBe(1000);
+            expect(state.height).toBe(700);
         });
 
         test("returns defaults when no saved state", async () => {
@@ -221,11 +173,11 @@ describe("WindowStateManager", () => {
 
             const state = await manager.getInitialState();
 
-            assertEquals(state.width, 1200);
-            assertEquals(state.height, 800);
+            expect(state.width).toBe(1200);
+            expect(state.height).toBe(800);
             // Should be centered
-            assertEquals(state.x, (1920 - 1200) / 2);
-            assertEquals(state.y, (1080 - 800) / 2);
+            expect(state.x).toBe((1920 - 1200) / 2);
+            expect(state.y).toBe((1080 - 800) / 2);
         });
 
         test("adjusts state when window is off-screen", async () => {
@@ -244,8 +196,8 @@ describe("WindowStateManager", () => {
             const state = await manager.getInitialState();
 
             // Should be repositioned to primary display
-            assertEquals(state.x, (1920 - 800) / 2);
-            assertEquals(state.y, (1080 - 600) / 2);
+            expect(state.x).toBe((1920 - 800) / 2);
+            expect(state.y).toBe((1080 - 600) / 2);
         });
 
         test("handles storage load error gracefully", async () => {
@@ -262,8 +214,8 @@ describe("WindowStateManager", () => {
 
             const state = await manager.getInitialState();
 
-            assertEquals(state.width, 1000);
-            assertEquals(state.height, 700);
+            expect(state.width).toBe(1000);
+            expect(state.height).toBe(700);
         });
     });
 
@@ -277,7 +229,7 @@ describe("WindowStateManager", () => {
             await manager.getInitialState();
             manager.manage(window);
 
-            assertTrue(window.eventHandlers["close"]?.length > 0, "Should have close handler");
+            expect(window.eventHandlers["close"]?.length).toBeGreaterThan(0);
         });
 
         test("saves state on window close", async () => {
@@ -295,12 +247,12 @@ describe("WindowStateManager", () => {
             // Wait for async save
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            assertEquals(storage.saveCalls, 1);
-            assertNotNull(storage.lastSavedState);
-            assertEquals(storage.lastSavedState.x, 300);
-            assertEquals(storage.lastSavedState.y, 200);
-            assertEquals(storage.lastSavedState.width, 900);
-            assertEquals(storage.lastSavedState.height, 650);
+            expect(storage.saveCalls).toBe(1);
+            expect(storage.lastSavedState).not.toBeNull();
+            expect(storage.lastSavedState!.x).toBe(300);
+            expect(storage.lastSavedState!.y).toBe(200);
+            expect(storage.lastSavedState!.width).toBe(900);
+            expect(storage.lastSavedState!.height).toBe(650);
         });
 
         test("captures maximized state correctly", async () => {
@@ -320,8 +272,8 @@ describe("WindowStateManager", () => {
 
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            assertNotNull(storage.lastSavedState);
-            assertTrue(storage.lastSavedState.isMaximized);
+            expect(storage.lastSavedState).not.toBeNull();
+            expect(storage.lastSavedState!.isMaximized).toBe(true);
         });
 
         test("captures fullscreen state via events (not isFullScreen at close time)", async () => {
@@ -356,12 +308,9 @@ describe("WindowStateManager", () => {
 
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            assertNotNull(storage.lastSavedState);
+            expect(storage.lastSavedState).not.toBeNull();
             // Should be true because we track via events, not isFullScreen() at close time
-            assertTrue(
-                storage.lastSavedState.isFullScreen,
-                "Fullscreen state should be captured via events, not isFullScreen() at close time"
-            );
+            expect(storage.lastSavedState!.isFullScreen).toBe(true);
         });
 
         test("tracks fullscreen state changes correctly through multiple toggles", async () => {
@@ -387,8 +336,8 @@ describe("WindowStateManager", () => {
 
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            assertNotNull(storage.lastSavedState);
-            assertTrue(storage.lastSavedState.isFullScreen);
+            expect(storage.lastSavedState).not.toBeNull();
+            expect(storage.lastSavedState!.isFullScreen).toBe(true);
         });
 
         test("preserves fullscreen state when leave-full-screen fires after close (macOS/Linux behavior)", async () => {
@@ -419,12 +368,9 @@ describe("WindowStateManager", () => {
 
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            assertNotNull(storage.lastSavedState);
+            expect(storage.lastSavedState).not.toBeNull();
             // Should be true because we preserve state when closing
-            assertTrue(
-                storage.lastSavedState.isFullScreen,
-                "Fullscreen state should be preserved when leave-full-screen fires after close"
-            );
+            expect(storage.lastSavedState!.isFullScreen).toBe(true);
         });
 
         test("detaches from previous window when managing new one", async () => {
@@ -441,11 +387,8 @@ describe("WindowStateManager", () => {
             manager.manage(window2);
 
             // Window1 should have its handler removed
-            assertTrue(
-                (window1.eventHandlers["close"]?.length ?? 0) < window1HandlerCount,
-                "Window1 should have handler removed"
-            );
-            assertTrue(window2.eventHandlers["close"]?.length > 0, "Window2 should have handler");
+            expect(window1.eventHandlers["close"]?.length ?? 0).toBeLessThan(window1HandlerCount);
+            expect(window2.eventHandlers["close"]?.length).toBeGreaterThan(0);
         });
 
         test("does not save when window is destroyed", async () => {
@@ -463,7 +406,7 @@ describe("WindowStateManager", () => {
             // Give it time to potentially save
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            assertEquals(storage.saveCalls, 0);
+            expect(storage.saveCalls).toBe(0);
         });
     });
 
@@ -475,7 +418,7 @@ describe("WindowStateManager", () => {
 
             await manager.getInitialState();
 
-            assertTrue(manager.wasMaximized());
+            expect(manager.wasMaximized()).toBe(true);
         });
 
         test("returns false when saved state was not maximized", async () => {
@@ -485,7 +428,7 @@ describe("WindowStateManager", () => {
 
             await manager.getInitialState();
 
-            assertFalse(manager.wasMaximized());
+            expect(manager.wasMaximized()).toBe(false);
         });
 
         test("returns false when restoreMaximized is disabled", async () => {
@@ -498,7 +441,7 @@ describe("WindowStateManager", () => {
 
             await manager.getInitialState();
 
-            assertFalse(manager.wasMaximized());
+            expect(manager.wasMaximized()).toBe(false);
         });
 
         test("returns false when no saved state", async () => {
@@ -508,7 +451,7 @@ describe("WindowStateManager", () => {
 
             await manager.getInitialState();
 
-            assertFalse(manager.wasMaximized());
+            expect(manager.wasMaximized()).toBe(false);
         });
     });
 
@@ -524,7 +467,7 @@ describe("WindowStateManager", () => {
 
             await manager.getInitialState();
 
-            assertTrue(manager.wasFullScreen());
+            expect(manager.wasFullScreen()).toBe(true);
         });
 
         test("returns false when restoreFullScreen is disabled", async () => {
@@ -541,7 +484,7 @@ describe("WindowStateManager", () => {
 
             await manager.getInitialState();
 
-            assertFalse(manager.wasFullScreen());
+            expect(manager.wasFullScreen()).toBe(false);
         });
     });
 
@@ -558,7 +501,7 @@ describe("WindowStateManager", () => {
             // Force save without close
             await manager.saveState();
 
-            assertEquals(storage.saveCalls, 1);
+            expect(storage.saveCalls).toBe(1);
         });
 
         test("handles save error gracefully", async () => {
@@ -575,13 +518,7 @@ describe("WindowStateManager", () => {
             manager.manage(window);
 
             // Should not throw
-            let threw = false;
-            try {
-                await manager.saveState();
-            } catch {
-                threw = true;
-            }
-            assertFalse(threw, "Should not throw on save error");
+            await expect(manager.saveState()).resolves.toBeUndefined();
         });
     });
 
@@ -609,8 +546,8 @@ describe("WindowStateManager", () => {
 
             const state = await manager.getInitialState();
 
-            assertEquals(state.x, 2100);
-            assertEquals(state.y, 200);
+            expect(state.x).toBe(2100);
+            expect(state.y).toBe(200);
         });
 
         test("moves window to primary when secondary disconnected", async () => {
@@ -630,35 +567,8 @@ describe("WindowStateManager", () => {
             const state = await manager.getInitialState();
 
             // Should be moved to primary and centered
-            assertEquals(state.x, (1920 - 800) / 2);
-            assertEquals(state.y, (1080 - 600) / 2);
+            expect(state.x).toBe((1920 - 800) / 2);
+            expect(state.y).toBe((1080 - 600) / 2);
         });
     });
 });
-
-// Run tests - always run when imported via tsx
-(async () => {
-    let passed = 0;
-    let failed = 0;
-    let currentParentName = "";
-
-    for (const t of tests) {
-        if (t.parent !== currentParentName) {
-            currentParentName = t.parent;
-            console.log(`\n${t.parent}`);
-        }
-
-        try {
-            await t.fn();
-            console.log(`  ✓ ${t.name}`);
-            passed++;
-        } catch (error) {
-            console.log(`  ✗ ${t.name}`);
-            console.log(`    ${error}`);
-            failed++;
-        }
-    }
-
-    console.log(`\n${passed} passed, ${failed} failed`);
-    process.exit(failed > 0 ? 1 : 0);
-})();

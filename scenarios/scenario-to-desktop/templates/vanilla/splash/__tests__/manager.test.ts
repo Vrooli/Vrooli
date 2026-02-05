@@ -7,6 +7,7 @@
  * Uses mocks to test without Electron.
  */
 
+import { describe, it, expect, vi, type Mock } from "vitest";
 import type { BrowserWindow } from "electron";
 import type {
     ISplashWindowManager,
@@ -19,27 +20,27 @@ import { DEFAULT_SPLASH_CONFIG, SPLASH_IPC_CHANNELS } from "../types";
 
 // Mock BrowserWindow
 interface MockBrowserWindow {
-    loadFile: jest.Mock;
-    on: jest.Mock;
-    isDestroyed: jest.Mock;
-    isVisible: jest.Mock;
-    destroy: jest.Mock;
+    loadFile: Mock;
+    on: Mock;
+    isDestroyed: Mock;
+    isVisible: Mock;
+    destroy: Mock;
     webContents: {
-        send: jest.Mock;
-        on: jest.Mock;
+        send: Mock;
+        on: Mock;
     };
 }
 
 function createMockBrowserWindow(): MockBrowserWindow {
     return {
-        loadFile: jest.fn().mockResolvedValue(undefined),
-        on: jest.fn(),
-        isDestroyed: jest.fn().mockReturnValue(false),
-        isVisible: jest.fn().mockReturnValue(true),
-        destroy: jest.fn(),
+        loadFile: vi.fn().mockResolvedValue(undefined),
+        on: vi.fn(),
+        isDestroyed: vi.fn().mockReturnValue(false),
+        isVisible: vi.fn().mockReturnValue(true),
+        destroy: vi.fn(),
         webContents: {
-            send: jest.fn(),
-            on: jest.fn(),
+            send: vi.fn(),
+            on: vi.fn(),
         },
     };
 }
@@ -49,15 +50,15 @@ function createMockWindowFactory(mockWindow?: MockBrowserWindow) {
     const window = mockWindow ?? createMockBrowserWindow();
     return {
         window,
-        createWindow: jest.fn().mockReturnValue(window),
+        createWindow: vi.fn().mockReturnValue(window),
     };
 }
 
 // Mock PathResolver
 function createMockPathResolver(): IPathResolver {
     return {
-        getAppPath: jest.fn().mockReturnValue("/app"),
-        join: jest.fn((...segments: string[]) => segments.join("/")),
+        getAppPath: vi.fn().mockReturnValue("/app"),
+        join: vi.fn((...segments: string[]) => segments.join("/")),
     };
 }
 
@@ -66,22 +67,22 @@ function createMockIpcMain(): IIpcMain & { listeners: Map<string, Function[]> } 
     const listeners = new Map<string, Function[]>();
     return {
         listeners,
-        on: jest.fn((channel: string, listener: Function) => {
+        on: vi.fn((channel: string, listener: Function) => {
             if (!listeners.has(channel)) {
                 listeners.set(channel, []);
             }
             listeners.get(channel)!.push(listener);
         }),
-        removeAllListeners: jest.fn((channel: string) => {
+        removeAllListeners: vi.fn((channel: string) => {
             listeners.delete(channel);
         }),
     };
 }
 
 // Mock Clipboard
-function createMockClipboard(): IClipboard & { writeText: jest.Mock } {
+function createMockClipboard(): IClipboard & { writeText: Mock } {
     return {
-        writeText: jest.fn(),
+        writeText: vi.fn(),
     };
 }
 
@@ -110,7 +111,7 @@ function createMockDeps(overrides?: Partial<{
             pathResolver,
             ipcMain,
             clipboard,
-            log: jest.fn(), // Silence logs in tests
+            log: vi.fn(), // Silence logs in tests
         },
         mocks: { windowFactory, pathResolver, ipcMain, clipboard },
     };
@@ -378,7 +379,7 @@ describe("SplashWindowManager", () => {
             const manager = new SplashWindowManager(deps);
             await manager.create();
 
-            const callback = jest.fn();
+            const callback = vi.fn();
             manager.onEscapePressed(callback);
 
             // Simulate escape key from IPC
@@ -393,8 +394,8 @@ describe("SplashWindowManager", () => {
             const manager = new SplashWindowManager(deps);
             await manager.create();
 
-            const callback1 = jest.fn();
-            const callback2 = jest.fn();
+            const callback1 = vi.fn();
+            const callback2 = vi.fn();
             manager.onEscapePressed(callback1);
             manager.onEscapePressed(callback2);
 
@@ -421,8 +422,10 @@ describe("regression: alwaysOnTop should be false by default", () => {
 
         await manager.create();
 
-        const windowOptions = mocks.windowFactory.createWindow.mock.calls[0][0];
-        expect(windowOptions.alwaysOnTop).toBe(false);
+        const calls = mocks.windowFactory.createWindow.mock.calls;
+        expect(calls.length).toBeGreaterThan(0);
+        const windowOptions = calls[0]?.[0] as { alwaysOnTop?: boolean } | undefined;
+        expect(windowOptions?.alwaysOnTop).toBe(false);
     });
 });
 
@@ -533,7 +536,7 @@ describe("onCopyLogs()", () => {
         const manager = new SplashWindowManager(deps);
         await manager.create();
 
-        const callback = jest.fn().mockReturnValue("Log content");
+        const callback = vi.fn().mockReturnValue("Log content");
         manager.onCopyLogs(callback);
 
         // Simulate copy request from IPC
@@ -549,7 +552,7 @@ describe("onCopyLogs()", () => {
         const manager = new SplashWindowManager(deps);
         await manager.create();
 
-        const callback = jest.fn().mockReturnValue("Log content");
+        const callback = vi.fn().mockReturnValue("Log content");
         manager.onCopyLogs(callback);
 
         // Simulate copy request from IPC
@@ -567,7 +570,7 @@ describe("onCopyLogs()", () => {
         const manager = new SplashWindowManager(deps);
         await manager.create();
 
-        const callback = jest.fn().mockImplementation(() => {
+        const callback = vi.fn().mockImplementation(() => {
             throw new Error("Callback error");
         });
         manager.onCopyLogs(callback);
@@ -600,7 +603,7 @@ describe("onRetry()", () => {
         const manager = new SplashWindowManager(deps);
         await manager.create();
 
-        const callback = jest.fn();
+        const callback = vi.fn();
         manager.onRetry(callback);
 
         // Simulate retry request from IPC

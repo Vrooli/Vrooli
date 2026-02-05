@@ -4,6 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2020", "DOM"],
+    "types": ["vitest/globals"],
     "outDir": "./dist-dev",
     "rootDir": ".",
 
@@ -26,7 +27,14 @@
   // by the template generator - they can't be type-checked until after generation
   "include": [
     "splash/**/*.ts",
-    "window-state/**/*.ts"
+    "window-state/**/*.ts",
+    "test-utils/**/*.ts",
+    "telemetry/**/*.ts",
+    "runtime/**/*.ts",
+    "storage/**/*.ts",
+    "ipc/**/*.ts",
+    "auth/**/*.ts",
+    "bundle/**/*.ts"
   ],
-  "exclude": ["node_modules", "dist", "dist-dev", "dist-electron", "scripts", "examples", "**/__tests__/**"]
+  "exclude": ["node_modules", "dist", "dist-dev", "dist-electron", "scripts", "examples"]
 }

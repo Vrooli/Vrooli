@@ -1,4 +1,13 @@
 {
+  // =============================================================================
+  // PRODUCTION TSCONFIG FOR GENERATED DESKTOP APPS
+  // =============================================================================
+  // This config is used when building generated Electron apps for distribution.
+  // All source files live in src/ after generation (main.ts, preload.ts, modules).
+  //
+  // NOTE: For template DEVELOPMENT (testing modules in templates/vanilla/),
+  // use tsconfig.dev.json instead, which has rootDir: "." to include test files.
+  // =============================================================================
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
@@ -23,9 +32,11 @@
     "noImplicitOverride": true,
     "allowSyntheticDefaultImports": true
   },
+  // Only include src/ - all app code (main.ts, preload.ts, modules) lives there.
+  // Do NOT add "*.ts" here - that would match dev-only files like vitest.config.ts
+  // which shouldn't be compiled (and would fail since they're outside rootDir).
   "include": [
-    "src/**/*",
-    "*.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

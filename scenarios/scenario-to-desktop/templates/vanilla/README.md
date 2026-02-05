@@ -1,385 +1,575 @@
 # Vanilla Desktop App Template
 
-This template provides a complete Electron-based desktop application foundation that can be customized for any Vrooli scenario. It includes modern desktop features, cross-platform compatibility, and secure communication patterns.
+This template provides a production-ready Electron application foundation with a modular, testable architecture. It transforms any Vrooli scenario into a cross-platform desktop application.
 
-## 🏗️ Template Structure
+## Template Structure
 
 ```
 vanilla/
-├── main.ts              # Main Electron process (app lifecycle, window management)
-├── preload.ts          # Secure bridge between main and renderer processes  
-├── splash.html         # Loading screen shown during startup
-├── package.json.template # Dependencies and build configuration
-├── tsconfig.json       # TypeScript compilation settings
-└── README.md          # This documentation
+├── main.ts                 # Main Electron process (orchestrator)
+├── preload.ts              # Secure IPC bridge for renderer
+├── splash.html             # Loading screen with error display
+├── splash-preload.ts       # Splash window IPC bridge
+├── package.json.template   # Build configuration template
+├── tsconfig.json           # TypeScript settings
+├── vitest.config.ts        # Test configuration
+├── eslint.config.js        # Linting rules
+│
+├── auth/                   # Authentication module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # Interfaces and types
+│   ├── manager.ts          # AuthManager implementation
+│   └── __tests__/          # Unit tests
+│
+├── bundle/                 # Bundle validation module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # Manifest types
+│   ├── validator.ts        # Manifest validation
+│   └── __tests__/          # Unit tests
+│
+├── ipc/                    # Inter-process communication module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # Channel definitions
+│   ├── handlers.ts         # IPC handler registration
+│   ├── channels.ts         # Channel constants
+│   └── __tests__/          # Unit tests
+│
+├── runtime/                # Bundled runtime management module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # Runtime types
+│   ├── control-client.ts   # HTTP client for runtime API
+│   ├── exit-tracker.ts     # Process exit monitoring
+│   └── __tests__/          # Unit tests
+│
+├── splash/                 # Splash screen management module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # Splash status types
+│   ├── manager.ts          # SplashWindowManager
+│   ├── server-readiness.ts # Server health checking
+│   └── __tests__/          # Unit tests
+│
+├── storage/                # App data storage module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # Storage interfaces
+│   ├── app-storage.ts      # File operations
+│   └── __tests__/          # Unit tests
+│
+├── telemetry/              # Deployment analytics module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # Event types
+│   ├── recorder.ts         # Event recording
+│   ├── uploader.ts         # Telemetry upload
+│   └── __tests__/          # Unit tests
+│
+├── window-state/           # Window persistence module
+│   ├── index.ts            # Public API exports
+│   ├── types.ts            # State interfaces
+│   ├── manager.ts          # WindowStateManager
+│   ├── storage.ts          # State file I/O
+│   ├── display.ts          # Display enumeration
+│   ├── validator.ts        # Pure validation functions
+│   └── __tests__/          # Unit tests
+│
+├── test-utils/             # Shared testing utilities
+│   ├── index.ts            # Public API exports
+│   ├── electron-mocks.ts   # Electron API mocks
+│   ├── fs-mocks.ts         # Filesystem mocks
+│   ├── async-helpers.ts    # Test timing utilities
+│   └── setup.ts            # Test setup
+│
+├── examples/               # Feature implementation examples
+│   ├── file-operations.ts  # Native file dialogs
+│   ├── native-menus.ts     # Application menus
+│   ├── notifications.ts    # System notifications
+│   └── README.md           # Examples documentation
+│
+└── scripts/                # Build helper scripts
+    ├── fix-rcedit.js       # Windows resource editor fix
+    ├── post-build-windows.js
+    ├── setup-dmg-license.js
+    └── setup-wine.js
 ```
 
-## 🎯 Template Variables
+---
 
-The template uses the following variables that are replaced during generation:
+## Core Modules
+
+### auth/ - Authentication
+
+Secure authentication with magic links and encrypted token storage.
+
+**Key Features:**
+- Magic link authentication (opens browser for login)
+- Token encryption using Electron's `safeStorage`
+- Automatic token refresh scheduling
+- CSRF protection with state validation
+- Protocol URL handling for custom schemes
+
+**Public API:**
+```typescript
+import { createAuthManager, IAuthManager } from './auth';
+
+const auth = createAuthManager({
+  storage: authStorage,
+  safeStorage: electron.safeStorage,
+  http: httpClient,
+  shell: electron.shell,
+  timer: timerImpl,
+  uuid: uuidGenerator,
+  config: { protocol: 'myapp', lpbsUrl: 'https://...' },
+  onAuthChange: (event) => { /* handle auth state */ },
+  onTokenRefresh: (tokens) => { /* handle refresh */ },
+});
+
+await auth.startLogin();       // Initiate magic link flow
+await auth.handleProtocolUrl(url);  // Process callback
+const user = auth.getCurrentUser();
+await auth.logout();
+```
+
+**Testing Seams:** `ISafeStorage`, `IAuthHttpClient`, `IShell`, `IAuthTimer`, `IUuidGenerator`
+
+---
+
+### bundle/ - Bundle Validation
+
+Validates bundled deployment manifests for offline applications.
+
+**Key Features:**
+- Bundle manifest parsing and validation
+- Platform-specific binary verification
+- Health check configuration extraction
+- Preflight validation support
+
+**Public API:**
+```typescript
+import { validateBundleManifest, BundleManifest } from './bundle';
+
+const result = validateBundleManifest({
+  manifestPath: '/path/to/bundle.json',
+  fs: fileSystem,
+  path: pathUtils,
+  platform: process.platform,
+});
+
+if (result.valid) {
+  console.log('Services:', result.manifest.services);
+}
+```
+
+**Testing Seams:** `IBundleFileSystem`, `IBundlePathUtils`, `IPlatformInfo`
+
+---
+
+### ipc/ - Inter-Process Communication
+
+Type-safe communication between Electron main and renderer processes.
+
+**Key Features:**
+- Structured channel definitions (FILE, SYSTEM, APP, STORAGE, AUTH)
+- Handler registration for all channels
+- Request/response type safety
+- Dialog integration (file save/open)
+
+**Public API:**
+```typescript
+import { registerAllHandlers, IPC_CHANNELS } from './ipc';
+
+registerAllHandlers(ipcMain, {
+  storage: appStorage,
+  auth: authManager,
+  dialog: electron.dialog,
+  fs: fileSystem,
+  // ... other dependencies
+});
+```
+
+**Channels:**
+| Channel | Direction | Purpose |
+|---------|-----------|---------|
+| `file:save` | Renderer → Main | Save file with native dialog |
+| `file:open` | Renderer → Main | Open file with native dialog |
+| `app:info` | Renderer → Main | Get app/platform info |
+| `storage:read` | Renderer → Main | Read from app storage |
+| `storage:write` | Renderer → Main | Write to app storage |
+| `auth:status` | Renderer → Main | Get authentication status |
+
+**Testing Seams:** `IIpcMain`, `IDialog`, `IFileFs`
+
+---
+
+### runtime/ - Bundled Runtime Management
+
+Manages the bundled Go/Rust API binary for offline applications.
+
+**Key Features:**
+- Process spawning and lifecycle management
+- Exit tracking with stderr capture
+- HTTP client for control API (/readyz, /ports, /validate)
+- Error pattern matching for crash detection
+
+**Public API:**
+```typescript
+import { createRuntimeControlClient, RuntimeExitTracker } from './runtime';
+
+const runtime = createRuntimeControlClient({
+  baseUrl: 'http://localhost:18700',
+  http: httpClient,
+  timer: timerImpl,
+});
+
+const ready = await runtime.checkReady();
+const ports = await runtime.getPorts();
+const diagnostics = await runtime.getDiagnostics();
+
+// Exit tracking
+const tracker = new RuntimeExitTracker();
+tracker.trackProcess(childProcess);
+if (tracker.hasExitedUnexpectedly()) {
+  console.error('Runtime crashed:', tracker.getExitInfo());
+}
+```
+
+**Testing Seams:** `IRuntimeHttpClient`, `IProcessSpawner`, `IRuntimeFileSystem`, `ITimer`
+
+---
+
+### splash/ - Splash Screen Management
+
+Professional splash screen with status updates and error display.
+
+**Key Features:**
+- Splash window creation and lifecycle
+- IPC-based status communication
+- Server readiness polling with retry logic
+- Error display with diagnostic logs
+- Copy logs and retry functionality
+
+**Public API:**
+```typescript
+import { createSplashManager, checkServerReadiness } from './splash';
+
+const splash = createSplashManager({
+  windowFactory: browserWindowFactory,
+  pathResolver: pathResolver,
+  ipcMain: electron.ipcMain,
+  clipboard: electron.clipboard,
+});
+
+await splash.create();
+splash.updateStatus({ phase: 'loading', message: 'Starting services...' });
+
+// Check server readiness
+const result = await checkServerReadiness(httpClient, {
+  url: 'http://localhost:3000/readyz',
+  timeoutMs: 30000,
+  intervalMs: 500,
+  acceptableStatusCodes: [200, 204],
+});
+
+if (result.ready) {
+  await splash.close();
+}
+```
+
+**Testing Seams:** `IWindowFactory`, `IPathResolver`, `IHttpClient`, `ITimer`, `IClipboard`
+
+---
+
+### storage/ - App Data Storage
+
+Sandboxed file storage for application data.
+
+**Key Features:**
+- OS-appropriate data directories
+- Directory/file operations (read, write, delete, list)
+- Storage statistics (size, file count)
+- Text and binary file support
+
+**Public API:**
+```typescript
+import { createAppStorage } from './storage';
+
+const storage = createAppStorage({
+  appName: 'my-app',
+  fs: fileSystem,
+  path: pathUtils,
+});
+
+await storage.ensureDir('config');
+await storage.writeFile('config/settings.json', JSON.stringify(settings));
+const data = await storage.readFile('config/settings.json');
+const stats = await storage.getStats();
+```
+
+**Storage Locations:**
+- **Linux:** `~/.config/<app-name>/`
+- **macOS:** `~/Library/Application Support/<app-name>/`
+- **Windows:** `%APPDATA%\<app-name>\`
+
+**Testing Seams:** `IStorageFileSystem`, `IStoragePathUtils`
+
+---
+
+### telemetry/ - Deployment Analytics
+
+Event recording and upload for deployment monitoring.
+
+**Key Features:**
+- JSONL event recording to user data directory
+- Standard event types (app_start, server_ready, app_shutdown, etc.)
+- Session tracking with unique IDs
+- Telemetry upload with retry logic
+
+**Public API:**
+```typescript
+import { createTelemetryRecorder, createTelemetryUploader } from './telemetry';
+
+const recorder = createTelemetryRecorder({
+  appName: 'my-app',
+  fs: fileSystem,
+  path: pathUtils,
+});
+
+await recorder.record({
+  event: 'app_start',
+  timestamp: new Date().toISOString(),
+  session_id: sessionId,
+  app_version: '1.0.0',
+});
+
+const uploader = createTelemetryUploader({
+  endpoint: 'https://api.example.com/telemetry',
+  http: httpClient,
+});
+await uploader.upload(recorder.getFilePath());
+```
+
+**Standard Events:**
+| Event | Description |
+|-------|-------------|
+| `app_start` | Application launched |
+| `server_ready` | Backend server reachable |
+| `dependency_unreachable` | Connection to service failed |
+| `app_ready` | Fully initialized and ready |
+| `startup_error` | Error during startup |
+| `app_shutdown` | Clean application exit |
+
+**Testing Seams:** `IFileSystem`, `IHttpClient`, `IPathUtils`
+
+---
+
+### window-state/ - Window Persistence
+
+Remembers window position, size, and state across restarts.
+
+**Key Features:**
+- State persistence to app data directory
+- Multi-monitor support with display tracking
+- Graceful handling of disconnected displays
+- Validation and clamping to visible area
+
+**Public API:**
+```typescript
+import { WindowStateManager, createWindowStateStorage, createDisplayProvider } from './window-state';
+
+const storage = createWindowStateStorage(app, fs, path);
+const displayProvider = createDisplayProvider(screen);
+
+const manager = new WindowStateManager(
+  { storage, displayProvider },
+  { defaultWidth: 1200, defaultHeight: 800, minWidth: 400, minHeight: 300 }
+);
+
+const state = await manager.getInitialState();
+const window = new BrowserWindow({ x: state.x, y: state.y, width: state.width, height: state.height });
+
+manager.manage(window);
+
+// After window.show():
+if (manager.wasMaximized()) window.maximize();
+if (manager.wasFullScreen()) window.setFullScreen(true);
+```
+
+**State Schema:**
+```typescript
+interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+  isFullScreen: boolean;
+  displayId?: number;
+}
+```
+
+**Testing Seams:** `IStateStorage`, `IDisplayProvider`, `IManagedWindow`, `IFileSystem`
+
+---
+
+### test-utils/ - Testing Utilities
+
+Shared mocks and helpers for unit testing.
+
+**Exports:**
+```typescript
+import {
+  // Electron mocks
+  createMockBrowserWindow,
+  createMockIpcMain,
+  createMockApp,
+  createMockDialog,
+  createMockShell,
+  createMockScreen,
+  createMockSafeStorage,
+
+  // Filesystem mocks
+  createMockFs,
+  createMockPath,
+
+  // Async helpers
+  waitFor,
+  delay,
+} from './test-utils';
+```
+
+---
+
+## Template Variables
+
+Variables replaced during generation (Mustache syntax):
 
 ### Application Identity
-- `{{APP_NAME}}` - Technical app name (lowercase, no spaces)
-- `{{APP_DISPLAY_NAME}}` - User-facing app name
-- `{{APP_DESCRIPTION}}` - Brief app description
-- `{{VERSION}}` - App version (e.g., "1.0.0")
-- `{{AUTHOR}}` - Author/company name
-- `{{LICENSE}}` - Software license (e.g., "MIT")
-- `{{APP_ID}}` - Unique app identifier (e.g., "com.company.app")
-- `{{APP_URL}}` - App website/help URL
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{APP_NAME}}` | Technical name (lowercase) | `picker-wheel` |
+| `{{APP_DISPLAY_NAME}}` | User-facing name | `Picker Wheel` |
+| `{{VERSION}}` | Semantic version | `1.0.0` |
+| `{{APP_ID}}` | Unique identifier | `com.vrooli.picker-wheel` |
 
 ### Server Configuration
-- `{{SERVER_TYPE}}` - Server type: "node", "static", "external", "executable"
-- `{{DEPLOYMENT_MODE}}` - Deployment intent: "external-server", "cloud-api", or "bundled"
-- `{{SERVER_PORT}}` - Port for local server (if applicable)
-- `{{SERVER_PATH}}` - Path to server entry point or static files
-- `{{API_ENDPOINT}}` - Scenario API endpoint for communication
-- `{{SCENARIO_DIST_PATH}}` - Path to scenario's built files
-- `{{SCENARIO_NAME}}` - Scenario identifier for telemetry + optional server automation
-- `{{AUTO_MANAGE_TIER1}}` - `true` to let the desktop wrapper run `vrooli` commands (defaults to `false` so thin clients can connect to hosted Vrooli servers without the CLI)
-- `{{VROOLI_BINARY_PATH}}` - Override for locating the `vrooli` CLI
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{DEPLOYMENT_MODE}}` | Connection strategy | `external-server` / `bundled` |
+| `{{SERVER_TYPE}}` | UI loading method | `external` / `static` / `node` |
+| `{{SERVER_PATH}}` | Server URL or path | `https://api.example.com` |
+| `{{PORTS_CONFIG}}` | Port configuration JSON | `{"api":{"envVar":"API_PORT","port":18700}}` |
 
 ### Window Configuration
-- `{{WINDOW_WIDTH}}` - Initial window width (default: 1200)
-- `{{WINDOW_HEIGHT}}` - Initial window height (default: 800)
-- `{{WINDOW_BACKGROUND}}` - Background color while loading
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `{{WINDOW_WIDTH}}` | Initial width | `1200` |
+| `{{WINDOW_HEIGHT}}` | Initial height | `800` |
+| `{{WINDOW_BACKGROUND}}` | Background color | `#ffffff` |
 
-### Features (boolean values)
-- `{{ENABLE_SPLASH}}` - Show splash screen during startup
-- `{{ENABLE_MENU}}` - Show native application menu
-- `{{ENABLE_SYSTEM_TRAY}}` - Add system tray icon
-- `{{ENABLE_AUTO_UPDATER}}` - Enable automatic updates
-- `{{ENABLE_SINGLE_INSTANCE}}` - Prevent multiple app instances
-- `{{ENABLE_DEV_TOOLS}}` - Enable developer tools in development
+### Features (boolean)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `{{ENABLE_SPLASH}}` | Show splash screen | `true` |
+| `{{ENABLE_MENU}}` | Native menus | `true` |
+| `{{ENABLE_SYSTEM_TRAY}}` | System tray icon | `false` |
+| `{{ENABLE_DEV_TOOLS}}` | Developer tools | `false` |
 
-### Styling (for splash screen)
-- `{{SPLASH_BACKGROUND_START}}` - Splash gradient start color
-- `{{SPLASH_BACKGROUND_END}}` - Splash gradient end color
-- `{{SPLASH_TEXT_COLOR}}` - Splash text color
-- `{{SPLASH_ACCENT_COLOR}}` - Splash accent/loading color
-- `{{APP_ICON_PATH}}` - Path to app icon for splash
+---
 
-### Distribution
-- `{{PUBLISHER_NAME}}` - Publisher name for Windows
-- `{{YEAR}}` - Current year for copyright
-- `{{PUBLISH_CONFIG}}` - Publication configuration (JSON)
+## Integration Patterns
 
-## 🔧 Server Integration Patterns
+### Dependency Injection
 
-The template supports multiple server architectures:
-
-### 1. Node.js Server (`SERVER_TYPE: "node"`)
-- Forks a Node.js process for the backend
-- Suitable for Express, Fastify, or other Node.js servers
-- Server process is managed by Electron
+All modules use factory functions with explicit dependencies:
 
 ```typescript
-// Example configuration
-SERVER_TYPE: "node"
-SERVER_PORT: 3000
-SERVER_PATH: "backend/dist/server.js"
+// Production
+const storage = createAppStorage({ fs: require('fs'), path: require('path'), appName });
+const auth = createAuthManager({ storage, safeStorage: electron.safeStorage, ... });
+
+// Testing
+const mockStorage = createMockStorage();
+const auth = createAuthManager({ storage: mockStorage, safeStorage: mockSafeStorage, ... });
 ```
 
-### 2. Static Files (`SERVER_TYPE: "static"`)
-- Loads static HTML/JS files directly
-- No server process needed
-- Suitable for pre-built SPA applications
+### Module Composition in main.ts
 
 ```typescript
-// Example configuration
-SERVER_TYPE: "static"
-SERVER_PATH: "dist/index.html"
+// 1. Create foundational modules
+const storage = createAppStorage(config);
+const telemetry = createTelemetryRecorder(telemetryConfig);
+
+// 2. Create modules with dependencies
+const runtime = createRuntimeControlClient(runtimeConfig);
+const auth = createAuthManager({ storage, ... });
+const windowState = new WindowStateManager({ storage: stateStorage, displayProvider });
+
+// 3. Register IPC handlers with all modules
+registerAllHandlers(ipcMain, { storage, auth, runtime, telemetry, ... });
+
+// 4. Create windows with state
+const state = await windowState.getInitialState();
+mainWindow = new BrowserWindow({ ...state });
+windowState.manage(mainWindow);
 ```
 
-### 3. External Server (`SERVER_TYPE: "external"`)
-- Connects to an external/cloud-based server
-- No local server management
-- Suitable for cloud-native scenarios
+### Startup Sequence
 
-```typescript
-// Example configuration
-SERVER_TYPE: "external"
-SERVER_PATH: "https://api.example.com"
+```
+App Launch
+    ↓
+WindowStateManager.getInitialState()
+    ↓
+SplashManager.create()
+    ↓
+TelemetryRecorder.record('app_start')
+    ↓
+RuntimeControlClient.spawn() [if bundled]
+    ↓
+checkServerReadiness()
+    ↓
+SplashManager.close()
+    ↓
+MainWindow.show()
+    ↓
+TelemetryRecorder.record('app_ready')
 ```
 
-### 4. Executable Server (`SERVER_TYPE: "executable"`)
-- Spawns a compiled binary (Go, Rust, Python, etc.)
-- Server binary is bundled with the app
-- Cross-platform executable management
+---
 
-```typescript
-// Example configuration
-SERVER_TYPE: "executable"
-SERVER_PORT: 8000
-SERVER_PATH: "backend/server.exe"
-```
+## Development
 
-## 🖥️ Desktop Features
+### Running Tests
 
-### Native OS Integration
-- **File System Access**: Save/open files with native dialogs
-- **System Tray**: Persistent system tray icon with context menu
-- **Native Menus**: Standard application menus with keyboard shortcuts
-- **Notifications**: System notifications using native APIs
-- **Auto-updater**: Seamless application updates
-
-### Window Management
-- **Single Instance**: Prevents multiple app instances by default
-- **Splash Screen**: Professional loading screen during startup
-- **Window State**: Remembers window size/position across sessions
-- **Full Screen**: Native full-screen mode support
-
-### Security
-- **Context Isolation**: Secure communication between processes
-- **IPC Validation**: Whitelisted channels for inter-process communication
-- **Sandboxing**: Renderer process sandboxing for security
-- **Code Signing**: Support for code signing (requires certificates)
-
-## ⚙️ Local Server Bootstrapper (Opt-In)
-
-Keep `AUTO_MANAGE_TIER1=false` for traditional thin clients. When you explicitly set it to `true` **and** keep `DEPLOYMENT_MODE=external-server`, the template ships with an automation layer that:
-
-1. Searches for the `vrooli` CLI (prompts the user to locate it if missing, persisting the choice under the app's user data directory).
-2. Runs `vrooli setup --yes yes --skip-sudo yes` once per machine to install required resources without elevated privileges.
-3. Executes `vrooli scenario start <SCENARIO_NAME>` on app launch and waits for the scenario to report healthy.
-4. Calls `vrooli scenario stop <SCENARIO_NAME>` when the desktop app exits—only if it started the scenario.
-
-If you distribute the app to users who do not have `vrooli` installed, leave this disabled; the wrapper will simply load the remote UI/API you configured.
-
-## 🚧 Bundled Mode Placeholder
-
-`DEPLOYMENT_MODE="bundled"` currently shows a dialog explaining that offline/bundled builds are unavailable until Tier 2 shipping lands. Use this mode only for testing the UX copy; regenerate with `external-server` for production thin clients.
-
-All steps log telemetry to `deployment-telemetry.jsonl` so deployment-manager can see how often bootstrapping succeeds versus when the user had to intervene manually.
-
-## 🌐 Web Application Integration
-
-The template provides a secure bridge between your web application and desktop features:
-
-### Desktop API Usage
-
-```javascript
-// Available in your web application's JavaScript
-
-// File operations
-const filePath = await window.desktop.save(content, 'data.json');
-const fileData = await window.desktop.open();
-const jsonPath = await window.desktop.saveJSON(data, 'config.json');
-const jsonData = await window.desktop.loadJSON();
-
-// System information
-const info = await window.desktop.getInfo();
-console.log(`Running on ${info.platform} v${info.appVersion}`);
-
-// Application control
-await window.desktop.minimize();
-await window.desktop.maximize();
-await window.desktop.close();
-
-// Notifications
-window.desktop.notify('Process completed!', 'Success');
-
-// Menu actions
-window.desktop.onMenuAction((action, data) => {
-    if (action === 'new') {
-        // Handle new file/document
-    }
-});
-
-// Protocol URLs (deep linking)
-window.desktop.onProtocolUrl((url) => {
-    // Handle custom protocol URLs like myapp://action
-});
-
-// Feature detection
-if (window.desktop.features.fileSystem) {
-    // File system features are available
-}
-```
-
-### Environment Detection
-
-```javascript
-// Check if running in desktop mode
-if (window.desktopUtils.isDesktop) {
-    // Desktop-specific UI/behavior
-} else {
-    // Web browser fallbacks
-}
-```
-
-## 🚀 Development Workflow
-
-### Initial Setup
 ```bash
-# Install dependencies
-npm install
+# Run all tests
+npm test
 
+# Run with coverage
+npm run test:coverage
+
+# Run specific module tests
+npm test -- --filter auth
+npm test -- --filter splash
+```
+
+### Building
+
+```bash
 # Development build
 npm run build
 
-# Start in development mode
-npm run dev
-
-# Development with auto-rebuild
-npm run dev:watch
-```
-
-### Production Build
-```bash
-# Build for current platform
+# Production build for current platform
 npm run dist
 
-# Build for specific platforms
-npm run dist:win    # Windows
-npm run dist:mac    # macOS
-npm run dist:linux  # Linux
-
-# Build for all platforms
-npm run dist:all
+# Platform-specific builds
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
 ```
 
-### Testing
-```bash
-# Package without distributing
-npm run pack
+---
 
-# Clean build artifacts
-npm run clean
-```
+## Related Documentation
 
-## 📦 Customization Guide
-
-### Adding Custom Features
-
-1. **Custom IPC Handlers** (in `main.ts`):
-```typescript
-ipcMain.handle("custom:action", async (event, data) => {
-    // Handle custom functionality
-    return result;
-});
-```
-
-2. **Preload API Extensions** (in `preload.ts`):
-```typescript
-// Add to desktopAPI object
-custom: {
-    action: async (data: any) => {
-        return ipcRenderer.invoke("custom:action", data);
-    }
-}
-```
-
-3. **Menu Customization** (in `main.ts`):
-```typescript
-const template: Electron.MenuItemConstructorOptions[] = [
-    // Add custom menu items
-    {
-        label: "Custom",
-        submenu: [
-            // Custom menu items
-        ]
-    }
-];
-```
-
-### Styling the Splash Screen
-
-Modify the CSS variables in `splash.html`:
-```css
-:root {
-    --primary-color: #your-color;
-    --background-gradient: linear-gradient(135deg, #start, #end);
-}
-```
-
-### Adding Native Dependencies
-
-1. Install native modules:
-```bash
-npm install sqlite3 sharp  # Example native modules
-```
-
-2. Ensure proper rebuilding for Electron:
-```bash
-npm run postinstall
-```
-
-3. Use in main process (not renderer):
-```typescript
-// In main.ts only
-const sqlite3 = require('sqlite3');
-```
-
-## 🔒 Security Best Practices
-
-### Process Isolation
-- Main process handles all native APIs
-- Renderer process (web app) is sandboxed
-- Communication only through whitelisted IPC channels
-
-### Content Security Policy
-- Strict CSP prevents code injection
-- Only trusted domains allowed for external resources
-- No inline scripts in production
-
-### Code Signing
-- Sign all executables for distribution
-- Use proper certificates for each platform
-- Enable auto-updater signature verification
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**App won't start:**
-- Check server path configuration
-- Verify all dependencies are installed
-- Look for errors in development console
-
-**IPC communication fails:**
-- Ensure preload script is loaded correctly
-- Verify channel names in whitelist
-- Check TypeScript compilation errors
-
-**Build fails:**
-- Update electron-builder to latest version
-- Check native module compatibility
-- Verify build configuration in package.json
-
-**Performance issues:**
-- Enable hardware acceleration
-- Optimize renderer process code
-- Consider lazy loading for large applications
-
-### Debug Mode
-
-Enable verbose logging:
-```bash
-DEBUG=electron* npm run dev
-```
-
-Access developer tools:
-```javascript
-// In renderer process
-if (!app.isPackaged) {
-    mainWindow.webContents.openDevTools();
-}
-```
-
-## 📚 Resources
-
-- [Electron Documentation](https://www.electronjs.org/docs)
-- [Electron Builder Configuration](https://www.electron.build/)
-- [Electron Security Checklist](https://www.electronjs.org/docs/latest/tutorial/security)
-- [IPC Communication Guide](https://www.electronjs.org/docs/latest/tutorial/ipc)
-
-## 🔄 Template Updates
-
-This template is regularly updated to include:
-- Latest Electron security practices
-- New desktop integration features
-- Performance optimizations
-- Cross-platform compatibility improvements
-
-Generated applications inherit all template improvements through scenario-to-desktop regeneration.
+- [DOC: docs/concepts/ARCHITECTURE.md] - System architecture diagrams
+- [DOC: docs/internal/SEAMS.md] - Complete seam documentation
+- [DOC: docs/concepts/GLOSSARY.md] - Term definitions
+- [DOC: docs/desktop-integration-guide.md] - Feature cookbook

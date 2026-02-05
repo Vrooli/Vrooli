@@ -40,30 +40,123 @@ scenario-to-desktop/
 │   ├── telemetry/                # Event tracking & analytics
 │   ├── preflight/                # Pre-build validation
 │   └── domain/                   # Core business logic
+│
 ├── cli/                          # Command-line interface
+│
 ├── ui/                           # React web management interface (port 35000-39999)
+│   └── src/
+│       ├── components/           # UI elements
+│       ├── hooks/                # State management
+│       ├── domain/               # Business logic
+│       ├── store/                # Zustand stores
+│       └── lib/                  # Utilities
+│
 ├── templates/                    # Template system
 │   ├── vanilla/                  # Base Electron implementation
-│   │   ├── main.ts              # Electron main process
-│   │   ├── preload.ts           # Secure IPC bridge
-│   │   ├── splash.html          # Professional splash screen
-│   │   ├── window-state/        # Window state persistence module
-│   │   └── splash/              # Splash screen management
-│   ├── advanced/                # Template configuration files
-│   │   ├── universal-app.json   # Default template (95% of use cases)
-│   │   ├── advanced-app.json    # Professional features
-│   │   ├── multi-window.json    # Complex workflows
-│   │   └── kiosk-mode.json      # Full-screen deployments
-│   └── build-tools/             # Template generator system
+│   │   ├── main.ts               # Electron main process
+│   │   ├── preload.ts            # Secure IPC bridge
+│   │   ├── splash.html           # Professional splash screen
+│   │   ├── splash-preload.ts     # Splash IPC bridge
+│   │   │
+│   │   ├── auth/                 # Authentication module
+│   │   ├── bundle/               # Bundle validation module
+│   │   ├── ipc/                  # IPC handler module
+│   │   ├── runtime/              # Bundled runtime module
+│   │   ├── splash/               # Splash management module
+│   │   ├── storage/              # App storage module
+│   │   ├── telemetry/            # Analytics module
+│   │   ├── window-state/         # Window persistence module
+│   │   ├── test-utils/           # Shared testing utilities
+│   │   │
+│   │   ├── examples/             # Feature implementation examples
+│   │   └── scripts/              # Build helper scripts
+│   │
+│   ├── advanced/                 # Template configuration files
+│   │   ├── universal-app.json    # Default template (95% of use cases)
+│   │   ├── advanced-app.json     # Professional features
+│   │   ├── multi-window.json     # Complex workflows
+│   │   └── kiosk-mode.json       # Full-screen deployments
+│   │
+│   └── build-tools/              # Template generator system
+│
 ├── runtime/                      # Bundled runtime for offline apps (future)
+│
 └── docs/                         # Documentation
+    ├── OVERVIEW.md               # Current vs roadmap
+    ├── QUICKSTART.md             # Getting started
+    ├── concepts/                 # Architecture, glossary
+    ├── reference/                # API, pipeline docs
+    └── internal/                 # SEAMS.md, ASSUMPTIONS.md
 ```
 
 ---
 
-## Template Architecture
+## Template Module Architecture
 
-### Template Types
+The vanilla template uses a **modular, seam-based architecture** where each module has:
+- Clear single responsibility
+- Explicit interfaces for dependencies (seams)
+- Co-located unit tests
+- Factory functions for dependency injection
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           templates/vanilla/                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                 │
+│    │   main.ts    │───▶│  preload.ts  │───▶│  splash.html │                 │
+│    │ (Orchestrator)    │  (IPC Bridge) │    │ (Loading UI) │                 │
+│    └───────┬──────┘    └──────────────┘    └──────────────┘                 │
+│            │                                                                 │
+│            │  Uses 8 Core Modules:                                           │
+│            ▼                                                                 │
+│    ┌───────────────────────────────────────────────────────────────────┐    │
+│    │                        CORE MODULES                                │    │
+│    ├───────────────────────────────────────────────────────────────────┤    │
+│    │                                                                    │    │
+│    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐│    │
+│    │  │    auth/    │  │   bundle/   │  │    ipc/     │  │  runtime/ ││    │
+│    │  │             │  │             │  │             │  │           ││    │
+│    │  │ Magic link  │  │ Manifest    │  │ Type-safe   │  │ Process   ││    │
+│    │  │ Token mgmt  │  │ validation  │  │ channels    │  │ lifecycle ││    │
+│    │  │ Auto-refresh│  │ Platform    │  │ Handlers    │  │ Exit track││    │
+│    │  └─────────────┘  └─────────────┘  └─────────────┘  └───────────┘│    │
+│    │                                                                    │    │
+│    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐│    │
+│    │  │   splash/   │  │  storage/   │  │ telemetry/  │  │window-    ││    │
+│    │  │             │  │             │  │             │  │state/     ││    │
+│    │  │ Window mgmt │  │ App data    │  │ Events      │  │           ││    │
+│    │  │ Status IPC  │  │ Sandboxed   │  │ Sessions    │  │ Persist   ││    │
+│    │  │ Readiness   │  │ Cross-plat  │  │ Upload      │  │ Multi-mon ││    │
+│    │  └─────────────┘  └─────────────┘  └─────────────┘  └───────────┘│    │
+│    │                                                                    │    │
+│    │  ┌─────────────┐                                                   │    │
+│    │  │ test-utils/ │  Shared mocks: electron, fs, async helpers       │    │
+│    │  └─────────────┘                                                   │    │
+│    │                                                                    │    │
+│    └───────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Module Responsibilities
+
+| Module | Responsibility | Key Interfaces |
+|--------|----------------|----------------|
+| **auth/** | Secure authentication with magic links and encrypted tokens | `IAuthManager`, `ISafeStorage` |
+| **bundle/** | Validate bundled deployment manifests for offline apps | `IBundleValidator`, `BundleManifest` |
+| **ipc/** | Type-safe main↔renderer communication | `IpcHandlers`, `IPC_CHANNELS` |
+| **runtime/** | Manage bundled API binary lifecycle and health | `IRuntimeControlClient`, `RuntimeExitTracker` |
+| **splash/** | Splash window with status updates and error display | `ISplashWindowManager`, `ReadinessChecker` |
+| **storage/** | Sandboxed app data persistence | `IAppStorage`, `IStorageFileSystem` |
+| **telemetry/** | Deployment event recording and upload | `ITelemetryRecorder`, `ITelemetryUploader` |
+| **window-state/** | Window position/size persistence across restarts | `IWindowStateManager`, `IStateStorage` |
+| **test-utils/** | Shared testing mocks and helpers | Mock factories for all modules |
+
+---
+
+## Template Types
 
 ```
 templates/
@@ -71,8 +164,7 @@ templates/
 │   ├── main.ts                     Main process (window creation, menus)
 │   ├── preload.ts                  IPC bridge (web ↔ native)
 │   ├── splash.html                 Professional loading screen
-│   ├── window-state/               Remembers window size/position
-│   └── splash/                     Splash screen management
+│   └── [8 core modules]            Modular, testable architecture
 │
 └── advanced/                   ◄── FEATURE CONFIGURATIONS
     ├── universal-app.json          Default (95% of cases)
@@ -202,6 +294,7 @@ const WINDOW_WIDTH = 1200;
 | `{{WINDOW_HEIGHT}}` | Default window height | `800` |
 | `{{ENABLE_SPLASH}}` | Show splash screen | `true/false` |
 | `{{ENABLE_SYSTEM_TRAY}}` | Enable tray icon | `true/false` |
+| `{{PORTS_CONFIG}}` | Port environment config | `{"api":{"envVar":"API_PORT",...}}` |
 
 ---
 
@@ -328,7 +421,8 @@ scenarios/picker-wheel/
         ├── src/
         │   ├── main.ts           # Electron main process
         │   ├── preload.ts        # IPC bridge
-        │   └── splash.html       # Loading screen
+        │   ├── splash.html       # Loading screen
+        │   └── [modules]/        # All 8 core modules
         ├── assets/               # Platform icons
         ├── package.json
         │
@@ -382,76 +476,59 @@ type Stage interface {
 
 ---
 
-## Window State Persistence
-
-**Implementation:** [CODE: templates/vanilla/window-state/manager.ts], [CODE: templates/vanilla/window-state/types.ts]
-
-The template includes a module to remember window position across restarts:
+## Startup Sequence with Modules
 
 ```
-window-state/
-├── types.ts       # Type definitions and interfaces
-├── storage.ts     # File I/O abstraction (IStateStorage seam)
-├── display.ts     # Display/screen abstraction (IDisplayProvider seam)
-├── validator.ts   # Pure validation functions (no mocks needed)
-├── manager.ts     # Orchestration (WindowStateManager)
-└── __tests__/     # Co-located tests
-```
-
-### State Persistence Flow
-
-```
-App Launch                                  App Close
-    │                                           │
-    ▼                                           ▼
-┌─────────────┐                         ┌─────────────┐
-│ Load State  │                         │ Save State  │
-│ from Disk   │                         │  to Disk    │
-└─────────────┘                         └─────────────┘
-    │                                           ▲
-    ▼                                           │
-┌─────────────┐     Window Lifecycle     ┌─────────────┐
-│  Validate   │ ───────────────────────▶ │  Capture    │
-│  Position   │                          │   Bounds    │
-└─────────────┘                          └─────────────┘
+App Launch
     │
     ▼
-┌─────────────┐
-│ Apply to    │
-│  Window     │
-└─────────────┘
+┌─────────────────┐
+│ window-state/   │──▶ Load saved position from disk
+│ getInitialState │    Validate against current displays
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ splash/manager  │──▶ Create splash window
+│ create()        │    Display "Starting..."
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ telemetry/      │──▶ Record app_start event
+│ record()        │    Generate session ID
+└────────┬────────┘
+         │
+         ▼ (if bundled mode)
+┌─────────────────┐
+│ runtime/        │──▶ Spawn API binary
+│ spawn()         │    Set port environment variables
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ splash/         │──▶ Poll /readyz endpoint
+│ checkReadiness  │    Update splash status
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ splash/manager  │──▶ Close splash window
+│ close()         │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Main Window     │──▶ Load web application
+│ show()          │    Apply maximized/fullscreen if saved
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ telemetry/      │──▶ Record app_ready event
+│ record()        │
+└─────────────────┘
 ```
-
-### Multi-Monitor Support
-
-The validator handles disconnected displays gracefully:
-
-1. Load saved state with display ID
-2. Check if original display still connected
-3. If not, find best alternative (same position or primary)
-4. Ensure window is visible (not off-screen)
-
----
-
-## Telemetry & Monitoring
-
-Desktop apps write telemetry to track deployment health:
-
-**Location:** OS-specific user data directory
-- **Linux:** `~/.config/<app-name>/deployment-telemetry.jsonl`
-- **macOS:** `~/Library/Application Support/<app-name>/deployment-telemetry.jsonl`
-- **Windows:** `%APPDATA%\<app-name>\deployment-telemetry.jsonl`
-
-**Events Tracked:**
-| Event | Description |
-|-------|-------------|
-| `app_start` | App launched |
-| `external_server_mode` | Mode detected |
-| `server_ready` | Server reachable |
-| `dependency_unreachable` | Connection failed |
-| `app_ready` | Fully initialized |
-| `startup_error` | Errors during startup |
-| `app_shutdown` | Clean exit |
 
 ---
 
@@ -488,10 +565,33 @@ Go binary receives ALL env vars
 
 ---
 
+## Telemetry & Monitoring
+
+Desktop apps write telemetry to track deployment health:
+
+**Location:** OS-specific user data directory
+- **Linux:** `~/.config/<app-name>/deployment-telemetry.jsonl`
+- **macOS:** `~/Library/Application Support/<app-name>/deployment-telemetry.jsonl`
+- **Windows:** `%APPDATA%\<app-name>\deployment-telemetry.jsonl`
+
+**Events Tracked:**
+| Event | Description |
+|-------|-------------|
+| `app_start` | App launched |
+| `external_server_mode` | Mode detected |
+| `server_ready` | Server reachable |
+| `dependency_unreachable` | Connection failed |
+| `app_ready` | Fully initialized |
+| `startup_error` | Errors during startup |
+| `app_shutdown` | Clean exit |
+
+---
+
 ## Related Documentation
 
+- [DOC: templates/vanilla/README.md] - Complete module documentation
 - [DOC: docs/QUICKSTART.md] - Getting started with thin client generation
 - [DOC: docs/deployment-modes.md] - Choosing deployment_mode and server_type
 - [DOC: docs/desktop-integration-guide.md] - Feature cookbook (file system, menus, tray)
 - [DOC: docs/internal/SEAMS.md] - Integration boundaries and testability
-- [DOC: templates/README.md] - Template system details
+- [DOC: docs/concepts/GLOSSARY.md] - Term definitions

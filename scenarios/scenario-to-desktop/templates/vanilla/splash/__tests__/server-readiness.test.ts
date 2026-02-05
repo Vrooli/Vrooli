@@ -7,6 +7,7 @@
  * Uses mock HTTP client and timer to test without network access.
  */
 
+import { describe, it, expect } from "vitest";
 import {
     type IHttpClient,
     type ITimer,
@@ -38,12 +39,13 @@ function createMockHttpClient(
     responses: Array<{ statusCode: number; body?: string } | Error>
 ): IHttpClient & { callCount: number } {
     let callIndex = 0;
+    const fallbackResponse = { statusCode: 500, body: "Mock fallback" };
     return {
         get callCount() {
             return callIndex;
         },
         get: async (_url: string, _timeoutMs: number) => {
-            const response = responses[callIndex] ?? responses[responses.length - 1];
+            const response = responses[callIndex] ?? responses[responses.length - 1] ?? fallbackResponse;
             callIndex++;
 
             if (response instanceof Error) {
@@ -267,7 +269,7 @@ describe("checkServerReadiness", () => {
             });
 
             expect(progressCalls.length).toBeGreaterThan(0);
-            expect(progressCalls[0].attempt).toBe(1);
+            expect(progressCalls[0]?.attempt).toBe(1);
         });
     });
 
