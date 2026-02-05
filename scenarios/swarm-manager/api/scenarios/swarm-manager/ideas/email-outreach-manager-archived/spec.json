@@ -1,0 +1,26 @@
+{
+  "created": "2026-02-05T20:43:46Z",
+  "description": "AI-powered personalized email campaign generation and execution with contact intelligence integration",
+  "name": "email-outreach-manager-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "email-marketing",
+    "ai-template-generation",
+    "contact-personalization",
+    "campaign-automation",
+    "drip-sequences",
+    "contact-book-integration",
+    "mail-in-a-box-integration",
+    "ollama-ai",
+    "go-api",
+    "postgres-storage",
+    "redis-queue",
+    "marketing-intelligence",
+    "relationship-aware-communications",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] email-outreach-manager",
+  "updated": "2026-02-05T20:43:46Z"
+}

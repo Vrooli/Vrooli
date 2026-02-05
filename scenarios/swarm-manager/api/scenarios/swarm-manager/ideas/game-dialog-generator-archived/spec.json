@@ -1,0 +1,28 @@
+{
+  "created": "2026-02-05T20:46:28Z",
+  "description": "AI-powered character dialog generation for video games with jungle platformer aesthetics",
+  "name": "game-dialog-generator-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "game-development",
+    "dialog-generation",
+    "character-ai",
+    "narrative-design",
+    "voice-synthesis",
+    "jungle-platformer",
+    "creative-tools",
+    "go-api",
+    "nodejs-ui",
+    "postgres-storage",
+    "qdrant-vectors",
+    "ollama-ai",
+    "whisper-tts",
+    "real-time-generation",
+    "batch-processing",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] game-dialog-generator",
+  "updated": "2026-02-05T20:46:28Z"
+}

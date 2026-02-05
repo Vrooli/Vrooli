@@ -1,0 +1,28 @@
+{
+  "created": "2026-02-05T20:53:27Z",
+  "description": "AI-powered spoiler-free book discussions with progress-aware content filtering",
+  "name": "no-spoilers-book-talk-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "education",
+    "literature",
+    "reading",
+    "spoiler-free",
+    "discussion",
+    "progress-tracking",
+    "rag-pipeline",
+    "vector-search",
+    "go-api",
+    "n8n-workflows",
+    "postgres-storage",
+    "qdrant-vectors",
+    "position-aware-filtering",
+    "book-analysis",
+    "literary-discussion",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] no-spoilers-book-talk",
+  "updated": "2026-02-05T20:53:27Z"
+}
