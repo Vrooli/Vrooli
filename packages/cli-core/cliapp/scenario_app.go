@@ -28,6 +28,7 @@ type ScenarioOptions struct {
 	ColorEnabled       *bool
 	OnColor            func(enabled bool)
 	Commands           []CommandGroup
+	SubcommandGroups   []SubcommandGroup
 	TokenKeys          []string
 	APIBaseKeys        []string
 	TokenEnvVars       []string
@@ -117,7 +118,14 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 // SetCommands rebuilds the CLI with the provided command groups while keeping
 // the shared wiring intact.
 func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
+	a.SetCommandsWithSubgroups(commands, nil)
+}
+
+// SetCommandsWithSubgroups rebuilds the CLI with both flat command groups and
+// hierarchical subcommand groups.
+func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcommandGroups []SubcommandGroup) {
 	a.options.Commands = commands
+	a.options.SubcommandGroups = subcommandGroups
 
 	colorEnabled := DefaultColorEnabled()
 	if a.options.ColorEnabled != nil {
@@ -152,15 +160,16 @@ func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
 	}
 
 	a.CLI = NewApp(AppOptions{
-		Name:         a.options.Name,
-		Version:      a.options.Version,
-		Description:  a.options.Description,
-		Commands:     commands,
-		APIOverride:  &a.APIOverride,
-		ColorEnabled: colorEnabled,
-		OnColor:      a.options.OnColor,
-		StaleChecker: a.StaleChecker,
-		Preflight:    preflight,
+		Name:             a.options.Name,
+		Version:          a.options.Version,
+		Description:      a.options.Description,
+		Commands:         commands,
+		SubcommandGroups: subcommandGroups,
+		APIOverride:      &a.APIOverride,
+		ColorEnabled:     colorEnabled,
+		OnColor:          a.options.OnColor,
+		StaleChecker:     a.StaleChecker,
+		Preflight:        preflight,
 	})
 }
 

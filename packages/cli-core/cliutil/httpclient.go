@@ -12,6 +12,97 @@ import (
 	"time"
 )
 
+// APIError represents a structured error from the API with rich recovery information.
+type APIError struct {
+	StatusCode   int
+	Message      string
+	Code         string
+	Category     string
+	Details      map[string]interface{}
+	Recovery     string
+	RecoveryHint string
+	AutoFix      *AutoFixInfo
+	ManualSteps  []string
+	RawResponse  []byte
+}
+
+// AutoFixInfo describes an automatic fix command if available.
+type AutoFixInfo struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+	Safe        bool   `json:"safe"`
+}
+
+// Error implements the error interface.
+func (e *APIError) Error() string {
+	return fmt.Sprintf("api error (%d): %s", e.StatusCode, e.Message)
+}
+
+// IsStructured returns true if the error has rich recovery information.
+func (e *APIError) IsStructured() bool {
+	return e.Code != "" || e.RecoveryHint != "" || e.AutoFix != nil || len(e.ManualSteps) > 0
+}
+
+// FormatConcise returns a human-readable error with recovery information.
+func (e *APIError) FormatConcise() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Error: %s\n", e.Message))
+	if e.Code != "" {
+		b.WriteString(fmt.Sprintf("Code: %s\n", e.Code))
+	}
+	if e.RecoveryHint != "" {
+		b.WriteString(fmt.Sprintf("\nRecovery: %s\n", e.RecoveryHint))
+	}
+	if e.AutoFix != nil && e.AutoFix.Command != "" {
+		safe := ""
+		if e.AutoFix.Safe {
+			safe = " (safe)"
+		}
+		b.WriteString(fmt.Sprintf("\nAuto-fix%s:\n  %s\n", safe, e.AutoFix.Command))
+	}
+	if len(e.ManualSteps) > 0 {
+		b.WriteString("\nManual steps:\n")
+		for i, step := range e.ManualSteps {
+			b.WriteString(fmt.Sprintf("  %d. %s\n", i+1, step))
+		}
+	}
+	return b.String()
+}
+
+// ParseAPIError parses a structured API error response.
+func ParseAPIError(statusCode int, data []byte) *APIError {
+	apiErr := &APIError{StatusCode: statusCode, RawResponse: data}
+
+	var parsed struct {
+		Error        string                 `json:"error"`
+		Code         string                 `json:"code"`
+		Category     string                 `json:"category"`
+		Details      map[string]interface{} `json:"details"`
+		Recovery     string                 `json:"recovery"`
+		RecoveryHint string                 `json:"recovery_hint"`
+		AutoFix      *AutoFixInfo           `json:"auto_fix"`
+		ManualSteps  []string               `json:"manual_steps"`
+	}
+
+	if err := json.Unmarshal(data, &parsed); err == nil {
+		apiErr.Message = parsed.Error
+		apiErr.Code = parsed.Code
+		apiErr.Category = parsed.Category
+		apiErr.Details = parsed.Details
+		apiErr.Recovery = parsed.Recovery
+		apiErr.RecoveryHint = parsed.RecoveryHint
+		apiErr.AutoFix = parsed.AutoFix
+		apiErr.ManualSteps = parsed.ManualSteps
+	} else {
+		apiErr.Message = strings.TrimSpace(string(data))
+	}
+
+	if apiErr.Message == "" {
+		apiErr.Message = fmt.Sprintf("HTTP %d", statusCode)
+	}
+	return apiErr
+}
+
 // HTTPClient wraps an http.Client with base URL resolution, token injection,
 // and JSON request helpers.
 type HTTPClient struct {
@@ -127,7 +218,7 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("api error (%d): %s", resp.StatusCode, ExtractErrorMessage(data))
+		return nil, ParseAPIError(resp.StatusCode, data)
 	}
 	return data, nil
 }

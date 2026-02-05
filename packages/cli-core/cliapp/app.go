@@ -25,17 +25,31 @@ type CommandGroup struct {
 	Commands []Command
 }
 
+// SubcommandGroup provides hierarchical command support (e.g., "pipeline run", "pipeline status").
+// Each group automatically gets a "help" subcommand.
+type SubcommandGroup struct {
+	// Name is the group command (e.g., "pipeline", "telemetry")
+	Name string
+	// Description shown in main help
+	Description string
+	// Subcommands within this group (e.g., "run", "status")
+	Subcommands []Command
+	// NeedsAPI applies to all subcommands unless overridden
+	NeedsAPI bool
+}
+
 // AppOptions configure a CLI application with common behaviors.
 type AppOptions struct {
-	Name         string
-	Version      string
-	Description  string
-	Commands     []CommandGroup
-	APIOverride  *string
-	ColorEnabled bool
-	OnColor      func(enabled bool)
-	StaleChecker *cliutil.StaleChecker
-	Preflight    func(cmd Command, global GlobalOptions) error
+	Name             string
+	Version          string
+	Description      string
+	Commands         []CommandGroup
+	SubcommandGroups []SubcommandGroup
+	APIOverride      *string
+	ColorEnabled     bool
+	OnColor          func(enabled bool)
+	StaleChecker     *cliutil.StaleChecker
+	Preflight        func(cmd Command, global GlobalOptions) error
 }
 
 // GlobalOptions holds parsed global flags that all scenario CLIs share.
@@ -52,10 +66,11 @@ func DefaultColorEnabled() bool {
 
 // App coordinates command dispatch, global flags, help/version, and stale checks.
 type App struct {
-	opts          AppOptions
-	global        GlobalOptions
-	commands      []Command
-	commandLookup map[string]Command
+	opts                  AppOptions
+	global                GlobalOptions
+	commands              []Command
+	commandLookup         map[string]Command
+	subcommandGroupLookup map[string]*SubcommandGroup
 }
 
 // NewApp builds an App with meta commands (help/version) included automatically.
@@ -89,6 +104,11 @@ func (a *App) Run(args []string) error {
 		return nil
 	}
 
+	// Check for subcommand group first
+	if group, ok := a.subcommandGroupLookup[remaining[0]]; ok {
+		return a.runSubcommand(group, remaining[1:], args)
+	}
+
 	cmd, ok := a.commandLookup[remaining[0]]
 	if !ok {
 		return fmt.Errorf("Unknown command: %s", remaining[0])
@@ -110,6 +130,66 @@ func (a *App) Run(args []string) error {
 	return cmd.Run(remaining[1:])
 }
 
+// runSubcommand handles dispatch within a subcommand group.
+func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs []string) error {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		a.printSubcommandHelp(group)
+		return nil
+	}
+
+	// Find the subcommand
+	var cmd *Command
+	for i := range group.Subcommands {
+		if group.Subcommands[i].Name == args[0] {
+			cmd = &group.Subcommands[i]
+			break
+		}
+		for _, alias := range group.Subcommands[i].Aliases {
+			if alias == args[0] {
+				cmd = &group.Subcommands[i]
+				break
+			}
+		}
+		if cmd != nil {
+			break
+		}
+	}
+
+	if cmd == nil {
+		return fmt.Errorf("Unknown subcommand: %s %s\nRun '%s %s help' for available subcommands", group.Name, args[0], a.opts.Name, group.Name)
+	}
+
+	needsAPI := cmd.NeedsAPI || group.NeedsAPI
+	if needsAPI && a.opts.StaleChecker != nil {
+		a.opts.StaleChecker.ReexecArgs = originalArgs
+		if restarted := a.opts.StaleChecker.CheckAndMaybeRebuild(); restarted {
+			return nil
+		}
+	}
+
+	if a.opts.Preflight != nil {
+		preflightCmd := *cmd
+		preflightCmd.NeedsAPI = needsAPI
+		if err := a.opts.Preflight(preflightCmd, a.global); err != nil {
+			return err
+		}
+	}
+
+	return cmd.Run(args[1:])
+}
+
+// printSubcommandHelp prints help for a subcommand group.
+func (a *App) printSubcommandHelp(group *SubcommandGroup) {
+	fmt.Printf("%s %s - %s\n\n", a.opts.Name, group.Name, group.Description)
+	fmt.Printf("Usage:\n  %s %s <subcommand> [options]\n\n", a.opts.Name, group.Name)
+	fmt.Println("Subcommands:")
+	for _, cmd := range group.Subcommands {
+		fmt.Printf("  %-20s %s\n", cmd.Name, cmd.Description)
+	}
+	fmt.Println()
+	fmt.Printf("Run '%s %s <subcommand> --help' for subcommand-specific options.\n", a.opts.Name, group.Name)
+}
+
 // SetStaleChecker overrides the stale checker (useful in tests).
 func (a *App) SetStaleChecker(checker *cliutil.StaleChecker) {
 	a.opts.StaleChecker = checker
@@ -126,6 +206,15 @@ func (a *App) PrintHelp() {
 	fmt.Println("  --no-color         Disable ANSI color output (or set NO_COLOR)")
 	fmt.Println("  --color            Force-enable ANSI color output")
 	fmt.Println()
+
+	// Print subcommand groups first (these are the main features)
+	if len(a.opts.SubcommandGroups) > 0 {
+		fmt.Println("Command Groups (run '<group> help' for details):")
+		for _, group := range a.opts.SubcommandGroups {
+			fmt.Printf("  %-20s %s\n", group.Name, group.Description)
+		}
+		fmt.Println()
+	}
 
 	fmt.Println("Commands:")
 	for _, group := range a.commandGroups() {
@@ -183,6 +272,13 @@ func (a *App) buildCommands() {
 				a.commandLookup[alias] = cmd
 			}
 		}
+	}
+
+	// Build subcommand group lookup
+	a.subcommandGroupLookup = make(map[string]*SubcommandGroup)
+	for i := range a.opts.SubcommandGroups {
+		group := &a.opts.SubcommandGroups[i]
+		a.subcommandGroupLookup[group.Name] = group
 	}
 }
 
