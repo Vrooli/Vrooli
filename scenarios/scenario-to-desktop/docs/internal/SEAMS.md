@@ -170,7 +170,29 @@ type Store interface {
 - `ManifestGenerator` - On-demand bundle manifest generation via deployment-manager
 - `versionUpdateFS` - File I/O seam for scenario version updates (used by pipeline run version controls)
 - `versionRollback` - In-memory rollback handle for reverting persisted version updates when a pipeline fails or is cancelled
+- `updates.ManifestGenerator` - Auto-update manifest generation for distribution stage (Feb 2026)
 **Status**: ✅ All interfaces implemented
+
+#### 10. Auto-Update Provider Seam (`updates.Provider`)
+**Location**: `api/updates/interfaces.go`
+**Purpose**: Abstracts update distribution providers (generic/self-hosted, GitHub, none). Enables different update strategies with consistent interface.
+**Interface**:
+```go
+type Provider interface {
+    Name() string
+    Validate() error
+    GetPublishConfig(channel string) (map[string]interface{}, error)
+    GenerateManifest(ctx context.Context, req *ManifestRequest) (*ManifestResult, error)
+    RequiresManifestUpload() bool
+}
+```
+**Implementations**: `GenericProvider` (default), `GitHubProvider`, `NoneProvider`
+**Factory**: `ProviderFactory` creates providers from config
+**Testing Seams**:
+- `HashCalculator` - Abstracts SHA-512 hash calculation
+- `FileStatProvider` - Abstracts file metadata retrieval
+- `ManifestWriter` - Abstracts file writing
+**Status**: ✅ Implemented (Feb 2026)
 
 ### UI Seams
 

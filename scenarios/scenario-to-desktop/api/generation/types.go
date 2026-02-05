@@ -91,8 +91,32 @@ type GitHubUpdateConfig struct {
 }
 
 // GenericUpdateConfig configures a self-hosted update server.
+// This is the default update provider for scenario-to-desktop, enabling
+// auto-updates without requiring external services like GitHub Releases.
 type GenericUpdateConfig struct {
-	URL         string `json:"url"`
+	// URL is the base URL for update manifest files.
+	//
+	// REQUIRED for auto-updates to work. If empty, a warning is logged
+	// during generation and auto-updates are disabled at runtime.
+	//
+	// The URL should point to a directory where manifest files (latest.yml,
+	// latest-mac.yml, latest-linux.yml) and artifact files are hosted.
+	//
+	// Examples:
+	//   - https://updates.example.com/my-app
+	//   - https://your-lpbs.com/api/v1/apps/{app_key}/updates
+	//   - https://my-bucket.s3.amazonaws.com/releases/my-app
+	//
+	// The final URL used by electron-updater will include the channel:
+	//   {URL}/{channel}/latest.yml (e.g., https://updates.example.com/my-app/stable/latest.yml)
+	URL string `json:"url"`
+
+	// ChannelPath is an optional path template for channel-based URLs.
+	// If set, overrides the default "/{channel}" suffix.
+	// Use {channel} placeholder to insert the channel name.
+	//
+	// Example: "/{channel}/v1" produces URL like:
+	//   https://updates.example.com/my-app/stable/v1/latest.yml
 	ChannelPath string `json:"channel_path,omitempty"`
 }
 

@@ -50,6 +50,28 @@ var archivePresets = map[string][]string{
 	"all-planning":  {"PRD.md", "README.md", "docs/**", "requirements/**", "specs/**", "planning/**", "design/**", ".vrooli/**", "*.md"},
 }
 
+var archiveIgnoredDirs = map[string]struct{}{
+	"node_modules": {},
+	".git":         {},
+	"dist":         {},
+	"build":        {},
+	"coverage":     {},
+	".next":        {},
+	".turbo":       {},
+	"target":       {},
+	"vendor":       {},
+}
+
+func isIgnoredArchivePath(path string) bool {
+	parts := strings.Split(path, string(filepath.Separator))
+	for _, part := range parts {
+		if _, ignored := archiveIgnoredDirs[part]; ignored {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizePreserveFilesRequest(req *apipb.PreserveFilesRequest) {
 	if req == nil {
 		return
@@ -940,15 +962,17 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 
 // copyPreservedFiles copies files matching the specified patterns from scenario to idea directory.
 func copyPreservedFiles(scenarioPath, ideaDir string, preserveFiles *apipb.PreserveFilesRequest) ([]string, error) {
-	// Resolve paths from preset if specified
-	patterns := preserveFiles.Paths
+	explicitPatterns := append([]string{}, preserveFiles.Paths...)
+	presetPatterns := []string{}
 	if preserveFiles.Preset != nil && *preserveFiles.Preset != "" {
-		presetPatterns, ok := archivePresets[*preserveFiles.Preset]
+		presetMatches, ok := archivePresets[*preserveFiles.Preset]
 		if ok {
-			patterns = append(patterns, presetPatterns...)
+			presetPatterns = append(presetPatterns, presetMatches...)
 		}
 	}
 
+	patterns := append([]string{}, explicitPatterns...)
+	patterns = append(patterns, presetPatterns...)
 	if len(patterns) == 0 {
 		return nil, nil
 	}
@@ -963,7 +987,7 @@ func copyPreservedFiles(scenarioPath, ideaDir string, preserveFiles *apipb.Prese
 		}
 	}
 
-	// Collect files matching patterns
+	// Collect files matching patterns. Preset matches exclude generated/vendor dirs.
 	matchedFiles := make(map[string]bool)
 	for _, pattern := range uniquePatterns {
 		matches, err := resolveGlobPattern(scenarioPath, pattern)
@@ -971,7 +995,17 @@ func copyPreservedFiles(scenarioPath, ideaDir string, preserveFiles *apipb.Prese
 			log.Printf("[scenarios] archive: warning: failed to resolve pattern %q: %v", pattern, err)
 			continue
 		}
+		isPresetPattern := false
+		for _, presetPattern := range presetPatterns {
+			if presetPattern == pattern {
+				isPresetPattern = true
+				break
+			}
+		}
 		for _, match := range matches {
+			if isPresetPattern && isIgnoredArchivePath(match) {
+				continue
+			}
 			matchedFiles[match] = true
 		}
 	}

@@ -1,0 +1,15 @@
+{
+  "created": "2026-02-05T20:06:10Z",
+  "description": "First test scenario",
+  "name": "test-scenario-1-archived",
+  "priority": 1,
+  "status": "archived",
+  "tags": [
+    "api",
+    "backend",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] test-scenario-1",
+  "updated": "2026-02-05T20:06:10Z"
+}

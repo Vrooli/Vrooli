@@ -120,8 +120,10 @@ func TestAnalyzeScenario_WithServiceJSON(t *testing.T) {
 		Name  string `json:"name"`
 		Email string `json:"email"`
 	}{{Name: "John Doe", Email: "john@example.com"}}
-	serviceJSON.Ports.API.Range = "4000-4010"
-	serviceJSON.Ports.UI.Range = "5000-5010"
+	serviceJSON.Ports = map[string]ServiceJSONPortDef{
+		"api": {EnvVar: "API_PORT", Range: "4000-4010"},
+		"ui":  {EnvVar: "UI_PORT", Range: "5000-5010"},
+	}
 
 	data, _ := json.Marshal(serviceJSON)
 	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
@@ -149,11 +151,11 @@ func TestAnalyzeScenario_WithServiceJSON(t *testing.T) {
 	if metadata.License != "Apache-2.0" {
 		t.Errorf("expected License from service.json, got %q", metadata.License)
 	}
-	if metadata.APIPort != 4000 {
-		t.Errorf("expected APIPort 4000, got %d", metadata.APIPort)
+	if apiPort, ok := metadata.Ports["api"]; !ok || apiPort.Port != 4000 {
+		t.Errorf("expected Ports[api].Port 4000, got %v", metadata.Ports["api"])
 	}
-	if metadata.UIPort != 5000 {
-		t.Errorf("expected UIPort 5000, got %d", metadata.UIPort)
+	if uiPort, ok := metadata.Ports["ui"]; !ok || uiPort.Port != 5000 {
+		t.Errorf("expected Ports[ui].Port 5000, got %v", metadata.Ports["ui"])
 	}
 	if metadata.Category != "productivity" {
 		t.Errorf("expected Category 'productivity', got %q", metadata.Category)
@@ -301,9 +303,11 @@ func TestCreateDesktopConfigFromMetadata_StaticServer(t *testing.T) {
 		AppID:        "com.test.app",
 		HasUI:        true,
 		UIDistPath:   distPath,
-		UIPort:       5173,
-		APIPort:      3000,
 		ScenarioPath: scenarioPath,
+		Ports: map[string]PortConfig{
+			"ui":  {EnvVar: "UI_PORT", Port: 5173},
+			"api": {EnvVar: "API_PORT", Port: 3000},
+		},
 	}
 
 	analyzer := NewAnalyzer(tmpDir)
@@ -353,9 +357,11 @@ func TestCreateDesktopConfigFromMetadata_ExternalServer(t *testing.T) {
 		AppID:        "com.test.app",
 		HasUI:        true,
 		UIDistPath:   distPath,
-		UIPort:       5173,
-		APIPort:      4000,
 		ScenarioPath: scenarioPath,
+		Ports: map[string]PortConfig{
+			"ui":  {EnvVar: "UI_PORT", Port: 5173},
+			"api": {EnvVar: "API_PORT", Port: 4000},
+		},
 	}
 
 	analyzer := NewAnalyzer(tmpDir)
@@ -393,14 +399,13 @@ func TestCreateDesktopConfigFromMetadata_DefaultPorts(t *testing.T) {
 		t.Fatalf("failed to create api dir: %v", err)
 	}
 
-	// Metadata with zero ports (should use defaults)
+	// Metadata with empty ports (should use defaults)
 	metadata := &ScenarioMetadata{
 		Name:         "test-scenario",
 		HasUI:        true,
 		UIDistPath:   distPath,
-		UIPort:       0,
-		APIPort:      0,
 		ScenarioPath: scenarioPath,
+		Ports:        map[string]PortConfig{}, // Empty, will use defaults
 	}
 
 	analyzer := NewAnalyzer(tmpDir)
@@ -428,13 +433,15 @@ func TestScenarioMetadata_Fields(t *testing.T) {
 		AppID:           "com.test",
 		HasUI:           true,
 		UIDistPath:      "/path/to/dist",
-		UIPort:          5173,
-		APIPort:         3000,
 		ScenarioPath:    "/path/to/scenario",
 		Category:        "productivity",
 		Tags:            []string{"tag1"},
 		ServiceJSONPath: "/path/to/service.json",
 		PackageJSONPath: "/path/to/package.json",
+		Ports: map[string]PortConfig{
+			"ui":  {EnvVar: "UI_PORT", Port: 5173},
+			"api": {EnvVar: "API_PORT", Port: 3000},
+		},
 	}
 
 	if metadata.Name != "test" {
@@ -445,6 +452,12 @@ func TestScenarioMetadata_Fields(t *testing.T) {
 	}
 	if len(metadata.Tags) != 1 {
 		t.Errorf("expected 1 tag")
+	}
+	if metadata.Ports["ui"].Port != 5173 {
+		t.Errorf("expected Ports[ui].Port 5173")
+	}
+	if metadata.Ports["api"].Port != 3000 {
+		t.Errorf("expected Ports[api].Port 3000")
 	}
 }
 

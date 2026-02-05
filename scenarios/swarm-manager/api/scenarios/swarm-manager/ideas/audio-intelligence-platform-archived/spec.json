@@ -1,0 +1,27 @@
+{
+  "created": "2026-02-05T20:23:16Z",
+  "description": "AI-powered audio intelligence platform for transcription, analysis, semantic search, and knowledge extraction",
+  "name": "audio-intelligence-platform-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "business-application",
+    "business",
+    "audio-processing",
+    "content-automation",
+    "transcription",
+    "media-production",
+    "audio-intelligence",
+    "content-generation",
+    "go-api",
+    "n8n-workflows",
+    "postgres-storage",
+    "qdrant-vectors",
+    "minio-storage",
+    "ollama-ai",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] audio-intelligence-platform",
+  "updated": "2026-02-05T20:23:16Z"
+}

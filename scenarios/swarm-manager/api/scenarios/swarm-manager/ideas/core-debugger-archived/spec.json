@@ -1,0 +1,24 @@
+{
+  "created": "2026-02-05T20:23:39Z",
+  "description": "Monitors and debugs Vrooli core infrastructure (CLI, orchestrator, resource manager, setup scripts) with file-based issue tracking and workaround database",
+  "name": "core-debugger-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "infrastructure",
+    "monitoring",
+    "debugging",
+    "core",
+    "health-check",
+    "self-healing",
+    "file-based-storage",
+    "zero-dependency",
+    "claude-code-integration",
+    "git-trackable",
+    "workaround-database",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] core-debugger",
+  "updated": "2026-02-05T20:23:39Z"
+}

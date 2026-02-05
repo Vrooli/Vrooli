@@ -15,22 +15,135 @@
  * [REQ:REQ-P0-008] Scenario Deletion Workflow with Safeguards
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Package, Settings2, Circle, CheckCircle2, XCircle, Loader2, Trash2, Terminal, Play, Square, RefreshCw, Files } from "lucide-react";
+import { ChevronRight, Package, Settings2, Circle, CheckCircle2, XCircle, Loader2, Trash2, Terminal, Play, Square, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ErrorState } from "../components/ui/error-state";
+import { Select } from "../components/ui/select";
 import { TagList } from "../components/ui/tag-list";
 import { FileSelectionDialog, type FileSelectionResult } from "../components/scenarios/file-selection-dialog";
 import { capitalize, defaultQueryOptions } from "../lib";
 import { scenariosService } from "../services";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_COLORS, SCENARIO_STATUS_ICONS } from "../types";
-import type { ScenarioFile, PreserveFilesRequest } from "../types";
+import type { ScenarioFile, PreserveFilesPreset } from "../types";
 import { useScenariosStore } from "../stores";
+
+const ARCHIVE_PRESET_OPTIONS: { value: PreserveFilesPreset; label: string; description: string }[] = [
+  { value: "documentation", label: "Documentation", description: "PRD.md, README.md, docs/**, *.md" },
+  { value: "requirements", label: "Requirements", description: "PRD.md, requirements/**, specs/**, REQUIREMENTS.md" },
+  { value: "planning", label: "Planning", description: "PRD.md, .vrooli/**, planning/**, design/**" },
+  {
+    value: "all-planning",
+    label: "All Planning Files",
+    description: "All docs, requirements, specs, planning, design, and markdown files",
+  },
+];
+
+const ARCHIVE_PREFERENCES_STORAGE_KEY = "swarm-manager.archive.preferences.v1";
+
+interface ArchivePreferences {
+  mode: "preset" | "custom";
+  preset: PreserveFilesPreset;
+  customPaths: string[];
+}
+
+const ARCHIVE_PRESET_PATTERNS: Record<PreserveFilesPreset, string[]> = {
+  documentation: ["PRD.md", "README.md", "docs/**", "*.md"],
+  requirements: ["PRD.md", "requirements/**", "specs/**", "REQUIREMENTS.md"],
+  planning: ["PRD.md", ".vrooli/**", "planning/**", "design/**"],
+  "all-planning": [
+    "PRD.md",
+    "README.md",
+    "docs/**",
+    "requirements/**",
+    "specs/**",
+    "planning/**",
+    "design/**",
+    ".vrooli/**",
+    "*.md",
+  ],
+};
+
+const ARCHIVE_IGNORED_DIRS = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  ".next",
+  ".turbo",
+  "target",
+  "vendor",
+]);
+
+function isIgnoredArchivePath(path: string): boolean {
+  return path.split("/").some((segment) => ARCHIVE_IGNORED_DIRS.has(segment));
+}
+
+function matchesPattern(path: string, pattern: string): boolean {
+  if (!pattern.includes("*")) {
+    return path === pattern || path.endsWith("/" + pattern);
+  }
+  if (pattern.includes("**")) {
+    const prefix = pattern.split("**")[0];
+    return !prefix || path.startsWith(prefix);
+  }
+  if (pattern.startsWith("*.")) {
+    return path.endsWith(pattern.slice(1));
+  }
+  if (pattern.endsWith("/*")) {
+    const prefix = pattern.slice(0, -2);
+    return path.startsWith(prefix + "/") && !path.slice(prefix.length + 1).includes("/");
+  }
+  return false;
+}
+
+function collectPaths(file: ScenarioFile): string[] {
+  if (file.type === "file") return [file.path];
+  if (!file.children) return [];
+  return file.children.flatMap(collectPaths);
+}
+
+function getDefaultArchivePreferences(): ArchivePreferences {
+  return {
+    mode: "preset",
+    preset: "planning",
+    customPaths: [],
+  };
+}
+
+function isValidPreset(value: string): value is PreserveFilesPreset {
+  return value in ARCHIVE_PRESET_PATTERNS;
+}
+
+function loadArchivePreferences(): ArchivePreferences {
+  if (typeof window === "undefined") {
+    return getDefaultArchivePreferences();
+  }
+  try {
+    const raw = window.localStorage.getItem(ARCHIVE_PREFERENCES_STORAGE_KEY);
+    if (!raw) return getDefaultArchivePreferences();
+    const parsed = JSON.parse(raw) as Partial<ArchivePreferences>;
+    const preset = parsed.preset && isValidPreset(parsed.preset) ? parsed.preset : "planning";
+    const mode = parsed.mode === "custom" ? "custom" : "preset";
+    const customPaths = Array.isArray(parsed.customPaths)
+      ? parsed.customPaths.filter((path): path is string => typeof path === "string" && path.length > 0)
+      : [];
+    return { mode, preset, customPaths };
+  } catch {
+    return getDefaultArchivePreferences();
+  }
+}
+
+function persistArchivePreferences(preferences: ArchivePreferences): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ARCHIVE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+}
 
 export function ScenarioDetailsPage() {
   const { name } = useParams<{ name: string }>();
@@ -47,12 +160,23 @@ export function ScenarioDetailsPage() {
   // [REQ:REQ-P0-008] Delete confirmation dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [archiveOnDelete, setArchiveOnDelete] = useState(true);
+  const [archivePreset, setArchivePreset] = useState<PreserveFilesPreset>(() => loadArchivePreferences().preset);
+  const [archiveMode, setArchiveMode] = useState<"preset" | "custom">(() => loadArchivePreferences().mode);
+  const [customPaths, setCustomPaths] = useState<string[]>(() => loadArchivePreferences().customPaths);
 
   // File selection dialog state
   const [showFileSelectionDialog, setShowFileSelectionDialog] = useState(false);
-  const [fileSelection, setFileSelection] = useState<PreserveFilesRequest | null>(null);
   const [scenarioFiles, setScenarioFiles] = useState<ScenarioFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
+  const [fileTreeLoaded, setFileTreeLoaded] = useState(false);
+
+  useEffect(() => {
+    persistArchivePreferences({
+      mode: archiveMode,
+      preset: archivePreset,
+      customPaths,
+    });
+  }, [archiveMode, archivePreset, customPaths]);
 
   // Fetch scenario details
   // Note: queryFn is only called when enabled is true (i.e., name exists)
@@ -135,9 +259,14 @@ export function ScenarioDetailsPage() {
   const deleteMutation = useMutation({
     mutationFn: () => {
       if (!name) throw new Error("Name is required");
+      const preserveFiles = archiveOnDelete
+        ? effectiveArchiveMode === "custom"
+          ? { paths: customPaths }
+          : { preset: archivePreset }
+        : undefined;
       return scenariosService.delete(name, {
         archive: archiveOnDelete,
-        preserveFiles: archiveOnDelete && fileSelection ? fileSelection : undefined,
+        preserveFiles,
       });
     },
     onSuccess: () => {
@@ -152,6 +281,8 @@ export function ScenarioDetailsPage() {
   // Delete handlers
   const handleDeleteClick = () => {
     setShowDeleteDialog(true);
+    setFileTreeLoaded(false);
+    void loadScenarioFiles();
   };
 
   const handleDeleteConfirm = () => {
@@ -161,20 +292,21 @@ export function ScenarioDetailsPage() {
   const handleDeleteCancel = () => {
     setShowDeleteDialog(false);
     setArchiveOnDelete(true); // Reset to default
-    setFileSelection(null); // Reset file selection
   };
 
   // Load scenario files for file selection dialog
   const loadScenarioFiles = async () => {
     if (!name) return;
+    setFileTreeLoaded(false);
     setFilesLoading(true);
     try {
       const files = await scenariosService.getFiles(name);
-      setScenarioFiles(files);
+      setScenarioFiles(Array.isArray(files) ? files : []);
     } catch (error) {
       console.error("Failed to load scenario files:", error);
       setScenarioFiles([]);
     } finally {
+      setFileTreeLoaded(true);
       setFilesLoading(false);
     }
   };
@@ -185,16 +317,48 @@ export function ScenarioDetailsPage() {
   };
 
   const handleFileSelectionConfirm = (selection: FileSelectionResult) => {
-    setFileSelection({
-      preset: selection.preset,
-      paths: selection.paths,
-    });
+    setArchiveMode(selection.preset ? "preset" : "custom");
+    if (selection.preset) {
+      setArchivePreset(selection.preset);
+      setCustomPaths([]);
+    } else {
+      setCustomPaths(selection.paths);
+    }
     setShowFileSelectionDialog(false);
   };
 
   const handleFileSelectionCancel = () => {
     setShowFileSelectionDialog(false);
   };
+
+  // Get status icon
+  const StatusIcon = scenario ? (SCENARIO_STATUS_ICONS[scenario.status] || Circle) : Circle;
+  const isRunning = scenario?.status === "running";
+  const isStopped = scenario?.status === "stopped";
+  const actionInFlight = actionMutation.isPending ? actionMutation.variables : null;
+  const actionError = actionMutation.isError
+    ? `Failed to ${actionMutation.variables ?? "run action"}. Please try again.`
+    : null;
+  const allScenarioFilePaths = useMemo(
+    () => scenarioFiles.flatMap(collectPaths).sort((a, b) => a.localeCompare(b)),
+    [scenarioFiles]
+  );
+  const scenarioPathSet = useMemo(() => new Set(allScenarioFilePaths), [allScenarioFilePaths]);
+  const canUseCustomSelection = useMemo(() => {
+    if (archiveMode !== "custom" || customPaths.length === 0) return false;
+    if (!fileTreeLoaded) return true;
+    return customPaths.every((path) => scenarioPathSet.has(path));
+  }, [archiveMode, customPaths, fileTreeLoaded, scenarioPathSet]);
+  const effectiveArchiveMode = archiveMode === "custom" && canUseCustomSelection ? "custom" : "preset";
+  const previewPaths = useMemo(() => {
+    if (!archiveOnDelete) return [];
+    if (effectiveArchiveMode === "custom") return [...customPaths].sort((a, b) => a.localeCompare(b));
+    const patterns = ARCHIVE_PRESET_PATTERNS[archivePreset];
+    return allScenarioFilePaths.filter(
+      (path) => !isIgnoredArchivePath(path) && patterns.some((pattern) => matchesPattern(path, pattern))
+    );
+  }, [archiveOnDelete, effectiveArchiveMode, customPaths, archivePreset, allScenarioFilePaths]);
+  const previewList = previewPaths.slice(0, 10);
 
   if (!name) {
     return (
@@ -206,15 +370,6 @@ export function ScenarioDetailsPage() {
       </div>
     );
   }
-
-  // Get status icon
-  const StatusIcon = scenario ? (SCENARIO_STATUS_ICONS[scenario.status] || Circle) : Circle;
-  const isRunning = scenario?.status === "running";
-  const isStopped = scenario?.status === "stopped";
-  const actionInFlight = actionMutation.isPending ? actionMutation.variables : null;
-  const actionError = actionMutation.isError
-    ? `Failed to ${actionMutation.variables ?? "run action"}. Please try again.`
-    : null;
 
   return (
     <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
@@ -537,44 +692,86 @@ export function ScenarioDetailsPage() {
           checked: archiveOnDelete,
           onChange: (checked) => {
             setArchiveOnDelete(checked);
-            if (!checked) setFileSelection(null);
+            if (checked) {
+              void loadScenarioFiles();
+            }
           },
           testId: selectors.scenarioDetails.archiveCheckbox,
         }}
+        sidePanel={archiveOnDelete ? (
+          <div className="space-y-4" data-testid="archive-preview-panel">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Archive Preview</h3>
+              <p className="text-xs text-slate-400">
+                Choose what to keep with the archived idea before deletion.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-slate-300" htmlFor="archive-preset-select">
+                Preset
+              </label>
+              <Select
+                id="archive-preset-select"
+                value={archivePreset}
+                onChange={(e) => {
+                  setArchivePreset(e.target.value as PreserveFilesPreset);
+                  setArchiveMode("preset");
+                }}
+                withChevron
+                data-testid="archive-preset-select"
+              >
+                {ARCHIVE_PRESET_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-xs text-slate-500">
+                {ARCHIVE_PRESET_OPTIONS.find((preset) => preset.value === archivePreset)?.description}
+              </p>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-slate-800/70 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-200">
+                  {effectiveArchiveMode === "custom" ? "Custom Selection" : "Included Files"}
+                </span>
+                <span className="text-xs text-cyan-300" data-testid="archive-preview-count">
+                  {previewPaths.length} files
+                </span>
+              </div>
+              <div className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-slate-300">
+                {filesLoading ? (
+                  <p className="text-slate-400">Loading file tree...</p>
+                ) : previewList.length > 0 ? (
+                  previewList.map((path) => (
+                    <p key={path} className="truncate font-mono" title={path}>
+                      {path}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-slate-500">No files selected for archive.</p>
+                )}
+                {!filesLoading && previewPaths.length > previewList.length && (
+                  <p className="pt-1 text-slate-500">+{previewPaths.length - previewList.length} more files</p>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCustomizeFilesClick}
+              className="text-sm text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+              data-testid="customize-files-link"
+            >
+              {effectiveArchiveMode === "custom" ? "Edit custom file selection..." : "Fine-tune file selection..."}
+            </button>
+          </div>
+        ) : null}
         testIds={{
           dialog: selectors.scenarioDetails.deleteDialog,
           confirmButton: selectors.scenarioDetails.deleteConfirmButton,
           cancelButton: selectors.scenarioDetails.deleteCancelButton,
         }}
       />
-
-      {/* "Customize files" link shown below delete dialog when archive is checked */}
-      {showDeleteDialog && archiveOnDelete && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto relative top-44 w-full max-w-md">
-            <div className="rounded-lg border border-white/10 bg-slate-800/95 p-3 shadow-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Files className="h-4 w-4 text-cyan-400" />
-                  <span className="text-sm text-slate-300">
-                    {fileSelection
-                      ? `${fileSelection.paths?.length || 0} files selected to preserve`
-                      : "Preserve files with the archive?"}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCustomizeFilesClick}
-                  className="text-sm text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
-                  data-testid="customize-files-link"
-                >
-                  {fileSelection ? "Edit selection" : "Customize files..."}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* File selection dialog */}
       <FileSelectionDialog
@@ -584,6 +781,9 @@ export function ScenarioDetailsPage() {
         scenarioName={scenario?.displayName || name || ""}
         files={scenarioFiles}
         isLoading={filesLoading}
+        initialSelection={effectiveArchiveMode === "custom"
+          ? { paths: customPaths }
+          : { preset: archivePreset, paths: [] }}
       />
     </div>
   );

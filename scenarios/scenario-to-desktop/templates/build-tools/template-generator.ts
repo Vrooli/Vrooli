@@ -431,9 +431,12 @@ class DesktopTemplateGenerator {
             PUBLISHER_NAME: this.config.author,
             PUBLISH_CONFIG: JSON.stringify(this.getPublishConfig(), null, 2),
 
-            // Update configuration
+            // Update configuration (default to 'generic' for self-hosted updates)
+            // IMPORTANT: UPDATE_PROVIDER must match getPublishConfig() - if publish is null,
+            // provider must be "none" to prevent electron-updater from trying to check updates
+            // without the app-update.yml file that electron-builder generates.
             UPDATE_CHANNEL: this.config.update_config?.channel || 'stable',
-            UPDATE_PROVIDER: this.config.update_config?.provider || 'none',
+            UPDATE_PROVIDER: this.getEffectiveUpdateProvider(),
             UPDATE_AUTO_CHECK: this.config.update_config?.auto_check ?? false,
             UPDATE_SERVER_URL: this.getUpdateServerUrl(),
 
@@ -480,10 +483,11 @@ class DesktopTemplateGenerator {
     
     private getPublishConfig(): any {
         const updateConfig = this.config.update_config;
-        const provider = updateConfig?.provider || 'none';
+        // Default to 'generic' (self-hosted) provider for auto-updates
+        const provider = updateConfig?.provider || 'generic';
         const channel = updateConfig?.channel || 'stable';
 
-        // If updates are disabled, return null (will be stringified as "null")
+        // If updates are explicitly disabled, return null
         if (provider === 'none') {
             return null;
         }
@@ -509,19 +513,29 @@ class DesktopTemplateGenerator {
         // Generic (self-hosted) update server
         if (provider === 'generic') {
             const generic = updateConfig?.generic;
-            let url = generic?.url || 'https://updates.example.com';
+            const url = generic?.url || '';
 
-            // Append channel path if configured
+            // If no URL configured, emit warning and disable updates
+            // This prevents broken update checks at runtime
+            if (!url) {
+                console.warn('[template-generator] WARNING: Generic update provider without URL configured.');
+                console.warn('  Auto-updates disabled. To enable updates, set update_config.generic.url');
+                console.warn('  Example: https://your-lpbs.com/api/v1/apps/{app_key}/updates');
+                return null;
+            }
+
+            // Build full URL with channel
+            let fullUrl = url;
             if (generic?.channel_path) {
-                url = url + generic.channel_path.replace('{channel}', channel);
+                fullUrl = url + generic.channel_path.replace('{channel}', channel);
             } else {
                 // Default: append channel as path segment
-                url = `${url}/${channel}`;
+                fullUrl = `${url}/${channel}`;
             }
 
             return {
                 provider: "generic",
-                url: url,
+                url: fullUrl,
                 useMultipleRangeRequest: false, // Better compatibility
             };
         }
@@ -529,9 +543,44 @@ class DesktopTemplateGenerator {
         return null;
     }
 
+    /**
+     * Returns the effective update provider for the app.
+     * This must match getPublishConfig() - if publish config is null (e.g., generic
+     * provider without URL), the effective provider is "none" to prevent the app
+     * from trying to check for updates without the app-update.yml file.
+     */
+    private getEffectiveUpdateProvider(): 'github' | 'generic' | 'none' {
+        const updateConfig = this.config.update_config;
+        const provider = updateConfig?.provider || 'generic';
+
+        // Explicitly disabled
+        if (provider === 'none') {
+            return 'none';
+        }
+
+        // GitHub provider - always valid (electron-builder handles it)
+        if (provider === 'github') {
+            return 'github';
+        }
+
+        // Generic provider - only valid if URL is configured
+        if (provider === 'generic') {
+            const url = updateConfig?.generic?.url || '';
+            if (!url) {
+                // No URL = no app-update.yml generated = must disable updates
+                return 'none';
+            }
+            return 'generic';
+        }
+
+        // Unknown provider - disable updates for safety
+        return 'none';
+    }
+
     private getUpdateServerUrl(): string {
         const updateConfig = this.config.update_config;
-        const provider = updateConfig?.provider || 'none';
+        // Default to 'generic' provider (matches getPublishConfig)
+        const provider = updateConfig?.provider || 'generic';
         const channel = updateConfig?.channel || 'stable';
 
         if (provider === 'none') {
@@ -547,13 +596,15 @@ class DesktopTemplateGenerator {
 
         if (provider === 'generic') {
             const generic = updateConfig?.generic;
-            let url = generic?.url || '';
-            if (generic?.channel_path) {
-                url = url + generic.channel_path.replace('{channel}', channel);
-            } else if (url) {
-                url = `${url}/${channel}`;
+            const url = generic?.url || '';
+            // Return empty if no URL configured (updates effectively disabled)
+            if (!url) {
+                return '';
             }
-            return url;
+            if (generic?.channel_path) {
+                return url + generic.channel_path.replace('{channel}', channel);
+            }
+            return `${url}/${channel}`;
         }
 
         return '';

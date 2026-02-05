@@ -8,7 +8,7 @@
  * [REQ:REQ-P0-008] Strong confirmation dialog for scenario deletion
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "./button";
 
@@ -42,6 +42,8 @@ interface ConfirmDialogProps {
     confirmButton?: string;
     cancelButton?: string;
   };
+  /** Optional side panel rendered inside the same dialog container */
+  sidePanel?: ReactNode;
 }
 
 export function ConfirmDialog({
@@ -55,6 +57,7 @@ export function ConfirmDialog({
   isLoading = false,
   checkboxContent,
   testIds,
+  sidePanel,
 }: ConfirmDialogProps) {
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +100,9 @@ export function ConfirmDialog({
 
       {/* Dialog */}
       <div
-        className="relative z-10 w-full max-w-md rounded-xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
+        className={`relative z-10 w-full rounded-xl border border-white/10 bg-slate-900 shadow-2xl ${
+          sidePanel ? "max-w-5xl overflow-hidden" : "max-w-md p-6"
+        }`}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
@@ -114,77 +119,86 @@ export function ConfirmDialog({
           <X className="h-5 w-5" />
         </button>
 
-        {/* Warning icon */}
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-full bg-red-500/20 p-3">
-            <AlertTriangle className="h-6 w-6 text-red-400" />
-          </div>
-          <h2
-            id="confirm-dialog-title"
-            className="text-xl font-semibold text-slate-100"
-          >
-            {title}
-          </h2>
-        </div>
+        <div className={sidePanel ? "grid max-h-[85vh] gap-0 overflow-hidden lg:grid-cols-[1fr_340px]" : ""}>
+          <div className={sidePanel ? "overflow-y-auto p-6 lg:p-7" : ""}>
+            {/* Warning icon */}
+            <div className="mb-4 flex items-center gap-3">
+              <div className="rounded-full bg-red-500/20 p-3">
+                <AlertTriangle className="h-6 w-6 text-red-400" />
+              </div>
+              <h2
+                id="confirm-dialog-title"
+                className="text-xl font-semibold text-slate-100"
+              >
+                {title}
+              </h2>
+            </div>
 
-        {/* Description */}
-        <p
-          id="confirm-dialog-description"
-          className="mb-4 text-slate-400"
-        >
-          {description}
-        </p>
-
-        {/* Optional checkbox */}
-        {checkboxContent && (
-          <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-lg bg-slate-800/50 p-3">
-            <input
-              type="checkbox"
-              checked={checkboxContent.checked}
-              onChange={(e) => checkboxContent.onChange(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
-              data-testid={checkboxContent.testId}
-            />
-            <span className="text-sm text-slate-300">{checkboxContent.label}</span>
-          </label>
-        )}
-
-        {/* Confirmation input */}
-        {confirmationText && (
-          <div className="mb-4">
-            <p className="mb-2 text-sm text-slate-400">
-              Type <code className="rounded bg-slate-800 px-1 py-0.5 text-red-400">{confirmationText}</code> to confirm:
+            {/* Description */}
+            <p
+              id="confirm-dialog-description"
+              className="mb-4 text-slate-400"
+            >
+              {description}
             </p>
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              placeholder={confirmationText}
-              disabled={isLoading}
-            />
-          </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-            data-testid={testIds?.cancelButton}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={!canConfirm || isLoading}
-            data-testid={testIds?.confirmButton}
-          >
-            {isLoading ? "Processing..." : confirmLabel}
-          </Button>
+            {/* Optional checkbox */}
+            {checkboxContent && (
+              <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-lg bg-slate-800/50 p-3">
+                <input
+                  type="checkbox"
+                  checked={checkboxContent.checked}
+                  onChange={(e) => checkboxContent.onChange(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
+                  data-testid={checkboxContent.testId}
+                />
+                <span className="text-sm text-slate-300">{checkboxContent.label}</span>
+              </label>
+            )}
+
+            {/* Confirmation input */}
+            {confirmationText && (
+              <div className="mb-4">
+                <p className="mb-2 text-sm text-slate-400">
+                  Type <code className="rounded bg-slate-800 px-1 py-0.5 text-red-400">{confirmationText}</code> to confirm:
+                </p>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  placeholder={confirmationText}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading}
+                data-testid={testIds?.cancelButton}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={onConfirm}
+                disabled={!canConfirm || isLoading}
+                data-testid={testIds?.confirmButton}
+              >
+                {isLoading ? "Processing..." : confirmLabel}
+              </Button>
+            </div>
+          </div>
+          {sidePanel && (
+            <aside className="border-t border-white/10 bg-slate-900/90 p-5 lg:border-l lg:border-t-0 lg:p-6">
+              {sidePanel}
+            </aside>
+          )}
         </div>
       </div>
     </div>

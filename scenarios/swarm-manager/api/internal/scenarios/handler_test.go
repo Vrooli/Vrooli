@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/testutil"
 )
 
@@ -700,4 +701,36 @@ func TestDeleteResponse_Structure(t *testing.T) {
 	if resp.Message == "" {
 		t.Error("expected message to be non-empty")
 	}
+}
+
+func TestCopyPreservedFiles_PresetSkipsIgnoredDirs(t *testing.T) {
+	root := t.TempDir()
+	scenarioPath := filepath.Join(root, "scenario")
+	ideaPath := filepath.Join(root, "idea")
+
+	testutil.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
+	testutil.WriteFile(t, filepath.Join(scenarioPath, "docs", "guide.md"), "guide")
+	testutil.WriteFile(t, filepath.Join(scenarioPath, "node_modules", "somepkg", "README.md"), "ignore me")
+
+	preset := "documentation"
+	preserved, err := copyPreservedFiles(scenarioPath, ideaPath, &apipb.PreserveFilesRequest{
+		Preset: &preset,
+	})
+	if err != nil {
+		t.Fatalf("copyPreservedFiles returned error: %v", err)
+	}
+
+	if len(preserved) != 2 {
+		t.Fatalf("expected 2 preserved files, got %d: %v", len(preserved), preserved)
+	}
+
+	for _, path := range preserved {
+		if path == filepath.Join("node_modules", "somepkg", "README.md") {
+			t.Fatalf("expected node_modules file to be excluded from preset archive: %v", preserved)
+		}
+	}
+
+	testutil.AssertFileExists(t, filepath.Join(ideaPath, "PRD.md"))
+	testutil.AssertFileExists(t, filepath.Join(ideaPath, "docs", "guide.md"))
+	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "node_modules", "somepkg", "README.md"))
 }

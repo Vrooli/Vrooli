@@ -3,17 +3,20 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"scenario-to-desktop-api/distribution"
 	"scenario-to-desktop-api/shared/errors"
+	"scenario-to-desktop-api/updates"
 )
 
 // DistributionStage implements the distribution stage of the pipeline.
 type DistributionStage struct {
-	service      distribution.Service
-	store        distribution.Store
-	timeProvider TimeProvider
+	service           distribution.Service
+	store             distribution.Store
+	timeProvider      TimeProvider
+	manifestGenerator *updates.ManifestGenerator
 }
 
 // DistributionStageOption configures a DistributionStage.
@@ -37,6 +40,13 @@ func WithDistributionStore(store distribution.Store) DistributionStageOption {
 func WithDistributionTimeProvider(tp TimeProvider) DistributionStageOption {
 	return func(s *DistributionStage) {
 		s.timeProvider = tp
+	}
+}
+
+// WithUpdateManifestGenerator sets the manifest generator for auto-update support.
+func WithUpdateManifestGenerator(mg *updates.ManifestGenerator) DistributionStageOption {
+	return func(s *DistributionStage) {
+		s.manifestGenerator = mg
 	}
 }
 
@@ -90,6 +100,33 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	if len(artifacts) == 0 {
 		skipStage(result, s.timeProvider, "No artifacts to distribute")
 		return result
+	}
+
+	// Generate update manifests if configured
+	if s.manifestGenerator != nil && input.Config.UpdateConfig != nil {
+		manifestResult, err := s.generateUpdateManifests(ctx, input, artifacts)
+		if err != nil {
+			// Log warning but don't fail - distribution can proceed without manifests
+			result.Logs = append(result.Logs,
+				fmt.Sprintf("WARNING: Failed to generate update manifests: %v", err))
+		} else if manifestResult != nil {
+			// Add any warnings to logs
+			for _, warning := range manifestResult.Warnings {
+				result.Logs = append(result.Logs,
+					fmt.Sprintf("Update manifest warning: [%s] %s", warning.Code, warning.Message))
+			}
+
+			// Add manifest files to artifacts for distribution
+			if manifestResult.RequiresUpload && len(manifestResult.ManifestPaths) > 0 {
+				for filename, path := range manifestResult.ManifestPaths {
+					// Use a special key format for manifests: "manifest:<filename>"
+					artifactKey := "manifest:" + filename
+					artifacts[artifactKey] = path
+					result.Logs = append(result.Logs,
+						fmt.Sprintf("Generated update manifest: %s", filename))
+				}
+			}
+		}
 	}
 
 	result.Logs = append(result.Logs,
@@ -211,4 +248,24 @@ func (s *DistributionStage) waitForDistribution(ctx context.Context, distributio
 	}
 
 	return poller.Wait(ctx, distributionID)
+}
+
+// generateUpdateManifests creates update manifest files for auto-update support.
+func (s *DistributionStage) generateUpdateManifests(ctx context.Context, input *StageInput, artifacts map[string]string) (*updates.GenerateManifestsResult, error) {
+	// Determine output directory for manifests
+	// Use the same directory as the first artifact
+	outputDir := ""
+	for _, path := range artifacts {
+		outputDir = filepath.Dir(path)
+		break
+	}
+
+	req := &updates.GenerateManifestsRequest{
+		Config:    input.Config.UpdateConfig,
+		Version:   input.Config.Version,
+		Artifacts: artifacts,
+		OutputDir: outputDir,
+	}
+
+	return s.manifestGenerator.GenerateManifests(ctx, req)
 }

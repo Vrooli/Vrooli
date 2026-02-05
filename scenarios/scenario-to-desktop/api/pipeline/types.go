@@ -221,6 +221,11 @@ type Config struct {
 	// Valid values: bundle, preflight, generate, build, smoketest, distribution.
 	// Stages are executed in pipeline order, regardless of the order specified here.
 	Stages []string `json:"stages,omitempty"`
+
+	// UpdateConfig configures auto-update settings for the desktop application.
+	// If nil, the default provider (generic) is used but auto-updates are disabled
+	// until generic.url is configured.
+	UpdateConfig *generation.UpdateConfig `json:"update_config,omitempty"`
 }
 
 // VersionUpdateRequest controls how a scenario version is resolved for a pipeline run.

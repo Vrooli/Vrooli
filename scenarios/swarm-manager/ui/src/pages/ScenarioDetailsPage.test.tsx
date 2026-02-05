@@ -35,6 +35,7 @@ vi.mock("../services", () => ({
   scenariosService: {
     list: vi.fn(),
     get: vi.fn(),
+    getFiles: vi.fn(),
     updateMetadata: vi.fn(),
     delete: vi.fn(),
     start: vi.fn(),
@@ -44,6 +45,8 @@ vi.mock("../services", () => ({
 }));
 
 import { scenariosService } from "../services";
+
+const ARCHIVE_PREFERENCES_STORAGE_KEY = "swarm-manager.archive.preferences.v1";
 
 // [REQ:REQ-P0-007] Test scenario details page functionality
 describe("ScenarioDetailsPage", () => {
@@ -70,6 +73,8 @@ describe("ScenarioDetailsPage", () => {
       },
     });
     vi.clearAllMocks();
+    window.localStorage.clear();
+    vi.mocked(scenariosService.getFiles).mockResolvedValue([]);
     useScenariosStore.getState().reset();
   });
 
@@ -79,6 +84,7 @@ describe("ScenarioDetailsPage", () => {
         <QueryClientProvider client={queryClient}>
           <Routes>
             <Route path="/scenarios/:name" element={<ScenarioDetailsPage />} />
+            <Route path="/scenarios" element={<div data-testid="scenarios-list-page" />} />
           </Routes>
         </QueryClientProvider>
       </MemoryRouter>
@@ -422,6 +428,395 @@ describe("ScenarioDetailsPage", () => {
           "Disabled"
         );
       });
+    });
+  });
+
+  describe("scenario deletion", () => {
+    it("renders delete button in danger zone", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+    });
+
+    it("opens delete dialog with archive enabled by default", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 100 },
+      ]);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+
+      expect(screen.getByTestId("scenario-delete-dialog")).toBeInTheDocument();
+      expect(screen.getByTestId("scenario-delete-archive")).toBeChecked();
+      expect(screen.getByTestId("scenario-delete-confirm")).toBeDisabled();
+      expect(screen.getByTestId("archive-preview-panel")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-preview-count")).toHaveTextContent("1 files");
+      });
+      expect(screen.getByTestId("customize-files-link")).toBeInTheDocument();
+    });
+
+    it("requires exact scenario name before enabling delete confirmation", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+
+      const confirmButton = screen.getByTestId("scenario-delete-confirm");
+      const confirmInput = screen.getByPlaceholderText("test-scenario");
+
+      expect(confirmButton).toBeDisabled();
+
+      fireEvent.change(confirmInput, { target: { value: "wrong-name" } });
+      expect(confirmButton).toBeDisabled();
+
+      fireEvent.change(confirmInput, { target: { value: "test-scenario" } });
+      expect(confirmButton).toBeEnabled();
+    });
+
+    it("calls delete with archive enabled by default", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 100 },
+      ]);
+      vi.mocked(scenariosService.delete).mockResolvedValue({
+        name: "test-scenario",
+        archived: true,
+        message: "Scenario archived to backlog (idea) and deleted",
+        preservedFiles: [],
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+      fireEvent.change(screen.getByPlaceholderText("test-scenario"), {
+        target: { value: "test-scenario" },
+      });
+      fireEvent.click(screen.getByTestId("scenario-delete-confirm"));
+
+      await waitFor(() => {
+        expect(scenariosService.delete).toHaveBeenCalledWith("test-scenario", {
+          archive: true,
+          preserveFiles: { preset: "planning" },
+        });
+      });
+    });
+
+    it("calls delete with archive disabled when checkbox is unchecked", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.delete).mockResolvedValue({
+        name: "test-scenario",
+        archived: false,
+        message: "Scenario permanently deleted",
+        preservedFiles: [],
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+      fireEvent.click(screen.getByTestId("scenario-delete-archive"));
+
+      expect(screen.queryByTestId("customize-files-link")).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByPlaceholderText("test-scenario"), {
+        target: { value: "test-scenario" },
+      });
+      fireEvent.click(screen.getByTestId("scenario-delete-confirm"));
+
+      await waitFor(() => {
+        expect(scenariosService.delete).toHaveBeenCalledWith("test-scenario", {
+          archive: false,
+          preserveFiles: undefined,
+        });
+      });
+    });
+
+    it("updates preview and payload when preset changes", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 100 },
+        { name: "README.md", path: "README.md", type: "file", size: 120 },
+        { name: "service.json", path: ".vrooli/service.json", type: "file", size: 80 },
+        { name: "README.md", path: "node_modules/pkg/README.md", type: "file", size: 50 },
+      ]);
+      vi.mocked(scenariosService.delete).mockResolvedValue({
+        name: "test-scenario",
+        archived: true,
+        message: "Scenario archived to backlog (idea) and deleted",
+        preservedFiles: [],
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-preview-count")).toHaveTextContent("2 files");
+      });
+      fireEvent.change(screen.getByTestId("archive-preset-select"), {
+        target: { value: "documentation" },
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-preview-count")).toHaveTextContent("2 files");
+      });
+
+      fireEvent.change(screen.getByPlaceholderText("test-scenario"), {
+        target: { value: "test-scenario" },
+      });
+      fireEvent.click(screen.getByTestId("scenario-delete-confirm"));
+
+      await waitFor(() => {
+        expect(scenariosService.delete).toHaveBeenCalledWith("test-scenario", {
+          archive: true,
+          preserveFiles: { preset: "documentation" },
+        });
+      });
+    });
+
+    it("uses persisted preset when modal opens", async () => {
+      window.localStorage.setItem(ARCHIVE_PREFERENCES_STORAGE_KEY, JSON.stringify({
+        mode: "preset",
+        preset: "documentation",
+        customPaths: [],
+      }));
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 100 },
+        { name: "README.md", path: "README.md", type: "file", size: 120 },
+      ]);
+      vi.mocked(scenariosService.delete).mockResolvedValue({
+        name: "test-scenario",
+        archived: true,
+        message: "Scenario archived to backlog (idea) and deleted",
+        preservedFiles: [],
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-preset-select")).toHaveValue("documentation");
+      });
+
+      fireEvent.change(screen.getByPlaceholderText("test-scenario"), {
+        target: { value: "test-scenario" },
+      });
+      fireEvent.click(screen.getByTestId("scenario-delete-confirm"));
+
+      await waitFor(() => {
+        expect(scenariosService.delete).toHaveBeenCalledWith("test-scenario", {
+          archive: true,
+          preserveFiles: { preset: "documentation" },
+        });
+      });
+    });
+
+    it("ignores node_modules files when selecting documentation preset in file dialog", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 100 },
+        { name: "README.md", path: "README.md", type: "file", size: 120 },
+        { name: "README.md", path: "node_modules/pkg/README.md", type: "file", size: 120 },
+      ]);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+      fireEvent.click(screen.getByTestId("customize-files-link"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("file-selection-dialog")).toBeInTheDocument();
+      });
+      fireEvent.change(screen.getByTestId("preset-select"), {
+        target: { value: "documentation" },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("confirm-selection-button")).toHaveTextContent("(2 files)");
+      });
+    });
+
+    it("loads files for archive customization and sends custom preserveFiles paths", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 100 },
+      ]);
+      vi.mocked(scenariosService.delete).mockResolvedValue({
+        name: "test-scenario",
+        archived: true,
+        message: "Scenario archived to backlog (idea) with 1 preserved files and deleted",
+        preservedFiles: ["PRD.md"],
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+      fireEvent.click(screen.getByTestId("customize-files-link"));
+
+      await waitFor(() => {
+        expect(scenariosService.getFiles).toHaveBeenCalledWith("test-scenario");
+      });
+      expect(screen.getByTestId("file-selection-dialog")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId("select-all-button"));
+      await waitFor(() => {
+        expect(screen.getByTestId("confirm-selection-button")).toHaveTextContent("(1 files)");
+      });
+      fireEvent.click(screen.getByTestId("confirm-selection-button"));
+
+      fireEvent.change(screen.getByPlaceholderText("test-scenario"), {
+        target: { value: "test-scenario" },
+      });
+      fireEvent.click(screen.getByTestId("scenario-delete-confirm"));
+
+      await waitFor(() => {
+        expect(scenariosService.delete).toHaveBeenCalledWith("test-scenario", {
+          archive: true,
+          preserveFiles: {
+            paths: ["PRD.md"],
+          },
+        });
+      });
+    });
+
+    it("uses persisted custom selection when all selected files exist", async () => {
+      window.localStorage.setItem(ARCHIVE_PREFERENCES_STORAGE_KEY, JSON.stringify({
+        mode: "custom",
+        preset: "documentation",
+        customPaths: ["README.md", "PRD.md", "requirements/index.json", ".vrooli/service.json"],
+      }));
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "README.md", path: "README.md", type: "file", size: 100 },
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 120 },
+        { name: "index.json", path: "requirements/index.json", type: "file", size: 80 },
+        { name: "service.json", path: ".vrooli/service.json", type: "file", size: 80 },
+      ]);
+      vi.mocked(scenariosService.delete).mockResolvedValue({
+        name: "test-scenario",
+        archived: true,
+        message: "Scenario archived to backlog (idea) and deleted",
+        preservedFiles: [],
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-preview-count")).toHaveTextContent("4 files");
+      });
+
+      fireEvent.change(screen.getByPlaceholderText("test-scenario"), {
+        target: { value: "test-scenario" },
+      });
+      fireEvent.click(screen.getByTestId("scenario-delete-confirm"));
+
+      await waitFor(() => {
+        expect(scenariosService.delete).toHaveBeenCalledWith("test-scenario", {
+          archive: true,
+          preserveFiles: {
+            paths: ["README.md", "PRD.md", "requirements/index.json", ".vrooli/service.json"],
+          },
+        });
+      });
+    });
+
+    it("falls back to persisted preset when custom selection does not match scenario files", async () => {
+      window.localStorage.setItem(ARCHIVE_PREFERENCES_STORAGE_KEY, JSON.stringify({
+        mode: "custom",
+        preset: "documentation",
+        customPaths: ["README.md", "PRD.md", "requirements/index.json", ".vrooli/service.json"],
+      }));
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "README.md", path: "README.md", type: "file", size: 100 },
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 120 },
+      ]);
+      vi.mocked(scenariosService.delete).mockResolvedValue({
+        name: "test-scenario",
+        archived: true,
+        message: "Scenario archived to backlog (idea) and deleted",
+        preservedFiles: [],
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-preview-count")).toHaveTextContent("2 files");
+      });
+      expect(screen.getByText("Included Files")).toBeInTheDocument();
+
+      fireEvent.change(screen.getByPlaceholderText("test-scenario"), {
+        target: { value: "test-scenario" },
+      });
+      fireEvent.click(screen.getByTestId("scenario-delete-confirm"));
+
+      await waitFor(() => {
+        expect(scenariosService.delete).toHaveBeenCalledWith("test-scenario", {
+          archive: true,
+          preserveFiles: { preset: "documentation" },
+        });
+      });
+    });
+
+    it("reopens custom file selection with previous files preselected", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getFiles).mockResolvedValue([
+        { name: "PRD.md", path: "PRD.md", type: "file", size: 100 },
+      ]);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("scenario-details-delete"));
+      fireEvent.click(screen.getByTestId("customize-files-link"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("file-selection-dialog")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("select-all-button"));
+      await waitFor(() => {
+        expect(screen.getByTestId("confirm-selection-button")).toHaveTextContent("(1 files)");
+      });
+      fireEvent.click(screen.getByTestId("confirm-selection-button"));
+
+      fireEvent.click(screen.getByTestId("customize-files-link"));
+
+      await waitFor(() => {
+        expect(screen.getByText("1 of 1 files selected")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("confirm-selection-button")).toHaveTextContent("(1 files)");
     });
   });
 

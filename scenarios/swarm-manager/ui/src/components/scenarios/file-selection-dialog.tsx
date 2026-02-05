@@ -43,6 +43,22 @@ const PRESET_PATTERNS: Record<PreserveFilesPreset, string[]> = {
   ],
 };
 
+const ARCHIVE_IGNORED_DIRS = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  ".next",
+  ".turbo",
+  "target",
+  "vendor",
+]);
+
+function isIgnoredArchivePath(path: string): boolean {
+  return path.split("/").some((segment) => ARCHIVE_IGNORED_DIRS.has(segment));
+}
+
 export interface FileSelectionResult {
   preset?: PreserveFilesPreset;
   paths: string[];
@@ -61,6 +77,8 @@ export interface FileSelectionDialogProps {
   files: ScenarioFile[];
   /** Whether files are loading */
   isLoading?: boolean;
+  /** Initial selection to restore when dialog opens */
+  initialSelection?: FileSelectionResult;
 }
 
 /**
@@ -121,6 +139,9 @@ function getPathsForPreset(files: ScenarioFile[], preset: PreserveFilesPreset): 
   const matchedPaths = new Set<string>();
 
   for (const path of allPaths) {
+    if (isIgnoredArchivePath(path)) {
+      continue;
+    }
     for (const pattern of patterns) {
       if (matchesPattern(path, pattern)) {
         matchedPaths.add(path);
@@ -139,6 +160,7 @@ export function FileSelectionDialog({
   scenarioName,
   files = [],
   isLoading = false,
+  initialSelection,
 }: FileSelectionDialogProps) {
   const [selectedPreset, setSelectedPreset] = useState<PreserveFilesPreset | "">("");
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
@@ -146,13 +168,18 @@ export function FileSelectionDialog({
   // Get all file paths for select all functionality
   const allFilePaths = useMemo(() => getAllFilePathsFromTree(files), [files]);
 
-  // Reset selection when dialog opens
+  // Restore selection when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setSelectedPreset("");
-      setSelectedPaths(new Set());
+      const preset = initialSelection?.preset ?? "";
+      setSelectedPreset(preset);
+      if (preset) {
+        setSelectedPaths(getPathsForPreset(files, preset));
+      } else {
+        setSelectedPaths(new Set(initialSelection?.paths ?? []));
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialSelection, files]);
 
   // When preset changes, update selected paths
   useEffect(() => {

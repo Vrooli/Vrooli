@@ -240,6 +240,24 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		fmt.Sprintf("Template type: %s", templateType),
 	)
 
+	// Check for update config warnings
+	// The default provider is "generic" (self-hosted), which requires a URL.
+	// Without a URL, auto-updates are effectively disabled.
+	if input.Config.UpdateConfig != nil {
+		provider := input.Config.UpdateConfig.Provider
+		if provider == "" {
+			provider = "generic" // Default provider
+		}
+		if provider == "generic" {
+			if input.Config.UpdateConfig.Generic == nil || input.Config.UpdateConfig.Generic.URL == "" {
+				result.Logs = append(result.Logs,
+					"WARNING: Generic update provider configured without URL. "+
+						"Auto-updates will not work until update_config.generic.url is set. "+
+						"Set provider to 'none' to explicitly disable updates.")
+			}
+		}
+	}
+
 	if s.service == nil {
 		failStage(result, s.timeProvider, errors.ErrGenerateServiceNotConfigured())
 		return result
