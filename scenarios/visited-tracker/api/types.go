@@ -132,6 +132,10 @@ func (v *VisitFiles) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("%w: files must be an array of strings or objects with path", errInvalidFiles)
 }
 
+func (v VisitFiles) MarshalJSON() ([]byte, error) {
+	return json.Marshal(v.Paths)
+}
+
 // FileVisit represents a single file visit with optional context
 type FileVisit struct {
 	Path    string  `json:"path"`

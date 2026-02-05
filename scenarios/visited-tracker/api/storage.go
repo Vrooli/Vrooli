@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -24,12 +25,28 @@ var (
 
 // initFileStorage ensures the data directory exists
 func initFileStorage() error {
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	dataPath := storageDataPath()
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
 	logger.Printf("✅ JSON file storage initialized at: %s", dataPath)
+	return nil
+}
+
+func storageDataPath() string {
+	return filepath.Join("scenarios", "visited-tracker", dataDir)
+}
+
+func storageHealthCheck(ctx context.Context) error {
+	_ = ctx
+	dataPath := storageDataPath()
+	if _, err := os.Stat(dataPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("storage directory missing")
+		}
+		return fmt.Errorf("storage check failed: %w", err)
+	}
 	return nil
 }
 
@@ -66,7 +83,7 @@ func saveCampaign(campaign *Campaign) error {
 		return fmt.Errorf("failed to marshal campaign: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write campaign file: %w", err)
 	}
 
@@ -99,7 +116,7 @@ func loadCampaign(campaignID uuid.UUID) (*Campaign, error) {
 
 // loadAllCampaigns loads all campaigns from disk
 func loadAllCampaigns() ([]Campaign, error) {
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	dataPath := storageDataPath()
 
 	var campaigns []Campaign
 

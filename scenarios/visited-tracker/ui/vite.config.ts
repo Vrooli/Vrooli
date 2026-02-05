@@ -1,6 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import RequirementReporter from "@vrooli/vitest-requirement-reporter";
+import type { Reporter } from "vitest";
+
+const requirementReporter = new RequirementReporter({
+  outputFile: 'coverage/vitest-requirements.json',
+  emitStdout: true,  // REQUIRED for phase integration
+  verbose: true,
+  conciseMode: true,  // Prevents HTML spam in test output
+  artifactsDir: 'coverage/unit',
+  autoClear: true,
+}) as unknown as Reporter;
 
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
@@ -10,16 +20,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     passWithNoTests: true,
-    reporters: [
-      new RequirementReporter({
-        outputFile: 'coverage/vitest-requirements.json',
-        emitStdout: true,  // REQUIRED for phase integration
-        verbose: true,
-        conciseMode: true,  // Prevents HTML spam in test output
-        artifactsDir: 'coverage/unit',
-        autoClear: true,
-      }),
-    ],
+    reporters: [requirementReporter],
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],

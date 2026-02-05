@@ -2,7 +2,5 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scenarios/visited-tracker/cli"
-source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/visited-tracker" "visited-tracker"
+"${APP_ROOT}/packages/cli-core/install.sh" "scenarios/visited-tracker/cli" --name "visited-tracker"

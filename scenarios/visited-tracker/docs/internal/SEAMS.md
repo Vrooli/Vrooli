@@ -33,9 +33,11 @@
 
 **Code:**
 - `scenarios/visited-tracker/api/storage.go`
+- `scenarios/visited-tracker/api/main.go` (health wiring)
 
 **Why it matters:**
 - Allows future swap to a database by keeping persistence calls centralized.
+- Exposes `storageHealthCheck` as the health seam for dependency reporting without leaking filesystem logic into handlers.
 
 ## Notes
 - Avoid bypassing `resolveTargets` in handlers; it is the canonical seam for visit/exclude target expansion.

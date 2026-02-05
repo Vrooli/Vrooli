@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestGetAllowedOrigins tests CORS origin configuration [REQ:VT-REQ-001]
@@ -958,8 +959,12 @@ func TestHealthHandlerDegradedStatus(t *testing.T) {
 	}
 
 	// Check status is degraded when storage is inaccessible
-	if resp["status"] != "degraded" && resp["status"] != "healthy" {
-		t.Errorf("Expected status 'degraded' or 'healthy', got %v", resp["status"])
+	status, ok := resp["status"].(string)
+	if !ok {
+		t.Fatalf("Expected status string, got %T", resp["status"])
+	}
+	if status != health.StatusDegraded {
+		t.Errorf("Expected status %s, got %v", health.StatusDegraded, status)
 	}
 
 	// Verify dependencies structure exists
@@ -967,8 +972,8 @@ func TestHealthHandlerDegradedStatus(t *testing.T) {
 		if storage, ok := deps["storage"].(map[string]interface{}); ok {
 			// Storage should report connectivity status
 			if connected, ok := storage["connected"].(bool); ok {
-				if !connected && resp["status"] != "degraded" {
-					t.Error("Expected degraded status when storage not connected")
+				if connected {
+					t.Error("Expected storage to be disconnected when data directory is missing")
 				}
 			}
 		}

@@ -8,11 +8,8 @@ import * as api from '../lib/api';
 // Mock API
 vi.mock('../lib/api', () => ({
   fetchCampaign: vi.fn(),
-  fetchFiles: vi.fn(),
   fetchLeastVisited: vi.fn(),
   fetchMostStale: vi.fn(),
-  updateCampaignStatus: vi.fn(),
-  updateCampaignNotes: vi.fn(),
 }));
 
 const createWrapper = () => {
@@ -33,22 +30,21 @@ const mockCampaign = {
   id: 'test-id',
   name: 'Test Campaign',
   from_agent: 'test-agent',
-  status: 'active',
-  location: '/test/path',
-  pattern: '**/*.tsx',
+  status: 'active' as const,
   patterns: ['**/*.tsx'],
-  tags: ['ux', 'test'],
   total_files: 20,
   visited_files: 10,
+  coverage_percent: 50,
   notes: 'Test notes',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+  visits: [],
+  tracked_files: [],
 };
 
 describe('CampaignDetail', () => {
   it('should render campaign name and metadata', async () => {
     vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
-    vi.mocked(api.fetchFiles).mockResolvedValue({ files: [] });
     vi.mocked(api.fetchLeastVisited).mockResolvedValue({ files: [] });
     vi.mocked(api.fetchMostStale).mockResolvedValue({ files: [] });
 
@@ -63,7 +59,6 @@ describe('CampaignDetail', () => {
 
   it('should display actionable files section heading', async () => {
     vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
-    vi.mocked(api.fetchFiles).mockResolvedValue({ files: [] });
     vi.mocked(api.fetchLeastVisited).mockResolvedValue({ files: [] });
     vi.mocked(api.fetchMostStale).mockResolvedValue({ files: [] });
 
@@ -78,7 +73,6 @@ describe('CampaignDetail', () => {
 
   it('should render without errors', async () => {
     vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
-    vi.mocked(api.fetchFiles).mockResolvedValue({ files: [] });
     vi.mocked(api.fetchLeastVisited).mockResolvedValue({ files: [] });
     vi.mocked(api.fetchMostStale).mockResolvedValue({ files: [] });
 
