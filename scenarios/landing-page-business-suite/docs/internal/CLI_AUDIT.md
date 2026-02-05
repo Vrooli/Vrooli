@@ -26,3 +26,4 @@ No gaps detected in API parity or cli-core usage.
 
 ## Recent Changes
 - 2026-02-04: Re-grouped CLI command organization in `cli/app.go` to mirror API domain modules.
+- 2026-02-04: Added `remote-profiles-proxy` and `admin-downloads-upload-managed` helper commands for remote upload automation.

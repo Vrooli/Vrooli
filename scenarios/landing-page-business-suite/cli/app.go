@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -242,12 +245,13 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "remote-profiles-login", NeedsAPI: true, Description: "Login remote profile (admin)", Run: a.cmdRemoteProfilesLogin},
 			{Name: "remote-profiles-logout", NeedsAPI: true, Description: "Logout remote profile (admin)", Run: a.cmdRemoteProfilesLogout},
 			{Name: "remote-profiles-test", NeedsAPI: true, Description: "Test remote profile session (admin)", Run: a.cmdRemoteProfilesTest},
+			{Name: "remote-profiles-proxy", NeedsAPI: true, Description: "Proxy remote admin request via profile session (admin)", Run: a.cmdRemoteProfilesProxy},
 		},
 	}
 
 	downloadsAdmin := cliapp.CommandGroup{
 		Title: "Admin Commerce - Downloads",
-		Commands: a.endpointCommands([]endpointDef{
+		Commands: append(a.endpointCommands([]endpointDef{
 			{Name: "admin-download-apps-list", Method: "GET", Path: "/admin/download-apps", Description: "List download apps"},
 			{Name: "admin-download-apps-create", Method: "POST", Path: "/admin/download-apps", Description: "Create download app"},
 			{Name: "admin-download-apps-save", Method: "PUT", Path: "/admin/download-apps/{app_key}", Description: "Update download app"},
@@ -263,6 +267,13 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "admin-download-assets-apply", Method: "POST", Path: "/admin/download-assets/apply", Description: "Apply download artifact"},
 			{Name: "admin-download-assets-set-current", Method: "POST", Path: "/admin/download-assets/set-current", Description: "Set artifact as current"},
 		}),
+			cliapp.Command{
+				Name:        "admin-downloads-upload-managed",
+				NeedsAPI:    true,
+				Description: "Upload + apply managed artifact (presign → upload → commit → apply)",
+				Run:         a.cmdAdminDownloadsUploadManaged,
+			},
+		),
 	}
 
 	bundles := cliapp.CommandGroup{
@@ -761,6 +772,58 @@ func (a *App) requestAdmin(method, pathValue string, query url.Values, payload [
 	return data, nil
 }
 
+func (a *App) requestRemoteProxy(profileID, method, pathValue string, query url.Values, headers map[string]string, body []byte) ([]byte, error) {
+	profileID = strings.TrimSpace(profileID)
+	if profileID == "" {
+		return nil, fmt.Errorf("remote profile id is required")
+	}
+	if strings.TrimSpace(method) == "" {
+		return nil, fmt.Errorf("proxy method is required")
+	}
+	if strings.TrimSpace(pathValue) == "" {
+		return nil, fmt.Errorf("proxy path is required")
+	}
+
+	payload := map[string]interface{}{
+		"method": method,
+		"path":   pathValue,
+	}
+	if len(query) > 0 {
+		payload["query"] = flattenQueryValues(query)
+	}
+	if len(headers) > 0 {
+		payload["headers"] = headers
+	}
+	if len(body) > 0 {
+		payload["body"] = json.RawMessage(body)
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode proxy payload: %w", err)
+	}
+	return a.requestAdmin("POST", "/admin/remote-profiles/"+url.PathEscape(profileID)+"/proxy", nil, payloadBytes)
+}
+
+func (a *App) requestAdminJSON(profileID, method, pathValue string, payload interface{}) ([]byte, error) {
+	var body []byte
+	if payload != nil {
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("encode request: %w", err)
+		}
+		body = payloadBytes
+	}
+	if strings.TrimSpace(profileID) == "" {
+		return a.requestAdmin(method, pathValue, nil, body)
+	}
+	headers := map[string]string{}
+	if payload != nil {
+		headers["Content-Type"] = "application/json"
+	}
+	return a.requestRemoteProxy(profileID, method, pathValue, nil, headers, body)
+}
+
 func resolveSecretArg(value string) (string, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -1180,6 +1243,258 @@ func (a *App) cmdRemoteProfilesTest(args []string) error {
 	return nil
 }
 
+// DOC: docs/reference/api/admin.md#post-adminremote-profilesidproxy
+func (a *App) cmdRemoteProfilesProxy(args []string) error {
+	fs := flag.NewFlagSet("remote-profiles-proxy", flag.ContinueOnError)
+	method := fs.String("method", "", "HTTP method (GET, POST, PUT, PATCH, DELETE)")
+	pathValue := fs.String("path", "", "Admin path (e.g., /admin/download-artifacts)")
+	var queries cliutil.StringList
+	var headers cliutil.StringList
+	body := fs.String("body", "", "JSON body payload or @file.json")
+	fs.Var(&queries, "query", "Query parameters (key=value or key=value&key2=value2). Repeatable.")
+	fs.Var(&headers, "header", "Header override (key=value or key:value). Repeatable.")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 1 {
+		return fmt.Errorf("usage: remote-profiles-proxy <id> --method <METHOD> --path <path> [--query k=v] [--header k=v] [--body @file.json] [--json]")
+	}
+	profileID := strings.TrimSpace(fs.Args()[0])
+	if profileID == "" {
+		return fmt.Errorf("usage: remote-profiles-proxy <id> --method <METHOD> --path <path> [--query k=v] [--header k=v] [--body @file.json] [--json]")
+	}
+	methodValue := strings.ToUpper(strings.TrimSpace(*method))
+	if methodValue == "" {
+		return fmt.Errorf("method is required (use --method)")
+	}
+	pathValueTrimmed := strings.TrimSpace(*pathValue)
+	if pathValueTrimmed == "" {
+		return fmt.Errorf("path is required (use --path)")
+	}
+	if !strings.HasPrefix(pathValueTrimmed, "/admin") {
+		return fmt.Errorf("path must start with /admin")
+	}
+
+	payloadBody, err := parseBody(*body)
+	if err != nil {
+		return err
+	}
+	queryValues, err := parseQueries(queries.Values())
+	if err != nil {
+		return err
+	}
+	headerValues, err := parseKeyValuePairs(headers.Values())
+	if err != nil {
+		return err
+	}
+
+	resp, err := a.requestRemoteProxy(profileID, methodValue, pathValueTrimmed, queryValues, headerValues, payloadBody)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		cliutil.PrintJSON(resp)
+		return nil
+	}
+	cliutil.PrintJSON(resp)
+	return nil
+}
+
+// DOC: docs/guides/ADMIN_GUIDE.md#downloads
+func (a *App) cmdAdminDownloadsUploadManaged(args []string) error {
+	fs := flag.NewFlagSet("admin-downloads-upload-managed", flag.ContinueOnError)
+	filePath := fs.String("file", "", "Path to artifact file")
+	appKey := fs.String("app-key", "", "Download app key")
+	platform := fs.String("platform", "", "Platform (windows, mac, linux)")
+	releaseVersion := fs.String("release-version", "", "Release version (e.g., 1.2.3)")
+	releaseNotes := fs.String("release-notes", "", "Release notes")
+	checksum := fs.String("checksum", "", "Checksum string (optional)")
+	requiresEntitlement := fs.Bool("requires-entitlement", false, "Require entitlement to download")
+	metadata := fs.String("metadata", "", "Asset metadata JSON or @file.json")
+	sha512Flag := fs.String("sha512", "", "Precomputed base64-encoded SHA512 (computed automatically if omitted)")
+	contentType := fs.String("content-type", "", "Override content-type for upload")
+	remoteProfile := fs.String("remote-profile", "", "Remote profile ID for proxying admin calls")
+	skipApply := fs.Bool("skip-apply", false, "Skip apply step (upload + commit only)")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(fs.Args()) > 0 {
+		return fmt.Errorf("usage: admin-downloads-upload-managed --file <path> --app-key <app> --platform <platform> --release-version <version> [options]")
+	}
+
+	pathValue := strings.TrimSpace(*filePath)
+	appKeyValue := strings.TrimSpace(*appKey)
+	platformValue, err := normalizeDownloadPlatform(*platform)
+	if err != nil {
+		return err
+	}
+	releaseVersionValue := strings.TrimSpace(*releaseVersion)
+	if pathValue == "" || appKeyValue == "" || releaseVersionValue == "" {
+		return fmt.Errorf("usage: admin-downloads-upload-managed --file <path> --app-key <app> --platform <platform> --release-version <version> [options]")
+	}
+	if _, err := os.Stat(pathValue); err != nil {
+		return fmt.Errorf("artifact file not found: %w", err)
+	}
+
+	sha512Value := strings.TrimSpace(*sha512Flag)
+	if sha512Value == "" {
+		var err error
+		sha512Value, err = computeSHA512(pathValue)
+		if err != nil {
+			return fmt.Errorf("compute sha512: %w", err)
+		}
+	}
+
+	remoteProfileID := strings.TrimSpace(*remoteProfile)
+
+	contentTypeValue := resolveContentType(pathValue, strings.TrimSpace(*contentType))
+
+	var assetMetadata map[string]interface{}
+	if strings.TrimSpace(*metadata) != "" {
+		metadataBytes, err := parseBody(*metadata)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(metadataBytes, &assetMetadata); err != nil {
+			return fmt.Errorf("metadata must be a JSON object: %w", err)
+		}
+	}
+
+	presignRespBytes, err := a.requestAdminJSON(remoteProfileID, "POST", "/admin/download-artifacts/presign-upload", map[string]interface{}{
+		"filename":        filepath.Base(pathValue),
+		"content_type":    contentTypeValue,
+		"app_key":         appKeyValue,
+		"platform":        platformValue,
+		"release_version": releaseVersionValue,
+	})
+	if err != nil {
+		return err
+	}
+	var presignResp struct {
+		UploadURL       string            `json:"upload_url"`
+		RequiredHeaders map[string]string `json:"required_headers"`
+		Bucket          string            `json:"bucket"`
+		ObjectKey       string            `json:"object_key"`
+	}
+	if err := json.Unmarshal(presignRespBytes, &presignResp); err != nil {
+		return fmt.Errorf("parse presign response: %w", err)
+	}
+	if strings.TrimSpace(presignResp.UploadURL) == "" || strings.TrimSpace(presignResp.Bucket) == "" || strings.TrimSpace(presignResp.ObjectKey) == "" {
+		return fmt.Errorf("presign response missing required fields")
+	}
+
+	artifactFile, err := os.Open(pathValue)
+	if err != nil {
+		return fmt.Errorf("open artifact file: %w", err)
+	}
+	defer artifactFile.Close()
+
+	uploadReq, err := http.NewRequest("PUT", presignResp.UploadURL, artifactFile)
+	if err != nil {
+		return fmt.Errorf("create upload request: %w", err)
+	}
+	for key, value := range presignResp.RequiredHeaders {
+		if strings.EqualFold(key, "host") {
+			continue
+		}
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		uploadReq.Header.Set(key, value)
+	}
+	if uploadReq.Header.Get("Content-Type") == "" {
+		uploadReq.Header.Set("Content-Type", contentTypeValue)
+	}
+
+	uploadClient := &http.Client{Timeout: a.core.HTTPClient.Timeout()}
+	uploadResp, err := uploadClient.Do(uploadReq)
+	if err != nil {
+		return fmt.Errorf("upload failed: %w", err)
+	}
+	defer uploadResp.Body.Close()
+	if uploadResp.StatusCode >= http.StatusBadRequest {
+		bodyBytes, _ := io.ReadAll(uploadResp.Body)
+		if len(bodyBytes) > 0 {
+			return fmt.Errorf("upload failed (%d): %s", uploadResp.StatusCode, strings.TrimSpace(string(bodyBytes)))
+		}
+		return fmt.Errorf("upload failed (%d)", uploadResp.StatusCode)
+	}
+
+	commitRespBytes, err := a.requestAdminJSON(remoteProfileID, "POST", "/admin/download-artifacts/commit", map[string]interface{}{
+		"bucket":            presignResp.Bucket,
+		"object_key":        presignResp.ObjectKey,
+		"original_filename": filepath.Base(pathValue),
+		"content_type":      contentTypeValue,
+		"app_key":           appKeyValue,
+		"platform":          platformValue,
+		"release_version":   releaseVersionValue,
+		"sha512":            sha512Value,
+	})
+	if err != nil {
+		return err
+	}
+	var artifactResp struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(commitRespBytes, &artifactResp); err != nil {
+		return fmt.Errorf("parse commit response: %w", err)
+	}
+	if artifactResp.ID == 0 {
+		return fmt.Errorf("commit response missing artifact id")
+	}
+
+	var applyRespBytes []byte
+	if !*skipApply {
+		applyPayload := map[string]interface{}{
+			"app_key":         appKeyValue,
+			"platform":        platformValue,
+			"artifact_id":     artifactResp.ID,
+			"release_version": releaseVersionValue,
+		}
+		if strings.TrimSpace(*releaseNotes) != "" {
+			applyPayload["release_notes"] = strings.TrimSpace(*releaseNotes)
+		}
+		if strings.TrimSpace(*checksum) != "" {
+			applyPayload["checksum"] = strings.TrimSpace(*checksum)
+		}
+		if *requiresEntitlement {
+			applyPayload["requires_entitlement"] = true
+		}
+		if assetMetadata != nil {
+			applyPayload["metadata"] = assetMetadata
+		}
+		applyRespBytes, err = a.requestAdminJSON(remoteProfileID, "POST", "/admin/download-assets/apply", applyPayload)
+		if err != nil {
+			return err
+		}
+	}
+
+	if *jsonOut {
+		result := map[string]json.RawMessage{
+			"artifact": json.RawMessage(commitRespBytes),
+		}
+		if !*skipApply && len(applyRespBytes) > 0 {
+			result["asset"] = json.RawMessage(applyRespBytes)
+		}
+		out, err := json.Marshal(result)
+		if err != nil {
+			return fmt.Errorf("encode response: %w", err)
+		}
+		cliutil.PrintJSON(out)
+		return nil
+	}
+
+	fmt.Printf("Uploaded artifact %s (id: %d)\n", filepath.Base(pathValue), artifactResp.ID)
+	if *skipApply {
+		fmt.Println("Skipped apply step (upload + commit only)")
+	} else {
+		fmt.Printf("Applied artifact to %s/%s\n", appKeyValue, platformValue)
+	}
+	return nil
+}
+
 func (a *App) cmdAssetsUpload(args []string) error {
 	fs := flag.NewFlagSet("admin-assets-upload", flag.ContinueOnError)
 	filePath := fs.String("file", "", "Path to file")
@@ -1386,6 +1701,100 @@ func parseQueries(values []string) (url.Values, error) {
 		return nil, nil
 	}
 	return query, nil
+}
+
+func flattenQueryValues(values url.Values) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	flat := make(map[string]string)
+	for key, vals := range values {
+		if len(vals) == 0 {
+			continue
+		}
+		flat[key] = vals[0]
+	}
+	if len(flat) == 0 {
+		return nil
+	}
+	return flat
+}
+
+func parseKeyValuePairs(values []string) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	pairs := map[string]string{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		var key string
+		var val string
+		if strings.Contains(value, "=") {
+			parts := strings.SplitN(value, "=", 2)
+			key = strings.TrimSpace(parts[0])
+			val = strings.TrimSpace(parts[1])
+		} else if strings.Contains(value, ":") {
+			parts := strings.SplitN(value, ":", 2)
+			key = strings.TrimSpace(parts[0])
+			val = strings.TrimSpace(parts[1])
+		} else {
+			return nil, fmt.Errorf("invalid pair %q: expected key=value", value)
+		}
+		if key == "" {
+			return nil, fmt.Errorf("invalid pair %q: empty key", value)
+		}
+		pairs[key] = val
+	}
+	if len(pairs) == 0 {
+		return nil, nil
+	}
+	return pairs, nil
+}
+
+func computeSHA512(filePath string) (string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("open file for SHA512: %w", err)
+	}
+	defer f.Close()
+	h := sha512.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", fmt.Errorf("compute SHA512: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+func normalizeDownloadPlatform(raw string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	switch value {
+	case "windows", "win":
+		return "windows", nil
+	case "mac", "macos", "osx":
+		return "mac", nil
+	case "linux":
+		return "linux", nil
+	case "":
+		return "", fmt.Errorf("platform is required (windows, mac, linux)")
+	default:
+		return "", fmt.Errorf("unsupported platform %q (use windows, mac, or linux)", raw)
+	}
+}
+
+func resolveContentType(pathValue, override string) string {
+	trimmed := strings.TrimSpace(override)
+	if trimmed != "" {
+		return trimmed
+	}
+	ext := strings.ToLower(filepath.Ext(pathValue))
+	if ext != "" {
+		if guessed := mime.TypeByExtension(ext); guessed != "" {
+			return guessed
+		}
+	}
+	return "application/octet-stream"
 }
 
 func deriveCookieExpiry(cookie *http.Cookie) *time.Time {

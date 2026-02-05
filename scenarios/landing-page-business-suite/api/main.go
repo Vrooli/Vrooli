@@ -795,6 +795,8 @@ func ensureSchema(db *sql.DB) error {
 			SELECT DISTINCT bundle_key, app_key, CONCAT(bundle_key, ' downloads'), 0
 			FROM download_assets
 			ON CONFLICT (bundle_key, app_key) DO NOTHING;`,
+		`ALTER TABLE download_artifacts ADD COLUMN IF NOT EXISTS sha512 TEXT;`,
+		`ALTER TABLE download_apps ADD COLUMN IF NOT EXISTS update_api_key TEXT;`,
 		`CREATE TABLE IF NOT EXISTS credit_wallets (
 			id SERIAL PRIMARY KEY,
 			customer_email VARCHAR(255) UNIQUE NOT NULL,

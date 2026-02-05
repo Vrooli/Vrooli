@@ -26,6 +26,7 @@ func (s *Server) setupRoutes() {
 	registerAIRoutes(s)
 	registerDocsRoutes(s)
 	registerAdminUserRoutes(s)
+	registerUpdateRoutes(s)
 }
 
 func registerHealthRoutes(s *Server) {

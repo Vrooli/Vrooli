@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Seams & Architecture
 
-> **Last Updated**: 2026-02-04
+> **Last Updated**: 2026-02-05
 > **Purpose**: Document deliberate boundaries (seams) where behavior can vary or be substituted without invasive changes
 
 ## Overview
@@ -107,6 +107,47 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 - **Proxy allowlist seam** (`remoteProfileProxyAllowlist`)  
   Only explicitly allowlisted `/admin/*` endpoints can be proxied, preventing accidental exposure of unrelated admin routes.
+
+---
+
+## Desktop Auto-Update Seams
+
+The update endpoints (`/api/v1/updates/{app_key}/{channel}/{file}`) serve electron-updater manifests and binary download redirects.
+
+- **Handler interface seam** (`api/update_handlers.go`)
+  `handleUpdateFile` is a public endpoint (no auth middleware) that dispatches manifest vs. binary requests based on the `{file}` path segment. Four narrow interfaces are injected:
+  - `updateAppLookup` — app retrieval for API key gating
+  - `updateAssetLookup` — asset retrieval by variant for manifest serving
+  - `updateArtifactResolver` — artifact retrieval, filename lookup, and presigned URL generation
+  - `updateBundleKeyProvider` — bundle key resolution
+
+  In production, `*DownloadService` satisfies both `updateAppLookup` and `updateAssetLookup`; `*DownloadHostingService` satisfies `updateArtifactResolver`; `*PlanService` satisfies `updateBundleKeyProvider`. In tests, lightweight mocks (`mockUpdateAppLookup`, etc.) substitute without a database.
+
+- **Per-app API key gating** (`DownloadApp.UpdateAPIKey`)
+  Optional per-app access control via `X-Update-Key` header. When `update_api_key` is empty on the app, the endpoint is fully public. Validation lives in the handler, checked before any manifest or download logic.
+
+- **Channel-to-variant mapping** (`channelToVariantKey`)
+  Pure function mapping electron-updater channel names to download_assets `variant_key` values. `"stable"` and `""` map to `"default"`; all other channel names pass through. Easily testable without dependencies.
+
+- **Manifest generation** (`buildElectronManifest`)
+  Pure function generating electron-updater YAML from a `DownloadArtifact`. No yaml library needed — fixed format via `fmt.Sprintf`. Requires `SHA512` to be present; endpoint returns 404 if missing.
+
+- **Download redirect** (`updateArtifactResolver.GetCurrentArtifactByFilename` + `PresignGetArtifact`)
+  Binary download requests resolve the current artifact via a join query (download_artifacts + download_assets), then redirect to a presigned S3 URL. The existing `DownloadStorage` interface seam for presigning applies here.
+
+### Testability Status
+
+| Concern | Status | Notes |
+|---------|--------|-------|
+| Pure functions | Strong | `manifestFilenameToPlatform`, `channelToVariantKey`, `buildElectronManifest` — all tested in `update_handlers_test.go` |
+| Handler flow | Strong | Mock-based unit tests cover manifest serving, binary redirect, missing SHA512, nil artifact, presign failure, and API key gating. Integration tests cover DB-backed flows. |
+| Storage redirect | Inherited | Uses existing `DownloadStorage` interface seam for presigning |
+
+---
+
+## Scan Helper Utilities
+
+`artifactScanTargets` (download_hosting.go), `assetScanTargets` (download_service.go), and `appScanTargets` (download_service.go) consolidate the repeated SQL NullString/JSON → struct hydration pattern across all artifact, asset, and app query methods. Each helper provides `scanDest()` for ordered scan destinations and `hydrate()` for populating the struct. Extra columns (e.g., `is_current`, `artifact_count`) are appended to `scanDest()` at the call site.
 
 ---
 

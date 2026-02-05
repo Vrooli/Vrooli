@@ -45,9 +45,59 @@ type DownloadAsset struct {
 	RequiresEntitlement bool                   `json:"requires_entitlement"`
 	Metadata            map[string]interface{} `json:"metadata,omitempty"`
 	// Artifact info (populated when artifact_source is 'managed')
-	ArtifactFilename string `json:"artifact_filename,omitempty"`
-	ArtifactSizeBytes int64 `json:"artifact_size_bytes,omitempty"`
-	ArtifactCount    int    `json:"artifact_count,omitempty"`
+	ArtifactFilename  string `json:"artifact_filename,omitempty"`
+	ArtifactSizeBytes int64  `json:"artifact_size_bytes,omitempty"`
+	ArtifactCount     int    `json:"artifact_count,omitempty"`
+}
+
+// assetScanTargets holds temporary nullable scan variables for a download_assets row.
+type assetScanTargets struct {
+	asset          DownloadAsset
+	artifactURL    sql.NullString
+	artifactSource sql.NullString
+	artifactID     sql.NullInt64
+	metadataBytes  []byte
+}
+
+// scanDest returns the ordered slice of scan destinations matching the standard asset SELECT columns:
+// id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id,
+// release_version, release_notes, checksum, requires_entitlement, metadata
+func (t *assetScanTargets) scanDest() []interface{} {
+	return []interface{}{
+		&t.asset.ID,
+		&t.asset.BundleKey,
+		&t.asset.AppKey,
+		&t.asset.Platform,
+		&t.artifactURL,
+		&t.artifactSource,
+		&t.artifactID,
+		&t.asset.ReleaseVersion,
+		&t.asset.ReleaseNotes,
+		&t.asset.Checksum,
+		&t.asset.RequiresEntitlement,
+		&t.metadataBytes,
+	}
+}
+
+// hydrate populates the asset struct from the scanned nullable values.
+func (t *assetScanTargets) hydrate() DownloadAsset {
+	t.asset.ArtifactURL = t.artifactURL.String
+	if t.artifactSource.Valid && strings.TrimSpace(t.artifactSource.String) != "" {
+		t.asset.ArtifactSource = t.artifactSource.String
+	} else {
+		t.asset.ArtifactSource = "direct"
+	}
+	if t.artifactID.Valid {
+		id := t.artifactID.Int64
+		t.asset.ArtifactID = &id
+	}
+	if len(t.metadataBytes) > 0 {
+		var meta map[string]interface{}
+		if err := json.Unmarshal(t.metadataBytes, &meta); err == nil {
+			t.asset.Metadata = meta
+		}
+	}
+	return t.asset
 }
 
 // DownloadStorefront represents an app store link for mobile/desktop stores.
@@ -73,7 +123,68 @@ type DownloadApp struct {
 	Storefronts     []DownloadStorefront   `json:"storefronts,omitempty"`
 	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 	DisplayOrder    int                    `json:"display_order"`
+	UpdateAPIKey    string                 `json:"update_api_key,omitempty"`
 	Platforms       []DownloadAsset        `json:"platforms,omitempty"`
+}
+
+// appScanTargets holds temporary nullable scan variables for a download_apps row.
+// Use scanDest() to get the ordered scan destinations, then hydrate() to populate the app.
+type appScanTargets struct {
+	app               DownloadApp
+	iconURL           sql.NullString
+	screenshotURL     sql.NullString
+	updateAPIKey      sql.NullString
+	installStepsBytes []byte
+	storefrontBytes   []byte
+	metadataBytes     []byte
+}
+
+// scanDest returns the ordered slice of scan destinations matching the standard app SELECT columns:
+// id, bundle_key, app_key, name, tagline, description, icon_url, screenshot_url,
+// install_overview, install_steps, storefronts, metadata, display_order, update_api_key
+func (t *appScanTargets) scanDest() []interface{} {
+	return []interface{}{
+		&t.app.ID,
+		&t.app.BundleKey,
+		&t.app.AppKey,
+		&t.app.Name,
+		&t.app.Tagline,
+		&t.app.Description,
+		&t.iconURL,
+		&t.screenshotURL,
+		&t.app.InstallOverview,
+		&t.installStepsBytes,
+		&t.storefrontBytes,
+		&t.metadataBytes,
+		&t.app.DisplayOrder,
+		&t.updateAPIKey,
+	}
+}
+
+// hydrate populates the app struct from the scanned nullable values.
+func (t *appScanTargets) hydrate() DownloadApp {
+	t.app.IconURL = t.iconURL.String
+	t.app.ScreenshotURL = t.screenshotURL.String
+	t.app.UpdateAPIKey = t.updateAPIKey.String
+	if len(t.installStepsBytes) > 0 {
+		var steps []string
+		if err := json.Unmarshal(t.installStepsBytes, &steps); err == nil {
+			t.app.InstallSteps = steps
+		}
+	}
+	if len(t.storefrontBytes) > 0 {
+		var storefronts []DownloadStorefront
+		if err := json.Unmarshal(t.storefrontBytes, &storefronts); err == nil {
+			t.app.Storefronts = storefronts
+		}
+	}
+	if len(t.metadataBytes) > 0 {
+		var meta map[string]interface{}
+		if err := json.Unmarshal(t.metadataBytes, &meta); err == nil {
+			t.app.Metadata = meta
+		}
+	}
+	return t.app
 }
 
 func NewDownloadService(db *sql.DB) *DownloadService {
@@ -123,44 +234,15 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 
 	assets := make([]DownloadAsset, 0)
 	for rows.Next() {
-		var asset DownloadAsset
-		var artifactURL sql.NullString
-		var artifactSource sql.NullString
-		var artifactID sql.NullInt64
-		var metadataBytes []byte
+		var t assetScanTargets
 		var artifactFilename sql.NullString
 		var artifactSizeBytes sql.NullInt64
 		var artifactCount sql.NullInt64
-		if err := rows.Scan(
-			&asset.ID,
-			&asset.BundleKey,
-			&asset.AppKey,
-			&asset.Platform,
-			&artifactURL,
-			&artifactSource,
-			&artifactID,
-			&asset.ReleaseVersion,
-			&asset.ReleaseNotes,
-			&asset.Checksum,
-			&asset.RequiresEntitlement,
-			&metadataBytes,
-			&artifactFilename,
-			&artifactSizeBytes,
-			&artifactCount,
-		); err != nil {
+		dest := append(t.scanDest(), &artifactFilename, &artifactSizeBytes, &artifactCount)
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
-
-		asset.ArtifactURL = artifactURL.String
-		if artifactSource.Valid && strings.TrimSpace(artifactSource.String) != "" {
-			asset.ArtifactSource = artifactSource.String
-		} else {
-			asset.ArtifactSource = "direct"
-		}
-		if artifactID.Valid {
-			id := artifactID.Int64
-			asset.ArtifactID = &id
-		}
+		asset := t.hydrate()
 		if artifactFilename.Valid {
 			asset.ArtifactFilename = artifactFilename.String
 		}
@@ -170,14 +252,6 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 		if artifactCount.Valid {
 			asset.ArtifactCount = int(artifactCount.Int64)
 		}
-
-		if len(metadataBytes) > 0 {
-			var meta map[string]interface{}
-			if err := json.Unmarshal(metadataBytes, &meta); err == nil {
-				asset.Metadata = meta
-			}
-		}
-
 		assets = append(assets, asset)
 	}
 
@@ -188,7 +262,7 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 	query := `
 		SELECT id, bundle_key, app_key, name, tagline, description,
-		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order
+		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key
 		FROM download_apps
 		WHERE bundle_key = $1
 		ORDER BY display_order, name
@@ -202,51 +276,11 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 
 	apps := make([]DownloadApp, 0)
 	for rows.Next() {
-		var app DownloadApp
-		var iconURL, screenshotURL sql.NullString
-		var installStepsBytes, storefrontBytes, metadataBytes []byte
-		if err := rows.Scan(
-			&app.ID,
-			&app.BundleKey,
-			&app.AppKey,
-			&app.Name,
-			&app.Tagline,
-			&app.Description,
-			&iconURL,
-			&screenshotURL,
-			&app.InstallOverview,
-			&installStepsBytes,
-			&storefrontBytes,
-			&metadataBytes,
-			&app.DisplayOrder,
-		); err != nil {
+		var t appScanTargets
+		if err := rows.Scan(t.scanDest()...); err != nil {
 			return nil, err
 		}
-		app.IconURL = iconURL.String
-		app.ScreenshotURL = screenshotURL.String
-
-		if len(installStepsBytes) > 0 {
-			var steps []string
-			if err := json.Unmarshal(installStepsBytes, &steps); err == nil {
-				app.InstallSteps = steps
-			}
-		}
-
-		if len(storefrontBytes) > 0 {
-			var storefronts []DownloadStorefront
-			if err := json.Unmarshal(storefrontBytes, &storefronts); err == nil {
-				app.Storefronts = storefronts
-			}
-		}
-
-		if len(metadataBytes) > 0 {
-			var meta map[string]interface{}
-			if err := json.Unmarshal(metadataBytes, &meta); err == nil {
-				app.Metadata = meta
-			}
-		}
-
-		apps = append(apps, app)
+		apps = append(apps, t.hydrate())
 	}
 
 	if len(apps) == 0 {
@@ -275,57 +309,21 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error) {
 	query := `
 		SELECT id, bundle_key, app_key, name, tagline, description,
-		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order
+		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key
 		FROM download_apps
 		WHERE bundle_key = $1 AND app_key = $2
 		LIMIT 1
 	`
 
 	row := s.db.QueryRow(query, bundleKey, appKey)
-	var app DownloadApp
-	var iconURL, screenshotURL sql.NullString
-	var installStepsBytes, storefrontBytes, metadataBytes []byte
-	if err := row.Scan(
-		&app.ID,
-		&app.BundleKey,
-		&app.AppKey,
-		&app.Name,
-		&app.Tagline,
-		&app.Description,
-		&iconURL,
-		&screenshotURL,
-		&app.InstallOverview,
-		&installStepsBytes,
-		&storefrontBytes,
-		&metadataBytes,
-		&app.DisplayOrder,
-	); err != nil {
+	var t appScanTargets
+	if err := row.Scan(t.scanDest()...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrDownloadAppNotFound
 		}
 		return nil, err
 	}
-	app.IconURL = iconURL.String
-	app.ScreenshotURL = screenshotURL.String
-
-	if len(installStepsBytes) > 0 {
-		var steps []string
-		if err := json.Unmarshal(installStepsBytes, &steps); err == nil {
-			app.InstallSteps = steps
-		}
-	}
-	if len(storefrontBytes) > 0 {
-		var storefronts []DownloadStorefront
-		if err := json.Unmarshal(storefrontBytes, &storefronts); err == nil {
-			app.Storefronts = storefronts
-		}
-	}
-	if len(metadataBytes) > 0 {
-		var meta map[string]interface{}
-		if err := json.Unmarshal(metadataBytes, &meta); err == nil {
-			app.Metadata = meta
-		}
-	}
+	app := t.hydrate()
 
 	assetRows, err := s.db.Query(`
 		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
@@ -340,47 +338,11 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 	defer assetRows.Close()
 
 	for assetRows.Next() {
-		var asset DownloadAsset
-		var artifactURL sql.NullString
-		var artifactSource sql.NullString
-		var artifactID sql.NullInt64
-		var metadataBytes []byte
-		if err := assetRows.Scan(
-			&asset.ID,
-			&asset.BundleKey,
-			&asset.AppKey,
-			&asset.Platform,
-			&artifactURL,
-			&artifactSource,
-			&artifactID,
-			&asset.ReleaseVersion,
-			&asset.ReleaseNotes,
-			&asset.Checksum,
-			&asset.RequiresEntitlement,
-			&metadataBytes,
-		); err != nil {
+		var t assetScanTargets
+		if err := assetRows.Scan(t.scanDest()...); err != nil {
 			return nil, err
 		}
-
-		asset.ArtifactURL = artifactURL.String
-		if artifactSource.Valid && strings.TrimSpace(artifactSource.String) != "" {
-			asset.ArtifactSource = artifactSource.String
-		} else {
-			asset.ArtifactSource = "direct"
-		}
-		if artifactID.Valid {
-			id := artifactID.Int64
-			asset.ArtifactID = &id
-		}
-
-		if len(metadataBytes) > 0 {
-			var meta map[string]interface{}
-			if err := json.Unmarshal(metadataBytes, &meta); err == nil {
-				asset.Metadata = meta
-			}
-		}
-
-		app.Platforms = append(app.Platforms, asset)
+		app.Platforms = append(app.Platforms, t.hydrate())
 	}
 
 	return &app, nil
@@ -418,19 +380,22 @@ func (s *DownloadService) UpsertDownloadApp(app DownloadApp) (*DownloadApp, erro
 	}
 
 	// Convert empty strings to nil for nullable columns
-	var iconURL, screenshotURL interface{}
+	var iconURL, screenshotURL, updateAPIKey interface{}
 	if strings.TrimSpace(app.IconURL) != "" {
 		iconURL = app.IconURL
 	}
 	if strings.TrimSpace(app.ScreenshotURL) != "" {
 		screenshotURL = app.ScreenshotURL
 	}
+	if strings.TrimSpace(app.UpdateAPIKey) != "" {
+		updateAPIKey = app.UpdateAPIKey
+	}
 
 	_, err = tx.Exec(`
 		INSERT INTO download_apps (
 			bundle_key, app_key, name, tagline, description,
-			icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+			icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order, update_api_key
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		ON CONFLICT (bundle_key, app_key) DO UPDATE SET
 			name = EXCLUDED.name,
 			tagline = EXCLUDED.tagline,
@@ -442,8 +407,9 @@ func (s *DownloadService) UpsertDownloadApp(app DownloadApp) (*DownloadApp, erro
 			storefronts = EXCLUDED.storefronts,
 			metadata = EXCLUDED.metadata,
 			display_order = EXCLUDED.display_order,
+			update_api_key = EXCLUDED.update_api_key,
 			updated_at = NOW()
-	`, app.BundleKey, app.AppKey, app.Name, app.Tagline, app.Description, iconURL, screenshotURL, app.InstallOverview, installStepsBytes, storefrontBytes, metadataBytes, app.DisplayOrder)
+	`, app.BundleKey, app.AppKey, app.Name, app.Tagline, app.Description, iconURL, screenshotURL, app.InstallOverview, installStepsBytes, storefrontBytes, metadataBytes, app.DisplayOrder, updateAPIKey)
 	if err != nil {
 		return nil, fmt.Errorf("upsert download app: %w", err)
 	}
@@ -547,48 +513,37 @@ func (s *DownloadService) GetAsset(bundleKey, appKey, platform string) (*Downloa
 	`
 
 	row := s.db.QueryRow(query, bundleKey, appKey, platform)
-	var asset DownloadAsset
-	var artifactURL sql.NullString
-	var artifactSource sql.NullString
-	var artifactID sql.NullInt64
-	var metadataBytes []byte
-	if err := row.Scan(
-		&asset.ID,
-		&asset.BundleKey,
-		&asset.AppKey,
-		&asset.Platform,
-		&artifactURL,
-		&artifactSource,
-		&artifactID,
-		&asset.ReleaseVersion,
-		&asset.ReleaseNotes,
-		&asset.Checksum,
-		&asset.RequiresEntitlement,
-		&metadataBytes,
-	); err != nil {
+	var t assetScanTargets
+	if err := row.Scan(t.scanDest()...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s/%s/%s", ErrDownloadNotFound, bundleKey, appKey, platform)
 		}
 		return nil, err
 	}
+	asset := t.hydrate()
 
-	asset.ArtifactURL = artifactURL.String
-	if artifactSource.Valid && strings.TrimSpace(artifactSource.String) != "" {
-		asset.ArtifactSource = artifactSource.String
-	} else {
-		asset.ArtifactSource = "direct"
-	}
-	if artifactID.Valid {
-		id := artifactID.Int64
-		asset.ArtifactID = &id
-	}
+	return &asset, nil
+}
 
-	if len(metadataBytes) > 0 {
-		var meta map[string]interface{}
-		if err := json.Unmarshal(metadataBytes, &meta); err == nil {
-			asset.Metadata = meta
+// GetAssetByVariant fetches a download asset by platform and variant_key.
+func (s *DownloadService) GetAssetByVariant(bundleKey, appKey, platform, variantKey string) (*DownloadAsset, error) {
+	query := `
+		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
+		       release_notes, checksum, requires_entitlement, metadata
+		FROM download_assets
+		WHERE bundle_key = $1 AND app_key = $2 AND platform = $3 AND variant_key = $4
+		LIMIT 1
+	`
+
+	row := s.db.QueryRow(query, bundleKey, appKey, platform, variantKey)
+	var t assetScanTargets
+	if err := row.Scan(t.scanDest()...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: %s/%s/%s/%s", ErrDownloadNotFound, bundleKey, appKey, platform, variantKey)
 		}
+		return nil, err
 	}
+	asset := t.hydrate()
 
 	return &asset, nil
 }

@@ -214,6 +214,49 @@ The Downloads page (`/admin/downloads`) manages:
 
 Downloads are gated by subscription status in the public experience.
 
+CLI automation (optional):
+- Upload + apply a managed artifact: `landing-page-business-suite admin-downloads-upload-managed --file <path> --app-key <app> --platform <platform> --release-version <version>`
+- Proxy remote admin calls via stored sessions: `landing-page-business-suite remote-profiles-proxy <id> --method <METHOD> --path /admin/...`
+
+### Desktop Auto-Update Endpoints
+
+LPBS exposes public update endpoints that electron-updater (Generic Provider) polls for new versions.
+
+**URL pattern:** `https://<lpbs-domain>/api/v1/updates/<app-key>/<channel>/<file>`
+
+**Manifest files** (GET, returns YAML):
+- `latest.yml` — Windows
+- `latest-mac.yml` — macOS
+- `latest-linux.yml` — Linux
+
+**Binary downloads** (GET, returns 302 redirect to presigned S3 URL):
+- Any other filename is treated as a binary download (e.g., `my-app-1.2.3.exe`).
+
+**Channel mapping:** The `stable` channel maps to the `default` variant_key in download_assets. Other channel names pass through as-is.
+
+**Access control:** By default, update endpoints are public. To restrict access, set the `update_api_key` field on the download app. When set, requests must include `X-Update-Key: <key>` header.
+
+**electron-updater configuration** (in the desktop app's electron-builder config):
+```json
+{
+  "provider": "generic",
+  "url": "https://your-lpbs-domain.com/api/v1/updates/your-app-key",
+  "channel": "stable"
+}
+```
+
+If `update_api_key` is set, add `requestHeaders`:
+```json
+{
+  "provider": "generic",
+  "url": "https://your-lpbs-domain.com/api/v1/updates/your-app-key",
+  "channel": "stable",
+  "requestHeaders": { "X-Update-Key": "your-secret-key" }
+}
+```
+
+Uploads via `admin-downloads-upload-managed` now automatically compute and store SHA512 hashes, which are required for serving update manifests.
+
 ### Remote Profiles
 
 Remote Profiles (`/admin/remote-profiles`) let admins store encrypted sessions for deployed
