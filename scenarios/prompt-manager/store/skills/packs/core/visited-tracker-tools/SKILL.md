@@ -6,7 +6,7 @@ Use `visited-tracker` to record file coverage, avoid duplicate work, and leave h
 
 ### 1. Core Commands
 
-**Get the next files to review (use `--pattern` thst is applicable to current situation):**
+**Get the next files to review (use `--pattern` that is applicable to current situation):**
 ```bash
 visited-tracker least-visited \
   --location {{LOCATION}} \
@@ -68,4 +68,3 @@ visited-tracker campaigns note \
 - Keep tags consistent per skill (e.g., `ux`, `react-stability`, `cli-steer`) to avoid mixing coverage.
 - Prefer a single `visited-tracker visit` command with repeated `--file-note` entries (or `--note` + `--` list) over multiple single-file commands.
 - Use glob patterns relative to `--location`; verify they match expected files.
-
