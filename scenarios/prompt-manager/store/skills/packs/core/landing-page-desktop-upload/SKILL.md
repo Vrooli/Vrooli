@@ -37,8 +37,8 @@ Required reading:
 You will need to supply:
 - `{{TARGET}}` scenario name (for scenario-to-desktop)
 - `{{APP_KEY}}` (download app key in LPBS)
-- `{{PLATFORM}}` (`windows`, `mac`, or `linux`)
-- `{{RELEASE_VERSION}}` (e.g., `1.2.3`)
+- `{{PLATFORM}}` (`win`, `mac`, or `linux`)
+- `{{RELEASE_VERSION}}` (e.g., `1.2.3`) **or** auto-discover from scenario-to-desktop
 - Artifact file path (from scenario-to-desktop)
 - Local LPBS admin credentials (for `admin-login`)
 - Remote LPBS credentials + API base (if using remote profiles)
@@ -49,9 +49,7 @@ You will need to supply:
 
 1) **LPBS must be running locally** (use lifecycle tooling only):
 ```bash
-cd scenarios/landing-page-business-suite
-make start
-# or: vrooli scenario start landing-page-business-suite
+vrooli scenario start landing-page-business-suite
 ```
 
 2) **Local admin session stored**:
@@ -81,18 +79,42 @@ JSON
 landing-page-business-suite admin-download-apps-create --body @/tmp/download-app.json
 ```
 
-5) **Desktop artifacts built** (follow scenario-to-desktop skill). Preferred artifact path options:
+5) **Discover deployment URL (remote only, from scenario-to-cloud)**
+
+```bash
+# Human-friendly listing (preferred)
+scenario-to-cloud deployment list --scenario landing-page-business-suite
+```
+
+Use the **DOMAIN** column when present (API base: `https://<domain>/api/v1`).
+If DOMAIN is empty, use **HOST** with the API port (default `3001`): `http://<host>:3001/api/v1`.
+
+6) **Desktop artifacts built** (follow scenario-to-desktop skill). Preferred artifact path options:
 - `scenario-to-desktop download {{TARGET}} {{PLATFORM}} --output /tmp/{{TARGET}}-{{PLATFORM}}.bin`
-- `scenario-to-desktop pipeline status <id> --json` (inspect `final_artifacts`)
+- `scenario-to-desktop pipeline run {{TARGET}} --platforms win,mac,linux --clean --wait` (read `Artifacts:` lines)
+- `scenario-to-desktop desktop-status --name {{TARGET}}` (read `Artifacts:` section)
 
 ---
 
 ### 5. Core Workflow
 
+#### 0) Build + discover artifacts (human-friendly output)
+
+```bash
+# Friendly output includes artifact paths on success
+scenario-to-desktop pipeline run {{TARGET}} --platforms win,mac,linux --clean --wait
+```
+
+If you need the release version, `desktop-status` prints it in the scenario header:
+```bash
+scenario-to-desktop desktop-status --name {{TARGET}}
+```
+
 #### A) Upload to local LPBS
 
 ```bash
-# Build artifacts (see scenario-to-desktop skill)
+# Build artifacts (see scenario-to-desktop skill).
+# Use JSON extraction if you need absolute artifact paths.
 scenario-to-desktop pipeline run {{TARGET}} --platforms {{PLATFORM}} --clean --wait
 
 # Upload + apply
@@ -150,6 +172,8 @@ landing-page-business-suite admin-downloads-upload-managed \
 - **Use `--wait`** for scripted scenario-to-desktop pipeline runs.
 - **Remote profile API base must include `/api/v1`.**
 - **Uploads require download storage settings** (S3-compatible) to be configured.
+- **Platform values for scenario-to-desktop:** `win`, `mac`, `linux`. LPBS accepts `win` and normalizes to `windows`.
+- **Prefer human-friendly CLI output**; only use `--json` if absolutely necessary.
 
 ---
 
@@ -162,7 +186,7 @@ landing-page-business-suite admin-downloads-upload-managed \
 | `download storage not configured` | No storage settings | `admin-download-storage-get` | Configure + test storage |
 | `download app not found` | Missing app key | `admin-download-apps-list` | Create app via `admin-download-apps-create` |
 | Upload `403/Signature` error | Storage creds/headers mismatch | presign response headers | Re-test storage + retry upload |
-| `platform is required` | Missing/invalid platform | command flags | Use `windows`, `mac`, or `linux` |
+| `platform is required` | Missing/invalid platform | command flags | Use `win`, `mac`, or `linux` |
 
 ---
 
@@ -179,7 +203,9 @@ landing-page-business-suite admin-download-artifacts-by-app \
 landing-page-business-suite admin-download-apps-list --json
 ```
 
-For remote profiles, add `--remote-profile <REMOTE_PROFILE_ID>` to the admin commands above.
+For remote profiles:
+- `admin-downloads-upload-managed` supports `--remote-profile`.
+- Other admin calls must use `remote-profiles-proxy` until a `--remote-profile` flag exists on those commands.
 
 ---
 

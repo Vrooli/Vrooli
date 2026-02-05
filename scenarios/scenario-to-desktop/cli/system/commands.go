@@ -305,6 +305,107 @@ func (c *Commands) Download(args []string) error {
 	return nil
 }
 
+// DOC: docs/QUICKSTART.md#check-build-artifacts-cli
+// DesktopStatus lists desktop build status and artifacts for scenarios.
+func (c *Commands) DesktopStatus(args []string) error {
+	fs := flag.NewFlagSet("desktop-status", flag.ContinueOnError)
+	nameFilter := fs.String("name", "", "Filter by scenario name")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(fs.Args()) > 0 {
+		return fmt.Errorf("usage: desktop-status [--name <scenario>] [--json]")
+	}
+
+	body, err := c.apiGet("/scenarios/desktop-status", nil)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	type buildArtifact struct {
+		Platform     string `json:"platform"`
+		FileName     string `json:"file_name"`
+		SizeBytes    int64  `json:"size_bytes"`
+		RelativePath string `json:"relative_path"`
+		AbsolutePath string `json:"absolute_path"`
+	}
+	type scenarioStatus struct {
+		Name           string          `json:"name"`
+		DisplayName    string          `json:"display_name"`
+		Version        string          `json:"version"`
+		Built          bool            `json:"built"`
+		Platforms      []string        `json:"platforms"`
+		BuildArtifacts []buildArtifact `json:"build_artifacts"`
+	}
+	var resp struct {
+		Scenarios []scenarioStatus `json:"scenarios"`
+		Stats     struct {
+			Total       int `json:"total"`
+			WithDesktop int `json:"with_desktop"`
+			Built       int `json:"built"`
+			WebOnly     int `json:"web_only"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	filter := strings.TrimSpace(*nameFilter)
+	if filter != "" {
+		filtered := make([]scenarioStatus, 0)
+		for _, scenario := range resp.Scenarios {
+			if scenario.Name == filter {
+				filtered = append(filtered, scenario)
+			}
+		}
+		resp.Scenarios = filtered
+	}
+
+	if len(resp.Scenarios) == 0 {
+		fmt.Println("No scenarios found")
+		return nil
+	}
+
+	fmt.Printf("Scenarios: %d total, %d with desktop, %d built, %d web-only\n",
+		resp.Stats.Total, resp.Stats.WithDesktop, resp.Stats.Built, resp.Stats.WebOnly)
+	for _, scenario := range resp.Scenarios {
+		name := scenario.Name
+		if strings.TrimSpace(scenario.DisplayName) != "" {
+			name = fmt.Sprintf("%s (%s)", name, scenario.DisplayName)
+		}
+		version := "unknown"
+		if strings.TrimSpace(scenario.Version) != "" {
+			version = scenario.Version
+		}
+		status := "not built"
+		if scenario.Built {
+			status = "built"
+		}
+		fmt.Printf("\n- %s v%s [%s]\n", name, version, status)
+		if len(scenario.Platforms) > 0 {
+			fmt.Printf("  Platforms: %s\n", strings.Join(scenario.Platforms, ", "))
+		}
+		if len(scenario.BuildArtifacts) > 0 {
+			fmt.Println("  Artifacts:")
+			for _, artifact := range scenario.BuildArtifacts {
+				fileName := artifact.FileName
+				if fileName == "" {
+					fileName = artifact.RelativePath
+				}
+				fmt.Printf("    - %s: %s (%d bytes)\n", artifact.Platform, fileName, artifact.SizeBytes)
+			}
+		}
+	}
+	return nil
+}
+
 // WineCheck checks Wine installation status.
 func (c *Commands) WineCheck(args []string) error {
 	fs := flag.NewFlagSet("wine-check", flag.ContinueOnError)

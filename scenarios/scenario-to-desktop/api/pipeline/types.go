@@ -188,6 +188,9 @@ type Config struct {
 	// Version is the release version (used in distribution path).
 	Version string `json:"version,omitempty"`
 
+	// versionRollback stores persisted version changes for rollback on failure.
+	versionRollback *versionRollback `json:"-"`
+
 	// PreflightTimeoutSeconds sets the timeout for preflight validation.
 	PreflightTimeoutSeconds int `json:"preflight_timeout_seconds,omitempty"`
 
@@ -218,6 +221,30 @@ type Config struct {
 	// Valid values: bundle, preflight, generate, build, smoketest, distribution.
 	// Stages are executed in pipeline order, regardless of the order specified here.
 	Stages []string `json:"stages,omitempty"`
+}
+
+// VersionUpdateRequest controls how a scenario version is resolved for a pipeline run.
+// When provided, the API can validate, optionally persist, and apply a version update
+// before the pipeline starts.
+type VersionUpdateRequest struct {
+	// Mode controls how the version is determined: "set" or "bump".
+	Mode string `json:"mode,omitempty"`
+
+	// Version is the explicit version to set when Mode is "set".
+	Version string `json:"version,omitempty"`
+
+	// Bump is the semver component to increment when Mode is "bump": patch, minor, medium, major.
+	// "auto" is accepted as a patch bump alias.
+	Bump string `json:"bump,omitempty"`
+
+	// Persist controls whether the version is written to scenario files.
+	Persist bool `json:"persist,omitempty"`
+
+	// AllowDowngrade allows setting a version lower than the current scenario version.
+	AllowDowngrade bool `json:"allow_downgrade,omitempty"`
+
+	// Source controls which files are updated when Persist is true: both, service, ui.
+	Source string `json:"source,omitempty"`
 }
 
 // Status represents the current state of a pipeline run.
@@ -431,7 +458,10 @@ type ProcessDiagnosticInfo struct {
 }
 
 // RunRequest is the HTTP request body for starting a pipeline.
-type RunRequest = Config
+type RunRequest struct {
+	Config
+	VersionUpdate *VersionUpdateRequest `json:"version_update,omitempty"`
+}
 
 // RunResponse is the HTTP response for starting a pipeline.
 type RunResponse struct {
@@ -509,6 +539,22 @@ func (c *Config) GetStages() []string {
 		return nil
 	}
 	return c.Stages
+}
+
+func (c *Config) setVersionRollback(rollback *versionRollback) {
+	if c == nil {
+		return
+	}
+	c.versionRollback = rollback
+}
+
+func (c *Config) takeVersionRollback() *versionRollback {
+	if c == nil {
+		return nil
+	}
+	rollback := c.versionRollback
+	c.versionRollback = nil
+	return rollback
 }
 
 // IsValidStageName checks if a stage name is valid.

@@ -1,0 +1,21 @@
+{
+  "theme": "light",
+  "recommendationMode": "off",
+  "insightsEnabled": false,
+  "insightsAutoAnalyze": false,
+  "recommendationSources": {
+    "problems": true,
+    "completeness": true,
+    "tests": true,
+    "coverage": true,
+    "customFocus": true,
+    "scenarioNotes": true
+  },
+  "recommendationAutoSync": {
+    "enabled": false,
+    "interval": "1h",
+    "lastRefresh": "",
+    "nextRefresh": "",
+    "refreshScope": "manual"
+  }
+}

@@ -21,7 +21,7 @@ interface StatusLegendProps {
 }
 
 export function StatusLegend({
-  items,
+  items = [],
   title = "Status Guide",
   compact = false,
   "data-testid": testId,
@@ -31,7 +31,7 @@ export function StatusLegend({
   return (
     <div className="relative" data-testid={testId}>
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsExpanded((prev) => !prev)}
         className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-slate-200 transition-colors"
         aria-expanded={isExpanded}
         aria-label={`${isExpanded ? "Hide" : "Show"} status legend`}

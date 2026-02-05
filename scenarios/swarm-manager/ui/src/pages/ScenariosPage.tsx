@@ -22,12 +22,13 @@
 import { useState, useMemo, useEffect, type MouseEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Filter, Package, ArrowRight, Circle, X, ChevronDown, Play, Square, RefreshCw, Loader2 } from "lucide-react";
+import { Filter, Package, ArrowRight, Circle, X, Play, Square, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
+import { Select } from "../components/ui/select";
 import { TagList } from "../components/ui/tag-list";
 import { capitalize } from "../lib";
 import { scenariosService } from "../services";
@@ -196,23 +197,21 @@ export function ScenariosPage() {
                   <label htmlFor="scenarios-status-filter" className="text-xs text-slate-400">
                     Status
                   </label>
-                  <div className="relative">
-                    <select
-                      id="scenarios-status-filter"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as ScenarioStatus | "")}
-                      className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                      data-testid={selectors.scenarios.statusFilter}
-                    >
-                      <option value="">All statuses</option>
-                      {STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {capitalize(status)}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  </div>
+                  <Select
+                    id="scenarios-status-filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as ScenarioStatus | "")}
+                    variant="filter"
+                    withChevron
+                    data-testid={selectors.scenarios.statusFilter}
+                  >
+                    <option value="">All statuses</option>
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {capitalize(status)}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
             )}

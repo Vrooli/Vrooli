@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -71,6 +72,11 @@ func (c *Commands) Run(args []string) error {
 	deploymentMode := fs.String("deployment-mode", "", "Deployment mode: bundled (default), external-server, cloud-api, proxy")
 	locationMode := fs.String("location-mode", "", "Output location: proper (default), staging, temp")
 	clean := fs.Bool("clean", false, "Remove existing desktop output before running the pipeline")
+	version := fs.String("version", "", "Override version for this run (no file updates)")
+	setVersion := fs.String("set-version", "", "Persist scenario version before running the pipeline")
+	bumpVersion := fs.String("bump-version", "", "Bump scenario version (patch, minor, medium, major, auto) and persist")
+	versionSource := fs.String("version-source", "both", "Version source to update when persisting: both, service, ui")
+	allowDowngrade := fs.Bool("allow-downgrade", false, "Allow setting a version lower than the current scenario version")
 	wait := fs.Bool("wait", false, "Block until pipeline completes (recommended for scripts/agents)")
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
 	debug := fs.Bool("debug", false, "Show full JSON response on error")
@@ -84,7 +90,7 @@ func (c *Commands) Run(args []string) error {
 	}
 
 	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: pipeline-run <scenario> [--deployment-mode bundled|external-server] [--location-mode proper|staging] [--clean] [--stages bundle,...] [--platforms win,mac,linux] [--wait] [--timeout N]")
+		return fmt.Errorf("usage: pipeline-run <scenario> [--deployment-mode bundled|external-server] [--location-mode proper|staging] [--clean] [--stages bundle,...] [--platforms win,mac,linux] [--version X.Y.Z | --set-version X.Y.Z | --bump-version patch|minor|medium|major|auto] [--wait] [--timeout N]")
 	}
 
 	scenario := fs.Args()[0]
@@ -105,6 +111,62 @@ func (c *Commands) Run(args []string) error {
 	}
 	if *clean {
 		req["clean"] = true
+	}
+
+	versionFlags := 0
+	notice := &versionUpdateNotice{}
+	if *version != "" {
+		versionFlags++
+		notice.requested = true
+		notice.expectedVersion = *version
+	}
+	if *setVersion != "" {
+		versionFlags++
+		notice.requested = true
+		notice.expectedVersion = *setVersion
+	}
+	if *bumpVersion != "" {
+		versionFlags++
+		notice.requested = true
+		notice.bumpRequested = true
+	}
+	if versionFlags > 1 {
+		return fmt.Errorf("only one of --version, --set-version, or --bump-version may be specified")
+	}
+	if *allowDowngrade && versionFlags == 0 {
+		return fmt.Errorf("--allow-downgrade requires --version, --set-version, or --bump-version")
+	}
+
+	if *version != "" {
+		req["version_update"] = map[string]interface{}{
+			"mode":            "set",
+			"version":         *version,
+			"persist":         false,
+			"allow_downgrade": *allowDowngrade,
+		}
+	}
+	if *setVersion != "" {
+		req["version_update"] = map[string]interface{}{
+			"mode":            "set",
+			"version":         *setVersion,
+			"persist":         true,
+			"source":          *versionSource,
+			"allow_downgrade": *allowDowngrade,
+		}
+	}
+	if *bumpVersion != "" {
+		normalizedBump, err := normalizeBumpValue(*bumpVersion)
+		if err != nil {
+			return err
+		}
+		notice.bumpValue = normalizedBump
+		req["version_update"] = map[string]interface{}{
+			"mode":            "bump",
+			"bump":            normalizedBump,
+			"persist":         true,
+			"source":          *versionSource,
+			"allow_downgrade": *allowDowngrade,
+		}
 	}
 
 	// Build query params for blocking mode
@@ -141,7 +203,7 @@ func (c *Commands) Run(args []string) error {
 		}
 
 		if status.Status == "completed" {
-			printPipelineSuccess(&status)
+			printPipelineSuccess(&status, notice)
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
@@ -216,6 +278,12 @@ func (c *Commands) Status(args []string) error {
 
 	fmt.Printf("Pipeline: %s\n", resp.PipelineID)
 	fmt.Printf("Status: %s (%d%% complete)\n", resp.Status, progressResp.Progress)
+	if resp.ScenarioName != "" {
+		fmt.Printf("Scenario: %s\n", resp.ScenarioName)
+	}
+	if resp.Config != nil && resp.Config.Version != "" {
+		fmt.Printf("Version: %s\n", resp.Config.Version)
+	}
 	if len(resp.Stages) > 0 {
 		fmt.Println("Stages:")
 		for name, stage := range resp.Stages {
@@ -530,7 +598,7 @@ func (c *Commands) Start(args []string) error {
 		}
 
 		if status.Status == "completed" {
-			printPipelineSuccess(&status)
+			printPipelineSuccess(&status, nil)
 			return nil
 		} else if status.Status == "failed" {
 			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
@@ -569,6 +637,11 @@ type pipelineStatus struct {
 	CompletedAt    int64                   `json:"completed_at,omitempty"`
 	Error          string                  `json:"error,omitempty"`
 	Stages         map[string]*stageResult `json:"stages,omitempty"`
+	Config         *pipelineConfig         `json:"config,omitempty"`
+}
+
+type pipelineConfig struct {
+	Version string `json:"version,omitempty"`
 }
 
 // stageResult represents a stage result with optional error info.
@@ -910,13 +983,26 @@ func extractSmokeTestErrorHint(stdout, stderr string) string {
 
 // printPipelineSuccess prints helpful information after a successful pipeline.
 // Includes scenario name, duration, artifact locations, and next steps.
-func printPipelineSuccess(status *pipelineStatus) {
+type versionUpdateNotice struct {
+	requested       bool
+	expectedVersion string
+	bumpRequested   bool
+	bumpValue       string
+}
+
+func printPipelineSuccess(status *pipelineStatus, notice *versionUpdateNotice) {
 	fmt.Printf("Pipeline completed: %s\n", status.PipelineID)
 	fmt.Println()
 
 	// Scenario name
 	if status.ScenarioName != "" {
 		fmt.Printf("Scenario: %s\n", status.ScenarioName)
+	}
+	if status.Config != nil && status.Config.Version != "" {
+		fmt.Printf("Version: %s\n", status.Config.Version)
+	}
+	if notice != nil && notice.requested {
+		printVersionUpdateWarning(status, notice)
 	}
 
 	// Duration
@@ -954,6 +1040,32 @@ func printPipelineSuccess(status *pipelineStatus) {
 	}
 	fmt.Printf("  View full logs:  %s pipeline-status %s --verbose\n", appName, status.PipelineID)
 	fmt.Printf("  View as JSON:    %s pipeline-status %s --json\n", appName, status.PipelineID)
+}
+
+func printVersionUpdateWarning(status *pipelineStatus, notice *versionUpdateNotice) {
+	reported := ""
+	if status.Config != nil {
+		reported = status.Config.Version
+	}
+
+	if notice.expectedVersion != "" {
+		if reported == "" {
+			fmt.Fprintf(os.Stderr, "Warning: version update requested (%s), but pipeline reported no version. Check pipeline logs or update the scenario-to-desktop API.\n", notice.expectedVersion)
+			return
+		}
+		if reported != notice.expectedVersion {
+			fmt.Fprintf(os.Stderr, "Warning: version update requested (%s), but pipeline reported version %s. Check pipeline logs or update the scenario-to-desktop API.\n", notice.expectedVersion, reported)
+		}
+		return
+	}
+
+	if notice.bumpRequested && reported == "" {
+		bump := notice.bumpValue
+		if bump == "" {
+			bump = "patch"
+		}
+		fmt.Fprintf(os.Stderr, "Warning: version bump (%s) requested, but pipeline reported no version. Check pipeline logs or update the scenario-to-desktop API.\n", bump)
+	}
 }
 
 // printPipelineError prints detailed error information from a failed pipeline.
@@ -1241,4 +1353,16 @@ func isBooleanFlag(flag string) bool {
 		"show-output": true,
 	}
 	return booleanFlags[name]
+}
+
+func normalizeBumpValue(input string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(input))
+	switch value {
+	case "patch", "minor", "medium", "major":
+		return value, nil
+	case "auto":
+		return "patch", nil
+	default:
+		return "", fmt.Errorf("invalid --bump-version %q (expected patch, minor, medium, major, auto)", input)
+	}
 }

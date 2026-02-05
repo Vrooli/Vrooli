@@ -89,7 +89,7 @@ export function formatDisplayText(text: string): string {
  * Experience Architecture (Phase 29): Helps returning users quickly understand
  * recency of items without mental date math.
  *
- * @param date - Date string or Date object to format
+ * @param date - Date string or Date object to format (null/undefined yields "Unknown")
  * @param now - Optional "now" reference (for testing)
  * @returns Relative time string or short date
  *
@@ -99,8 +99,14 @@ export function formatDisplayText(text: string): string {
  * formatRelativeTime(new Date(Date.now() - 86400000 * 2)) // "2 days ago"
  * formatRelativeTime("2024-01-01")                   // "Jan 1, 2024"
  */
-export function formatRelativeTime(date: Date | string, now?: Date): string {
+export function formatRelativeTime(date: Date | string | null | undefined, now?: Date): string {
+  if (!date) {
+    return "Unknown";
+  }
   const targetDate = typeof date === "string" ? new Date(date) : date;
+  if (!(targetDate instanceof Date)) {
+    return "Unknown";
+  }
   const reference = now ?? new Date();
 
   // Handle invalid dates

@@ -7,11 +7,34 @@
 
 import { Circle, CheckCircle, AlertCircle, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
-import type { BacklogStatus, ScenarioStatus } from "./domain";
+import type { BacklogKind, BacklogResearchTarget, BacklogStatus, ScenarioStatus } from "./domain";
 
 // ============================================================================
 // Backlog Status Display
 // ============================================================================
+
+export const BACKLOG_KINDS: BacklogKind[] = ["idea", "research", "fix", "execute"];
+
+export const BACKLOG_KIND_LABELS: Record<BacklogKind, string> = {
+  idea: "Idea",
+  research: "Research",
+  fix: "Fix",
+  execute: "Execute",
+};
+
+export const BACKLOG_RESEARCH_TARGETS: BacklogResearchTarget[] = [
+  "idea",
+  "fix",
+  "execute",
+  "unspecified",
+];
+
+export const BACKLOG_RESEARCH_TARGET_LABELS: Record<BacklogResearchTarget, string> = {
+  idea: "Idea",
+  fix: "Fix",
+  execute: "Execute",
+  unspecified: "Unspecified",
+};
 
 /**
  * Maps backlog status to tailwind background color classes

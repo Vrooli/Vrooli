@@ -28,7 +28,7 @@ const NEXT_MODE_OPTIONS: Array<{ value: IdeaAgentMode; label: string; helper: st
 ];
 
 export function IdeaClarifyPanel({
-  questions,
+  questions = [],
   filePath,
   parseError,
   isSubmitting,

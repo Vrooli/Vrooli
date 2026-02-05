@@ -481,6 +481,9 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 		if configUpdates.Version != "" {
 			s.Config.Version = configUpdates.Version
 		}
+		if configUpdates.versionRollback != nil {
+			s.Config.versionRollback = configUpdates.versionRollback
+		}
 		if configUpdates.PreflightTimeoutSeconds > 0 {
 			s.Config.PreflightTimeoutSeconds = configUpdates.PreflightTimeoutSeconds
 		}
@@ -534,6 +537,19 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 // runPipelineAsync executes the pipeline stages sequentially.
 func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *Config) {
 	defer o.cancelManager.Clear(pipelineID)
+
+	success := false
+	rollback := config.takeVersionRollback()
+	defer func() {
+		if rollback == nil || success {
+			return
+		}
+		if err := rollback.Restore(); err != nil {
+			o.logger.Error("Failed to rollback version update", "pipeline_id", pipelineID, "error", err)
+			return
+		}
+		o.logger.Info("Rolled back version update", "pipeline_id", pipelineID)
+	}()
 
 	// Update status to running and transition to initializing state
 	o.store.Update(pipelineID, func(s *Status) {
@@ -643,6 +659,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 
 			// Even if skipped, check if we should stop after this stage
 			if config.GetStopAfterStage() == stageName {
+				success = true
 				o.stopAfterStage(pipelineID, stageName, input)
 				return
 			}
@@ -701,6 +718,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 
 		// Check if we should stop after this stage
 		if config.GetStopAfterStage() == stageName {
+			success = true
 			o.stopAfterStage(pipelineID, stageName, input)
 			return
 		}
@@ -719,6 +737,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 		s.UpdateProgress()
 	})
 
+	success = true
 	o.logger.Info("Pipeline completed", "pipeline_id", pipelineID)
 }
 

@@ -21,13 +21,14 @@
 import { useMemo, useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Filter, Lightbulb, ArrowRight, Clock, Terminal, X, ChevronDown, Search, Wrench, Play } from "lucide-react";
+import { Plus, Filter, Lightbulb, ArrowRight, Clock, Terminal, X, Search, Wrench, Play } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { FloatingActionButton } from "../components/ui/floating-action-button";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
+import { Select } from "../components/ui/select";
 import { StatusLegend } from "../components/ui/status-legend";
 import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.constants";
 import { TagList } from "../components/ui/tag-list";
@@ -36,7 +37,13 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatRelativeTime } from "../lib";
 import { backlogService } from "../services";
 import { selectors } from "../consts/selectors";
-import { BACKLOG_STATUS_COLORS, formatBacklogStatus, type BacklogKind, type BacklogStatus } from "../types";
+import {
+  BACKLOG_KIND_LABELS,
+  BACKLOG_STATUS_COLORS,
+  formatBacklogStatus,
+  type BacklogKind,
+  type BacklogStatus,
+} from "../types";
 import { displayLimitsConfig } from "../config";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { useBacklogStore } from "../stores";
@@ -95,13 +102,6 @@ const BACKLOG_KIND_TABS: Array<{
     ctaLabel: "New Execution",
   },
 ];
-
-const KIND_LABELS: Record<BacklogKind, string> = {
-  idea: "Idea",
-  research: "Research",
-  fix: "Fix",
-  execute: "Execute",
-};
 
 export function BacklogPage() {
   const [activeKind, setActiveKind] = useState<BacklogKind>("idea");
@@ -218,7 +218,7 @@ export function BacklogPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <SearchBar
-                placeholder={`Search ${KIND_LABELS[activeKind].toLowerCase()} backlog...`}
+                placeholder={`Search ${BACKLOG_KIND_LABELS[activeKind].toLowerCase()} backlog...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 data-testid={selectors.backlog.search}
@@ -252,22 +252,20 @@ export function BacklogPage() {
                       <label htmlFor="backlog-status-filter" className="text-xs text-slate-400">
                         Status
                       </label>
-                      <div className="relative">
-                        <select
-                          id="backlog-status-filter"
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value as BacklogStatus | "")}
-                          className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                        >
-                          <option value="">All statuses</option>
-                          {STATUS_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {formatBacklogStatus(option)}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      </div>
+                      <Select
+                        id="backlog-status-filter"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value as BacklogStatus | "")}
+                        variant="filter"
+                        withChevron
+                      >
+                        <option value="">All statuses</option>
+                        {STATUS_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {formatBacklogStatus(option)}
+                          </option>
+                        ))}
+                      </Select>
                     </div>
                   </div>
                 )}

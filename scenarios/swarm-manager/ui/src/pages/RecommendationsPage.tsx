@@ -5,11 +5,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Filter, Zap, Settings, ArrowRight, CheckCircle2, XCircle, RefreshCw, ChevronDown, Play } from "lucide-react";
+import { Filter, Zap, Settings, ArrowRight, CheckCircle2, XCircle, RefreshCw, Play } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
+import { Select } from "../components/ui/select";
 import { selectors } from "../consts/selectors";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { agentManagerService, recommendationsService, settingsService } from "../services";
@@ -186,22 +187,20 @@ export function RecommendationsPage() {
                   <label htmlFor="recommendations-status-filter" className="text-xs text-slate-400">
                     Status
                   </label>
-                  <div className="relative">
-                    <select
-                      id="recommendations-status-filter"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as RecommendationStatus | "")}
-                      className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                    >
-                      <option value="">All statuses</option>
-                      {STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  </div>
+                  <Select
+                    id="recommendations-status-filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as RecommendationStatus | "")}
+                    variant="filter"
+                    withChevron
+                  >
+                    <option value="">All statuses</option>
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
             )}

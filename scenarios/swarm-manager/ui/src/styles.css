@@ -4,15 +4,39 @@
 
 :root {
   color-scheme: dark;
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+  --slate-950: 2 6 23;
 }
 
-:root[data-theme="light"] {
+:root[data-resolved-theme="light"] {
   color-scheme: light;
+  --slate-50: 15 23 42;
+  --slate-100: 30 41 59;
+  --slate-200: 51 65 85;
+  --slate-300: 71 85 105;
+  --slate-400: 100 116 139;
+  --slate-500: 148 163 184;
+  --slate-600: 203 213 225;
+  --slate-700: 226 232 240;
+  --slate-800: 241 245 249;
+  --slate-900: 248 250 252;
+  --slate-950: 255 255 255;
 }
 
 body {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   margin: 0;
+  background-color: rgb(var(--slate-950));
+  color: rgb(var(--slate-50));
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -22,4 +46,34 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@layer utilities {
+  :root[data-resolved-theme="light"] .border-white\/10 {
+    border-color: rgb(var(--slate-300) / 0.35);
+  }
+
+  :root[data-resolved-theme="light"] .border-white\/20 {
+    border-color: rgb(var(--slate-300) / 0.5);
+  }
+
+  :root[data-resolved-theme="light"] .border-white\/30 {
+    border-color: rgb(var(--slate-400) / 0.5);
+  }
+
+  :root[data-resolved-theme="light"] .hover\:border-white\/20:hover {
+    border-color: rgb(var(--slate-400) / 0.55);
+  }
+
+  :root[data-resolved-theme="light"] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(var(--slate-300) / 0.35);
+  }
+
+  :root[data-resolved-theme="light"] .ring-white\/50 {
+    --tw-ring-color: rgb(var(--slate-400) / 0.5);
+  }
+
+  :root[data-resolved-theme="light"] .focus-visible\:ring-white\/50:focus-visible {
+    --tw-ring-color: rgb(var(--slate-400) / 0.5);
+  }
 }

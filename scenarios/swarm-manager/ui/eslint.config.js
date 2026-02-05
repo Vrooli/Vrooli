@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import importPlugin from "eslint-plugin-import";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
@@ -14,8 +15,17 @@ export default tseslint.config(
       },
     },
     plugins: {
+      "import": importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          alwaysTryTypes: true,
+          project: "./tsconfig.json",
+        },
+      },
     },
     rules: {
       // ════════════════════════════════════════════════════════════════════════
@@ -38,8 +48,21 @@ export default tseslint.config(
       // Instead of arr[0]!, use: arr[0] ?? defaultValue or if (arr[0]) { ... }
       "@typescript-eslint/no-non-null-assertion": "error",
 
+      // CRITICAL: Catches operations on 'any' typed values that will crash at runtime
+      // These catch bugs like "v.trim is not a function" when v is not actually a string
+      "@typescript-eslint/no-unsafe-member-access": "warn",
+      "@typescript-eslint/no-unsafe-call": "warn",
+      "@typescript-eslint/no-unsafe-argument": "warn",
+      "@typescript-eslint/no-unsafe-assignment": "warn",
+      "@typescript-eslint/no-unsafe-return": "warn",
+
       // Prevents explicit 'any' which disables all type checking for that value
       "@typescript-eslint/no-explicit-any": "error",
+
+      // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
+      // These runtime errors are extremely hard to debug in production (minified variable names).
+      // Requires eslint-plugin-import and eslint-import-resolver-typescript
+      "import/no-cycle": "error",
 
       // ════════════════════════════════════════════════════════════════════════
       // STANDARD RULES (can be adjusted if needed)

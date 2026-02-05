@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
+import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
 import { IDEA_AGENT_FILE_PATHS } from "../../lib";
-import type { BacklogKind, BacklogResearchTarget, IdeaAgentMode } from "../../types";
+import {
+  BACKLOG_KIND_LABELS,
+  BACKLOG_RESEARCH_TARGET_LABELS,
+  BACKLOG_RESEARCH_TARGETS,
+  type BacklogKind,
+  type BacklogResearchTarget,
+  type IdeaAgentMode,
+} from "../../types";
 
 interface BacklogAgentDialogProps {
   isOpen: boolean;
@@ -45,19 +53,11 @@ const MODE_OPTIONS: Array<{
   },
 ];
 
-const RESEARCH_TARGET_OPTIONS: Array<{ value: BacklogResearchTarget; label: string }> = [
-  { value: "idea", label: "Idea" },
-  { value: "fix", label: "Fix" },
-  { value: "execute", label: "Execute" },
-  { value: "unspecified", label: "Unspecified" },
-];
-
-const KIND_LABELS: Record<BacklogKind, string> = {
-  idea: "Idea",
-  research: "Research",
-  fix: "Fix",
-  execute: "Execute",
-};
+const RESEARCH_TARGET_OPTIONS: Array<{ value: BacklogResearchTarget; label: string }> =
+  BACKLOG_RESEARCH_TARGETS.map((value) => ({
+    value,
+    label: BACKLOG_RESEARCH_TARGET_LABELS[value],
+  }));
 
 export function BacklogAgentDialog({
   isOpen,
@@ -112,7 +112,7 @@ export function BacklogAgentDialog({
           </div>
           <div>
             <h2 className="text-xl font-semibold text-slate-100">{title}</h2>
-            <p className="text-sm text-slate-400">{KIND_LABELS[backlogKind]} • {backlogTitle}</p>
+            <p className="text-sm text-slate-400">{BACKLOG_KIND_LABELS[backlogKind]} • {backlogTitle}</p>
           </div>
         </div>
 
@@ -161,18 +161,17 @@ export function BacklogAgentDialog({
               Research target
             </label>
             <div className="mt-2">
-              <select
+              <Select
                 id="backlog-agent-target"
                 value={targetKind}
                 onChange={(e) => setTargetKind(e.target.value as BacklogResearchTarget)}
-                className="w-full appearance-none rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
               >
                 {RESEARCH_TARGET_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <p className="mt-1 text-xs text-slate-500">
               Select what kind of backlog item this research should convert into later.

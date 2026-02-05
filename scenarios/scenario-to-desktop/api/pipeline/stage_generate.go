@@ -116,6 +116,10 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 
 	input.ScenarioMetadata = metadata
 	result.Logs = append(result.Logs, fmt.Sprintf("Detected: %s v%s", metadata.DisplayName, metadata.Version))
+	if input.Config != nil && input.Config.Version == "" && metadata.Version != "" {
+		input.Config.Version = metadata.Version
+		result.Logs = append(result.Logs, fmt.Sprintf("Release version: %s", metadata.Version))
+	}
 
 	// Validate scenario is ready for desktop
 	if err := s.analyzer.ValidateScenarioForDesktop(scenarioName); err != nil {

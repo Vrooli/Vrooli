@@ -126,6 +126,36 @@ func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 					Type:        "string",
 					Description: "Release version for distribution (e.g., 1.0.0)",
 				},
+				"version_update": {
+					Type:        "object",
+					Description: "Update the scenario version before running the pipeline (optional, mutually exclusive with version).",
+					Properties: map[string]*toolspb.ParameterSchema{
+						"mode": {
+							Type:        "string",
+							Description: "Version update mode: set or bump",
+						},
+						"version": {
+							Type:        "string",
+							Description: "Explicit version to set when mode is set (e.g., 1.0.0)",
+						},
+						"bump": {
+							Type:        "string",
+							Description: "Semver component to bump when mode is bump: patch, minor, medium, major, auto (alias for patch)",
+						},
+						"persist": {
+							Type:        "boolean",
+							Description: "Persist the version update to scenario files",
+						},
+						"allow_downgrade": {
+							Type:        "boolean",
+							Description: "Allow setting a version lower than the current scenario version",
+						},
+						"source": {
+							Type:        "string",
+							Description: "Which files to update when persisting: both, service, ui",
+						},
+					},
+				},
 			},
 			Required: []string{"scenario_name"},
 		},

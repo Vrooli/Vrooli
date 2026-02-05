@@ -16,13 +16,13 @@
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
     "@bufbuild/protovalidate": "^1.1.1",
+    "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.13",
     "@tanstack/react-query": "^5.59.0",
-    "@monaco-editor/react": "^4.7.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
-    "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.18.2",
@@ -32,8 +32,8 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
     "tailwind-merge": "^2.3.0",
-    "zustand": "^5.0.10",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -48,6 +48,8 @@
     "@vitest/coverage-v8": "^2.1.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.2",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
     "jsdom": "^25.0.0",

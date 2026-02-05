@@ -1,23 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
-import { parseTagsInput, sanitizeBacklogName, tagsToInput } from "../../lib";
-import type { BacklogKind, BacklogResearchTarget, BacklogStatus } from "../../types";
+import { sanitizeBacklogName } from "../../lib";
+import type { BacklogFormValues, BacklogKind, BacklogResearchTarget, BacklogStatus } from "../../types";
+import { useBacklogFormStore } from "../../stores";
 
 export type BacklogFormMode = "create" | "edit";
-
-export interface BacklogFormValues {
-  name: string;
-  title: string;
-  description: string;
-  status: BacklogStatus;
-  priority: number;
-  tags: string[];
-  kind: BacklogKind;
-  researchTarget?: BacklogResearchTarget;
-}
 
 interface BacklogFormDialogProps {
   isOpen: boolean;
@@ -67,44 +58,32 @@ export function BacklogFormDialog({
   onClose,
   onSubmit,
 }: BacklogFormDialogProps) {
-  const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<BacklogStatus>("backlog");
-  const [priority, setPriority] = useState(5);
-  const [tagsInput, setTagsInput] = useState("");
-  const [nameDirty, setNameDirty] = useState(false);
-  const [kind, setKind] = useState<BacklogKind>(defaultKind);
-  const [researchTarget, setResearchTarget] = useState<BacklogResearchTarget>("idea");
-  const [error, setError] = useState<string | null>(null);
+  const values = useBacklogFormStore((state) => state.values);
+  const tagsInput = useBacklogFormStore((state) => state.tagsInput);
+  const nameDirty = useBacklogFormStore((state) => state.nameDirty);
+  const error = useBacklogFormStore((state) => state.error);
+  const setField = useBacklogFormStore((state) => state.setField);
+  const setTagsInput = useBacklogFormStore((state) => state.setTagsInput);
+  const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
+  const setError = useBacklogFormStore((state) => state.setError);
+  const initialize = useBacklogFormStore((state) => state.initialize);
+  const { name, title, description, status, priority, kind, researchTarget, tags } = values;
 
   const isEditMode = mode === "edit";
 
   useEffect(() => {
     if (isOpen) {
-      const nextKind = initialValues?.kind ?? defaultKind;
-      setName(initialValues?.name ?? "");
-      setTitle(initialValues?.title ?? "");
-      setDescription(initialValues?.description ?? "");
-      setStatus(initialValues?.status ?? "backlog");
-      setPriority(initialValues?.priority ?? 5);
-      setTagsInput(tagsToInput(initialValues?.tags ?? []));
-      setKind(nextKind);
-      setResearchTarget(initialValues?.researchTarget ?? "idea");
-      setNameDirty(isEditMode);
-      setError(null);
+      initialize({ isEditMode, defaultKind, initialValues });
     }
-  }, [isOpen, initialValues, isEditMode, defaultKind]);
+  }, [isOpen, initialValues, isEditMode, defaultKind, initialize]);
 
   const handleTitleChange = (value: string) => {
-    setTitle(value);
+    setField("title", value);
     if (error) setError(null);
     if (!nameDirty && !isEditMode) {
-      setName(sanitizeBacklogName(value));
+      setField("name", sanitizeBacklogName(value));
     }
   };
-
-  const derivedTags = useMemo(() => parseTagsInput(tagsInput), [tagsInput]);
 
   const handleSubmit = () => {
     if (title.trim() === "") {
@@ -123,7 +102,7 @@ export function BacklogFormDialog({
       description: description.trim(),
       status: isEditMode ? status : "backlog",
       priority,
-      tags: derivedTags,
+      tags,
       kind,
       researchTarget: kind === "research" ? researchTarget : undefined,
     });
@@ -167,14 +146,13 @@ export function BacklogFormDialog({
                   {kindLabel}
                 </div>
               ) : (
-                <select
+                <Select
                   id="backlog-form-kind"
                   value={kind}
                   onChange={(e) => {
-                    setKind(e.target.value as BacklogKind);
+                    setField("kind", e.target.value as BacklogKind);
                     if (error) setError(null);
                   }}
-                  className="w-full appearance-none rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   data-testid={selectors.backlogForm.kindSelect}
                   disabled={isSubmitting}
                 >
@@ -183,7 +161,7 @@ export function BacklogFormDialog({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
               {!isEditMode && (
                 <p className="mt-1 text-xs text-slate-500">
@@ -199,14 +177,13 @@ export function BacklogFormDialog({
                 Research target
               </label>
               <div className="mt-2">
-                <select
+                <Select
                   id="backlog-form-research-target"
                   value={researchTarget}
                   onChange={(e) => {
-                    setResearchTarget(e.target.value as BacklogResearchTarget);
+                    setField("researchTarget", e.target.value as BacklogResearchTarget);
                     if (error) setError(null);
                   }}
-                  className="w-full appearance-none rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   data-testid={selectors.backlogForm.researchTargetSelect}
                   disabled={isSubmitting}
                 >
@@ -215,7 +192,7 @@ export function BacklogFormDialog({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <p className="mt-1 text-xs text-slate-500">
                 {RESEARCH_TARGET_OPTIONS.find((option) => option.value === researchTarget)?.helper}
@@ -246,7 +223,7 @@ export function BacklogFormDialog({
               id="backlog-form-name"
               value={name}
               onChange={(e) => {
-                setName(e.target.value);
+                setField("name", e.target.value);
                 setNameDirty(true);
                 if (error) setError(null);
               }}
@@ -268,7 +245,7 @@ export function BacklogFormDialog({
               id="backlog-form-description"
               value={description}
               onChange={(e) => {
-                setDescription(e.target.value);
+                setField("description", e.target.value);
                 if (error) setError(null);
               }}
               placeholder="Describe the task, goals, and constraints..."
@@ -291,7 +268,7 @@ export function BacklogFormDialog({
                 max={10}
                 value={priority}
                 onChange={(e) => {
-                  setPriority(Number(e.target.value) || 1);
+                  setField("priority", Number(e.target.value) || 1);
                   if (error) setError(null);
                 }}
                 className="mt-2"
@@ -304,15 +281,14 @@ export function BacklogFormDialog({
                 <label htmlFor="backlog-form-status" className="text-sm font-medium text-slate-300">
                   Status
                 </label>
-                <div className="relative mt-2">
-                  <select
+                <div className="mt-2">
+                  <Select
                     id="backlog-form-status"
                     value={status}
                     onChange={(e) => {
-                      setStatus(e.target.value as BacklogStatus);
+                      setField("status", e.target.value as BacklogStatus);
                       if (error) setError(null);
                     }}
-                    className="w-full appearance-none rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                     data-testid={selectors.backlogForm.statusSelect}
                     disabled={isSubmitting}
                   >
@@ -321,7 +297,7 @@ export function BacklogFormDialog({
                         {option.replace(/_/g, " ")}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
             ) : (

@@ -77,7 +77,7 @@ export function parseClarifyQuestionsFile(content?: string | null): {
   }
 
   try {
-    const parsed = JSON.parse(content);
+    const parsed: unknown = JSON.parse(content);
     if (!isRecord(parsed)) {
       return { raw: null, questions: [], error: "Questions file is not a JSON object." };
     }
@@ -115,7 +115,7 @@ export function parseSuggestionsFile(content?: string | null): {
   }
 
   try {
-    const parsed = JSON.parse(content);
+    const parsed: unknown = JSON.parse(content);
     if (!isRecord(parsed)) {
       return { raw: null, suggestions: [], error: "Suggestions file is not a JSON object." };
     }

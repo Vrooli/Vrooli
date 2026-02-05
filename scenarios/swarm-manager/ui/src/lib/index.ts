@@ -32,7 +32,7 @@ export { capitalize, formatDisplayText, formatFileSize, getFileExtension, format
 export { sanitizeBacklogName, parseTagsInput, tagsToInput } from "./backlog-utils";
 
 // Theme Utilities
-export { applyTheme, resolveTheme, watchSystemTheme } from "./theme-utils";
+export { applyTheme, resolveTheme, useResolvedTheme, watchSystemTheme } from "./theme-utils";
 export type { ThemePreference, ResolvedTheme } from "./theme-utils";
 
 // Error Utilities - Observability and diagnosis

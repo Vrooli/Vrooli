@@ -168,6 +168,8 @@ type Store interface {
 - `TimeProvider` - Time abstraction for deterministic testing
 - `WebhookNotifier` - Webhook notification abstraction
 - `ManifestGenerator` - On-demand bundle manifest generation via deployment-manager
+- `versionUpdateFS` - File I/O seam for scenario version updates (used by pipeline run version controls)
+- `versionRollback` - In-memory rollback handle for reverting persisted version updates when a pipeline fails or is cancelled
 **Status**: ✅ All interfaces implemented
 
 ### UI Seams

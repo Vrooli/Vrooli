@@ -26,6 +26,18 @@ import { ApiError } from "./api-client";
  * [REQ:PHASE6] Test error categorization and recovery paths
  */
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isErrorLogPayload = (value: unknown): value is { category: string; source: string } =>
+  isRecord(value) && typeof value.category === "string" && typeof value.source === "string";
+
+const isSuccessLogPayload = (value: unknown): value is { outcome: string; source: string; message: string } =>
+  isRecord(value) &&
+  typeof value.outcome === "string" &&
+  typeof value.source === "string" &&
+  typeof value.message === "string";
+
 describe("categorizeError", () => {
   describe("ApiError categorization", () => {
     it("categorizes network error as NETWORK", () => {
@@ -225,7 +237,10 @@ describe("logError", () => {
     const [prefix, json] = firstCall ?? [];
     expect(prefix).toBe("[NETWORK]");
 
-    const parsed = JSON.parse(json as string);
+    const parsed: unknown = JSON.parse(String(json));
+    if (!isErrorLogPayload(parsed)) {
+      throw new Error("Expected error log payload.");
+    }
     expect(parsed.category).toBe("NETWORK");
     expect(parsed.source).toBe("TestComponent");
   });
@@ -341,7 +356,10 @@ describe("logSuccess", () => {
     const [prefix, json] = firstCall ?? [];
     expect(prefix).toBe("[CREATED]");
 
-    const parsed = JSON.parse(json as string);
+    const parsed: unknown = JSON.parse(String(json));
+    if (!isSuccessLogPayload(parsed)) {
+      throw new Error("Expected success log payload.");
+    }
     expect(parsed.outcome).toBe("created");
     expect(parsed.source).toBe("BacklogPage");
     expect(parsed.message).toBe("Backlog item created");

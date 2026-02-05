@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
+import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
 import type { IdeaSuggestion, IdeaSuggestionDecision } from "../../types";
 
@@ -21,7 +22,7 @@ const DECISION_OPTIONS: Array<{ value: IdeaSuggestionDecision; label: string }> 
 ];
 
 export function IdeaSuggestionsPanel({
-  suggestions,
+  suggestions = [],
   filePath,
   parseError,
   isSubmitting,
@@ -79,7 +80,7 @@ export function IdeaSuggestionsPanel({
             <div key={suggestion.id} className="rounded-lg border border-white/10 bg-slate-800/40 p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-slate-100">Suggestion {index + 1}</p>
-                <select
+                <Select
                   value={suggestion.status ?? "pending"}
                   onChange={(event) => {
                     const status = event.target.value as IdeaSuggestionDecision;
@@ -87,17 +88,17 @@ export function IdeaSuggestionsPanel({
                       current.map((item) => (item.id === suggestion.id ? { ...item, status } : item))
                     );
                   }}
-                  className="rounded-md border border-white/10 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                  variant="compact"
                 >
                   {DECISION_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <textarea
-                value={suggestion.suggestion}
+                value={suggestion.suggestion ?? ""}
                 onChange={(event) => {
                   const value = event.target.value;
                   setLocalSuggestions((current) =>

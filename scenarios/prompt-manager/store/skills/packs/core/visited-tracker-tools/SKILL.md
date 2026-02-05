@@ -6,7 +6,7 @@ Use `visited-tracker` to record file coverage, avoid duplicate work, and leave h
 
 ### 1. Core Commands
 
-**Get the next files to review (use `--pattern` that is applicable to current situation):**
+**Get the next files to review (use `--pattern` for auto-created campaign scope):**
 ```bash
 visited-tracker least-visited \
   --location {{LOCATION}} \

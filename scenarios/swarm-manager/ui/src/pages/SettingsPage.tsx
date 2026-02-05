@@ -10,15 +10,16 @@
  * Related PRD targets: OT-P1-010
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HelpCircle, Info, RefreshCw } from "lucide-react";
+import { useBlocker } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
 import { selectors } from "../consts/selectors";
-import { defaultQueryOptions } from "../lib";
+import { applyTheme, defaultQueryOptions } from "../lib";
 import { settingsService } from "../services";
 import type { RecommendationMode, Settings } from "../types";
 
@@ -39,6 +40,9 @@ export function SettingsPage() {
 
   const [form, setForm] = useState<Settings | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
+  const settingsRef = useRef<Settings | null>(null);
+  const formRef = useRef<Settings | null>(null);
+  const isDirtyRef = useRef(false);
 
   useEffect(() => {
     if (settings) {
@@ -61,9 +65,60 @@ export function SettingsPage() {
     return JSON.stringify(settings) !== JSON.stringify(form);
   }, [settings, form]);
 
+  useEffect(() => {
+    settingsRef.current = settings ?? null;
+  }, [settings]);
+
+  useEffect(() => {
+    formRef.current = form;
+  }, [form]);
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
+
+  const blocker = useBlocker(isDirty);
+
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    const confirmLeave = window.confirm("You have unsaved settings changes. Leave without saving?");
+    if (confirmLeave) {
+      blocker.proceed();
+    } else {
+      blocker.reset();
+    }
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  useEffect(() => {
+    return () => {
+      const saved = settingsRef.current;
+      const draft = formRef.current;
+      if (!isDirtyRef.current || !saved || !draft) return;
+      if (draft.theme !== saved.theme) {
+        applyTheme(saved.theme);
+      }
+    };
+  }, []);
+
   const handleModeChange = (mode: RecommendationMode) => {
     if (!form) return;
     setForm({ ...form, recommendationMode: mode });
+  };
+
+  const handleThemeChange = (theme: Settings["theme"]) => {
+    if (!form) return;
+    setForm({ ...form, theme });
+    applyTheme(theme);
   };
 
   if (isLoading) {
@@ -86,6 +141,10 @@ export function SettingsPage() {
 
   if (!form) return null;
 
+  const recommendationSourceEntries = Object.keys(form.recommendationSources)
+    .filter((key): key is keyof Settings["recommendationSources"] => key in form.recommendationSources)
+    .map((key) => ({ key, value: form.recommendationSources[key] }));
+
   return (
     <div className="space-y-6" data-testid={selectors.settings.page}>
       <div className="flex items-center justify-between">
@@ -106,21 +165,21 @@ export function SettingsPage() {
           <button
             className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.theme === "dark" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
             data-testid={selectors.settings.themeDark}
-            onClick={() => setForm({ ...form, theme: "dark" })}
+            onClick={() => handleThemeChange("dark")}
           >
             Dark
           </button>
           <button
             className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.theme === "light" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
             data-testid={selectors.settings.themeLight}
-            onClick={() => setForm({ ...form, theme: "light" })}
+            onClick={() => handleThemeChange("light")}
           >
             Light
           </button>
           <button
             className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.theme === "system" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
             data-testid={selectors.settings.themeSystem}
-            onClick={() => setForm({ ...form, theme: "system" })}
+            onClick={() => handleThemeChange("system")}
           >
             System
           </button>
@@ -173,7 +232,7 @@ export function SettingsPage() {
         </div>
         <div className="mt-6 space-y-3">
           <p className="text-sm font-medium text-slate-300">Recommendation sources</p>
-          {Object.entries(form.recommendationSources).map(([key, value]) => (
+          {recommendationSourceEntries.map(({ key, value }) => (
             <label key={key} className="flex items-center gap-3 text-sm text-slate-300">
               <input
                 type="checkbox"
@@ -254,7 +313,7 @@ export function SettingsPage() {
       <div className="flex items-center justify-between">
         <div className="text-xs text-slate-500 flex items-center gap-2">
           <RefreshCw className="h-3.5 w-3.5" />
-          Changes are applied after saving.
+          Theme previews apply immediately. Save to persist changes.
         </div>
         <Button
           disabled={!isDirty || updateMutation.isPending}

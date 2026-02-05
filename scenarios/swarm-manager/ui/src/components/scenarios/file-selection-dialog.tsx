@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo } from "react";
 import { X, Files, CheckSquare, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { FileTree } from "../ui/file-tree";
+import { Select } from "../ui/select";
 import type { ScenarioFile, PreserveFilesPreset } from "../../types";
 
 const PRESETS: { value: PreserveFilesPreset | ""; label: string; description: string }[] = [
@@ -136,7 +137,7 @@ export function FileSelectionDialog({
   onClose,
   onConfirm,
   scenarioName,
-  files,
+  files = [],
   isLoading = false,
 }: FileSelectionDialogProps) {
   const [selectedPreset, setSelectedPreset] = useState<PreserveFilesPreset | "">("");
@@ -251,10 +252,10 @@ export function FileSelectionDialog({
         {/* Preset selector */}
         <div className="border-b border-white/10 px-6 py-4">
           <label className="mb-2 block text-sm font-medium text-slate-300">Quick select preset</label>
-          <select
+          <Select
             value={selectedPreset}
             onChange={handlePresetChange}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            withChevron
             data-testid="preset-select"
           >
             {PRESETS.map((preset) => (
@@ -262,7 +263,7 @@ export function FileSelectionDialog({
                 {preset.label}
               </option>
             ))}
-          </select>
+          </Select>
           {selectedPreset && (
             <p className="mt-1 text-xs text-slate-500">
               {PRESETS.find((p) => p.value === selectedPreset)?.description}

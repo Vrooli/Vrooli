@@ -115,18 +115,37 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request body
-	var config Config
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+	var req RunRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.WriteError(w, errors.ErrBadRequest("invalid request body").
 			WithCause(err).
 			WithRecovery(errors.RecoveryFixInput, "Ensure the request body is valid JSON"))
 		return
 	}
 
+	config := req.Config
+
 	// Validate required fields
 	if config.ScenarioName == "" {
 		httputil.WriteError(w, errors.ErrPipelineScenarioRequired())
 		return
+	}
+
+	if req.VersionUpdate != nil {
+		if config.Version != "" {
+			httputil.WriteError(w, errors.ErrBadRequest("version and version_update are mutually exclusive"))
+			return
+		}
+		updater := newVersionUpdater("")
+		version, rollback, derr := updater.Apply(config.ScenarioName, req.VersionUpdate)
+		if derr != nil {
+			httputil.WriteError(w, derr)
+			return
+		}
+		if version != "" {
+			config.Version = version
+		}
+		config.setVersionRollback(rollback)
 	}
 
 	// Check for blocking mode
@@ -146,6 +165,11 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		// Blocking mode: wait for pipeline completion
 		status, err := h.orchestrator.RunPipelineBlocking(r.Context(), &config, timeoutSecs)
 		if err != nil {
+			if status == nil || (status.IsComplete() && status.Status != StatusCompleted) {
+				if rollback := config.takeVersionRollback(); rollback != nil {
+					_ = rollback.Restore()
+				}
+			}
 			// Check if we have a partial status to return
 			if status != nil {
 				// Timeout case - return the status with the error
@@ -177,6 +201,9 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	// and should not be cancelled when the HTTP request completes
 	status, err := h.orchestrator.RunPipeline(context.Background(), &config)
 	if err != nil {
+		if rollback := config.takeVersionRollback(); rollback != nil {
+			_ = rollback.Restore()
+		}
 		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to start pipeline").
 			InDomain("pipeline").
 			WithRecovery(errors.RecoveryRetry, "Check the configuration and try again"))
@@ -514,15 +541,35 @@ func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Reque
 	// Parse optional request body for config overrides
 	var config *Config
 	if r.ContentLength > 0 {
-		var c Config
-		if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		var req RunRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			httputil.WriteError(w, errors.ErrBadRequest("invalid request body").
 				WithCause(err).
 				WithRecovery(errors.RecoveryFixInput, "Ensure the request body is valid JSON"))
 			return
 		}
+
+		c := req.Config
 		// Ensure scenario name is set
 		c.ScenarioName = scenarioName
+
+		if req.VersionUpdate != nil {
+			if c.Version != "" {
+				httputil.WriteError(w, errors.ErrBadRequest("version and version_update are mutually exclusive"))
+				return
+			}
+			updater := newVersionUpdater("")
+			version, rollback, derr := updater.Apply(c.ScenarioName, req.VersionUpdate)
+			if derr != nil {
+				httputil.WriteError(w, derr)
+				return
+			}
+			if version != "" {
+				c.Version = version
+			}
+			c.setVersionRollback(rollback)
+		}
+
 		config = &c
 	}
 
@@ -543,6 +590,13 @@ func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Reque
 		// Blocking mode: wait for pipeline completion
 		status, err := h.manager.StartActivePipelineBlocking(r.Context(), scenarioName, config, timeoutSecs)
 		if err != nil {
+			if status == nil || (status.IsComplete() && status.Status != StatusCompleted) {
+				if config != nil {
+					if rollback := config.takeVersionRollback(); rollback != nil {
+						_ = rollback.Restore()
+					}
+				}
+			}
 			// Check if we have a partial status to return
 			if status != nil {
 				// Timeout case - return the status with the error
@@ -573,6 +627,11 @@ func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Reque
 	// and should not be cancelled when the HTTP request completes
 	status, err := h.manager.StartActivePipeline(context.Background(), scenarioName, config)
 	if err != nil {
+		if config != nil {
+			if rollback := config.takeVersionRollback(); rollback != nil {
+				_ = rollback.Restore()
+			}
+		}
 		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to start active pipeline").
 			InDomain("pipeline"))
 		return

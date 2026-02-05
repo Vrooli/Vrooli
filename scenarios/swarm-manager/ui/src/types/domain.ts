@@ -62,6 +62,20 @@ export interface BacklogItem {
 }
 
 /**
+ * Form values for creating or editing a backlog item.
+ */
+export interface BacklogFormValues {
+  name: string;
+  title: string;
+  description: string;
+  status: BacklogStatus;
+  priority: number;
+  tags: string[];
+  kind: BacklogKind;
+  researchTarget?: BacklogResearchTarget;
+}
+
+/**
  * File type in the backlog file tree
  */
 export type BacklogFileType = "file" | "directory";

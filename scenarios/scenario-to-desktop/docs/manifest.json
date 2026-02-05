@@ -14,6 +14,15 @@
       ]
     },
     {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        { "path": "concepts/ARCHITECTURE.md", "title": "Architecture", "description": "Visual guide to system architecture, templates, and workflows" },
+        { "path": "concepts/GLOSSARY.md", "title": "Glossary", "description": "Key terms and definitions" }
+      ]
+    },
+    {
       "id": "getting-started",
       "title": "Getting Started",
       "icon": "rocket",
@@ -79,7 +88,7 @@
     }
   ],
   "navigation": {
-    "primary": ["overview", "getting-started", "build", "features", "operations", "reference"],
+    "primary": ["overview", "concepts", "getting-started", "build", "features", "operations", "reference"],
     "secondary": ["standard"]
   }
 }

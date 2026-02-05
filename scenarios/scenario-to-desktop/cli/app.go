@@ -113,6 +113,13 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	scenarios := cliapp.CommandGroup{
+		Title: "Scenarios",
+		Commands: []cliapp.Command{
+			{Name: "desktop-status", NeedsAPI: true, Description: "List desktop build status and artifacts", Run: a.system.DesktopStatus},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -120,7 +127,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, templates, records, download, config}
+	return []cliapp.CommandGroup{health, templates, records, download, scenarios, config}
 }
 
 func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {

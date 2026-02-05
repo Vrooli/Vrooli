@@ -1,9 +1,9 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Lightbulb, Package, Zap, Settings } from "lucide-react";
 import { selectors } from "../../consts/selectors";
-import { applyTheme, cn, defaultQueryOptions, watchSystemTheme, type ResolvedTheme } from "../../lib";
+import { applyTheme, cn, defaultQueryOptions, watchSystemTheme } from "../../lib";
 import { settingsService } from "../../services";
 import { useBacklogStore, useRecommendationsStore, useScenariosStore } from "../../stores";
 
@@ -36,7 +36,6 @@ const tabs: TabConfig[] = [
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
   const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const fetchScenarios = useScenariosStore((state) => state.fetchScenarios);
   const fetchRecommendations = useRecommendationsStore((state) => state.fetchRecommendations);
@@ -82,34 +81,28 @@ export function MainLayout() {
 
   useEffect(() => {
     const theme = settings?.theme ?? "dark";
-    const resolved = applyTheme(theme);
-    setResolvedTheme(resolved);
+    applyTheme(theme);
 
     if (theme === "system") {
-      return watchSystemTheme((nextResolved) => {
+      return watchSystemTheme(() => {
         applyTheme("system");
-        setResolvedTheme(nextResolved);
       });
     }
 
     return undefined;
   }, [settings?.theme]);
 
-  const isLight = resolvedTheme === "light";
-
   return (
     <div
       className={cn(
-        "min-h-screen",
-        isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-50"
+        "min-h-screen bg-slate-950 text-slate-50"
       )}
       data-testid={selectors.layout.main}
     >
       {/* Desktop Header with Tabs */}
       <header
         className={cn(
-          "hidden md:flex h-16 items-center justify-between border-b px-6",
-          isLight ? "border-slate-200" : "border-white/10"
+          "hidden md:flex h-16 items-center justify-between border-b border-slate-200/20 px-6"
         )}
         data-testid={selectors.layout.header}
       >
@@ -127,17 +120,13 @@ export function MainLayout() {
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   isActive
-                    ? isLight
-                      ? "bg-slate-200 text-cyan-600"
-                      : "bg-slate-800 text-cyan-400"
-                    : isLight
-                      ? "text-slate-500 hover:text-slate-900 hover:bg-slate-200/60"
-                      : "text-slate-300 hover:text-slate-100 hover:bg-slate-800/50"
+                    ? "bg-slate-800/70 text-cyan-400"
+                    : "text-slate-300 hover:text-slate-50 hover:bg-slate-800/50"
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
-                <span className={cn("hidden lg:inline text-xs ml-1", isLight ? "text-slate-500" : "text-slate-400")}>
+                <span className="hidden lg:inline text-xs ml-1 text-slate-400">
                   ({tab.shortcut})
                 </span>
               </button>
@@ -147,7 +136,7 @@ export function MainLayout() {
       </header>
 
       {/* Mobile Header */}
-      <header className={cn("md:hidden flex h-14 items-center justify-center border-b px-4", isLight ? "border-slate-200" : "border-white/10")}>
+      <header className="md:hidden flex h-14 items-center justify-center border-b border-slate-200/20 px-4">
         <h1 className="text-lg font-semibold">Swarm Manager</h1>
       </header>
 
@@ -159,8 +148,7 @@ export function MainLayout() {
       {/* Mobile Bottom Navigation */}
       <nav
         className={cn(
-          "md:hidden fixed bottom-0 left-0 right-0 h-16 border-t backdrop-blur",
-          isLight ? "border-slate-200 bg-white/95" : "border-white/10 bg-slate-900/95"
+          "md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-slate-200/20 bg-slate-950/95 backdrop-blur"
         )}
         data-testid={selectors.layout.mobileNav}
       >
@@ -175,7 +163,7 @@ export function MainLayout() {
                 data-testid={tab.mobileTestId}
                 className={cn(
                   "flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors",
-                  isActive ? (isLight ? "text-cyan-600" : "text-cyan-400") : isLight ? "text-slate-500" : "text-slate-300"
+                  isActive ? "text-cyan-400" : "text-slate-300"
                 )}
               >
                 <Icon className="h-5 w-5" />

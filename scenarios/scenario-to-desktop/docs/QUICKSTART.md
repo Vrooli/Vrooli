@@ -45,3 +45,8 @@ scenario-to-desktop generate <scenario> \
 - Target scenario is already running and reachable (LAN or Cloudflare).
 - UI build exists at `ui/dist` for the target scenario.
 - For Windows installers on Linux, follow `docs/WINE_INSTALLATION.md`.
+
+### Check build artifacts (CLI)
+```bash
+scenario-to-desktop desktop-status --name <scenario>
+```

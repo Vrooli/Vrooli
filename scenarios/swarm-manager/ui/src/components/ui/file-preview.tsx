@@ -29,7 +29,7 @@ import {
   Save,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { defaultQueryOptions, getFileExtension } from "../../lib";
+import { defaultQueryOptions, getFileExtension, useResolvedTheme } from "../../lib";
 import { backlogService } from "../../services";
 import type { BacklogKind } from "../../types";
 import { ErrorState } from "./error-state";
@@ -240,6 +240,9 @@ export function FilePreview({
   "data-testid": testId,
 }: FilePreviewProps) {
   const queryClient = useQueryClient();
+  const resolvedTheme = useResolvedTheme();
+  const isLight = resolvedTheme === "light";
+  const editorTheme = isLight ? "vs" : "vs-dark";
   const fileType = getFileType(fileName);
   const isImage = fileType === "image";
   const isEditable = fileType !== "image";
@@ -604,7 +607,7 @@ export function FilePreview({
             language={editorLanguage}
             original={originalContent}
             modified={draftContent}
-            theme="vs-dark"
+            theme={editorTheme}
             data-testid="file-preview-diff"
             options={{
               ...DEFAULT_EDITOR_OPTIONS,
@@ -616,7 +619,10 @@ export function FilePreview({
 
         {!isImage && !isLoading && !error && showRenderedMarkdown && (
           <div
-            className="h-full overflow-auto p-4 prose prose-invert max-w-none"
+            className={cn(
+              "h-full overflow-auto p-4 prose max-w-none",
+              isLight ? "prose-slate" : "prose-invert"
+            )}
             data-testid="file-preview-markdown"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(draftContent) }}
           />
@@ -629,7 +635,7 @@ export function FilePreview({
             value={draftContent}
             onChange={handleDraftChange}
             path={filePath}
-            theme="vs-dark"
+            theme={editorTheme}
             data-testid="file-preview-editor"
             options={{
               ...DEFAULT_EDITOR_OPTIONS,

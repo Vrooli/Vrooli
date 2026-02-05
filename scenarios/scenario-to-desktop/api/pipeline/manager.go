@@ -463,6 +463,7 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 		config.Distribute = userConfig.Distribute
 		config.DistributionTargets = userConfig.DistributionTargets
 		config.Version = userConfig.Version
+		config.setVersionRollback(userConfig.versionRollback)
 		config.PreflightTimeoutSeconds = userConfig.PreflightTimeoutSeconds
 		config.PreflightSecrets = userConfig.PreflightSecrets
 		config.StopAfterStage = userConfig.StopAfterStage

@@ -17,6 +17,8 @@ export interface PipelineConfig {
   clean?: boolean;
   sign?: boolean;
   distribute?: boolean;
+  version?: string;
+  version_update?: VersionUpdateRequest;
   preflight_timeout_seconds?: number;
   preflight_secrets?: Record<string, string>;
   /**
@@ -26,6 +28,15 @@ export interface PipelineConfig {
    * This enables safe retries where "running twice is no worse than running once".
    */
   idempotency_key?: string;
+}
+
+export interface VersionUpdateRequest {
+  mode?: "set" | "bump" | string;
+  version?: string;
+  bump?: "patch" | "minor" | "medium" | "major" | string;
+  persist?: boolean;
+  allow_downgrade?: boolean;
+  source?: "both" | "service" | "ui" | string;
 }
 
 export interface PipelineStageResult {

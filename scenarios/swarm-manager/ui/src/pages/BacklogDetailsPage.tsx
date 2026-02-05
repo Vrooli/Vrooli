@@ -38,6 +38,7 @@ import {
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { ErrorBoundary } from "../components/ui/error-boundary";
 import { ErrorState } from "../components/ui/error-state";
 import { FileTree } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
@@ -62,7 +63,13 @@ import {
 } from "../lib";
 import { backlogService } from "../services";
 import { selectors } from "../consts/selectors";
-import { BACKLOG_STATUS_COLORS, formatBacklogStatus } from "../types";
+import {
+  BACKLOG_KIND_LABELS,
+  BACKLOG_KINDS,
+  BACKLOG_RESEARCH_TARGET_LABELS,
+  BACKLOG_STATUS_COLORS,
+  formatBacklogStatus,
+} from "../types";
 import type {
   BacklogFile,
   BacklogKind,
@@ -73,22 +80,6 @@ import type {
   IdeaSuggestion,
 } from "../types";
 import { useBacklogStore } from "../stores";
-
-const BACKLOG_KINDS: BacklogKind[] = ["idea", "research", "fix", "execute"];
-
-const KIND_LABELS: Record<BacklogKind, string> = {
-  idea: "Idea",
-  research: "Research",
-  fix: "Fix",
-  execute: "Execute",
-};
-
-const RESEARCH_TARGET_LABELS: Record<BacklogResearchTarget, string> = {
-  idea: "Idea",
-  fix: "Fix",
-  execute: "Execute",
-  unspecified: "Unspecified",
-};
 
 const QUEUEABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready"];
 const RECENT_FILES_LIMIT = 5;
@@ -152,6 +143,7 @@ export function BacklogDetailsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showAgentDialog, setShowAgentDialog] = useState(false);
+  const [previewResetKey, setPreviewResetKey] = useState(0);
 
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
 
@@ -453,6 +445,10 @@ export function BacklogDetailsPage() {
     setIsResizing(true);
   }, []);
 
+  const handlePreviewRetry = useCallback(() => {
+    setPreviewResetKey((prev) => prev + 1);
+  }, []);
+
   useEffect(() => {
     if (!isResizing) return;
 
@@ -676,7 +672,7 @@ export function BacklogDetailsPage() {
           <span>Backlog</span>
         </Link>
         <ChevronRight className="h-4 w-4 text-slate-600" />
-        <span className="text-slate-300">{KIND_LABELS[backlogKind]}</span>
+        <span className="text-slate-300">{BACKLOG_KIND_LABELS[backlogKind]}</span>
         <ChevronRight className="h-4 w-4 text-slate-600" />
         <span className="text-slate-200 truncate max-w-[220px]" title={item?.title || name}>
           {item?.title || name}
@@ -717,7 +713,7 @@ export function BacklogDetailsPage() {
                   </span>
                   {item.kind === "research" && (
                     <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
-                      Target: {item.researchTarget ? RESEARCH_TARGET_LABELS[item.researchTarget] : "Unspecified"}
+                      Target: {item.researchTarget ? BACKLOG_RESEARCH_TARGET_LABELS[item.researchTarget] : "Unspecified"}
                     </span>
                   )}
                 </div>
@@ -761,7 +757,7 @@ export function BacklogDetailsPage() {
                     )}
                     {convertMutation.isPending
                       ? "Converting..."
-                      : `Convert to ${KIND_LABELS[convertTarget]}`}
+                      : `Convert to ${BACKLOG_KIND_LABELS[convertTarget]}`}
                   </Button>
                 )}
                 <Button
@@ -916,18 +912,31 @@ export function BacklogDetailsPage() {
                 </div>
                 <div className="flex flex-1 flex-col min-w-0">
                   {selectedFile ? (
-                    <FilePreview
-                      backlogKind={backlogKind}
-                      backlogName={name}
-                      filePath={selectedFile.path}
-                      fileName={selectedFile.name}
-                      compactHeader
-                      stickyHeader
-                      headerActions={filesButton}
-                      className="flex-1 min-h-0 border-0 rounded-none bg-transparent"
-                      contentClassName="flex-1 max-h-none min-h-0"
-                      data-testid={selectors.backlogDetails.filePreview}
-                    />
+                    <ErrorBoundary
+                      key={`${selectedFile.path}-${previewResetKey}`}
+                      fallback={
+                        <div className="flex flex-1 items-center justify-center p-6">
+                          <ErrorState
+                            title="Unable to render file preview"
+                            message="Try reloading the preview or choose another file."
+                            onRetry={handlePreviewRetry}
+                          />
+                        </div>
+                      }
+                    >
+                      <FilePreview
+                        backlogKind={backlogKind}
+                        backlogName={name}
+                        filePath={selectedFile.path}
+                        fileName={selectedFile.name}
+                        compactHeader
+                        stickyHeader
+                        headerActions={filesButton}
+                        className="flex-1 min-h-0 border-0 rounded-none bg-transparent"
+                        contentClassName="flex-1 max-h-none min-h-0"
+                        data-testid={selectors.backlogDetails.filePreview}
+                      />
+                    </ErrorBoundary>
                   ) : (
                     <>
                       <div className="flex items-center justify-between border-b border-white/10 bg-slate-800/50 px-3 py-2 sm:px-4 sm:py-3">
@@ -1017,7 +1026,7 @@ export function BacklogDetailsPage() {
                   )}
                   {convertMutation.isPending
                     ? "Converting..."
-                    : `Convert to ${KIND_LABELS[convertTarget]}`}
+                    : `Convert to ${BACKLOG_KIND_LABELS[convertTarget]}`}
                 </Button>
               )}
               <Button

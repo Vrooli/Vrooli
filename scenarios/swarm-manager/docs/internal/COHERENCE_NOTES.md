@@ -1,3 +1,39 @@
+# React Coherence Audit - 2026-02-05
+
+## State Management
+
+**Current Pattern**: React Query for server state + Zustand stores for shared state.
+
+**Stores Found**:
+- `useBacklogStore`
+- `useScenariosStore`
+- `useRecommendationsStore`
+- `useBacklogFormStore` (form state)
+
+**Observations**:
+- Backlog form state consolidated into a focused Zustand store, removing multi-field `useState` scatter in the dialog.
+- BacklogDetailsPage still holds 10+ local UI state values; consider a page-level UI store if additional panels or cross-component state is added.
+
+## Duplication
+
+**Result**: No new actionable UI duplication found. Shared UI remains centralized under `components/ui`.
+
+## Styling
+
+**Status**: No changes in this pass. CVA usage stays in shared controls (Button, Input, Card, Select).
+
+## Priority Actions
+
+1. ✅ Moved backlog form state into `src/stores/backlog-form-store.ts`
+2. ✅ Promoted `BacklogFormValues` to `src/types/domain.ts` for shared typing
+
+## Follow-ups
+
+1. Consider a BacklogDetails UI store if state density grows further.
+2. Review API mutation stores for rate limiting if they expand beyond current usage patterns.
+
+---
+
 # React Coherence Audit - 2026-01-28
 
 This document tracks the coherence audit findings and improvements for the swarm-manager UI.
@@ -388,4 +424,34 @@ src/
 - Add toast store for global notifications
 - Consider extracting SettingsPage option buttons when that feature is implemented
 
-*Last updated: 2026-01-28 (Phase 28 iter 5: Final Verification Sweep)*
+---
+
+## Phase 30: Theme Tokenization + Light Mode Coherence (2026-02-04)
+
+### Problem Identified
+Light mode toggled at the document level, but components still used hardcoded dark palette utilities. This caused partial theme switching (some areas updated, many remained dark), plus mismatched editor/markdown themes.
+
+### Solution
+Introduced a theme-aware slate palette backed by CSS variables and removed manual light/dark branching in layout styling. Added a resolved-theme hook to align Monaco editors and markdown rendering with the active theme.
+
+### Changes Made
+1. **Theme Tokens**: Mapped Tailwind slate colors to CSS variables in `ui/tailwind.config.ts`
+2. **Theme Palette**: Defined dark + light palette inversion in `ui/src/styles.css`
+3. **Light Overrides**: Added scoped overrides for `border-white/*` utilities in light mode
+4. **Theme Hook**: `useResolvedTheme` in `ui/src/lib/theme-utils.ts` with a custom theme-change event
+5. **Layout Update**: Simplified `MainLayout` to use tokenized colors (no manual theme branches)
+6. **Editor + Markdown**: File preview now switches Monaco theme and prose styling based on resolved theme
+
+### Files Modified
+- `ui/tailwind.config.ts`
+- `ui/src/styles.css`
+- `ui/src/lib/theme-utils.ts`
+- `ui/src/lib/index.ts`
+- `ui/src/components/layout/MainLayout.tsx`
+- `ui/src/components/ui/button.tsx`
+- `ui/src/components/ui/file-preview.tsx`
+
+### Result
+Light mode now updates all slate-based UI components consistently, and editor/markdown views respond to theme changes without manual page-level overrides.
+
+*Last updated: 2026-02-04 (Phase 30: Theme Tokenization + Light Mode Coherence)*
