@@ -1,10 +1,10 @@
 // DOC: docs/reference/api-endpoints.md#documentation-health
 // DOC: docs/reference/api-endpoints.md#documentation-healing
-import { AlertCircle, CheckCircle, Loader2, RefreshCw, Wrench, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, MoveRight, RefreshCw, Wrench, XCircle, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../shared/ui/button";
 import type { DocHealthViewModel, HealthTone } from "../../../shared/controllers/documentationController";
-import { useDocHealing } from "../../../shared/hooks/healingHooks";
+import { useDocAutoFix, useDocHealing } from "../../../shared/hooks/healingHooks";
 
 const formatPercent = (value?: number) => {
   if (value === undefined || value === null || Number.isNaN(value)) return "—";
@@ -40,6 +40,7 @@ export function HealthPanel({
   const [dryRun, setDryRun] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const { job, isBusy, error: healError, actions } = useDocHealing(scenarioName);
+  const { result: autoFixResult, isLoading: isAutoFixing, error: autoFixError, autoFix, clear: clearAutoFix } = useDocAutoFix(scenarioName);
 
   const issueOptions = useMemo(() => {
     const issues: string[] = [];
@@ -116,6 +117,7 @@ export function HealthPanel({
   }
 
   const toneClass = toneClasses[healthViewModel.healthTone] ?? toneClasses.medium;
+  const fixCategory = healthViewModel.fixCategory;
   const canHeal = healthViewModel.canAutoFix && healthViewModel.hasIssues;
   const healButtonLabel =
     job?.status === "running" || job?.status === "pending"
@@ -142,7 +144,9 @@ export function HealthPanel({
         <div className="ko-stack-sm">
           {healthViewModel.missingDocs.length > 0 && (
             <div className="ko-issue-block">
-              <p className="ko-text-sm font-semibold ko-text-strong">Missing Docs</p>
+              <p className="ko-text-sm font-semibold ko-text-strong">
+                Missing Docs <span className="ko-pill ko-pill-sm">agent</span>
+              </p>
               <ul className="ko-list">
                 {healthViewModel.missingDocs.map((doc) => (
                   <li key={doc}>{doc}</li>
@@ -153,7 +157,9 @@ export function HealthPanel({
 
           {healthViewModel.misplacedDocs.length > 0 && (
             <div className="ko-issue-block">
-              <p className="ko-text-sm font-semibold ko-text-strong">Misplaced Docs</p>
+              <p className="ko-text-sm font-semibold ko-text-strong">
+                Misplaced Docs <span className="ko-pill ko-pill-sm ko-pill-good">auto</span>
+              </p>
               <ul className="ko-list">
                 {healthViewModel.misplacedDocs.map((doc) => (
                   <li key={`${doc.actualPath}-${doc.expectedPath}`}>
@@ -166,7 +172,9 @@ export function HealthPanel({
 
           {healthViewModel.extraDocs.length > 0 && (
             <div className="ko-issue-block">
-              <p className="ko-text-sm font-semibold ko-text-strong">Extra Docs</p>
+              <p className="ko-text-sm font-semibold ko-text-strong">
+                Extra Docs <span className="ko-pill ko-pill-sm">agent</span>
+              </p>
               <ul className="ko-list">
                 {healthViewModel.extraDocs.map((doc) => (
                   <li key={doc}>{doc}</li>
@@ -181,22 +189,95 @@ export function HealthPanel({
         </div>
       )}
 
-      <div className="ko-card p-3 flex items-center justify-between">
-        <div>
-          <p className="ko-text-sm font-semibold ko-text-strong">Heal Documentation</p>
-          <p className="ko-text-xs ko-muted">
-            {canHeal ? "Spawn an agent to repair documentation structure." : "All docs are aligned."}
-          </p>
+      <div className="ko-card p-3 ko-stack-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="ko-text-sm font-semibold ko-text-strong">Heal Documentation</p>
+            <p className="ko-text-xs ko-muted">
+              {canHeal
+                ? fixCategory === "all_auto"
+                  ? "All issues can be auto-fixed by moving misplaced files."
+                  : fixCategory === "mixed"
+                    ? "Some issues can be auto-fixed; others need an agent."
+                    : "Spawn an agent to repair documentation structure."
+                : "All docs are aligned."}
+            </p>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!canHeal && !job}
-          onClick={() => setIsHealOpen(true)}
-        >
-          <Wrench className="h-4 w-4 mr-2" />
-          {healButtonLabel}
-        </Button>
+        <div className="flex gap-2">
+          {(fixCategory === "all_auto" || fixCategory === "mixed") && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isAutoFixing}
+              onClick={() => autoFix()}
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              {isAutoFixing ? "Fixing..." : `Quick Fix (${healthViewModel.misplacedDocs.length} files)`}
+            </Button>
+          )}
+          {(fixCategory === "all_agent" || fixCategory === "mixed") && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!canHeal && !job}
+              onClick={() => setIsHealOpen(true)}
+            >
+              <Wrench className="h-4 w-4 mr-2" />
+              {healButtonLabel}
+            </Button>
+          )}
+          {fixCategory === "none" && job && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsHealOpen(true)}
+            >
+              <Wrench className="h-4 w-4 mr-2" />
+              {healButtonLabel}
+            </Button>
+          )}
+        </div>
+
+        {autoFixError && (
+          <div className="ko-alert ko-alert-danger">
+            <AlertCircle className="h-5 w-5 ko-text-danger flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="ko-alert-title ko-text-danger-strong">Auto-fix error</p>
+              <p className="ko-text-sm ko-text-danger-muted mt-1">{autoFixError.message}</p>
+            </div>
+          </div>
+        )}
+
+        {autoFixResult && (
+          <div className="ko-stack-xs">
+            <p className="ko-text-xs ko-muted">
+              Health: {formatPercent(autoFixResult.health_before)} → {formatPercent(autoFixResult.health_after)}
+            </p>
+            {autoFixResult.moved.length > 0 && (
+              <div className="ko-stack-xs">
+                {autoFixResult.moved.map((m) => (
+                  <div key={m.from_path} className="ko-text-xs flex items-center gap-1">
+                    <MoveRight className="h-3 w-3" />
+                    <span className="ko-text-strong">{m.from_path}</span> → {m.to_path}
+                  </div>
+                ))}
+              </div>
+            )}
+            {autoFixResult.skipped.length > 0 && (
+              <div className="ko-stack-xs">
+                {autoFixResult.skipped.map((s) => (
+                  <div key={s.from_path} className="ko-text-xs ko-muted">
+                    Skipped {s.from_path}: {s.reason}
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={() => { clearAutoFix(); onRefresh(); }}>
+              Refresh Health
+            </Button>
+          </div>
+        )}
       </div>
 
       {isHealOpen && (

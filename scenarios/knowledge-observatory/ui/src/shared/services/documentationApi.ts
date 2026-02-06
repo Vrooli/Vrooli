@@ -73,6 +73,29 @@ export interface ScenarioDocHealth {
   extra_docs: string[];
   warnings: DocWarning[];
   can_auto_fix: boolean;
+  fix_category: string;
+}
+
+export interface DocAutoFixMovedFile {
+  from_path: string;
+  to_path: string;
+  doc_type: string;
+}
+
+export interface DocAutoFixSkippedFile {
+  from_path: string;
+  to_path: string;
+  doc_type: string;
+  reason: string;
+}
+
+export interface DocAutoFixResponse {
+  scenario_name: string;
+  moved: DocAutoFixMovedFile[];
+  skipped: DocAutoFixSkippedFile[];
+  health_before: number;
+  health_after: number;
+  dry_run: boolean;
 }
 
 export interface DocFileSearchRequest {
@@ -336,6 +359,7 @@ export async function fetchScenarioDocHealth(scenarioName: string): Promise<Scen
     extra_docs: normalizeStringList(data.extra_docs),
     warnings: normalizeWarnings(data.warnings),
     can_auto_fix: toBoolean(data.can_auto_fix) ?? false,
+    fix_category: toNonEmptyString(data.fix_category) ?? "none",
   };
 }
 
@@ -535,6 +559,25 @@ export async function rejectDocHealing(jobId: string, actor?: string, reason?: s
   }
   const data = (await res.json().catch(() => null)) as unknown;
   return normalizeDocHealJob(data);
+}
+
+export async function autoFixDocs(scenarioName: string, dryRun?: boolean): Promise<DocAutoFixResponse> {
+  const trimmed = scenarioName.trim();
+  if (!trimmed) {
+    throw new Error("Scenario name is required");
+  }
+  const url = buildApiUrl(`/api/v1/scenarios/${encodeURIComponent(trimmed)}/docs/autofix`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dry_run: dryRun ?? false }),
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc auto-fix failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  return normalizeDocAutoFixResponse(data);
 }
 
 export async function resetDocContent(request: DocResetRequest): Promise<DocResetResponse> {
@@ -823,4 +866,47 @@ const normalizeDocTreeNode = (value: unknown): DocTreeNode => {
   }
 
   return node;
+};
+
+const normalizeDocAutoFixResponse = (value: unknown): DocAutoFixResponse => {
+  if (!isRecord(value)) {
+    throw new Error("Invalid auto-fix response");
+  }
+  return {
+    scenario_name: toNonEmptyString(value.scenario_name) ?? "",
+    moved: normalizeAutoFixMoved(value.moved),
+    skipped: normalizeAutoFixSkipped(value.skipped),
+    health_before: toFiniteNumber(value.health_before) ?? 0,
+    health_after: toFiniteNumber(value.health_after) ?? 0,
+    dry_run: toBoolean(value.dry_run) ?? false,
+  };
+};
+
+const normalizeAutoFixMoved = (value: unknown): DocAutoFixMovedFile[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const from = toNonEmptyString(item.from_path);
+    const to = toNonEmptyString(item.to_path);
+    if (!from || !to) return [];
+    return [{ from_path: from, to_path: to, doc_type: toNonEmptyString(item.doc_type) ?? "" }];
+  });
+};
+
+const normalizeAutoFixSkipped = (value: unknown): DocAutoFixSkippedFile[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const from = toNonEmptyString(item.from_path);
+    const to = toNonEmptyString(item.to_path);
+    if (!from || !to) return [];
+    return [
+      {
+        from_path: from,
+        to_path: to,
+        doc_type: toNonEmptyString(item.doc_type) ?? "",
+        reason: toNonEmptyString(item.reason) ?? "",
+      },
+    ];
+  });
 };

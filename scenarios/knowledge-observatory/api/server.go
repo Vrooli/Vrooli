@@ -310,6 +310,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/health", s.handleDocsHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/reset", s.handleDocsReset).Methods("POST")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/heal", s.handleDocsHeal).Methods("POST")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/audit", s.handleDocsAudit).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/autofix", s.handleDocsAutoFix).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/files", s.handleDocsSearchFiles).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/text", s.handleDocsSearchText).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/unified", s.handleDocsSearchUnified).Methods("POST")
@@ -323,6 +325,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/docs/heal/{job_id}", s.handleDocsHealStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/heal/{job_id}/approve", s.handleDocsHealApprove).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/heal/{job_id}/reject", s.handleDocsHealReject).Methods("POST")
+
+	// Documentation templates
+	s.router.HandleFunc("/api/v1/docs/templates", s.handleDocsTemplateList).Methods("GET")
+	s.router.HandleFunc("/api/v1/docs/templates/{doc_type}", s.handleDocsTemplateGet).Methods("GET")
 
 	// Canonical knowledge write path (records) - sync upsert
 	s.router.HandleFunc("/api/v1/knowledge/records/upsert", s.handleUpsertRecord).Methods("POST")

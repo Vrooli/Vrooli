@@ -38,6 +38,7 @@ type Service struct {
 	store         JobStore
 	health        *dochealth.Service
 	skills        SkillProvider
+	fs            FileSystem
 	now           func() time.Time
 	pollInterval  time.Duration
 }

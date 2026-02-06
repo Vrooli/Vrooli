@@ -22,6 +22,7 @@ type ScenarioDocHealthResponse struct {
 	ExtraDocs     []string                 `json:"extra_docs"`
 	Warnings      []DocWarning             `json:"warnings"`
 	CanAutoFix    bool                     `json:"can_auto_fix"`
+	FixCategory   string                   `json:"fix_category"`
 }
 
 type DocWarning struct {
@@ -73,6 +74,8 @@ func (s *Server) handleDocsHealth(w http.ResponseWriter, r *http.Request) {
 
 	warnings := buildDocWarnings(result.Validation)
 
+	fixCategory := computeFixCategory(result.Validation.MisplacedDocs, missing, result.Validation.ExtraDocs)
+
 	response := ScenarioDocHealthResponse{
 		ScenarioName:  result.Validation.ScenarioName,
 		HealthScore:   result.Validation.HealthScore,
@@ -82,6 +85,7 @@ func (s *Server) handleDocsHealth(w http.ResponseWriter, r *http.Request) {
 		ExtraDocs:     result.Validation.ExtraDocs,
 		Warnings:      warnings,
 		CanAutoFix:    s.docHealingService != nil && result.Validation.HealthScore < 1,
+		FixCategory:   fixCategory,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -178,6 +182,21 @@ func missingDocSeverity(docType docschema.DocType) string {
 		return "error"
 	}
 	return "warning"
+}
+
+func computeFixCategory(misplaced []docschema.MisplacedDoc, missing []string, extra []string) string {
+	hasMisplaced := len(misplaced) > 0
+	hasAgentIssues := len(missing) > 0 || len(extra) > 0
+	switch {
+	case hasMisplaced && !hasAgentIssues:
+		return "all_auto"
+	case !hasMisplaced && hasAgentIssues:
+		return "all_agent"
+	case hasMisplaced && hasAgentIssues:
+		return "mixed"
+	default:
+		return "none"
+	}
 }
 
 func respondDocHealthError(w http.ResponseWriter, err error) {

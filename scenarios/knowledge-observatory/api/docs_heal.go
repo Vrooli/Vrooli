@@ -143,6 +143,89 @@ func (s *Server) handleDocsHealReject(w http.ResponseWriter, r *http.Request) {
 	writeDocHealJob(w, job)
 }
 
+type DocAutoFixRequest struct {
+	DryRun bool `json:"dry_run,omitempty"`
+}
+
+type DocAutoFixResponse struct {
+	ScenarioName string           `json:"scenario_name"`
+	Moved        []DocMovedFile   `json:"moved"`
+	Skipped      []DocSkippedFile `json:"skipped"`
+	HealthBefore float64          `json:"health_before"`
+	HealthAfter  float64          `json:"health_after"`
+	DryRun       bool             `json:"dry_run"`
+}
+
+type DocMovedFile struct {
+	FromPath string `json:"from_path"`
+	ToPath   string `json:"to_path"`
+	DocType  string `json:"doc_type"`
+}
+
+type DocSkippedFile struct {
+	FromPath string `json:"from_path"`
+	ToPath   string `json:"to_path"`
+	DocType  string `json:"doc_type"`
+	Reason   string `json:"reason"`
+}
+
+func (s *Server) handleDocsAutoFix(w http.ResponseWriter, r *http.Request) {
+	if s == nil || s.docHealingService == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "Documentation healing service unavailable")
+		return
+	}
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+	if scenarioName == "" {
+		s.respondError(w, http.StatusBadRequest, "Scenario name is required")
+		return
+	}
+
+	var req DocAutoFixRequest
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+			s.respondError(w, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+	}
+
+	result, err := s.docHealingService.AutoFix(r.Context(), scenarioName, req.DryRun)
+	if err != nil {
+		respondDocHealError(w, err)
+		return
+	}
+
+	moved := make([]DocMovedFile, 0, len(result.Moved))
+	for _, m := range result.Moved {
+		moved = append(moved, DocMovedFile{
+			FromPath: m.FromPath,
+			ToPath:   m.ToPath,
+			DocType:  m.DocType,
+		})
+	}
+
+	skipped := make([]DocSkippedFile, 0, len(result.Skipped))
+	for _, s := range result.Skipped {
+		skipped = append(skipped, DocSkippedFile{
+			FromPath: s.FromPath,
+			ToPath:   s.ToPath,
+			DocType:  s.DocType,
+			Reason:   s.Reason,
+		})
+	}
+
+	response := DocAutoFixResponse{
+		ScenarioName: result.ScenarioName,
+		Moved:        moved,
+		Skipped:      skipped,
+		HealthBefore: result.HealthBefore,
+		HealthAfter:  result.HealthAfter,
+		DryRun:       req.DryRun,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
 func writeDocHealJob(w http.ResponseWriter, job *dochealing.HealJob) {
 	response := DocHealJobResponse{
 		JobID:        job.JobID,

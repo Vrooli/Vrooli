@@ -139,6 +139,18 @@ func (a *App) printJSON(body []byte) error {
 	return nil
 }
 
+// printDocContent extracts and prints just the "content" field from a docs JSON response.
+func (a *App) printDocContent(body []byte) error {
+	var doc struct {
+		Content string `json:"content"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return a.printJSON(body)
+	}
+	fmt.Print(doc.Content)
+	return nil
+}
+
 type healthResponse struct {
 	Status       string            `json:"status"`
 	Service      string            `json:"service"`
@@ -297,10 +309,14 @@ Subcommands:
   scenarios     List all scenarios with doc stats
   tree          Show doc tree for a scenario
   health        Check documentation health
-  heal          Auto-fix documentation health issues
+  audit         Run comprehensive documentation audit
+  heal          Auto-fix documentation health issues (agent)
   heal-status   Check heal job status
+  autofix       Quick-fix misplaced docs (deterministic, no agent)
   reset         Clean up stale entries
   stats         Show read/write/reset stats
+  templates     List available document templates
+  template      Get a document template by type
 
 Run 'docs <subcommand> --help' for subcommand-specific flags.`
 }
@@ -335,12 +351,20 @@ func (a *App) cmdDocs(args []string) error {
 		return a.cmdDocsHeal(args[1:])
 	case "heal-status":
 		return a.cmdDocsHealStatus(args[1:])
+	case "autofix":
+		return a.cmdDocsAutoFix(args[1:])
 	case "read":
 		return a.cmdDocsRead(args[1:])
 	case "add":
 		return a.cmdDocsAdd(args[1:])
 	case "stats":
 		return a.cmdDocsStats(args[1:])
+	case "templates":
+		return a.cmdDocsTemplates(args[1:])
+	case "template":
+		return a.cmdDocsTemplate(args[1:])
+	case "audit":
+		return a.cmdDocsAudit(args[1:])
 	default:
 		return fmt.Errorf("unknown docs subcommand: %s\n\n%s", subcommand, a.docsUsage())
 	}
@@ -560,7 +584,8 @@ func (a *App) cmdDocsHealth(args []string) error {
 func (a *App) cmdDocsView(args []string) error {
 	fs := flag.NewFlagSet("docs view", flag.ContinueOnError)
 	path := fs.String("path", "", "Document path")
-	format := fs.String("format", "raw", "Format: raw, highlighted, or preview")
+	format := fs.String("format", "raw", "Output format: raw (default, content only) or json (full response)")
+	jsonOut := fs.Bool("json", false, "Output full JSON response (shorthand for --format json)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -570,21 +595,27 @@ func (a *App) cmdDocsView(args []string) error {
 		pathValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
 	}
 	if pathValue == "" {
-		return fmt.Errorf("usage: docs view <path> [--format=raw|highlighted|preview]")
+		return fmt.Errorf("usage: docs view <path> [--format=raw|json] [--json]")
 	}
 
+	wantJSON := *jsonOut || strings.TrimSpace(*format) == "json"
 	query := url.Values{}
 	query.Set("path", pathValue)
-	formatValue := strings.TrimSpace(*format)
-	if formatValue != "" {
-		query.Set("format", formatValue)
+	if !wantJSON {
+		formatValue := strings.TrimSpace(*format)
+		if formatValue != "" {
+			query.Set("format", formatValue)
+		}
 	}
 
 	body, err := a.doRequest("GET", "/docs/content", query, nil)
 	if err != nil {
 		return err
 	}
-	return a.printJSON(body)
+	if wantJSON {
+		return a.printJSON(body)
+	}
+	return a.printDocContent(body)
 }
 
 func (a *App) cmdDocsReset(args []string) error {
@@ -696,11 +727,66 @@ func (a *App) cmdDocsHealStatus(args []string) error {
 	return a.printJSON(body)
 }
 
+func (a *App) cmdDocsAutoFix(args []string) error {
+	fs := flag.NewFlagSet("docs autofix", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	dryRun := fs.Bool("dry-run", false, "Preview only (no moves)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	scenarioValue := strings.TrimSpace(*scenario)
+	if scenarioValue == "" {
+		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if scenarioValue == "" {
+		return fmt.Errorf("usage: docs autofix <scenario> [--dry-run]")
+	}
+
+	req := docsAutoFixRequest{
+		DryRun: *dryRun,
+	}
+
+	body, err := a.doRequest("POST", fmt.Sprintf("/scenarios/%s/docs/autofix", scenarioValue), nil, req)
+	if err != nil {
+		return err
+	}
+
+	var result docsAutoFixResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return a.printJSON(body)
+	}
+
+	if *dryRun {
+		fmt.Println("Dry run — no files were moved.")
+	}
+
+	if len(result.Moved) > 0 {
+		fmt.Printf("Moved %d file(s):\n", len(result.Moved))
+		for _, m := range result.Moved {
+			fmt.Printf("  %s → %s\n", m.FromPath, m.ToPath)
+		}
+	}
+	if len(result.Skipped) > 0 {
+		fmt.Printf("Skipped %d file(s):\n", len(result.Skipped))
+		for _, s := range result.Skipped {
+			fmt.Printf("  %s → %s (%s)\n", s.FromPath, s.ToPath, s.Reason)
+		}
+	}
+	if len(result.Moved) == 0 && len(result.Skipped) == 0 {
+		fmt.Println("No misplaced docs to fix.")
+	}
+
+	fmt.Printf("Health: %.0f%% → %.0f%%\n", result.HealthBefore*100, result.HealthAfter*100)
+	return nil
+}
+
 func (a *App) cmdDocsRead(args []string) error {
 	fs := flag.NewFlagSet("docs read", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
-	doc := fs.String("doc", "", "Document type (problems, progress)")
-	format := fs.String("format", "raw", "Format: raw, highlighted, or preview")
+	doc := fs.String("doc", "", "Document type (problems, progress, seams, invariants, assumptions, error-semantics, security-posture, temporal-flows, coherence-notes, experience-audit, quickstart, architecture, glossary, prd, readme, manifest)")
+	format := fs.String("format", "raw", "Output format: raw (default, content only) or json (full response)")
+	jsonOut := fs.Bool("json", false, "Output full JSON response (shorthand for --format json)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -719,20 +805,26 @@ func (a *App) cmdDocsRead(args []string) error {
 	}
 
 	if scenarioValue == "" || docValue == "" {
-		return fmt.Errorf("usage: docs read <scenario> <type> [--format=raw]")
+		return fmt.Errorf("usage: docs read <scenario> <type> [--format=raw|json] [--json]")
 	}
 
+	wantJSON := *jsonOut || strings.TrimSpace(*format) == "json"
 	query := url.Values{}
-	formatValue := strings.TrimSpace(*format)
-	if formatValue != "" {
-		query.Set("format", formatValue)
+	if !wantJSON {
+		formatValue := strings.TrimSpace(*format)
+		if formatValue != "" {
+			query.Set("format", formatValue)
+		}
 	}
 
 	body, err := a.doRequest("GET", fmt.Sprintf("/scenarios/%s/docs/%s/content", scenarioValue, docValue), query, nil)
 	if err != nil {
 		return err
 	}
-	return a.printJSON(body)
+	if wantJSON {
+		return a.printJSON(body)
+	}
+	return a.printDocContent(body)
 }
 
 func (a *App) cmdDocsAdd(args []string) error {
@@ -790,6 +882,138 @@ func (a *App) cmdDocsStats(args []string) error {
 		return err
 	}
 	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsTemplates(args []string) error {
+	fs := flag.NewFlagSet("docs templates", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	body, err := a.doRequest("GET", "/docs/templates", nil, nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return a.printJSON(body)
+	}
+
+	var items []docsTemplateListItem
+	if err := json.Unmarshal(body, &items); err != nil {
+		return a.printJSON(body)
+	}
+
+	for _, item := range items {
+		fmt.Printf("%-20s %s\n", item.DocType, item.Purpose)
+	}
+	return nil
+}
+
+func (a *App) cmdDocsTemplate(args []string) error {
+	fs := flag.NewFlagSet("docs template", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output full JSON response")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	docType := strings.TrimSpace(strings.Join(fs.Args(), " "))
+	if docType == "" {
+		return fmt.Errorf("usage: docs template <type> [--json]")
+	}
+
+	body, err := a.doRequest("GET", fmt.Sprintf("/docs/templates/%s", docType), nil, nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return a.printJSON(body)
+	}
+
+	var detail docsTemplateDetailResponse
+	if err := json.Unmarshal(body, &detail); err != nil {
+		return a.printJSON(body)
+	}
+	fmt.Print(detail.Content)
+	return nil
+}
+
+func (a *App) cmdDocsAudit(args []string) error {
+	fs := flag.NewFlagSet("docs audit", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	scenarioValue := strings.TrimSpace(*scenario)
+	if scenarioValue == "" {
+		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if scenarioValue == "" {
+		return fmt.Errorf("usage: docs audit <scenario> [--json]")
+	}
+
+	body, err := a.doRequest("GET", fmt.Sprintf("/scenarios/%s/docs/audit", scenarioValue), nil, nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return a.printJSON(body)
+	}
+
+	var result docsAuditResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return a.printJSON(body)
+	}
+
+	fmt.Printf("Documentation Audit: %s\n", result.ScenarioName)
+	fmt.Printf("Health Score: %.0f%%\n", result.HealthScore*100)
+	fmt.Printf("Total Docs: %d\n\n", result.TotalDocs)
+
+	if result.Infrastructure != nil {
+		mp := len(result.Infrastructure.MisplacedDocs)
+		ms := len(result.Infrastructure.MissingDocs)
+		ex := len(result.Infrastructure.ExtraDocs)
+		fmt.Printf("Infrastructure: %d misplaced, %d missing, %d extra\n", mp, ms, ex)
+	}
+
+	if len(result.CodeWithoutDocRefs) > 0 {
+		fmt.Printf("\nCode without DOC: references (%d files):\n", len(result.CodeWithoutDocRefs))
+		for _, f := range result.CodeWithoutDocRefs {
+			fmt.Printf("  %s (%d exported symbols)\n", f.Path, f.ExportedSymbols)
+		}
+	}
+
+	if len(result.BrokenCodeRefs) > 0 {
+		fmt.Printf("\nBroken [CODE: ...] references (%d):\n", len(result.BrokenCodeRefs))
+		for _, r := range result.BrokenCodeRefs {
+			fmt.Printf("  %s line %d: %s\n", r.DocPath, r.Line, r.Target)
+		}
+	}
+
+	if len(result.OrphanedDocs) > 0 {
+		fmt.Printf("\nOrphaned docs not in manifest (%d):\n", len(result.OrphanedDocs))
+		for _, d := range result.OrphanedDocs {
+			fmt.Printf("  %s\n", d)
+		}
+	}
+
+	if len(result.DuplicateTitles) > 0 {
+		fmt.Printf("\nDuplicate titles (%d):\n", len(result.DuplicateTitles))
+		for _, d := range result.DuplicateTitles {
+			fmt.Printf("  \"%s\" in: %s\n", d.Title, strings.Join(d.Files, ", "))
+		}
+	}
+
+	if len(result.UndocumentedTargets) > 0 {
+		fmt.Printf("\nUndocumented PRD targets (%d):\n", len(result.UndocumentedTargets))
+		for _, t := range result.UndocumentedTargets {
+			fmt.Printf("  %s\n", t)
+		}
+	}
+
+	return nil
 }
 
 func (a *App) cmdIngest(args []string) error {
@@ -1084,6 +1308,79 @@ type docsHealJob struct {
 	JobID  string `json:"job_id"`
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
+}
+
+type docsAutoFixRequest struct {
+	DryRun bool `json:"dry_run,omitempty"`
+}
+
+type docsAutoFixResponse struct {
+	ScenarioName string               `json:"scenario_name"`
+	Moved        []docsAutoFixMoved   `json:"moved"`
+	Skipped      []docsAutoFixSkipped `json:"skipped"`
+	HealthBefore float64              `json:"health_before"`
+	HealthAfter  float64              `json:"health_after"`
+	DryRun       bool                 `json:"dry_run"`
+}
+
+type docsAutoFixMoved struct {
+	FromPath string `json:"from_path"`
+	ToPath   string `json:"to_path"`
+	DocType  string `json:"doc_type"`
+}
+
+type docsAutoFixSkipped struct {
+	FromPath string `json:"from_path"`
+	ToPath   string `json:"to_path"`
+	DocType  string `json:"doc_type"`
+	Reason   string `json:"reason"`
+}
+
+type docsTemplateListItem struct {
+	DocType      string `json:"doc_type"`
+	ExpectedPath string `json:"expected_path"`
+	Purpose      string `json:"purpose"`
+}
+
+type docsTemplateDetailResponse struct {
+	DocType      string `json:"doc_type"`
+	ExpectedPath string `json:"expected_path"`
+	Purpose      string `json:"purpose"`
+	Content      string `json:"content"`
+}
+
+type docsAuditResponse struct {
+	ScenarioName        string                      `json:"scenario_name"`
+	HealthScore         float64                     `json:"health_score"`
+	TotalDocs           int                         `json:"total_docs"`
+	Infrastructure      *docsAuditInfrastructure    `json:"infrastructure"`
+	CodeWithoutDocRefs  []docsAuditUndocumentedFile `json:"code_without_doc_refs"`
+	BrokenCodeRefs      []docsAuditBrokenRef        `json:"broken_code_refs"`
+	OrphanedDocs        []string                    `json:"orphaned_docs"`
+	DuplicateTitles     []docsAuditDuplicateTitle   `json:"duplicate_titles"`
+	UndocumentedTargets []string                    `json:"undocumented_targets"`
+}
+
+type docsAuditInfrastructure struct {
+	MisplacedDocs []interface{} `json:"misplaced_docs"`
+	MissingDocs   []interface{} `json:"missing_docs"`
+	ExtraDocs     []interface{} `json:"extra_docs"`
+}
+
+type docsAuditUndocumentedFile struct {
+	Path            string `json:"path"`
+	ExportedSymbols int    `json:"exported_symbols"`
+}
+
+type docsAuditBrokenRef struct {
+	DocPath string `json:"doc_path"`
+	Line    int    `json:"line"`
+	Target  string `json:"target"`
+}
+
+type docsAuditDuplicateTitle struct {
+	Title string   `json:"title"`
+	Files []string `json:"files"`
 }
 
 func splitCSV(value string) []string {

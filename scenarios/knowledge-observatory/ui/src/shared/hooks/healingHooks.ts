@@ -1,9 +1,10 @@
 // DOC: docs/reference/api-endpoints.md#documentation-healing
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { DocHealJob, DocHealRequest } from "../services/documentationApi";
+import type { DocAutoFixResponse, DocHealJob, DocHealRequest } from "../services/documentationApi";
 import {
   approveDocHealing,
+  autoFixDocs,
   fetchDocHealingJob,
   rejectDocHealing,
   startDocHealing,
@@ -132,5 +133,49 @@ export function useDocHealing(scenarioName: string | null): DocHealingState {
     isBusy,
     error,
     actions,
+  };
+}
+
+type DocAutoFixState = {
+  result: DocAutoFixResponse | null;
+  isLoading: boolean;
+  error: Error | null;
+  autoFix: (dryRun?: boolean) => Promise<DocAutoFixResponse>;
+  clear: () => void;
+};
+
+export function useDocAutoFix(scenarioName: string | null): DocAutoFixState {
+  const [result, setResult] = useState<DocAutoFixResponse | null>(null);
+
+  useEffect(() => {
+    setResult(null);
+  }, [scenarioName]);
+
+  const mutation = useMutation({
+    mutationFn: (dryRun?: boolean) => autoFixDocs(scenarioName ?? "", dryRun),
+    onSuccess: (data) => {
+      setResult(data);
+      recordActivity({
+        type: "doc-autofix",
+        title: data.dry_run ? "Doc auto-fix preview" : "Doc auto-fix applied",
+        description: `${scenarioName}: ${data.moved.length} moved, ${data.skipped.length} skipped`,
+        status: "completed",
+      });
+    },
+  });
+
+  const actions = useMemo(
+    () => ({
+      autoFix: (dryRun?: boolean) => mutation.mutateAsync(dryRun),
+      clear: () => setResult(null),
+    }),
+    [mutation],
+  );
+
+  return {
+    result,
+    isLoading: mutation.isPending,
+    error: mutation.error instanceof Error ? mutation.error : null,
+    ...actions,
   };
 }

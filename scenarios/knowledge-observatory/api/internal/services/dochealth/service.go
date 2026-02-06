@@ -77,6 +77,16 @@ func (s *Service) ResetScenarioDoc(ctx context.Context, scenarioName string, con
 	return docschema.ResetDocument(filepath.Join(path, rel), config)
 }
 
+// AuditScenario runs a comprehensive documentation audit for a scenario.
+func (s *Service) AuditScenario(ctx context.Context, scenarioName string) (*docschema.AuditResult, error) {
+	_ = ctx
+	path, err := s.scenarioPath(scenarioName)
+	if err != nil {
+		return nil, err
+	}
+	return docschema.AuditScenarioDocumentation(path)
+}
+
 func (s *Service) scenarioPath(scenarioName string) (string, error) {
 	name := strings.TrimSpace(scenarioName)
 	if name == "" || name == "." || name == ".." {

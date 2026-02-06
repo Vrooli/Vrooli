@@ -39,6 +39,7 @@ export type DocHealthViewModel = {
   warningCount: number;
   hasIssues: boolean;
   canAutoFix: boolean;
+  fixCategory: string;
 };
 
 export type DocumentationSummaryView = {
@@ -151,6 +152,7 @@ export function buildDocHealthViewModel(health?: ScenarioDocHealth | null): DocH
     warningCount,
     hasIssues: missingDocs.length > 0 || extraDocs.length > 0 || misplacedDocs.length > 0,
     canAutoFix: Boolean(health?.can_auto_fix),
+    fixCategory: typeof health?.fix_category === "string" ? health.fix_category : "none",
   };
 }
 

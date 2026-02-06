@@ -75,12 +75,37 @@ type HealJob struct {
 	DryRun       bool
 }
 
+// AutoFixResult describes the outcome of a deterministic auto-fix operation.
+type AutoFixResult struct {
+	ScenarioName string
+	Moved        []MovedDoc
+	Skipped      []SkippedDoc
+	HealthBefore float64
+	HealthAfter  float64
+}
+
+// MovedDoc records a successfully moved file.
+type MovedDoc struct {
+	FromPath string
+	ToPath   string
+	DocType  string
+}
+
+// SkippedDoc records a file that could not be moved.
+type SkippedDoc struct {
+	FromPath string
+	ToPath   string
+	DocType  string
+	Reason   string
+}
+
 // API exposes the healing service surface.
 type API interface {
 	StartHealing(ctx context.Context, req HealRequest) (*HealJob, error)
 	GetJob(ctx context.Context, jobID string) (*HealJob, error)
 	ApproveJob(ctx context.Context, jobID, actor string) (*HealJob, error)
 	RejectJob(ctx context.Context, jobID, actor, reason string) (*HealJob, error)
+	AutoFix(ctx context.Context, scenarioName string, dryRun bool) (*AutoFixResult, error)
 }
 
 func (r *HealRequest) normalize() error {
