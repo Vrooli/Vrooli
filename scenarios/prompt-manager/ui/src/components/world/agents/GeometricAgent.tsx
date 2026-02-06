@@ -77,6 +77,11 @@ export function GeometricAgent({
   const leftArmRef = useRef<Group>(null)
   const rightArmRef = useRef<Group>(null)
 
+  // Reusable vectors for world position and movement detection (avoids GC pressure)
+  const worldPosVec = useRef(new THREE.Vector3())
+  const prevWorldPos = useRef(new THREE.Vector3())
+  const isMovingRef = useRef(false)
+
   // Animation state
   const animationState = useRef({
     time: 0,
@@ -150,15 +155,23 @@ export function GeometricAgent({
     const state = animationState.current
     state.time += delta
 
-    // ===== LOD CALCULATION (every 5 frames) =====
+    // ===== LOD CALCULATION & MOVEMENT DETECTION (every 5 frames) =====
     lodFrameCountRef.current++
     if (lodFrameCountRef.current % 5 === 0) {
-      // Calculate distance from camera
-      const dx = position[0] - camera.position.x
-      const dy = position[1] - camera.position.y
-      const dz = position[2] - camera.position.z
+      // Calculate distance from camera using world position (parent group handles locomotion)
+      groupRef.current.getWorldPosition(worldPosVec.current)
+      const dx = worldPosVec.current.x - camera.position.x
+      const dy = worldPosVec.current.y - camera.position.y
+      const dz = worldPosVec.current.z - camera.position.z
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
       lodDistanceRef.current = distance
+
+      // Detect movement by comparing world position to previous frame
+      const moveDx = worldPosVec.current.x - prevWorldPos.current.x
+      const moveDz = worldPosVec.current.z - prevWorldPos.current.z
+      const moveDist = Math.sqrt(moveDx * moveDx + moveDz * moveDz)
+      isMovingRef.current = moveDist > 0.01
+      prevWorldPos.current.copy(worldPosVec.current)
 
       // Calculate LOD level (uses store's thresholds)
       const lodLevel = useLODStore.getState().calculateLODLevel(distance)
@@ -175,6 +188,33 @@ export function GeometricAgent({
       // Just update position for potential re-entry
       groupRef.current.position.set(position[0], position[1], position[2])
       return
+    }
+
+    // ===== WALKING ANIMATION (when locomotion is active) =====
+    if (isMovingRef.current) {
+      // Bobbing motion while walking
+      const walkBob = Math.sin(state.time * 8) * 0.04
+      groupRef.current.position.y = position[1] + walkBob
+      groupRef.current.position.x = position[0]
+
+      // Slight forward lean while walking
+      if (bodyRef.current) {
+        bodyRef.current.rotation.x = -0.15
+      }
+
+      // Arm swing while walking
+      if (lodLevel === 'high' || lodLevel === 'medium') {
+        const armSwing = Math.sin(state.time * 8) * 0.4
+        if (leftArmRef.current) leftArmRef.current.rotation.x = armSwing
+        if (rightArmRef.current) rightArmRef.current.rotation.x = -armSwing
+      }
+      return // Skip idle animations while walking
+    }
+
+    // Reset walking lean when stopping
+    if (bodyRef.current && bodyRef.current.rotation.x !== 0) {
+      bodyRef.current.rotation.x *= 0.85 // Smooth ease back to upright
+      if (Math.abs(bodyRef.current.rotation.x) < 0.001) bodyRef.current.rotation.x = 0
     }
 
     // ===== IDLE FLOATING ANIMATION (all LOD levels except culled) =====

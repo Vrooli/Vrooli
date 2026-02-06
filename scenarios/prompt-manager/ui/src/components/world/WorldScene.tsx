@@ -27,7 +27,7 @@ import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, Moon, Procedura
 import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
-import { useIsPlacing } from '@/stores/worldEditorStore'
+import { useIsPlacing, useIsEditMode } from '@/stores/worldEditorStore'
 import { calculateStarOpacity } from '@/lib/sky/sunPosition'
 import type { Agent } from '@/types/agent'
 import type { FurnitureInstance } from '@/types/furniture'
@@ -149,6 +149,7 @@ export function WorldScene({
   // Disable orbit controls during drag
   const isDragging = useInteractionStore((state) => state.isDragging)
   const isPlacing = useIsPlacing()
+  const isEditMode = useIsEditMode()
 
   // Environment config for ground styling
   const currentEnv = useEnvironmentStore((state) => state.current)
@@ -250,12 +251,12 @@ export function WorldScene({
       {/* Furniture and Decorations */}
       <FurnitureManager
         interactive={!isPlacing}
-        draggable={!isPlacing}
+        draggable={isEditMode && !isPlacing}
         onFurnitureClick={onFurnitureClick}
       />
       <DecorationManager
         interactive={!isPlacing}
-        draggable={!isPlacing}
+        draggable={isEditMode && !isPlacing}
       />
 
       {/* Render all agents with accessories and overlays */}

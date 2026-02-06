@@ -115,6 +115,7 @@ export function WorldCanvas({
   const focusedAgent = agents.find((a) => a.id === focusedAgentId) ?? null
 
   // Furniture and seating state
+  const furnitureList = useFurnitureStore((state) => state.furniture)
   const seatedAgents = useFurnitureStore((state) => state.seatedAgents)
   const seatAgent = useFurnitureStore((state) => state.seatAgent)
   const unseatAgent = useFurnitureStore((state) => state.unseatAgent)
@@ -149,7 +150,7 @@ export function WorldCanvas({
         seatRotation: 0,
       }
     })
-  }, [agents, getAgentSeatPosition])
+  }, [agents, getAgentSeatPosition, seatedAgents, furnitureList])
 
   // Get position of focused agent (for camera targeting)
   const focusedAgentPosition = useMemo(() => {

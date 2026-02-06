@@ -3,7 +3,9 @@
  * Provides a complete agent representation with all visual enhancements.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import type { Group } from 'three'
 import { GeometricAgent } from './GeometricAgent'
 import { BackpackAccessory } from '../accessories/BackpackAccessory'
 import { HeadAccessory } from '../accessories/HeadAccessory'
@@ -99,12 +101,72 @@ export function AgentWithAccessories({
     [colors, agent.appearance]
   )
 
+  // ===== LOCOMOTION =====
+  // Smoothly interpolate the wrapper group toward the target position.
+  // Children use local coordinates [0,0,0] so they move with the group.
+  //
+  // IMPORTANT: We store the target in a ref and drive all movement from
+  // useFrame.  The <group> receives NO position prop after mount so that
+  // R3F's reconciler doesn't overwrite the in-progress interpolation.
+  const locomotionRef = useRef<Group>(null)
+  const targetRef = useRef<[number, number, number]>(position)
+  targetRef.current = position // always latest target
+
+  const LOCOMOTION_SPEED = 3 // world units per second
+  const ARRIVAL_THRESHOLD = 0.05
+
+  useFrame((_, delta) => {
+    if (!locomotionRef.current) return
+
+    const pos = locomotionRef.current.position
+    const [tx, ty, tz] = targetRef.current
+    const dx = tx - pos.x
+    const dy = ty - pos.y
+    const dz = tz - pos.z
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    if (dist < ARRIVAL_THRESHOLD) {
+      pos.set(tx, ty, tz)
+      // Smoothly reset locomotion group rotation to 0 after arriving
+      // (GeometricAgent handles seatRotation in its own frame loop)
+      if (Math.abs(locomotionRef.current.rotation.y) > 0.01) {
+        locomotionRef.current.rotation.y *= 1 - Math.min(1, 8 * delta)
+      } else {
+        locomotionRef.current.rotation.y = 0
+      }
+      return
+    }
+
+    const step = Math.min(LOCOMOTION_SPEED * delta, dist)
+    const ratio = step / dist
+    pos.x += dx * ratio
+    pos.y += dy * ratio
+    pos.z += dz * ratio
+
+    // Face direction of movement while walking
+    if (dist > ARRIVAL_THRESHOLD * 2) {
+      const targetYaw = Math.atan2(dx, dz)
+      const currentYaw = locomotionRef.current.rotation.y
+      let yawDiff = targetYaw - currentYaw
+      // Normalize to [-PI, PI]
+      while (yawDiff > Math.PI) yawDiff -= Math.PI * 2
+      while (yawDiff < -Math.PI) yawDiff += Math.PI * 2
+      locomotionRef.current.rotation.y += yawDiff * Math.min(1, 5 * delta)
+    }
+  })
+
+  // Local origin for children (parent group handles world position)
+  const LOCAL_ORIGIN: [number, number, number] = [0, 0, 0]
+
+  // Initial position only — useFrame drives all subsequent movement
+  const initialPosition = useRef(position)
+
   return (
-    <group {...(enableHover ? hoverProps : {})}>
+    <group ref={locomotionRef} position={initialPosition.current} {...(enableHover ? hoverProps : {})}>
       {/* Base agent model */}
       <GeometricAgent
         agentId={agent.id}
-        position={position}
+        position={LOCAL_ORIGIN}
         cursorPosition={cursorPosition}
         selectedNodes={selectedNodes}
         isAnimating={isAnimating}
@@ -117,7 +179,7 @@ export function AgentWithAccessories({
 
       {/* Accessories */}
       {showAccessories && (
-        <group position={position}>
+        <group>
           {/* Back accessory from store */}
           {storedAccessories.back.type !== 'none' && (
             <BackpackAccessory
@@ -173,7 +235,7 @@ export function AgentWithAccessories({
       {/* Hover glow effect - uses agent's accent color */}
       <HoverGlow
         isActive={isHovered}
-        position={position}
+        position={LOCAL_ORIGIN}
         size={0.8}
         color={agentColors.accent || '#6366f1'}
         intensity={0.6}
@@ -184,7 +246,7 @@ export function AgentWithAccessories({
         <AgentOverlayGroup
           agentId={agent.id}
           name={agent.displayName}
-          position={position}
+          position={LOCAL_ORIGIN}
           isHovered={isHovered}
         />
       )}

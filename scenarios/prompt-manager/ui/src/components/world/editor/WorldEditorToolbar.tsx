@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
+import { useCameraStore } from '@/stores/cameraStore'
 
 interface WorldEditorToolbarProps {
   className?: string
@@ -25,8 +26,10 @@ interface WorldEditorToolbarProps {
  */
 export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
   const isEditMode = useWorldEditorStore((state) => state.isEditMode)
-  const toggleEditMode = useWorldEditorStore((state) => state.toggleEditMode)
+  const setEditMode = useWorldEditorStore((state) => state.setEditMode)
   const togglePalette = useWorldEditorStore((state) => state.togglePalette)
+  const setTopDown = useCameraStore((state) => state.setTopDown)
+  const setFreeform = useCameraStore((state) => state.setFreeform)
   const isPaletteOpen = useWorldEditorStore((state) => state.isPaletteOpen)
   const selectedObject = useWorldEditorStore((state) => state.selectedObject)
   const deleteSelected = useWorldEditorStore((state) => state.deleteSelected)
@@ -34,6 +37,16 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
   const redo = useWorldEditorStore((state) => state.redo)
   const actionHistory = useWorldEditorStore((state) => state.actionHistory)
   const redoStack = useWorldEditorStore((state) => state.redoStack)
+
+  const handleToggleEditMode = useCallback(() => {
+    const entering = !isEditMode
+    setEditMode(entering)
+    if (entering) {
+      setTopDown()
+    } else {
+      setFreeform()
+    }
+  }, [isEditMode, setEditMode, setTopDown, setFreeform])
 
   const handleDelete = useCallback(() => {
     if (selectedObject) {
@@ -47,7 +60,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
       <Button
         variant="ghost"
         size="sm"
-        onClick={toggleEditMode}
+        onClick={handleToggleEditMode}
         className={`h-8 px-2 gap-1.5 ${
           isEditMode
             ? 'bg-indigo-500/30 text-indigo-300 hover:bg-indigo-500/40'

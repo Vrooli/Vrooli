@@ -69,6 +69,7 @@ export function NameTag({
           shadow-lg
           border border-border/50
           transition-opacity duration-200
+          max-w-[15rem] truncate
           ${isHovered ? 'opacity-100' : 'opacity-80'}
         `}
       >
