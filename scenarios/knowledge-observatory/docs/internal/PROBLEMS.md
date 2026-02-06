@@ -1,5 +1,24 @@
 # Problems and Solutions Log
 
+## 2026-02-05: Quality Score Formula Mismatch Between Schema and Code
+
+### Problem
+The `avg_quality` generated column in `quality_metrics` (schema.sql) uses a different formula than the Go code in `metrics.go`.
+
+- **Schema**: `avg_quality = (coherence + freshness + redundancy + coverage) / 4` — treats redundancy as a positive signal and divides by 4.
+- **Code** (metrics.go ~line 398): `score = (coherence + freshness + coverage - redundancy) / 3.0` — subtracts redundancy (higher redundancy = worse) and divides by 3.
+
+### Impact
+The database-computed `avg_quality` and the API-returned overall score will diverge for any collection with non-zero redundancy. Dashboard metrics may show inconsistent values depending on which path is read.
+
+### Recommended Fix
+Align the schema generated column with the code formula, or vice versa. The code formula (`- redundancy / 3`) is likely correct since high redundancy is undesirable.
+
+[CODE: api/metrics.go]
+[CODE: initialization/postgres/schema.sql]
+
+---
+
 ## 2026-01-26: Schema Re-apply Emits Index/Trigger Errors
 
 ### Problem

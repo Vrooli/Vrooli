@@ -58,6 +58,10 @@ func (s *Server) handleDocsContent(w http.ResponseWriter, r *http.Request) {
 		respondDocViewerError(w, err)
 		return
 	}
+	if scenario := extractScenarioFromPath(result.Path); scenario != "" {
+		s.logDocAccess(r.Context(), scenario, result.DocType, "read")
+	}
+
 	var resetConfig *DocsResetConfig
 	if result.ResetConfig != nil {
 		resetConfig = &DocsResetConfig{
@@ -99,6 +103,10 @@ func (s *Server) handleDocsViewerReset(w http.ResponseWriter, r *http.Request) {
 		respondDocViewerError(w, err)
 		return
 	}
+	if scenario := extractScenarioFromPath(result.Path); scenario != "" {
+		s.logDocAccess(r.Context(), scenario, result.DocType, "reset")
+	}
+
 	response := DocsResetResponse{
 		Path:           result.Path,
 		DocType:        result.DocType,

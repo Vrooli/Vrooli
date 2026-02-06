@@ -100,6 +100,30 @@ type RelationshipEdgeRow struct {
 	Weight           float64
 }
 
+type DocAccessLogger interface {
+	LogAccess(ctx context.Context, row DocAccessRow) error
+	QueryStats(ctx context.Context, filter DocAccessFilter) ([]DocAccessStat, error)
+}
+
+type DocAccessRow struct {
+	ScenarioName string
+	DocType      string
+	Operation    string // "read", "write", "reset"
+}
+
+type DocAccessFilter struct {
+	ScenarioName string
+	DocType      string
+}
+
+type DocAccessStat struct {
+	ScenarioName string
+	DocType      string
+	ReadCount    int
+	WriteCount   int
+	ResetCount   int
+}
+
 type JobStore interface {
 	EnqueueDocumentIngest(ctx context.Context, req DocumentIngestJobRequest) (jobID string, err error)
 	GetJob(ctx context.Context, jobID string) (JobStatus, bool, error)

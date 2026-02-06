@@ -131,6 +131,8 @@ func (s *Server) handleDocsReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.logDocAccess(r.Context(), scenarioName, string(docType), "reset")
+
 	response := DocResetResponse{
 		ScenarioName:   scenarioName,
 		DocType:        string(docType),

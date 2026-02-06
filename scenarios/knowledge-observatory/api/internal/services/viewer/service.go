@@ -15,6 +15,11 @@ var (
 	ErrDocNotFound        = errors.New("document not found")
 	ErrFormatInvalid      = errors.New("format is invalid")
 	ErrResetUnsupported   = errors.New("reset is not supported for this document")
+	ErrDocTypeInvalid     = errors.New("invalid document type")
+	ErrScenarioRequired   = errors.New("scenario name is required")
+	ErrScenarioInvalid    = errors.New("scenario name is invalid")
+	ErrAppendUnsupported  = errors.New("append is not supported for this document type")
+	ErrTitleRequired      = errors.New("title is required")
 )
 
 type ContentFormat string

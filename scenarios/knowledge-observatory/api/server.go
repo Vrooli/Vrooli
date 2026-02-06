@@ -26,6 +26,7 @@ import (
 
 	"knowledge-observatory/internal/adapters/agentmanager"
 	"knowledge-observatory/internal/adapters/deepsearchstore"
+	"knowledge-observatory/internal/adapters/docaccessstore"
 	"knowledge-observatory/internal/adapters/dochealingstore"
 	"knowledge-observatory/internal/adapters/embedder"
 	"knowledge-observatory/internal/adapters/jobstore"
@@ -81,6 +82,8 @@ type Server struct {
 	docViewerService     *viewer.Service
 	docDeepSearchService deepsearch.API
 	docHealingService    dochealing.API
+
+	docAccessLogger ports.DocAccessLogger
 
 	ingestJobRunner *ingestjobs.Runner
 	materializer    *Materializer
@@ -258,6 +261,10 @@ func (s *Server) setupServices() {
 		}
 	}
 
+	if s.db != nil {
+		s.docAccessLogger = &docaccessstore.Postgres{DB: s.db}
+	}
+
 	if js != nil {
 		s.ingestJobRunner = &ingestjobs.Runner{
 			Jobs:      js,
@@ -308,6 +315,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/docs/search/unified", s.handleDocsSearchUnified).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/deep", s.handleDocsSearchDeep).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/deep/{job_id}", s.handleDocsSearchDeepStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/{doc_type}/content", s.handleDocsReadByType).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/{doc_type}/entries", s.handleDocsAppendEntry).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/stats", s.handleDocsAccessStats).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/content", s.handleDocsContent).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/reset", s.handleDocsViewerReset).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/heal/{job_id}", s.handleDocsHealStatus).Methods("GET")

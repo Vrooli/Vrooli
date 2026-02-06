@@ -90,7 +90,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	docs := cliapp.CommandGroup{
 		Title: "Documentation",
 		Commands: []cliapp.Command{
-			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (search-files, search-text, search-deep, scenarios, tree, health, view, reset, heal, heal-status)", Run: a.cmdDocs},
+			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (search-files, search-text, search-deep, scenarios, tree, health, view, reset, heal, heal-status, read, add, stats)", Run: a.cmdDocs},
 		},
 	}
 
@@ -286,7 +286,7 @@ func (a *App) cmdGraph(args []string) error {
 
 func (a *App) cmdDocs(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: docs <search-files|search-text|search-deep|scenarios|tree|health|view|reset|heal|heal-status> [options]")
+		return fmt.Errorf("usage: docs <search-files|search-text|search-deep|scenarios|tree|health|view|reset|heal|heal-status|read|add|stats> [options]")
 	}
 	subcommand := strings.TrimSpace(args[0])
 	switch subcommand {
@@ -310,6 +310,12 @@ func (a *App) cmdDocs(args []string) error {
 		return a.cmdDocsHeal(args[1:])
 	case "heal-status":
 		return a.cmdDocsHealStatus(args[1:])
+	case "read":
+		return a.cmdDocsRead(args[1:])
+	case "add":
+		return a.cmdDocsAdd(args[1:])
+	case "stats":
+		return a.cmdDocsStats(args[1:])
 	default:
 		return fmt.Errorf("unknown docs subcommand: %s", subcommand)
 	}
@@ -665,6 +671,102 @@ func (a *App) cmdDocsHealStatus(args []string) error {
 	return a.printJSON(body)
 }
 
+func (a *App) cmdDocsRead(args []string) error {
+	fs := flag.NewFlagSet("docs read", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	doc := fs.String("doc", "", "Document type (problems, progress)")
+	format := fs.String("format", "raw", "Format: raw, highlighted, or preview")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	scenarioValue := strings.TrimSpace(*scenario)
+	docValue := strings.TrimSpace(*doc)
+
+	// Support positional: docs read <scenario> <type>
+	positional := fs.Args()
+	if scenarioValue == "" && len(positional) > 0 {
+		scenarioValue = strings.TrimSpace(positional[0])
+		positional = positional[1:]
+	}
+	if docValue == "" && len(positional) > 0 {
+		docValue = strings.TrimSpace(positional[0])
+	}
+
+	if scenarioValue == "" || docValue == "" {
+		return fmt.Errorf("usage: docs read <scenario> <type> [--format=raw]")
+	}
+
+	query := url.Values{}
+	formatValue := strings.TrimSpace(*format)
+	if formatValue != "" {
+		query.Set("format", formatValue)
+	}
+
+	body, err := a.doRequest("GET", fmt.Sprintf("/scenarios/%s/docs/%s/content", scenarioValue, docValue), query, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsAdd(args []string) error {
+	fs := flag.NewFlagSet("docs add", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	doc := fs.String("doc", "", "Document type (problems, progress)")
+	title := fs.String("title", "", "Entry title (required)")
+	body := fs.String("body", "", "Entry body/notes")
+	author := fs.String("author", "", "Author (for progress entries)")
+	status := fs.String("status", "", "Status (for progress entries)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	scenarioValue := strings.TrimSpace(*scenario)
+	docValue := strings.TrimSpace(*doc)
+	titleValue := strings.TrimSpace(*title)
+
+	if scenarioValue == "" || docValue == "" || titleValue == "" {
+		return fmt.Errorf("usage: docs add --scenario <name> --doc <type> --title \"...\" [--body \"...\"] [--author \"...\"] [--status \"...\"]")
+	}
+
+	req := docsAddEntryRequest{
+		Title:  titleValue,
+		Body:   strings.TrimSpace(*body),
+		Author: strings.TrimSpace(*author),
+		Status: strings.TrimSpace(*status),
+	}
+
+	respBody, err := a.doRequest("POST", fmt.Sprintf("/scenarios/%s/docs/%s/entries", scenarioValue, docValue), nil, req)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(respBody)
+}
+
+func (a *App) cmdDocsStats(args []string) error {
+	fs := flag.NewFlagSet("docs stats", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Filter by scenario name")
+	doc := fs.String("doc", "", "Filter by document type")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if s := strings.TrimSpace(*scenario); s != "" {
+		query.Set("scenario", s)
+	}
+	if d := strings.TrimSpace(*doc); d != "" {
+		query.Set("doc_type", d)
+	}
+
+	body, err := a.doRequest("GET", "/docs/stats", query, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
 func (a *App) cmdIngest(args []string) error {
 	fs := flag.NewFlagSet("ingest", flag.ContinueOnError)
 	namespace := fs.String("namespace", "", "Namespace for the record")
@@ -930,6 +1032,13 @@ type docsDeepSearchJob struct {
 	JobID  string `json:"job_id"`
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
+}
+
+type docsAddEntryRequest struct {
+	Title  string `json:"title"`
+	Body   string `json:"body,omitempty"`
+	Author string `json:"author,omitempty"`
+	Status string `json:"status,omitempty"`
 }
 
 type docsResetRequest struct {

@@ -184,6 +184,15 @@ CREATE TABLE IF NOT EXISTS knowledge_observatory.user_preferences (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Document access log for tracking reads, writes, and resets
+CREATE TABLE IF NOT EXISTS knowledge_observatory.doc_access_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scenario_name VARCHAR(255) NOT NULL,
+    doc_type VARCHAR(50) NOT NULL,
+    operation VARCHAR(10) NOT NULL CHECK (operation IN ('read', 'write', 'reset')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for performance (idempotent)
 CREATE INDEX IF NOT EXISTS idx_quality_metrics_collection ON knowledge_observatory.quality_metrics(collection_name);
 CREATE INDEX IF NOT EXISTS idx_quality_metrics_measured_at ON knowledge_observatory.quality_metrics(measured_at DESC);
@@ -206,6 +215,8 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_metadata_source ON knowledge_observator
 CREATE INDEX IF NOT EXISTS idx_alerts_level ON knowledge_observatory.alerts(level) WHERE NOT acknowledged;
 CREATE INDEX IF NOT EXISTS idx_relationships_source ON knowledge_observatory.knowledge_relationships(source_id);
 CREATE INDEX IF NOT EXISTS idx_relationships_target ON knowledge_observatory.knowledge_relationships(target_id);
+CREATE INDEX IF NOT EXISTS idx_doc_access_log_scenario ON knowledge_observatory.doc_access_log(scenario_name);
+CREATE INDEX IF NOT EXISTS idx_doc_access_log_created ON knowledge_observatory.doc_access_log(created_at DESC);
 
 -- Create update trigger for updated_at columns
 CREATE OR REPLACE FUNCTION knowledge_observatory.update_updated_at_column()

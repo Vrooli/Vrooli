@@ -64,11 +64,10 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 - **Web UI**: Mission control style dashboard (dynamically allocated port 35000-39999)
 - **PostgreSQL**: Metadata and metrics storage
 - **Qdrant**: Vector database being monitored
-- **N8n Workflows**: Automated quality monitoring
 
 ### Resource Dependencies
 - **Required**: Qdrant, PostgreSQL
-- **Optional**: N8n, Ollama (for enhanced analysis)
+- **Optional**: Ollama (for embeddings and structured output), agent-manager + prompt-manager (for deep search and doc healing)
 
 ## 📖 Usage
 
