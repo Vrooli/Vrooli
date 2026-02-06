@@ -7,13 +7,13 @@ Your goal is to turn “something went wrong” into **clear categories with exp
 Do **not** regress tests, weaken protections, or introduce unrelated features. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
 
 ---
 
 ### **1. Clarify Error Domains & Categories**
 
-* **If `docs/internal/ERROR-SEMANTICS.md` exists**, read it first to understand what error categories and recovery paths have been defined.
+* Read the `error-semantics` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing error categories and recovery paths.
 
 * Examine where the scenario can fail across:
   * UI interactions
@@ -212,16 +212,7 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 ### **8. Documentation**
 
-Update `docs/internal/ERROR-SEMANTICS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Error categories discovered or refined
-* Recovery paths for each category
-* Error patterns improved and what remains
+Use `knowledge-observatory-tools` to read the current `error-semantics` doc for `{{TARGET}}`, then update it with your findings (error categories discovered/refined, recovery paths, error patterns improved and remaining).
 
 ---
 

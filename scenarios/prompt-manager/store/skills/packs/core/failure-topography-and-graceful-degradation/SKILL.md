@@ -9,11 +9,14 @@ Your goals are to:
 
 Do **not** break functionality, regress tests, or introduce new features unrelated to failure handling. All changes must maintain or improve overall completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ---
 
 ### **1. Map Critical Flows & Dependencies**
 
-* **If `docs/internal/ERROR-SEMANTICS.md` exists**, read the Failure Modes section first to understand what failure modes have been mapped.
+* Read the `error-semantics` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing failure modes.
 
 * Identify the scenario's most important flows (e.g. key user journeys, background jobs, external integrations).
 * For each, clarify:
@@ -142,14 +145,4 @@ Avoid superficial changes (e.g. renaming error messages without improving behavi
 
 ### **10. Documentation**
 
-Update the **Failure Modes** section of `docs/internal/ERROR-SEMANTICS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Critical flows and their dependencies
-* Failure modes by flow with scope, frequency, and impact
-* Current behavior vs. desired behavior for each failure mode
-* Graceful degradation patterns implemented
+Use `knowledge-observatory-tools` to read the current `error-semantics` doc for `{{TARGET}}`, then update the **Failure Modes** section with your findings (critical flows, failure modes by scope/frequency/impact, current vs. desired behavior, graceful degradation patterns).

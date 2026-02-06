@@ -14,7 +14,8 @@
   "icon": "trash2",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 44,
+  "defaultScope": "refactor-scope",
+  "revision": 46,
   "createdAt": "2025-01-14T00:00:00Z",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-02-06T14:33:21Z"
 }

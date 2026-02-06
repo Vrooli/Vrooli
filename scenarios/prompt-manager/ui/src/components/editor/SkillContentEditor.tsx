@@ -298,6 +298,10 @@ interface SkillContentEditorProps extends EditorActionState {
   error?: string
   /** Search matches to highlight in the editor */
   searchMatches?: ContentSearchMatch[]
+  /** Line number to scroll to in the editor */
+  scrollToLine?: number | null
+  /** Called after the editor has scrolled to the requested line */
+  onScrollToLineHandled?: () => void
   className?: string
   headerLeft?: ReactNode
   headerRight?: ReactNode
@@ -312,6 +316,8 @@ export function SkillContentEditor({
   onChange,
   error,
   searchMatches = [],
+  scrollToLine,
+  onScrollToLineHandled,
   isDirty = false,
   dirtyCount = 0,
   onUndo,
@@ -491,6 +497,22 @@ export function SkillContentEditor({
       }
     }
   }, [monaco, searchMatches, editorType, editorReady, value])
+
+  // Scroll to a specific line when requested (e.g. clicking a content search result)
+  useEffect(() => {
+    if (scrollToLine == null || !editorRef.current || !editorReady) return
+    if (editorType !== 'code') return
+
+    const editor = editorRef.current
+    // Use requestAnimationFrame to ensure the editor has rendered after skill switch
+    const frameId = requestAnimationFrame(() => {
+      editor.revealLineInCenter(scrollToLine)
+      editor.setPosition({ lineNumber: scrollToLine, column: 1 })
+      onScrollToLineHandled?.()
+    })
+
+    return () => cancelAnimationFrame(frameId)
+  }, [scrollToLine, editorReady, editorType, onScrollToLineHandled])
 
   // Handle mode switching with validation warning and round-trip blocking
   const handleEditorTypeChange = useCallback(

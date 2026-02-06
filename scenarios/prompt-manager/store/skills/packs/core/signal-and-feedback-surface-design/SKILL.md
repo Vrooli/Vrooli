@@ -6,11 +6,14 @@ Your goal is to ensure that important states, transitions, and failures are surf
 
 Do **not** break functionality, regress tests, or introduce new observability stacks. All changes must maintain or improve completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ---
 
 ### **1. Clarify What Must Be Observable**
 
-* **If `docs/internal/SEAMS.md` exists**, read the Observability Surface section first to understand what observability patterns have been documented.
+* Read the `seams` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing observability surface documentation.
 
 * Using the PRD, operational targets, and main workflows, identify:
   * key states the scenario can be in (idle, in-progress, degraded, blocked, etc.)
@@ -133,14 +136,4 @@ Focus this loop on **practical, targeted improvements to how the scenario commun
 
 ### **10. Documentation**
 
-Update the **Observability Surface** section of `docs/internal/SEAMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Key states and transitions that must be observable
-* Signal inventory: logs, status fields, UI feedback, metrics
-* Gaps where important events happen silently
-* Improvements made and remaining signal debt
+Use `knowledge-observatory-tools` to read the current `seams` doc for `{{TARGET}}`, then update the **Observability Surface** section with your findings (key observable states/transitions, signal inventory, gaps, remaining signal debt).

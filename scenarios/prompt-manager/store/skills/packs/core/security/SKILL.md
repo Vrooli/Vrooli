@@ -5,7 +5,7 @@ Prioritize **improving the security posture** of this scenario across its UI, AP
 Do **not** break functionality, regress tests, or weaken existing protections. All changes must maintain or improve overall completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
 
 Focus on **practical, high-impact security improvements**, guided by these principles:
 
@@ -13,7 +13,7 @@ Focus on **practical, high-impact security improvements**, guided by these princ
 
 ### **1. Protect Sensitive Data**
 
-* **If `docs/internal/SECURITY-POSTURE.md` exists**, read it first to understand what security hardening has been completed.
+* Read the `security-posture` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing security hardening status.
 
 * Identify where sensitive data is **stored, transmitted, or logged** (e.g. credentials, tokens, keys, personal data).
 * Avoid logging secrets or sensitive identifiers; ensure logs contain enough context to debug without leaking private data.
@@ -111,15 +111,4 @@ Avoid superficial changes (e.g. renaming symbols or shuffling code) that do not 
 
 ### **9. Documentation**
 
-Update `docs/internal/SECURITY-POSTURE.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Sensitive data locations and protection status
-* Authentication/authorization gaps and their status
-* Input validation coverage by boundary
-* Attack surface areas and mitigations applied
-* Security improvements completed and remaining risks
+Use `knowledge-observatory-tools` to read the current `security-posture` doc for `{{TARGET}}`, then update it with your findings (sensitive data locations, auth gaps, input validation coverage, attack surface mitigations, remaining risks).

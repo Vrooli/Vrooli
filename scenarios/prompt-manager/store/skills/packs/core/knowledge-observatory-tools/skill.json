@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "knowledge-observatory-tools",
+  "name": "Knowledge Observatory Tools",
+  "description": "Use knowledge-observatory docs to read, write, search, and maintain scenario documentation through the CLI.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "knowledge-observatory",
+    "documentation",
+    "docs",
+    "workflow"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-05T00:00:00Z",
+  "updatedAt": "2026-02-05T00:00:00Z"
+}

@@ -6,6 +6,9 @@ Your goal is to keep behavior the same while tightening **who owns what**: prese
 
 Do **not** break functionality, regress tests, or introduce new product features. All changes must maintain or improve completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ---
 
 ### **1. Identify the Major Responsibility Areas**
@@ -101,12 +104,7 @@ If you discover a responsibility tangle that would require a broad, risky change
 
 ### **7. Documentation**
 
-Update `docs/internal/SEAMS.md` to reflect your findings:
-
-* The code is the source of truth, not the document. Verify claims in existing documentation against actual code before extending or preserving them.
-* If the file exists, correct any inaccuracies and extend with your findings.
-* If a SEAMS.md exists at the scenario root or directly under `docs/`, consolidate into `docs/internal/SEAMS.md` and remove the duplicate.
-* Create the `docs/internal/` directory if needed.
+Use `knowledge-observatory-tools` to read the current `seams` doc for `{{TARGET}}`, then update it with your findings (responsibility zones clarified, boundary violations fixed, remaining ownership issues).
 
 ---
 

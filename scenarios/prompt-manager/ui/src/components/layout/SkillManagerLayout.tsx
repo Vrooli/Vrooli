@@ -130,6 +130,9 @@ export function SkillManagerLayout() {
   // Content search matches (for editor highlighting)
   const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([])
 
+  // Line number to scroll to in the editor (set when clicking a content search result)
+  const [scrollToLine, setScrollToLine] = useState<number | null>(null)
+
   // Filter matches to only those for the currently selected skill
   const currentSkillMatches = useMemo(() => {
     if (!selectedSkillId || searchMode !== 'content') {
@@ -503,9 +506,12 @@ export function SkillManagerLayout() {
 
   // Handle item selection - new architecture supports multi-prompt editing
   const handleSelectItem = useCallback(
-    (id: string) => {
+    (id: string, lineNumber?: number) => {
       // Changes are auto-saved to store, just switch
       setSelectedSkillId(id)
+
+      // Store line number so the editor scrolls to it
+      setScrollToLine(lineNumber ?? null)
 
       // Close mobile sidebar after selection
       if (isMobile) {
@@ -1103,6 +1109,8 @@ export function SkillManagerLayout() {
                 isSaving={isSaving}
                 isDeleting={isDeleting}
                 searchMatches={currentSkillMatches}
+                scrollToLine={scrollToLine}
+                onScrollToLineHandled={() => setScrollToLine(null)}
                 className="h-full"
               />
             )}

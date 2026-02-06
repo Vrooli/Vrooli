@@ -6,11 +6,14 @@ A “decision” is any place where the system **chooses between alternatives** 
 
 Do **not** break functionality, regress tests, or change business rules except to fix clearly incorrect behavior. All changes must maintain or improve completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 * * *
 
 ### **1\. Identify Decisions and Their Context**
 
-\* **If `docs/internal/SEAMS.md` exists**, read the Decision Points section first to understand what has already been documented.
+\* Read the `seams` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing decision points documentation.
 
 \* Scan the scenario for **decision points**, such as:  
 \* conditionals (`if/else`, switches, guards)  
@@ -117,13 +120,4 @@ Focus this loop on **practical, targeted improvements** that make the scenario's
 
 ### **8\. Documentation**
 
-Update the **Decision Points** section of `docs/internal/SEAMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Major decisions identified: what is being decided, criteria, branches, outcomes
-* Decision groupings: where related decisions live (e.g., "all permission decisions in pkg/auth/")
-* Decision points that are well-extracted vs. those that remain scattered
+Use `knowledge-observatory-tools` to read the current `seams` doc for `{{TARGET}}`, then update the **Decision Points** section with your findings (major decisions identified, decision groupings, well-extracted vs. scattered decision points).

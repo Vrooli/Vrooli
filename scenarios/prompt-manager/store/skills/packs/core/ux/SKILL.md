@@ -4,13 +4,13 @@ Prioritize **user experience quality** across all interfaces in this scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
 
 Focus on producing a **professional, polished, friction-free user experience**, guided by the following principles:
 
 ### **1. Clarity & Understanding**
 
-* **If `docs/internal/PROBLEMS.md` exists**, read the UX Issues section first to understand what UX issues have been identified.
+* Read the `problems` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing UX issues.
 
 * Ensure all UI elements have **clear affordances and signifiers** indicating how they should be used.
 * Add **help buttons, tooltips, hint text, or short explainer components** wherever concepts, parameters, or interactions may be confusing.
@@ -95,15 +95,4 @@ Focus the loop on delivering **practical, targeted UX improvements** that make t
 
 ### **9. Documentation**
 
-Update the **UX Issues** section of `docs/internal/PROBLEMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* High-friction areas discovered and their status
-* Clarity/understanding gaps (missing tooltips, confusing labels)
-* Mobile responsiveness issues
-* Empty/loading/error state improvements made
-* Remaining UX debt and priorities
+Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **UX Issues** section with your findings (high-friction areas, clarity gaps, mobile responsiveness issues, empty/loading/error state improvements, remaining UX debt).

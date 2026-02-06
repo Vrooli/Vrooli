@@ -2,8 +2,8 @@
   "kind": "skill",
   "schemaVersion": 1,
   "id": "landing-page-desktop-upload",
-  "name": "Landing Page Desktop Uploads",
-  "description": "Upload scenario-to-desktop installers into landing-page-business-suite downloads locally or via remote profiles",
+  "name": "Landing Page Desktop Deploy Setup",
+  "description": "Set up LPBS prerequisites for desktop deployment via scenario-to-desktop's deploy stage",
   "modes": [
     "tools"
   ],
@@ -12,13 +12,14 @@
     "downloads",
     "desktop",
     "upload",
+    "deployment",
     "remote-profiles",
     "scenario-to-desktop"
   ],
   "icon": "upload",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 2,
+  "revision": 4,
   "createdAt": "2026-02-04T23:30:00Z",
-  "updatedAt": "2026-02-05T02:19:59Z"
+  "updatedAt": "2026-02-05T23:00:00Z"
 }

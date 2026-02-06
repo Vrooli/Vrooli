@@ -8,9 +8,12 @@ Focus on **reducing code surface area** by eliminating artifacts that AI agents 
 
 ---
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ### **1. The Problem: AI Agent Accumulation Patterns**
 
-* **If `docs/internal/PROBLEMS.md` exists**, read the Cleanup History section first to understand what cleanup work has been done.
+* Read the `problems` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing cleanup history.
 
 AI coding agents leave behind old implementations "for safety" when making changes. Over time, this accumulates into:
 
@@ -361,16 +364,7 @@ Before marking any file as "cleanup complete," verify:
 
 ### **10. Documentation**
 
-Update the **Cleanup History** section of `docs/internal/PROBLEMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Lines removed and from which files
-* Patterns of dead code found (e.g., "legacy execution paths", "deprecated struct fields")
-* Cleanup candidates that need verification before removal
+Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **Cleanup History** section with your findings (lines removed, dead code patterns found, cleanup candidates needing verification).
 
 ---
 

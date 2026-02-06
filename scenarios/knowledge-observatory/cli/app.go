@@ -284,12 +284,37 @@ func (a *App) cmdGraph(args []string) error {
 	return a.printJSON(body)
 }
 
+func (a *App) docsUsage() string {
+	return `Usage: docs <subcommand> [options]
+
+Subcommands:
+  read          Read a scenario doc by type
+  add           Add a structured entry (problems/progress)
+  view          View a doc by file path
+  search-files  Find files by glob pattern
+  search-text   Full-text search across docs
+  search-deep   Semantic deep search
+  scenarios     List all scenarios with doc stats
+  tree          Show doc tree for a scenario
+  health        Check documentation health
+  heal          Auto-fix documentation health issues
+  heal-status   Check heal job status
+  reset         Clean up stale entries
+  stats         Show read/write/reset stats
+
+Run 'docs <subcommand> --help' for subcommand-specific flags.`
+}
+
 func (a *App) cmdDocs(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: docs <search-files|search-text|search-deep|scenarios|tree|health|view|reset|heal|heal-status|read|add|stats> [options]")
+		fmt.Fprintln(os.Stdout, a.docsUsage())
+		return nil
 	}
 	subcommand := strings.TrimSpace(args[0])
 	switch subcommand {
+	case "help", "--help", "-help", "-h":
+		fmt.Fprintln(os.Stdout, a.docsUsage())
+		return nil
 	case "search-files":
 		return a.cmdDocsSearchFiles(args[1:])
 	case "search-text":
@@ -317,7 +342,7 @@ func (a *App) cmdDocs(args []string) error {
 	case "stats":
 		return a.cmdDocsStats(args[1:])
 	default:
-		return fmt.Errorf("unknown docs subcommand: %s", subcommand)
+		return fmt.Errorf("unknown docs subcommand: %s\n\n%s", subcommand, a.docsUsage())
 	}
 }
 

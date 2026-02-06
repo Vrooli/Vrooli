@@ -10,6 +10,9 @@ BAS is a **browser automation tool** that lets you:
 
 This skill covers **tool usage**. For e2e testing strategy, workflow organization, selector registry setup, and requirements integration, see the **e2e-testing** skill.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 Optional reading:
 - `prompt-manager skills read e2e-testing`
 
@@ -540,18 +543,7 @@ For automated testing patterns, see the **e2e-testing** skill section on "Authen
 
 ### **11. Output Expectations**
 
-When using BAS for investigation, document findings in `docs/internal/PROBLEMS.md` under the E2E Issues section:
-
-**Template:**
-```markdown
-### [Issue Title]
-- **Execution ID:** exec-abc123
-- **Output path:** /tmp/bas/{{TARGET}}/...
-- **Screenshot:** {output-path}/screenshots/step-05-*.png
-- **Root cause:** [What's actually wrong]
-- **Fix:** [What needs to change in source code]
-- **Status:** Pending/Fixed
-```
+When using BAS for investigation, use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then document findings under the **E2E Issues** section with execution IDs, output paths, root causes, fixes, and status.
 
 You may:
 * Execute workflows to validate UI behavior

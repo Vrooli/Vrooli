@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "scenario-to-desktop",
   "name": "Scenario to Desktop",
-  "description": "Convert Vrooli scenarios into cross-platform desktop applications using Electron wrappers, including generation, building, troubleshooting, and distribution",
+  "description": "Convert Vrooli scenarios into cross-platform desktop applications using Electron wrappers, including generation, building, troubleshooting, and deployment",
   "modes": [
     "tools"
   ],
@@ -11,13 +11,13 @@
     "desktop",
     "electron",
     "packaging",
-    "distribution",
+    "deployment",
     "cross-platform"
   ],
   "icon": "monitor",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 47,
+  "revision": 50,
   "createdAt": "2026-01-31T00:00:00Z",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-02-05T23:00:00Z"
 }

@@ -78,6 +78,10 @@ interface SkillEditorPanelProps {
 
   // Search highlighting
   searchMatches?: ContentSearchMatch[]
+  /** Line number to scroll to in the editor */
+  scrollToLine?: number | null
+  /** Called after the editor has scrolled to the requested line */
+  onScrollToLineHandled?: () => void
 
   className?: string
 }
@@ -108,6 +112,8 @@ export function SkillEditorPanel({
   isSaving,
   isDeleting,
   searchMatches = [],
+  scrollToLine,
+  onScrollToLineHandled,
   className,
 }: SkillEditorPanelProps) {
   // Access the selection store for closing the editor
@@ -286,6 +292,8 @@ export function SkillEditorPanel({
             isSaving={isSaving}
             isValid={validation.valid}
             searchMatches={searchMatches}
+            scrollToLine={scrollToLine}
+            onScrollToLineHandled={onScrollToLineHandled}
             className="h-full"
           />
         </div>

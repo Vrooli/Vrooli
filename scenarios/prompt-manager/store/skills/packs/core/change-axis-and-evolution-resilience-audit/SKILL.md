@@ -6,11 +6,14 @@ Your goal is to identify the **main ways this scenario is likely to change** (â€
 
 Do **not** break functionality, regress tests, or introduce new product features. All changes must maintain or improve completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ---
 
 ### **1. Understand the Scenario's Likely Axes of Change**
 
-* **If `docs/internal/SEAMS.md` exists**, read the Change Axes section first to understand what has already been documented.
+* Read the `seams` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing change axes documentation.
 
 * Study the scenario's **PRD, operational targets, and technical requirements** to infer:
   * which parts of the system are most likely to change (e.g. data sources, workflows, policies, UI flows, integrations, pricing, limits)
@@ -90,17 +93,7 @@ This helps future changes remain safe even as the implementation evolves.
 
 ### **7. Documentation**
 
-Update the **Change Axes** section of `docs/internal/SEAMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Primary axes of change identified
-* Current cost of change along each axis (localized vs. scattered)
-* Structural adjustments made to localize changes
-* Areas that still need work
+Use `knowledge-observatory-tools` to read the current `seams` doc for `{{TARGET}}`, then update the **Change Axes** section with your findings (primary axes of change, cost of change along each axis, structural adjustments made, areas needing work).
 
 ---
 

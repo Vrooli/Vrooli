@@ -6,13 +6,13 @@ Do **not** break functionality or regress existing tests; all changes must maint
 Focus on producing a **high-signal, trustworthy test suite** that accurately reflects the scenario’s operational targets and technical requirements.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
 
 ---
 
 ### **1. Align Tests With Operational Targets & Requirements**
 
-* **If `docs/internal/PROBLEMS.md` exists**, read the Test Gaps section first to understand what test gaps have been identified.
+* Read the `problems` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing test gaps.
 
 * For **UI-level validation**, e2e tests are handled by BAS workflows in `bas/` directories. See the **e2e-testing** skill for strategy and the **browser-automation-studio** skill for CLI usage. This skill focuses on unit and integration tests that complement (not duplicate) e2e coverage.
 
@@ -113,15 +113,4 @@ Focus this loop on delivering **practical, high-impact test improvements** that 
 
 ### **8. Documentation**
 
-Update the **Test Gaps** section of `docs/internal/PROBLEMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Critical flows lacking test coverage
-* Flaky or brittle tests identified and their status
-* Assertion quality issues found
-* Test organization improvements made
-* Remaining coverage priorities
+Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **Test Gaps** section with your findings (critical flows lacking coverage, flaky tests, assertion quality issues, remaining coverage priorities).

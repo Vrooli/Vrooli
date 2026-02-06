@@ -1,6 +1,6 @@
-## Tools focus: Landing Page Desktop Uploads
+## Tools focus: Landing Page Desktop Deploy Setup
 
-Use scenario-to-desktop build artifacts and the landing-page-business-suite (LPBS) CLI to upload desktop installers into LPBS downloads, locally or via remote profiles.
+Prepare a landing-page-business-suite (LPBS) instance to receive desktop application deployments from the scenario-to-desktop deploy stage.
 
 Required reading:
 - `prompt-manager skill read scenario-to-desktop`
@@ -9,25 +9,29 @@ Required reading:
 
 ### 1. When to Use This Tool
 
-| Goal | Use this skill? | Primary command |
+| Goal | Use this skill? | Notes |
 |---|---|---|
-| Upload desktop installers into LPBS downloads | Yes | `landing-page-business-suite admin-downloads-upload-managed` |
-| Build installers for a scenario | Use scenario-to-desktop skill | `scenario-to-desktop pipeline run ...` |
-| Deploy LPBS to a VPS | No (use scenario-to-cloud) | — |
-| Update landing page copy/branding | No (use LPBS admin/branding tools) | — |
+| Set up LPBS for desktop deployments | Yes | Prerequisites before s2d deploy can work |
+| Build + deploy desktop apps in one step | Use scenario-to-desktop skill | `pipeline run ... --deploy-to ... --app-key ...` |
+| Build desktop apps without deploying | Use scenario-to-desktop skill only | No deploy flags needed |
+| Deploy LPBS itself to a VPS | No (use scenario-to-cloud) | -- |
 
 ---
 
 ### 2. Scope Boundaries
 
 **In scope:**
-- Uploading scenario-to-desktop artifacts into LPBS downloads
-- Local LPBS uploads and remote LPBS uploads via remote profiles
-- Verifying uploads and current download assets
+- LPBS admin login and session management
+- Download storage configuration (S3-compatible)
+- Download app creation and management
+- Remote profile setup and session validation
+- Setting `LPBS_SERVICE_SECRET` for service-to-service auth
+- Verifying deployment readiness
 
 **Out of scope:**
+- Building desktop artifacts (scenario-to-desktop skill)
+- The actual upload/deploy flow (handled by s2d deploy stage)
 - Deploying LPBS itself (scenario-to-cloud)
-- Building desktop artifacts (handled by scenario-to-desktop skill)
 - Landing page design/content changes
 
 ---
@@ -35,40 +39,48 @@ Required reading:
 ### 3. Manual Inputs Checklist
 
 You will need to supply:
-- `{{TARGET}}` scenario name (for scenario-to-desktop)
-- `{{APP_KEY}}` (download app key in LPBS)
-- `{{PLATFORM}}` (`win`, `mac`, or `linux`)
-- `{{RELEASE_VERSION}}` (e.g., `1.2.3`) **or** auto-discover from scenario-to-desktop
-- Artifact file path (from scenario-to-desktop)
-- Local LPBS admin credentials (for `admin-login`)
-- Remote LPBS credentials + API base (if using remote profiles)
+- `{{APP_KEY}}` download app key for LPBS
+- `{{APP_NAME}}` human-readable app name
+- Local LPBS admin credentials
+- Remote LPBS admin credentials (for remote profile login)
+- Remote LPBS API base URL (from scenario-to-cloud deployment)
 
 ---
 
-### 4. Prerequisites
+### 4. Prerequisites Setup
 
-1) **LPBS must be running locally** (use lifecycle tooling only):
+#### A) Start LPBS locally
+
 ```bash
 vrooli scenario start landing-page-business-suite
 ```
 
-2) **Local admin session stored**:
+#### B) Admin login
+
 ```bash
-landing-page-business-suite admin-login --email <local_admin> --password @/path/to/password.txt
+landing-page-business-suite admin-login \
+  --email <local_admin> --password @/path/to/password.txt
 ```
 
-3) **Download storage configured** (remote or local):
+#### C) Configure download storage
+
 ```bash
+# Check current config
 landing-page-business-suite admin-download-storage-get --json
+
+# Test connectivity
 landing-page-business-suite admin-download-storage-test
 ```
 
-4) **Download app exists** (create if missing):
+Storage must be S3-compatible and configured before any uploads can work.
+
+#### D) Create download app
+
 ```bash
-# list apps
+# List existing apps
 landing-page-business-suite admin-download-apps-list --json
 
-# create app (minimal example)
+# Create app (if not exists)
 cat > /tmp/download-app.json <<'JSON'
 {
   "app_key": "{{APP_KEY}}",
@@ -79,7 +91,7 @@ JSON
 landing-page-business-suite admin-download-apps-create --body @/tmp/download-app.json
 ```
 
-5) **Discover deployment URL (remote only, from scenario-to-cloud)**
+#### E) Discover remote LPBS URL
 
 ```bash
 # Human-friendly listing (preferred)
@@ -89,43 +101,7 @@ scenario-to-cloud deployment list --scenario landing-page-business-suite
 Use the **DOMAIN** column when present (API base: `https://<domain>/api/v1`).
 If DOMAIN is empty, use **HOST** with the API port (default `3001`): `http://<host>:3001/api/v1`.
 
-6) **Desktop artifacts built** (follow scenario-to-desktop skill). Preferred artifact path options:
-- `scenario-to-desktop download {{TARGET}} {{PLATFORM}} --output /tmp/{{TARGET}}-{{PLATFORM}}.bin`
-- `scenario-to-desktop pipeline run {{TARGET}} --platforms win,mac,linux --clean --wait` (read `Artifacts:` lines)
-- `scenario-to-desktop desktop-status --name {{TARGET}}` (read `Artifacts:` section)
-
----
-
-### 5. Core Workflow
-
-#### 0) Build + discover artifacts (human-friendly output)
-
-```bash
-# Friendly output includes artifact paths on success
-scenario-to-desktop pipeline run {{TARGET}} --platforms win,mac,linux --clean --wait
-```
-
-If you need the release version, `desktop-status` prints it in the scenario header:
-```bash
-scenario-to-desktop desktop-status --name {{TARGET}}
-```
-
-#### A) Upload to local LPBS
-
-```bash
-# Build artifacts (see scenario-to-desktop skill).
-# Use JSON extraction if you need absolute artifact paths.
-scenario-to-desktop pipeline run {{TARGET}} --platforms {{PLATFORM}} --clean --wait
-
-# Upload + apply
-landing-page-business-suite admin-downloads-upload-managed \
-  --file /path/to/artifact \
-  --app-key {{APP_KEY}} \
-  --platform {{PLATFORM}} \
-  --release-version {{RELEASE_VERSION}}
-```
-
-#### B) Upload to remote LPBS via remote profiles
+#### F) Create and login to remote profile
 
 ```bash
 # Create remote profile (API base must include /api/v1)
@@ -140,57 +116,85 @@ landing-page-business-suite remote-profiles-list --json
 landing-page-business-suite remote-profiles-login <REMOTE_PROFILE_ID> \
   --email <remote_admin> \
   --password @/path/to/remote-password.txt
+```
 
-# Upload + apply through proxy
+#### G) Set service secret
+
+```bash
+export LPBS_SERVICE_SECRET="<shared_secret>"
+```
+
+This enables s2d's deploy stage to authenticate with the local LPBS via Bearer token. The value must match the secret configured on the LPBS instance.
+
+---
+
+### 5. Verify Deployment Readiness
+
+After completing prerequisites, validate the chain:
+
+```bash
+# Test remote profile session (via LPBS CLI)
+landing-page-business-suite remote-profiles-test <REMOTE_PROFILE_ID>
+
+# Or test via s2d deploy-target (if saved)
+scenario-to-desktop deploy-target test <target_name>
+```
+
+---
+
+### 6. Deploy via s2d
+
+With prerequisites complete, deploy is a single pipeline command:
+
+```bash
+scenario-to-desktop pipeline run {{TARGET}} --platforms linux --clean --wait \
+  --bump-version patch --version-source auto \
+  --deploy-to landing-page-business-suite --remote-profile prod --app-key {{APP_KEY}}
+```
+
+Or with a saved deploy target:
+
+```bash
+scenario-to-desktop deploy-target add prod \
+  --scenario landing-page-business-suite --profile prod --label "Production"
+
+scenario-to-desktop pipeline run {{TARGET}} --platforms linux --clean --wait \
+  --bump-version patch --version-source auto \
+  --deploy-target prod --app-key {{APP_KEY}}
+```
+
+---
+
+### 7. Manual Upload Fallback
+
+If the s2d deploy stage is unavailable, you can upload artifacts manually using the LPBS CLI:
+
+```bash
+# Build artifacts first (see scenario-to-desktop skill)
+scenario-to-desktop pipeline run {{TARGET}} --platforms {{PLATFORM}} --clean --wait \
+  --bump-version patch --version-source auto
+
+# Upload to local LPBS
+landing-page-business-suite admin-downloads-upload-managed \
+  --file /path/to/artifact \
+  --app-key {{APP_KEY}} \
+  --platform {{PLATFORM}} \
+  --release-version <VERSION_FROM_PIPELINE_OUTPUT>
+
+# Or upload to remote LPBS via remote profile
 landing-page-business-suite admin-downloads-upload-managed \
   --remote-profile <REMOTE_PROFILE_ID> \
   --file /path/to/artifact \
   --app-key {{APP_KEY}} \
   --platform {{PLATFORM}} \
-  --release-version {{RELEASE_VERSION}}
+  --release-version <VERSION_FROM_PIPELINE_OUTPUT>
 ```
 
-**Multiple platforms:** repeat the upload for each platform artifact.
+Multiple platforms: repeat the upload for each platform artifact.
 
 ---
 
-### 6. Convergence Patterns
-
-| Situation | Preferred action | Avoid |
-|---|---|---|
-| Remote LPBS upload | Use `--remote-profile` | Direct remote API calls from CLI |
-| App key missing | Create download app first | Uploading without app (FK failure) |
-| Multiple platforms | Upload each platform artifact | Reusing one artifact across platforms |
-| Need clean build | Use `--clean --wait` (scenario-to-desktop) | Reusing stale artifacts |
-
----
-
-### 7. Guardrails
-
-- **Do not bypass lifecycle tooling** (`make start`, `vrooli scenario start`).
-- **Do not embed credentials** in command history; use `@file` for passwords.
-- **Use `--wait`** for scripted scenario-to-desktop pipeline runs.
-- **Remote profile API base must include `/api/v1`.**
-- **Uploads require download storage settings** (S3-compatible) to be configured.
-- **Platform values for scenario-to-desktop:** `win`, `mac`, `linux`. LPBS accepts `win` and normalizes to `windows`.
-- **Prefer human-friendly CLI output**; only use `--json` if absolutely necessary.
-
----
-
-### 8. Troubleshooting
-
-| Symptom | Likely cause | First check | Fix |
-|---|---|---|---|
-| `admin session not configured` | No local admin login | `admin-login` | Run `admin-login` again |
-| `Remote session expired` | Remote profile cookie expired | `remote-profiles-test` | Re-run `remote-profiles-login` |
-| `download storage not configured` | No storage settings | `admin-download-storage-get` | Configure + test storage |
-| `download app not found` | Missing app key | `admin-download-apps-list` | Create app via `admin-download-apps-create` |
-| Upload `403/Signature` error | Storage creds/headers mismatch | presign response headers | Re-test storage + retry upload |
-| `platform is required` | Missing/invalid platform | command flags | Use `win`, `mac`, or `linux` |
-
----
-
-### 9. Verification
+### 8. Verification
 
 ```bash
 # Check artifacts for app/platform
@@ -201,20 +205,51 @@ landing-page-business-suite admin-download-artifacts-by-app \
 
 # Check current download app assets
 landing-page-business-suite admin-download-apps-list --json
+
+# Check update manifest
+curl https://<lpbs-domain>/api/v1/updates/{{APP_KEY}}/stable/latest.yml
+
+# Check binary redirect
+curl -v https://<lpbs-domain>/api/v1/updates/{{APP_KEY}}/stable/<artifact-filename>
 ```
 
-For remote profiles:
-- `admin-downloads-upload-managed` supports `--remote-profile`.
-- Other admin calls must use `remote-profiles-proxy` until a `--remote-profile` flag exists on those commands.
+If `update_api_key` is set on the download app, include `-H "X-Update-Key: <key>"` in requests.
 
 ---
 
-### 10. Output Expectations
+### 9. Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `LPBS_SERVICE_SECRET not set` | Missing env var | `export LPBS_SERVICE_SECRET=...` |
+| `admin session not configured` | No local admin login | Run `admin-login` |
+| `Remote session expired` | Remote profile cookie expired | Re-run `remote-profiles-login` |
+| `download storage not configured` | No storage settings | Configure + test storage |
+| `download app not found` | Missing app key | Create app via `admin-download-apps-create` |
+| Upload `403/Signature` error | Storage creds mismatch | Re-test storage + retry |
+| `platform is required` | Missing/invalid platform | Use `win`, `mac`, or `linux` |
+
+---
+
+### 10. Guardrails
+
+- **Do not bypass lifecycle tooling** (`make start`, `vrooli scenario start`).
+- **Do not embed credentials** in command history; use `@file` for passwords.
+- **Use `--wait`** for scripted scenario-to-desktop pipeline runs.
+- **Remote profile API base must include `/api/v1`.**
+- **Uploads require download storage settings** (S3-compatible) to be configured.
+- **Platform values:** `win`, `mac`, `linux`. LPBS normalizes `win` to `windows`.
+- **Prefer the s2d deploy stage** over manual uploads for all new deployments.
+- **Avoid concurrent pipeline runs** when using `--set-version` or `--bump-version`.
+
+---
+
+### 11. Output Expectations
 
 **May create/update:**
-- Remote profiles and stored sessions
-- Download artifacts in storage
-- Download assets for app/platform in LPBS
+- Remote profiles and stored sessions on LPBS
+- Download apps, artifacts, and assets in LPBS
+- Deploy targets in `.vrooli/deploy-targets.json`
 
 **Must not:**
 - Install dependencies without permission

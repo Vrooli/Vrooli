@@ -172,7 +172,7 @@ interface SkillTreeSidebarProps {
   /** All agents for name lookup in unsaved changes menu */
   agents?: Agent[]
   selectedItemId: string | null
-  onSelectItem: (id: string) => void
+  onSelectItem: (id: string, lineNumber?: number) => void
   dirtyItemIds: Set<string>
   /** Separate dirty skill IDs for unsaved menu (defaults to dirtyItemIds if not provided) */
   dirtySkillIds?: Set<string>
@@ -960,7 +960,7 @@ export function SkillTreeSidebar({
                                 <button
                                   key={`${match.skillId}-${match.lineNumber}-${match.line}`}
                                   type="button"
-                                  onClick={() => onSelectItem(match.skillId)}
+                                  onClick={() => onSelectItem(match.skillId, match.lineNumber)}
                                   className={cn(
                                     'w-full flex items-start gap-3 px-3 py-2 text-left transition-colors',
                                     'hover:bg-muted/40'

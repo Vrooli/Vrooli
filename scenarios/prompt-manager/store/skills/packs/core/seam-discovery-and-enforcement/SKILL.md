@@ -8,6 +8,9 @@ Your goal is to make the scenario **easier to test, safer to change, and more mo
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ---
 
 ### **1. Understand Core Flows & Variation Points**
@@ -105,12 +108,7 @@ If you detect a seam that **should** exist but requires a major redesign, docume
 
 ### **7. Documentation**
 
-Update `docs/internal/SEAMS.md` to reflect your findings:
-
-* The code is the source of truth, not the document. Verify claims in existing documentation against actual code before extending or preserving them.
-* If the file exists, correct any inaccuracies and extend with your findings.
-* If a SEAMS.md exists at the scenario root or directly under `docs/`, consolidate into `docs/internal/SEAMS.md` and remove the duplicate.
-* Create the `docs/internal/` directory if needed.
+Use `knowledge-observatory-tools` to read the current `seams` doc for `{{TARGET}}`, then update it with your findings (discovered seams, strengthened boundaries, remaining weak points).
 
 ---
 

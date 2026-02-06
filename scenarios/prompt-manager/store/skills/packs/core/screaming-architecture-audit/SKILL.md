@@ -6,11 +6,14 @@ Your goal is to make the codebase’s structure and naming **clearly express the
 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve completeness and reliability.
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ---
 
 ### **1. Check Documentation Structure & Build Mental Model**
 
-* **If `docs/concepts/ARCHITECTURE.md` and `docs/internal/SEAMS.md` exist**, read them first to understand documented mental models and boundaries.
+* Read the `architecture` and `seams` docs for `{{TARGET}}` using `knowledge-observatory-tools` to understand documented mental models and boundaries.
 
 **Before deriving your own mental model, check existing documentation:**
 
@@ -156,12 +159,6 @@ Focus this loop on **practical, targeted architectural improvements** that make 
 
 ### **9. Documentation**
 
-Update architecture documentation to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/concepts/` and `docs/internal/` directories if needed.
-
-Update:
-* `docs/concepts/ARCHITECTURE.md`: Domain mental model, key entities, main flows, natural boundaries
-* `docs/internal/SEAMS.md` (Architecture Alignment section): Logical vs physical structure gaps, drift from documented architecture, alignment improvements made
+Use `knowledge-observatory-tools` to read the current `architecture` and `seams` docs for `{{TARGET}}`, then update:
+* `architecture`: Domain mental model, key entities, main flows, natural boundaries
+* `seams` **Architecture Alignment** section: Logical vs physical structure gaps, drift from documented architecture, alignment improvements made

@@ -5,9 +5,12 @@ Do **not** change the intended behavior, regress tests, or weaken safety guarant
 
 Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by the following principles:
 
+Required reading:
+- `prompt-manager skills read knowledge-observatory-tools`
+
 ### **1. Preserve Behavior & Intent**
 
-* **If `docs/internal/PROBLEMS.md` exists**, read the Tech Debt section first to understand what tech debt has been identified.
+* Read the `problems` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing tech debt.
 
 * Treat existing passing tests, the PRD, and operational targets as the **source of truth** for behavior.
 * Refactor in ways that **preserve external behavior**:
@@ -164,14 +167,4 @@ Focus this loop on delivering **practical, targeted refactors** that reduce comp
 
 ### **9. Documentation**
 
-Update the **Tech Debt** section of `docs/internal/PROBLEMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* High-leverage refactoring targets identified
-* Patterns of duplication or complexity observed
-* Refactors completed and their impact
-* Remaining structural issues and their priority
+Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **Tech Debt** section with your findings (high-leverage refactoring targets, duplication patterns, refactors completed, remaining structural issues).

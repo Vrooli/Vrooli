@@ -7,13 +7,13 @@ Your goal is to ensure the UI **degrades gracefully** under unexpected data, use
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve overall completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
 
 ---
 
 ### **0. Tooling Prerequisites (Run First)**
 
-* **If `docs/internal/PROBLEMS.md` exists**, read the Stability Issues section first to understand what stability issues have been identified.
+* Read the `problems` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing stability issues.
 
 Before manual code review, verify that automated tooling is configured to catch React-specific bugs. **Proper TypeScript and ESLint configuration catches 80%+ of runtime crashes automatically.**
 
@@ -527,14 +527,4 @@ Focus this loop on **practical, targeted stability improvements** that prevent w
 
 ### **11. Documentation**
 
-Update the **Stability Issues** section of `docs/internal/PROBLEMS.md` to record your findings:
-
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
-
-Include:
-* Components with crash-prone patterns (hooks after early returns, unsafe data access)
-* Error boundary gaps and their status
-* TypeScript/ESLint configuration improvements made
-* Remaining stability risks and their priority
+Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **Stability Issues** section with your findings (crash-prone patterns, error boundary gaps, TypeScript/ESLint improvements, remaining stability risks).

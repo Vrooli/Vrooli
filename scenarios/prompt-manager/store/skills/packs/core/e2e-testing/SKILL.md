@@ -8,7 +8,7 @@ Focus on validating **requirements and user-visible behavior**, not implementati
 For CLI commands and artifact analysis, see the **browser-automation-studio** skill.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
 
 Optional reading:
 - `prompt-manager skills read browser-automation-studio`
@@ -487,17 +487,7 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 ### **8. Documentation**
 
-Update the **E2E Issues** section of `docs/internal/PROBLEMS.md`:
-
-* The code is the source of truth. Verify existing claims before extending.
-* Create `docs/internal/` directory if needed.
-
-Include:
-* Critical user journeys lacking coverage
-* Flaky tests and their root causes
-* Selector registry gaps
-* Requirement validation status
-* Execution IDs for reproducibility
+Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **E2E Issues** section with your findings (critical user journeys lacking coverage, flaky tests and root causes, selector registry gaps, requirement validation status).
 
 ---
 
@@ -508,7 +498,7 @@ You may update:
 * Selector registry in `ui/src/constants/selectors.ts`
 * Component `data-testid` attributes
 * Requirements validation references
-* Test documentation in `docs/internal/PROBLEMS.md`
+* Test documentation via `knowledge-observatory-tools`
 
 You **must**:
 * Keep workflows focused on user-visible behavior
