@@ -163,3 +163,48 @@ type ListOptions struct {
 	Status     string // Filter by status
 	ScenarioID string // Filter by scenario ID
 }
+
+// HealthResponse is the response from the health endpoint.
+type HealthResponse struct {
+	OK              bool              `json:"ok"`
+	Health          string            `json:"health"`
+	DeploymentID    string            `json:"deployment_id"`
+	DeploymentName  string            `json:"deployment_name"`
+	ScenarioID      string            `json:"scenario_id"`
+	Domain          string            `json:"domain,omitempty"`
+	Host            string            `json:"host,omitempty"`
+	Summary         string            `json:"summary"`
+	Sections        []HealthSection   `json:"sections"`
+	Recommendations []Recommendation  `json:"recommendations,omitempty"`
+	DurationMs      int64             `json:"duration_ms"`
+	Timestamp       string            `json:"timestamp"`
+}
+
+// HealthSection groups related health checks.
+type HealthSection struct {
+	Category   string        `json:"category"`
+	Title      string        `json:"title"`
+	Status     string        `json:"status"`
+	Checks     []HealthCheck `json:"checks"`
+	PassCount  int           `json:"pass_count"`
+	WarnCount  int           `json:"warn_count"`
+	FailCount  int           `json:"fail_count"`
+	ErrorCount int           `json:"error_count"`
+}
+
+// HealthCheck is a single health check result.
+type HealthCheck struct {
+	ID      string            `json:"id"`
+	Title   string            `json:"title"`
+	Status  string            `json:"status"`
+	Message string            `json:"message,omitempty"`
+	Details map[string]string `json:"details,omitempty"`
+}
+
+// Recommendation is an actionable suggestion.
+type Recommendation struct {
+	Priority int    `json:"priority"`
+	Category string `json:"category"`
+	Summary  string `json:"summary"`
+	Command  string `json:"command,omitempty"`
+}

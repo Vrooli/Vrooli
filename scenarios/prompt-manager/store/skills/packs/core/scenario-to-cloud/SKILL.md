@@ -12,10 +12,8 @@ Use `scenario-to-cloud` to:
 |------|---------|
 | Deploy scenario to VPS (one-shot) | `scenario-to-cloud redeploy cloud-manifest.json --preflight` |
 | List existing deployments | `scenario-to-cloud deployment list` |
-| Check deployment health | `scenario-to-cloud inspect live <deployment-id>` |
+| Check deployment health / triage issues | `scenario-to-cloud deployment health <deployment-id>` |
 | View deployment logs | `scenario-to-cloud inspect logs <deployment-id>` |
-| Detect config drift | `scenario-to-cloud inspect drift <deployment-id>` |
-| Verify DNS + TLS | `scenario-to-cloud edge dns-check <deployment-id>` |
 | Test SSH connectivity | `scenario-to-cloud ssh test <host>` |
 
 **Scope boundaries:**
@@ -33,7 +31,7 @@ The CLI uses **subcommand groups**. Run `<group> help` for detailed options:
 | `status` | API health check | (flat) |
 | `manifest` | Manifest validation | `validate` |
 | `bundle` | Bundle operations | `build`, `list`, `stats`, `delete`, `cleanup`, `vps-list`, `vps-delete` |
-| `deployment` | Deployment lifecycle | `create`, `list`, `get`, `delete`, `execute`, `start`, `stop`, `history`, `plan` |
+| `deployment` | Deployment lifecycle | `create`, `list`, `get`, `delete`, `execute`, `start`, `stop`, `history`, `health`, `plan` |
 | `redeploy` | One-shot create + execute | (flat) |
 | `preflight` | VPS preflight checks | `run`, `fix-ports`, `fix-firewall`, `fix-processes`, `disk-usage`, `disk-cleanup` |
 | `vps` | Low-level VPS operations | `setup {plan\|apply}`, `deploy {plan\|apply}` |
@@ -107,50 +105,33 @@ This creates/updates the deployment record, runs VPS preflight checks, and execu
 #### Step 5: Verify
 
 ```bash
-scenario-to-cloud deployment list --scenario {{SCENARIO_NAME}}
-scenario-to-cloud inspect live <deployment-id>
-scenario-to-cloud edge dns-check <deployment-id>
+scenario-to-cloud deployment health <deployment-id>
 ```
+
+This checks deployment status, processes, DNS, TLS, and system resources in one pass. Follow its recommendations to resolve any issues.
 
 **Deployment status flow:** `pending` -> `setup_running` -> `setup_complete` -> `deploying` -> `deployed`
 
 ---
 
-### **4. Inspect & Monitor Deployments**
+### **4. Monitor & Troubleshoot**
 
-#### Find your deployment
-
-```bash
-# List all
-scenario-to-cloud deployment list
-
-# Filter by scenario
-scenario-to-cloud deployment list --scenario landing-page-business-suite
-
-# Filter by status
-scenario-to-cloud deployment list --status deployed
-
-# Full details
-scenario-to-cloud deployment get <deployment-id>
-```
-
-#### Live state (processes, resources, health)
+#### Health check (run this first)
 
 ```bash
-scenario-to-cloud inspect live <deployment-id>
+scenario-to-cloud deployment health <deployment-id>
 ```
 
-Shows: running/healthy status, uptime, public/internal IP, CPU/memory/disk, process list, resource list.
+Checks deployment status, SSH, processes, DNS, TLS, Caddy, and system resources. Provides specific recommendations with exact commands to run.
 
-#### Configuration drift detection
+**If health is unavailable** (API down, no deployment record):
 
-```bash
-scenario-to-cloud inspect drift <deployment-id>
-```
+| Symptom | Fix |
+|---------|-----|
+| `ssh test` fails | `ssh copy-key <host> --key <name> --user root` |
+| `manifest validate` errors | Check `scenario.id`, `target.vps.host`, `edge.domain` |
 
-Reports differences between expected and actual VPS state with severity levels.
-
-#### Aggregated logs
+#### Logs
 
 ```bash
 scenario-to-cloud inspect logs <deployment-id> --tail 200
@@ -158,82 +139,9 @@ scenario-to-cloud inspect logs <deployment-id> --level error --since 1h
 scenario-to-cloud inspect logs <deployment-id> --source postgres --search "connection refused"
 ```
 
-#### Remote file inspection
-
-```bash
-scenario-to-cloud inspect files <deployment-id> /var/log
-scenario-to-cloud inspect files <deployment-id> /etc/caddy/Caddyfile --content
-```
-
-#### Deployment history
-
-```bash
-scenario-to-cloud deployment history <deployment-id>
-```
-
 ---
 
-### **5. Edge & TLS Management**
-
-#### DNS validation
-
-```bash
-scenario-to-cloud edge dns-check <deployment-id>
-scenario-to-cloud edge dns-records <deployment-id>
-```
-
-#### Caddy reverse proxy control
-
-```bash
-scenario-to-cloud edge caddy <deployment-id> status
-scenario-to-cloud edge caddy <deployment-id> validate
-scenario-to-cloud edge caddy <deployment-id> reload
-```
-
-#### TLS certificates
-
-```bash
-# View certificate info (issuer, expiry, SANs, auto-renew status)
-scenario-to-cloud edge tls <deployment-id>
-
-# Renew certificates
-scenario-to-cloud edge tls-renew <deployment-id>
-scenario-to-cloud edge tls-renew <deployment-id> --domain app.example.com --force
-```
-
-#### DNS + TLS notes
-
-- `dns_policy` in the manifest controls validation: `required` (fail if wrong), `warn` (log warning), `skip` (no check).
-- Cloudflare proxied records need DNS-01 challenge -- provide `CLOUDFLARE_API_TOKEN` via deployment secrets so Caddy can use DNS-01.
-- During initial TLS issuance, set DNS to "DNS only" (grey cloud in Cloudflare), then re-enable proxying after certificate is issued.
-
----
-
-### **6. Process Management**
-
-```bash
-# Restart a scenario or resource
-scenario-to-cloud process restart <deployment-id> scenario {{SCENARIO_NAME}}
-scenario-to-cloud process restart <deployment-id> resource redis
-
-# Bulk control (start/stop/restart)
-scenario-to-cloud process control <deployment-id> restart
-scenario-to-cloud process control <deployment-id> stop
-
-# Kill by PID
-scenario-to-cloud process kill <deployment-id> <pid>
-scenario-to-cloud process kill <deployment-id> <pid> --signal SIGKILL
-
-# VPS-level actions (affects the ENTIRE VPS, not just the deployment)
-scenario-to-cloud process vps-action <deployment-id> reboot
-scenario-to-cloud process vps-action <deployment-id> shutdown
-```
-
-**Warning:** `vps-action` commands affect the entire VPS. Only use when explicitly requested.
-
----
-
-### **7. Manifest Reference**
+### **5. Manifest Reference**
 
 Full manifest schema with all optional fields:
 
@@ -283,9 +191,11 @@ Full manifest schema with all optional fields:
 - Domain A record pointing to VPS IP
 - Ports 22 (SSH), 80 (HTTP), 443 (HTTPS) open
 
+**Cloudflare note:** Proxied records need DNS-01 challenge — provide `CLOUDFLARE_API_TOKEN` via deployment secrets. During initial TLS issuance, set DNS to "DNS only" (grey cloud), then re-enable proxying after certificate is issued.
+
 ---
 
-### **8. SSH & Secrets Management**
+### **6. SSH & Secrets Management**
 
 #### SSH keys
 
@@ -310,25 +220,7 @@ scenario-to-cloud secrets get {{SCENARIO_NAME}} --reveal
 
 ---
 
-### **9. Troubleshooting**
-
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| `ssh test` fails | Key not on VPS | `ssh copy-key <host> --key <name> --user root` |
-| `manifest validate` errors | Missing required fields | Check `scenario.id`, `target.vps.host`, `edge.domain` |
-| Stuck in `setup_running` | VPS unreachable or slow | Check `ssh test`, verify ports 22/80/443 open |
-| DNS check shows `FAIL` | A record not propagated | Wait for propagation or verify at registrar |
-| TLS renewal fails | Cloudflare proxy enabled | Set DNS-only, renew, re-enable proxy |
-| `inspect live` shows unhealthy | Process crashed | `inspect logs <id> --level error`, then `process restart` |
-| Drift detected | Manual VPS changes | Review drift items, `redeploy` to restore expected state |
-| `deployment execute` timeout | Large bundle or slow VPS | Check `inspect live`, try `--force-bundle` |
-| Preflight fails | VPS requirements not met | Review preflight output; use `preflight fix-ports`/`fix-firewall` |
-
-Add `--json` to any command for structured error details.
-
----
-
-### **10. Guardrails**
+### **7. Guardrails**
 
 **Do:**
 - Validate manifests before deploying (`manifest validate`)
@@ -340,19 +232,15 @@ Add `--json` to any command for structured error details.
 **Do NOT:**
 - Deploy without a valid manifest
 - Use `process vps-action reboot/shutdown` without explicit user request
-- Skip DNS validation for production domains (`dns_policy: "skip"` is for testing only)
 - Use deprecated aliases (`manifest-validate`, `vps-setup-plan`, etc.)
 - Hardcode passwords in commands
 
 ---
 
-### **11. Output Expectations**
+### **8. Output Expectations**
 
 **After successful deployment:**
-- `deployment list` shows status `deployed`
-- `inspect live <id>` shows `Running: true`, `Healthy: true`
-- `edge dns-check <id>` shows `HEALTHY`
-- `edge tls <id>` shows valid certificate with `Auto-Renew: true`
+- `deployment health <id>` shows `HEALTHY` with all sections passing
 - Scenario is accessible at `https://{{DOMAIN}}`
 
 **May create/update:**

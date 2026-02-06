@@ -43,6 +43,8 @@ func Run(client *Client, args []string) error {
 		return runStop(client, args[1:])
 	case "history":
 		return runHistory(client, args[1:])
+	case "health":
+		return runHealth(client, args[1:])
 	case "help", "-h", "--help":
 		return printUsage()
 	default:
@@ -63,6 +65,7 @@ Commands:
   start <id>                Start/resume a stopped deployment
   stop <id>                 Stop a running deployment
   history <id>              Show deployment history
+  health <id>               Unified health check (processes, DNS, TLS, system)
 
 Run 'scenario-to-cloud deployment <command> -h' for command-specific options.`)
 	return nil

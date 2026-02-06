@@ -159,6 +159,19 @@ func (c *Client) History(id string) ([]byte, HistoryResponse, error) {
 	return body, resp, nil
 }
 
+// Health returns the unified health report for a deployment.
+func (c *Client) Health(id string) ([]byte, HealthResponse, error) {
+	body, err := c.api.Get(fmt.Sprintf("/api/v1/deployments/%s/health", id), nil)
+	if err != nil {
+		return nil, HealthResponse{}, err
+	}
+	var resp HealthResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return body, HealthResponse{}, err
+	}
+	return body, resp, nil
+}
+
 // StreamProgress opens an SSE connection to stream deployment progress.
 // The handler is called for each progress event received.
 // Returns nil on successful completion, or an error if streaming fails.
