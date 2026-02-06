@@ -1,10 +1,8 @@
 ## Tools focus: Scenario to Cloud
 
-Deploy any Vrooli scenario to a VPS and manage the full deployment lifecycle (create, execute, inspect, troubleshoot) using the scenario-to-cloud CLI. Also query existing VPS deployments for health, drift, logs, and process state.
-
-Related skills:
-- `prompt-manager skill read scenario-to-desktop` (build desktop apps from deployed scenarios)
-- `prompt-manager skill read landing-page-desktop-upload` (LPBS deploy setup combining both skills)
+Use `scenario-to-cloud` to:
+- Deploy a {{TARGET}} to a VPS, or
+- Find and manage existing deployments
 
 ---
 

@@ -54,6 +54,7 @@ export function NameTag({
       center
       distanceFactor={10}
       occlude
+      zIndexRange={[10, 0]}
       style={{
         pointerEvents: 'none',
         userSelect: 'none',

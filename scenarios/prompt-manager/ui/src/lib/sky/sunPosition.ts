@@ -114,15 +114,15 @@ export function calculateSkyColors(hour: number): SkyColors {
 
   // Define color keyframes at specific times
   const colorKeyframes: { hour: number; colors: SkyColors }[] = [
-    { hour: 0, colors: { top: '#0a0a1a', middle: '#1a1a3a', bottom: '#0f0f2f' } }, // Midnight
-    { hour: 4, colors: { top: '#0a1020', middle: '#1a2040', bottom: '#1a1a3a' } }, // Pre-dawn
+    { hour: 0, colors: { top: '#141430', middle: '#252558', bottom: '#181848' } }, // Midnight
+    { hour: 4, colors: { top: '#141838', middle: '#253060', bottom: '#222252' } }, // Pre-dawn
     { hour: 6, colors: { top: '#2d4a6e', middle: '#87CEEB', bottom: '#FFE4B5' } }, // Sunrise
     { hour: 8, colors: { top: '#5a8fc9', middle: '#87CEEB', bottom: '#ADD8E6' } }, // Morning
     { hour: 12, colors: { top: '#4a90d9', middle: '#87CEEB', bottom: '#ADD8E6' } }, // Noon
     { hour: 16, colors: { top: '#6a9fd9', middle: '#87CEEB', bottom: '#FFE4B5' } }, // Afternoon
     { hour: 18, colors: { top: '#2C1810', middle: '#FF6B35', bottom: '#F7C59F' } }, // Sunset
-    { hour: 20, colors: { top: '#0f1020', middle: '#2a2050', bottom: '#1a1040' } }, // Dusk
-    { hour: 24, colors: { top: '#0a0a1a', middle: '#1a1a3a', bottom: '#0f0f2f' } }, // Midnight (wrap)
+    { hour: 20, colors: { top: '#181838', middle: '#353068', bottom: '#221850' } }, // Dusk
+    { hour: 24, colors: { top: '#141430', middle: '#252558', bottom: '#181848' } }, // Midnight (wrap)
   ]
 
   // Find surrounding keyframes
@@ -244,10 +244,10 @@ export function calculateLighting(hour: number): LightingParams {
     ambientIntensity = 0.4 - t * 0.1
   } else {
     // Night
-    color = '#6688BB'
-    intensity = 0.6
-    ambientColor = '#334466'
-    ambientIntensity = 0.3
+    color = '#7799CC'
+    intensity = 0.8
+    ambientColor = '#445577'
+    ambientIntensity = 0.4
   }
 
   return {

@@ -87,6 +87,7 @@ export function StatusIcon({
     <Html
       position={[position[0], position[1] + yOffset, position[2]]}
       center
+      zIndexRange={[10, 0]}
       style={{
         pointerEvents: hasMessage ? 'auto' : 'none',
         userSelect: 'none',

@@ -232,7 +232,7 @@ describe('calculateLighting', () => {
 
   it('returns blue-ish colors at night', () => {
     const night = calculateLighting(22)
-    expect(night.color).toBe('#6688BB')
+    expect(night.color).toBe('#7799CC')
   })
 })
 

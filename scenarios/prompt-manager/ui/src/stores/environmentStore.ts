@@ -244,17 +244,18 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         sceneType: state.current.type,
       }),
       onRehydrateStorage: () => (state) => {
-        // Restore scene type from persisted state on hydration
+        // Always rebuild environment config from persisted values so that
+        // skybox, fog, and lighting reflect the persisted time and scene type.
+        // Previously this only ran when sceneType differed, leaving stale
+        // configs (e.g. solid skybox) that ignored the persisted timeValue.
         if (state) {
           const persisted = state as EnvironmentStore & { sceneType?: string }
-          if (persisted.sceneType && persisted.sceneType !== state.current.type) {
-            const newEnv = createEnvironmentConfig(
-              `${persisted.sceneType}-${state.timeValue}`,
-              `${persisted.sceneType} environment`,
-              { sceneType: persisted.sceneType as EnvironmentConfig['type'], timeValue: state.timeValue }
-            )
-            state.current = newEnv
-          }
+          const sceneType = (persisted.sceneType ?? state.current.type) as EnvironmentConfig['type']
+          state.current = createEnvironmentConfig(
+            `${sceneType}-${state.timeValue}`,
+            `${sceneType} environment`,
+            { sceneType, timeValue: state.timeValue }
+          )
         }
       },
     }

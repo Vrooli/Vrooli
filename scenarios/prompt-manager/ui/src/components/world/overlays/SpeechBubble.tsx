@@ -59,6 +59,7 @@ export function SpeechBubble({
     <Html
       position={[position[0], position[1] + yOffset, position[2]]}
       center
+      zIndexRange={[10, 0]}
       style={{
         pointerEvents: 'auto',
         userSelect: 'none',

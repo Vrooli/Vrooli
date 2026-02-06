@@ -14,8 +14,9 @@
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 
 import { useRef, useEffect, useMemo } from 'react'
-import { OrbitControls, Stars } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
+import * as THREE from 'three'
 import { AgentWithAccessories } from './agents/AgentWithAccessories'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { DragPlane, PlacementPlane } from './interaction'
@@ -30,6 +31,69 @@ import { useIsPlacing } from '@/stores/worldEditorStore'
 import { calculateStarOpacity } from '@/lib/sky/sunPosition'
 import type { Agent } from '@/types/agent'
 import type { FurnitureInstance } from '@/types/furniture'
+
+/**
+ * Custom star field with fog disabled and rotation tied to timeValue.
+ * Rotates along the same orbital plane as the sun/moon so all celestial
+ * objects move together as time progresses.
+ */
+interface StarFieldProps {
+  count: number
+  radius: number
+  depth: number
+  opacity: number
+  timeValue: number
+}
+
+function StarField({ count, radius, depth, opacity, timeValue }: StarFieldProps) {
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    const positions = new Float32Array(count * 3)
+    const colors = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      const r = radius + Math.random() * depth
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta)
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+      positions[i * 3 + 2] = r * Math.cos(phi)
+      // Vary brightness so some stars pop more than others
+      const brightness = 0.4 + Math.random() * 0.6
+      colors[i * 3] = brightness
+      colors[i * 3 + 1] = brightness
+      colors[i * 3 + 2] = brightness
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    g.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    return g
+  }, [count, radius, depth])
+
+  // Rotate in sync with the sun/moon arc.
+  // Uses the same hourAngle formula as calculateSunPosition so stars
+  // sweep east-to-west at the same rate as the celestial bodies.
+  const rotation = useMemo<[number, number, number]>(() => {
+    const h = ((timeValue % 24) + 24) % 24
+    const hourAngle = ((h - 12) / 24) * Math.PI * 2
+    // Tilt to match the sun's orbital plane (y*0.8, z*0.3 in calculateSunPosition)
+    const tiltAngle = Math.atan2(0.3, 0.8)
+    return [tiltAngle, 0, -hourAngle]
+  }, [timeValue])
+
+  return (
+    <points geometry={geometry} rotation={rotation}>
+      <pointsMaterial
+        size={2.5}
+        sizeAttenuation={false}
+        transparent
+        opacity={opacity}
+        depthWrite={false}
+        fog={false}
+        vertexColors
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
+  )
+}
 
 /** Type for OrbitControls ref - drei doesn't export proper types */
 type OrbitControlsRef = {
@@ -147,13 +211,12 @@ export function WorldScene({
       {/* Stars - fade in at dusk, fade out at dawn */}
       {showStars && (
         <WorldErrorBoundary componentName="Stars" minimal>
-          <Stars
-            radius={80}
-            depth={40}
-            count={2000}
-            factor={4 * starOpacity}
-            fade
-            speed={1}
+          <StarField
+            count={3000}
+            radius={50}
+            depth={25}
+            opacity={starOpacity}
+            timeValue={timeValue}
           />
         </WorldErrorBoundary>
       )}
@@ -166,7 +229,7 @@ export function WorldScene({
         dampingFactor={0.05}
         minDistance={3}
         maxDistance={30}
-        maxPolarAngle={Math.PI * 0.85}
+        maxPolarAngle={Math.PI * 0.45}
         minPolarAngle={Math.PI * 0.15}
       />
 

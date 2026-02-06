@@ -13,7 +13,6 @@ import {
   calculateSunPosition,
   calculateSkyColors,
 } from '@/lib/sky/sunPosition'
-import type { SceneType } from '@/types/environment'
 import { SKY_VERTEX_SHADER, SKY_FRAGMENT_SHADER } from '@/lib/shaders/glsl/sky.glsl'
 
 interface DynamicSkyProps {
@@ -21,8 +20,6 @@ interface DynamicSkyProps {
   timeValue?: number
   /** Radius of the sky dome */
   radius?: number
-  /** Override scene type */
-  sceneType?: SceneType
 }
 
 /**
@@ -51,37 +48,6 @@ function createGradientMaterial(colors: { top: string; middle: string; bottom: s
   })
 }
 
-/**
- * Create a gradient material from color array (legacy support)
- */
-function createGradientMaterialFromArray(colors: string[]): THREE.ShaderMaterial {
-  const colorArray = colors.map(hexToColor)
-
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      topColor: { value: colorArray[0] ?? new THREE.Color('#87CEEB') },
-      middleColor: { value: colorArray[1] ?? colorArray[0] ?? new THREE.Color('#ADD8E6') },
-      bottomColor: { value: colorArray[2] ?? colorArray[1] ?? colorArray[0] ?? new THREE.Color('#FFF8DC') },
-      offset: { value: 0.5 },
-      exponent: { value: 0.6 },
-    },
-    vertexShader: SKY_VERTEX_SHADER,
-    fragmentShader: SKY_FRAGMENT_SHADER,
-    side: THREE.BackSide,
-    depthWrite: false,
-  })
-}
-
-/**
- * Create a solid color material for the sky
- */
-function createSolidMaterial(color: string): THREE.MeshBasicMaterial {
-  return new THREE.MeshBasicMaterial({
-    color: new THREE.Color(color),
-    side: THREE.BackSide,
-    depthWrite: false,
-  })
-}
 
 /**
  * Dynamic sky that changes based on continuous time.
@@ -94,14 +60,10 @@ function createSolidMaterial(color: string): THREE.MeshBasicMaterial {
 export function DynamicSky({
   timeValue: timeValueProp,
   radius = 80,
-  sceneType: _sceneTypeProp, // Currently unused - gradient shader used for all scene types
 }: DynamicSkyProps) {
   const meshRef = useRef<THREE.Mesh>(null)
 
-  // Get current environment config
-  const currentEnv = useEnvironmentStore((state) => state.current)
   const storeTimeValue = useEnvironmentStore((state) => state.timeValue)
-  const skyboxConfig = currentEnv.skybox
 
   // Use prop time value, or convert legacy timeOfDay prop, or use store value
   const timeValue = timeValueProp ?? storeTimeValue
@@ -109,21 +71,10 @@ export function DynamicSky({
   // Calculate sky colors based on continuous time
   const skyColors = useMemo(() => calculateSkyColors(timeValue), [timeValue])
 
-  // Create the gradient material - always uses time-based colors for procedural types
-  const gradientMaterial = useMemo(() => {
-    // For solid skybox type with explicit source, use that
-    if (skyboxConfig.type === 'solid' && typeof skyboxConfig.source === 'string') {
-      return createSolidMaterial(skyboxConfig.source)
-    }
-
-    // For gradient type with explicit color array, use that
-    if (skyboxConfig.type === 'gradient' && Array.isArray(skyboxConfig.source)) {
-      return createGradientMaterialFromArray(skyboxConfig.source)
-    }
-
-    // For all other cases (procedural, hdri without source, or default), use time-based colors
-    return createGradientMaterial(skyColors)
-  }, [skyboxConfig, skyColors])
+  // Always use time-based gradient colors so the sky responds to time changes.
+  // Static skybox configs (solid/gradient) produced stale colors that didn't
+  // update when timeValue changed, causing the sky to appear wrong on load.
+  const gradientMaterial = useMemo(() => createGradientMaterial(skyColors), [skyColors])
 
   // Slowly rotate the sky dome for a subtle effect
   useFrame((_, delta) => {
