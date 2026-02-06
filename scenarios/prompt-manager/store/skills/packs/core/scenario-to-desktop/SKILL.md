@@ -149,57 +149,7 @@ ls -la platforms/electron/ui/dist/index.html
 
 ### **8. Troubleshooting**
 
-Pipeline errors include structured error codes, recovery hints, and step-by-step guidance.
-
-**When a pipeline fails, the CLI shows:**
-- Error code (e.g., `BUNDLE_INVALID`, `SMOKE_TEST_FAILED`)
-- Recovery hint with specific fix instructions
-- Manual steps to resolve the issue
-- Auto-fix commands when available
-
-**Example failure output:**
-```
-Pipeline failed: 5dd1ca6d-e8a6-8c18-6759-6839539a485c
-Error code: BUNDLE_INVALID
-
-Recovery: Add bundle to extraResources in package.json:
-  "build": { "extraResources": [{ "from": "bundle", "to": "bundle" }] }
-
-Manual steps:
-  1. Check if the bundle directory exists
-  2. Edit package.json to add bundle to extraResources
-  3. Run the pipeline again after fixing the configuration
-```
-
-**Get detailed status for any pipeline:**
-```bash
-# View full error details including stage logs
-scenario-to-desktop pipeline status <id> --verbose
-
-# Get raw JSON for programmatic parsing
-scenario-to-desktop pipeline status <id> --json
-```
-
-**Common error codes and recovery:**
-
-| Error Code | Meaning | Recovery |
-|------------|---------|----------|
-| `PREFLIGHT_VALIDATION_FAILED` | Missing binaries or assets | Build scenario first: `make build` |
-| `BUNDLE_INVALID` | Bundle config mismatch | Fix package.json extraResources |
-| `PREFLIGHT_FAILED` | Scenario not ready | Ensure scenario is running |
-| `SMOKE_TEST_FAILED` | App failed validation | Check platform deps (xvfb, etc.) |
-| `BUILD_FAILED` | Electron build error | Review build logs |
-| `GENERATION_FAILED` | Template error | Check scenario service.json |
-
-**Recovery actions:**
-- Transient failures: `scenario-to-desktop pipeline resume <id>`
-- Configuration issues: Follow the recovery hint in error output
-- Deeper issues: `cd scenarios/scenario-to-desktop && make logs`
-
-**Debug mode:** Use `--debug` flag to see raw API responses:
-```bash
-scenario-to-desktop pipeline run {{TARGET}} --wait --debug
-```
+The CLI output provides all information needed for troubleshooting, organized as cleanly as possible.
 
 ---
 
@@ -208,12 +158,10 @@ scenario-to-desktop pipeline run {{TARGET}} --wait --debug
 **Do:**
 - Use `--wait` for all scripted/agent workflows
 - Verify target scenario is running before generation (preflight checks this)
-- Use thin client mode for production
+- Use bundles mode for production
 
 **Do NOT:**
-- Use bundled mode in production (not ready)
-- Expect MSI builds to work reliably via Wine
-- Build DMG/PKG on Linux (requires macOS)
+- Use thin client mode unless specified
 
 ---
 
@@ -228,89 +176,3 @@ After successful pipeline run:
 | macOS | `<scenario>.zip` (contains .app) |
 
 Download via: `scenario-to-desktop download <scenario> <platform> --output <path>`
-
----
-
-### **11. Smoke Test Troubleshooting**
-
-When smoke tests fail, check these in order:
-
-| Error Kind | Meaning | First Check |
-|------------|---------|-------------|
-| artifact | Build artifact missing/corrupted | `ls -la <artifact>`, rebuild |
-| platform | Missing system deps | Install xvfb (Linux), check signing (Mac) |
-| execution | App crashed | Check stderr for stack traces |
-| validation | App ran but didn't pass | Check app logs for connection errors |
-| timeout | App too slow | Increase timeout or optimize startup |
-
-**Lifecycle marker diagnosis:**
-
-The smoke test protocol emits markers at each stage. Check `last_lifecycle_state` in error context:
-
-| Last State | Meaning | Likely Cause |
-|------------|---------|--------------|
-| (empty) | App crashed before smoke test code ran | Electron initialization failure, missing deps |
-| `init` | App started smoke test but crashed during initialization | Bundle validation failed, config error |
-| `bundle_resolving` | App is locating bundle directory | Bundle not in extraResources, wrong path |
-| `runtime_starting` | App is spawning bundled runtime | Binary permissions, missing runtime deps |
-| `runtime_healthz` | Waiting for runtime /healthz endpoint | Runtime crashed or still starting |
-| `runtime_readyz` | Waiting for runtime /readyz endpoint | Runtime started but services not ready |
-| `runtime_ports` | Querying runtime /ports endpoint | Services ready but port config wrong |
-| `ready` | App initialized but didn't report result | Server connectivity issue, app logic error |
-| `result` | App reported result but didn't exit cleanly | Cleanup error (usually non-fatal) |
-| `exit` | App completed full lifecycle | Should be success - check for race condition |
-
-**Deployment mode timeouts:**
-
-Different deployment modes have different default timeouts:
-- **bundled**: 60 seconds (runtime needs time to start)
-- **external-server**: 30 seconds (server already running)
-- **cloud-api**: 30 seconds (connects to remote API)
-
-**Structured error markers:**
-
-When the app detects specific failure conditions, it emits `SMOKE_TEST_ERROR kind=<kind> msg="<message>"`:
-
-| Kind | Meaning | Resolution |
-|------|---------|------------|
-| `config` | Missing/invalid configuration | Regenerate desktop app |
-| `network` | Server unreachable | Verify server is running, check connectivity |
-| `validation` | Bundle validation failed | Review errors, rebuild bundle |
-| `runtime` | App crashed during execution | Check logs, verify platform compatibility |
-
-**App-reported errors:**
-
-When smoke tests fail, the CLI surfaces the actual error message from the app's telemetry. Look for `App reported error:` in the output:
-
-```
-Pipeline failed: abc123
-Stage 'smoketest' failed: smoke test did not pass
-
-App reported error: Bundled payload is missing
-  (deployment_mode=bundled, event=smoke_test_failed)
-
-Lifecycle state: bundle_resolving
-  App is locating the bundle directory. Check if bundle is packaged correctly in extraResources.
-```
-
-This tells you exactly what the app failed on, rather than just knowing it failed. The `deployment_mode` context helps narrow down the issue.
-
-**Example troubleshooting flow:**
-```bash
-# 1. Check smoke test status for error details
-scenario-to-desktop pipeline status <id> --verbose
-
-# 2. Look for "App reported error" - this is the actual failure reason
-# Example: "Bundled payload is missing" → bundle not in extraResources
-
-# 3. Check last_lifecycle_state for where it failed:
-# - Empty: Electron/platform deps issue
-# - init: Bundle validation failed
-# - bundle_resolving/runtime_*: Bundled mode startup issue
-# - ready: Server connectivity issue
-
-# 4. Use error kind for targeted fixes:
-# - config: regenerate with `pipeline run`
-# - network: verify server with `curl -I <url>`
-# - validation: review and fix bundle issues
-```
