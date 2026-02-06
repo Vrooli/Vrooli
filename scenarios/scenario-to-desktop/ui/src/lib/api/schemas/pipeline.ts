@@ -40,8 +40,10 @@ export const PipelineConfigSchema = z.object({
   clean: z.boolean().optional(),
   sign: z.boolean().optional(),
   publish: z.boolean().optional(),
-  distribute: z.boolean().optional(),
-  distribution_targets: z.array(z.string()).optional(),
+  deploy_target: z.string().optional(),
+  deploy_to: z.string().optional(),
+  remote_profile: z.string().optional(),
+  app_key: z.string().optional(),
   version: z.string().optional(),
   preflight_timeout_seconds: z.number().optional(),
   preflight_secrets: z.record(z.string()).optional(),
@@ -104,25 +106,19 @@ export const SmokeTestStageDetailsSchema = z.object({
 });
 
 /**
- * Distribution upload status.
- * @see PlatformUpload in distribution/types_pb.ts
- *
- * Most fields are optional for backward compatibility with existing tests.
+ * Deploy artifact result.
  */
-export const DistributionPlatformUploadSchema = z.object({
-  platform: z.union([PlatformSchema, z.string()]).optional(),
-  target: z.string().optional(),
-  status: z.union([UploadStatusSchema, z.string()]),
-  url: z.string().optional(),
-  error: z.string().optional(),
+export const DeployArtifactResultSchema = z.object({
+  artifact_id: z.number().optional(),
+  platform: z.string().optional(),
 });
 
 /**
- * Distribution stage details.
+ * Deploy stage details.
  */
-export const DistributionStageDetailsSchema = z.object({
-  targets: z.array(z.string()).optional(),
-  uploads: z.array(DistributionPlatformUploadSchema).optional(),
+export const DeployStageDetailsSchema = z.object({
+  artifacts: z.array(DeployArtifactResultSchema).optional(),
+  update_url: z.string().optional(),
 });
 
 /**
@@ -140,7 +136,7 @@ export const VerboseStageResultSchema = z.object({
       BuildStageDetailsSchema,
       BundleStageDetailsSchema,
       SmokeTestStageDetailsSchema,
-      DistributionStageDetailsSchema,
+      DeployStageDetailsSchema,
       z.record(z.unknown()),
     ])
     .optional(),

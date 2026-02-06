@@ -10,7 +10,6 @@ import type {
   GenerateStageDetails,
   BuildStageDetails,
   SmokeTestStageDetails,
-  DistributionStageDetails,
   PipelineConfig,
 } from "../lib/api";
 
@@ -25,7 +24,7 @@ export type PipelineStage =
   | "generate"
   | "build"
   | "smoketest"
-  | "distribution";
+  | "deploy";
 
 /** Pipeline run status (simplified for UI consumption) */
 export type PipelineRunStatus =
@@ -96,7 +95,7 @@ export interface PipelineStoreState {
   generateResult: GenerateStageDetails | null;
   buildResult: BuildStageDetails | null;
   smokeTestResult: SmokeTestStageDetails | null;
-  distributionResult: DistributionStageDetails | null;
+  deployResult: null;
 
   // Stage logs (from verbose pipeline status)
   stageLogs: Record<string, string[]>;
@@ -216,7 +215,7 @@ export const initialPipelineState: PipelineStoreState = {
   generateResult: null,
   buildResult: null,
   smokeTestResult: null,
-  distributionResult: null,
+  deployResult: null,
   stageLogs: {},
   pipelineHistory: [],
   preflightSecrets: {},

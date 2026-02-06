@@ -137,14 +137,14 @@ export function createPipelineStatus(
     pipeline_id: "test-pipeline-123",
     status: "running",
     current_stage: "bundle",
-    stage_order: ["bundle", "preflight", "generate", "build", "smoketest", "distribution"],
+    stage_order: ["bundle", "preflight", "generate", "build", "smoketest", "deploy"],
     stages: {
       bundle: { status: "pending" },
       preflight: { status: "pending" },
       generate: { status: "pending" },
       build: { status: "pending" },
       smoketest: { status: "pending" },
-      distribution: { status: "pending" },
+      deploy: { status: "pending" },
     },
     ...overrides,
   } as VerbosePipelineStatus;
@@ -330,20 +330,15 @@ export function createSmokeTestResult(
 }
 
 /**
- * Creates a mock distribution result.
+ * Creates a mock deploy result.
  */
-export function createDistributionResult(overrides?: Record<string, unknown>) {
+export function createDeployResult(overrides?: Record<string, unknown>) {
   return {
-    version: "1.0.0",
-    targets: {
-      s3: {
-        status: "completed",
-        uploads: {
-          win: { status: "completed", url: "https://s3.example.com/win" },
-          mac: { status: "completed", url: "https://s3.example.com/mac" },
-        },
-      },
-    },
+    artifacts: [
+      { artifact_id: 1, platform: "win" },
+      { artifact_id: 2, platform: "mac" },
+    ],
+    update_url: "https://example.com/api/v1/updates/my-app",
     ...overrides,
   };
 }

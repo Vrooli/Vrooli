@@ -64,54 +64,6 @@ type GenerateResult struct {
 	Status     string
 }
 
-// DistributionService provides artifact distribution.
-type DistributionService interface {
-	Upload(ctx context.Context, req UploadRequest) (*UploadResult, error)
-	ListTargets(ctx context.Context) ([]DistributionTarget, error)
-	ValidateTarget(ctx context.Context, targetName string) error
-}
-
-// UploadRequest holds upload parameters.
-type UploadRequest struct {
-	ScenarioName string
-	ArtifactPath string
-	Targets      []string
-	Version      string
-}
-
-// UploadResult holds upload output.
-type UploadResult struct {
-	DistributionID string
-	Status         string
-	UploadedTo     []string
-}
-
-// DistributionTarget represents a configured distribution target.
-type DistributionTarget struct {
-	Name    string
-	Type    string // s3, r2, local
-	Enabled bool
-}
-
-// DistributionStore tracks distribution operations.
-type DistributionStore interface {
-	Get(distributionID string) (DistributionStatus, bool)
-	Save(status DistributionStatus)
-}
-
-// DistributionStatus represents a distribution operation's state.
-type DistributionStatus struct {
-	DistributionID string
-	ScenarioName   string
-	Status         string // pending, uploading, completed, failed
-	ArtifactPath   string
-	Targets        []string
-	Progress       int
-	Error          string
-	CreatedAt      time.Time
-	CompletedAt    *time.Time
-}
-
 // PipelineOrchestrator provides full pipeline orchestration.
 type PipelineOrchestrator interface {
 	// RunPipeline starts a pipeline and returns immediately with status.
@@ -140,8 +92,10 @@ type PipelineConfig struct {
 	StopAfterStage      string
 	SkipPreflight       bool
 	SkipSmokeTest       bool
-	Distribute          bool
-	DistributionTargets []string
+	DeployTarget        string
+	DeployTo            string
+	RemoteProfile       string
+	AppKey              string
 	Sign                bool
 	Clean               bool
 	Version             string

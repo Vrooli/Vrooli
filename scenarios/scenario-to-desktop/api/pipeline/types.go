@@ -6,7 +6,6 @@ import (
 
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
-	"scenario-to-desktop-api/distribution"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/smoketest"
@@ -14,12 +13,12 @@ import (
 
 // Stage names as constants for consistency.
 const (
-	StageBundle       = "bundle"
-	StagePreflight    = "preflight"
-	StageGenerate     = "generate"
-	StageBuild        = "build"
-	StageDistribution = "distribution"
-	StageSmokeTest    = "smoketest"
+	StageBundle    = "bundle"
+	StagePreflight = "preflight"
+	StageGenerate  = "generate"
+	StageBuild     = "build"
+	StageSmokeTest = "smoketest"
+	StageDeploy    = "deploy"
 )
 
 // Pipeline status values.
@@ -178,14 +177,11 @@ type Config struct {
 	// Publish enables publishing after successful build.
 	Publish bool `json:"publish,omitempty"`
 
-	// Distribute enables distribution stage after successful build.
-	Distribute bool `json:"distribute,omitempty"`
+	// DeployConfig configures the deploy stage (LPBS deployment).
+	// If nil, the deploy stage is skipped.
+	DeployConfig *DeployConfig `json:"deploy,omitempty"`
 
-	// DistributionTargets specifies which distribution targets to upload to.
-	// Empty means all enabled targets.
-	DistributionTargets []string `json:"distribution_targets,omitempty"`
-
-	// Version is the release version (used in distribution path).
+	// Version is the release version (used in deploy path).
 	Version string `json:"version,omitempty"`
 
 	// versionRollback stores persisted version changes for rollback on failure.
@@ -198,7 +194,7 @@ type Config struct {
 	PreflightSecrets map[string]string `json:"preflight_secrets,omitempty"`
 
 	// StopAfterStage halts the pipeline after this stage completes.
-	// Empty string means run all stages. Valid values: bundle, preflight, generate, build, smoketest, distribution.
+	// Empty string means run all stages. Valid values: bundle, preflight, generate, build, smoketest, deploy.
 	StopAfterStage string `json:"stop_after_stage,omitempty"`
 
 	// ResumeFromStage starts execution from this stage, skipping all prior stages.
@@ -218,7 +214,7 @@ type Config struct {
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
 
 	// Stages specifies which stages to run. Empty means all stages.
-	// Valid values: bundle, preflight, generate, build, smoketest, distribution.
+	// Valid values: bundle, preflight, generate, build, smoketest, deploy.
 	// Stages are executed in pipeline order, regardless of the order specified here.
 	Stages []string `json:"stages,omitempty"`
 
@@ -226,6 +222,39 @@ type Config struct {
 	// If nil, the default provider (generic) is used but auto-updates are disabled
 	// until generic.url is configured.
 	UpdateConfig *generation.UpdateConfig `json:"update_config,omitempty"`
+}
+
+// DeployConfig configures the deploy stage for LPBS deployment.
+type DeployConfig struct {
+	// TargetName is the saved deploy target key from deploy-targets.json.
+	TargetName string `json:"target_name,omitempty"`
+
+	// ScenarioName is the LPBS scenario name (for inline config).
+	ScenarioName string `json:"scenario_name,omitempty"`
+
+	// RemoteProfile is the remote profile tag (for inline config).
+	RemoteProfile string `json:"remote_profile,omitempty"`
+
+	// AppKey is the download app key on the remote LPBS (always required).
+	AppKey string `json:"app_key"`
+
+	// UpdateURL is auto-derived from the remote profile if empty.
+	UpdateURL string `json:"update_url,omitempty"`
+}
+
+// DeployResult contains the outcome of the deploy stage.
+type DeployResult struct {
+	// Artifacts lists the uploaded artifacts.
+	Artifacts []DeployArtifactResult `json:"artifacts,omitempty"`
+
+	// UpdateURL is the derived update endpoint for electron-updater.
+	UpdateURL string `json:"update_url,omitempty"`
+}
+
+// DeployArtifactResult tracks a single artifact upload.
+type DeployArtifactResult struct {
+	ArtifactID int64  `json:"artifact_id"`
+	Platform   string `json:"platform"`
 }
 
 // VersionUpdateRequest controls how a scenario version is resolved for a pipeline run.
@@ -381,8 +410,8 @@ type StageInput struct {
 	// SmokeTestResult contains the output from the smoke test stage.
 	SmokeTestResult *smoketest.Status `json:"smoke_test_result,omitempty"`
 
-	// DistributionResult contains the output from the distribution stage.
-	DistributionResult *distribution.DistributionStatus `json:"distribution_result,omitempty"`
+	// DeployResult contains the output from the deploy stage.
+	DeployResult *DeployResult `json:"deploy_result,omitempty"`
 
 	// ScenarioMetadata contains analyzed scenario metadata.
 	ScenarioMetadata *generation.ScenarioMetadata `json:"scenario_metadata,omitempty"`
@@ -565,7 +594,7 @@ func (c *Config) takeVersionRollback() *versionRollback {
 // IsValidStageName checks if a stage name is valid.
 func IsValidStageName(name string) bool {
 	switch name {
-	case StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDistribution:
+	case StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy:
 		return true
 	default:
 		return false
@@ -679,7 +708,7 @@ func (s *Status) GetNextResumeStage() string {
 	}
 
 	// Define stage order
-	stageOrder := []string{StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDistribution}
+	stageOrder := []string{StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy}
 
 	// Find the stopped stage and return the next one
 	for i, stage := range stageOrder {

@@ -15,7 +15,7 @@ import type {
   BundleStageDetails,
   BundlePreflightResponse,
   SmokeTestStageDetails,
-  DistributionStageDetails,
+  DeployStageDetails,
   BuildStatus as BuildStatusType,
   PipelineStatus,
 } from "../lib/api";
@@ -145,7 +145,7 @@ export interface ExtractedStageResults {
   generateResult: GenerateStageDetails | null;
   buildResult: BuildStageDetails | null;
   smokeTestResult: SmokeTestStageDetails | null;
-  distributionResult: DistributionStageDetails | null;
+  deployResult: DeployStageDetails | null;
   stageLogs: Record<string, string[]>;
 }
 
@@ -166,7 +166,7 @@ export function extractStageResults(status: VerbosePipelineStatus): ExtractedSta
     generateResult: null,
     buildResult: null,
     smokeTestResult: null,
-    distributionResult: null,
+    deployResult: null,
     stageLogs: {},
   };
 
@@ -186,8 +186,8 @@ export function extractStageResults(status: VerbosePipelineStatus): ExtractedSta
   if (stages.smoketest?.details) {
     results.smokeTestResult = stages.smoketest.details as SmokeTestStageDetails;
   }
-  if (stages.distribution?.details) {
-    results.distributionResult = stages.distribution.details as DistributionStageDetails;
+  if (stages.deploy?.details) {
+    results.deployResult = stages.deploy.details as DeployStageDetails;
   }
 
   // Extract logs from all stages

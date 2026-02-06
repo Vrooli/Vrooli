@@ -12,7 +12,7 @@ import {
   GenerateSection,
   BuildSection,
   SmokeTestSection,
-  DistributionSection,
+  DeploySection,
   type ExposedFormState,
   type ValidationState,
 } from "../components/sections";
@@ -76,7 +76,7 @@ export function GeneratorPage({
   const generateRef = useRef<HTMLDivElement>(null);
   const buildRef = useRef<HTMLDivElement>(null);
   const smoketestRef = useRef<HTMLDivElement>(null);
-  const distributionRef = useRef<HTMLDivElement>(null);
+  const deployRef = useRef<HTMLDivElement>(null);
 
   const sectionRefs = useMemo(
     () => ({
@@ -86,7 +86,7 @@ export function GeneratorPage({
       generate: generateRef,
       build: buildRef,
       smoketest: smoketestRef,
-      distribution: distributionRef,
+      deploy: deployRef,
     }),
     []
   );
@@ -107,7 +107,7 @@ export function GeneratorPage({
         "generate",
         "build",
         "smoketest",
-        "distribution",
+        "deploy",
       ];
 
       for (let i = sectionIds.length - 1; i >= 0; i--) {
@@ -197,8 +197,8 @@ export function GeneratorPage({
         {/* Section 5: Smoke Test */}
         <SmokeTestSection ref={sectionRefs.smoketest} scenarioName={scenarioName} />
 
-        {/* Section 6: Distribution */}
-        <DistributionSection ref={sectionRefs.distribution} scenarioName={scenarioName} />
+        {/* Section 6: Deploy */}
+        <DeploySection ref={sectionRefs.deploy} scenarioName={scenarioName} />
       </div>
     </GeneratorLayout>
   );

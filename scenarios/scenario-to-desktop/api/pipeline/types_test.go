@@ -285,15 +285,15 @@ func TestStatusGetNextResumeStage(t *testing.T) {
 			expected:          StageSmokeTest,
 		},
 		{
-			name:              "stopped after smoketest returns distribution",
+			name:              "stopped after smoketest returns deploy",
 			status:            StatusCompleted,
 			stoppedAfterStage: StageSmokeTest,
-			expected:          StageDistribution,
+			expected:          StageDeploy,
 		},
 		{
-			name:              "stopped after distribution returns empty (last stage)",
+			name:              "stopped after deploy returns empty (last stage)",
 			status:            StatusCompleted,
-			stoppedAfterStage: StageDistribution,
+			stoppedAfterStage: StageDeploy,
 			expected:          "",
 		},
 		{
@@ -339,7 +339,7 @@ func TestIsValidStageName(t *testing.T) {
 		{StageGenerate, true},
 		{StageBuild, true},
 		{StageSmokeTest, true},
-		{StageDistribution, true},
+		{StageDeploy, true},
 		{"invalid", false},
 		{"", false},
 		{"Bundle", false}, // Case sensitive

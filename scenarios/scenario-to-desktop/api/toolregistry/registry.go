@@ -6,7 +6,7 @@
 // ARCHITECTURE:
 // - Registry: Central coordinator that manages tool providers
 // - ToolProvider: Interface for components that contribute tools
-// - Categories: desktop_build, code_signing, distribution, build_status, desktop_inspection
+// - Categories: desktop_build, code_signing, deploy, build_status, desktop_inspection
 //
 // TESTING SEAMS:
 // - ToolProvider interface enables mocking tool sources

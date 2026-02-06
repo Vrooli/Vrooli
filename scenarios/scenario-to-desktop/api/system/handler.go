@@ -86,7 +86,7 @@ func (h *Handler) StatusHandler(w http.ResponseWriter, r *http.Request) {
 			{"method": "GET", "path": "/api/v1/health", "description": "Health check"},
 			{"method": "GET", "path": "/api/v1/status", "description": "System status"},
 			{"method": "GET", "path": "/api/v1/templates", "description": "List templates"},
-			{"method": "POST", "path": "/api/v1/pipeline/run", "description": "Run pipeline (bundle, preflight, generate, build, smoketest, distribution)"},
+			{"method": "POST", "path": "/api/v1/pipeline/run", "description": "Run pipeline (bundle, preflight, generate, build, smoketest, deploy)"},
 			{"method": "GET", "path": "/api/v1/pipeline/{id}", "description": "Get pipeline status"},
 			{"method": "POST", "path": "/api/v1/pipeline/{id}/resume", "description": "Resume stopped pipeline"},
 			{"method": "POST", "path": "/api/v1/pipeline/{id}/cancel", "description": "Cancel running pipeline"},

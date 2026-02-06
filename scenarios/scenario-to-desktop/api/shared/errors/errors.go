@@ -1153,7 +1153,7 @@ func ErrPipelineOrchestratorNotConfigured() *DomainError {
 func ErrPipelineInvalidStage(stageName string) *DomainError {
 	return New(CodeValidation, "invalid stage name: "+stageName).
 		WithDetail("stage_name", stageName).
-		WithDetail("valid_stages", []string{"bundle", "preflight", "generate", "build", "smoketest", "distribution"}).
+		WithDetail("valid_stages", []string{"bundle", "preflight", "generate", "build", "smoketest", "deploy"}).
 		WithRecovery(RecoveryFixInput, "Use one of the valid stage names").
 		InDomain("pipeline")
 }
@@ -1680,75 +1680,35 @@ func ErrBuildPlatformFailed(cause error, platform string, lastOutput string) *Do
 	return err
 }
 
-// Distribution stage errors
+// Deploy stage errors
 
-// ErrDistributionServiceNotConfigured creates an error for missing distribution service.
-func ErrDistributionServiceNotConfigured() *DomainError {
-	return New(CodeServiceStartError, "Distribution service unavailable").
-		WithDetail("internal_error", "distribution service not configured").
-		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
-		WithManualSteps([]string{
-			"Check server startup logs for initialization errors",
-			"Verify the distribution service is properly configured",
-			"Contact support if the issue persists",
-		}).
-		InDomain("distribution")
-}
-
-// ErrDistributionStoreNotConfigured creates an error for missing distribution store.
-func ErrDistributionStoreNotConfigured() *DomainError {
-	return New(CodeServiceStartError, "Distribution tracking service unavailable").
-		WithDetail("internal_error", "distribution store not configured for status polling").
-		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
-		WithManualSteps([]string{
-			"Check server startup logs for initialization errors",
-			"Verify the distribution store is properly configured",
-			"Contact support if the issue persists",
-		}).
-		InDomain("distribution")
-}
-
-// ErrDistributionStartFailed creates an error for distribution start failure.
-func ErrDistributionStartFailed(cause error, target string) *DomainError {
-	return Wrap(CodeInternal, cause, "distribution failed to start").
+// ErrDeployFailed creates an error for deploy failure.
+func ErrDeployFailed(cause error, target string) *DomainError {
+	return Wrap(CodeInternal, cause, "deploy failed").
 		WithDetail("target", target).
-		WithRecovery(RecoveryRetry, "Check distribution configuration and retry").
+		WithRecovery(RecoveryRetry, "Check LPBS connectivity and retry").
 		WithRetryStrategy(RetryDefault).
 		WithManualSteps([]string{
-			"Verify distribution target is configured",
-			"Check target credentials are valid",
-			"Review distribution service logs",
+			"Verify LPBS is running and reachable",
+			"Check remote profile session is active",
+			"Review deploy logs for details",
 		}).
-		InDomain("distribution")
+		InDomain("deploy")
 }
 
-// ErrDistributionFailed creates an error for distribution failure.
-func ErrDistributionFailed(cause error, target string) *DomainError {
-	return Wrap(CodeInternal, cause, "distribution failed").
-		WithDetail("target", target).
-		WithRecovery(RecoveryRetry, "Check upload logs and retry").
-		WithRetryStrategy(RetryDefault).
-		WithManualSteps([]string{
-			"Verify network connectivity to target",
-			"Check target storage quota",
-			"Review upload error details",
-		}).
-		InDomain("distribution")
-}
-
-// ErrDistributionTimeout creates an error for distribution timeout.
-func ErrDistributionTimeout(distributionID string, duration string) *DomainError {
-	return New(CodeTimeout, "distribution timed out").
-		WithDetail("distribution_id", distributionID).
+// ErrDeployTimeout creates an error for deploy timeout.
+func ErrDeployTimeout(deployID string, duration string) *DomainError {
+	return New(CodeTimeout, "deploy timed out").
+		WithDetail("deploy_id", deployID).
 		WithDetail("timeout_duration", duration).
 		WithRecovery(RecoveryRetryWithBackoff, "Retry with longer timeout").
 		WithRetryStrategy(RetryConservative).
 		WithManualSteps([]string{
 			"Large artifacts may need more upload time",
-			"Check network speed to distribution target",
+			"Check network speed to LPBS remote",
 			"Consider uploading fewer artifacts in parallel",
 		}).
-		InDomain("distribution")
+		InDomain("deploy")
 }
 
 // Smoke test stage errors (for use by smoketest package)

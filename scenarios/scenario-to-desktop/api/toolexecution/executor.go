@@ -16,8 +16,6 @@ import (
 type ServerExecutorConfig struct {
 	BuildStore           BuildStore
 	GenerationService    GenerationService
-	DistributionService  DistributionService
-	DistributionStore    DistributionStore
 	PipelineOrchestrator PipelineOrchestrator
 	PreflightService     PreflightService
 	SigningService       SigningService
@@ -29,12 +27,11 @@ type ServerExecutorConfig struct {
 // ServerExecutor implements ToolExecutor using scenario-to-desktop's services.
 // It dispatches to domain-specific executors for each tool category.
 type ServerExecutor struct {
-	pipeline     *PipelineExecutor
-	signing      *SigningExecutor
-	distribution *DistributionExecutor
-	inspection   *InspectionExecutor
-	legacy       *LegacyExecutor
-	logger       *slog.Logger
+	pipeline   *PipelineExecutor
+	signing    *SigningExecutor
+	inspection *InspectionExecutor
+	legacy     *LegacyExecutor
+	logger     *slog.Logger
 }
 
 // NewServerExecutor creates a new ServerExecutor.
@@ -45,12 +42,11 @@ func NewServerExecutor(cfg ServerExecutorConfig) *ServerExecutor {
 	}
 
 	return &ServerExecutor{
-		pipeline:     NewPipelineExecutor(cfg.PipelineOrchestrator, logger),
-		signing:      NewSigningExecutor(cfg.SigningService, logger),
-		distribution: NewDistributionExecutor(cfg.DistributionService, cfg.DistributionStore, logger),
-		inspection:   NewInspectionExecutor(cfg.BuildStore, cfg.PreflightService, cfg.ScenarioService, cfg.VrooliRoot, logger),
-		legacy:       NewLegacyExecutor(cfg.BuildStore, cfg.GenerationService, logger),
-		logger:       logger,
+		pipeline:   NewPipelineExecutor(cfg.PipelineOrchestrator, logger),
+		signing:    NewSigningExecutor(cfg.SigningService, logger),
+		inspection: NewInspectionExecutor(cfg.BuildStore, cfg.PreflightService, cfg.ScenarioService, cfg.VrooliRoot, logger),
+		legacy:     NewLegacyExecutor(cfg.BuildStore, cfg.GenerationService, logger),
+		logger:     logger,
 	}
 }
 
@@ -92,20 +88,6 @@ func (e *ServerExecutor) Execute(ctx context.Context, toolName string, args map[
 		return e.signing.GetSigningStatus(ctx, args)
 	case "discover_certificates":
 		return e.signing.DiscoverCertificates(ctx, args)
-
-	// Distribution tools
-	case "upload_artifact":
-		return e.distribution.UploadArtifact(ctx, args)
-	case "publish_release":
-		return e.distribution.PublishRelease(ctx, args)
-	case "list_artifacts":
-		return e.distribution.ListArtifacts(ctx, args)
-	case "list_distribution_targets":
-		return e.distribution.ListDistributionTargets(ctx, args)
-	case "validate_distribution_target":
-		return e.distribution.ValidateDistributionTarget(ctx, args)
-	case "check_distribution_status":
-		return e.distribution.CheckDistributionStatus(ctx, args)
 
 	// Inspection tools
 	case "check_build_status":

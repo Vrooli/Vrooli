@@ -74,9 +74,6 @@ export type {
   BuildPlatformResult,
   BuildStageDetails,
   SmokeTestStageDetails,
-  DistributionPlatformUpload,
-  DistributionTargetStatus,
-  DistributionStageDetails,
   StageDetails,
   VerboseStageResult,
   VerbosePipelineStatus,
@@ -150,42 +147,6 @@ export {
   discoverCertificates,
   generateLinuxSigningKey,
 } from "./signing";
-
-// Distribution types and functions
-export type {
-  DistributionRetryConfig,
-  DistributionTarget,
-  DistributionConfig,
-  DistributionConfigResponse,
-  DistributionTargetResponse,
-  DistributionTargetsResponse,
-  DistributionTargetValidation,
-  DistributionValidationResult,
-  DistributionTestResult,
-  DistributeRequest,
-  CheckCredentialsRequest,
-  TargetCredentialStatus,
-  CheckCredentialsResponse,
-  DistributeResponse,
-  UploadStatus,
-  TargetDistribution,
-  DistributionStatus,
-} from "./distribution";
-export {
-  fetchDistributionConfig,
-  fetchDistributionConfigPath,
-  fetchDistributionTargets,
-  fetchDistributionTarget,
-  createDistributionTarget,
-  updateDistributionTarget,
-  deleteDistributionTarget,
-  testDistributionTarget,
-  validateDistributionTargets,
-  startDistribution,
-  fetchDistributionStatus,
-  cancelDistribution,
-  checkDistributionCredentials,
-} from "./distribution";
 
 // Task functions
 export {
@@ -263,7 +224,6 @@ export {
   DeploymentMode,
   Framework,
   TemplateType,
-  DistributionProvider,
   // Schemas for validation
   PlatformSchema as ProtoPlatformSchema,
   StageNameSchema as ProtoStageNameSchema,
@@ -273,7 +233,6 @@ export {
   DeploymentModeSchema as ProtoDeploymentModeSchema,
   FrameworkSchema as ProtoFrameworkSchema,
   TemplateTypeSchema as ProtoTemplateTypeSchema,
-  DistributionProviderSchema as ProtoDistributionProviderSchema,
 } from "@vrooli/proto-types/scenario-to-desktop/v1/base/shared_pb";
 
 // Pipeline types
@@ -396,39 +355,3 @@ export {
   JobStatusSchema as ProtoJobStatusSchema,
 } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
 
-// Distribution domain types
-export type {
-  DistributionTarget as ProtoDistributionTarget,
-  DistributionConfig as ProtoDistributionConfig,
-  DistributionStatus as ProtoDistributionStatus,
-  TargetDistribution as ProtoTargetDistribution,
-  PlatformUpload as ProtoPlatformUpload,
-  DistributeRequest as ProtoDistributeRequest,
-  DistributeResponse as ProtoDistributeResponse,
-  DistributionValidationResult as ProtoDistributionValidationResult,
-  TargetValidation as ProtoTargetValidation,
-  RetryConfig as ProtoRetryConfig,
-  CheckCredentialsRequest as ProtoCheckCredentialsRequest,
-  CheckCredentialsResponse as ProtoCheckCredentialsResponse,
-  TargetCredentialStatus as ProtoTargetCredentialStatus,
-} from "@vrooli/proto-types/scenario-to-desktop/v1/distribution/types_pb";
-
-export {
-  DistributionStatusValue,
-  ACL,
-  DistributionTargetSchema as ProtoDistributionTargetSchema,
-  DistributionConfigSchema as ProtoDistributionConfigSchema,
-  DistributionStatusSchema as ProtoDistributionStatusSchema,
-  TargetDistributionSchema as ProtoTargetDistributionSchema,
-  PlatformUploadSchema as ProtoPlatformUploadSchema,
-  DistributeRequestSchema as ProtoDistributeRequestSchema,
-  DistributeResponseSchema as ProtoDistributeResponseSchema,
-  DistributionValidationResultSchema as ProtoDistributionValidationResultSchema,
-  TargetValidationSchema as ProtoTargetValidationSchema,
-  RetryConfigSchema as ProtoRetryConfigSchema,
-  CheckCredentialsRequestSchema as ProtoCheckCredentialsRequestSchema,
-  CheckCredentialsResponseSchema as ProtoCheckCredentialsResponseSchema,
-  TargetCredentialStatusSchema as ProtoTargetCredentialStatusSchema,
-  DistributionStatusValueSchema as ProtoDistributionStatusValueSchema,
-  ACLSchema as ProtoACLSchema,
-} from "@vrooli/proto-types/scenario-to-desktop/v1/distribution/types_pb";

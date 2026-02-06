@@ -21,7 +21,7 @@ import (
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
-	"scenario-to-desktop-api/distribution"
+	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
@@ -58,15 +58,14 @@ type Server struct {
 	logger      *slog.Logger
 
 	// Domain handlers (screaming architecture)
-	buildHandler        *build.Handler
-	telemetryHandler    *telemetry.Handler
-	recordsHandler      *records.Handler
-	scenarioHandler     *scenario.Handler
-	systemHandler       *system.Handler
-	pipelineHandler     *pipeline.Handler
-	stateHandler        *state.Handler
-	distributionHandler *distribution.Handler
-
+	buildHandler     *build.Handler
+	telemetryHandler *telemetry.Handler
+	recordsHandler   *records.Handler
+	scenarioHandler  *scenario.Handler
+	systemHandler    *system.Handler
+	pipelineHandler  *pipeline.Handler
+	stateHandler     *state.Handler
+	deployHandler    *deploy.Handler
 	// Tool Discovery and Execution Protocol handlers
 	toolsHandler         *toolhandlers.ToolsHandler
 	toolExecutionHandler *toolexecution.Handler
@@ -166,23 +165,6 @@ func NewServer(port int) *Server {
 	systemBuildStore := &systemBuildStoreAdapter{store: buildStore}
 	systemHandler := system.NewHandler(wineService, systemBuildStore, templateDir)
 
-	// Distribution domain (S3/R2 uploads)
-	distributionRepo := distribution.NewGlobalRepository(
-		distribution.WithVrooliRoot(vrooliRoot),
-	)
-	distributionStore := distribution.NewInMemoryStore()
-	distributionService := distribution.NewService(
-		distribution.WithRepository(distributionRepo),
-		distribution.WithStore(distributionStore),
-		distribution.WithLogger(logger),
-	)
-	distributionHandler := distribution.NewHandler(
-		distribution.WithHandlerService(distributionService),
-		distribution.WithHandlerRepository(distributionRepo),
-		distribution.WithHandlerStore(distributionStore),
-		distribution.WithHandlerLogger(logger),
-	)
-
 	// Pipeline orchestrator - wire up all stages with their dependencies
 	// Create scenario analyzer for generation stage
 	scenarioAnalyzer := generation.NewAnalyzer(vrooliRoot)
@@ -193,8 +175,8 @@ func NewServer(port int) *Server {
 	)
 
 	// Create pipeline stages with their service dependencies
-	// Stage order: bundle → preflight → generate → build → smoketest → distribution
-	// (smoketest before distribution: verify the build works before publishing)
+	// Stage order: bundle → preflight → generate → build → smoketest → deploy
+	// (smoketest before deploy: verify the build works before publishing)
 	pipelineStages := []pipeline.Stage{
 		pipeline.NewBundleStage(
 			pipeline.WithScenarioRoot(scenarioRoot),
@@ -218,10 +200,6 @@ func NewServer(port int) *Server {
 		pipeline.NewSmokeTestStage(
 			pipeline.WithSmokeTestService(smokeTestService),
 			pipeline.WithSmokeTestStore(smokeTestStore),
-		),
-		pipeline.NewDistributionStage(
-			pipeline.WithDistributionService(distributionService),
-			pipeline.WithDistributionStore(distributionStore),
 		),
 	}
 
@@ -268,19 +246,22 @@ func NewServer(port int) *Server {
 		pipeline.WithManager(pipelineManager),
 	)
 
+	// Deploy target management
+	deployTargetRepo := deploy.NewTargetRepository(vrooliRoot)
+	deployHandler := deploy.NewHandler(deployTargetRepo)
+
 	// ===== Tool Discovery and Execution Protocol =====
 
 	// Initialize tool registry with scenario metadata
 	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
 		ScenarioName:        "scenario-to-desktop",
 		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Desktop application packaging, signing, and distribution",
+		ScenarioDescription: "Desktop application packaging, signing, and deployment",
 	})
 
-	// Register tool providers (pipeline tools plus signing, distribution, and inspection)
+	// Register tool providers (pipeline tools plus signing and inspection)
 	toolReg.RegisterProvider(toolregistry.NewPipelineToolProvider())
 	toolReg.RegisterProvider(toolregistry.NewSigningToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewDistributionToolProvider())
 	toolReg.RegisterProvider(toolregistry.NewInspectionToolProvider())
 
 	// Create tool discovery handler
@@ -344,15 +325,14 @@ func NewServer(port int) *Server {
 		logger:      logger,
 
 		// Domain handlers
-		buildHandler:        buildHandler,
-		telemetryHandler:    telemetryHandler,
-		recordsHandler:      recordsHandler,
-		scenarioHandler:     scenarioHandler,
-		systemHandler:       systemHandler,
-		pipelineHandler:     pipelineHandler,
-		stateHandler:        stateHandler,
-		distributionHandler: distributionHandler,
-
+		buildHandler:     buildHandler,
+		telemetryHandler: telemetryHandler,
+		recordsHandler:   recordsHandler,
+		scenarioHandler:  scenarioHandler,
+		systemHandler:    systemHandler,
+		pipelineHandler:  pipelineHandler,
+		stateHandler:     stateHandler,
+		deployHandler:    deployHandler,
 		// Tool Protocol handlers
 		toolsHandler:         toolsHandler,
 		toolExecutionHandler: toolExecutionHandler,
@@ -408,11 +388,11 @@ func (s *Server) registerDomainHandlers() {
 	signingHandler := signing.NewHandler()
 	signingHandler.RegisterRoutes(s.router)
 
-	// Distribution domain: /api/v1/distribution/*
-	s.distributionHandler.RegisterRoutes(s.router)
-
 	// Pipeline orchestration - one-button deployment: /api/v1/pipeline/*
 	s.pipelineHandler.RegisterRoutes(s.router)
+
+	// Deploy target management: /api/v1/deploy-targets/*
+	s.deployHandler.RegisterRoutes(s.router)
 
 	// Task orchestration - agent spawning for pipeline investigations
 	s.registerTaskRoutes()

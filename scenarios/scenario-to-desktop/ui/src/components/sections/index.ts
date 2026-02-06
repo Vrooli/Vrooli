@@ -15,4 +15,4 @@ export { PreflightSection } from "./preflight";
 export { GenerateSection } from "./generate";
 export { BuildSection } from "./build";
 export { SmokeTestSection } from "./smoketest";
-export { DistributionSection } from "./distribution";
+export { DeploySection } from "./deploy";

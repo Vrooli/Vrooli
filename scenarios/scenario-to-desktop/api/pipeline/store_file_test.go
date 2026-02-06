@@ -584,7 +584,7 @@ func TestFileStoreResumedInputPersistence(t *testing.T) {
 				CompletedAt: time.Now().Unix(),
 			},
 		},
-		StageOrder: []string{"bundle", "preflight", "generate", "build", "smoketest", "distribution"},
+		StageOrder: []string{"bundle", "preflight", "generate", "build", "smoketest", "deploy"},
 		Config: &Config{
 			ScenarioName:     "test-scenario",
 			ParentPipelineID: "parent-pipeline-123",

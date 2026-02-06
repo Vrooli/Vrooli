@@ -30,7 +30,7 @@ export {
   createGenerateResult,
   createBuildResult,
   createSmokeTestResult,
-  createDistributionResult,
+  createDeployResult,
 } from "./mocks";
 
 // Re-export commonly used testing utilities from @testing-library/react

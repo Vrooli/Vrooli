@@ -30,7 +30,7 @@ function getStoreSnapshot() {
     generateResult: state.generateResult,
     buildResult: state.buildResult,
     smokeTestResult: state.smokeTestResult,
-    distributionResult: state.distributionResult,
+    deployResult: state.deployResult,
     stageLogs: state.stageLogs,
     pipelineHistory: state.pipelineHistory,
     preflightSecrets: state.preflightSecrets,

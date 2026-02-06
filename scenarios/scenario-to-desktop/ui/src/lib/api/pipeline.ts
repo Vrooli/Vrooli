@@ -13,10 +13,13 @@ export interface PipelineConfig {
   bundle_manifest_path?: string;
   skip_preflight?: boolean;
   skip_smoke_test?: boolean;
-  stop_after_stage?: "bundle" | "preflight" | "generate" | "build" | "smoketest" | "distribution";
+  stop_after_stage?: "bundle" | "preflight" | "generate" | "build" | "smoketest" | "deploy";
   clean?: boolean;
   sign?: boolean;
-  distribute?: boolean;
+  deploy_target?: string;
+  deploy_to?: string;
+  remote_profile?: string;
+  app_key?: string;
   version?: string;
   version_update?: VersionUpdateRequest;
   preflight_timeout_seconds?: number;
@@ -175,38 +178,16 @@ export interface SmokeTestStageDetails {
   telemetry_upload_error?: string;
 }
 
-/** Distribution platform upload (from distribution/types.go PlatformUpload) */
-export interface DistributionPlatformUpload {
+/** Deploy artifact result (from pipeline/types.go DeployArtifactResult) */
+export interface DeployArtifactResult {
+  artifact_id?: number;
   platform?: string;
-  status?: string;
-  local_path?: string;
-  remote_key?: string;
-  url?: string;
-  size?: number;
-  bytes_uploaded?: number;
-  error?: string;
 }
 
-/** Distribution target status (from distribution/types.go TargetDistribution) */
-export interface DistributionTargetStatus {
-  target_name?: string;
-  status?: string;
-  started_at?: number;
-  completed_at?: number;
-  uploads?: Record<string, DistributionPlatformUpload>;
-  error?: string;
-}
-
-/** Distribution stage details (from distribution/types.go DistributionStatus) */
-export interface DistributionStageDetails {
-  distribution_id?: string;
-  scenario_name?: string;
-  version?: string;
-  status?: string;
-  started_at?: number;
-  completed_at?: number;
-  targets?: Record<string, DistributionTargetStatus>;
-  error?: string;
+/** Deploy stage details (from pipeline/types.go DeployResult) */
+export interface DeployStageDetails {
+  artifacts?: DeployArtifactResult[];
+  update_url?: string;
 }
 
 /** Union type for all possible stage details */
@@ -215,7 +196,7 @@ export type StageDetails =
   | GenerateStageDetails
   | BuildStageDetails
   | SmokeTestStageDetails
-  | DistributionStageDetails;
+  | DeployStageDetails;
 
 /** Verbose stage result includes details and logs */
 export interface VerboseStageResult extends Omit<PipelineStageResult, "details"> {

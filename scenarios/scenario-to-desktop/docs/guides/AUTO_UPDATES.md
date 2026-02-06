@@ -150,7 +150,7 @@ When using the Landing Page Business Suite (LPBS) as your update server, configu
   "update_config": {
     "provider": "generic",
     "generic": {
-      "url": "https://your-lpbs-domain.com/api/v1/apps/{app_key}/updates"
+      "url": "https://your-lpbs-domain.com/api/v1/updates/{app_key}"
     }
   }
 }
@@ -160,9 +160,9 @@ Replace `{app_key}` with your actual application key registered in LPBS.
 
 **Expected LPBS Endpoints:**
 ```
-GET /api/v1/apps/{app_key}/updates/{channel}/latest.yml
-GET /api/v1/apps/{app_key}/updates/{channel}/latest-mac.yml
-GET /api/v1/apps/{app_key}/updates/{channel}/latest-linux.yml
+GET /api/v1/updates/{app_key}/{channel}/latest.yml
+GET /api/v1/updates/{app_key}/{channel}/latest-mac.yml
+GET /api/v1/updates/{app_key}/{channel}/latest-linux.yml
 ```
 
 These endpoints should:

@@ -2,7 +2,7 @@
 //
 // This file defines pipeline orchestration tools for desktop application packaging.
 // These tools provide unified control over the full desktop build pipeline
-// (bundle -> preflight -> generate -> build -> distribution -> smoketest).
+// (bundle -> preflight -> generate -> build -> smoketest -> deploy).
 package toolregistry
 
 import (
@@ -52,7 +52,7 @@ func (p *PipelineToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinitio
 func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 	return &toolspb.ToolDefinition{
 		Name:        "run_pipeline",
-		Description: "Run the desktop application build pipeline for a scenario. The pipeline executes stages in order: bundle -> preflight -> generate -> build -> distribution -> smoketest. You can stop at any stage using stop_after_stage, then resume later with resume_pipeline. This is a long-running async operation.",
+		Description: "Run the desktop application build pipeline for a scenario. The pipeline executes stages in order: bundle -> preflight -> generate -> build -> smoketest -> deploy. You can stop at any stage using stop_after_stage, then resume later with resume_pipeline. This is a long-running async operation.",
 		Category:    "pipeline",
 		Parameters: &toolspb.ToolParameters{
 			Type: "object",
@@ -75,7 +75,7 @@ func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 				},
 				"stop_after_stage": {
 					Type:        "string",
-					Description: "Stop pipeline after this stage completes: bundle, preflight, generate, build, distribution, smoketest. Empty runs all stages.",
+					Description: "Stop pipeline after this stage completes: bundle, preflight, generate, build, smoketest, deploy. Empty runs all stages.",
 				},
 				"skip_preflight": {
 					Type:        "boolean",
@@ -100,17 +100,21 @@ func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 					Type:        "string",
 					Description: "Output location mode: proper (default), staging, or temp. Staging/temp keep outputs under scenario-to-desktop/data/staging.",
 				},
-				"distribute": {
-					Type:        "boolean",
-					Default:     BoolValue(false),
-					Description: "Enable distribution stage to upload artifacts to configured targets",
+				"deploy_target": {
+					Type:        "string",
+					Description: "Saved deploy target name from deploy-targets.json",
 				},
-				"distribution_targets": {
-					Type:        "array",
-					Description: "Distribution target names to upload to. Empty means all enabled targets.",
-					Items: &toolspb.ParameterSchema{
-						Type: "string",
-					},
+				"deploy_to": {
+					Type:        "string",
+					Description: "Inline: LPBS scenario name to deploy through",
+				},
+				"remote_profile": {
+					Type:        "string",
+					Description: "Inline: remote profile tag on the LPBS instance",
+				},
+				"app_key": {
+					Type:        "string",
+					Description: "App key for the download app in LPBS (required for deploy)",
 				},
 				"sign": {
 					Type:        "boolean",
@@ -124,7 +128,7 @@ func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 				},
 				"version": {
 					Type:        "string",
-					Description: "Release version for distribution (e.g., 1.0.0)",
+					Description: "Release version for deploy (e.g., 1.0.0)",
 				},
 				"version_update": {
 					Type:        "object",
@@ -185,11 +189,12 @@ func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 					},
 				),
 				NewToolExample(
-					"Run pipeline with distribution enabled",
+					"Run pipeline with deploy to saved target",
 					map[string]interface{}{
 						"scenario_name": "agent-inbox",
 						"platforms":     []string{"linux"},
-						"distribute":    true,
+						"deploy_target": "vrooli-production",
+						"app_key":       "agent-inbox-desktop",
 						"version":       "1.0.0",
 					},
 				),

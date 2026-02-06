@@ -104,7 +104,7 @@ type GenericUpdateConfig struct {
 	//
 	// Examples:
 	//   - https://updates.example.com/my-app
-	//   - https://your-lpbs.com/api/v1/apps/{app_key}/updates
+	//   - https://your-lpbs.com/api/v1/updates/{app_key}
 	//   - https://my-bucket.s3.amazonaws.com/releases/my-app
 	//
 	// The final URL used by electron-updater will include the channel:

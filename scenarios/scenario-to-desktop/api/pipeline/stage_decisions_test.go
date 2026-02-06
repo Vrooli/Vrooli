@@ -2,8 +2,6 @@ package pipeline
 
 import (
 	"testing"
-
-	"scenario-to-desktop-api/build"
 )
 
 func TestShouldSkipPreflight(t *testing.T) {
@@ -145,50 +143,34 @@ func TestShouldSkipSmokeTest(t *testing.T) {
 	}
 }
 
-func TestShouldSkipDistribution(t *testing.T) {
+func TestShouldSkipDeploy(t *testing.T) {
 	tests := []struct {
-		name        string
-		config      *Config
-		buildResult *build.Status
-		expected    bool
+		name     string
+		config   *Config
+		expected bool
 	}{
 		{
-			name:        "nil config returns true",
-			config:      nil,
-			buildResult: nil,
-			expected:    true,
+			name:     "nil config returns true",
+			config:   nil,
+			expected: true,
 		},
 		{
-			name:        "distribute false returns true",
-			config:      &Config{Distribute: false},
-			buildResult: &build.Status{Artifacts: map[string]string{"linux": "/path"}},
-			expected:    true,
+			name:     "nil deploy config returns true",
+			config:   &Config{},
+			expected: true,
 		},
 		{
-			name:        "nil build result returns true",
-			config:      &Config{Distribute: true},
-			buildResult: nil,
-			expected:    true,
-		},
-		{
-			name:        "empty artifacts returns true",
-			config:      &Config{Distribute: true},
-			buildResult: &build.Status{Artifacts: map[string]string{}},
-			expected:    true,
-		},
-		{
-			name:        "distribute true with artifacts returns false",
-			config:      &Config{Distribute: true},
-			buildResult: &build.Status{Artifacts: map[string]string{"linux": "/path"}},
-			expected:    false,
+			name:     "deploy config present returns false",
+			config:   &Config{DeployConfig: &DeployConfig{AppKey: "my-app"}},
+			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ShouldSkipDistribution(tt.config, tt.buildResult)
+			result := ShouldSkipDeploy(tt.config)
 			if result != tt.expected {
-				t.Errorf("ShouldSkipDistribution() = %v, want %v", result, tt.expected)
+				t.Errorf("ShouldSkipDeploy() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
@@ -360,8 +342,8 @@ func TestShouldSkipGeneration(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "resume from distribution returns true",
-			config:   &Config{ResumeFromStage: StageDistribution},
+			name:     "resume from deploy returns true",
+			config:   &Config{ResumeFromStage: StageDeploy},
 			expected: true,
 		},
 	}

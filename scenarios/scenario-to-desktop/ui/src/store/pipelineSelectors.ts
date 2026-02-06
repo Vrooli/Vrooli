@@ -147,8 +147,8 @@ export const selectBuildResult = (state: PipelineStore) => state.buildResult;
 /** Get smoke test stage result */
 export const selectSmokeTestResult = (state: PipelineStore) => state.smokeTestResult;
 
-/** Get distribution stage result */
-export const selectDistributionResult = (state: PipelineStore) => state.distributionResult;
+/** Get deploy stage result */
+export const selectDeployResult = (state: PipelineStore) => state.deployResult;
 
 /** Get logs for a specific stage */
 export const selectStageLogs =

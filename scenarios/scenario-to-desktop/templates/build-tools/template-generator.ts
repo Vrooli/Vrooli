@@ -520,7 +520,7 @@ class DesktopTemplateGenerator {
             if (!url) {
                 console.warn('[template-generator] WARNING: Generic update provider without URL configured.');
                 console.warn('  Auto-updates disabled. To enable updates, set update_config.generic.url');
-                console.warn('  Example: https://your-lpbs.com/api/v1/apps/{app_key}/updates');
+                console.warn('  Example: https://your-lpbs.com/api/v1/updates/{app_key}');
                 return null;
             }
 

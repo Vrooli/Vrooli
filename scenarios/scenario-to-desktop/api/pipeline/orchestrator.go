@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"time"
 
+	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/validation"
 )
@@ -132,6 +133,7 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 			NewGenerateStage(WithGenerateScenarioRoot(o.scenarioRoot)),
 			NewBuildStage(),
 			NewSmokeTestStage(),
+			NewDeployStage(WithDeployTargetRepo(deploy.NewTargetRepository(vrooliRoot))),
 		}
 	}
 
@@ -490,8 +492,8 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 		if len(configUpdates.PreflightSecrets) > 0 {
 			s.Config.PreflightSecrets = configUpdates.PreflightSecrets
 		}
-		if len(configUpdates.DistributionTargets) > 0 {
-			s.Config.DistributionTargets = configUpdates.DistributionTargets
+		if configUpdates.DeployConfig != nil {
+			s.Config.DeployConfig = configUpdates.DeployConfig
 		}
 		// Boolean fields - only update if explicitly true (since default is false)
 		if configUpdates.SkipPreflight {
@@ -508,9 +510,6 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 		}
 		if configUpdates.Publish {
 			s.Config.Publish = true
-		}
-		if configUpdates.Distribute {
-			s.Config.Distribute = true
 		}
 		if configUpdates.StopOnFailure != nil {
 			s.Config.StopOnFailure = configUpdates.StopOnFailure
@@ -575,7 +574,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 			input.GenerationResult = parentStatus.ResumedInput.GenerationResult
 			input.BuildResult = parentStatus.ResumedInput.BuildResult
 			input.SmokeTestResult = parentStatus.ResumedInput.SmokeTestResult
-			input.DistributionResult = parentStatus.ResumedInput.DistributionResult
+			input.DeployResult = parentStatus.ResumedInput.DeployResult
 			input.ScenarioMetadata = parentStatus.ResumedInput.ScenarioMetadata
 			input.DesktopPath = parentStatus.ResumedInput.DesktopPath
 			o.logger.Info("Restored input from parent pipeline", "pipeline_id", pipelineID, "parent_id", config.ParentPipelineID)
@@ -810,8 +809,7 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 		ProxyURL:                parentStatus.Config.ProxyURL,
 		BundleManifestPath:      parentStatus.Config.BundleManifestPath,
 		Sign:                    parentStatus.Config.Sign,
-		Distribute:              parentStatus.Config.Distribute,
-		DistributionTargets:     parentStatus.Config.DistributionTargets,
+		DeployConfig:            parentStatus.Config.DeployConfig,
 		Version:                 parentStatus.Config.Version,
 		PreflightSecrets:        parentStatus.Config.PreflightSecrets,
 		PreflightTimeoutSeconds: parentStatus.Config.PreflightTimeoutSeconds,
@@ -828,11 +826,8 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 		if config.SkipSmokeTest {
 			resumeConfig.SkipSmokeTest = config.SkipSmokeTest
 		}
-		if config.Distribute {
-			resumeConfig.Distribute = config.Distribute
-		}
-		if len(config.DistributionTargets) > 0 {
-			resumeConfig.DistributionTargets = config.DistributionTargets
+		if config.DeployConfig != nil {
+			resumeConfig.DeployConfig = config.DeployConfig
 		}
 		if len(config.Stages) > 0 {
 			resumeConfig.Stages = config.Stages

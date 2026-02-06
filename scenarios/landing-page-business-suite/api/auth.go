@@ -397,6 +397,23 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// requireAdminOrService accepts either admin session cookie OR service bearer token.
+// Used for endpoints that need admin-level access from both the UI and inter-scenario calls.
+func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Try service token first (inter-scenario calls)
+		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			token := strings.TrimPrefix(auth, "Bearer ")
+			if s.usageService.ValidateServiceToken(token) {
+				next(w, r)
+				return
+			}
+		}
+		// Fall back to admin session (browser/CLI calls)
+		s.requireAdmin(next)(w, r)
+	}
+}
+
 // requireAdmin is middleware to protect admin routes
 func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -612,10 +629,10 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 			})
 		} else if affected, _ := result.RowsAffected(); affected > 0 {
 			logStructured("admin_sessions_invalidated_on_password_change", map[string]interface{}{
-				"level":              "info",
-				"email":              currentEmail,
-				"sessions_revoked":   affected,
-				"security":           true,
+				"level":            "info",
+				"email":            currentEmail,
+				"sessions_revoked": affected,
+				"security":         true,
 			})
 		}
 	}

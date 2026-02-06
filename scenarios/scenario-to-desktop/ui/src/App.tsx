@@ -5,7 +5,6 @@ import { GeneratorPage } from "./pages";
 import { ScenarioInventory } from "./components/scenario-inventory";
 import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
-import { DistributionPage } from "./components/distribution";
 import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
 import { ErrorBoundary, SectionErrorBoundary } from "./components/ui/ErrorBoundary";
 import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
@@ -356,19 +355,6 @@ function AppContent() {
               type="button"
               className={cn(
                 "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "distribution"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("distribution")}
-            >
-              <Cloud className="h-4 w-4" />
-              Distribution
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
                 viewMode === "docs"
                   ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
                   : "text-slate-300 hover:text-white"
@@ -406,10 +392,6 @@ function AppContent() {
                 setSelectionSource("manual");
               }}
             />
-          </SectionErrorBoundary>
-        ) : viewMode === "distribution" ? (
-          <SectionErrorBoundary name="Distribution">
-            <DistributionPage />
           </SectionErrorBoundary>
         ) : viewMode === "records" ? (
           <SectionErrorBoundary name="Generated Apps">

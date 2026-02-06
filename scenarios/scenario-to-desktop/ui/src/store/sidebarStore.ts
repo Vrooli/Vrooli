@@ -25,7 +25,7 @@ export type SectionId =
   | "generate"
   | "build"
   | "smoketest"
-  | "distribution";
+  | "deploy";
 
 /** All section IDs in order */
 export const SECTION_IDS: SectionId[] = [
@@ -35,7 +35,7 @@ export const SECTION_IDS: SectionId[] = [
   "generate",
   "build",
   "smoketest",
-  "distribution",
+  "deploy",
 ];
 
 /** Section metadata for display */
@@ -46,7 +46,7 @@ export const SECTION_METADATA: Record<SectionId, { label: string; description: s
   generate: { label: "Generate", description: "Create wrapper code" },
   build: { label: "Build", description: "Compile installers" },
   smoketest: { label: "Smoke Test", description: "Test artifacts" },
-  distribution: { label: "Distribution", description: "Upload to cloud" },
+  deploy: { label: "Deploy", description: "Upload to LPBS" },
 };
 
 /** Map section ID to icon component */
@@ -57,7 +57,7 @@ export const SECTION_ICONS: Record<SectionId, typeof Settings> = {
   generate: Wand2,
   build: Hammer,
   smoketest: TestTube,
-  distribution: Cloud,
+  deploy: Cloud,
 };
 
 /** Map section ID to pipeline stage (configuration has no stage) */
@@ -67,7 +67,7 @@ export const SECTION_TO_STAGE: Partial<Record<SectionId, PipelineStage>> = {
   generate: "generate",
   build: "build",
   smoketest: "smoketest",
-  distribution: "distribution",
+  deploy: "deploy",
 };
 
 interface SidebarStoreState {

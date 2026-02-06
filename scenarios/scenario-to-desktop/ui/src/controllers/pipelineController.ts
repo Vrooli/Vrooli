@@ -14,7 +14,7 @@ import type { PipelineRunStatus } from "../store/pipelineTypes";
 // Types
 // ============================================================================
 
-export type PipelineStageId = "bundle" | "preflight" | "generate" | "build" | "smoketest" | "distribution";
+export type PipelineStageId = "bundle" | "preflight" | "generate" | "build" | "smoketest" | "deploy";
 
 export interface BuildPipelineConfigParams {
   scenarioName: string;

@@ -23,7 +23,7 @@ import {
   selectGenerateResult,
   selectBuildResult,
   selectSmokeTestResult,
-  selectDistributionResult,
+  selectDeployResult,
   selectStageLogs,
   selectError,
   selectErrorInfo,
@@ -509,10 +509,10 @@ describe("pipelineSelectors", () => {
       expect(selectSmokeTestResult(state)).toBe(smokeTestResult);
     });
 
-    it("selectDistributionResult returns distributionResult", () => {
-      const distributionResult = { url: "https://example.com" } as ReturnType<typeof createTestState>["distributionResult"];
-      const state = createTestState({ distributionResult });
-      expect(selectDistributionResult(state)).toBe(distributionResult);
+    it("selectDeployResult returns deployResult", () => {
+      const deployResult = { update_url: "https://example.com" } as ReturnType<typeof createTestState>["deployResult"];
+      const state = createTestState({ deployResult });
+      expect(selectDeployResult(state)).toBe(deployResult);
     });
   });
 

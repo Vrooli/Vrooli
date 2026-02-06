@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type ViewMode = "generator" | "inventory" | "docs" | "records" | "signing" | "distribution";
+export type ViewMode = "generator" | "inventory" | "docs" | "records" | "signing";
 
 interface UrlParams {
   view?: ViewMode;

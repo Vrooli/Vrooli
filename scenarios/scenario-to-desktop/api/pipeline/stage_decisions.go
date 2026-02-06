@@ -7,7 +7,6 @@
 package pipeline
 
 import (
-	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/shared/errors"
 )
 
@@ -42,16 +41,12 @@ func ShouldSkipSmokeTest(config *Config) bool {
 	return config.SkipSmokeTest
 }
 
-// ShouldSkipDistribution returns true if the distribution stage should be skipped.
+// ShouldSkipDeploy returns true if the deploy stage should be skipped.
 // Skip conditions:
 //   - Config is nil
-//   - Distribution is not enabled (Config.Distribute is false)
-//   - No build artifacts are available
-func ShouldSkipDistribution(config *Config, buildResult *build.Status) bool {
-	if config == nil || !config.Distribute {
-		return true
-	}
-	if buildResult == nil || len(buildResult.Artifacts) == 0 {
+//   - DeployConfig is nil (deploy not enabled)
+func ShouldSkipDeploy(config *Config) bool {
+	if config == nil || config.DeployConfig == nil {
 		return true
 	}
 	return false
@@ -107,7 +102,7 @@ func ShouldSkipGeneration(config *Config) bool {
 		return false
 	}
 	// Skip if resuming from build or later (generation already done)
-	return resume == StageBuild || resume == StageSmokeTest || resume == StageDistribution
+	return resume == StageBuild || resume == StageSmokeTest || resume == StageDeploy
 }
 
 // IsBuildComplete returns true if the build has finished (successfully or not).
@@ -146,7 +141,7 @@ func ShouldSkipPlatform(platform string, wineInstalled bool) bool {
 //   - Preflight must complete before Generate (ensures prerequisites)
 //   - Generate must complete before Build (creates the code to build)
 //   - Build must complete before SmokeTest (tests the built artifact)
-//   - SmokeTest must complete before Distribution (validates before upload)
+//   - SmokeTest must complete before Deploy (validates before upload)
 //
 // Future optimization: Preflight and Bundle could potentially run in parallel
 // since preflight checks system dependencies while bundle packages assets.

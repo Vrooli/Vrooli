@@ -81,6 +81,10 @@ func (c *Commands) Run(args []string) error {
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
 	debug := fs.Bool("debug", false, "Show full JSON response on error")
 	showOutput := fs.Bool("show-output", false, "Show app stdout/stderr on failure (useful for debugging)")
+	deployTarget := fs.String("deploy-target", "", "Saved deploy target name from deploy-targets.json")
+	deployTo := fs.String("deploy-to", "", "LPBS scenario name to deploy through (inline)")
+	remoteProfile := fs.String("remote-profile", "", "Remote profile tag on the LPBS instance (inline)")
+	appKey := fs.String("app-key", "", "App key for the download app in LPBS (required for deploy)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
@@ -90,7 +94,7 @@ func (c *Commands) Run(args []string) error {
 	}
 
 	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: pipeline-run <scenario> [--deployment-mode bundled|external-server] [--location-mode proper|staging] [--clean] [--stages bundle,...] [--platforms win,mac,linux] [--version X.Y.Z | --set-version X.Y.Z | --bump-version patch|minor|medium|major|auto] [--wait] [--timeout N]")
+		return fmt.Errorf("usage: pipeline-run <scenario> [--deployment-mode bundled|external-server] [--location-mode proper|staging] [--clean] [--stages bundle,...] [--platforms win,mac,linux] [--version X.Y.Z | --set-version X.Y.Z | --bump-version patch|minor|medium|major|auto] [--deploy-target <name> | --deploy-to <scenario> --remote-profile <tag>] [--app-key <key>] [--wait] [--timeout N]")
 	}
 
 	scenario := fs.Args()[0]
@@ -167,6 +171,24 @@ func (c *Commands) Run(args []string) error {
 			"source":          *versionSource,
 			"allow_downgrade": *allowDowngrade,
 		}
+	}
+
+	// Build deploy config if any deploy flags are set
+	if *deployTarget != "" || *deployTo != "" || *appKey != "" {
+		deploy := map[string]interface{}{}
+		if *deployTarget != "" {
+			deploy["target_name"] = *deployTarget
+		}
+		if *deployTo != "" {
+			deploy["scenario_name"] = *deployTo
+		}
+		if *remoteProfile != "" {
+			deploy["remote_profile"] = *remoteProfile
+		}
+		if *appKey != "" {
+			deploy["app_key"] = *appKey
+		}
+		req["deploy"] = deploy
 	}
 
 	// Build query params for blocking mode
@@ -537,6 +559,10 @@ func (c *Commands) Start(args []string) error {
 	timeout := fs.Int("timeout", 600, "Max wait time in seconds (when --wait is used)")
 	debug := fs.Bool("debug", false, "Show full JSON response on error")
 	showOutput := fs.Bool("show-output", false, "Show app stdout/stderr on failure (useful for debugging)")
+	deployTarget := fs.String("deploy-target", "", "Saved deploy target name from deploy-targets.json")
+	deployTo := fs.String("deploy-to", "", "LPBS scenario name to deploy through (inline)")
+	remoteProfile := fs.String("remote-profile", "", "Remote profile tag on the LPBS instance (inline)")
+	appKey := fs.String("app-key", "", "App key for the download app in LPBS (required for deploy)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
@@ -546,7 +572,7 @@ func (c *Commands) Start(args []string) error {
 	}
 
 	if len(fs.Args()) == 0 {
-		return fmt.Errorf("usage: pipeline-start <scenario> [--stages ...] [--platforms ...] [--wait] [--timeout N]")
+		return fmt.Errorf("usage: pipeline-start <scenario> [--stages ...] [--platforms ...] [--deploy-target <name> | --deploy-to <scenario> --remote-profile <tag>] [--app-key <key>] [--wait] [--timeout N]")
 	}
 
 	scenario := fs.Args()[0]
@@ -556,6 +582,24 @@ func (c *Commands) Start(args []string) error {
 	}
 	if *platforms != "" {
 		req["platforms"] = strings.Split(*platforms, ",")
+	}
+
+	// Build deploy config if any deploy flags are set
+	if *deployTarget != "" || *deployTo != "" || *appKey != "" {
+		deployConfig := map[string]interface{}{}
+		if *deployTarget != "" {
+			deployConfig["target_name"] = *deployTarget
+		}
+		if *deployTo != "" {
+			deployConfig["scenario_name"] = *deployTo
+		}
+		if *remoteProfile != "" {
+			deployConfig["remote_profile"] = *remoteProfile
+		}
+		if *appKey != "" {
+			deployConfig["app_key"] = *appKey
+		}
+		req["deploy"] = deployConfig
 	}
 
 	// Build query params for blocking mode

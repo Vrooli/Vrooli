@@ -51,7 +51,7 @@ describe("pipelineStore", () => {
       expect(state.generateResult).toBeNull();
       expect(state.buildResult).toBeNull();
       expect(state.smokeTestResult).toBeNull();
-      expect(state.distributionResult).toBeNull();
+      expect(state.deployResult).toBeNull();
       expect(state.stageLogs).toEqual({});
       expect(state.pipelineHistory).toEqual([]);
       expect(state.preflightSecrets).toEqual({});

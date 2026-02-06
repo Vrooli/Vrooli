@@ -31,7 +31,7 @@ export {
   selectGenerateResult,
   selectBuildResult,
   selectSmokeTestResult,
-  selectDistributionResult,
+  selectDeployResult,
   selectStageLogs,
   // Error selectors
   selectError,

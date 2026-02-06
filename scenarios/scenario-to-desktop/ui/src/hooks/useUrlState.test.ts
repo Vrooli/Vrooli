@@ -233,12 +233,12 @@ describe("useUrlState", () => {
       const { result } = renderHook(() => useUrlState());
 
       act(() => {
-        result.current.setViewMode("distribution");
+        result.current.setViewMode("signing");
       });
 
       expect(replaceSpy).toHaveBeenCalled();
       const lastCall = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1];
-      expect(lastCall?.[2]).toContain("view=distribution");
+      expect(lastCall?.[2]).toContain("view=signing");
     });
   });
 
@@ -389,7 +389,6 @@ describe("useUrlState", () => {
       "docs",
       "records",
       "signing",
-      "distribution",
     ];
 
     viewModes.forEach((mode) => {

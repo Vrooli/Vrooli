@@ -28,14 +28,6 @@ func TestGetToolExecutor(t *testing.T) {
 		{name: "get_signing_status", toolName: "get_signing_status", expected: ExecutorSigning},
 		{name: "discover_certificates", toolName: "discover_certificates", expected: ExecutorSigning},
 
-		// Distribution tools
-		{name: "upload_artifact", toolName: "upload_artifact", expected: ExecutorDistribution},
-		{name: "publish_release", toolName: "publish_release", expected: ExecutorDistribution},
-		{name: "list_artifacts", toolName: "list_artifacts", expected: ExecutorDistribution},
-		{name: "list_distribution_targets", toolName: "list_distribution_targets", expected: ExecutorDistribution},
-		{name: "validate_distribution_target", toolName: "validate_distribution_target", expected: ExecutorDistribution},
-		{name: "check_distribution_status", toolName: "check_distribution_status", expected: ExecutorDistribution},
-
 		// Inspection tools
 		{name: "check_build_status", toolName: "check_build_status", expected: ExecutorInspection},
 		{name: "get_pipeline_status", toolName: "get_pipeline_status", expected: ExecutorInspection},
@@ -71,8 +63,6 @@ func TestGetToolCategory(t *testing.T) {
 		{"build_for_platform", CategoryBuildControl},
 		{"configure_signing", CategorySigning},
 		{"sign_application", CategorySigning},
-		{"upload_artifact", CategoryDistribution},
-		{"publish_release", CategoryDistribution},
 		{"check_build_status", CategoryInspection},
 		{"validate_configuration", CategoryInspection},
 		{"unknown_tool", CategoryUnknown},
@@ -96,7 +86,7 @@ func TestIsToolKnown(t *testing.T) {
 		{"run_pipeline", true},
 		{"check_pipeline_status", true},
 		{"configure_signing", true},
-		{"upload_artifact", true},
+		{"check_build_status", true},
 		{"unknown_tool", false},
 		{"", false},
 	}
@@ -179,7 +169,6 @@ func TestIsReadOnlyTool(t *testing.T) {
 		{"get_system_prerequisites", true},
 		{"get_signing_status", true},
 		{"discover_certificates", true},
-		{"list_artifacts", true},
 		{"verify_signature", true},
 
 		// Mutating tools
@@ -187,8 +176,6 @@ func TestIsReadOnlyTool(t *testing.T) {
 		{"cancel_pipeline", false},
 		{"configure_signing", false},
 		{"sign_application", false},
-		{"upload_artifact", false},
-		{"publish_release", false},
 		{"generate_desktop_wrapper", false},
 		{"build_for_platform", false},
 	}
@@ -210,7 +197,6 @@ func TestExecutorTypeString(t *testing.T) {
 	}{
 		{ExecutorPipeline, "pipeline"},
 		{ExecutorSigning, "signing"},
-		{ExecutorDistribution, "distribution"},
 		{ExecutorInspection, "inspection"},
 		{ExecutorLegacy, "legacy"},
 		{ExecutorUnknown, "unknown"},

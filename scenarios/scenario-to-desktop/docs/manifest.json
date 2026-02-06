@@ -56,6 +56,8 @@
       "title": "Operations & Roadmap",
       "icon": "activity",
       "documents": [
+        { "path": "guides/DEPLOYMENT.md", "title": "LPBS Deployment", "description": "Deploy artifacts to Landing Page Business Suite" },
+        { "path": "guides/AUTO_UPDATES.md", "title": "Auto-Updates", "description": "Configure electron-updater for desktop apps" },
         { "path": "telemetry.md", "title": "Telemetry & Ops", "description": "deployment-telemetry.jsonl and auto-manage" },
         { "path": "../runtime/README.md", "title": "Bundled Runtime (Roadmap)", "description": "Supervisor design for offline bundles" },
         { "path": "../../../docs/deployment/scenarios/scenario-to-desktop.md", "title": "Deployment Hub", "description": "How desktop fits Tier 1/2 and deployment-manager" }

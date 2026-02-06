@@ -47,7 +47,7 @@ const (
 	//   Default rationale: 2m allows for typical Electron app startup with assertions.
 	DefaultSmokeTestTimeout = 2 * time.Minute
 
-	// DefaultDistributionTimeout is the maximum time to wait for artifact uploads.
+	// DefaultDeployTimeout is the maximum time to wait for artifact uploads.
 	// Large artifacts to slow endpoints may need this full duration.
 	//
 	// Lever impacts:
@@ -55,7 +55,7 @@ const (
 	//   Decrease: Fail faster on network issues; may cause unnecessary failures.
 	//   Range: 5m (small artifacts, fast connection) to 60m (large artifacts, slow upload)
 	//   Default rationale: 30m accounts for typical 100-200MB artifacts on moderate connections.
-	DefaultDistributionTimeout = 30 * time.Minute
+	DefaultDeployTimeout = 30 * time.Minute
 
 	// DefaultPreflightTimeout is the default timeout for preflight validation.
 	// Can be overridden via Config.PreflightTimeoutSeconds.
@@ -98,13 +98,13 @@ const (
 	//   Range: 100ms (very responsive) to 2s (batch processing)
 	DefaultSmokePollInterval = 500 * time.Millisecond
 
-	// DefaultDistributionPollInterval is how often to check distribution status.
+	// DefaultDeployPollInterval is how often to check deploy status.
 	//
 	// Lever impacts:
-	//   Increase: Reduce API calls to distribution targets; be kind to S3/R2.
-	//   Decrease: Detect upload completion faster; may hit rate limits.
+	//   Increase: Reduce API calls to LPBS; be kind to the remote server.
+	//   Decrease: Detect upload completion faster; more responsive.
 	//   Range: 1s (local testing) to 10s (production with rate limits)
-	DefaultDistributionPollInterval = 2 * time.Second
+	DefaultDeployPollInterval = 2 * time.Second
 
 	// DefaultPipelinePollInterval is how often to poll pipeline completion in blocking mode.
 	//

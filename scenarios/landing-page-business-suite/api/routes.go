@@ -93,14 +93,15 @@ func registerAdminCoreRoutes(s *Server) {
 }
 
 func registerRemoteProfileRoutes(s *Server) {
-	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(handleAdminListRemoteProfiles(s.remoteProfileService))).Methods("GET")
+	// List and test/proxy use requireAdminOrService so inter-scenario clients (e.g. s2d) can call them with a service bearer token.
+	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdminOrService(handleAdminListRemoteProfiles(s.remoteProfileService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(handleAdminCreateRemoteProfile(s.remoteProfileService, s.sessionAdminEmail))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(handleAdminUpdateRemoteProfile(s.remoteProfileService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(handleAdminDeleteRemoteProfile(s.remoteProfileService))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/login", s.requireAdmin(handleAdminRemoteProfileLogin(s.remoteProfileService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/logout", s.requireAdmin(handleAdminRemoteProfileLogout(s.remoteProfileService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/test", s.requireAdmin(handleAdminRemoteProfileTest(s.remoteProfileService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireAdmin(handleAdminRemoteProfileProxy(s.remoteProfileService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/test", s.requireAdminOrService(handleAdminRemoteProfileTest(s.remoteProfileService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireAdminOrService(handleAdminRemoteProfileProxy(s.remoteProfileService))).Methods("POST")
 }
 
 func registerCommerceAdminRoutes(s *Server) {
@@ -114,10 +115,10 @@ func registerCommerceAdminRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/download-storage/test", s.requireAdmin(handleAdminTestDownloadStorage(s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts", s.requireAdmin(handleAdminListDownloadArtifacts(s.downloadHosting, s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/by-app", s.requireAdmin(handleAdminListDownloadArtifactsByApp(s.downloadHosting, s.planService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/download-artifacts/presign-upload", s.requireAdmin(handleAdminPresignUploadDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/download-artifacts/commit", s.requireAdmin(handleAdminCommitDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/presign-upload", s.requireAdminOrService(handleAdminPresignUploadDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/commit", s.requireAdminOrService(handleAdminCommitDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/{artifact_id}/presign-get", s.requireAdmin(handleAdminPresignGetDownloadArtifact(s.downloadHosting, s.planService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdmin(handleAdminApplyDownloadArtifact(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdminOrService(handleAdminApplyDownloadArtifact(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-assets/set-current", s.requireAdmin(handleAdminSetArtifactAsCurrent(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
 
 	// Bundles + pricing

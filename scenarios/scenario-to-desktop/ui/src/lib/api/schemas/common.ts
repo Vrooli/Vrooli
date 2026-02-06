@@ -24,7 +24,7 @@ export const StageNameSchema = z.enum([
   "build",
   "bundle",
   "smoke_test",
-  "distribution",
+  "deploy",
 ]);
 export type StageName = z.infer<typeof StageNameSchema>;
 
@@ -50,7 +50,7 @@ export const BuildStatusSchema = z.enum(["building", "ready", "partial", "failed
 export type BuildStatus = z.infer<typeof BuildStatusSchema>;
 
 /**
- * Upload status for distribution.
+ * Upload status for deploy.
  * @see UploadStatus enum in base/shared_pb.ts
  */
 export const UploadStatusSchema = z.enum(["pending", "uploading", "completed", "failed"]);
@@ -76,13 +76,6 @@ export type Framework = z.infer<typeof FrameworkSchema>;
  */
 export const TemplateTypeSchema = z.enum(["basic", "advanced", "multi-window", "kiosk"]);
 export type TemplateType = z.infer<typeof TemplateTypeSchema>;
-
-/**
- * Distribution provider.
- * @see DistributionProvider enum in base/shared_pb.ts
- */
-export const DistributionProviderSchema = z.enum(["s3", "r2", "s3-compatible"]);
-export type DistributionProvider = z.infer<typeof DistributionProviderSchema>;
 
 /**
  * Standard status values for various operations.

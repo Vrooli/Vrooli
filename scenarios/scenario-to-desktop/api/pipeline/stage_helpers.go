@@ -211,7 +211,7 @@ type PollerConfig struct {
 }
 
 // Poller provides a generic polling mechanism for async operations.
-// It consolidates the polling pattern used across build, smoketest, and distribution stages.
+// It consolidates the polling pattern used across build, smoketest, and deploy stages.
 type Poller[T any] struct {
 	Config PollerConfig
 	// GetStatus retrieves the current status. Returns (status, found).

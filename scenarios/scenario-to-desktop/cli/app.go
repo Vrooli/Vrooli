@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"scenario-to-desktop/cli/distribution"
+	"scenario-to-desktop/cli/deploytarget"
 	"scenario-to-desktop/cli/pipeline"
 	"scenario-to-desktop/cli/signing"
 	"scenario-to-desktop/cli/system"
@@ -29,10 +29,10 @@ var (
 type App struct {
 	core         *cliapp.ScenarioApp
 	pipeline     *pipeline.Commands
-	distribution *distribution.Commands
 	signing      *signing.Commands
 	telemetry    *telemetry.Commands
 	system       *system.Commands
+	deployTarget *deploytarget.Commands
 }
 
 // NewApp constructs the CLI application.
@@ -66,10 +66,10 @@ func NewApp() (*App, error) {
 	app := &App{
 		core:         core,
 		pipeline:     pipeline.New(core.APIClient),
-		distribution: distribution.New(core.APIClient),
 		signing:      signing.New(core.APIClient),
 		telemetry:    telemetry.New(core.APIClient),
 		system:       system.New(core.APIClient),
+		deployTarget: deploytarget.New(core.APIClient),
 	}
 	app.core.SetCommandsWithSubgroups(app.registerCommands(), app.registerSubcommandGroups())
 	return app, nil
@@ -182,27 +182,6 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 		},
 	}
 
-	// Distribution subcommands
-	distGroup := cliapp.SubcommandGroup{
-		Name:        "dist",
-		Description: "Distribution management (run 'dist help' for details)",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{Name: "targets", Description: "List distribution targets", Run: a.distribution.TargetsList},
-			{Name: "target-get", Description: "Get distribution target: target-get <name>", Run: a.distribution.TargetGet},
-			{Name: "target-create", Description: "Create distribution target: target-create --config <json>", Run: a.distribution.TargetCreate},
-			{Name: "target-update", Description: "Update distribution target: target-update <name> --config <json>", Run: a.distribution.TargetUpdate},
-			{Name: "target-delete", Description: "Delete distribution target: target-delete <name>", Run: a.distribution.TargetDelete},
-			{Name: "target-test", Description: "Test distribution target: target-test <name>", Run: a.distribution.TargetTest},
-			{Name: "validate", Description: "Validate all distribution targets", Run: a.distribution.Validate},
-			{Name: "check-credentials", Description: "Check distribution credentials", Run: a.distribution.CheckCredentials},
-			{Name: "run", Description: "Start distribution: run <scenario> --artifacts <paths>", Run: a.distribution.Distribute},
-			{Name: "status", Description: "Get distribution status: status <id>", Run: a.distribution.Status},
-			{Name: "cancel", Description: "Cancel distribution: cancel <id>", Run: a.distribution.Cancel},
-			{Name: "list", Description: "List all distributions", Run: a.distribution.List},
-		},
-	}
-
 	// Wine subcommands
 	wineGroup := cliapp.SubcommandGroup{
 		Name:        "wine",
@@ -215,5 +194,18 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 		},
 	}
 
-	return []cliapp.SubcommandGroup{pipelineGroup, telemetryGroup, signingGroup, distGroup, wineGroup}
+	// Deploy target subcommands
+	deployTargetGroup := cliapp.SubcommandGroup{
+		Name:        "deploy-target",
+		Description: "Manage LPBS deploy targets (run 'deploy-target help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "list", Description: "List saved deploy targets", Run: a.deployTarget.List},
+			{Name: "add", Description: "Add/update deploy target: add <name> --scenario <s> --profile <p> [--label <l>]", Run: a.deployTarget.Add},
+			{Name: "remove", Description: "Remove deploy target: remove <name>", Run: a.deployTarget.Remove},
+			{Name: "test", Description: "Test deploy target session: test <name>", Run: a.deployTarget.Test},
+		},
+	}
+
+	return []cliapp.SubcommandGroup{pipelineGroup, telemetryGroup, signingGroup, deployTargetGroup, wineGroup}
 }

@@ -107,7 +107,8 @@ func TestRunPipelineTool(t *testing.T) {
 		expectedParams := []string{
 			"scenario_name", "platforms", "deployment_mode", "stop_after_stage",
 			"skip_preflight", "skip_smoke_test", "proxy_url", "template_type",
-			"distribute", "distribution_targets", "sign", "clean", "version",
+			"deploy_target", "deploy_to", "remote_profile", "app_key",
+			"sign", "clean", "version",
 		}
 		for _, param := range expectedParams {
 			if _, ok := runPipeline.Parameters.Properties[param]; !ok {

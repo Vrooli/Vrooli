@@ -14,7 +14,6 @@ import {
   DeploymentMode,
   Framework,
   TemplateType,
-  DistributionProvider,
 } from "@vrooli/proto-types/scenario-to-desktop/v1/base/shared_pb";
 import {
   PlatformBuildStatus,
@@ -25,7 +24,6 @@ import {
   CheckStatus,
   SecretClass,
 } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
-import { DistributionStatusValue } from "@vrooli/proto-types/scenario-to-desktop/v1/distribution/types_pb";
 
 // ==================== Platform ====================
 
@@ -69,7 +67,7 @@ export type LegacyStageName =
   | "build"
   | "bundle"
   | "smoke_test"
-  | "distribution";
+  | "deploy";
 
 /** Convert legacy stage name string to proto enum */
 export const stageNameFromString = (name: LegacyStageName): StageName => {
@@ -84,8 +82,8 @@ export const stageNameFromString = (name: LegacyStageName): StageName => {
       return StageName.BUNDLE;
     case "smoke_test":
       return StageName.SMOKE_TEST;
-    case "distribution":
-      return StageName.DISTRIBUTION;
+    case "deploy":
+      return StageName.DEPLOY;
     default:
       return StageName.UNSPECIFIED;
   }
@@ -106,8 +104,8 @@ export const stageNameToString = (
       return "bundle";
     case StageName.SMOKE_TEST:
       return "smoke_test";
-    case StageName.DISTRIBUTION:
-      return "distribution";
+    case StageName.DEPLOY:
+      return "deploy";
     default:
       return null;
   }
@@ -447,43 +445,6 @@ export const uploadStatusToString = (
   }
 };
 
-// ==================== DistributionProvider ====================
-
-/** Legacy distribution provider string type */
-export type LegacyDistributionProvider = "s3" | "r2" | "s3-compatible";
-
-/** Convert legacy distribution provider string to proto enum */
-export const distributionProviderFromString = (
-  provider: LegacyDistributionProvider
-): DistributionProvider => {
-  switch (provider) {
-    case "s3":
-      return DistributionProvider.S3;
-    case "r2":
-      return DistributionProvider.R2;
-    case "s3-compatible":
-      return DistributionProvider.S3_COMPATIBLE;
-    default:
-      return DistributionProvider.UNSPECIFIED;
-  }
-};
-
-/** Convert proto enum to legacy distribution provider string */
-export const distributionProviderToString = (
-  provider: DistributionProvider
-): LegacyDistributionProvider | null => {
-  switch (provider) {
-    case DistributionProvider.S3:
-      return "s3";
-    case DistributionProvider.R2:
-      return "r2";
-    case DistributionProvider.S3_COMPATIBLE:
-      return "s3-compatible";
-    default:
-      return null;
-  }
-};
-
 // ==================== PreflightStatus ====================
 
 /** Legacy preflight status string type */
@@ -634,57 +595,3 @@ export const secretClassToString = (
   }
 };
 
-// ==================== DistributionStatusValue ====================
-
-/** Legacy distribution status string type */
-export type LegacyDistributionStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "partial"
-  | "failed"
-  | "cancelled";
-
-/** Convert legacy distribution status string to proto enum */
-export const distributionStatusFromString = (
-  status: LegacyDistributionStatus
-): DistributionStatusValue => {
-  switch (status) {
-    case "pending":
-      return DistributionStatusValue.PENDING;
-    case "running":
-      return DistributionStatusValue.RUNNING;
-    case "completed":
-      return DistributionStatusValue.COMPLETED;
-    case "partial":
-      return DistributionStatusValue.PARTIAL;
-    case "failed":
-      return DistributionStatusValue.FAILED;
-    case "cancelled":
-      return DistributionStatusValue.CANCELLED;
-    default:
-      return DistributionStatusValue.UNSPECIFIED;
-  }
-};
-
-/** Convert proto enum to legacy distribution status string */
-export const distributionStatusToString = (
-  status: DistributionStatusValue
-): LegacyDistributionStatus | null => {
-  switch (status) {
-    case DistributionStatusValue.PENDING:
-      return "pending";
-    case DistributionStatusValue.RUNNING:
-      return "running";
-    case DistributionStatusValue.COMPLETED:
-      return "completed";
-    case DistributionStatusValue.PARTIAL:
-      return "partial";
-    case DistributionStatusValue.FAILED:
-      return "failed";
-    case DistributionStatusValue.CANCELLED:
-      return "cancelled";
-    default:
-      return null;
-  }
-};

@@ -15,8 +15,6 @@ const (
 	ExecutorPipeline
 	// ExecutorSigning handles code signing tools.
 	ExecutorSigning
-	// ExecutorDistribution handles artifact upload/publishing tools.
-	ExecutorDistribution
 	// ExecutorInspection handles status checking and validation tools.
 	ExecutorInspection
 	// ExecutorLegacy handles deprecated build/generation tools.
@@ -30,8 +28,6 @@ func (e ExecutorType) String() string {
 		return "pipeline"
 	case ExecutorSigning:
 		return "signing"
-	case ExecutorDistribution:
-		return "distribution"
 	case ExecutorInspection:
 		return "inspection"
 	case ExecutorLegacy:
@@ -53,8 +49,6 @@ const (
 	CategoryBuildControl ToolCategory = "build_control"
 	// CategorySigning for code signing operations.
 	CategorySigning ToolCategory = "signing"
-	// CategoryDistribution for artifact publishing.
-	CategoryDistribution ToolCategory = "distribution"
 	// CategoryInspection for read-only status and validation.
 	CategoryInspection ToolCategory = "inspection"
 	// CategoryUnknown for unrecognized tools.
@@ -79,12 +73,6 @@ func GetToolExecutor(toolName string) ExecutorType {
 	case "configure_signing", "sign_application", "verify_signature",
 		"get_signing_status", "discover_certificates":
 		return ExecutorSigning
-
-	// Distribution tools
-	case "upload_artifact", "publish_release", "list_artifacts",
-		"list_distribution_targets", "validate_distribution_target",
-		"check_distribution_status":
-		return ExecutorDistribution
 
 	// Inspection tools
 	case "check_build_status", "get_pipeline_status",
@@ -115,12 +103,6 @@ func GetToolCategory(toolName string) ToolCategory {
 	case "configure_signing", "sign_application", "verify_signature",
 		"get_signing_status", "discover_certificates":
 		return CategorySigning
-
-	// Distribution
-	case "upload_artifact", "publish_release", "list_artifacts",
-		"list_distribution_targets", "validate_distribution_target",
-		"check_distribution_status":
-		return CategoryDistribution
 
 	// Inspection (read-only)
 	case "check_build_status", "list_generated_wrappers",
@@ -174,8 +156,6 @@ func IsReadOnlyTool(toolName string) bool {
 		"get_pipeline_status", "list_builds", "list_generated_wrappers",
 		"validate_configuration", "get_system_prerequisites",
 		"get_signing_status", "discover_certificates",
-		"list_artifacts", "list_distribution_targets",
-		"validate_distribution_target", "check_distribution_status",
 		"verify_signature":
 		return true
 	default:

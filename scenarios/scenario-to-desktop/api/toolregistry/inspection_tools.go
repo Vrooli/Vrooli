@@ -49,7 +49,7 @@ func (p *InspectionToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinit
 		p.listGeneratedWrappersTool(),
 		p.validateConfigurationTool(),
 		p.getSystemPrerequisitesTool(),
-		p.checkDistributionStatusTool(),
+		p.checkDeployStatusTool(),
 	}
 }
 
@@ -159,21 +159,21 @@ func (p *InspectionToolProvider) getSystemPrerequisitesTool() *toolspb.ToolDefin
 	}
 }
 
-// checkDistributionStatusTool returns the distribution status checking tool (polling target).
-func (p *InspectionToolProvider) checkDistributionStatusTool() *toolspb.ToolDefinition {
+// checkDeployStatusTool returns the deploy status checking tool (polling target).
+func (p *InspectionToolProvider) checkDeployStatusTool() *toolspb.ToolDefinition {
 	return &toolspb.ToolDefinition{
-		Name:        "check_distribution_status",
-		Description: "Check the status of a distribution operation (upload or publish). This is the polling endpoint for async distribution operations.",
+		Name:        "check_deploy_status",
+		Description: "Check the status of a deploy operation (upload to LPBS). This is the polling endpoint for async deploy operations.",
 		Category:    "build_status",
 		Parameters: &toolspb.ToolParameters{
 			Type: "object",
 			Properties: map[string]*toolspb.ParameterSchema{
-				"distribution_id": {
+				"deploy_id": {
 					Type:        "string",
-					Description: "The distribution operation ID to check status for (returned from upload_artifact or publish_release)",
+					Description: "The deploy operation ID to check status for",
 				},
 			},
-			Required: []string{"distribution_id"},
+			Required: []string{"deploy_id"},
 		},
 		Metadata: &toolspb.ToolMetadata{
 			EnabledByDefault:   true,
@@ -184,12 +184,12 @@ func (p *InspectionToolProvider) checkDistributionStatusTool() *toolspb.ToolDefi
 			LongRunning:        false,
 			Idempotent:         true,
 			ModifiesState:      false,
-			Tags:               []string{"status", "polling", "distribution"},
+			Tags:               []string{"status", "polling", "deploy"},
 			Examples: []*toolspb.ToolExample{
 				NewToolExample(
-					"Check upload progress",
+					"Check deploy progress",
 					map[string]interface{}{
-						"distribution_id": "dist-abc123",
+						"deploy_id": "deploy-abc123",
 					},
 				),
 			},

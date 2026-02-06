@@ -57,7 +57,7 @@ export {
   selectGenerateResult,
   selectBuildResult,
   selectSmokeTestResult,
-  selectDistributionResult,
+  selectDeployResult,
   selectStageLogs,
   selectError,
   selectErrorMessage,
@@ -738,7 +738,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
           generateResult: null,
           buildResult: null,
           smokeTestResult: null,
-          distributionResult: null,
+          deployResult: null,
           stageLogs: {},
           runningScenarios,
         });
