@@ -1,14 +1,16 @@
 import type { TechStackInfo, App } from '@/types';
-import { Database, Layers, Wifi, Package } from 'lucide-react';
+import { AlertCircle, Database, Layers, Wifi, Package } from 'lucide-react';
 import './TechStackTab.css';
 
 interface TechStackTabProps {
   app: App | null | undefined;
   techStack: TechStackInfo | null | undefined;
   loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export default function TechStackTab({ app, techStack, loading }: TechStackTabProps) {
+export default function TechStackTab({ app, techStack, loading, error, onRetry }: TechStackTabProps) {
   if (loading) {
     return (
       <div className="tech-stack-tab">
@@ -20,11 +22,29 @@ export default function TechStackTab({ app, techStack, loading }: TechStackTabPr
     );
   }
 
+  if (error && !techStack && !app?.tech_stack?.length && !app?.dependencies?.length) {
+    return (
+      <div className="tech-stack-tab">
+        <div className="tech-stack-tab__error">
+          <AlertCircle size={32} />
+          <p>{error}</p>
+          {onRetry && (
+            <button type="button" className="tech-stack-tab__retry" onClick={onRetry}>
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Prefer app.tech_stack (components from status command) over techStack from diagnostics
-  const components = app?.tech_stack && app.tech_stack.length > 0 ? app.tech_stack : [];
-  const dependencies = app?.dependencies && app.dependencies.length > 0 ? app.dependencies : [];
-  const hasPorts = techStack?.ports && Object.keys(techStack.ports).length > 0;
-  const hasTags = techStack?.tags && techStack.tags.length > 0;
+  const components = Array.isArray(app?.tech_stack) && app.tech_stack.length > 0 ? app.tech_stack : [];
+  const dependencies = Array.isArray(app?.dependencies) && app.dependencies.length > 0 ? app.dependencies : [];
+  const ports = techStack?.ports;
+  const hasPorts = ports != null && Object.keys(ports).length > 0;
+  const tags = techStack?.tags;
+  const hasTags = tags != null && tags.length > 0;
 
   const hasAnyData = components.length > 0 || dependencies.length > 0 || hasPorts || hasTags;
 
@@ -120,7 +140,7 @@ export default function TechStackTab({ app, techStack, loading }: TechStackTabPr
             <span>Port Allocations</span>
           </h3>
           <div className="tech-stack-ports">
-            {Object.entries(techStack.ports!).map(([name, port]) => (
+            {Object.entries(ports).map(([name, port]) => (
               <div key={name} className="tech-stack-port">
                 <span className="tech-stack-port__name">{name}</span>
                 <span className="tech-stack-port__value">{port}</span>
@@ -138,7 +158,7 @@ export default function TechStackTab({ app, techStack, loading }: TechStackTabPr
             <span>Tags</span>
           </h3>
           <div className="tech-stack-tags">
-            {techStack.tags!.map((tag) => (
+            {tags.map((tag) => (
               <span key={tag} className="tech-stack-tag">{tag}</span>
             ))}
           </div>

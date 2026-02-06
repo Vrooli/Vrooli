@@ -6,7 +6,8 @@
 }
 
 .tech-stack-tab__loading,
-.tech-stack-tab__empty {
+.tech-stack-tab__empty,
+.tech-stack-tab__error {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -16,6 +17,25 @@
   text-align: center;
   color: rgba(180, 255, 230, 0.7);
   font-size: 0.95rem;
+}
+
+.tech-stack-tab__error {
+  color: var(--color-error, #ff6f91);
+}
+
+.tech-stack-tab__retry {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-primary, #3b82f6);
+  background: var(--color-primary, #3b82f6);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.tech-stack-tab__retry:hover {
+  opacity: 0.92;
 }
 
 .tech-stack-tab__loading-icon {

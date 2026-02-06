@@ -46,7 +46,7 @@ func (h *ToolsHandler) GetManifest(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=60")
 	c.Header("Content-Type", "application/json")
 	c.Writer.WriteHeader(http.StatusOK)
-	c.Writer.Write(jsonBytes)
+	_, _ = c.Writer.Write(jsonBytes)
 }
 
 // GetTool handles GET /api/v1/tools/:name - returns a specific tool definition.
@@ -83,5 +83,5 @@ func (h *ToolsHandler) GetTool(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=60")
 	c.Header("Content-Type", "application/json")
 	c.Writer.WriteHeader(http.StatusOK)
-	c.Writer.Write(jsonBytes)
+	_, _ = c.Writer.Write(jsonBytes)
 }

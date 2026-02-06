@@ -50,7 +50,7 @@ export const useSystemStatusStore = create<SystemStatusState>((set, get) => ({
           lastChecked: new Date(),
         });
       }
-    } catch (error) {
+    } catch {
       set({
         error: 'Unable to refresh system status.',
         lastChecked: new Date(),

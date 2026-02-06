@@ -44,8 +44,8 @@ const DEFAULT_DEVICE_EMULATION_STATE: Readonly<DeviceEmulationState> = {
   isRotated: false,
 };
 
-const DEVICE_MIN_ZOOM = DEVICE_ZOOM_LEVELS[0];
-const DEVICE_MAX_ZOOM = DEVICE_ZOOM_LEVELS[DEVICE_ZOOM_LEVELS.length - 1];
+const DEVICE_MIN_ZOOM = DEVICE_ZOOM_LEVELS[0] ?? 0.1;
+const DEVICE_MAX_ZOOM = DEVICE_ZOOM_LEVELS[DEVICE_ZOOM_LEVELS.length - 1] ?? 2;
 
 const mapDisplayToBaseDimensions = (dimensions: { width: number; height: number }, rotated: boolean) => {
   if (rotated) {
@@ -65,7 +65,7 @@ const pickZoomLevelForLimit = (limit: number) => {
   const normalizedLimit = limit + 1e-6;
   for (let index = DEVICE_ZOOM_LEVELS.length - 1; index >= 0; index -= 1) {
     const candidate = DEVICE_ZOOM_LEVELS[index];
-    if (candidate <= normalizedLimit) {
+    if (candidate !== undefined && candidate <= normalizedLimit) {
       return candidate;
     }
   }

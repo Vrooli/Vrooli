@@ -202,6 +202,7 @@ export function useReportConsoleLogsData({
     }
   }, [
     resolveIdentifier,
+    activePreviewUrl,
     bridgeSupported,
     bridgeCaps,
     logState,

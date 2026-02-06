@@ -22,7 +22,7 @@ class Logger {
     this.level = this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
     
     // Allow runtime log level configuration
-    const configuredLevel = import.meta.env.VITE_LOG_LEVEL;
+    const configuredLevel = import.meta.env.VITE_LOG_LEVEL as string | undefined;
     if (configuredLevel && LogLevel[configuredLevel as keyof typeof LogLevel] !== undefined) {
       this.level = LogLevel[configuredLevel as keyof typeof LogLevel];
     }

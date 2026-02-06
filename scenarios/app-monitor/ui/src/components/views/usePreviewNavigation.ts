@@ -195,10 +195,10 @@ export const usePreviewNavigation = ({
     }
 
     const targetIndex = historyIndex - 1;
-    const targetUrl = history[targetIndex];
+    const targetUrl = history[targetIndex] ?? null;
     setHistoryIndex(targetIndex);
     setPreviewUrl(targetUrl);
-    setPreviewUrlInput(targetUrl);
+    setPreviewUrlInput(targetUrl ?? '');
     setHasCustomPreviewUrl(true);
     setStatusMessage(null);
   }, [bridgeState.isSupported, history, historyIndex, onBeforeLocalNavigation, sendBridgeNav, setHasCustomPreviewUrl, setHistoryIndex, setPreviewUrl, setPreviewUrlInput, setStatusMessage]);
@@ -214,10 +214,10 @@ export const usePreviewNavigation = ({
     }
 
     const targetIndex = historyIndex + 1;
-    const targetUrl = history[targetIndex];
+    const targetUrl = history[targetIndex] ?? null;
     setHistoryIndex(targetIndex);
     setPreviewUrl(targetUrl);
-    setPreviewUrlInput(targetUrl);
+    setPreviewUrlInput(targetUrl ?? '');
     setHasCustomPreviewUrl(true);
     setStatusMessage(null);
   }, [bridgeState.isSupported, history, historyIndex, sendBridgeNav, setHasCustomPreviewUrl, setHistoryIndex, setPreviewUrl, setPreviewUrlInput, setStatusMessage]);

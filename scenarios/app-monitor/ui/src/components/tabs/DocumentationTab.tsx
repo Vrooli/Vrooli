@@ -63,8 +63,10 @@ export default function DocumentationTab({ appId, documents, loading }: Document
     );
   }
 
-  const hasRootDocs = documents.root_docs.length > 0;
-  const hasDocsDocs = documents.docs_docs.length > 0;
+  const rootDocs = documents.root_docs ?? [];
+  const docsDocs = documents.docs_docs ?? [];
+  const hasRootDocs = rootDocs.length > 0;
+  const hasDocsDocs = docsDocs.length > 0;
 
   // Document viewer overlay
   if (selectedDoc) {
@@ -148,10 +150,10 @@ export default function DocumentationTab({ appId, documents, loading }: Document
         <section className="documentation-section">
           <h3 className="documentation-section__title">
             <Folder size={16} />
-            <span>Scenario Root ({documents.root_docs.length})</span>
+            <span>Scenario Root ({rootDocs.length})</span>
           </h3>
           <div className="documentation-list">
-            {documents.root_docs.map((doc) => (
+            {rootDocs.map((doc) => (
               <button
                 key={doc.path}
                 type="button"
@@ -180,10 +182,10 @@ export default function DocumentationTab({ appId, documents, loading }: Document
         <section className="documentation-section">
           <h3 className="documentation-section__title">
             <Folder size={16} />
-            <span>docs/ Folder ({documents.docs_docs.length})</span>
+            <span>docs/ Folder ({docsDocs.length})</span>
           </h3>
           <div className="documentation-list">
-            {documents.docs_docs.map((doc) => (
+            {docsDocs.map((doc) => (
               <button
                 key={doc.path}
                 type="button"

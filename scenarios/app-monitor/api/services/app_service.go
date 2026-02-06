@@ -220,7 +220,7 @@ func (s *AppService) StartApp(ctx context.Context, appName string) error {
 
 	// Update status in database if available
 	if s.hasRepo() {
-		s.repo.UpdateAppStatus(ctx, appName, "running")
+		_ = s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
 
 	s.invalidateCache()
@@ -238,7 +238,7 @@ func (s *AppService) StopApp(ctx context.Context, appName string) error {
 
 	// Update status in database if available
 	if s.hasRepo() {
-		s.repo.UpdateAppStatus(ctx, appName, "stopped")
+		_ = s.repo.UpdateAppStatus(ctx, appName, "stopped")
 	}
 
 	s.invalidateCache()
@@ -255,7 +255,7 @@ func (s *AppService) RestartApp(ctx context.Context, appName string) error {
 	}
 
 	if s.hasRepo() {
-		s.repo.UpdateAppStatus(ctx, appName, "running")
+		_ = s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
 
 	s.invalidateCache()

@@ -103,7 +103,7 @@ export default function TabSwitcherDialog() {
       return null;
     }
     try {
-      return decodeURIComponent(match[1]);
+      return decodeURIComponent(match[1] ?? '');
     } catch (error) {
       logger.warn('[tabSwitcher] Failed to decode current app id', error);
       return match[1];
@@ -306,6 +306,7 @@ function useDialogFocus(dialogRef: RefObject<HTMLElement>, searchInputRef: RefOb
       }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
       const activeElement = document.activeElement as HTMLElement | null;
 
       if (event.shiftKey) {

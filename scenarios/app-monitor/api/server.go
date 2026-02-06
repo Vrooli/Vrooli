@@ -132,7 +132,7 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 	// Optional rate limiting
 	if rateLimit := os.Getenv("RATE_LIMIT_PER_MINUTE"); rateLimit != "" {
 		var limit int
-		fmt.Sscanf(rateLimit, "%d", &limit)
+		_, _ = fmt.Sscanf(rateLimit, "%d", &limit)
 		if limit > 0 {
 			r.Use(middleware.RateLimiting(limit))
 		}

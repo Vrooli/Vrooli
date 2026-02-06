@@ -101,10 +101,9 @@ func (h *WebSocketHandler) handleClientMessages(conn *websocket.Conn, done chan 
 	}()
 
 	// Set read deadline to detect disconnected clients
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		return nil
+		return conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	})
 
 	// Start ping ticker
@@ -112,12 +111,9 @@ func (h *WebSocketHandler) handleClientMessages(conn *websocket.Conn, done chan 
 	defer ticker.Stop()
 
 	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					return
-				}
+		for range ticker.C {
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
 			}
 		}
 	}()

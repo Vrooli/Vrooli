@@ -167,10 +167,8 @@ func (s *AppService) ListAppDocuments(ctx context.Context, appID string) (*AppDo
 			return nil
 		})
 
-		if err != nil {
-			// Silently skip errors in docs folder - return what we found in root
-			// (logger would require import which isn't critical for this operation)
-		}
+		// Silently skip errors in docs folder - return what we found in root
+		_ = err
 	}
 
 	result.Total = len(result.RootDocs) + len(result.DocsDocs)

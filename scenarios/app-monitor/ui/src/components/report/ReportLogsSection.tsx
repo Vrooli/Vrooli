@@ -79,7 +79,7 @@ const ReportLogsSection = ({
       return null;
     }
     try {
-      const parsed = JSON.parse(trimmed);
+      const parsed: unknown = JSON.parse(trimmed);
       return JSON.stringify(parsed, null, 2);
     } catch {
       return trimmed;
@@ -679,10 +679,10 @@ const ReportLogsSection = ({
           </div>
         ) : !status.snapshot ? (
           <p className="report-dialog__logs-empty">No status snapshot available.</p>
-        ) : status.snapshot.details.length === 0 ? (
+        ) : (status.snapshot.details ?? []).length === 0 ? (
           <p className="report-dialog__logs-empty">Status snapshot did not include detailed output.</p>
         ) : (
-          <pre className="report-dialog__logs-content">{status.snapshot.details.join('\n')}</pre>
+          <pre className="report-dialog__logs-content">{(status.snapshot.details ?? []).join('\n')}</pre>
         )}
       </div>
     </section>
@@ -767,10 +767,10 @@ const ReportLogsSection = ({
           </div>
         ) : !completeness.data ? (
           <p className="report-dialog__logs-empty">No completeness data available.</p>
-        ) : completeness.data.details.length === 0 ? (
+        ) : (completeness.data.details ?? []).length === 0 ? (
           <p className="report-dialog__logs-empty">Completeness analysis did not include detailed output.</p>
         ) : (
-          <pre className="report-dialog__logs-content">{completeness.data.details.join('\n')}</pre>
+          <pre className="report-dialog__logs-content">{(completeness.data.details ?? []).join('\n')}</pre>
         )}
       </div>
     </section>

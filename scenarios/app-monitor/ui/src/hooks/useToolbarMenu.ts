@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { useAnchoredPopover, type PopoverPlacement } from '@/components/popover/AnchoredPopover';
+import type { PopoverPlacement } from '@/components/popover/anchoredPopoverUtils';
+import { useAnchoredPopover } from '@/components/popover/useAnchoredPopover';
 
 export type MenuId = string;
 
@@ -152,9 +153,10 @@ export const useMenuAutoFocus = (
   useEffect(() => {
     if (isOpen && firstItemRef.current) {
       // Use requestAnimationFrame to ensure DOM is ready
-      requestAnimationFrame(() => {
+      const frameId = requestAnimationFrame(() => {
         firstItemRef.current?.focus();
       });
+      return () => cancelAnimationFrame(frameId);
     }
   }, [isOpen, firstItemRef]);
 };

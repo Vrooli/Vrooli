@@ -81,15 +81,15 @@ export default function LighthouseTab({ app, history, loading, error, onRefetch 
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 404 && errorData?.missing_config) {
+        const errorData = await response.json().catch(() => ({})) as Record<string, unknown>;
+        if (response.status === 404 && errorData.missing_config) {
           setMissingConfigInfo({
             scenario: scenarioName,
             expectedPath: typeof errorData.expected_path === 'string' ? errorData.expected_path : undefined,
             hint: typeof errorData.hint === 'string' ? errorData.hint : undefined,
           });
         }
-        throw new Error(errorData.error || 'Failed to run Lighthouse audits');
+        throw new Error(typeof errorData.error === 'string' ? errorData.error : 'Failed to run Lighthouse audits');
       }
 
       // Refresh history after run completes
@@ -252,7 +252,7 @@ export default function LighthouseTab({ app, history, loading, error, onRefetch 
 
   // Group reports by page_id (latest per page)
   const latestReports = history.reports.reduce((acc, report) => {
-    if (!acc[report.page_id] || new Date(report.timestamp) > new Date(acc[report.page_id].timestamp)) {
+    if (!acc[report.page_id] || new Date(report.timestamp) > new Date(acc[report.page_id]?.timestamp ?? 0)) {
       acc[report.page_id] = report;
     }
     return acc;
@@ -271,7 +271,7 @@ export default function LighthouseTab({ app, history, loading, error, onRefetch 
           </h3>
           <p className="lighthouse-tab__subtitle">
             {history.reports.length} report{history.reports.length !== 1 ? 's' : ''} •{' '}
-            Last run: {new Date(history.reports[0]?.timestamp).toLocaleString()}
+            Last run: {new Date(history.reports[0]?.timestamp ?? 0).toLocaleString()}
           </p>
         </div>
         <button
@@ -693,7 +693,7 @@ function TrendMiniChart({ data }: { data: TrendPoint[] }) {
   // Group by page_id and take last 10 points per page
   const byPage = data.reduce((acc, point) => {
     if (!acc[point.page_id]) acc[point.page_id] = [];
-    acc[point.page_id].push(point);
+    acc[point.page_id]?.push(point);
     return acc;
   }, {} as Record<string, TrendPoint[]>);
 
@@ -703,7 +703,7 @@ function TrendMiniChart({ data }: { data: TrendPoint[] }) {
         const recent = points.slice(-10);
         const scores = recent.map((p) => p.score);
         const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-        const trend = scores.length > 1 ? scores[scores.length - 1] - scores[0] : 0;
+        const trend = scores.length > 1 ? (scores[scores.length - 1] ?? 0) - (scores[0] ?? 0) : 0;
 
         return (
           <div key={pageId} className="lighthouse-mini-chart__row">

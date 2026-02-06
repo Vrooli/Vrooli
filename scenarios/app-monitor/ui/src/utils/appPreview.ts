@@ -115,7 +115,7 @@ const parsePort = (value: unknown): number | null => {
       if (portValue !== null && Number.isFinite(portValue)) {
         return portValue;
       }
-    } catch (error) {
+    } catch {
       const match = trimmed.match(/:(\d+)(?!.*:\d+)/);
       if (match) {
         const candidate = Number(match[1]);

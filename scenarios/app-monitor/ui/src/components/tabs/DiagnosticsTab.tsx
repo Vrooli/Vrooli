@@ -5,15 +5,33 @@ import './DiagnosticsTab.css';
 interface DiagnosticsTabProps {
   diagnostics: CompleteDiagnostics | null | undefined;
   loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabProps) {
+export default function DiagnosticsTab({ diagnostics, loading, error, onRetry }: DiagnosticsTabProps) {
   if (loading) {
     return (
       <div className="diagnostics-tab">
         <div className="diagnostics-tab__loading">
           <Activity size={32} className="diagnostics-tab__loading-icon" />
           <p>Running diagnostics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !diagnostics) {
+    return (
+      <div className="diagnostics-tab">
+        <div className="diagnostics-tab__error">
+          <AlertTriangle size={32} />
+          <p>{error}</p>
+          {onRetry && (
+            <button type="button" className="diagnostics-tab__retry" onClick={onRetry}>
+              Retry
+            </button>
+          )}
         </div>
       </div>
     );
@@ -30,13 +48,18 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
     );
   }
 
-  const hasHealthChecks = diagnostics.health_checks && diagnostics.health_checks.checks.length > 0;
-  const hasBridgeViolations = diagnostics.bridge_rules && diagnostics.bridge_rules.violations.length > 0;
-  const hasLocalhostFindings = diagnostics.localhost_usage && diagnostics.localhost_usage.findings.length > 0;
+  const healthChecks = diagnostics.health_checks;
+  const hasHealthChecks = healthChecks != null && Array.isArray(healthChecks.checks) && healthChecks.checks.length > 0;
+  const bridgeRules = diagnostics.bridge_rules;
+  const hasBridgeViolations = bridgeRules != null && Array.isArray(bridgeRules.violations) && bridgeRules.violations.length > 0;
+  const localhostUsage = diagnostics.localhost_usage;
+  const hasLocalhostFindings = localhostUsage != null && Array.isArray(localhostUsage.findings) && localhostUsage.findings.length > 0;
   const auditorSummary = diagnostics.auditor_summary;
   const hasAuditorSummary = Boolean(auditorSummary && auditorSummary.total > 0);
-  const hasIssues = diagnostics.issues && diagnostics.issues.total_count > 0;
-  const hasWarnings = diagnostics.warnings.length > 0;
+  const issues = diagnostics.issues;
+  const hasIssues = issues != null && issues.total_count > 0;
+  const warnings = Array.isArray(diagnostics.warnings) ? diagnostics.warnings : [];
+  const hasWarnings = warnings.length > 0;
 
   // Severity badge color
   const severityClass = diagnostics.severity === 'ok' ? 'success' :
@@ -50,7 +73,7 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
         <div className="diagnostics-summary">
           <div className="diagnostics-summary__status">
             <span className={`diagnostics-severity diagnostics-severity--${severityClass}`}>
-              {diagnostics.severity.toUpperCase()}
+              {(diagnostics.severity ?? 'unknown').toUpperCase()}
             </span>
             {diagnostics.summary && (
               <p className="diagnostics-summary__text">{diagnostics.summary}</p>
@@ -59,7 +82,7 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
           {hasWarnings && (
             <div className="diagnostics-summary__count">
               <AlertTriangle size={20} />
-              <span>{diagnostics.warnings.length} warning{diagnostics.warnings.length !== 1 ? 's' : ''}</span>
+              <span>{warnings.length} warning{warnings.length !== 1 ? 's' : ''}</span>
             </div>
           )}
         </div>
@@ -144,7 +167,7 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
             <span>Warnings</span>
           </h3>
           <div className="diagnostics-warnings">
-            {diagnostics.warnings.map((warning, index) => (
+            {warnings.map((warning, index) => (
               <div
                 key={`warning-${index}`}
                 className={`diagnostics-warning diagnostics-warning--${warning.severity}`}
@@ -175,7 +198,7 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
             <span>Health Checks</span>
           </h3>
           <div className="diagnostics-health-checks">
-            {diagnostics.health_checks!.checks.map((check) => {
+            {healthChecks.checks.map((check) => {
               const isPassing = check.status === 'pass';
               const icon = isPassing ? <CheckCircle size={16} /> : <XCircle size={16} />;
 
@@ -209,10 +232,10 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
         <section className="diagnostics-section">
           <h3 className="diagnostics-section__title">
             <AlertTriangle size={18} />
-            <span>Bridge Compliance Issues ({diagnostics.bridge_rules!.violations.length})</span>
+            <span>Bridge Compliance Issues ({bridgeRules.violations.length})</span>
           </h3>
           <div className="diagnostics-violations">
-            {diagnostics.bridge_rules!.violations.slice(0, 5).map((violation, index) => (
+            {bridgeRules.violations.slice(0, 5).map((violation, index) => (
               <div key={`violation-${index}`} className="diagnostics-violation">
                 <div className="diagnostics-violation__header">
                   <span className="diagnostics-violation__title">{violation.title}</span>
@@ -234,9 +257,9 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
                 )}
               </div>
             ))}
-            {diagnostics.bridge_rules!.violations.length > 5 && (
+            {bridgeRules.violations.length > 5 && (
               <p className="diagnostics-violations__more">
-                ...and {diagnostics.bridge_rules!.violations.length - 5} more violations
+                ...and {bridgeRules.violations.length - 5} more violations
               </p>
             )}
           </div>
@@ -248,19 +271,19 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
         <section className="diagnostics-section">
           <h3 className="diagnostics-section__title">
             <AlertTriangle size={18} />
-            <span>Localhost References ({diagnostics.localhost_usage!.findings.length})</span>
+            <span>Localhost References ({localhostUsage.findings.length})</span>
           </h3>
           <div className="diagnostics-localhost">
             <div className="diagnostics-localhost__alert">
               <AlertTriangle size={16} />
               <p>
-                {diagnostics.localhost_usage!.findings.length} hard-coded localhost reference
-                {diagnostics.localhost_usage!.findings.length !== 1 ? 's' : ''} detected.
+                {localhostUsage.findings.length} hard-coded localhost reference
+                {localhostUsage.findings.length !== 1 ? 's' : ''} detected.
                 Update requests to use the scenario proxy base.
               </p>
             </div>
             <div className="diagnostics-localhost__findings">
-              {diagnostics.localhost_usage!.findings.slice(0, 6).map((finding, index) => (
+              {localhostUsage.findings.slice(0, 6).map((finding, index) => (
                 <div key={`finding-${index}`} className="diagnostics-localhost__finding">
                   <code className="diagnostics-localhost__file">
                     {finding.file_path}:{finding.line}
@@ -271,9 +294,9 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
                   <pre className="diagnostics-localhost__snippet">{finding.snippet}</pre>
                 </div>
               ))}
-              {diagnostics.localhost_usage!.findings.length > 6 && (
+              {localhostUsage.findings.length > 6 && (
                 <p className="diagnostics-localhost__more">
-                  ...and {diagnostics.localhost_usage!.findings.length - 6} more occurrences
+                  ...and {localhostUsage.findings.length - 6} more occurrences
                 </p>
               )}
             </div>
@@ -291,21 +314,21 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
           <div className="diagnostics-issues">
             <div className="diagnostics-issues__summary">
               <div className="diagnostics-issues__stat">
-                <span className="diagnostics-issues__stat-value">{diagnostics.issues!.open_count}</span>
+                <span className="diagnostics-issues__stat-value">{issues.open_count}</span>
                 <span className="diagnostics-issues__stat-label">Open</span>
               </div>
               <div className="diagnostics-issues__stat">
-                <span className="diagnostics-issues__stat-value">{diagnostics.issues!.active_count}</span>
+                <span className="diagnostics-issues__stat-value">{issues.active_count}</span>
                 <span className="diagnostics-issues__stat-label">Active</span>
               </div>
               <div className="diagnostics-issues__stat">
-                <span className="diagnostics-issues__stat-value">{diagnostics.issues!.total_count}</span>
+                <span className="diagnostics-issues__stat-value">{issues.total_count}</span>
                 <span className="diagnostics-issues__stat-label">Total</span>
               </div>
             </div>
-            {diagnostics.issues!.tracker_url && (
+            {issues.tracker_url && (
               <a
-                href={diagnostics.issues!.tracker_url}
+                href={issues.tracker_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="diagnostics-issues__link"

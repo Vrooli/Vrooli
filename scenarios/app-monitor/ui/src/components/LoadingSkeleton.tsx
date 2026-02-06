@@ -45,7 +45,7 @@ export const AppCardSkeleton: React.FC<AppCardSkeletonProps> = ({ viewMode = 'gr
   );
 };
 
-interface ResourceCardSkeletonProps {}
+type ResourceCardSkeletonProps = object;
 
 export const ResourceCardSkeleton: React.FC<ResourceCardSkeletonProps> = () => {
   return (

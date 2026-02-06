@@ -1,10 +1,8 @@
 import { useCallback, useRef } from 'react';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import {
-  computeAnchoredPopoverStyle,
-  useAnchoredPopover,
-} from './AnchoredPopover';
+import { computeAnchoredPopoverStyle } from './anchoredPopoverUtils';
+import { useAnchoredPopover } from './useAnchoredPopover';
 
 type RectParams = {
   x: number;

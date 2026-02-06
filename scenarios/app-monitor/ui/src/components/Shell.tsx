@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Outlet } from 'react-router-dom';
 import { Layers, MoreHorizontal } from 'lucide-react';
+import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
 import clsx from 'clsx';
 import TabSwitcherDialog from '@/components/tabSwitcher/TabSwitcherDialog';
 import ActionsDialog from '@/components/actions/ActionsDialog';
@@ -151,7 +152,9 @@ export default function Shell({ isConnected }: ShellProps) {
   return (
     <div className="shell">
       <div className="shell__content">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </div>
 
       <nav
@@ -205,7 +208,9 @@ export default function Shell({ isConnected }: ShellProps) {
           size="wide"
           className="shell__dialog shell__dialog--wide"
         >
-          <TabSwitcherDialog />
+          <ErrorBoundary fallback={SectionErrorFallback}>
+            <TabSwitcherDialog />
+          </ErrorBoundary>
         </ResponsiveDialog>,
       )}
 
@@ -215,7 +220,9 @@ export default function Shell({ isConnected }: ShellProps) {
           ariaLabel="System actions"
           className="shell__dialog"
         >
-          <ActionsDialog isConnected={isConnected} />
+          <ErrorBoundary fallback={SectionErrorFallback}>
+            <ActionsDialog isConnected={isConnected} />
+          </ErrorBoundary>
         </ResponsiveDialog>,
       )}
     </div>

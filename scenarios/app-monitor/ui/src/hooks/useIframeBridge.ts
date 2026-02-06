@@ -940,7 +940,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     if (!helloReceivedRef.current) {
       try {
         await waitForMessage(message => message.t === 'HELLO', 1000);
-      } catch (error) {
+      } catch {
         recordFailure('HELLO');
       }
     }
@@ -948,14 +948,14 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     if (!readyReceivedRef.current) {
       try {
         await waitForMessage(message => message.t === 'READY', 3000);
-      } catch (error) {
+      } catch {
         recordFailure('READY');
       }
     }
 
     try {
       await runSpaHooksDiagnostic();
-    } catch (error) {
+    } catch {
       recordFailure('SPA hooks');
     }
 

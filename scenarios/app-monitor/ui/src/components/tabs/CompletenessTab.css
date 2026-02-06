@@ -5,7 +5,8 @@
 }
 
 .completeness-tab__loading,
-.completeness-tab__empty {
+.completeness-tab__empty,
+.completeness-tab__error {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -13,6 +14,25 @@
   gap: 1rem;
   padding: 3rem 1rem;
   color: var(--color-text-secondary);
+}
+
+.completeness-tab__error {
+  color: var(--color-error, #ff6f91);
+}
+
+.completeness-tab__retry {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-primary, #3b82f6);
+  background: var(--color-primary, #3b82f6);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.completeness-tab__retry:hover {
+  opacity: 0.92;
 }
 
 .completeness-tab__loading-icon.spinning {

@@ -371,13 +371,6 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 		scenarioSlug = "scenario"
 	}
 
-	if scenarioDisplayName == "" {
-		scenarioDisplayName = strings.TrimSpace(app.Name)
-	}
-	if scenarioDisplayName == "" {
-		scenarioDisplayName = scenarioSlug
-	}
-
 	port, err := s.locateScenarioAuditorAPIPort(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)

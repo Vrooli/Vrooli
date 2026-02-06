@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx';
 import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square, FileText, Activity, Layers, AlertCircle, CheckCircle, Loader, Zap, Award } from 'lucide-react';
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
+import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
 import type { App, AppProxyMetadata, AppProxyPortInfo, CompleteDiagnostics, CompletenessScore } from '@/types';
 import { buildPreviewUrl } from '@/utils/appPreview';
 import type { LighthouseHistory } from '@/hooks/useLighthouseHistory';
@@ -28,6 +29,10 @@ interface AppModalProps {
   onRefetchLighthouse?: () => Promise<void>;
   preloadedCompleteness?: CompletenessScore | null;
   completenessLoading?: boolean;
+  diagnosticsError?: string | null;
+  onRefetchDiagnostics?: () => Promise<void>;
+  completenessError?: string | null;
+  onRefetchCompleteness?: () => Promise<void>;
 }
 
 type OtherPort = { label: string; value: string };
@@ -53,6 +58,10 @@ export default function AppModal({
   onRefetchLighthouse,
   preloadedCompleteness,
   completenessLoading: externalCompletenessLoading,
+  diagnosticsError: externalDiagnosticsError,
+  onRefetchDiagnostics,
+  completenessError: externalCompletenessError,
+  onRefetchCompleteness,
 }: AppModalProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [hasCopiedPreviewUrl, setHasCopiedPreviewUrl] = useState(false);
@@ -73,6 +82,8 @@ export default function AppModal({
   const refetchLighthouse = onRefetchLighthouse ?? (async () => {});
   const completeness = preloadedCompleteness ?? null;
   const completenessLoading = externalCompletenessLoading ?? false;
+  const diagnosticsError = externalDiagnosticsError ?? null;
+  const completenessError = externalCompletenessError ?? null;
 
   useEffect(() => {
     if (!isOpen) {
@@ -109,6 +120,7 @@ export default function AppModal({
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
       const activeElement = document.activeElement as HTMLElement | null;
 
       if (!event.shiftKey && activeElement === last) {
@@ -190,7 +202,7 @@ export default function AppModal({
       .filter(([label]) => !shownPorts.has(label))
       .map(([label, value]) => ({ label: label.toUpperCase(), value: String(value) }));
 
-    const resolvedProxyRoutes: AppProxyPortInfo[] = proxyMetadata?.ports
+    const resolvedProxyRoutes: AppProxyPortInfo[] = Array.isArray(proxyMetadata?.ports)
       ? [...proxyMetadata.ports].sort((a, b) => {
           if (a.isPrimary === b.isPrimary) {
             const aLabel = (a.label || a.slug || '').toLowerCase();
@@ -208,7 +220,7 @@ export default function AppModal({
       primaryPortValue: resolvedPrimaryValue,
       proxyRoutes: resolvedProxyRoutes,
     };
-  }, [app.config?.primary_port, app.config?.primary_port_label, app.port_mappings, app.id, proxyMetadata?.ports]);
+  }, [app.config?.primary_port, app.config?.primary_port_label, app.port_mappings, proxyMetadata?.ports]);
 
 
   const uptime = app.uptime && app.uptime !== 'N/A' ? app.uptime : 'N/A';
@@ -341,7 +353,7 @@ export default function AppModal({
           >
             <Activity size={16} aria-hidden />
             <span>Diagnostics</span>
-            {diagnostics && diagnostics.warnings.length > 0 && (
+            {diagnostics && Array.isArray(diagnostics.warnings) && diagnostics.warnings.length > 0 && (
               <span className="modal-tab-badge">{diagnostics.warnings.length}</span>
             )}
           </button>
@@ -417,23 +429,33 @@ export default function AppModal({
           )}
 
           {activeTab === 'diagnostics' && (
-            <DiagnosticsTab diagnostics={diagnostics} loading={diagnosticsLoading} />
+            <ErrorBoundary fallback={SectionErrorFallback}>
+              <DiagnosticsTab diagnostics={diagnostics} loading={diagnosticsLoading} error={diagnosticsError} onRetry={onRefetchDiagnostics} />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'tech-stack' && (
-            <TechStackTab app={app} techStack={diagnostics?.tech_stack} loading={diagnosticsLoading} />
+            <ErrorBoundary fallback={SectionErrorFallback}>
+              <TechStackTab app={app} techStack={diagnostics?.tech_stack} loading={diagnosticsLoading} error={diagnosticsError} onRetry={onRefetchDiagnostics} />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'docs' && (
-            <DocumentationTab appId={app.id} documents={diagnostics?.documents} loading={diagnosticsLoading} />
+            <ErrorBoundary fallback={SectionErrorFallback}>
+              <DocumentationTab appId={app.id} documents={diagnostics?.documents} loading={diagnosticsLoading} />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'lighthouse' && (
-            <LighthouseTab app={app} history={lighthouseHistory} loading={lighthouseLoading} error={lighthouseError} onRefetch={refetchLighthouse} />
+            <ErrorBoundary fallback={SectionErrorFallback}>
+              <LighthouseTab app={app} history={lighthouseHistory} loading={lighthouseLoading} error={lighthouseError} onRefetch={refetchLighthouse} />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'completeness' && (
-            <CompletenessTab completeness={completeness} loading={completenessLoading} />
+            <ErrorBoundary fallback={SectionErrorFallback}>
+              <CompletenessTab completeness={completeness} loading={completenessLoading} error={completenessError} onRetry={onRefetchCompleteness} />
+            </ErrorBoundary>
           )}
         </div>
 

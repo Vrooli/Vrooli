@@ -177,7 +177,7 @@ export interface BrowserlessFallbackPageStatus {
   emptyBody: boolean;
   resourceCount: number;
   loadTimeMs: number;
-  performanceMetrics?: Record<string, any>;
+  performanceMetrics?: Record<string, unknown>;
   detectedIssues?: string[];
 }
 
@@ -660,7 +660,7 @@ export const logService = {
     
     eventSource.onmessage = (event) => {
       try {
-        const log = JSON.parse(event.data) as LogEntry;
+        const log: LogEntry = JSON.parse(event.data as string) as LogEntry;
         onMessage(log);
       } catch (error) {
         logger.error('Failed to parse log stream message', error);

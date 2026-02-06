@@ -31,7 +31,7 @@ const sendDebugEvent = (event: string, detail?: Record<string, unknown>) => {
         keepalive: true,
       })
     }
-  } catch (error) {
+  } catch {
     // best-effort debug logging
   }
 }
@@ -74,7 +74,7 @@ if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
         if (target instanceof URL) {
           return `${target.pathname}${target.search ?? ''}`
         }
-      } catch (error) {
+      } catch {
         // Ignore malformed URLs and fall back to current location
       }
       return `${window.location.pathname}${window.location.search ?? ''}`
@@ -111,7 +111,7 @@ if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
               })
             }
           }
-        } catch (error) {
+        } catch {
           // Guard instrumentation errors are non-fatal
         }
         return result
@@ -135,7 +135,8 @@ if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
       sendDebugEvent('history-popstate', {
         state: event.state,
       })
-      const guard = globalWindow.__appMonitorPreviewGuard!
+      const guard = globalWindow.__appMonitorPreviewGuard
+      if (!guard) return
       if (guard.ignoreNextPopstate) {
         guard.ignoreNextPopstate = false
         sendDebugEvent('history-popstate-ignored', {
@@ -164,7 +165,7 @@ if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
         guard.active = true
         guard.armedAt = now
         const recoverUrl = guard.recoverPath ?? currentPath
-        const recoverState = guard.recoverState ?? history.state
+        const recoverState: unknown = guard.recoverState ?? history.state
         history.pushState(recoverState ?? {}, '', recoverUrl)
         window.dispatchEvent(new PopStateEvent('popstate', { state: recoverState }))
         return
@@ -195,10 +196,13 @@ if (
   ;(window as unknown as Record<string, unknown>)[BRIDGE_FLAG] = true
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <SnackStackProvider>
-      <App />
-    </SnackStackProvider>
-  </React.StrictMode>,
-)
+const rootEl = document.getElementById('root')
+if (rootEl) {
+  ReactDOM.createRoot(rootEl).render(
+    <React.StrictMode>
+      <SnackStackProvider>
+        <App />
+      </SnackStackProvider>
+    </React.StrictMode>,
+  )
+}

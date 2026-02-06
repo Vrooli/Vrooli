@@ -323,7 +323,7 @@ const useReportIssueState = ({
     );
 
     if (!validation.valid) {
-      setReportError(validation.error!);
+      setReportError(validation.error ?? 'Validation failed');
       return;
     }
 
@@ -574,6 +574,8 @@ const useReportIssueState = ({
   }, [
     reportMessage,
     elementCaptures,
+    completeness.data,
+    completeness.includeCompleteness,
     diagnostics.diagnosticsSummaryIncluded,
     diagnostics.diagnosticsDescription,
     screenshot,

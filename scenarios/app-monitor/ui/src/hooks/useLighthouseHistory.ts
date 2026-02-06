@@ -82,11 +82,11 @@ export function useLighthouseHistory(
       const response = await fetch(`/api/v1/scenarios/${appId}/lighthouse/history`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to load Lighthouse history');
+        const errorData = await response.json().catch(() => ({})) as Record<string, unknown>;
+        throw new Error(typeof errorData.error === 'string' ? errorData.error : 'Failed to load Lighthouse history');
       }
 
-      const data = await response.json();
+      const data = await response.json() as LighthouseHistory;
       setHistory(data);
       setError(null);
       fetchedForAppRef.current = appId;

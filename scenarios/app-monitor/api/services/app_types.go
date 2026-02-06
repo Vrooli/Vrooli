@@ -236,12 +236,6 @@ type scenarioResourceItem struct {
 	Note        *string `json:"note"`
 }
 
-// ecosystemManagerResponse represents the direct API response from ecosystem-manager
-type ecosystemManagerResponse struct {
-	Success bool              `json:"success"`
-	Data    []OrchestratorApp `json:"data"`
-}
-
 // OrchestratorApp represents an app from the orchestrator
 type OrchestratorApp struct {
 	Name         string         `json:"name"`
@@ -408,11 +402,6 @@ type scenarioStatusConnectivity struct {
 	APIURL    string   `json:"api_url"`
 	Error     string   `json:"error"`
 	LatencyMs *float64 `json:"latency_ms"`
-}
-
-type scenarioStatusDependency struct {
-	Connected bool   `json:"connected"`
-	Status    string `json:"status"`
 }
 
 type scenarioStatusHealthCheck struct {

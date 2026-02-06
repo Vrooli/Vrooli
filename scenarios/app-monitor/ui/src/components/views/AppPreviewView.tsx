@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { Info, Loader2, X } from 'lucide-react';
+import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
 import { appService } from '@/services/api';
 import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
 import { useAppsStore } from '@/state/appsStore';
@@ -155,7 +156,7 @@ const AppPreviewView = () => {
 
   // Preload diagnostics and Lighthouse history for the current app
   // This ensures data is ready when the user opens the app details modal
-  const { diagnostics: preloadedDiagnostics, loading: diagnosticsLoading } = useAppDiagnostics(
+  const { diagnostics: preloadedDiagnostics, loading: diagnosticsLoading, error: diagnosticsError, refetch: refetchDiagnostics } = useAppDiagnostics(
     currentApp?.id ?? null,
     { enabled: true, refetchOnOpen: false }
   );
@@ -165,7 +166,7 @@ const AppPreviewView = () => {
     { enabled: true }
   );
 
-  const { completeness: preloadedCompleteness, loading: completenessLoading } = useAppCompleteness(
+  const { completeness: preloadedCompleteness, loading: completenessLoading, error: completenessError, refetch: refetchCompleteness } = useAppCompleteness(
     currentApp?.id ?? null,
     { enabled: true, refetchOnOpen: false }
   );
@@ -338,7 +339,7 @@ const AppPreviewView = () => {
           keepalive: true,
         });
       }
-    } catch (error) {
+    } catch {
       // Best-effort debug logging; ignore failures
     }
   }, []);
@@ -713,7 +714,7 @@ const AppPreviewView = () => {
     }
   }, [activePreviewUrl]);
   const bridgeSupportsScreenshot = useMemo(
-    () => bridgeState.isSupported && bridgeState.caps.includes('screenshot'),
+    () => bridgeState.isSupported && Array.isArray(bridgeState.caps) && bridgeState.caps.includes('screenshot'),
     [bridgeState.caps, bridgeState.isSupported],
   );
   const logsState = useAppLogs({ app: currentApp, appId: appId ?? null, active: isLogsPanelOpen });
@@ -773,7 +774,7 @@ const AppPreviewView = () => {
     if (!bridgeState.isSupported || !bridgeCompliance || bridgeCompliance.ok) {
       return null;
     }
-    const detail = bridgeCompliance.failures.join(', ');
+    const detail = Array.isArray(bridgeCompliance.failures) ? bridgeCompliance.failures.join(', ') : 'unknown';
     return `Preview bridge diagnostics failed (${detail}). History syncing may be unreliable.`;
   }, [bridgeCompliance, bridgeState.isSupported]);
 
@@ -1304,11 +1305,13 @@ const AppPreviewView = () => {
 
       {isDeviceEmulationActive && !isLogsPanelOpen && <DeviceEmulationToolbar {...deviceToolbar} />}
 
-      <PreviewInspectorPanel
-        inspectState={inspectState}
-        previewUrl={previewUrl}
-        inspector={inspector}
-      />
+      <ErrorBoundary fallback={SectionErrorFallback}>
+        <PreviewInspectorPanel
+          inspectState={inspectState}
+          previewUrl={previewUrl}
+          inspector={inspector}
+        />
+      </ErrorBoundary>
 
 
       {isLogsPanelOpen ? (
@@ -1385,35 +1388,42 @@ const AppPreviewView = () => {
       )}
 
       {modalOpen && currentApp && (
-        <AppModal
-          app={currentApp}
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onAction={handleAppAction}
-          onViewLogs={(appIdentifier) => {
-            setModalOpen(false);
-            recordNavigateEvent({
-              reason: 'modal-view-logs',
-              targetPath: `/logs/${appIdentifier}`,
-            });
-            updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
-            navigate(`/logs/${appIdentifier}`);
-          }}
-          proxyMetadata={proxyMetadata}
-          previewUrl={activePreviewUrl || null}
-          preloadedDiagnostics={preloadedDiagnostics}
-          diagnosticsLoading={diagnosticsLoading}
-          preloadedLighthouseHistory={preloadedLighthouseHistory}
-          lighthouseLoading={lighthouseLoading}
-          lighthouseError={lighthouseError}
-          onRefetchLighthouse={refetchLighthouse}
-          preloadedCompleteness={preloadedCompleteness}
-          completenessLoading={completenessLoading}
-        />
+        <ErrorBoundary fallback={SectionErrorFallback}>
+          <AppModal
+            app={currentApp}
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            onAction={handleAppAction}
+            onViewLogs={(appIdentifier) => {
+              setModalOpen(false);
+              recordNavigateEvent({
+                reason: 'modal-view-logs',
+                targetPath: `/logs/${appIdentifier}`,
+              });
+              updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
+              navigate(`/logs/${appIdentifier}`);
+            }}
+            proxyMetadata={proxyMetadata}
+            previewUrl={activePreviewUrl || null}
+            preloadedDiagnostics={preloadedDiagnostics}
+            diagnosticsLoading={diagnosticsLoading}
+            preloadedLighthouseHistory={preloadedLighthouseHistory}
+            lighthouseLoading={lighthouseLoading}
+            lighthouseError={lighthouseError}
+            onRefetchLighthouse={refetchLighthouse}
+            preloadedCompleteness={preloadedCompleteness}
+            completenessLoading={completenessLoading}
+            diagnosticsError={diagnosticsError}
+            onRefetchDiagnostics={refetchDiagnostics}
+            completenessError={completenessError}
+            onRefetchCompleteness={refetchCompleteness}
+          />
+        </ErrorBoundary>
       )}
 
       {reportDialogOpen && (
-        <ReportIssueDialog
+        <ErrorBoundary fallback={SectionErrorFallback}>
+          <ReportIssueDialog
           isOpen={reportDialogOpen}
           onClose={handleCloseReportDialog}
           appId={currentApp?.id ?? appId ?? undefined}
@@ -1441,6 +1451,7 @@ const AppPreviewView = () => {
           onElementCapturesReset={handleResetElementCaptures}
           onPrimaryCaptureDraftChange={setHasPrimaryCaptureDraft}
         />
+        </ErrorBoundary>
       )}
     </div>
   );
