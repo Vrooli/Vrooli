@@ -9,18 +9,24 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ICONS, getIcon } from '@/lib/icons'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface IconSelectorProps {
   value: string
   onChange: (value: string) => void
   disabled?: boolean
+  isLoading?: boolean
   className?: string
 }
 
 /**
  * Icon selector component with dropdown picker.
  */
-export function IconSelector({ value, onChange, disabled, className }: IconSelectorProps) {
+export function IconSelector({ value, onChange, disabled, isLoading, className }: IconSelectorProps) {
+  if (isLoading) {
+    return <Skeleton className={cn('w-10 h-10 rounded-lg', className)} />
+  }
+
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)

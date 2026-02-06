@@ -288,6 +288,7 @@ export function SkillManagerLayout() {
     canRedo,
     isSaving,
     isDeleting,
+    isLoadingContent,
   } = usePromptEditor({
     skills,
     selectedItemId: selectedSkillId,
@@ -1108,6 +1109,7 @@ export function SkillManagerLayout() {
                 onSelectSkill={handleSelectItem}
                 isSaving={isSaving}
                 isDeleting={isDeleting}
+                isLoadingContent={isLoadingContent}
                 searchMatches={currentSkillMatches}
                 scrollToLine={scrollToLine}
                 onScrollToLineHandled={() => setScrollToLine(null)}

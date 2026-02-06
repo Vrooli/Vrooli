@@ -75,6 +75,7 @@ interface SkillEditorPanelProps {
   // Loading states
   isSaving: boolean
   isDeleting: boolean
+  isLoadingContent?: boolean
 
   // Search highlighting
   searchMatches?: ContentSearchMatch[]
@@ -111,6 +112,7 @@ export function SkillEditorPanel({
   onDisplaySkills,
   isSaving,
   isDeleting,
+  isLoadingContent = false,
   searchMatches = [],
   scrollToLine,
   onScrollToLineHandled,
@@ -168,6 +170,7 @@ export function SkillEditorPanel({
               <IconSelector
                 value={formState.icon}
                 onChange={(v) => onFieldChange('icon', v)}
+                isLoading={isLoadingContent}
                 className="flex-shrink-0"
               />
 
@@ -179,6 +182,7 @@ export function SkillEditorPanel({
                   placeholder="Untitled Skill"
                   error={validation.errors.name}
                   as="h2"
+                  isLoading={isLoadingContent}
                   className="text-foreground"
                   displayTestId={selectors.editor.nameDisplay}
                   inputTestId={selectors.editor.nameInput}
@@ -191,6 +195,7 @@ export function SkillEditorPanel({
               <DraftToggle
                 isDraft={formState.draft}
                 onChange={(v) => onFieldChange('draft', v)}
+                isLoading={isLoadingContent}
                 className="flex-shrink-0"
               />
 
@@ -236,6 +241,7 @@ export function SkillEditorPanel({
             onChange={(v) => onFieldChange('description', v)}
             placeholder="Click to add description..."
             error={validation.errors.description}
+            isLoading={isLoadingContent}
             className="text-muted-foreground"
           />
 
@@ -246,6 +252,7 @@ export function SkillEditorPanel({
               onChange={(v) => onFieldChange('tags', v)}
               availableTags={availableTags}
               placeholder="Add tags..."
+              isLoading={isLoadingContent}
               className="flex-1 min-w-0"
             />
 

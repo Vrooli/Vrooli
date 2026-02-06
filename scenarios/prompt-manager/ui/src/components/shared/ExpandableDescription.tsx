@@ -8,6 +8,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface ExpandableDescriptionProps {
   value: string
@@ -16,6 +17,7 @@ interface ExpandableDescriptionProps {
   error?: string
   className?: string
   disabled?: boolean
+  isLoading?: boolean
   maxLines?: number
 }
 
@@ -29,8 +31,18 @@ export function ExpandableDescription({
   error,
   className,
   disabled,
+  isLoading,
   maxLines = 2,
 }: ExpandableDescriptionProps) {
+  if (isLoading) {
+    return (
+      <div className={cn('space-y-1.5', className)}>
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+    )
+  }
+
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
   const textareaRef = useRef<HTMLTextAreaElement>(null)

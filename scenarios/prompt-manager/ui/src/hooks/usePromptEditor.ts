@@ -83,6 +83,7 @@ interface UsePromptEditorReturn {
   // Loading states
   isSaving: boolean
   isDeleting: boolean
+  isLoadingContent: boolean
 }
 
 /**
@@ -97,6 +98,7 @@ export function usePromptEditor({
   // Local loading states
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isLoadingContent, setIsLoadingContent] = useState(false)
 
   // Track if we've fetched full skill data for the current selection
   const fetchedSkillRef = useRef<string | null>(null)
@@ -212,6 +214,7 @@ export function usePromptEditor({
     if (listSkill.content && listSkill.content.trim()) {
       initializePrompt(selectedItemId, listSkill)
       fetchedSkillRef.current = selectedItemId
+      setIsLoadingContent(false)
       return
     }
 
@@ -221,6 +224,7 @@ export function usePromptEditor({
     }
 
     // Fetch full skill with content from API
+    setIsLoadingContent(true)
     skillService
       .getSkill(selectedItemId)
       .then((fullSkill) => {
@@ -237,6 +241,9 @@ export function usePromptEditor({
         // Fallback to list skill on error
         initializePrompt(selectedItemId, listSkill)
         fetchedSkillRef.current = selectedItemId
+      })
+      .finally(() => {
+        setIsLoadingContent(false)
       })
   }, [selectedItemId, skills, isHydrated, initializePrompt])
 
@@ -495,5 +502,6 @@ export function usePromptEditor({
     // Loading states
     isSaving,
     isDeleting,
+    isLoadingContent,
   }
 }

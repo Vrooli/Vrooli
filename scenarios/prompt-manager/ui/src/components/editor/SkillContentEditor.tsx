@@ -499,6 +499,9 @@ export function SkillContentEditor({
   }, [monaco, searchMatches, editorType, editorReady, value])
 
   // Scroll to a specific line when requested (e.g. clicking a content search result)
+  // Depends on `value` so it re-fires when content loads (e.g. async fetch for a new skill).
+  // Before scrolling, checks that the document has enough lines - if not, the effect
+  // skips and will retry when `value` updates with the loaded content.
   useEffect(() => {
     if (scrollToLine == null || !editorRef.current || !editorReady) return
     if (editorType !== 'code') return
@@ -506,13 +509,19 @@ export function SkillContentEditor({
     const editor = editorRef.current
     // Use requestAnimationFrame to ensure the editor has rendered after skill switch
     const frameId = requestAnimationFrame(() => {
+      const model = editor.getModel()
+      if (!model || model.isDisposed()) return
+
+      // Skip if the document doesn't have enough lines yet (content still loading)
+      if (model.getLineCount() < scrollToLine) return
+
       editor.revealLineInCenter(scrollToLine)
       editor.setPosition({ lineNumber: scrollToLine, column: 1 })
       onScrollToLineHandled?.()
     })
 
     return () => cancelAnimationFrame(frameId)
-  }, [scrollToLine, editorReady, editorType, onScrollToLineHandled])
+  }, [scrollToLine, editorReady, editorType, onScrollToLineHandled, value])
 
   // Handle mode switching with validation warning and round-trip blocking
   const handleEditorTypeChange = useCallback(
@@ -764,6 +773,7 @@ export function SkillContentEditor({
                       onChange={handleMonacoChange}
                       onMount={handleEditorMount}
                       theme="vs-dark"
+                      loading={<div className="flex-1 flex items-center justify-center h-full bg-[#1e1e1e]"><div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" /></div>}
                       options={{
                         minimap: { enabled: false },
                         wordWrap: 'on',
@@ -828,6 +838,7 @@ export function SkillContentEditor({
                 onChange={handleMonacoChange}
                 onMount={handleEditorMount}
                 theme="vs-dark"
+                loading={<div className="flex-1 flex items-center justify-center h-full bg-[#1e1e1e]"><div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" /></div>}
                 options={{
                   minimap: { enabled: false },
                   wordWrap: 'on',

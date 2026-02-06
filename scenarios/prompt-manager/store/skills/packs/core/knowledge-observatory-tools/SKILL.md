@@ -11,6 +11,11 @@ Use `knowledge-observatory docs` to read, write, search, and maintain scenario d
 knowledge-observatory docs read {{TARGET}} {{DOC_TYPE}}
 ```
 
+By default this prints the raw document content. Pass `--json` (or `--format json`) before the positional args to get the full JSON response with metadata:
+```bash
+knowledge-observatory docs read --json {{TARGET}} {{DOC_TYPE}}
+```
+
 Supported types: `problems`, `progress`, `seams`, `invariants`, `assumptions`, `error-semantics`, `security-posture`, `temporal-flows`, `coherence-notes`, `experience-audit`, `quickstart`, `architecture`, `glossary`, `prd`, `readme`, `manifest`.
 
 **Add a structured entry (problems and progress only):**
@@ -28,6 +33,8 @@ For all other doc types, read via the CLI then edit the file directly.
 ```bash
 knowledge-observatory docs view --path "scenarios/{{TARGET}}/docs/internal/{{FILE}}"
 ```
+
+Also supports `--json` for the full JSON response.
 
 ---
 

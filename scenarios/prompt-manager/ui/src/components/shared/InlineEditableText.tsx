@@ -8,6 +8,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface InlineEditableTextProps {
   value: string
@@ -18,6 +19,7 @@ interface InlineEditableTextProps {
   className?: string
   inputClassName?: string
   disabled?: boolean
+  isLoading?: boolean
   displayTestId?: string
   inputTestId?: string
 }
@@ -34,9 +36,15 @@ export function InlineEditableText({
   className,
   inputClassName,
   disabled,
+  isLoading,
   displayTestId,
   inputTestId,
 }: InlineEditableTextProps) {
+  if (isLoading) {
+    const skeletonSize = as === 'h1' ? 'h-6 w-48' : as === 'h2' ? 'h-5 w-48' : as === 'h3' ? 'h-5 w-40' : 'h-4 w-32'
+    return <Skeleton className={cn(skeletonSize, className)} />
+  }
+
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
   const inputRef = useRef<HTMLInputElement>(null)

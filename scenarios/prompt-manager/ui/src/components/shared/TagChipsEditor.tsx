@@ -11,6 +11,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { X, Plus, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface TagChipsEditorProps {
   /** Tags array */
@@ -20,6 +21,7 @@ interface TagChipsEditorProps {
   availableTags?: string[]
   placeholder?: string
   disabled?: boolean
+  isLoading?: boolean
   className?: string
 }
 
@@ -32,8 +34,20 @@ export function TagChipsEditor({
   availableTags = [],
   placeholder = 'Add tags...',
   disabled,
+  isLoading,
   className,
 }: TagChipsEditorProps) {
+  if (isLoading) {
+    return (
+      <div className={cn('flex items-center gap-1', className)}>
+        <Tag className="h-3 w-3 text-muted-foreground mr-0.5" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+        <Skeleton className="h-5 w-12 rounded-full" />
+      </div>
+    )
+  }
+
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)

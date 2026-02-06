@@ -7,11 +7,13 @@
  */
 
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface DraftToggleProps {
   isDraft: boolean
   onChange: (isDraft: boolean) => void
   disabled?: boolean
+  isLoading?: boolean
   className?: string
   showWhenPublished?: boolean
 }
@@ -23,9 +25,14 @@ export function DraftToggle({
   isDraft,
   onChange,
   disabled,
+  isLoading,
   className,
   showWhenPublished = false,
 }: DraftToggleProps) {
+  if (isLoading) {
+    return <Skeleton className={cn('h-5 w-12 rounded', className)} />
+  }
+
   // Hide when published unless explicitly shown
   if (!isDraft && !showWhenPublished) {
     return null

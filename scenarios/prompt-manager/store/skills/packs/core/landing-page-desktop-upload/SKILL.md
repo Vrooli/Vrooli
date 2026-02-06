@@ -4,6 +4,7 @@ Prepare a landing-page-business-suite (LPBS) instance to receive desktop applica
 
 Required reading:
 - `prompt-manager skill read scenario-to-desktop`
+- `prompt-manager skill read scenario-to-cloud`
 
 ---
 
