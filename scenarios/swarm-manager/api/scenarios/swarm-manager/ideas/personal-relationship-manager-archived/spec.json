@@ -1,0 +1,25 @@
+{
+  "created": "2026-02-05T21:20:55Z",
+  "description": "Thoughtful relationship management system that helps nurture connections with birthday reminders, gift suggestions, and meaningful interaction tracking",
+  "name": "personal-relationship-manager-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "business-application",
+    "lifestyle",
+    "relationships",
+    "personal-crm",
+    "gift-ideas",
+    "birthday-reminders",
+    "social",
+    "nodejs-ui",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "ollama-ai",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] personal-relationship-manager",
+  "updated": "2026-02-05T21:20:55Z"
+}

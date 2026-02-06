@@ -1,0 +1,25 @@
+{
+  "created": "2026-02-05T21:17:19Z",
+  "description": "Intelligent multi-profile shopping research with price tracking, alternatives analysis, and affiliate revenue generation",
+  "name": "smart-shopping-assistant-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "shopping",
+    "research",
+    "price-tracking",
+    "affiliate",
+    "budget",
+    "gift-recommendations",
+    "alternatives",
+    "frugal-living",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "qdrant-vectors",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] smart-shopping-assistant",
+  "updated": "2026-02-05T21:17:19Z"
+}

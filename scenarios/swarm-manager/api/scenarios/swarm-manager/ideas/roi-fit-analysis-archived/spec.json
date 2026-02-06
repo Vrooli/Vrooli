@@ -1,0 +1,31 @@
+{
+  "created": "2026-02-05T21:13:58Z",
+  "description": "Deep financial research tool for ROI analysis and investment decision-making",
+  "name": "roi-fit-analysis-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "business-application",
+    "finance",
+    "roi",
+    "investment",
+    "financial-analysis",
+    "market-research",
+    "business-strategy",
+    "decision-making",
+    "risk-assessment",
+    "opportunity-analysis",
+    "javascript-ui",
+    "nodejs-ui",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "qdrant-vectors",
+    "ollama-ai",
+    "native-go-analysis",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] roi-fit-analysis",
+  "updated": "2026-02-05T21:13:58Z"
+}

@@ -1,0 +1,30 @@
+{
+  "created": "2026-02-05T21:14:21Z",
+  "description": "Privacy-first pregnancy tracking with evidence-based information, multi-outcome support, and complete data sovereignty",
+  "name": "pregnancy-tracker-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "health",
+    "pregnancy",
+    "privacy",
+    "tracking",
+    "AI",
+    "multi-tenant",
+    "women-health",
+    "gestational-tracking",
+    "symptoms",
+    "appointments",
+    "medical-export",
+    "evidence-based",
+    "javascript-ui",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "no-n8n",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] pregnancy-tracker",
+  "updated": "2026-02-05T21:14:21Z"
+}

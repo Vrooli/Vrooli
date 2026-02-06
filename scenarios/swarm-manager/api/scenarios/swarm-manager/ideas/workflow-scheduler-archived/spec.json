@@ -1,0 +1,25 @@
+{
+  "created": "2026-02-05T21:11:56Z",
+  "description": "Enterprise-grade cron scheduling platform for orchestrating Vrooli workflows with centralized management, execution tracking, and intelligent retry handling",
+  "name": "workflow-scheduler-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "infrastructure",
+    "automation-tools",
+    "scheduling",
+    "cron",
+    "automation",
+    "workflow-orchestration",
+    "time-based-triggers",
+    "job-scheduler",
+    "task-automation",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] workflow-scheduler",
+  "updated": "2026-02-05T21:11:56Z"
+}

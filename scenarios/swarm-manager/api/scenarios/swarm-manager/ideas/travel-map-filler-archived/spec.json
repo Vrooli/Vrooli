@@ -1,0 +1,26 @@
+{
+  "created": "2026-02-05T21:15:37Z",
+  "description": "Interactive world map application for tracking and visualizing your travel history",
+  "name": "travel-map-filler-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "travel",
+    "visualization",
+    "mapping",
+    "achievements",
+    "analytics",
+    "personal-tracking",
+    "go-api",
+    "nodejs-ui",
+    "n8n-workflows",
+    "postgres-storage",
+    "qdrant-vectors",
+    "interactive-map",
+    "location-tracking",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] travel-map-filler",
+  "updated": "2026-02-05T21:15:37Z"
+}

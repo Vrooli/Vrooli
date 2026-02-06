@@ -1,0 +1,25 @@
+{
+  "created": "2026-02-06T02:32:47Z",
+  "description": "Visual database schema exploration with AI-powered query generation and pattern learning",
+  "name": "db-schema-explorer-archived",
+  "priority": 5,
+  "status": "archived",
+  "tags": [
+    "database",
+    "schema-visualization",
+    "er-diagram",
+    "sql-generation",
+    "query-builder",
+    "postgres",
+    "ai-powered",
+    "react-ui",
+    "go-api",
+    "n8n-workflows",
+    "qdrant-vectors",
+    "ollama-integration",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] db-schema-explorer",
+  "updated": "2026-02-06T02:32:47Z"
+}
