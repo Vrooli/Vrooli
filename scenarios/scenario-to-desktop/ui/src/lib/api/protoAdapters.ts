@@ -67,7 +67,9 @@ export type LegacyStageName =
   | "build"
   | "bundle"
   | "smoke_test"
-  | "deploy";
+  | "smoketest"
+  | "deploy"
+  | "distribution";
 
 /** Convert legacy stage name string to proto enum */
 export const stageNameFromString = (name: LegacyStageName): StageName => {
@@ -81,9 +83,11 @@ export const stageNameFromString = (name: LegacyStageName): StageName => {
     case "bundle":
       return StageName.BUNDLE;
     case "smoke_test":
+    case "smoketest":
       return StageName.SMOKE_TEST;
     case "deploy":
-      return StageName.DEPLOY;
+    case "distribution":
+      return StageName.DISTRIBUTION;
     default:
       return StageName.UNSPECIFIED;
   }
@@ -103,8 +107,8 @@ export const stageNameToString = (
     case StageName.BUNDLE:
       return "bundle";
     case StageName.SMOKE_TEST:
-      return "smoke_test";
-    case StageName.DEPLOY:
+      return "smoketest";
+    case StageName.DISTRIBUTION:
       return "deploy";
     default:
       return null;
@@ -594,4 +598,3 @@ export const secretClassToString = (
       return null;
   }
 };
-

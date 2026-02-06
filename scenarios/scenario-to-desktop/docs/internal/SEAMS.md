@@ -126,7 +126,7 @@ type Orchestrator interface {
 
 #### 7. Pipeline Stage Seam (`Stage`)
 **Location**: `api/pipeline/interfaces.go`
-**Purpose**: Abstracts individual pipeline stages (bundle, preflight, generate, build, smoketest, distribution) for independent testing and substitution.
+**Purpose**: Abstracts individual pipeline stages (bundle, preflight, generate, build, smoketest, deploy) for independent testing and substitution.
 **Interface**:
 ```go
 type Stage interface {
@@ -136,7 +136,7 @@ type Stage interface {
     Dependencies() []string
 }
 ```
-**Implementations**: `BundleStage`, `PreflightStage`, `GenerateStage`, `BuildStage`, `SmokeTestStage`, `DistributionStage`
+**Implementations**: `BundleStage`, `PreflightStage`, `GenerateStage`, `BuildStage`, `SmokeTestStage`, `DeployStage`
 **Deep Dive**: See [Smoke Test Pipeline](reference/smoke-test-pipeline.md) for detailed SmokeTestStage execution flow
 **Status**: ✅ Implemented (Jan 2026)
 
@@ -170,7 +170,7 @@ type Store interface {
 - `ManifestGenerator` - On-demand bundle manifest generation via deployment-manager
 - `versionUpdateFS` - File I/O seam for scenario version updates (used by pipeline run version controls)
 - `versionRollback` - In-memory rollback handle for reverting persisted version updates when a pipeline fails or is cancelled
-- `updates.ManifestGenerator` - Auto-update manifest generation for distribution stage (Feb 2026)
+- Auto-update config is validated in generation/build template flow (`update_config`), and deploy derives LPBS update URL for runtime clients.
 **Status**: ✅ All interfaces implemented
 
 #### 10. Auto-Update Provider Seam (`updates.Provider`)
@@ -1031,7 +1031,7 @@ export const selectIsBusy = (state: PipelineStore) =>
 
 #### Remaining Idempotency Gaps (for future work)
 1. **Stage-level idempotency**: Currently only pipeline-level; stages re-execute on resume
-2. **Distribution uploads**: S3 uploads don't check if object already exists
+2. **Deploy uploads**: Artifact uploads don't check if the remote object already exists
 3. **File operations**: Bundle stage overwrites files without checking if identical
 4. **Manifest generation**: Always regenerates even if unchanged
 

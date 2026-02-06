@@ -174,6 +174,9 @@ func NewServer(port int) *Server {
 		pipeline.WithGeneratorLogger(&pipeline.SlogLogger{Logger: logger}),
 	)
 
+	// Deploy target management
+	deployTargetRepo := deploy.NewTargetRepository(vrooliRoot)
+
 	// Create pipeline stages with their service dependencies
 	// Stage order: bundle → preflight → generate → build → smoketest → deploy
 	// (smoketest before deploy: verify the build works before publishing)
@@ -200,6 +203,9 @@ func NewServer(port int) *Server {
 		pipeline.NewSmokeTestStage(
 			pipeline.WithSmokeTestService(smokeTestService),
 			pipeline.WithSmokeTestStore(smokeTestStore),
+		),
+		pipeline.NewDeployStage(
+			pipeline.WithDeployTargetRepo(deployTargetRepo),
 		),
 	}
 
@@ -246,8 +252,6 @@ func NewServer(port int) *Server {
 		pipeline.WithManager(pipelineManager),
 	)
 
-	// Deploy target management
-	deployTargetRepo := deploy.NewTargetRepository(vrooliRoot)
 	deployHandler := deploy.NewHandler(deployTargetRepo)
 
 	// ===== Tool Discovery and Execution Protocol =====
@@ -273,6 +277,9 @@ func NewServer(port int) *Server {
 	// Create tool executor with service dependencies
 	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
 		BuildStore: toolBuildStore,
+		PipelineOrchestrator: &toolPipelineOrchestratorAdapter{
+			orchestrator: pipelineOrchestrator,
+		},
 		VrooliRoot: vrooliRoot,
 		Logger:     logger,
 		// Other services can be wired up as adapters are created

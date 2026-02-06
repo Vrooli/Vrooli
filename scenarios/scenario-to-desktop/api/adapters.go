@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -36,6 +38,133 @@ type pipelineStoreAdapter struct {
 
 func (a *pipelineStoreAdapter) Get(pipelineID string) (*pipeline.Status, bool) {
 	return a.store.GetStatus(pipelineID)
+}
+
+// toolPipelineOrchestratorAdapter adapts pipeline.Orchestrator to toolexecution.PipelineOrchestrator.
+type toolPipelineOrchestratorAdapter struct {
+	orchestrator pipeline.Orchestrator
+}
+
+func (a *toolPipelineOrchestratorAdapter) RunPipeline(ctx context.Context, config *toolexecution.PipelineConfig) (*toolexecution.PipelineStatus, error) {
+	if a.orchestrator == nil {
+		return nil, fmt.Errorf("pipeline orchestrator not configured")
+	}
+	status, err := a.orchestrator.RunPipeline(ctx, toPipelineConfig(config))
+	if err != nil {
+		return nil, err
+	}
+	return toToolPipelineStatus(status), nil
+}
+
+func (a *toolPipelineOrchestratorAdapter) ResumePipeline(ctx context.Context, pipelineID string, config *toolexecution.PipelineConfig) (*toolexecution.PipelineStatus, error) {
+	if a.orchestrator == nil {
+		return nil, fmt.Errorf("pipeline orchestrator not configured")
+	}
+	status, err := a.orchestrator.ResumePipeline(ctx, pipelineID, toPipelineConfig(config))
+	if err != nil {
+		return nil, err
+	}
+	return toToolPipelineStatus(status), nil
+}
+
+func (a *toolPipelineOrchestratorAdapter) GetStatus(pipelineID string) (*toolexecution.PipelineStatus, bool) {
+	if a.orchestrator == nil {
+		return nil, false
+	}
+	status, ok := a.orchestrator.GetStatus(pipelineID)
+	if !ok {
+		return nil, false
+	}
+	return toToolPipelineStatus(status), true
+}
+
+func (a *toolPipelineOrchestratorAdapter) CancelPipeline(pipelineID string) bool {
+	if a.orchestrator == nil {
+		return false
+	}
+	return a.orchestrator.CancelPipeline(pipelineID)
+}
+
+func (a *toolPipelineOrchestratorAdapter) ListPipelines() []*toolexecution.PipelineStatus {
+	if a.orchestrator == nil {
+		return nil
+	}
+	statuses := a.orchestrator.ListPipelines()
+	result := make([]*toolexecution.PipelineStatus, 0, len(statuses))
+	for _, status := range statuses {
+		result = append(result, toToolPipelineStatus(status))
+	}
+	return result
+}
+
+func toPipelineConfig(config *toolexecution.PipelineConfig) *pipeline.Config {
+	if config == nil {
+		return &pipeline.Config{}
+	}
+	pcfg := &pipeline.Config{
+		ScenarioName:   config.ScenarioName,
+		Platforms:      config.Platforms,
+		DeploymentMode: config.DeploymentMode,
+		TemplateType:   config.TemplateType,
+		LocationMode:   config.LocationMode,
+		StopAfterStage: config.StopAfterStage,
+		SkipPreflight:  config.SkipPreflight,
+		SkipSmokeTest:  config.SkipSmokeTest,
+		Sign:           config.Sign,
+		Clean:          config.Clean,
+		Version:        config.Version,
+		ProxyURL:       config.ProxyURL,
+	}
+
+	// Preserve backward-compatible tool flags by mapping them to DeployConfig.
+	if config.DeployTarget != "" || config.DeployTo != "" || config.RemoteProfile != "" || config.AppKey != "" {
+		pcfg.DeployConfig = &pipeline.DeployConfig{
+			TargetName:    config.DeployTarget,
+			ScenarioName:  config.DeployTo,
+			RemoteProfile: config.RemoteProfile,
+			AppKey:        config.AppKey,
+		}
+	}
+	return pcfg
+}
+
+func toToolPipelineStatus(status *pipeline.Status) *toolexecution.PipelineStatus {
+	if status == nil {
+		return nil
+	}
+	result := &toolexecution.PipelineStatus{
+		PipelineID:   status.PipelineID,
+		ScenarioName: status.ScenarioName,
+		Status:       status.Status,
+		CurrentStage: status.CurrentStage,
+		Error:        status.Error,
+		CreatedAt:    time.Unix(status.StartedAt, 0),
+	}
+	if status.CompletedAt != 0 {
+		completed := time.Unix(status.CompletedAt, 0)
+		result.CompletedAt = &completed
+	}
+
+	result.Stages = make([]toolexecution.StageStatus, 0, len(status.Stages))
+	for stageName, stage := range status.Stages {
+		if stage == nil {
+			continue
+		}
+		stageStatus := toolexecution.StageStatus{
+			Name:   stageName,
+			Status: stage.Status,
+			Error:  stage.Error,
+		}
+		started := time.Unix(stage.StartedAt, 0)
+		stageStatus.StartedAt = &started
+		if stage.CompletedAt != 0 {
+			completed := time.Unix(stage.CompletedAt, 0)
+			stageStatus.EndedAt = &completed
+		}
+		result.Stages = append(result.Stages, stageStatus)
+	}
+
+	return result
 }
 
 // generationBuildStoreAdapter adapts build.InMemoryStore to generation.BuildStore interface

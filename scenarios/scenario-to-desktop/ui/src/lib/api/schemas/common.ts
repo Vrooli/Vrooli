@@ -24,7 +24,9 @@ export const StageNameSchema = z.enum([
   "build",
   "bundle",
   "smoke_test",
+  "smoketest",
   "deploy",
+  "distribution",
 ]);
 export type StageName = z.infer<typeof StageNameSchema>;
 

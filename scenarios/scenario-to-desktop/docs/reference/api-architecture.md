@@ -1,6 +1,6 @@
 # API Architecture
 
-This document provides a visual overview of the scenario-to-desktop API architecture. For detailed seam definitions and testability patterns, see [SEAMS.md](../SEAMS.md).
+This document provides a visual overview of the scenario-to-desktop API architecture. For detailed seam definitions and testability patterns, see [SEAMS.md](../internal/SEAMS.md).
 
 ## High-Level Architecture
 
@@ -24,7 +24,7 @@ This document provides a visual overview of the scenario-to-desktop API architec
                                        ▼
 ```
 
-The server follows a **screaming architecture** pattern where each domain owns its handler. The central server struct orchestrates domain handlers for build, telemetry, records, scenario, system, pipeline, state, distribution, and tools.
+The server follows a **screaming architecture** pattern where each domain owns its handler. The central server struct orchestrates domain handlers for build, telemetry, records, scenario, system, pipeline, state, deploy-target management, and tools.
 
 **Key characteristics:**
 - JSON structured logging with `slog`
@@ -53,10 +53,10 @@ The pipeline orchestrator is the core engine that coordinates multi-stage deskto
 │                                                   ┌───────────────────┘     │
 │                                                   ▼                         │
 │                                           ┌──────────────┐                  │
-│                                           │ DISTRIBUTION │                  │
+│                                           │    DEPLOY    │                  │
 │                                           │              │                  │
-│                                           │ Upload to    │                  │
-│                                           │ S3/R2        │                  │
+│                                           │ Upload via   │                  │
+│                                           │ LPBS proxy   │                  │
 │                                           └──────────────┘                  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -70,7 +70,7 @@ The pipeline orchestrator is the core engine that coordinates multi-stage deskto
 | **Generate** | Create Electron wrapper for the scenario | No (required) | Preflight |
 | **Build** | Compile native binaries per platform (Windows, macOS, Linux) | No | Generate |
 | **SmokeTest** | Verify built application runs correctly ([details](./smoke-test-pipeline.md)) | Yes (via config) | Build |
-| **Distribution** | Upload artifacts to S3/R2 targets | Yes | SmokeTest |
+| **Deploy** | Upload artifacts via LPBS remote profile flow | Yes | SmokeTest |
 
 ### Pipeline States
 
@@ -120,24 +120,24 @@ The Tool Execution Protocol provides a unified interface for AI agents to invoke
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                       │
 │   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
-│   │    Pipeline     │    │     Signing     │    │  Distribution   │  │
+│   │    Pipeline     │    │     Signing     │    │   Inspection    │  │
 │   │    Executor     │    │    Executor     │    │    Executor     │  │
 │   ├─────────────────┤    ├─────────────────┤    ├─────────────────┤  │
-│   │ run_pipeline    │    │ configure_sign  │    │ upload_artifact │  │
-│   │ check_status    │    │ sign_app        │    │ publish_release │  │
-│   │ cancel_pipeline │    │ verify_sig      │    │ list_artifacts  │  │
-│   │ resume_pipeline │    │ discover_certs  │    │ check_status    │  │
+│   │ run_pipeline    │    │ configure_sign  │    │ check_build     │  │
+│   │ check_status    │    │ sign_app        │    │ list_wrappers   │  │
+│   │ cancel_pipeline │    │ verify_sig      │    │ validate_config │  │
+│   │ resume_pipeline │    │ discover_certs  │    │ get_prereqs     │  │
 │   │ list_pipelines  │    │                 │    │                 │  │
 │   └─────────────────┘    └─────────────────┘    └─────────────────┘  │
 │                                                                       │
 │   ┌─────────────────┐    ┌─────────────────┐                         │
-│   │   Inspection    │    │     Legacy      │                         │
-│   │    Executor     │    │    Executor     │                         │
+│   │   Deploy Poll   │    │     Legacy      │                         │
+│   │    Endpoint     │    │    Executor     │                         │
 │   ├─────────────────┤    ├─────────────────┤                         │
-│   │ check_build     │    │ generate_wrapper│ (deprecated)            │
-│   │ list_wrappers   │    │ build_platform  │                         │
-│   │ validate_config │    │ cancel_build    │                         │
-│   │ get_prereqs     │    │ list_builds     │                         │
+│   │ check_deploy_   │    │ generate_wrapper│ (deprecated)            │
+│   │ status          │    │ build_platform  │                         │
+│   │                 │    │ cancel_build    │                         │
+│   │                 │    │ list_builds     │                         │
 │   └─────────────────┘    └─────────────────┘                         │
 │                                                                       │
 └──────────────────────────────────────────────────────────────────────┘
@@ -149,8 +149,7 @@ The Tool Execution Protocol provides a unified interface for AI agents to invoke
 |----------|-------|---------|
 | **Pipeline** | `run_pipeline`, `check_pipeline_status`, `cancel_pipeline`, `resume_pipeline`, `list_pipelines` | Multi-stage deployment orchestration |
 | **Signing** | `configure_signing`, `sign_application`, `verify_signature`, `get_signing_status`, `discover_certificates` | Code signing for production distribution |
-| **Distribution** | `upload_artifact`, `publish_release`, `list_artifacts`, `list_distribution_targets`, `validate_distribution_target`, `check_distribution_status` | Artifact publishing to S3/R2 |
-| **Inspection** | `check_build_status`, `list_generated_wrappers`, `validate_configuration`, `get_system_prerequisites` | Build and system inspection |
+| **Inspection** | `check_build_status`, `list_generated_wrappers`, `validate_configuration`, `get_system_prerequisites`, `check_deploy_status` | Build/system inspection and deploy status polling |
 | **Legacy** | `generate_desktop_wrapper`, `build_for_platform`, `cancel_build`, `list_builds` | Deprecated (use pipeline tools) |
 
 ---
@@ -188,8 +187,8 @@ Each stage receives a `StageInput` and produces a `StageResult`. Results accumul
 │           │SmokeTest │────────────────┐                               │
 │           └──────────┘                │                               │
 │                  ▼                    ▼                               │
-│           ┌──────────┐     DistributionResult                         │
-│           │  Distro  │─────────────────▶ Final artifacts uploaded     │
+│           ┌──────────┐     DeployResult                               │
+│           │  Deploy  │─────────────────▶ Final artifacts uploaded     │
 │           └──────────┘                                                │
 │                                                                       │
 └───────────────────────────────────────────────────────────────────────┘
@@ -208,7 +207,7 @@ type StageInput struct {
     GenerationResult    *GenerationResult   // Generated wrapper code
     BuildResult         *BuildResult        // Compiled binaries
     SmokeTestResult     *SmokeTestResult    // Test results
-    DistributionResult  *DistributionResult // Upload/publish results
+    DeployResult        *DeployResult       // Deploy/upload results
     ScenarioMetadata    *ScenarioMetadata   // Analyzed scenario info
 }
 ```
@@ -409,7 +408,7 @@ type Status struct {
 
 ## Related Documentation
 
-- [SEAMS.md](../SEAMS.md) - Detailed seam definitions and testability patterns
+- [SEAMS.md](../internal/SEAMS.md) - Detailed seam definitions and testability patterns
 - [Smoke Test Pipeline](./smoke-test-pipeline.md) - Deep dive into smoke test stage execution
 - [Pipeline Interfaces](../../api/pipeline/interfaces.go) - Go interface definitions
 - [Tool Execution](../../api/toolexecution/) - Tool executor implementations

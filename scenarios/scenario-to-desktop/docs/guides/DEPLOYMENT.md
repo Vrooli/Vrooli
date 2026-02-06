@@ -2,6 +2,14 @@
 
 This guide explains how scenario-to-desktop deploys built artifacts to a Landing Page Business Suite (LPBS) instance for distribution and auto-updates.
 
+## Implementation Map
+
+- [CODE: api/pipeline/stage_deploy.go] - deploy stage execution, validation, artifact upload loop
+- [CODE: api/deploy/lpbs_client.go] - LPBS discovery, proxy calls, presign/upload/commit/apply flow
+- [CODE: api/deploy/targets.go] - saved deploy target persistence (`.vrooli/deploy-targets.json`)
+- [CODE: cli/pipeline/commands.go] - `--deploy-target`, `--deploy-to`, `--remote-profile`, `--app-key`
+- [CODE: ui/src/components/sections/deploy/DeploySection.tsx] - UI status and deploy result rendering
+
 ## Overview
 
 The deploy stage uploads desktop application artifacts to a remote LPBS instance through a local LPBS proxy. This replaces the previous self-contained S3 distribution system with a lightweight integration that reuses LPBS's existing download infrastructure.
@@ -81,6 +89,16 @@ scenario-to-desktop pipeline run my-scenario \
   --wait
 ```
 
+## Stage Behavior
+
+- The deploy stage depends on smoke test completion in pipeline order.
+- The stage is skipped when no deploy config is provided.
+- The stage fails fast when:
+  - `LPBS_SERVICE_SECRET` is missing
+  - no build artifacts are available
+  - remote profile validation fails
+  - any upload/commit/apply step fails
+
 ## Authentication
 
 The deploy stage authenticates to the local LPBS using a service bearer token:
@@ -137,3 +155,23 @@ GET /api/v1/updates/{app_key}/{channel}/latest-linux.yml
 ```
 
 See [AUTO_UPDATES.md](./AUTO_UPDATES.md) for full auto-update configuration details.
+
+## Troubleshooting
+
+### Deploy stage is skipped
+
+Ensure deploy config is provided via either:
+- saved target: `--deploy-target <name> --app-key <key>`
+- inline target: `--deploy-to <scenario> --remote-profile <tag> --app-key <key>`
+
+### "LPBS_SERVICE_SECRET environment variable not set"
+
+Set `LPBS_SERVICE_SECRET` in the environment used by the scenario-to-desktop API process.
+
+### "no built artifacts available for deployment"
+
+Run build first and confirm the build stage produced at least one artifact.
+
+### Remote profile test fails
+
+Use `scenario-to-desktop deploy-target test <name>` and confirm the remote profile is active/logged in on LPBS.

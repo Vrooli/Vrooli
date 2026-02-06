@@ -40,6 +40,14 @@ export const PipelineConfigSchema = z.object({
   clean: z.boolean().optional(),
   sign: z.boolean().optional(),
   publish: z.boolean().optional(),
+  deploy: z.object({
+    target_name: z.string().optional(),
+    scenario_name: z.string().optional(),
+    remote_profile: z.string().optional(),
+    app_key: z.string().optional(),
+    update_url: z.string().optional(),
+  }).optional(),
+  // Legacy deploy fields kept for backward compatibility.
   deploy_target: z.string().optional(),
   deploy_to: z.string().optional(),
   remote_profile: z.string().optional(),

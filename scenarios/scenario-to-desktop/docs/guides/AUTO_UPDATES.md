@@ -2,6 +2,15 @@
 
 This guide explains how to configure automatic updates for desktop applications built with scenario-to-desktop.
 
+## Implementation Map
+
+- [CODE: api/generation/types.go#UpdateConfig] - canonical update config schema (`provider`, `channel`, `generic.url`, `github`)
+- [CODE: api/pipeline/stage_generate.go] - generation-time validation/warnings for update configuration
+- [CODE: templates/build-tools/template-generator.ts#getPublishConfig] - electron-builder publish config generation
+- [CODE: templates/build-tools/template-generator.ts#getEffectiveUpdateProvider] - runtime-safe provider fallback (`generic` -> `none` when URL missing)
+- [CODE: api/pipeline/stage_deploy.go] - deploy-stage update URL derivation for LPBS
+- [DOC: docs/guides/DEPLOYMENT.md#upload-flow] - LPBS deployment/upload flow
+
 ## Overview
 
 The auto-update system uses [electron-updater](https://www.electron.build/auto-update) to check for and apply updates. Scenario-to-desktop supports multiple update providers:
@@ -84,13 +93,13 @@ files:
 
 ### Manifest Generation
 
-Manifests are automatically generated during the distribution pipeline stage when:
+Update metadata and publish behavior are configured during template generation/build. In current code:
 
-1. `update_config.provider` is `"generic"` (or not set, since generic is the default)
-2. `update_config.generic.url` is configured
-3. Build artifacts are available
+1. `update_config.provider` defaults to `"generic"` when omitted.
+2. If provider is `generic` and `update_config.generic.url` is missing, generation logs a warning and the effective provider becomes `none` (auto-updates disabled).
+3. If a valid provider config exists, electron-builder publish config is emitted and updater metadata is produced as part of the build/publish path.
 
-The generated manifests are placed in the same directory as the build artifacts and included in the distribution upload.
+When using LPBS, the deploy stage can derive an update URL (`.../api/v1/updates/{app_key}`) from the remote profile and expose it in deploy results.
 
 ## Provider: GitHub
 
@@ -212,7 +221,7 @@ This warning appears when:
 Check that:
 1. Build completed successfully with artifacts
 2. `update_config.generic.url` is set
-3. Pipeline includes the distribution stage
+3. Publish/update provider configuration is valid for the selected provider
 
 ### Update check fails at runtime
 
@@ -232,24 +241,24 @@ The SHA-512 hash in the manifest must match the actual file. If you manually upl
 ## Architecture
 
 ```
-Pipeline                          Provider Layer
-────────                          ──────────────
-                                       │
-DistributionStage ──► ManifestGenerator ──► GenericProvider
-                                       │         │
-update_config: {                       │         ├─► latest.yml
-  provider: "generic",                 │         ├─► latest-mac.yml
-  generic: { url: "..." }              │         └─► latest-linux.yml
-}                                      │
-                                       │
-                              ┌────────┴────────┐
-                              │ Upload manifests │
-                              │ with artifacts   │
-                              └─────────────────┘
+Pipeline + Templates
+──────────────────────────────────────────────────────────────────────────
+update_config ──► Generate Stage ──► template-generator (publish config)
+                                     │
+                                     ├─ provider=generic + URL    -> generic publish enabled
+                                     ├─ provider=github            -> github publish enabled
+                                     └─ provider missing/invalid   -> updates disabled safely
+
+Build/Publish Output
+──────────────────────────────────────────────────────────────────────────
+electron-builder artifacts + updater metadata (latest*.yml)
+                                     │
+                                     └─► Deploy Stage (LPBS flow) uploads artifacts
+                                          and derives update URL when available
 ```
 
 ## See Also
 
 - [electron-updater documentation](https://www.electron.build/auto-update)
-- [Distribution Configuration](./DISTRIBUTION.md)
+- [LPBS Deployment](./DEPLOYMENT.md)
 - [Pipeline Stages](../internal/PIPELINE.md)

@@ -16,9 +16,14 @@ export interface PipelineConfig {
   stop_after_stage?: "bundle" | "preflight" | "generate" | "build" | "smoketest" | "deploy";
   clean?: boolean;
   sign?: boolean;
+  deploy?: DeployConfig;
+  /** @deprecated Use deploy.target_name */
   deploy_target?: string;
+  /** @deprecated Use deploy.scenario_name */
   deploy_to?: string;
+  /** @deprecated Use deploy.remote_profile */
   remote_profile?: string;
+  /** @deprecated Use deploy.app_key */
   app_key?: string;
   version?: string;
   version_update?: VersionUpdateRequest;
@@ -31,6 +36,14 @@ export interface PipelineConfig {
    * This enables safe retries where "running twice is no worse than running once".
    */
   idempotency_key?: string;
+}
+
+export interface DeployConfig {
+  target_name?: string;
+  scenario_name?: string;
+  remote_profile?: string;
+  app_key?: string;
+  update_url?: string;
 }
 
 export interface VersionUpdateRequest {
@@ -211,11 +224,41 @@ export interface VerbosePipelineStatus extends Omit<PipelineStatus, "stages"> {
 
 // ==================== Pipeline API Functions ====================
 
+function normalizePipelineConfig(config: Partial<PipelineConfig>): Record<string, unknown> {
+  const normalized: Record<string, unknown> = { ...config };
+  const existingDeploy = config.deploy;
+
+  if (!existingDeploy) {
+    const hasLegacyDeployFields =
+      Boolean(config.deploy_target) ||
+      Boolean(config.deploy_to) ||
+      Boolean(config.remote_profile) ||
+      Boolean(config.app_key);
+
+    if (hasLegacyDeployFields) {
+      normalized.deploy = {
+        target_name: config.deploy_target,
+        scenario_name: config.deploy_to,
+        remote_profile: config.remote_profile,
+        app_key: config.app_key,
+      };
+    }
+  }
+
+  // Strip legacy fields from request payload once normalized.
+  delete normalized.deploy_target;
+  delete normalized.deploy_to;
+  delete normalized.remote_profile;
+  delete normalized.app_key;
+
+  return normalized;
+}
+
 export async function runPipeline(config: PipelineConfig): Promise<PipelineRunResponse> {
   const response = await fetch(buildUrl("/pipeline/run"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(config)
+    body: JSON.stringify(normalizePipelineConfig(config))
   });
   await throwIfNotOk(response);
   return response.json();
@@ -372,10 +415,11 @@ export async function createNewPipeline(
   scenarioName: string,
   config?: Partial<PipelineConfig>
 ): Promise<CreatePipelineResponse> {
+  const body = config ? normalizePipelineConfig(config) : undefined;
   const response = await fetch(buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline`), {
     method: "POST",
     headers: config ? { "Content-Type": "application/json" } : undefined,
-    body: config ? JSON.stringify(config) : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   });
   await throwIfNotOk(response);
   return response.json();
@@ -439,12 +483,13 @@ export async function startActivePipeline(
   scenarioName: string,
   config?: Partial<PipelineConfig>
 ): Promise<StartActivePipelineResponse> {
+  const body = config ? normalizePipelineConfig(config) : undefined;
   const response = await fetch(
     buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/start`),
     {
       method: "POST",
       headers: config ? { "Content-Type": "application/json" } : undefined,
-      body: config ? JSON.stringify(config) : undefined,
+      body: body ? JSON.stringify(body) : undefined,
     }
   );
   await throwIfNotOk(response);

@@ -10,6 +10,7 @@ import type {
   GenerateStageDetails,
   BuildStageDetails,
   SmokeTestStageDetails,
+  DeployStageDetails,
   PipelineConfig,
 } from "../lib/api";
 
@@ -95,7 +96,7 @@ export interface PipelineStoreState {
   generateResult: GenerateStageDetails | null;
   buildResult: BuildStageDetails | null;
   smokeTestResult: SmokeTestStageDetails | null;
-  deployResult: null;
+  deployResult: DeployStageDetails | null;
 
   // Stage logs (from verbose pipeline status)
   stageLogs: Record<string, string[]>;

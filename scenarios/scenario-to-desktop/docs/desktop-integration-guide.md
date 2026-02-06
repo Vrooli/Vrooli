@@ -316,7 +316,7 @@ The desktop wrapper includes electron-updater by default. Configure it in `platf
 
 The auto-updater will automatically check for updates on app startup and notify users when updates are available.
 
-## Distribution
+## Deploy and Signing
 
 ### Code Signing
 

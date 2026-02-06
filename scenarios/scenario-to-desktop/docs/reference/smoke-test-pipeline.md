@@ -1,12 +1,12 @@
 # Smoke Test Pipeline Stage
 
-The smoke test is **stage 5 of 6** in the scenario-to-desktop desktop deployment pipeline. It serves as a quality gate that validates built application artifacts can start correctly and report telemetry before distribution.
+The smoke test is **stage 5 of 6** in the scenario-to-desktop desktop deployment pipeline. It serves as a quality gate that validates built application artifacts can start correctly and report telemetry before deploy.
 
 ## Pipeline Position
 
 ```
 ┌─────────┐   ┌───────────┐   ┌──────────┐   ┌───────┐   ┌───────────┐   ┌──────────────┐
-│ Bundle  │ → │ Preflight │ → │ Generate │ → │ Build │ → │ SmokeTest │ → │ Distribution │
+│ Bundle  │ → │ Preflight │ → │ Generate │ → │ Build │ → │ SmokeTest │ → │ Deploy       │
 └─────────┘   └───────────┘   └──────────┘   └───────┘   └───────────┘   └──────────────┘
                                                               ▲
                                                          YOU ARE HERE
@@ -14,7 +14,7 @@ The smoke test is **stage 5 of 6** in the scenario-to-desktop desktop deployment
 
 The smoke test stage:
 - **Depends on**: Build stage (requires compiled artifacts)
-- **Blocks**: Distribution stage (won't proceed unless smoke test passes)
+- **Blocks**: Deploy stage (won't proceed unless smoke test passes)
 - **Skippable**: Yes, via `SkipSmokeTest` configuration flag
 
 ---
@@ -123,7 +123,7 @@ The smoke test stage:
 
 ```
 ┌─────────────────┐          ┌─────────────────┐          ┌────────────────┐
-│   BUILD STAGE   │          │  SMOKE TEST     │          │ DISTRIBUTION   │
+│   BUILD STAGE   │          │  SMOKE TEST     │          │  DEPLOY STAGE  │
 │                 │          │     STAGE       │          │     STAGE      │
 │ BuildStatus {   │          │                 │          │                │
 │  PlatformResults│─────────►│ SmokeTestResult │─────────►│ Only proceeds  │
@@ -158,7 +158,7 @@ type Config struct {
     // Skip the smoke test entirely
     SkipSmokeTest bool `json:"skip_smoke_test,omitempty"`
 
-    // Stop after smoke test completes (don't run distribution)
+    // Stop after smoke test completes (don't run deploy)
     StopAfterStage string `json:"stop_after_stage,omitempty"` // "smoketest"
 
     // Resume from smoke test (if previously stopped)

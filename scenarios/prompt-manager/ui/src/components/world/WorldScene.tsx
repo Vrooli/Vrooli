@@ -13,13 +13,13 @@
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo, useCallback } from 'react'
 import { OrbitControls } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { AgentWithAccessories } from './agents/AgentWithAccessories'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
-import { DragPlane, PlacementPlane } from './interaction'
+import { DragPlane, DraggableObject, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { PerformanceMonitor, FPSOverlay } from './performance'
@@ -29,6 +29,7 @@ import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useIsPlacing, useIsEditMode } from '@/stores/worldEditorStore'
 import { calculateStarOpacity } from '@/lib/sky/sunPosition'
+import { applyPlacementConstraints } from '@/lib/world'
 import type { Agent } from '@/types/agent'
 import type { FurnitureInstance } from '@/types/furniture'
 
@@ -125,6 +126,8 @@ interface WorldSceneProps {
   onAgentClick?: (agentId: string, position: [number, number, number]) => void
   /** Called when furniture is clicked */
   onFurnitureClick?: (furniture: FurnitureInstance) => void
+  /** Called when an agent is repositioned via drag */
+  onAgentPositionChange?: (agentId: string, newPosition: [number, number, number]) => void
   isDarkMode?: boolean
   /** Whether to show FPS overlay */
   showFpsOverlay?: boolean
@@ -139,6 +142,7 @@ export function WorldScene({
   agentsWithPositions,
   onAgentClick,
   onFurnitureClick,
+  onAgentPositionChange,
   isDarkMode = true,
   showFpsOverlay = false,
   autoAdjustPerformance = true,
@@ -164,10 +168,28 @@ export function WorldScene({
   const dragPlaneSize = Math.max(groundSize, boundarySize, 10)
   const groundY = groundConfig.position ?? 0
 
+  // Placement constraints for agent drag (same as furniture/decorations)
+  const placementConfig = currentEnv.placement
+  const agentDraggable = isEditMode && !isPlacing
+  const constrainAgentPosition = useMemo(() => {
+    return (position: [number, number, number]): [number, number, number] =>
+      applyPlacementConstraints(position, {
+        placement: placementConfig,
+        boundary: boundaryConfig,
+        groundSize,
+      })
+  }, [placementConfig, boundaryConfig, groundSize])
+
+  const handleAgentPositionChange = useCallback(
+    (agentId: string, newPosition: [number, number, number]) => {
+      onAgentPositionChange?.(agentId, newPosition)
+    },
+    [onAgentPositionChange]
+  )
+
   // Calculate star opacity based on continuous time
   const starOpacity = useMemo(() => calculateStarOpacity(timeValue), [timeValue])
   const showStars = starOpacity > 0
-
 
   // Update camera position when state changes
   useEffect(() => {
@@ -260,21 +282,39 @@ export function WorldScene({
       />
 
       {/* Render all agents with accessories and overlays */}
-      {agentsWithPositions.map(({ agent, position, isSeated = false, seatRotation = 0 }) => (
-        <AgentWithAccessories
-          key={agent.id}
-          agent={agent}
-          position={position}
-          cursorPosition={cursorPosition}
-          selectedNodes={selectedNodeIds}
-          isAnimating={false}
-          isSeated={isSeated}
-          seatRotation={seatRotation}
-          onAgentClick={() => onAgentClick?.(agent.id, position)}
-          showOverlays
-          showAccessories
-        />
-      ))}
+      {agentsWithPositions.map(({ agent, position, isSeated = false, seatRotation = 0 }) => {
+        const agentComponent = (
+          <AgentWithAccessories
+            key={agent.id}
+            agent={agent}
+            position={agentDraggable ? [0, 0, 0] : position}
+            cursorPosition={cursorPosition}
+            selectedNodes={selectedNodeIds}
+            isAnimating={false}
+            isSeated={isSeated}
+            seatRotation={seatRotation}
+            onAgentClick={() => onAgentClick?.(agent.id, position)}
+            showOverlays
+            showAccessories
+          />
+        )
+
+        if (agentDraggable && !isSeated) {
+          return (
+            <DraggableObject
+              key={agent.id}
+              objectId={`agent-${agent.id}`}
+              position={position}
+              onPositionChange={(pos) => handleAgentPositionChange(agent.id, pos)}
+              constrainPosition={constrainAgentPosition}
+            >
+              {agentComponent}
+            </DraggableObject>
+          )
+        }
+
+        return agentComponent
+      })}
     </>
   )
 }

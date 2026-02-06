@@ -1,13 +1,18 @@
 /**
  * DraggableObject - Wrapper component that makes any 3D object draggable.
  * Uses useDragDrop hook and renders children with drag visual feedback.
+ *
+ * Position during drag is derived from the interaction store's dragState,
+ * ensuring smooth tracking even when pointer events are captured by the
+ * DragPlane (which happens as soon as the pointer leaves the object mesh).
  */
 
-import { useRef, useState, useCallback, type ReactNode } from 'react'
+import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group } from 'three'
 import * as THREE from 'three'
 import { useDragDrop } from '@/hooks/useDragDrop'
+import { useInteractionStore } from '@/stores/interactionStore'
 
 interface DraggableObjectProps {
   /** Unique ID for this draggable object */
@@ -37,6 +42,26 @@ const DRAG_LIFT_HEIGHT = 0.2
 const DRAG_SCALE_FACTOR = 1.05
 
 /**
+ * Compute the constrained world position from the initial position + drag offset.
+ * Exported for testing.
+ */
+export function computeDragPosition(
+  initialPos: [number, number, number],
+  offset: [number, number, number],
+  constrainFn?: (pos: [number, number, number]) => [number, number, number],
+): [number, number, number] {
+  let pos: [number, number, number] = [
+    initialPos[0] + offset[0],
+    initialPos[1],
+    initialPos[2] + offset[2],
+  ]
+  if (constrainFn) {
+    pos = constrainFn(pos)
+  }
+  return pos
+}
+
+/**
  * Wrapper that makes children draggable in 3D space.
  * Shows visual feedback during drag (lift + scale).
  */
@@ -55,59 +80,102 @@ export function DraggableObject({
   const groupRef = useRef<Group>(null)
   const [currentPosition, setCurrentPosition] = useState(initialPosition)
 
+  // Subscribe to store drag state for this object — this is the source of
+  // truth for position during drag, regardless of whether pointer events
+  // arrive on the object mesh or on the DragPlane.
+  const storeDragState = useInteractionStore((state) =>
+    state.draggedObjectId === objectId ? state.dragState : null
+  )
+  const isDragging = useInteractionStore((state) => state.draggedObjectId === objectId)
+
+  // Sync with external position prop changes when not dragging
+  useEffect(() => {
+    if (!isDragging) {
+      setCurrentPosition(initialPosition)
+    }
+  }, [initialPosition, isDragging])
+
+  // Track the last computed drag position so we can persist it on drag end.
+  const lastDragPosRef = useRef<[number, number, number] | null>(null)
+  // Track previous isDragging to detect the true→false transition.
+  const prevIsDraggingRef = useRef(false)
+
+  // Detect drag-end from store transition (handles DragPlane pointer-up
+  // where useDragDrop.endDrag never fires on this object).
+  const onPositionChangeRef = useRef(onPositionChange)
+  onPositionChangeRef.current = onPositionChange
+  const onDragStartRef = useRef(onDragStart)
+  onDragStartRef.current = onDragStart
+  const onDragEndRef = useRef(onDragEnd)
+  onDragEndRef.current = onDragEnd
+
+  useEffect(() => {
+    if (prevIsDraggingRef.current && !isDragging && lastDragPosRef.current) {
+      // Drag just ended (via DragPlane or object pointer-up).
+      // The useDragDrop.endDrag path also clears lastDragPosRef, so this
+      // only fires when DragPlane ended the drag.
+      const finalPos = lastDragPosRef.current
+      lastDragPosRef.current = null
+      setCurrentPosition(finalPos)
+      onPositionChangeRef.current?.(finalPos)
+      onDragEndRef.current?.()
+    }
+    prevIsDraggingRef.current = isDragging
+  }, [isDragging])
+
   const handleDragStart = useCallback(
     (_pos: [number, number, number]) => {
-      onDragStart?.()
+      onDragStartRef.current?.()
     },
-    [onDragStart]
-  )
-
-  const handleDrag = useCallback(
-    (_pos: [number, number, number], offset: [number, number, number]) => {
-      // Apply offset to initial position
-      let newPos: [number, number, number] = [
-        initialPosition[0] + offset[0],
-        initialPosition[1],
-        initialPosition[2] + offset[2],
-      ]
-      if (constrainPosition) {
-        newPos = constrainPosition(newPos)
-      }
-      setCurrentPosition(newPos)
-    },
-    [initialPosition, constrainPosition]
+    []
   )
 
   const handleDragEnd = useCallback(
     (_pos: [number, number, number]) => {
-      onPositionChange?.(currentPosition)
-      onDragEnd?.()
+      // Pointer-up on the object itself — persist final position.
+      const finalPos = lastDragPosRef.current ?? currentPosition
+      lastDragPosRef.current = null // Clear so the useEffect doesn't double-fire
+      setCurrentPosition(finalPos)
+      onPositionChangeRef.current?.(finalPos)
+      onDragEndRef.current?.()
     },
-    [currentPosition, onPositionChange, onDragEnd]
+    [currentPosition]
   )
 
-  const { isDragging, dragProps } = useDragDrop(objectId, currentPosition, {
+  const { dragProps } = useDragDrop(objectId, currentPosition, {
     enabled,
     onDragStart: handleDragStart,
-    onDrag: handleDrag,
     onDragEnd: handleDragEnd,
     constrainToPlane: true,
     planeY: dragPlaneY ?? initialPosition[1],
   })
 
-  // Animate lift and scale during drag
+  // Animate lift, scale, and position during drag
   useFrame(() => {
     if (!groupRef.current) return
 
+    // Derive target position: from store during drag, from state otherwise
+    let targetPos: [number, number, number]
+    if (isDragging && storeDragState) {
+      targetPos = computeDragPosition(
+        initialPosition,
+        storeDragState.offset,
+        constrainPosition,
+      )
+      lastDragPosRef.current = targetPos
+    } else {
+      targetPos = currentPosition
+    }
+
     const targetY = isDragging
-      ? currentPosition[1] + DRAG_LIFT_HEIGHT
-      : currentPosition[1]
+      ? targetPos[1] + DRAG_LIFT_HEIGHT
+      : targetPos[1]
     const targetScale = isDragging ? DRAG_SCALE_FACTOR : 1
 
     // Smooth interpolation
     groupRef.current.position.x = THREE.MathUtils.lerp(
       groupRef.current.position.x,
-      currentPosition[0],
+      targetPos[0],
       0.3
     )
     groupRef.current.position.y = THREE.MathUtils.lerp(
@@ -117,7 +185,7 @@ export function DraggableObject({
     )
     groupRef.current.position.z = THREE.MathUtils.lerp(
       groupRef.current.position.z,
-      currentPosition[2],
+      targetPos[2],
       0.3
     )
 

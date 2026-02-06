@@ -36,6 +36,7 @@
       "icon": "package",
       "documents": [
         { "path": "build-and-packaging.md", "title": "Build Checklist", "description": "Prereqs, commands, and outputs" },
+        { "path": "CROSS_PLATFORM_BUILDS.md", "title": "Cross-Platform Builds", "description": "Build strategy and caveats for Windows/macOS/Linux targets" },
         { "path": "DEBUGGING_WINDOWS.md", "title": "Debugging Windows", "description": "Windows build/runtime troubleshooting" },
         { "path": "WINE_INSTALLATION.md", "title": "Wine (No-Sudo)", "description": "Install Wine via Flatpak for Windows builds" },
         { "path": "SIGNING.md", "title": "Code Signing", "description": "Platform-specific signing setup and troubleshooting" }
@@ -58,6 +59,7 @@
       "documents": [
         { "path": "guides/DEPLOYMENT.md", "title": "LPBS Deployment", "description": "Deploy artifacts to Landing Page Business Suite" },
         { "path": "guides/AUTO_UPDATES.md", "title": "Auto-Updates", "description": "Configure electron-updater for desktop apps" },
+        { "path": "workflows/logging-bundled-desktop.md", "title": "Bundled App Logging", "description": "Run and debug packaged AppImage builds with runtime logs" },
         { "path": "telemetry.md", "title": "Telemetry & Ops", "description": "deployment-telemetry.jsonl and auto-manage" },
         { "path": "../runtime/README.md", "title": "Bundled Runtime (Roadmap)", "description": "Supervisor design for offline bundles" },
         { "path": "../../../docs/deployment/scenarios/scenario-to-desktop.md", "title": "Deployment Hub", "description": "How desktop fits Tier 1/2 and deployment-manager" }
@@ -81,6 +83,7 @@
       "title": "Standard",
       "icon": "clipboard",
       "documents": [
+        { "path": "PROGRESS.md", "title": "Docs Progress", "description": "Documentation refresh and alignment log" },
         { "path": "../PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
         { "path": "../PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
         { "path": "internal/SEAMS.md", "title": "Seams", "description": "Integration points, boundaries, and architectural seams" },

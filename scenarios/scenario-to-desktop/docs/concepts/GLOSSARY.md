@@ -156,7 +156,7 @@ The tool used to package Electron applications into distributable installers (MS
 TypeScript tool (`templates/build-tools/template-generator.ts`) that performs variable substitution and creates the `platforms/electron/` directory from templates.
 
 ### Pipeline
-The multi-stage build process: Bundle → Preflight → Generate → Build → SmokeTest → Distribution.
+The multi-stage build process: Bundle → Preflight → Generate → Build → SmokeTest → Deploy.
 
 ### Preflight
 Validation stage that checks prerequisites before building: UI dist exists, dependencies available, services reachable (for thin clients).

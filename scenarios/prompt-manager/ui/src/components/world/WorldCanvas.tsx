@@ -129,10 +129,32 @@ export function WorldCanvas({
     return new Map(Object.entries(seatedAgents))
   }, [seatedAgents])
 
+  // Track agent positions overridden by drag (edit mode)
+  const [agentPositionOverrides, setAgentPositionOverrides] = useState<
+    Record<string, [number, number, number]>
+  >({})
+
+  const handleAgentPositionChange = useCallback(
+    (agentId: string, newPosition: [number, number, number]) => {
+      setAgentPositionOverrides((prev) => ({ ...prev, [agentId]: newPosition }))
+    },
+    []
+  )
+
   // Generate positions for all agents (memoized for stability)
-  // Override positions for seated agents
+  // Override positions for seated agents or drag-repositioned agents
   const agentsWithPositions = useMemo<AgentWithPosition[]>(() => {
     return agents.map((agent, index) => {
+      // Check if agent has been repositioned by drag
+      const dragOverride = agentPositionOverrides[agent.id]
+      if (dragOverride) {
+        return {
+          agent,
+          position: dragOverride,
+          isSeated: false,
+          seatRotation: 0,
+        }
+      }
       // Check if agent is seated
       const seatPosition = getAgentSeatPosition(agent.id)
       if (seatPosition) {
@@ -150,7 +172,7 @@ export function WorldCanvas({
         seatRotation: 0,
       }
     })
-  }, [agents, getAgentSeatPosition, seatedAgents, furnitureList])
+  }, [agents, getAgentSeatPosition, seatedAgents, furnitureList, agentPositionOverrides])
 
   // Get position of focused agent (for camera targeting)
   const focusedAgentPosition = useMemo(() => {
@@ -324,6 +346,7 @@ export function WorldCanvas({
                       agentsWithPositions={agentsWithPositions}
                       onAgentClick={handleAgentClick}
                       onFurnitureClick={handleFurnitureClick}
+                      onAgentPositionChange={handleAgentPositionChange}
                       isDarkMode={isDarkMode}
                     />
                   </Suspense>

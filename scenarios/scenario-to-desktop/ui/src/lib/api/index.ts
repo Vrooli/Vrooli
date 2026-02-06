@@ -74,6 +74,7 @@ export type {
   BuildPlatformResult,
   BuildStageDetails,
   SmokeTestStageDetails,
+  DeployStageDetails,
   StageDetails,
   VerboseStageResult,
   VerbosePipelineStatus,
@@ -354,4 +355,3 @@ export {
   SecretClassSchema as ProtoSecretClassSchema,
   JobStatusSchema as ProtoJobStatusSchema,
 } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
-

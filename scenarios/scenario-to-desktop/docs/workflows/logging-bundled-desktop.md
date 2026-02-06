@@ -18,7 +18,7 @@ cd scenarios/<scenario>/platforms/electron/dist-electron
 timeout 60s bash -lc '
   ELECTRON_ENABLE_LOGGING=1 ELECTRON_ENABLE_STACK_DUMPING=1 NODE_OPTIONS="" \
   ./"<AppName>-<version>.AppImage" --enable-logging --verbose --disable-gpu \
-  2>&1 | tee ~/bundled-app.log
+  |& tee ~/bundled-app.log
 '
 ```
 Notes:
