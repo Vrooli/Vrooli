@@ -119,6 +119,44 @@ func TestConfigFromManifest(t *testing.T) {
 				KeyPath: "/keys/ssh_key",
 			},
 		},
+		{
+			name: "applies default port when zero",
+			manifest: domain.CloudManifest{
+				Target: domain.ManifestTarget{
+					VPS: &domain.ManifestVPS{
+						Host:    "vps.example.com",
+						Port:    0,
+						User:    "admin",
+						KeyPath: "/key",
+					},
+				},
+			},
+			want: Config{
+				Host:    "vps.example.com",
+				Port:    DefaultPort,
+				User:    "admin",
+				KeyPath: "/key",
+			},
+		},
+		{
+			name: "applies default user when empty",
+			manifest: domain.CloudManifest{
+				Target: domain.ManifestTarget{
+					VPS: &domain.ManifestVPS{
+						Host:    "vps.example.com",
+						Port:    22,
+						User:    "",
+						KeyPath: "/key",
+					},
+				},
+			},
+			want: Config{
+				Host:    "vps.example.com",
+				Port:    22,
+				User:    DefaultUser,
+				KeyPath: "/key",
+			},
+		},
 	}
 
 	for _, tt := range tests {

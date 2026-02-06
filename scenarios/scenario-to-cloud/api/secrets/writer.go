@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -45,11 +46,11 @@ func ReadFromVPS(
 	cfg ssh.Config,
 	workdir string,
 ) (map[string]string, error) {
-	secretsPath := ssh.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
+	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
 
 	// Try to read existing secrets file
-	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", ssh.QuoteSingle(secretsPath))
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", shellutil.QuoteSingle(secretsPath))
+	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return nil, fmt.Errorf("read secrets.json: %w", err)
 	}
@@ -140,21 +141,21 @@ func WriteToVPS(
 	}
 
 	// Paths on VPS
-	secretsDir := ssh.SafeRemoteJoin(workdir, ".vrooli")
-	secretsPath := ssh.SafeRemoteJoin(secretsDir, "secrets.json")
+	secretsDir := shellutil.SafeRemoteJoin(workdir, ".vrooli")
+	secretsPath := shellutil.SafeRemoteJoin(secretsDir, "secrets.json")
 
 	// Write secrets.json with proper permissions (600 = owner read/write only)
 	// Use printf with %s to avoid shell interpretation of special characters
-	// The JSON is passed through ssh.QuoteSingle to escape it safely
+	// The JSON is passed through shellutil.QuoteSingle to escape it safely
 	cmd := fmt.Sprintf(
 		"mkdir -p %s && printf '%%s' %s > %s && chmod 600 %s",
-		ssh.QuoteSingle(secretsDir),
-		ssh.QuoteSingle(string(jsonBytes)),
-		ssh.QuoteSingle(secretsPath),
-		ssh.QuoteSingle(secretsPath),
+		shellutil.QuoteSingle(secretsDir),
+		shellutil.QuoteSingle(string(jsonBytes)),
+		shellutil.QuoteSingle(secretsPath),
+		shellutil.QuoteSingle(secretsPath),
 	)
 
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return fmt.Errorf("write secrets.json: %w (exit: %d, stderr: %s)", err, result.ExitCode, result.Stderr)
 	}
@@ -201,11 +202,11 @@ func ReadAllFromVPS(
 	cfg ssh.Config,
 	workdir string,
 ) (*VPSSecretsData, error) {
-	secretsPath := ssh.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
+	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
 
 	// Try to read existing secrets file
-	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", ssh.QuoteSingle(secretsPath))
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", shellutil.QuoteSingle(secretsPath))
+	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return nil, fmt.Errorf("read secrets.json: %w", err)
 	}
@@ -376,19 +377,19 @@ func writeSecretsData(
 	}
 
 	// Paths on VPS
-	secretsDir := ssh.SafeRemoteJoin(workdir, ".vrooli")
-	secretsPath := ssh.SafeRemoteJoin(secretsDir, "secrets.json")
+	secretsDir := shellutil.SafeRemoteJoin(workdir, ".vrooli")
+	secretsPath := shellutil.SafeRemoteJoin(secretsDir, "secrets.json")
 
 	// Write secrets.json with proper permissions (600 = owner read/write only)
 	cmd := fmt.Sprintf(
 		"mkdir -p %s && printf '%%s' %s > %s && chmod 600 %s",
-		ssh.QuoteSingle(secretsDir),
-		ssh.QuoteSingle(string(jsonBytes)),
-		ssh.QuoteSingle(secretsPath),
-		ssh.QuoteSingle(secretsPath),
+		shellutil.QuoteSingle(secretsDir),
+		shellutil.QuoteSingle(string(jsonBytes)),
+		shellutil.QuoteSingle(secretsPath),
+		shellutil.QuoteSingle(secretsPath),
 	)
 
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return fmt.Errorf("write secrets.json: %w (exit: %d, stderr: %s)", err, result.ExitCode, result.Stderr)
 	}

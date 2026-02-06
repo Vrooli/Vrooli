@@ -130,7 +130,7 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 		cmd, actionDesc = vps.BuildCleanupCommand(workdir, normalized, req.CleanupLevel)
 	}
 
-	result, err := s.sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 
 	response := VPSActionResponse{
 		Action:    req.Action,

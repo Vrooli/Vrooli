@@ -30,7 +30,7 @@ func CaddyTLSRenewCommand(domain string) string {
 // RunCaddyTLSRenew executes a TLS renewal attempt over SSH.
 func RunCaddyTLSRenew(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, domain string) TLSRenewResult {
 	cmd := CaddyTLSRenewCommand(domain)
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return TLSRenewResult{
 			OK:      false,

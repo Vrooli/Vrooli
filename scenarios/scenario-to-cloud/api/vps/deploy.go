@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +17,8 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
 )
@@ -230,7 +233,7 @@ func RequiredResourcesForScenario(scenarioID string) ([]string, error) {
 			required = append(required, name)
 		}
 	}
-	return stableUniqueStrings(required), nil
+	return stringutil.SortedUnique(required), nil
 }
 
 func validateManifestResourceDependencies(manifest domain.CloudManifest) error {
@@ -241,10 +244,10 @@ func validateManifestResourceDependencies(manifest domain.CloudManifest) error {
 	if len(required) == 0 {
 		return nil
 	}
-	declared := stableUniqueStrings(manifest.Dependencies.Resources)
+	declared := stringutil.SortedUnique(manifest.Dependencies.Resources)
 	var missing []string
 	for _, name := range required {
-		if !contains(declared, name) {
+		if !stringutil.Contains(declared, name) {
 			missing = append(missing, name)
 		}
 	}
@@ -287,7 +290,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 			Title:       "Configure Caddy",
 			Description: "Write a minimal Caddyfile and reload.",
 			Command: ssh.LocalSSHCommand(cfg, strings.Join([]string{
-				fmt.Sprintf("printf '%%s' %s > %s", ssh.QuoteSingle(caddyfile), ssh.QuoteSingle(caddyfilePath)),
+				fmt.Sprintf("printf '%%s' %s > %s", shellutil.QuoteSingle(caddyfile), shellutil.QuoteSingle(caddyfilePath)),
 				"caddy validate --config /etc/caddy/Caddyfile",
 				"systemctl reload caddy",
 			}, " && ")),
@@ -312,16 +315,16 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 		})
 	}
 
-	for _, res := range stableUniqueStrings(manifest.Dependencies.Resources) {
+	for _, res := range stringutil.SortedUnique(manifest.Dependencies.Resources) {
 		steps = append(steps, domain.VPSPlanStep{
 			ID:          "resource_start_" + res,
 			Title:       "Start resource: " + res,
 			Description: "Start required Vrooli resources via the mini install.",
-			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", ssh.QuoteSingle(res)))),
+			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", shellutil.QuoteSingle(res)))),
 		})
 	}
 
-	for _, scen := range stableUniqueStrings(manifest.Dependencies.Scenarios) {
+	for _, scen := range stringutil.SortedUnique(manifest.Dependencies.Scenarios) {
 		if scen == manifest.Scenario.ID {
 			continue
 		}
@@ -329,7 +332,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 			ID:          "scenario_start_" + scen,
 			Title:       "Start scenario: " + scen,
 			Description: "Start dependent scenarios (excluding the target).",
-			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", ssh.QuoteSingle(scen)))),
+			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellutil.QuoteSingle(scen)))),
 		})
 	}
 
@@ -341,7 +344,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 			ID:          "scenario_start_target",
 			Title:       "Restart target scenario with fixed ports",
 			Description: "Restarts the target scenario to ensure freshly extracted code is rebuilt and used.",
-			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario restart %s", portEnvVars, ssh.QuoteSingle(manifest.Scenario.ID)))),
+			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario restart %s", portEnvVars, shellutil.QuoteSingle(manifest.Scenario.ID)))),
 		},
 		domain.VPSPlanStep{
 			ID:          "verify_local",
@@ -428,13 +431,15 @@ func RunDeployWithProgress(
 	progress *float64,
 	opts DeployOptions,
 ) domain.VPSDeployResult {
+	start := time.Now()
+
 	// Default to production implementation if nil
 	if secretsGen == nil {
 		secretsGen = secrets.NewGenerator()
 	}
 	steps, err := BuildDeployPlan(manifest)
 	if err != nil {
-		return domain.VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return domain.VPSDeployResult{OK: false, Error: err.Error(), DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
 	cfg := ssh.ConfigFromManifest(manifest)
@@ -451,15 +456,25 @@ func RunDeployWithProgress(
 	}
 
 	// Helper to emit error and return failed result
-	failStep := func(stepID, stepTitle, errMsg string) domain.VPSDeployResult {
-		event := NewErrorEvent(stepID, stepTitle, *progress, errMsg)
+	failStep := func(stepID, stepTitle string, err error) domain.VPSDeployResult {
+		errMsg := err.Error()
+		var info *domain.ErrorInfo
+		var sshErr *ssh.SSHError
+		if errors.As(err, &sshErr) {
+			info = ssh.ErrorInfoFromSSHError(sshErr)
+		}
+		event := NewStructuredErrorEvent(stepID, stepTitle, *progress, errMsg, info)
 		hub.Broadcast(deploymentID, event)
-		return domain.VPSDeployResult{OK: false, Steps: steps, Error: errMsg, FailedStep: stepID, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return domain.VPSDeployResult{OK: false, Steps: steps, Error: errMsg, ErrorInfo: info, FailedStep: stepID, DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
-	// run executes an SSH command and returns an error with output context if it fails.
-	run := func(cmd string) error {
-		return ssh.RunWithOutput(ctx, sshRunner, cfg, cmd, ssh.ValidateTildeExpansion)
+	// runStep executes an SSH command with per-step timeout configuration.
+	runStep := func(stepID, cmd string) error {
+		if err := shellutil.ValidateTildeExpansion(cmd); err != nil {
+			return err
+		}
+		_, err := sshRunner.Run(ctx, cfg, cmd, RunOptionsForStep(stepID))
+		return err
 	}
 
 	// Step: scenario_stop - Stop existing scenario before deployment
@@ -471,7 +486,7 @@ func RunDeployWithProgress(
 		}
 		stopResult := StopExistingScenario(ctx, sshRunner, cfg, workdir, manifest.Scenario.ID, targetPorts)
 		if !stopResult.OK {
-			return failStep("scenario_stop", "Stopping existing scenario", stopResult.Error)
+			return failStep("scenario_stop", "Stopping existing scenario", fmt.Errorf("%s", stopResult.Error))
 		}
 		*progress += opts.getStepWeight("scenario_stop")
 		emit("step_completed", "scenario_stop", "Stopping existing scenario")
@@ -480,11 +495,11 @@ func RunDeployWithProgress(
 	// Step: caddy_install
 	if opts.shouldRunStep("caddy_install") {
 		emit("step_started", "caddy_install", "Installing Caddy")
-		if err := run("command -v caddy >/dev/null || (apt-get update -y && apt-get install -y caddy)"); err != nil {
-			return failStep("caddy_install", "Installing Caddy", err.Error())
+		if err := runStep("caddy_install", "command -v caddy >/dev/null || (apt-get update -y && apt-get install -y caddy)"); err != nil {
+			return failStep("caddy_install", "Installing Caddy", err)
 		}
-		if err := run("systemctl enable --now caddy"); err != nil {
-			return failStep("caddy_install", "Installing Caddy", err.Error())
+		if err := runStep("caddy_install", "systemctl enable --now caddy"); err != nil {
+			return failStep("caddy_install", "Installing Caddy", err)
 		}
 		*progress += opts.getStepWeight("caddy_install")
 		emit("step_completed", "caddy_install", "Installing Caddy")
@@ -498,22 +513,22 @@ func RunDeployWithProgress(
 		caddyfile := BuildCaddyfile(manifest.Edge.Domain, uiPort, buildCaddyTLSConfig(manifest, providedSecrets))
 
 		// Check if current Caddyfile matches desired content (idempotent write)
-		checkCmd := fmt.Sprintf("cat %s 2>/dev/null || echo ''", ssh.QuoteSingle(caddyfilePath))
-		currentCaddyfile, _ := sshRunner.Run(ctx, cfg, checkCmd)
+		checkCmd := fmt.Sprintf("cat %s 2>/dev/null || echo ''", shellutil.QuoteSingle(caddyfilePath))
+		currentCaddyfile, _ := sshRunner.Run(ctx, cfg, checkCmd, ssh.DefaultRunOptions())
 		currentContent := strings.TrimSpace(currentCaddyfile.Stdout)
 		desiredContent := strings.TrimSpace(caddyfile)
 
 		if currentContent != desiredContent {
 			// Content differs, write new config
-			if err := run(fmt.Sprintf("printf '%%s' %s > %s", ssh.QuoteSingle(caddyfile), ssh.QuoteSingle(caddyfilePath))); err != nil {
-				return failStep("caddy_config", "Configuring Caddy", err.Error())
+			if err := runStep("caddy_config", fmt.Sprintf("printf '%%s' %s > %s", shellutil.QuoteSingle(caddyfile), shellutil.QuoteSingle(caddyfilePath))); err != nil {
+				return failStep("caddy_config", "Configuring Caddy", err)
 			}
-			if err := run("caddy validate --config /etc/caddy/Caddyfile"); err != nil {
-				return failStep("caddy_config", "Configuring Caddy", err.Error())
+			if err := runStep("caddy_config", "caddy validate --config /etc/caddy/Caddyfile"); err != nil {
+				return failStep("caddy_config", "Configuring Caddy", err)
 			}
 			// Only reload if we actually changed the config
-			if err := run("systemctl reload caddy"); err != nil {
-				return failStep("caddy_config", "Configuring Caddy", err.Error())
+			if err := runStep("caddy_config", "systemctl reload caddy"); err != nil {
+				return failStep("caddy_config", "Configuring Caddy", err)
 			}
 		}
 		// If content matches, skip write and reload (already configured correctly)
@@ -524,8 +539,8 @@ func RunDeployWithProgress(
 	if opts.shouldRunStep("firewall_inbound") && manifest.Edge.Caddy.Enabled {
 		emit("step_started", "firewall_inbound", "Opening inbound HTTP/HTTPS")
 		firewallCmd := firewallInboundCommand
-		if err := run(firewallCmd); err != nil {
-			return failStep("firewall_inbound", "Opening inbound HTTP/HTTPS", err.Error())
+		if err := runStep("firewall_inbound", firewallCmd); err != nil {
+			return failStep("firewall_inbound", "Opening inbound HTTP/HTTPS", err)
 		}
 		*progress += opts.getStepWeight("firewall_inbound")
 		emit("step_completed", "firewall_inbound", "Opening inbound HTTP/HTTPS")
@@ -538,27 +553,28 @@ func RunDeployWithProgress(
 		// Generate per_install_generated secrets using the injected generator (seam)
 		generated, err := secretsGen.GenerateSecrets(manifest.Secrets.BundleSecrets)
 		if err != nil {
-			return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("generate secrets: %v", err))
+			return failStep("secrets_provision", "Provisioning secrets", fmt.Errorf("generate secrets: %w", err))
 		}
 
 		// Write secrets.json to VPS (generated + user-provided)
 		userSecrets := buildUserSecretMap(manifest, providedSecrets)
 		if err := secrets.WriteToVPS(ctx, sshRunner, cfg, workdir, generated, userSecrets, manifest.Scenario.ID); err != nil {
-			return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("write secrets: %v", err))
+			return failStep("secrets_provision", "Provisioning secrets", fmt.Errorf("write secrets: %w", err))
 		}
 
 		*progress += opts.getStepWeight("secrets_provision")
 		emit("step_completed", "secrets_provision", "Provisioning secrets")
 	}
 
-	// Step: resource_start
+	// Step: resource_start (uses retry logic for transient failures)
 	if opts.shouldRunStep("resource_start") {
-		resources := stableUniqueStrings(manifest.Dependencies.Resources)
+		resources := stringutil.SortedUnique(manifest.Dependencies.Resources)
 		if len(resources) > 0 {
 			emit("step_started", "resource_start", "Starting resources")
 			for _, res := range resources {
-				if err := run(ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", ssh.QuoteSingle(res)))); err != nil {
-					return failStep("resource_start", "Starting resources", err.Error())
+				cmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", shellutil.QuoteSingle(res)))
+				if err := RunStepWithRetry(ctx, sshRunner, cfg, "resource_start", cmd); err != nil {
+					return failStep("resource_start", "Starting resources", err)
 				}
 			}
 			*progress += opts.getStepWeight("resource_start")
@@ -569,7 +585,7 @@ func RunDeployWithProgress(
 	// Step: scenario_deps
 	if opts.shouldRunStep("scenario_deps") {
 		depScenarios := []string{}
-		for _, scen := range stableUniqueStrings(manifest.Dependencies.Scenarios) {
+		for _, scen := range stringutil.SortedUnique(manifest.Dependencies.Scenarios) {
 			if scen != manifest.Scenario.ID {
 				depScenarios = append(depScenarios, scen)
 			}
@@ -577,8 +593,8 @@ func RunDeployWithProgress(
 		if len(depScenarios) > 0 {
 			emit("step_started", "scenario_deps", "Starting dependencies")
 			for _, scen := range depScenarios {
-				if err := run(ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", ssh.QuoteSingle(scen)))); err != nil {
-					return failStep("scenario_deps", "Starting dependencies", err.Error())
+				if err := runStep("scenario_deps", shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellutil.QuoteSingle(scen)))); err != nil {
+					return failStep("scenario_deps", "Starting dependencies", err)
 				}
 			}
 			*progress += opts.getStepWeight("scenario_deps")
@@ -593,8 +609,8 @@ func RunDeployWithProgress(
 	if opts.shouldRunStep("scenario_target") {
 		emit("step_started", "scenario_target", "Restarting scenario")
 		portEnvVars := BuildPortEnvVars(manifest.Ports)
-		if err := run(ssh.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario restart %s", portEnvVars, ssh.QuoteSingle(manifest.Scenario.ID)))); err != nil {
-			return failStep("scenario_target", "Restarting scenario", err.Error())
+		if err := runStep("scenario_target", shellutil.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario restart %s", portEnvVars, shellutil.QuoteSingle(manifest.Scenario.ID)))); err != nil {
+			return failStep("scenario_target", "Restarting scenario", err)
 		}
 		*progress += opts.getStepWeight("scenario_target")
 		emit("step_completed", "scenario_target", "Restarting scenario")
@@ -604,14 +620,14 @@ func RunDeployWithProgress(
 	if opts.shouldRunStep("wait_for_ui") {
 		emit("step_started", "wait_for_ui", "Waiting for UI to listen")
 		waitForUIScript := BuildWaitForPortScript("127.0.0.1", uiPort, 30, "UI")
-		waitCmd := fmt.Sprintf("bash -c %s", ssh.QuoteSingle(waitForUIScript))
-		if err := run(waitCmd); err != nil {
+		waitCmd := fmt.Sprintf("bash -c %s", shellutil.QuoteSingle(waitForUIScript))
+		if err := runStep("wait_for_ui", waitCmd); err != nil {
 			healthCheckCmd := fmt.Sprintf("curl -fsS --max-time 3 http://127.0.0.1:%d/health", uiPort)
-			healthResult, healthErr := sshRunner.Run(ctx, cfg, healthCheckCmd)
+			healthResult, healthErr := sshRunner.Run(ctx, cfg, healthCheckCmd, ssh.DefaultRunOptions())
 			if healthErr == nil && healthResult.ExitCode == 0 {
-				return failStep("wait_for_ui", "Waiting for UI to listen", fmt.Sprintf("wait_for_ui failed but /health responded successfully; likely wait script or port check issue. wait error: %s", err.Error()))
+				return failStep("wait_for_ui", "Waiting for UI to listen", fmt.Errorf("wait_for_ui failed but /health responded successfully; likely wait script or port check issue. wait error: %s", err.Error()))
 			}
-			return failStep("wait_for_ui", "Waiting for UI to listen", err.Error())
+			return failStep("wait_for_ui", "Waiting for UI to listen", err)
 		}
 		*progress += opts.getStepWeight("wait_for_ui")
 		emit("step_completed", "wait_for_ui", "Waiting for UI to listen")
@@ -624,12 +640,12 @@ func RunDeployWithProgress(
 		localHealthScript := buildHealthCheckScript(localHealthURL, 5, "local")
 		logFileName := fmt.Sprintf("verify_local_%s.log", manifest.Scenario.ID)
 		preflightLogsCmd := "log_dir=\"$HOME/.vrooli/logs\"; mkdir -p \"$log_dir\" && test -w \"$log_dir\""
-		if err := run(preflightLogsCmd); err != nil {
-			return failStep("verify_local", "Verifying local health", fmt.Sprintf("verify log directory not writable: %s", err.Error()))
+		if err := runStep("verify_local", preflightLogsCmd); err != nil {
+			return failStep("verify_local", "Verifying local health", fmt.Errorf("verify log directory not writable: %w", err))
 		}
-		verifyLocalCmd := fmt.Sprintf("log_dir=\"$HOME/.vrooli/logs\"; log_file=\"$log_dir\"/%s; tmp_log=\"$(mktemp)\"; if bash -c %s &> \"$tmp_log\"; then cat \"$tmp_log\" > \"$log_file\" 2>/dev/null || true; else cat \"$tmp_log\"; cat \"$tmp_log\" > \"$log_file\" 2>/dev/null || true; exit 1; fi", ssh.QuoteSingle(logFileName), ssh.QuoteSingle(localHealthScript))
-		if err := run(verifyLocalCmd); err != nil {
-			return failStep("verify_local", "Verifying local health", err.Error())
+		verifyLocalCmd := fmt.Sprintf("log_dir=\"$HOME/.vrooli/logs\"; log_file=\"$log_dir\"/%s; tmp_log=\"$(mktemp)\"; if bash -c %s &> \"$tmp_log\"; then cat \"$tmp_log\" > \"$log_file\" 2>/dev/null || true; else cat \"$tmp_log\"; cat \"$tmp_log\" > \"$log_file\" 2>/dev/null || true; exit 1; fi", shellutil.QuoteSingle(logFileName), shellutil.QuoteSingle(localHealthScript))
+		if err := runStep("verify_local", verifyLocalCmd); err != nil {
+			return failStep("verify_local", "Verifying local health", err)
 		}
 		*progress += opts.getStepWeight("verify_local")
 		emit("step_completed", "verify_local", "Verifying local health")
@@ -640,8 +656,8 @@ func RunDeployWithProgress(
 	if opts.shouldRunStep("verify_https") {
 		emit("step_started", "verify_https", "Verifying HTTPS")
 		httpsHealthScript := buildHealthCheckScript(httpsHealthURL, 10, "https")
-		if err := run(fmt.Sprintf("bash -c %s", ssh.QuoteSingle(httpsHealthScript))); err != nil {
-			return failStep("verify_https", "Verifying HTTPS", err.Error())
+		if err := runStep("verify_https", fmt.Sprintf("bash -c %s", shellutil.QuoteSingle(httpsHealthScript))); err != nil {
+			return failStep("verify_https", "Verifying HTTPS", err)
 		}
 		*progress += opts.getStepWeight("verify_https")
 		emit("step_completed", "verify_https", "Verifying HTTPS")
@@ -655,10 +671,10 @@ func RunDeployWithProgress(
 				tlsConfig := buildCaddyTLSConfig(manifest, providedSecrets)
 				dns01Configured := tlsConfig.DNSProvider != "" && tlsConfig.DNSAPIToken != ""
 				if hint := caddyACMEOriginUnreachableHint(fetchCaddyLogs(ctx, sshRunner, cfg, 200), dns01Configured); hint != "" {
-					return failStep("verify_origin", "Verifying origin reachability", hint)
+					return failStep("verify_origin", "Verifying origin reachability", fmt.Errorf("%s", hint))
 				}
 			}
-			return failStep("verify_origin", "Verifying origin reachability", err.Error())
+			return failStep("verify_origin", "Verifying origin reachability", err)
 		}
 		*progress += opts.getStepWeight("verify_origin")
 		emit("step_completed", "verify_origin", "Verifying origin reachability")
@@ -668,13 +684,13 @@ func RunDeployWithProgress(
 	if opts.shouldRunStep("verify_public") {
 		emit("step_started", "verify_public", "Verifying public reachability")
 		if err := checkPublicHealth(ctx, httpsHealthURL, 10*time.Second); err != nil {
-			return failStep("verify_public", "Verifying public reachability", err.Error())
+			return failStep("verify_public", "Verifying public reachability", err)
 		}
 		*progress += opts.getStepWeight("verify_public")
 		emit("step_completed", "verify_public", "Verifying public reachability")
 	}
 
-	return domain.VPSDeployResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	return domain.VPSDeployResult{OK: true, Steps: steps, DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 }
 
 // CaddyTLSConfig captures TLS options for Caddy.
@@ -938,7 +954,7 @@ func fetchCaddyLogs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, l
 		lines = 200
 	}
 	cmd := fmt.Sprintf("journalctl -u caddy --no-pager -n %d 2>/dev/null || true", lines)
-	res, err := sshRunner.Run(ctx, cfg, cmd)
+	res, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return ""
 	}

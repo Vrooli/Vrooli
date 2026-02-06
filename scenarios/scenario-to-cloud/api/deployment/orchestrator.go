@@ -1,3 +1,4 @@
+// DOC: docs/reference/deployment-lifecycle.md — deployment stages and status transitions
 package deployment
 
 import (
@@ -10,6 +11,7 @@ import (
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/persistence"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
@@ -25,13 +27,16 @@ type progressHubAdapter struct {
 // Broadcast implements vps.ProgressBroadcaster by converting vps.ProgressEvent to deployment.Event.
 func (a *progressHubAdapter) Broadcast(deploymentID string, event vps.ProgressEvent) {
 	mainEvent := Event{
-		Type:      event.Type,
-		Step:      event.Step,
-		StepTitle: event.StepTitle,
-		Progress:  event.Progress,
-		Message:   event.Message,
-		Error:     event.Error,
-		Timestamp: event.Timestamp,
+		Type:          event.Type,
+		Step:          event.Step,
+		StepTitle:     event.StepTitle,
+		Progress:      event.Progress,
+		Message:       event.Message,
+		Error:         event.Error,
+		ErrorCategory: event.ErrorCategory,
+		Retryable:     event.Retryable,
+		Hint:          event.Hint,
+		Timestamp:     event.Timestamp,
 	}
 	a.hub.Broadcast(deploymentID, mainEvent)
 }
@@ -461,7 +466,7 @@ func (o *Orchestrator) ensureSecretsAvailable(
 		if manifest.Edge.Caddy.Enabled {
 			resources = append(resources, "edge-dns")
 		}
-		resources = uniqueStrings(resources)
+		resources = stringutil.OrderedUnique(resources)
 
 		secretsCtx, secretsCancel := context.WithTimeout(ctx, 30*time.Second)
 		secretsResp, err := o.secretsFetcher.FetchBundleSecrets(
@@ -633,23 +638,6 @@ func (o *Orchestrator) log(msg string, fields map[string]interface{}) {
 	if o.logger != nil {
 		o.logger(msg, fields)
 	}
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]bool, len(values))
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		if seen[trimmed] {
-			continue
-		}
-		seen[trimmed] = true
-		out = append(out, trimmed)
-	}
-	return out
 }
 
 // HistoryRecorder defines the interface for recording deployment history events.

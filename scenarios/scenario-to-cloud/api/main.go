@@ -204,6 +204,7 @@ func NewServer() (*Server, error) {
 	return srv, nil
 }
 
+// DOC: docs/reference/api-endpoints.md — complete endpoint reference
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
@@ -291,12 +292,14 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
 
 	// SSH Key Management
-	api.HandleFunc("/ssh/keys", ssh.HandleListKeys).Methods("GET")
-	api.HandleFunc("/ssh/keys", ssh.HandleDeleteKey).Methods("DELETE")
-	api.HandleFunc("/ssh/keys/generate", ssh.HandleGenerateKey).Methods("POST")
-	api.HandleFunc("/ssh/keys/public", ssh.HandleGetPublicKey).Methods("POST")
-	api.HandleFunc("/ssh/test", ssh.HandleTestConnection).Methods("POST")
-	api.HandleFunc("/ssh/copy-key", ssh.HandleCopyKey).Methods("POST")
+	keySvc := ssh.NewKeyService(nil, "")
+	keyCopier := ssh.ExecKeyCopier{}
+	api.HandleFunc("/ssh/keys", ssh.HandleListKeys(keySvc)).Methods("GET")
+	api.HandleFunc("/ssh/keys", ssh.HandleDeleteKey(keySvc)).Methods("DELETE")
+	api.HandleFunc("/ssh/keys/generate", ssh.HandleGenerateKey(keySvc)).Methods("POST")
+	api.HandleFunc("/ssh/keys/public", ssh.HandleGetPublicKey(keySvc)).Methods("POST")
+	api.HandleFunc("/ssh/test", ssh.HandleTestConnection(s.sshRunner, ssh.DefaultHandlerOptions())).Methods("POST")
+	api.HandleFunc("/ssh/copy-key", ssh.HandleCopyKey(keyCopier, ssh.DefaultHandlerOptions())).Methods("POST")
 
 	// Preflight fix actions
 	api.HandleFunc("/preflight/fix/ports", preflight.HandleStopPortServices(s.sshRunner)).Methods("POST")

@@ -189,7 +189,7 @@ func checkStaleScenarioProcesses(
 		`ps aux --no-headers | grep -E '%s' | grep -v -E '(grep|vim|nano|less|tail|cat|ssh|sshd)' || true`,
 		scenarioID,
 	)
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		warn("stale_processes", "Stale process check",
 			"Unable to check for running processes",

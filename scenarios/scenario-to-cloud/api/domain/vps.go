@@ -1,6 +1,15 @@
 // Package domain defines the core domain types for the scenario-to-cloud scenario.
 package domain
 
+// ErrorInfo carries machine-readable error metadata alongside the human-readable message.
+type ErrorInfo struct {
+	Message   string `json:"message"`
+	Category  string `json:"category,omitempty"`
+	Hint      string `json:"hint,omitempty"`
+	Retryable bool   `json:"retryable,omitempty"`
+	ExitCode  int    `json:"exit_code,omitempty"`
+}
+
 // VPSPlanStep represents a single step in a VPS setup or deploy plan.
 type VPSPlanStep struct {
 	ID          string `json:"id"`
@@ -14,7 +23,9 @@ type VPSSetupResult struct {
 	OK         bool          `json:"ok"`
 	Steps      []VPSPlanStep `json:"steps"`
 	Error      string        `json:"error,omitempty"`
+	ErrorInfo  *ErrorInfo    `json:"error_info,omitempty"`
 	FailedStep string        `json:"failed_step,omitempty"`
+	DurationMs int64         `json:"duration_ms,omitempty"`
 	Timestamp  string        `json:"timestamp"`
 }
 
@@ -23,7 +34,9 @@ type VPSDeployResult struct {
 	OK         bool          `json:"ok"`
 	Steps      []VPSPlanStep `json:"steps"`
 	Error      string        `json:"error,omitempty"`
+	ErrorInfo  *ErrorInfo    `json:"error_info,omitempty"`
 	FailedStep string        `json:"failed_step,omitempty"`
+	DurationMs int64         `json:"duration_ms,omitempty"`
 	Timestamp  string        `json:"timestamp"`
 }
 

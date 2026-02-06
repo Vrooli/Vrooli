@@ -12,6 +12,7 @@ import (
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/toolregistry"
@@ -535,8 +536,8 @@ func (e *ServerExecutor) getDeploymentLogs(ctx context.Context, args map[string]
 	scenarioID := m.Scenario.ID
 
 	// Simple log fetch - get scenario logs
-	cmd := ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", ssh.QuoteSingle(scenarioID), tail))
-	result, err := e.sshRunner.Run(logsCtx, cfg, cmd)
+	cmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", shellutil.QuoteSingle(scenarioID), tail))
+	result, err := e.sshRunner.Run(logsCtx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("failed to fetch logs: %v", err), CodeInternalError), nil
 	}
@@ -713,8 +714,8 @@ func (e *ServerExecutor) stopDeploymentOnVPS(ctx context.Context, m domain.Cloud
 	stopCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	cmd := ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", ssh.QuoteSingle(m.Scenario.ID)))
-	_, err := e.sshRunner.Run(stopCtx, cfg, cmd)
+	cmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellutil.QuoteSingle(m.Scenario.ID)))
+	_, err := e.sshRunner.Run(stopCtx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return domain.VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}

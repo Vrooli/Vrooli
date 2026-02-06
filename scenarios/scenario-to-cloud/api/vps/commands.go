@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/internal/shellutil"
 )
 
 // ActionRequest is the request body for VPS management actions.
@@ -57,22 +57,22 @@ func BuildStopAllCommand(workdir string, manifest domain.CloudManifest) string {
 	var commands []string
 
 	// Stop target scenario
-	commands = append(commands, ssh.VrooliCommand(workdir,
-		fmt.Sprintf("vrooli scenario stop %s 2>/dev/null || true", ssh.QuoteSingle(manifest.Scenario.ID))))
+	commands = append(commands, shellutil.VrooliCommand(workdir,
+		fmt.Sprintf("vrooli scenario stop %s 2>/dev/null || true", shellutil.QuoteSingle(manifest.Scenario.ID))))
 
 	// Stop dependent scenarios
 	for _, scenarioID := range manifest.Dependencies.Scenarios {
 		if scenarioID == manifest.Scenario.ID {
 			continue
 		}
-		commands = append(commands, ssh.VrooliCommand(workdir,
-			fmt.Sprintf("vrooli scenario stop %s 2>/dev/null || true", ssh.QuoteSingle(scenarioID))))
+		commands = append(commands, shellutil.VrooliCommand(workdir,
+			fmt.Sprintf("vrooli scenario stop %s 2>/dev/null || true", shellutil.QuoteSingle(scenarioID))))
 	}
 
 	// Stop resources
 	for _, resourceID := range manifest.Dependencies.Resources {
-		commands = append(commands, ssh.VrooliCommand(workdir,
-			fmt.Sprintf("vrooli resource stop %s 2>/dev/null || true", ssh.QuoteSingle(resourceID))))
+		commands = append(commands, shellutil.VrooliCommand(workdir,
+			fmt.Sprintf("vrooli resource stop %s 2>/dev/null || true", shellutil.QuoteSingle(resourceID))))
 	}
 
 	if len(commands) == 0 {
@@ -114,13 +114,13 @@ func BuildCleanupCommand(workdir string, manifest domain.CloudManifest, level in
 	switch level {
 	case 1:
 		// Level 1: Remove builds only
-		cmd := fmt.Sprintf("rm -rf %s/scenarios/*/builds 2>/dev/null && echo 'Builds removed'", ssh.QuoteSingle(workdir))
+		cmd := fmt.Sprintf("rm -rf %s/scenarios/*/builds 2>/dev/null && echo 'Builds removed'", shellutil.QuoteSingle(workdir))
 		return cmd, "Scenario builds removed"
 
 	case 2:
 		// Level 2: Stop all + remove builds
 		stopCmd := BuildStopAllCommand(workdir, manifest)
-		cleanCmd := fmt.Sprintf("rm -rf %s/scenarios/*/builds 2>/dev/null", ssh.QuoteSingle(workdir))
+		cleanCmd := fmt.Sprintf("rm -rf %s/scenarios/*/builds 2>/dev/null", shellutil.QuoteSingle(workdir))
 		return stopCmd + " && " + cleanCmd + " && echo 'Stopped processes and removed builds'", "All Vrooli processes stopped and builds removed"
 
 	case 3:
@@ -132,13 +132,13 @@ func BuildCleanupCommand(workdir string, manifest domain.CloudManifest, level in
 	case 4:
 		// Level 4: Remove entire Vrooli installation
 		stopCmd := BuildStopAllCommand(workdir, manifest)
-		removeCmd := fmt.Sprintf("rm -rf %s && echo 'Vrooli installation removed'", ssh.QuoteSingle(workdir))
+		removeCmd := fmt.Sprintf("rm -rf %s && echo 'Vrooli installation removed'", shellutil.QuoteSingle(workdir))
 		return stopCmd + " && " + removeCmd, "Vrooli installation removed"
 
 	case 5:
 		// Level 5: Full reset - remove Vrooli + Docker prune + cleanup system packages
 		stopCmd := BuildStopAllCommand(workdir, manifest)
-		removeCmd := fmt.Sprintf("rm -rf %s", ssh.QuoteSingle(workdir))
+		removeCmd := fmt.Sprintf("rm -rf %s", shellutil.QuoteSingle(workdir))
 		dockerPrune := BuildDockerPruneCommand()
 		aptClean := "apt-get autoremove -y 2>/dev/null || true"
 		journalClean := "journalctl --vacuum-time=1d 2>/dev/null || true"

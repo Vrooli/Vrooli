@@ -39,8 +39,8 @@ scenario-to-cloud vps-inspect-apply manifest.json
 
 - PRD: `scenarios/scenario-to-cloud/PRD.md`
 - Requirements: `scenarios/scenario-to-cloud/requirements/`
-- Research: `scenarios/scenario-to-cloud/docs/RESEARCH.md`
-- Problems/Risks: `scenarios/scenario-to-cloud/docs/PROBLEMS.md`
+- Research: `scenarios/scenario-to-cloud/docs/internal/RESEARCH.md`
+- Problems/Risks: `scenarios/scenario-to-cloud/docs/internal/PROBLEMS.md`
 
 ## P0 Deployment Intent (VPS)
 

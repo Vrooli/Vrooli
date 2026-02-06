@@ -176,7 +176,7 @@ type mockSSHRunner struct {
 	err    error
 }
 
-func (m *mockSSHRunner) Run(_ context.Context, _ ssh.Config, _ string) (ssh.Result, error) {
+func (m *mockSSHRunner) Run(_ context.Context, _ ssh.Config, _ string, _ ssh.RunOptions) (ssh.Result, error) {
 	return m.result, m.err
 }
 

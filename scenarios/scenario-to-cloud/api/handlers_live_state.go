@@ -10,6 +10,7 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
@@ -70,8 +71,8 @@ func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Execute ls -la
-	cmd := "ls -la " + ssh.QuoteSingle(requestedPath)
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	cmd := "ls -la " + shellutil.QuoteSingle(requestedPath)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "ssh_failed",
@@ -137,8 +138,8 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Get file size first
-	sizeCmd := "stat -c %s " + ssh.QuoteSingle(requestedPath) + " 2>/dev/null || echo -1"
-	sizeResult, _ := s.sshRunner.Run(ctx, dc.SSHConfig, sizeCmd)
+	sizeCmd := "stat -c %s " + shellutil.QuoteSingle(requestedPath) + " 2>/dev/null || echo -1"
+	sizeResult, _ := s.sshRunner.Run(ctx, dc.SSHConfig, sizeCmd, ssh.DefaultRunOptions())
 	fileSize := -1
 	if sizeResult.Stdout != "" {
 		fileSize, _ = parseInt(sizeResult.Stdout)
@@ -147,13 +148,13 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 	// Limit file size (1MB max)
 	const maxFileSize = 1024 * 1024
 	truncated := false
-	readCmd := "cat " + ssh.QuoteSingle(requestedPath)
+	readCmd := "cat " + shellutil.QuoteSingle(requestedPath)
 	if fileSize > maxFileSize {
-		readCmd = "head -c " + intToStr(maxFileSize) + " " + ssh.QuoteSingle(requestedPath)
+		readCmd = "head -c " + intToStr(maxFileSize) + " " + shellutil.QuoteSingle(requestedPath)
 		truncated = true
 	}
 
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, readCmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, readCmd, ssh.DefaultRunOptions())
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "ssh_failed",
@@ -253,7 +254,7 @@ func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := "kill -" + signal + " " + intToStr(req.PID)
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "kill_failed",
@@ -308,9 +309,9 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	cmd := ssh.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" restart "+ssh.QuoteSingle(req.ID))
+	cmd := shellutil.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" restart "+shellutil.QuoteSingle(req.ID))
 
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		s.appendHistoryEvent(ctx, dc.ID, domain.HistoryEvent{
 			Type:      domain.EventRestarted,
@@ -371,8 +372,8 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	cmd := ssh.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" "+req.Action+" "+ssh.QuoteSingle(req.ID))
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	cmd := shellutil.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" "+req.Action+" "+shellutil.QuoteSingle(req.ID))
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 
 	response := ProcessControlResponse{
 		Action:    req.Action,

@@ -15,6 +15,7 @@ import (
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
@@ -327,13 +328,13 @@ func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domai
 		cfg := ssh.ConfigFromManifest(manifest)
 		workdir := manifest.Target.VPS.Workdir
 		bundleFilename := filepath.Base(*deployment.BundlePath)
-		remoteBundlePath := ssh.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
+		remoteBundlePath := shellutil.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
 
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		cmd := fmt.Sprintf("rm -f %s", ssh.QuoteSingle(remoteBundlePath))
-		if _, err := s.sshRunner.Run(ctx, cfg, cmd); err != nil {
+		cmd := fmt.Sprintf("rm -f %s", shellutil.QuoteSingle(remoteBundlePath))
+		if _, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions()); err != nil {
 			s.log("failed to delete VPS bundle", map[string]interface{}{
 				"path":  remoteBundlePath,
 				"error": err.Error(),
@@ -602,9 +603,9 @@ func (s *Server) stopDeploymentOnVPS(ctx context.Context, m domain.CloudManifest
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	cmd := ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", ssh.QuoteSingle(normalized.Scenario.ID)))
+	cmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellutil.QuoteSingle(normalized.Scenario.ID)))
 
-	_, err := s.sshRunner.Run(ctx, cfg, cmd)
+	_, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return domain.VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}

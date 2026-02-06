@@ -15,26 +15,30 @@ Scenario-to-Cloud is a deployment orchestrator that:
 
 ### 1. Entry/Presentation Layer
 
-**Location:** `handlers_*.go` files
+**Location:** `handlers_*.go` files (main package)
 
 | File | Responsibility |
 |------|---------------|
 | `handlers_bundle.go` | Bundle operations: build, list, stats, cleanup, manifest validation |
 | `handlers_deployment.go` | Deployment CRUD and execution orchestration |
-| `handlers_preflight.go` | Preflight checks and fix actions (port cleanup, disk management) |
 | `handlers_vps_operations.go` | VPS setup/deploy/inspect plan and apply endpoints |
 | `handlers_vps_management.go` | VPS management actions (reboot, stop, cleanup levels) |
 | `handlers_live_state.go` | Real-time VPS state inspection (files, processes, drift) |
 | `handlers_edge.go` | Edge/TLS management (DNS checks, Caddy control) |
 | `handlers_history.go` | Deployment history and log retrieval |
 | `handlers_terminal.go` | WebSocket terminal access |
-| `handlers_ssh.go` | SSH key management |
 | `handlers_investigation.go` | Agent-assisted deployment investigation |
-| `handlers_secrets.go` | Secret retrieval for deployments |
 | `handlers_docs.go` | Documentation serving |
 | `handlers_progress.go` | SSE-based deployment progress streaming |
+| `handlers_tasks.go` | Task management endpoints |
+| `handlers_health.go` | Health check endpoints |
+| `vps/preflight/handlers.go` | Preflight checks and fix actions (port cleanup, disk management) |
+| `secrets/handlers.go` | Secret retrieval for deployments |
+| `secrets/handlers_management.go` | Secret management operations |
+| `ssh/handlers.go` | SSH key management and connection testing |
 
 **Pattern:** Handlers decode requests, delegate to domain/service logic, encode responses.
+All SSH handlers use the factory pattern (`HandleXxx(dep) http.HandlerFunc`) and accept their dependencies explicitly (e.g., `*KeyService`, `KeyCopier`, `Runner`).
 
 ### 2. Domain Types
 
@@ -63,14 +67,20 @@ type BundleArtifact = domain.BundleArtifact
 
 | File | Responsibility |
 |------|---------------|
-| `manifest.go` | Manifest validation and normalization rules (uses `domain.CloudManifest`) |
-| `bundle.go` | Bundle building rules, file inclusion/exclusion logic |
-| `preflight.go` | Preflight check definitions and execution |
-| `vps_deploy.go` | Deployment execution logic, secret validation |
-| `vps_setup.go` | VPS setup step orchestration |
-| `vps_inspect.go` | VPS inspection logic |
-| `vps_stop.go` | Scenario stopping logic |
-| `vps_live_state.go` | Live VPS state collection via SSH |
+| `manifest/` | Manifest validation and normalization rules (uses `domain.CloudManifest`) |
+| `bundle/` | Bundle building rules, file inclusion/exclusion logic |
+| `vps/preflight/runner.go` | Preflight check orchestration (`preflight.Run`) |
+| `vps/preflight/checks.go` | Individual preflight check definitions |
+| `vps/preflight/credentials.go` | Credential validation for preflight |
+| `vps/deploy.go` | Deployment execution logic, secret validation |
+| `vps/setup.go` | VPS setup step orchestration |
+| `vps/inspect.go` | VPS inspection logic |
+| `vps/stop.go` | Scenario stopping logic |
+| `vps/live_state.go` | Live VPS state collection via SSH (includes output parsing) |
+| `vps/step_config.go` | Per-step execution parameters and timeouts |
+| `vps/progress.go` | VPS deployment progress tracking |
+| `vps/tls.go` | TLS verification steps |
+| `vps/commands.go` | VPS command construction helpers |
 | `scenarios.go` | Scenario discovery and dependency resolution |
 
 ### 4. Orchestration / Coordination
@@ -78,9 +88,11 @@ type BundleArtifact = domain.BundleArtifact
 | File | Responsibility |
 |------|---------------|
 | `main.go` | Server initialization, route wiring, middleware |
-| `investigation_service.go` | Agent-manager integration for deployment investigation |
-| `progress.go` | Deployment progress tracking types |
-| `progress_hub.go` | SSE hub for broadcasting progress updates |
+| `investigation/service.go` | Agent-manager integration for deployment investigation |
+| `deployment/progress.go` | Deployment progress tracking types |
+| `deployment/hub.go` | SSE hub for broadcasting progress updates |
+| `deployment/orchestrator.go` | Deployment pipeline orchestration |
+| `deployment/manifest_refresh.go` | Manifest refresh logic for redeployments |
 
 ### 5. Integration / Infrastructure
 
@@ -91,19 +103,47 @@ type BundleArtifact = domain.BundleArtifact
 | `persistence/investigation.go` | Investigation CRUD operations |
 | `agentmanager/client.go` | Agent-manager HTTP client |
 | `agentmanager/service.go` | Agent-manager integration service |
-| `vps_runners.go` | SSH/SCP command execution interfaces |
-| `ssh_keys.go` | SSH key generation and management |
-| `secrets_client.go` | Secrets-manager integration |
-| `secrets_generator.go` | Secret value generation |
-| `secrets_writer.go` | Secret file writing |
-| `parsers.go` | VPS command output parsing (ps, ss, /proc/stat, Caddyfile) |
+| `secrets/client.go` | Secrets-manager integration (`secrets.Fetcher` interface, `secrets.Client` impl) |
+| `secrets/generator.go` | Secret value generation (`secrets.GeneratorFunc` interface) |
+| `secrets/writer.go` | Secret file writing |
+| `secrets/handlers.go` | Secret retrieval HTTP handlers |
+| `secrets/handlers_management.go` | Secret management HTTP handlers |
+| `internal/shellutil/shell.go` | Shell quoting (`QuoteSingle`), `VrooliCommand`, `SafeRemoteJoin`, `ValidateTildeExpansion` |
+| `internal/stringutil/strings.go` | String utility functions |
 
-### 6. Cross-Cutting Concerns
+### 6. SSH Package
+
+**Location:** `ssh/` package
+
+The `ssh/` package provides SSH and SCP execution infrastructure for VPS operations:
 
 | File | Responsibility |
 |------|---------------|
+| `ssh/doc.go` | Package documentation |
+| `ssh/config.go` | SSH connection config, defaults (port 22, user "root"), `Result` type, `nowTimestamp()` |
+| `ssh/options.go` | SSH/SCP option structs (`RunOptions`, `SCPOptions`, `HandlerOptions`), argument assembly (`BuildSSHArgs`, `BuildSCPArgs`) |
+| `ssh/runner.go` | `Runner` and `SCPRunner` interfaces, `ExecRunner`/`ExecSCPRunner` impls, `runSSH` helper, `boundedBuffer` |
+| `ssh/connect.go` | Connection testing (`TestConnection`), `IsIPv6` |
+| `ssh/errors.go` | SSH error classification (`ClassifyError`, `newCommandError`), `ErrorInfoFromSSHError` bridge to domain types |
+| `ssh/keys.go` | `KeyService` struct + methods: `DiscoverKeys`, `ReadPublicKey`, `DeleteKey`, `parseKeyFile`, `getKeyFingerprint` |
+| `ssh/keys_generate.go` | `KeyService.GenerateKey` method via `ssh-keygen` |
+| `ssh/keys_copy.go` | `KeyCopier` interface, `ExecKeyCopier` impl via `golang.org/x/crypto/ssh` password auth |
+| `ssh/command.go` | `CommandRunner` interface + `ExecCommandRunner` impl for local command abstraction |
+| `ssh/handlers.go` | HTTP handler factories — all accept explicit dependencies (`*KeyService`, `KeyCopier`, `Runner`) |
+| `ssh/types.go` | Domain types: `KeyType`, `KeyInfo` |
+| `ssh/dto.go` | HTTP request/response DTOs |
+| `ssh/path.go` | Path utilities: `GetSSHDir`, `ValidateSSHPath`, `ValidateKeyFilename`, `ExpandPath` |
+| `ssh/format.go` | Command formatting for display/logging (uses `shellutil.QuoteSingle`) |
+
+### 7. Cross-Cutting Concerns
+
+| File | Responsibility |
+|------|---------------|
+| `internal/shellutil/shell.go` | Shell quoting (`QuoteSingle`), `VrooliCommand`, `SafeRemoteJoin`, `ValidateTildeExpansion` |
+| `internal/stringutil/strings.go` | String utility functions |
+| `internal/httputil/decode.go` | Generic JSON request decoding |
+| `internal/httputil/response.go` | HTTP response writing helpers |
 | `http_helpers.go` | JSON response writing, error responses |
-| `vps_utils.go` | SSH config, shell quoting, remote path utilities |
 
 ## Testability Seams (Interfaces for Substitution)
 
@@ -111,25 +151,48 @@ The codebase uses interface-based seams to enable testing without requiring live
 
 ### SSH/SCP Operations
 
-**Location:** `vps_runners.go`
+**Location:** `ssh/runner.go`
 
 | Interface | Implementation | Purpose |
 |-----------|---------------|---------|
-| `SSHRunner` | `ExecSSHRunner` | Execute commands on remote VPS via SSH |
-| `SCPRunner` | `ExecSCPRunner` | Copy files to remote VPS via SCP |
+| `ssh.Runner` | `ssh.ExecRunner` | Execute commands on remote VPS via SSH |
+| `ssh.SCPRunner` | `ssh.ExecSCPRunner` | Copy files to remote VPS via SCP |
 
-**Usage in tests:** Use `fakeSSHRunner` (see `preflight_test.go`) to return predetermined responses.
+**Usage in tests:** Use `FakeSSHRunner` / `FakeSCPRunner` from `test_fakes.go`:
 
 ```go
-type fakeSSHRunner struct {
-    responses map[string]SSHResult
-    errs      map[string]error
-}
+sshFake := &FakeSSHRunner{Responses: map[string]ssh.Result{
+    "echo ok": {ExitCode: 0, Stdout: "ok"},
+}}
 ```
+
+### Local Command Execution (ssh-keygen)
+
+**Location:** `ssh/command.go`
+
+| Interface | Implementation | Purpose |
+|-----------|---------------|---------|
+| `ssh.CommandRunner` | `ssh.ExecCommandRunner` | Execute local commands (e.g., `ssh-keygen`) |
+
+**Usage in tests:** Pass a fake `CommandRunner` to `ssh.NewKeyService(fake, tmpDir)`:
+
+```go
+keySvc := ssh.NewKeyService(myFake, t.TempDir())
+```
+
+### Key Copying
+
+**Location:** `ssh/keys_copy.go`
+
+| Interface | Implementation | Purpose |
+|-----------|---------------|---------|
+| `ssh.KeyCopier` | `ssh.ExecKeyCopier` | Copy SSH public key to remote server via password auth |
+
+**Usage in tests:** Implement `KeyCopier` to return test responses without network calls.
 
 ### DNS Resolution
 
-**Location:** `api/dns` package (`dns.Service`, `dns.Resolver`)
+**Location:** `dns/` package (`dns.Service`, `dns.Resolver`)
 
 The DNS service exposes a resolver seam for DNS lookups and encapsulates
 comparisons + hints used by preflight and edge checks.
@@ -139,34 +202,34 @@ to control DNS responses.
 
 ### Secrets Fetching
 
-**Location:** `secrets_client.go`
+**Location:** `secrets/client.go`
 
 | Interface | Implementation | Purpose |
 |-----------|---------------|---------|
-| `SecretsFetcher` | `SecretsClient` | Fetch secrets from secrets-manager service |
+| `secrets.Fetcher` | `secrets.Client` | Fetch secrets from secrets-manager service |
 
 **Methods:**
 - `FetchBundleSecrets(ctx, scenario, tier, resources)` - Retrieve secrets manifest
 - `HealthCheck(ctx)` - Verify secrets-manager is reachable
 
-**Usage in tests:** Implement `SecretsFetcher` to return test secrets without HTTP calls.
+**Usage in tests:** Implement `secrets.Fetcher` to return test secrets without HTTP calls.
 
 ### Secrets Generation
 
-**Location:** `secrets_generator.go`
+**Location:** `secrets/generator.go`
 
 | Interface | Implementation | Purpose |
 |-----------|---------------|---------|
-| `SecretsGeneratorFunc` | `SecretsGenerator` | Generate per-install secrets using crypto/rand |
+| `secrets.GeneratorFunc` | `secrets.Generator` | Generate per-install secrets using crypto/rand |
 
 **Methods:**
 - `GenerateSecrets(plans)` - Generate secret values for per_install_generated class
 
-**Usage in tests:** Implement `SecretsGeneratorFunc` to return deterministic values.
+**Usage in tests:** Implement `secrets.GeneratorFunc` to return deterministic values.
 
 ### Progress Tracking
 
-**Location:** `progress.go`
+**Location:** `vps/progress.go` and `deployment/progress.go`
 
 The `ProgressRepo` interface abstracts deployment progress persistence:
 ```go
@@ -174,6 +237,14 @@ type ProgressRepo interface {
     UpdateDeploymentProgress(ctx context.Context, id, step string, percent float64) error
 }
 ```
+
+`ProgressEvent` carries structured error metadata (`ErrorCategory`, `Retryable`, `Hint`) when a step fails with a classifiable SSH error. The `deployment.Event` mirrors these fields and the `progressHubAdapter` copies them through.
+
+### Error Classification Bridge
+
+**Location:** `ssh/errors.go`
+
+`ErrorInfoFromSSHError(*SSHError) *domain.ErrorInfo` converts an `*ssh.SSHError` into a `*domain.ErrorInfo` suitable for JSON API responses. The `failStep` closures in `vps/setup.go` and `vps/deploy.go` use `errors.As` to extract `*ssh.SSHError` from any error and populate `ErrorInfo` on the result types.
 
 ## Key Seams (Where to Make Changes)
 
@@ -183,7 +254,7 @@ type ProgressRepo interface {
 3. Update this SEAMS.md to document the new types
 
 ### Adding a New Deployment Phase
-1. Define step types in the relevant `vps_*.go` file
+1. Define step types in the relevant `vps/*.go` file
 2. Add handler(s) in appropriate `handlers_*.go`
 3. Update route registration in `main.go`
 
@@ -193,16 +264,16 @@ type ProgressRepo interface {
 3. Add command builder function
 
 ### Adding a New Preflight Check
-1. Add check logic to `RunVPSPreflight` in `preflight.go`
+1. Add check logic to `preflight.Run` in `vps/preflight/runner.go`
 2. Use pass/warn/fail closures for consistent output
 
 ### Modifying Manifest Schema
 1. Update types in `domain/manifest.go`
-2. Update validation in `manifest.go` (`ValidateAndNormalizeManifest`)
+2. Update validation in `manifest/` (`ValidateAndNormalizeManifest`)
 3. Update tests in `manifest_contract_test.go`
 
 ### Adding Bundle Contents
-1. Update bundling rules in `bundle.go`
+1. Update bundling rules in `bundle/`
 2. Update tests in `bundling_rules_test.go`
 
 ### Adding a Database Table
@@ -221,17 +292,24 @@ When adding code that talks to external services:
 ## Dependency Direction
 
 ```
-handlers_*.go
+handlers_*.go (main package)
       │
       ├──► domain/* (types, DTOs)
       │
-      ├──► manifest.go (validation, uses domain types)
+      ├──► manifest/ (validation)
       │
-      ├──► vps_*.go (business logic)
+      ├──► vps/ (business logic: deploy, setup, inspect, stop, live_state)
+      │    └──► vps/preflight/ (preflight checks)
       │
-      ├──► bundle.go (bundling logic)
+      ├──► bundle/ (bundling logic)
       │
-      ├──► preflight.go (preflight logic)
+      ├──► deployment/ (orchestration, progress hub)
+      │
+      ├──► secrets/ (fetching, generation, writing)
+      │
+      ├──► ssh/ (SSH/SCP execution, key management)
+      │
+      ├──► investigation/ (agent investigation)
       │
       └──► persistence/* (data access)
                │
@@ -243,6 +321,8 @@ handlers_*.go
 - Main package imports `domain/` and re-exports types via aliases
 - `persistence/` imports `domain/` for entity types
 - `agentmanager/` is self-contained integration code
+- `ssh/`, `secrets/`, `vps/`, `deployment/`, `investigation/` import `domain/` and relevant internal packages
+- `internal/shellutil/` and `internal/stringutil/` are leaf utility packages
 
 ## File Size Indicators
 
@@ -250,16 +330,15 @@ Files over 500 lines that may benefit from further splitting:
 
 | File | Lines | Notes |
 |------|-------|-------|
-| `bundle.go` | ~1070 | Consider separating stats/cleanup into `bundle_cleanup.go` |
+| `bundle/builder.go` | ~1070 | Consider separating stats/cleanup into `bundle_cleanup.go` |
 | `handlers_live_state.go` | ~700 | Reduced after type extraction to domain; cohesive |
-| `ssh_keys.go` | ~888 | Consider separating generation from management |
-| `investigation_service.go` | ~847 | Complex orchestration, may be acceptable |
+| `investigation/service.go` | ~847 | Complex orchestration, may be acceptable |
 
 ## Anti-Patterns to Avoid
 
 1. **Don't add business logic to handlers** - Handlers should only decode/encode and delegate
-2. **Don't add HTTP concerns to domain logic** - vps_*.go should not import net/http
-3. **Don't scatter SSH commands** - Use vps_runners.go interfaces
+2. **Don't add HTTP concerns to domain logic** - vps/*.go should not import net/http
+3. **Don't scatter SSH commands** - Use `ssh.Runner` / `ssh.SCPRunner` interfaces via `ssh/runner.go`
 4. **Don't duplicate manifest validation** - Always go through ValidateAndNormalizeManifest
 5. **Don't define domain types outside domain/** - Use type aliases in main package for backward compatibility
 6. **Don't import main package from domain/** - domain/ must remain a leaf package
@@ -286,8 +365,8 @@ Extended domain type consolidation following the screaming-architecture-audit an
 
 **Updated main package files:**
 - `preflight.go` - Now uses type aliases from domain.PreflightCheckStatus, etc.
-- `vps_setup.go` - Now uses type aliases from domain.VPSPlanStep, domain.VPSSetupResult
-- `vps_deploy.go` - Now uses type aliases from domain.VPSDeployResult, domain.MissingSecretInfo
+- `vps/setup.go` - Now uses type aliases from domain.VPSPlanStep, domain.VPSSetupResult
+- `vps/deploy.go` - Now uses type aliases from domain.VPSDeployResult, domain.MissingSecretInfo
 - `handlers_bundle.go` - Now uses type aliases from domain for all DTOs
 
 **Pattern established:**
@@ -303,23 +382,23 @@ type (
 Added explicit interfaces for external integrations to enable testing without live services:
 
 **New interfaces:**
-- `SecretsFetcher` in `secrets_client.go` - Abstracts secrets-manager HTTP calls
-- `SecretsGeneratorFunc` in `secrets_generator.go` - Abstracts crypto/rand secret generation
+- `secrets.Fetcher` in `secrets/client.go` - Abstracts secrets-manager HTTP calls
+- `secrets.GeneratorFunc` in `secrets/generator.go` - Abstracts crypto/rand secret generation
 
 **Pattern:**
 ```go
 // Interface definition
-type SecretsFetcher interface {
+type Fetcher interface {
     FetchBundleSecrets(ctx context.Context, scenario, tier string, resources []string) (*SecretsManagerResponse, error)
     HealthCheck(ctx context.Context) error
 }
 
 // Compile-time interface check
-var _ SecretsFetcher = (*SecretsClient)(nil)
+var _ Fetcher = (*Client)(nil)
 ```
 
 **Existing seams preserved:**
-- `SSHRunner` / `SCPRunner` for VPS command execution (already well-used in tests)
+- `ssh.Runner` / `ssh.SCPRunner` for VPS command execution (already well-used in tests)
 - `dns.Service` / `dns.Resolver` for DNS lookups and comparisons
 - `ProgressRepo` for deployment progress persistence
 
@@ -331,41 +410,38 @@ Promoted seams from inline instantiation to proper dependency injection via the 
 type Server struct {
     // ... existing fields ...
 
-    // Seam: SSH command execution (defaults to ExecSSHRunner)
-    sshRunner SSHRunner
-    // Seam: SCP file transfer (defaults to ExecSCPRunner)
-    scpRunner SCPRunner
-    // Seam: Secrets fetching (defaults to NewSecretsClient())
-    secretsFetcher SecretsFetcher
-    // Seam: Secrets generation (defaults to NewSecretsGenerator())
-    secretsGenerator SecretsGeneratorFunc
+    // Seam: SSH command execution (defaults to ssh.ExecRunner)
+    sshRunner ssh.Runner
+    // Seam: SCP file transfer (defaults to ssh.ExecSCPRunner)
+    scpRunner ssh.SCPRunner
+    // Seam: Secrets fetching (defaults to secrets.NewClient())
+    secretsFetcher secrets.Fetcher
+    // Seam: Secrets generation (defaults to secrets.NewGenerator())
+    secretsGenerator secrets.GeneratorFunc
     // Seam: DNS services (defaults to dns.NewService(dns.NetResolver{}, dns.WithTimeout(...)))
     dnsService dns.Service
+    // Seam: TLS probe service (defaults to tlsinfo.NewService(...))
+    tlsService tlsinfo.Service
+    // Seam: TLS ALPN runner (defaults to tlsinfo.DefaultALPNRunner)
+    tlsALPNRunner tlsinfo.ALPNRunner
+    // Seam: Deployment repository (defaults to persistence.Repository)
+    deploymentRepo DeploymentRepository
 }
 ```
 
 **Handler migration complete - all handlers now use Server seams:**
 - `handlers_deployment.go`: Uses `s.sshRunner`, `s.scpRunner`, `s.secretsFetcher`, `s.secretsGenerator`
-- `handlers_preflight.go`: Uses `s.sshRunner`, `s.dnsService`
+- `vps/preflight/handlers.go`: Uses `s.sshRunner`, `s.dnsService`
 - `handlers_bundle.go`: Uses `s.sshRunner`
 - `handlers_live_state.go`: Uses `s.sshRunner`
 - `handlers_vps_management.go`: Uses `s.sshRunner`
 - `handlers_edge.go`: Uses `s.sshRunner`, `s.dnsService`
 
-**Updated business logic in `vps_deploy.go`:**
-- `RunVPSDeploy`: Now accepts `SecretsGeneratorFunc` parameter (defaults to `NewSecretsGenerator()` if nil)
-- `RunVPSDeployWithProgress`: Now accepts `SecretsGeneratorFunc` parameter (defaults to `NewSecretsGenerator()` if nil)
-
-**Benefits:**
-- All handlers can be fully tested with fake implementations
-- No live SSH/SCP/DNS/secrets-manager connections required in tests
-- Production code unchanged (defaults to real implementations)
-
 **Testing pattern:**
 ```go
 // In tests, create a Server with fake seams:
 srv := &Server{
-    sshRunner:        &FakeSSHRunner{Responses: map[string]SSHResult{...}},
+    sshRunner:        &FakeSSHRunner{Responses: map[string]ssh.Result{...}},
     scpRunner:        &FakeSCPRunner{},
     secretsFetcher:   &FakeSecretsFetcher{Response: testSecrets},
     secretsGenerator: &FakeSecretsGenerator{Values: map[string]string{"key": "deterministic-value"}},
@@ -384,10 +460,10 @@ Added `test_fakes.go` with reusable fake implementations for all seams:
 | Fake | Interface | Purpose |
 |------|-----------|---------|
 | `FakeResolver` | `dns.Resolver` | Control DNS lookup responses |
-| `FakeSSHRunner` | `SSHRunner` | Control SSH command responses, track calls |
-| `FakeSCPRunner` | `SCPRunner` | Control SCP copy results, track calls |
-| `FakeSecretsFetcher` | `SecretsFetcher` | Control secrets-manager responses |
-| `FakeSecretsGenerator` | `SecretsGeneratorFunc` | Return deterministic secret values |
+| `FakeSSHRunner` | `ssh.Runner` | Control SSH command responses, track calls |
+| `FakeSCPRunner` | `ssh.SCPRunner` | Control SCP copy results, track calls |
+| `FakeSecretsFetcher` | `secrets.Fetcher` | Control secrets-manager responses |
+| `FakeSecretsGenerator` | `secrets.GeneratorFunc` | Return deterministic secret values |
 
 **Features of all fakes:**
 - Thread-safe call recording via `Calls` field
@@ -397,12 +473,12 @@ Added `test_fakes.go` with reusable fake implementations for all seams:
 
 **Example with call verification:**
 ```go
-ssh := &FakeSSHRunner{Responses: map[string]SSHResult{
+sshFake := &FakeSSHRunner{Responses: map[string]ssh.Result{
     "echo ok": {ExitCode: 0, Stdout: "ok"},
 }}
 // ... run handler ...
-if len(ssh.Calls) != 1 || ssh.Calls[0] != "echo ok" {
-    t.Errorf("unexpected SSH calls: %v", ssh.Calls)
+if len(sshFake.Calls) != 1 || sshFake.Calls[0] != "echo ok" {
+    t.Errorf("unexpected SSH calls: %v", sshFake.Calls)
 }
 ```
 
@@ -458,38 +534,35 @@ type AnalyzerClient interface {
 
 **Recommendation:** Extract if tests need to mock analyzer responses. Currently, analyzer is typically available during testing via the scenario lifecycle.
 
-### Orchestrator Extraction
-The `runDeploymentPipeline` function in `handlers_deployment.go` is ~180 lines of orchestration logic that coordinates:
-1. Secrets fetching
-2. Bundle building
-3. VPS setup
-4. VPS deployment
-5. Progress tracking
-
-Consider extracting to a `DeploymentOrchestrator` struct with explicit dependencies:
-```go
-type DeploymentOrchestrator struct {
-    repo        DeploymentRepository
-    progressHub *ProgressHub
-    logger      func(msg string, fields map[string]interface{})
-    sshRunner   SSHRunner
-    scpRunner   SCPRunner
-}
-
-func (o *DeploymentOrchestrator) Execute(ctx context.Context, id string, manifest CloudManifest, ...) error
-```
-
-Benefits:
-- Clearer responsibility boundary
-- Easier testing through dependency injection
-- Separates HTTP concerns from orchestration logic
-
 ### Bundle Cleanup Separation
-`bundle.go` (~1070 lines) could be split:
-- `bundle.go` - Core bundling logic
-- `bundle_cleanup.go` - Stats, cleanup, retention logic
+`bundle/builder.go` (~1070 lines) could be split:
+- `bundle/builder.go` - Core bundling logic
+- `bundle/cleanup.go` - Stats, cleanup, retention logic
 
-### SSH Keys Separation
-`ssh_keys.go` (~888 lines) could be split:
-- `ssh_keys.go` - Key management
-- `ssh_keys_generator.go` - Key generation logic
+### SSH Subsystem Refactoring (2026-02)
+
+**Shell utility extraction:**
+- Moved `QuoteSingle`, `VrooliCommand`, `SafeRemoteJoin`, `ValidateTildeExpansion` from `ssh/shell.go` to `internal/shellutil/shell.go`
+- 15+ consumer files now import `shellutil` directly instead of `ssh` for string quoting
+- Deleted `ssh/shell.go` and `ssh/shell_test.go`
+
+**KeyService struct:**
+- Replaced package-level functions + global `defaultCommandRunner` with `KeyService` struct
+- `NewKeyService(cmd, sshDir)` accepts explicit `CommandRunner` and SSH directory for testing
+- All key operations (`DiscoverKeys`, `GenerateKey`, `ReadPublicKey`, `DeleteKey`) are now methods
+- Removed `SetCommandRunner` global state (test-race hazard eliminated)
+
+**KeyCopier interface:**
+- Added `KeyCopier` interface and `ExecKeyCopier` implementation in `ssh/keys_copy.go`
+- `HandleCopyKey` now accepts `KeyCopier` dependency
+
+**Handler DI consistency:**
+- All SSH handlers now accept explicit dependencies: `HandleListKeys(ks)`, `HandleGenerateKey(ks)`, `HandleGetPublicKey(ks)`, `HandleDeleteKey(ks)`, `HandleCopyKey(copier)`, `HandleTestConnection(runner)`
+
+**Error handling consolidation:**
+- `ssh/errors.go` contains `ClassifyError` (exported) for SSH error classification and `ErrorInfoFromSSHError` for bridging to domain types
+- `ssh/runner.go` contains `Runner`/`SCPRunner` interfaces, `ExecRunner`/`ExecSCPRunner` implementations, and `boundedBuffer`
+
+**New tests:**
+- `ValidateSSHPath` table-driven tests in `ssh/path_test.go`
+- `boundedBuffer` and `exitCode` tests in `ssh/runner_test.go`

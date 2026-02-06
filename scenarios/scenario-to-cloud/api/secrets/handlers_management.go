@@ -14,6 +14,7 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -102,16 +103,16 @@ func restartScenarioOnVPS(
 	scenarioID string,
 ) error {
 	// Stop then start the scenario
-	stopCmd := ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", ssh.QuoteSingle(scenarioID)))
-	if _, err := sshRunner.Run(ctx, cfg, stopCmd); err != nil {
+	stopCmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellutil.QuoteSingle(scenarioID)))
+	if _, err := sshRunner.Run(ctx, cfg, stopCmd, ssh.DefaultRunOptions()); err != nil {
 		return fmt.Errorf("stop scenario: %w", err)
 	}
 
 	// Small delay to allow resources to release
 	time.Sleep(2 * time.Second)
 
-	startCmd := ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", ssh.QuoteSingle(scenarioID)))
-	if _, err := sshRunner.Run(ctx, cfg, startCmd); err != nil {
+	startCmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellutil.QuoteSingle(scenarioID)))
+	if _, err := sshRunner.Run(ctx, cfg, startCmd, ssh.DefaultRunOptions()); err != nil {
 		return fmt.Errorf("start scenario: %w", err)
 	}
 

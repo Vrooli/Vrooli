@@ -373,7 +373,7 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 
 	resp := CaddyControlResponse{
 		Action:    req.Action,

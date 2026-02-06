@@ -11,6 +11,7 @@ import (
 
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/secrets"
 )
 
@@ -96,13 +97,13 @@ func (r *manifestRefresher) RefreshManifest(ctx context.Context, base domain.Clo
 		// Update dependencies - always include the target scenario itself
 		// The validator requires dependencies.scenarios to include scenario.id
 		refreshed.Dependencies.Resources = resources
-		refreshed.Dependencies.Scenarios = stableUniqueStrings(append(scenarios, scenarioID))
+		refreshed.Dependencies.Scenarios = stringutil.SortedUnique(append(scenarios, scenarioID))
 		refreshed.Dependencies.Analyzer.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
 
 		// Update bundle inclusions - always include the target scenario itself
 		// The validator requires bundle.scenarios to include scenario.id
 		refreshed.Bundle.Resources = resources
-		refreshed.Bundle.Scenarios = stableUniqueStrings(append(scenarios, scenarioID))
+		refreshed.Bundle.Scenarios = stringutil.SortedUnique(append(scenarios, scenarioID))
 	}
 
 	// Re-fetch ports from service.json
@@ -150,8 +151,8 @@ func (f *DefaultDependenciesFetcher) FetchDependencies(ctx context.Context, scen
 			if f.ServiceJSONFetcher != nil {
 				sjResources, sjScenarios, sjErr := f.ServiceJSONFetcher(scenarioID)
 				if sjErr == nil {
-					resources = stableUniqueStrings(append(resources, sjResources...))
-					scenarios = stableUniqueStrings(append(scenarios, sjScenarios...))
+					resources = stringutil.SortedUnique(append(resources, sjResources...))
+					scenarios = stringutil.SortedUnique(append(scenarios, sjScenarios...))
 				}
 			}
 			return resources, scenarios, "analyzer", nil
@@ -254,17 +255,3 @@ func ServiceJSONDependenciesFetcher(scenarioID string) (resources, scenarios []s
 	return resources, scenarios, nil
 }
 
-// stableUniqueStrings returns unique strings while preserving order of first occurrence.
-func stableUniqueStrings(values []string) []string {
-	seen := make(map[string]bool, len(values))
-	out := make([]string, 0, len(values))
-	for _, v := range values {
-		if v == "" || seen[v] {
-			continue
-		}
-		seen[v] = true
-		out = append(out, v)
-	}
-	sort.Strings(out)
-	return out
-}

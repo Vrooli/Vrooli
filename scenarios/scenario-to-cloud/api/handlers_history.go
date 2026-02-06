@@ -13,6 +13,7 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 )
@@ -187,7 +188,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, ssh
 			cmd string
 		}{
 			id:  scenarioID,
-			cmd: ssh.VrooliCommand(workdir, "vrooli scenario logs "+ssh.QuoteSingle(scenarioID)+" --tail "+intToStr(tail)),
+			cmd: shellutil.VrooliCommand(workdir, "vrooli scenario logs "+shellutil.QuoteSingle(scenarioID)+" --tail "+intToStr(tail)),
 		})
 	}
 
@@ -213,7 +214,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, ssh
 				cmd string
 			}{
 				id:  res,
-				cmd: ssh.VrooliCommand(workdir, "vrooli resource logs "+ssh.QuoteSingle(res)+" --tail "+intToStr(tail/4)+" 2>/dev/null || echo 'No logs for "+res+"'"),
+				cmd: shellutil.VrooliCommand(workdir, "vrooli resource logs "+shellutil.QuoteSingle(res)+" --tail "+intToStr(tail/4)+" 2>/dev/null || echo 'No logs for "+res+"'"),
 			})
 		}
 	} else {
@@ -225,7 +226,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, ssh
 					cmd string
 				}{
 					id:  res,
-					cmd: ssh.VrooliCommand(workdir, "vrooli resource logs "+ssh.QuoteSingle(res)+" --tail "+intToStr(tail)+" 2>/dev/null || echo 'No logs for "+res+"'"),
+					cmd: shellutil.VrooliCommand(workdir, "vrooli resource logs "+shellutil.QuoteSingle(res)+" --tail "+intToStr(tail)+" 2>/dev/null || echo 'No logs for "+res+"'"),
 				})
 			}
 		}
@@ -233,7 +234,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, ssh
 
 	// Fetch logs from each source
 	for _, src := range sourcesToFetch {
-		result, err := sshRunner.Run(ctx, cfg, src.cmd)
+		result, err := sshRunner.Run(ctx, cfg, src.cmd, ssh.DefaultRunOptions())
 		if err != nil {
 			continue // Skip failed sources
 		}

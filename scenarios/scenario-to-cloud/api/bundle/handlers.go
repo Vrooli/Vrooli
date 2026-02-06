@@ -9,6 +9,7 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -203,16 +204,16 @@ func HandleDeleteVPSBundle(sshRunner ssh.Runner) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
-		bundlePath := ssh.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles", req.Filename)
+		bundlePath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles", req.Filename)
 
 		// Get file size before deleting
-		sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo 0", ssh.QuoteSingle(bundlePath))
-		sizeRes, _ := sshRunner.Run(ctx, cfg, sizeCmd)
+		sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo 0", shellutil.QuoteSingle(bundlePath))
+		sizeRes, _ := sshRunner.Run(ctx, cfg, sizeCmd, ssh.DefaultRunOptions())
 		sizeBytes := ParseBytes(strings.TrimSpace(sizeRes.Stdout))
 
 		// Delete the file
-		deleteCmd := fmt.Sprintf("rm -f %s", ssh.QuoteSingle(bundlePath))
-		_, err := sshRunner.Run(ctx, cfg, deleteCmd)
+		deleteCmd := fmt.Sprintf("rm -f %s", shellutil.QuoteSingle(bundlePath))
+		_, err := sshRunner.Run(ctx, cfg, deleteCmd, ssh.DefaultRunOptions())
 		if err != nil {
 			httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleDeleteResponse{
 				OK:        false,
@@ -331,11 +332,11 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	bundlesPath := ssh.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
+	bundlesPath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
 
 	// Get initial disk usage
-	beforeCmd := fmt.Sprintf("du -sb %s 2>/dev/null | cut -f1 || echo 0", ssh.QuoteSingle(bundlesPath))
-	beforeRes, _ := sshRunner.Run(ctx, cfg, beforeCmd)
+	beforeCmd := fmt.Sprintf("du -sb %s 2>/dev/null | cut -f1 || echo 0", shellutil.QuoteSingle(bundlesPath))
+	beforeRes, _ := sshRunner.Run(ctx, cfg, beforeCmd, ssh.DefaultRunOptions())
 	beforeBytes := ParseBytes(strings.TrimSpace(beforeRes.Stdout))
 
 	// Build cleanup command based on options
@@ -345,10 +346,10 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 		pattern := fmt.Sprintf("mini-vrooli_%s_*.tar.gz", req.ScenarioID)
 		cleanupCmd = fmt.Sprintf(
 			`cd %s && ls -t %s 2>/dev/null | tail -n +%d | xargs -r rm -f && ls %s 2>/dev/null | wc -l`,
-			ssh.QuoteSingle(bundlesPath),
-			ssh.QuoteSingle(pattern),
+			shellutil.QuoteSingle(bundlesPath),
+			shellutil.QuoteSingle(pattern),
 			req.KeepLatest+1,
-			ssh.QuoteSingle(pattern),
+			shellutil.QuoteSingle(pattern),
 		)
 	} else {
 		// Clean all scenarios, keep N newest per scenario
@@ -359,17 +360,17 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 				ls -t mini-vrooli_${scenario}_*.tar.gz 2>/dev/null | tail -n +%d | xargs -r rm -f
 			done
 			ls mini-vrooli_*.tar.gz 2>/dev/null | wc -l || echo 0
-		`, ssh.QuoteSingle(bundlesPath), req.KeepLatest+1)
+		`, shellutil.QuoteSingle(bundlesPath), req.KeepLatest+1)
 	}
 
 	// Run cleanup
-	_, err := sshRunner.Run(ctx, cfg, cleanupCmd)
+	_, err := sshRunner.Run(ctx, cfg, cleanupCmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return 0, 0, fmt.Errorf("cleanup command failed: %w", err)
 	}
 
 	// Get final disk usage
-	afterRes, _ := sshRunner.Run(ctx, cfg, beforeCmd)
+	afterRes, _ := sshRunner.Run(ctx, cfg, beforeCmd, ssh.DefaultRunOptions())
 	afterBytes := ParseBytes(strings.TrimSpace(afterRes.Stdout))
 
 	freedBytes := beforeBytes - afterBytes
@@ -394,15 +395,15 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 // Returns the list of bundles, total size, and any error.
 func ListVPSBundlesSSH(ctx context.Context, sshRunner ssh.Runner, req domain.VPSBundleListRequest) ([]domain.VPSBundleInfo, int64, error) {
 	cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-	bundlesPath := ssh.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
+	bundlesPath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
 
 	// List bundles with size and modification time (format: size_bytes\tfilename\tmod_time)
 	listCmd := fmt.Sprintf(
 		`cd %s 2>/dev/null && ls -1 mini-vrooli_*.tar.gz 2>/dev/null | while read f; do stat --printf="%%s\t%%n\t%%Y\n" "$f" 2>/dev/null; done || true`,
-		ssh.QuoteSingle(bundlesPath),
+		shellutil.QuoteSingle(bundlesPath),
 	)
 
-	res, err := sshRunner.Run(ctx, cfg, listCmd)
+	res, err := sshRunner.Run(ctx, cfg, listCmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return nil, 0, err
 	}

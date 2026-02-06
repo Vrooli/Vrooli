@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/stringutil"
 )
 
 // MiniBundleSpec describes what to include in a mini-Vrooli bundle.
@@ -79,10 +80,10 @@ func BuildMiniVrooliBundle(repoRoot, outDir string, manifest domain.CloudManifes
 
 // MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle.
 func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniBundleSpec, error) {
-	scenarioIDs := stableUniqueStrings(manifest.Bundle.Scenarios)
-	resourceIDs := stableUniqueStrings(manifest.Bundle.Resources)
+	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)
+	resourceIDs := stringutil.SortedUnique(manifest.Bundle.Resources)
 
-	if manifest.Bundle.IncludeAutoheal && !sliceContainsString(scenarioIDs, "vrooli-autoheal") {
+	if manifest.Bundle.IncludeAutoheal && !stringutil.Contains(scenarioIDs, "vrooli-autoheal") {
 		scenarioIDs = append(scenarioIDs, "vrooli-autoheal")
 		sort.Strings(scenarioIDs)
 	}
@@ -529,10 +530,10 @@ func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byt
 	}
 
 	// Build set of required resources from manifest
-	requiredResources := toStringSet(stableUniqueStrings(manifest.Bundle.Resources))
+	requiredResources := toStringSet(stringutil.SortedUnique(manifest.Bundle.Resources))
 
 	// Build set of required scenarios from manifest (including main scenario)
-	requiredScenarios := toStringSet(stableUniqueStrings(manifest.Bundle.Scenarios))
+	requiredScenarios := toStringSet(stringutil.SortedUnique(manifest.Bundle.Scenarios))
 	if manifest.Scenario.ID != "" {
 		requiredScenarios[manifest.Scenario.ID] = struct{}{}
 	}
@@ -712,26 +713,3 @@ func (cw countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// sliceContainsString checks if value is in the slice (used by bundle building).
-func sliceContainsString(slice []string, value string) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
-}
-
-// stableUniqueStrings returns a sorted slice with duplicates removed.
-func stableUniqueStrings(slice []string) []string {
-	seen := make(map[string]struct{}, len(slice))
-	result := make([]string, 0, len(slice))
-	for _, s := range slice {
-		if _, ok := seen[s]; !ok {
-			seen[s] = struct{}{}
-			result = append(result, s)
-		}
-	}
-	sort.Strings(result)
-	return result
-}

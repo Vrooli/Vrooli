@@ -1,5 +1,8 @@
 # Deployment Lifecycle
 
+> [CODE: api/domain/vps.go] — Deployment status constants and result types
+> [CODE: api/deployment/orchestrator.go] — Orchestrator pipeline implementation
+
 Understanding the stages and status transitions of a deployment.
 
 ## Status Flow

@@ -1,3 +1,4 @@
+// DOC: docs/reference/configuration.md — RunOptions, SCPOptions, presets
 package ssh
 
 import (
@@ -6,83 +7,104 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 )
 
 // Runner executes SSH commands on a remote host.
 type Runner interface {
-	Run(ctx context.Context, cfg Config, command string) (Result, error)
+	Run(ctx context.Context, cfg Config, command string, opts RunOptions) (Result, error)
 }
 
 // SCPRunner transfers files to a remote host via SCP.
 type SCPRunner interface {
-	Copy(ctx context.Context, cfg Config, localPath, remotePath string) error
+	Copy(ctx context.Context, cfg Config, localPath, remotePath string, opts SCPOptions) error
+}
+
+// exitCode extracts the exit code from an exec error.
+// Returns 0 for nil errors, the process exit code for ExitError,
+// or 255 for other errors (connection failures, etc.).
+func exitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode()
+	}
+	return 255
 }
 
 // ExecRunner implements Runner using os/exec.
 type ExecRunner struct{}
 
-const maxSSHOutputBytes = 512 * 1024
-
-// Run executes an SSH command and returns the result.
-func (ExecRunner) Run(ctx context.Context, cfg Config, command string) (Result, error) {
-	args := []string{
-		"-o", "BatchMode=yes",
-		"-o", "ConnectTimeout=5",
-		"-o", "ServerAliveInterval=5",
-		"-o", "ServerAliveCountMax=1",
-		"-o", "StrictHostKeyChecking=accept-new",
-		"-p", strconv.Itoa(cfg.Port),
-	}
-	if cfg.KeyPath != "" {
-		args = append(args, "-i", cfg.KeyPath)
-	}
+// runSSH executes an SSH command via os/exec with bounded output capture.
+// It builds the full argument list from cfg + opts, appends the target and command,
+// then runs the ssh binary and returns a Result. The returned error (when non-nil)
+// is always an *SSHError with full context.
+func runSSH(ctx context.Context, cfg Config, command string, opts RunOptions) (Result, error) {
+	args := buildSSHArgs(cfg, opts)
 	target := fmt.Sprintf("%s@%s", cfg.User, cfg.Host)
 	args = append(args, target, "--", command)
 
+	maxOut := opts.maxOutput()
 	cmd := exec.CommandContext(ctx, "ssh", args...)
-	stdout := newBoundedBuffer(maxSSHOutputBytes)
-	stderr := newBoundedBuffer(maxSSHOutputBytes)
+	stdout := newBoundedBuffer(maxOut)
+	stderr := newBoundedBuffer(maxOut)
 	cmd.Stdout = io.MultiWriter(stdout)
 	cmd.Stderr = io.MultiWriter(stderr)
 
+	start := time.Now()
 	err := cmd.Run()
-	exitCode := 0
-	if err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			exitCode = ee.ExitCode()
-		} else {
-			exitCode = 255
-		}
-	}
-	return Result{
+	duration := time.Since(start)
+
+	result := Result{
 		Stdout:   strings.TrimRight(stdout.String(), "\n"),
 		Stderr:   strings.TrimRight(stderr.String(), "\n"),
-		ExitCode: exitCode,
-	}, err
+		ExitCode: exitCode(err),
+	}
+
+	// Structured logging
+	slog.Info("ssh.command_executed",
+		"host", cfg.Host,
+		"command", FormatCommandForLog(cfg, command),
+		"exit_code", result.ExitCode,
+		"duration_ms", duration.Milliseconds(),
+	)
+
+	if stdout.truncated || stderr.truncated {
+		slog.Warn("ssh.output_truncated",
+			"host", cfg.Host,
+			"bytes_limit", maxOut,
+		)
+	}
+
+	if err != nil {
+		return result, newCommandError(err, result, cfg.Host)
+	}
+	return result, nil
+}
+
+// Run executes an SSH command and returns the result.
+func (ExecRunner) Run(ctx context.Context, cfg Config, command string, opts RunOptions) (Result, error) {
+	return runSSH(ctx, cfg, command, opts)
 }
 
 // ExecSCPRunner implements SCPRunner using os/exec.
 type ExecSCPRunner struct{}
 
 // Copy transfers a local file to a remote path via SCP.
-func (ExecSCPRunner) Copy(ctx context.Context, cfg Config, localPath, remotePath string) error {
-	copyCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+func (ExecSCPRunner) Copy(ctx context.Context, cfg Config, localPath, remotePath string, opts SCPOptions) error {
+	timeout := opts.TransferTimeout
+	if timeout == 0 {
+		timeout = 10 * time.Minute
+	}
+	copyCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	args := []string{
-		"-o", "BatchMode=yes",
-		"-o", "ConnectTimeout=5",
-		"-o", "StrictHostKeyChecking=accept-new",
-		"-P", strconv.Itoa(cfg.Port),
-	}
-	if cfg.KeyPath != "" {
-		args = append(args, "-i", cfg.KeyPath)
-	}
+	args := buildSCPArgs(cfg, opts)
 	// Wrap IPv6 addresses in brackets for scp target format
 	host := cfg.Host
 	if strings.Contains(host, ":") {
@@ -91,8 +113,49 @@ func (ExecSCPRunner) Copy(ctx context.Context, cfg Config, localPath, remotePath
 	target := fmt.Sprintf("%s@%s:%s", cfg.User, host, remotePath)
 	args = append(args, localPath, target)
 
+	maxOut := opts.MaxOutputBytes
+	if maxOut == 0 {
+		maxOut = 512 * 1024
+	}
+
 	cmd := exec.CommandContext(copyCtx, "scp", args...)
-	return cmd.Run()
+	stdout := newBoundedBuffer(maxOut)
+	stderr := newBoundedBuffer(maxOut)
+	cmd.Stdout = io.MultiWriter(stdout)
+	cmd.Stderr = io.MultiWriter(stderr)
+
+	start := time.Now()
+	err := cmd.Run()
+	duration := time.Since(start)
+
+	slog.Info("ssh.scp_transfer",
+		"host", cfg.Host,
+		"remote_path", remotePath,
+		"duration_ms", duration.Milliseconds(),
+	)
+
+	if err != nil {
+		stderrStr := strings.TrimSpace(stderr.String())
+		combined := stderrStr + " " + err.Error()
+		classified := ClassifyError(combined, cfg.Host, stderrStr)
+		exitC := exitCode(err)
+
+		// If classification found a specific category, use it
+		if !errors.Is(classified, ErrCommand) {
+			classified.ExitCode = exitC
+			return classified
+		}
+
+		return &SSHError{
+			Category:  ErrCommand,
+			Message:   fmt.Sprintf("scp failed: %v", err),
+			Hint:      stderrStr,
+			Retryable: false,
+			ExitCode:  exitC,
+			Host:      cfg.Host,
+		}
+	}
+	return nil
 }
 
 type boundedBuffer struct {

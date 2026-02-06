@@ -122,7 +122,7 @@ func Run(
 		}
 	}
 
-	if _, err := sshRunner.Run(ctx, cfg, "echo ok"); err != nil {
+	if _, err := sshRunner.Run(ctx, cfg, "echo ok", ssh.DefaultRunOptions()); err != nil {
 		fail(
 			"ssh_connect",
 			"SSH connectivity",
@@ -134,7 +134,7 @@ func Run(
 		pass("ssh_connect", "SSH connectivity", "SSH command executed successfully", map[string]string{"host": cfg.Host, "user": cfg.User})
 	}
 
-	osRes, osErr := sshRunner.Run(ctx, cfg, "cat /etc/os-release")
+	osRes, osErr := sshRunner.Run(ctx, cfg, "cat /etc/os-release", ssh.DefaultRunOptions())
 	if osErr != nil || osRes.ExitCode != 0 {
 		fail(
 			"os_release",
@@ -175,7 +175,7 @@ func Run(
 		}
 	}
 
-	portsRes, portsErr := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`)
+	portsRes, portsErr := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`, ssh.DefaultRunOptions())
 	if portsErr != nil {
 		warn(
 			"ports_80_443",
@@ -213,7 +213,7 @@ func Run(
 		pass("ports_80_443", "Ports 80/443 availability", "Ports 80/443 appear free", nil)
 	}
 
-	ufwRes, ufwErr := sshRunner.Run(ctx, cfg, "ufw status")
+	ufwRes, ufwErr := sshRunner.Run(ctx, cfg, "ufw status", ssh.DefaultRunOptions())
 	if ufwErr != nil {
 		warn(
 			domain.PreflightFirewallID,
@@ -275,7 +275,7 @@ func Run(
 		}
 	}
 
-	netRes, netErr := sshRunner.Run(ctx, cfg, `curl -fsS --max-time 5 https://example.com >/dev/null`)
+	netRes, netErr := sshRunner.Run(ctx, cfg, `curl -fsS --max-time 5 https://example.com >/dev/null`, ssh.DefaultRunOptions())
 	if netErr != nil || netRes.ExitCode != 0 {
 		warn(
 			"outbound_network",
@@ -288,7 +288,7 @@ func Run(
 		pass("outbound_network", "Outbound network", "Outbound HTTPS access looks OK", nil)
 	}
 
-	diskRes, diskErr := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
+	diskRes, diskErr := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
 	if diskErr != nil || diskRes.ExitCode != 0 {
 		warn("disk_free", "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
 	} else {
@@ -307,7 +307,7 @@ func Run(
 		}
 	}
 
-	ramRes, ramErr := sshRunner.Run(ctx, cfg, `awk '/MemTotal/ {print $2}' /proc/meminfo`)
+	ramRes, ramErr := sshRunner.Run(ctx, cfg, `awk '/MemTotal/ {print $2}' /proc/meminfo`, ssh.DefaultRunOptions())
 	if ramErr != nil || ramRes.ExitCode != 0 {
 		warn("ram_total", "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
 	} else {
@@ -346,7 +346,7 @@ func Run(
 		{"tar", "cmd_tar"},
 	}
 	for _, cmd := range requiredCmds {
-		res, err := sshRunner.Run(ctx, cfg, "which "+cmd.name)
+		res, err := sshRunner.Run(ctx, cfg, "which "+cmd.name, ssh.DefaultRunOptions())
 		if err != nil || res.ExitCode != 0 {
 			warn(cmd.id, cmd.name+" available",
 				cmd.name+" not found on VPS",
@@ -359,7 +359,7 @@ func Run(
 	}
 
 	// Check: jq (nice to have, warn only)
-	jqRes, jqErr := sshRunner.Run(ctx, cfg, "which jq")
+	jqRes, jqErr := sshRunner.Run(ctx, cfg, "which jq", ssh.DefaultRunOptions())
 	if jqErr != nil || jqRes.ExitCode != 0 {
 		warn("cmd_jq", "jq available",
 			"jq not found on VPS",
@@ -371,7 +371,7 @@ func Run(
 	}
 
 	// Check: apt access (required for bootstrap to work)
-	aptRes, aptErr := sshRunner.Run(ctx, cfg, "apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log")
+	aptRes, aptErr := sshRunner.Run(ctx, cfg, "apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log", ssh.DefaultRunOptions())
 	if aptErr != nil {
 		fail("apt_access", "apt accessible",
 			"Unable to run apt-get",

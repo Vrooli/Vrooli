@@ -3,6 +3,7 @@ package vps
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -46,17 +48,17 @@ func BuildSetupPlan(manifest domain.CloudManifest, bundlePath string) ([]domain.
 	}
 	cfg := ssh.ConfigFromManifest(manifest)
 
-	remoteBundleDir := ssh.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "bundles")
-	remoteBundlePath := ssh.SafeRemoteJoin(remoteBundleDir, filepath.Base(bundlePath))
+	remoteBundleDir := shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "bundles")
+	remoteBundlePath := shellutil.SafeRemoteJoin(remoteBundleDir, filepath.Base(bundlePath))
 
-	autohealConfigPath := ssh.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "autoheal-scope.json")
+	autohealConfigPath := shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "autoheal-scope.json")
 
 	return []domain.VPSPlanStep{
 		{
 			ID:          "mkdir",
 			Title:       "Create remote directories",
 			Description: "Ensure the deployment workdir and bundle directory exist.",
-			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("mkdir -p %s %s", ssh.QuoteSingle(manifest.Target.VPS.Workdir), ssh.QuoteSingle(remoteBundleDir))),
+			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("mkdir -p %s %s", shellutil.QuoteSingle(manifest.Target.VPS.Workdir), shellutil.QuoteSingle(remoteBundleDir))),
 		},
 		{
 			ID:          "bootstrap",
@@ -74,25 +76,25 @@ func BuildSetupPlan(manifest domain.CloudManifest, bundlePath string) ([]domain.
 			ID:          "extract",
 			Title:       "Extract bundle",
 			Description: "Extract the tarball into the deployment workdir.",
-			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("tar -xzf %s -C %s", ssh.QuoteSingle(remoteBundlePath), ssh.QuoteSingle(manifest.Target.VPS.Workdir))),
+			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("tar -xzf %s -C %s", shellutil.QuoteSingle(remoteBundlePath), shellutil.QuoteSingle(manifest.Target.VPS.Workdir))),
 		},
 		{
 			ID:          "setup",
 			Title:       "Run Vrooli setup",
 			Description: "Runs production setup with only required resources.",
-			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", ssh.QuoteSingle(manifest.Target.VPS.Workdir))),
+			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))),
 		},
 		{
 			ID:          "autoheal",
 			Title:       "Write autoheal scope config",
 			Description: "Writes a minimal config so vrooli-autoheal can scope checks to this deployment.",
-			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", ssh.QuoteSingle(ssh.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), ssh.QuoteSingle(minimalAutohealScopeJSON(manifest)), ssh.QuoteSingle(autohealConfigPath))),
+			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", shellutil.QuoteSingle(shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), shellutil.QuoteSingle(minimalAutohealScopeJSON(manifest)), shellutil.QuoteSingle(autohealConfigPath))),
 		},
 		{
 			ID:          "verify",
 			Title:       "Verify vrooli CLI",
 			Description: "Sanity check that vrooli runs within the deployment directory.",
-			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli --version", ssh.QuoteSingle(manifest.Target.VPS.Workdir))),
+			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli --version", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))),
 		},
 	}, nil
 }
@@ -116,18 +118,20 @@ func RunSetupWithProgress(
 	deploymentID string,
 	progress *float64,
 ) domain.VPSSetupResult {
+	start := time.Now()
+
 	if _, err := os.Stat(bundlePath); err != nil {
-		return domain.VPSSetupResult{OK: false, Error: fmt.Sprintf("bundle_path not accessible: %v", err), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return domain.VPSSetupResult{OK: false, Error: fmt.Sprintf("bundle_path not accessible: %v", err), DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	steps, err := BuildSetupPlan(manifest, bundlePath)
 	if err != nil {
-		return domain.VPSSetupResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return domain.VPSSetupResult{OK: false, Error: err.Error(), DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	cfg := ssh.ConfigFromManifest(manifest)
 
-	remoteBundleDir := ssh.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "bundles")
-	remoteBundlePath := ssh.SafeRemoteJoin(remoteBundleDir, filepath.Base(bundlePath))
-	autohealConfigPath := ssh.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "autoheal-scope.json")
+	remoteBundleDir := shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "bundles")
+	remoteBundlePath := shellutil.SafeRemoteJoin(remoteBundleDir, filepath.Base(bundlePath))
+	autohealConfigPath := shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "autoheal-scope.json")
 
 	// Helper to emit progress
 	emit := func(eventType, stepID, stepTitle string) {
@@ -139,74 +143,84 @@ func RunSetupWithProgress(
 	}
 
 	// Helper to emit error and return failed result
-	failStep := func(stepID, stepTitle, errMsg string) domain.VPSSetupResult {
-		event := NewErrorEvent(stepID, stepTitle, *progress, errMsg)
+	failStep := func(stepID, stepTitle string, err error) domain.VPSSetupResult {
+		errMsg := err.Error()
+		var info *domain.ErrorInfo
+		var sshErr *ssh.SSHError
+		if errors.As(err, &sshErr) {
+			info = ssh.ErrorInfoFromSSHError(sshErr)
+		}
+		event := NewStructuredErrorEvent(stepID, stepTitle, *progress, errMsg, info)
 		hub.Broadcast(deploymentID, event)
-		return domain.VPSSetupResult{OK: false, Steps: steps, Error: errMsg, FailedStep: stepID, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return domain.VPSSetupResult{OK: false, Steps: steps, Error: errMsg, ErrorInfo: info, FailedStep: stepID, DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
-	// run executes an SSH command and returns an error with output context if it fails.
-	run := func(cmd string) error {
-		return ssh.RunWithOutput(ctx, sshRunner, cfg, cmd, ssh.ValidateTildeExpansion)
+	// runStep executes an SSH command with per-step timeout configuration.
+	runStep := func(stepID, cmd string) error {
+		if err := shellutil.ValidateTildeExpansion(cmd); err != nil {
+			return err
+		}
+		_, err := sshRunner.Run(ctx, cfg, cmd, RunOptionsForStep(stepID))
+		return err
 	}
 
 	// Step: mkdir
 	emit("step_started", "mkdir", "Creating directories")
-	if err := run(fmt.Sprintf("mkdir -p %s %s", ssh.QuoteSingle(manifest.Target.VPS.Workdir), ssh.QuoteSingle(remoteBundleDir))); err != nil {
-		return failStep("mkdir", "Creating directories", err.Error())
+	if err := runStep("mkdir", fmt.Sprintf("mkdir -p %s %s", shellutil.QuoteSingle(manifest.Target.VPS.Workdir), shellutil.QuoteSingle(remoteBundleDir))); err != nil {
+		return failStep("mkdir", "Creating directories", err)
 	}
 	*progress += StepWeights["mkdir"]
 	emit("step_completed", "mkdir", "Creating directories")
 
 	// Step: bootstrap
 	emit("step_started", "bootstrap", "Installing prerequisites")
-	if err := run(buildBootstrapCommand(manifest)); err != nil {
-		return failStep("bootstrap", "Installing prerequisites", err.Error())
+	if err := runStep("bootstrap", buildBootstrapCommand(manifest)); err != nil {
+		return failStep("bootstrap", "Installing prerequisites", err)
 	}
 	*progress += StepWeights["bootstrap"]
 	emit("step_completed", "bootstrap", "Installing prerequisites")
 
 	// Step: upload
 	emit("step_started", "upload", "Uploading bundle")
-	if err := scpRunner.Copy(ctx, cfg, bundlePath, remoteBundlePath); err != nil {
-		return failStep("upload", "Uploading bundle", err.Error())
+	if err := scpRunner.Copy(ctx, cfg, bundlePath, remoteBundlePath, ssh.DefaultSCPOptions()); err != nil {
+		return failStep("upload", "Uploading bundle", err)
 	}
 	*progress += StepWeights["upload"]
 	emit("step_completed", "upload", "Uploading bundle")
 
 	// Step: extract
 	emit("step_started", "extract", "Extracting bundle")
-	if err := run(fmt.Sprintf("tar -xzf %s -C %s", ssh.QuoteSingle(remoteBundlePath), ssh.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return failStep("extract", "Extracting bundle", err.Error())
+	if err := runStep("extract", fmt.Sprintf("tar -xzf %s -C %s", shellutil.QuoteSingle(remoteBundlePath), shellutil.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
+		return failStep("extract", "Extracting bundle", err)
 	}
 	*progress += StepWeights["extract"]
 	emit("step_completed", "extract", "Extracting bundle")
 
 	// Step: setup (production mode - skips dev tools, installs only required resources)
 	emit("step_started", "setup", "Running setup")
-	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", ssh.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return failStep("setup", "Running setup", err.Error())
+	if err := runStep("setup", fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
+		return failStep("setup", "Running setup", err)
 	}
 	*progress += StepWeights["setup"]
 	emit("step_completed", "setup", "Running setup")
 
 	// Step: autoheal
 	emit("step_started", "autoheal", "Configuring autoheal")
-	if err := run(fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", ssh.QuoteSingle(ssh.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), ssh.QuoteSingle(minimalAutohealScopeJSON(manifest)), ssh.QuoteSingle(autohealConfigPath))); err != nil {
-		return failStep("autoheal", "Configuring autoheal", err.Error())
+	if err := runStep("autoheal", fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", shellutil.QuoteSingle(shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), shellutil.QuoteSingle(minimalAutohealScopeJSON(manifest)), shellutil.QuoteSingle(autohealConfigPath))); err != nil {
+		return failStep("autoheal", "Configuring autoheal", err)
 	}
 	*progress += StepWeights["autoheal"]
 	emit("step_completed", "autoheal", "Configuring autoheal")
 
 	// Step: verify
 	emit("step_started", "verify_setup", "Verifying installation")
-	if err := run(fmt.Sprintf("cd %s && vrooli --version", ssh.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return failStep("verify_setup", "Verifying installation", err.Error())
+	if err := runStep("verify_setup", fmt.Sprintf("cd %s && vrooli --version", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
+		return failStep("verify_setup", "Verifying installation", err)
 	}
 	*progress += StepWeights["verify_setup"]
 	emit("step_completed", "verify_setup", "Verifying installation")
 
-	return domain.VPSSetupResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	return domain.VPSSetupResult{OK: true, Steps: steps, DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 }
 
 func minimalAutohealScopeJSON(manifest domain.CloudManifest) string {

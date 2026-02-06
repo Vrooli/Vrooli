@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -76,8 +77,8 @@ func RunLiveStateInspection(ctx context.Context, manifest domain.CloudManifest, 
 		// Get CPU usage by sampling /proc/stat twice with 1 second delay
 		// This gives accurate current CPU usage, not since-boot average
 		{id: "cpuusage", command: "cat /proc/stat | head -1; sleep 1; cat /proc/stat | head -1"},
-		{id: "scenario_status", command: ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json 2>/dev/null", ssh.QuoteSingle(targetScenario)))},
-		{id: "resource_status", command: ssh.VrooliCommand(workdir, "vrooli resource status --json 2>/dev/null")},
+		{id: "scenario_status", command: shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json 2>/dev/null", shellutil.QuoteSingle(targetScenario)))},
+		{id: "resource_status", command: shellutil.VrooliCommand(workdir, "vrooli resource status --json 2>/dev/null")},
 		{id: "caddy_config", command: "cat /etc/caddy/Caddyfile 2>/dev/null || echo ''"},
 		{id: "caddy_running", command: "pgrep -x caddy >/dev/null 2>&1 && echo 'running' || echo 'stopped'"},
 		// SSH health: check if our public key is in authorized_keys
@@ -95,7 +96,7 @@ func RunLiveStateInspection(ctx context.Context, manifest domain.CloudManifest, 
 		wg.Add(1)
 		go func(c sshCommand) {
 			defer wg.Done()
-			res, err := sshRunner.Run(ctx, cfg, c.command)
+			res, err := sshRunner.Run(ctx, cfg, c.command, ssh.DefaultRunOptions())
 			mu.Lock()
 			results[c.id] = sshCommandResult{id: c.id, result: res, err: err}
 			mu.Unlock()
@@ -441,7 +442,7 @@ func buildDirCheckCommand(workdir string, manifest domain.CloudManifest) string 
 	// Check target scenario directory
 	scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID)
 	checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
-		ssh.QuoteSingle(scenarioDir), manifest.Scenario.ID, manifest.Scenario.ID))
+		shellutil.QuoteSingle(scenarioDir), manifest.Scenario.ID, manifest.Scenario.ID))
 
 	// Check dependent scenarios
 	for _, scenarioID := range manifest.Dependencies.Scenarios {
@@ -450,14 +451,14 @@ func buildDirCheckCommand(workdir string, manifest domain.CloudManifest) string 
 		}
 		scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID)
 		checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
-			ssh.QuoteSingle(scenarioDir), scenarioID, scenarioID))
+			shellutil.QuoteSingle(scenarioDir), scenarioID, scenarioID))
 	}
 
 	// Check resource directories
 	for _, resourceID := range manifest.Dependencies.Resources {
 		resourceDir := fmt.Sprintf("%s/resources/%s", workdir, resourceID)
 		checks = append(checks, fmt.Sprintf("test -d %s && echo 'resource:%s:exists' || echo 'resource:%s:missing'",
-			ssh.QuoteSingle(resourceDir), resourceID, resourceID))
+			shellutil.QuoteSingle(resourceDir), resourceID, resourceID))
 	}
 
 	if len(checks) == 0 {
