@@ -19,6 +19,7 @@ import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
+import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
 
 // ============================================================================
 // Types
@@ -61,6 +62,9 @@ export function MemberDetailPanel({
   onClose,
   className,
 }: MemberDetailPanelProps) {
+  // Running agent state from shared store
+  const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
+
   // Local state
   const [activeSection, setActiveSection] = useState<'overview' | 'responsibilities' | 'heartbeat'>('overview')
   const [responsibilities, setResponsibilities] = useState('')
@@ -423,6 +427,8 @@ export function MemberDetailPanel({
               onSaveSchedule={(nextSchedule) => handleSaveSchedule(nextSchedule)}
               onTriggerHeartbeat={() => void handleTriggerHeartbeat()}
               onSetHeartbeatEnabled={(enabled) => void handleSetHeartbeatEnabled(enabled)}
+              isRunning={!!runningAgent}
+              runDuration={runningAgent?.duration}
             />
 
             {/* Prompt pipeline */}

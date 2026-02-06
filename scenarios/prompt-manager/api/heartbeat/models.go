@@ -89,6 +89,31 @@ type MemberDocResponse struct {
 	Content string `json:"content"`
 }
 
+// RunningAgentEntry represents a running agent in the list response.
+type RunningAgentEntry struct {
+	TeamID    string `json:"teamId"`
+	AgentID   string `json:"agentId"`
+	AgentName string `json:"agentName"`
+	TeamName  string `json:"teamName"`
+	RunID     string `json:"runId"`
+	StartedAt string `json:"startedAt"`
+	Duration  string `json:"duration"`
+}
+
+// RunningAgentsResponse is the API response for listing running agents.
+type RunningAgentsResponse struct {
+	Count  int                 `json:"count"`
+	Agents []RunningAgentEntry `json:"agents"`
+}
+
+// StopAgentResponse is the API response for stopping a running agent.
+type StopAgentResponse struct {
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	RunID   string `json:"runId"`
+	Status  string `json:"status"`
+}
+
 // PromptPreviewRequest is the request body for previewing a built prompt.
 type PromptPreviewRequest struct {
 	AgentID string `json:"agentId"`

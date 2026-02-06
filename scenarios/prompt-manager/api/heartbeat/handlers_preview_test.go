@@ -31,8 +31,8 @@ func TestPreviewPromptHandler(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "")
-	handlers := NewHandlers(teamStore, relationStore, nil, executor)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil)
 
 	reqBody, _ := json.Marshal(PromptPreviewRequest{AgentID: agent.ID})
 	req := httptest.NewRequest(http.MethodPost, "/prompt-preview", bytes.NewReader(reqBody))

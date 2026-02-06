@@ -20,6 +20,7 @@ import type { Skill, FolderType, ContentSearchOptions, SkillSearchMode } from '@
 import type { Agent } from '@/types/agent'
 import type { CombineFormat } from '@/stores/combineStore'
 import type { ContentSearchMatch } from '@/lib/schemas'
+import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
@@ -31,6 +32,7 @@ import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
 import { CombineActionBar } from './CombineActionBar'
 import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
+import { RunningAgentsPopover } from './RunningAgentsPopover'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
@@ -249,6 +251,10 @@ interface SkillTreeSidebarProps {
   isSaving?: boolean
   /** Callback when content search matches change (for editor highlighting) */
   onContentMatchesChange?: (matches: ContentSearchMatch[]) => void
+  /** Callback to navigate to a running agent's team member view */
+  onNavigateToRunningAgent?: (teamId: string, agentId: string) => void
+  /** Pre-fetched running agents data from the sync hook (eliminates duplicate polling) */
+  runningAgentsData?: UseRunningAgentsResult
   className?: string
 }
 
@@ -315,6 +321,8 @@ export function SkillTreeSidebar({
   onDiscardAll,
   isSaving = false,
   onContentMatchesChange,
+  onNavigateToRunningAgent,
+  runningAgentsData,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -607,25 +615,38 @@ export function SkillTreeSidebar({
                   Combine Mode
                 </span>
               </div>
-            ) : dirtyCount > 0 ? (
-              <UnsavedChangesMenu
-                dirtyCount={dirtyCount}
-                dirtySkillIds={dirtySkillIds ?? dirtyItemIds}
-                dirtyAgentIds={dirtyAgentIds}
-                dirtyTeamMemberIds={dirtyTeamMemberIds}
-                skills={skills}
-                agents={agents}
-                onSelectSkill={onSelectSkillFromMenu}
-                onSelectAgent={onSelectAgentFromMenu}
-                onSaveSkill={onSaveSkill}
-                onDiscardSkill={onDiscardSkill}
-                onSaveAgent={onSaveAgent}
-                onDiscardAgent={onDiscardAgent}
-                onSaveAll={onSaveAll}
-                onDiscardAll={onDiscardAll}
-                isSaving={isSaving}
-              />
-            ) : null}
+            ) : (
+              <>
+                {onNavigateToRunningAgent && (
+                  <RunningAgentsPopover
+                    onNavigateToMember={onNavigateToRunningAgent}
+                    groupedByTeam={runningAgentsData?.groupedByTeam}
+                    count={runningAgentsData?.count}
+                    stopAgent={runningAgentsData?.stopAgent}
+                    stoppingIds={runningAgentsData?.stoppingIds}
+                  />
+                )}
+                {dirtyCount > 0 && (
+                  <UnsavedChangesMenu
+                    dirtyCount={dirtyCount}
+                    dirtySkillIds={dirtySkillIds ?? dirtyItemIds}
+                    dirtyAgentIds={dirtyAgentIds}
+                    dirtyTeamMemberIds={dirtyTeamMemberIds}
+                    skills={skills}
+                    agents={agents}
+                    onSelectSkill={onSelectSkillFromMenu}
+                    onSelectAgent={onSelectAgentFromMenu}
+                    onSaveSkill={onSaveSkill}
+                    onDiscardSkill={onDiscardSkill}
+                    onSaveAgent={onSaveAgent}
+                    onDiscardAgent={onDiscardAgent}
+                    onSaveAll={onSaveAll}
+                    onDiscardAll={onDiscardAll}
+                    isSaving={isSaving}
+                  />
+                )}
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1">
             {onOpenSettings && !combineMode && (

@@ -43,10 +43,13 @@ export function AgentOverlayGroup({
   const agentAccessories = useAccessoryStore((state) => state.agentAccessories)
 
   // Memoize status lookup to avoid creating new objects
-  const effectiveStatus = useMemo<AgentStatusType>(() => {
-    if (status) return status
+  const { effectiveStatus, statusMessage } = useMemo(() => {
+    if (status) return { effectiveStatus: status, statusMessage: undefined }
     const agentState = agentAccessories[agentId]
-    return agentState?.status?.type ?? 'normal'
+    return {
+      effectiveStatus: agentState?.status?.type ?? ('normal' as AgentStatusType),
+      statusMessage: agentState?.status?.message,
+    }
   }, [status, agentAccessories, agentId])
 
   // Early return for disabled or invalid agentId
@@ -73,6 +76,7 @@ export function AgentOverlayGroup({
           status={effectiveStatus}
           position={position}
           yOffset={1.3}
+          message={statusMessage}
         />
       </WorldErrorBoundary>
 

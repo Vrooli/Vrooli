@@ -36,6 +36,7 @@ import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useUrlState } from '@/hooks/useUrlState'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
+import { useRunningAgentStatusSync } from '@/hooks/useRunningAgentStatusSync'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
@@ -56,6 +57,9 @@ const COLLAPSED_SIDEBAR_WIDTH = 60
  * Main layout component for the skill manager.
  */
 export function SkillManagerLayout() {
+  // Running agent sync (single polling instance, feeds 3D world + stores)
+  const runningAgentsData = useRunningAgentStatusSync()
+
   // Mobile state
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false
@@ -887,6 +891,22 @@ export function SkillManagerLayout() {
     },
   })
 
+  // Navigate to a running agent's team member view
+  const handleNavigateToRunningAgent = useCallback(
+    (teamId: string, agentId: string) => {
+      setActiveTab('teams')
+      setSelectedTeamId(teamId)
+      // Delay member selection to let the team load first
+      requestAnimationFrame(() => {
+        useTeamEditorStore.getState().setSelectedMemberId(agentId)
+      })
+      if (isMobile) {
+        setIsMobileSidebarOpen(false)
+      }
+    },
+    [setActiveTab, setSelectedTeamId, isMobile]
+  )
+
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
     <PanelErrorBoundary panelName="Skill Tree" className="h-full">
@@ -950,6 +970,8 @@ export function SkillManagerLayout() {
         onDiscardAll={handleDiscardAllFromMenu}
         isSaving={isSaving || isAgentSaving}
         onContentMatchesChange={setContentMatches}
+        onNavigateToRunningAgent={handleNavigateToRunningAgent}
+        runningAgentsData={runningAgentsData}
       />
     </PanelErrorBoundary>
   )
@@ -1207,6 +1229,8 @@ export function SkillManagerLayout() {
                 onDiscardAll={handleDiscardAllFromMenu}
                 isSaving={isSaving || isAgentSaving}
                 onContentMatchesChange={setContentMatches}
+                onNavigateToRunningAgent={handleNavigateToRunningAgent}
+                runningAgentsData={runningAgentsData}
                 className="border-r-0"
               />
             </div>

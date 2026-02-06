@@ -323,6 +323,53 @@ export async function disableHeartbeat(teamId: string, agentId: string): Promise
   return updateHeartbeat(teamId, agentId, { enabled: false })
 }
 
+// ============================================================================
+// Running Agents
+// ============================================================================
+
+export interface RunningAgentEntry {
+  teamId: string
+  agentId: string
+  agentName: string
+  teamName: string
+  runId: string
+  startedAt: string
+  duration: string
+}
+
+export interface RunningAgentsResponse {
+  count: number
+  agents: RunningAgentEntry[]
+}
+
+export interface StopAgentResponse {
+  teamId: string
+  agentId: string
+  runId: string
+  status: string
+}
+
+/**
+ * List all currently running heartbeat agents.
+ */
+export async function listRunningAgents(): Promise<RunningAgentsResponse> {
+  return apiRequest<RunningAgentsResponse>('/heartbeats/running')
+}
+
+/**
+ * Stop a running heartbeat agent.
+ */
+export async function stopRunningAgent(teamId: string, agentId: string): Promise<StopAgentResponse> {
+  return apiRequest<StopAgentResponse>(
+    `/heartbeats/running/${encodeURIComponent(teamId)}/${encodeURIComponent(agentId)}/stop`,
+    { method: 'POST' }
+  )
+}
+
+// ============================================================================
+// Schedule Presets
+// ============================================================================
+
 /**
  * Common cron schedule presets.
  */

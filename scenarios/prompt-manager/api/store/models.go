@@ -237,4 +237,5 @@ const (
 	HeartbeatStatusRunning   = "running"
 	HeartbeatStatusCompleted = "completed"
 	HeartbeatStatusFailed    = "failed"
+	HeartbeatStatusCancelled = "cancelled"
 )

@@ -244,6 +244,20 @@ func (c *AgentManagerClient) WaitForRun(ctx context.Context, runID string, pollI
 	}
 }
 
+// StopRun requests agent-manager to stop a running run.
+func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) error {
+	resp, err := c.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/runs/%s/stop", runID), nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return c.parseError(resp)
+	}
+	return nil
+}
+
 // doRequest performs an HTTP request to agent-manager
 func (c *AgentManagerClient) doRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
 	var bodyReader io.Reader

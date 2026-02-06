@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,18 +20,32 @@ import (
 // Handlers provides HTTP handlers for heartbeat operations
 type Handlers struct {
 	teamStore     *store.FileTeamStore
+	agentStore    *store.FileAgentStore
 	relationStore store.RelationStore
 	scheduler     *Scheduler
 	executor      *Executor
+	runRegistry   *RunRegistry
+	agentClient   *AgentManagerClient
 }
 
 // NewHandlers creates new heartbeat handlers
-func NewHandlers(teamStore *store.FileTeamStore, relationStore store.RelationStore, scheduler *Scheduler, executor *Executor) *Handlers {
+func NewHandlers(
+	teamStore *store.FileTeamStore,
+	agentStore *store.FileAgentStore,
+	relationStore store.RelationStore,
+	scheduler *Scheduler,
+	executor *Executor,
+	runRegistry *RunRegistry,
+	agentClient *AgentManagerClient,
+) *Handlers {
 	return &Handlers{
 		teamStore:     teamStore,
+		agentStore:    agentStore,
 		relationStore: relationStore,
 		scheduler:     scheduler,
 		executor:      executor,
+		runRegistry:   runRegistry,
+		agentClient:   agentClient,
 	}
 }
 
@@ -695,6 +711,116 @@ func (h *Handlers) SetHeartbeatInstructions(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// ListRunning handles GET /heartbeats/running - lists all currently running agents
+func (h *Handlers) ListRunning(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	if h.runRegistry == nil {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(RunningAgentsResponse{Count: 0, Agents: []RunningAgentEntry{}})
+		return
+	}
+
+	active := h.runRegistry.ListActive()
+	entries := make([]RunningAgentEntry, 0, len(active))
+	now := time.Now().UTC()
+
+	for _, run := range active {
+		entry := RunningAgentEntry{
+			TeamID:    run.TeamID,
+			AgentID:   run.AgentID,
+			RunID:     run.RunID,
+			StartedAt: run.StartedAt.Format(time.RFC3339),
+			Duration:  formatDuration(now.Sub(run.StartedAt)),
+		}
+
+		// Look up display names (best-effort)
+		if h.teamStore != nil {
+			if team, err := h.teamStore.Get(ctx, run.TeamID); err == nil && team != nil {
+				entry.TeamName = team.DisplayName
+			}
+		}
+		if h.agentStore != nil {
+			if agent, err := h.agentStore.Get(ctx, run.AgentID); err == nil && agent != nil {
+				entry.AgentName = agent.DisplayName
+			}
+		}
+
+		entries = append(entries, entry)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(RunningAgentsResponse{
+		Count:  len(entries),
+		Agents: entries,
+	})
+}
+
+// StopRunning handles POST /heartbeats/running/{teamId}/{agentId}/stop
+func (h *Handlers) StopRunning(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID := vars["teamId"]
+	agentID := vars["agentId"]
+
+	if h.runRegistry == nil {
+		http.Error(w, "Run registry not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	run, ok := h.runRegistry.GetActiveRun(teamID, agentID)
+	if !ok {
+		http.Error(w, "No active run found for this agent", http.StatusNotFound)
+		return
+	}
+
+	// Request agent-manager to stop the run (best-effort)
+	if h.agentClient != nil {
+		if err := h.agentClient.StopRun(ctx, run.RunID); err != nil {
+			log.Printf("heartbeat: best-effort StopRun(%s) failed: %v", run.RunID, err)
+		}
+	}
+
+	// Cancel the local waitForCompletion goroutine (nil for recovered runs)
+	if run.CancelFn != nil {
+		run.CancelFn()
+	}
+
+	// Remove from registry
+	h.runRegistry.Unregister(teamID, agentID)
+
+	// Update heartbeat config status to cancelled
+	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err == nil && config != nil && config.LastExecution != nil && config.LastExecution.Status == store.HeartbeatStatusRunning {
+		config.LastExecution.Status = store.HeartbeatStatusCancelled
+		config.LastExecution.EndedAt = time.Now().UTC().Format(time.RFC3339)
+		_ = h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(StopAgentResponse{
+		TeamID:  teamID,
+		AgentID: agentID,
+		RunID:   run.RunID,
+		Status:  "stopped",
+	})
+}
+
+// formatDuration returns a human-readable duration string.
+func formatDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	s := int(d.Seconds()) % 60
+	if h > 0 {
+		return fmt.Sprintf("%dh %dm", h, m)
+	}
+	if m > 0 {
+		return fmt.Sprintf("%dm %ds", m, s)
+	}
+	return fmt.Sprintf("%ds", s)
 }
 
 // toResponse converts a HeartbeatConfig to API response

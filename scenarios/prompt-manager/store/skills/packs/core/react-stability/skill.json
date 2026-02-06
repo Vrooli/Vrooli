@@ -14,7 +14,8 @@
   "icon": "atom",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 46,
+  "defaultScope": "architecture-scope",
+  "revision": 48,
   "createdAt": "2025-01-16T00:00:00Z",
-  "updatedAt": "2026-02-05T01:02:18Z"
+  "updatedAt": "2026-02-06T19:09:18Z"
 }

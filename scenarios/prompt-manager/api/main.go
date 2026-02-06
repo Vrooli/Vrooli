@@ -281,11 +281,13 @@ func main() {
 
 	// Initialize heartbeat components
 	agentManagerClient := heartbeat.NewAgentManagerClient(30 * time.Second)
+	runRegistry := heartbeat.NewRunRegistry(absStoreDir)
 	heartbeatExecutor := heartbeat.NewExecutor(
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.Agents().(*store.FileAgentStore),
 		agentManagerClient,
 		vrooliRoot,
+		runRegistry,
 	)
 	heartbeatScheduler := heartbeat.NewScheduler(
 		heartbeatExecutor,
@@ -294,11 +296,17 @@ func main() {
 	)
 	heartbeatHandlers := heartbeat.NewHandlers(
 		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Agents().(*store.FileAgentStore),
 		fileStore.Relations(),
 		heartbeatScheduler,
 		heartbeatExecutor,
+		runRegistry,
+		agentManagerClient,
 	)
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
+
+	// Recover any active runs from a previous process
+	runRegistry.Recover(context.Background(), agentManagerClient)
 
 	// Start scheduler (doesn't auto-start heartbeats - they must be explicitly enabled)
 	go func() {
@@ -324,6 +332,8 @@ func main() {
 	}()
 
 	// Heartbeat routes
+	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")
+	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
 	v1.HandleFunc("/prompt-preview", heartbeatHandlers.PreviewPrompt).Methods("POST")
 	v1.HandleFunc("/teams/{id}/heartbeats", heartbeatHandlers.ListHeartbeats).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.GetHeartbeat).Methods("GET")

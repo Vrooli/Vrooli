@@ -136,7 +136,12 @@ export const useAccessoryStore = create<AccessoryStore>()(
     {
       name: 'agent-accessories',
       partialize: (state) => ({
-        agentAccessories: state.agentAccessories,
+        agentAccessories: Object.fromEntries(
+          Object.entries(state.agentAccessories).map(([id, s]) => [
+            id,
+            { accessories: s.accessories, status: null },
+          ])
+        ),
         defaults: state.defaults,
       }),
     }

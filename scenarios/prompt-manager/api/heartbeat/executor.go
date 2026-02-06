@@ -29,6 +29,7 @@ type Executor struct {
 	agentClient   *AgentManagerClient
 	vrooliRoot    string
 	promptBuilder *PromptBuilder
+	runRegistry   *RunRegistry
 }
 
 // NewExecutor creates a new heartbeat executor
@@ -37,6 +38,7 @@ func NewExecutor(
 	agentStore *store.FileAgentStore,
 	agentClient *AgentManagerClient,
 	vrooliRoot string,
+	runRegistry *RunRegistry,
 ) *Executor {
 	promptBuilder := NewPromptBuilder(teamStore, agentStore)
 	return &Executor{
@@ -45,6 +47,7 @@ func NewExecutor(
 		agentClient:   agentClient,
 		vrooliRoot:    vrooliRoot,
 		promptBuilder: promptBuilder,
+		runRegistry:   runRegistry,
 	}
 }
 
@@ -146,8 +149,12 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	config.LastExecution.RunID = run.ID
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
 
-	// Wait for completion asynchronously
-	go e.waitForCompletion(context.Background(), teamID, agentID, run.ID, startedAt, logPath)
+	// Wait for completion asynchronously with cancellable context
+	waitCtx, waitCancel := context.WithCancel(context.Background())
+	if e.runRegistry != nil {
+		e.runRegistry.Register(teamID, agentID, run.ID, startedAt, waitCancel)
+	}
+	go e.waitForCompletion(waitCtx, teamID, agentID, run.ID, startedAt, logPath)
 
 	result.Status = store.HeartbeatStatusRunning
 	return result, nil
@@ -166,6 +173,10 @@ func (e *Executor) BuildPrompt(ctx context.Context, teamID, agentID string) (str
 
 // waitForCompletion polls for run completion and updates config
 func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID string, startedAt time.Time, logPath string) {
+	if e.runRegistry != nil {
+		defer e.runRegistry.Unregister(teamID, agentID)
+	}
+
 	// Create timeout context
 	timeoutCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
@@ -174,8 +185,11 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 
 	endedAt := time.Now().UTC()
 
+	// Use a background context for config updates since the parent ctx may be cancelled
+	cfgCtx := context.Background()
+
 	// Get current config
-	config, configErr := e.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	config, configErr := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID)
 	if configErr != nil {
 		return
 	}
@@ -184,10 +198,15 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	}
 
 	if err != nil {
+		// Check if the error is due to context cancellation (stop was requested)
+		status := store.HeartbeatStatusFailed
+		if ctx.Err() != nil {
+			status = store.HeartbeatStatusCancelled
+		}
 		config.LastExecution = &store.HeartbeatExecResult{
 			StartedAt: startedAt.Format(time.RFC3339),
 			EndedAt:   endedAt.Format(time.RFC3339),
-			Status:    store.HeartbeatStatusFailed,
+			Status:    status,
 			RunID:     runID,
 			LogPath:   logPath,
 			Error:     err.Error(),
@@ -225,7 +244,7 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 		_ = os.WriteFile(logPath, []byte(logContent), 0o644)
 	}
 
-	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
+	_ = e.teamStore.SetHeartbeatConfig(cfgCtx, teamID, agentID, config)
 }
 
 // updateConfigFailed updates config with failed status

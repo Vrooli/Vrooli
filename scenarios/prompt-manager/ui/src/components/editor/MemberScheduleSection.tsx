@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Clock, Play, Pause, Save, X, MoreVertical } from 'lucide-react'
+import { Clock, Play, Pause, Save, X, MoreVertical, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 
@@ -22,6 +22,10 @@ interface MemberScheduleSectionProps {
   onSaveSchedule: (schedule: string) => Promise<boolean>
   onTriggerHeartbeat: () => void
   onSetHeartbeatEnabled: (enabled: boolean) => void
+  /** Whether the agent is currently running a heartbeat */
+  isRunning?: boolean
+  /** Duration string for the current run (e.g. "2m 34s") */
+  runDuration?: string
 }
 
 const DAY_OPTIONS = [
@@ -224,6 +228,8 @@ export function MemberScheduleSection({
   onSaveSchedule,
   onTriggerHeartbeat,
   onSetHeartbeatEnabled,
+  isRunning = false,
+  runDuration,
 }: MemberScheduleSectionProps) {
   const [isScheduleEditing, setIsScheduleEditing] = useState(false)
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('custom')
@@ -373,6 +379,15 @@ export function MemberScheduleSection({
           </button>
         )}
       </div>
+
+      {isRunning && (
+        <div className="flex items-center gap-2 px-2 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-md">
+          <Loader2 className="h-3.5 w-3.5 text-purple-500 animate-spin" />
+          <span className="text-xs font-medium text-purple-500">
+            Currently running{runDuration ? ` (${runDuration})` : ''}
+          </span>
+        </div>
+      )}
 
       {!isScheduleEditing ? (
         <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">

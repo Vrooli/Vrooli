@@ -107,6 +107,8 @@ export interface AgentStatus {
   message?: string
   /** Auto-hide duration in ms (0 = never) */
   duration?: number
+  /** Source of status, for priority resolution when clearing */
+  source?: 'heartbeat' | 'user' | 'system'
 }
 
 /**

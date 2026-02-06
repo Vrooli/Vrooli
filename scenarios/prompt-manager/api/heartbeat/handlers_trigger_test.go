@@ -32,8 +32,8 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 		t.Fatalf("create membership: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "")
-	handlers := NewHandlers(teamStore, relationStore, nil, executor)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -60,8 +60,8 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "")
-	handlers := NewHandlers(teamStore, relationStore, nil, executor)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -108,8 +108,8 @@ func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 		t.Fatalf("set heartbeat config: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "")
-	handlers := NewHandlers(teamStore, relationStore, nil, executor)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
