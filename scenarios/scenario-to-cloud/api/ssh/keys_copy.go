@@ -74,12 +74,25 @@ func (ExecKeyCopier) CopyKey(ctx context.Context, req CopyKeyRequest) CopyKeyRes
 	}
 
 	// Connect using password authentication
+	hostKeyCallback, err := NewTOFUHostKeyCallback(cfg.Host, cfg.Port)
+	if err != nil {
+		return CopyKeyResponse{
+			Outcome: Outcome{
+				OK:        false,
+				Status:    StatusError,
+				Message:   "Failed to initialize host key verification",
+				Hint:      err.Error(),
+				Timestamp: timestamp,
+			},
+		}
+	}
+
 	config := &gossh.ClientConfig{
 		User: cfg.User,
 		Auth: []gossh.AuthMethod{
 			gossh.Password(req.Password),
 		},
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(), // TOFU - Trust On First Use
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 	}
 

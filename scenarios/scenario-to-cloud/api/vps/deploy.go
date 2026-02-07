@@ -473,8 +473,7 @@ func RunDeployWithProgress(
 		if err := shellutil.ValidateTildeExpansion(cmd); err != nil {
 			return err
 		}
-		_, err := sshRunner.Run(ctx, cfg, cmd, RunOptionsForStep(stepID))
-		return err
+		return RunStepWithRetry(ctx, sshRunner, cfg, stepID, cmd)
 	}
 
 	// Step: scenario_stop - Stop existing scenario before deployment

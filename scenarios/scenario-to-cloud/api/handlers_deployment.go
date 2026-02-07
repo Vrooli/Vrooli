@@ -111,6 +111,12 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if repoRoot, err := bundle.FindRepoRootFromCWD(); err == nil {
+		if version, _, versionErr := resolveScenarioVersion(repoRoot, normalized.Scenario.ID); versionErr == nil && version != "" {
+			normalized.Scenario.Ref = version
+		}
+	}
+
 	// Re-marshal the normalized manifest
 	manifestJSON, err := json.Marshal(normalized)
 	if err != nil {
@@ -407,6 +413,11 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 			// Continue with original manifest - validation may still pass
 		} else {
 			m = refreshed
+			if repoRoot, repoErr := bundle.FindRepoRootFromCWD(); repoErr == nil {
+				if version, _, versionErr := resolveScenarioVersion(repoRoot, m.Scenario.ID); versionErr == nil && version != "" {
+					m.Scenario.Ref = version
+				}
+			}
 			// Persist refreshed manifest to database
 			manifestJSON, marshalErr := json.Marshal(m)
 			if marshalErr != nil {

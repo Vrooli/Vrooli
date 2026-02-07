@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"scenario-to-cloud/cli/deployment"
+	"scenario-to-cloud/cli/internal/flagutil"
 )
 
 // Run executes the redeploy workflow: create/update → execute → report.
@@ -20,7 +21,7 @@ func Run(client *deployment.Client, args []string) error {
 	preflight := fs.Bool("preflight", false, "Run VPS preflight checks")
 	forceBuild := fs.Bool("force-bundle", false, "Force rebuild of bundle")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

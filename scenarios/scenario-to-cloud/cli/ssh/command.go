@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -37,8 +38,8 @@ func printUsage() error {
 
 Commands:
   keys                    List all SSH keys
-  generate <name>         Generate a new SSH key
-  delete <name>           Delete an SSH key
+  generate <filename>     Generate a new SSH key
+  delete <key>            Delete an SSH key (path or basename)
   test <host>             Test SSH connection to a host
   copy-key <host>         Copy SSH key to a remote host
 
@@ -83,26 +84,27 @@ Flags:
 	fmt.Printf("%-20s %-10s %-47s %s\n", "NAME", "TYPE", "FINGERPRINT", "CREATED")
 
 	for _, k := range resp.Keys {
-		fmt.Printf("%-20s %-10s %-47s %s\n", truncate(k.Name, 20), k.Type, k.Fingerprint, k.CreatedAt)
+		fmt.Printf("%-20s %-10s %-47s %s\n", truncate(filepath.Base(k.Path), 20), k.Type, k.Fingerprint, k.CreatedAt)
 	}
 
 	return nil
 }
 
 func runGenerate(client *Client, args []string) error {
-	var name, keyType, comment string
+	var filename, keyType, comment, password string
 	bits := 0
 	jsonOutput := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-h", "--help":
-			fmt.Println(`Usage: scenario-to-cloud ssh generate <name> [flags]
+			fmt.Println(`Usage: scenario-to-cloud ssh generate <filename> [flags]
 
 Flags:
   --type <type>     Key type: ed25519 (default), rsa
   --bits <n>        Key size for RSA (2048, 4096)
   --comment <text>  Key comment
+  --password <pwd>  Optional key passphrase
   --json            Output raw JSON`)
 			return nil
 		case "--type":
@@ -122,24 +124,30 @@ Flags:
 				i++
 				comment = args[i]
 			}
+		case "--password":
+			if i+1 < len(args) {
+				i++
+				password = args[i]
+			}
 		case "--json":
 			jsonOutput = true
 		default:
-			if !strings.HasPrefix(args[i], "-") && name == "" {
-				name = args[i]
+			if !strings.HasPrefix(args[i], "-") && filename == "" {
+				filename = args[i]
 			}
 		}
 	}
 
-	if name == "" {
-		return fmt.Errorf("usage: scenario-to-cloud ssh generate <name>")
+	if filename == "" {
+		return fmt.Errorf("usage: scenario-to-cloud ssh generate <filename>")
 	}
 
 	req := GenerateRequest{
-		Name:    name,
-		Type:    keyType,
-		Bits:    bits,
-		Comment: comment,
+		Type:     keyType,
+		Bits:     bits,
+		Comment:  comment,
+		Filename: filename,
+		Password: password,
 	}
 
 	body, resp, err := client.Generate(req)
@@ -152,18 +160,11 @@ Flags:
 		return nil
 	}
 
-	if resp.Success {
-		fmt.Printf("Generated SSH key: %s\n", resp.Key.Name)
+	if resp.OK {
+		fmt.Printf("Generated SSH key: %s\n", filepath.Base(resp.Key.Path))
+		fmt.Printf("Path:        %s\n", resp.Key.Path)
 		fmt.Printf("Type:        %s\n", resp.Key.Type)
 		fmt.Printf("Fingerprint: %s\n", resp.Key.Fingerprint)
-		if resp.PrivateKey != "" {
-			fmt.Println("\nPrivate Key (save this securely - it won't be shown again):")
-			fmt.Println(resp.PrivateKey)
-		}
-		if resp.Key.PublicKey != "" {
-			fmt.Println("\nPublic Key:")
-			fmt.Println(resp.Key.PublicKey)
-		}
 	} else {
 		fmt.Printf("Failed to generate key: %s\n", resp.Message)
 	}
@@ -172,13 +173,13 @@ Flags:
 }
 
 func runDelete(client *Client, args []string) error {
-	var name string
+	var keyInput string
 	jsonOutput := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-h", "--help":
-			fmt.Println(`Usage: scenario-to-cloud ssh delete <name> [flags]
+			fmt.Println(`Usage: scenario-to-cloud ssh delete <key> [flags]
 
 Flags:
   --json    Output raw JSON`)
@@ -186,17 +187,22 @@ Flags:
 		case "--json":
 			jsonOutput = true
 		default:
-			if !strings.HasPrefix(args[i], "-") && name == "" {
-				name = args[i]
+			if !strings.HasPrefix(args[i], "-") && keyInput == "" {
+				keyInput = args[i]
 			}
 		}
 	}
 
-	if name == "" {
-		return fmt.Errorf("usage: scenario-to-cloud ssh delete <name>")
+	if keyInput == "" {
+		return fmt.Errorf("usage: scenario-to-cloud ssh delete <key>")
 	}
 
-	body, resp, err := client.Delete(name)
+	keyPath, err := resolveKeyPath(client, keyInput)
+	if err != nil {
+		return err
+	}
+
+	body, resp, err := client.Delete(DeleteRequest{KeyPath: keyPath})
 	if err != nil {
 		return err
 	}
@@ -206,19 +212,18 @@ Flags:
 		return nil
 	}
 
-	if resp.Success {
-		fmt.Printf("Deleted SSH key: %s\n", resp.Name)
+	if resp.OK {
+		fmt.Printf("Deleted SSH key: %s\n", keyPath)
 	} else {
-		fmt.Printf("Failed to delete key '%s': %s\n", resp.Name, resp.Message)
+		fmt.Printf("Failed to delete key '%s': %s\n", keyPath, resp.Message)
 	}
 
 	return nil
 }
 
 func runTest(client *Client, args []string) error {
-	var host, user, keyName string
+	var host, user, keyInput string
 	port := 22
-	timeout := 10
 	jsonOutput := false
 
 	for i := 0; i < len(args); i++ {
@@ -229,8 +234,7 @@ func runTest(client *Client, args []string) error {
 Flags:
   --port <n>        SSH port (default: 22)
   --user <name>     SSH user (default: root)
-  --key <name>      SSH key name to use
-  --timeout <n>     Connection timeout in seconds (default: 10)
+  --key <key>       SSH key path or basename
   --json            Output raw JSON`)
 			return nil
 		case "--port":
@@ -248,14 +252,7 @@ Flags:
 		case "--key":
 			if i+1 < len(args) {
 				i++
-				keyName = args[i]
-			}
-		case "--timeout":
-			if i+1 < len(args) {
-				i++
-				if n, err := strconv.Atoi(args[i]); err == nil {
-					timeout = n
-				}
+				keyInput = args[i]
 			}
 		case "--json":
 			jsonOutput = true
@@ -270,12 +267,16 @@ Flags:
 		return fmt.Errorf("usage: scenario-to-cloud ssh test <host>")
 	}
 
+	keyPath, err := resolveKeyPath(client, keyInput)
+	if err != nil {
+		return err
+	}
+
 	req := TestRequest{
 		Host:    host,
 		Port:    port,
 		User:    user,
-		KeyName: keyName,
-		Timeout: timeout,
+		KeyPath: keyPath,
 	}
 
 	body, resp, err := client.Test(req)
@@ -288,16 +289,23 @@ Flags:
 		return nil
 	}
 
-	fmt.Printf("SSH Connection Test to %s@%s:%d\n", resp.User, resp.Host, resp.Port)
+	displayUser := user
+	if strings.TrimSpace(displayUser) == "" {
+		displayUser = "root"
+	}
+	fmt.Printf("SSH Connection Test to %s@%s:%d\n", displayUser, host, port)
 	fmt.Println(strings.Repeat("-", 50))
 
-	if resp.Success {
+	if resp.OK {
 		fmt.Println("Status: SUCCESS")
-		if resp.Latency != "" {
-			fmt.Printf("Latency: %s\n", resp.Latency)
+		if resp.LatencyMs > 0 {
+			fmt.Printf("Latency: %dms\n", resp.LatencyMs)
 		}
-		if resp.ServerBanner != "" {
-			fmt.Printf("Server: %s\n", resp.ServerBanner)
+		if resp.ServerInfo != "" {
+			fmt.Printf("Server: %s\n", resp.ServerInfo)
+		}
+		if resp.Fingerprint != "" {
+			fmt.Printf("Fingerprint: %s\n", resp.Fingerprint)
 		}
 	} else {
 		fmt.Println("Status: FAILED")
@@ -310,7 +318,7 @@ Flags:
 }
 
 func runCopyKey(client *Client, args []string) error {
-	var host, user, keyName, password string
+	var host, user, keyInput, password string
 	port := 22
 	jsonOutput := false
 
@@ -324,7 +332,7 @@ Copies an SSH public key to a remote host's authorized_keys file.
 Flags:
   --port <n>        SSH port (default: 22)
   --user <name>     SSH user (default: root)
-  --key <name>      SSH key name to copy
+  --key <key>       SSH key path or basename
   --password <pwd>  Password for initial authentication
   --json            Output raw JSON`)
 			return nil
@@ -343,7 +351,7 @@ Flags:
 		case "--key":
 			if i+1 < len(args) {
 				i++
-				keyName = args[i]
+				keyInput = args[i]
 			}
 		case "--password":
 			if i+1 < len(args) {
@@ -363,11 +371,16 @@ Flags:
 		return fmt.Errorf("usage: scenario-to-cloud ssh copy-key <host>")
 	}
 
+	keyPath, err := resolveKeyPath(client, keyInput)
+	if err != nil {
+		return err
+	}
+
 	req := CopyKeyRequest{
 		Host:     host,
 		Port:     port,
 		User:     user,
-		KeyName:  keyName,
+		KeyPath:  keyPath,
 		Password: password,
 	}
 
@@ -381,8 +394,12 @@ Flags:
 		return nil
 	}
 
-	if resp.Success {
-		fmt.Printf("Successfully copied key '%s' to %s@%s\n", resp.KeyName, resp.User, resp.Host)
+	if resp.OK {
+		displayUser := user
+		if strings.TrimSpace(displayUser) == "" {
+			displayUser = "root"
+		}
+		fmt.Printf("Successfully copied key '%s' to %s@%s\n", keyPath, displayUser, req.Host)
 	} else {
 		fmt.Printf("Failed to copy key: %s\n", resp.Message)
 	}
@@ -396,4 +413,44 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+func resolveKeyPath(client *Client, input string) (string, error) {
+	if strings.TrimSpace(input) == "" {
+		_, keysResp, err := client.Keys()
+		if err != nil {
+			return "", err
+		}
+		if len(keysResp.Keys) == 0 {
+			return "", fmt.Errorf("no SSH keys found; use 'scenario-to-cloud ssh generate <filename>' first")
+		}
+		return keysResp.Keys[0].Path, nil
+	}
+
+	if strings.Contains(input, "/") || strings.HasPrefix(input, "~") {
+		return input, nil
+	}
+
+	_, keysResp, err := client.Keys()
+	if err != nil {
+		return "", err
+	}
+	for _, key := range keysResp.Keys {
+		if filepath.Base(key.Path) == input {
+			return key.Path, nil
+		}
+	}
+
+	return "", fmt.Errorf("SSH key %q not found; use a full path or one of: %s", input, joinKeyNames(keysResp.Keys))
+}
+
+func joinKeyNames(keys []SSHKey) string {
+	if len(keys) == 0 {
+		return "(none)"
+	}
+	names := make([]string, 0, len(keys))
+	for _, key := range keys {
+		names = append(names, filepath.Base(key.Path))
+	}
+	return strings.Join(names, ", ")
 }

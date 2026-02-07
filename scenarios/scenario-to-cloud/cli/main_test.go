@@ -263,6 +263,192 @@ func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 	}
 }
 
+func TestDeploymentHealthAcceptsJSONFlagBeforeOrAfterID(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/deployments/dep-123/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"ok": true,
+			"health": "degraded",
+			"deployment_id": "dep-123",
+			"deployment_name": "demo",
+			"scenario_id": "landing-page-business-suite",
+			"summary": "1 passed  |  0 warning  |  0 failed",
+			"sections": [],
+			"duration_ms": 1234,
+			"timestamp": "2026-02-07T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	outputBefore := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "health", "--json", "dep-123"}); err != nil {
+			t.Fatalf("deployment health with --json before id failed: %v", err)
+		}
+	})
+	if !strings.Contains(outputBefore, `"deployment_id": "dep-123"`) {
+		t.Fatalf("expected deployment JSON output, got: %s", outputBefore)
+	}
+
+	outputAfter := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "health", "dep-123", "--json"}); err != nil {
+			t.Fatalf("deployment health with --json after id failed: %v", err)
+		}
+	})
+	if !strings.Contains(outputAfter, `"deployment_id": "dep-123"`) {
+		t.Fatalf("expected deployment JSON output, got: %s", outputAfter)
+	}
+}
+
+func TestDeploymentHealthPrintsFreshnessNotes(t *testing.T) {
+	app := newTestApp(t)
+	note := "Scenario version not detected from service.json or ui/package.json; falling back to bundle SHA comparison"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/deployments/dep-456/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{
+			"ok": true,
+			"health": "degraded",
+			"deployment_id": "dep-456",
+			"deployment_name": "demo",
+			"scenario_id": "landing-page-business-suite",
+			"summary": "1 passed  |  1 warning  |  0 failed",
+			"sections": [],
+			"freshness": {
+				"status": "outdated",
+				"summary": "Deployment is healthy but outdated relative to local scenario state",
+				"version_status": "unknown",
+				"fingerprint_status": "outdated",
+				"version_source": "default",
+				"notes": [%q]
+			},
+			"duration_ms": 1234,
+			"timestamp": "2026-02-07T00:00:00Z"
+		}`, note)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "health", "dep-456"}); err != nil {
+			t.Fatalf("deployment health failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, note) {
+		t.Fatalf("expected freshness note in output, got: %s", output)
+	}
+}
+
+func TestDeploymentCreateAcceptsJSONFlagAfterManifestPath(t *testing.T) {
+	app := newTestApp(t)
+	manifestPath := writeTestManifest(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/deployments" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"deployment": {
+				"id": "dep-create-1",
+				"name": "demo",
+				"scenario_id": "landing-page-business-suite",
+				"status": "pending",
+				"created_at": "2026-02-07T00:00:00Z",
+				"updated_at": "2026-02-07T00:00:00Z"
+			},
+			"updated": false,
+			"timestamp": "2026-02-07T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "create", manifestPath, "--json"}); err != nil {
+			t.Fatalf("deployment create failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, `"id": "dep-create-1"`) {
+		t.Fatalf("expected JSON response output, got: %s", output)
+	}
+}
+
+func TestRedeployAcceptsJSONFlagAfterManifestPath(t *testing.T) {
+	app := newTestApp(t)
+	manifestPath := writeTestManifest(t)
+
+	call := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call++
+		w.Header().Set("Content-Type", "application/json")
+		switch call {
+		case 1:
+			if r.Method != http.MethodPost || r.URL.Path != "/api/v1/deployments" {
+				t.Fatalf("unexpected create request: %s %s", r.Method, r.URL.Path)
+			}
+			fmt.Fprint(w, `{
+				"deployment": {
+					"id": "dep-redeploy-1",
+					"name": "demo",
+					"scenario_id": "landing-page-business-suite",
+					"status": "pending",
+					"created_at": "2026-02-07T00:00:00Z",
+					"updated_at": "2026-02-07T00:00:00Z"
+				},
+				"updated": false,
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case 2:
+			if r.Method != http.MethodPost || r.URL.Path != "/api/v1/deployments/dep-redeploy-1/execute" {
+				t.Fatalf("unexpected execute request: %s %s", r.Method, r.URL.Path)
+			}
+			fmt.Fprint(w, `{
+				"run_id": "run-1",
+				"status": "started",
+				"message": "ok",
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		default:
+			t.Fatalf("unexpected extra request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"redeploy", manifestPath, "--json"}); err != nil {
+			t.Fatalf("redeploy failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, `"dep-redeploy-1"`) {
+		t.Fatalf("expected deployment id in JSON output, got: %s", output)
+	}
+	if !strings.Contains(output, `"run_id": "run-1"`) {
+		t.Fatalf("expected execute run id in JSON output, got: %s", output)
+	}
+}
+
 func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	// [REQ:STC-P0-006] inspect apply should be callable via CLI (integration layer)
 	app := newTestApp(t)

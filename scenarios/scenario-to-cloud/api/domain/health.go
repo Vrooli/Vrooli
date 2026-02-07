@@ -55,6 +55,29 @@ type Recommendation struct {
 	Command  string `json:"command,omitempty"`
 }
 
+// FreshnessState represents whether deployed code matches local scenario state.
+type FreshnessState string
+
+const (
+	FreshnessCurrent  FreshnessState = "current"
+	FreshnessOutdated FreshnessState = "outdated"
+	FreshnessUnknown  FreshnessState = "unknown"
+)
+
+// FreshnessStatus summarizes version/fingerprint parity between local and deployed state.
+type FreshnessStatus struct {
+	Status               FreshnessState `json:"status"`
+	Summary              string         `json:"summary"`
+	VersionStatus        FreshnessState `json:"version_status"`
+	FingerprintStatus    FreshnessState `json:"fingerprint_status"`
+	LocalVersion         string         `json:"local_version,omitempty"`
+	DeployedVersion      string         `json:"deployed_version,omitempty"`
+	VersionSource        string         `json:"version_source,omitempty"`
+	LocalBundleSHA256    string         `json:"local_bundle_sha256,omitempty"`
+	DeployedBundleSHA256 string         `json:"deployed_bundle_sha256,omitempty"`
+	Notes                []string       `json:"notes,omitempty"`
+}
+
 // HealthResponse is the top-level response from the health endpoint.
 type HealthResponse struct {
 	OK              bool             `json:"ok"`
@@ -66,6 +89,7 @@ type HealthResponse struct {
 	Host            string           `json:"host,omitempty"`
 	Summary         string           `json:"summary"`
 	Sections        []HealthSection  `json:"sections"`
+	Freshness       *FreshnessStatus `json:"freshness,omitempty"`
 	Recommendations []Recommendation `json:"recommendations,omitempty"`
 	DurationMs      int64            `json:"duration_ms"`
 	Timestamp       string           `json:"timestamp"`

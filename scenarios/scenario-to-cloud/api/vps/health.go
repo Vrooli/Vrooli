@@ -560,8 +560,20 @@ func buildSystemSection(liveState *domain.LiveStateResult) domain.HealthSection 
 	}
 	cpuStatus := domain.HealthCheckPass
 	cpuMsg := fmt.Sprintf("CPU: %.1f%% (%d cores)", sys.CPU.UsagePercent, sys.CPU.Cores)
+	load5PerCore := 0.0
+	hasLoad5PerCore := sys.CPU.Cores > 0 && len(sys.CPU.LoadAverage) >= 2
+	if hasLoad5PerCore {
+		load5PerCore = sys.CPU.LoadAverage[1] / float64(sys.CPU.Cores)
+		cpuDetails["load5_per_core"] = fmt.Sprintf("%.2f", load5PerCore)
+	}
 	if sys.CPU.UsagePercent > 95 {
-		cpuStatus = domain.HealthCheckFail
+		// High instantaneous CPU can spike briefly; require sustained load pressure before failing.
+		if hasLoad5PerCore && load5PerCore >= 1.0 {
+			cpuStatus = domain.HealthCheckFail
+			cpuMsg = fmt.Sprintf("CPU: %.1f%% (%d cores, load5/core %.2f)", sys.CPU.UsagePercent, sys.CPU.Cores, load5PerCore)
+		} else {
+			cpuStatus = domain.HealthCheckWarn
+		}
 	} else if sys.CPU.UsagePercent > 90 {
 		cpuStatus = domain.HealthCheckWarn
 	}

@@ -29,7 +29,7 @@ import {
   type SSHKeyInfo,
   type SSHConnectionStatus,
 } from "../../lib/api";
-import { SSH_ERROR_HINTS } from "../../types/ssh";
+import { SSH_ERROR_HINTS, SSH_TEST_API_STATUSES } from "../../types/ssh";
 
 interface SSHKeySetupProps {
   host: string;
@@ -48,6 +48,12 @@ export function SSHKeySetup({
   onKeyPathChange,
   onConnectionStatusChange,
 }: SSHKeySetupProps) {
+  const toKnownConnectionStatus = (status: string): SSHConnectionStatus => {
+    return SSH_TEST_API_STATUSES.includes(status as (typeof SSH_TEST_API_STATUSES)[number])
+      ? (status as SSHConnectionStatus)
+      : "unknown_error";
+  };
+
   // Key discovery state
   const [keys, setKeys] = useState<SSHKeyInfo[]>([]);
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
@@ -138,7 +144,7 @@ export function SSHKeySetup({
         key_path: selectedKeyPath,
       });
 
-      setConnectionStatus(response.status as SSHConnectionStatus);
+      setConnectionStatus(toKnownConnectionStatus(response.status));
       setConnectionMessage(response.message ?? null);
       setConnectionHint(response.hint ?? null);
       setServerInfo(response.server_info ?? null);
@@ -287,7 +293,7 @@ export function SSHKeySetup({
       return <StatusBadge status="neutral">Not configured</StatusBadge>;
     }
     switch (connectionStatus) {
-      case "connected":
+      case "success":
         return <StatusBadge status="success">Connected</StatusBadge>;
       case "testing":
         return <StatusBadge status="info">Testing...</StatusBadge>;
@@ -300,7 +306,7 @@ export function SSHKeySetup({
         return <StatusBadge status="error">IPv6 unavailable</StatusBadge>;
       case "host_key_changed":
         return <StatusBadge status="error">Host key changed</StatusBadge>;
-      case "key_not_found":
+      case "not_found":
         return <StatusBadge status="error">Key missing</StatusBadge>;
       default:
         return <StatusBadge status="neutral">Not tested</StatusBadge>;
@@ -308,7 +314,7 @@ export function SSHKeySetup({
   }, [selectedKeyPath, connectionStatus]);
 
   // Error hints for display
-  const errorHints = connectionStatus !== "untested" && connectionStatus !== "testing" && connectionStatus !== "connected"
+  const errorHints = connectionStatus !== "untested" && connectionStatus !== "testing" && connectionStatus !== "success"
     ? SSH_ERROR_HINTS[connectionStatus]
     : null;
 
@@ -563,7 +569,7 @@ export function SSHKeySetup({
             {/* Status Display */}
             <div
               className={`p-3 rounded-lg border ${
-                connectionStatus === "connected"
+                connectionStatus === "success"
                   ? "bg-emerald-500/10 border-emerald-500/30"
                   : connectionStatus === "auth_failed"
                     ? "bg-amber-500/10 border-amber-500/30"
@@ -575,13 +581,13 @@ export function SSHKeySetup({
               }`}
             >
               <div className="flex items-start gap-2">
-                {connectionStatus === "connected" && (
+                {connectionStatus === "success" && (
                   <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />
                 )}
                 {connectionStatus === "auth_failed" && (
                   <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0" />
                 )}
-                {(connectionStatus === "host_unreachable" || connectionStatus === "timeout" || connectionStatus === "key_not_found" || connectionStatus === "ipv6_unavailable" || connectionStatus === "host_key_changed") && (
+                {(connectionStatus === "host_unreachable" || connectionStatus === "timeout" || connectionStatus === "not_found" || connectionStatus === "ipv6_unavailable" || connectionStatus === "host_key_changed" || connectionStatus === "key_error" || connectionStatus === "dns_failed" || connectionStatus === "disk_full" || connectionStatus === "error") && (
                   <XCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
                 )}
                 {connectionStatus === "testing" && (
@@ -593,7 +599,7 @@ export function SSHKeySetup({
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">
-                    {connectionStatus === "connected" && "Connected successfully"}
+                    {connectionStatus === "success" && "Connected successfully"}
                     {connectionStatus === "testing" && "Testing connection..."}
                     {connectionStatus === "untested" && "Not tested"}
                     {errorHints && errorHints.title}
@@ -601,7 +607,7 @@ export function SSHKeySetup({
                   {serverInfo && (
                     <p className="text-xs text-slate-400 mt-0.5">{serverInfo}</p>
                   )}
-                  {connectionMessage && connectionStatus !== "connected" && (
+                  {connectionMessage && connectionStatus !== "success" && (
                     <p className="text-xs text-slate-400 mt-0.5">{connectionMessage}</p>
                   )}
                   {errorHints && (

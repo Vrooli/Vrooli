@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
+	"scenario-to-cloud/cli/internal/flagutil"
 	internalmanifest "scenario-to-cloud/cli/internal/manifest"
 	"scenario-to-cloud/cli/internal/streaming"
 )
@@ -74,7 +75,7 @@ Run 'scenario-to-cloud deployment <command> -h' for command-specific options.`)
 func runPlan(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment plan", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -113,7 +114,7 @@ func runCreate(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment create", flag.ContinueOnError)
 	name := fs.String("name", "", "Optional deployment name")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -159,7 +160,7 @@ func runList(client *Client, args []string) error {
 	status := fs.String("status", "", "Filter by status (pending, deploying, deployed, failed, stopped)")
 	scenario := fs.String("scenario", "", "Filter by scenario ID")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -204,7 +205,7 @@ func runList(client *Client, args []string) error {
 func runGet(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment get", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -246,7 +247,7 @@ func runDelete(client *Client, args []string) error {
 	stop := fs.Bool("stop", false, "Stop the deployment on VPS before deleting")
 	cleanup := fs.Bool("cleanup", false, "Clean up bundle files")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -280,7 +281,7 @@ func runExecute(client *Client, args []string) error {
 	stream := fs.Bool("stream", true, "Stream progress updates (enabled by default)")
 	noStream := fs.Bool("no-stream", false, "Disable streaming, return immediately after starting")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON (implies --no-stream)")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -404,7 +405,7 @@ func renderProgressBar(percent float64, width int) string {
 func runStart(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment start", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -431,7 +432,7 @@ func runStart(client *Client, args []string) error {
 func runStop(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment stop", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -460,7 +461,7 @@ func runStop(client *Client, args []string) error {
 func runHistory(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment history", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

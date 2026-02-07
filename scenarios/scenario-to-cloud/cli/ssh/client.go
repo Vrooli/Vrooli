@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"encoding/json"
-	"net/url"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -44,11 +43,8 @@ func (c *Client) Generate(req GenerateRequest) ([]byte, GenerateResponse, error)
 }
 
 // Delete removes an SSH key.
-func (c *Client) Delete(name string) ([]byte, DeleteResponse, error) {
-	query := url.Values{}
-	query.Set("name", name)
-
-	body, err := c.api.Request("DELETE", "/api/v1/ssh/keys", query, nil)
+func (c *Client) Delete(req DeleteRequest) ([]byte, DeleteResponse, error) {
+	body, err := c.api.Request("DELETE", "/api/v1/ssh/keys", nil, req)
 	if err != nil {
 		return nil, DeleteResponse{}, err
 	}

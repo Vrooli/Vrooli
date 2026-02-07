@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 
@@ -9,28 +8,50 @@ import (
 )
 
 func runHealth(client *Client, args []string) error {
-	fs := flag.NewFlagSet("deployment health", flag.ContinueOnError)
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-
-	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud deployment health <id>")
-	}
-
-	body, resp, err := client.Health(fs.Arg(0))
+	jsonOutput, id, err := parseHealthArgs(args)
 	if err != nil {
 		return err
 	}
+	if id == "" {
+		return fmt.Errorf("usage: scenario-to-cloud deployment health <id>")
+	}
 
-	if *jsonOutput {
+	body, resp, healthErr := client.Health(id)
+	if healthErr != nil {
+		return healthErr
+	}
+
+	if jsonOutput {
 		cliutil.PrintJSON(body)
 		return nil
 	}
 
 	printHealthReport(resp)
 	return nil
+}
+
+func parseHealthArgs(args []string) (bool, string, error) {
+	var (
+		jsonOutput  bool
+		positionals []string
+	)
+	for _, arg := range args {
+		switch arg {
+		case "--json":
+			jsonOutput = true
+		case "-h", "--help":
+			return false, "", fmt.Errorf("usage: scenario-to-cloud deployment health <id>")
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return false, "", fmt.Errorf("unknown flag: %s", arg)
+			}
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) != 1 {
+		return false, "", nil
+	}
+	return jsonOutput, positionals[0], nil
 }
 
 func printHealthReport(resp HealthResponse) {
@@ -53,6 +74,30 @@ func printHealthReport(resp HealthResponse) {
 	// Overall status
 	fmt.Printf("Overall: %s", strings.ToUpper(string(resp.Health)))
 	fmt.Printf("%s%s\n", strings.Repeat(" ", 25-len(resp.Health)), resp.Summary)
+	if resp.Freshness != nil {
+		fmt.Printf("Freshness: %s", strings.ToUpper(resp.Freshness.Status))
+		if resp.Freshness.Summary != "" {
+			fmt.Printf("%s%s", strings.Repeat(" ", 23-len(resp.Freshness.Status)), resp.Freshness.Summary)
+		}
+		fmt.Println()
+		if resp.Freshness.LocalVersion != "" || resp.Freshness.DeployedVersion != "" {
+			fmt.Printf("  Version: local=%s deployed=%s (%s)\n",
+				displayOrNA(resp.Freshness.LocalVersion),
+				displayOrNA(resp.Freshness.DeployedVersion),
+				displayOrNA(resp.Freshness.VersionStatus),
+			)
+		}
+		if resp.Freshness.LocalBundleSHA256 != "" || resp.Freshness.DeployedBundleSHA256 != "" {
+			fmt.Printf("  Fingerprint: local=%s deployed=%s (%s)\n",
+				shortHashOrNA(resp.Freshness.LocalBundleSHA256),
+				shortHashOrNA(resp.Freshness.DeployedBundleSHA256),
+				displayOrNA(resp.Freshness.FingerprintStatus),
+			)
+		}
+		for _, note := range resp.Freshness.Notes {
+			fmt.Printf("  Note: %s\n", note)
+		}
+	}
 	fmt.Println(thinDivider)
 
 	// Sections
@@ -115,4 +160,23 @@ func recommendationPriority(p int) string {
 	default:
 		return "suggestion"
 	}
+}
+
+func displayOrNA(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "n/a"
+	}
+	return v
+}
+
+func shortHashOrNA(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "n/a"
+	}
+	if len(v) <= 12 {
+		return v
+	}
+	return v[:12]
 }

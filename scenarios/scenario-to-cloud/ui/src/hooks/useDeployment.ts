@@ -32,6 +32,8 @@ import {
 const MAX_HISTORY_SIZE = 50;
 
 const STORAGE_KEY = "scenario-to-cloud:deployment";
+const REQUIRE_SSH_SUCCESS_FOR_MANIFEST =
+  import.meta.env.VITE_REQUIRE_SSH_SUCCESS_FOR_MANIFEST === "true";
 
 type SavedDeployment = {
   manifestJson: string;
@@ -652,12 +654,24 @@ export function useDeployment() {
   const canProceed = useMemo(() => {
     switch (currentStep.id) {
       case "manifest":
-        // Merged manifest + validate: require valid JSON AND no blocking validation errors
-        return (
+        // Merged manifest + validate: require valid JSON AND no blocking validation errors.
+        // Optional strict mode can also require a successful SSH connectivity check.
+        if (!(
           parsedManifest.ok &&
           validationIssues !== null &&
           validationIssues.filter((i) => i.severity === "error").length === 0
-        );
+        )) {
+          return false;
+        }
+
+        if (
+          REQUIRE_SSH_SUCCESS_FOR_MANIFEST &&
+          parsedManifest.value.target?.vps?.host
+        ) {
+          return sshConnectionStatus === "success";
+        }
+
+        return true;
       case "secrets":
         // Must have completed fetch attempt
         if (!secretsFetched) return false;
@@ -683,7 +697,7 @@ export function useDeployment() {
       default:
         return false;
     }
-  }, [currentStep.id, parsedManifest, validationIssues, secretsFetched, secretsManifest, providedSecrets, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus]);
+  }, [currentStep.id, parsedManifest, validationIssues, secretsFetched, secretsManifest, providedSecrets, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus, sshConnectionStatus]);
 
   const hasSavedProgress = saved !== null && saved.manifestJson !== DEFAULT_MANIFEST_JSON;
 

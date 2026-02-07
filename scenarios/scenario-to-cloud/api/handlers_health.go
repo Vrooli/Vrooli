@@ -75,6 +75,15 @@ func (s *Server) handleGetDeploymentHealth(w http.ResponseWriter, r *http.Reques
 
 	// Compute health report
 	resp := vps.ComputeHealth(dc.Deployment, dc.Manifest, liveState, dnsEval, tlsSnap, tlsErr)
+	resp.Freshness = s.evaluateDeploymentFreshness(ctx, dc.Deployment, dc.Manifest)
+	if resp.Freshness != nil && resp.Freshness.Status == domain.FreshnessOutdated {
+		resp.Recommendations = append(resp.Recommendations, domain.Recommendation{
+			Priority: 3,
+			Category: "freshness",
+			Summary:  "Deployment is healthy but outdated compared to local scenario state",
+			Command:  "scenario-to-cloud deployment execute " + dc.Deployment.ID + " --force-bundle",
+		})
+	}
 	resp.DurationMs = time.Since(start).Milliseconds()
 
 	httputil.WriteJSON(w, http.StatusOK, resp)

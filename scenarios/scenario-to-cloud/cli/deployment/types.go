@@ -166,18 +166,33 @@ type ListOptions struct {
 
 // HealthResponse is the response from the health endpoint.
 type HealthResponse struct {
-	OK              bool              `json:"ok"`
-	Health          string            `json:"health"`
-	DeploymentID    string            `json:"deployment_id"`
-	DeploymentName  string            `json:"deployment_name"`
-	ScenarioID      string            `json:"scenario_id"`
-	Domain          string            `json:"domain,omitempty"`
-	Host            string            `json:"host,omitempty"`
-	Summary         string            `json:"summary"`
-	Sections        []HealthSection   `json:"sections"`
-	Recommendations []Recommendation  `json:"recommendations,omitempty"`
-	DurationMs      int64             `json:"duration_ms"`
-	Timestamp       string            `json:"timestamp"`
+	OK              bool             `json:"ok"`
+	Health          string           `json:"health"`
+	DeploymentID    string           `json:"deployment_id"`
+	DeploymentName  string           `json:"deployment_name"`
+	ScenarioID      string           `json:"scenario_id"`
+	Domain          string           `json:"domain,omitempty"`
+	Host            string           `json:"host,omitempty"`
+	Summary         string           `json:"summary"`
+	Sections        []HealthSection  `json:"sections"`
+	Freshness       *FreshnessStatus `json:"freshness,omitempty"`
+	Recommendations []Recommendation `json:"recommendations,omitempty"`
+	DurationMs      int64            `json:"duration_ms"`
+	Timestamp       string           `json:"timestamp"`
+}
+
+// FreshnessStatus summarizes whether local scenario state is newer than deployed state.
+type FreshnessStatus struct {
+	Status               string   `json:"status"`
+	Summary              string   `json:"summary"`
+	VersionStatus        string   `json:"version_status"`
+	FingerprintStatus    string   `json:"fingerprint_status"`
+	LocalVersion         string   `json:"local_version,omitempty"`
+	DeployedVersion      string   `json:"deployed_version,omitempty"`
+	VersionSource        string   `json:"version_source,omitempty"`
+	LocalBundleSHA256    string   `json:"local_bundle_sha256,omitempty"`
+	DeployedBundleSHA256 string   `json:"deployed_bundle_sha256,omitempty"`
+	Notes                []string `json:"notes,omitempty"`
 }
 
 // HealthSection groups related health checks.

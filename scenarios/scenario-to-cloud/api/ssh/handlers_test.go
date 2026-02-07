@@ -149,6 +149,14 @@ func (f *fakeRunner) Run(_ context.Context, _ Config, _ string, _ RunOptions) (R
 	return f.result, f.err
 }
 
+type fakeKeyCopier struct {
+	result CopyKeyResponse
+}
+
+func (f fakeKeyCopier) CopyKey(_ context.Context, _ CopyKeyRequest) CopyKeyResponse {
+	return f.result
+}
+
 func TestHandleTestConnection_Success(t *testing.T) {
 	t.Parallel()
 
@@ -244,5 +252,64 @@ func TestHandleTestConnection_AuthFailed(t *testing.T) {
 	}
 	if result.Status != StatusAuthFailed {
 		t.Errorf("status = %q, want %q", result.Status, StatusAuthFailed)
+	}
+}
+
+func TestHandleCopyKey_MissingPassword(t *testing.T) {
+	t.Parallel()
+
+	body, _ := json.Marshal(CopyKeyRequest{
+		Host:    "192.168.1.1",
+		KeyPath: "/home/test/.ssh/id_ed25519",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ssh/copy-key", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler := HandleCopyKey(fakeKeyCopier{}, DefaultHandlerOptions())
+	handler(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+	}
+}
+
+func TestHandleCopyKey_Success(t *testing.T) {
+	t.Parallel()
+
+	body, _ := json.Marshal(CopyKeyRequest{
+		Host:     "192.168.1.1",
+		KeyPath:  "/home/test/.ssh/id_ed25519",
+		Password: "secret",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ssh/copy-key", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	expected := CopyKeyResponse{
+		Outcome: Outcome{
+			OK:      true,
+			Status:  StatusSuccess,
+			Message: "SSH key successfully copied to server",
+		},
+		KeyCopied: true,
+	}
+
+	handler := HandleCopyKey(fakeKeyCopier{result: expected}, DefaultHandlerOptions())
+	handler(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result CopyKeyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected OK response, got status=%q message=%q", result.Status, result.Message)
+	}
+	if !result.KeyCopied {
+		t.Error("expected key_copied=true")
 	}
 }

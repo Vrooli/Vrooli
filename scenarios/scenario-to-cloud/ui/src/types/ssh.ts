@@ -13,15 +13,57 @@ export interface SSHKeyInfo {
 export type SSHConnectionStatus =
   | "untested"
   | "testing"
-  | "connected"
+  | "success"
   | "auth_failed"
   | "host_unreachable"
   | "timeout"
-  | "key_not_found"
-  | "permission_denied"
+  | "not_found"
   | "ipv6_unavailable"
   | "host_key_changed"
+  | "key_error"
+  | "dns_failed"
+  | "disk_full"
+  | "error"
   | "unknown_error";
+
+export const SSH_API_OUTCOME_STATUSES = [
+  "success",
+  "already_exists",
+  "not_found",
+  "auth_failed",
+  "timeout",
+  "host_unreachable",
+  "host_key_changed",
+  "ipv6_unavailable",
+  "invalid_input",
+  "disk_full",
+  "dns_failed",
+  "key_error",
+  "error",
+] as const;
+
+export const SSH_TEST_API_STATUSES = [
+  "success",
+  "auth_failed",
+  "timeout",
+  "host_unreachable",
+  "host_key_changed",
+  "ipv6_unavailable",
+  "key_error",
+  "dns_failed",
+  "disk_full",
+  "not_found",
+  "error",
+] as const;
+
+export const SSH_COPY_KEY_API_STATUSES = [
+  "success",
+  "already_exists",
+  "auth_failed",
+  "ipv6_unavailable",
+  "key_error",
+  "error",
+] as const;
 
 // API Response Types
 export interface ListSSHKeysResponse {
@@ -80,10 +122,11 @@ export interface CopySSHKeyRequest {
 }
 
 export type CopySSHKeyStatus =
-  | "copied"
+  | "success"
   | "already_exists"
   | "auth_failed"
   | "ipv6_unavailable"
+  | "key_error"
   | "error";
 
 export interface CopySSHKeyResponse {
@@ -121,7 +164,7 @@ export const SSH_ERROR_HINTS: Record<
     title: "Testing Connection",
     hints: ["Please wait while we verify SSH access..."],
   },
-  connected: {
+  success: {
     title: "Connected",
     hints: ["SSH connection is working"],
   },
@@ -150,7 +193,7 @@ export const SSH_ERROR_HINTS: Record<
       "Try again or check server logs",
     ],
   },
-  key_not_found: {
+  not_found: {
     title: "Key Not Found",
     hints: [
       "The selected key file could not be found",
@@ -158,10 +201,10 @@ export const SSH_ERROR_HINTS: Record<
       "Select a different key or generate a new one",
     ],
   },
-  permission_denied: {
-    title: "Permission Denied",
+  key_error: {
+    title: "Key Error",
     hints: [
-      "The SSH key file may have incorrect permissions",
+      "The SSH key file may be corrupted or have incorrect permissions",
       "Run: chmod 600 ~/.ssh/your_key",
       "Ensure the key file is owned by your user",
     ],
@@ -182,6 +225,28 @@ export const SSH_ERROR_HINTS: Record<
       "This could happen if the server was rebuilt or reinstalled",
       "If unexpected, this could indicate a security issue",
       "Run: ssh-keygen -R <host> to remove the old key",
+    ],
+  },
+  dns_failed: {
+    title: "DNS Failed",
+    hints: [
+      "Hostname could not be resolved",
+      "Check the VPS hostname or use the server IP address",
+    ],
+  },
+  disk_full: {
+    title: "Disk Full",
+    hints: [
+      "The server appears to be out of disk space",
+      "SSH in and run: df -h",
+      "Free space and try again",
+    ],
+  },
+  error: {
+    title: "SSH Error",
+    hints: [
+      "SSH command failed",
+      "Review the error message and server logs",
     ],
   },
   unknown_error: {

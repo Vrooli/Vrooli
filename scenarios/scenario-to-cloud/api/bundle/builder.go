@@ -78,6 +78,23 @@ func BuildMiniVrooliBundle(repoRoot, outDir string, manifest domain.CloudManifes
 	}, nil
 }
 
+// CalculateBundleSHA computes the deterministic bundle SHA256 and size without writing a bundle file.
+// This is useful for freshness checks where we only need a fingerprint comparison.
+func CalculateBundleSHA(repoRoot string, manifest domain.CloudManifest) (string, int64, error) {
+	spec, err := MiniVrooliBundleSpec(repoRoot, manifest)
+	if err != nil {
+		return "", 0, err
+	}
+
+	hasher := sha256.New()
+	size, err := WriteDeterministicTarGz(io.MultiWriter(io.Discard, hasher), repoRoot, spec)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), size, nil
+}
+
 // MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle.
 func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniBundleSpec, error) {
 	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)

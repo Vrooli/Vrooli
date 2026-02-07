@@ -308,3 +308,37 @@ func TestComputeHealth_SectionCounts(t *testing.T) {
 		}
 	}
 }
+
+func TestComputeHealth_CPUSpikeWithoutLoadPressureIsWarning(t *testing.T) {
+	dep := newTestDeployment(domain.StatusDeployed)
+	manifest := newTestManifest()
+	liveState := newHealthyLiveState()
+	liveState.System.CPU.Cores = 1
+	liveState.System.CPU.UsagePercent = 99
+	liveState.System.CPU.LoadAverage = []float64{0.20, 0.25, 0.30}
+	dnsEval := newHealthyDNSEval()
+	tlsSnap := newHealthyTLSSnapshot()
+
+	resp := ComputeHealth(dep, manifest, liveState, dnsEval, tlsSnap, nil)
+
+	if resp.Health != domain.HealthDegraded {
+		t.Fatalf("expected degraded for transient CPU spike, got %s", resp.Health)
+	}
+}
+
+func TestComputeHealth_CPUSustainedHighLoadFails(t *testing.T) {
+	dep := newTestDeployment(domain.StatusDeployed)
+	manifest := newTestManifest()
+	liveState := newHealthyLiveState()
+	liveState.System.CPU.Cores = 1
+	liveState.System.CPU.UsagePercent = 99
+	liveState.System.CPU.LoadAverage = []float64{1.10, 1.30, 1.25}
+	dnsEval := newHealthyDNSEval()
+	tlsSnap := newHealthyTLSSnapshot()
+
+	resp := ComputeHealth(dep, manifest, liveState, dnsEval, tlsSnap, nil)
+
+	if resp.Health != domain.HealthUnhealthy {
+		t.Fatalf("expected unhealthy for sustained CPU pressure, got %s", resp.Health)
+	}
+}

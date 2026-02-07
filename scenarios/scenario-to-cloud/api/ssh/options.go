@@ -1,7 +1,12 @@
 package ssh
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -35,7 +40,7 @@ func DefaultRunOptions() RunOptions {
 		StrictHostKey:       true,
 		MaxOutputBytes:      512 * 1024,
 		ErrorContextLines:   50,
-		ControlMaster:       true,
+		ControlMaster:       runtime.GOOS != "windows",
 	}
 }
 
@@ -137,9 +142,10 @@ func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
 		out = append(out, "-o", "IdentitiesOnly=yes")
 	}
 	if opts.ControlMaster {
+		controlPath := buildControlPath(cfg)
 		out = append(out,
 			"-o", "ControlMaster=auto",
-			"-o", fmt.Sprintf("ControlPath=/tmp/ssh-mux-%%r@%%h:%%p"),
+			"-o", fmt.Sprintf("ControlPath=%s", controlPath),
 			"-o", "ControlPersist=60",
 		)
 	}
@@ -148,6 +154,23 @@ func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
 		out = append(out, "-i", cfg.KeyPath)
 	}
 	return out
+}
+
+// buildControlPath returns an OS-safe, short, stable control socket path.
+func buildControlPath(cfg Config) string {
+	sum := sha1.Sum([]byte(fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port)))
+	name := "vrooli-ssh-" + hex.EncodeToString(sum[:8])
+	return filepath.ToSlash(filepath.Join(controlPathDir(), name))
+}
+
+// controlPathDir picks a short temp directory for SSH control sockets.
+func controlPathDir() string {
+	if runtime.GOOS != "windows" {
+		if info, err := os.Stat("/tmp"); err == nil && info.IsDir() {
+			return "/tmp"
+		}
+	}
+	return os.TempDir()
 }
 
 // ---- Legacy adapters for format.go / connect.go display functions ----

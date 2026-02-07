@@ -1,0 +1,116 @@
+{
+  "version": "1.0.0",
+  "outcome_statuses": [
+    "success",
+    "already_exists",
+    "not_found",
+    "auth_failed",
+    "timeout",
+    "host_unreachable",
+    "host_key_changed",
+    "ipv6_unavailable",
+    "invalid_input",
+    "disk_full",
+    "dns_failed",
+    "key_error",
+    "error"
+  ],
+  "endpoints": {
+    "/api/v1/ssh/keys": {
+      "request_required_fields": [],
+      "response_required_fields": [
+        "ok",
+        "status",
+        "timestamp",
+        "keys",
+        "ssh_dir"
+      ]
+    },
+    "/api/v1/ssh/keys/generate": {
+      "request_required_fields": [
+        "type"
+      ],
+      "response_required_fields": [
+        "ok",
+        "status",
+        "timestamp",
+        "key"
+      ]
+    },
+    "/api/v1/ssh/keys/public": {
+      "request_required_fields": [
+        "key_path"
+      ],
+      "response_required_fields": [
+        "ok",
+        "status",
+        "timestamp",
+        "public_key",
+        "fingerprint"
+      ]
+    },
+    "/api/v1/ssh/keys:delete": {
+      "request_required_fields": [
+        "key_path"
+      ],
+      "response_required_fields": [
+        "ok",
+        "status",
+        "timestamp",
+        "private_deleted",
+        "public_deleted"
+      ]
+    },
+    "/api/v1/ssh/test": {
+      "request_required_fields": [
+        "host",
+        "key_path"
+      ],
+      "response_required_fields": [
+        "ok",
+        "status",
+        "timestamp"
+      ],
+      "response_statuses": [
+        "success",
+        "auth_failed",
+        "timeout",
+        "host_unreachable",
+        "host_key_changed",
+        "ipv6_unavailable",
+        "key_error",
+        "dns_failed",
+        "disk_full",
+        "not_found",
+        "error"
+      ]
+    },
+    "/api/v1/ssh/copy-key": {
+      "request_required_fields": [
+        "host",
+        "key_path",
+        "password"
+      ],
+      "response_required_fields": [
+        "ok",
+        "status",
+        "timestamp",
+        "key_copied",
+        "already_exists"
+      ],
+      "response_statuses": [
+        "success",
+        "already_exists",
+        "auth_failed",
+        "ipv6_unavailable",
+        "key_error",
+        "error"
+      ]
+    }
+  },
+  "legacy_disallowed_fields": [
+    "success",
+    "name",
+    "key_name"
+  ]
+}
