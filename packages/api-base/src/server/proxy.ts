@@ -37,6 +37,7 @@ import { resolveProxyAgent } from './agent.js'
  * })
  * ```
  */
+// DOC: docs/api/server.md#proxytoapi
 export async function proxyToApi(
   req: Request,
   res: Response,
@@ -189,6 +190,7 @@ export async function proxyToApi(
  * app.use('/api', proxyMiddleware)
  * ```
  */
+// DOC: docs/api/server.md#createproxymiddleware
 export function createProxyMiddleware(options: ProxyOptions): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -242,6 +244,8 @@ export function createProxyMiddleware(options: ProxyOptions): RequestHandler {
  * })
  * ```
  */
+// DOC: docs/api/server.md#proxywebsocketupgrade
+// DOC: docs/concepts/ARCHITECTURE.md#websocket-tunneling
 export function proxyWebSocketUpgrade(
   req: http.IncomingMessage,
   clientSocket: any,

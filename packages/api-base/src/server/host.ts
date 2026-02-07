@@ -17,9 +17,11 @@ import {
 import { buildProxyMetadata, injectProxyMetadata, injectBaseTag } from './inject.js'
 import { proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
 import { resolveProxyAgent } from './agent.js'
+import { RequestTimer, NOOP_TIMER, ProxyMetrics, PHASE } from './perf.js'
 
-const DEFAULT_CACHE_TTL_MS = 30_000
-const UPSTREAM_CHECK_TIMEOUT_MS = 500
+const DEFAULT_CACHE_TTL_MS = 300_000
+const DEFAULT_HEALTH_CHECK_INTERVAL_MS = 5_000
+const DEFAULT_HEALTH_CHECK_TIMEOUT_MS = 500
 const SLUGIFY_REGEX = /[^a-z0-9]+/g
 const PATH_TRAVERSAL_PATTERN = /(^|\/|\\)\.\.(?=\/|\\|$)/
 
@@ -364,6 +366,7 @@ function buildProxyContext(
 const HEAD_CLOSE_TAG = '</head>'
 const HEAD_BUFFER_LIMIT = 512 * 1024 // 512KB safety net
 
+// DOC: docs/concepts/ARCHITECTURE.md#html-injection-pipeline
 class StreamingHeadInjector {
   private buffer = ''
   private injected = false
@@ -610,6 +613,85 @@ function copyIncomingHeaders(headers: http.IncomingHttpHeaders): http.IncomingHt
   return clone
 }
 
+interface HealthEntry {
+  healthy: boolean
+  timer: ReturnType<typeof setInterval>
+}
+
+class HealthTracker {
+  private readonly ports = new Map<number, HealthEntry>()
+
+  constructor(
+    private readonly upstreamHost: string,
+    private readonly intervalMs: number,
+    private readonly timeoutMs: number,
+  ) {}
+
+  track(port: number): void {
+    if (this.ports.has(port)) {
+      return
+    }
+    const entry: HealthEntry = { healthy: true, timer: null as unknown as ReturnType<typeof setInterval> }
+    this.ports.set(port, entry)
+    // Run first probe immediately
+    this.probe(port)
+    const timer = setInterval(() => this.probe(port), this.intervalMs)
+    timer.unref()
+    entry.timer = timer
+  }
+
+  untrack(port: number): void {
+    const entry = this.ports.get(port)
+    if (!entry) {
+      return
+    }
+    clearInterval(entry.timer)
+    this.ports.delete(port)
+  }
+
+  isHealthy(port: number): boolean {
+    const entry = this.ports.get(port)
+    return entry ? entry.healthy : true
+  }
+
+  destroy(): void {
+    for (const entry of this.ports.values()) {
+      clearInterval(entry.timer)
+    }
+    this.ports.clear()
+  }
+
+  private probe(port: number): void {
+    let settled = false
+    const finish = (healthy: boolean) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      const entry = this.ports.get(port)
+      if (entry) {
+        entry.healthy = healthy
+      }
+    }
+
+    const socket = net.createConnection({ host: this.upstreamHost, port }, () => {
+      socket.end()
+      finish(true)
+    })
+
+    socket.setTimeout(this.timeoutMs, () => {
+      socket.destroy()
+      finish(false)
+    })
+
+    socket.on('error', () => {
+      finish(false)
+    })
+  }
+}
+
+// DOC: docs/api/server.md#createscenarioproxyhost
+// DOC: docs/concepts/ARCHITECTURE.md#system-overview
 export function createScenarioProxyHost(options: ScenarioProxyHostOptions): ScenarioProxyHostController {
   if (!options.hostScenario) {
     throw new Error('hostScenario option is required')
@@ -645,6 +727,32 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
     agent: options.proxyAgent,
     keepAlive: options.proxyKeepAlive,
   })
+
+  const healthTracker = new HealthTracker(
+    upstreamHost,
+    options.healthCheckIntervalMs ?? DEFAULT_HEALTH_CHECK_INTERVAL_MS,
+    options.healthCheckTimeoutMs ?? DEFAULT_HEALTH_CHECK_TIMEOUT_MS,
+  )
+
+  const timingEnabled = options.enableServerTiming !== false
+  const metricsEnabled = Boolean(options.enableMetrics)
+  const metrics: ProxyMetrics | null = metricsEnabled
+    ? new ProxyMetrics(options.metricsSampleSize ?? 1000)
+    : null
+
+  function createTimer(): RequestTimer {
+    return timingEnabled ? new RequestTimer() : NOOP_TIMER
+  }
+
+  function finalizeTimer(timer: RequestTimer, res: express.Response): void {
+    const headerValue = timer.toHeaderValue()
+    if (headerValue && !res.headersSent) {
+      res.setHeader('Server-Timing', headerValue)
+    }
+    if (metrics) {
+      metrics.recordAll(timer)
+    }
+  }
 
   function clearHtmlCacheEntries(appId?: string): void {
     if (!htmlCacheEntries) {
@@ -766,44 +874,15 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
     return true
   }
 
-  async function ensureUpstreamReachable(port: number): Promise<boolean> {
-    if (!htmlCacheActive) {
-      return true
-    }
-    return await new Promise((resolve) => {
-      let settled = false
-      const finish = (value: boolean) => {
-        if (settled) {
-          return
-        }
-        settled = true
-        resolve(value)
-      }
-
-      const socket = net.createConnection({ host: upstreamHost, port }, () => {
-        socket.end()
-        finish(true)
-      })
-
-      const timeoutForCheck = Math.max(50, Math.min(timeout, UPSTREAM_CHECK_TIMEOUT_MS))
-      socket.setTimeout(timeoutForCheck, () => {
-        socket.destroy()
-        finish(false)
-      })
-
-      socket.on('error', () => {
-        finish(false)
-      })
-    })
-  }
-
   async function getProxyContext(appId: string): Promise<ProxyContext> {
     const now = Date.now()
     const cached = cache.get(appId)
     if (cached && now - cached.timestamp < cacheTtl) {
+      metrics?.recordCacheEvent('metadata', true)
       return cached.context
     }
 
+    metrics?.recordCacheEvent('metadata', false)
     const metadata = await options.fetchAppMetadata(appId)
     if (!metadata) {
       throw new Error(`App ${appId} not found`)
@@ -819,9 +898,11 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
     })
 
     cache.set(appId, { context, timestamp: now })
+    healthTracker.track(context.uiPort)
     return context
   }
 
+  // DOC: docs/concepts/ARCHITECTURE.md#request-decision-tree
   async function handleScenarioProxyRequest(req: Request, res: Response): Promise<void> {
     const appId = req.params.appId
     if (hasPathTraversal(appId)) {
@@ -837,16 +918,22 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
       console.log(`[proxy-host] ${appId} -> ${relativeUrl}`)
     }
 
+    const timer = createTimer()
+    const stopTotal = timer.start(PHASE.TOTAL)
+
     try {
-      const context = await getProxyContext(appId)
+      const context = await timer.measure(PHASE.CTX, () => getProxyContext(appId))
 
       if (isApiPath(relativeUrl)) {
-        await forwardHttpRequest(req, res, relativeUrl, context.apiPort || context.uiPort, {
+        finalizeTimer(timer, res)
+        await timer.measure(PHASE.FWD_HTTP, () => forwardHttpRequest(req, res, relativeUrl, context.apiPort || context.uiPort, {
           upstreamHost,
           timeout,
           verbose,
           agent: upstreamAgent,
-        })
+        }))
+        stopTotal()
+        if (metrics) metrics.recordAll(timer)
         return
       }
 
@@ -854,15 +941,14 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
         const targetUrl = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`
         let htmlResponse = getCachedHtmlEntry(appId, targetUrl)
 
-        if (htmlResponse) {
-          const upstreamReachable = await ensureUpstreamReachable(context.uiPort)
-          if (!upstreamReachable) {
-            removeHtmlCacheEntry(appId, targetUrl)
-            htmlResponse = null
-          }
+        if (htmlResponse && !healthTracker.isHealthy(context.uiPort)) {
+          removeHtmlCacheEntry(appId, targetUrl)
+          htmlResponse = null
         }
 
         if (htmlResponse) {
+          metrics?.recordCacheEvent('html', true)
+          const stopCache = timer.start(PHASE.HTML_CACHE)
           let body = htmlResponse.body
           if (!htmlResponse.injected) {
             const metadataPayload = { ...context.metadata, generatedAt: Date.now() }
@@ -883,14 +969,19 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
             res.setHeader(proxyHeaderName, appId)
           }
           res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+          stopCache()
+          stopTotal()
+          finalizeTimer(timer, res)
           res.status(htmlResponse.status).send(body)
           return
         }
 
+        metrics?.recordCacheEvent('html', false)
         const metadataPayload = { ...context.metadata, generatedAt: Date.now() }
         const basePath = `${context.metadata.primary.path || `${appsPrefix}/${appId}/${proxySegment}`}/`
 
-        await streamProxiedHtml({
+        finalizeTimer(timer, res)
+        await timer.measure(PHASE.HTML_STREAM, () => streamProxiedHtml({
           appId,
           targetUrl,
           res,
@@ -916,17 +1007,24 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
           onCacheSkip: () => {
             removeHtmlCacheEntry(appId, targetUrl)
           },
-        })
+        }))
+        stopTotal()
+        if (metrics) metrics.recordAll(timer)
         return
       }
 
-      await forwardHttpRequest(req, res, relativeUrl, context.uiPort, {
+      finalizeTimer(timer, res)
+      await timer.measure(PHASE.FWD_HTTP, () => forwardHttpRequest(req, res, relativeUrl, context.uiPort, {
         upstreamHost,
         timeout,
         verbose,
         agent: upstreamAgent,
-      })
+      }))
+      stopTotal()
+      if (metrics) metrics.recordAll(timer)
     } catch (error) {
+      stopTotal()
+      if (metrics) metrics.recordAll(timer)
       removeHtmlCacheEntry(appId, relativeUrl)
       console.error(`[proxy-host] Failed to proxy app ${appId}:`, error instanceof Error ? error.message : error)
       if (!res.headersSent) {
@@ -951,21 +1049,30 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
       console.log(`[proxy-host] ${appId}/${portKey} -> ${relativeUrl}`)
     }
 
+    const timer = createTimer()
+    const stopTotal = timer.start(PHASE.TOTAL)
+
     try {
-      const context = await getProxyContext(appId)
+      const context = await timer.measure(PHASE.CTX, () => getProxyContext(appId))
       const targetPort = context.portLookup.get(normalizePortKey(portKey))
       if (!targetPort) {
+        stopTotal()
         res.status(404).json({ error: `Port ${portKey} not found for ${appId}` })
         return
       }
 
-      await forwardHttpRequest(req, res, relativeUrl, targetPort, {
+      finalizeTimer(timer, res)
+      await timer.measure(PHASE.FWD_HTTP, () => forwardHttpRequest(req, res, relativeUrl, targetPort, {
         upstreamHost,
         timeout,
         verbose,
         agent: upstreamAgent,
-      })
+      }))
+      stopTotal()
+      if (metrics) metrics.recordAll(timer)
     } catch (error) {
+      stopTotal()
+      if (metrics) metrics.recordAll(timer)
       console.error(`[proxy-host] Failed to proxy port ${appId}/${portKey}:`, error instanceof Error ? error.message : error)
       if (!res.headersSent) {
         res.status(502).json({ error: 'Failed to proxy port', details: error instanceof Error ? error.message : 'Unknown error' })
@@ -1011,6 +1118,16 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
     router.all(appRoute, (req, res) => {
       void handleScenarioProxyRequest(req, res)
     })
+
+    if (metrics) {
+      router.get('/__perf', (_req, res) => {
+        res.json(metrics.toJSON())
+      })
+      router.post('/__perf/reset', (_req, res) => {
+        metrics.reset()
+        res.json({ ok: true })
+      })
+    }
   }
 
   registerRoutes()
@@ -1102,9 +1219,16 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
 
   function invalidate(appId?: string): void {
     if (appId) {
+      const cached = cache.get(appId)
+      if (cached) {
+        healthTracker.untrack(cached.context.uiPort)
+      }
       cache.delete(appId)
       clearHtmlCacheEntries(appId)
     } else {
+      for (const entry of cache.values()) {
+        healthTracker.untrack(entry.context.uiPort)
+      }
       cache.clear()
       clearHtmlCacheEntries()
     }
@@ -1118,5 +1242,8 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
       cache.clear()
       clearHtmlCacheEntries()
     },
+    getMetrics: () => metrics ? metrics.toJSON() : null,
+    resetMetrics: () => metrics?.reset(),
+    destroy: () => healthTracker.destroy(),
   }
 }

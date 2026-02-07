@@ -24,6 +24,7 @@ var (
 const (
 	orchestratorCacheTTL   = 90 * time.Second  // Increased from 60s to reduce cache misses during slow scenario status calls
 	partialCacheTTL        = 45 * time.Second  // Increased proportionally
+	enrichmentCacheTTL     = 90 * time.Second  // Per-scenario tech stack / dependency insights
 	completenessCacheTTL   = 24 * time.Hour    // Completeness scores change less frequently than runtime status
 	issueTrackerCacheTTL   = 30 * time.Second
 	issueTrackerFetchLimit = 50
@@ -176,6 +177,13 @@ type issueCacheEntry struct {
 	totalCount  int
 }
 
+// enrichmentCacheEntry caches per-scenario tech stack and dependency data
+type enrichmentCacheEntry struct {
+	techStack    []string
+	dependencies []repository.AppDependency
+	fetchedAt    time.Time
+}
+
 // AppService handles business logic for application management
 type AppService struct {
 	repo               repository.AppRepository
@@ -190,6 +198,9 @@ type AppService struct {
 	issueCacheTTL      time.Duration
 	repoRoot           string
 	browserlessService *BrowserlessService
+	enrichmentMu       sync.RWMutex
+	enrichmentCache    map[string]*enrichmentCacheEntry // key: lowercase scenario name
+	uiServerPort       string
 }
 
 // =============================================================================

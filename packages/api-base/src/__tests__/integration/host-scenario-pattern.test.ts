@@ -722,4 +722,222 @@ describe('Host Scenario Pattern Integration', () => {
     const hostAssetResult = await makeRequest(hostUiPort, '/some-file.js')
     expect(hostAssetResult.status).toBe(404)
   })
+
+  // ========================================
+  // SERVER-TIMING HEADER TESTS
+  // ========================================
+
+  it('proxied HTML request includes Server-Timing header with ctx', async () => {
+    hostProxyController?.invalidate(childId)
+    const result = await makeRequest(hostUiPort, `/apps/${childId}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+
+    expect(result.status).toBe(200)
+    const serverTiming = result.headers['server-timing']
+    expect(serverTiming).toBeDefined()
+    expect(typeof serverTiming).toBe('string')
+    // ctx is recorded before headers are sent; total is recorded after streaming
+    // completes so it only appears in aggregate metrics, not the header
+    expect(serverTiming).toContain('ctx;dur=')
+  })
+
+  it('cached HTML request includes Server-Timing header with total and ctx', async () => {
+    // First request populates cache
+    await makeRequest(hostUiPort, `/apps/${childId}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+    // Second request is served from cache — total is known before send()
+    const result = await makeRequest(hostUiPort, `/apps/${childId}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+
+    expect(result.status).toBe(200)
+    const serverTiming = result.headers['server-timing']
+    expect(serverTiming).toBeDefined()
+    expect(serverTiming).toContain('total;dur=')
+    expect(serverTiming).toContain('ctx;dur=')
+    expect(serverTiming).toContain('html_cache;dur=')
+  })
+
+  it('proxied non-HTML request includes Server-Timing header with ctx', async () => {
+    const result = await makeRequest(hostUiPort, `/apps/${childId}/proxy/styles.css`)
+
+    expect(result.status).toBe(200)
+    const serverTiming = result.headers['server-timing']
+    expect(serverTiming).toBeDefined()
+    expect(serverTiming).toContain('ctx;dur=')
+  })
+})
+
+// ========================================
+// METRICS ENDPOINT TESTS
+// ========================================
+describe('Host Scenario Pattern Integration — Metrics', () => {
+  let childUiServer2: Server
+  let childApiServer2: Server
+  let hostUiServer2: Server
+  let hostApiServer2: Server
+  let proxyController2: ScenarioProxyHostController | null = null
+
+  let childUiPort2: number
+  let childApiPort2: number
+  let hostUiPort2: number
+  let hostApiPort2: number
+
+  const childId2 = 'metrics-child'
+
+  beforeAll(async () => {
+    childUiPort2 = await findAvailablePort(41000)
+    childApiPort2 = await findAvailablePort(41100)
+    hostUiPort2 = await findAvailablePort(41200)
+    hostApiPort2 = await findAvailablePort(41300)
+
+    // Child API
+    childApiServer2 = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end('{"ok":true}')
+    })
+    await new Promise<void>((resolve) => {
+      childApiServer2.listen(childApiPort2, '127.0.0.1', resolve)
+    })
+
+    // Child UI
+    const childApp2 = createScenarioServer({
+      uiPort: childUiPort2,
+      apiPort: childApiPort2,
+      distDir: './dist',
+      serviceName: 'child2',
+      verbose: false,
+      setupRoutes: (app) => {
+        app.get('/index.html', (_req, res) => {
+          res.setHeader('Content-Type', 'text/html')
+          res.send('<!DOCTYPE html><html><head><title>C2</title></head><body>C2</body></html>')
+        })
+      },
+    })
+    childUiServer2 = await new Promise<Server>((resolve) => {
+      const s = childApp2.listen(childUiPort2, '127.0.0.1', () => resolve(s))
+    })
+
+    // Host API
+    hostApiServer2 = http.createServer((req, res) => {
+      if (req.url === `/api/v1/apps/${childId2}`) {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          data: {
+            id: childId2,
+            name: 'Metrics Child',
+            port_mappings: {
+              UI_PORT: childUiPort2,
+              API_PORT: childApiPort2,
+            },
+          },
+        }))
+        return
+      }
+      res.writeHead(404)
+      res.end()
+    })
+    await new Promise<void>((resolve) => {
+      hostApiServer2.listen(hostApiPort2, '127.0.0.1', resolve)
+    })
+
+    // Host UI with enableMetrics
+    const hostApp2 = createScenarioServer({
+      uiPort: hostUiPort2,
+      apiPort: hostApiPort2,
+      distDir: './dist',
+      serviceName: 'host2',
+      verbose: false,
+      setupRoutes: (app) => {
+        proxyController2 = createScenarioProxyHost({
+          hostScenario: 'host2',
+          enableMetrics: true,
+          fetchAppMetadata: async (appId) => {
+            const result = await makeRequest(hostApiPort2, `/api/v1/apps/${appId}`)
+            return JSON.parse(result.body).data
+          },
+        })
+        app.use(proxyController2.router)
+      },
+    })
+    hostUiServer2 = await new Promise<Server>((resolve) => {
+      const s = hostApp2.listen(hostUiPort2, '127.0.0.1', () => resolve(s))
+    })
+  })
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => {
+      hostApiServer2.close(() => {
+        childApiServer2.close(() => {
+          hostUiServer2.close(() => {
+            childUiServer2.close(() => resolve())
+          })
+        })
+      })
+    })
+  })
+
+  it('GET /__perf returns JSON with expected structure', async () => {
+    // Make a proxied request first to generate some metrics
+    await makeRequest(hostUiPort2, `/apps/${childId2}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+
+    const result = await makeRequest(hostUiPort2, '/__perf')
+    expect(result.status).toBe(200)
+
+    const data = JSON.parse(result.body)
+    expect(data).toHaveProperty('uptime_s')
+    expect(data).toHaveProperty('total_requests')
+    expect(data.total_requests).toBeGreaterThanOrEqual(1)
+    expect(data).toHaveProperty('cache')
+    expect(data).toHaveProperty('phases')
+    expect(data.phases).toHaveProperty('total')
+    expect(data.phases).toHaveProperty('ctx')
+    expect(data.phases.total.count).toBeGreaterThanOrEqual(1)
+  })
+
+  it('POST /__perf/reset zeroes all counters', async () => {
+    // Generate some metrics
+    await makeRequest(hostUiPort2, `/apps/${childId2}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+
+    // Reset
+    const resetResult = await makeRequest(hostUiPort2, '/__perf/reset', { method: 'POST' })
+    expect(resetResult.status).toBe(200)
+    expect(JSON.parse(resetResult.body)).toEqual({ ok: true })
+
+    // Verify counters are zeroed
+    const perfResult = await makeRequest(hostUiPort2, '/__perf')
+    const data = JSON.parse(perfResult.body)
+    expect(data.total_requests).toBe(0)
+    expect(data.phases).toEqual({})
+    expect(data.cache).toEqual({})
+  })
+
+  it('getMetrics() on controller returns same data as /__perf', async () => {
+    proxyController2?.resetMetrics()
+
+    await makeRequest(hostUiPort2, `/apps/${childId2}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+
+    const controllerMetrics = proxyController2?.getMetrics() as any
+    expect(controllerMetrics).not.toBeNull()
+    expect(controllerMetrics.total_requests).toBeGreaterThanOrEqual(1)
+    expect(controllerMetrics.phases).toHaveProperty('total')
+  })
+
+  it('resetMetrics() on controller clears counters', async () => {
+    await makeRequest(hostUiPort2, `/apps/${childId2}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+
+    proxyController2?.resetMetrics()
+    const controllerMetrics = proxyController2?.getMetrics() as any
+    expect(controllerMetrics.total_requests).toBe(0)
+  })
 })

@@ -210,7 +210,7 @@ function createCorsMiddleware(corsOrigins: string | string[] | undefined, verbos
       'Access-Control-Allow-Headers',
       req.headers['access-control-request-headers'] || 'Accept,Authorization,Content-Type,X-CSRF-Token,X-Requested-With'
     )
-    res.setHeader('Access-Control-Expose-Headers', 'Link')
+    res.setHeader('Access-Control-Expose-Headers', 'Link, Server-Timing')
     res.setHeader('Access-Control-Max-Age', '300')
 
     // Handle preflight

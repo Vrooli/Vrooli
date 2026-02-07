@@ -59,6 +59,14 @@ export {
   createScenarioProxyHost,
 } from './host.js'
 
+// Performance instrumentation
+export {
+  RequestTimer,
+  ProxyMetrics,
+  NOOP_TIMER,
+  PHASE,
+} from './perf.js'
+
 // Re-export types that are useful for server code
 export type {
   ProxyInfo,

@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename)
 const LOOPBACK_HOST = '127.0.0.1'
 const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0']
 const HOST_SCENARIO = 'app-monitor'
-const CACHE_TTL_MS = 30_000
+const CACHE_TTL_MS = 300_000 // 5 min; Go API invalidates on start/stop/restart via /__cache/invalidate
 const DEFAULT_TIMEOUT_MS = 30_000
 const API_PROXY_TIMEOUT_MS = 90_000
 const CLIENT_DEBUG_EVENTS = []
@@ -180,6 +180,17 @@ const app = createScenarioServer({
       res.json({ events: CLIENT_DEBUG_EVENTS })
     })
 
+    // Cache invalidation (called by Go API after start/stop/restart)
+    expressApp.post('/__cache/invalidate', (req, res) => {
+      const { appId } = req.body || {}
+      if (appId && typeof appId === 'string') {
+        proxyHost.invalidate(appId)
+      } else {
+        proxyHost.clearCache()
+      }
+      res.status(204).end()
+    })
+
     expressApp.use(proxyHost.router)
   },
 })
@@ -234,6 +245,28 @@ server.on('upgrade', (req, socket, head) => {
   })()
 })
 
+async function prewarmProxyCache() {
+  try {
+    const summaryRes = await axios.get(`${API_BASE}/api/v1/apps/summary`, { timeout: DEFAULT_TIMEOUT_MS })
+    const apps = Array.isArray(summaryRes.data?.data) ? summaryRes.data.data : []
+    const running = apps.filter((a) => a.status === 'running' || a.status === 'healthy')
+    let warmed = 0
+    for (const app of running) {
+      try {
+        await axios.get(`${API_BASE}/api/v1/apps/${encodeURIComponent(app.id || app.scenarioName)}`, {
+          timeout: DEFAULT_TIMEOUT_MS,
+        })
+        warmed++
+      } catch (err) {
+        console.warn(`[proxy-cache] Pre-warm failed for ${app.id || app.scenarioName}:`, err.message)
+      }
+    }
+    console.log(`[proxy-cache] Pre-warmed: ${warmed}/${running.length} running apps`)
+  } catch (err) {
+    console.warn('[proxy-cache] Pre-warm skipped:', err.message)
+  }
+}
+
 server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════╗
@@ -247,10 +280,13 @@ server.listen(PORT, () => {
 ║  http://localhost:${PORT}                      ║
 ╚════════════════════════════════════════════╝
     `)
+  // Give Go API time to be ready before pre-warming
+  setTimeout(() => prewarmProxyCache(), 2000)
 })
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, closing server...')
+  proxyHost.destroy()
   server.close(() => {
     console.log('Server closed')
     process.exit(0)

@@ -311,6 +311,16 @@ export interface ScenarioProxyHostOptions {
   proxyHtmlCacheTtlMs?: number
   /** Maximum number of cached HTML entries retained at once */
   proxyHtmlCacheMaxEntries?: number
+  /** Interval between background health checks for upstream ports in ms (default: 5000) */
+  healthCheckIntervalMs?: number
+  /** Timeout for each background TCP health probe in ms (default: 500) */
+  healthCheckTimeoutMs?: number
+  /** Emit Server-Timing header on proxied responses (default: true) */
+  enableServerTiming?: boolean
+  /** Collect aggregate latency/cache metrics at /__perf (default: false) */
+  enableMetrics?: boolean
+  /** Ring-buffer size for percentile samples when metrics are enabled (default: 1000) */
+  metricsSampleSize?: number
 }
 
 /**
@@ -325,6 +335,12 @@ export interface ScenarioProxyHostController {
   invalidate: (appId?: string) => void
   /** Clear entire cache */
   clearCache: () => void
+  /** Return aggregate metrics snapshot, or null when metrics are disabled */
+  getMetrics: () => object | null
+  /** Reset aggregate metrics counters */
+  resetMetrics: () => void
+  /** Stop background health checks and release resources */
+  destroy: () => void
 }
 
 /**

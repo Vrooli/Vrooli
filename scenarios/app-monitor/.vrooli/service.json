@@ -213,7 +213,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/app-monitor.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/app-monitor.*vite\" 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/app-monitor.*node server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/app-monitor.*node server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

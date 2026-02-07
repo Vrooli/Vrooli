@@ -17,6 +17,7 @@ Step-by-step instructions for common tasks:
 
 ### 💡 [Concepts](./concepts/) - Understanding How It Works
 Deep dives into core ideas:
+- **[Architecture Overview](./concepts/ARCHITECTURE.md)** - End-to-end proxy system with visual diagrams
 - **[Deployment Contexts](./concepts/deployment-contexts.md)** - The three deployment environments
 - **[Proxy Resolution](./concepts/proxy-resolution.md)** - How API URLs are resolved
 - **[Runtime Configuration](./concepts/runtime-config.md)** - Dynamic configuration in production
@@ -42,6 +43,9 @@ Complete, working examples:
 
 **Get started quickly**
 → [Quick Start Guide](./guides/quick-start.md)
+
+**Understand the full proxy architecture**
+→ [Architecture Overview](./concepts/ARCHITECTURE.md)
 
 **Understand why this package exists**
 → [Deployment Contexts](./concepts/deployment-contexts.md)
