@@ -101,18 +101,18 @@ func (p FixPermissions) String() string {
 
 // CreateTaskRequest is the unified request structure for creating tasks.
 type CreateTaskRequest struct {
-	DeploymentID string `json:"deployment_id"`
-	TaskType     TaskType `json:"task_type"`
+	DeploymentID string    `json:"deployment_id"`
+	TaskType     TaskType  `json:"task_type"`
 	Focus        TaskFocus `json:"focus"`
-	Note         string `json:"note,omitempty"`
+	Note         string    `json:"note,omitempty"`
 
 	// Investigate-only fields
 	Effort InvestigationEffort `json:"effort,omitempty"`
 
 	// Fix-only fields
 	Permissions           FixPermissions `json:"permissions,omitempty"`
-	SourceInvestigationID string `json:"source_investigation_id,omitempty"`
-	MaxIterations         int `json:"max_iterations,omitempty"`
+	SourceInvestigationID string         `json:"source_investigation_id,omitempty"`
+	MaxIterations         int            `json:"max_iterations,omitempty"`
 
 	// Context selection (applies to both)
 	IncludeContexts []string `json:"include_contexts,omitempty"`

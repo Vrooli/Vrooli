@@ -149,6 +149,33 @@ func ClassifyError(errStr, host, defaultHint string) *SSHError {
 			Host:      host,
 		}
 
+	case strings.Contains(errLower, "connection reset"):
+		return &SSHError{
+			Category:  ErrUnreachable,
+			Message:   "SSH connection reset",
+			Hint:      "The server closed the connection. This may be temporary (server load, fail2ban), or sshd MaxStartups may be exceeded.",
+			Retryable: true,
+			Host:      host,
+		}
+
+	case strings.Contains(errLower, "broken pipe"):
+		return &SSHError{
+			Category:  ErrUnreachable,
+			Message:   "SSH connection lost",
+			Hint:      "The connection was dropped during command execution. Check network stability.",
+			Retryable: true,
+			Host:      host,
+		}
+
+	case strings.Contains(errLower, "too many authentication failures"):
+		return &SSHError{
+			Category:  ErrAuth,
+			Message:   "Too many authentication failures",
+			Hint:      "The SSH agent offered too many keys. Try adding IdentitiesOnly=yes to your SSH config, or specify the exact key with -i.",
+			Retryable: false,
+			Host:      host,
+		}
+
 	default:
 		return &SSHError{
 			Category:  ErrCommand,

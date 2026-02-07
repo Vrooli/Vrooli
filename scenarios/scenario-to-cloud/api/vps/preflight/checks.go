@@ -191,7 +191,7 @@ func checkStaleScenarioProcesses(
 	)
 	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
-		warn("stale_processes", "Stale process check",
+		warn(domain.PreflightStaleProcessesID, "Stale process check",
 			"Unable to check for running processes",
 			"SSH command failed - check connectivity",
 			nil)
@@ -201,7 +201,7 @@ func checkStaleScenarioProcesses(
 	// Parse the process output
 	stdout := strings.TrimSpace(result.Stdout)
 	if stdout == "" {
-		pass("stale_processes", "Stale process check",
+		pass(domain.PreflightStaleProcessesID, "Stale process check",
 			"No existing scenario processes found",
 			nil)
 		return
@@ -231,7 +231,7 @@ func checkStaleScenarioProcesses(
 	}
 
 	if len(processInfos) == 0 {
-		pass("stale_processes", "Stale process check",
+		pass(domain.PreflightStaleProcessesID, "Stale process check",
 			"No existing scenario processes found",
 			nil)
 		return
@@ -241,7 +241,7 @@ func checkStaleScenarioProcesses(
 	detailsMsg := fmt.Sprintf("Found %d running process(es) for %s: %s",
 		len(processInfos), scenarioID, strings.Join(processInfos, " | "))
 
-	warn("stale_processes", "Stale process check",
+	warn(domain.PreflightStaleProcessesID, "Stale process check",
 		detailsMsg,
 		"Stop existing processes to ensure the updated version deploys correctly",
 		map[string]string{

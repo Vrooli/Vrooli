@@ -21,6 +21,9 @@ type RunOptions struct {
 
 	// Execution (0 = inherit from ctx)
 	CommandTimeout time.Duration
+
+	// ControlMaster enables SSH connection multiplexing.
+	ControlMaster bool
 }
 
 // DefaultRunOptions returns the standard options for command execution.
@@ -32,6 +35,7 @@ func DefaultRunOptions() RunOptions {
 		StrictHostKey:       true,
 		MaxOutputBytes:      512 * 1024,
 		ErrorContextLines:   50,
+		ControlMaster:       true,
 	}
 }
 
@@ -131,6 +135,13 @@ func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
 	}
 	if opts.IdentitiesOnly {
 		out = append(out, "-o", "IdentitiesOnly=yes")
+	}
+	if opts.ControlMaster {
+		out = append(out,
+			"-o", "ControlMaster=auto",
+			"-o", fmt.Sprintf("ControlPath=/tmp/ssh-mux-%%r@%%h:%%p"),
+			"-o", "ControlPersist=60",
+		)
 	}
 	out = append(out, portFlag, strconv.Itoa(cfg.Port))
 	if cfg.KeyPath != "" {

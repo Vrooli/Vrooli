@@ -712,4 +712,3 @@ func (cw countingWriter) Write(p []byte) (int, error) {
 	*cw.n += int64(n)
 	return n, err
 }
-

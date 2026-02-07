@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"sync"
 
 	"scenario-to-cloud/domain"
@@ -30,6 +30,9 @@ import (
 // FakeSSHRunner provides a controllable ssh.Runner for testing.
 // Configure expected command responses, or set default error behavior.
 type FakeSSHRunner struct {
+	// Handler is called first for every command. If nil or returns false,
+	// falls through to map-based matching.
+	Handler func(command string) (ssh.Result, error, bool)
 	// Responses maps commands to their ssh.Result responses
 	Responses map[string]ssh.Result
 	// Errs maps commands to errors (takes precedence over Responses)
@@ -50,6 +53,14 @@ func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string, _ s
 	f.Calls = append(f.Calls, command)
 	f.mu.Unlock()
 
+	// Try handler first (supports prefix/regex matching)
+	if f.Handler != nil {
+		if res, err, handled := f.Handler(command); handled {
+			return res, err
+		}
+	}
+
+	// Fall back to exact-match maps (backward compatible)
 	if err, ok := f.Errs[command]; ok {
 		return ssh.Result{ExitCode: 255}, err
 	}
@@ -57,9 +68,9 @@ func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string, _ s
 		return res, nil
 	}
 	if f.DefaultErr != nil {
-		return ssh.Result{ExitCode: 255}, f.DefaultErr
+		return ssh.Result{ExitCode: 1}, f.DefaultErr
 	}
-	return ssh.Result{ExitCode: 127, Stderr: "unknown command: " + command}, errors.New("unknown command")
+	return ssh.Result{Stdout: "", ExitCode: 127}, fmt.Errorf("unknown command: %s", command)
 }
 
 // FakeSCPRunner provides a controllable ssh.SCPRunner for testing.

@@ -776,9 +776,9 @@ func BuildCaddyfile(domain string, uiPort int, tlsConfig CaddyTLSConfig) string 
 func buildHealthCheckScript(url string, timeoutSecs int, checkType string) string {
 	return fmt.Sprintf(`
 set -e
-URL="%s"
+URL=%s
 TIMEOUT=%d
-CHECK_TYPE="%s"
+CHECK_TYPE=%s
 
 # Perform the request, capturing status code and body
 RESPONSE=$(curl -sS --max-time "$TIMEOUT" -w '\n%%{http_code}' "$URL") || {
@@ -876,7 +876,7 @@ case $HTTP_CODE in
 esac
 
 exit 1
-`, url, timeoutSecs, checkType)
+`, shellutil.QuoteSingle(url), timeoutSecs, shellutil.QuoteSingle(checkType))
 }
 
 func checkPublicHealth(ctx context.Context, url string, timeout time.Duration) error {
@@ -1048,10 +1048,10 @@ func resolveHostIP(ctx context.Context, host string) (string, error) {
 func BuildWaitForPortScript(host string, port int, timeoutSecs int, serviceName string) string {
 	return fmt.Sprintf(`
 set -e
-HOST="%s"
+HOST=%s
 PORT=%d
 TIMEOUT=%d
-SERVICE="%s"
+SERVICE=%s
 
 start_time=$(date +%%s)
 echo "Waiting for $SERVICE on $HOST:$PORT to accept connections..."
@@ -1071,5 +1071,5 @@ while true; do
     fi
     sleep 1
 done
-`, host, port, timeoutSecs, serviceName)
+`, shellutil.QuoteSingle(host), port, timeoutSecs, shellutil.QuoteSingle(serviceName))
 }

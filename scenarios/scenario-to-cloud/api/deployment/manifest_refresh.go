@@ -23,7 +23,7 @@ type ManifestRefresher interface {
 
 // ManifestRefreshResult contains the refreshed manifest and metadata about changes.
 type ManifestRefreshResult struct {
-	Manifest        domain.CloudManifest
+	Manifest            domain.CloudManifest
 	DependenciesChanged bool
 	PortsChanged        bool
 	Source              string // "analyzer" or "service.json"
@@ -32,10 +32,10 @@ type ManifestRefreshResult struct {
 // manifestRefresher implements ManifestRefresher using scenario-dependency-analyzer
 // with fallback to service.json.
 type manifestRefresher struct {
-	secretsFetcher  secrets.Fetcher
-	depsFetcher     DependenciesFetcher
-	portsFetcher    PortsFetcher
-	logger          func(msg string, fields map[string]interface{})
+	secretsFetcher secrets.Fetcher
+	depsFetcher    DependenciesFetcher
+	portsFetcher   PortsFetcher
+	logger         func(msg string, fields map[string]interface{})
 }
 
 // DependenciesFetcher fetches scenario dependencies.
@@ -50,19 +50,19 @@ type PortsFetcher interface {
 
 // ManifestRefresherConfig holds configuration for creating a ManifestRefresher.
 type ManifestRefresherConfig struct {
-	SecretsFetcher  secrets.Fetcher
-	DepsFetcher     DependenciesFetcher
-	PortsFetcher    PortsFetcher
-	Logger          func(msg string, fields map[string]interface{})
+	SecretsFetcher secrets.Fetcher
+	DepsFetcher    DependenciesFetcher
+	PortsFetcher   PortsFetcher
+	Logger         func(msg string, fields map[string]interface{})
 }
 
 // NewManifestRefresher creates a new ManifestRefresher with the given dependencies.
 func NewManifestRefresher(cfg ManifestRefresherConfig) ManifestRefresher {
 	return &manifestRefresher{
-		secretsFetcher:  cfg.SecretsFetcher,
-		depsFetcher:     cfg.DepsFetcher,
-		portsFetcher:    cfg.PortsFetcher,
-		logger:          cfg.Logger,
+		secretsFetcher: cfg.SecretsFetcher,
+		depsFetcher:    cfg.DepsFetcher,
+		portsFetcher:   cfg.PortsFetcher,
+		logger:         cfg.Logger,
 	}
 }
 
@@ -137,7 +137,7 @@ func (r *manifestRefresher) log(msg string, fields map[string]interface{}) {
 
 // DefaultDependenciesFetcher implements DependenciesFetcher using analyzer with service.json fallback.
 type DefaultDependenciesFetcher struct {
-	AnalyzerFetcher func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error)
+	AnalyzerFetcher    func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error)
 	ServiceJSONFetcher func(scenarioID string) (resources, scenarios []string, err error)
 }
 
@@ -254,4 +254,3 @@ func ServiceJSONDependenciesFetcher(scenarioID string) (resources, scenarios []s
 
 	return resources, scenarios, nil
 }
-

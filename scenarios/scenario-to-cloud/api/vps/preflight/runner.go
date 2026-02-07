@@ -124,20 +124,20 @@ func Run(
 
 	if _, err := sshRunner.Run(ctx, cfg, "echo ok", ssh.DefaultRunOptions()); err != nil {
 		fail(
-			"ssh_connect",
+			domain.PreflightSSHConnectID,
 			"SSH connectivity",
 			"Unable to run a remote command over SSH",
 			"Confirm SSH key auth works (root login for P0) and that port 22 is reachable.",
 			map[string]string{"host": cfg.Host, "user": cfg.User, "port": strconv.Itoa(cfg.Port)},
 		)
 	} else {
-		pass("ssh_connect", "SSH connectivity", "SSH command executed successfully", map[string]string{"host": cfg.Host, "user": cfg.User})
+		pass(domain.PreflightSSHConnectID, "SSH connectivity", "SSH command executed successfully", map[string]string{"host": cfg.Host, "user": cfg.User})
 	}
 
 	osRes, osErr := sshRunner.Run(ctx, cfg, "cat /etc/os-release", ssh.DefaultRunOptions())
 	if osErr != nil || osRes.ExitCode != 0 {
 		fail(
-			"os_release",
+			domain.PreflightOSReleaseID,
 			"Ubuntu version",
 			"Unable to read /etc/os-release",
 			"Ensure the VPS is running Ubuntu and that /etc/os-release is readable.",
@@ -147,18 +147,18 @@ func Run(
 		id, ver := parseOSRelease(osRes.Stdout)
 		if id != "ubuntu" {
 			fail(
-				"os_release",
+				domain.PreflightOSReleaseID,
 				"Ubuntu version",
 				fmt.Sprintf("Unsupported OS: %s", id),
 				"scenario-to-cloud requires Ubuntu. Debian may work but is untested.",
 				map[string]string{"id": id, "version_id": ver},
 			)
 		} else if ver == "24.04" {
-			pass("os_release", "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
+			pass(domain.PreflightOSReleaseID, "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
 		} else if ver == "22.04" || ver == "20.04" {
 			// Older LTS versions should work but aren't officially tested
 			warn(
-				"os_release",
+				domain.PreflightOSReleaseID,
 				"Ubuntu version",
 				fmt.Sprintf("Ubuntu %s detected (24.04 recommended)", ver),
 				"Ubuntu 22.04/20.04 should work but 24.04 LTS is recommended for best compatibility.",
@@ -166,7 +166,7 @@ func Run(
 			)
 		} else {
 			warn(
-				"os_release",
+				domain.PreflightOSReleaseID,
 				"Ubuntu version",
 				fmt.Sprintf("Ubuntu %s detected (24.04 recommended)", ver),
 				"This Ubuntu version is untested. Consider using Ubuntu 24.04 LTS.",
@@ -178,7 +178,7 @@ func Run(
 	portsRes, portsErr := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`, ssh.DefaultRunOptions())
 	if portsErr != nil {
 		warn(
-			"ports_80_443",
+			domain.PreflightPortsEdgeID,
 			"Ports 80/443 availability",
 			"Unable to check ports 80/443 via ss",
 			"Ensure ports 80 and 443 are free for Caddy/Let's Encrypt HTTP-01.",
@@ -203,14 +203,14 @@ func Run(
 			data["processes"] = strings.Join(portBindingProcessList(bindings), ", ")
 		}
 		fail(
-			"ports_80_443",
+			domain.PreflightPortsEdgeID,
 			"Ports 80/443 availability",
 			details,
 			hint,
 			data,
 		)
 	} else {
-		pass("ports_80_443", "Ports 80/443 availability", "Ports 80/443 appear free", nil)
+		pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Ports 80/443 appear free", nil)
 	}
 
 	ufwRes, ufwErr := sshRunner.Run(ctx, cfg, "ufw status", ssh.DefaultRunOptions())
@@ -278,45 +278,45 @@ func Run(
 	netRes, netErr := sshRunner.Run(ctx, cfg, `curl -fsS --max-time 5 https://example.com >/dev/null`, ssh.DefaultRunOptions())
 	if netErr != nil || netRes.ExitCode != 0 {
 		warn(
-			"outbound_network",
+			domain.PreflightOutboundNetworkID,
 			"Outbound network",
 			"Unable to confirm outbound HTTPS access with curl",
 			"Ensure outbound network access is allowed (apt/pnpm downloads, Let's Encrypt).",
 			map[string]string{"stderr": netRes.Stderr},
 		)
 	} else {
-		pass("outbound_network", "Outbound network", "Outbound HTTPS access looks OK", nil)
+		pass(domain.PreflightOutboundNetworkID, "Outbound network", "Outbound HTTPS access looks OK", nil)
 	}
 
 	diskRes, diskErr := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
 	if diskErr != nil || diskRes.ExitCode != 0 {
-		warn("disk_free", "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
+		warn(domain.PreflightDiskFreeID, "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(diskRes.Stdout), 10, 64)
 		const minKB = 5 * 1024 * 1024 // 5 GiB
 		if kb > 0 && kb < minKB {
 			fail(
-				"disk_free",
+				domain.PreflightDiskFreeID,
 				"Disk free space",
 				fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
 				"At least 5 GB free space is recommended. Run: sudo apt clean && sudo journalctl --vacuum-size=100M",
 				map[string]string{"free_kb": diskRes.Stdout, "free_human": formatBytes(kb)},
 			)
 		} else {
-			pass("disk_free", "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), map[string]string{"free_kb": diskRes.Stdout, "free_human": formatBytes(kb)})
+			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), map[string]string{"free_kb": diskRes.Stdout, "free_human": formatBytes(kb)})
 		}
 	}
 
 	ramRes, ramErr := sshRunner.Run(ctx, cfg, `awk '/MemTotal/ {print $2}' /proc/meminfo`, ssh.DefaultRunOptions())
 	if ramErr != nil || ramRes.ExitCode != 0 {
-		warn("ram_total", "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
+		warn(domain.PreflightRAMTotalID, "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(ramRes.Stdout), 10, 64)
 		const minKB = 1024 * 1024      // 1 GiB
 		const warnKB = 2 * 1024 * 1024 // 2 GiB
 		if kb > 0 && kb < minKB {
 			fail(
-				"ram_total",
+				domain.PreflightRAMTotalID,
 				"RAM",
 				fmt.Sprintf("Low RAM: %s", formatBytes(kb)),
 				"At least 1 GB RAM is required. 2+ GB is recommended for most scenarios.",
@@ -331,7 +331,7 @@ func Run(
 				map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)},
 			)
 		} else {
-			pass("ram_total", "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)})
+			pass(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)})
 		}
 	}
 
@@ -340,10 +340,10 @@ func Run(
 		name string
 		id   string
 	}{
-		{"curl", "cmd_curl"},
-		{"git", "cmd_git"},
-		{"unzip", "cmd_unzip"},
-		{"tar", "cmd_tar"},
+		{"curl", domain.PreflightCmdCurlID},
+		{"git", domain.PreflightCmdGitID},
+		{"unzip", domain.PreflightCmdUnzipID},
+		{"tar", domain.PreflightCmdTarID},
 	}
 	for _, cmd := range requiredCmds {
 		res, err := sshRunner.Run(ctx, cfg, "which "+cmd.name, ssh.DefaultRunOptions())
@@ -361,29 +361,53 @@ func Run(
 	// Check: jq (nice to have, warn only)
 	jqRes, jqErr := sshRunner.Run(ctx, cfg, "which jq", ssh.DefaultRunOptions())
 	if jqErr != nil || jqRes.ExitCode != 0 {
-		warn("cmd_jq", "jq available",
+		warn(domain.PreflightCmdJqID, "jq available",
 			"jq not found on VPS",
 			"Bootstrap phase will install this automatically",
 			nil)
 	} else {
-		pass("cmd_jq", "jq available",
+		pass(domain.PreflightCmdJqID, "jq available",
 			"Found at "+strings.TrimSpace(jqRes.Stdout), nil)
 	}
 
 	// Check: apt access (required for bootstrap to work)
 	aptRes, aptErr := sshRunner.Run(ctx, cfg, "apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log", ssh.DefaultRunOptions())
 	if aptErr != nil {
-		fail("apt_access", "apt accessible",
+		fail(domain.PreflightAptAccessID, "apt accessible",
 			"Unable to run apt-get",
 			"Bootstrap requires apt access. Ensure the user has sudo/root privileges.",
 			map[string]string{"error": aptErr.Error()})
 	} else if strings.Contains(aptRes.Stderr, "Permission denied") || strings.Contains(aptRes.Stdout, "Permission denied") {
-		fail("apt_access", "apt accessible",
+		fail(domain.PreflightAptAccessID, "apt accessible",
 			"apt-get permission denied",
 			"Bootstrap requires apt access. Ensure the user has sudo/root privileges.",
 			nil)
 	} else {
-		pass("apt_access", "apt accessible", "apt-get is accessible", nil)
+		pass(domain.PreflightAptAccessID, "apt accessible", "apt-get is accessible", nil)
+	}
+
+	// Check: Docker available and running
+	dockerRes, dockerErr := sshRunner.Run(ctx, cfg, "command -v docker && docker info --format '{{.ServerVersion}}'", ssh.DefaultRunOptions())
+	if dockerErr != nil || dockerRes.ExitCode != 0 {
+		warn(domain.PreflightDockerID, "Docker available",
+			"Docker not found or not running",
+			"Bootstrap will attempt to install Docker. If already installed, verify dockerd is running.",
+			map[string]string{"stderr": dockerRes.Stderr})
+	} else {
+		pass(domain.PreflightDockerID, "Docker available",
+			"Docker "+strings.TrimSpace(dockerRes.Stdout), nil)
+	}
+
+	// Check: systemd init system
+	systemdRes, systemdErr := sshRunner.Run(ctx, cfg, "command -v systemctl && systemctl --version | head -1", ssh.DefaultRunOptions())
+	if systemdErr != nil || systemdRes.ExitCode != 0 {
+		warn(domain.PreflightSystemdID, "systemd available",
+			"systemctl not found",
+			"Deployment expects systemd for service management. Non-systemd systems (Alpine/OpenRC) are not supported.",
+			nil)
+	} else {
+		pass(domain.PreflightSystemdID, "systemd available",
+			strings.TrimSpace(systemdRes.Stdout), nil)
 	}
 
 	// Check: stale scenario processes that might have outdated credentials

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -22,8 +23,8 @@ func CaddyTLSRenewCommand(domain string) string {
 		"caddy trust 2>/dev/null; "+
 			"systemctl reload caddy && "+
 			"sleep 3 && "+
-			"curl -sf https://%s >/dev/null && echo 'Certificate valid'",
-		domain,
+			"curl -sf %s >/dev/null && echo 'Certificate valid'",
+		shellutil.QuoteSingle("https://"+domain),
 	)
 }
 

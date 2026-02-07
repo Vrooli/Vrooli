@@ -64,8 +64,10 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
 		}},
 		preflight.RunOptions{
-			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "acme-tls/1", nil },
+			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
+			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+				return "acme-tls/1", nil
+			},
 		},
 	)
 
@@ -123,8 +125,10 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
 		}},
 		preflight.RunOptions{
-			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "acme-tls/1", nil },
+			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
+			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+				return "acme-tls/1", nil
+			},
 		},
 	)
 
@@ -193,8 +197,10 @@ func TestVPSPreflightDNSPolicyWarnDowngradesFailure(t *testing.T) {
 			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
 		}},
 		preflight.RunOptions{
-			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "acme-tls/1", nil },
+			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
+			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+				return "acme-tls/1", nil
+			},
 		},
 	)
 

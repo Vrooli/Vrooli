@@ -203,7 +203,7 @@ func TestContainsPathSegment(t *testing.T) {
 		{"foo/bar/baz", "foo", true},
 		{"foo/bar/baz", "baz", true},
 		{"foo/bar/baz", "qux", false},
-		{"foo/bar/baz", "ba", false},  // partial segment
+		{"foo/bar/baz", "ba", false}, // partial segment
 		{"foo/bar/baz", "foobar", false},
 	}
 

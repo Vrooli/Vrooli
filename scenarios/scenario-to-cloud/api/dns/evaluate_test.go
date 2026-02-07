@@ -80,11 +80,11 @@ func TestEvaluateEdgeDomainAddedWhenDifferent(t *testing.T) {
 	// edgeDomain would equal the input. We need a case where edge differs from all.
 
 	svc := NewService(&FakeResolver{Hosts: map[string][]string{
-		"example.com":              {"203.0.113.10"},
-		"www.example.com":          {"203.0.113.10"},
-		"do-origin.example.com":    {"203.0.113.10"},
-		"staging.example.com":      {"203.0.113.10"},
-		"www.staging.example.com":  {"203.0.113.10"},
+		"example.com":                   {"203.0.113.10"},
+		"www.example.com":               {"203.0.113.10"},
+		"do-origin.example.com":         {"203.0.113.10"},
+		"staging.example.com":           {"203.0.113.10"},
+		"www.staging.example.com":       {"203.0.113.10"},
 		"do-origin.staging.example.com": {"203.0.113.10"},
 	}})
 

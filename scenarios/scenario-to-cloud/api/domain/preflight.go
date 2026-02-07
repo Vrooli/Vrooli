@@ -11,17 +11,33 @@ const (
 )
 
 const (
-	PreflightDNSVPSHostID  = "dns_vps_host"
-	PreflightDNSEdgeApexID = "dns_edge_apex"
-	PreflightDNSEdgeWWWID  = "dns_edge_www"
+	PreflightDNSVPSHostID    = "dns_vps_host"
+	PreflightDNSEdgeApexID   = "dns_edge_apex"
+	PreflightDNSEdgeWWWID    = "dns_edge_www"
 	PreflightDNSEdgeDomainID = "dns_edge_domain"
-	PreflightDNSDoOriginID = "dns_do_origin"
-	PreflightDNSOGWorkerID = "dns_og_worker_ready"
-	PreflightDNSEdgeIPv6ID = "dns_edge_ipv6"
-	PreflightDNSProxyModeID = "dns_proxy_mode"
-	PreflightFirewallID    = "firewall_inbound"
-	PreflightPublicPortsID = "public_ports_reachable"
-	PreflightTLSALPNID      = "tls_alpn_compat"
+	PreflightDNSDoOriginID   = "dns_do_origin"
+	PreflightDNSOGWorkerID   = "dns_og_worker_ready"
+	PreflightDNSEdgeIPv6ID   = "dns_edge_ipv6"
+	PreflightDNSProxyModeID  = "dns_proxy_mode"
+	PreflightFirewallID      = "firewall_inbound"
+	PreflightPublicPortsID   = "public_ports_reachable"
+	PreflightTLSALPNID       = "tls_alpn_compat"
+
+	PreflightSSHConnectID      = "ssh_connect"
+	PreflightOSReleaseID       = "os_release"
+	PreflightPortsEdgeID       = "ports_80_443"
+	PreflightOutboundNetworkID = "outbound_network"
+	PreflightDiskFreeID        = "disk_free"
+	PreflightRAMTotalID        = "ram_total"
+	PreflightCmdCurlID         = "cmd_curl"
+	PreflightCmdGitID          = "cmd_git"
+	PreflightCmdUnzipID        = "cmd_unzip"
+	PreflightCmdTarID          = "cmd_tar"
+	PreflightCmdJqID           = "cmd_jq"
+	PreflightAptAccessID       = "apt_access"
+	PreflightStaleProcessesID  = "stale_processes"
+	PreflightDockerID          = "docker"
+	PreflightSystemdID         = "systemd"
 )
 
 // PreflightCheck represents a single preflight validation result.

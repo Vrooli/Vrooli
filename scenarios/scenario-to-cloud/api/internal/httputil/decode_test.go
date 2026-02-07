@@ -16,11 +16,11 @@ func TestDecodeJSON(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		input      string
-		wantErr    bool
-		wantName   string
-		wantValue  int
+		name      string
+		input     string
+		wantErr   bool
+		wantName  string
+		wantValue int
 	}{
 		{
 			name:      "valid JSON",

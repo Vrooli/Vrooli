@@ -45,6 +45,12 @@ type ExecRunner struct{}
 // then runs the ssh binary and returns a Result. The returned error (when non-nil)
 // is always an *SSHError with full context.
 func runSSH(ctx context.Context, cfg Config, command string, opts RunOptions) (Result, error) {
+	if opts.CommandTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, opts.CommandTimeout)
+		defer cancel()
+	}
+
 	args := buildSSHArgs(cfg, opts)
 	target := fmt.Sprintf("%s@%s", cfg.User, cfg.Host)
 	args = append(args, target, "--", command)

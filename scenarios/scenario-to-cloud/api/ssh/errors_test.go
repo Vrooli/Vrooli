@@ -124,6 +124,27 @@ func TestClassifyError(t *testing.T) {
 			wantCategory:  ErrKeyFormat,
 			wantRetryable: false,
 		},
+		{
+			name:          "connection reset",
+			errStr:        "Connection reset by peer",
+			host:          "example.com",
+			wantCategory:  ErrUnreachable,
+			wantRetryable: true,
+		},
+		{
+			name:          "broken pipe",
+			errStr:        "write: broken pipe",
+			host:          "example.com",
+			wantCategory:  ErrUnreachable,
+			wantRetryable: true,
+		},
+		{
+			name:          "too many auth failures",
+			errStr:        "Received disconnect: Too many authentication failures",
+			host:          "example.com",
+			wantCategory:  ErrAuth,
+			wantRetryable: false,
+		},
 	}
 
 	for _, tt := range tests {

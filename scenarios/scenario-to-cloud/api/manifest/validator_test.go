@@ -164,10 +164,10 @@ func TestContains(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		slice  []string
-		value  string
-		want   bool
+		name  string
+		slice []string
+		value string
+		want  bool
 	}{
 		{
 			name:  "found in slice",

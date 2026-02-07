@@ -272,7 +272,7 @@ func buildProcessState(
 
 		for procPattern, resourceName := range knownResources {
 			if containsSubstring(p.Command, procPattern) {
-				if _, expected := expectedResources[resourceName]; expected || true {
+				if _, expected := expectedResources[resourceName]; expected {
 					var vrooliStatusRaw json.RawMessage
 					if resourceStatusJSON != "" {
 						vrooliStatusRaw = json.RawMessage(resourceStatusJSON)

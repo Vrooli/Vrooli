@@ -55,9 +55,9 @@ var StepWeights = map[string]float64{
 	"bundle_build":      5,
 	"mkdir":             0, // Trivial, no weight
 	"bootstrap":         5, // apt update + install prereqs
-	"upload":            17,
+	"upload":            16,
 	"extract":           5,
-	"setup":             11, // Reduced from 15 (bootstrap handles some work now)
+	"setup":             10, // Reduced from 15 (bootstrap handles some work now)
 	"autoheal":          2,
 	"verify_setup":      1, // Reduced from 3
 	"scenario_stop":     3, // Stop existing scenario before deployment
