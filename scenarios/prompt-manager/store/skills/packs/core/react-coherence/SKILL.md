@@ -1,10 +1,14 @@
 ## Steer focus: React Coherence
 
-Prioritize **maintaining architectural coherence** across this React codebase.
+Prioritize maintaining **architectural coherence** across this React codebase so it stays easy to change, safe to extend, and straightforward to restyle.
 
-Your goal is to ensure the codebase remains **well-organized, consistent, and free from duplication** - preventing the entropy that accumulates when features are developed in isolation without understanding the bigger picture.
+Your goal is to keep the app:
+- well-organized
+- consistent in patterns
+- free from avoidable duplication
+- resilient to long-term entropy
 
-Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve overall structure and consistency.
+Do **not** break functionality, regress tests, or introduce unrelated product features. All changes must maintain or improve structural quality.
 
 Required reading:
 - `prompt-manager skills read visited-tracker-tools`
@@ -13,620 +17,511 @@ Required reading:
 
 ### **0. Why This Skill Exists**
 
-When React UIs are developed over time, common issues emerge:
-- State scattered across components instead of being centralized in Zustand stores
-- Duplicate implementations of error handling, API operations, forms, modals
-- Components that should be shared are defined locally in pages (or accidentally extracted multiple times)
-- Styling inconsistencies and excessive variants
-- Features developed without understanding how they fit the larger architecture
+React codebases drift over time when each feature is built in isolation.
 
-The root cause: **No shared mental model for code organization decisions.**
+Common drift patterns:
+- State management choices become inconsistent across surfaces.
+- Similar behavior is implemented multiple times with slight differences.
+- Shared components are recreated locally instead of reused.
+- Styling grows without a stable token/primitive system.
+- Theme refreshes become expensive because visual logic is spread everywhere.
 
-This skill provides concrete architectural patterns that ensure agents across multiple sessions conceptualize the app the same way.
+The root cause is usually the same: no shared mental model for **where code belongs** and **how style contracts are owned**.
+
+This skill defines that shared model.
 
 ---
 
 ### **0.5 Keyboard Shortcut Coherence (Embedded Scenarios)**
 
-Scenarios can be viewed through a host frame. To support this properly, keyboard shortcuts must follow a **single coherent model**:
+Scenarios can run inside a host frame. Keyboard behavior must follow one coherent model:
 
 1. **One local shortcut manager per app shell**
-  - Do not scatter global `document/window keydown` listeners across unrelated components.
-  - Route shortcut behavior through one central manager/hook for predictable precedence.
+  - Do not scatter `document/window keydown` listeners across unrelated components.
+  - Route shortcut handling through one central manager or hook.
 
-2. **Local-first, then relay-on-noop/unhandled**
-  - The scenario handles its own shortcut first.
-  - If action is idempotent/no-op (e.g., modal already open) or unhandled, relay intent to host via `@vrooli/iframe-bridge` (`emitShortcutIntent`).
-  - This is required because iframe key events do not naturally bubble to parent context.
+2. **Local-first, relay-on-noop/unhandled**
+  - Scenario handles shortcut first.
+  - If action is noop/idempotent/unhandled, relay intent to host via `@vrooli/iframe-bridge` (`emitShortcutIntent`).
+  - This is required because iframe key events do not naturally bubble to the parent.
 
-3. **Always prevent browser defaults for claimed reserved chords**
-  - If scenario claims `Ctrl/Cmd+K`, call `preventDefault()` even when action is noop, then relay.
-  - Otherwise browser-level shortcuts (search/address bar) can hijack control flow.
+3. **Prevent browser defaults for reserved chords**
+  - If claiming `Ctrl/Cmd+K`, call `preventDefault()` even on noop before relay.
+  - Otherwise browser shortcuts can steal flow.
 
 4. **Use shared host action identifiers**
-  - Prefer shared constants from `@vrooli/iframe-bridge` (e.g., `HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER`) instead of ad-hoc strings.
-  - Avoid per-scenario message formats for shortcut intents.
+  - Prefer shared constants from `@vrooli/iframe-bridge` such as `HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER`.
+  - Do not invent per-scenario message formats.
 
-5. **Focus-aware behavior is part of coherence**
-  - Explicitly define behavior when focus is in input/editor fields.
-  - Do not rely on incidental bubbling/capture behavior between iframe and host.
-
-This keeps shortcut semantics consistent across scenarios and prevents drift between standalone and embedded runtime behavior.
+5. **Focus-aware semantics are mandatory**
+  - Explicitly define behavior when focus is in input/editor elements.
+  - Do not rely on incidental bubbling/capture behavior.
 
 ---
 
-### **1. State Architecture (Zustand-Centric)**
+### **1. State Architecture (Scope-Driven, Not Dogmatic)**
 
-Use this decision flow for ALL state management:
+Use the smallest state mechanism that correctly matches the state scope.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    Components                        │
-│         (consume state via selectors, never define  │
-│          shared state with useState)                │
-└─────────────────────────────────────────────────────┘
-                         │
-         ┌───────────────┼───────────────┐
-         ▼               ▼               ▼
-  ┌────────────┐  ┌────────────┐  ┌────────────┐
-  │ Local UI   │  │  Zustand   │  │  Server    │
-  │ State      │  │  Stores    │  │  State     │
-  │ (useState) │  │            │  │  (cache)   │
-  └────────────┘  └────────────┘  └────────────┘
-       │                │                │
-  ONLY for:        Shared app       React Query
-  - Form inputs    state:           or Zustand
-  - Open/closed    - User prefs     with async
-  - Hover/focus    - UI state       patterns
-  - Ephemeral UI   - Domain data
+```mermaid
+flowchart TD
+    C["Components<br/>(render state, trigger intents)"]
+    L["Local UI<br/>useState"]
+    F["Feature-Local<br/>Reducer/Store"]
+    A["App-Wide<br/>Store"]
+    S["Server State<br/>React Query"]
+    C --> L
+    C --> F
+    C --> A
+    C --> S
 ```
 
 #### **State Location Decision Table**
 
 | Question | If YES | If NO |
 |----------|--------|-------|
-| Is it used by 2+ components? | Zustand store | Continue... |
-| Will it persist across navigation? | Zustand store | Continue... |
-| Is it fetched from an API? | Server state (React Query or Zustand async) | Continue... |
-| Is it purely ephemeral UI? | Local useState | Zustand store |
+| Is it only for one component subtree and ephemeral? | Local `useState` / `useReducer` | Continue |
+| Is it shared within one surface/feature only? | Feature-local hook/store | Continue |
+| Is it shared across multiple surfaces/routes? | App-wide store | Continue |
+| Does it come from network/server and need cache/invalidation? | Server state (`React Query` preferred) | Continue |
+| Does it trigger expensive side effects repeatedly? | Add guardrails (rate limiting/dedup/debounce) | Continue |
 
-**When in doubt, use Zustand.** It's easier to move state from Zustand to local than to discover scattered useState calls later.
+#### **State Principles**
 
-#### **Zustand Store Patterns**
+1. Prefer **local state first** for local concerns.
+2. Promote to feature-local, then app-wide, only when sharing needs are real.
+3. Keep server state in query/mutation primitives, not ad-hoc local mirrors.
+4. Avoid store sprawl and god stores.
+5. State model should reflect user flows, not implementation convenience.
+
+#### **Store Pattern (When Store Is Needed)**
 
 ```typescript
-// ✅ GOOD: Focused store with selectors
-interface AuthStore {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (credentials: Credentials) => Promise<void>;
-  logout: () => void;
+interface SettingsStore {
+  density: "comfortable" | "compact";
+  setDensity: (v: "comfortable" | "compact") => void;
 }
 
-const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  login: async (credentials) => {
-    const user = await authService.login(credentials);
-    set({ user, isAuthenticated: true });
-  },
-  logout: () => set({ user: null, isAuthenticated: false }),
+const useSettingsStore = create<SettingsStore>((set) => ({
+  density: "comfortable",
+  setDensity: (v) => set({ density: v }),
 }));
 
-// Usage with selectors (prevents unnecessary re-renders)
-const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-const login = useAuthStore((s) => s.login);
+const density = useSettingsStore((s) => s.density);
+const setDensity = useSettingsStore((s) => s.setDensity);
 ```
 
 ```typescript
-// ❌ BAD: God store with everything
+// Anti-pattern: unrelated concerns in one store
 interface AppStore {
-  user: User | null;
-  theme: Theme;
-  notifications: Notification[];
-  currentProject: Project | null;
-  executionStatus: ExecutionStatus;
-  // ... 50 more fields mixing unrelated concerns
+  auth: unknown;
+  theme: unknown;
+  formDrafts: unknown;
+  jobRuns: unknown;
+  modalState: unknown;
 }
 ```
 
-#### **Store Organization**
+#### **Side-Effect Guardrails (Store/Hook/Service)**
 
-```
-src/shared/stores/
-├── authStore.ts        # Authentication state
-├── settingsStore.ts    # User preferences
-├── uiStore.ts          # Global UI state (modals, toasts)
-└── index.ts            # Re-exports all stores
-```
+Any path that creates remote side effects should include guardrails:
+- deduplication
+- submission locks
+- rate limiting or cooldown
+- idempotency where possible
 
-**Rule: One concern per store.** If a store exceeds ~200 lines, it's doing too much. Split it.
-
-#### **Form State Anti-Pattern**
-
-```tsx
-// ❌ BAD: Multiple useState for related form state
-const [name, setName] = useState("");
-const [email, setEmail] = useState("");
-const [loading, setLoading] = useState(false);
-const [error, setError] = useState<string | null>(null);
-const [submitted, setSubmitted] = useState(false);
-// ... 10 more useState calls = hard to reason about, hard to test
-
-// ✅ GOOD: Zustand store for form state
-interface FormStore {
-  values: FormValues;
-  errors: Record<string, string>;
-  status: 'idle' | 'submitting' | 'success' | 'error';
-  setField: (field: string, value: string) => void;
-  submit: () => Promise<void>;
-  reset: () => void;
-}
-```
-
-#### **Store Safety Patterns: Rate Limiting**
-
-Stores that trigger **external side effects** (API calls, resource creation, file operations) should include rate limiting protection. This prevents runaway operations from bugs like infinite React effect loops.
-
-**When to add rate limiting:**
-
-| Store Type | Needs Rate Limiting? | Why |
-|------------|---------------------|-----|
-| Pipeline/Job stores | **YES** | Creates server resources, expensive operations |
-| API mutation stores | **YES** | Network calls, server load |
-| Auth stores | **YES** | Prevents brute-force, protects credentials |
-| File operation stores | **YES** | Disk I/O, potential data corruption |
-| UI state stores | No | Cheap local state, rapid updates expected |
-| Form input stores | No | User typing requires immediate response |
-| Cache/query stores | No | Read operations, already debounced |
-
-**Rate Limiting Pattern:**
-
-```typescript
-export const useApiStore = create<ApiStore>((set, get) => {
-  // Rate limiting state (module-level, not in store state)
-  const RATE_LIMIT_WINDOW_MS = 5000;      // Time window for counting
-  const RATE_LIMIT_MAX_CALLS = 3;          // Max calls allowed in window
-  const RATE_LIMIT_INITIAL_COOLDOWN = 1000; // Initial cooldown (ms)
-  const RATE_LIMIT_MAX_COOLDOWN = 30000;    // Max cooldown (30s)
-  const RATE_LIMIT_RESET_AFTER = 60000;     // Reset backoff after quiet period
-
-  let callTimestamps: number[] = [];
-  let currentCooldown = RATE_LIMIT_INITIAL_COOLDOWN;
-  let cooldownUntil = 0;
-  let lastCallTime = 0;
-
-  const checkRateLimit = (): string | null => {
-    const now = Date.now();
-
-    // Reset backoff after quiet period
-    if (lastCallTime > 0 && now - lastCallTime > RATE_LIMIT_RESET_AFTER) {
-      currentCooldown = RATE_LIMIT_INITIAL_COOLDOWN;
-      callTimestamps = [];
-    }
-
-    // Check if in cooldown
-    if (now < cooldownUntil) {
-      const remaining = Math.ceil((cooldownUntil - now) / 1000);
-      console.warn(`[Store] Rate limited: ${remaining}s remaining`);
-      return `Rate limited: please wait ${remaining} seconds`;
-    }
-
-    // Clean old timestamps and check limit
-    callTimestamps = callTimestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW_MS);
-    if (callTimestamps.length >= RATE_LIMIT_MAX_CALLS) {
-      cooldownUntil = now + currentCooldown;
-      console.error(`[Store] RATE LIMIT: ${callTimestamps.length} calls in ${RATE_LIMIT_WINDOW_MS/1000}s`);
-      currentCooldown = Math.min(currentCooldown * 2, RATE_LIMIT_MAX_COOLDOWN);
-      return `Rate limited: too many requests`;
-    }
-    return null;
-  };
-
-  const recordCall = () => {
-    callTimestamps.push(Date.now());
-    lastCallTime = Date.now();
-  };
-
-  return {
-    // ... state ...
-
-    createResource: async (config) => {
-      // Check rate limit BEFORE any side effects
-      const rateLimitError = checkRateLimit();
-      if (rateLimitError) throw new Error(rateLimitError);
-
-      // ... validation, submission guards ...
-
-      const result = await api.create(config);
-      recordCall(); // Record AFTER successful creation
-      return result;
-    },
-  };
-});
-```
-
-**Key principles:**
-- Check rate limit **before** any external calls
-- Record **after** successful operations (don't count failures)
-- Use exponential backoff to progressively slow down runaway loops
-- Log warnings to help developers identify the bug
-- Reset after a quiet period so normal usage isn't affected
+Use the same principle whether the logic lives in a store, hook, or service.
 
 ---
 
 ### **2. Sharing Decision Tree**
 
-Before implementing ANY new functionality, follow this decision flow:
+Before implementing new behavior:
 
-```
-                    Implementing a feature?
-                              │
-                              ▼
-         ┌────── Search: Does similar code exist? ──────┐
-         │        (grep for similar patterns)           │
-         │                                              │
-       FOUND                                        NOT FOUND
-         │                                              │
-         ▼                                              │
-  Use existing impl,                                    │
-  extend if needed                                      │
-         │                                              │
-         └──────────────────┬───────────────────────────┘
-                            │
-                            ▼
-              Is this used in 2+ places already?
-                            │
-              ┌─────────────┴─────────────┐
-            YES                           NO
-              │                            │
-              ▼                            ▼
-     Extract to shared/           Is this conceptually
-     immediately                  domain-agnostic?
-                                        │
-                            ┌───────────┴───────────┐
-                          YES                       NO
-                            │                        │
-                            ▼                        ▼
-                    Put in shared/          Keep in feature/
-                    from the start          (local scope)
+```mermaid
+flowchart TD
+    A["Need to implement behavior?"]
+    B["Search for existing implementation<br/>(components/hooks/services/stores)"]
+    C{"Found?"}
+    D["Reuse/extend existing code"]
+    E{"Used in 2+ places<br/>(or clearly soon will be)?"}
+    F["Extract to shared<br/>with clear API"]
+    G["Keep local to<br/>surface/feature"]
+
+    A --> B --> C
+    C -- Yes --> D
+    C -- No --> E
+    E -- Yes --> F
+    E -- No --> G
 ```
 
 #### **Before Writing New Code, Always Search**
 
 ```bash
-# Find similar components
-rg "function.*Button|const.*Button" --type tsx
+# Components
+rg "function .*Button|function .*Card|function .*Modal" --type tsx
 
-# Find similar hooks
-rg "function use.*Form|const use.*Form" --type tsx
+# Hooks
+rg "function use[A-Z]" --type tsx --type ts
 
-# Find similar stores
-rg "create<.*Store>" --type ts
+# Services
+rg "export .*fetch|export .*request|export .*query" src --type ts
 
-# Find similar utilities
-rg "function format|function parse|function validate" --type ts
+# Stores
+rg "create<.*>" src --type ts
 ```
 
-**If you find existing code:** Use it. Extend it if needed. Do NOT create a duplicate.
+If similar code exists, extend it instead of duplicating.
 
 ---
 
-### **3. Code Organization**
+### **3. Code Organization (Design-System Ready)**
+
+Use a structure that keeps visual-system ownership explicit:
 
 ```
 src/
 ├── shared/
-│   ├── components/     # Reusable UI (Button, Card, Modal, etc.)
-│   ├── hooks/          # Reusable hooks (useDebounce, useLocalStorage)
-│   ├── stores/         # Zustand stores (authStore, settingsStore)
-│   ├── services/       # API services (from react-stability)
-│   ├── controllers/    # Business logic (from react-stability)
-│   ├── schemas/        # Zod validation schemas
-│   ├── lib/            # Pure utilities (formatDate, cn, etc.)
-│   └── ui/             # Base design system components
+│   ├── theme/                 # Design tokens, themes, typography, motion scales
+│   │   ├── tokens.css
+│   │   ├── themes/
+│   │   │   ├── clean.ts
+│   │   │   └── legacy.ts
+│   │   ├── typography.ts
+│   │   └── motion.ts
+│   │
+│   ├── ui/
+│   │   ├── primitives/        # Button, Card, Input, Badge, Tabs, etc.
+│   │   └── composites/        # Panel, Header, EmptyState, FormRow, etc.
+│   │
+│   ├── components/            # Non-design-system shared widgets
+│   ├── hooks/                 # Domain-agnostic hooks
+│   ├── stores/                # App-wide stores (only when truly cross-surface)
+│   ├── services/              # API/services layer
+│   ├── controllers/           # Orchestration layer
+│   ├── schemas/               # Validation schemas
+│   └── lib/                   # Pure utilities
 │
-├── surfaces/           # Feature areas (or "pages", "routes", "domains")
+├── surfaces/                  # Feature/page assembly
 │   ├── dashboard/
-│   │   ├── components/ # Dashboard-specific components
-│   │   ├── hooks/      # Dashboard-specific hooks
-│   │   └── DashboardPage.tsx
-│   └── settings/
-│       └── ...
+│   ├── search/
+│   ├── explorer/
+│   └── ...
 ```
+
+#### **Ownership Rules**
+
+1. `shared/theme/*` owns tokens and theme values.
+2. `shared/ui/primitives/*` owns base interactive styling contracts.
+3. `shared/ui/composites/*` owns repeated composed patterns.
+4. `surfaces/*` assemble flows and content; they do not define new base primitives.
 
 #### **What Goes Where**
 
 | Location | Criteria | Examples |
 |----------|----------|----------|
-| `shared/components/` | Used by 2+ surfaces | Button, Card, Modal, ErrorBoundary |
-| `shared/hooks/` | Domain-agnostic utilities | useDebounce, useLocalStorage, useMediaQuery |
-| `shared/stores/` | App-wide state | authStore, settingsStore, toastStore |
-| `shared/ui/` | Design system primitives | Typography, spacing, color tokens |
-| `shared/lib/` | Pure utility functions | formatDate, cn, parseError |
-| `surfaces/X/components/` | Feature-specific | DashboardChart, SettingsForm |
-| `surfaces/X/hooks/` | Feature-specific logic | useDashboardData, useSettingsForm |
+| `shared/theme/` | Global visual contract | tokens, theme maps, type ramps |
+| `shared/ui/primitives/` | Lowest-level reusable UI atoms | Button, Card, Input, Badge |
+| `shared/ui/composites/` | Repeated multi-part UI blocks | PanelHeader, EmptyState, ToolbarRow |
+| `shared/components/` | Shared non-design-system widgets | ErrorBoundary, route shell wrappers |
+| `shared/hooks/` | Domain-agnostic hooks | useDebounce, useMediaQuery |
+| `shared/stores/` | Truly app-wide shared state | settingsStore, modalStore |
+| `surfaces/X/components/` | Feature-specific render components | SearchResultsList |
+| `surfaces/X/hooks/` | Feature-specific behavior | useSearchFilters |
 
 #### **Migration Pattern: Extracting to Shared**
 
-When moving code to `shared/`:
-
-1. **Move the file** to appropriate shared directory
-2. **Update all imports** across the codebase
-3. **Remove feature-specific logic** (parameterize it via props/options)
-4. **Add to index.ts** for discoverability
-5. **Verify no circular dependencies** were introduced
+1. Move file to correct shared location.
+2. Update imports.
+3. Remove feature-only assumptions.
+4. Add exports for discoverability.
+5. Confirm no circular dependencies.
 
 ---
 
 ### **4. Styling Coherence**
 
-**Stack: Tailwind CSS + CSS Variables + CVA (Class Variance Authority)**
+Use this style stack:
 
-```
-CSS Variables (design tokens)
-        │
-        ▼
-Tailwind Config (maps tokens to utilities)
-        │
-        ▼
-CVA Variants (component-level variants)
-        │
-        ▼
-Components (compose variants, never raw styles)
+```mermaid
+flowchart TD
+    T["Design Tokens<br/>(CSS variables)"]
+    W["Tailwind utility mapping<br/>(optional but consistent)"]
+    V["CVA variants for<br/>primitives/composites"]
+    U["Surface composition<br/>(no raw palette values)"]
+    T --> W --> V --> U
 ```
 
-#### **Design Token Pattern**
+#### **Token Categories (Required)**
+
+Define and use semantic tokens for:
+- `color` (text, accent, danger, success, warning)
+- `surface` (base, raised, overlay)
+- `border`
+- `radius`
+- `space`
+- `shadow`
+- `motion` (durations/easing)
+
+Example:
 
 ```css
-/* index.css - Single source of truth for design tokens */
 :root {
-  --color-primary: 59 130 246;      /* rgb values for opacity support */
-  --color-secondary: 107 114 128;
-  --color-destructive: 239 68 68;
-
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-
-  --radius-sm: 0.25rem;
+  --color-text-primary: 15 23 42;
+  --color-text-muted: 71 85 105;
+  --color-surface-base: 248 250 252;
+  --color-surface-elevated: 255 255 255;
+  --color-border-default: 226 232 240;
   --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-}
-
-[data-theme="dark"] {
-  --color-primary: 96 165 250;
-  /* ... dark overrides */
+  --space-4: 1rem;
+  --motion-fast: 150ms;
 }
 ```
 
-#### **Component Variant Pattern (CVA)**
+#### **Variant Rules (CVA)**
 
-```tsx
-// ✅ GOOD: Explicit variants via CVA
-import { cva, type VariantProps } from "class-variance-authority";
+1. Primitives expose semantic variants (`primary`, `secondary`, `danger`).
+2. Avoid one-off style props (`padding`, raw color strings).
+3. Keep variant count controlled (typically <= 4 per axis).
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md font-medium transition-colors",
-  {
-    variants: {
-      variant: {
-        primary: "bg-primary text-white hover:bg-primary/90",
-        secondary: "bg-secondary text-white hover:bg-secondary/90",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        destructive: "bg-destructive text-white hover:bg-destructive/90",
-      },
-      size: {
-        sm: "h-8 px-3 text-sm",
-        md: "h-10 px-4",
-        lg: "h-12 px-6 text-lg",
-      },
-    },
-    defaultVariants: {
-      variant: "primary",
-      size: "md",
-    },
-  }
-);
-```
+#### **Hard Rules**
 
-#### **Styling Rules**
-
-1. **Never use arbitrary color values** - always reference design tokens
-   ```tsx
-   // ❌ BAD
-   <div className="bg-[#f5f5f5]">
-
-   // ✅ GOOD
-   <div className="bg-surface-secondary">
-   ```
-
-2. **Limit variants per component** - max 3-4 variants per prop
-
-3. **Compose, don't configure** - wrap components instead of adding style props
-   ```tsx
-   // ❌ BAD: Arbitrary styling props
-   <Card padding={24} margin="10px 0" backgroundColor="#f5f5f5" />
-
-   // ✅ GOOD: Semantic variants
-   <Card variant="elevated" size="lg" />
-   ```
-
-4. **One source for each UI element** - Button in shared/ui, not reimplemented per feature
+1. No raw hex/rgb/hsl in TSX surface markup.
+2. No ad-hoc palette classes in surfaces when a primitive/composite exists.
+3. If two surfaces share a repeated class cluster, extract it.
+4. Focus styles must be explicit and consistent.
 
 ---
 
-### **5. Common Mechanism Patterns**
+### **5. Theme Refresh & Design System Migration**
 
-Establish ONE canonical pattern for each common concern:
+Use this section when the task includes a substantial visual refresh.
+
+#### **5.1 Pre-Work: Visual Direction Brief (Required)**
+
+Before changing code, capture:
+1. **Intent**: what should feel different.
+2. **References**: target style direction.
+3. **Constraints**: what must not change (flows, selectors, accessibility, test IDs).
+4. **Scope**: token-only refresh vs layout + component refresh.
+
+#### **5.2 Migration Strategy (Recommended Sequence)**
+
+1. **Stabilize tokens**
+  - Introduce/normalize semantic tokens in `shared/theme`.
+  - Ensure current UI can still render through tokens.
+2. **Normalize primitives**
+  - Align `Button/Card/Input/Badge/Tabs` around variants.
+  - Remove duplicated primitive logic from surfaces.
+3. **Migrate high-traffic surfaces first**
+  - Dashboard/navigation/primary workflows.
+4. **Migrate remaining surfaces**
+  - Secondary/edge views, modals, detailed panels.
+5. **Retire legacy classes**
+  - Remove deprecated style paths only after usage drops to zero.
+
+#### **5.3 Coexistence Rule During Migration**
+
+Temporary dual styling is allowed only if:
+- old and new contracts are clearly named,
+- deprecation intent is documented,
+- removal is tracked in the same stream of work.
+
+Do not leave permanent mixed styling contracts.
+
+#### **5.4 Quality Gates for Theme Refresh**
+
+Must verify:
+1. WCAG AA contrast for core text/actions.
+2. Keyboard navigation and focus visibility.
+3. Desktop and mobile layout stability.
+4. Loading/error/empty states still readable and coherent.
+5. Automation selectors remain stable unless intentionally coordinated.
+
+#### **5.5 Definition of Done (Theme Refresh)**
+
+A theme refresh is complete when:
+- primitives own the visual contract,
+- surfaces do not depend on raw palette hacks,
+- token coverage is complete for major UI states,
+- deprecated style contracts are removed,
+- tests and scenario suite pass.
+
+---
+
+### **6. Common Mechanism Patterns**
+
+Use one canonical pattern for each repeated concern:
 
 | Mechanism | Pattern | Location | Notes |
 |-----------|---------|----------|-------|
-| **Error handling** | ErrorBoundary + toast | `shared/components/ErrorBoundary` | Boundary catches, toast notifies |
-| **Loading states** | Skeleton + Suspense | `shared/components/Skeleton` | Use Suspense where possible |
-| **API calls** | Service layer (see react-stability) | `shared/services/` | Services return typed data |
-| **Forms** | Zustand form store | `shared/stores/` or feature store | NOT multiple useState calls |
-| **Modals** | Modal store + component | `shared/stores/modalStore` | Centralized modal management |
-| **Toasts** | Toast store + component | `shared/stores/toastStore` | One notification system |
-| **Validation** | Zod schemas | `shared/schemas/` | Colocate with API types |
-
-**Before implementing any of these:** Search for existing implementation first!
+| Error handling | ErrorBoundary + local recovery UX | `shared/components/` | Recovery actions, not dead ends |
+| Loading states | Skeleton/Suspense/inline loading contracts | shared + surface | Consistent user feedback |
+| API calls | Service layer | `shared/services/` | Typed results and centralized error shaping |
+| Forms | Local reducer or feature/app store based on scope | surface/shared | Match scope, avoid dogma |
+| Modals | Shared modal primitives + optional shared state | shared | Avoid duplicated modal frameworks |
+| Toasts/alerts | Single notification mechanism | shared | Do not mix multiple systems |
+| Validation | Schema-based at boundaries | `shared/schemas/` | Keep UI code lean |
 
 ---
 
-### **6. Coherence Audit**
+### **7. Coherence Audit**
 
-Run this audit when joining a project, before major work, or periodically for maintenance.
+Run this audit at session start, before large feature work, or before a theme refresh.
 
 #### **Step 1: State Inventory**
 
 ```bash
-# Find all useState usage with counts per file
 rg "useState\(" --type tsx -c | sort -t: -k2 -nr | head -20
-
-# Find Zustand stores
 rg "create<.*>" --type ts -l
-
-# Find Context usage
 rg "createContext|useContext" --type tsx -l
 ```
 
-**Red flags:**
-- [ ] Files with 10+ useState calls → candidate for Zustand store
-- [ ] Similar state shapes in multiple components → missing shared store
-- [ ] Context used for frequently-changing state → should be Zustand
+Red flags:
+- [ ] Large components with many unrelated local states
+- [ ] Cross-surface state duplicated in multiple places
+- [ ] App-wide stores holding unrelated concerns
 
 #### **Step 2: Duplication Check**
 
 ```bash
-# Find duplicate component names
-rg "function (Button|Card|Modal|Input|Form)" --type tsx -l | sort | uniq -d
-
-# Find duplicate hook patterns
+rg "function (Button|Card|Modal|Input|Form)" --type tsx -l
 rg "function use(Form|Fetch|Auth|Modal)" --type tsx -l
-
-# Find duplicate utility functions
 rg "function (format|parse|validate)" --type ts -l
 ```
 
-**Red flags:**
-- [ ] Same component name in multiple locations → consolidate to shared/
-- [ ] Similar hooks with slight variations → extract common logic
-- [ ] Utility functions duplicated → move to shared/lib/
+Red flags:
+- [ ] Similar components implemented in multiple surfaces
+- [ ] Slightly different duplicate hooks/services
+- [ ] Repeated utility logic
 
-#### **Step 3: Styling Assessment**
+#### **Step 3: Styling + Theme Readiness**
 
 ```bash
-# Find arbitrary color values (hex, rgb, hsl)
-rg "#[0-9a-fA-F]{3,6}|rgb\(|hsl\(" --type tsx --type css
+# Raw colors in TSX/CSS
+rg "#[0-9a-fA-F]{3,8}|rgb\\(|hsl\\(" --type tsx --type css
 
-# Find inconsistent spacing patterns
-rg "p-\[|m-\[|gap-\[" --type tsx  # Arbitrary values
+# Arbitrary spacing
+rg "p-\\[|m-\\[|gap-\\[" --type tsx
 
-# Check for CVA usage
-rg "cva\(" --type tsx -c
+# Primitive/variant usage
+rg "cva\\(" --type tsx -c
+
+# Token usage
+rg "var\\(--" src --type css
 ```
 
-**Red flags:**
-- [ ] Hardcoded hex colors → should use design tokens
-- [ ] Arbitrary spacing values `p-[14px]` → use standard scale
-- [ ] No CVA usage → missing variant system
+Red flags:
+- [ ] Hardcoded colors in surfaces
+- [ ] Arbitrary spacing without system reason
+- [ ] No primitive variant contracts
+- [ ] Token system is partial or absent
 
 #### **Step 4: Architecture Alignment**
 
-Verify the codebase follows the expected structure:
-
 ```bash
-# Check if shared/ exists and has expected subdirs
 ls -la src/shared/
-
-# Find components outside shared that might belong there
-rg "export (function|const) (Button|Card|Modal|Input)" --type tsx -l | grep -v shared
+ls -la src/shared/theme src/shared/ui 2>/dev/null
+rg "export (function|const) (Button|Card|Input|Badge)" --type tsx -l | grep -v "shared/ui/primitives"
 ```
 
-**Questions to answer:**
-- [ ] Do all surfaces follow the same structure?
-- [ ] Is shared/ actually shared, or duplicated per feature?
-- [ ] Are services/controllers following react-stability patterns?
+Questions:
+- [ ] Are visual contracts owned in `shared/theme` + `shared/ui`?
+- [ ] Are surfaces assembling rather than inventing primitives?
+- [ ] Do controllers/services follow stable boundaries?
 
 #### **Step 5: Document Findings**
 
-After running the audit, create or update `docs/internal/COHERENCE_NOTES.md`:
+Update or create `docs/internal/COHERENCE-NOTES.md`:
 
 ```markdown
 # Coherence Audit - [Date]
 
-## State Management
-- Current pattern: [Zustand/local state/mixed]
-- Stores found: [list stores]
-- Components with excessive useState (10+): [list with counts]
+## State
+- Current pattern: [local-first / mixed / store-heavy]
+- App-wide stores: [list]
+- State hotspots: [list]
 
 ## Duplication
 - Duplicate components: [list]
-- Duplicate hooks: [list]
+- Duplicate hooks/services: [list]
 - Consolidation candidates: [list]
 
-## Styling
-- Design token usage: [good/partial/none]
-- CVA adoption: [yes/partial/no]
-- Inconsistencies found: [list]
+## Styling System
+- Token coverage: [good/partial/none]
+- Primitive variant coverage: [good/partial/none]
+- Surface-level style debt: [list]
+
+## Theme Refresh Readiness
+- Ready now / needs foundation work
+- Required prerequisites: [list]
 
 ## Priority Actions
-1. [Highest impact fix]
-2. [Second priority]
-3. [Third priority]
+1. [...]
+2. [...]
+3. [...]
 ```
 
 ---
 
-### **7. Memory Management with Visited Tracker**
+### **8. Memory Management with Visited Tracker**
 
-Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}/ui` and TAG set to `react-coherence`.
-
----
-
-### **8. Relationship to Other Skills**
-
-| Skill | Focus | When to Use Together |
-|-------|-------|---------------------|
-| react-stability | Crash prevention | Coherence builds on stability's architecture (Components→Hooks→Controllers→Services) |
-| experience-architecture-audit | UX flows | Coherence is internal code quality; UX is user-facing experience |
-| refactor | General cleanup | Use after coherence audit identifies structural issues |
-| code-cleanup | Dead code removal | Coherence may reveal dead/duplicate code to clean |
-
-Optional reading:
-- `prompt-manager skills read react-stability experience-architecture-audit refactor code-cleanup`
-
-**Recommended sequence for major work:**
-1. **react-coherence** (audit) → understand current state
-2. **react-stability** → ensure crash resistance
-3. **experience-architecture-audit** → improve UX
-4. **refactor** → clean up identified issues
+Use `visited-tracker-tools` with:
+- LOCATION: `scenarios/{{TARGET}}/ui`
+- TAG: `react-coherence`
 
 ---
 
-### **9. Scenario Constraints**
+### **9. Relationship to Other Skills**
 
-* Do **not** change the scenario's core workflows, APIs, or business logic
-* Do **not** introduce new features unrelated to architectural coherence
-* Do **not** refactor everything at once - prioritize high-impact consolidations
-* Prefer **incremental improvements** over ambitious rewrites
+| Skill | Focus | How it combines with react-coherence |
+|-------|-------|--------------------------------------|
+| react-stability | Crash prevention | Apply stability guardrails before large refactors |
+| experience-architecture-audit | User flow clarity | Coherence handles structure; experience audit handles flow outcomes |
+| refactor | Targeted cleanup | Use after coherence audit identifies concrete debt |
+| code-cleanup | Dead code removal | Use once architecture direction is stable |
+
+Recommended sequence:
+1. `react-coherence` audit
+2. `react-stability` hardening
+3. `experience-architecture-audit` flow improvements
+4. `refactor` / `code-cleanup`
 
 ---
 
-### **10. Output Expectations**
+### **10. Scenario Constraints**
+
+Do not:
+- change core scenario workflows without explicit requirement
+- alter API/business semantics during pure coherence work
+- perform broad rewrites without staged migration
+- break automation selectors without coordination
+
+Prefer:
+- incremental, high-impact structural improvements
+- explicit ownership boundaries
+- reversible migrations with checkpoints
+
+---
+
+### **11. Output Expectations**
 
 You may update:
-* State management to use Zustand stores instead of scattered useState
-* Component locations to consolidate duplicates into shared/
-* Styling to use design tokens and CVA variants
-* Code organization to follow the prescribed structure
-* Import patterns to use shared/ components/hooks/stores
+- code organization to match ownership boundaries
+- token + primitive systems
+- state shape and location based on scope
+- shared abstractions where duplication is proven
 
-You **must**:
-* Keep the scenario fully functional and non-regressed
-* Reduce duplication and improve discoverability
-* Align code with established patterns
-* Document significant consolidations in commit messages
+You must:
+- keep functionality intact
+- keep or improve test coverage
+- preserve/coordinate selectors and QA hooks
+- document major architectural decisions
 
-**Avoid superficial changes that only rename things or move code without genuinely improving coherence.**
+For theme refresh tasks, include in your final summary:
+1. Visual direction brief (short)
+2. What was migrated (tokens/primitives/surfaces)
+3. What remains
+4. Risks and follow-ups
+
+Avoid superficial churn (renames/moves only) without real coherence gains.
