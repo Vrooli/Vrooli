@@ -1,7 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { resolveApiBase } from "@vrooli/api-base";
-import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 import { JsonObject, JsonValue, RunnerType } from "../types";
 
 export function cn(...inputs: ClassValue[]) {
@@ -14,42 +13,11 @@ export function getApiBaseUrl(): string {
   return resolveApiBase({ appendSuffix: true });
 }
 
-function toDateValue(date: string | Date | Timestamp | undefined): Date | undefined {
-  if (!date) return undefined;
-  if (date instanceof Date) return date;
-  if (typeof date === "string") {
-    const parsed = new Date(date);
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-  }
-  if (typeof date === "object" && "seconds" in date) {
-    return timestampDate(date as Timestamp);
-  }
-  return undefined;
-}
-
-export function formatDate(date: string | Date | Timestamp | undefined): string {
-  const d = toDateValue(date);
-  if (!d) return "N/A";
-  return d.toLocaleString();
-}
-
 export function formatDuration(ms: number): string {
   if (ms < 1000) return ms + "ms";
   if (ms < 60000) return (ms / 1000).toFixed(1) + "s";
   if (ms < 3600000) return Math.floor(ms / 60000) + "m " + Math.floor((ms % 60000) / 1000) + "s";
   return Math.floor(ms / 3600000) + "h " + Math.floor((ms % 3600000) / 60000) + "m";
-}
-
-export function formatRelativeTime(date: string | Date | Timestamp | undefined): string {
-  const d = toDateValue(date);
-  if (!d) return "N/A";
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  
-  if (diffMs < 60000) return "just now";
-  if (diffMs < 3600000) return Math.floor(diffMs / 60000) + "m ago";
-  if (diffMs < 86400000) return Math.floor(diffMs / 3600000) + "h ago";
-  return Math.floor(diffMs / 86400000) + "d ago";
 }
 
 export function runnerTypeToSlug(type?: RunnerType): string {

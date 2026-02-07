@@ -12,7 +12,8 @@ import {
 } from "recharts";
 import { useRunTrends } from "../../hooks/useRunTrends";
 import { useTimeWindow } from "../../hooks/useTimeWindow";
-import { formatChartAxisByPreset, formatDateTime, formatNumber } from "../../utils/formatters";
+import { formatNumber } from "../../utils/formatters";
+import { formatChartAxisByPreset, formatStatsDateTime } from "../../../../lib/dateTime";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
 
 export function RunStatusTrends() {
@@ -86,7 +87,7 @@ export function RunStatusTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={(label: string) => formatDateTime(label)}
+                labelFormatter={(label: string) => formatStatsDateTime(label)}
                 formatter={(value: number, name: string) => [
                   formatNumber(value),
                   name.charAt(0).toUpperCase() + name.slice(1),

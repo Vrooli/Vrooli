@@ -15,7 +15,8 @@ import {
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
-import { formatRelativeTime } from "../../../../lib/utils";
+import { formatStatusLabel, formatUnknownLabel, statusBadgeVariant } from "../../../../lib/display";
+import { formatStandardRelativeTime } from "../../../../lib/dateTime";
 import { useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../hooks/useToolUsage";
 import { formatNumber, formatPercent } from "../../utils/formatters";
 import { CHART_COLORS, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartConfig";
@@ -104,7 +105,7 @@ export function ToolUsageAnalytics() {
                   Tool Usage
                 </h3>
                 <p className="text-sm font-medium text-foreground">
-                  {formatToolName(selectedStats.name)}
+                  {formatUnknownLabel(selectedStats.name)}
                 </p>
               </div>
             </div>
@@ -167,11 +168,11 @@ export function ToolUsageAnalytics() {
                         {run.taskTitle || "Untitled Task"}
                       </Link>
                       <div className="text-xs text-muted-foreground">
-                        {run.profileName} • {formatRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
+                        {run.profileName} • {formatStandardRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant={statusVariant(run.status)}>{statusLabel(run.status)}</Badge>
+                      <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge>
                       <div className="text-right text-xs text-muted-foreground">
                         <div>{formatNumber(run.callCount)} calls</div>
                         <div className="text-muted-foreground">
@@ -199,7 +200,7 @@ export function ToolUsageAnalytics() {
                 <div key={model.model} className="flex flex-wrap items-center justify-between gap-4 py-3">
                   <div>
                     <div className="text-sm font-medium text-foreground">
-                      {formatToolModelName(model.model)}
+                      {formatUnknownLabel(model.model)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {formatNumber(model.runCount)} runs • {formatNumber(model.callCount)} calls
@@ -249,7 +250,7 @@ export function ToolUsageAnalytics() {
                     tickLine={{ stroke: CHART_COLORS.axis }}
                     width={75}
                     tickFormatter={(value: string) => {
-                      const label = formatToolName(value);
+                      const label = formatUnknownLabel(value);
                       return label.length > 12 ? `${label.slice(0, 12)}...` : label;
                     }}
                   />
@@ -260,7 +261,7 @@ export function ToolUsageAnalytics() {
                       const item = payload[0].payload as ToolChartDatum;
                       return (
                         <div className="rounded border border-border bg-card p-3 text-xs shadow-lg">
-                          <div className="mb-2 font-medium">{formatToolName(item.name)}</div>
+                          <div className="mb-2 font-medium">{formatUnknownLabel(item.name)}</div>
                           <div className="space-y-1 text-muted-foreground">
                             <div className="flex justify-between gap-4">
                               <span>Calls:</span>
@@ -325,36 +326,4 @@ export function ToolUsageAnalytics() {
       )}
     </div>
   );
-}
-
-function statusVariant(status: string) {
-  switch (status) {
-    case "pending":
-    case "starting":
-    case "running":
-    case "needs_review":
-    case "complete":
-    case "failed":
-    case "cancelled":
-      return status;
-    default:
-      return "secondary";
-  }
-}
-
-function statusLabel(status: string) {
-  return status
-    .split("_")
-    .map((word) => (word && word[0] ? word[0].toUpperCase() + word.slice(1) : word))
-    .join(" ");
-}
-
-function formatToolName(value: string) {
-  if (!value || value === "unknown") return "Unknown";
-  return value;
-}
-
-function formatToolModelName(value: string) {
-  if (!value || value === "unknown") return "Unknown";
-  return value;
 }

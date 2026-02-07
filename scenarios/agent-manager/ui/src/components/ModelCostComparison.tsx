@@ -3,6 +3,9 @@ import { Button } from "./ui/button";
 import { EditPricingDialog } from "./dialogs/EditPricingDialog";
 import { useModelCostComparison } from "../features/stats/hooks/useModelCostComparison";
 import type { CompareModelsRequest } from "../features/stats/api/types";
+import { formatUnknownLabel } from "../lib/display";
+import { truncate } from "../lib/utils";
+import { formatUsdFixed } from "../lib/currency";
 
 interface CostTotals {
   inputTokens: number;
@@ -125,13 +128,12 @@ export function ModelCostComparison({
                     )}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
-                    ${comparison.estimatedCostUsd.toFixed(4)}
+                    {formatUsdFixed(comparison.estimatedCostUsd, 4, { useGrouping: false })}
                   </td>
                   <td
                     className={`px-3 py-2 text-right font-mono ${getDiffColor(comparison.differenceUsd)}`}
                   >
-                    {comparison.differenceUsd >= 0 ? "+" : ""}$
-                    {comparison.differenceUsd.toFixed(4)}
+                    {formatSignedCurrencyDiff(comparison.differenceUsd)}
                   </td>
                   <td
                     className={`px-3 py-2 text-right font-mono ${getDiffColor(comparison.differencePercent)}`}
@@ -156,16 +158,24 @@ export function ModelCostComparison({
 }
 
 function formatModelName(model: string): string {
-  if (!model || model === "unknown") return "Unknown";
+  const label = formatUnknownLabel(model);
   // Truncate long model names for display
-  if (model.length > 30) {
-    return model.slice(0, 27) + "...";
+  if (label.length > 30) {
+    return truncate(label, 30);
   }
-  return model;
+  return label;
 }
 
 function getDiffColor(value: number): string {
   if (value < 0) return "text-emerald-500";
   if (value > 0) return "text-red-500";
   return "text-muted-foreground";
+}
+
+function formatSignedCurrencyDiff(value: number): string {
+  const abs = Math.abs(value);
+  const formatted = formatUsdFixed(abs, 4, { useGrouping: false });
+  if (value > 0) return `+${formatted}`;
+  if (value < 0) return `-${formatted}`;
+  return formatted;
 }

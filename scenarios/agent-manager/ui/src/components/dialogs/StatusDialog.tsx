@@ -12,7 +12,8 @@ import {
 } from "../ui/dialog";
 import type { HealthResponse, JsonValue } from "../../types";
 import { HealthStatus } from "../../types";
-import { formatDate, jsonValueToPlain } from "../../lib/utils";
+import { jsonValueToPlain } from "../../lib/utils";
+import { formatStandardDateTime } from "../../lib/dateTime";
 
 type WsStatus = "connected" | "connecting" | "disconnected" | "error";
 
@@ -75,7 +76,7 @@ export function StatusDialog({
             </div>
             <div className="flex items-center justify-between text-muted-foreground">
               <span>Timestamp</span>
-              <span className="text-foreground">{formatDate(health?.timestamp)}</span>
+              <span className="text-foreground">{formatStandardDateTime(health?.timestamp)}</span>
             </div>
           </div>
 

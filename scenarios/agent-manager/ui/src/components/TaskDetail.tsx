@@ -4,7 +4,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { MarkdownRenderer } from "./markdown";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
-import { formatDate, formatRelativeTime } from "../lib/utils";
+import { formatStandardDateTime, formatStandardRelativeTime } from "../lib/dateTime";
 import type { ContextAttachmentData, Task } from "../types";
 import { TaskStatus } from "../types";
 
@@ -193,11 +193,11 @@ export function TaskDetail({
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Created</span>
-            <p className="font-medium">{formatRelativeTime(task.createdAt)}</p>
+            <p className="font-medium">{formatStandardRelativeTime(task.createdAt)}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Last Updated</span>
-            <p className="font-medium">{formatDate(task.updatedAt)}</p>
+            <p className="font-medium">{formatStandardDateTime(task.updatedAt)}</p>
           </div>
         </div>
       </div>

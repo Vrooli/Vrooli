@@ -11,12 +11,12 @@ import { KPICard } from "./KPICard";
 import { useStatsSummary } from "../../hooks/useStatsSummary";
 import {
   formatPercent,
-  formatCurrency,
   formatDuration,
   formatNumber,
 } from "../../utils/formatters";
 import { getWindowHours } from "../../utils/calculations";
 import { useTimeWindow } from "../../hooks/useTimeWindow";
+import { formatUsdFixed } from "../../../../lib/currency";
 
 export function KPISummary() {
   const { data, isLoading, error } = useStatsSummary();
@@ -54,7 +54,7 @@ export function KPISummary() {
       />
       <KPICard
         title="Total Cost"
-        value={cost ? formatCurrency(cost.totalCostUsd) : "-"}
+        value={cost ? formatUsdFixed(cost.totalCostUsd, 2) : "-"}
         subtitle={cost ? `${formatNumber(cost.totalTokens)} tokens` : undefined}
         icon={<DollarSign className="h-4 w-4" />}
         loading={isLoading}

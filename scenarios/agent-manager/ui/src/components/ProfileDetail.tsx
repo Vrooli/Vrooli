@@ -1,7 +1,8 @@
 import { Edit, Trash2 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { formatDate, runnerTypeLabel } from "../lib/utils";
+import { runnerTypeLabel } from "../lib/utils";
+import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
 import { ModelPreset } from "../types";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
@@ -119,11 +120,11 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
         <div className="grid grid-cols-2 gap-4 text-sm pt-2 border-t border-border">
           <div>
             <span className="text-muted-foreground">Created</span>
-            <p className="font-medium">{formatDate(profile.createdAt)}</p>
+            <p className="font-medium">{formatStandardDateTime(profile.createdAt)}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Updated</span>
-            <p className="font-medium">{formatDate(profile.updatedAt)}</p>
+            <p className="font-medium">{formatStandardDateTime(profile.updatedAt)}</p>
           </div>
         </div>
       </div>

@@ -13,11 +13,10 @@ import {
 import { useRunTrends } from "../../hooks/useRunTrends";
 import { useTimeWindow } from "../../hooks/useTimeWindow";
 import {
-  formatChartAxisByPreset,
-  formatCurrency,
   formatDuration,
-  formatDateTime,
 } from "../../utils/formatters";
+import { formatChartAxisByPreset, formatStatsDateTime } from "../../../../lib/dateTime";
+import { formatUsdFixed } from "../../../../lib/currency";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
 
 export function CostDurationTrends() {
@@ -95,9 +94,9 @@ export function CostDurationTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={(label: string) => formatDateTime(label)}
+                labelFormatter={(label: string) => formatStatsDateTime(label)}
                 formatter={(value: number, name: string) => {
-                  if (name === "Cost") return [formatCurrency(value), name];
+                  if (name === "Cost") return [formatUsdFixed(value, 2), name];
                   return [formatDuration(value), name];
                 }}
               />

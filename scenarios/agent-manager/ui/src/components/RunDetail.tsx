@@ -28,9 +28,11 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { buildSandboxReviewUrl, cn, formatDate, formatDuration, runnerTypeLabel } from "../lib/utils";
+import { formatUsdFixed } from "../lib/currency";
+import { buildSandboxReviewUrl, cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
+import { formatStandardDateTime } from "../lib/dateTime";
 import type {
   ApproveFormData,
   ContextAttachmentData,
@@ -363,7 +365,7 @@ export function RunDetail({
               <KPICard
                 title="Duration"
                 value={durationMs !== null ? formatDuration(durationMs) : "In progress"}
-                subtitle={run.startedAt ? formatDate(run.startedAt) : "Not started"}
+                subtitle={run.startedAt ? formatStandardDateTime(run.startedAt) : "Not started"}
                 icon={<Clock className="h-4 w-4" />}
               />
               <KPICard
@@ -1135,7 +1137,7 @@ function EventItem({ event }: { event: RunEvent }) {
               {runEventTypeLabel(event.eventType).replace("_", " ")}
             </Badge>
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {formatDate(event.timestamp)}
+              {formatStandardDateTime(event.timestamp)}
             </span>
           </div>
           <div className="text-sm font-medium text-foreground">
@@ -1234,7 +1236,7 @@ function getCostTotals(events: RunEvent[]): CostTotals {
 }
 
 function formatCurrency(value: number): string {
-  return `$${value.toFixed(4)}`;
+  return formatUsdFixed(value, 4, { useGrouping: false });
 }
 
 function CostBreakdown({ totals }: { totals: CostTotals }) {

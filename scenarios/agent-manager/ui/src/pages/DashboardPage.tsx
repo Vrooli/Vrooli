@@ -21,10 +21,12 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { probeRunner } from "../hooks/useApi";
-import { formatRelativeTime, jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
+import { formatHyphenatedLabel } from "../lib/display";
+import { jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
 import type { ProbeResult, Run, RunnerType, Task, HealthResponse, JsonValue } from "../types";
 import { RunStatus } from "../types";
 import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
+import { formatStandardRelativeTime } from "../lib/dateTime";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
@@ -214,7 +216,7 @@ export function DashboardPage({
                     <div>
                       <p className="font-medium">{task?.title || "Unknown Task"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {run.changedFiles} files changed | {formatRelativeTime(run.endedAt)}
+                        {run.changedFiles} files changed | {formatStandardRelativeTime(run.endedAt)}
                       </p>
                     </div>
                     <Badge variant="needs_review">Needs Review</Badge>
@@ -278,10 +280,7 @@ function formatRunnerName(name: string): string {
   if (runnerType !== undefined) {
     return runnerTypeLabel(runnerType);
   }
-  return name
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return formatHyphenatedLabel(name);
 }
 
 function runStatusLabel(status: RunStatus): string {
@@ -514,7 +513,7 @@ function RunActivityItem({
         <div>
           <p className="font-medium text-sm">{task?.title || "Unknown Task"}</p>
           <p className="text-xs text-muted-foreground">
-            {formatRelativeTime(run.createdAt)}
+            {formatStandardRelativeTime(run.createdAt)}
           </p>
         </div>
       </div>

@@ -5,10 +5,10 @@ import { Link } from "react-router-dom";
 import { useProfileBreakdown } from "../../hooks/useProfileBreakdown";
 import {
   formatPercent,
-  formatCurrency,
   formatNumber,
 } from "../../utils/formatters";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { formatUsdFixed } from "../../../../lib/currency";
 
 type SortField = "profileName" | "runCount" | "successRate" | "totalCostUsd";
 type SortDirection = "asc" | "desc";
@@ -176,7 +176,7 @@ export function ProfileActivityTable() {
                       </span>
                     </td>
                     <td className="py-2 tabular-nums">
-                      {formatCurrency(profile.totalCostUsd)}
+                      {formatUsdFixed(profile.totalCostUsd, 2)}
                     </td>
                   </tr>
                 );

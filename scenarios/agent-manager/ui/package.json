@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint src/",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "pnpm run test:unit",
+    "test:unit": "rm -rf .test-dist && tsc -p tsconfig.test.json && node --test .test-dist/tests/**/*.test.js && rm -rf .test-dist"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

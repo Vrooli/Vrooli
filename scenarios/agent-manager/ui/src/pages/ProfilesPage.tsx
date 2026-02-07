@@ -24,12 +24,13 @@ import { Label } from "../components/ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
 import { Textarea } from "../components/ui/textarea";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
-import { formatDate, runnerTypeLabel } from "../lib/utils";
+import { runnerTypeLabel } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
 import { ModelPreset, RunnerType as RunnerTypeEnum } from "../types";
 import { runnerTypeToSlug } from "../lib/utils";
 import { ProfileDetail } from "../components/ProfileDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
+import { formatStandardDateTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -393,7 +394,7 @@ export function ProfilesPage({
         >
           <ListItemTitle>{profile.name}</ListItemTitle>
           <ListItemSubtitle>
-            {profile.description || "No description"} | {formatDate(profile.createdAt)}
+            {profile.description || "No description"} | {formatStandardDateTime(profile.createdAt)}
           </ListItemSubtitle>
         </ListItem>
       ))}

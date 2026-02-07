@@ -1,4 +1,6 @@
 import type { PricingSource } from "../../types";
+import { formatPricingUsdPerMillion } from "../../lib/currency";
+import { formatDateTime, toValidDate } from "../../lib/dateTime";
 
 export function pricingSourceColor(source: PricingSource): string {
   switch (source) {
@@ -36,16 +38,14 @@ export function pricingSourceBadgeClass(
 }
 
 export function formatPricingDisplay(price: number | undefined): string {
-  if (price === undefined || price === 0) return "-";
-  if (price < 0.01) return `$${price.toFixed(4)}`;
-  return `$${price.toFixed(2)}`;
+  return formatPricingUsdPerMillion(price);
 }
 
 export function formatPricingTimestamp(ts: string | undefined): string {
   if (!ts) return "-";
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
+  const date = toValidDate(ts);
+  if (!date) {
     return ts;
   }
+  return formatDateTime(date, undefined, ts);
 }

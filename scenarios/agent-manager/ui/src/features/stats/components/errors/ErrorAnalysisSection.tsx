@@ -1,9 +1,10 @@
 // Error Analysis Section - displays error patterns with links to affected runs
 
 import { useErrorAnalysis } from "../../hooks/useErrorAnalysis";
-import { formatNumber, formatRelativeTime } from "../../utils/formatters";
+import { formatNumber } from "../../utils/formatters";
 import { AlertTriangle, ExternalLink } from "lucide-react";
 import type { ErrorPattern } from "../../api/types";
+import { formatStatsRelativeTime } from "../../../../lib/dateTime";
 
 interface ErrorItemProps {
   error: ErrorPattern;
@@ -27,7 +28,7 @@ function ErrorItem({ error }: ErrorItemProps) {
               {formatNumber(error.count)} occurrence{error.count !== 1 ? "s" : ""}
             </span>
             <span className="text-xs text-muted-foreground">
-              Last: {formatRelativeTime(error.lastSeen)}
+              Last: {formatStatsRelativeTime(error.lastSeen)}
             </span>
           </div>
           <p className="text-sm text-foreground font-mono break-all" title={errorDisplay}>

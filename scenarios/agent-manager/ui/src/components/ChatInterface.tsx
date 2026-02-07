@@ -3,7 +3,8 @@ import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { Send, Loader2, User, Bot, Copy, Check, AlertCircle, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
-import { cn, formatDate } from "../lib/utils";
+import { cn } from "../lib/utils";
+import { formatStandardDateTime } from "../lib/dateTime";
 import { MarkdownRenderer } from "./markdown";
 import type { Run, RunEvent } from "../types";
 import { RunStatus } from "../types";
@@ -250,7 +251,7 @@ export function ChatInterface({
                       : "text-muted-foreground"
                   )}
                 >
-                  {formatDate(message.timestamp)}
+                  {formatStandardDateTime(message.timestamp)}
                 </div>
               </div>
 

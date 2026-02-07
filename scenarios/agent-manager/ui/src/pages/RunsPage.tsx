@@ -17,7 +17,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import { formatRelativeTime } from "../lib/utils";
+import { formatStandardRelativeTime } from "../lib/dateTime";
 import type {
   AgentProfile,
   ApproveFormData,
@@ -617,7 +617,7 @@ export function RunsPage({
         >
           <ListItemTitle>{getTaskTitle(run.taskId)}</ListItemTitle>
           <ListItemSubtitle>
-            {getProfileName(run.agentProfileId)} | {formatRelativeTime(run.createdAt)}
+            {getProfileName(run.agentProfileId)} | {formatStandardRelativeTime(run.createdAt)}
           </ListItemSubtitle>
         </ListItem>
       ))}

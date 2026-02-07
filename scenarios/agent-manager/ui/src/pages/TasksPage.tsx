@@ -26,9 +26,10 @@ import { Label } from "../components/ui/label";
 import { ModelConfigSelector } from "../components/ModelConfigSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { formatRelativeTime, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
 import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
+import { formatStandardRelativeTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -480,7 +481,7 @@ export function TasksPage({
         >
           <ListItemTitle>{task.title}</ListItemTitle>
           <ListItemSubtitle>
-            {task.scopePath} | {formatRelativeTime(task.createdAt)}
+            {task.scopePath} | {formatStandardRelativeTime(task.createdAt)}
           </ListItemSubtitle>
         </ListItem>
       ))}

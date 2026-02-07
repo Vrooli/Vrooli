@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRunnerPerformance } from "../../hooks/useRunnerPerformance";
 import {
   formatPercent,
-  formatCurrency,
   formatDuration,
   formatNumber,
 } from "../../utils/formatters";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { formatUsdFixed } from "../../../../lib/currency";
 
 type SortField = "runnerType" | "runCount" | "successRate" | "totalCostUsd" | "avgDurationMs";
 type SortDirection = "asc" | "desc";
@@ -172,7 +172,7 @@ export function RunnerPerformanceTable() {
                       </span>
                     </td>
                     <td className="py-2 pr-4 tabular-nums">
-                      {formatCurrency(runner.totalCostUsd)}
+                      {formatUsdFixed(runner.totalCostUsd, 2)}
                     </td>
                     <td className="py-2 tabular-nums">
                       {formatDuration(runner.avgDurationMs)}
