@@ -166,6 +166,57 @@
   border-color: var(--app-accent);
 }
 
+.preview-toolbar__url-suggestions {
+  position: fixed;
+  min-width: min(680px, calc(100vw - 24px));
+  max-height: min(340px, 48vh);
+  overflow: auto;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: rgba(11, 15, 28, 0.98);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  z-index: 3000;
+}
+
+.preview-toolbar__url-suggestion,
+.preview-toolbar__url-selector {
+  border: 0;
+  background: transparent;
+  color: var(--app-text-primary);
+  border-radius: 8px;
+  min-height: 2rem;
+  text-align: left;
+  padding: 0.42rem 0.55rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.preview-toolbar__url-suggestion:hover,
+.preview-toolbar__url-suggestion:focus-visible,
+.preview-toolbar__url-selector:hover,
+.preview-toolbar__url-selector:focus-visible {
+  background: rgba(122, 160, 255, 0.16);
+  outline: none;
+}
+
+.preview-toolbar__url-suggestion--active {
+  background: rgba(122, 160, 255, 0.2);
+}
+
+.preview-toolbar__url-selector {
+  margin-top: 0.1rem;
+  border-top: 1px solid rgba(122, 160, 255, 0.2);
+  border-radius: 0;
+  padding-top: 0.5rem;
+}
+
 /* Icon buttons - clean, minimal style */
 .preview-toolbar__icon-btn {
   display: inline-flex;

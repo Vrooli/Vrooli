@@ -35,6 +35,7 @@ type UsePreviewNavigationOptions = StateRefs & {
 type UsePreviewNavigationResult = {
   canGoBack: boolean;
   canGoForward: boolean;
+  applyPreviewUrlValue: (value: string) => void;
   applyPreviewUrlInput: () => void;
   handleUrlInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handleUrlInputKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
@@ -106,8 +107,8 @@ export const usePreviewNavigation = ({
     });
   }, [initialPreviewUrlRef, setHasCustomPreviewUrl, setHistory, setHistoryIndex, setPreviewUrl, setPreviewUrlInput]);
 
-  const applyPreviewUrlInput = useCallback(() => {
-    const trimmed = previewUrlInput.trim();
+  const applyPreviewUrlValue = useCallback((value: string) => {
+    const trimmed = value.trim();
 
     if (!trimmed) {
       if (previewUrlInput !== '') {
@@ -167,6 +168,10 @@ export const usePreviewNavigation = ({
     setPreviewUrlInput,
     setStatusMessage,
   ]);
+
+  const applyPreviewUrlInput = useCallback(() => {
+    applyPreviewUrlValue(previewUrlInput);
+  }, [applyPreviewUrlValue, previewUrlInput]);
 
   const handleUrlInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setPreviewUrlInput(event.target.value);
@@ -245,6 +250,7 @@ export const usePreviewNavigation = ({
   return {
     canGoBack,
     canGoForward,
+    applyPreviewUrlValue,
     applyPreviewUrlInput,
     handleUrlInputChange,
     handleUrlInputKeyDown,

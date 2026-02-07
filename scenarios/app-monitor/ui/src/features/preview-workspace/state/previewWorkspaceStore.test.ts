@@ -4,12 +4,17 @@ import {
   usePreviewWorkspaceStore,
 } from './previewWorkspaceStore';
 
+const STORAGE_KEY = 'app-monitor:preview-workspace-v1';
+
 const resetStore = () => {
   usePreviewWorkspaceStore.getState().reset();
 };
 
 describe('previewWorkspaceStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    window.localStorage.removeItem(STORAGE_KEY);
+    await usePreviewWorkspaceStore.persist.clearStorage();
+    await usePreviewWorkspaceStore.persist.rehydrate();
     resetStore();
   });
 
@@ -98,5 +103,45 @@ describe('previewWorkspaceStore', () => {
     expect(nextState.layout).toBe('split');
     expect(nextState.interactionMode).toBe('arrange');
     expect(nextState.panes[0]?.appId).toBe('scenario-b');
+  });
+
+  it('rehydrates panes, focused pane, and split fractions from localStorage', async () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      state: {
+        layout: 'split',
+        interactionMode: 'arrange',
+        panes: [
+          { id: 'pane-a', appId: 'scenario-a', createdAt: 1000 },
+          { id: 'pane-b', appId: 'scenario-b', createdAt: 2000 },
+        ],
+        paneViewState: {
+          'pane-a': {
+            previewUrl: 'http://localhost:3000',
+            previewUrlInput: 'http://localhost:3000',
+            hasCustomPreviewUrl: true,
+            history: ['http://localhost:3000'],
+            historyIndex: 0,
+            initialPreviewUrl: 'http://localhost:3000',
+            isLogsVisible: true,
+          },
+        },
+        focusedPaneId: 'pane-b',
+        columnFractions: [0.35, 0.65],
+        rowFractions: [1],
+      },
+      version: 1,
+    }));
+
+    await usePreviewWorkspaceStore.persist.rehydrate();
+
+    const state = usePreviewWorkspaceStore.getState();
+    expect(state.layout).toBe('split');
+    expect(state.interactionMode).toBe('arrange');
+    expect(state.panes.map((pane) => pane.id)).toEqual(['pane-a', 'pane-b']);
+    expect(state.focusedPaneId).toBe('pane-b');
+    expect(state.columnFractions).toEqual([0.35, 0.65]);
+    expect(state.rowFractions).toEqual([1]);
+    expect(state.paneViewState['pane-a']?.history).toEqual(['http://localhost:3000']);
+    expect(state.paneViewState['pane-a']?.isLogsVisible).toBe(true);
   });
 });

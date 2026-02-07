@@ -32,28 +32,6 @@
   z-index: 5;
 }
 
-.preview-pane__app-row {
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid var(--app-border);
-  background: rgba(12, 18, 36, 0.88);
-}
-
-.preview-pane__app-select {
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: rgba(12, 18, 36, 0.95);
-  color: var(--app-text-primary);
-  height: 30px;
-  font-size: 0.82rem;
-  width: 100%;
-  padding: 0 8px;
-}
-
-.preview-pane__app-select:focus-visible {
-  outline: 2px solid rgba(122, 160, 255, 0.45);
-  outline-offset: 1px;
-}
-
 .preview-pane__body {
   position: relative;
   flex: 1;

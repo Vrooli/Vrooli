@@ -123,6 +123,16 @@
   user-select: none;
 }
 
+.preview-workspace__panes--resizing,
+.preview-workspace__panes--dragging {
+  user-select: none;
+}
+
+.preview-workspace__panes--resizing iframe,
+.preview-workspace__panes--dragging iframe {
+  pointer-events: none;
+}
+
 @media (max-width: 960px) {
   .preview-workspace__header {
     padding: 6px 10px;

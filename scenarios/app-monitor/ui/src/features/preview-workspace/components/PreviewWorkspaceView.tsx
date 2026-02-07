@@ -245,6 +245,7 @@ export default function PreviewWorkspaceView() {
     }
 
     event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
     setActiveResize({
       axis: 'column',
       index,
@@ -261,6 +262,7 @@ export default function PreviewWorkspaceView() {
     }
 
     event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
     setActiveResize({
       axis: 'row',
       index,
@@ -282,6 +284,7 @@ export default function PreviewWorkspaceView() {
 
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
 
     setActiveArrangeDrag({
       paneId,
@@ -366,6 +369,7 @@ export default function PreviewWorkspaceView() {
           'preview-workspace__panes',
           layoutDescriptor.className,
           interactionMode === 'arrange' && 'preview-workspace__panes--arrange-mode',
+          activeResize && 'preview-workspace__panes--resizing',
           activeArrangeDrag && 'preview-workspace__panes--dragging',
         )}
         style={{
@@ -397,7 +401,6 @@ export default function PreviewWorkspaceView() {
                 isBeingDragged={isDragging}
                 onFocus={focusPane}
                 onRemove={removePane}
-                onChangeApp={setPaneApp}
                 onArrangeDragStart={startArrangeDrag}
               />
             </div>

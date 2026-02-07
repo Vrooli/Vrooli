@@ -76,7 +76,6 @@ describe('PreviewPane', () => {
           canRemove={true}
           onFocus={vi.fn()}
           onRemove={onRemove}
-          onChangeApp={vi.fn()}
           onArrangeDragStart={vi.fn()}
         />
       </MemoryRouter>,

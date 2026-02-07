@@ -23,9 +23,11 @@ import { SEGMENT_QUERY_KEY } from './tabSwitcherConstants';
 import { useTabSwitcherFiltering, useTabSwitcherSegment } from './tabSwitcherHooks';
 import type { SortOption } from './TabSwitcherCards';
 import {
+  APP_OPEN_MODE_QUERY_KEY,
   APP_OPEN_MODE_LABELS,
   APP_OPEN_MODES,
   cycleAppOpenMode,
+  isAppOpenMode,
   resolveAppOpenModeShortcut,
   type AppOpenMode,
 } from './tabSwitcherOpenMode';
@@ -84,7 +86,10 @@ export default function TabSwitcherDialog() {
   const [search, setSearch] = useState('');
   const [sortOption, setSortOption] = useState<AppSortOption>('status');
   const [resourceSortOption, setResourceSortOption] = useState<ResourceSortOption>('status');
-  const [appOpenMode, setAppOpenMode] = useState<AppOpenMode>('single-preview');
+  const requestedOpenMode = searchParams.get(APP_OPEN_MODE_QUERY_KEY);
+  const [appOpenMode, setAppOpenMode] = useState<AppOpenMode>(
+    () => (isAppOpenMode(requestedOpenMode) ? requestedOpenMode : 'single-preview'),
+  );
   const [shortcut, setShortcut] = useState<ShortcutState | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -156,8 +161,19 @@ export default function TabSwitcherDialog() {
     setShortcut(resolveTabSwitcherShortcut());
   }, []);
 
+  useEffect(() => {
+    if (isAppOpenMode(requestedOpenMode)) {
+      setAppOpenMode(requestedOpenMode);
+    }
+  }, [requestedOpenMode]);
+
   const handleClose = () => {
-    closeOverlay({ preserve: ['segment'] });
+    closeOverlay({
+      preserve: ['segment'],
+      params: {
+        [APP_OPEN_MODE_QUERY_KEY]: null,
+      },
+    });
   };
 
   const moveFocusByStep = useCallback((step: number) => {

@@ -56,6 +56,7 @@ import { PREVIEW_TIMEOUTS, PREVIEW_MESSAGES } from './previewConstants';
 import type { PreviewLocationState } from '@/types/preview';
 import { isPreviewLocationState } from '@/types/preview';
 import { HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER, type BridgeShortcutIntent } from '@vrooli/iframe-bridge';
+import { APP_OPEN_MODE_QUERY_KEY } from '@/components/tabSwitcher/tabSwitcherOpenMode';
 import './AppPreviewView.css';
 
 const AppPreviewView = () => {
@@ -180,6 +181,7 @@ const AppPreviewView = () => {
     clearNavigationSession,
     canGoBack,
     canGoForward,
+    history,
     handleUrlInputChange,
     handleUrlInputKeyDown,
     handleUrlInputBlur,
@@ -187,6 +189,7 @@ const AppPreviewView = () => {
     handleGoForward,
     resetPreviewState: resetNavigationState,
     applyDefaultPreviewUrl: applyNavigationDefaultPreviewUrl,
+    applyPreviewUrlValue,
   } = previewSession;
   const {
     state: bridgeState,
@@ -831,6 +834,46 @@ const AppPreviewView = () => {
   }, [bridgeIssueMessage]);
 
   const openPreviewTarget = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
+  const toolbarUrlSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const suggestions: string[] = [];
+    const addSuggestion = (value: string | null | undefined) => {
+      if (!value) {
+        return;
+      }
+      const trimmed = value.trim();
+      if (trimmed.length === 0 || seen.has(trimmed)) {
+        return;
+      }
+      seen.add(trimmed);
+      suggestions.push(trimmed);
+    };
+
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+      addSuggestion(history[index]);
+      if (suggestions.length >= 10) {
+        break;
+      }
+    }
+
+    for (const app of apps) {
+      addSuggestion(buildPreviewUrl(app));
+      if (suggestions.length >= 16) {
+        break;
+      }
+    }
+
+    return suggestions;
+  }, [apps, history]);
+
+  const handleOpenScenarioSelector = useCallback(() => {
+    openOverlay('tabs', {
+      params: {
+        segment: 'apps',
+        [APP_OPEN_MODE_QUERY_KEY]: 'single-preview',
+      },
+    });
+  }, [openOverlay]);
 
   useEffect(() => {
     if (!appId) {
@@ -1181,6 +1224,50 @@ const AppPreviewView = () => {
     });
   }, [previewUrl, setPreviewOverlay]);
 
+  useEffect(() => {
+    if (!loading || !previewUrl || iframeLoadedAt || iframeLoadError) {
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const intervalId = window.setInterval(() => {
+      attempts += 1;
+      const iframe = iframeRef.current;
+      if (!iframe) {
+        if (attempts >= 40) {
+          window.clearInterval(intervalId);
+        }
+        return;
+      }
+
+      try {
+        const readyState = iframe.contentDocument?.readyState;
+        if (readyState === 'interactive' || readyState === 'complete') {
+          if (!cancelled) {
+            setLoading(false);
+            setIframeLoadError(null);
+            setIframeLoadedAt(Date.now());
+            setStatusMessage(null);
+          }
+          window.clearInterval(intervalId);
+          return;
+        }
+      } catch {
+        // Cross-origin reads can fail; keep waiting for onLoad/overlay timeout.
+      }
+
+      if (attempts >= 40) {
+        window.clearInterval(intervalId);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [iframeLoadError, iframeLoadedAt, loading, previewUrl]);
+
   const handleToggleFullscreen = useCallback(() => {
     if (typeof document === 'undefined') {
       return;
@@ -1294,6 +1381,10 @@ const AppPreviewView = () => {
         canOpenTabsOverlay={canOpenTabsOverlay}
         previewInteractionSignal={previewInteractionSignal}
         issueCaptureCount={stagedCaptureCount}
+        urlSuggestions={toolbarUrlSuggestions}
+        onSelectUrlSuggestion={applyPreviewUrlValue}
+        onOpenScenarioSelector={handleOpenScenarioSelector}
+        scenarioSelectorLabel="Open scenario selector"
       />
 
       {bridgeIssueMessage && !bridgeMessageDismissed && (
@@ -1365,7 +1456,7 @@ const AppPreviewView = () => {
             />
           )}
           {/* Show immediate loading overlay when iframe hasn't loaded yet */}
-          {previewUrl && !iframeLoadedAt && !iframeLoadError && !previewOverlay && (
+          {previewUrl && loading && !iframeLoadedAt && !iframeLoadError && !previewOverlay && (
             <div
               className="preview-iframe-overlay preview-iframe-overlay--waiting"
               aria-live="polite"

@@ -16,13 +16,17 @@ import { useAppLogs } from '@/hooks/useAppLogs';
 import { useDeviceEmulation } from '@/hooks/useDeviceEmulation';
 import { usePreviewAppLifecycle } from '@/hooks/usePreviewAppLifecycle';
 import { usePreviewNavigationSession } from '@/hooks/usePreviewNavigationSession';
+import type { PreviewNavigationSessionSnapshot } from '@/hooks/usePreviewNavigationSession';
 import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
+import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
+import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import type { ReportElementCapture } from '@/components/report/reportTypes';
-import { isRunningStatus, locateAppByIdentifier } from '@/utils/appPreview';
+import { buildPreviewUrl, isRunningStatus, locateAppByIdentifier } from '@/utils/appPreview';
+import { APP_OPEN_MODE_QUERY_KEY } from '@/components/tabSwitcher/tabSwitcherOpenMode';
 import './PreviewPane.css';
 
 export interface PreviewPaneProps {
@@ -35,7 +39,6 @@ export interface PreviewPaneProps {
   canRemove: boolean;
   onFocus: (paneId: string) => void;
   onRemove: (paneId: string) => void;
-  onChangeApp: (paneId: string, appId: string | null) => void;
   onArrangeDragStart: (paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
@@ -49,13 +52,16 @@ export function PreviewPane({
   canRemove,
   onFocus,
   onRemove,
-  onChangeApp,
   onArrangeDragStart,
 }: PreviewPaneProps) {
+  const { openOverlay } = useOverlayRouter();
+  const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
+  const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
+  const resetPaneViewState = usePreviewWorkspaceStore((state) => state.resetPaneViewState);
   const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>('Select an app to preview.');
   const [loading, setLoading] = useState(false);
-  const [isLogsVisible, setIsLogsVisible] = useState(false);
+  const [isLogsVisible, setIsLogsVisible] = useState(() => paneViewState?.isLogsVisible ?? false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isFullView, setIsFullView] = useState(false);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
@@ -70,16 +76,6 @@ export function PreviewPane({
   const paneRef = useRef<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const appOptions = useMemo(() => {
-    return apps
-      .filter((app) => typeof app.id === 'string' && app.id.trim().length > 0)
-      .map((app) => ({
-        id: app.id,
-        label: app.scenario_name?.trim() || app.name?.trim() || app.id,
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [apps]);
-
   const activeAppIdentifier = useMemo(() => {
     if (!appId) {
       return null;
@@ -91,6 +87,10 @@ export function PreviewPane({
   const navigationSession = usePreviewNavigationSession({
     iframeRef,
     setStatusMessage,
+    initialState: paneViewState,
+    onStateChange: useCallback((nextState: PreviewNavigationSessionSnapshot) => {
+      setPaneViewState(paneId, nextState);
+    }, [paneId, setPaneViewState]),
   });
 
   const {
@@ -106,10 +106,12 @@ export function PreviewPane({
     handleGoBack,
     handleGoForward,
     applyDefaultPreviewUrl,
+    applyPreviewUrlValue,
     resetPreviewState,
     setPreviewUrl,
     initialPreviewUrlRef,
     clearNavigationSession,
+    history,
   } = navigationSession;
   const {
     state: bridgeState,
@@ -225,6 +227,7 @@ export function PreviewPane({
       setLoading(false);
       setStatusMessage('Select an app to preview.');
       setIsLogsVisible(false);
+      resetPaneViewState(paneId);
       setIframeLoadError(null);
       setReportDialogOpen(false);
       setReportElementCaptures([]);
@@ -270,7 +273,20 @@ export function PreviewPane({
     return () => {
       cancelled = true;
     };
-  }, [activeAppIdentifier, apps, clearNavigationSession, resetBridgeState, resetPreviewState]);
+  }, [activeAppIdentifier, apps, clearNavigationSession, paneId, resetBridgeState, resetPaneViewState, resetPreviewState]);
+
+  useEffect(() => {
+    setPaneViewState(paneId, { isLogsVisible });
+  }, [isLogsVisible, paneId, setPaneViewState]);
+
+  useEffect(() => {
+    if (!paneViewState) {
+      return;
+    }
+    setIsLogsVisible((current) => (
+      current === paneViewState.isLogsVisible ? current : paneViewState.isLogsVisible
+    ));
+  }, [paneViewState]);
 
   useEffect(() => {
     if (!currentApp) {
@@ -335,6 +351,47 @@ export function PreviewPane({
     () => bridgeState.href || previewUrl || '',
     [bridgeState.href, previewUrl],
   );
+  const urlSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const suggestions: string[] = [];
+    const addSuggestion = (value: string | null | undefined) => {
+      if (!value) {
+        return;
+      }
+      const trimmed = value.trim();
+      if (trimmed.length === 0 || seen.has(trimmed)) {
+        return;
+      }
+      seen.add(trimmed);
+      suggestions.push(trimmed);
+    };
+
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+      addSuggestion(history[index]);
+      if (suggestions.length >= 10) {
+        break;
+      }
+    }
+
+    for (const app of apps) {
+      addSuggestion(buildPreviewUrl(app) ?? null);
+      if (suggestions.length >= 16) {
+        break;
+      }
+    }
+
+    return suggestions;
+  }, [apps, history]);
+
+  const handleOpenScenarioSelector = useCallback(() => {
+    onFocus(paneId);
+    openOverlay('tabs', {
+      params: {
+        segment: 'apps',
+        [APP_OPEN_MODE_QUERY_KEY]: 'replace-focused',
+      },
+    });
+  }, [onFocus, openOverlay, paneId]);
 
   const onOpenInNewTab = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
     if (!activePreviewUrl) {
@@ -354,6 +411,49 @@ export function PreviewPane({
     setLoading(false);
     setIframeLoadError('Preview iframe failed to load.');
   }, []);
+
+  useEffect(() => {
+    if (!loading || !previewUrl || iframeLoadError) {
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const intervalId = window.setInterval(() => {
+      attempts += 1;
+      const iframe = iframeRef.current;
+      if (!iframe) {
+        if (attempts >= 40) {
+          window.clearInterval(intervalId);
+        }
+        return;
+      }
+
+      try {
+        const readyState = iframe.contentDocument?.readyState;
+        if (readyState === 'interactive' || readyState === 'complete') {
+          if (!cancelled) {
+            setLoading(false);
+            setIframeLoadError(null);
+            setStatusMessage(null);
+          }
+          window.clearInterval(intervalId);
+          return;
+        }
+      } catch {
+        // Cross-origin reads can fail; keep waiting for onLoad.
+      }
+
+      if (attempts >= 40) {
+        window.clearInterval(intervalId);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [iframeLoadError, loading, previewUrl]);
 
   const lifecycle = usePreviewAppLifecycle({
     currentApp,
@@ -501,24 +601,11 @@ export function PreviewPane({
         showLifecycleMenu={true}
         showDevMenu={true}
         rightInlineActions={paneActions}
+        urlSuggestions={urlSuggestions}
+        onSelectUrlSuggestion={applyPreviewUrlValue}
+        onOpenScenarioSelector={handleOpenScenarioSelector}
+        scenarioSelectorLabel="Replace this pane from scenarios"
       />
-
-      <div className="preview-pane__app-row">
-        <select
-          className="preview-pane__app-select"
-          value={appId ?? ''}
-          onChange={(event) => {
-            const next = event.target.value.trim();
-            onChangeApp(paneId, next.length > 0 ? next : null);
-          }}
-          aria-label="Select app for preview pane"
-        >
-          <option value="">Select app</option>
-          {appOptions.map((option) => (
-            <option key={option.id} value={option.id}>{option.label}</option>
-          ))}
-        </select>
-      </div>
 
       {isDeviceEmulationActive && !isLogsVisible && (
         <div className="preview-pane__emulation-toolbar-wrap">
