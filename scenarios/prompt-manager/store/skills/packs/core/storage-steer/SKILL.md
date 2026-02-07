@@ -22,6 +22,8 @@ Storage problems are invisible until they cause outages, data corruption, or cro
 - **No retry logic:** Transient database failures cause cascading application crashes
 - **Redis key collisions:** Multiple scenarios write to same keys, unpredictable behavior
 - **Filesystem sprawl:** Data written to arbitrary paths, security and cleanup issues
+- **Redeploy stale file drift:** Old files survive deployments when mutable state is stored in app targets
+- **Data-loss risk on cleanup:** Clearing deploy targets can delete real runtime data when storage lives under scenario folders
 
 **The Vrooli resource system solves this** by providing:
 - Shared resources (postgres, redis, qdrant) with environment variable injection
@@ -34,6 +36,7 @@ But "using resources" alone isn't enough. This skill ensures storage is:
 - **Well-abstracted** behind repository/service interfaces
 - **Correctly initialized** with idempotent schema files
 - **Properly isolated** to prevent cross-scenario data pollution
+- **Filesystem-safe by default** via `github.com/vrooli/api-core/storage`
 
 ---
 
@@ -43,11 +46,11 @@ But "using resources" alone isn't enough. This skill ensures storage is:
 - service.json resource dependency declaration and schema naming
 - Environment variable usage for database connections
 - Connection patterns: retries, pooling, health checks
-- Schema initialization files and migration patterns
+- Schema initialization files and idempotency patterns
 - Storage abstraction: repository/service layer design
 - Redis key namespacing and Qdrant collection naming
-- Filesystem storage: path restrictions, hybrid DB+filesystem patterns
-- Greenfield cleanup: migration consolidation, compatibility code removal
+- Filesystem storage standardized on `api-core/storage`
+- Greenfield-first storage posture and brownfield migration exceptions
 
 **Out of scope**
 - Database query optimization or indexing strategy -> see performance skills
@@ -100,6 +103,7 @@ Understanding how Vrooli manages storage prevents configuration mistakes:
 │  STORAGE CONSUMERS                                      │
 │  • Connect using environment variables                  │
 │  • Access through repository/service abstraction        │
+│  • Use api-core/storage for filesystem runtime state    │
 │  • Never hard-code connection details                   │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -414,7 +418,7 @@ INSERT INTO tasks VALUES (...);
 
 #### 5.3 Migration Patterns for Existing Schemas
 
-For brownfield scenarios needing schema evolution:
+Use migration logic only when the task is explicitly brownfield (or when existing persisted data must be preserved). Otherwise assume greenfield and skip migration shims:
 
 ```go
 // Check and add columns if missing (migration pattern)
@@ -590,73 +594,104 @@ const (
 
 ---
 
-### 9. Filesystem Storage Patterns
+### 9. Filesystem Storage Standard (`api-core/storage`)
 
-#### 9.1 Path Restrictions
+#### 9.1 Core Rule
 
-Filesystem storage should be sandboxed:
+Scenario deploy directories are disposable. Mutable runtime state must live outside app targets and be resolved through `github.com/vrooli/api-core/storage`.
+
+This prevents both:
+- stale-file drift during redeploys/auto-updates
+- accidental data loss when app directories are replaced
+
+#### 9.2 Required Adoption Pattern (Go)
 
 ```go
-// ✅ CORRECT: Sandboxed data directory
-func getDataPath(subpath string) (string, error) {
-    baseDir := os.Getenv("DATA_DIR")
-    if baseDir == "" {
-        baseDir = filepath.Join(".", "data")
-    }
+import (
+    "path/filepath"
 
-    // Ensure path doesn't escape sandbox
-    fullPath := filepath.Join(baseDir, subpath)
-    absBase, _ := filepath.Abs(baseDir)
-    absPath, _ := filepath.Abs(fullPath)
+    "github.com/vrooli/api-core/storage"
+)
 
-    if !strings.HasPrefix(absPath, absBase) {
-        return "", fmt.Errorf("path traversal attempt: %s", subpath)
-    }
+resolver, err := storage.NewResolver(storage.ResolverConfig{
+    AppID:   "vrooli",
+    Profile: storage.ProfileAuto,
+})
+if err != nil {
+    return err
+}
 
-    return fullPath, nil
+paths, err := storage.EnsureAllDirs(resolver, storage.Options{
+    ScenarioID: "{{TARGET}}",
+}, 0)
+if err != nil {
+    return err
+}
+
+runtimePath, err := resolver.Path(
+    storage.Options{ScenarioID: "{{TARGET}}"},
+    storage.ClassState,
+    "runtime.json",
+)
+if err != nil {
+    return err
+}
+
+if err := storage.WriteFileAtomic(runtimePath, payload, storage.DefaultFilePerm); err != nil {
+    return err
 }
 ```
 
+#### 9.3 Filesystem Anti-Patterns
+
 ```go
-// ❌ WRONG: Arbitrary path access
-func saveFile(path string, content []byte) error {
-    return os.WriteFile(path, content, 0644)  // Can write anywhere!
+// ❌ WRONG: scenario-local mutable writes in app tree
+path := filepath.Join(".", "data", "runtime.json")
+_ = os.WriteFile(path, payload, 0o644)
+```
+
+```go
+// ❌ WRONG: ad hoc custom path policy instead of api-core/storage
+base := os.Getenv("DATA_DIR")
+if base == "" {
+    base = filepath.Join(".", "data")
 }
 ```
 
-#### 9.2 Hybrid Database + Filesystem Pattern
+#### 9.4 Hybrid Database + Filesystem Pattern
 
-For scenarios with large data (workflows, media, documents):
+For large payloads (media/documents), store metadata in DB and content on disk, but resolve disk paths via `api-core/storage` classes (`data`/`cache`/`state`) rather than scenario-local folders.
 
 ```sql
 -- Database stores metadata and index (fast queries)
 CREATE TABLE documents (
     id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    content_path VARCHAR(1000) NOT NULL,  -- Reference to filesystem
-    content_hash VARCHAR(64),              -- For integrity checks
+    content_path VARCHAR(1000) NOT NULL,  -- Relative path under resolved storage class
+    content_hash VARCHAR(64),
     size_bytes BIGINT,
     mime_type VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
--- Large content lives on filesystem
--- data/documents/{id}.json or data/documents/{id}.pdf
 ```
-
-**Benefits:**
-- Database stays small and fast (no large BLOBs)
-- Filesystem handles content efficiently
-- Queries use database indexes
-- Content retrieval is direct file read
 
 ---
 
-### 10. Greenfield Cleanup (When Specified)
+### 10. Greenfield Default, Brownfield Exception
 
-For scenarios marked as greenfield, clean up storage technical debt:
+Assume greenfield unless explicitly stated otherwise.
 
-#### 10.1 Migration Consolidation
+Default behavior:
+- Do not add migration compatibility layers by default.
+- Build clean storage paths and schema state directly.
+- Prefer consolidation over carrying forward legacy scaffolding.
+
+Brownfield behavior (only when explicitly requested or existing persisted data must be preserved):
+- Add migration and compatibility logic needed to preserve data continuity.
+- Make migrations idempotent and removable after cutover.
+- Document migration constraints in `docs/internal/STORAGE_AUDIT.md`.
+
+#### 10.1 Greenfield Consolidation Pattern
 
 ```
 BEFORE (accumulated migrations):
@@ -674,7 +709,33 @@ initialization/storage/postgres/
 └── seed.sql                      # Essential seed data only
 ```
 
-#### 10.2 Compatibility Code Removal
+#### 10.2 Brownfield-Only Migration Pattern
+
+Use this only for explicitly brownfield work:
+
+```go
+// Check and add columns if missing (migration pattern)
+func ensureColumnExists(db *sql.DB, table, column, colType string) error {
+    var exists bool
+    err := db.QueryRow(`
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = $1 AND column_name = $2
+        )`, table, column).Scan(&exists)
+
+    if err != nil {
+        return err
+    }
+
+    if !exists {
+        _, err = db.Exec(fmt.Sprintf(
+            "ALTER TABLE %s ADD COLUMN %s %s", table, column, colType))
+    }
+    return err
+}
+```
+
+#### 10.3 Compatibility Code Removal
 
 ```go
 // REMOVE: Compatibility shims for old schema
@@ -715,6 +776,15 @@ rg "db\.Query|db\.Exec" scenarios/{{TARGET}}/api/handlers --type go
 # Check schema initialization
 ls -la scenarios/{{TARGET}}/initialization/storage/postgres/
 
+# Check filesystem storage standard adoption
+rg "storage\\.NewResolver|storage\\.EnsureAllDirs|storage\\.EnsureClassDir|storage\\.WriteFileAtomic|\\.Path\\(" scenarios/{{TARGET}}/api --type go
+
+# Find direct filesystem writes (anti-pattern)
+rg "os\\.WriteFile|ioutil\\.WriteFile|os\\.Create\\(|os\\.OpenFile\\(" scenarios/{{TARGET}}/api --type go
+
+# Find scenario-local data path conventions (anti-pattern)
+rg "filepath\\.Join\\(\\s*\"\\.\"\\s*,\\s*\"data\"|DATA_DIR|/data/" scenarios/{{TARGET}}/ --type go
+
 # Find Redis key usage (check for namespacing)
 rg "redis\.(Set|Get|Del)" scenarios/{{TARGET}}/ --type go -A 1
 
@@ -734,7 +804,8 @@ rg "os\.Getenv.*POSTGRES" scenarios/{{TARGET}}/ --type go
 - [ ] Non-idempotent schema files (no `IF NOT EXISTS`)
 - [ ] Direct SQL in handler/controller code (no repository abstraction)
 - [ ] Redis keys without scenario prefix
-- [ ] Filesystem writes outside sandboxed data directory
+- [ ] Filesystem runtime writes bypass `api-core/storage`
+- [ ] Mutable files stored under scenario deploy directories
 - [ ] Multiple dialect support without abstraction
 
 #### 11.3 Document Findings
@@ -762,12 +833,18 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 ## Schema Status
 - [ ] schema.sql exists and is idempotent
 - [ ] Tables use proper constraints and indexes
-- [ ] Migrations are consolidated (if greenfield)
+- [ ] Greenfield default applied unless brownfield was explicitly requested
+- [ ] Brownfield migrations documented only when required
 
 ## Abstraction Status
 - [ ] Repository interfaces defined
 - [ ] Business logic uses interfaces, not direct DB
 - [ ] Multiple storage backends abstracted (if applicable)
+
+## Filesystem Status
+- [ ] Runtime filesystem writes go through `api-core/storage`
+- [ ] Deploy directory treated as disposable
+- [ ] Atomic writes used for persisted files
 
 ## Issues Found
 1. [File:line] - Issue description
@@ -794,6 +871,7 @@ Read existing storage documentation:
 - `scenarios/{{TARGET}}/.vrooli/service.json` - Resource declarations
 - `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md` - Prior audit findings (if exists)
 - `resources/postgres/config/defaults.sh` - Available environment variables
+- `packages/api-core/docs/storage.md` - Canonical filesystem storage contract
 
 #### 13.2 At Session End
 
@@ -817,7 +895,7 @@ You may update in `scenarios/{{TARGET}}/`:
 - Add repository interfaces and implementations
 - Add storage service abstractions
 - Namespace Redis keys and Qdrant collections
-- Sandbox filesystem access paths
+- Adopt `api-core/storage` for runtime filesystem paths
 
 You must:
 - Keep `{{TARGET}}` fully functional and non-regressed
@@ -826,12 +904,15 @@ You must:
 - Make schema files idempotent (IF NOT EXISTS patterns)
 - Abstract storage behind interfaces when business logic uses it
 - Prefix Redis keys and Qdrant collections with scenario slug
+- Route mutable filesystem storage through `api-core/storage`
+- Assume greenfield by default; only add migrations when brownfield is explicitly required
 
 You must NOT:
 - Hard-code database credentials or connection strings
 - Use the default "vrooli" database without scenario-specific override
 - Write SQL directly in handler or controller code
-- Write to filesystem paths outside sandboxed data directory
+- Store mutable runtime files under scenario deploy directories
+- Replace `api-core/storage` path policy with custom `DATA_DIR` schemes
 - Remove retry/backoff logic from database connections
 - Create non-idempotent schema migrations
 

@@ -26,6 +26,35 @@ This skill provides concrete architectural patterns that ensure agents across mu
 
 ---
 
+### **0.5 Keyboard Shortcut Coherence (Embedded Scenarios)**
+
+Scenarios can be viewed through a host frame. To support this properly, keyboard shortcuts must follow a **single coherent model**:
+
+1. **One local shortcut manager per app shell**
+  - Do not scatter global `document/window keydown` listeners across unrelated components.
+  - Route shortcut behavior through one central manager/hook for predictable precedence.
+
+2. **Local-first, then relay-on-noop/unhandled**
+  - The scenario handles its own shortcut first.
+  - If action is idempotent/no-op (e.g., modal already open) or unhandled, relay intent to host via `@vrooli/iframe-bridge` (`emitShortcutIntent`).
+  - This is required because iframe key events do not naturally bubble to parent context.
+
+3. **Always prevent browser defaults for claimed reserved chords**
+  - If scenario claims `Ctrl/Cmd+K`, call `preventDefault()` even when action is noop, then relay.
+  - Otherwise browser-level shortcuts (search/address bar) can hijack control flow.
+
+4. **Use shared host action identifiers**
+  - Prefer shared constants from `@vrooli/iframe-bridge` (e.g., `HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER`) instead of ad-hoc strings.
+  - Avoid per-scenario message formats for shortcut intents.
+
+5. **Focus-aware behavior is part of coherence**
+  - Explicitly define behavior when focus is in input/editor fields.
+  - Do not rely on incidental bubbling/capture behavior between iframe and host.
+
+This keeps shortcut semantics consistent across scenarios and prevents drift between standalone and embedded runtime behavior.
+
+---
+
 ### **1. State Architecture (Zustand-Centric)**
 
 Use this decision flow for ALL state management:
