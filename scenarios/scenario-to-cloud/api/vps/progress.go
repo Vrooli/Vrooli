@@ -56,6 +56,7 @@ var StepWeights = map[string]float64{
 	"mkdir":             0, // Trivial, no weight
 	"bootstrap":         5, // apt update + install prereqs
 	"upload":            16,
+	"cleanup_scenarios": 3, // Remove stale scenario code while preserving declared mutable paths
 	"extract":           5,
 	"setup":             10, // Reduced from 15 (bootstrap handles some work now)
 	"autoheal":          2,

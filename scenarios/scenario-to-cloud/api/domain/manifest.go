@@ -30,11 +30,12 @@ type ManifestTarget struct {
 
 // ManifestVPS contains VPS-specific deployment target configuration.
 type ManifestVPS struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path,omitempty"`
-	Workdir string `json:"workdir,omitempty"`
+	Host          string   `json:"host"`
+	Port          int      `json:"port,omitempty"`
+	User          string   `json:"user,omitempty"`
+	KeyPath       string   `json:"key_path,omitempty"`
+	Workdir       string   `json:"workdir,omitempty"`
+	PreservePaths []string `json:"preserve_paths,omitempty"`
 }
 
 // ManifestScenario identifies the scenario to deploy.

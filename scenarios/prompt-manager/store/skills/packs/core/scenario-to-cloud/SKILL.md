@@ -10,7 +10,7 @@ Use `scenario-to-cloud` to:
 
 | Goal | Command |
 |------|---------|
-| Deploy scenario to VPS (one-shot) | `scenario-to-cloud redeploy cloud-manifest.json --preflight` |
+| Deploy scenario to VPS (one-shot) | `scenario-to-cloud redeploy cloud-manifest.json --preflight --wait` |
 | List existing deployments | `scenario-to-cloud deployment list` |
 | Check deployment health / triage issues | `scenario-to-cloud deployment health <deployment-id>` |
 | View deployment logs | `scenario-to-cloud inspect logs <deployment-id>` |
@@ -97,10 +97,11 @@ scenario-to-cloud ssh copy-key {{VPS_HOST}} --key s2c-deploy --user root
 #### Step 4: Deploy (one-shot)
 
 ```bash
-scenario-to-cloud redeploy cloud-manifest.json --preflight
+scenario-to-cloud redeploy cloud-manifest.json --preflight --wait
 ```
 
 This creates/updates the deployment record, runs VPS preflight checks, and executes the full pipeline (bundle -> setup -> deploy -> health check).
+`--wait` is required so deployment progress is observed to completion, with stage-by-stage timing output.
 
 #### Step 5: Verify
 
@@ -224,7 +225,8 @@ scenario-to-cloud secrets get {{SCENARIO_NAME}} --reveal
 
 **Do:**
 - Validate manifests before deploying (`manifest validate`)
-- Run preflight on first deploy to a new VPS (`redeploy --preflight`)
+- Run preflight on first deploy to a new VPS (`redeploy --preflight --wait`)
+- Always use `--wait` for `deployment execute`, `deployment start`, and `redeploy` so stage completion and durations are visible
 - Test SSH connectivity before deploying (`ssh test`)
 - Use `--json` for scripted/programmatic workflows
 - Check `deployment list` before creating duplicate deployments

@@ -20,9 +20,13 @@ func Run(client *deployment.Client, args []string) error {
 	name := fs.String("name", "", "Optional deployment name")
 	preflight := fs.Bool("preflight", false, "Run VPS preflight checks")
 	forceBuild := fs.Bool("force-bundle", false, "Force rebuild of bundle")
+	wait := fs.Bool("wait", false, "Wait for completion and print stage durations")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
+	}
+	if *wait && *jsonOutput {
+		return fmt.Errorf("--wait cannot be combined with --json")
 	}
 
 	if fs.NArg() != 1 {
@@ -90,6 +94,10 @@ func Run(client *deployment.Client, args []string) error {
 		return nil
 	}
 
+	if *wait {
+		return deployment.WaitForDeploymentCompletion(client, dep.ID)
+	}
+
 	// Print helpful next steps
 	fmt.Println()
 	fmt.Println("Deployment is running in the background.")
@@ -105,15 +113,17 @@ func printUsage() error {
 
 Convenience command that creates/updates a deployment and executes it.
 
-Options:
-  --name <name>       Optional deployment name
-  --preflight         Run VPS preflight checks before deployment
-  --force-bundle      Force rebuild of bundle even if one exists
-  --json              Output raw JSON
+	Options:
+	  --name <name>       Optional deployment name
+	  --preflight         Run VPS preflight checks before deployment
+	  --force-bundle      Force rebuild of bundle even if one exists
+	  --wait              Wait for completion and print stage durations
+	  --json              Output raw JSON
 
-Examples:
-  scenario-to-cloud redeploy cloud-manifest.json
-  scenario-to-cloud redeploy cloud-manifest.json --preflight
-  scenario-to-cloud redeploy cloud-manifest.json --name "Production Deploy"`)
+	Examples:
+	  scenario-to-cloud redeploy cloud-manifest.json
+	  scenario-to-cloud redeploy cloud-manifest.json --preflight
+	  scenario-to-cloud redeploy cloud-manifest.json --preflight --wait
+	  scenario-to-cloud redeploy cloud-manifest.json --name "Production Deploy"`)
 	return nil
 }

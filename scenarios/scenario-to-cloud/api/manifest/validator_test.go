@@ -289,3 +289,31 @@ func TestFindInvalidPorts(t *testing.T) {
 		})
 	}
 }
+
+func TestValidatePreservePath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{name: "valid scenario path", input: "scenarios/demo/data", wantErr: false},
+		{name: "valid nested path", input: "scenarios/landing-page-business-suite/api/uploads", wantErr: false},
+		{name: "empty", input: "", wantErr: true},
+		{name: "absolute", input: "/scenarios/demo/data", wantErr: true},
+		{name: "parent traversal", input: "../etc/passwd", wantErr: true},
+		{name: "too short", input: "scenarios/demo", wantErr: true},
+		{name: "outside scenarios", input: ".vrooli/cloud/data", wantErr: true},
+		{name: "whitespace", input: "scenarios/demo/my data", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePreservePath(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validatePreservePath(%q) error=%v wantErr=%v", tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -46,6 +48,10 @@ func BuildSetupPlan(manifest domain.CloudManifest, bundlePath string) ([]domain.
 	if bundlePath == "" {
 		return nil, fmt.Errorf("bundle_path is required")
 	}
+	cleanupCommand, err := buildScenarioCleanupCommand(manifest)
+	if err != nil {
+		return nil, err
+	}
 	cfg := ssh.ConfigFromManifest(manifest)
 
 	remoteBundleDir := shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "bundles")
@@ -71,6 +77,12 @@ func BuildSetupPlan(manifest domain.CloudManifest, bundlePath string) ([]domain.
 			Title:       "Upload bundle",
 			Description: "Copy the mini-Vrooli tarball to the VPS via scp.",
 			Command:     ssh.LocalSCPCommand(cfg, bundlePath, remoteBundlePath),
+		},
+		{
+			ID:          "cleanup_scenarios",
+			Title:       "Clean scenario code targets",
+			Description: "Removes old scenario code before extract while preserving explicitly configured mutable paths.",
+			Command:     ssh.LocalSSHCommand(cfg, cleanupCommand),
 		},
 		{
 			ID:          "extract",
@@ -132,6 +144,10 @@ func RunSetupWithProgress(
 	remoteBundleDir := shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "bundles")
 	remoteBundlePath := shellutil.SafeRemoteJoin(remoteBundleDir, filepath.Base(bundlePath))
 	autohealConfigPath := shellutil.SafeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "autoheal-scope.json")
+	cleanupCommand, err := buildScenarioCleanupCommand(manifest)
+	if err != nil {
+		return domain.VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "cleanup_scenarios", DurationMs: time.Since(start).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	}
 
 	// Helper to emit progress
 	emit := func(eventType, stepID, stepTitle string) {
@@ -187,6 +203,14 @@ func RunSetupWithProgress(
 	*progress += StepWeights["upload"]
 	emit("step_completed", "upload", "Uploading bundle")
 
+	// Step: cleanup_scenarios
+	emit("step_started", "cleanup_scenarios", "Cleaning scenario code targets")
+	if err := runStep("cleanup_scenarios", cleanupCommand); err != nil {
+		return failStep("cleanup_scenarios", "Cleaning scenario code targets", err)
+	}
+	*progress += StepWeights["cleanup_scenarios"]
+	emit("step_completed", "cleanup_scenarios", "Cleaning scenario code targets")
+
 	// Step: extract
 	emit("step_started", "extract", "Extracting bundle")
 	if err := runStep("extract", fmt.Sprintf("tar -xzf %s -C %s", shellutil.QuoteSingle(remoteBundlePath), shellutil.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
@@ -233,4 +257,104 @@ func minimalAutohealScopeJSON(manifest domain.CloudManifest) string {
 	}
 	b, _ := json.MarshalIndent(payload, "", "  ")
 	return string(b)
+}
+
+func buildScenarioCleanupCommand(manifest domain.CloudManifest) (string, error) {
+	workdir := strings.TrimSpace(manifest.Target.VPS.Workdir)
+	if workdir == "" {
+		return "", fmt.Errorf("target.vps.workdir is required for cleanup")
+	}
+
+	targetScenarios := stableUniqueValues(manifest.Bundle.Scenarios)
+	if len(targetScenarios) == 0 {
+		targetScenarios = stableUniqueValues([]string{manifest.Scenario.ID})
+	}
+	if len(targetScenarios) == 0 {
+		return "", fmt.Errorf("cleanup requires at least one scenario id")
+	}
+
+	preserveByScenario := map[string][]string{}
+	for _, fullPath := range stableUniqueValues(manifest.Target.VPS.PreservePaths) {
+		clean := path.Clean(strings.TrimSpace(fullPath))
+		parts := strings.Split(clean, "/")
+		if len(parts) < 3 || parts[0] != "scenarios" {
+			return "", fmt.Errorf("target.vps.preserve_paths entry %q must be scenarios/<scenario-id>/<path>", fullPath)
+		}
+		scenarioID := parts[1]
+		rel := strings.Join(parts[2:], "/")
+		if scenarioID == "" || rel == "" {
+			return "", fmt.Errorf("target.vps.preserve_paths entry %q must include a relative subpath", fullPath)
+		}
+		preserveByScenario[scenarioID] = append(preserveByScenario[scenarioID], rel)
+	}
+	for scenarioID, paths := range preserveByScenario {
+		preserveByScenario[scenarioID] = stableUniqueValues(paths)
+	}
+
+	mutableNames := []string{"data", "uploads", "storage", "state", "cache", "logs", "runtime", "tmp", "files"}
+	var script strings.Builder
+	script.WriteString("set -euo pipefail; ")
+	script.WriteString("PRESERVE_ROOT=" + shellutil.QuoteSingle(shellutil.SafeRemoteJoin(workdir, ".vrooli", "cloud", "preserve")) + "; ")
+	script.WriteString("mkdir -p \"$PRESERVE_ROOT\"; ")
+
+	for _, scenarioID := range targetScenarios {
+		scenarioDir := shellutil.SafeRemoteJoin(workdir, "scenarios", scenarioID)
+		script.WriteString("SCENARIO_DIR=" + shellutil.QuoteSingle(scenarioDir) + "; ")
+		script.WriteString("if [ -d \"$SCENARIO_DIR\" ]; then ")
+		relPreserve := preserveByScenario[scenarioID]
+		if len(relPreserve) == 0 {
+			script.WriteString("PRESERVE_REL_LIST=''; ")
+		} else {
+			script.WriteString("PRESERVE_REL_LIST=" + shellutil.QuoteSingle(strings.Join(relPreserve, "\n")) + "; ")
+		}
+		// Block cleanup when known mutable paths exist under scenario directories but are not explicitly preserved.
+		script.WriteString("find \"$SCENARIO_DIR\" -mindepth 1 -maxdepth 5 -type d \\( ")
+		for idx, name := range mutableNames {
+			if idx > 0 {
+				script.WriteString(" -o ")
+			}
+			script.WriteString("-name " + shellutil.QuoteSingle(name))
+		}
+		script.WriteString(" \\) -printf '%P\\n' | sort -u | while IFS= read -r rel; do ")
+		script.WriteString("[ -z \"$rel\" ] && continue; covered=0; ")
+		script.WriteString("for keep in $PRESERVE_REL_LIST; do ")
+		script.WriteString("case \"$rel\" in \"$keep\"|\"$keep\"/*) covered=1; break;; esac; ")
+		script.WriteString("case \"$keep\" in \"$rel\"/*) covered=1; break;; esac; ")
+		script.WriteString("done; ")
+		script.WriteString("if [ \"$covered\" -eq 0 ]; then echo \"cleanup blocked: mutable path '$SCENARIO_DIR/$rel' must be added to target.vps.preserve_paths\" >&2; exit 1; fi; ")
+		script.WriteString("done; ")
+
+		tarPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "cloud", "preserve", scenarioID+".tar")
+		script.WriteString("TAR_PATH=" + shellutil.QuoteSingle(tarPath) + "; rm -f \"$TAR_PATH\"; ")
+		if len(relPreserve) > 0 {
+			script.WriteString("(cd \"$SCENARIO_DIR\" && tar -cf \"$TAR_PATH\" --ignore-failed-read --")
+			for _, rel := range relPreserve {
+				script.WriteString(" " + shellutil.QuoteSingle(rel))
+			}
+			script.WriteString("); ")
+		}
+		script.WriteString("rm -rf \"$SCENARIO_DIR\"; mkdir -p \"$SCENARIO_DIR\"; ")
+		script.WriteString("if [ -f \"$TAR_PATH\" ]; then tar -xf \"$TAR_PATH\" -C \"$SCENARIO_DIR\"; fi; ")
+		script.WriteString("fi; ")
+	}
+
+	return script.String(), nil
+}
+
+func stableUniqueValues(in []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(in))
+	for _, value := range in {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -278,6 +278,7 @@ func runExecute(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment execute", flag.ContinueOnError)
 	preflight := fs.Bool("preflight", false, "Run VPS preflight checks before deployment")
 	forceBuild := fs.Bool("force-bundle", false, "Force rebuild of bundle even if one exists")
+	wait := fs.Bool("wait", false, "Wait for completion and print stage durations")
 	stream := fs.Bool("stream", true, "Stream progress updates (enabled by default)")
 	noStream := fs.Bool("no-stream", false, "Disable streaming, return immediately after starting")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON (implies --no-stream)")
@@ -286,13 +287,16 @@ func runExecute(client *Client, args []string) error {
 	}
 
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud deployment execute <id> [--preflight] [--force-bundle] [--stream|--no-stream]")
+		return fmt.Errorf("usage: scenario-to-cloud deployment execute <id> [--preflight] [--force-bundle] [--wait|--stream|--no-stream]")
 	}
 
 	deploymentID := fs.Arg(0)
+	if *wait && *jsonOutput {
+		return fmt.Errorf("--wait cannot be combined with --json")
+	}
 
 	// JSON output implies no streaming
-	useStreaming := *stream && !*noStream && !*jsonOutput
+	useStreaming := *stream && !*noStream && !*jsonOutput && !*wait
 
 	req := ExecuteRequest{
 		RunPreflight:     *preflight,
@@ -311,6 +315,9 @@ func runExecute(client *Client, args []string) error {
 	}
 
 	fmt.Printf("Deployment execution started (Run ID: %s)\n", resp.RunID)
+	if *wait {
+		return WaitForDeploymentCompletion(client, deploymentID)
+	}
 
 	if !useStreaming {
 		fmt.Println("\nUse 'deployment get <id>' to check status.")
@@ -404,16 +411,21 @@ func renderProgressBar(percent float64, width int) string {
 
 func runStart(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment start", flag.ContinueOnError)
+	wait := fs.Bool("wait", false, "Wait for completion and print stage durations")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud deployment start <id>")
+		return fmt.Errorf("usage: scenario-to-cloud deployment start <id> [--wait]")
+	}
+	if *wait && *jsonOutput {
+		return fmt.Errorf("--wait cannot be combined with --json")
 	}
 
-	body, resp, err := client.Start(fs.Arg(0), ExecuteRequest{})
+	deploymentID := fs.Arg(0)
+	body, resp, err := client.Start(deploymentID, ExecuteRequest{})
 	if err != nil {
 		return err
 	}
@@ -426,6 +438,9 @@ func runStart(client *Client, args []string) error {
 	fmt.Printf("Deployment start initiated.\n")
 	fmt.Printf("  Run ID:  %s\n", resp.RunID)
 	fmt.Printf("  Message: %s\n", resp.Message)
+	if *wait {
+		return WaitForDeploymentCompletion(client, deploymentID)
+	}
 	return nil
 }
 
@@ -512,4 +527,98 @@ func truncate(s string, max int) string {
 		return s[:max]
 	}
 	return s[:max-3] + "..."
+}
+
+// WaitForDeploymentCompletion polls deployment status until it reaches a terminal state.
+// It prints each stage transition and the stage duration.
+func WaitForDeploymentCompletion(client *Client, deploymentID string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+	go func() {
+		<-sigCh
+		fmt.Println("\nReceived interrupt, stopping...")
+		cancel()
+	}()
+
+	fmt.Println("Waiting for deployment to complete...")
+
+	startedAt := time.Now()
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	currentStage := ""
+	stageStartedAt := time.Time{}
+	stageInitialized := false
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait cancelled: %w", ctx.Err())
+		default:
+		}
+
+		_, getResp, err := client.Get(deploymentID)
+		if err != nil {
+			return fmt.Errorf("failed to poll deployment status: %w", err)
+		}
+		d := getResp.Deployment
+
+		stage := stageFromDeployment(d)
+		now := time.Now()
+
+		if !stageInitialized {
+			stageInitialized = true
+			currentStage = stage
+			stageStartedAt = now
+			fmt.Printf("▶ Stage started: %s\n", currentStage)
+		} else if stage != currentStage {
+			fmt.Printf("✓ Stage complete: %s (%s)\n", currentStage, now.Sub(stageStartedAt).Round(time.Second))
+			currentStage = stage
+			stageStartedAt = now
+			fmt.Printf("▶ Stage started: %s\n", currentStage)
+		}
+
+		if isTerminalDeploymentStatus(d.Status) {
+			fmt.Printf("✓ Stage complete: %s (%s)\n", currentStage, now.Sub(stageStartedAt).Round(time.Second))
+			total := now.Sub(startedAt).Round(time.Second)
+			fmt.Printf("\nFinal Status: %s\n", d.Status)
+			fmt.Printf("Total Duration: %s\n", total)
+			if d.ErrorMessage != nil && strings.TrimSpace(*d.ErrorMessage) != "" {
+				fmt.Printf("Error: %s\n", *d.ErrorMessage)
+			}
+			if d.Status == StatusDeployed {
+				return nil
+			}
+			return fmt.Errorf("deployment ended with status %s", d.Status)
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait cancelled: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func stageFromDeployment(d *Deployment) string {
+	if d != nil && d.ProgressStep != nil && strings.TrimSpace(*d.ProgressStep) != "" {
+		return strings.TrimSpace(*d.ProgressStep)
+	}
+	if d == nil {
+		return "unknown"
+	}
+	return string(d.Status)
+}
+
+func isTerminalDeploymentStatus(status DeploymentStatus) bool {
+	switch status {
+	case StatusDeployed, StatusFailed, StatusStopped, StatusSetupComplete:
+		return true
+	default:
+		return false
+	}
 }

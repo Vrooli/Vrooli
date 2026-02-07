@@ -43,11 +43,11 @@ func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
-	if len(plan) < 7 {
-		t.Fatalf("expected at least 7 plan steps (mkdir, bootstrap, upload, extract, setup, autoheal, verify), got: %d", len(plan))
+	if len(plan) < 8 {
+		t.Fatalf("expected at least 8 plan steps (mkdir, bootstrap, upload, cleanup_scenarios, extract, setup, autoheal, verify), got: %d", len(plan))
 	}
 
-	var hasUpload, hasSetup, hasBootstrap bool
+	var hasUpload, hasSetup, hasBootstrap, hasCleanup bool
 	for _, step := range plan {
 		if strings.Contains(step.Command, "scp") {
 			hasUpload = true
@@ -58,12 +58,18 @@ func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {
 		if step.ID == "bootstrap" && strings.Contains(step.Command, "apt-get") {
 			hasBootstrap = true
 		}
+		if step.ID == "cleanup_scenarios" && strings.Contains(step.Command, "cleanup blocked: mutable path") {
+			hasCleanup = true
+		}
 	}
 	if !hasUpload || !hasSetup {
 		t.Fatalf("expected upload and setup steps, got: %+v", plan)
 	}
 	if !hasBootstrap {
 		t.Fatalf("expected bootstrap step with apt-get command, got: %+v", plan)
+	}
+	if !hasCleanup {
+		t.Fatalf("expected cleanup_scenarios step, got: %+v", plan)
 	}
 }
 
@@ -125,7 +131,7 @@ func TestBuildSetupPlanStepOrder(t *testing.T) {
 		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
 
-	expectedOrder := []string{"mkdir", "bootstrap", "upload", "extract", "setup", "autoheal", "verify"}
+	expectedOrder := []string{"mkdir", "bootstrap", "upload", "cleanup_scenarios", "extract", "setup", "autoheal", "verify"}
 	if len(plan) != len(expectedOrder) {
 		t.Fatalf("expected %d steps, got %d", len(expectedOrder), len(plan))
 	}
@@ -268,5 +274,52 @@ func TestBuildSetupPlanAutohealConfig(t *testing.T) {
 	// Verify step creates parent directory
 	if !strings.Contains(autohealStep.Command, "mkdir -p") {
 		t.Errorf("autoheal step should create parent directory: %s", autohealStep.Command)
+	}
+}
+
+func TestBuildSetupPlanIncludesPreservePathsInCleanupStep(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle.tar.gz")
+	if err := os.WriteFile(bundlePath, []byte("test"), 0o644); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+
+	manifest := domain.CloudManifest{
+		Version: "1.0.0",
+		Target: domain.ManifestTarget{
+			Type: "vps",
+			VPS: &domain.ManifestVPS{
+				Host:          "203.0.113.10",
+				Port:          22,
+				User:          "root",
+				Workdir:       "/root/Vrooli",
+				PreservePaths: []string{"scenarios/landing-page-business-suite/api/uploads"},
+			},
+		},
+		Scenario: domain.ManifestScenario{ID: "landing-page-business-suite"},
+		Bundle: domain.ManifestBundle{
+			IncludePackages: true,
+			IncludeAutoheal: true,
+			Scenarios:       []string{"landing-page-business-suite", "vrooli-autoheal"},
+		},
+	}
+
+	plan, err := vps.BuildSetupPlan(manifest, bundlePath)
+	if err != nil {
+		t.Fatalf("vps.BuildSetupPlan: %v", err)
+	}
+
+	var cleanupStep *domain.VPSPlanStep
+	for i := range plan {
+		if plan[i].ID == "cleanup_scenarios" {
+			cleanupStep = &plan[i]
+			break
+		}
+	}
+	if cleanupStep == nil {
+		t.Fatal("expected cleanup_scenarios step in plan")
+	}
+	if !strings.Contains(cleanupStep.Command, "api/uploads") {
+		t.Fatalf("expected cleanup step to preserve api/uploads, command=%s", cleanupStep.Command)
 	}
 }
