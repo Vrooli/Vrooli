@@ -49,6 +49,7 @@ import { useAppViewRecording } from '@/hooks/useAppViewRecording';
 import { useAppDiagnostics } from '@/hooks/useAppDiagnostics';
 import { useLighthouseHistory } from '@/hooks/useLighthouseHistory';
 import { useAppCompleteness } from '@/hooks/useAppCompleteness';
+import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { PREVIEW_TIMEOUTS, PREVIEW_MESSAGES } from './previewConstants';
 import type { PreviewLocationState } from '@/types/preview';
 import { isPreviewLocationState } from '@/types/preview';
@@ -63,6 +64,7 @@ const AppPreviewView = () => {
   const canOpenTabsOverlay = apps.length > 0;
   const { prepareAutoNext } = useAutoNextScenario();
   const navigate = useNavigate();
+  const { closeOverlay } = useOverlayRouter();
   const { appId } = useParams<{ appId: string }>();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -109,6 +111,7 @@ const AppPreviewView = () => {
   const [previewViewNode, setPreviewViewNode] = useState<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [previewContainerNode, setPreviewContainerNode] = useState<HTMLDivElement | null>(null);
+  const previousIsFullscreenRef = useRef(false);
   const deviceEmulation = useDeviceEmulation({ container: previewContainerNode });
   const {
     isActive: isDeviceEmulationActive,
@@ -433,6 +436,9 @@ const AppPreviewView = () => {
 
     // Handle escape key for layout fullscreen
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
       if (isLayoutFullscreen && event.key === 'Escape') {
         setIsLayoutFullscreen(false);
       }
@@ -445,6 +451,19 @@ const AppPreviewView = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isLayoutFullscreen]);
+
+  useEffect(() => {
+    const wasFullscreen = previousIsFullscreenRef.current;
+    previousIsFullscreenRef.current = isFullscreen;
+
+    if (!wasFullscreen || isFullscreen) {
+      return;
+    }
+
+    if (activeOverlay === 'tabs') {
+      closeOverlay({ preserve: ['segment'] });
+    }
+  }, [activeOverlay, closeOverlay, isFullscreen]);
 
   useEffect(() => {
     recordDebugEvent('preview-mount', {

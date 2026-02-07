@@ -10,6 +10,7 @@ import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useShellOverlayStore } from '@/state/shellOverlayStore';
 import { useDraggablePosition } from '@/hooks/useDraggablePosition';
+import { isTabSwitcherShortcutEvent } from '@/utils/tabSwitcherShortcut';
 import './Shell.css';
 
 type ShellProps = {
@@ -102,18 +103,7 @@ export default function Shell({ isConnected }: ShellProps) {
       if (event.defaultPrevented) {
         return;
       }
-
-      const key = event.key?.toLowerCase();
-      if (key !== 'k') {
-        return;
-      }
-
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+      if (!isTabSwitcherShortcutEvent(event)) {
         return;
       }
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
+import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
 import './HomeView.css';
 
 const formatCount = (value: number): string => {
@@ -13,45 +14,6 @@ const formatCount = (value: number): string => {
     return '999+';
   }
   return String(value);
-};
-
-type ShortcutState = {
-  keys: string[];
-  description: string;
-};
-
-const identifyDeviceShortcut = (): ShortcutState | null => {
-  if (typeof navigator === 'undefined') {
-    return null;
-  }
-
-  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-  const platform = `${nav.platform ?? ''} ${nav.userAgentData?.platform ?? ''}`.toLowerCase();
-  const userAgent = (nav.userAgent ?? '').toLowerCase();
-  const combined = `${platform} ${userAgent}`;
-  const maxTouchPoints = typeof nav.maxTouchPoints === 'number' ? nav.maxTouchPoints : 0;
-
-  const isIOS = /iphone|ipad|ipod/.test(combined) || (/mac/.test(platform) && maxTouchPoints > 1 && /ipad|iphone/.test(userAgent));
-  const isAndroid = /android/.test(combined);
-  const isMobile = isIOS || isAndroid || /mobile/.test(combined);
-
-  if (isMobile) {
-    return null;
-  }
-
-  const isMac = /mac/.test(combined) && !isIOS;
-
-  if (isMac) {
-    return {
-      keys: ['⌘', 'K'],
-      description: 'Command plus K',
-    };
-  }
-
-  return {
-    keys: ['Ctrl', 'K'],
-    description: 'Control plus K',
-  };
 };
 
 export default function HomeView() {
@@ -98,7 +60,7 @@ export default function HomeView() {
   const [shortcut, setShortcut] = useState<ShortcutState | null>(null);
 
   useEffect(() => {
-    setShortcut(identifyDeviceShortcut());
+    setShortcut(resolveTabSwitcherShortcut());
   }, []);
 
   const handleOpenTabs = (segment: 'apps' | 'resources') => {

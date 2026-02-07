@@ -80,7 +80,7 @@
 
 .shell__dialog {
   background: rgba(16, 16, 28, 0.94);
-  border-radius: inherit;
+  border-radius: 18px;
   padding: 24px;
   box-shadow: 0 24px 48px rgba(8, 12, 26, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.08);
   color: #f5f5ff;
@@ -139,6 +139,10 @@
 }
 
 @media (max-width: 640px) {
+  .shell__dialog {
+    border-radius: inherit;
+  }
+
   .shell__nav-label {
     display: none;
   }

@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "cross-platform-readiness",
   "name": "Cross-Platform Readiness",
-  "description": "Prepares scenarios for deployment beyond Tier 1 (local stack) by eliminating environment variable dependencies, replacing non-portable resources, handling filesystem assumptions, and ensuring build/runtime portability across desktop, mobile, cloud, and enterprise tiers.",
+  "description": "Prepares scenarios for deployment beyond Tier 1 (local stack) by eliminating environment variable dependencies, replacing non-portable resources, adopting api-core/storage for runtime filesystem state, and ensuring build/runtime portability across desktop, mobile, cloud, and enterprise tiers.",
   "modes": [
     "steer"
   ],
@@ -14,6 +14,8 @@
     "deployment",
     "environment-variables",
     "resources",
+    "filesystem",
+    "api-core-storage",
     "sqlite",
     "bundling",
     "electron",

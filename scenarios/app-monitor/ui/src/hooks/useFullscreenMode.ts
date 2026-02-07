@@ -63,6 +63,9 @@ export const useFullscreenMode = ({
     }
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
       if (event.key === 'Escape') {
         setIsLayoutFullscreen(false);
       }

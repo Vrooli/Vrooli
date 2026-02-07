@@ -1,7 +1,7 @@
 {
   "scenario": "landing-page-business-suite",
   "report_version": 1,
-  "generated_at": "2026-01-21T16:18:54.106521304Z",
+  "generated_at": "2026-02-07T02:43:32.926954627Z",
   "dependencies": [
     {
       "name": "browserless",
@@ -244,7 +244,7 @@
   },
   "bundle_manifest": {
     "scenario": "landing-page-business-suite",
-    "generated_at": "2026-01-21T16:18:54.106521304Z",
+    "generated_at": "2026-02-07T02:43:32.926954627Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -261,6 +261,17 @@
         "type": "api-binary",
         "exists": true,
         "notes": "Detected api component (go)"
+      },
+      {
+        "path": "cli",
+        "type": "cli-source",
+        "exists": true
+      },
+      {
+        "path": "cli/landing-page-business-suite",
+        "type": "cli-binary",
+        "exists": false,
+        "notes": "Detected cli component (go)"
       },
       {
         "path": "ui/dist",
@@ -447,7 +458,7 @@
       "target": "desktop",
       "app": {
         "name": "landing-page-business-suite",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "description": "Generated landing page scenario from template 'landing-page-business-suite'"
       },
       "ipc": {
@@ -521,6 +532,49 @@
             "type": "health_success",
             "port_name": "api",
             "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "landing-page-business-suite-cli",
+          "type": "resource",
+          "description": "cli component for landing-page-business-suite",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/cli/darwin-x64/landing-page-business-suite"
+            },
+            "linux-x64": {
+              "path": "bin/cli/linux-x64/landing-page-business-suite"
+            },
+            "win-x64": {
+              "path": "bin/cli/win-x64/landing-page-business-suite.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/cli/{{platform}}/landing-page-business-suite{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
           }
         },
         {

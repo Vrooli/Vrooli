@@ -1,5 +1,5 @@
 import { logger } from '@/services/logger';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
 import { useResourcesCatalog, normalizeResourceSort, type ResourceSortOption } from '@/hooks/useResourcesCatalog';
@@ -9,6 +9,7 @@ import { resolveAppIdentifier } from '@/utils/appPreview';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
 import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
+import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
 import type { App, Resource } from '@/types';
 import { TabSwitcherControls, TabSwitcherHeader } from './TabSwitcherControls';
 import { AppsSection, ResourcesSection } from './TabSwitcherSections';
@@ -70,6 +71,7 @@ export default function TabSwitcherDialog() {
   const [search, setSearch] = useState('');
   const [sortOption, setSortOption] = useState<AppSortOption>('status');
   const [resourceSortOption, setResourceSortOption] = useState<ResourceSortOption>('status');
+  const [shortcut, setShortcut] = useState<ShortcutState | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -136,8 +138,109 @@ export default function TabSwitcherDialog() {
 
   useDialogFocus(dialogRef, searchInputRef);
 
+  useEffect(() => {
+    setShortcut(resolveTabSwitcherShortcut());
+  }, []);
+
   const handleClose = () => {
     closeOverlay({ preserve: ['segment'] });
+  };
+
+  const moveFocusByStep = useCallback((step: number) => {
+    const root = dialogRef.current;
+    if (!root) {
+      return;
+    }
+
+    const focusable = getFocusable(root);
+    if (focusable.length === 0) {
+      return;
+    }
+
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const currentIndex = active ? focusable.indexOf(active) : -1;
+    const baseIndex = currentIndex === -1 ? (step > 0 ? -1 : 0) : currentIndex;
+    const nextIndex = (baseIndex + step + focusable.length) % focusable.length;
+    const next = focusable[nextIndex];
+    next?.focus({ preventScroll: true });
+    next?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, []);
+
+  const moveGridCardFocus = useCallback((direction: 1 | -1, target: HTMLElement): boolean => {
+    const focusedCard = target.closest<HTMLElement>('.tab-card');
+    const grid = focusedCard?.closest<HTMLElement>('.tab-switcher__grid');
+    if (!focusedCard || !grid) {
+      return false;
+    }
+
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>('.tab-card')).filter(
+      card => !card.hasAttribute('disabled') && card.tabIndex !== -1,
+    );
+    if (cards.length === 0) {
+      return false;
+    }
+
+    const currentIndex = cards.indexOf(focusedCard);
+    if (currentIndex === -1) {
+      return false;
+    }
+
+    const firstRowTop = Math.round(cards[0]?.getBoundingClientRect().top ?? 0);
+    let columns = 0;
+    for (const card of cards) {
+      const top = Math.round(card.getBoundingClientRect().top);
+      if (Math.abs(top - firstRowTop) > 2) {
+        break;
+      }
+      columns += 1;
+    }
+
+    const step = Math.max(1, columns);
+    const nextIndex = currentIndex + (step * direction);
+    const next = cards[nextIndex];
+    if (!next) {
+      return false;
+    }
+
+    next.focus({ preventScroll: true });
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    return true;
+  }, []);
+
+  const handleDialogKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      handleClose();
+      return;
+    }
+
+    const key = event.key;
+    const isArrowKey = key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
+    if (!isArrowKey) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) {
+      return;
+    }
+
+    if (key === 'ArrowUp' || key === 'ArrowDown') {
+      const moved = moveGridCardFocus(key === 'ArrowDown' ? 1 : -1, target);
+      if (!moved) {
+        return;
+      }
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    moveFocusByStep(key === 'ArrowRight' ? 1 : -1);
   };
 
   const handleAppSelect = (app: App, options?: { autoSelected?: boolean; navigationId?: string }) => {
@@ -174,6 +277,21 @@ export default function TabSwitcherDialog() {
     navigate(`/resources/${encodeURIComponent(resource.id)}`);
   };
 
+  const handleSearchEnter = () => {
+    if (activeSegment === 'apps') {
+      const firstApp = showAppHistory ? (recentApps[0] ?? filteredApps[0]) : filteredApps[0];
+      if (firstApp) {
+        handleAppSelect(firstApp);
+      }
+      return;
+    }
+
+    const firstResource = filteredResources[0];
+    if (firstResource) {
+      handleResourceSelect(firstResource);
+    }
+  };
+
   const isAutoNextRunning = autoNextStatus === 'running';
 
   const handleAutoNext = async () => {
@@ -207,8 +325,8 @@ export default function TabSwitcherDialog() {
   };
 
   return (
-    <div className="tab-switcher" ref={dialogRef}>
-      <TabSwitcherHeader title={activeSegmentLabel} onClose={handleClose} />
+    <div className="tab-switcher" ref={dialogRef} onKeyDownCapture={handleDialogKeyDownCapture}>
+      <TabSwitcherHeader title={activeSegmentLabel} shortcut={shortcut} onClose={handleClose} />
 
       <TabSwitcherControls
         activeSegment={activeSegment}
@@ -216,6 +334,7 @@ export default function TabSwitcherDialog() {
         search={search}
         onSearchChange={setSearch}
         onSearchClear={() => setSearch('')}
+        onSearchEnter={handleSearchEnter}
         searchInputRef={searchInputRef}
         showAutoNext={activeSegment === 'apps'}
         isAutoNextRunning={isAutoNextRunning}

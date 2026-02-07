@@ -54,7 +54,7 @@ This skill ensures scenarios work across **all tiers** by eliminating tier-speci
 **In scope:**
 - Environment variable usage patterns (fallbacks, detection flags)
 - Resource dependency analysis and swap recommendations
-- Filesystem path handling (sandbox-safe, cross-OS)
+- Filesystem runtime storage portability via `api-core/storage`
 - Build configuration (CGO, static binaries, cross-compilation)
 - Network/IPC patterns (localhost variants, port allocation)
 - Data storage portability (postgres→sqlite swaps)
@@ -354,51 +354,51 @@ Document your resource strategy in service.json or bundle manifest:
 
 ### 4. Filesystem Portability
 
-#### 4.1 Path Handling Rules
+#### 4.1 Canonical Filesystem Contract
 
-| Pattern | Problem | Portable Alternative |
-|---------|---------|---------------------|
-| `~/.vrooli/` | Not expanded on Windows | `os.UserHomeDir()` + join |
-| `/tmp/file` | Different on each OS | `os.TempDir()` |
-| `./relative` | Depends on CWD | Relative to `BUNDLE_ROOT` or exe path |
-| Hardcoded `/home/user` | Wrong user, wrong OS | `os.UserHomeDir()` |
-| Unix path separators | Breaks on Windows | `filepath.Join()` |
+For scenario runtime storage, adopt `github.com/vrooli/api-core/storage` instead of custom path logic.
+
+Why:
+- It encapsulates OS-aware roots (`auto`, `desktop`, `mobile`, `vps`)
+- It separates mutable state from disposable deploy/app directories
+- It provides traversal-safe relative path joins and atomic writes
+
+#### 4.2 Required Pattern
 
 ```go
-// ✅ CORRECT: Cross-platform path handling
-func getTempPath(filename string) string {
-    return filepath.Join(os.TempDir(), "{{TARGET}}", filename)
+import "github.com/vrooli/api-core/storage"
+
+resolver, err := storage.NewResolver(storage.ResolverConfig{
+    AppID:   "vrooli",
+    Profile: storage.ProfileAuto,
+})
+if err != nil {
+    return err
 }
 
-func getConfigPath() string {
-    dataRoot := getDataRoot()
-    return filepath.Join(dataRoot, "{{TARGET}}", "config.json")
+_, err = storage.EnsureAllDirs(resolver, storage.Options{
+    ScenarioID: "{{TARGET}}",
+}, 0)
+if err != nil {
+    return err
 }
 
-// ❌ WRONG: Platform-specific assumptions
-func getConfigPath() string {
-    return "/home/user/.vrooli/my-scenario/config.json"
+path, err := resolver.Path(
+    storage.Options{ScenarioID: "{{TARGET}}"},
+    storage.ClassState,
+    "runtime.json",
+)
+if err != nil {
+    return err
 }
+return storage.WriteFileAtomic(path, payload, storage.DefaultFilePerm)
 ```
 
-#### 4.2 Sandbox Compliance
+#### 4.3 Anti-Patterns
 
-Desktop apps (especially macOS with notarization) have restricted filesystem access:
-
-```
-ALLOWED (Desktop Sandbox):
-├── APP_DATA_DIR/         # Electron sets this
-│   └── {{TARGET}}/       # Scenario-specific data
-├── BUNDLE_ROOT/          # Read-only bundled assets
-└── User-selected paths   # Via file dialog only
-
-FORBIDDEN (will fail notarization):
-├── /usr/, /bin/, /etc/   # System directories
-├── Other apps' data      # Privacy violation
-└── Arbitrary user paths  # Without file dialog
-```
-
-**Steer:** All writes should go to `APP_DATA_DIR` or paths explicitly selected by the user via file dialogs.
+- Hardcoded absolute paths (`/home/...`, `/tmp/...`, `C:\\...`)
+- Scenario-local mutable writes (`./data`, `./state`) under app/deploy targets
+- Hand-rolled `DATA_DIR` resolution or custom traversal checks when `api-core/storage` is available
 
 ---
 
@@ -553,11 +553,14 @@ rg "os\.Getenv\(" scenarios/{{TARGET}}/api --type go | grep -v "||"
 rg "mattn/go-sqlite3|\"C\"|#cgo" scenarios/{{TARGET}}/
 
 # Test static build
-cd scenarios/{{TARGET}}/api && CGO_ENABLED=0 go build ./... 2>&1
+cd scenarios/{{TARGET}}/api && CGO_ENABLED=0 go build ./...
 
-# Hardcoded paths
-rg "~/.vrooli|/home/|/Users/" scenarios/{{TARGET}}/
-rg "\"/tmp" scenarios/{{TARGET}}/ --type go
+# Filesystem storage contract adoption
+rg "storage\\.NewResolver|storage\\.EnsureAllDirs|storage\\.EnsureClassDir|storage\\.WriteFileAtomic|\\.Path\\(" scenarios/{{TARGET}}/api --type go
+
+# Direct filesystem writes / ad hoc path policy (anti-pattern)
+rg "os\\.WriteFile|ioutil\\.WriteFile|os\\.Create\\(|os\\.OpenFile\\(" scenarios/{{TARGET}}/api --type go
+rg "DATA_DIR|filepath\\.Join\\(\\s*\"\\.\"\\s*,\\s*\"data\"|/tmp|/home/|/Users/" scenarios/{{TARGET}}/
 
 # Fixed ports without configuration
 rg ":8080|:3000|:5000" scenarios/{{TARGET}}/ | grep -v "getEnv\|PORT"
@@ -586,9 +589,9 @@ cat scenarios/{{TARGET}}/.vrooli/service.json | jq '.dependencies.resources'
 - [ ] `CGO_ENABLED=0 go build` fails
 
 **Filesystem & Paths:**
-- [ ] Hardcoded paths with `/home/`, `~/.vrooli/`, `/tmp/`
-- [ ] Unix path separators instead of `filepath.Join()`
-- [ ] Writes outside of `APP_DATA_DIR` or user-selected paths
+- [ ] Runtime filesystem writes bypass `api-core/storage`
+- [ ] Mutable files stored under scenario deploy/app directories
+- [ ] Custom `DATA_DIR` policy used instead of shared storage resolver
 
 **Network:**
 - [ ] Fixed port numbers without environment override
@@ -663,6 +666,7 @@ Read existing portability documentation:
 - `scenarios/{{TARGET}}/.vrooli/service.json` - Resource dependencies
 - `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md` - Prior findings (if exists)
 - `resources/sqlite/README.md` - If database swap is needed
+- `packages/api-core/docs/storage.md` - Filesystem runtime storage contract
 - `scenarios/deployment-manager/docs/guides/fitness-scoring.md` - Fitness criteria
 
 #### 10.2 At Session End
@@ -684,7 +688,7 @@ You may update in `scenarios/{{TARGET}}/`:
 - Swap database drivers (postgres→sqlite with modernc.org driver)
 - Add resource abstraction interfaces for swappable backends
 - Update service.json with `offline_capable` flag and limitations
-- Add path resolution helpers using `os.UserHomeDir()`, `os.TempDir()`
+- Adopt `api-core/storage` for runtime filesystem paths
 - Update CORS to accept both localhost variants
 - Update Makefile/build scripts for static builds
 
@@ -692,12 +696,14 @@ You must:
 - Preserve all Tier 1 (local stack) functionality
 - Use `modernc.org/sqlite` for SQLite (not `go-sqlite3`)
 - Ensure `CGO_ENABLED=0 go build` works after changes
+- Route mutable runtime filesystem state through `api-core/storage`
 - Document resource swap limitations in manifest
 - Update `PORTABILITY_AUDIT.md` with changes made
 
 You must NOT:
 - Remove support for Vrooli lifecycle environment variables
-- Hardcode desktop-specific paths (use `APP_DATA_DIR` env var)
+- Hardcode custom runtime storage roots in scenario code
+- Store mutable runtime files under scenario deploy/app directories
 - Add tier-specific code without feature detection pattern
 - Remove resource dependencies without providing alternative
 - Break Tier 1 testing to support other tiers

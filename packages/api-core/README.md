@@ -5,6 +5,7 @@ Shared Go utilities for Vrooli scenario APIs. Provides:
 - **Preflight checks** - Staleness detection, auto-rebuild, lifecycle management
 - **Database connections** - Auto-configured from environment with retry and backoff
 - **Scenario discovery** - Runtime port resolution for inter-scenario communication
+- **Storage path resolution** - Profile-aware runtime directories with safe joins and atomic writes
 - **Retry utilities** - Exponential backoff with jitter for reliable connections
 
 ## Quick Start
@@ -243,6 +244,44 @@ func TestRetryLogic(t *testing.T) {
     // Verify: 2 sleeps (100ms, 200ms), succeeded on 3rd attempt
 }
 ```
+
+## Storage Paths
+
+The `storage` package resolves runtime storage directories by class (`config`, `data`, `cache`, `logs`, `state`) with profile-aware defaults (`auto`, `vps`, `desktop`, `mobile`) and environment overrides.
+
+Detailed reference: `packages/api-core/docs/storage.md`.
+
+```go
+import "github.com/vrooli/api-core/storage"
+
+resolver, err := storage.NewResolver(storage.ResolverConfig{
+    AppID:   "vrooli",
+    Profile: storage.ProfileAuto,
+})
+if err != nil {
+    // handle
+}
+
+paths, err := resolver.Resolve(storage.Options{
+    ScenarioID: "landing-page-business-suite",
+})
+if err != nil {
+    // handle
+}
+
+// Example: atomically persist config/state
+if err := storage.WriteFileAtomic(
+    filepath.Join(paths.StateDir, "runtime.json"),
+    []byte(`{"ok":true}`),
+    storage.DefaultFilePerm,
+); err != nil {
+    // handle
+}
+```
+
+Environment overrides:
+- `VROOLI_STORAGE_ROOT` (global root for all classes)
+- `VROOLI_CONFIG_ROOT`, `VROOLI_DATA_ROOT`, `VROOLI_CACHE_ROOT`, `VROOLI_LOGS_ROOT`, `VROOLI_STATE_ROOT` (class-specific roots)
 
 ## Scenario Discovery
 
