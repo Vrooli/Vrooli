@@ -15,7 +15,8 @@
   "icon": "merge",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 46,
+  "defaultScope": "refactor-scope",
+  "revision": 48,
   "createdAt": "2026-01-26T00:00:00Z",
-  "updatedAt": "2026-02-05T01:03:05Z"
+  "updatedAt": "2026-02-07T01:05:12Z"
 }

@@ -418,6 +418,48 @@ return fmt.Errorf("API not available at %s. Try --auto-start or check scenario s
 return fmt.Errorf("error occurred")
 ```
 
+#### 9.3 Operational Output Contract (Status -> Triage -> Next Steps)
+
+For **diagnostic/decision commands** (for example: `status`, `health`, `audit`, `validate`, `doctor`), use this default human-readable structure:
+
+1. **Status** (short summary)
+2. **Triage** (group findings by remediation path)
+3. **Next Steps** (exact commands to run now)
+
+This keeps output concise for operators while still giving agents a stable structure to parse.
+
+**Use this format when the user needs to answer:**
+- What is wrong?
+- How severe is it?
+- What should I do next?
+
+**Do not force this format for all commands.** It is usually not appropriate for:
+- Pure data retrieval (`list`, `get`, `view`, `search`)
+- Single direct mutations (`create`, `update`, `delete`, `start`, `stop`)
+- Streaming outputs (`logs`, `watch`, `tail`)
+
+**Triage grouping rule:**
+- Group by remediation path (for example: `auto-fix now`, `agent repair`, `manual review`)
+- Show the first few items (for example: 3), then summarize as `+k more`
+- Keep category names action-oriented
+
+**Next Steps rule:**
+- Include copy-paste-ready commands
+- Put highest-impact command first
+- Prefer one command per remediation group
+
+#### 9.4 Progressive Disclosure for Output
+
+Use three levels of detail:
+
+| Mode | Purpose | Guidance |
+|------|---------|----------|
+| Default (human) | Fast operator decisions | Concise status + triage + commands |
+| `--verbose` | Expanded human diagnostics | More examples/details, same section structure |
+| `--json` | Machine-readable automation | Full response fidelity, stable fields |
+
+**Steer:** Keep `--json` complete and deterministic. Human formatting can evolve, machine format should remain predictable for scripts/agents.
+
 ---
 
 ### 10. Stale Detection and Auto-Rebuild

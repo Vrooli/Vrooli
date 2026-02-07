@@ -6,6 +6,10 @@ Required reading:
 - `prompt-manager skills read {{SKILL}}`
 - `prompt-manager skills read skill-principles`
 
+Conditional required reading (when {{SKILL}} includes CLI guidance or CLI workflows):
+- `prompt-manager skills read cli-steer`
+  - `cli-steer` is the canonical guidance for setting up CLIs properly (cli-core usage, API parity, output contracts, and professional CLI UX patterns).
+
 ---
 
 ### **1. Why This Matters**
@@ -494,6 +498,7 @@ Different skill categories need different evaluation focus:
 
 **You must:**
 - Read {{SKILL}} completely before making suggestions
+- If {{SKILL}} includes CLI guidance/workflows, read `cli-steer` before proposing CLI-related suggestions
 - Apply the generality test to all tool improvement suggestions
 - Use the suggestion formats provided
 - Explain reasoning—not just what to change, but why it matters

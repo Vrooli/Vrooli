@@ -9,7 +9,8 @@
   ],
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 47,
+  "defaultScope": "architecture-scope",
+  "revision": 49,
   "createdAt": "2026-01-30T13:13:00-05:00",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-02-06T23:12:28Z"
 }
