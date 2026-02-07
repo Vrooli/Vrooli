@@ -45,3 +45,21 @@ Knowledge Observatory helps Vrooli operators and agents inspect what semantic kn
 2. **State persistence across navigation** – Preserve the last search query / last viewed collection metrics when switching tabs so returning curators can “continue where they left off”.
 3. **Triage shortcuts** – Add “Go to Search” / “Go to Metrics” actions in the offline/unhealthy health panel to shorten ops troubleshooting loops.
 4. **Search filters** – Add collection/threshold controls to narrow results without leaving the search context.
+
+## Migration Intent Contract – 2026-02-07
+
+1. Intent:
+Replace the existing hacker/terminal visual language with a clean, modern control-tower feel that improves readability, hierarchy, and confidence for operational usage.
+
+2. References and non-goals:
+- Reference direction: `scenarios/git-control-tower/ui` visual tone (clean dark surfaces, restrained accents, stronger spacing hierarchy).
+- Non-goals: changing data flow, route model, API behavior, or replacing selector contracts used by BAS automation.
+
+3. Constraints:
+- Preserve all scenario workflows and route destinations.
+- Preserve existing `data-testid` selectors and automation hooks.
+- Maintain keyboard focus visibility and responsive behavior for desktop/mobile.
+- Keep this migration UI-only (no backend or API contract changes).
+
+4. Scope:
+Token + primitive + layout refresh.

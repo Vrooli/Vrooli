@@ -61,7 +61,7 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 ### Components
 - **Go API**: RESTful endpoints for all operations (dynamically allocated port 15000-19999)
 - **CLI**: Command-line interface for knowledge queries
-- **Web UI**: Mission control style dashboard (dynamically allocated port 35000-39999)
+- **Web UI**: Modern control-tower dashboard (dynamically allocated port 35000-39999)
 - **PostgreSQL**: Metadata and metrics storage
 - **Qdrant**: Vector database being monitored
 
@@ -159,12 +159,12 @@ knowledge-observatory graph --center "your-scenario"
 
 ## 🎨 UI Style
 
-The dashboard follows a **technical mission control** aesthetic:
-- Dark theme with green accent (Matrix-inspired)
-- Real-time data streams
-- Graph visualizations with organic pulsing
-- Heat maps for knowledge density
-- Professional yet engaging interface
+The dashboard follows a **modern control-tower** aesthetic:
+- Clean dark surfaces with blue/slate semantic accents
+- Strong information hierarchy for fast scanning
+- Consistent card, tab, and input primitives across all pages
+- Focus-visible, keyboard-friendly interaction styling
+- Professional operator-console clarity without hacker-themed visuals
 
 ## 📊 Value Proposition
 

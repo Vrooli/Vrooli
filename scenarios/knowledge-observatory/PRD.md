@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 > **Version**: 2.0.0
-> **Last Updated**: 2026-01-26
+> **Last Updated**: 2026-02-07
 > **Status**: Active
 > **Template**: Canonical PRD v2.0.0
 
@@ -30,7 +30,7 @@ Knowledge Observatory provides real-time introspection and management of Vrooli'
 - [x] OT-P0-003 | Knowledge graph access | API-powered graph endpoint for semantic relationships
 - [x] OT-P0-004 | API endpoints for knowledge queries | Stable REST endpoints for search, health, and graph queries
 - [x] OT-P0-005 | CLI exploration commands | CLI workflows for search, health, and graph inspection
-- [x] OT-P0-006 | Operator dashboard UI | Matrix-style monitoring UI with search, metrics, and health views
+- [x] OT-P0-006 | Operator dashboard UI | Modern control-tower UI with search, metrics, and health views
 
 ### 🟠 P1 – Should have post-launch
 
@@ -49,7 +49,7 @@ Knowledge Observatory provides real-time introspection and management of Vrooli'
 
 ## 🧱 Tech Direction Snapshot
 
-- Preferred UI stack: React + Vite operator dashboard, Tailwind CSS with Matrix-inspired tokens, React Query for polling/caching.
+- Preferred UI stack: React + Vite operator dashboard, Tailwind CSS with token-driven control-tower styling, React Query for polling/caching.
 - Preferred API stack: Go API server using Gorilla Mux.
 - Preferred data stores: Qdrant for vectors; PostgreSQL for metadata, metrics, and ingestion history.
 - Integration strategy: REST between UI and API; API to Qdrant and Postgres.
@@ -81,9 +81,9 @@ Knowledge Observatory provides real-time introspection and management of Vrooli'
 ## 🎨 UX & Branding
 
 **Visual Identity**:
-- Matrix-inspired green-on-black aesthetic with subtle glow accents
-- Monospace typography for telemetry metadata and CLI framing
-- High-contrast status cards and alert panels
+- Clean dark control-tower aesthetic with blue/slate semantic accents
+- Sans-first typography with monospace reserved for telemetry/code contexts
+- High-contrast status cards, alert panels, and focus-visible controls
 
 **Interaction Patterns**:
 - Clear navigation between dashboard, search, graph, and metrics

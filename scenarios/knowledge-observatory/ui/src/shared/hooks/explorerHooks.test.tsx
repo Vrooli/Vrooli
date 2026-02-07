@@ -50,6 +50,7 @@ describe("useScenarioExplorer", () => {
       extra_docs: [],
       warnings: [],
       can_auto_fix: false,
+      fix_category: "none",
     });
 
     const { result } = renderHook(() => useScenarioExplorer(), { wrapper: createWrapper() });

@@ -78,7 +78,7 @@ export function AppHeader({ route, pageTitle, statusPulse, statusLabel }: AppHea
             <h1 className="text-2xl font-bold tracking-tight" data-testid={selectors.header.title}>
               Knowledge Observatory
             </h1>
-            <p className="ko-text-sm ko-subtle">Consciousness Monitor • Semantic Intelligence System</p>
+            <p className="ko-text-sm ko-subtle">Knowledge Health, Search, and Documentation Intelligence</p>
           </div>
         </div>
         <div className="flex items-center gap-4">

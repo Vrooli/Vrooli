@@ -6,31 +6,31 @@
 
 :root {
   color-scheme: dark;
-  --ko-bg: 2 6 3;
-  --ko-surface: 6 15 9;
-  --ko-surface-strong: 0 0 0;
-  --ko-surface-muted: 3 9 5;
-  --ko-border: 22 101 52;
-  --ko-border-strong: 34 197 94;
-  --ko-text: 217 245 220;
-  --ko-text-strong: 187 247 208;
-  --ko-text-muted: 74 222 128;
-  --ko-text-subtle: 34 197 94;
-  --ko-accent: 34 197 94;
-  --ko-accent-strong: 74 222 128;
+  --ko-bg: 8 14 29;
+  --ko-surface: 30 41 59;
+  --ko-surface-strong: 15 23 42;
+  --ko-surface-muted: 51 65 85;
+  --ko-border: 100 116 139;
+  --ko-border-strong: 148 163 184;
+  --ko-text: 226 232 240;
+  --ko-text-strong: 248 250 252;
+  --ko-text-muted: 148 163 184;
+  --ko-text-subtle: 100 116 139;
+  --ko-accent: 96 165 250;
+  --ko-accent-strong: 125 211 252;
   --ko-danger: 248 113 113;
   --ko-danger-strong: 252 165 165;
-  --ko-danger-muted: 220 38 38;
-  --ko-warning: 253 224 71;
-  --ko-warning-strong: 250 204 21;
-  --ko-warning-muted: 202 138 4;
-  --ko-tone-good: 134 239 172;
-  --ko-tone-good-bg: 20 83 45;
-  --ko-tone-good-border: 22 163 74;
-  --ko-tone-medium: 253 224 71;
+  --ko-danger-muted: 185 28 28;
+  --ko-warning: 252 211 77;
+  --ko-warning-strong: 251 191 36;
+  --ko-warning-muted: 180 83 9;
+  --ko-tone-good: 110 231 183;
+  --ko-tone-good-bg: 6 78 59;
+  --ko-tone-good-border: 16 185 129;
+  --ko-tone-medium: 253 230 138;
   --ko-tone-medium-bg: 113 63 18;
-  --ko-tone-medium-border: 202 138 4;
-  --ko-tone-poor: 252 165 165;
+  --ko-tone-medium-border: 217 119 6;
+  --ko-tone-poor: 254 202 202;
   --ko-tone-poor-bg: 127 29 29;
   --ko-tone-poor-border: 220 38 38;
 }
@@ -38,40 +38,76 @@
 body {
   background-color: rgb(var(--ko-bg));
   color: rgb(var(--ko-text));
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Manrope", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   line-height: 1.5;
   margin: 0;
+  min-height: 100vh;
+}
+
+::selection {
+  background-color: rgb(var(--ko-accent) / 0.35);
+  color: rgb(var(--ko-text-strong));
+}
+
+*:focus-visible {
+  outline: 2px solid rgb(var(--ko-accent) / 0.8);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--ko-border) / 0.6) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--ko-border) / 0.55);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 @layer components {
   .ko-app-shell {
     min-height: 100vh;
-    background: linear-gradient(
-      to bottom,
-      rgb(var(--ko-bg)),
-      rgb(var(--ko-surface) / 0.35),
-      rgb(var(--ko-bg))
-    );
+    background:
+      radial-gradient(1200px 600px at 10% -5%, rgb(var(--ko-accent) / 0.18), transparent 60%),
+      radial-gradient(900px 540px at 92% 0%, rgb(var(--ko-accent-strong) / 0.14), transparent 58%),
+      linear-gradient(180deg, rgb(var(--ko-bg)), rgb(var(--ko-surface-strong) / 0.45) 35%, rgb(var(--ko-bg)));
     color: rgb(var(--ko-text-strong));
   }
 
   .ko-app-header {
-    @apply px-6 py-4;
-    border-bottom: 1px solid rgb(var(--ko-border) / 0.6);
-    background-color: rgb(var(--ko-surface-strong) / 0.8);
-    backdrop-filter: blur(10px);
+    @apply px-6 py-5;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    border-bottom: 1px solid rgb(var(--ko-border) / 0.32);
+    background-color: rgb(var(--ko-surface-strong) / 0.72);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 28px rgb(var(--ko-surface-strong) / 0.45);
   }
 
   .ko-panel {
-    border: 1px solid rgb(var(--ko-border) / 0.6);
-    background-color: rgb(var(--ko-surface) / 0.2);
-    border-radius: 0.5rem;
+    border: 1px solid rgb(var(--ko-border) / 0.28);
+    background: linear-gradient(160deg, rgb(var(--ko-surface-strong) / 0.84), rgb(var(--ko-surface) / 0.35));
+    border-radius: 1rem;
+    box-shadow: 0 18px 45px rgb(var(--ko-surface-strong) / 0.36), inset 0 1px 0 rgb(var(--ko-text-strong) / 0.08);
   }
 
   .ko-card {
-    border: 1px solid rgb(var(--ko-border) / 0.6);
-    background-color: rgb(var(--ko-surface-strong) / 0.5);
-    border-radius: 0.375rem;
+    border: 1px solid rgb(var(--ko-border) / 0.24);
+    background: linear-gradient(160deg, rgb(var(--ko-surface-strong) / 0.82), rgb(var(--ko-surface) / 0.25));
+    border-radius: 0.85rem;
+    box-shadow: 0 10px 24px rgb(var(--ko-surface-strong) / 0.28), inset 0 1px 0 rgb(var(--ko-text-strong) / 0.06);
   }
 
   .ko-card-interactive {
@@ -79,7 +115,9 @@ body {
   }
 
   .ko-card-interactive:hover {
-    border-color: rgb(var(--ko-border-strong) / 0.7);
+    border-color: rgb(var(--ko-accent) / 0.62);
+    background: linear-gradient(160deg, rgb(var(--ko-surface-strong) / 0.92), rgb(var(--ko-surface) / 0.34));
+    box-shadow: 0 16px 32px rgb(var(--ko-surface-strong) / 0.42);
   }
 
   .ko-panel-link {
@@ -88,8 +126,9 @@ body {
   }
 
   .ko-panel-link:hover {
-    background-color: rgb(var(--ko-surface) / 0.35);
-    border-color: rgb(var(--ko-border-strong) / 0.6);
+    transform: translateY(-1px);
+    background-color: rgb(var(--ko-surface) / 0.4);
+    border-color: rgb(var(--ko-accent) / 0.55);
   }
 
   .ko-focus-ring {
@@ -97,20 +136,21 @@ body {
   }
 
   .ko-focus-ring:focus-visible {
-    box-shadow: 0 0 0 2px rgb(var(--ko-accent) / 0.4);
+    box-shadow: 0 0 0 2px rgb(var(--ko-accent) / 0.5), 0 0 0 6px rgb(var(--ko-accent) / 0.18);
   }
 
   .ko-tab {
-    @apply inline-flex items-center gap-2 px-3 py-2 rounded border transition-colors text-sm font-semibold;
-    border-color: rgb(var(--ko-border) / 0.5);
+    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-full border transition-colors text-sm font-semibold;
+    border-color: rgb(var(--ko-border) / 0.38);
     color: rgb(var(--ko-text-muted));
+    background-color: rgb(var(--ko-surface-strong) / 0.42);
   }
 
   .ko-tab-active {
-    background-color: rgb(var(--ko-surface) / 0.4);
-    border-color: rgb(var(--ko-border-strong) / 0.6);
+    background: linear-gradient(135deg, rgb(var(--ko-accent) / 0.2), rgb(var(--ko-accent-strong) / 0.16));
+    border-color: rgb(var(--ko-accent) / 0.58);
     color: rgb(var(--ko-text-strong));
-    box-shadow: 0 0 14px rgb(var(--ko-accent) / 0.15);
+    box-shadow: 0 8px 18px rgb(var(--ko-accent) / 0.22);
   }
 
   .ko-tab-inactive {
@@ -118,8 +158,9 @@ body {
   }
 
   .ko-tab-inactive:hover {
-    background-color: rgb(var(--ko-surface) / 0.35);
-    border-color: rgb(var(--ko-border-strong) / 0.6);
+    color: rgb(var(--ko-text));
+    background-color: rgb(var(--ko-surface) / 0.5);
+    border-color: rgb(var(--ko-border-strong) / 0.55);
   }
 
   .ko-muted {
@@ -133,6 +174,7 @@ body {
   .ko-meta {
     @apply text-xs uppercase tracking-wider;
     color: rgb(var(--ko-text-subtle));
+    letter-spacing: 0.08em;
   }
 
   .ko-code {
@@ -157,36 +199,42 @@ body {
   }
 
   .ko-panel-inset {
-    box-shadow: inset 0 1px 0 rgb(var(--ko-accent) / 0.15);
+    box-shadow: inset 0 1px 0 rgb(var(--ko-text-strong) / 0.1), inset 0 0 0 1px rgb(var(--ko-border) / 0.18);
   }
 
   .ko-button-primary {
-    background-color: rgb(var(--ko-surface) / 0.7);
-    color: rgb(var(--ko-text-strong));
-    border: 1px solid rgb(var(--ko-border-strong) / 0.8);
+    background: linear-gradient(135deg, rgb(var(--ko-accent) / 0.95), rgb(var(--ko-accent-strong) / 0.86));
+    color: rgb(7 12 26);
+    border: 1px solid rgb(var(--ko-accent-strong) / 0.85);
+    box-shadow: 0 10px 20px rgb(var(--ko-accent) / 0.28);
   }
 
   .ko-button-primary:hover {
-    background-color: rgb(var(--ko-surface) / 0.9);
+    filter: brightness(1.04);
+    box-shadow: 0 14px 24px rgb(var(--ko-accent) / 0.35);
   }
 
   .ko-button-secondary {
-    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.82);
     color: rgb(var(--ko-text));
-    border: 1px solid rgb(var(--ko-border) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.4);
   }
 
   .ko-button-secondary:hover {
-    background-color: rgb(var(--ko-surface) / 0.25);
+    background-color: rgb(var(--ko-surface) / 0.5);
+    border-color: rgb(var(--ko-border-strong) / 0.55);
   }
 
   .ko-button-outline {
-    border: 1px solid rgb(var(--ko-border) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.4);
     color: rgb(var(--ko-text-muted));
+    background-color: rgb(var(--ko-surface-strong) / 0.48);
   }
 
   .ko-button-outline:hover {
-    background-color: rgb(var(--ko-surface) / 0.25);
+    color: rgb(var(--ko-text));
+    border-color: rgb(var(--ko-accent) / 0.5);
+    background-color: rgb(var(--ko-surface) / 0.5);
   }
 
   .ko-button-danger {
@@ -231,9 +279,10 @@ body {
 
   .ko-input {
     @apply w-full px-4 py-2 rounded;
-    background-color: rgb(var(--ko-surface-strong) / 0.6);
-    border: 1px solid rgb(var(--ko-border) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.78);
+    border: 1px solid rgb(var(--ko-border) / 0.36);
     color: rgb(var(--ko-text));
+    box-shadow: inset 0 1px 0 rgb(var(--ko-text-strong) / 0.06);
   }
 
   .ko-input::placeholder {
@@ -242,7 +291,8 @@ body {
 
   .ko-input:focus {
     outline: none;
-    border-color: rgb(var(--ko-border-strong) / 0.7);
+    border-color: rgb(var(--ko-accent) / 0.72);
+    box-shadow: 0 0 0 1px rgb(var(--ko-accent) / 0.42), 0 0 0 4px rgb(var(--ko-accent) / 0.15);
   }
 
   .ko-input-help {
@@ -252,7 +302,7 @@ body {
 
   .ko-loading-bar {
     @apply h-2 rounded animate-pulse;
-    background-color: rgb(var(--ko-surface) / 0.35);
+    background: linear-gradient(90deg, rgb(var(--ko-surface) / 0.38), rgb(var(--ko-accent) / 0.3));
   }
 
   .ko-metric-card {
@@ -331,6 +381,10 @@ body {
     color: rgb(var(--ko-text));
   }
 
+  .ko-text-subtle {
+    color: rgb(var(--ko-text-subtle));
+  }
+
   .ko-text-danger {
     color: rgb(var(--ko-danger));
   }
@@ -403,15 +457,15 @@ body {
 
   .ko-health-badge {
     @apply text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded;
-    border: 1px solid rgb(var(--ko-border-strong) / 0.6);
-    background-color: rgb(var(--ko-surface-strong) / 0.6);
-    color: rgb(var(--ko-text-strong));
+    border: 1px solid rgb(var(--ko-border-strong) / 0.5);
+    background-color: rgb(var(--ko-surface-strong) / 0.82);
+    color: rgb(var(--ko-text));
   }
 
   .ko-pill {
     @apply text-[0.6rem] uppercase tracking-wider px-2 py-1 rounded-full;
-    border: 1px solid rgb(var(--ko-border) / 0.6);
-    background-color: rgb(var(--ko-surface-strong) / 0.5);
+    border: 1px solid rgb(var(--ko-border) / 0.35);
+    background-color: rgb(var(--ko-surface-strong) / 0.72);
     color: rgb(var(--ko-text-muted));
   }
 

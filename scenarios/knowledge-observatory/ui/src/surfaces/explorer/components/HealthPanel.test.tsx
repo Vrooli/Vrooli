@@ -23,6 +23,7 @@ const createProps = (overrides: Partial<HealthPanelProps> = {}): HealthPanelProp
     warningCount: 0,
     hasIssues: false,
     canAutoFix: false,
+    fixCategory: "none",
   },
   isLoading: false,
   hasError: false,
@@ -53,6 +54,7 @@ describe("HealthPanel", () => {
             warningCount: 1,
             hasIssues: true,
             canAutoFix: false,
+            fixCategory: "none",
           },
         })}
       />
