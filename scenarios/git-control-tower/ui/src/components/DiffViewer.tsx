@@ -446,6 +446,11 @@ export function DiffViewer({
   const hasAnnotatedLines = annotatedLines.length > 0;
   const hasFullContent = diff?.full_content !== undefined;
   const hasHunks = hunks.length > 0;
+  const isPreviewable = selectedFile ? getFileTypeInfo(selectedFile) : null;
+  const showMarkdownPreview =
+    selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
+  const showImagePreview =
+    selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "image" && isPreviewable.mimeType;
 
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
@@ -642,22 +647,18 @@ export function DiffViewer({
             />
           )}
 
-          {/* Preview mode - render markdown or images */}
-          {selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && (() => {
-            const fileType = getFileTypeInfo(selectedFile);
-            if (fileType.category === "markdown") {
-              return <MarkdownPreview content={fullContent} />;
-            }
-            if (fileType.category === "image" && fileType.mimeType) {
-              return (
-                <ImagePreview
-                  src={`data:${fileType.mimeType};base64,${fullContent}`}
-                  alt={selectedFile}
-                />
-              );
-            }
-            return null;
-          })()}
+          {/* Preview mode - render markdown */}
+          {showMarkdownPreview && (
+            <MarkdownPreview content={fullContent} />
+          )}
+
+          {/* Preview mode - render images */}
+          {showImagePreview && isPreviewable?.mimeType && (
+            <ImagePreview
+              src={`data:${isPreviewable.mimeType};base64,${fullContent}`}
+              alt={selectedFile}
+            />
+          )}
 
           {/* Binary diff notice */}
           {showBinaryNotice && (

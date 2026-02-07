@@ -330,7 +330,7 @@ export default function App() {
     viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
     viewingCommit || isViewingAnyFile ? false : selectedIsUntracked,
     viewingCommit?.hash,
-    isViewingAnyFile ? "source" : viewMode,
+    isViewingAnyFile || viewMode === "preview" ? "source" : viewMode,
     isViewingAnyFile,
     repoId
   );
