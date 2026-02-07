@@ -29,6 +29,8 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { buildSandboxReviewUrl, cn, formatDate, formatDuration, runnerTypeLabel } from "../lib/utils";
+import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
+import { useResizablePanel } from "../hooks/useResizablePanel";
 import type {
   ApproveFormData,
   ContextAttachmentData,
@@ -94,100 +96,28 @@ export function RunDetail({
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
   const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
 
-  // Collapsed state for details section (persisted in localStorage)
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("agm.runDetailsCollapsed") === "true";
+  const { isCollapsed: isDetailsCollapsed, toggle: toggleDetailsCollapsed } = useCollapsiblePanel({
+    storageKey: "run.details",
+    persistKey: "agm.runDetailsCollapsed",
+    defaultCollapsed: false,
   });
-
-  // Persist collapsed state to localStorage
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("agm.runDetailsCollapsed", String(isDetailsCollapsed));
-  }, [isDetailsCollapsed]);
 
   // Details section resize state
   const DETAILS_MIN_HEIGHT = 200;
   const TABS_MIN_HEIGHT = 200;
-  const [detailsHeight, setDetailsHeight] = useState(() => {
-    if (typeof window === "undefined") return 350;
-    const stored = Number(localStorage.getItem("agm.runDetailsHeight"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 350;
+  const {
+    size: detailsHeight,
+    handleResizeStart,
+    containerRef,
+  } = useResizablePanel({
+    storageKey: "run.details",
+    persistKey: "agm.runDetailsHeight",
+    axis: "vertical",
+    defaultSize: 350,
+    minSize: DETAILS_MIN_HEIGHT,
+    minOtherSize: TABS_MIN_HEIGHT,
   });
-  const [isResizing, setIsResizing] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const eventsScrollRef = useRef<HTMLDivElement | null>(null);
-  const resizeRef = useRef<{ top: number; height: number } | null>(null);
-
-  // Resize handler
-  const handleResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    if (!containerRef.current) return;
-
-    const rect = containerRef.current.getBoundingClientRect();
-    resizeRef.current = {
-      top: rect.top,
-      height: rect.height,
-    };
-    setIsResizing(true);
-  };
-
-  // Resize mouse events
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMove = (event: MouseEvent) => {
-      if (!resizeRef.current) return;
-      const nextHeight = event.clientY - resizeRef.current.top;
-      const maxHeight = resizeRef.current.height - TABS_MIN_HEIGHT;
-      const clampedHeight = Math.max(DETAILS_MIN_HEIGHT, Math.min(maxHeight, nextHeight));
-      setDetailsHeight(clampedHeight);
-    };
-
-    const handleUp = () => {
-      setIsResizing(false);
-      resizeRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-
-    document.body.style.cursor = "row-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizing]);
-
-  // Persist details height to localStorage
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("agm.runDetailsHeight", String(detailsHeight));
-  }, [detailsHeight]);
-
-  // Constrain details height when container shrinks
-  useEffect(() => {
-    if (!containerRef.current || typeof ResizeObserver === "undefined") return;
-
-    const clamp = () => {
-      if (!containerRef.current) return;
-      const height = containerRef.current.clientHeight;
-      const maxDetails = Math.max(DETAILS_MIN_HEIGHT, height - TABS_MIN_HEIGHT);
-      if (detailsHeight > maxDetails) {
-        setDetailsHeight(maxDetails);
-      }
-    };
-
-    clamp();
-    const observer = new ResizeObserver(clamp);
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [detailsHeight]);
 
   const costTotals = getCostTotals(events);
   const durationMs =
@@ -301,7 +231,7 @@ export function RunDetail({
         {/* Header - always visible, clickable to toggle */}
         <div
           className="flex items-center justify-between px-4 py-3 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
-          onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+          onClick={toggleDetailsCollapsed}
         >
           <div className="flex items-center gap-2">
             {isDetailsCollapsed ? (
@@ -497,7 +427,7 @@ export function RunDetail({
               variant="outline"
               size="sm"
               onClick={() => {
-                const url = buildSandboxReviewUrl(run.sandboxId!);
+                const url = buildSandboxReviewUrl(run.sandboxId ?? "");
                 window.open(url, "_blank", "noopener,noreferrer");
               }}
               className="gap-1"
@@ -1099,7 +1029,7 @@ function TaskSummary({ task }: { task: Task }) {
 function EventItem({ event }: { event: RunEvent }) {
   const [expanded, setExpanded] = useState(false);
   const payload = event.data;
-  const payloadValue = payload.value as any;
+  const payloadValue = payload.value as Record<string, unknown> | undefined;
 
   const getIcon = () => {
     switch (event.eventType) {
@@ -1152,33 +1082,34 @@ function EventItem({ event }: { event: RunEvent }) {
   };
 
   const getSummary = () => {
+    const v = payloadValue ?? {};
     switch (payload.case) {
       case "log":
-        return payloadValue.message || "Log entry";
+        return String(v.message ?? "Log entry");
       case "message":
-        return (payloadValue.role || "unknown") + ": " + (payloadValue.content?.slice(0, 100) || "");
+        return String(v.role ?? "unknown") + ": " + String(v.content ?? "").slice(0, 100);
       case "toolCall":
-        return "Called " + (payloadValue.toolName || "unknown tool");
+        return "Called " + String(v.toolName ?? "unknown tool");
       case "toolResult":
-        return (payloadValue.success ? "Success" : "Failed") + ": " + (payloadValue.toolName || "");
+        return (v.success ? "Success" : "Failed") + ": " + String(v.toolName ?? "");
       case "status":
         return (
-          runStatusLabel(payloadValue.oldStatus ?? RunStatus.UNSPECIFIED) +
+          runStatusLabel((v.oldStatus as RunStatus) ?? RunStatus.UNSPECIFIED) +
           " -> " +
-          runStatusLabel(payloadValue.newStatus ?? RunStatus.UNSPECIFIED)
+          runStatusLabel((v.newStatus as RunStatus) ?? RunStatus.UNSPECIFIED)
         );
       case "metric":
-        return `${payloadValue.name || "metric"}: ${payloadValue.value ?? 0}`;
+        return `${String(v.name ?? "metric")}: ${v.value ?? 0}`;
       case "artifact":
-        return payloadValue.path ? `Artifact: ${payloadValue.path}` : "Artifact";
+        return v.path ? `Artifact: ${String(v.path)}` : "Artifact";
       case "progress":
-        return `Progress ${payloadValue.percentComplete ?? 0}%`;
+        return `Progress ${v.percentComplete ?? 0}%`;
       case "cost":
         return "Cost update";
       case "rateLimit":
         return "Rate limit";
       case "error":
-        return payloadValue.message || payloadValue.code || "Error occurred";
+        return String(v.message ?? v.code ?? "Error occurred");
       default:
         return runEventTypeLabel(event.eventType);
     }
@@ -1283,17 +1214,18 @@ function getCostTotals(events: RunEvent[]): CostTotals {
 
   for (const event of events) {
     if (event.data.case !== "cost") continue;
-    const payload = event.data.value as any;
+    const p = event.data.value as Record<string, unknown> | undefined;
+    if (!p) continue;
     totals.events += 1;
-    totals.inputTokens += payload.inputTokens || 0;
-    totals.outputTokens += payload.outputTokens || 0;
-    totals.cacheCreationTokens += payload.cacheCreationTokens || 0;
-    totals.cacheReadTokens += payload.cacheReadTokens || 0;
-    totals.totalCostUsd += payload.totalCostUsd || 0;
-    totals.webSearchRequests += payload.webSearchRequests || 0;
-    totals.serverToolUseRequests += payload.serverToolUseRequests || 0;
-    if (payload.model) models.add(payload.model);
-    if (payload.serviceTier) serviceTiers.add(payload.serviceTier);
+    totals.inputTokens += Number(p.inputTokens ?? 0);
+    totals.outputTokens += Number(p.outputTokens ?? 0);
+    totals.cacheCreationTokens += Number(p.cacheCreationTokens ?? 0);
+    totals.cacheReadTokens += Number(p.cacheReadTokens ?? 0);
+    totals.totalCostUsd += Number(p.totalCostUsd ?? 0);
+    totals.webSearchRequests += Number(p.webSearchRequests ?? 0);
+    totals.serverToolUseRequests += Number(p.serverToolUseRequests ?? 0);
+    if (p.model) models.add(String(p.model));
+    if (p.serviceTier) serviceTiers.add(String(p.serviceTier));
   }
 
   totals.models = Array.from(models);

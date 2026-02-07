@@ -20,6 +20,14 @@ import { useModelBreakdown, useModelUsageRuns } from "../../hooks/useModelBreakd
 import { formatNumber, formatCurrency, formatPercent, formatTokens } from "../../utils/formatters";
 import { CHART_COLORS, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartConfig";
 
+interface ModelChartDatum {
+  name: string;
+  runs: number;
+  successRate: number;
+  cost: number;
+  tokens: number;
+}
+
 export function ModelUsageBreakdown() {
   const { data, isLoading, error } = useModelBreakdown();
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -27,7 +35,7 @@ export function ModelUsageBreakdown() {
   const models = data?.models ?? [];
 
   // Prepare data for chart - sort by run count descending
-  const chartData = [...models]
+  const chartData: ModelChartDatum[] = [...models]
     .sort((a, b) => b.runCount - a.runCount)
     .map((model) => ({
       name: model.model || "unknown",
@@ -180,27 +188,26 @@ export function ModelUsageBreakdown() {
                     tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                     tickLine={{ stroke: CHART_COLORS.axis }}
                     width={75}
-                    tickFormatter={(value) => {
+                    tickFormatter={(value: string) => {
                       const label = formatModelName(value);
                       return label.length > 12 ? `${label.slice(0, 12)}...` : label;
                     }}
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
-                    formatter={(value: number, name: string, props) => {
-                      const item = props.payload;
+                    formatter={(value: number, name: string) => {
                       if (name === "runs") {
                         const pct = totalRuns > 0 ? (value / totalRuns) * 100 : 0;
                         return [`${formatNumber(value)} (${pct.toFixed(1)}%)`, "Runs"];
                       }
                       return [value, name];
                     }}
-                    labelFormatter={(label) => (
+                    labelFormatter={(label: string) => (
                       <span className="font-medium">{formatModelName(label)}</span>
                     )}
                     content={({ active, payload }) => {
                       if (!active || !payload?.[0]) return null;
-                      const item = payload[0].payload;
+                      const item = payload[0].payload as ModelChartDatum;
                       return (
                         <div className="rounded border border-border bg-card p-3 text-xs shadow-lg">
                           <div className="mb-2 font-medium">{formatModelName(item.name)}</div>
@@ -293,7 +300,7 @@ function statusVariant(status: string) {
 function statusLabel(status: string) {
   return status
     .split("_")
-    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .map((word) => (word && word[0] ? word[0].toUpperCase() + word.slice(1) : word))
     .join(" ");
 }
 

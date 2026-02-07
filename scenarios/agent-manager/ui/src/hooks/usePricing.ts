@@ -49,8 +49,11 @@ async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData.message || errorData.error || `Request failed: ${response.status}`;
+    const errorData = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const message =
+      typeof errorData.message === "string" ? errorData.message
+        : typeof errorData.error === "string" ? errorData.error
+        : `Request failed: ${response.status}`;
     throw new Error(message);
   }
 
@@ -58,7 +61,8 @@ async function apiRequest<T>(
     return {} as T;
   }
 
-  return response.json();
+  const json: unknown = await response.json();
+  return json as T;
 }
 
 // =============================================================================
@@ -66,26 +70,26 @@ async function apiRequest<T>(
 // =============================================================================
 
 export function useModelPricing() {
-  const state = useApiState<ModelPricingListItem[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<ModelPricingListItem[]>([]);
 
   const fetchModels = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<ModelPricingListResponse>("/pricing/models");
-      state.setData(data.models ?? []);
+      setData(data.models ?? []);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   useEffect(() => {
     fetchModels();
   }, [fetchModels]);
 
-  return { ...state, refetch: fetchModels };
+  return { data, loading, error, refetch: fetchModels };
 }
 
 export function useRecalculateModelPricing() {
@@ -116,30 +120,30 @@ export function useRecalculateModelPricing() {
 // =============================================================================
 
 export function useModelOverrides(model: string | null) {
-  const state = useApiState<PriceOverride[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<PriceOverride[]>([]);
 
   const fetchOverrides = useCallback(async () => {
     if (!model) {
-      state.setData([]);
+      setData([]);
       return;
     }
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<OverridesResponse>(`/pricing/models/${encodeURIComponent(model)}/overrides`);
-      state.setData(data.overrides ?? []);
+      setData(data.overrides ?? []);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, [model]);
+  }, [model, setData, setLoading, setError]);
 
   useEffect(() => {
     fetchOverrides();
   }, [fetchOverrides]);
 
-  return { ...state, refetch: fetchOverrides };
+  return { data, loading, error, refetch: fetchOverrides };
 }
 
 export function useSetOverride() {
@@ -195,11 +199,11 @@ export function useDeleteOverride() {
 // =============================================================================
 
 export function useModelAliases(runnerType?: string) {
-  const state = useApiState<ModelAlias[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<ModelAlias[]>([]);
 
   const fetchAliases = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (runnerType) {
@@ -208,19 +212,19 @@ export function useModelAliases(runnerType?: string) {
       const queryString = params.toString();
       const endpoint = "/pricing/aliases" + (queryString ? `?${queryString}` : "");
       const data = await apiRequest<AliasesResponse>(endpoint);
-      state.setData(data.aliases ?? []);
+      setData(data.aliases ?? []);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, [runnerType]);
+  }, [runnerType, setData, setLoading, setError]);
 
   useEffect(() => {
     fetchAliases();
   }, [fetchAliases]);
 
-  return { ...state, refetch: fetchAliases };
+  return { data, loading, error, refetch: fetchAliases };
 }
 
 export function useCreateAlias() {
@@ -252,26 +256,26 @@ export function useCreateAlias() {
 // =============================================================================
 
 export function usePricingSettings() {
-  const state = useApiState<PricingSettings | null>(null);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<PricingSettings | null>(null);
 
   const fetchSettings = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<PricingSettings>("/pricing/settings");
-      state.setData(data);
+      setData(data);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
 
-  return { ...state, refetch: fetchSettings };
+  return { data, loading, error, refetch: fetchSettings };
 }
 
 export function useUpdatePricingSettings() {
@@ -304,26 +308,26 @@ export function useUpdatePricingSettings() {
 // =============================================================================
 
 export function usePricingCacheStatus() {
-  const state = useApiState<CacheStatusResponse | null>(null);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<CacheStatusResponse | null>(null);
 
   const fetchStatus = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<CacheStatusResponse>("/pricing/cache");
-      state.setData(data);
+      setData(data);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
 
-  return { ...state, refetch: fetchStatus };
+  return { data, loading, error, refetch: fetchStatus };
 }
 
 export function useRefreshAllPricing() {

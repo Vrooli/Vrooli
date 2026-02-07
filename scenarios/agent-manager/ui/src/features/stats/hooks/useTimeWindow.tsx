@@ -1,19 +1,41 @@
-// Time window context for stats - provides shared time filter state
+// Time window store for stats - provides shared time filter state
+// AI_CHECK: react_coherence=1 | LAST: 2026-02-06
 
-import { createContext, useContext, useState, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import type { StatsFilter, TimePreset } from "../api/types";
 
-interface TimeWindowContextValue {
+interface TimeWindowStoreValue {
   preset: TimePreset;
   setPreset: (preset: TimePreset) => void;
   filter: StatsFilter;
   presetOptions: readonly TimePreset[];
 }
 
-const TimeWindowContext = createContext<TimeWindowContextValue | null>(null);
-
 const PRESET_OPTIONS: readonly TimePreset[] = ["6h", "12h", "24h", "7d", "30d"] as const;
+const DEFAULT_PRESET: TimePreset = "24h";
+
+let activePreset: TimePreset = DEFAULT_PRESET;
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot(): TimePreset {
+  return activePreset;
+}
+
+function setActivePreset(nextPreset: TimePreset): void {
+  if (activePreset === nextPreset) return;
+  activePreset = nextPreset;
+  for (const listener of listeners) {
+    listener();
+  }
+}
 
 interface TimeWindowProviderProps {
   children: ReactNode;
@@ -22,35 +44,35 @@ interface TimeWindowProviderProps {
 
 export function TimeWindowProvider({
   children,
-  defaultPreset = "24h",
+  defaultPreset = DEFAULT_PRESET,
 }: TimeWindowProviderProps) {
-  const [preset, setPreset] = useState<TimePreset>(defaultPreset);
+  useEffect(() => {
+    const previousPreset = activePreset;
+    setActivePreset(defaultPreset);
+    return () => {
+      setActivePreset(previousPreset);
+    };
+  }, [defaultPreset]);
 
+  return <>{children}</>;
+}
+
+export function useTimeWindow(): TimeWindowStoreValue {
+  const preset = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const setPreset = useCallback((nextPreset: TimePreset) => {
+    setActivePreset(nextPreset);
+  }, []);
   const filter = useMemo<StatsFilter>(() => ({ preset }), [preset]);
 
-  const value = useMemo(
+  return useMemo(
     () => ({
       preset,
       setPreset,
       filter,
       presetOptions: PRESET_OPTIONS,
     }),
-    [preset, filter]
+    [filter, preset, setPreset]
   );
-
-  return (
-    <TimeWindowContext.Provider value={value}>
-      {children}
-    </TimeWindowContext.Provider>
-  );
-}
-
-export function useTimeWindow(): TimeWindowContextValue {
-  const context = useContext(TimeWindowContext);
-  if (!context) {
-    throw new Error("useTimeWindow must be used within a TimeWindowProvider");
-  }
-  return context;
 }
 
 // Hook for components that need to set custom filters (e.g., with profile/runner filtering)

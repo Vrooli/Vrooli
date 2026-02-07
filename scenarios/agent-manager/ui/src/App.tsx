@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
@@ -14,6 +14,7 @@ import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
 import { StatsPage } from "./features/stats";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
   const navigate = useNavigate();
@@ -43,6 +44,9 @@ export default function App() {
   const activeSection = getActiveSection();
 
   // WebSocket connection for real-time updates
+  // Use a ref to break the circular dependency: handleWebSocketMessage → ws → handleWebSocketMessage
+  const subscribeAllRef = useRef<() => void>(() => {});
+
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
       console.log("[WS] Received:", message.type);
@@ -56,7 +60,7 @@ export default function App() {
           tasks.refetch();
           break;
         case "connected":
-          ws.subscribeAll();
+          subscribeAllRef.current();
           break;
       }
     },
@@ -67,6 +71,7 @@ export default function App() {
     enabled: true,
     onMessage: handleWebSocketMessage,
   });
+  subscribeAllRef.current = ws.subscribeAll;
 
   const handleSectionChange = useCallback(
     (section: NavSection) => {
@@ -109,6 +114,7 @@ export default function App() {
           onPurgeComplete={handlePurgeComplete}
         />
 
+        <ErrorBoundary section="Quick Run">
         <QuickRunDialog
           open={quickRunOpen}
           onOpenChange={setQuickRunOpen}
@@ -123,15 +129,18 @@ export default function App() {
             navigate(`/runs/${run.id}`);
           }}
         />
+        </ErrorBoundary>
 
         {/* Main Content */}
         <main
           className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "pb-16" : ""}`}
         >
+          <ErrorBoundary section="Application">
           <Routes>
             <Route
               path="/"
               element={
+                <ErrorBoundary section="Dashboard">
                 <DashboardPage
                   health={health.data}
                   tasks={tasks.data || []}
@@ -144,11 +153,13 @@ export default function App() {
                   }}
                   onNavigateToRun={(runId) => navigate(`/runs/${runId}`)}
                 />
+                </ErrorBoundary>
               }
             />
             <Route
               path="/profiles"
               element={
+                <ErrorBoundary section="Profiles">
                 <ProfilesPage
                   profiles={profiles.data || []}
                   loading={profiles.loading}
@@ -160,11 +171,13 @@ export default function App() {
                   runners={runners.data ?? undefined}
                   modelRegistry={modelRegistry.data ?? undefined}
                 />
+                </ErrorBoundary>
               }
             />
             <Route
               path="/tasks"
               element={
+                <ErrorBoundary section="Tasks">
                 <TasksPage
                   tasks={tasks.data || []}
                   profiles={profiles.data || []}
@@ -180,11 +193,13 @@ export default function App() {
                   runners={runners.data ?? undefined}
                   modelRegistry={modelRegistry.data ?? undefined}
                 />
+                </ErrorBoundary>
               }
             />
             <Route
               path="/runs/:runId?"
               element={
+                <ErrorBoundary section="Runs">
                 <RunsPage
                   runs={runs.data || []}
                   tasks={tasks.data || []}
@@ -210,12 +225,14 @@ export default function App() {
                   wsAddMessageHandler={ws.addMessageHandler}
                   wsRemoveMessageHandler={ws.removeMessageHandler}
                 />
+                </ErrorBoundary>
               }
             />
-            <Route path="/stats" element={<StatsPage />} />
+            <Route path="/stats" element={<ErrorBoundary section="Stats"><StatsPage /></ErrorBoundary>} />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ErrorBoundary>
         </main>
 
         {/* Mobile bottom navigation */}

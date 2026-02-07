@@ -73,7 +73,7 @@ export function RunStatusTrends() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
               <XAxis
                 dataKey="time"
-                tickFormatter={(value) => formatChartAxisByPreset(value, preset)}
+                tickFormatter={(value: string) => formatChartAxisByPreset(value, preset)}
                 stroke={CHART_COLORS.axis}
                 tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                 tickLine={{ stroke: CHART_COLORS.axis }}
@@ -86,7 +86,7 @@ export function RunStatusTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={formatDateTime}
+                labelFormatter={(label: string) => formatDateTime(label)}
                 formatter={(value: number, name: string) => [
                   formatNumber(value),
                   name.charAt(0).toUpperCase() + name.slice(1),

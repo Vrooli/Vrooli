@@ -20,7 +20,7 @@ interface MarkdownRendererProps {
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
-  isStreaming = false,
+  isStreaming: _isStreaming = false,
 }: MarkdownRendererProps) {
   const components = useMemo(
     () => ({

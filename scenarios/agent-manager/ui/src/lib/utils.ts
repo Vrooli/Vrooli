@@ -135,7 +135,7 @@ export function truncate(str: string, maxLen: number): string {
  */
 export function getWorkspaceSandboxUiUrl(): string {
   // Check for explicit UI URL configuration
-  const configuredUrl = import.meta.env.VITE_WORKSPACE_SANDBOX_UI_URL;
+  const configuredUrl = import.meta.env.VITE_WORKSPACE_SANDBOX_UI_URL as string | undefined;
   if (configuredUrl) {
     return configuredUrl.replace(/\/$/, ""); // Remove trailing slash
   }

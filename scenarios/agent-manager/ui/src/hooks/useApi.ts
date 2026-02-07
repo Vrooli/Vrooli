@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { create, fromJson, toJson } from "@bufbuild/protobuf";
+import { create, fromJson, toJson, type DescMessage, type MessageShape, type JsonValue } from "@bufbuild/protobuf";
 import { durationFromMs } from "@bufbuild/protobuf/wkt";
 import { getApiBaseUrl, jsonObjectToPlain, runnerTypeToSlug } from "../lib/utils";
 import type {
@@ -102,11 +102,11 @@ const jsonValueKeys = [
   { snake: "bytes_value", camel: "bytesValue" },
 ];
 
-function parseProto<T>(schema: any, raw: unknown): T {
-  return fromJson(schema, raw as any, protoReadOptions) as T;
+function parseProto<Desc extends DescMessage>(schema: Desc, raw: unknown): MessageShape<Desc> {
+  return fromJson(schema, raw as JsonValue, protoReadOptions);
 }
 
-function toProtoJson(schema: any, message: any): Record<string, unknown> {
+function toProtoJson<Desc extends DescMessage>(schema: Desc, message: MessageShape<Desc>): Record<string, unknown> {
   return toJson(schema, message, protoWriteOptions) as Record<string, unknown>;
 }
 
@@ -196,7 +196,7 @@ function normalizeHealthResponseJson(raw: unknown): unknown {
 
 function extractErrorMessage(raw: unknown, fallback: string): string {
   try {
-    const parsed = parseProto<any>(ErrorResponseSchema, raw);
+    const parsed = parseProto(ErrorResponseSchema, raw);
     const details = jsonObjectToPlain(parsed.details);
     const userMessage = details?.user_message;
     if (typeof userMessage === "string" && userMessage.trim() !== "") {
@@ -227,7 +227,7 @@ async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    const errorData: unknown = await response.json().catch(() => ({}));
     throw new Error(extractErrorMessage(errorData, "Request failed: " + response.status));
   }
 
@@ -235,7 +235,8 @@ async function apiRequest<T>(
     return {} as T;
   }
 
-  return response.json();
+  const json: unknown = await response.json();
+  return json as T;
 }
 
 function durationFromMinutes(minutes?: number) {
@@ -374,7 +375,7 @@ function hasInlineConfig(run: RunFormData): boolean {
 
 // Health hook
 export function useHealth() {
-  const state = useApiState<HealthResponse>();
+  const { data, loading, error, setData, setLoading, setError } = useApiState<HealthResponse>();
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchHealth = useCallback(async () => {
@@ -384,24 +385,24 @@ export function useHealth() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
 
     try {
       const data = await apiRequest<unknown>("/health", {
         signal: controller.signal,
       });
       const normalized = normalizeHealthResponseJson(data);
-      const message = parseProto<HealthResponse>(HealthResponseSchema, normalized);
-      state.setData(message);
+      const message = parseProto(HealthResponseSchema, normalized);
+      setData(message as HealthResponse);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
-        state.setError((err as Error).message);
+        setError((err as Error).message);
       }
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   useEffect(() => {
     fetchHealth();
@@ -412,26 +413,26 @@ export function useHealth() {
     };
   }, [fetchHealth]);
 
-  return { ...state, refetch: fetchHealth };
+  return { data, loading, error, refetch: fetchHealth };
 }
 
 // Profiles hook
 export function useProfiles() {
-  const state = useApiState<AgentProfile[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<AgentProfile[]>([]);
 
   const fetchProfiles = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<unknown>("/profiles");
-      const message = parseProto<any>(ListProfilesResponseSchema, data);
-      state.setData(message.profiles ?? []);
+      const message = parseProto(ListProfilesResponseSchema, data);
+      setData(message.profiles ?? []);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   const createProfile = useCallback(
     async (profile: ProfileFormData): Promise<AgentProfile> => {
@@ -440,7 +441,7 @@ export function useProfiles() {
         method: "POST",
         body: JSON.stringify(toProtoJson(CreateProfileRequestSchema, request)),
       });
-      const message = parseProto<any>(CreateProfileResponseSchema, created);
+      const message = parseProto(CreateProfileResponseSchema, created);
       const mapped = message.profile as AgentProfile;
       await fetchProfiles();
       return mapped;
@@ -458,7 +459,7 @@ export function useProfiles() {
         method: "PUT",
         body: JSON.stringify(toProtoJson(UpdateProfileRequestSchema, payload)),
       });
-      const message = parseProto<any>(UpdateProfileResponseSchema, updated);
+      const message = parseProto(UpdateProfileResponseSchema, updated);
       const mapped = message.profile as AgentProfile;
       await fetchProfiles();
       return mapped;
@@ -479,7 +480,7 @@ export function useProfiles() {
   }, [fetchProfiles]);
 
   return {
-    ...state,
+    data, loading, error,
     refetch: fetchProfiles,
     createProfile,
     updateProfile,
@@ -489,21 +490,21 @@ export function useProfiles() {
 
 // Tasks hook
 export function useTasks() {
-  const state = useApiState<Task[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<Task[]>([]);
 
   const fetchTasks = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<unknown>("/tasks");
-      const message = parseProto<any>(ListTasksResponseSchema, data);
-      state.setData(message.tasks ?? []);
+      const message = parseProto(ListTasksResponseSchema, data);
+      setData(message.tasks ?? []);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   const createTask = useCallback(
     async (task: TaskFormData): Promise<Task> => {
@@ -512,7 +513,7 @@ export function useTasks() {
         method: "POST",
         body: JSON.stringify(toProtoJson(CreateTaskRequestSchema, request)),
       });
-      const message = parseProto<any>(CreateTaskResponseSchema, created);
+      const message = parseProto(CreateTaskResponseSchema, created);
       const mapped = message.task as Task;
       await fetchTasks();
       return mapped;
@@ -530,7 +531,7 @@ export function useTasks() {
         method: "PUT",
         body: JSON.stringify(toProtoJson(UpdateTaskRequestSchema, payload)),
       });
-      const message = parseProto<any>(UpdateTaskResponseSchema, updated);
+      const message = parseProto(UpdateTaskResponseSchema, updated);
       const mapped = message.task as Task;
       await fetchTasks();
       return mapped;
@@ -540,7 +541,7 @@ export function useTasks() {
 
   const getTask = useCallback(async (id: string): Promise<Task> => {
     const task = await apiRequest<unknown>("/tasks/" + id);
-    const message = parseProto<any>(GetTaskResponseSchema, task);
+    const message = parseProto(GetTaskResponseSchema, task);
     return message.task as Task;
   }, []);
 
@@ -565,7 +566,7 @@ export function useTasks() {
   }, [fetchTasks]);
 
   return {
-    ...state,
+    data, loading, error,
     refetch: fetchTasks,
     createTask,
     updateTask,
@@ -577,21 +578,21 @@ export function useTasks() {
 
 // Runs hook
 export function useRuns() {
-  const state = useApiState<Run[]>([]);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<Run[]>([]);
 
   const fetchRuns = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<unknown>("/runs");
-      const message = parseProto<any>(ListRunsResponseSchema, data);
-      state.setData(message.runs ?? []);
+      const message = parseProto(ListRunsResponseSchema, data);
+      setData(message.runs ?? []);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   const createRun = useCallback(
     async (run: RunFormData): Promise<Run> => {
@@ -610,7 +611,7 @@ export function useRuns() {
         method: "POST",
         body: JSON.stringify(toProtoJson(CreateRunRequestSchema, request)),
       });
-      const message = parseProto<any>(CreateRunResponseSchema, created);
+      const message = parseProto(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
       await fetchRuns();
       return mapped;
@@ -641,7 +642,7 @@ export function useRuns() {
         method: "POST",
         body: JSON.stringify({ runIds, customContext, depth, projectRoot, scopePaths }),
       });
-      const message = parseProto<any>(CreateRunResponseSchema, created);
+      const message = parseProto(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
       await fetchRuns();
       return mapped;
@@ -655,7 +656,7 @@ export function useRuns() {
         method: "POST",
         body: JSON.stringify({ investigationRunId, customContext }),
       });
-      const message = parseProto<any>(CreateRunResponseSchema, created);
+      const message = parseProto(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
       await fetchRuns();
       return mapped;
@@ -665,7 +666,7 @@ export function useRuns() {
 
   const getRun = useCallback(async (id: string): Promise<Run> => {
     const run = await apiRequest<unknown>("/runs/" + id);
-    const message = parseProto<any>(GetRunResponseSchema, run);
+    const message = parseProto(GetRunResponseSchema, run);
     return message.run as Run;
   }, []);
 
@@ -688,7 +689,7 @@ export function useRuns() {
   const getRunEvents = useCallback(
     async (id: string): Promise<RunEvent[]> => {
       const data = await apiRequest<unknown>("/runs/" + id + "/events");
-      const message = parseProto<any>(GetRunEventsResponseSchema, data);
+      const message = parseProto(GetRunEventsResponseSchema, data);
       return message.events ?? [];
     },
     []
@@ -696,7 +697,7 @@ export function useRuns() {
 
   const getRunDiff = useCallback(async (id: string): Promise<RunDiff> => {
     const data = await apiRequest<unknown>("/runs/" + id + "/diff");
-    const message = parseProto<any>(GetRunDiffResponseSchema, data);
+    const message = parseProto(GetRunDiffResponseSchema, data);
     return message.diff as RunDiff;
   }, []);
 
@@ -713,7 +714,7 @@ export function useRuns() {
         method: "POST",
         body: JSON.stringify(toProtoJson(ApproveRunRequestSchema, payload)),
       });
-      const message = parseProto<any>(ApproveRunResponseSchema, data);
+      const message = parseProto(ApproveRunResponseSchema, data);
       const result = message.result as ApproveResult;
       await fetchRuns();
       return result;
@@ -769,7 +770,7 @@ export function useRuns() {
   }, [fetchRuns]);
 
   return {
-    ...state,
+    data, loading, error,
     refetch: fetchRuns,
     createRun,
     retryRun,
@@ -789,73 +790,73 @@ export function useRuns() {
 
 // Runners hook
 export function useRunners() {
-  const state = useApiState<Record<string, RunnerStatus>>({});
+  const { data, loading, error, setData, setLoading, setError } = useApiState<Record<string, RunnerStatus>>({});
 
   const fetchRunners = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<unknown>("/runners");
-      const message = parseProto<any>(GetRunnerStatusResponseSchema, data);
+      const message = parseProto(GetRunnerStatusResponseSchema, data);
       const record: Record<string, RunnerStatus> = {};
       for (const runner of message.runners ?? []) {
         record[String(runner.runnerType)] = runner;
       }
-      state.setData(record);
+      setData(record);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   useEffect(() => {
     fetchRunners();
   }, [fetchRunners]);
 
-  return { ...state, refetch: fetchRunners };
+  return { data, loading, error, refetch: fetchRunners };
 }
 
 // Model registry hook
 export function useModelRegistry() {
-  const state = useApiState<ModelRegistry | null>(null);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<ModelRegistry | null>(null);
 
   const fetchRegistry = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<ModelRegistry>("/runner-models");
-      state.setData(data);
+      setData(data);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   const updateRegistry = useCallback(async (registry: ModelRegistry): Promise<ModelRegistry> => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<ModelRegistry>("/runner-models", {
         method: "PUT",
         body: JSON.stringify(registry),
       });
-      state.setData(data);
+      setData(data);
       return data;
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
       throw err;
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   useEffect(() => {
     fetchRegistry();
   }, [fetchRegistry]);
 
-  return { ...state, refetch: fetchRegistry, updateRegistry };
+  return { data, loading, error, refetch: fetchRegistry, updateRegistry };
 }
 
 // Probe runner function (standalone for use in components)
@@ -863,26 +864,26 @@ export async function probeRunner(runnerType: RunnerType): Promise<ProbeResult> 
   const data = await apiRequest<unknown>(`/runners/${runnerTypeToSlug(runnerType)}/probe`, {
     method: "POST",
   });
-  const message = parseProto<any>(ProbeRunnerResponseSchema, data);
+  const message = parseProto(ProbeRunnerResponseSchema, data);
   return message.result as ProbeResult;
 }
 
 // Investigation Settings hook
 export function useInvestigationSettings() {
-  const state = useApiState<InvestigationSettings | null>(null);
+  const { data, loading, error, setData, setLoading, setError } = useApiState<InvestigationSettings | null>(null);
 
   const fetchSettings = useCallback(async () => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<InvestigationSettings>("/investigation-settings");
-      state.setData(data);
+      setData(data);
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   const updateSettings = useCallback(async (settings: Partial<{
     promptTemplate: string;
@@ -891,46 +892,46 @@ export function useInvestigationSettings() {
     defaultContext: InvestigationContextFlags;
     investigationTagAllowlist: InvestigationTagRule[];
   }>): Promise<InvestigationSettings> => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<InvestigationSettings>("/investigation-settings", {
         method: "PUT",
         body: JSON.stringify(settings),
       });
-      state.setData(data);
+      setData(data);
       return data;
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
       throw err;
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   const resetSettings = useCallback(async (): Promise<InvestigationSettings> => {
-    state.setLoading(true);
-    state.setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await apiRequest<InvestigationSettings>("/investigation-settings/reset", {
         method: "POST",
       });
-      state.setData(data);
+      setData(data);
       return data;
     } catch (err) {
-      state.setError((err as Error).message);
+      setError((err as Error).message);
       throw err;
     } finally {
-      state.setLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [setData, setLoading, setError]);
 
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
 
   return {
-    ...state,
+    data, loading, error,
     refetch: fetchSettings,
     updateSettings,
     resetSettings,
@@ -944,7 +945,7 @@ export async function ensureProfile(profileKey: string): Promise<AgentProfile> {
     method: "POST",
     body: JSON.stringify({ profileKey }),
   });
-  const message = parseProto<any>(EnsureProfileResponseSchema, data);
+  const message = parseProto(EnsureProfileResponseSchema, data);
   return message.profile as AgentProfile;
 }
 
@@ -984,7 +985,7 @@ export function useMaintenance() {
       method: "POST",
       body: JSON.stringify(toProtoJson(PurgeDataRequestSchema, payload)),
     });
-    const message = parseProto<any>(PurgeDataResponseSchema, data);
+    const message = parseProto(PurgeDataResponseSchema, data);
     return message.matched ?? {};
   }, []);
 
@@ -998,7 +999,7 @@ export function useMaintenance() {
       method: "POST",
       body: JSON.stringify(toProtoJson(PurgeDataRequestSchema, payload)),
     });
-    const message = parseProto<any>(PurgeDataResponseSchema, data);
+    const message = parseProto(PurgeDataResponseSchema, data);
     return message.deleted ?? {};
   }, []);
 

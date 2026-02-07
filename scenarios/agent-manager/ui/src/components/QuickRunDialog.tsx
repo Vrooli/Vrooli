@@ -497,7 +497,7 @@ export function QuickRunDialog({
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
                       setAgentConfig({
                         ...agentConfig,
                         runnerType: newRunnerType,

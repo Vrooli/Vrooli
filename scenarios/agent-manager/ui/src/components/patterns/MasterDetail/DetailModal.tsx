@@ -21,16 +21,6 @@ export function DetailModal({ open, onClose, title, children }: DetailModalProps
   }, [open]);
 
   React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open && !isClosing) {
-        handleClose();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [open, isClosing]);
-
-  React.useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
     } else {
@@ -41,14 +31,14 @@ export function DetailModal({ open, onClose, title, children }: DetailModalProps
     };
   }, [open]);
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setIsClosing(true);
     setTimeout(() => {
       setShouldRender(false);
       setIsClosing(false);
       onClose();
     }, 150);
-  };
+  }, [onClose]);
 
   const handleAnimationEnd = () => {
     if (isClosing) {
@@ -56,6 +46,17 @@ export function DetailModal({ open, onClose, title, children }: DetailModalProps
       setIsClosing(false);
     }
   };
+
+  // Escape key handler
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open && !isClosing) {
+        handleClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, isClosing, handleClose]);
 
   if (!shouldRender) return null;
 

@@ -70,7 +70,7 @@ export function CostDurationTrends() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
               <XAxis
                 dataKey="time"
-                tickFormatter={(value) => formatChartAxisByPreset(value, preset)}
+                tickFormatter={(value: string) => formatChartAxisByPreset(value, preset)}
                 stroke={CHART_COLORS.axis}
                 tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                 tickLine={{ stroke: CHART_COLORS.axis }}
@@ -81,7 +81,7 @@ export function CostDurationTrends() {
                 stroke={CHART_COLORS.info}
                 tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                 tickLine={{ stroke: CHART_COLORS.info }}
-                tickFormatter={(v) => `$${v.toFixed(2)}`}
+                tickFormatter={(v: number) => `$${v.toFixed(2)}`}
                 domain={[0, maxCost * 1.1 || 1]}
               />
               <YAxis
@@ -90,12 +90,12 @@ export function CostDurationTrends() {
                 stroke={CHART_COLORS.warning}
                 tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                 tickLine={{ stroke: CHART_COLORS.warning }}
-                tickFormatter={(v) => formatDuration(v)}
+                tickFormatter={(v: number) => formatDuration(v)}
                 domain={[0, maxDuration * 1.1 || 1000]}
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={formatDateTime}
+                labelFormatter={(label: string) => formatDateTime(label)}
                 formatter={(value: number, name: string) => {
                   if (name === "Cost") return [formatCurrency(value), name];
                   return [formatDuration(value), name];

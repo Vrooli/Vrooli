@@ -314,7 +314,8 @@ export function ProfilesPage({
       filteredAndSortedProfiles.some((profile) => profile.id === selectedProfileId);
 
     if (!hasSelection) {
-      setSelectedProfileId(filteredAndSortedProfiles[0].id);
+      const first = filteredAndSortedProfiles[0];
+      if (first) setSelectedProfileId(first.id);
     }
   }, [filteredAndSortedProfiles, isDesktop, selectedProfileId]);
 
@@ -486,7 +487,7 @@ export function ProfilesPage({
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
                       setFormData({
                         ...formData,
                         runnerType: newRunnerType,

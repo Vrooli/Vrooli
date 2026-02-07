@@ -7,7 +7,6 @@ import {
   Check,
   Clock,
   Eye,
-  Play,
   RefreshCw,
   Search,
   Square,
@@ -35,6 +34,7 @@ import { ApplyInvestigationModal } from "../components/ApplyInvestigationModal";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { RunDetail } from "../components/RunDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
+import { useRunsPageState } from "../hooks/useRunsPageState";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -118,18 +118,28 @@ export function RunsPage({
   const [runOverrides, setRunOverrides] = useState<Record<string, Run>>({});
   const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
 
-  // Filter/sort/search state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest");
+  const {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    sortBy,
+    setSortBy,
+    selectionMode,
+    setSelectionMode,
+    selectedRunIds,
+    setSelectedRunIds,
+    investigateModalOpen,
+    setInvestigateModalOpen,
+    investigateLoading,
+    setInvestigateLoading,
+    investigateError,
+    setInvestigateError,
+    toggleSelectionMode,
+    clearSelection,
+    handleRunCheckboxChange,
+  } = useRunsPageState();
 
-  // Multi-select state for investigations
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
-  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
-  const [investigateModalOpen, setInvestigateModalOpen] = useState(false);
-  const [investigateLoading, setInvestigateLoading] = useState(false);
-  const [investigateError, setInvestigateError] = useState<string | null>(null);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [applyInvestigationRun, setApplyInvestigationRun] = useState<Run | null>(null);
   const [applyLoading, setApplyLoading] = useState(false);
@@ -174,30 +184,34 @@ export function RunsPage({
     [getTaskById, onGetRun, onGetTask]
   );
 
+  // Extract IDs as stable primitives to avoid unnecessary effect re-runs
+  const selectedRunId = selectedRun?.id ?? null;
+  const applyInvestigationRunId = applyInvestigationRun?.id ?? null;
+
   // Subscribe to WebSocket events for the selected run
   useEffect(() => {
-    if (!selectedRun) return;
-    wsSubscribe(selectedRun.id);
+    if (!selectedRunId) return;
+    wsSubscribe(selectedRunId);
     return () => {
-      wsUnsubscribe(selectedRun.id);
+      wsUnsubscribe(selectedRunId);
     };
-  }, [selectedRun?.id, wsSubscribe, wsUnsubscribe]);
+  }, [selectedRunId, wsSubscribe, wsUnsubscribe]);
 
   // Subscribe to WebSocket events for the investigation run when Apply modal is open
   // This ensures we get updates when recommendation extraction completes
   useEffect(() => {
-    if (!applyInvestigationRun || !applyModalOpen) return;
-    wsSubscribe(applyInvestigationRun.id);
+    if (!applyInvestigationRunId || !applyModalOpen) return;
+    wsSubscribe(applyInvestigationRunId);
     return () => {
-      wsUnsubscribe(applyInvestigationRun.id);
+      wsUnsubscribe(applyInvestigationRunId);
     };
-  }, [applyInvestigationRun?.id, applyModalOpen, wsSubscribe, wsUnsubscribe]);
+  }, [applyInvestigationRunId, applyModalOpen, wsSubscribe, wsUnsubscribe]);
 
   // Handle WebSocket messages for real-time updates
   useEffect(() => {
     const handleMessage: MessageHandler = (message: WebSocketMessage) => {
       // Handle messages for selectedRun
-      if (selectedRun && message.runId === selectedRun.id) {
+      if (selectedRunId && message.runId === selectedRunId) {
         switch (message.type) {
           case "run_event": {
             const newEvent = message.payload as RunEvent;
@@ -226,7 +240,7 @@ export function RunsPage({
       }
 
       // Handle messages for applyInvestigationRun (for recommendation extraction updates)
-      if (applyInvestigationRun && message.runId === applyInvestigationRun.id) {
+      if (applyInvestigationRunId && message.runId === applyInvestigationRunId) {
         if (message.type === "run_status") {
           const statusUpdate = message.payload as Partial<Run>;
           setApplyInvestigationRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
@@ -238,7 +252,7 @@ export function RunsPage({
     return () => {
       wsRemoveMessageHandler(handleMessage);
     };
-  }, [selectedRun?.id, applyInvestigationRun?.id, wsAddMessageHandler, wsRemoveMessageHandler]);
+  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {
@@ -297,13 +311,13 @@ export function RunsPage({
 
   // Load run from URL params when component mounts or runId changes
   useEffect(() => {
-    if (!runId || runs.length === 0) return;
-    if (selectedRun?.id === runId) return;
+    if (!runId || resolvedRuns.length === 0) return;
+    if (selectedRunId === runId) return;
     const run = resolvedRuns.find((r) => r.id === runId);
     if (run) {
       loadRunDetails(run);
     }
-  }, [runId, resolvedRuns, selectedRun?.id, loadRunDetails]);
+  }, [runId, resolvedRuns, selectedRunId, loadRunDetails]);
 
   const handleStop = async (runId: string) => {
     if (!confirm("Are you sure you want to stop this run?")) return;
@@ -347,38 +361,6 @@ export function RunsPage({
     return newRun;
   };
 
-  // Multi-select handlers
-  const handleRunCheckboxChange = (runId: string, index: number, shiftKey: boolean) => {
-    setSelectedRunIds((prev) => {
-      const next = new Set(prev);
-
-      if (shiftKey && lastClickedIndex !== null) {
-        const start = Math.min(lastClickedIndex, index);
-        const end = Math.max(lastClickedIndex, index);
-        for (let i = start; i <= end; i++) {
-          next.add(filteredAndSortedRuns[i].id);
-        }
-      } else {
-        if (next.has(runId)) {
-          next.delete(runId);
-        } else {
-          next.add(runId);
-        }
-      }
-
-      return next;
-    });
-    setLastClickedIndex(index);
-  };
-
-  const toggleSelectionMode = () => {
-    if (selectionMode) {
-      setSelectedRunIds(new Set());
-      setLastClickedIndex(null);
-    }
-    setSelectionMode(!selectionMode);
-  };
-
   const handleInvestigate = async (
     customContext: string,
     depth: "quick" | "standard" | "deep",
@@ -397,7 +379,7 @@ export function RunsPage({
         scopePaths
       );
       setInvestigateModalOpen(false);
-      setSelectedRunIds(new Set());
+      clearSelection();
       setSelectionMode(false);
       navigate(`/runs/${created.id}`);
     } catch (err) {
@@ -468,17 +450,18 @@ export function RunsPage({
     if (runId) return;
     if (filteredAndSortedRuns.length === 0) return;
 
-    const selectedRunId = selectedRun?.id ?? null;
     const hasSelection =
       selectedRunId !== null &&
       filteredAndSortedRuns.some((run) => run.id === selectedRunId);
 
     if (!hasSelection) {
       const firstRun = filteredAndSortedRuns[0];
-      navigate(`/runs/${firstRun.id}`, { replace: true });
-      loadRunDetails(firstRun);
+      if (firstRun) {
+        navigate(`/runs/${firstRun.id}`, { replace: true });
+        loadRunDetails(firstRun);
+      }
     }
-  }, [filteredAndSortedRuns, isDesktop, loadRunDetails, navigate, runId, selectedRun?.id]);
+  }, [filteredAndSortedRuns, isDesktop, loadRunDetails, navigate, runId, selectedRunId]);
 
   const filters: FilterConfig[] = [
     {
@@ -572,7 +555,12 @@ export function RunsPage({
                 checked={selectedRunIds.has(run.id)}
                 onChange={(e) => {
                   e.stopPropagation();
-                  handleRunCheckboxChange(run.id, index, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey);
+                  handleRunCheckboxChange(
+                    run.id,
+                    index,
+                    e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey,
+                    filteredAndSortedRuns
+                  );
                 }}
                 onClick={(e) => e.stopPropagation()}
                 className="h-4 w-4 rounded border-border text-primary focus:ring-primary"

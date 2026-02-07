@@ -3,16 +3,28 @@ import { useState, useEffect, useRef, useCallback } from "react";
 export interface UseResizablePanelOptions {
   /** Storage key for localStorage persistence (will be prefixed with "agm.") */
   storageKey: string;
+  /** Optional full localStorage key override (for legacy key compatibility) */
+  persistKey?: string;
+  /** Resize direction */
+  axis?: "horizontal" | "vertical";
   /** Default width in pixels */
-  defaultWidth: number;
+  defaultWidth?: number;
   /** Minimum width in pixels */
-  minWidth: number;
+  minWidth?: number;
   /** Minimum space required for the other panel */
-  minOtherWidth: number;
+  minOtherWidth?: number;
+  /** Default size in pixels (alias of defaultWidth, preferred for vertical resizing) */
+  defaultSize?: number;
+  /** Minimum size in pixels (alias of minWidth, preferred for vertical resizing) */
+  minSize?: number;
+  /** Minimum space required for the other panel (alias of minOtherWidth) */
+  minOtherSize?: number;
 }
 
 export interface UseResizablePanelReturn {
-  /** Current width in pixels */
+  /** Current panel size in pixels */
+  size: number;
+  /** Current width in pixels (backward-compatible alias of size) */
   width: number;
   /** Whether resize is in progress */
   isResizing: boolean;
@@ -23,9 +35,9 @@ export interface UseResizablePanelReturn {
 }
 
 interface ResizeRef {
-  startX: number;
-  startWidth: number;
-  containerWidth: number;
+  startPointer: number;
+  startSize: number;
+  containerSize: number;
 }
 
 const STORAGE_PREFIX = "agm.panel.";
@@ -36,17 +48,26 @@ const STORAGE_PREFIX = "agm.panel.";
  */
 export function useResizablePanel({
   storageKey,
+  persistKey,
+  axis = "horizontal",
   defaultWidth,
   minWidth,
   minOtherWidth,
+  defaultSize,
+  minSize,
+  minOtherSize,
 }: UseResizablePanelOptions): UseResizablePanelReturn {
-  const fullStorageKey = `${STORAGE_PREFIX}${storageKey}.width`;
+  const resolvedDefaultSize = defaultSize ?? defaultWidth ?? 320;
+  const resolvedMinSize = minSize ?? minWidth ?? 200;
+  const resolvedMinOtherSize = minOtherSize ?? minOtherWidth ?? 200;
+  const storageSuffix = axis === "vertical" ? "height" : "width";
+  const fullStorageKey = persistKey ?? `${STORAGE_PREFIX}${storageKey}.${storageSuffix}`;
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<ResizeRef | null>(null);
 
   // Initialize from localStorage or default
-  const [width, setWidth] = useState(() => {
-    if (typeof window === "undefined") return defaultWidth;
+  const [size, setSize] = useState(() => {
+    if (typeof window === "undefined") return resolvedDefaultSize;
     const stored = localStorage.getItem(fullStorageKey);
     if (stored) {
       const parsed = Number(stored);
@@ -54,15 +75,15 @@ export function useResizablePanel({
         return parsed;
       }
     }
-    return defaultWidth;
+    return resolvedDefaultSize;
   });
 
   const [isResizing, setIsResizing] = useState(false);
 
   // Save to localStorage when width changes
   useEffect(() => {
-    localStorage.setItem(fullStorageKey, String(width));
-  }, [fullStorageKey, width]);
+    localStorage.setItem(fullStorageKey, String(size));
+  }, [fullStorageKey, size]);
 
   // Clamp width when container resizes (e.g., window resize)
   useEffect(() => {
@@ -70,10 +91,10 @@ export function useResizablePanel({
     if (!container) return;
 
     const clamp = () => {
-      const containerWidth = container.clientWidth;
-      const maxWidth = containerWidth - minOtherWidth;
-      if (width > maxWidth) {
-        setWidth(Math.max(minWidth, maxWidth));
+      const containerSize = axis === "vertical" ? container.clientHeight : container.clientWidth;
+      const maxSize = containerSize - resolvedMinOtherSize;
+      if (size > maxSize) {
+        setSize(Math.max(resolvedMinSize, maxSize));
       }
     };
 
@@ -84,7 +105,7 @@ export function useResizablePanel({
     observer.observe(container);
 
     return () => observer.disconnect();
-  }, [width, minWidth, minOtherWidth]);
+  }, [axis, resolvedMinSize, resolvedMinOtherSize, size]);
 
   const handleResizeStart = useCallback(
     (event: React.MouseEvent) => {
@@ -93,13 +114,13 @@ export function useResizablePanel({
       if (!container) return;
 
       resizeRef.current = {
-        startX: event.clientX,
-        startWidth: width,
-        containerWidth: container.clientWidth,
+        startPointer: axis === "vertical" ? event.clientY : event.clientX,
+        startSize: size,
+        containerSize: axis === "vertical" ? container.clientHeight : container.clientWidth,
       };
       setIsResizing(true);
     },
-    [width]
+    [axis, size]
   );
 
   // Handle mouse move and up during resize
@@ -109,15 +130,16 @@ export function useResizablePanel({
     const handleMove = (event: MouseEvent) => {
       if (!resizeRef.current) return;
 
-      const { startX, startWidth, containerWidth } = resizeRef.current;
-      const delta = event.clientX - startX;
-      const newWidth = startWidth + delta;
+      const pointer = axis === "vertical" ? event.clientY : event.clientX;
+      const { startPointer, startSize, containerSize } = resizeRef.current;
+      const delta = pointer - startPointer;
+      const newSize = startSize + delta;
 
       // Calculate max width based on container and minimum other panel width
-      const maxWidth = containerWidth - minOtherWidth;
-      const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+      const maxSize = containerSize - resolvedMinOtherSize;
+      const clampedSize = Math.max(resolvedMinSize, Math.min(maxSize, newSize));
 
-      setWidth(clampedWidth);
+      setSize(clampedSize);
     };
 
     const handleUp = () => {
@@ -128,7 +150,7 @@ export function useResizablePanel({
     };
 
     // Set cursor and prevent text selection during resize
-    document.body.style.cursor = "col-resize";
+    document.body.style.cursor = axis === "vertical" ? "row-resize" : "col-resize";
     document.body.style.userSelect = "none";
 
     window.addEventListener("mousemove", handleMove);
@@ -140,10 +162,11 @@ export function useResizablePanel({
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizing, minWidth, minOtherWidth]);
+  }, [axis, isResizing, resolvedMinSize, resolvedMinOtherSize]);
 
   return {
-    width,
+    size,
+    width: size,
     isResizing,
     handleResizeStart,
     containerRef,

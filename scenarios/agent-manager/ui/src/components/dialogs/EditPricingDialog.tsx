@@ -19,6 +19,11 @@ import {
   useDeleteOverride,
   useModelPricing,
 } from "../../hooks/usePricing";
+import {
+  formatPricingDisplay,
+  pricingSourceBadgeClass,
+  pricingSourceLabel,
+} from "./pricingDisplay";
 import type {
   ModelPricingListItem,
   PricingComponent,
@@ -36,46 +41,10 @@ export interface EditPricingDialogProps {
   onPricingUpdated?: () => void;
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-function sourceColor(source: PricingSource): string {
-  switch (source) {
-    case "manual_override":
-      return "bg-purple-500/20 text-purple-300 border-purple-500/30";
-    case "provider_api":
-      return "bg-green-500/20 text-green-300 border-green-500/30";
-    case "historical_average":
-      return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-    default:
-      return "bg-gray-500/20 text-gray-300 border-gray-500/30";
-  }
-}
-
-function sourceLabel(source: PricingSource): string {
-  switch (source) {
-    case "manual_override":
-      return "Manual";
-    case "provider_api":
-      return "Provider";
-    case "historical_average":
-      return "Historical";
-    default:
-      return "Unknown";
-  }
-}
-
-function formatPrice(price: number | undefined): string {
-  if (price === undefined || price === 0) return "-";
-  if (price < 0.01) return `$${price.toFixed(4)}`;
-  return `$${price.toFixed(2)}`;
-}
-
 function SourceBadge({ source }: { source: PricingSource }) {
   return (
-    <Badge variant="outline" className={`text-xs ${sourceColor(source)}`}>
-      {sourceLabel(source)}
+    <Badge variant="outline" className={pricingSourceBadgeClass(source)}>
+      {pricingSourceLabel(source)}
     </Badge>
   );
 }
@@ -234,7 +203,7 @@ export function EditPricingDialog({ model, onClose, onPricingUpdated }: EditPric
                     <tr key={key} className="border-b border-border/50 hover:bg-muted/30">
                       <td className="py-2 font-medium">{label}</td>
                       <td className="py-2 text-right font-mono">
-                        {price !== undefined && price > 0 ? formatPrice(price) : "-"}
+                        {price !== undefined && price > 0 ? formatPricingDisplay(price) : "-"}
                       </td>
                       <td className="py-2 text-center">
                         {price !== undefined && price > 0 ? (
@@ -260,7 +229,7 @@ export function EditPricingDialog({ model, onClose, onPricingUpdated }: EditPric
                           </div>
                         ) : hasOverride ? (
                           <span className="font-mono text-purple-300">
-                            {formatPrice(override.priceUsd * 1_000_000)}
+                            {formatPricingDisplay(override.priceUsd * 1_000_000)}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">-</span>

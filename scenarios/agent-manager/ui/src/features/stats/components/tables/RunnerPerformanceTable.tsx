@@ -9,7 +9,6 @@ import {
   formatNumber,
 } from "../../utils/formatters";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import type { RunnerBreakdown } from "../../api/types";
 
 type SortField = "runnerType" | "runCount" | "successRate" | "totalCostUsd" | "avgDurationMs";
 type SortDirection = "asc" | "desc";

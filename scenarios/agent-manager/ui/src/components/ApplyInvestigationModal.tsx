@@ -157,8 +157,8 @@ export function ApplyInvestigationModal({
         }
         applyExtractionResult(result);
       })
-      .catch((err) => {
-        setExtractionError(err.message);
+      .catch((err: unknown) => {
+        setExtractionError(err instanceof Error ? err.message : String(err));
         setFallbackText("");
         setState("fallback");
       });

@@ -20,6 +20,13 @@ import { useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../hooks/
 import { formatNumber, formatPercent } from "../../utils/formatters";
 import { CHART_COLORS, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartConfig";
 
+interface ToolChartDatum {
+  name: string;
+  calls: number;
+  successRate: number;
+  failedCount: number;
+}
+
 export function ToolUsageAnalytics() {
   const { data, isLoading, error } = useToolUsage({ limit: 10 });
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
@@ -28,7 +35,7 @@ export function ToolUsageAnalytics() {
   const tools = data?.tools ?? [];
 
   // Prepare data for chart - already sorted by API
-  const chartData = tools.map((tool) => ({
+  const chartData: ToolChartDatum[] = tools.map((tool) => ({
     name: tool.toolName || "unknown",
     calls: tool.callCount,
     successRate: tool.callCount > 0 ? tool.successCount / tool.callCount : 0,
@@ -241,7 +248,7 @@ export function ToolUsageAnalytics() {
                     tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                     tickLine={{ stroke: CHART_COLORS.axis }}
                     width={75}
-                    tickFormatter={(value) => {
+                    tickFormatter={(value: string) => {
                       const label = formatToolName(value);
                       return label.length > 12 ? `${label.slice(0, 12)}...` : label;
                     }}
@@ -250,7 +257,7 @@ export function ToolUsageAnalytics() {
                     contentStyle={TOOLTIP_STYLE}
                     content={({ active, payload }) => {
                       if (!active || !payload?.[0]) return null;
-                      const item = payload[0].payload;
+                      const item = payload[0].payload as ToolChartDatum;
                       return (
                         <div className="rounded border border-border bg-card p-3 text-xs shadow-lg">
                           <div className="mb-2 font-medium">{formatToolName(item.name)}</div>
@@ -338,7 +345,7 @@ function statusVariant(status: string) {
 function statusLabel(status: string) {
   return status
     .split("_")
-    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .map((word) => (word && word[0] ? word[0].toUpperCase() + word.slice(1) : word))
     .join(" ");
 }
 

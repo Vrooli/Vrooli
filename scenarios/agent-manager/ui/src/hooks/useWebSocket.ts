@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { resolveWsBase } from "@vrooli/api-base";
-import { create, fromJson, toJson } from "@bufbuild/protobuf";
+import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import type { RunEvent, Task } from "../types";
 import {
   AgentManagerWsClientMessageSchema,
@@ -48,7 +48,7 @@ const protoReadOptions = { ignoreUnknownFields: true, protoFieldName: true };
 const protoWriteOptions = { useProtoFieldName: true };
 
 function parseProtoMessage(raw: unknown): WebSocketMessage | null {
-  const message = fromJson(AgentManagerWsMessageSchema, raw as any, protoReadOptions);
+  const message = fromJson(AgentManagerWsMessageSchema, raw as JsonValue, protoReadOptions);
   switch (message.type) {
     case AgentManagerWsMessageType.RUN_EVENT:
       if (message.payload.case !== "runEvent") return null;
@@ -184,7 +184,7 @@ export function useWebSocket(
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
+          const data: unknown = JSON.parse(String(event.data));
           const normalized = parseProtoMessage(data) ?? (data as WebSocketMessage);
           onMessageRef.current?.(normalized);
           // Call all registered message handlers

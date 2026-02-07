@@ -15,7 +15,7 @@ import {
   formatDuration,
   formatNumber,
 } from "../../utils/formatters";
-import { calculateThroughput, getWindowHours } from "../../utils/calculations";
+import { getWindowHours } from "../../utils/calculations";
 import { useTimeWindow } from "../../hooks/useTimeWindow";
 
 export function KPISummary() {

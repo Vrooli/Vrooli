@@ -5,7 +5,6 @@ import { ExternalLink, Microscope, RotateCcw, Settings, Wrench, Zap } from "luci
 import { Button } from "../../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 import { Input } from "../../ui/input";
-import { Label } from "../../ui/label";
 import { Textarea } from "../../ui/textarea";
 import { Checkbox } from "../../ui/checkbox";
 import { ensureProfile } from "../../../hooks/useApi";

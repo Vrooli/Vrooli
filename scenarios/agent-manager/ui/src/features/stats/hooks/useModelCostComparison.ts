@@ -16,7 +16,10 @@ export function useModelCostComparison(options: UseModelCostComparisonOptions) {
     queryKey: request
       ? statsQueryKeys.modelCostComparison(request)
       : ["pricing", "compare", "disabled"],
-    queryFn: () => fetchModelCostComparison(request!),
+    queryFn: () => {
+      if (!request) throw new Error("request is required");
+      return fetchModelCostComparison(request);
+    },
     enabled:
       enabled &&
       request !== null &&

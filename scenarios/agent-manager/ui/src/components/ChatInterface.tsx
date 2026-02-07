@@ -6,7 +6,7 @@ import { Textarea } from "./ui/textarea";
 import { cn, formatDate } from "../lib/utils";
 import { MarkdownRenderer } from "./markdown";
 import type { Run, RunEvent } from "../types";
-import { RunEventType, RunStatus } from "../types";
+import { RunStatus } from "../types";
 
 interface ChatMessage {
   id: string;
