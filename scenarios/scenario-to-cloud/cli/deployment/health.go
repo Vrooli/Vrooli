@@ -1,19 +1,53 @@
 package deployment
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	"scenario-to-cloud/cli/internal/flagutil"
 )
 
 func runHealth(client *Client, args []string) error {
-	jsonOutput, id, err := parseHealthArgs(args)
-	if err != nil {
+	fs := flag.NewFlagSet("deployment health", flag.ContinueOnError)
+	host := fs.String("host", "", "VPS host selector")
+	scenarioID := fs.String("scenario", "", "Scenario ID selector")
+	domain := fs.String("domain", "", "Domain selector")
+	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if id == "" {
-		return fmt.Errorf("usage: scenario-to-cloud deployment health <id>")
+
+	selectorFlagsUsed := strings.TrimSpace(*host) != "" || strings.TrimSpace(*scenarioID) != "" || strings.TrimSpace(*domain) != ""
+	if fs.NArg() > 1 || (fs.NArg() == 1 && selectorFlagsUsed) || (fs.NArg() == 0 && !selectorFlagsUsed) {
+		return fmt.Errorf("usage: scenario-to-cloud deployment health <id> OR scenario-to-cloud deployment health --host <host> [--scenario <id>] [--domain <domain>]")
+	}
+
+	id := ""
+	if fs.NArg() == 1 {
+		id = strings.TrimSpace(fs.Arg(0))
+	} else {
+		selector := ManifestSelector{
+			Host:       strings.TrimSpace(*host),
+			ScenarioID: strings.TrimSpace(*scenarioID),
+			Domain:     strings.TrimSpace(*domain),
+		}
+		resolved, err := ResolveLatestBySelector(client, selector)
+		if err != nil {
+			return err
+		}
+		if resolved == nil {
+			return fmt.Errorf(
+				"no deployment found for selector host=%s scenario=%s domain=%s\n\nNext steps:\n  1) Create a manifest:\n     scenario-to-cloud manifest init --scenario <scenario-id> --host %s --domain <domain> --out scenarios/<scenario-id>/.vrooli/cloud/manifest.<env>.json\n  2) Validate it:\n     scenario-to-cloud manifest validate scenarios/<scenario-id>/.vrooli/cloud/manifest.<env>.json\n  3) Deploy:\n     scenario-to-cloud redeploy scenarios/<scenario-id>/.vrooli/cloud/manifest.<env>.json --if-needed --preflight --wait",
+				displayOrNA(selector.Host),
+				displayOrNA(selector.ScenarioID),
+				displayOrNA(selector.Domain),
+				displayOrNA(selector.Host),
+			)
+		}
+		id = resolved.ID
 	}
 
 	body, resp, healthErr := client.Health(id)
@@ -21,7 +55,7 @@ func runHealth(client *Client, args []string) error {
 		return healthErr
 	}
 
-	if jsonOutput {
+	if *jsonOutput {
 		cliutil.PrintJSON(body)
 		return nil
 	}
@@ -30,33 +64,10 @@ func runHealth(client *Client, args []string) error {
 	return nil
 }
 
-func parseHealthArgs(args []string) (bool, string, error) {
-	var (
-		jsonOutput  bool
-		positionals []string
-	)
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			jsonOutput = true
-		case "-h", "--help":
-			return false, "", fmt.Errorf("usage: scenario-to-cloud deployment health <id>")
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return false, "", fmt.Errorf("unknown flag: %s", arg)
-			}
-			positionals = append(positionals, arg)
-		}
-	}
-	if len(positionals) != 1 {
-		return false, "", nil
-	}
-	return jsonOutput, positionals[0], nil
-}
-
 func printHealthReport(resp HealthResponse) {
 	// Header
-	fmt.Printf("Deployment Health: %s (%s)\n", resp.DeploymentName, truncate(resp.DeploymentID, 8))
+	fmt.Printf("Deployment Health: %s\n", resp.DeploymentName)
+	fmt.Printf("Deployment ID: %s\n", resp.DeploymentID)
 	meta := fmt.Sprintf("Scenario: %s", resp.ScenarioID)
 	if resp.Domain != "" {
 		meta += fmt.Sprintf("  |  Domain: %s", resp.Domain)

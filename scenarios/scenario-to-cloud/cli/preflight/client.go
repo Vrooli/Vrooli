@@ -94,3 +94,16 @@ func (c *Client) DiskCleanup(req DiskCleanupRequest) ([]byte, DiskCleanupRespons
 	}
 	return body, resp, nil
 }
+
+// Requirements returns canonical VPS requirements.
+func (c *Client) Requirements() ([]byte, RequirementsResponse, error) {
+	body, err := c.api.Get("/api/v1/preflight/requirements", nil)
+	if err != nil {
+		return nil, RequirementsResponse{}, err
+	}
+	var resp RequirementsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return body, RequirementsResponse{}, err
+	}
+	return body, resp, nil
+}

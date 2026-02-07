@@ -69,7 +69,7 @@ func ComputeHealth(
 	resp.Summary = fmt.Sprintf("%d passed  |  %d warning  |  %d failed", totalPass, totalWarn, totalFail)
 
 	// Build recommendations
-	resp.Recommendations = buildRecommendations(dep.ID, allSections)
+	resp.Recommendations = buildRecommendations(dep.ID, manifest, allSections)
 
 	return resp
 }
@@ -666,7 +666,7 @@ func worstStatus(a, b domain.HealthCheckStatus) domain.HealthCheckStatus {
 }
 
 // buildRecommendations generates actionable recommendations from failed/warned checks.
-func buildRecommendations(deploymentID string, sections []domain.HealthSection) []domain.Recommendation {
+func buildRecommendations(deploymentID string, manifest domain.CloudManifest, sections []domain.HealthSection) []domain.Recommendation {
 	var recs []domain.Recommendation
 
 	for _, sec := range sections {
@@ -675,7 +675,7 @@ func buildRecommendations(deploymentID string, sections []domain.HealthSection) 
 				continue
 			}
 
-			rec := checkToRecommendation(deploymentID, sec.Category, check)
+			rec := checkToRecommendation(deploymentID, manifest, sec.Category, check)
 			if rec != nil {
 				recs = append(recs, *rec)
 			}
@@ -686,14 +686,36 @@ func buildRecommendations(deploymentID string, sections []domain.HealthSection) 
 }
 
 // checkToRecommendation maps a failed/warned check to an actionable recommendation.
-func checkToRecommendation(deploymentID, category string, check domain.HealthCheck) *domain.Recommendation {
+func checkToRecommendation(deploymentID string, manifest domain.CloudManifest, category string, check domain.HealthCheck) *domain.Recommendation {
+	sshHost := ""
+	sshUser := "root"
+	if manifest.Target.VPS != nil {
+		sshHost = strings.TrimSpace(manifest.Target.VPS.Host)
+		if strings.TrimSpace(manifest.Target.VPS.User) != "" {
+			sshUser = strings.TrimSpace(manifest.Target.VPS.User)
+		}
+	}
+	sshTestCmd := "scenario-to-cloud ssh test <host>"
+	sshBootstrapCmd := "scenario-to-cloud ssh bootstrap <host> --user <user> --non-interactive"
+	if sshHost != "" {
+		sshTestCmd = fmt.Sprintf("scenario-to-cloud ssh test %s --user %s", sshHost, sshUser)
+		sshBootstrapCmd = fmt.Sprintf("scenario-to-cloud ssh bootstrap %s --user %s --non-interactive", sshHost, sshUser)
+	}
+
 	switch {
 	case category == "ssh" && check.ID == "ssh_connected" && check.Status == domain.HealthCheckFail:
 		return &domain.Recommendation{
 			Priority: 1,
 			Category: "ssh",
 			Summary:  "VPS unreachable via SSH",
-			Command:  "scenario-to-cloud ssh test <host>",
+			Command:  sshTestCmd,
+		}
+	case category == "ssh" && check.ID == "ssh_key_auth" && check.Status == domain.HealthCheckWarn:
+		return &domain.Recommendation{
+			Priority: 2,
+			Category: "ssh",
+			Summary:  "SSH key is not authorized on VPS",
+			Command:  sshBootstrapCmd,
 		}
 	case category == "processes" && check.Status == domain.HealthCheckFail:
 		return &domain.Recommendation{

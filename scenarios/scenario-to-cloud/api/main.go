@@ -236,6 +236,7 @@ func (s *Server) setupRoutes() {
 		ValidateManifest:  manifest.ValidateAndNormalize,
 		HasBlockingIssues: manifest.HasBlockingIssues,
 	})).Methods("POST")
+	api.HandleFunc("/preflight/requirements", preflight.HandleRequirements()).Methods("GET")
 	api.HandleFunc("/secrets/{scenario}", secrets.HandleGetSecrets(s.secretsFetcher)).Methods("GET")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
 	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")

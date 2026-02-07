@@ -1,7 +1,11 @@
 package ssh
 
 import (
+	"bufio"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -24,6 +28,8 @@ func Run(client *Client, args []string) error {
 		return runDelete(client, args[1:])
 	case "test":
 		return runTest(client, args[1:])
+	case "bootstrap":
+		return runBootstrap(client, args[1:])
 	case "copy-key":
 		return runCopyKey(client, args[1:])
 	case "help", "-h", "--help":
@@ -41,6 +47,7 @@ Commands:
   generate <filename>     Generate a new SSH key
   delete <key>            Delete an SSH key (path or basename)
   test <host>             Test SSH connection to a host
+  bootstrap <host>        Ensure key-based SSH works (test -> generate -> copy-key -> retest)
   copy-key <host>         Copy SSH key to a remote host
 
 Run 'scenario-to-cloud ssh <command> -h' for command-specific options.`)
@@ -405,6 +412,255 @@ Flags:
 	}
 
 	return nil
+}
+
+func runBootstrap(client *Client, args []string) error {
+	var host, user, keyInput, password string
+	port := 22
+	jsonOutput := false
+	nonInteractive := false
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-h", "--help":
+			fmt.Println(`Usage: scenario-to-cloud ssh bootstrap <host> [flags]
+
+Ensures key-based SSH access by running:
+  1) key selection/generation
+  2) ssh test
+  3) key install (if needed)
+  4) ssh retest
+
+Flags:
+  --port <n>            SSH port (default: 22)
+  --user <name>         SSH user (default: root)
+  --key <key>           SSH key path or basename (default: first discovered key, or auto-generate "s2c-deploy")
+  --password <pwd>      VPS password for one-time key installation
+  --non-interactive     Fail with handoff instructions instead of prompting for password
+  --json                Output raw JSON`)
+			return nil
+		case "--port":
+			if i+1 < len(args) {
+				i++
+				if n, err := strconv.Atoi(args[i]); err == nil {
+					port = n
+				}
+			}
+		case "--user":
+			if i+1 < len(args) {
+				i++
+				user = args[i]
+			}
+		case "--key":
+			if i+1 < len(args) {
+				i++
+				keyInput = args[i]
+			}
+		case "--password":
+			if i+1 < len(args) {
+				i++
+				password = args[i]
+			}
+		case "--non-interactive":
+			nonInteractive = true
+		case "--json":
+			jsonOutput = true
+		default:
+			if !strings.HasPrefix(args[i], "-") && host == "" {
+				host = args[i]
+			}
+		}
+	}
+
+	if host == "" {
+		return fmt.Errorf("usage: scenario-to-cloud ssh bootstrap <host>")
+	}
+
+	displayUser := strings.TrimSpace(user)
+	if displayUser == "" {
+		displayUser = "root"
+	}
+
+	selectedKeyPath, selectedKeyName, generated, err := ensureBootstrapKey(client, keyInput, nonInteractive, host, displayUser, port)
+	if err != nil {
+		return err
+	}
+
+	testReq := TestRequest{
+		Host:    host,
+		Port:    port,
+		User:    displayUser,
+		KeyPath: selectedKeyPath,
+	}
+
+	_, initialTest, err := client.Test(testReq)
+	if err != nil {
+		return err
+	}
+
+	if initialTest.OK {
+		if jsonOutput {
+			cliutil.PrintJSON(mustMarshalBootstrap(bootstrapOutput{
+				OK:                 true,
+				Host:               host,
+				User:               displayUser,
+				Port:               port,
+				KeyPath:            selectedKeyPath,
+				KeyGenerated:       generated,
+				InitialTest:        initialTest,
+				CopyKeyAttempted:   false,
+				ConnectionVerified: true,
+			}))
+			return nil
+		}
+		fmt.Printf("SSH bootstrap complete: key-based access already working for %s@%s:%d\n", displayUser, host, port)
+		fmt.Printf("Using key: %s\n", selectedKeyPath)
+		return nil
+	}
+
+	if nonInteractive {
+		return errors.New(nonInteractiveBootstrapMessage(host, displayUser, port, selectedKeyName))
+	}
+
+	if strings.TrimSpace(password) == "" {
+		prompt := fmt.Sprintf("Enter VPS password for %s@%s (input visible): ", displayUser, host)
+		fmt.Print(prompt)
+		reader := bufio.NewReader(os.Stdin)
+		line, readErr := reader.ReadString('\n')
+		if readErr != nil {
+			return fmt.Errorf("read password: %w", readErr)
+		}
+		password = strings.TrimSpace(line)
+		if password == "" {
+			return fmt.Errorf("password is required to install SSH key. Re-run with --password or enter it at prompt")
+		}
+	}
+
+	_, copyResp, err := client.CopyKey(CopyKeyRequest{
+		Host:     host,
+		Port:     port,
+		User:     displayUser,
+		KeyPath:  selectedKeyPath,
+		Password: password,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, finalTest, err := client.Test(testReq)
+	if err != nil {
+		return err
+	}
+
+	if jsonOutput {
+		cliutil.PrintJSON(mustMarshalBootstrap(bootstrapOutput{
+			OK:                 finalTest.OK,
+			Host:               host,
+			User:               displayUser,
+			Port:               port,
+			KeyPath:            selectedKeyPath,
+			KeyGenerated:       generated,
+			InitialTest:        initialTest,
+			CopyKeyAttempted:   true,
+			CopyKey:            &copyResp,
+			FinalTest:          &finalTest,
+			ConnectionVerified: finalTest.OK,
+		}))
+		return nil
+	}
+
+	if !copyResp.OK {
+		return fmt.Errorf("failed to install key on %s@%s: %s", displayUser, host, copyResp.Message)
+	}
+	if !finalTest.OK {
+		return fmt.Errorf("key was installed but SSH test still failed: %s", finalTest.Message)
+	}
+
+	fmt.Printf("SSH bootstrap complete for %s@%s:%d\n", displayUser, host, port)
+	fmt.Printf("Using key: %s\n", selectedKeyPath)
+	return nil
+}
+
+type bootstrapOutput struct {
+	OK                 bool             `json:"ok"`
+	Host               string           `json:"host"`
+	User               string           `json:"user"`
+	Port               int              `json:"port"`
+	KeyPath            string           `json:"key_path"`
+	KeyGenerated       bool             `json:"key_generated"`
+	InitialTest        TestResponse     `json:"initial_test"`
+	CopyKeyAttempted   bool             `json:"copy_key_attempted"`
+	CopyKey            *CopyKeyResponse `json:"copy_key,omitempty"`
+	FinalTest          *TestResponse    `json:"final_test,omitempty"`
+	ConnectionVerified bool             `json:"connection_verified"`
+}
+
+func mustMarshalBootstrap(v bootstrapOutput) []byte {
+	out, _ := json.MarshalIndent(v, "", "  ")
+	return out
+}
+
+func ensureBootstrapKey(client *Client, keyInput string, nonInteractive bool, host, user string, port int) (path string, keyName string, generated bool, err error) {
+	trimmed := strings.TrimSpace(keyInput)
+	if trimmed != "" {
+		keyPath, resolveErr := resolveKeyPath(client, trimmed)
+		if resolveErr == nil {
+			return keyPath, filepath.Base(keyPath), false, nil
+		}
+
+		// If user provided a basename and it doesn't exist, bootstrap can generate it.
+		if strings.Contains(trimmed, "/") || strings.HasPrefix(trimmed, "~") {
+			return "", "", false, resolveErr
+		}
+		if nonInteractive {
+			return "", "", false, errors.New(nonInteractiveBootstrapMessage(host, user, port, trimmed))
+		}
+		if genErr := generateBootstrapKey(client, trimmed); genErr != nil {
+			return "", "", false, genErr
+		}
+		keyPath, resolveErr = resolveKeyPath(client, trimmed)
+		if resolveErr != nil {
+			return "", "", false, resolveErr
+		}
+		return keyPath, trimmed, true, nil
+	}
+
+	keyPath, resolveErr := resolveKeyPath(client, "")
+	if resolveErr == nil {
+		return keyPath, filepath.Base(keyPath), false, nil
+	}
+	if nonInteractive {
+		return "", "", false, errors.New(nonInteractiveBootstrapMessage(host, user, port, "s2c-deploy"))
+	}
+	if genErr := generateBootstrapKey(client, "s2c-deploy"); genErr != nil {
+		return "", "", false, genErr
+	}
+	keyPath, resolveErr = resolveKeyPath(client, "s2c-deploy")
+	if resolveErr != nil {
+		return "", "", false, resolveErr
+	}
+	return keyPath, "s2c-deploy", true, nil
+}
+
+func generateBootstrapKey(client *Client, filename string) error {
+	_, resp, err := client.Generate(GenerateRequest{Filename: filename})
+	if err != nil {
+		return err
+	}
+	if !resp.OK {
+		return fmt.Errorf("generate SSH key %q failed: %s", filename, resp.Message)
+	}
+	return nil
+}
+
+func nonInteractiveBootstrapMessage(host, user string, port int, keyName string) string {
+	if strings.TrimSpace(keyName) == "" {
+		keyName = "s2c-deploy"
+	}
+	cmd := fmt.Sprintf("scenario-to-cloud ssh bootstrap %s --user %s --port %d --key %s", host, user, port, keyName)
+	return "ssh bootstrap requires interactive password entry to install key authorization on the VPS.\n" +
+		"Run this exact command without --non-interactive and enter the VPS password when prompted:\n  " + cmd + "\n" +
+		"If you are an AI agent, ask a human to run that command. The password prompt is interactive and cannot be completed autonomously."
 }
 
 // truncate shortens a string to maxLen characters.

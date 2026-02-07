@@ -306,6 +306,35 @@ Delete a specific bundle from a remote VPS.
 
 > [CODE: api/vps/preflight/handlers.go]
 
+### GET /preflight/requirements
+
+Return canonical VPS requirements used by runtime preflight checks.
+
+**Response (shape):**
+```json
+{
+  "vps": {
+    "os": {
+      "required_id": "ubuntu",
+      "recommended_version": "24.04",
+      "compatible_versions": ["22.04", "20.04"]
+    },
+    "resources": {
+      "min_disk_free_kb": 5242880,
+      "min_ram_kb": 1048576,
+      "recommended_ram_kb": 2097152
+    },
+    "network": {
+      "required_inbound_ports": [22, 80, 443]
+    },
+    "authentication": {
+      "required_method": "ssh_key",
+      "bootstrap_flow": "scenario-to-cloud ssh bootstrap"
+    }
+  }
+}
+```
+
 ### POST /preflight
 
 Run preflight checks against a VPS.

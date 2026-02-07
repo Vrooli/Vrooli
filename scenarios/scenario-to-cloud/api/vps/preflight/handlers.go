@@ -27,6 +27,14 @@ type HandlerDeps struct {
 	HasBlockingIssues func(issues []domain.ValidationIssue) bool
 }
 
+// HandleRequirements returns canonical VPS requirement metadata.
+// GET /api/v1/preflight/requirements
+func HandleRequirements() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		httputil.WriteJSON(w, http.StatusOK, BuildRequirementsResponse())
+	}
+}
+
 // HandlePreflight creates a handler for running VPS preflight checks.
 // POST /api/v1/preflight
 func HandlePreflight(deps HandlerDeps) http.HandlerFunc {

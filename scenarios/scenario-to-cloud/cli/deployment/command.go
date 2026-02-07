@@ -34,6 +34,8 @@ func Run(client *Client, args []string) error {
 		return runList(client, args[1:])
 	case "get":
 		return runGet(client, args[1:])
+	case "resolve":
+		return runResolve(client, args[1:])
 	case "delete":
 		return runDelete(client, args[1:])
 	case "execute":
@@ -59,6 +61,7 @@ func printUsage() error {
 Commands:
   plan <manifest.json>      Generate a deployment plan from a cloud manifest
   create <manifest.json>    Create a deployment from a manifest
+  resolve                   Resolve deployment ID by manifest or selector (read-only)
   list                      List all deployments
   get <id>                  Get deployment details
   delete <id>               Delete a deployment
@@ -66,7 +69,7 @@ Commands:
   start <id>                Start/resume a stopped deployment
   stop <id>                 Stop a running deployment
   history <id>              Show deployment history
-  health <id>               Unified health check (processes, DNS, TLS, system)
+  health                    Unified health check by deployment ID or selector
 
 Run 'scenario-to-cloud deployment <command> -h' for command-specific options.`)
 	return nil
@@ -239,6 +242,87 @@ func runGet(client *Client, args []string) error {
 	if d.LastDeployedAt != nil {
 		fmt.Printf("  Deployed:   %s\n", d.LastDeployedAt.Format(time.RFC3339))
 	}
+	return nil
+}
+
+func runResolve(client *Client, args []string) error {
+	fs := flag.NewFlagSet("deployment resolve", flag.ContinueOnError)
+	host := fs.String("host", "", "VPS host selector")
+	scenarioID := fs.String("scenario", "", "Scenario ID selector")
+	domain := fs.String("domain", "", "Domain selector")
+	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	selectorFlagsUsed := strings.TrimSpace(*host) != "" || strings.TrimSpace(*scenarioID) != "" || strings.TrimSpace(*domain) != ""
+	if fs.NArg() > 1 || (fs.NArg() == 1 && selectorFlagsUsed) || (fs.NArg() == 0 && !selectorFlagsUsed) {
+		return fmt.Errorf("usage: scenario-to-cloud deployment resolve <manifest.json> OR scenario-to-cloud deployment resolve --host <host> [--scenario <id>] [--domain <domain>]")
+	}
+
+	var (
+		selector ManifestSelector
+		err      error
+	)
+	if fs.NArg() == 1 {
+		selector, err = ReadSelectorFromManifest(fs.Arg(0))
+		if err != nil {
+			return err
+		}
+	} else {
+		selector = ManifestSelector{
+			Host:       strings.TrimSpace(*host),
+			ScenarioID: strings.TrimSpace(*scenarioID),
+			Domain:     strings.TrimSpace(*domain),
+		}
+	}
+
+	dep, err := ResolveLatestBySelector(client, selector)
+	if err != nil {
+		return err
+	}
+
+	response := struct {
+		Found      bool               `json:"found"`
+		Selector   ManifestSelector   `json:"selector"`
+		Deployment *DeploymentSummary `json:"deployment,omitempty"`
+		Timestamp  string             `json:"timestamp"`
+	}{
+		Found:      dep != nil,
+		Selector:   selector,
+		Deployment: dep,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if *jsonOutput {
+		body, _ := json.MarshalIndent(response, "", "  ")
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Selector: scenario=%s host=%s", selector.ScenarioID, selector.Host)
+	if selector.Domain != "" {
+		fmt.Printf(" domain=%s", selector.Domain)
+	}
+	fmt.Println()
+
+	if dep == nil {
+		fmt.Println("No existing deployment matches this selector.")
+		if fs.NArg() == 1 {
+			fmt.Printf("Next step: scenario-to-cloud redeploy %s --if-needed --preflight --wait\n", fs.Arg(0))
+		} else {
+			fmt.Println("Next step: create/validate a manifest, then run:")
+			fmt.Println("  scenario-to-cloud redeploy <manifest.json> --if-needed --preflight --wait")
+		}
+		return nil
+	}
+
+	fmt.Printf("Resolved deployment: %s\n", dep.ID)
+	fmt.Printf("  Name:          %s\n", dep.Name)
+	fmt.Printf("  Status:        %s\n", dep.Status)
+	fmt.Printf("  Domain:        %s\n", displayValue(dep.Domain))
+	fmt.Printf("  Created:       %s\n", dep.CreatedAt.UTC().Format(time.RFC3339))
+	fmt.Printf("  Last deployed: %s\n", formatOptionalTime(dep.LastDeployedAt))
 	return nil
 }
 
@@ -527,6 +611,13 @@ func truncate(s string, max int) string {
 		return s[:max]
 	}
 	return s[:max-3] + "..."
+}
+
+func displayValue(v string) string {
+	if strings.TrimSpace(v) == "" {
+		return "n/a"
+	}
+	return v
 }
 
 // WaitForDeploymentCompletion polls deployment status until it reaches a terminal state.

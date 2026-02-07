@@ -145,31 +145,31 @@ func Run(
 		)
 	} else {
 		id, ver := parseOSRelease(osRes.Stdout)
-		if id != "ubuntu" {
+		if id != SupportedOSID {
 			fail(
 				domain.PreflightOSReleaseID,
 				"Ubuntu version",
 				fmt.Sprintf("Unsupported OS: %s", id),
-				"scenario-to-cloud requires Ubuntu. Debian may work but is untested.",
+				"scenario-to-cloud requires Ubuntu. Non-Ubuntu systems are not supported.",
 				map[string]string{"id": id, "version_id": ver},
 			)
-		} else if ver == "24.04" {
+		} else if ver == RecommendedUbuntuVersion {
 			pass(domain.PreflightOSReleaseID, "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
-		} else if ver == "22.04" || ver == "20.04" {
+		} else if ver == SupportedUbuntuAltVersion || ver == LegacyUbuntuAltVersion {
 			// Older LTS versions should work but aren't officially tested
 			warn(
 				domain.PreflightOSReleaseID,
 				"Ubuntu version",
-				fmt.Sprintf("Ubuntu %s detected (24.04 recommended)", ver),
-				"Ubuntu 22.04/20.04 should work but 24.04 LTS is recommended for best compatibility.",
+				fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
+				fmt.Sprintf("Ubuntu %s/%s should work but %s LTS is recommended for best compatibility.", SupportedUbuntuAltVersion, LegacyUbuntuAltVersion, RecommendedUbuntuVersion),
 				map[string]string{"id": id, "version_id": ver},
 			)
 		} else {
 			warn(
 				domain.PreflightOSReleaseID,
 				"Ubuntu version",
-				fmt.Sprintf("Ubuntu %s detected (24.04 recommended)", ver),
-				"This Ubuntu version is untested. Consider using Ubuntu 24.04 LTS.",
+				fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
+				fmt.Sprintf("This Ubuntu version is untested. Consider using Ubuntu %s LTS.", RecommendedUbuntuVersion),
 				map[string]string{"id": id, "version_id": ver},
 			)
 		}
@@ -293,8 +293,7 @@ func Run(
 		warn(domain.PreflightDiskFreeID, "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(diskRes.Stdout), 10, 64)
-		const minKB = 5 * 1024 * 1024 // 5 GiB
-		if kb > 0 && kb < minKB {
+		if kb > 0 && kb < MinDiskFreeKB {
 			fail(
 				domain.PreflightDiskFreeID,
 				"Disk free space",
@@ -312,9 +311,7 @@ func Run(
 		warn(domain.PreflightRAMTotalID, "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(ramRes.Stdout), 10, 64)
-		const minKB = 1024 * 1024      // 1 GiB
-		const warnKB = 2 * 1024 * 1024 // 2 GiB
-		if kb > 0 && kb < minKB {
+		if kb > 0 && kb < MinRAMKB {
 			fail(
 				domain.PreflightRAMTotalID,
 				"RAM",
@@ -322,7 +319,7 @@ func Run(
 				"At least 1 GB RAM is required. 2+ GB is recommended for most scenarios.",
 				map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)},
 			)
-		} else if kb > 0 && kb < warnKB {
+		} else if kb > 0 && kb < RecommendedRAMKB {
 			warn(
 				"ram_total",
 				"RAM",

@@ -6,7 +6,7 @@ Prepare your VPS for Scenario-to-Cloud deployments.
 
 ### Minimum Specifications
 
-- **OS**: Ubuntu 22.04+ or Debian 11+
+- **OS**: Ubuntu LTS (24.04 recommended; 22.04/20.04 compatibility mode)
 - **RAM**: 2GB minimum (4GB+ recommended)
 - **Storage**: 20GB minimum
 - **CPU**: 1 vCPU minimum
@@ -22,20 +22,30 @@ The following tools must be available (installed automatically if missing):
 
 ## SSH Configuration
 
-### 1. Create SSH Key (if needed)
+### 1. Bootstrap key-based SSH with scenario-to-cloud (recommended)
+
+```bash
+# agent-safe precheck (fails with handoff instructions if password prompt is required)
+scenario-to-cloud ssh bootstrap your-vps.com --user root --non-interactive
+
+# human-run interactive bootstrap (prompts for VPS password once if needed)
+scenario-to-cloud ssh bootstrap your-vps.com --user root
+```
+
+### 2. Manual fallback: create SSH key (if needed)
 
 ```bash
 # On your local machine
 ssh-keygen -t ed25519 -C "your-email@example.com"
 ```
 
-### 2. Copy Key to VPS
+### 3. Manual fallback: copy key to VPS
 
 ```bash
 ssh-copy-id -i ~/.ssh/id_ed25519.pub root@your-vps.com
 ```
 
-### 3. Verify Access
+### 4. Verify Access
 
 ```bash
 ssh root@your-vps.com "echo 'SSH working!'"
@@ -125,21 +135,21 @@ Before deploying, verify:
 
 ### DigitalOcean
 
-1. Create a Droplet with Ubuntu 22.04
+1. Create a Droplet with Ubuntu 24.04
 2. Add your SSH key during creation
 3. Note the assigned IP address
 4. Configure DNS in your domain registrar
 
 ### Hetzner
 
-1. Create a Cloud server with Ubuntu 22.04
+1. Create a Cloud server with Ubuntu 24.04
 2. Add your SSH key in the setup
 3. Configure firewall in Cloud Console
 4. Note the assigned IP address
 
 ### Linode
 
-1. Create a Linode with Ubuntu 22.04
+1. Create a Linode with Ubuntu 24.04
 2. Add SSH key via Cloud Manager
 3. Configure firewall rules
 4. Note the assigned IP address

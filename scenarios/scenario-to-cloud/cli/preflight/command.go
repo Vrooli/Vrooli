@@ -19,6 +19,8 @@ func Run(client *Client, args []string) error {
 	switch args[0] {
 	case "run":
 		return runPreflight(client, args[1:])
+	case "requirements":
+		return runRequirements(client, args[1:])
 	case "fix-ports":
 		return runFixPorts(client, args[1:])
 	case "fix-firewall":
@@ -57,6 +59,7 @@ func printUsage() error {
 
 Commands:
   run <manifest.json>    Run VPS preflight checks for a cloud manifest
+  requirements           Show canonical VPS requirements/policy
   fix-ports              Fix port conflicts
   fix-firewall           Open required firewall ports
   fix-processes          Stop conflicting processes
@@ -80,6 +83,57 @@ func runPreflight(client *Client, args []string) error {
 		return err
 	}
 	cliutil.PrintJSON(body)
+	return nil
+}
+
+func runRequirements(client *Client, args []string) error {
+	jsonOutput := false
+	for _, arg := range args {
+		switch arg {
+		case "-h", "--help":
+			fmt.Println(`Usage: scenario-to-cloud preflight requirements [flags]
+
+Show canonical VPS requirements used by preflight/runtime checks.
+
+Flags:
+  --json    Output raw JSON`)
+			return nil
+		case "--json":
+			jsonOutput = true
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return fmt.Errorf("unknown flag: %s", arg)
+			}
+			return fmt.Errorf("usage: scenario-to-cloud preflight requirements")
+		}
+	}
+
+	body, resp, err := client.Requirements()
+	if err != nil {
+		return err
+	}
+	if jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Println("VPS Requirements")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Printf("OS: %s %s (compatible: %s)\n",
+		resp.VPS.OS.RequiredID,
+		resp.VPS.OS.RecommendedVersion,
+		strings.Join(resp.VPS.OS.CompatibleVersions, ", "),
+	)
+	fmt.Printf("RAM: min %s, recommended %s\n",
+		formatSize(resp.VPS.Resources.MinRAMBytes),
+		formatSize(resp.VPS.Resources.RecommendedRAMBytes),
+	)
+	fmt.Printf("Disk: min free %s\n", formatSize(resp.VPS.Resources.MinDiskFreeBytes))
+	fmt.Printf("Inbound ports: %s\n", joinPorts(resp.VPS.Network.RequiredInboundPorts))
+	fmt.Printf("Auth: %s (bootstrap: %s)\n",
+		resp.VPS.Authentication.RequiredMethod,
+		resp.VPS.Authentication.BootstrapFlow,
+	)
 	return nil
 }
 
@@ -386,6 +440,17 @@ Flags:
 	}
 
 	return nil
+}
+
+func joinPorts(ports []int) string {
+	if len(ports) == 0 {
+		return "-"
+	}
+	values := make([]string, 0, len(ports))
+	for _, p := range ports {
+		values = append(values, strconv.Itoa(p))
+	}
+	return strings.Join(values, ", ")
 }
 
 // formatSize formats bytes into a human-readable string.

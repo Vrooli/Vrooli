@@ -406,6 +406,115 @@ func TestDeploymentHealthPrintsFreshnessNotes(t *testing.T) {
 	}
 }
 
+func TestDeploymentResolveByHostSelector(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/deployments" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("scenario_id"); got != "" {
+			t.Fatalf("expected no scenario_id filter, got %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"deployments": [
+				{
+					"id": "dep-old",
+					"name": "old",
+					"scenario_id": "landing-page-business-suite",
+					"status": "deployed",
+					"domain": "app-old.example.com",
+					"host": "203.0.113.10",
+					"progress_percent": 100,
+					"created_at": "2026-02-01T00:00:00Z"
+				},
+				{
+					"id": "dep-new",
+					"name": "new",
+					"scenario_id": "landing-page-business-suite",
+					"status": "deployed",
+					"domain": "app.example.com",
+					"host": "203.0.113.10",
+					"progress_percent": 100,
+					"created_at": "2026-02-07T00:00:00Z"
+				}
+			],
+			"timestamp": "2026-02-07T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "resolve", "--host", "203.0.113.10"}); err != nil {
+			t.Fatalf("deployment resolve failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "Resolved deployment: dep-new") {
+		t.Fatalf("expected latest deployment id in output, got: %s", output)
+	}
+}
+
+func TestDeploymentHealthResolvesByHostAndScenario(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			if got := r.URL.Query().Get("scenario_id"); got != "landing-page-business-suite" {
+				t.Fatalf("expected scenario_id filter, got %q", got)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"deployments": [
+					{
+						"id": "dep-789",
+						"name": "prod",
+						"scenario_id": "landing-page-business-suite",
+						"status": "deployed",
+						"domain": "app.example.com",
+						"host": "203.0.113.10",
+						"progress_percent": 100,
+						"created_at": "2026-02-07T00:00:00Z"
+					}
+				],
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case "/api/v1/deployments/dep-789/health":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"ok": true,
+				"health": "healthy",
+				"deployment_id": "dep-789",
+				"deployment_name": "prod",
+				"scenario_id": "landing-page-business-suite",
+				"summary": "4 passed  |  0 warning  |  0 failed",
+				"sections": [],
+				"duration_ms": 200,
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "health", "--host", "203.0.113.10", "--scenario", "landing-page-business-suite"}); err != nil {
+			t.Fatalf("deployment health failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "Deployment ID: dep-789") {
+		t.Fatalf("expected full deployment ID in output, got: %s", output)
+	}
+}
+
 func TestDeploymentCreateAcceptsJSONFlagAfterManifestPath(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)

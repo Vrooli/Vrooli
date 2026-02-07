@@ -128,13 +128,13 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{
 				Name:        "bundle",
 				NeedsAPI:    true,
-				Description: "Bundle operations (build)",
+				Description: "Bundle operations (build, list, stats, cleanup, VPS bundle ops)",
 				Run:         func(args []string) error { return bundle.Run(a.bundleClient, args) },
 			},
 			{
 				Name:        "deployment",
 				NeedsAPI:    true,
-				Description: "Deployment lifecycle (create, list, get, delete, execute, start, stop, history)",
+				Description: "Deployment lifecycle (plan, create, execute, start/stop, health, history)",
 				Run:         func(args []string) error { return deployment.Run(a.deploymentClient, args) },
 			},
 			{
@@ -146,7 +146,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{
 				Name:        "preflight",
 				NeedsAPI:    true,
-				Description: "Preflight checks (run)",
+				Description: "Preflight checks and remediation actions (run, requirements, fix, disk tools)",
 				Run:         func(args []string) error { return preflight.Run(a.preflightClient, args) },
 			},
 			{
@@ -176,7 +176,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{
 				Name:        "ssh",
 				NeedsAPI:    true,
-				Description: "SSH key management (keys, generate, delete, test, copy-key)",
+				Description: "SSH access workflows (keys, generate, test, bootstrap, copy-key)",
 				Run:         func(args []string) error { return ssh.Run(a.sshClient, args) },
 			},
 			{
