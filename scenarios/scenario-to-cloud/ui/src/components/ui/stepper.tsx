@@ -66,7 +66,11 @@ export function Stepper({
 
               <button
                 type="button"
-                onClick={() => isClickable && onStepClick(index)}
+                onClick={() => {
+                  if (isClickable && onStepClick) {
+                    onStepClick(index);
+                  }
+                }}
                 disabled={!isClickable}
                 className={cn(
                   "group relative flex flex-col items-center",

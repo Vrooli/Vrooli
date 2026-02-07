@@ -23,7 +23,7 @@ export function useVPSSecrets(deploymentId: string | null) {
 
   // Track which secrets are currently revealed (with auto-hide timers)
   const [revealedSecrets, setRevealedSecrets] = useState<Record<string, string>>({});
-  const revealTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const revealTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Clear all timers on unmount
   useEffect(() => {

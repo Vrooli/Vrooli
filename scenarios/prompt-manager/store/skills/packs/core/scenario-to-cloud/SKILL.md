@@ -29,7 +29,7 @@ The CLI uses **subcommand groups**. Run `<group> help` for detailed options:
 | Group | Purpose | Key Subcommands |
 |-------|---------|-----------------|
 | `status` | API health check | (flat) |
-| `manifest` | Manifest validation | `validate` |
+| `manifest` | Manifest schema + lifecycle | `schema`, `init`, `template`, `validate`, `doctor`, `fix` |
 | `bundle` | Bundle operations | `build`, `list`, `stats`, `delete`, `cleanup`, `vps-list`, `vps-delete` |
 | `deployment` | Deployment lifecycle | `create`, `list`, `get`, `delete`, `execute`, `start`, `stop`, `history`, `health`, `plan` |
 | `redeploy` | One-shot create + execute | (flat) |
@@ -51,30 +51,22 @@ The CLI uses **subcommand groups**. Run `<group> help` for detailed options:
 
 ### **3. Primary Workflow: Deploy a Scenario**
 
-#### Step 1: Write a cloud manifest
+#### Step 1: Initialize a cloud manifest
 
-```json
-{
-  "scenario": { "id": "{{SCENARIO_NAME}}" },
-  "target": {
-    "vps": {
-      "host": "{{VPS_HOST}}",
-      "user": "root",
-      "port": 22
-    }
-  },
-  "edge": {
-    "domain": "{{DOMAIN}}",
-    "dns_policy": "required",
-    "caddy": {
-      "enabled": true,
-      "email": "{{ADMIN_EMAIL}}"
-    }
-  }
-}
+```bash
+scenario-to-cloud manifest init \
+  --scenario {{SCENARIO_NAME}} \
+  --host {{VPS_HOST}} \
+  --domain {{DOMAIN}} \
+  --caddy-email {{ADMIN_EMAIL}} \
+  --out cloud-manifest.json
 ```
 
-Save as `cloud-manifest.json`.
+Optional checks:
+```bash
+scenario-to-cloud manifest doctor cloud-manifest.json
+scenario-to-cloud manifest fix cloud-manifest.json --write
+```
 
 #### Step 2: Validate the manifest
 
@@ -142,49 +134,7 @@ scenario-to-cloud inspect logs <deployment-id> --source postgres --search "conne
 
 ---
 
-### **5. Manifest Reference**
-
-Full manifest schema with all optional fields:
-
-```json
-{
-  "scenario": { "id": "my-scenario" },
-  "target": {
-    "vps": {
-      "host": "vps.example.com",
-      "user": "root",
-      "port": 22,
-      "key_path": "~/.ssh/id_rsa"
-    }
-  },
-  "edge": {
-    "domain": "app.example.com",
-    "dns_policy": "required",
-    "caddy": { "enabled": true, "email": "admin@example.com" }
-  },
-  "ports": { "ui": 3000, "api": 8080, "ws": 8081 },
-  "dependencies": { "resources": ["postgres", "redis"], "scenarios": [] },
-  "options": { "include_packages": true, "autoheal": true, "force_rebuild": false }
-}
-```
-
-| Field | Required | Default | Notes |
-|-------|----------|---------|-------|
-| `scenario.id` | Yes | -- | Must match a local scenario directory name |
-| `target.vps.host` | Yes | -- | VPS hostname or IP |
-| `target.vps.user` | No | `root` | SSH user |
-| `target.vps.port` | No | `22` | SSH port |
-| `target.vps.key_path` | No | auto-detected | Path to SSH private key |
-| `edge.domain` | Yes | -- | Domain with A record pointing to VPS IP |
-| `edge.dns_policy` | No | `required` | `required`, `warn`, or `skip` |
-| `edge.caddy.enabled` | No | `true` | Enable Caddy reverse proxy + auto-HTTPS |
-| `edge.caddy.email` | No | -- | Email for Let's Encrypt ACME |
-| `ports` | No | scenario defaults | Override port mappings |
-| `dependencies.resources` | No | from service.json | Resource IDs to start on VPS |
-| `options.autoheal` | No | `true` | Auto-restart crashed processes |
-| `options.force_rebuild` | No | `false` | Rebuild bundle even if cached |
-
-**VPS prerequisites:**
+### **5. VPS prerequisites:**
 - OS: Ubuntu 22.04+ or Debian 11+
 - RAM: 2 GB minimum (4 GB+ recommended)
 - Storage: 20 GB minimum
@@ -234,7 +184,7 @@ scenario-to-cloud secrets get {{SCENARIO_NAME}} --reveal
 **Do NOT:**
 - Deploy without a valid manifest
 - Use `process vps-action reboot/shutdown` without explicit user request
-- Use deprecated aliases (`manifest-validate`, `vps-setup-plan`, etc.)
+- Use deprecated aliases (`vps-setup-plan`, etc.)
 - Hardcode passwords in commands
 
 ---

@@ -90,8 +90,8 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Parse and validate the manifest
-	var m domain.CloudManifest
-	if err := json.Unmarshal(req.Manifest, &m); err != nil {
+	var rawManifest map[string]interface{}
+	if err := json.Unmarshal(req.Manifest, &rawManifest); err != nil {
 		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_manifest",
 			Message: "Manifest is not valid JSON",
@@ -100,7 +100,15 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	normalized, issues := manifest.ValidateAndNormalize(m)
+	normalized, issues, err := manifest.ValidateRaw(rawManifest)
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "manifest_validate_failed",
+			Message: "Failed to validate manifest",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	if manifest.HasBlockingIssues(issues) {
 		httputil.WriteJSON(w, http.StatusUnprocessableEntity, domain.ManifestValidateResponse{
 			Valid:     false,

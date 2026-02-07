@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   validateManifest,
+  initManifest,
   buildBundle,
   runPreflight as runPreflightApi,
   createDeployment,
@@ -24,7 +25,6 @@ import {
 import {
   type DeploymentManifest,
   type WizardStep,
-  DEFAULT_MANIFEST,
   DEFAULT_MANIFEST_JSON,
   WIZARD_STEPS,
 } from "../types/deployment";
@@ -80,6 +80,7 @@ export function useDeployment() {
 
   // Manifest state
   const [manifestJson, setManifestJson] = useState(saved?.manifestJson ?? DEFAULT_MANIFEST_JSON);
+  const [defaultManifestJson, setDefaultManifestJson] = useState(DEFAULT_MANIFEST_JSON);
 
   // Validation state
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[] | null>(null);
@@ -137,6 +138,29 @@ export function useDeployment() {
   }, [manifestJson]);
 
   const currentStep = WIZARD_STEPS[currentStepIndex];
+
+  // Initialize default manifest from API contract.
+  useEffect(() => {
+    if (saved?.manifestJson) return;
+
+    let cancelled = false;
+    async function bootstrapManifest(): Promise<void> {
+      try {
+        const res = await initManifest();
+        if (!res.manifest || cancelled) return;
+        const json = JSON.stringify(res.manifest, null, 2);
+        setDefaultManifestJson(json);
+        setManifestJson((prev) => (prev === DEFAULT_MANIFEST_JSON ? json : prev));
+      } catch {
+        // Keep local fallback defaults if API bootstrap fails.
+      }
+    }
+
+    void bootstrapManifest();
+    return () => {
+      cancelled = true;
+    };
+  }, [saved?.manifestJson]);
 
   // Wrapper to reset deployment state when bundle changes
   const setBundleArtifact = useCallback((artifact: BundleArtifact | null) => {
@@ -580,19 +604,19 @@ export function useDeployment() {
     historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
     futureRef.current = [];
 
-    setManifestJson(DEFAULT_MANIFEST_JSON);
+    setManifestJson(defaultManifestJson);
     setValidationIssues(null);
     setValidationError(null);
     setNormalizedManifest(null);
     saveDeployment({
-      manifestJson: DEFAULT_MANIFEST_JSON,
+      manifestJson: defaultManifestJson,
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,
       deploymentId,
       deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
+  }, [manifestJson, defaultManifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Reset manifest but preserve scenario selection and auto-populate its ports
   const resetManifestWithScenario = useCallback((scenarioId: string, scenarioPorts: Record<string, number>) => {
@@ -600,10 +624,15 @@ export function useDeployment() {
     historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
     futureRef.current = [];
 
+    const parsedDefault = JSON.parse(defaultManifestJson) as DeploymentManifest;
     const newManifest: DeploymentManifest = {
-      ...DEFAULT_MANIFEST,
+      ...parsedDefault,
       scenario: { id: scenarioId },
-      dependencies: { ...DEFAULT_MANIFEST.dependencies, scenarios: [scenarioId] },
+      dependencies: {
+        ...parsedDefault.dependencies,
+        scenarios: [scenarioId],
+        resources: parsedDefault.dependencies?.resources ?? [],
+      },
       ports: scenarioPorts,
     };
     const json = JSON.stringify(newManifest, null, 2);
@@ -620,7 +649,7 @@ export function useDeployment() {
       deploymentId,
       deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
+  }, [manifestJson, defaultManifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Full reset (returns to step 0, clears everything)
   const reset = useCallback(() => {
@@ -628,7 +657,7 @@ export function useDeployment() {
     historyRef.current = [];
     futureRef.current = [];
     setCurrentStepIndex(0);
-    setManifestJson(DEFAULT_MANIFEST_JSON);
+    setManifestJson(defaultManifestJson);
     setValidationIssues(null);
     setValidationError(null);
     setNormalizedManifest(null);
@@ -648,7 +677,7 @@ export function useDeployment() {
     setDeploymentId(null);
     setSSHKeyPath(null);
     setSSHConnectionStatus("untested");
-  }, []);
+  }, [defaultManifestJson]);
 
   // Computed state
   const canProceed = useMemo(() => {
@@ -699,7 +728,7 @@ export function useDeployment() {
     }
   }, [currentStep.id, parsedManifest, validationIssues, secretsFetched, secretsManifest, providedSecrets, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus, sshConnectionStatus]);
 
-  const hasSavedProgress = saved !== null && saved.manifestJson !== DEFAULT_MANIFEST_JSON;
+  const hasSavedProgress = saved !== null && saved.manifestJson !== defaultManifestJson;
 
   return {
     // Navigation

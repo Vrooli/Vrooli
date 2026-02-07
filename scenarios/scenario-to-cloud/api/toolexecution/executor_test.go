@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
 )
 
 // -----------------------------------------------------------------------------
@@ -165,19 +164,6 @@ func (m *mockResolver) Resolve(_ context.Context, nameOrID string) (string, erro
 
 func (m *mockResolver) addMapping(nameOrID, id string) {
 	m.resolveMap[nameOrID] = id
-}
-
-// -----------------------------------------------------------------------------
-// Mock SSH Runner
-// -----------------------------------------------------------------------------
-
-type mockSSHRunner struct {
-	result ssh.Result
-	err    error
-}
-
-func (m *mockSSHRunner) Run(_ context.Context, _ ssh.Config, _ string, _ ssh.RunOptions) (ssh.Result, error) {
-	return m.result, m.err
 }
 
 // -----------------------------------------------------------------------------

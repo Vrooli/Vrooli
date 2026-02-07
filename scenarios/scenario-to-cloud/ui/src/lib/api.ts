@@ -33,6 +33,24 @@ export type ManifestValidateResponse = {
   schema_hint?: string;
 };
 
+export type ManifestInitRequest = {
+  scenario_id?: string;
+  host?: string;
+  domain?: string;
+  user?: string;
+  port?: number;
+  key_path?: string;
+  workdir?: string;
+  caddy_email?: string;
+};
+
+export type ManifestInitResponse = {
+  manifest: unknown;
+  issues?: ValidationIssue[];
+  source?: string;
+  timestamp: string;
+};
+
 export type BundleArtifact = { path: string; sha256: string; size_bytes: number };
 export type BundleBuildResponse = { artifact: BundleArtifact; timestamp: string };
 
@@ -145,6 +163,20 @@ export async function validateManifest(manifest: unknown) {
     throw new Error(`Manifest validation failed: ${res.status} ${text}`);
   }
   return res.json() as Promise<ManifestValidateResponse>;
+}
+
+export async function initManifest(request: ManifestInitRequest = {}) {
+  const url = buildApiUrl("/manifest/init", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Manifest init failed: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ManifestInitResponse>;
 }
 
 export async function buildBundle(manifest: unknown) {

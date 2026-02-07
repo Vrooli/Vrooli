@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/scenario-to-cloud/manifest.schema.json",
+  "title": "Scenario to Cloud Manifest",
+  "type": "object",
+  "required": [
+    "version",
+    "target",
+    "scenario",
+    "dependencies",
+    "bundle",
+    "ports",
+    "edge"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+    "environment": { "type": "string" },
+    "target": {
+      "type": "object",
+      "required": ["type", "vps"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["vps"] },
+        "vps": {
+          "type": "object",
+          "required": ["host"],
+          "additionalProperties": false,
+          "properties": {
+            "host": { "type": "string", "minLength": 1 },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "user": { "type": "string" },
+            "key_path": { "type": "string" },
+            "workdir": { "type": "string" },
+            "preserve_paths": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string" }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "required": ["scenarios", "resources"],
+      "additionalProperties": false,
+      "properties": {
+        "scenarios": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "resources": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "analyzer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": { "type": "string" },
+            "fingerprint": { "type": "string" },
+            "generated_at": { "type": "string" }
+          }
+        }
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "required": ["include_packages", "include_autoheal"],
+      "additionalProperties": false,
+      "properties": {
+        "include_packages": { "type": "boolean" },
+        "include_autoheal": { "type": "boolean" },
+        "scenarios": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "resources": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 65535 }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["domain", "caddy"],
+      "additionalProperties": false,
+      "properties": {
+        "domain": { "type": "string", "minLength": 1 },
+        "dns_policy": { "type": "string", "enum": ["required", "warn", "skip"] },
+        "caddy": {
+          "type": "object",
+          "required": ["enabled"],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "email": { "type": "string" }
+          }
+        }
+      }
+    },
+    "secrets": {
+      "type": "object"
+    }
+  }
+}

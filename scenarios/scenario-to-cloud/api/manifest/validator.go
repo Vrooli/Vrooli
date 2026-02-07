@@ -435,7 +435,7 @@ func validatePreservePath(p string) error {
 	if clean == ".." || strings.HasPrefix(clean, "../") {
 		return fmt.Errorf("path must stay within target.vps.workdir")
 	}
-	if clean == "scenarios" || strings.HasPrefix(clean, "scenarios/") == false {
+	if clean == "scenarios" || !strings.HasPrefix(clean, "scenarios/") {
 		return fmt.Errorf("path must target a scenario subtree, e.g. scenarios/<scenario-id>/data")
 	}
 	parts := strings.Split(clean, "/")

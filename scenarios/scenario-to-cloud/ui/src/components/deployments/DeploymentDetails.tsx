@@ -64,7 +64,7 @@ interface DeploymentDetailsProps {
 }
 
 export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsProps) {
-  const { data: deployment, isLoading, error, refetch } = useDeployment(deploymentId);
+  const { data: deploymentRecord, isLoading, error, refetch } = useDeployment(deploymentId);
   const inspectMutation = useInspectDeployment();
   const stopMutation = useStopDeployment();
   const startMutation = useStartDeployment();
@@ -88,7 +88,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     forceBundleBuild: boolean;
   } | null>(null);
   const [redeployViewStep, setRedeployViewStep] = useState<number | null>(null);
-  const redeployRunId = deployment?.run_id ?? null;
+  const redeployRunId = deploymentRecord?.run_id ?? null;
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const lastBundleRefreshRunRef = useRef<string | null>(null);
   const [redeployPreflightResult, setRedeployPreflightResult] = useState<PreflightResponse | null>(null);
@@ -105,7 +105,6 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   // Investigation state
   const investigation = useDeploymentInvestigation(deploymentId);
 
-  const deploymentRecord = deployment ?? null;
   const statusInfo = getStatusInfo(deploymentRecord?.status ?? "pending");
   const manifest = (deploymentRecord?.manifest ?? {}) as {
     scenario?: { id: string };
@@ -433,10 +432,10 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
             <ArrowLeft className="h-4 w-4" />
             Back to Deployments
           </button>
-          <h1 className="text-2xl font-bold text-white">{deployment.name}</h1>
+          <h1 className="text-2xl font-bold text-white">{deploymentRecord.name}</h1>
           <div className="flex items-center gap-3 mt-2">
-            <StatusBadgeLarge status={deployment.status} />
-            {manifest.edge?.domain && deployment.status === "deployed" && (
+            <StatusBadgeLarge status={deploymentRecord.status} />
+            {manifest.edge?.domain && deploymentRecord.status === "deployed" && (
               <a
                 href={`https://${manifest.edge.domain}`}
                 target="_blank"
@@ -523,7 +522,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                {deployment.status === "failed" ? "Retry" : "Re-deploy"}
+                {deploymentRecord.status === "failed" ? "Retry" : "Re-deploy"}
               </button>
             )}
 
@@ -810,15 +809,15 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Error message */}
-      {deployment.error_message && (
+      {deploymentRecord.error_message && (
         <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10">
           <div className="flex items-start gap-2">
             <XCircle className="h-5 w-5 text-red-400 mt-0.5" />
             <div>
               <p className="font-medium text-red-400">
-                Failed at: {deployment.error_step || "unknown step"}
+                Failed at: {deploymentRecord.error_step || "unknown step"}
               </p>
-              <p className="text-red-300 mt-1">{deployment.error_message}</p>
+              <p className="text-red-300 mt-1">{deploymentRecord.error_message}</p>
             </div>
           </div>
         </div>
@@ -926,7 +925,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
       {/* Tab Content */}
       {activeTab === "live-state" && (
-        <LiveStateTab deploymentId={deploymentId} deploymentName={deployment.name} />
+        <LiveStateTab deploymentId={deploymentId} deploymentName={deploymentRecord.name} />
       )}
       {activeTab === "files" && (
         <FilesTab deploymentId={deploymentId} />
@@ -943,8 +942,8 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {activeTab === "investigations" && (
         <InvestigationsTab
           deploymentId={deploymentId}
-          deploymentRunId={deployment.run_id}
-          lastDeployedAt={deployment.last_deployed_at}
+          deploymentRunId={deploymentRecord.run_id}
+          lastDeployedAt={deploymentRecord.last_deployed_at}
           onViewReport={(inv) => {
             investigation.viewReport(inv.id);
             openModal("investigation-report", { invId: inv.id });
@@ -965,7 +964,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-slate-500" />
               <span className="text-slate-400">Scenario:</span>
-              <span className="text-white">{manifest.scenario?.id || deployment.scenario_id}</span>
+              <span className="text-white">{manifest.scenario?.id || deploymentRecord.scenario_id}</span>
             </div>
             {manifest.edge?.domain && (
               <div className="flex items-center gap-2">
@@ -992,24 +991,24 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               <Clock className="h-4 w-4 text-slate-500" />
               <span className="text-slate-400">Created:</span>
               <span className="text-white">
-                {new Date(deployment.created_at).toLocaleString()}
+                {new Date(deploymentRecord.created_at).toLocaleString()}
               </span>
             </div>
-            {deployment.last_deployed_at && (
+            {deploymentRecord.last_deployed_at && (
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 <span className="text-slate-400">Last deployed:</span>
                 <span className="text-white">
-                  {new Date(deployment.last_deployed_at).toLocaleString()}
+                  {new Date(deploymentRecord.last_deployed_at).toLocaleString()}
                 </span>
               </div>
             )}
-            {deployment.last_inspected_at && (
+            {deploymentRecord.last_inspected_at && (
               <div className="flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 text-blue-500" />
                 <span className="text-slate-400">Last inspected:</span>
                 <span className="text-white">
-                  {new Date(deployment.last_inspected_at).toLocaleString()}
+                  {new Date(deploymentRecord.last_inspected_at).toLocaleString()}
                 </span>
               </div>
             )}
@@ -1043,14 +1042,14 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Deployment Manifest */}
-      {deployment.manifest && (
+      {deploymentRecord.manifest && (
         <CollapsibleSection
           title="Deployment Manifest"
           isOpen={showManifest}
           onToggle={() => setShowManifest(!showManifest)}
         >
           <CodeBlock
-            code={JSON.stringify(deployment.manifest, null, 2)}
+            code={JSON.stringify(deploymentRecord.manifest, null, 2)}
             language="json"
             maxHeight="500px"
             showLineNumbers={true}
@@ -1060,14 +1059,14 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Setup Result */}
-      {deployment.setup_result && (
+      {deploymentRecord.setup_result && (
         <CollapsibleSection
           title="Setup Result"
           isOpen={showSetupResult}
           onToggle={() => setShowSetupResult(!showSetupResult)}
         >
           <CodeBlock
-            code={JSON.stringify(deployment.setup_result, null, 2)}
+            code={JSON.stringify(deploymentRecord.setup_result, null, 2)}
             language="json"
             maxHeight="400px"
             showLineNumbers={true}
@@ -1077,14 +1076,14 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Deploy Result */}
-      {deployment.deploy_result && (
+      {deploymentRecord.deploy_result && (
         <CollapsibleSection
           title="Deploy Result"
           isOpen={showDeployResult}
           onToggle={() => setShowDeployResult(!showDeployResult)}
         >
           <CodeBlock
-            code={JSON.stringify(deployment.deploy_result, null, 2)}
+            code={JSON.stringify(deploymentRecord.deploy_result, null, 2)}
             language="json"
             maxHeight="400px"
             showLineNumbers={true}
@@ -1094,13 +1093,13 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Logs */}
-      {deployment.last_inspect_result && (
+      {deploymentRecord.last_inspect_result && (
         <CollapsibleSection
           title="Logs"
           isOpen={showLogs}
           onToggle={() => setShowLogs(!showLogs)}
         >
-          <LogsSection inspectResult={deployment.last_inspect_result} />
+          <LogsSection inspectResult={deploymentRecord.last_inspect_result} />
         </CollapsibleSection>
       )}
         </>

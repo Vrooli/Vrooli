@@ -17,18 +17,43 @@ From the Dashboard, click **Start New Deployment** to launch the deployment wiza
 
 ## Step 2: Configure Your Manifest
 
-The manifest defines what gets deployed and where. At minimum, you need:
+Use `manifest init` to generate a starter manifest:
+
+```bash
+scenario-to-cloud manifest init \
+  --scenario your-scenario-name \
+  --host your-server.com \
+  --domain app.your-domain.com \
+  --out cloud-manifest.json
+```
+
+Equivalent minimal contract:
 
 ```json
 {
+  "version": "1.0.0",
   "scenario": {
     "id": "your-scenario-name"
   },
   "target": {
+    "type": "vps",
     "vps": {
       "host": "your-server.com",
       "user": "root"
     }
+  },
+  "dependencies": {
+    "scenarios": ["your-scenario-name"],
+    "resources": []
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true
+  },
+  "ports": {
+    "ui": 3000,
+    "api": 3001,
+    "ws": 3002
   },
   "edge": {
     "domain": "app.your-domain.com"

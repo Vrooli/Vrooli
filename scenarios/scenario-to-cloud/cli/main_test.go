@@ -137,12 +137,66 @@ func TestManifestValidatePostsToValidateEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"manifest-validate", manifestPath}); err != nil {
+		if err := app.Run([]string{"manifest", "validate", manifestPath}); err != nil {
 			t.Fatalf("manifest validate failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"valid\": true") {
 		t.Fatalf("expected validate output, got: %s", output)
+	}
+}
+
+func TestManifestSchemaGetsSchemaEndpoint(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/manifest/schema" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"schema":{"type":"object"},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"manifest", "schema"}); err != nil {
+			t.Fatalf("manifest schema failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"schema\"") {
+		t.Fatalf("expected schema output, got: %s", output)
+	}
+}
+
+func TestManifestInitPostsToInitEndpoint(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/manifest/init" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"manifest":{"version":"1.0.0"},"issues":[],"source":"template","timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"manifest", "init", "--scenario", "landing-page-business-suite"}); err != nil {
+			t.Fatalf("manifest init failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "Initialized manifest") {
+		t.Fatalf("expected init output, got: %s", output)
 	}
 }
 

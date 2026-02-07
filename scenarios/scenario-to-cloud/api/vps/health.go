@@ -693,7 +693,7 @@ func checkToRecommendation(deploymentID, category string, check domain.HealthChe
 			Priority: 1,
 			Category: "ssh",
 			Summary:  "VPS unreachable via SSH",
-			Command:  fmt.Sprintf("scenario-to-cloud ssh test <host>"),
+			Command:  "scenario-to-cloud ssh test <host>",
 		}
 	case category == "processes" && check.Status == domain.HealthCheckFail:
 		return &domain.Recommendation{

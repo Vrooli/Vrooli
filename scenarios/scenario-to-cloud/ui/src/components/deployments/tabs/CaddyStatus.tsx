@@ -273,8 +273,6 @@ export function CaddyStatus({ caddy, deploymentId }: CaddyStatusProps) {
                       ? "Apex"
                       : domainCheck.role === "www"
                       ? "WWW"
-                      : domainCheck.role === "edge"
-                      ? "Edge"
                       : "Origin";
 
                   return (

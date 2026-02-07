@@ -122,7 +122,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{
 				Name:        "manifest",
 				NeedsAPI:    true,
-				Description: "Manifest operations (validate)",
+				Description: "Manifest operations (validate, schema, init, template, doctor, fix)",
 				Run:         func(args []string) error { return manifest.Run(a.manifestClient, args) },
 			},
 			{
@@ -204,15 +204,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	aliases := cliapp.CommandGroup{
 		Title: "Aliases (deprecated)",
 		Commands: []cliapp.Command{
-			{
-				Name:        "manifest-validate",
-				NeedsAPI:    true,
-				Description: "(deprecated: use 'manifest validate')",
-				Run: func(args []string) error {
-					fmt.Fprintln(deprecationWriter, "Warning: 'manifest-validate' is deprecated. Use 'manifest validate' instead.")
-					return manifest.Run(a.manifestClient, append([]string{"validate"}, args...))
-				},
-			},
 			{
 				Name:        "plan",
 				NeedsAPI:    true,

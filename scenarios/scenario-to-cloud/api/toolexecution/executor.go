@@ -185,12 +185,15 @@ func (e *ServerExecutor) createDeployment(ctx context.Context, args map[string]i
 		return ErrorResult("manifest must be a JSON object or string", CodeInvalidArgs), nil
 	}
 
-	var cloudManifest domain.CloudManifest
-	if err := json.Unmarshal(manifestJSON, &cloudManifest); err != nil {
+	var rawManifest map[string]interface{}
+	if err := json.Unmarshal(manifestJSON, &rawManifest); err != nil {
 		return ErrorResult(fmt.Sprintf("invalid manifest JSON: %v", err), CodeInvalidArgs), nil
 	}
 
-	normalized, issues := manifest.ValidateAndNormalize(cloudManifest)
+	normalized, issues, err := manifest.ValidateRaw(rawManifest)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("failed to validate manifest: %v", err), CodeInternalError), nil
+	}
 	if manifest.HasBlockingIssues(issues) {
 		return ErrorResult("manifest has blocking validation issues", CodeValidation), nil
 	}

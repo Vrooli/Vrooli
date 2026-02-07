@@ -82,7 +82,7 @@ func (s *DefaultService) Probe(ctx context.Context, domain string) (ProbeResult,
 	if domain == "" {
 		return ProbeResult{}, fmt.Errorf("domain is empty")
 	}
-	ctx, cancel := s.applyTimeout(ctx)
+	_, cancel := s.applyTimeout(ctx)
 	if cancel != nil {
 		defer cancel()
 	}

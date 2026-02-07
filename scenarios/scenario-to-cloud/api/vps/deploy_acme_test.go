@@ -195,12 +195,3 @@ func TestCaddyACMEOriginUnreachableHintLimitsLogLines(t *testing.T) {
 		t.Errorf("expected at most 2 separators for 3 log lines, got %d", separatorCount)
 	}
 }
-
-func containsAll(value string, needles []string) bool {
-	for _, needle := range needles {
-		if !strings.Contains(value, needle) {
-			return false
-		}
-	}
-	return true
-}
