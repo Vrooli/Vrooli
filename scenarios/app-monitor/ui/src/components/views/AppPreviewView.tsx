@@ -50,9 +50,11 @@ import { useAppDiagnostics } from '@/hooks/useAppDiagnostics';
 import { useLighthouseHistory } from '@/hooks/useLighthouseHistory';
 import { useAppCompleteness } from '@/hooks/useAppCompleteness';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
+import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { PREVIEW_TIMEOUTS, PREVIEW_MESSAGES } from './previewConstants';
 import type { PreviewLocationState } from '@/types/preview';
 import { isPreviewLocationState } from '@/types/preview';
+import { HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER, type BridgeShortcutIntent } from '@vrooli/iframe-bridge';
 import './AppPreviewView.css';
 
 const AppPreviewView = () => {
@@ -64,7 +66,7 @@ const AppPreviewView = () => {
   const canOpenTabsOverlay = apps.length > 0;
   const { prepareAutoNext } = useAutoNextScenario();
   const navigate = useNavigate();
-  const { closeOverlay } = useOverlayRouter();
+  const { openOverlay, closeOverlay } = useOverlayRouter();
   const { appId } = useParams<{ appId: string }>();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,6 +109,7 @@ const AppPreviewView = () => {
   const [iframeLoadedAt, setIframeLoadedAt] = useState<number | null>(null);
   const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const shouldFocusPreviewOnLoadRef = useRef(Boolean(locationState?.fromAppsList));
   const previewViewRef = useRef<HTMLDivElement | null>(null);
   const [previewViewNode, setPreviewViewNode] = useState<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
@@ -136,6 +139,22 @@ const AppPreviewView = () => {
   const [complianceCheckRun, setComplianceCheckRun] = useState(false);
   const initialPreviewUrlRef = useRef<string | null>(null);
   const syncFromBridgeRef = useRef<(href: string | null) => void>(() => {});
+
+  const focusPreviewIframe = useCallback((): boolean => {
+    const iframe = iframeRef.current;
+    if (!iframe) {
+      return false;
+    }
+
+    try {
+      iframe.focus({ preventScroll: true });
+      iframe.contentWindow?.focus();
+      return true;
+    } catch (error) {
+      logger.debug('Unable to focus preview iframe', error);
+      return false;
+    }
+  }, []);
   const lastRefreshRequestRef = useRef(0);
   const lastStateSnapshotRef = useRef<string>('');
 
@@ -434,23 +453,24 @@ const AppPreviewView = () => {
       body.classList.remove(className);
     }
 
-    // Handle escape key for layout fullscreen
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
-      }
-      if (isLayoutFullscreen && event.key === 'Escape') {
-        setIsLayoutFullscreen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       body.classList.remove(className);
-      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isLayoutFullscreen]);
+
+  useKeyboardScope({
+    id: 'app-preview-layout-fullscreen-escape',
+    priority: 200,
+    enabled: isLayoutFullscreen,
+    onKeyDown: (event) => {
+      if (event.defaultPrevented || event.key !== 'Escape') {
+        return false;
+      }
+      setIsLayoutFullscreen(false);
+      return true;
+    },
+  });
 
   useEffect(() => {
     const wasFullscreen = previousIsFullscreenRef.current;
@@ -500,6 +520,23 @@ const AppPreviewView = () => {
     setStatusMessage(null);
   }, []);
 
+  const handleBridgeShortcut = useCallback((message: { intent: BridgeShortcutIntent }) => {
+    const intent = message.intent;
+    if (!intent || intent.action !== HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER) {
+      return;
+    }
+
+    if (intent.outcome !== 'noop' && intent.outcome !== 'unhandled') {
+      return;
+    }
+
+    if (activeOverlay === 'tabs') {
+      return;
+    }
+
+    openOverlay('tabs');
+  }, [activeOverlay, openOverlay]);
+
   const {
     state: bridgeState,
     childOrigin,
@@ -524,6 +561,7 @@ const AppPreviewView = () => {
     iframeRef,
     previewUrl,
     onLocation: handleBridgeLocation,
+    onShortcut: handleBridgeShortcut,
   });
 
   // Use shared preview overlay hook
@@ -897,6 +935,28 @@ const AppPreviewView = () => {
   }, [appId, apps, commitAppUpdate, fetchAttempted]);
 
   useEffect(() => {
+    if (locationState?.fromAppsList) {
+      shouldFocusPreviewOnLoadRef.current = true;
+    }
+  }, [location.key, locationState?.fromAppsList]);
+
+  useEffect(() => {
+    if (!shouldFocusPreviewOnLoadRef.current) {
+      return;
+    }
+
+    const rafId = window.requestAnimationFrame(() => {
+      if (focusPreviewIframe()) {
+        shouldFocusPreviewOnLoadRef.current = false;
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [currentAppIdentifier, focusPreviewIframe]);
+
+  useEffect(() => {
     if (!currentAppForPreview) {
       if (!hasCustomPreviewUrl) {
         if (deterministicProxyUrl && previewUrl !== deterministicProxyUrl) {
@@ -1171,7 +1231,15 @@ const AppPreviewView = () => {
       }
       return prev;
     });
-  }, [setPreviewOverlay]);
+    if (shouldFocusPreviewOnLoadRef.current) {
+      const rafId = window.requestAnimationFrame(() => {
+        if (focusPreviewIframe()) {
+          shouldFocusPreviewOnLoadRef.current = false;
+        }
+      });
+      window.setTimeout(() => window.cancelAnimationFrame(rafId), 300);
+    }
+  }, [focusPreviewIframe, setPreviewOverlay]);
 
   const handleIframeError = useCallback(() => {
     const isMixedContent =

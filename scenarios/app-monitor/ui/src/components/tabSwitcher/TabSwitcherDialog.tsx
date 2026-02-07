@@ -1,5 +1,5 @@
 import { logger } from '@/services/logger';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
 import { useResourcesCatalog, normalizeResourceSort, type ResourceSortOption } from '@/hooks/useResourcesCatalog';
@@ -8,6 +8,7 @@ import { useResourcesStore } from '@/state/resourcesStore';
 import { resolveAppIdentifier } from '@/utils/appPreview';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
+import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
 import type { App, Resource } from '@/types';
@@ -207,41 +208,51 @@ export default function TabSwitcherDialog() {
     return true;
   }, []);
 
-  const handleDialogKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      handleClose();
-      return;
-    }
-
-    const key = event.key;
-    const isArrowKey = key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
-    if (!isArrowKey) {
-      return;
-    }
-
-    const target = event.target as HTMLElement | null;
-    if (!target) {
-      return;
-    }
-
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) {
-      return;
-    }
-
-    if (key === 'ArrowUp' || key === 'ArrowDown') {
-      const moved = moveGridCardFocus(key === 'ArrowDown' ? 1 : -1, target);
-      if (!moved) {
-        return;
+  useKeyboardScope({
+    id: 'tab-switcher-dialog-keys',
+    priority: 900,
+    onKeyDown: (event) => {
+      const target = event.target;
+      if (!dialogRef.current || !(target instanceof Node) || !dialogRef.current.contains(target)) {
+        return false;
       }
-      event.preventDefault();
-      return;
-    }
 
-    event.preventDefault();
-    moveFocusByStep(key === 'ArrowRight' ? 1 : -1);
-  };
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        handleClose();
+        return true;
+      }
+
+      const key = event.key;
+      const isArrowKey = key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
+      if (!isArrowKey) {
+        return false;
+      }
+
+      const keyTarget = event.target as HTMLElement | null;
+      if (!keyTarget) {
+        return false;
+      }
+
+      if (keyTarget.tagName === 'INPUT' || keyTarget.tagName === 'TEXTAREA' || keyTarget.tagName === 'SELECT' || keyTarget.isContentEditable) {
+        return false;
+      }
+
+      if (key === 'ArrowUp' || key === 'ArrowDown') {
+        const moved = moveGridCardFocus(key === 'ArrowDown' ? 1 : -1, keyTarget);
+        if (!moved) {
+          return false;
+        }
+        event.preventDefault();
+        return true;
+      }
+
+      event.preventDefault();
+      moveFocusByStep(key === 'ArrowRight' ? 1 : -1);
+      return true;
+    },
+  });
 
   const handleAppSelect = (app: App, options?: { autoSelected?: boolean; navigationId?: string }) => {
     resetAutoNextMessage();
@@ -325,7 +336,7 @@ export default function TabSwitcherDialog() {
   };
 
   return (
-    <div className="tab-switcher" ref={dialogRef} onKeyDownCapture={handleDialogKeyDownCapture}>
+    <div className="tab-switcher" ref={dialogRef}>
       <TabSwitcherHeader title={activeSegmentLabel} shortcut={shortcut} onClose={handleClose} />
 
       <TabSwitcherControls

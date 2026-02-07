@@ -19,4 +19,8 @@ export {
   type LogCaptureOptions,
   type NetworkCaptureOptions,
   type StorageShimEntry,
+  emitShortcutIntent,
+  HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+  type BridgeShortcutIntent,
+  type BridgeShortcutOutcome,
 } from './iframeBridgeChild.js';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { MutableRefObject } from 'react';
+import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { logger } from '@/services/logger';
 
 interface UseFullscreenModeOptions {
@@ -56,26 +57,18 @@ export const useFullscreenMode = ({
     };
   }, [isLayoutFullscreen]);
 
-  // Handle escape key for layout fullscreen
-  useEffect(() => {
-    if (!isLayoutFullscreen) {
-      return () => {};
-    }
-
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
+  useKeyboardScope({
+    id: 'fullscreen-mode-layout-escape',
+    priority: 200,
+    enabled: isLayoutFullscreen,
+    onKeyDown: (event) => {
+      if (event.defaultPrevented || event.key !== 'Escape') {
+        return false;
       }
-      if (event.key === 'Escape') {
-        setIsLayoutFullscreen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isLayoutFullscreen]);
+      setIsLayoutFullscreen(false);
+      return true;
+    },
+  });
 
   const handleToggleFullscreen = useCallback(() => {
     if (typeof document === 'undefined') {

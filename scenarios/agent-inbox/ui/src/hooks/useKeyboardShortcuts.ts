@@ -6,9 +6,11 @@ export interface KeyboardShortcut {
   metaKey?: boolean;
   shiftKey?: boolean;
   description: string;
-  action: () => void;
+  action: () => void | boolean;
   /** If true, prevent default browser behavior */
   preventDefault?: boolean;
+  /** Allow this shortcut to fire while an input/textarea/contentEditable has focus */
+  allowInInput?: boolean;
   /** Category for grouping in help display */
   category?: "navigation" | "chat" | "general";
 }
@@ -16,6 +18,8 @@ export interface KeyboardShortcut {
 interface UseKeyboardShortcutsOptions {
   /** Disable all shortcuts (e.g., when a modal is open) */
   disabled?: boolean;
+  /** Called when a shortcut matches but action reports unhandled/no-op via `false` return */
+  onUnhandledShortcut?: (shortcut: KeyboardShortcut, event: KeyboardEvent) => void;
 }
 
 /**
@@ -26,13 +30,13 @@ export function useKeyboardShortcuts(
   shortcuts: KeyboardShortcut[],
   options: UseKeyboardShortcutsOptions = {}
 ) {
-  const { disabled = false } = options;
+  const { disabled = false, onUnhandledShortcut } = options;
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (disabled) return;
 
-      // Don't trigger shortcuts when typing in inputs (except for specific cases)
+      // Default behavior: avoid non-modifier shortcuts while typing in editable fields.
       const target = e.target as HTMLElement;
       const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 
@@ -42,20 +46,24 @@ export function useKeyboardShortcuts(
         const shiftMatch = shortcut.shiftKey ? e.shiftKey : !e.shiftKey;
 
         if (keyMatch && ctrlMatch && shiftMatch) {
-          // Allow Escape to work even in inputs
-          if (isInput && e.key !== "Escape") {
+          const hasModifier = e.ctrlKey || e.metaKey;
+          const canRunInInput = shortcut.allowInInput === true || shortcut.key === "Escape" || hasModifier;
+          if (isInput && !canRunInInput) {
             continue;
           }
 
           if (shortcut.preventDefault !== false) {
             e.preventDefault();
           }
-          shortcut.action();
+          const handled = shortcut.action();
+          if (handled === false) {
+            onUnhandledShortcut?.(shortcut, e);
+          }
           return;
         }
       }
     },
-    [shortcuts, disabled]
+    [shortcuts, disabled, onUnhandledShortcut]
   );
 
   useEffect(() => {

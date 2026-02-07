@@ -5,6 +5,7 @@ import HomeView from '@/components/views/HomeView';
 import ResourceDetailView from '@/components/views/ResourceDetailView';
 import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
+import { KeyboardScopeProvider } from '@/hooks/useKeyboardScopes';
 import { logger } from '@/services/logger';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
@@ -111,23 +112,25 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <div className="app">
-          <Routes>
-            <Route element={<Shell isConnected={isConnected} />}>
-              <Route index element={<HomeView />} />
-              <Route path="apps" element={<TabOverlayRedirect segment="apps" />} />
-              <Route path="resources" element={<TabOverlayRedirect segment="resources" />} />
-              <Route path="tabs" element={<TabOverlayRedirect />} />
-              <Route path="apps/:appId/preview" element={<AppPreviewView />} />
-              <Route path="resources/:resourceId" element={<ResourceDetailView />} />
-              <Route path="logs" element={<TabOverlayRedirect segment="apps" />} />
-              <Route path="logs/:appId" element={<LogsAppRedirect />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </div>
-      </Router>
+      <KeyboardScopeProvider>
+        <Router>
+          <div className="app">
+            <Routes>
+              <Route element={<Shell isConnected={isConnected} />}>
+                <Route index element={<HomeView />} />
+                <Route path="apps" element={<TabOverlayRedirect segment="apps" />} />
+                <Route path="resources" element={<TabOverlayRedirect segment="resources" />} />
+                <Route path="tabs" element={<TabOverlayRedirect />} />
+                <Route path="apps/:appId/preview" element={<AppPreviewView />} />
+                <Route path="resources/:resourceId" element={<ResourceDetailView />} />
+                <Route path="logs" element={<TabOverlayRedirect segment="apps" />} />
+                <Route path="logs/:appId" element={<LogsAppRedirect />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </div>
+        </Router>
+      </KeyboardScopeProvider>
     </ErrorBoundary>
   );
 }

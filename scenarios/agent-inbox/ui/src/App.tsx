@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Menu, X, ChevronLeft, Star } from "lucide-react";
+import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus, type AsyncStatusUpdate } from "./hooks/useAsyncStatus";
 import { useTools } from "./hooks/useTools";
@@ -623,7 +624,15 @@ function AppContent() {
         key: "k",
         ctrlKey: true,
         description: "Focus search",
-        action: () => searchInputRef.current?.focus(),
+        action: () => {
+          const searchInput = searchInputRef.current;
+          if (!searchInput) return false;
+          if (document.activeElement === searchInput) {
+            return false;
+          }
+          searchInput.focus();
+          return true;
+        },
         category: "navigation",
       },
       // "/" also focuses search (KEY-005)
@@ -717,7 +726,26 @@ function AppContent() {
     ]
   );
 
-  useKeyboardShortcuts(shortcuts, { disabled: anyModalOpen && shortcuts.every(s => s.key !== "Escape") });
+  const handleUnhandledShortcut = useCallback((shortcut: KeyboardShortcut, event: KeyboardEvent) => {
+    if (!shortcut.ctrlKey || shortcut.key.toLowerCase() !== "k") {
+      return;
+    }
+
+    emitShortcutIntent({
+      action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+      outcome: "noop",
+      chord: "mod+k",
+      source: "keyboard",
+      detail: {
+        key: event.key,
+      },
+    });
+  }, []);
+
+  useKeyboardShortcuts(shortcuts, {
+    disabled: anyModalOpen && shortcuts.every(s => s.key !== "Escape"),
+    onUnhandledShortcut: handleUnhandledShortcut,
+  });
 
   return (
     <div className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid="inbox-container">

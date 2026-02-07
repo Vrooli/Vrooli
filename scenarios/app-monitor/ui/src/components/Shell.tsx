@@ -8,6 +8,7 @@ import TabSwitcherDialog from '@/components/tabSwitcher/TabSwitcherDialog';
 import ActionsDialog from '@/components/actions/ActionsDialog';
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
+import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { useShellOverlayStore } from '@/state/shellOverlayStore';
 import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import { isTabSwitcherShortcutEvent } from '@/utils/tabSwitcherShortcut';
@@ -74,37 +75,26 @@ export default function Shell({ isConnected }: ShellProps) {
     overlayTarget ? createPortal(node, overlayTarget) : node
   );
 
-  useEffect(() => {
-    if (!anyOverlayOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeOverlay();
+  useKeyboardScope({
+    id: 'shell-overlay-escape',
+    priority: 500,
+    enabled: anyOverlayOpen,
+    onKeyDown: (event) => {
+      if (event.key !== 'Escape') {
+        return false;
       }
-    };
+      event.preventDefault();
+      closeOverlay();
+      return true;
+    },
+  });
 
-    document.addEventListener('keydown', handleKeyDown);
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [anyOverlayOpen, closeOverlay]);
-
-  useEffect(() => {
-    const listenerOptions = { capture: true } as const;
-    const handleShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
-      }
-      if (!isTabSwitcherShortcutEvent(event)) {
-        return;
+  useKeyboardScope({
+    id: 'shell-tab-switcher-shortcut',
+    priority: 100,
+    onKeyDown: (event) => {
+      if (event.defaultPrevented || !isTabSwitcherShortcutEvent(event)) {
+        return false;
       }
 
       event.preventDefault();
@@ -115,13 +105,22 @@ export default function Shell({ isConnected }: ShellProps) {
       } else {
         openOverlay('tabs');
       }
-    };
+      return true;
+    },
+  });
 
-    window.addEventListener('keydown', handleShortcut, listenerOptions);
+  useEffect(() => {
+    if (!anyOverlayOpen) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     return () => {
-      window.removeEventListener('keydown', handleShortcut, listenerOptions);
+      document.body.style.overflow = originalOverflow;
     };
-  }, [activeOverlay, closeOverlay, openOverlay]);
+  }, [anyOverlayOpen]);
 
   const handleToggleTabs = useCallback(() => {
     if (activeOverlay === 'tabs') {

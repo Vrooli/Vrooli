@@ -10,6 +10,7 @@ import type {
   BridgeScreenshotOptions,
   BridgeInspectHoverPayload,
   BridgeInspectResultPayload,
+  BridgeShortcutIntent,
 } from '@vrooli/iframe-bridge';
 import { logger } from '@/services/logger';
 
@@ -142,6 +143,12 @@ type BridgeDiagResultMessage = {
   error?: string;
 };
 
+type BridgeShortcutMessage = {
+  v: 1;
+  t: 'SHORTCUT';
+  intent: BridgeShortcutIntent;
+};
+
 type BridgeChildToParentMessage =
   | BridgeHelloMessage
   | BridgeReadyMessage
@@ -160,7 +167,8 @@ type BridgeChildToParentMessage =
   | BridgeInspectStateMessage
   | BridgeInspectCancelMessage
   | BridgeInspectErrorMessage
-  | BridgeDiagResultMessage;
+  | BridgeDiagResultMessage
+  | BridgeShortcutMessage;
 
 type BridgeSnapshotRequestOptions = {
   since?: number;
@@ -242,6 +250,7 @@ interface UseIframeBridgeOptions {
   iframeRef: React.RefObject<HTMLIFrameElement>;
   previewUrl: string | null;
   onLocation?: (message: BridgeLocationMessage) => void;
+  onShortcut?: (message: BridgeShortcutMessage) => void;
 }
 
 export interface UseIframeBridgeReturn {
@@ -303,7 +312,7 @@ const generateRequestId = (prefix: string): string => {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframeBridgeOptions): UseIframeBridgeReturn => {
+export const useIframeBridge = ({ iframeRef, previewUrl, onLocation, onShortcut }: UseIframeBridgeOptions): UseIframeBridgeReturn => {
   const [state, setState] = useState<BridgeState>(initialBridgeState);
   const [logState, setLogState] = useState<BridgeLogStreamState | null>(null);
   const [networkState, setNetworkState] = useState<BridgeNetworkStreamState | null>(null);
@@ -628,6 +637,11 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           break;
         }
 
+        case 'SHORTCUT': {
+          onShortcut?.(message);
+          break;
+        }
+
         default: {
           break;
         }
@@ -638,7 +652,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [childOrigin, iframeRef, onLocation]);
+  }, [childOrigin, iframeRef, onLocation, onShortcut]);
 
   const postMessage = useCallback(
     (payload: BridgeParentToChildMessage) => {

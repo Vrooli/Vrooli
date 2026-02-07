@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
 import { MobileNav } from "./components/MobileNav";
@@ -1237,13 +1238,22 @@ export default function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
+        if (isFileSearchOpen) {
+          emitShortcutIntent({
+            action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+            outcome: "noop",
+            chord: "mod+k",
+            source: "keyboard",
+          });
+          return;
+        }
         setIsFileSearchOpen(true);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isFileSearchOpen]);
 
   // View mode fallback: when selectedFile changes, ensure viewMode is valid for the new file
   useEffect(() => {

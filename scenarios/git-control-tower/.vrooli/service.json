@@ -1,215 +1,215 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
-  "version": "2.0.0",
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "description": "AI-assisted commit message suggestions",
+        "enabled": false,
+        "required": false,
+        "type": "ollama"
+      },
+      "redis": {
+        "description": "Optional caching for diff/status operations",
+        "enabled": false,
+        "required": false,
+        "type": "redis"
+      },
+      "resource-openrouter": {
+        "description": "AI fallback for commit message suggestions",
+        "enabled": false,
+        "required": false,
+        "type": "resource-openrouter"
+      },
+      "sqlite": {
+        "description": "Audit log and metadata storage (local SQLite database)",
+        "enabled": true,
+        "required": true,
+        "type": "sqlite"
+      }
+    }
+  },
+  "lifecycle": {
+    "develop": {
+      "description": "Start Git Control Tower services for development",
+      "steps": [
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "api/git-control-tower-api"
+          },
+          "description": "Start Go API server",
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./git-control-tower-api"
+        },
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle",
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js"
+        },
+        {
+          "description": "Show API/UI URLs",
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}/health\" \u0026\u0026 echo \"UI:  http://localhost:${UI_PORT}/\""
+        }
+      ]
+    },
+    "health": {
+      "checks": [
+        {
+          "critical": true,
+          "interval": 30000,
+          "name": "api_endpoint",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        },
+        {
+          "critical": false,
+          "interval": 30000,
+          "name": "ui_endpoint",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        }
+      ],
+      "description": "Git Control Tower health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "targets": [
+              "api/git-control-tower-api"
+            ],
+            "type": "binaries"
+          },
+          {
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src",
+            "type": "ui-bundle"
+          },
+          {
+            "command": "git-control-tower",
+            "targets": [
+              "git-control-tower"
+            ],
+            "type": "cli"
+          }
+        ]
+      },
+      "description": "Initialize Git Control Tower (build + install)",
+      "steps": [
+        {
+          "condition": {
+            "file_exists": "cli/install.sh"
+          },
+          "description": "Install CLI command globally",
+          "name": "install-cli",
+          "run": "bash cli/install.sh"
+        },
+        {
+          "description": "Build Go API binary",
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 go mod download \u0026\u0026 go build -o git-control-tower-api ."
+        },
+        {
+          "condition": {
+            "file_exists": "ui/package.json"
+          },
+          "description": "Install UI dependencies",
+          "name": "install-ui-deps",
+          "run": "cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace)"
+        },
+        {
+          "description": "Build production UI bundle",
+          "name": "build-ui",
+          "run": "cd ui \u0026\u0026 pnpm run build"
+        },
+        {
+          "description": "Show API/UI URLs after setup",
+          "name": "show-urls",
+          "run": "echo \"✅ Setup complete\" \u0026\u0026 echo \"API: http://localhost:${API_PORT}/health\" \u0026\u0026 echo \"UI:  http://localhost:${UI_PORT}/\""
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all services gracefully"
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "condition": {
+            "file_exists": "cli/install.sh"
+          },
+          "description": "Ensure CLI is available for integration checks",
+          "name": "install-cli",
+          "run": "bash cli/install.sh"
+        },
+        {
+          "description": "Execute phased scenario test suite",
+          "name": "run-phased-tests",
+          "run": "test-genie execute git-control-tower --preset comprehensive --skip playbooks"
+        }
+      ]
+    },
+    "version": "2.0.0"
+  },
+  "ports": {
+    "api": {
+      "description": "Git Control Tower API port",
+      "env_var": "API_PORT",
+      "port": 18700,
+      "range": "15000-19999"
+    },
+    "ui": {
+      "description": "Git Control Tower UI port",
+      "env_var": "UI_PORT",
+      "port": 36400,
+      "range": "35000-39999"
+    }
+  },
   "service": {
-    "name": "git-control-tower",
-    "displayName": "Git Control Tower",
-    "description": "Agent-friendly git repository control plane (REST API + CLI + UI)",
-    "version": "1.0.0",
-    "parent": "vrooli",
-    "type": "scenario",
     "category": "general",
+    "description": "Agent-friendly git repository control plane (REST API + CLI + UI)",
+    "displayName": "Git Control Tower",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "MIT",
+    "maintainers": [
+      {
+        "email": "support@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "git-control-tower",
+    "parent": "vrooli",
+    "repository": {
+      "directory": "/scenarios/git-control-tower",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
+    },
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
     "tags": [
       "git",
       "version-control",
       "devtools",
       "automation"
     ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/git-control-tower"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+    "type": "scenario",
+    "version": "1.3.0"
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "port": 18700,
-      "description": "Git Control Tower API port",
-      "range": "15000-19999"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "port": 36400,
-      "description": "Git Control Tower UI port",
-      "range": "35000-39999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Git Control Tower health check configuration",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
-      "startup_grace_period": 10000,
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "timeout": 5000,
-          "interval": 30000,
-          "critical": true
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "timeout": 5000,
-          "interval": 30000,
-          "critical": false
-        }
-      ]
-    },
-    "setup": {
-      "description": "Initialize Git Control Tower (build + install)",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/git-control-tower-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "git-control-tower",
-            "targets": [
-              "git-control-tower"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o git-control-tower-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace)",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"✅ Setup complete\" && echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\"",
-          "description": "Show API/UI URLs after setup"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Git Control Tower services for development",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./git-control-tower-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/git-control-tower-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\"",
-          "description": "Show API/UI URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Ensure CLI is available for integration checks",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute git-control-tower --preset comprehensive --skip playbooks",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop all services gracefully"
-    }
-  },
-  "dependencies": {
-    "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "required": true,
-        "description": "Audit log and metadata storage (local SQLite database)"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "description": "Optional caching for diff/status operations"
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": false,
-        "required": false,
-        "description": "AI-assisted commit message suggestions"
-      },
-      "resource-openrouter": {
-        "type": "resource-openrouter",
-        "enabled": false,
-        "required": false,
-        "description": "AI fallback for commit message suggestions"
-      }
-    }
-  }
+  "version": "2.0.0"
 }
