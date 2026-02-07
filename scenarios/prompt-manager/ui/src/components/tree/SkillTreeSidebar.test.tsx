@@ -12,10 +12,16 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SkillTreeSidebar } from './SkillTreeSidebar'
 import type { TreeNode } from '@/types/editor'
 import type { Skill } from '@/types'
+import { getAISearchStatus } from '@/services/skillService'
+
+vi.mock('@/services/skillService', () => ({
+  getAISearchStatus: vi.fn().mockResolvedValue({ available: true }),
+  searchSkillContent: vi.fn().mockResolvedValue({ matches: [] }),
+}))
 
 // Helper to create a test skill
 function createTestSkill(overrides: Partial<Skill> = {}): Skill {
@@ -270,6 +276,54 @@ describe('SkillTreeSidebar', () => {
 
       const input = screen.getByPlaceholderText('Search skills... (Ctrl+K)')
       expect((input as HTMLInputElement).value).toBe('current query')
+    })
+
+    it('should select first search result when Enter is pressed', () => {
+      const onSelectItem = vi.fn()
+      const skill1 = createTestSkill({ id: 'p1', name: 'Skill One' })
+      const treeNodes: TreeNode[] = [
+        createCategoryNode('development', 'development', [
+          createItemNode('item-p1', 'Skill One', 'p1', 1),
+        ]),
+      ]
+
+      render(
+        <SkillTreeSidebar
+          {...defaultProps}
+          treeNodes={treeNodes}
+          skills={[skill1]}
+          searchQuery="skill"
+          onSelectItem={onSelectItem}
+        />
+      )
+
+      const input = screen.getByPlaceholderText('Search skills... (Ctrl+K)')
+      fireEvent.keyDown(input, { key: 'Enter' })
+
+      expect(onSelectItem).toHaveBeenCalledWith('p1')
+    })
+
+    it('should open AI search when Enter is pressed with no results', async () => {
+      vi.mocked(getAISearchStatus).mockResolvedValueOnce({ available: true } as Awaited<ReturnType<typeof getAISearchStatus>>)
+
+      render(
+        <SkillTreeSidebar
+          {...defaultProps}
+          searchQuery="nonexistent"
+          treeNodes={[]}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /try ai search/i })).toBeInTheDocument()
+      })
+
+      const input = screen.getByPlaceholderText('Search skills... (Ctrl+K)')
+      fireEvent.keyDown(input, { key: 'Enter' })
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: 'AI Search' })).toBeInTheDocument()
+      })
     })
   })
 

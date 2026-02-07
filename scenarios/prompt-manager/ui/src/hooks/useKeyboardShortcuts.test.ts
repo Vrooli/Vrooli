@@ -11,6 +11,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useKeyboardShortcuts, getShortcutDisplay } from './useKeyboardShortcuts'
+import { emitShortcutIntent } from '@vrooli/iframe-bridge'
+
+vi.mock('@vrooli/iframe-bridge', () => ({
+  emitShortcutIntent: vi.fn(),
+  HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER: 'host.open-global-switcher',
+}))
 
 // Type for mock calls
 type EventListenerCall = [string, EventListenerOrEventListenerObject, ...unknown[]]
@@ -149,6 +155,56 @@ describe('useKeyboardShortcuts', () => {
       keydownHandler(event)
 
       expect(onFocusSearch).toHaveBeenCalledTimes(1)
+      expect(emitShortcutIntent).not.toHaveBeenCalled()
+    })
+
+    it('should relay Ctrl+K to host when local handler is noop', () => {
+      const onFocusSearch = vi.fn().mockReturnValue(false)
+      renderHook(() => useKeyboardShortcuts({ onFocusSearch }))
+
+      const keydownCall = addCalls.find((call) => call[0] === 'keydown')
+      const keydownHandler = keydownCall?.[1] as ((e: KeyboardEvent) => void) | undefined
+      if (!keydownHandler || typeof keydownHandler !== 'function') throw new Error('No keydown handler found')
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'k',
+        ctrlKey: true,
+        shiftKey: false,
+      })
+      Object.defineProperty(event, 'preventDefault', { value: vi.fn() })
+      keydownHandler(event)
+
+      expect(event.preventDefault).toHaveBeenCalledTimes(1)
+      expect(emitShortcutIntent).toHaveBeenCalledWith({
+        action: 'host.open-global-switcher',
+        outcome: 'noop',
+        chord: 'mod+k',
+        source: 'keyboard',
+      })
+    })
+
+    it('should relay Ctrl+K to host when no local handler exists', () => {
+      renderHook(() => useKeyboardShortcuts({}))
+
+      const keydownCall = addCalls.find((call) => call[0] === 'keydown')
+      const keydownHandler = keydownCall?.[1] as ((e: KeyboardEvent) => void) | undefined
+      if (!keydownHandler || typeof keydownHandler !== 'function') throw new Error('No keydown handler found')
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'k',
+        ctrlKey: true,
+        shiftKey: false,
+      })
+      Object.defineProperty(event, 'preventDefault', { value: vi.fn() })
+      keydownHandler(event)
+
+      expect(event.preventDefault).toHaveBeenCalledTimes(1)
+      expect(emitShortcutIntent).toHaveBeenCalledWith({
+        action: 'host.open-global-switcher',
+        outcome: 'unhandled',
+        chord: 'mod+k',
+        source: 'keyboard',
+      })
     })
 
     it('should call onOpenSettings when comma is pressed', () => {

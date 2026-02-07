@@ -9,6 +9,7 @@ import {
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './components/CodeBlock'
+import { MermaidDiagram } from './components/MermaidDiagram'
 import { InlineCode } from './components/InlineCode'
 import { LinkWithPreview } from './components/LinkWithPreview'
 
@@ -91,6 +92,11 @@ export const MarkdownRenderer = memo(
           // Inline code
           if (isInline) {
             return <InlineCode>{children}</InlineCode>
+          }
+
+          // Mermaid diagram
+          if (codeClassName === 'language-mermaid') {
+            return <MermaidDiagram code={codeContent} />
           }
 
           // Fenced code block

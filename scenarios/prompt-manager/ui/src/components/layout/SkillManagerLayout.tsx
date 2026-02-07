@@ -850,7 +850,15 @@ export function SkillManagerLayout() {
     },
     onNew: () => void handleCreateNew(),
     onFocusSearch: () => {
-      searchInputRef.current?.focus()
+      const searchInput = searchInputRef.current
+      if (!searchInput) {
+        return 'unhandled'
+      }
+      if (document.activeElement === searchInput) {
+        return 'noop'
+      }
+      searchInput.focus()
+      return 'handled'
     },
     onEscape: () => {
       // Close any open dialogs first

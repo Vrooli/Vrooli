@@ -15,6 +15,11 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react'
+import {
+  emitShortcutIntent,
+  HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+  type BridgeShortcutOutcome,
+} from '@vrooli/iframe-bridge'
 
 // Type for the modern NavigatorUAData API
 interface NavigatorUAData {
@@ -40,11 +45,23 @@ export interface KeyboardShortcutHandlers {
   /** Create a new prompt */
   onNew?: () => void
   /** Focus the search input */
-  onFocusSearch?: () => void
+  onFocusSearch?: () => ShortcutHandlerResult
   /** Discard changes or close dialogs */
   onEscape?: () => void
   /** Open settings modal */
   onOpenSettings?: () => void
+}
+
+type ShortcutHandlerResult = BridgeShortcutOutcome | boolean | undefined
+
+function normalizeShortcutOutcome(result: ShortcutHandlerResult): BridgeShortcutOutcome {
+  if (result === 'handled' || result === 'noop' || result === 'unhandled') {
+    return result
+  }
+  if (result === false) {
+    return 'noop'
+  }
+  return 'handled'
 }
 
 /**
@@ -155,7 +172,18 @@ export function useKeyboardShortcuts(handlers: KeyboardShortcutHandlers): void {
     // Ctrl/Cmd+K - Focus search
     if (hasModifier(e) && e.key === 'k' && !e.shiftKey) {
       e.preventDefault()
-      h.onFocusSearch?.()
+      const outcome = h.onFocusSearch
+        ? normalizeShortcutOutcome(h.onFocusSearch())
+        : 'unhandled'
+
+      if (outcome !== 'handled') {
+        emitShortcutIntent({
+          action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+          outcome,
+          chord: 'mod+k',
+          source: 'keyboard',
+        })
+      }
       return
     }
 

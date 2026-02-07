@@ -26,6 +26,7 @@ export default defineConfig({
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
           motion: ['framer-motion'],
           editor: ['@monaco-editor/react'],
+          mermaid: ['mermaid'],
         },
       },
     },

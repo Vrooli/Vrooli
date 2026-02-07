@@ -11,7 +11,7 @@
  * - New skill button
  */
 
-import { type ReactNode, type RefObject, useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -47,6 +47,24 @@ interface ContentMatchGroup {
   skillName: string
   folder: string
   matches: ContentSearchMatch[]
+}
+
+function findFirstSkillId(nodes: TreeNode[]): string | null {
+  for (const node of nodes) {
+    if (node.isCategory) {
+      const childSkillId = findFirstSkillId(node.children)
+      if (childSkillId) {
+        return childSkillId
+      }
+      continue
+    }
+
+    if (node.itemId) {
+      return node.itemId
+    }
+  }
+
+  return null
 }
 
 function groupContentMatches(matches: ContentSearchMatch[]): ContentMatchGroup[] {
@@ -393,6 +411,24 @@ export function SkillTreeSidebar({
     setIsAISearchOpen(true)
   }, [])
 
+  const handleSearchInputKeyDown = useCallback((event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter' || searchMode !== 'quick') {
+      return
+    }
+
+    event.preventDefault()
+
+    const firstSkillId = findFirstSkillId(treeNodes)
+    if (firstSkillId) {
+      onSelectItem(firstSkillId)
+      return
+    }
+
+    if (searchQuery.trim() && aiSearchAvailable) {
+      handleAISearch()
+    }
+  }, [searchMode, treeNodes, onSelectItem, searchQuery, aiSearchAvailable, handleAISearch])
+
   const handleAISearchSelect = useCallback((skillId: string) => {
     onSelectItem(skillId)
     setIsAISearchOpen(false)
@@ -734,6 +770,7 @@ export function SkillTreeSidebar({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
+                onKeyDown={handleSearchInputKeyDown}
                 placeholder={searchMode === 'content' ? 'Search content... (Ctrl+K)' : 'Search skills... (Ctrl+K)'}
                 className={cn(
                   'w-full pl-8 pr-3 py-1.5 text-xs',
