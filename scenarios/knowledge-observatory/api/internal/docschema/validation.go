@@ -12,19 +12,20 @@ import (
 
 // MisplacedDoc represents a documentation file in the wrong location.
 type MisplacedDoc struct {
-	ActualPath   string
-	ExpectedPath string
-	DocType      DocType
-	Severity     string // "error", "warning", "info"
+	ActualPath   string  `json:"actual_path"`
+	ExpectedPath string  `json:"expected_path"`
+	DocType      DocType `json:"doc_type"`
+	Severity     string  `json:"severity"` // "error", "warning", "info"
 }
 
 // ValidationResult contains the results of validating a scenario's docs.
 type ValidationResult struct {
-	ScenarioName  string
-	MisplacedDocs []MisplacedDoc
-	MissingDocs   []DocType
-	ExtraDocs     []string // docs not matching any known pattern
-	HealthScore   float64  // 0-1 score based on compliance
+	ScenarioName  string         `json:"scenario_name"`
+	MisplacedDocs []MisplacedDoc `json:"misplaced_docs"`
+	MissingDocs   []DocType      `json:"missing_docs"`
+	ExtraDocs     []string       `json:"extra_docs"` // docs not matching any known pattern
+	TemporaryDocs []string       `json:"temporary_docs"`
+	HealthScore   float64        `json:"health_score"` // 0-1 score based on compliance
 }
 
 // ValidateScenarioDocumentation checks if docs are in the right places.
@@ -85,7 +86,8 @@ func ValidateScenarioDocumentation(scenarioPath string) (*ValidationResult, erro
 	}
 
 	result.ExtraDocs = findExtraDocs(scenarioPath, knownNames)
-	result.HealthScore = computeHealthScore(structure, result.MissingDocs, result.MisplacedDocs, result.ExtraDocs)
+	result.TemporaryDocs = findTemporaryDocs(scenarioPath)
+	result.HealthScore = computeHealthScore(structure, result.MissingDocs, result.MisplacedDocs, result.TemporaryDocs)
 
 	sort.Slice(result.MisplacedDocs, func(i, j int) bool {
 		if result.MisplacedDocs[i].DocType != result.MisplacedDocs[j].DocType {
@@ -97,6 +99,7 @@ func ValidateScenarioDocumentation(scenarioPath string) (*ValidationResult, erro
 		return result.MissingDocs[i] < result.MissingDocs[j]
 	})
 	sort.Strings(result.ExtraDocs)
+	sort.Strings(result.TemporaryDocs)
 
 	return result, nil
 }
@@ -298,6 +301,87 @@ func isDocFile(name string) bool {
 	return ext == ".md" || ext == ".json"
 }
 
+var temporaryDocBaseNames = map[string]struct{}{
+	"implementation_plan.md": {},
+	"implementation-plan.md": {},
+	"temp.md":                {},
+	"tmp.md":                 {},
+	"scratch.md":             {},
+	"wip.md":                 {},
+	"todo.md":                {},
+}
+
+func findTemporaryDocs(scenarioPath string) []string {
+	temporary := make([]string, 0, 4)
+	skipDirs := map[string]struct{}{
+		".git":         {},
+		".vrooli":      {},
+		"node_modules": {},
+		"vendor":       {},
+		"dist":         {},
+		"build":        {},
+		"coverage":     {},
+		".next":        {},
+	}
+
+	_ = filepath.WalkDir(scenarioPath, func(filePath string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			name := strings.ToLower(strings.TrimSpace(d.Name()))
+			if strings.HasPrefix(name, ".") && name != ".well-known" {
+				return filepath.SkipDir
+			}
+			if _, ok := skipDirs[name]; ok {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !isDocFile(d.Name()) {
+			return nil
+		}
+		if !isTemporaryDocName(d.Name()) {
+			return nil
+		}
+		rel, err := filepath.Rel(scenarioPath, filePath)
+		if err != nil {
+			return nil
+		}
+		temporary = append(temporary, filepath.ToSlash(rel))
+		return nil
+	})
+
+	return temporary
+}
+
+func isTemporaryDocName(name string) bool {
+	candidate := strings.ToLower(strings.TrimSpace(name))
+	if candidate == "" {
+		return false
+	}
+	if _, ok := temporaryDocBaseNames[candidate]; ok {
+		return true
+	}
+	trimmed := strings.TrimSuffix(candidate, filepath.Ext(candidate))
+	for _, marker := range []string{
+		"implementation_plan",
+		"implementation-plan",
+		"temporary",
+		"scratch",
+		"-tmp",
+		"_tmp",
+		"-temp",
+		"_temp",
+		"wip",
+	} {
+		if strings.Contains(trimmed, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 func appendUnique(existing []string, value string) []string {
 	for _, item := range existing {
 		if item == value {
@@ -312,7 +396,7 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-func computeHealthScore(structure ScenarioDocStructure, missing []DocType, misplaced []MisplacedDoc, extra []string) float64 {
+func computeHealthScore(structure ScenarioDocStructure, missing []DocType, misplaced []MisplacedDoc, temporary []string) float64 {
 	requiredCount := len(structure.Required)
 	missingRequired := 0
 	for _, dt := range missing {
@@ -326,7 +410,7 @@ func computeHealthScore(structure ScenarioDocStructure, missing []DocType, mispl
 		score = float64(requiredCount-missingRequired) / float64(requiredCount)
 	}
 	score -= 0.05 * float64(len(misplaced))
-	score -= 0.01 * float64(len(extra))
+	score -= 0.01 * float64(len(temporary))
 	if score < 0 {
 		score = 0
 	}

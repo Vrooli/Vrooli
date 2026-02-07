@@ -171,3 +171,12 @@ func TestDocHealthServiceScenarioPathValidation(t *testing.T) {
 		t.Fatalf("expected error for invalid scenario name")
 	}
 }
+
+func TestComputeFixCategory_IncludesTemporaryDocs(t *testing.T) {
+	if got := computeFixCategory(nil, nil, nil, []string{"IMPLEMENTATION_PLAN.md"}); got != "all_agent" {
+		t.Fatalf("expected all_agent for temporary docs only, got %s", got)
+	}
+	if got := computeFixCategory([]docschema.MisplacedDoc{{ActualPath: "a", ExpectedPath: "b"}}, nil, nil, []string{"IMPLEMENTATION_PLAN.md"}); got != "mixed" {
+		t.Fatalf("expected mixed when misplaced and temporary docs exist, got %s", got)
+	}
+}

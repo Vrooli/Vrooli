@@ -20,6 +20,7 @@ type ScenarioDocHealthResponse struct {
 	MisplacedDocs []docschema.MisplacedDoc `json:"misplaced_docs"`
 	MissingDocs   []string                 `json:"missing_docs"`
 	ExtraDocs     []string                 `json:"extra_docs"`
+	TemporaryDocs []string                 `json:"temporary_docs"`
 	Warnings      []DocWarning             `json:"warnings"`
 	CanAutoFix    bool                     `json:"can_auto_fix"`
 	FixCategory   string                   `json:"fix_category"`
@@ -74,7 +75,7 @@ func (s *Server) handleDocsHealth(w http.ResponseWriter, r *http.Request) {
 
 	warnings := buildDocWarnings(result.Validation)
 
-	fixCategory := computeFixCategory(result.Validation.MisplacedDocs, missing, result.Validation.ExtraDocs)
+	fixCategory := computeFixCategory(result.Validation.MisplacedDocs, missing, result.Validation.ExtraDocs, result.Validation.TemporaryDocs)
 
 	response := ScenarioDocHealthResponse{
 		ScenarioName:  result.Validation.ScenarioName,
@@ -83,6 +84,7 @@ func (s *Server) handleDocsHealth(w http.ResponseWriter, r *http.Request) {
 		MisplacedDocs: result.Validation.MisplacedDocs,
 		MissingDocs:   missing,
 		ExtraDocs:     result.Validation.ExtraDocs,
+		TemporaryDocs: result.Validation.TemporaryDocs,
 		Warnings:      warnings,
 		CanAutoFix:    s.docHealingService != nil && result.Validation.HealthScore < 1,
 		FixCategory:   fixCategory,
@@ -174,6 +176,13 @@ func buildDocWarnings(result *docschema.ValidationResult) []DocWarning {
 			Severity: "info",
 		})
 	}
+	for _, temporary := range result.TemporaryDocs {
+		warnings = append(warnings, DocWarning{
+			Type:     "temporary",
+			Message:  fmt.Sprintf("Temporary documentation artifact should be cleaned up: %s", temporary),
+			Severity: "warning",
+		})
+	}
 	return warnings
 }
 
@@ -184,9 +193,9 @@ func missingDocSeverity(docType docschema.DocType) string {
 	return "warning"
 }
 
-func computeFixCategory(misplaced []docschema.MisplacedDoc, missing []string, extra []string) string {
+func computeFixCategory(misplaced []docschema.MisplacedDoc, missing []string, extra []string, temporary []string) string {
 	hasMisplaced := len(misplaced) > 0
-	hasAgentIssues := len(missing) > 0 || len(extra) > 0
+	hasAgentIssues := len(missing) > 0 || len(extra) > 0 || len(temporary) > 0
 	switch {
 	case hasMisplaced && !hasAgentIssues:
 		return "all_auto"
