@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Book, List, Monitor, Zap, Folder, Shield, Cloud, Loader2 } from "lucide-react";
+import { Book, List, Monitor, Zap, Folder, Shield, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GeneratorPage } from "./pages";
 import { ScenarioInventory } from "./components/scenario-inventory";

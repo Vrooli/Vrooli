@@ -4,7 +4,8 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { PipelineErrorDisplay, PipelineErrorRecovery, InlineError, suggestRecovery } from "./PipelineErrorDisplay";
+import { PipelineErrorDisplay, PipelineErrorRecovery, InlineError } from "./PipelineErrorDisplay";
+import { suggestRecovery } from "./pipelineUtils";
 import type { PipelineErrorInfo } from "../../store/pipelineTypes";
 
 // Mock writeToClipboard

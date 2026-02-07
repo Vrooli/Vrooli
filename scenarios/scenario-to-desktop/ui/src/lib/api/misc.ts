@@ -26,7 +26,7 @@ export const getIconPreviewUrl = (path: string): string =>
 export async function fetchHealth(): Promise<HealthResponse> {
   const response = await fetch(buildUrl("/health"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as HealthResponse;
 }
 
 // ==================== Docs Functions ====================
@@ -34,13 +34,13 @@ export async function fetchHealth(): Promise<HealthResponse> {
 export async function fetchDocsManifest(): Promise<DocsManifest> {
   const response = await fetch(buildUrl("/docs/manifest"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as DocsManifest;
 }
 
 export async function fetchDocContent(path: string): Promise<DocsContentResponse> {
   const response = await fetch(buildUrl(`/docs/content?path=${encodeURIComponent(path)}`));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as DocsContentResponse;
 }
 
 // ==================== Desktop Record Functions ====================
@@ -48,7 +48,7 @@ export async function fetchDocContent(path: string): Promise<DocsContentResponse
 export async function fetchDesktopRecords(): Promise<DesktopRecordResponse> {
   const response = await fetch(buildUrl("/desktop/records"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as DesktopRecordResponse;
 }
 
 export async function moveDesktopRecord(
@@ -61,7 +61,7 @@ export async function moveDesktopRecord(
     body: JSON.stringify(payload)
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { record_id: string; from: string; to: string; status: string };
 }
 
 export function getDownloadUrl(scenarioName: string, platform: string): string {
@@ -73,7 +73,7 @@ export async function deleteDesktopBuild(scenarioName: string): Promise<{ status
     method: "DELETE"
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { status: string };
 }
 
 // ==================== Test Artifact Functions ====================
@@ -81,7 +81,7 @@ export async function deleteDesktopBuild(scenarioName: string): Promise<{ status
 export async function fetchTestArtifacts(): Promise<TestArtifactSummary> {
   const response = await fetch(buildUrl("/desktop/test-artifacts"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as TestArtifactSummary;
 }
 
 export async function cleanupTestArtifacts(): Promise<TestArtifactCleanupResult> {
@@ -89,7 +89,7 @@ export async function cleanupTestArtifacts(): Promise<TestArtifactCleanupResult>
     method: "POST"
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as TestArtifactCleanupResult;
 }
 
 // ==================== Probe Functions ====================
@@ -106,13 +106,13 @@ export async function probeEndpoints(payload: {
     body: JSON.stringify(payload)
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as ProbeResponse;
 }
 
 export async function fetchProxyHints(scenarioName: string): Promise<ProxyHintsResponse> {
   const response = await fetch(buildUrl(`/desktop/proxy-hints/${encodeURIComponent(scenarioName)}`));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as ProxyHintsResponse;
 }
 
 // ==================== Bundle Manifest Functions ====================
@@ -124,7 +124,7 @@ export async function fetchBundleManifest(payload: { bundle_manifest_path: strin
     body: JSON.stringify(payload)
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as BundleManifestResponse;
 }
 
 // ==================== Wine Functions ====================
@@ -132,7 +132,7 @@ export async function fetchBundleManifest(payload: { bundle_manifest_path: strin
 export async function checkWineStatus(): Promise<WineCheckResponse> {
   const response = await fetch(buildUrl("/system/wine/check"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as WineCheckResponse;
 }
 
 export async function startWineInstall(method: string): Promise<{ install_id: string }> {
@@ -142,13 +142,13 @@ export async function startWineInstall(method: string): Promise<{ install_id: st
     body: JSON.stringify({ method })
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { install_id: string };
 }
 
 export async function fetchWineInstallStatus(installId: string): Promise<WineInstallStatus> {
   const response = await fetch(buildUrl(`/system/wine/install/status/${installId}`));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as WineInstallStatus;
 }
 
 // ==================== Telemetry Functions ====================
@@ -172,7 +172,7 @@ export async function uploadTelemetry(payload: TelemetryUploadRequest): Promise<
     })
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { output_path: string };
 }
 
 export async function deleteTelemetry(scenarioName: string): Promise<void> {
@@ -188,7 +188,7 @@ export async function fetchTelemetrySummary(scenarioName: string): Promise<Telem
     buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/summary`)
   );
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as TelemetrySummary;
 }
 
 export async function fetchTelemetryTail(
@@ -200,7 +200,7 @@ export async function fetchTelemetryTail(
     buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/tail?${params.toString()}`)
   );
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as TelemetryTailResponse;
 }
 
 export const getTelemetryDownloadUrl = (scenarioName: string): string =>
@@ -211,5 +211,5 @@ export const getTelemetryDownloadUrl = (scenarioName: string): string =>
 export async function fetchScenarioPort(scenario: string, portName: string): Promise<ScenarioPortResponse> {
   const response = await fetch(buildUrl(`/ports/${encodeURIComponent(scenario)}/${encodeURIComponent(portName)}`));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as ScenarioPortResponse;
 }

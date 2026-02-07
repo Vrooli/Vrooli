@@ -74,25 +74,33 @@ function SectionList({
   );
 }
 
+interface MarkedModule {
+  Renderer: new () => { code: (code: string, infostring: string) => string };
+  marked: (content: string, options: { gfm: boolean; breaks: boolean; renderer: unknown }) => string;
+}
+
+interface MermaidModule {
+  initialize: (config: { startOnLoad: boolean; theme: string }) => void;
+  run: (options: { nodes: NodeListOf<Element> }) => Promise<void>;
+}
+
 const markedLoader = (() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let markedPromise: Promise<any> | null = null;
+  let markedPromise: Promise<MarkedModule> | null = null;
   return () => {
     if (!markedPromise) {
       // @ts-expect-error CDN dynamic import
-      markedPromise = import("https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js");
+      markedPromise = import("https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js") as Promise<MarkedModule>;
     }
     return markedPromise;
   };
 })();
 
 const mermaidLoader = (() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mermaidPromise: Promise<any> | null = null;
+  let mermaidPromise: Promise<MermaidModule> | null = null;
   return () => {
     if (!mermaidPromise) {
       // @ts-expect-error CDN dynamic import
-      mermaidPromise = import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs");
+      mermaidPromise = import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs") as Promise<MermaidModule>;
     }
     return mermaidPromise;
   };

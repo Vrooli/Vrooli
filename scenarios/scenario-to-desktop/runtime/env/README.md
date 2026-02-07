@@ -40,6 +40,12 @@ envMap, err := renderer.RenderEnvMap(service, binary)
 // Merges: OS env → service.env → binary.env (with template expansion)
 ```
 
+The rendered environment also includes standard runtime hints such as:
+- `APP_DATA_DIR`
+- `BUNDLE_ROOT`
+- `VROOLI_STORAGE_ROOT` (set to `<app-data>/storage` for `api-core/storage`)
+- `VROOLI_API_SKIP_STALE_CHECK`
+
 ## Environment Precedence
 
 When building the environment for a service:

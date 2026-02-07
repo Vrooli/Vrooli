@@ -244,19 +244,19 @@ describe("telemetry domain", () => {
     it("returns valid JSON", () => {
       const example = generateExampleEvent();
 
-      expect(() => JSON.parse(example)).not.toThrow();
+      expect(() => JSON.parse(example) as unknown).not.toThrow();
     });
 
     it("includes required event field", () => {
       const example = generateExampleEvent();
-      const parsed = JSON.parse(example);
+      const parsed = JSON.parse(example) as Record<string, unknown>;
 
       expect(parsed.event).toBe("api_unreachable");
     });
 
     it("includes timestamp", () => {
       const example = generateExampleEvent();
-      const parsed = JSON.parse(example);
+      const parsed = JSON.parse(example) as Record<string, unknown>;
 
       expect(parsed.timestamp).toBeDefined();
     });

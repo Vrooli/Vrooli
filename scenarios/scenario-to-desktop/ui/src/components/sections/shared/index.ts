@@ -3,13 +3,13 @@
  */
 
 export { SectionCard } from "./SectionCard";
+export { SectionHeader } from "./SectionHeader";
 export {
-  SectionHeader,
-  STATUS_CONFIG,
-  getStatusDisplay,
   type StageStatus,
   type StatusDisplayConfig,
-} from "./SectionHeader";
+  STAGE_STATUS_CONFIG as STATUS_CONFIG,
+  getStageStatusDisplay as getStatusDisplay,
+} from "../../../lib/status-display";
 export {
   StageStatusOverview,
   StagePlaceholder,

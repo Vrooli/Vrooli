@@ -9,22 +9,27 @@ import { usePipelineStore } from "./pipelineStore";
 import type { PipelineRunStatus } from "./pipelineTypes";
 import type { VerbosePipelineStatus } from "../lib/api";
 
-// Mock the API module
-vi.mock("../lib/api", () => ({
-  runPipeline: vi.fn().mockResolvedValue({ pipeline_id: "test-pipeline-123" }),
-  getPipelineStatus: vi.fn().mockResolvedValue({
-    pipeline_id: "test-pipeline-123",
-    status: "running",
-    current_stage: "bundle",
-    stage_order: ["bundle", "preflight", "generate"],
-    stages: {
-      bundle: { status: "completed" },
-      preflight: { status: "running" },
-      generate: { status: "pending" },
-    },
-  }),
-  cancelPipeline: vi.fn().mockResolvedValue({ success: true }),
-}));
+// Mock the API module — keep ApiError so error-utils instanceof checks work
+vi.mock("../lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/api")>();
+  return {
+    ...actual,
+    runPipeline: vi.fn().mockResolvedValue({ pipeline_id: "test-pipeline-123" }),
+    getPipelineStatus: vi.fn().mockResolvedValue({
+      pipeline_id: "test-pipeline-123",
+      status: "running",
+      current_stage: "bundle",
+      stage_order: ["bundle", "preflight", "generate"],
+      stages: {
+        bundle: { status: "completed" },
+        preflight: { status: "running" },
+        generate: { status: "pending" },
+      },
+    }),
+    cancelPipeline: vi.fn().mockResolvedValue({ success: true }),
+    getActivePipeline: vi.fn().mockResolvedValue({ pipeline: null, created: false }),
+  };
+});
 
 // Reset store state before each test
 beforeEach(() => {

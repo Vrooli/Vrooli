@@ -146,7 +146,7 @@ export function parseJsonlContent(content: string): TelemetryParseResult {
     const lineNumber = i + 1;
 
     try {
-      const parsed = JSON.parse(line);
+      const parsed: unknown = JSON.parse(line);
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
         errors.push({
           lineNumber,

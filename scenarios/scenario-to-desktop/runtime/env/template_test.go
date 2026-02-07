@@ -62,6 +62,7 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 		// Standard bundle hints
 		{"APP_DATA_DIR", "/app/data"},
 		{"BUNDLE_ROOT", "/bundle/root"},
+		{"VROOLI_STORAGE_ROOT", "/app/data/storage"},
 		// Service environment with template expansion
 		{"SERVICE_VAR", "service_value"},
 		{"DATA_PATH", "/app/data/service"},

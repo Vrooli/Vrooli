@@ -69,11 +69,11 @@ function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalCon
   }, []);
 
   // Safe JSON stringify that handles non-serializable values
-  const jsonString = JSON.stringify(storeState, (_key, value) => {
+  const jsonString = JSON.stringify(storeState, (_key, value: unknown) => {
     if (value instanceof Date) return value.toISOString();
     if (typeof value === 'function') return '[Function]';
     if (value === undefined) return null;
-    if (typeof value === 'bigint') return value.toString();
+    if (typeof value === 'bigint') return (value as bigint).toString();
     return value;
   }, 2);
 

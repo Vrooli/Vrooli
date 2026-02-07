@@ -11,7 +11,7 @@ import {
   getPreflightBlockingReason,
   type PreflightRunConfig,
 } from "./preflightController";
-import type { VerbosePipelineStatus, BundlePreflightResponse } from "../lib/api";
+import type { VerbosePipelineStatus, BundlePreflightResponse, BundlePreflightStep } from "../lib/api";
 
 describe("preflightController", () => {
   describe("buildPreflightPipelineConfig", () => {
@@ -193,8 +193,8 @@ describe("preflightController", () => {
 
   describe("resolveAllStepStatuses", () => {
     it("uses job step status when available", () => {
-      const jobStepById = new Map();
-      jobStepById.set("validation", { id: "validation", state: "pass" });
+      const jobStepById = new Map<string, BundlePreflightStep>();
+      jobStepById.set("validation", { id: "validation", name: "validation", state: "pass" });
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
@@ -210,7 +210,7 @@ describe("preflightController", () => {
     });
 
     it("falls back to computed status when no job step", () => {
-      const jobStepById = new Map();
+      const jobStepById = new Map<string, BundlePreflightStep>();
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
@@ -226,7 +226,7 @@ describe("preflightController", () => {
     });
 
     it("shows testing status when pending", () => {
-      const jobStepById = new Map();
+      const jobStepById = new Map<string, BundlePreflightStep>();
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
@@ -243,7 +243,7 @@ describe("preflightController", () => {
     });
 
     it("shows fail status on error", () => {
-      const jobStepById = new Map();
+      const jobStepById = new Map<string, BundlePreflightStep>();
 
       const statuses = resolveAllStepStatuses(
         jobStepById,
@@ -328,9 +328,10 @@ describe("preflightController", () => {
         []
       );
 
-      const parsed = JSON.parse(json);
+      const parsed = JSON.parse(json) as Record<string, unknown>;
       expect(parsed.bundle_manifest_path).toBe("/manifest.json");
-      expect(parsed.result.validation.valid).toBe(true);
+      const result = parsed.result as Record<string, Record<string, unknown>> | undefined;
+      expect(result?.validation?.valid).toBe(true);
     });
 
     it("includes error when present", () => {
@@ -341,7 +342,7 @@ describe("preflightController", () => {
         []
       );
 
-      const parsed = JSON.parse(json);
+      const parsed = JSON.parse(json) as Record<string, unknown>;
       expect(parsed.error).toBe("Validation failed");
     });
 
@@ -353,7 +354,7 @@ describe("preflightController", () => {
         [{ id: "API_KEY", name: "API Key", required: true, has_value: false }]
       );
 
-      const parsed = JSON.parse(json);
+      const parsed = JSON.parse(json) as Record<string, unknown>;
       expect(parsed.missing_secrets).toHaveLength(1);
     });
   });

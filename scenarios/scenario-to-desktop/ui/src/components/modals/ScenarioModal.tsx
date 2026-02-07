@@ -22,9 +22,9 @@ function readRecents(): string[] {
   try {
     const raw = window.localStorage.getItem(RECENTS_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((entry) => typeof entry === "string");
+    return (parsed as unknown[]).filter((entry): entry is string => typeof entry === "string");
   } catch {
     return [];
   }

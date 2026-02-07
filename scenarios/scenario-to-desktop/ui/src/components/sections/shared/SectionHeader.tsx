@@ -16,16 +16,9 @@ import {
 import { usePipelineStore } from "../../../store";
 import { cn } from "../../../lib/utils";
 import {
-  type StageStatus,
-  type StatusDisplayConfig,
-  STAGE_STATUS_CONFIG as STATUS_CONFIG,
   HEADER_STATUS_CONFIG as HEADER_STATUS_DISPLAY,
-  getStageStatusDisplay as getStatusDisplay,
 } from "../../../lib/status-display";
 
-// Re-export types for backwards compatibility
-export type { StageStatus, StatusDisplayConfig };
-export { STATUS_CONFIG, getStatusDisplay };
 
 interface SectionHeaderProps {
   /** Section title */

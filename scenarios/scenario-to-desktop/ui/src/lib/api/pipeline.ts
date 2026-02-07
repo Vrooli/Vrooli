@@ -261,7 +261,7 @@ export async function runPipeline(config: PipelineConfig): Promise<PipelineRunRe
     body: JSON.stringify(normalizePipelineConfig(config))
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as PipelineRunResponse;
 }
 
 /** Options for getPipelineStatus */
@@ -299,7 +299,7 @@ export async function getPipelineStatus(
 
   const response = await fetch(url);
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as PipelineStatus | VerbosePipelineStatus;
 }
 
 export async function resumePipeline(pipelineId: string): Promise<PipelineResumeResponse> {
@@ -307,7 +307,7 @@ export async function resumePipeline(pipelineId: string): Promise<PipelineResume
     method: "POST"
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as PipelineResumeResponse;
 }
 
 export async function cancelPipeline(pipelineId: string): Promise<{ status: string; message?: string }> {
@@ -315,13 +315,13 @@ export async function cancelPipeline(pipelineId: string): Promise<{ status: stri
     method: "POST"
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { status: string; message?: string };
 }
 
 export async function listPipelines(): Promise<{ pipelines: PipelineStatus[] }> {
   const response = await fetch(buildUrl("/pipelines"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { pipelines: PipelineStatus[] };
 }
 
 /**
@@ -404,7 +404,7 @@ export async function getActivePipeline(
 
   const response = await fetch(url);
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as ActivePipelineResponse;
 }
 
 /**
@@ -422,7 +422,7 @@ export async function createNewPipeline(
     body: body ? JSON.stringify(body) : undefined,
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as CreatePipelineResponse;
 }
 
 /**
@@ -434,7 +434,7 @@ export async function resetPipeline(scenarioName: string): Promise<ResetPipeline
     method: "POST",
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as ResetPipelineResponse;
 }
 
 /** Options for getting pipeline history */
@@ -461,7 +461,7 @@ export async function getPipelineHistory(
 
   const response = await fetch(url);
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as PipelineHistoryResponse;
 }
 
 /** Response from starting the active pipeline */
@@ -493,5 +493,5 @@ export async function startActivePipeline(
     }
   );
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as StartActivePipelineResponse;
 }

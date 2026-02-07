@@ -12,7 +12,7 @@ import type {
 export async function getAgentManagerStatus(): Promise<AgentManagerStatus> {
   const response = await fetch(buildUrl("/agent-manager/status"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as AgentManagerStatus;
 }
 
 export async function createTask(
@@ -25,7 +25,7 @@ export async function createTask(
     body: JSON.stringify(request),
   });
   await throwIfNotOk(response);
-  const data: CreateTaskResponse = await response.json();
+  const data = await response.json() as CreateTaskResponse;
   return data.task;
 }
 
@@ -41,7 +41,7 @@ export async function listTasks(
     (params.toString() ? `?${params.toString()}` : "");
   const response = await fetch(url);
   await throwIfNotOk(response);
-  const data: ListTasksResponse = await response.json();
+  const data = await response.json() as ListTasksResponse;
   return data.tasks;
 }
 
@@ -53,7 +53,7 @@ export async function getTask(
     buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks/${encodeURIComponent(taskId)}`)
   );
   await throwIfNotOk(response);
-  const data: GetTaskResponse = await response.json();
+  const data = await response.json() as GetTaskResponse;
   return data.task;
 }
 

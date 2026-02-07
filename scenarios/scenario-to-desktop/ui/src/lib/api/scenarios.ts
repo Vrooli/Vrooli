@@ -223,7 +223,7 @@ export async function fetchScenarioState(
     return { state: null, found: false };
   }
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as LoadStateResponse;
 }
 
 export async function saveScenarioState(
@@ -248,7 +248,7 @@ export async function saveScenarioState(
     }
   );
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as SaveStateResponse;
 }
 
 export async function deleteScenarioState(scenarioName: string): Promise<void> {
@@ -272,7 +272,7 @@ export async function checkStateStaleness(
     }
   );
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as CheckStalenessResponse;
 }
 
 export async function getScenarioLogs(
@@ -289,7 +289,7 @@ export async function getScenarioLogs(
     return null;
   }
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as GetLogsResponse;
 }
 
 export async function invalidateScenarioStage(
@@ -306,7 +306,7 @@ export async function invalidateScenarioStage(
     }
   );
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as ValidationStatus;
 }
 
 // ==================== Other Scenario Functions ====================
@@ -314,11 +314,11 @@ export async function invalidateScenarioStage(
 export async function fetchScenarioDesktopStatus(): Promise<ScenariosResponse> {
   const response = await fetch(buildUrl("/scenarios/desktop-status"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as ScenariosResponse;
 }
 
 export async function fetchTemplates(): Promise<{ templates: TemplateInfo[] }> {
   const response = await fetch(buildUrl("/templates"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { templates: TemplateInfo[] };
 }

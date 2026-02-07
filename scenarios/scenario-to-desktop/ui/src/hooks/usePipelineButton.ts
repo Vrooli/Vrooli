@@ -46,9 +46,9 @@ export function usePlatformSelection({
     try {
       const stored = window.localStorage.getItem(storageKey);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
-          return parsed;
+        const parsed: unknown = JSON.parse(stored);
+        if (Array.isArray(parsed) && (parsed as unknown[]).every((item) => typeof item === "string")) {
+          return parsed as string[];
         }
       }
     } catch {

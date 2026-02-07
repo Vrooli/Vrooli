@@ -775,7 +775,16 @@ async function startBundledRuntime(): Promise<string> {
     RUNTIME_CONTROL.TOKEN_PATH_ENV = tokenPath;
 
     const args = ["--manifest", stagedManifestPath, "--bundle-root", bundleRoot, "--app-data", appData, "--dry-run=false"];
-    const runtimeEnv: Record<string, string | undefined> = { ...process.env, VROOLI_API_SKIP_STALE_CHECK: "true", VROOLI_LIFECYCLE_MANAGED: "true", VROOLI_DESKTOP_MODE: "true", VROOLI_DATA: appData };
+    const runtimeEnv: Record<string, string | undefined> = {
+        ...process.env,
+        VROOLI_API_SKIP_STALE_CHECK: "true",
+        VROOLI_LIFECYCLE_MANAGED: "true",
+        VROOLI_DESKTOP_MODE: "true",
+        // Backward-compatible root used by existing scenarios.
+        VROOLI_DATA: appData,
+        // Canonical root for api-core/storage class directories.
+        VROOLI_STORAGE_ROOT: path.join(appData, "storage"),
+    };
     for (const [portKey, portConfig] of Object.entries(PORTS)) {
         if (portConfig.envVar && portConfig.port) { runtimeEnv[portConfig.envVar] = String(portConfig.port); console.log(`[Desktop App] Setting ${portConfig.envVar}=${portConfig.port}`); }
     }

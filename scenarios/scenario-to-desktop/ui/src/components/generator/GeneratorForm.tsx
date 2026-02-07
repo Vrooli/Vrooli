@@ -556,7 +556,10 @@ export function GeneratorForm({
     serverFormState,
     displayNameEdited,
     descriptionEdited,
-    iconPathEdited
+    iconPathEdited,
+    setAppDisplayName,
+    setAppDescription,
+    setIconPath
   ]);
 
   const { data: proxyHints } = useQuery<ProxyHintsResponse | null>({
@@ -609,7 +612,7 @@ export function GeneratorForm({
     bundleHelperRef,
   ]);
 
-  const applySavedConnection = (config?: DesktopConnectionConfig | null) => {
+  const applySavedConnection = useCallback((config?: DesktopConnectionConfig | null) => {
     if (!config) return;
     setDeploymentMode((config.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
     setProxyUrl(config.proxy_url ?? config.server_url ?? "");
@@ -628,7 +631,7 @@ export function GeneratorForm({
     if (config.server_type) {
       setServerType((config.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
     }
-  };
+  }, [setDeploymentMode, setProxyUrl, setAutoManageTier1, setVrooliBinaryPath, setBundleManifestPath, setAppDisplayName, setAppDescription, setIconPath, setServerType]);
 
   useEffect(() => {
     if (!scenarioName) {
@@ -652,7 +655,8 @@ export function GeneratorForm({
     scenarioName,
     selectedScenario?.connection_config,
     lastLoadedScenario,
-    draftLoadedScenario
+    draftLoadedScenario,
+    applySavedConnection
   ]);
 
   useEffect(() => {
@@ -664,7 +668,7 @@ export function GeneratorForm({
         setAutoManageTier1(false);
       }
     }
-  }, [autoManageTier1, connectionDecision, serverType]);
+  }, [autoManageTier1, connectionDecision, serverType, setAutoManageTier1, setServerType]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

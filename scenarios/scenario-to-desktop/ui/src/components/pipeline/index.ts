@@ -1,5 +1,5 @@
 export {
   PipelineErrorDisplay,
   InlineError,
-  suggestRecovery,
 } from "./PipelineErrorDisplay";
+export { suggestRecovery } from "./pipelineUtils";

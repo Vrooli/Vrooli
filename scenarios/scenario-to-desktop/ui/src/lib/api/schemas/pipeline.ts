@@ -12,7 +12,6 @@ import {
   StageStatusSchema,
   DeploymentModeSchema,
   PlatformSchema,
-  UploadStatusSchema,
 } from "./common";
 
 // Re-export for backward compatibility

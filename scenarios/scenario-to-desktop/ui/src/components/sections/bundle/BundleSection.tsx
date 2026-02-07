@@ -145,7 +145,7 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
           onBundleManifestChange?.(bundleResult.manifest_path);
         }
       }
-    }, [bundleResult, pipelineStatus?.stages?.bundle?.status, onBundleComplete, onBundleManifestChange]);
+    }, [bundleResult, pipelineStatus?.stages?.bundle, onBundleComplete, onBundleManifestChange]);
 
     // Expose imperative handle
     useEffect(() => {

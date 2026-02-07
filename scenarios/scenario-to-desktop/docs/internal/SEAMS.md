@@ -1385,8 +1385,11 @@ In addition to port env vars, the seam sets these lifecycle markers:
 | `VROOLI_DESKTOP_MODE` | `"true"` | Signals Go code it's running in desktop/bundled mode |
 | `VROOLI_API_SKIP_STALE_CHECK` | `"true"` | Skips go.mod staleness checks (bundled binaries can't rebuild) |
 | `VROOLI_DATA` | `<app-data-dir>` | Data storage directory for scenarios (SQLite databases, etc.) |
+| `VROOLI_STORAGE_ROOT` | `<app-data-dir>/storage` | Canonical runtime storage root for `api-core/storage` (`config`,`data`,`cache`,`logs`,`state`) |
 
 **Note on `VROOLI_ROOT`:** This env var is intentionally NOT set in desktop mode. `VROOLI_ROOT` is designed for the Vrooli monorepo development environment where it points to the repository containing all scenarios. In a standalone desktop app, this concept doesn't apply. Scenarios that use `VROOLI_ROOT` should check for `VROOLI_DESKTOP_MODE` and handle the standalone case appropriately (e.g., letting users select a repository through the UI instead of hardcoding a path).
+
+**Filesystem contract note:** Bundles should treat app/deploy directories as disposable. Mutable runtime state should be resolved through `api-core/storage`, which reads `VROOLI_STORAGE_ROOT` when present.
 
 ### Bundle Schema Extension
 

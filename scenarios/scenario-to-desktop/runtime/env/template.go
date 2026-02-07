@@ -53,6 +53,8 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 	// Add standard bundle hints.
 	env["APP_DATA_DIR"] = r.AppData
 	env["BUNDLE_ROOT"] = r.BundlePath
+	// Canonical root for api-core/storage class directories.
+	env["VROOLI_STORAGE_ROOT"] = filepath.Join(r.AppData, "storage")
 	// Bundled services should skip api-core staleness checks (no source modules in bundle).
 	env["VROOLI_API_SKIP_STALE_CHECK"] = "true"
 

@@ -15,7 +15,7 @@ import type {
 export async function fetchSigningConfig(scenario: string): Promise<SigningConfigResponse> {
   const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as SigningConfigResponse;
 }
 
 export async function saveSigningConfig(scenario: string, config: SigningConfig): Promise<SigningConfigResponse> {
@@ -25,7 +25,7 @@ export async function saveSigningConfig(scenario: string, config: SigningConfig)
     body: JSON.stringify(config)
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as SigningConfigResponse;
 }
 
 export async function updatePlatformSigningConfig(
@@ -39,7 +39,7 @@ export async function updatePlatformSigningConfig(
     body: JSON.stringify(config)
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as SigningConfigResponse;
 }
 
 export async function deleteSigningConfig(scenario: string): Promise<{ status: string; scenario: string }> {
@@ -47,7 +47,7 @@ export async function deleteSigningConfig(scenario: string): Promise<{ status: s
     method: "DELETE"
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { status: string; scenario: string };
 }
 
 export async function deletePlatformSigningConfig(
@@ -58,7 +58,7 @@ export async function deletePlatformSigningConfig(
     method: "DELETE"
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { status: string; scenario: string; platform: string };
 }
 
 export async function validateSigningConfig(scenario: string): Promise<SigningValidationResult> {
@@ -66,19 +66,19 @@ export async function validateSigningConfig(scenario: string): Promise<SigningVa
     method: "POST"
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as SigningValidationResult;
 }
 
 export async function checkSigningReadiness(scenario: string): Promise<SigningReadinessResponse> {
   const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/ready`));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as SigningReadinessResponse;
 }
 
 export async function fetchSigningPrerequisites(): Promise<{ tools: ToolDetectionResult[] }> {
   const response = await fetch(buildUrl("/signing/prerequisites"));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { tools: ToolDetectionResult[] };
 }
 
 export async function discoverCertificates(platform: "windows" | "macos" | "linux"): Promise<{
@@ -87,7 +87,7 @@ export async function discoverCertificates(platform: "windows" | "macos" | "linu
 }> {
   const response = await fetch(buildUrl(`/signing/discover/${platform}`));
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as { platform: string; certificates: DiscoveredCertificate[] };
 }
 
 export async function generateLinuxSigningKey(
@@ -108,5 +108,5 @@ export async function generateLinuxSigningKey(
     body: JSON.stringify({ ...payload, export_public: true })
   });
   await throwIfNotOk(response);
-  return response.json();
+  return await response.json() as GenerateKeyResponse;
 }

@@ -21,6 +21,19 @@ vi.mock("../lib/api", async (importOriginal) => {
       healthy: true,
       api_version: "1.0.0",
     }),
+    startActivePipeline: vi.fn().mockResolvedValue({
+      pipeline: { pipeline_id: "test-pipeline-123", status: "running" },
+      status_url: "/pipeline/test-pipeline-123",
+    }),
+    getActivePipeline: vi.fn().mockResolvedValue({
+      pipeline: { pipeline_id: "test-pipeline-123", status: "pending" },
+      created: false,
+    }),
+    getPipelineStatus: vi.fn().mockResolvedValue({
+      pipeline_id: "test-pipeline-123",
+      status: "completed",
+      stages: {},
+    }),
   };
 });
 

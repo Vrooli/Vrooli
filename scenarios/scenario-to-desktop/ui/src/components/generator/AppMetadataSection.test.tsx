@@ -6,6 +6,12 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AppMetadataSection } from "./AppMetadataSection";
 
+/** Helper: expand the collapsible section by clicking its header button. */
+function expandSection() {
+  const toggle = screen.getByRole("button", { name: /app metadata/i });
+  fireEvent.click(toggle);
+}
+
 describe("AppMetadataSection", () => {
   const defaultProps = {
     scenarioName: "test-scenario",
@@ -22,6 +28,7 @@ describe("AppMetadataSection", () => {
 
   it("renders all form fields", () => {
     render(<AppMetadataSection {...defaultProps} />);
+    expandSection();
 
     expect(screen.getByLabelText("App display name")).toBeInTheDocument();
     expect(screen.getByLabelText("Icon path (PNG)")).toBeInTheDocument();
@@ -30,6 +37,7 @@ describe("AppMetadataSection", () => {
 
   it("displays scenario name in placeholders", () => {
     render(<AppMetadataSection {...defaultProps} scenarioName="my-app" />);
+    expandSection();
 
     const displayNameInput = screen.getByLabelText("App display name");
     expect(displayNameInput).toHaveAttribute("placeholder", "my-app Desktop");
@@ -43,6 +51,7 @@ describe("AppMetadataSection", () => {
         onAppDisplayNameChange={onAppDisplayNameChange}
       />
     );
+    expandSection();
 
     const input = screen.getByLabelText("App display name");
     fireEvent.change(input, { target: { value: "My App" } });
@@ -55,6 +64,7 @@ describe("AppMetadataSection", () => {
     render(
       <AppMetadataSection {...defaultProps} onIconPathChange={onIconPathChange} />
     );
+    expandSection();
 
     const input = screen.getByLabelText("Icon path (PNG)");
     fireEvent.change(input, { target: { value: "/path/to/icon.png" } });
@@ -70,6 +80,7 @@ describe("AppMetadataSection", () => {
         onAppDescriptionChange={onAppDescriptionChange}
       />
     );
+    expandSection();
 
     const textarea = screen.getByLabelText("App description");
     fireEvent.change(textarea, { target: { value: "My app description" } });
@@ -79,6 +90,7 @@ describe("AppMetadataSection", () => {
 
   it("shows 'No icon' when iconPreviewUrl is null", () => {
     render(<AppMetadataSection {...defaultProps} iconPreviewUrl={null} />);
+    expandSection();
 
     expect(screen.getByText("No icon")).toBeInTheDocument();
   });
@@ -91,6 +103,7 @@ describe("AppMetadataSection", () => {
         iconPreviewError={false}
       />
     );
+    expandSection();
 
     const img = screen.getByAltText("Icon preview");
     expect(img).toBeInTheDocument();
@@ -105,6 +118,7 @@ describe("AppMetadataSection", () => {
         iconPreviewError={true}
       />
     );
+    expandSection();
 
     expect(screen.getByText("No icon")).toBeInTheDocument();
     expect(screen.queryByAltText("Icon preview")).not.toBeInTheDocument();
@@ -120,6 +134,7 @@ describe("AppMetadataSection", () => {
         onIconPreviewError={onIconPreviewError}
       />
     );
+    expandSection();
 
     const img = screen.getByAltText("Icon preview");
     fireEvent.error(img);
@@ -136,6 +151,7 @@ describe("AppMetadataSection", () => {
         appDescription="A great desktop app"
       />
     );
+    expandSection();
 
     expect(screen.getByLabelText("App display name")).toHaveValue("My Desktop App");
     expect(screen.getByLabelText("Icon path (PNG)")).toHaveValue("/icons/app.png");
@@ -150,12 +166,14 @@ describe("AppMetadataSection", () => {
         iconPreviewError={false}
       />
     );
+    expandSection();
 
     expect(screen.getByText("Previewing selected icon.")).toBeInTheDocument();
   });
 
   it("shows preview hint message when no icon", () => {
     render(<AppMetadataSection {...defaultProps} iconPreviewUrl={null} />);
+    expandSection();
 
     expect(
       screen.getByText("Preview will appear once a valid PNG path is set.")

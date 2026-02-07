@@ -87,13 +87,16 @@ export class ApiError extends Error {
  */
 async function parseApiError(response: Response): Promise<ApiError> {
   try {
-    const data = await response.json();
+    const data: unknown = await response.json();
     if (data && typeof data === "object" && "error" in data) {
       return new ApiError(data as ApiErrorResponse, response.status);
     }
     // Fallback for non-structured error responses
+    const message = data && typeof data === "object" && "message" in data
+      ? (data as { message: string }).message
+      : response.statusText;
     return new ApiError({
-      error: data.message ?? response.statusText,
+      error: message,
       code: "UNKNOWN_ERROR",
       recovery: "none",
     }, response.status);

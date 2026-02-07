@@ -160,7 +160,7 @@ describe("GenerateSection", () => {
   it("shows instruction when scenario selected but not generated", () => {
     render(<GenerateSection scenarioName="test-scenario" />);
 
-    expect(screen.getByText(/Use the "Generate Desktop Application" button/)).toBeInTheDocument();
+    expect(screen.getByText("Complete configuration and click the Generate button above to start.")).toBeInTheDocument();
   });
 
   it("clears error when dismiss clicked", () => {
