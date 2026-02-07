@@ -1,5 +1,6 @@
 import { memo, useMemo, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { MermaidDiagram } from "./MermaidDiagram";
 
 interface MarkdownPreviewProps {
@@ -157,7 +158,9 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       className="p-6 max-w-none text-slate-200 markdown-preview"
       data-testid="markdown-preview"
     >
-      <ReactMarkdown components={components}>{content}</ReactMarkdown>
+      <ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
     </div>
   );
 });
