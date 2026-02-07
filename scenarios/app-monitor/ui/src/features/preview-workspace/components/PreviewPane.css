@@ -1,0 +1,114 @@
+.preview-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  background: rgba(10, 14, 28, 0.88);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.preview-pane--focused {
+  box-shadow: inset 0 0 0 1px rgba(122, 160, 255, 0.48);
+}
+
+.preview-pane--dragging {
+  pointer-events: none;
+}
+
+.preview-pane--full-view {
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  min-height: 0;
+}
+
+.preview-pane .preview-toolbar {
+  border-bottom: 1px solid var(--app-border);
+  background: rgba(16, 19, 32, 0.94);
+  padding: 0.45rem 0.6rem;
+  gap: 0.45rem;
+  z-index: 5;
+}
+
+.preview-pane__app-row {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--app-border);
+  background: rgba(12, 18, 36, 0.88);
+}
+
+.preview-pane__app-select {
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: rgba(12, 18, 36, 0.95);
+  color: var(--app-text-primary);
+  height: 30px;
+  font-size: 0.82rem;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.preview-pane__app-select:focus-visible {
+  outline: 2px solid rgba(122, 160, 255, 0.45);
+  outline-offset: 1px;
+}
+
+.preview-pane__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: rgba(4, 8, 20, 0.88);
+}
+
+.preview-pane__iframe-shell {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-pane__iframe-shell--emulated {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  overflow: auto;
+}
+
+.preview-pane__iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.preview-pane__emulation-toolbar-wrap {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--app-border);
+  background: rgba(12, 18, 36, 0.92);
+}
+
+.preview-pane__overlay,
+.preview-pane__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  color: var(--app-text-primary);
+  background: rgba(10, 14, 28, 0.76);
+  font-size: 0.88rem;
+}
+
+.preview-pane__overlay--error {
+  color: #ffc1c1;
+}
+
+.preview-pane__empty {
+  position: static;
+  height: 100%;
+}
+
+body.preview-pane-fullscreen-active {
+  overflow: hidden;
+}

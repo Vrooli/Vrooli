@@ -1,6 +1,7 @@
 import { logger } from '@/services/logger';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import clsx from 'clsx';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
 import { useResourcesCatalog, normalizeResourceSort, type ResourceSortOption } from '@/hooks/useResourcesCatalog';
 import { useAppsStore } from '@/state/appsStore';
@@ -12,11 +13,22 @@ import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
 import type { App, Resource } from '@/types';
+import {
+  WORKSPACE_INTENT_APP_ID_KEY,
+  WORKSPACE_INTENT_MODE_KEY,
+} from '@/features/preview-workspace/utils/navigationIntent';
 import { TabSwitcherControls, TabSwitcherHeader } from './TabSwitcherControls';
 import { AppsSection, ResourcesSection } from './TabSwitcherSections';
 import { SEGMENT_QUERY_KEY } from './tabSwitcherConstants';
 import { useTabSwitcherFiltering, useTabSwitcherSegment } from './tabSwitcherHooks';
 import type { SortOption } from './TabSwitcherCards';
+import {
+  APP_OPEN_MODE_LABELS,
+  APP_OPEN_MODES,
+  cycleAppOpenMode,
+  resolveAppOpenModeShortcut,
+  type AppOpenMode,
+} from './tabSwitcherOpenMode';
 import './TabSwitcherDialog.css';
 
 const APP_SORT_OPTIONS: Array<SortOption<AppSortOption>> = [
@@ -72,6 +84,7 @@ export default function TabSwitcherDialog() {
   const [search, setSearch] = useState('');
   const [sortOption, setSortOption] = useState<AppSortOption>('status');
   const [resourceSortOption, setResourceSortOption] = useState<ResourceSortOption>('status');
+  const [appOpenMode, setAppOpenMode] = useState<AppOpenMode>('single-preview');
   const [shortcut, setShortcut] = useState<ShortcutState | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -224,6 +237,19 @@ export default function TabSwitcherDialog() {
         return true;
       }
 
+      const openModeShortcut = resolveAppOpenModeShortcut(event);
+      if (openModeShortcut) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (openModeShortcut === 'cycle') {
+          setAppOpenMode((current) => cycleAppOpenMode(current));
+        } else {
+          setAppOpenMode(openModeShortcut);
+        }
+        return true;
+      }
+
       const key = event.key;
       const isArrowKey = key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
       if (!isArrowKey) {
@@ -261,7 +287,10 @@ export default function TabSwitcherDialog() {
       return;
     }
     closeOverlay({ replace: true });
-    const targetPath = `/apps/${encodeURIComponent(identifier)}/preview`;
+    const encodedIdentifier = encodeURIComponent(identifier);
+    const targetPath = appOpenMode === 'single-preview'
+      ? `/apps/${encodedIdentifier}/preview`
+      : '/apps/workspace';
     const navigationState = {
       fromAppsList: true,
       originAppId: app.id,
@@ -270,15 +299,33 @@ export default function TabSwitcherDialog() {
       autoSelectedAt: options?.autoSelected ? Date.now() : undefined,
     } as const;
 
+    let recoverPath = targetPath;
+
+    let workspaceTarget: string | null = null;
+    if (appOpenMode !== 'single-preview') {
+      const workspaceParams = new URLSearchParams();
+      workspaceParams.set(WORKSPACE_INTENT_APP_ID_KEY, identifier);
+      workspaceParams.set(WORKSPACE_INTENT_MODE_KEY, appOpenMode);
+      workspaceTarget = `/apps/workspace?${workspaceParams.toString()}`;
+      recoverPath = workspaceTarget;
+    }
+
     if (isIosSafariUserAgent()) {
       const guardAppId = app.id ?? identifier;
       primePreviewGuardForNavigation({
         appId: guardAppId,
-        recoverPath: targetPath,
+        recoverPath,
       });
     }
 
-    navigate(targetPath, {
+    if (appOpenMode === 'single-preview') {
+      navigate(targetPath, {
+        state: navigationState,
+      });
+      return;
+    }
+
+    navigate(workspaceTarget ?? '/apps/workspace', {
       state: navigationState,
     });
   };
@@ -357,6 +404,39 @@ export default function TabSwitcherDialog() {
         <div className="tab-switcher__auto-next-message" role="status">
           {autoNextMessage}
         </div>
+      )}
+
+      {activeSegment === 'apps' && (
+        <section className="tab-switcher__open-mode" aria-label="Scenario open destination">
+          <span className="tab-switcher__open-mode-label">
+            Open Scenarios In
+            <span className="tab-switcher__open-mode-hint" aria-label="Shortcut hints">
+              <kbd>Alt+O</kbd>
+              <span>/</span>
+              <kbd>Alt+1..3</kbd>
+            </span>
+          </span>
+          <div className="tab-switcher__open-mode-options" role="radiogroup" aria-label="Scenario open mode">
+            {APP_OPEN_MODES.map((mode) => {
+              const checked = appOpenMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  className={clsx(
+                    'tab-switcher__open-mode-btn',
+                    checked && 'tab-switcher__open-mode-btn--active',
+                  )}
+                  onClick={() => setAppOpenMode(mode)}
+                >
+                  {APP_OPEN_MODE_LABELS[mode]}
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       <div className="tab-switcher__content">

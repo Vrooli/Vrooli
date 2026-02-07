@@ -3,6 +3,7 @@ import Shell from '@/components/Shell';
 import AppPreviewView from '@/components/views/AppPreviewView';
 import HomeView from '@/components/views/HomeView';
 import ResourceDetailView from '@/components/views/ResourceDetailView';
+import PreviewWorkspaceView from '@/features/preview-workspace/components/PreviewWorkspaceView';
 import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import { KeyboardScopeProvider } from '@/hooks/useKeyboardScopes';
@@ -41,9 +42,9 @@ function LogsAppRedirect() {
   const location = useLocation();
 
   const params = new URLSearchParams(location.search);
-  params.set('overlay', 'logs');
+  params.set('paneLogs', '1');
   const search = params.toString();
-  const targetSearch = search ? `?${search}` : '?overlay=logs';
+  const targetSearch = search ? `?${search}` : '?paneLogs=1';
   const targetPath = appId ? `/apps/${encodeURIComponent(appId)}/preview${targetSearch}` : '';
 
   useEffect(() => {
@@ -121,6 +122,7 @@ function App() {
                 <Route path="apps" element={<TabOverlayRedirect segment="apps" />} />
                 <Route path="resources" element={<TabOverlayRedirect segment="resources" />} />
                 <Route path="tabs" element={<TabOverlayRedirect />} />
+                <Route path="apps/workspace" element={<PreviewWorkspaceView />} />
                 <Route path="apps/:appId/preview" element={<AppPreviewView />} />
                 <Route path="resources/:resourceId" element={<ResourceDetailView />} />
                 <Route path="logs" element={<TabOverlayRedirect segment="apps" />} />

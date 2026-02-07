@@ -1,0 +1,102 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  previewWorkspaceLimits,
+  usePreviewWorkspaceStore,
+} from './previewWorkspaceStore';
+
+const resetStore = () => {
+  usePreviewWorkspaceStore.getState().reset();
+};
+
+describe('previewWorkspaceStore', () => {
+  beforeEach(() => {
+    resetStore();
+  });
+
+  it('starts with one pane and a focused pane', () => {
+    const state = usePreviewWorkspaceStore.getState();
+    expect(state.panes).toHaveLength(1);
+    expect(state.focusedPaneId).toBe(state.panes[0]?.id ?? null);
+    expect(state.layout).toBe('grid');
+    expect(state.interactionMode).toBe('browse');
+    expect(state.columnFractions).toEqual([1]);
+    expect(state.rowFractions).toEqual([1]);
+  });
+
+  it('adds panes and focuses the newest pane', () => {
+    const firstState = usePreviewWorkspaceStore.getState();
+    const firstPaneId = firstState.panes[0]?.id;
+    expect(firstPaneId).toBeTruthy();
+
+    const newPaneId = usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    const nextState = usePreviewWorkspaceStore.getState();
+
+    expect(nextState.panes).toHaveLength(2);
+    const newPane = nextState.panes.find((pane) => pane.id === newPaneId);
+    expect(newPane?.appId).toBe('scenario-a');
+    expect(nextState.focusedPaneId).toBe(newPaneId);
+    expect(nextState.columnFractions).toHaveLength(2);
+  });
+
+  it('enforces max pane limit', () => {
+    const { maxPanes } = previewWorkspaceLimits;
+    for (let index = 0; index < maxPanes + 2; index += 1) {
+      usePreviewWorkspaceStore.getState().addPane(`app-${index}`);
+    }
+
+    const state = usePreviewWorkspaceStore.getState();
+    expect(state.panes.length).toBe(maxPanes);
+  });
+
+  it('does not remove the last remaining pane', () => {
+    const state = usePreviewWorkspaceStore.getState();
+    const paneId = state.panes[0]?.id;
+    expect(paneId).toBeTruthy();
+
+    if (paneId) {
+      usePreviewWorkspaceStore.getState().removePane(paneId);
+    }
+
+    const nextState = usePreviewWorkspaceStore.getState();
+    expect(nextState.panes).toHaveLength(1);
+  });
+
+  it('moves panes to a target index', () => {
+    const paneA = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    const paneB = usePreviewWorkspaceStore.getState().addPane('scenario-b');
+    const paneC = usePreviewWorkspaceStore.getState().addPane('scenario-c');
+
+    expect(paneA).toBeTruthy();
+    expect(paneB).toBeTruthy();
+    expect(paneC).toBeTruthy();
+
+    if (!paneA) {
+      return;
+    }
+
+    usePreviewWorkspaceStore.getState().movePaneToIndex(paneA, 2);
+    const nextState = usePreviewWorkspaceStore.getState();
+
+    expect(nextState.panes[2]?.id).toBe(paneA);
+    expect(nextState.focusedPaneId).toBe(paneA);
+  });
+
+  it('updates pane app, layout, and interaction mode', () => {
+    const state = usePreviewWorkspaceStore.getState();
+    const paneId = state.panes[0]?.id;
+    expect(paneId).toBeTruthy();
+
+    if (!paneId) {
+      return;
+    }
+
+    usePreviewWorkspaceStore.getState().setPaneApp(paneId, 'scenario-b');
+    usePreviewWorkspaceStore.getState().setLayout('split');
+    usePreviewWorkspaceStore.getState().setInteractionMode('arrange');
+
+    const nextState = usePreviewWorkspaceStore.getState();
+    expect(nextState.layout).toBe('split');
+    expect(nextState.interactionMode).toBe('arrange');
+    expect(nextState.panes[0]?.appId).toBe('scenario-b');
+  });
+});

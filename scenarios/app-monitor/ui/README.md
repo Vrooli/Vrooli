@@ -104,6 +104,7 @@ ui/
 - **TypeScript**: Full type safety and IntelliSense
 - **React Router**: Client-side routing with browser history
 - **Inline Previews**: Launch running scenarios on a dedicated preview route with embedded iframe panels
+- **Preview Workspace**: Multi-pane preview surface at `/apps/workspace` with add/remove panes and split/grid layouts
 - **WebSocket Hook**: Real-time updates with automatic reconnection
 - **API Service Layer**: Centralized error handling and logging
 - **Responsive Design**: Mobile-friendly Matrix theme
