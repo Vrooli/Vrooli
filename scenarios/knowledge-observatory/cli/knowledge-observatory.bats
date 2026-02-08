@@ -54,6 +54,11 @@ setup() {
     [[ "$output" =~ "ingest" ]]
     [[ "$output" =~ "ingest-job" ]]
     [[ "$output" =~ "job-status" ]]
+    [[ "$output" =~ "ingest-health" ]]
+    [[ "$output" =~ "collection-diagnostics" ]]
+    [[ "$output" =~ "collection-prune-stale" ]]
+    [[ "$output" =~ "collection-dedupe" ]]
+    [[ "$output" =~ "document-delete" ]]
     [[ "$output" =~ "configure" ]]
 }
 

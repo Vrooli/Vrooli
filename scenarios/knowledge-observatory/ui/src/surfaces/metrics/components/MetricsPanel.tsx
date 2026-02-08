@@ -4,6 +4,7 @@ import { cn } from "../../../shared/lib/utils";
 import { Button } from "../../../shared/ui/button";
 import { selectors } from "../../../consts/selectors";
 import type { MetricCardView, MetricsViewModel } from "../../../shared/controllers/knowledgeController";
+import type { CollectionDiagnostics, IngestHealthResponse } from "../../../shared/services/api";
 
 // AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
 
@@ -45,6 +46,15 @@ export type MetricsPanelProps = {
   errorMessage: string;
   hasData: boolean;
   viewModel: MetricsViewModel;
+  ingestHealth?: IngestHealthResponse | null;
+  selectedCollection: string;
+  diagnostics?: CollectionDiagnostics | null;
+  diagnosticsError: string;
+  diagnosticsLoading: boolean;
+  maintenanceActionLabel: string;
+  onSelectCollection: (name: string) => void;
+  onRunPruneStale: (collection: string) => void;
+  onRunDedupe: (collection: string) => void;
   onRetry: () => void;
 };
 
@@ -54,6 +64,15 @@ export function MetricsPanel({
   errorMessage,
   hasData,
   viewModel,
+  ingestHealth,
+  selectedCollection,
+  diagnostics,
+  diagnosticsError,
+  diagnosticsLoading,
+  maintenanceActionLabel,
+  onSelectCollection,
+  onRunPruneStale,
+  onRunDedupe,
   onRetry,
 }: MetricsPanelProps) {
   const handleRetry = () => {
@@ -113,6 +132,7 @@ export function MetricsPanel({
       ? safeViewModel.totalEntriesLabel
       : "Unknown";
   const hasMetrics = safeViewModel.hasMetrics || metricCards.length > 0;
+  const ingestStatus = ingestHealth?.status?.trim() || "unknown";
 
   return (
     <div className="ko-stack">
@@ -134,6 +154,22 @@ export function MetricsPanel({
       >
         Green signals healthy quality, yellow means watch closely, and red indicates degradation. Redundancy scores are
         better when lower.
+      </div>
+
+      <div className="ko-panel p-4">
+        <h4 className="font-semibold ko-text-strong mb-2">Ingest Pipeline</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
+          <div><span className="ko-subtle">Status:</span><span className="ko-text-strong ml-1 capitalize">{ingestStatus}</span></div>
+          <div><span className="ko-subtle">Pending:</span><span className="ko-text-strong ml-1">{ingestHealth?.pending_jobs ?? 0}</span></div>
+          <div><span className="ko-subtle">Running:</span><span className="ko-text-strong ml-1">{ingestHealth?.running_jobs ?? 0}</span></div>
+          <div><span className="ko-subtle">Failures (24h):</span><span className="ko-text-strong ml-1">{ingestHealth?.failures_last_24h ?? 0}</span></div>
+        </div>
+        <p className="ko-text-xs ko-subtle mt-2">
+          Runner interval: {ingestHealth?.runner_interval_ms ?? 500}ms
+          {typeof ingestHealth?.oldest_pending_age_ms === "number"
+            ? ` · Oldest pending age: ${Math.round(ingestHealth.oldest_pending_age_ms / 1000)}s`
+            : ""}
+        </p>
       </div>
 
       {!hasMetrics && (
@@ -176,6 +212,34 @@ export function MetricsPanel({
                     <span className="ko-text-sm font-semibold ko-text-primary">{name}</span>
                     <span className="ko-text-xs ko-subtle">{sizeLabel}</span>
                   </div>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onSelectCollection(name)}
+                    >
+                      {selectedCollection === name ? "Refresh Diagnostics" : "Inspect"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onRunPruneStale(name)}
+                      disabled={maintenanceActionLabel !== ""}
+                    >
+                      Prune Stale
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onRunDedupe(name)}
+                      disabled={maintenanceActionLabel !== ""}
+                    >
+                      Dedupe
+                    </Button>
+                  </div>
                   {metrics.length > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
                       {metrics.map((metric, metricIndex) => (
@@ -188,10 +252,59 @@ export function MetricsPanel({
                       ))}
                     </div>
                   )}
+                  {selectedCollection === name && (
+                    <div className="mt-3 p-3 ko-surface-strong rounded ko-text-xs">
+                      {diagnosticsLoading && <p className="ko-subtle">Loading diagnostics…</p>}
+                      {!diagnosticsLoading && diagnosticsError && <p className="ko-text-danger-muted">{diagnosticsError}</p>}
+                      {!diagnosticsLoading && !diagnosticsError && diagnostics && (
+                        <div className="ko-stack-xs">
+                          <div>
+                            <span className="ko-subtle">Analyzed:</span>
+                            <span className="ko-text-strong ml-1">
+                              {diagnostics.analyzed_points}
+                              {typeof diagnostics.total_points === "number" ? ` / ${diagnostics.total_points}` : ""}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="ko-subtle">Stale delete candidates:</span>
+                            <span className="ko-text-strong ml-1">{diagnostics.stale_chunks.candidate_delete_rows}</span>
+                          </div>
+                          <div>
+                            <span className="ko-subtle">Duplicate ratio:</span>
+                            <span className="ko-text-strong ml-1">{(diagnostics.redundancy.duplicate_ratio * 100).toFixed(1)}%</span>
+                          </div>
+                          <div>
+                            <span className="ko-subtle">Chunk length:</span>
+                            <span className="ko-text-strong ml-1">
+                              {Math.round(diagnostics.chunk_length.avg_characters)} avg
+                              {" · "}
+                              {diagnostics.chunk_length.min_characters}-{diagnostics.chunk_length.max_characters}
+                            </span>
+                          </div>
+                          {Array.isArray(diagnostics.recommendations) && diagnostics.recommendations.length > 0 && (
+                            <div>
+                              <p className="ko-subtle mb-1">Recommendations</p>
+                              <ul className="list-disc list-inside ko-text-primary">
+                                {diagnostics.recommendations.slice(0, 3).map((entry, recIndex) => (
+                                  <li key={`${name}-rec-${recIndex}`}>{entry}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
+        </div>
+      )}
+
+      {maintenanceActionLabel && (
+        <div className="ko-panel p-3 ko-text-xs ko-subtle">
+          {maintenanceActionLabel}
         </div>
       )}
 

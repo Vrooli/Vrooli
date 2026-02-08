@@ -53,6 +53,28 @@ Returns collection health and aggregated quality metrics.
 
 [CODE: api/metrics.go]
 
+## Ingest Health
+`GET /api/v1/ingest/health`
+
+Returns ingest runner/backlog telemetry.
+
+**Response**
+```json
+{
+  "runner_interval_ms": 500,
+  "pending_jobs": 0,
+  "running_jobs": 0,
+  "failed_jobs": 2,
+  "successful_jobs": 42,
+  "failures_last_24h": 1,
+  "oldest_pending_age_ms": 0,
+  "status": "healthy|warning|degraded|unknown",
+  "timestamp": "2026-02-08T18:32:01Z"
+}
+```
+
+[CODE: api/knowledge_maintenance.go]
+
 ## Graph
 `GET /api/v1/knowledge/graph` or `POST /api/v1/knowledge/graph`
 
@@ -518,7 +540,8 @@ Chunked, synchronous ingest for long documents.
   "source": "string?",
   "source_type": "string?",
   "chunk_size": 1200,
-  "chunk_overlap": 150
+  "chunk_overlap": 150,
+  "prune_stale": true
 }
 ```
 
@@ -531,6 +554,7 @@ Chunked, synchronous ingest for long documents.
   "chunk_count": 4,
   "record_ids": ["string"],
   "content_hash": "string",
+  "pruned_stale_count": 2,
   "took_ms": 120
 }
 ```
@@ -544,6 +568,111 @@ Chunked, synchronous ingest for long documents.
 Enqueues an async document ingest job.
 
 [CODE: api/jobs.go]
+
+## Collection Diagnostics
+`GET /api/v1/knowledge/collections/{collection}/diagnostics?mode=sample|full&limit=500`
+
+Provides chunk/vector quality diagnostics and action recommendations.
+
+**Response**
+```json
+{
+  "collection": "knowledge_chunks_v1",
+  "mode": "sample",
+  "total_points": 12600,
+  "analyzed_points": 1200,
+  "vector_dimensions": [{"dimension": 768, "count": 1200}],
+  "namespaces": [{"name": "ecosystem-manager", "count": 840}],
+  "chunk_length": {"min_characters": 44, "max_characters": 1210, "avg_characters": 731.4},
+  "missing_payload_fields": {"document_id": 2},
+  "redundancy": {
+    "duplicate_content_hashes": 14,
+    "duplicate_point_count": 33,
+    "duplicate_ratio": 0.0275
+  },
+  "stale_chunks": {
+    "groups_detected": 8,
+    "candidate_delete_rows": 11,
+    "top_documents": [{"name": "ecosystem-manager/abc123", "count": 3}]
+  },
+  "ingest_history": {
+    "total_attempts": 850,
+    "success_count": 842,
+    "failure_count": 8,
+    "failure_count_last_24h": 1,
+    "failure_rate": 0.0094
+  },
+  "recommendations": ["Run prune_stale_chunks ..."],
+  "timestamp": "2026-02-08T18:32:01Z"
+}
+```
+
+[CODE: api/knowledge_maintenance.go]
+
+## Collection Maintenance: Prune Stale Chunks
+`POST /api/v1/knowledge/collections/{collection}/maintenance/prune-stale-chunks`
+
+Deletes superseded chunks per `(namespace, document_id, chunk_index)`, keeping newest.
+
+**Request**
+```json
+{
+  "dry_run": false,
+  "max_deletes": 500
+}
+```
+
+**Response**
+```json
+{
+  "collection": "knowledge_chunks_v1",
+  "action": "prune_stale_chunks",
+  "dry_run": false,
+  "analyzed_points": 1200,
+  "candidate_delete_count": 11,
+  "deleted_count": 11,
+  "took_ms": 55
+}
+```
+
+[CODE: api/knowledge_maintenance.go]
+
+## Collection Maintenance: Dedupe Content
+`POST /api/v1/knowledge/collections/{collection}/maintenance/dedupe-content`
+
+Deletes duplicate chunks by `(namespace, content_hash)`, keeping newest.
+
+[CODE: api/knowledge_maintenance.go]
+
+## Delete Document
+`POST /api/v1/knowledge/documents/delete`
+
+Delete all chunks for a namespace+document.
+
+**Request**
+```json
+{
+  "namespace": "ecosystem-manager",
+  "collection": "knowledge_chunks_v1",
+  "document_id": "string?",
+  "external_id": "string?",
+  "dry_run": false
+}
+```
+
+**Response**
+```json
+{
+  "collection": "knowledge_chunks_v1",
+  "namespace": "ecosystem-manager",
+  "document_id": "string",
+  "candidate_delete_count": 18,
+  "deleted_count": 18,
+  "took_ms": 25
+}
+```
+
+[CODE: api/knowledge_maintenance.go]
 [CODE: api/internal/services/ingestjobs/runner.go]
 
 `GET /api/v1/ingest/jobs/{job_id}`

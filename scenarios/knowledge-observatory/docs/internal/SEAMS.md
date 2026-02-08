@@ -1,7 +1,7 @@
 # Seams & Architecture Boundaries
 
 ## Last Updated
-2026-01-27
+2026-02-08
 
 ## Integration Seams
 - **Vector store seam**: `ports.VectorStore` enables Qdrant substitution for testing. [CODE: api/internal/ports/ports.go]
@@ -21,9 +21,11 @@
 - **Prompt-manager seam**: prompt-manager client retrieves skill content for deep search. [CODE: api/internal/adapters/promptmanager/client.go]
 - **Activity feed seam**: UI-local activity store isolates search/healing event tracking. [CODE: ui/src/shared/lib/activityStore.ts]
 - **Search intent seam**: dashboard quick search hands off intent to search workspace. [CODE: ui/src/shared/controllers/searchIntent.ts]
+- **CLI maintenance seam**: maintenance-oriented CLI commands (`ingest-health`, collection diagnostics/remediation, document delete) are thin wrappers over API endpoints with safe dry-run defaults, keeping destructive policy in server handlers. [CODE: cli/app.go] [CODE: api/knowledge_maintenance.go]
 
 ## Responsibility Zones
 - **Entry/presentation**: HTTP handlers and UI pages. [CODE: api/server.go] [CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
+- **CLI entry/presentation**: CLI command parsing and output formatting delegates behavior to API endpoints. [CODE: cli/app.go]
 - **Coordination/orchestration**: server wiring + service construction. [CODE: api/server.go]
 - **Domain rules**: ingest/search/graph services, metric calculations. [CODE: api/internal/services/ingest/service.go] [CODE: api/internal/services/search/service.go] [CODE: api/internal/services/graph/service.go]
 - **Documentation standards**: docschema package owns documentation layout validation and reset rules. [CODE: api/internal/docschema/types.go] [CODE: api/internal/docschema/validation.go]

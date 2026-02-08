@@ -85,6 +85,11 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "ingest", NeedsAPI: true, Description: "Ingest a single knowledge record", Run: a.cmdIngest},
 			{Name: "ingest-job", NeedsAPI: true, Description: "Enqueue an async document ingest job", Run: a.cmdIngestJob},
 			{Name: "job-status", NeedsAPI: true, Description: "Check async ingest job status", Run: a.cmdJobStatus},
+			{Name: "ingest-health", NeedsAPI: true, Description: "Inspect ingest queue and runner health", Run: a.cmdIngestHealth},
+			{Name: "collection-diagnostics", NeedsAPI: true, Description: "Inspect collection embedding/chunk diagnostics", Run: a.cmdCollectionDiagnostics},
+			{Name: "collection-prune-stale", NeedsAPI: true, Description: "Prune stale chunk versions (dry-run by default)", Run: a.cmdCollectionPruneStale},
+			{Name: "collection-dedupe", NeedsAPI: true, Description: "Delete duplicate content chunks (dry-run by default)", Run: a.cmdCollectionDedupe},
+			{Name: "document-delete", NeedsAPI: true, Description: "Delete all chunks for a document (dry-run by default)", Run: a.cmdDocumentDelete},
 			{Name: "graph", NeedsAPI: true, Description: "Generate a knowledge graph", Run: a.cmdGraph},
 		},
 	}
@@ -1136,6 +1141,195 @@ func (a *App) cmdJobStatus(args []string) error {
 	return a.printJSON(body)
 }
 
+func (a *App) cmdIngestHealth(args []string) error {
+	fs := flag.NewFlagSet("ingest-health", flag.ContinueOnError)
+	watch := fs.Bool("watch", false, "Poll ingest health continuously")
+	intervalRaw := fs.String("interval", "5s", "Polling interval when --watch is set")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if !*watch {
+		body, err := a.doRequest("GET", "/ingest/health", nil, nil)
+		if err != nil {
+			return err
+		}
+		return a.printJSON(body)
+	}
+
+	interval, err := parseDuration(*intervalRaw)
+	if err != nil {
+		return err
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		body, err := a.doRequest("GET", "/ingest/health", nil, nil)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("== %s ==\n", time.Now().UTC().Format(time.RFC3339))
+		cliutil.PrintJSON(body)
+		<-ticker.C
+	}
+}
+
+func (a *App) cmdCollectionDiagnostics(args []string) error {
+	leadingCollection, parseArgs := splitLeadingPositional(args)
+	fs := flag.NewFlagSet("collection-diagnostics", flag.ContinueOnError)
+	collection := fs.String("collection", "", "Collection to inspect")
+	mode := fs.String("mode", "sample", "Diagnostics mode: sample or full")
+	limit := fs.Int("limit", 0, "Maximum points to inspect")
+	if err := fs.Parse(parseArgs); err != nil {
+		return err
+	}
+
+	collectionValue := strings.TrimSpace(*collection)
+	if collectionValue == "" {
+		collectionValue = leadingCollection
+	}
+	if collectionValue == "" && len(fs.Args()) > 0 {
+		collectionValue = strings.TrimSpace(fs.Args()[0])
+	}
+	if collectionValue == "" {
+		return fmt.Errorf("usage: collection-diagnostics <collection> [--mode=sample|full] [--limit=N]")
+	}
+
+	query := url.Values{}
+	modeValue := strings.TrimSpace(*mode)
+	if modeValue != "" {
+		query.Set("mode", modeValue)
+	}
+	if *limit > 0 {
+		query.Set("limit", strconv.Itoa(*limit))
+	}
+
+	path := fmt.Sprintf("/knowledge/collections/%s/diagnostics", url.PathEscape(collectionValue))
+	body, err := a.doRequest("GET", path, query, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdCollectionPruneStale(args []string) error {
+	leadingCollection, parseArgs := splitLeadingPositional(args)
+	fs := flag.NewFlagSet("collection-prune-stale", flag.ContinueOnError)
+	collection := fs.String("collection", "", "Collection to clean")
+	dryRun := fs.Bool("dry-run", true, "Preview candidates without deleting")
+	apply := fs.Bool("apply", false, "Execute deletions (overrides --dry-run)")
+	maxDeletes := fs.Int("max-deletes", 0, "Maximum points to delete")
+	if err := fs.Parse(parseArgs); err != nil {
+		return err
+	}
+
+	collectionValue := strings.TrimSpace(*collection)
+	if collectionValue == "" {
+		collectionValue = leadingCollection
+	}
+	if collectionValue == "" && len(fs.Args()) > 0 {
+		collectionValue = strings.TrimSpace(fs.Args()[0])
+	}
+	if collectionValue == "" {
+		return fmt.Errorf("usage: collection-prune-stale <collection> [--dry-run] [--apply] [--max-deletes=N]")
+	}
+
+	req := collectionMaintenanceRequest{
+		DryRun:     *dryRun,
+		MaxDeletes: *maxDeletes,
+	}
+	if *apply {
+		req.DryRun = false
+	}
+	path := fmt.Sprintf("/knowledge/collections/%s/maintenance/prune-stale-chunks", url.PathEscape(collectionValue))
+	body, err := a.doRequest("POST", path, nil, req)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdCollectionDedupe(args []string) error {
+	leadingCollection, parseArgs := splitLeadingPositional(args)
+	fs := flag.NewFlagSet("collection-dedupe", flag.ContinueOnError)
+	collection := fs.String("collection", "", "Collection to clean")
+	dryRun := fs.Bool("dry-run", true, "Preview candidates without deleting")
+	apply := fs.Bool("apply", false, "Execute deletions (overrides --dry-run)")
+	maxDeletes := fs.Int("max-deletes", 0, "Maximum points to delete")
+	if err := fs.Parse(parseArgs); err != nil {
+		return err
+	}
+
+	collectionValue := strings.TrimSpace(*collection)
+	if collectionValue == "" {
+		collectionValue = leadingCollection
+	}
+	if collectionValue == "" && len(fs.Args()) > 0 {
+		collectionValue = strings.TrimSpace(fs.Args()[0])
+	}
+	if collectionValue == "" {
+		return fmt.Errorf("usage: collection-dedupe <collection> [--dry-run] [--apply] [--max-deletes=N]")
+	}
+
+	req := collectionMaintenanceRequest{
+		DryRun:     *dryRun,
+		MaxDeletes: *maxDeletes,
+	}
+	if *apply {
+		req.DryRun = false
+	}
+	path := fmt.Sprintf("/knowledge/collections/%s/maintenance/dedupe-content", url.PathEscape(collectionValue))
+	body, err := a.doRequest("POST", path, nil, req)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocumentDelete(args []string) error {
+	fs := flag.NewFlagSet("document-delete", flag.ContinueOnError)
+	namespace := fs.String("namespace", "", "Namespace for the document")
+	collection := fs.String("collection", "", "Collection override")
+	documentID := fs.String("document-id", "", "Document ID")
+	externalID := fs.String("external-id", "", "External ID mapped to document")
+	dryRun := fs.Bool("dry-run", true, "Preview candidates without deleting")
+	apply := fs.Bool("apply", false, "Execute deletions (overrides --dry-run)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	namespaceValue := strings.TrimSpace(*namespace)
+	if namespaceValue == "" {
+		return fmt.Errorf("--namespace is required")
+	}
+	documentIDValue := strings.TrimSpace(*documentID)
+	if documentIDValue == "" && len(fs.Args()) > 0 {
+		documentIDValue = strings.TrimSpace(fs.Args()[0])
+	}
+	externalIDValue := strings.TrimSpace(*externalID)
+	if documentIDValue == "" && externalIDValue == "" {
+		return fmt.Errorf("usage: document-delete --namespace <namespace> [--collection=name] (--document-id <id>|--external-id <id>) [--dry-run] [--apply]")
+	}
+
+	req := documentDeleteRequest{
+		Namespace:  namespaceValue,
+		Collection: strings.TrimSpace(*collection),
+		DocumentID: documentIDValue,
+		ExternalID: externalIDValue,
+		DryRun:     *dryRun,
+	}
+	if *apply {
+		req.DryRun = false
+	}
+
+	body, err := a.doRequest("POST", "/knowledge/documents/delete", nil, req)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
 func (a *App) cmdHealth(args []string) error {
 	fs := flag.NewFlagSet("health", flag.ContinueOnError)
 	watch := fs.Bool("watch", false, "Poll health metrics continuously")
@@ -1219,6 +1413,19 @@ type ingestJobRequest struct {
 	SourceType   string                 `json:"source_type,omitempty"`
 	ChunkSize    *int                   `json:"chunk_size,omitempty"`
 	ChunkOverlap *int                   `json:"chunk_overlap,omitempty"`
+}
+
+type collectionMaintenanceRequest struct {
+	DryRun     bool `json:"dry_run"`
+	MaxDeletes int  `json:"max_deletes,omitempty"`
+}
+
+type documentDeleteRequest struct {
+	Namespace  string `json:"namespace"`
+	Collection string `json:"collection,omitempty"`
+	DocumentID string `json:"document_id,omitempty"`
+	ExternalID string `json:"external_id,omitempty"`
+	DryRun     bool   `json:"dry_run,omitempty"`
 }
 
 type docsFileSearchRequest struct {
@@ -1845,6 +2052,17 @@ func splitCSV(value string) []string {
 		out = append(out, part)
 	}
 	return out
+}
+
+func splitLeadingPositional(args []string) (string, []string) {
+	if len(args) == 0 {
+		return "", args
+	}
+	first := strings.TrimSpace(args[0])
+	if first == "" || strings.HasPrefix(first, "-") {
+		return "", args
+	}
+	return first, args[1:]
 }
 
 func stripBoolFlag(args []string, flagName string) ([]string, bool) {

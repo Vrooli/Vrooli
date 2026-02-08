@@ -35,6 +35,11 @@ Or install via the shared installer (recommended):
 | `ingest` | Ingest a single record |
 | `ingest-job` | Enqueue an async document ingest job |
 | `job-status` | Fetch ingest job status |
+| `ingest-health` | Inspect ingest queue/runner health |
+| `collection-diagnostics` | Inspect embedding/chunk diagnostics for a collection |
+| `collection-prune-stale` | Prune stale chunk versions (dry-run by default) |
+| `collection-dedupe` | Remove duplicate content chunks (dry-run by default) |
+| `document-delete` | Delete chunks for a document (dry-run by default) |
 | `health` | Knowledge health metrics |
 | `metrics` | Alias for `health` |
 | `graph` | Generate a knowledge graph |
@@ -118,6 +123,74 @@ knowledge-observatory ingest-job --namespace docs --content "$(cat README.md)" -
 ```bash
 knowledge-observatory job-status <job_id>
 ```
+
+## ingest-health
+
+```bash
+knowledge-observatory ingest-health
+knowledge-observatory ingest-health --watch --interval 10s
+```
+
+## collection-diagnostics
+
+```bash
+knowledge-observatory collection-diagnostics knowledge
+knowledge-observatory collection-diagnostics --collection knowledge --mode full --limit 5000
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--collection` | Collection name (optional if provided as positional argument) |
+| `--mode` | `sample` or `full` |
+| `--limit` | Max points to inspect |
+
+## collection-prune-stale
+
+```bash
+knowledge-observatory collection-prune-stale knowledge
+knowledge-observatory collection-prune-stale --collection knowledge --apply --max-deletes 200
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--collection` | Collection name (optional if provided as positional argument) |
+| `--dry-run` | Preview only (default true) |
+| `--apply` | Execute deletion |
+| `--max-deletes` | Max stale points to delete |
+
+## collection-dedupe
+
+```bash
+knowledge-observatory collection-dedupe knowledge
+knowledge-observatory collection-dedupe --collection knowledge --apply --max-deletes 200
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--collection` | Collection name (optional if provided as positional argument) |
+| `--dry-run` | Preview only (default true) |
+| `--apply` | Execute deletion |
+| `--max-deletes` | Max duplicate points to delete |
+
+## document-delete
+
+```bash
+knowledge-observatory document-delete --namespace docs --document-id doc-123
+knowledge-observatory document-delete --namespace docs --external-id ext-123 --apply
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--namespace` | Namespace (required) |
+| `--collection` | Collection override |
+| `--document-id` | Document identifier |
+| `--external-id` | External identifier (resolved server-side) |
+| `--dry-run` | Preview only (default true) |
+| `--apply` | Execute deletion |
 
 ## health / metrics
 

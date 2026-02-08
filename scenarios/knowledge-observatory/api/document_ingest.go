@@ -34,16 +34,18 @@ type IngestDocumentRequest struct {
 	SourceType   string                 `json:"source_type,omitempty"`
 	ChunkSize    int                    `json:"chunk_size,omitempty"`
 	ChunkOverlap int                    `json:"chunk_overlap,omitempty"`
+	PruneStale   bool                   `json:"prune_stale,omitempty"`
 }
 
 type IngestDocumentResponse struct {
-	DocumentID  string   `json:"document_id"`
-	Collection  string   `json:"collection"`
-	Namespace   string   `json:"namespace"`
-	ChunkCount  int      `json:"chunk_count"`
-	RecordIDs   []string `json:"record_ids"`
-	ContentHash string   `json:"content_hash"`
-	TookMS      int64    `json:"took_ms"`
+	DocumentID       string   `json:"document_id"`
+	Collection       string   `json:"collection"`
+	Namespace        string   `json:"namespace"`
+	ChunkCount       int      `json:"chunk_count"`
+	RecordIDs        []string `json:"record_ids"`
+	ContentHash      string   `json:"content_hash"`
+	PrunedStaleCount int      `json:"pruned_stale_count,omitempty"`
+	TookMS           int64    `json:"took_ms"`
 }
 
 func (r *IngestDocumentRequest) normalize() error {
@@ -145,14 +147,24 @@ func (s *Server) handleIngestDocument(w http.ResponseWriter, r *http.Request) {
 		recordIDs = append(recordIDs, recordID)
 	}
 
+	prunedStaleCount := 0
+	if req.PruneStale {
+		if deleted, err := s.pruneDocumentExtraChunks(r.Context(), req.Collection, req.Namespace, req.DocumentID, recordIDs); err == nil {
+			prunedStaleCount = deleted
+		} else {
+			s.log("document prune stale failed", map[string]interface{}{"error": err.Error(), "document_id": req.DocumentID})
+		}
+	}
+
 	resp := IngestDocumentResponse{
-		DocumentID:  req.DocumentID,
-		Collection:  req.Collection,
-		Namespace:   req.Namespace,
-		ChunkCount:  len(recordIDs),
-		RecordIDs:   recordIDs,
-		ContentHash: ingest.HashDocument(req.Namespace, req.Content),
-		TookMS:      time.Since(start).Milliseconds(),
+		DocumentID:       req.DocumentID,
+		Collection:       req.Collection,
+		Namespace:        req.Namespace,
+		ChunkCount:       len(recordIDs),
+		RecordIDs:        recordIDs,
+		ContentHash:      ingest.HashDocument(req.Namespace, req.Content),
+		PrunedStaleCount: prunedStaleCount,
+		TookMS:           time.Since(start).Milliseconds(),
 	}
 
 	if strings.TrimSpace(req.ExternalID) != "" && s != nil && s.metadata != nil {

@@ -283,3 +283,121 @@ export async function fetchKnowledgeHealth(): Promise<HealthResponse> {
     timestamp: toNonEmptyString(parsed.timestamp) ?? new Date().toISOString(),
   };
 }
+
+export interface CollectionDiagnostics {
+  collection: string;
+  mode: string;
+  total_points?: number;
+  analyzed_points: number;
+  vector_dimensions: Array<{ dimension: number; count: number }>;
+  namespaces: Array<{ name: string; count: number }>;
+  chunk_length: {
+    min_characters: number;
+    max_characters: number;
+    avg_characters: number;
+  };
+  missing_payload_fields: Record<string, number>;
+  redundancy: {
+    duplicate_content_hashes: number;
+    duplicate_point_count: number;
+    duplicate_ratio: number;
+  };
+  stale_chunks: {
+    groups_detected: number;
+    candidate_delete_rows: number;
+    top_documents: Array<{ name: string; count: number }>;
+  };
+  ingest_history?: {
+    total_attempts: number;
+    success_count: number;
+    failure_count: number;
+    failure_count_last_24h: number;
+    failure_rate: number;
+    last_failure_at?: string;
+  };
+  recommendations: string[];
+  timestamp: string;
+}
+
+export interface CollectionMaintenanceResponse {
+  collection: string;
+  action: string;
+  dry_run: boolean;
+  analyzed_points: number;
+  candidate_delete_count: number;
+  deleted_count: number;
+  took_ms: number;
+}
+
+export interface IngestHealthResponse {
+  runner_interval_ms: number;
+  pending_jobs: number;
+  running_jobs: number;
+  failed_jobs: number;
+  successful_jobs: number;
+  failures_last_24h: number;
+  oldest_pending_age_ms?: number;
+  status: string;
+  timestamp: string;
+}
+
+type MaintenanceAction = "prune-stale-chunks" | "dedupe-content";
+
+export async function fetchCollectionDiagnostics(
+  collection: string,
+  mode: "sample" | "full" = "sample",
+  limit = 500
+): Promise<CollectionDiagnostics> {
+  const params = new URLSearchParams({
+    mode,
+    limit: String(limit),
+  });
+  const url = buildApiUrl(`/api/v1/knowledge/collections/${encodeURIComponent(collection)}/diagnostics?${params.toString()}`, {
+    baseUrl: API_BASE,
+  });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Collection diagnostics failed: ${res.status}`);
+  }
+  return (await res.json()) as CollectionDiagnostics;
+}
+
+export async function runCollectionMaintenance(
+  collection: string,
+  action: MaintenanceAction,
+  request: { dry_run?: boolean; max_deletes?: number } = {}
+): Promise<CollectionMaintenanceResponse> {
+  const url = buildApiUrl(`/api/v1/knowledge/collections/${encodeURIComponent(collection)}/maintenance/${action}`, {
+    baseUrl: API_BASE,
+  });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    const errorMessage =
+      isRecord(errorPayload) && typeof errorPayload.error === "string"
+        ? errorPayload.error
+        : `Collection maintenance failed: ${res.status}`;
+    throw new Error(errorMessage);
+  }
+  return (await res.json()) as CollectionMaintenanceResponse;
+}
+
+export async function fetchIngestHealth(): Promise<IngestHealthResponse> {
+  const url = buildApiUrl("/api/v1/ingest/health", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Ingest health fetch failed: ${res.status}`);
+  }
+  return (await res.json()) as IngestHealthResponse;
+}
