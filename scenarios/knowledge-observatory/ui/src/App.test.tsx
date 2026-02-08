@@ -1,7 +1,9 @@
 // [REQ:KO-HD-001] Basic UI rendering test
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import App from "./App";
+import { selectors } from "./consts/selectors";
 
 const mockUseHealthStatus = vi.hoisted(() => vi.fn());
 const mockUseHashRoute = vi.hoisted(() => vi.fn());
@@ -83,5 +85,26 @@ describe("App", () => {
   it("[REQ:KO-HD-002] renders feature cards", () => {
     const { container } = render(<App />);
     expect(container.textContent?.length).toBeGreaterThan(0);
+  });
+
+  it("[REQ:KO-HD-001] toggles mobile navigation menu from header button", async () => {
+    window.innerWidth = 390;
+    window.dispatchEvent(new Event("resize"));
+
+    render(<App />);
+    const user = userEvent.setup();
+    const menuButton = screen.getByTestId(selectors.header.mobileMenuButton);
+    const menuPanel = screen.getByTestId(selectors.header.mobileMenuPanel);
+
+    expect(menuButton.getAttribute("aria-expanded")).toBe("false");
+    expect(menuPanel.className).toContain("ko-mobile-menu-panel-closed");
+
+    await user.click(menuButton);
+    expect(menuButton.getAttribute("aria-expanded")).toBe("true");
+    expect(menuPanel.className).toContain("ko-mobile-menu-panel-open");
+
+    await user.click(menuButton);
+    expect(menuButton.getAttribute("aria-expanded")).toBe("false");
+    expect(menuPanel.className).toContain("ko-mobile-menu-panel-closed");
   });
 });

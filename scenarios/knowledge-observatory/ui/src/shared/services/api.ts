@@ -3,6 +3,7 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 import type { JsonObject } from "@bufbuild/protobuf";
 import {
+  graphResponseSchema,
   infrastructureHealthResponseSchema,
   knowledgeHealthResponseSchema,
   parseProtoResponse,
@@ -105,6 +106,38 @@ export interface SearchResponse {
   took_ms: number;
 }
 
+export interface GraphRequest {
+  center_concept: string;
+  collection?: string;
+  namespaces?: string[];
+  visibility?: string[];
+  tags?: string[];
+  depth?: number;
+  limit?: number;
+  threshold?: number;
+}
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  score?: number;
+  metadata: Record<string, unknown>;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  weight: number;
+  relationship: string;
+}
+
+export interface GraphResponse {
+  center: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  took_ms: number;
+}
+
 export async function searchKnowledge(request: SearchRequest): Promise<SearchResponse> {
   const url = buildApiUrl("/api/v1/knowledge/search", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -142,6 +175,58 @@ export async function searchKnowledge(request: SearchRequest): Promise<SearchRes
     results: normalizedResults,
     query: normalizedQuery,
     took_ms: tookMs,
+  };
+}
+
+export async function fetchKnowledgeGraph(request: GraphRequest): Promise<GraphResponse> {
+  const url = buildApiUrl("/api/v1/knowledge/graph", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    const errorMessage =
+      isRecord(errorPayload) && typeof errorPayload.error === "string"
+        ? errorPayload.error
+        : `Graph fetch failed: ${res.status}`;
+    throw new Error(errorMessage);
+  }
+
+  const data = (await res.json().catch(() => null)) as unknown;
+  const parsed = parseProtoResponse(graphResponseSchema, data, "graph");
+
+  const nodes = (parsed.nodes ?? []).map((node, index) => {
+    const fallbackID = `node-${index + 1}`;
+    const id = toNonEmptyString(node.id) ?? fallbackID;
+    const label = toNonEmptyString(node.label) ?? id;
+    const score = typeof node.score === "number" ? node.score : undefined;
+    const metadata = isRecord(node.metadata) ? node.metadata : {};
+    return { id, label, score, metadata };
+  });
+
+  const edges = (parsed.edges ?? []).flatMap((edge) => {
+    const source = toNonEmptyString(edge.source);
+    const target = toNonEmptyString(edge.target);
+    if (!source || !target) return [];
+    return [
+      {
+        source,
+        target,
+        weight: toFiniteNumber(edge.weight) ?? 0,
+        relationship: toNonEmptyString(edge.relationship) ?? "semantic_similarity",
+      },
+    ];
+  });
+
+  return {
+    center: toNonEmptyString(parsed.center) ?? request.center_concept,
+    nodes,
+    edges,
+    took_ms: toFiniteNumber(parsed.took_ms) ?? 0,
   };
 }
 

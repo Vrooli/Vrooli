@@ -13,12 +13,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/graph_test.go"
         }
       ],
       "notes": "Support configurable similarity threshold and max traversal depth",
-      "status": "pending"
+      "status": "implemented"
     },
     {
       "id": "KO-KG-002",
@@ -29,12 +29,12 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/graph_api_test.go"
         }
       ],
       "notes": "Support concept-centered graphs and full collection graphs",
-      "status": "pending"
+      "status": "implemented"
     },
     {
       "id": "KO-KG-003",
@@ -45,12 +45,12 @@
         {
           "type": "test",
           "phase": "performance",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/graph_performance_test.go"
         }
       ],
       "notes": "Limit to 1000 nodes for performance; use filtering for larger graphs",
-      "status": "pending"
+      "status": "implemented"
     },
     {
       "id": "KO-KG-004",
@@ -61,12 +61,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/graph_test.go"
         }
       ],
       "notes": "Enable filtering and visualization by metadata properties",
-      "status": "pending"
+      "status": "implemented"
     }
   ]
 }

@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  buildGraphViewModel,
   buildHealthViewModel,
   buildMetricsViewModel,
   buildSearchViewModel,
   loadHealth,
   loadKnowledgeMetrics,
+  runGraphQuery,
   runSearchQuery,
 } from "../controllers/knowledgeController";
 import { recordActivity } from "../lib/activityStore";
@@ -17,6 +19,11 @@ const SAMPLE_QUERIES = [
   "semantic drift detection playbooks",
   "qdrant collections overview",
 ];
+
+const DEFAULT_GRAPH_DEPTH = "1";
+const DEFAULT_GRAPH_LIMIT = "50";
+const DEFAULT_GRAPH_THRESHOLD = "0.35";
+const DEFAULT_GRAPH_VISIBILITY = "shared,global";
 
 export function useHealthStatus() {
   const query = useQuery({
@@ -140,6 +147,153 @@ export function useSearchController() {
     hasData: Boolean(searchQuery.data),
     isSubmitDisabled,
     isClearDisabled,
+    viewModel,
+  };
+}
+
+type GraphQueryInput = {
+  center_concept: string;
+  collection?: string;
+  namespaces?: string[];
+  visibility?: string[];
+  tags?: string[];
+  depth?: number;
+  limit?: number;
+  threshold?: number;
+};
+
+const parseCSV = (value: string) =>
+  value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const normalizePositiveInteger = (value: string, fallback: number) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+};
+
+const normalizePositiveFloat = (value: string, fallback: number) => {
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+};
+
+export function useKnowledgeGraphController() {
+  const [centerConcept, setCenterConcept] = useState("");
+  const [collection, setCollection] = useState("");
+  const [namespacesInput, setNamespacesInput] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [visibilityInput, setVisibilityInput] = useState(DEFAULT_GRAPH_VISIBILITY);
+  const [depthInput, setDepthInput] = useState(DEFAULT_GRAPH_DEPTH);
+  const [limitInput, setLimitInput] = useState(DEFAULT_GRAPH_LIMIT);
+  const [thresholdInput, setThresholdInput] = useState(DEFAULT_GRAPH_THRESHOLD);
+  const [graphTrigger, setGraphTrigger] = useState<GraphQueryInput | null>(null);
+  const lastRecordedRef = useRef<string | null>(null);
+
+  const graphQuery = useQuery({
+    queryKey: ["graph", graphTrigger],
+    queryFn: ({ queryKey }) => runGraphQuery(queryKey[1]),
+    enabled: Boolean(graphTrigger),
+  });
+
+  const buildRequest = (center: string): GraphQueryInput => ({
+    center_concept: center,
+    collection: collection.trim() || undefined,
+    namespaces: parseCSV(namespacesInput),
+    tags: parseCSV(tagsInput),
+    visibility: parseCSV(visibilityInput),
+    depth: normalizePositiveInteger(depthInput, 1),
+    limit: normalizePositiveInteger(limitInput, 50),
+    threshold: normalizePositiveFloat(thresholdInput, 0.35),
+  });
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const center = centerConcept.trim();
+    if (!center) return;
+
+    setGraphTrigger(buildRequest(center));
+  };
+
+  const clear = () => {
+    setCenterConcept("");
+    setCollection("");
+    setNamespacesInput("");
+    setTagsInput("");
+    setVisibilityInput(DEFAULT_GRAPH_VISIBILITY);
+    setDepthInput(DEFAULT_GRAPH_DEPTH);
+    setLimitInput(DEFAULT_GRAPH_LIMIT);
+    setThresholdInput(DEFAULT_GRAPH_THRESHOLD);
+    setGraphTrigger(null);
+  };
+
+  const refetch = () => {
+    if (!graphTrigger) return;
+    graphQuery.refetch();
+  };
+
+  const queryGraph = (center: string) => runGraphQuery(buildRequest(center));
+
+  const viewModel = useMemo(
+    () =>
+      buildGraphViewModel({
+        data: graphQuery.data,
+        fallbackCenter: centerConcept,
+        error: graphQuery.error,
+      }),
+    [graphQuery.data, graphQuery.error, centerConcept]
+  );
+
+  useEffect(() => {
+    if (!graphQuery.data || !graphTrigger) return;
+    const signature = JSON.stringify([graphTrigger.center_concept, graphTrigger.depth, graphTrigger.limit]);
+    if (lastRecordedRef.current === signature) return;
+    lastRecordedRef.current = signature;
+    recordActivity({
+      type: "knowledge-graph",
+      title: "Knowledge graph generated",
+      description: graphTrigger.center_concept,
+      status: "completed",
+      meta: {
+        nodes: `${graphQuery.data.nodes.length}`,
+        edges: `${graphQuery.data.edges.length}`,
+      },
+    });
+  }, [graphQuery.data, graphTrigger]);
+
+  const isSubmitDisabled = graphQuery.isLoading || !centerConcept.trim();
+  const isClearDisabled = !centerConcept && !graphQuery.data && !graphTrigger;
+
+  return {
+    centerConcept,
+    setCenterConcept,
+    collection,
+    setCollection,
+    namespacesInput,
+    setNamespacesInput,
+    tagsInput,
+    setTagsInput,
+    visibilityInput,
+    setVisibilityInput,
+    depthInput,
+    setDepthInput,
+    limitInput,
+    setLimitInput,
+    thresholdInput,
+    setThresholdInput,
+    submit,
+    clear,
+    refetch,
+    queryGraph,
+    isLoading: graphQuery.isLoading,
+    hasError: Boolean(graphQuery.error),
+    hasData: Boolean(graphQuery.data),
+    isSubmitDisabled,
+    isClearDisabled,
+    graphData: graphQuery.data,
+    graphRequest: graphTrigger,
     viewModel,
   };
 }

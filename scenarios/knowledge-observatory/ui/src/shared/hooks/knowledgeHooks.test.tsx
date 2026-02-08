@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useHealthStatus, useKnowledgeMetrics, useSearchController } from "./knowledgeHooks";
-import type { ApiHealthResponse, HealthResponse, SearchResponse } from "../services/api";
+import {
+  useHealthStatus,
+  useKnowledgeGraphController,
+  useKnowledgeMetrics,
+  useSearchController,
+} from "./knowledgeHooks";
+import type { ApiHealthResponse, GraphResponse, HealthResponse, SearchResponse } from "../services/api";
 import * as api from "../services/api";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 
 vi.mock("../services/api");
 
@@ -97,5 +102,49 @@ describe("knowledgeHooks", () => {
     expect(result.current.viewModel.hasMetrics).toBe(true);
     expect(result.current.viewModel.metricCards[0]?.label).toBe("Coherence");
     expect(result.current.viewModel.totalEntriesLabel).toBe((42).toLocaleString());
+  });
+
+  it("useKnowledgeGraphController submits graph request and maps response", async () => {
+    const graphMock = vi.mocked(api.fetchKnowledgeGraph);
+    const payload: GraphResponse = {
+      center: "semantic drift",
+      nodes: [{ id: "center", label: "semantic drift", score: 1, metadata: { type: "center" } }],
+      edges: [{ source: "center", target: "node-1", weight: 0.87, relationship: "semantic_similarity" }],
+      took_ms: 16,
+    };
+    graphMock.mockResolvedValue(payload);
+
+    const { result } = renderHook(() => useKnowledgeGraphController(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.setCenterConcept("semantic drift");
+      result.current.setLimitInput("20");
+    });
+
+    act(() => {
+      const submitEvent = {
+        preventDefault: vi.fn(),
+      } as unknown as FormEvent<HTMLFormElement>;
+      result.current.submit(submitEvent);
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasData).toBe(true);
+    });
+
+    expect(graphMock).toHaveBeenCalledWith({
+      center_concept: "semantic drift",
+      collection: undefined,
+      namespaces: [],
+      tags: [],
+      visibility: ["shared", "global"],
+      depth: 1,
+      limit: 20,
+      threshold: 0.35,
+    });
+    expect(result.current.viewModel.nodeCount).toBe(1);
+    expect(result.current.viewModel.edgeCount).toBe(1);
+
+    await expect(result.current.queryGraph("semantic drift")).resolves.toEqual(payload);
   });
 });

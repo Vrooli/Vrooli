@@ -86,14 +86,68 @@ body {
   }
 
   .ko-app-header {
-    @apply px-6 py-5;
+    @apply px-4 py-3 sm:px-6;
     position: sticky;
     top: 0;
     z-index: 30;
     border-bottom: 1px solid rgb(var(--ko-border) / 0.32);
-    background-color: rgb(var(--ko-surface-strong) / 0.72);
+    background-color: rgb(var(--ko-surface-strong) / 0.68);
     backdrop-filter: blur(16px);
-    box-shadow: 0 8px 28px rgb(var(--ko-surface-strong) / 0.45);
+    box-shadow: 0 6px 20px rgb(var(--ko-surface-strong) / 0.36);
+  }
+
+  .ko-status-badge {
+    @apply flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono;
+    border: 1px solid rgb(var(--ko-border) / 0.4);
+    background: linear-gradient(150deg, rgb(var(--ko-surface-strong) / 0.9), rgb(var(--ko-surface) / 0.52));
+    box-shadow: inset 0 1px 0 rgb(var(--ko-text-strong) / 0.08);
+  }
+
+  .ko-mobile-menu-trigger {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-full;
+    border: 1px solid rgb(var(--ko-border) / 0.42);
+    color: rgb(var(--ko-text));
+    background-color: rgb(var(--ko-surface-strong) / 0.82);
+  }
+
+  .ko-mobile-menu-trigger:hover {
+    border-color: rgb(var(--ko-accent) / 0.58);
+    background-color: rgb(var(--ko-surface) / 0.58);
+  }
+
+  .ko-mobile-menu-panel {
+    @apply overflow-hidden transition-all duration-200;
+  }
+
+  .ko-mobile-menu-panel-open {
+    @apply mt-3 max-h-96 opacity-100 translate-y-0;
+  }
+
+  .ko-mobile-menu-panel-closed {
+    @apply max-h-0 opacity-0 -translate-y-1 pointer-events-none;
+  }
+
+  .ko-mobile-nav-link {
+    @apply inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold;
+  }
+
+  .ko-mobile-nav-link-active {
+    border-color: rgb(var(--ko-accent) / 0.62);
+    color: rgb(var(--ko-text-strong));
+    background: linear-gradient(135deg, rgb(var(--ko-accent) / 0.2), rgb(var(--ko-accent-strong) / 0.18));
+    box-shadow: 0 8px 18px rgb(var(--ko-accent) / 0.18);
+  }
+
+  .ko-mobile-nav-link-inactive {
+    border-color: rgb(var(--ko-border) / 0.34);
+    color: rgb(var(--ko-text-muted));
+    background-color: rgb(var(--ko-surface-strong) / 0.42);
+  }
+
+  .ko-mobile-nav-link-inactive:hover {
+    border-color: rgb(var(--ko-border-strong) / 0.62);
+    color: rgb(var(--ko-text));
+    background-color: rgb(var(--ko-surface) / 0.54);
   }
 
   .ko-panel {
@@ -200,6 +254,83 @@ body {
 
   .ko-panel-inset {
     box-shadow: inset 0 1px 0 rgb(var(--ko-text-strong) / 0.1), inset 0 0 0 1px rgb(var(--ko-border) / 0.18);
+  }
+
+  .ko-graph-canvas {
+    width: 100%;
+    min-height: 26rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(var(--ko-border) / 0.36);
+    background:
+      radial-gradient(900px 420px at 18% 20%, rgb(var(--ko-accent) / 0.16), transparent 62%),
+      radial-gradient(860px 520px at 84% 78%, rgb(var(--ko-accent-strong) / 0.1), transparent 66%),
+      rgb(var(--ko-surface-strong) / 0.55);
+    cursor: grab;
+  }
+
+  .ko-graph-canvas:active {
+    cursor: grabbing;
+  }
+
+  .ko-graph-edge {
+    stroke: url(#ko-graph-edge);
+    opacity: 0.7;
+    transition: opacity 0.16s ease;
+  }
+
+  .ko-graph-edge-highlighted {
+    opacity: 0.95;
+  }
+
+  .ko-graph-edge-faded {
+    opacity: 0.15;
+  }
+
+  .ko-graph-node-group {
+    cursor: pointer;
+  }
+
+  .ko-graph-node {
+    fill: url(#ko-graph-node);
+    stroke: rgb(var(--ko-accent-strong) / 0.65);
+    stroke-width: 1.4;
+    opacity: 0.88;
+    transition: opacity 0.16s ease, stroke-width 0.16s ease;
+  }
+
+  .ko-graph-node-center {
+    fill: rgb(var(--ko-accent) / 0.9);
+    stroke: rgb(var(--ko-accent-strong) / 0.95);
+    stroke-width: 2.3;
+  }
+
+  .ko-graph-node-selected {
+    stroke: rgb(var(--ko-tone-good) / 0.95);
+    stroke-width: 2.8;
+    opacity: 1;
+  }
+
+  .ko-graph-node-neighbor {
+    stroke: rgb(var(--ko-accent-strong) / 0.98);
+    opacity: 0.96;
+  }
+
+  .ko-graph-node-faded {
+    opacity: 0.2;
+  }
+
+  .ko-graph-node-label {
+    fill: rgb(var(--ko-text-strong));
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  .ko-graph-details {
+    border: 1px solid rgb(var(--ko-border) / 0.34);
+    border-radius: 0.75rem;
+    background-color: rgb(var(--ko-surface-strong) / 0.38);
+    padding: 0.75rem;
   }
 
   .ko-button-primary {

@@ -62,9 +62,31 @@ export const knowledgeHealthResponseSchema: z.ZodType<KnowledgeHealthResponse> =
   "knowledge health"
 );
 
+const graphNodeSchema = z.object({
+  id: z.string().optional(),
+  label: z.string().optional(),
+  score: z.number().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+const graphEdgeSchema = z.object({
+  source: z.string().optional(),
+  target: z.string().optional(),
+  weight: z.number().optional(),
+  relationship: z.string().optional(),
+});
+
+export const graphResponseSchema = z.object({
+  center: z.string().optional(),
+  nodes: z.array(graphNodeSchema).optional(),
+  edges: z.array(graphEdgeSchema).optional(),
+  took_ms: z.number().optional(),
+});
+
 export type InfrastructureHealthResponseProto = z.infer<typeof infrastructureHealthResponseSchema>;
 export type SearchResponseProto = z.infer<typeof searchResponseSchema>;
 export type KnowledgeHealthResponseProto = z.infer<typeof knowledgeHealthResponseSchema>;
+export type GraphResponseSchema = z.infer<typeof graphResponseSchema>;
 
 export function parseProtoResponse<T>(schema: z.ZodType<T>, data: unknown, label: string): T {
   const result = schema.safeParse(data);

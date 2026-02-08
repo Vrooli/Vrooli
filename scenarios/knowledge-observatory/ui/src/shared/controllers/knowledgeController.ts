@@ -1,11 +1,14 @@
 // DOC: docs/reference/api-endpoints.md#search
 // DOC: docs/reference/api-endpoints.md#health-metrics
 import {
+  fetchKnowledgeGraph,
   fetchHealth,
   fetchKnowledgeHealth,
   searchKnowledge,
   type ApiHealthResponse,
   type CollectionHealth,
+  type GraphRequest,
+  type GraphResponse,
   type SearchResponse,
   type SearchResult,
   type HealthResponse,
@@ -65,20 +68,86 @@ export type MetricsViewModel = {
   hasMetrics: boolean;
 };
 
+export type GraphNodeView = {
+  id: string;
+  label: string;
+  scoreLabel: string;
+  hasMetadata: boolean;
+  metadata: Record<string, unknown>;
+};
+
+export type GraphEdgeView = {
+  source: string;
+  target: string;
+  relationship: string;
+  weightLabel: string;
+};
+
+export type GraphViewModel = {
+  center: string;
+  nodeCount: number;
+  edgeCount: number;
+  tookMsLabel: string;
+  hasGraph: boolean;
+  nodes: GraphNodeView[];
+  edges: GraphEdgeView[];
+  errorMessage: string;
+};
+
 const EMPTY_RESULTS: SearchResultView[] = [];
 const EMPTY_COLLECTIONS: CollectionView[] = [];
 const EMPTY_METRIC_CARDS: MetricCardView[] = [];
+const EMPTY_GRAPH_NODES: GraphNodeView[] = [];
+const EMPTY_GRAPH_EDGES: GraphEdgeView[] = [];
 const DEFAULT_SEARCH_LIMIT = 10;
+const DEFAULT_GRAPH_LIMIT = 50;
+const DEFAULT_GRAPH_DEPTH = 1;
+const DEFAULT_GRAPH_THRESHOLD = 0.35;
 
 export const loadHealth = () => fetchHealth();
 
 export const loadKnowledgeMetrics = () => fetchKnowledgeHealth();
+export const loadKnowledgeGraph = (request: GraphRequest) => fetchKnowledgeGraph(request);
 
 export const runSearchQuery = async (queryValue: unknown) => {
   if (typeof queryValue !== "string" || !queryValue.trim()) {
     throw new Error("Search query is missing.");
   }
   return searchKnowledge({ query: queryValue, limit: DEFAULT_SEARCH_LIMIT });
+};
+
+export const runGraphQuery = async (request: unknown) => {
+  if (!request || typeof request !== "object" || Array.isArray(request)) {
+    throw new Error("Graph request is missing.");
+  }
+
+  const shape = request as Record<string, unknown>;
+  const center = safeString(shape.center_concept);
+  if (!center) {
+    throw new Error("Center concept is required.");
+  }
+
+  const normalizeStringArray = (value: unknown) =>
+    Array.isArray(value)
+      ? value
+          .map((entry) => safeString(entry))
+          .filter((entry): entry is string => Boolean(entry))
+      : undefined;
+
+  const depth = safeNumber(shape.depth);
+  const limit = safeNumber(shape.limit);
+  const threshold = safeNumber(shape.threshold);
+
+  return fetchKnowledgeGraph({
+    center_concept: center,
+    collection: safeString(shape.collection),
+    namespaces: normalizeStringArray(shape.namespaces),
+    visibility: normalizeStringArray(shape.visibility),
+    tags: normalizeStringArray(shape.tags),
+    depth: depth && depth > 0 ? Math.round(depth) : DEFAULT_GRAPH_DEPTH,
+    limit: limit && limit > 0 ? Math.round(limit) : DEFAULT_GRAPH_LIMIT,
+    threshold: threshold && threshold > 0 ? threshold : DEFAULT_GRAPH_THRESHOLD,
+  });
 };
 
 export function formatTimestamp(value?: string) {
@@ -246,5 +315,61 @@ export function buildMetricsViewModel(data?: HealthResponse | null): MetricsView
     lastUpdated,
     totalEntriesLabel,
     hasMetrics: metricCards.length > 0,
+  };
+}
+
+export function buildGraphViewModel(params: {
+  data?: GraphResponse | null;
+  fallbackCenter: string;
+  error: unknown;
+}): GraphViewModel {
+  const { data, fallbackCenter, error } = params;
+  const center = safeString(data?.center) ?? safeString(fallbackCenter) ?? "center concept";
+
+  const nodes = Array.isArray(data?.nodes)
+    ? data.nodes.map((node, index) => {
+        const id = safeString(node.id) ?? `node-${index + 1}`;
+        const label = safeString(node.label) ?? id;
+        const metadata = safeRecord(node.metadata);
+        const score = safeNumber(node.score);
+        return {
+          id,
+          label,
+          metadata,
+          hasMetadata: Object.keys(metadata).length > 0,
+          scoreLabel: score === undefined ? "N/A" : score.toFixed(3),
+        };
+      })
+    : EMPTY_GRAPH_NODES;
+
+  const edges = Array.isArray(data?.edges)
+    ? data.edges.flatMap((edge) => {
+        const source = safeString(edge.source);
+        const target = safeString(edge.target);
+        if (!source || !target) return [];
+        const weight = safeNumber(edge.weight);
+        return [
+          {
+            source,
+            target,
+            relationship: safeString(edge.relationship) ?? "semantic_similarity",
+            weightLabel: weight === undefined ? "N/A" : weight.toFixed(3),
+          },
+        ];
+      })
+    : EMPTY_GRAPH_EDGES;
+
+  return {
+    center,
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    tookMsLabel: (() => {
+      const tookMs = safeNumber(data?.took_ms);
+      return tookMs === undefined ? "?ms" : `${Math.round(tookMs)}ms`;
+    })(),
+    hasGraph: nodes.length > 0,
+    nodes,
+    edges,
+    errorMessage: error instanceof Error ? error.message : "Unable to generate graph.",
   };
 }

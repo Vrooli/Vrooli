@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchHealth, fetchKnowledgeHealth, searchKnowledge } from "./api";
+import { fetchHealth, fetchKnowledgeGraph, fetchKnowledgeHealth, searchKnowledge } from "./api";
 
 vi.mock("@vrooli/api-base", () => ({
   resolveApiBase: () => "http://test-base",
@@ -100,5 +100,33 @@ describe("services/api", () => {
     expect(result.collections[0]?.size).toBe(11);
     expect(result.overall_health).toBe("steady");
     expect(typeof result.timestamp).toBe("string");
+  });
+
+  it("fetchKnowledgeGraph normalizes nodes, edges, and defaults", async () => {
+    fetchMock.mockResolvedValue(
+      createResponse({
+        center: "",
+        nodes: [{ id: "", label: "", score: 0.91, metadata: { source: "docs" } }],
+        edges: [{ source: "center", target: "node-a", weight: 0.7, relationship: "" }],
+        took_ms: 19,
+      })
+    );
+
+    const result = await fetchKnowledgeGraph({ center_concept: "semantic drift", limit: 10 });
+
+    expect(result.center).toBe("semantic drift");
+    expect(result.nodes).toHaveLength(1);
+    expect(result.nodes[0]?.id).toBe("node-1");
+    expect(result.nodes[0]?.label).toBe("node-1");
+    expect(result.nodes[0]?.metadata).toEqual({ source: "docs" });
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0]?.relationship).toBe("semantic_similarity");
+    expect(result.took_ms).toBe(19);
+  });
+
+  it("fetchKnowledgeGraph surfaces API error messages", async () => {
+    fetchMock.mockResolvedValue(createResponse({ error: "Graph failed" }, { ok: false, status: 400 }));
+
+    await expect(fetchKnowledgeGraph({ center_concept: "alpha" })).rejects.toThrow("Graph failed");
   });
 });
