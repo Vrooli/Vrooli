@@ -36,11 +36,8 @@ import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
 import { usePreviewBackgroundColor } from '@/hooks/usePreviewBackgroundColor';
 import { useAppLifecycleMonitor } from '@/hooks/useAppLifecycleMonitor';
 import { usePreviewInteractionTracking } from '@/hooks/usePreviewInteractionTracking';
-import { useProxyMetadataSynchronization } from '@/hooks/useProxyMetadataSynchronization';
 import { useAppViewRecording } from '@/hooks/useAppViewRecording';
-import { useAppDiagnostics } from '@/hooks/useAppDiagnostics';
-import { useLighthouseHistory } from '@/hooks/useLighthouseHistory';
-import { useAppCompleteness } from '@/hooks/useAppCompleteness';
+import { useAppInsights } from '@/hooks/useAppInsights';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { usePreviewAppLifecycle } from '@/hooks/usePreviewAppLifecycle';
@@ -215,10 +212,6 @@ const AppPreviewView = () => {
     previewReloadToken,
   });
 
-  const { proxyMetadata, localhostReport } = useProxyMetadataSynchronization({
-    currentAppId: currentApp?.id ?? null,
-  });
-
   useAppViewRecording({
     appId: appId ?? null,
     appSnapshot: currentApp,
@@ -226,21 +219,24 @@ const AppPreviewView = () => {
     setCurrentApp,
   });
 
-  // Preload diagnostics and Lighthouse history for the current app
-  // This ensures data is ready when the user opens the app details modal
-  const { diagnostics: preloadedDiagnostics, loading: diagnosticsLoading, error: diagnosticsError, refetch: refetchDiagnostics } = useAppDiagnostics(
+  const {
+    diagnostics: preloadedDiagnostics,
+    diagnosticsLoading,
+    diagnosticsError,
+    lighthouseHistory: preloadedLighthouseHistory,
+    lighthouseLoading,
+    lighthouseError,
+    completeness: preloadedCompleteness,
+    completenessLoading,
+    completenessError,
+    proxyMetadata,
+    localhostReport,
+    refetchDiagnostics,
+    refetchLighthouse,
+    refetchCompleteness,
+  } = useAppInsights(
     currentApp?.id ?? null,
-    { enabled: true, refetchOnOpen: false }
-  );
-
-  const { history: preloadedLighthouseHistory, loading: lighthouseLoading, error: lighthouseError, refetch: refetchLighthouse } = useLighthouseHistory(
-    currentApp?.id ?? null,
-    { enabled: true }
-  );
-
-  const { completeness: preloadedCompleteness, loading: completenessLoading, error: completenessError, refetch: refetchCompleteness } = useAppCompleteness(
-    currentApp?.id ?? null,
-    { enabled: true, refetchOnOpen: false }
+    { preload: true }
   );
 
   const scenarioDisplayName = useMemo(() => {

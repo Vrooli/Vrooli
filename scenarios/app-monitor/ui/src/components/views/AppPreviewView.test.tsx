@@ -192,24 +192,31 @@ vi.mock('@/hooks/usePreviewInteractionTracking', () => ({
   usePreviewInteractionTracking: () => ({ previewInteractionSignal: 0 }),
 }));
 
-vi.mock('@/hooks/useProxyMetadataSynchronization', () => ({
-  useProxyMetadataSynchronization: () => ({ proxyMetadata: null, localhostReport: null }),
-}));
-
 vi.mock('@/hooks/useAppViewRecording', () => ({
   useAppViewRecording: vi.fn(),
 }));
 
-vi.mock('@/hooks/useAppDiagnostics', () => ({
-  useAppDiagnostics: () => ({ diagnostics: null, loading: false, error: null, refetch: vi.fn() }),
-}));
-
-vi.mock('@/hooks/useLighthouseHistory', () => ({
-  useLighthouseHistory: () => ({ history: [], loading: false, error: null, refetch: vi.fn() }),
-}));
-
-vi.mock('@/hooks/useAppCompleteness', () => ({
-  useAppCompleteness: () => ({ completeness: null, loading: false, error: null, refetch: vi.fn() }),
+vi.mock('@/hooks/useAppInsights', () => ({
+  useAppInsights: () => ({
+    diagnostics: null,
+    diagnosticsLoading: false,
+    diagnosticsError: null,
+    lighthouseHistory: null,
+    lighthouseLoading: false,
+    lighthouseError: null,
+    completeness: null,
+    completenessLoading: false,
+    completenessError: null,
+    proxyMetadata: null,
+    localhostReport: null,
+    proxyLoading: false,
+    proxyError: null,
+    refetchDiagnostics: vi.fn(),
+    refetchLighthouse: vi.fn(),
+    refetchCompleteness: vi.fn(),
+    refetchProxy: vi.fn(),
+    prefetch: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/usePreviewCapture', () => ({

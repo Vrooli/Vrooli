@@ -11,6 +11,7 @@ import type {
   AppProxyMetadata,
   LocalhostUsageReport,
   CompleteDiagnostics,
+  LighthouseHistory,
   AppDocument,
   AppDocumentsList,
   AppDocumentMatch,
@@ -504,6 +505,21 @@ export const appService = {
       return data.data ?? null;
     } catch (error) {
       logger.error(`Failed to fetch complete diagnostics for ${appId}`, error);
+      return null;
+    }
+  },
+
+  async getLighthouseHistory(appId: string): Promise<LighthouseHistory | null> {
+    const trimmed = appId.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    try {
+      const { data } = await api.get<LighthouseHistory>(`/scenarios/${encodeURIComponent(trimmed)}/lighthouse/history`);
+      return data;
+    } catch (error) {
+      logger.warn(`Failed to fetch Lighthouse history for ${trimmed}`, error);
       return null;
     }
   },

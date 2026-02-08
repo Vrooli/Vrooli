@@ -23,13 +23,15 @@ import { usePreviewReportSession } from '@/hooks/usePreviewReportSession';
 import { usePreviewToolbarSession } from '@/hooks/usePreviewToolbarSession';
 import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
 import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
+import { useAppInsights } from '@/hooks/useAppInsights';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
+import { useAppsStore } from '@/state/appsStore';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
-import { isRunningStatus, locateAppByIdentifier } from '@/utils/appPreview';
+import { isRunningStatus, locateAppByIdentifier, resolveAppIdentifier } from '@/utils/appPreview';
 import { parseScenarioProxyPreviewTarget } from '@/utils/previewUrl';
 import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
 import './PreviewPane.css';
@@ -60,6 +62,7 @@ export function PreviewPane({
   onArrangeDragStart,
 }: PreviewPaneProps) {
   const { openOverlay } = useOverlayRouter();
+  const setAppsState = useAppsStore((state) => state.setAppsState);
   const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
   const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
   const [currentApp, setCurrentApp] = useState<App | null>(null);
@@ -78,6 +81,7 @@ export function PreviewPane({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const paneRef = useRef<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const metadataFetchKeyRef = useRef<string | null>(null);
 
   const activeAppIdentifier = useMemo(() => {
     if (!appId) {
@@ -86,6 +90,21 @@ export function PreviewPane({
     const trimmed = appId.trim();
     return trimmed.length > 0 ? trimmed : null;
   }, [appId]);
+
+  const shouldPreferExistingApp = useCallback((existing: App | null, incoming: App): boolean => {
+    if (!existing) {
+      return false;
+    }
+    const existingIdentifier = resolveAppIdentifier(existing);
+    const incomingIdentifier = resolveAppIdentifier(incoming);
+    if (!existingIdentifier || !incomingIdentifier || existingIdentifier !== incomingIdentifier) {
+      return false;
+    }
+
+    const existingIsRich = !existing.is_partial && existing.status && existing.status !== 'unknown';
+    const incomingIsPoor = Boolean(incoming.is_partial || !incoming.status || incoming.status === 'unknown');
+    return existingIsRich && incomingIsPoor;
+  }, []);
 
   const navigationSession = usePreviewNavigationSession({
     iframeRef,
@@ -115,6 +134,14 @@ export function PreviewPane({
     initialPreviewUrlRef,
     history,
   } = navigationSession;
+  const scenarioTargetFromUrl = useMemo(
+    () => parseScenarioProxyPreviewTarget(previewUrlInput),
+    [previewUrlInput],
+  );
+  const resolvedAppIdentifier = useMemo(
+    () => activeAppIdentifier ?? scenarioTargetFromUrl?.scenarioIdentifier ?? null,
+    [activeAppIdentifier, scenarioTargetFromUrl?.scenarioIdentifier],
+  );
   const {
     state: bridgeState,
     runComplianceCheck,
@@ -213,7 +240,8 @@ export function PreviewPane({
   });
 
   useEffect(() => {
-    if (!activeAppIdentifier) {
+    if (!resolvedAppIdentifier) {
+      metadataFetchKeyRef.current = null;
       setCurrentApp(null);
       setLoading(false);
       setStatusMessage('Select an app to preview.');
@@ -224,20 +252,27 @@ export function PreviewPane({
       return;
     }
 
-    const localMatch = locateAppByIdentifier(apps, activeAppIdentifier);
+    const localMatch = locateAppByIdentifier(apps, resolvedAppIdentifier);
     if (localMatch) {
-      setCurrentApp(localMatch);
-      return;
+      setCurrentApp((existing) => (
+        shouldPreferExistingApp(existing, localMatch) ? existing : localMatch
+      ));
+      const needsHydration = Boolean(
+        localMatch.is_partial || !localMatch.status || localMatch.status === 'unknown',
+      );
+      if (!needsHydration) {
+        setLoading(false);
+        return;
+      }
     }
 
     setLoading(true);
     setStatusMessage('Loading app metadata...');
 
-    let cancelled = false;
     const retainMatchingCurrentApp = (): boolean => {
       let retained = false;
       setCurrentApp((previous) => {
-        const stillMatches = Boolean(previous && locateAppByIdentifier([previous], activeAppIdentifier));
+        const stillMatches = Boolean(previous && locateAppByIdentifier([previous], resolvedAppIdentifier));
         if (stillMatches) {
           retained = true;
           return previous;
@@ -247,9 +282,36 @@ export function PreviewPane({
       return retained;
     };
 
-    appService.getApp(activeAppIdentifier)
+    const fetchIdentifiers = [
+      localMatch ? resolveAppIdentifier(localMatch) : null,
+      resolvedAppIdentifier,
+      scenarioTargetFromUrl?.scenarioIdentifier ?? null,
+    ].filter((value, index, list): value is string => (
+      typeof value === 'string' && value.trim().length > 0 && list.indexOf(value) === index
+    ));
+    if (fetchIdentifiers.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchKey = fetchIdentifiers.join('|');
+    if (metadataFetchKeyRef.current === fetchKey) {
+      return;
+    }
+    metadataFetchKeyRef.current = fetchKey;
+    const fetchAppMetadata = async (): Promise<App | null> => {
+      for (const identifier of fetchIdentifiers) {
+        const fetched = await appService.getApp(identifier);
+        if (fetched) {
+          return fetched;
+        }
+      }
+      return null;
+    };
+
+    fetchAppMetadata()
       .then((fetched) => {
-        if (cancelled) {
+        if (metadataFetchKeyRef.current !== fetchKey) {
           return;
         }
         if (!fetched) {
@@ -259,23 +321,43 @@ export function PreviewPane({
           return;
         }
         setCurrentApp(fetched);
+        setAppsState((currentApps) => {
+          const index = currentApps.findIndex((app) => (
+            app.id === fetched.id
+            || app.scenario_name === fetched.scenario_name
+            || app.name === fetched.name
+          ));
+          if (index < 0) {
+            return [...currentApps, fetched];
+          }
+          const updated = [...currentApps];
+          updated[index] = { ...updated[index], ...fetched };
+          return updated;
+        });
       })
       .catch((error) => {
-        if (!cancelled) {
-          logger.warn('[preview-pane] Failed to load app', error);
-          retainMatchingCurrentApp();
-          setStatusMessage('Failed to load app metadata.');
-          setLoading(false);
+        if (metadataFetchKeyRef.current !== fetchKey) {
+          return;
+        }
+        logger.warn('[preview-pane] Failed to load app', error);
+        retainMatchingCurrentApp();
+        setStatusMessage('Failed to load app metadata.');
+        setLoading(false);
+      })
+      .finally(() => {
+        if (metadataFetchKeyRef.current === fetchKey) {
+          metadataFetchKeyRef.current = null;
         }
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return undefined;
   }, [
-    activeAppIdentifier,
     apps,
     resetReportDraftState,
+    resolvedAppIdentifier,
+    scenarioTargetFromUrl?.scenarioIdentifier,
+    setAppsState,
+    shouldPreferExistingApp,
   ]);
 
   useEffect(() => {
@@ -323,12 +405,12 @@ export function PreviewPane({
 
   const logsState = useAppLogs({
     app: currentApp,
-    appId: currentApp?.id ?? activeAppIdentifier,
+    appId: currentApp?.id ?? resolvedAppIdentifier,
     active: isLogsVisible,
   });
 
   const onRefresh = useCallback(() => {
-    if (!activeAppIdentifier) {
+    if (!resolvedAppIdentifier) {
       return;
     }
 
@@ -340,7 +422,7 @@ export function PreviewPane({
     resetBridgeState();
     setPreviewReloadToken((value) => value + 1);
 
-    appService.getApp(activeAppIdentifier)
+    appService.getApp(resolvedAppIdentifier)
       .then((fetched) => {
         if (fetched) {
           setCurrentApp(fetched);
@@ -352,7 +434,7 @@ export function PreviewPane({
       .finally(() => {
         setLoading(false);
       });
-  }, [activeAppIdentifier, resetBridgeState, setPreviewOverlay]);
+  }, [resolvedAppIdentifier, resetBridgeState, setPreviewOverlay]);
 
   const {
     openPreviewTarget,
@@ -377,7 +459,7 @@ export function PreviewPane({
     shiftInspectTarget,
     requestScreenshot,
     previewUrl,
-    currentAppIdentifier: activeAppIdentifier,
+    currentAppIdentifier: resolvedAppIdentifier,
     iframeRef,
     previewViewRef: paneRef,
     previewViewNode: paneSurfaceNode,
@@ -472,12 +554,33 @@ export function PreviewPane({
   const toggleActionLabel = lifecycle.toggleActionLabel;
   const restartActionLabel = lifecycle.restartActionLabel;
   const actionInProgress = lifecycle.actionInProgress;
-  const scenarioTargetFromUrl = useMemo(
-    () => parseScenarioProxyPreviewTarget(previewUrlInput),
-    [previewUrlInput],
+  const {
+    diagnostics,
+    diagnosticsLoading,
+    diagnosticsError,
+    lighthouseHistory,
+    lighthouseLoading,
+    lighthouseError,
+    completeness,
+    completenessLoading,
+    completenessError,
+    proxyMetadata,
+    refetchDiagnostics,
+    refetchLighthouse,
+    refetchCompleteness,
+  } = useAppInsights(
+    currentApp?.id ?? resolvedAppIdentifier ?? null,
+    { preload: true },
   );
-  const scenarioActionIdentifier = activeAppIdentifier ?? scenarioTargetFromUrl?.scenarioIdentifier ?? null;
-  const hasScenarioContext = Boolean(currentApp || scenarioActionIdentifier);
+  const scenarioActionIdentifier = resolvedAppIdentifier;
+  const modalFallbackApp = useMemo(() => {
+    if (!resolvedAppIdentifier) {
+      return null;
+    }
+    return locateAppByIdentifier(apps, resolvedAppIdentifier);
+  }, [resolvedAppIdentifier, apps]);
+  const appForModal = currentApp ?? modalFallbackApp;
+  const hasScenarioContext = Boolean(currentApp || resolvedAppIdentifier || scenarioActionIdentifier);
 
   return (
     <div
@@ -631,9 +734,9 @@ export function PreviewPane({
         )}
       </div>
 
-      {currentApp && (
+      {isDetailsOpen && appForModal && (
         <AppModal
-          app={currentApp}
+          app={appForModal}
           isOpen={isDetailsOpen}
           onClose={() => setIsDetailsOpen(false)}
           onAction={async (currentAppId, action) => {
@@ -643,7 +746,20 @@ export function PreviewPane({
             setIsLogsVisible(true);
             setIsDetailsOpen(false);
           }}
+          proxyMetadata={proxyMetadata}
           previewUrl={previewUrl}
+          preloadedDiagnostics={diagnostics}
+          diagnosticsLoading={diagnosticsLoading}
+          diagnosticsError={diagnosticsError}
+          onRefetchDiagnostics={refetchDiagnostics}
+          preloadedLighthouseHistory={lighthouseHistory}
+          lighthouseLoading={lighthouseLoading}
+          lighthouseError={lighthouseError}
+          onRefetchLighthouse={refetchLighthouse}
+          preloadedCompleteness={completeness}
+          completenessLoading={completenessLoading}
+          completenessError={completenessError}
+          onRefetchCompleteness={refetchCompleteness}
         />
       )}
 
@@ -652,7 +768,7 @@ export function PreviewPane({
           <ReportIssueDialog
             isOpen={reportDialogOpen}
             onClose={() => setReportDialogOpen(false)}
-            appId={currentApp?.id ?? activeAppIdentifier ?? undefined}
+            appId={currentApp?.id ?? resolvedAppIdentifier ?? undefined}
             app={currentApp}
             activePreviewUrl={openPreviewTarget || null}
             canCaptureScreenshot={canCaptureScreenshot}

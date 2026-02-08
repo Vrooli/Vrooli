@@ -29,6 +29,13 @@ vi.mock('@/hooks/useOverlayRouter', () => ({
   }),
 }));
 
+const setAppsStateMock = vi.fn();
+vi.mock('@/state/appsStore', () => ({
+  useAppsStore: (selector: (state: { setAppsState: typeof setAppsStateMock }) => unknown) => selector({
+    setAppsState: setAppsStateMock,
+  }),
+}));
+
 vi.mock('@/services/logger', () => ({
   logger: {
     debug: vi.fn(),
@@ -145,6 +152,8 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
     onToggleApp: () => void;
     onOpenInNewTab: (event: ReactMouseEvent<HTMLButtonElement>) => void;
     hasCurrentApp: boolean;
+    isAppRunning: boolean;
+    appStatusLabel: string;
     rightInlineActions?: ReactNode;
   }) => (
     <div className="preview-toolbar">
@@ -171,6 +180,8 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
         Open in New Tab
       </button>
       <span data-testid="toolbar-has-current-app">{String(props.hasCurrentApp)}</span>
+      <span data-testid="toolbar-is-running">{String(props.isAppRunning)}</span>
+      <span data-testid="toolbar-status-label">{props.appStatusLabel}</span>
       {props.rightInlineActions}
       <span>{props.areLogsVisible ? 'logs-visible' : 'logs-hidden'}</span>
     </div>
@@ -227,6 +238,7 @@ describe('PreviewPane', () => {
     bridgeHarness.onLocation = null;
     controlAppMock.mockResolvedValue(true);
     getAppMock.mockResolvedValue(createApp());
+    setAppsStateMock.mockReset();
     await usePreviewWorkspaceStore.persist.clearStorage();
     await usePreviewWorkspaceStore.persist.rehydrate();
     usePreviewWorkspaceStore.getState().reset();
@@ -276,6 +288,234 @@ describe('PreviewPane', () => {
     await waitFor(() => {
       expect(controlAppMock).toHaveBeenCalledWith(app.id, 'stop');
       expect(getAppMock).toHaveBeenCalledWith(app.id);
+    });
+  });
+
+  it('hydrates partial app metadata so running status is accurate per pane', async () => {
+    const partialApp: App = {
+      ...createApp(),
+      status: 'unknown',
+      is_partial: true,
+    };
+    getAppMock.mockResolvedValueOnce({
+      ...partialApp,
+      status: 'running',
+      is_partial: false,
+    });
+
+    renderPane({ app: partialApp, paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1' });
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledWith(partialApp.id);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
+    });
+  });
+
+  it('hydrates using canonical app id when pane app id is scenario name', async () => {
+    const appFromStore: App = {
+      ...createApp(),
+      id: 'canonical-app-id',
+      scenario_name: 'scenario-name-id',
+      name: 'Scenario Name',
+      status: 'unknown',
+      is_partial: true,
+    };
+    getAppMock.mockImplementation(async (identifier: string) => {
+      if (identifier === 'canonical-app-id') {
+        return {
+          ...appFromStore,
+          status: 'running',
+          is_partial: false,
+        };
+      }
+      return null;
+    });
+
+    renderPane({
+      app: appFromStore,
+      appId: 'scenario-name-id',
+      paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1',
+    });
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
+    });
+  });
+
+  it('does not lose hydration when apps list refreshes during metadata fetch', async () => {
+    const partialApp: App = {
+      ...createApp(),
+      id: 'canonical-app-id',
+      scenario_name: 'scenario-name-id',
+      status: 'unknown',
+      is_partial: true,
+    };
+
+    let resolveFetch: ((value: App | null) => void) | null = null;
+    getAppMock.mockImplementationOnce(() => new Promise<App | null>((resolve) => {
+      resolveFetch = resolve;
+    }));
+    getAppMock.mockImplementation(() => Promise.resolve(null));
+
+    const result = renderPane({
+      app: partialApp,
+      appId: 'scenario-name-id',
+      paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1',
+    });
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalled();
+    });
+
+    result.rerender(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1'}
+          appId="scenario-name-id"
+          apps={[{ ...partialApp, updated_at: '2026-02-08T00:00:00Z' }]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(resolveFetch).not.toBeNull();
+    resolveFetch?.({
+      ...partialApp,
+      status: 'running',
+      is_partial: false,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
+    });
+  });
+
+  it('does not downgrade hydrated running status from later unknown store snapshots', async () => {
+    const partialApp: App = {
+      ...createApp(),
+      id: 'scenario-1',
+      status: 'unknown',
+      is_partial: true,
+    };
+
+    getAppMock.mockResolvedValueOnce({
+      ...partialApp,
+      status: 'running',
+      is_partial: false,
+    });
+
+    const result = renderPane({
+      app: partialApp,
+      appId: partialApp.id,
+      paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
+    });
+
+    result.rerender(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1'}
+          appId={partialApp.id}
+          apps={[{ ...partialApp, updated_at: '2026-02-08T00:00:00Z' }]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
+    });
+  });
+
+  it('persists hydrated app data back into apps store', async () => {
+    const partialApp: App = {
+      ...createApp(),
+      status: 'unknown',
+      is_partial: true,
+    };
+    getAppMock.mockResolvedValueOnce({
+      ...partialApp,
+      status: 'running',
+      is_partial: false,
+    });
+
+    renderPane({ app: partialApp, paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1' });
+
+    await waitFor(() => {
+      expect(setAppsStateMock).toHaveBeenCalled();
+    });
+  });
+
+  it('falls back to proxy URL scenario identifier when pane app id does not resolve', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneId, {
+      previewUrlInput: '/apps/canonical-app-id/proxy/',
+      previewUrl: '/apps/canonical-app-id/proxy/',
+    });
+
+    const app = {
+      ...createApp(),
+      id: 'canonical-app-id',
+      status: 'running' as const,
+      is_partial: false,
+    };
+
+    getAppMock.mockImplementation(async (identifier: string) => {
+      if (identifier === 'canonical-app-id') {
+        return app;
+      }
+      return null;
+    });
+
+    render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId="unresolved-pane-id"
+          apps={[createApp()]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledWith('unresolved-pane-id');
+      expect(getAppMock).toHaveBeenCalledWith('canonical-app-id');
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
     });
   });
 
@@ -543,7 +783,10 @@ describe('PreviewPane', () => {
     );
 
     await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledWith('git-control-tower');
       expect(screen.getByTestId('toolbar-has-current-app')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
     });
   });
 
