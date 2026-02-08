@@ -13,16 +13,27 @@ const clampPaneCount = (count: number): number => {
 
 export const resolveWorkspaceLayout = (paneCount: number): WorkspaceLayoutDescriptor => {
   const normalizedCount = clampPaneCount(paneCount);
+  const maxColumns = 2;
 
-  if (normalizedCount <= 1) {
+  return resolveWorkspaceLayoutWithMaxColumns(normalizedCount, maxColumns);
+};
+
+export const resolveWorkspaceLayoutWithMaxColumns = (
+  paneCount: number,
+  maxColumns: number,
+): WorkspaceLayoutDescriptor => {
+  const normalizedCount = clampPaneCount(paneCount);
+  const safeMaxColumns = Math.max(1, Math.floor(maxColumns));
+
+  if (normalizedCount <= 1 || safeMaxColumns <= 1) {
     return {
       className: 'preview-workspace__panes--single',
       columns: 1,
-      rows: 1,
+      rows: normalizedCount,
     };
   }
 
-  const columns = 2;
+  const columns = Math.min(2, safeMaxColumns);
   return {
     className: normalizedCount === 2 ? 'preview-workspace__panes--double' : 'preview-workspace__panes--grid',
     columns,

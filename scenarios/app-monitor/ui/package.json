@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "debug": "VITE_PORT=${VITE_PORT} vite --debug --force",
     "clean": "rm -rf dist node_modules .vite",
-    "test": "vitest run"
+    "test": "vitest run --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000",
+    "test:watch": "vitest --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000",
+    "test:related": "vitest related --run --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000"
   },
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",

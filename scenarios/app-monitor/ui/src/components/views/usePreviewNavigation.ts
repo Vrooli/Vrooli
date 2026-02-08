@@ -49,6 +49,40 @@ type UsePreviewNavigationResult = {
 
 const normalizeUrl = (value: string): string => value.replace(/\/$/, '');
 const isSameUrl = (left: string, right: string): boolean => normalizeUrl(left) === normalizeUrl(right);
+const ABSOLUTE_URL_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
+const DOMAIN_LIKE_PATTERN = /^[^\s/]+\.[^\s/]+(?:[/?#].*)?$/i;
+
+const resolveNavigationTarget = (
+  value: string,
+  reference: string | null,
+): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    if (ABSOLUTE_URL_PATTERN.test(trimmed)) {
+      return new URL(trimmed).href;
+    }
+
+    if (trimmed.startsWith('//')) {
+      return new URL(`https:${trimmed}`).href;
+    }
+
+    if (DOMAIN_LIKE_PATTERN.test(trimmed)) {
+      return new URL(`https://${trimmed}`).href;
+    }
+
+    if (!reference) {
+      return null;
+    }
+
+    return new URL(trimmed, reference).href;
+  } catch {
+    return null;
+  }
+};
 
 export const usePreviewNavigation = ({
   previewUrl,
@@ -123,13 +157,28 @@ export const usePreviewNavigation = ({
       setPreviewUrlInput(trimmed);
     }
 
+    const navigationReference = bridgeState.href || previewUrl || initialPreviewUrlRef.current;
+    const resolvedTarget = resolveNavigationTarget(trimmed, navigationReference);
+
+    if (!resolvedTarget) {
+      setStatusMessage('Enter an absolute URL or wait for preview to load before using relative paths.');
+      return;
+    }
+
     if (bridgeState.isSupported) {
       try {
-        const reference = bridgeState.href || previewUrl || (typeof window !== 'undefined' ? window.location.href : undefined);
-        const resolved = reference ? new URL(trimmed, reference).href : trimmed;
-        if (!childOrigin || new URL(resolved).origin === childOrigin) {
-          const sent = sendBridgeNav('GO', resolved);
+        if (!childOrigin || new URL(resolvedTarget).origin === childOrigin) {
+          const sent = sendBridgeNav('GO', resolvedTarget);
           if (sent) {
+            setHasCustomPreviewUrl(true);
+            setPreviewUrl(resolvedTarget);
+            setHistory(prevHistory => {
+              const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
+              const last = baseHistory[baseHistory.length - 1];
+              const nextHistory = last === resolvedTarget ? baseHistory : [...baseHistory, resolvedTarget];
+              setHistoryIndex(nextHistory.length - 1);
+              return nextHistory;
+            });
             setStatusMessage(null);
             return;
           }
@@ -140,15 +189,15 @@ export const usePreviewNavigation = ({
     }
 
     setHasCustomPreviewUrl(true);
-    setPreviewUrl(trimmed);
-    initialPreviewUrlRef.current = trimmed;
+    setPreviewUrl(resolvedTarget);
+    initialPreviewUrlRef.current = resolvedTarget;
     resetBridgeState();
     setStatusMessage(null);
 
     setHistory(prevHistory => {
       const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
       const last = baseHistory[baseHistory.length - 1];
-      const nextHistory = last === trimmed ? baseHistory : [...baseHistory, trimmed];
+      const nextHistory = last === resolvedTarget ? baseHistory : [...baseHistory, resolvedTarget];
       setHistoryIndex(nextHistory.length - 1);
       return nextHistory;
     });

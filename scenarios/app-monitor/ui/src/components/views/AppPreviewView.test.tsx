@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -116,58 +116,89 @@ vi.mock('./useIosAutobackGuard', () => ({
   isIosSafariUserAgent: () => false,
 }));
 
-vi.mock('@/hooks/usePreviewNavigationSession', () => ({
-  usePreviewNavigationSession: () => ({
-    bridge: {
-      state: {
-        isSupported: true,
-        isReady: true,
-        href: null,
-        caps: [],
-      },
-      runComplianceCheck: runComplianceCheckMock,
-      resetState: vi.fn(),
-      requestScreenshot: vi.fn(),
-      logState: null,
-      requestLogBatch: vi.fn(),
-      getRecentLogs: vi.fn(() => []),
-      configureLogs: vi.fn(),
-      networkState: null,
-      requestNetworkBatch: vi.fn(),
-      getRecentNetworkEvents: vi.fn(() => []),
-      configureNetwork: vi.fn(),
-      inspectState: { supported: false, active: false },
-      startInspect: vi.fn(),
-      stopInspect: vi.fn(),
-      setInspectTargetIndex: vi.fn(),
-      shiftInspectTarget: vi.fn(),
-    },
-    previewUrl: null,
-    setPreviewUrl: vi.fn(),
-    previewUrlInput: '',
-    hasCustomPreviewUrl: false,
-    initialPreviewUrlRef: { current: null },
-    clearNavigationSession: vi.fn(),
-    canGoBack: false,
-    canGoForward: false,
-    history: [],
-    handleUrlInputChange: vi.fn(),
-    handleUrlInputKeyDown: vi.fn(),
-    handleUrlInputBlur: vi.fn(),
-    handleGoBack: vi.fn(),
-    handleGoForward: vi.fn(),
-    resetPreviewState: vi.fn(),
-    applyDefaultPreviewUrl: vi.fn(),
-    applyPreviewUrlValue: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/usePreviewNavigationSession', async () => {
+  const React = await import('react');
+  return {
+    usePreviewNavigationSession: () => {
+    const [previewUrl, setPreviewUrl] = React.useState<string | null>('http://localhost:4310');
+    const [previewUrlInput, setPreviewUrlInput] = React.useState<string>('http://localhost:4310');
+    const [hasCustomPreviewUrl, setHasCustomPreviewUrl] = React.useState(false);
+    const [history, setHistory] = React.useState<string[]>(['http://localhost:4310']);
+    const [historyIndex, setHistoryIndex] = React.useState(0);
+    const initialPreviewUrlRef = React.useRef<string | null>('http://localhost:4310');
 
-vi.mock('@/hooks/usePreviewUrlOrchestration', () => ({
-  usePreviewUrlOrchestration: () => (({ appForPreview }: { appForPreview: unknown }) => ({
-    hasPreviewCandidate: Boolean(appForPreview),
-    defaultPreviewUrl: null,
-  })),
-}));
+    return {
+      bridge: {
+        state: {
+          isSupported: true,
+          isReady: true,
+          href: null,
+          caps: [],
+        },
+        runComplianceCheck: runComplianceCheckMock,
+        resetState: vi.fn(),
+        requestScreenshot: vi.fn(),
+        logState: null,
+        requestLogBatch: vi.fn(),
+        getRecentLogs: vi.fn(() => []),
+        configureLogs: vi.fn(),
+        networkState: null,
+        requestNetworkBatch: vi.fn(),
+        getRecentNetworkEvents: vi.fn(() => []),
+        configureNetwork: vi.fn(),
+        inspectState: { supported: false, active: false },
+        startInspect: vi.fn(),
+        stopInspect: vi.fn(),
+        setInspectTargetIndex: vi.fn(),
+        shiftInspectTarget: vi.fn(),
+      },
+      previewUrl,
+      setPreviewUrl,
+      previewUrlInput,
+      hasCustomPreviewUrl,
+      initialPreviewUrlRef,
+      clearNavigationSession: vi.fn(),
+      canGoBack: false,
+      canGoForward: false,
+      history,
+      handleUrlInputChange: (event: { target: { value: string } }) => {
+        setPreviewUrlInput(event.target.value);
+      },
+      handleUrlInputKeyDown: vi.fn(),
+      handleUrlInputBlur: () => {
+        const trimmed = previewUrlInput.trim();
+        if (!trimmed) {
+          return;
+        }
+        setHasCustomPreviewUrl(true);
+        setPreviewUrl(trimmed);
+        setPreviewUrlInput(trimmed);
+        const nextHistory = [...history.slice(0, historyIndex + 1), trimmed];
+        setHistory(nextHistory);
+        setHistoryIndex(nextHistory.length - 1);
+      },
+      handleGoBack: vi.fn(),
+      handleGoForward: vi.fn(),
+      resetPreviewState: vi.fn(),
+      applyDefaultPreviewUrl: (url: string) => {
+        setHasCustomPreviewUrl(false);
+        setPreviewUrl(url);
+        setPreviewUrlInput(url);
+        initialPreviewUrlRef.current = url;
+      },
+      applyPreviewUrlValue: (value: string) => {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return;
+        }
+        setHasCustomPreviewUrl(true);
+        setPreviewUrl(trimmed);
+        setPreviewUrlInput(trimmed);
+      },
+    };
+  },
+  };
+});
 
 vi.mock('@/hooks/usePreviewAppLifecycle', () => ({
   usePreviewAppLifecycle: () => ({
@@ -264,7 +295,20 @@ vi.mock('../AppModal', () => ({
 }));
 
 vi.mock('../AppPreviewToolbar', () => ({
-  default: () => <div data-testid="app-preview-toolbar">Toolbar</div>,
+  default: (props: {
+    previewUrlInput: string;
+    onPreviewUrlInputChange: (event: { target: { value: string } }) => void;
+    onPreviewUrlInputBlur: () => void;
+  }) => (
+    <div data-testid="app-preview-toolbar">
+      <input
+        aria-label="Preview URL Input"
+        value={props.previewUrlInput}
+        onChange={(event) => props.onPreviewUrlInputChange({ target: { value: event.currentTarget.value } })}
+        onBlur={() => props.onPreviewUrlInputBlur()}
+      />
+    </div>
+  ),
 }));
 
 vi.mock('../report/ReportIssueDialog', () => ({
@@ -338,6 +382,23 @@ describe('AppPreviewView', () => {
 
     await waitFor(() => {
       expect(sendBeaconMock).toHaveBeenCalled();
+    });
+  });
+
+  it('keeps custom URL after blur without snapping back to default URL', async () => {
+    renderPreviewView('/apps/scenario-1/preview');
+
+    const input = await screen.findByRole('textbox', { name: 'Preview URL Input' });
+
+    await waitFor(() => {
+      expect((input as HTMLInputElement).value).toContain('/apps/scenario-1/proxy/');
+    });
+
+    fireEvent.change(input, { target: { value: 'https://example.com/custom' } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect((input as HTMLInputElement).value).toBe('https://example.com/custom');
     });
   });
 });

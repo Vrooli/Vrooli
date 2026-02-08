@@ -22,6 +22,8 @@ describe('previewWorkspaceStore', () => {
     const state = usePreviewWorkspaceStore.getState();
     expect(state.panes).toHaveLength(1);
     expect(state.focusedPaneId).toBe(state.panes[0]?.id ?? null);
+    expect(state.pinnedPaneId).toBeNull();
+    expect(state.pinnedColumn).toBeNull();
     expect(state.interactionMode).toBe('browse');
     expect(state.columnFractions).toEqual([1]);
     expect(state.rowFractions).toEqual([1]);
@@ -100,6 +102,27 @@ describe('previewWorkspaceStore', () => {
     const nextState = usePreviewWorkspaceStore.getState();
     expect(nextState.interactionMode).toBe('arrange');
     expect(nextState.panes[0]?.appId).toBe('scenario-b');
+  });
+
+  it('pins and unpins panes by column', () => {
+    const paneA = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    const paneB = usePreviewWorkspaceStore.getState().addPane('scenario-b');
+    expect(paneA).toBeTruthy();
+    expect(paneB).toBeTruthy();
+    if (!paneB) {
+      return;
+    }
+
+    usePreviewWorkspaceStore.getState().pinPaneToColumn(paneB, 'right');
+    let state = usePreviewWorkspaceStore.getState();
+    expect(state.pinnedPaneId).toBe(paneB);
+    expect(state.pinnedColumn).toBe('right');
+    expect(state.focusedPaneId).toBe(paneB);
+
+    usePreviewWorkspaceStore.getState().clearPinnedPane();
+    state = usePreviewWorkspaceStore.getState();
+    expect(state.pinnedPaneId).toBeNull();
+    expect(state.pinnedColumn).toBeNull();
   });
 
   it('resets pane-local view state when pane app changes', () => {

@@ -3,6 +3,7 @@ import { createJSONStorage, persist, type StateStorage } from 'zustand/middlewar
 import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout';
 
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
+export type PreviewWorkspacePinnedColumn = 'left' | 'right';
 
 export interface PreviewWorkspacePane {
   id: string;
@@ -25,6 +26,8 @@ export interface PreviewWorkspaceState {
   panes: PreviewWorkspacePane[];
   paneViewState: Record<string, PreviewWorkspacePaneViewState>;
   focusedPaneId: string | null;
+  pinnedPaneId: string | null;
+  pinnedColumn: PreviewWorkspacePinnedColumn | null;
   columnFractions: number[];
   rowFractions: number[];
   addPane: (appId?: string | null) => string;
@@ -32,6 +35,8 @@ export interface PreviewWorkspaceState {
   movePaneToIndex: (paneId: string, targetIndex: number) => void;
   setPaneApp: (paneId: string, appId: string | null) => void;
   focusPane: (paneId: string | null) => void;
+  pinPaneToColumn: (paneId: string, column: PreviewWorkspacePinnedColumn) => void;
+  clearPinnedPane: () => void;
   setInteractionMode: (mode: PreviewWorkspaceInteractionMode) => void;
   setColumnFractions: (fractions: number[]) => void;
   setRowFractions: (fractions: number[]) => void;
@@ -41,7 +46,7 @@ export interface PreviewWorkspaceState {
 }
 
 const MIN_PANES = 1;
-const MAX_PANES = 6;
+const MAX_PANES = 50;
 const PREVIEW_WORKSPACE_STORAGE_KEY = 'app-monitor:preview-workspace-v1';
 
 const createPaneId = (): string => {
@@ -59,7 +64,14 @@ const createPane = (appId: string | null = null): PreviewWorkspacePane => ({
 
 const buildInitialState = (): Pick<
   PreviewWorkspaceState,
-  'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
+  | 'interactionMode'
+  | 'panes'
+  | 'paneViewState'
+  | 'focusedPaneId'
+  | 'pinnedPaneId'
+  | 'pinnedColumn'
+  | 'columnFractions'
+  | 'rowFractions'
 > => {
   const firstPane = createPane(null);
   return {
@@ -67,6 +79,8 @@ const buildInitialState = (): Pick<
     panes: [firstPane],
     paneViewState: {},
     focusedPaneId: firstPane.id,
+    pinnedPaneId: null,
+    pinnedColumn: null,
     columnFractions: [1],
     rowFractions: [1],
   };
@@ -80,7 +94,14 @@ const noopStorage: StateStorage = {
 
 const previewWorkspaceStorage = createJSONStorage<Pick<
   PreviewWorkspaceState,
-  'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
+  | 'interactionMode'
+  | 'panes'
+  | 'paneViewState'
+  | 'focusedPaneId'
+  | 'pinnedPaneId'
+  | 'pinnedColumn'
+  | 'columnFractions'
+  | 'rowFractions'
 >>(() => {
   if (typeof window !== 'undefined' && window.localStorage) {
     return window.localStorage;
@@ -173,7 +194,14 @@ const normalizePersistedPane = (value: unknown): PreviewWorkspacePane | null => 
 
 const normalizePersistedWorkspaceState = (value: unknown): Pick<
   PreviewWorkspaceState,
-  'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
+  | 'interactionMode'
+  | 'panes'
+  | 'paneViewState'
+  | 'focusedPaneId'
+  | 'pinnedPaneId'
+  | 'pinnedColumn'
+  | 'columnFractions'
+  | 'rowFractions'
 > => {
   const defaults = buildInitialState();
   if (!value || typeof value !== 'object') {
@@ -204,6 +232,12 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
   const focusedPaneId = typeof record.focusedPaneId === 'string' && ensuredPanes.some((pane) => pane.id === record.focusedPaneId)
     ? record.focusedPaneId
     : ensuredPanes[ensuredPanes.length - 1]?.id ?? null;
+  const pinnedPaneId = typeof record.pinnedPaneId === 'string' && ensuredPanes.some((pane) => pane.id === record.pinnedPaneId)
+    ? record.pinnedPaneId
+    : null;
+  const pinnedColumn = record.pinnedColumn === 'left' || record.pinnedColumn === 'right'
+    ? record.pinnedColumn
+    : null;
   const columnFractions = Array.isArray(record.columnFractions)
     ? record.columnFractions.filter((fraction): fraction is number => typeof fraction === 'number' && Number.isFinite(fraction))
     : defaults.columnFractions;
@@ -217,6 +251,8 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
     panes: ensuredPanes,
     paneViewState,
     focusedPaneId,
+    pinnedPaneId,
+    pinnedColumn,
     columnFractions: reconciled.columnFractions,
     rowFractions: reconciled.rowFractions,
   };
@@ -263,6 +299,8 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
       panes: nextPanes,
       paneViewState: nextPaneViewState,
       focusedPaneId: state.focusedPaneId === paneId ? fallbackFocusedPane?.id ?? null : state.focusedPaneId,
+      pinnedPaneId: state.pinnedPaneId === paneId ? null : state.pinnedPaneId,
+      pinnedColumn: state.pinnedPaneId === paneId ? null : state.pinnedColumn,
       ...reconcileFractionsForWorkspace(nextPanes, state.columnFractions, state.rowFractions),
     };
   }),
@@ -333,6 +371,27 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
     return exists ? { focusedPaneId: paneId } : state;
   }),
 
+  pinPaneToColumn: (paneId, column) => set((state) => {
+    if (!state.panes.some((pane) => pane.id === paneId)) {
+      return state;
+    }
+    return {
+      pinnedPaneId: paneId,
+      pinnedColumn: column,
+      focusedPaneId: paneId,
+    };
+  }),
+
+  clearPinnedPane: () => set((state) => {
+    if (!state.pinnedPaneId && !state.pinnedColumn) {
+      return state;
+    }
+    return {
+      pinnedPaneId: null,
+      pinnedColumn: null,
+    };
+  }),
+
   setInteractionMode: (interactionMode) => set({ interactionMode }),
 
   setColumnFractions: (fractions) => set((state) => {
@@ -392,6 +451,8 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
     panes: state.panes,
     paneViewState: state.paneViewState,
     focusedPaneId: state.focusedPaneId,
+    pinnedPaneId: state.pinnedPaneId,
+    pinnedColumn: state.pinnedColumn,
     columnFractions: state.columnFractions,
     rowFractions: state.rowFractions,
   }),

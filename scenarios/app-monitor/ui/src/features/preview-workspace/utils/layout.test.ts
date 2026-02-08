@@ -3,6 +3,7 @@ import {
   reconcileTrackFractions,
   resolveDropIndex,
   resolveWorkspaceLayout,
+  resolveWorkspaceLayoutWithMaxColumns,
 } from './layout';
 
 describe('resolveWorkspaceLayout', () => {
@@ -27,6 +28,14 @@ describe('resolveWorkspaceLayout', () => {
       className: 'preview-workspace__panes--grid',
       columns: 2,
       rows: 2,
+    });
+  });
+
+  it('caps columns to one when maxColumns is one', () => {
+    expect(resolveWorkspaceLayoutWithMaxColumns(4, 1)).toEqual({
+      className: 'preview-workspace__panes--single',
+      columns: 1,
+      rows: 4,
     });
   });
 });

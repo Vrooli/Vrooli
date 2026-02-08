@@ -192,10 +192,16 @@ describe('PreviewWorkspaceView', () => {
       expect(screen.getByRole('button', { name: /toggle pane arrange mode/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: /toggle pane arrange mode/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /toggle pane arrange mode/i })).toHaveAttribute('aria-pressed', 'true');
+    });
 
     const dragButton = screen.getByRole('button', { name: new RegExp(`drag pane ${firstPaneId}`, 'i') });
     fireEvent.pointerDown(dragButton, { pointerId: 2, clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(window, { pointerId: 2, clientX: 950, clientY: 100 });
+    await waitFor(() => {
+      expect(panesContainer.className).toContain('preview-workspace__panes--dragging');
+    });
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 700, clientY: 100 });
     fireEvent.pointerUp(window, { pointerId: 2 });
 
     await waitFor(() => {
@@ -203,4 +209,47 @@ describe('PreviewWorkspaceView', () => {
       expect(movePaneToIndexSpy).toHaveBeenCalledWith(firstPaneId, expect.any(Number));
     });
   });
+
+  it('resizes pinned layout columns via splitter drag', async () => {
+    const firstPaneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    const secondPaneId = usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    expect(firstPaneId).toBeTruthy();
+    expect(secondPaneId).toBeTruthy();
+    if (!firstPaneId) {
+      return;
+    }
+
+    usePreviewWorkspaceStore.getState().pinPaneToColumn(firstPaneId, 'left');
+    const setColumnFractionsSpy = vi.fn();
+    usePreviewWorkspaceStore.setState({ setColumnFractions: setColumnFractionsSpy });
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const pinnedContainer = document.querySelector('.preview-workspace__pinned-layout');
+    expect(pinnedContainer).not.toBeNull();
+    if (!pinnedContainer) {
+      return;
+    }
+
+    Object.defineProperty(pinnedContainer, 'clientWidth', {
+      configurable: true,
+      value: 1000,
+    });
+
+    const resizeButton = screen.getByRole('button', { name: /resize column 1/i });
+    fireEvent.pointerDown(resizeButton, { pointerId: 3, clientX: 500, clientY: 100 });
+    fireEvent.pointerMove(window, { pointerId: 3, clientX: 650, clientY: 100 });
+    fireEvent.pointerUp(window, { pointerId: 3 });
+
+    await waitFor(() => {
+      expect(setColumnFractionsSpy).toHaveBeenCalled();
+    });
+  });
+
 });
