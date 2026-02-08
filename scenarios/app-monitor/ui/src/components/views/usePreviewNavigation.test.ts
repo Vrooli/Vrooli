@@ -183,4 +183,33 @@ describe('usePreviewNavigation', () => {
       'http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging',
     ]);
   });
+
+  it('keeps selected URL when blur fires before state re-render', () => {
+    const { result } = renderHook(() => useNavigationHarness({
+      previewUrl: 'http://localhost:4310',
+      previewUrlInput: '',
+      hasCustomPreviewUrl: false,
+      history: ['http://localhost:4310'],
+      historyIndex: 0,
+      bridgeState: {
+        isSupported: false,
+        href: null,
+        canGoBack: false,
+        canGoForward: false,
+      },
+    }));
+
+    act(() => {
+      result.current.navigation.applyPreviewUrlValue('http://localhost:4310/settings');
+      result.current.navigation.handleUrlInputBlur();
+    });
+
+    expect(result.current.previewUrl).toBe('http://localhost:4310/settings');
+    expect(result.current.previewUrlInput).toBe('http://localhost:4310/settings');
+    expect(result.current.history).toEqual([
+      'http://localhost:4310',
+      'http://localhost:4310/settings',
+    ]);
+    expect(result.current.historyIndex).toBe(1);
+  });
 });

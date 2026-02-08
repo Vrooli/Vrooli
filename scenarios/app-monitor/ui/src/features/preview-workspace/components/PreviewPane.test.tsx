@@ -141,6 +141,7 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
     onToggleLogs: () => void;
     areLogsVisible: boolean;
     onOpenScenarioSelector: () => void;
+    onSelectUrlSuggestion?: (value: string) => void;
     onToggleApp: () => void;
     onOpenInNewTab: (event: ReactMouseEvent<HTMLButtonElement>) => void;
     rightInlineActions?: ReactNode;
@@ -154,6 +155,13 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
       </button>
       <button type="button" aria-label="open scenario selector" onClick={props.onOpenScenarioSelector}>
         Open Scenario Selector
+      </button>
+      <button
+        type="button"
+        aria-label="select url suggestion"
+        onClick={() => props.onSelectUrlSuggestion?.('https://example.com/path')}
+      >
+        Select URL Suggestion
       </button>
       <button type="button" aria-label="toggle app action" onClick={props.onToggleApp}>
         Toggle App
@@ -305,6 +313,18 @@ describe('PreviewPane', () => {
     });
   });
 
+  it('uses eager iframe loading for pane previews', async () => {
+    renderPane({ paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1' });
+
+    const iframe = await waitFor(() => {
+      const found = document.querySelector('iframe');
+      expect(found).not.toBeNull();
+      return found as HTMLIFrameElement;
+    });
+
+    expect(iframe.getAttribute('loading')).toBe('eager');
+  });
+
   it('keeps iframe URL on bridge navigation after refresh', async () => {
     const user = userEvent.setup();
     const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
@@ -346,6 +366,70 @@ describe('PreviewPane', () => {
     await waitFor(() => {
       const iframe = document.querySelector('iframe');
       expect(iframe?.getAttribute('src')).toBe('http://localhost:4310/settings');
+    });
+  });
+
+  it('preserves manually selected URL in empty pane across apps list updates', async () => {
+    const user = userEvent.setup();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    const app = createApp();
+    const { rerender } = render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={null}
+          apps={[app]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /select url suggestion/i }));
+
+    await waitFor(() => {
+      const iframe = document.querySelector('iframe');
+      expect(iframe).not.toBeNull();
+      expect(iframe?.getAttribute('src')).toBe('https://example.com/path');
+    });
+
+    const updatedApps: App[] = [
+      app,
+      {
+        ...app,
+        id: 'scenario-2',
+        name: 'Scenario Two',
+        scenario_name: 'scenario-two',
+        path: '/tmp/scenario-two',
+      },
+    ];
+
+    rerender(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={null}
+          apps={updatedApps}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const iframe = document.querySelector('iframe');
+      expect(iframe).not.toBeNull();
+      expect(iframe?.getAttribute('src')).toBe('https://example.com/path');
     });
   });
 

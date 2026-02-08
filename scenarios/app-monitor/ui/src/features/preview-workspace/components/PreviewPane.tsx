@@ -59,7 +59,6 @@ export function PreviewPane({
   const { openOverlay } = useOverlayRouter();
   const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
   const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
-  const resetPaneViewState = usePreviewWorkspaceStore((state) => state.resetPaneViewState);
   const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>('Select an app to preview.');
   const [loading, setLoading] = useState(false);
@@ -110,7 +109,6 @@ export function PreviewPane({
     resetPreviewState,
     setPreviewUrl,
     initialPreviewUrlRef,
-    clearNavigationSession,
     history,
   } = navigationSession;
   const {
@@ -203,13 +201,9 @@ export function PreviewPane({
       setLoading(false);
       setStatusMessage('Select an app to preview.');
       setIsLogsVisible(false);
-      resetPaneViewState(paneId);
       setIframeLoadError(null);
       setReportDialogOpen(false);
       resetReportDraftState();
-      clearNavigationSession();
-      resetPreviewState({ force: true });
-      resetBridgeState();
       return;
     }
 
@@ -251,11 +245,6 @@ export function PreviewPane({
   }, [
     activeAppIdentifier,
     apps,
-    clearNavigationSession,
-    paneId,
-    resetBridgeState,
-    resetPaneViewState,
-    resetPreviewState,
     resetReportDraftState,
   ]);
 
@@ -556,7 +545,7 @@ export function PreviewPane({
                   src={previewUrl}
                   title={`${currentApp?.name ?? 'Application'} preview pane`}
                   className="preview-pane__iframe"
-                  loading="lazy"
+                  loading="eager"
                   onLoad={onIframeLoad}
                   onError={onIframeError}
                 />
@@ -568,7 +557,7 @@ export function PreviewPane({
                 src={previewUrl}
                 title={`${currentApp?.name ?? 'Application'} preview pane`}
                 className="preview-pane__iframe"
-                loading="lazy"
+                loading="eager"
                 onLoad={onIframeLoad}
                 onError={onIframeError}
               />

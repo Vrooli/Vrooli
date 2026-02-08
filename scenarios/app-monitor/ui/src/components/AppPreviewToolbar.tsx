@@ -191,6 +191,7 @@ const AppPreviewToolbar = ({
   const urlWrapperRef = useRef<HTMLDivElement | null>(null);
   const urlSuggestionsPopoverRef = useRef<HTMLDivElement | null>(null);
   const closeUrlSuggestionsTimerRef = useRef<number | null>(null);
+  const suggestionSelectionGuardRef = useRef(false);
   const urlSuggestionItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [isUrlSuggestionsOpen, setIsUrlSuggestionsOpen] = useState(false);
   const [activeUrlSuggestionIndex, setActiveUrlSuggestionIndex] = useState(-1);
@@ -291,8 +292,8 @@ const AppPreviewToolbar = ({
       return;
     }
     setActiveUrlSuggestionIndex((current) => {
-      if (current < 0 || current >= urlSuggestionsCount) {
-        return 0;
+      if (current >= urlSuggestionsCount) {
+        return urlSuggestionsCount - 1;
       }
       return current;
     });
@@ -380,6 +381,7 @@ const AppPreviewToolbar = ({
   }, [closeMenus, openOverlay]);
 
   const handleUrlInputFocus = useCallback(() => {
+    suggestionSelectionGuardRef.current = false;
     setIsUrlInputEditing(true);
     if (!hasUrlSuggestionsContent) {
       return;
@@ -389,11 +391,16 @@ const AppPreviewToolbar = ({
       closeUrlSuggestionsTimerRef.current = null;
     }
     setIsUrlSuggestionsOpen(true);
-    setActiveUrlSuggestionIndex((current) => (current < 0 ? 0 : current));
+    setActiveUrlSuggestionIndex(-1);
   }, [hasUrlSuggestionsContent]);
 
   const handleUrlInputBlur = useCallback(() => {
-    onPreviewUrlInputBlur();
+    const shouldSkipBlurCommit = suggestionSelectionGuardRef.current;
+    if (shouldSkipBlurCommit) {
+      suggestionSelectionGuardRef.current = false;
+    } else {
+      onPreviewUrlInputBlur();
+    }
     setIsUrlInputEditing(false);
     if (closeUrlSuggestionsTimerRef.current !== null) {
       window.clearTimeout(closeUrlSuggestionsTimerRef.current);
@@ -405,17 +412,28 @@ const AppPreviewToolbar = ({
     }, 110);
   }, [onPreviewUrlInputBlur]);
 
+  const markSuggestionSelectionGuard = useCallback(() => {
+    suggestionSelectionGuardRef.current = true;
+  }, []);
+
   const handleUrlSuggestionSelect = useCallback((value: string) => {
+    markSuggestionSelectionGuard();
     setIsUrlSuggestionsOpen(false);
     setActiveUrlSuggestionIndex(-1);
     onSelectUrlSuggestion?.(value);
-  }, [onSelectUrlSuggestion]);
+  }, [markSuggestionSelectionGuard, onSelectUrlSuggestion]);
 
   const handleOpenScenarioSelectorClick = useCallback(() => {
+    markSuggestionSelectionGuard();
     setIsUrlSuggestionsOpen(false);
     setActiveUrlSuggestionIndex(-1);
     onOpenScenarioSelector?.();
-  }, [onOpenScenarioSelector]);
+  }, [markSuggestionSelectionGuard, onOpenScenarioSelector]);
+
+  const handleUrlSuggestionPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    markSuggestionSelectionGuard();
+  }, [markSuggestionSelectionGuard]);
 
   const handleUrlSuggestionSelectByIndex = useCallback((index: number) => {
     if (index < 0 || index >= urlSuggestionsCount) {
@@ -612,7 +630,13 @@ const AppPreviewToolbar = ({
             type="text"
             className="preview-toolbar__url-input"
             value={displayedPreviewUrlInput}
-            onChange={onPreviewUrlInputChange}
+            onChange={(event) => {
+              onPreviewUrlInputChange(event);
+              setActiveUrlSuggestionIndex(-1);
+              if (hasUrlSuggestionsContent) {
+                setIsUrlSuggestionsOpen(true);
+              }
+            }}
             onBlur={handleUrlInputBlur}
             onFocus={handleUrlInputFocus}
             onClick={handleUrlInputFocus}
@@ -683,7 +707,7 @@ const AppPreviewToolbar = ({
                 'preview-toolbar__url-suggestion',
                 activeUrlSuggestionIndex === index && 'preview-toolbar__url-suggestion--active',
               )}
-              onMouseDown={(event) => event.preventDefault()}
+              onPointerDown={handleUrlSuggestionPointerDown}
               onMouseEnter={() => setActiveUrlSuggestionIndex(index)}
               onClick={() => handleUrlSuggestionSelect(suggestion)}
               ref={(node) => {
@@ -701,7 +725,7 @@ const AppPreviewToolbar = ({
                 'preview-toolbar__url-selector',
                 activeUrlSuggestionIndex === normalizedUrlSuggestions.length && 'preview-toolbar__url-suggestion--active',
               )}
-              onMouseDown={(event) => event.preventDefault()}
+              onPointerDown={handleUrlSuggestionPointerDown}
               onMouseEnter={() => setActiveUrlSuggestionIndex(normalizedUrlSuggestions.length)}
               onClick={handleOpenScenarioSelectorClick}
               ref={(node) => {

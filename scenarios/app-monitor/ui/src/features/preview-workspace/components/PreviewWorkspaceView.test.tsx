@@ -10,9 +10,11 @@ import PreviewWorkspaceView from './PreviewWorkspaceView';
 vi.mock('./PreviewPane', () => ({
   default: ({
     paneId,
+    onRemove,
     onArrangeDragStart,
   }: {
     paneId: string;
+    onRemove: (paneId: string) => void;
     onArrangeDragStart: (paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
   }) => (
     <div data-testid={`preview-pane-${paneId}`}>
@@ -22,6 +24,13 @@ vi.mock('./PreviewPane', () => ({
         onPointerDown={(event) => onArrangeDragStart(paneId, event)}
       >
         Drag
+      </button>
+      <button
+        type="button"
+        aria-label={`Remove pane ${paneId}`}
+        onClick={() => onRemove(paneId)}
+      >
+        Remove
       </button>
     </div>
   ),
@@ -249,6 +258,52 @@ describe('PreviewWorkspaceView', () => {
 
     await waitFor(() => {
       expect(setColumnFractionsSpy).toHaveBeenCalled();
+    });
+  });
+
+  it('expands remaining row to full viewport height when reduced to one row', async () => {
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    const removablePaneId = usePreviewWorkspaceStore.getState().addPane('scenario-b');
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const rowResizeButton = await screen.findByRole('button', { name: /resize row 1/i });
+    fireEvent.pointerDown(rowResizeButton, { pointerId: 21, clientX: 220, clientY: 360 });
+    fireEvent.pointerMove(window, { pointerId: 21, clientX: 220, clientY: -360 });
+    fireEvent.pointerUp(window, { pointerId: 21 });
+
+    await waitFor(() => {
+      const panesContainer = document.querySelector('.preview-workspace__panes') as HTMLElement | null;
+      expect(panesContainer).not.toBeNull();
+      if (!panesContainer) {
+        return;
+      }
+      const firstRowMatch = panesContainer.style.gridTemplateRows.match(/minmax\(240px,\s*([0-9.]+)px\)/);
+      expect(firstRowMatch).not.toBeNull();
+      const firstRowHeight = firstRowMatch ? Number(firstRowMatch[1]) : 0;
+      expect(firstRowHeight).toBeLessThanOrEqual(300);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`remove pane ${removablePaneId}`, 'i') }));
+
+    await waitFor(() => {
+      expect(usePreviewWorkspaceStore.getState().panes).toHaveLength(2);
+      const panesContainer = document.querySelector('.preview-workspace__panes') as HTMLElement | null;
+      expect(panesContainer).not.toBeNull();
+      if (!panesContainer) {
+        return;
+      }
+
+      const singleRowMatch = panesContainer.style.gridTemplateRows.match(/minmax\(240px,\s*([0-9.]+)px\)/);
+      expect(singleRowMatch).not.toBeNull();
+      const singleRowHeight = singleRowMatch ? Number(singleRowMatch[1]) : 0;
+      expect(singleRowHeight).toBeGreaterThan(600);
     });
   });
 

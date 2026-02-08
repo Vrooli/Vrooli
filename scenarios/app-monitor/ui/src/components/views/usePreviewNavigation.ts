@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent, MutableRefObject } from 'react';
 import { logger } from '@/services/logger';
 import { resolvePreviewUrlCandidate } from '@/utils/previewUrl';
@@ -70,6 +70,9 @@ export const usePreviewNavigation = ({
   setStatusMessage,
   onBeforeLocalNavigation,
 }: UsePreviewNavigationOptions): UsePreviewNavigationResult => {
+  const latestPreviewUrlInputRef = useRef(previewUrlInput);
+  latestPreviewUrlInputRef.current = previewUrlInput;
+
   const canGoBack = useMemo(() => (
     bridgeState.isSupported ? bridgeState.canGoBack : historyIndex > 0
   ), [bridgeState.canGoBack, bridgeState.isSupported, historyIndex]);
@@ -132,6 +135,7 @@ export const usePreviewNavigation = ({
     if (trimmed !== previewUrlInput) {
       setPreviewUrlInput(trimmed);
     }
+    latestPreviewUrlInputRef.current = trimmed;
 
     const navigationReference = bridgeState.href || previewUrl || initialPreviewUrlRef.current;
     const resolvedTarget = resolvePreviewUrlCandidate(trimmed, navigationReference);
@@ -196,8 +200,8 @@ export const usePreviewNavigation = ({
   ]);
 
   const applyPreviewUrlInput = useCallback(() => {
-    applyPreviewUrlValue(previewUrlInput);
-  }, [applyPreviewUrlValue, previewUrlInput]);
+    applyPreviewUrlValue(latestPreviewUrlInputRef.current);
+  }, [applyPreviewUrlValue]);
 
   const handleUrlInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setPreviewUrlInput(event.target.value);

@@ -159,6 +159,11 @@ const reconcileRowHeights = (current: number[], nextRowCount: number, defaultSiz
   const safeCount = Math.max(1, Math.floor(nextRowCount));
   const baseSize = Math.max(MIN_ROW_PX, Math.floor(defaultSize));
 
+  if (safeCount === 1) {
+    // Always occupy the full available pane viewport when only one row remains.
+    return [baseSize];
+  }
+
   if (current.length === safeCount) {
     return current.map((value) => Math.max(MIN_ROW_PX, Number.isFinite(value) ? value : baseSize));
   }

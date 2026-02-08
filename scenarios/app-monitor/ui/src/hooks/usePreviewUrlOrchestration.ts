@@ -23,6 +23,44 @@ interface SyncPreviewUrlResult {
   defaultPreviewUrl: string | null;
 }
 
+const COMPARE_BASE_URL = 'http://localhost';
+
+const normalizePathname = (value: string): string => {
+  if (value === '/') {
+    return value;
+  }
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+};
+
+const shouldPreserveInAppNavigation = (
+  currentUrl: string | null,
+  defaultUrl: string | null,
+): boolean => {
+  if (!currentUrl || !defaultUrl) {
+    return false;
+  }
+
+  try {
+    const current = new URL(currentUrl, COMPARE_BASE_URL);
+    const fallback = new URL(defaultUrl, COMPARE_BASE_URL);
+
+    if (current.origin !== fallback.origin) {
+      return false;
+    }
+
+    const currentPath = normalizePathname(current.pathname);
+    const fallbackPath = normalizePathname(fallback.pathname);
+
+    if (currentPath === fallbackPath) {
+      return current.search !== fallback.search || current.hash !== fallback.hash;
+    }
+
+    return currentPath.startsWith(`${fallbackPath}/`);
+  } catch {
+    return false;
+  }
+};
+
 export function usePreviewUrlOrchestration({
   hasCustomPreviewUrl,
   previewUrl,
@@ -56,7 +94,11 @@ export function usePreviewUrlOrchestration({
     const defaultPreviewUrl = hasPreviewCandidate ? (nextPreviewUrl as string) : fallbackPreviewUrl;
 
     if (!hasCustomPreviewUrl) {
-      if (defaultPreviewUrl && previewUrl !== defaultPreviewUrl) {
+      if (
+        defaultPreviewUrl
+        && previewUrl !== defaultPreviewUrl
+        && !shouldPreserveInAppNavigation(previewUrl, defaultPreviewUrl)
+      ) {
         applyDefaultPreviewUrl(defaultPreviewUrl);
       } else if (!defaultPreviewUrl) {
         resetPreviewState();
