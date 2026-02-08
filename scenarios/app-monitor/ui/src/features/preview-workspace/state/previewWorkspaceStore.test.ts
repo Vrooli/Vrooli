@@ -105,6 +105,37 @@ describe('previewWorkspaceStore', () => {
     expect(nextState.panes[0]?.appId).toBe('scenario-b');
   });
 
+  it('resets pane-local view state when pane app changes', () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneId, {
+      previewUrl: 'http://localhost:5000',
+      previewUrlInput: 'http://localhost:5000',
+      hasCustomPreviewUrl: true,
+      history: ['http://localhost:5000'],
+      historyIndex: 0,
+      initialPreviewUrl: 'http://localhost:5000',
+      isLogsVisible: true,
+    });
+
+    usePreviewWorkspaceStore.getState().setPaneApp(paneId, 'scenario-b');
+    const nextState = usePreviewWorkspaceStore.getState();
+    expect(nextState.panes[0]?.appId).toBe('scenario-b');
+    expect(nextState.paneViewState[paneId]).toEqual({
+      previewUrl: null,
+      previewUrlInput: '',
+      hasCustomPreviewUrl: false,
+      history: [],
+      historyIndex: -1,
+      initialPreviewUrl: null,
+      isLogsVisible: false,
+    });
+  });
+
   it('rehydrates panes, focused pane, and split fractions from localStorage', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       state: {

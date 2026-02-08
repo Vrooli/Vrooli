@@ -165,7 +165,7 @@ func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, er
 			if lastErr != nil {
 				return nil, lastErr
 			}
-			return nil, fmt.Errorf("app not found: %s", id)
+			return nil, fmt.Errorf("%w: %s", ErrAppNotFound, id)
 		}
 	}
 

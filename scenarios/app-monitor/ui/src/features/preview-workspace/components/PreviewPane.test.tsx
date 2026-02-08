@@ -1,9 +1,45 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { App } from '@/types';
+import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import PreviewPane from './PreviewPane';
+
+const {
+  openOverlayMock,
+  getAppMock,
+  controlAppMock,
+} = vi.hoisted(() => ({
+  openOverlayMock: vi.fn(),
+  getAppMock: vi.fn(),
+  controlAppMock: vi.fn(),
+}));
+
+vi.mock('@/hooks/useOverlayRouter', () => ({
+  useOverlayRouter: () => ({
+    overlay: null,
+    openOverlay: openOverlayMock,
+    closeOverlay: vi.fn(),
+  }),
+}));
+
+vi.mock('@/services/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/api', () => ({
+  appService: {
+    getApp: getAppMock,
+    controlApp: controlAppMock,
+  },
+}));
 
 vi.mock('@/hooks/useIframeBridge', () => ({
   useIframeBridge: () => ({
@@ -45,6 +81,81 @@ vi.mock('@/hooks/useIframeBridge', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useDeviceEmulation', () => ({
+  useDeviceEmulation: () => ({
+    isActive: false,
+    toggleActive: vi.fn(),
+    toolbar: {},
+    viewport: {},
+  }),
+}));
+
+vi.mock('@/hooks/useAppLogs', () => ({
+  useAppLogs: () => ({}),
+}));
+
+vi.mock('@/components/views/usePreviewInspector', () => ({
+  default: () => ({
+    handleToggleInspectMode: vi.fn(),
+  }),
+}));
+
+vi.mock('@/components/AppModal', () => ({
+  default: () => null,
+}));
+
+vi.mock('@/components/views/PreviewInspectorPanel', () => ({
+  default: () => null,
+}));
+
+vi.mock('@/components/report/ReportIssueDialog', () => ({
+  default: () => null,
+}));
+
+vi.mock('@/components/logs/AppLogsPanel', () => ({
+  default: () => <div data-testid="app-logs-panel">Logs panel</div>,
+}));
+
+vi.mock('@/components/device-emulation/DeviceEmulationToolbar', () => ({
+  default: () => null,
+}));
+
+vi.mock('@/components/device-emulation/DeviceEmulationViewport', () => ({
+  default: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/components/device-emulation/DeviceVisionFilterDefs', () => ({
+  default: () => null,
+}));
+
+vi.mock('@/components/AppPreviewToolbar', () => ({
+  default: (props: {
+    onToggleLogs: () => void;
+    areLogsVisible: boolean;
+    onOpenScenarioSelector: () => void;
+    onToggleApp: () => void;
+    onOpenInNewTab: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+    rightInlineActions?: ReactNode;
+  }) => (
+    <div className="preview-toolbar">
+      <button type="button" aria-label="toggle logs" onClick={props.onToggleLogs}>
+        Toggle Logs
+      </button>
+      <button type="button" aria-label="open scenario selector" onClick={props.onOpenScenarioSelector}>
+        Open Scenario Selector
+      </button>
+      <button type="button" aria-label="toggle app action" onClick={props.onToggleApp}>
+        Toggle App
+      </button>
+      <button type="button" aria-label="open in new tab" onClick={props.onOpenInNewTab}>
+        Open in New Tab
+      </button>
+      {props.rightInlineActions}
+      <span>{props.areLogsVisible ? 'logs-visible' : 'logs-hidden'}</span>
+    </div>
+  ),
+}));
+
 const createApp = (): App => ({
   id: 'scenario-1',
   name: 'Scenario One',
@@ -58,33 +169,126 @@ const createApp = (): App => ({
   config: {},
 });
 
+const renderPane = (options?: {
+  app?: App;
+  appId?: string | null;
+  paneId?: string;
+  onFocus?: (paneId: string) => void;
+  onRemove?: (paneId: string) => void;
+}) => {
+  const app = options?.app ?? createApp();
+  const paneId = options?.paneId ?? usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+  return render(
+    <MemoryRouter>
+      <PreviewPane
+        paneId={paneId}
+        appId={options?.appId ?? app.id}
+        apps={[app]}
+        isFocused={true}
+        isArrangeMode={false}
+        isBeingDragged={false}
+        canRemove={true}
+        onFocus={options?.onFocus ?? vi.fn()}
+        onRemove={options?.onRemove ?? vi.fn()}
+        onArrangeDragStart={vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+};
+
 describe('PreviewPane', () => {
-  it('renders the shared preview toolbar and supports removing pane', async () => {
+  beforeEach(async () => {
+    openOverlayMock.mockReset();
+    getAppMock.mockReset();
+    controlAppMock.mockReset();
+    controlAppMock.mockResolvedValue(true);
+    getAppMock.mockResolvedValue(createApp());
+    await usePreviewWorkspaceStore.persist.clearStorage();
+    await usePreviewWorkspaceStore.persist.rehydrate();
+    usePreviewWorkspaceStore.getState().reset();
+  });
+
+  it('renders toolbar and supports removing pane', async () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
-    const app = createApp();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
 
-    const { container } = render(
-      <MemoryRouter>
-        <PreviewPane
-          paneId="pane-1"
-          appId={app.id}
-          apps={[app]}
-          isFocused={true}
-          isArrangeMode={false}
-          isBeingDragged={false}
-          canRemove={true}
-          onFocus={vi.fn()}
-          onRemove={onRemove}
-          onArrangeDragStart={vi.fn()}
-        />
-      </MemoryRouter>,
-    );
+    const { container } = renderPane({ paneId, onRemove });
 
     expect(container.querySelector('.preview-toolbar')).not.toBeNull();
-    expect(screen.queryByRole('button', { name: /remove pane/i })).not.toBeNull();
-
     await user.click(screen.getByRole('button', { name: /remove pane/i }));
-    expect(onRemove).toHaveBeenCalledWith('pane-1');
+    expect(onRemove).toHaveBeenCalledWith(paneId);
   });
+
+  it('persists and restores pane-local logs visibility', async () => {
+    const user = userEvent.setup();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    const firstRender = renderPane({ paneId });
+    await user.click(screen.getByRole('button', { name: /toggle logs/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('app-logs-panel')).toBeInTheDocument();
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.isLogsVisible).toBe(true);
+    });
+
+    firstRender.unmount();
+    renderPane({ paneId });
+
+    expect(screen.getByTestId('app-logs-panel')).toBeInTheDocument();
+  });
+
+  it('invokes lifecycle control and refreshes app state on toggle action', async () => {
+    const user = userEvent.setup();
+    const app = createApp();
+    renderPane({ app, paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1' });
+
+    await user.click(screen.getByRole('button', { name: /toggle app action/i }));
+
+    await waitFor(() => {
+      expect(controlAppMock).toHaveBeenCalledWith(app.id, 'stop');
+      expect(getAppMock).toHaveBeenCalledWith(app.id);
+    });
+  });
+
+  it('opens tab switcher in focused-pane mode from scenario selector action', async () => {
+    const user = userEvent.setup();
+    const onFocus = vi.fn();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    renderPane({ paneId, onFocus });
+    await user.click(screen.getByRole('button', { name: /open scenario selector/i }));
+
+    expect(onFocus).toHaveBeenCalledWith(paneId);
+    expect(openOverlayMock).toHaveBeenCalledWith('tabs', {
+      params: {
+        segment: 'apps',
+        appOpenMode: 'replace-focused',
+      },
+    });
+  });
+
+  it('clears loading state after iframe load', async () => {
+    renderPane({ paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1' });
+
+    const iframe = await waitFor(() => {
+      const found = document.querySelector('iframe');
+      expect(found).not.toBeNull();
+      return found as HTMLIFrameElement;
+    });
+
+    fireEvent.load(iframe);
+    await waitFor(() => {
+      expect(screen.queryByText('Loading preview...')).not.toBeInTheDocument();
+    });
+  });
+
 });

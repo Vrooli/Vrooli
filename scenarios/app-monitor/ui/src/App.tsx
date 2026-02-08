@@ -1,16 +1,13 @@
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Shell from '@/components/Shell';
-import AppPreviewView from '@/components/views/AppPreviewView';
 import HomeView from '@/components/views/HomeView';
-import ResourceDetailView from '@/components/views/ResourceDetailView';
-import PreviewWorkspaceView from '@/features/preview-workspace/components/PreviewWorkspaceView';
 import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import { KeyboardScopeProvider } from '@/hooks/useKeyboardScopes';
 import { logger } from '@/services/logger';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   Navigate,
   Route,
@@ -20,6 +17,20 @@ import {
   useParams,
 } from 'react-router-dom';
 import './App.css';
+
+const AppPreviewView = lazy(() => import('@/components/views/AppPreviewView'));
+const ResourceDetailView = lazy(() => import('@/components/views/ResourceDetailView'));
+const PreviewWorkspaceView = lazy(() => import('@/features/preview-workspace/components/PreviewWorkspaceView'));
+
+function RouteLoadingFallback() {
+  return (
+    <main className="home-view" aria-busy="true" aria-live="polite">
+      <section className="hero-section">
+        <h1 className="visually-hidden">Loading view</h1>
+      </section>
+    </main>
+  );
+}
 
 function TabOverlayRedirect({ segment }: { segment?: 'apps' | 'resources' }) {
   const location = useLocation();
@@ -122,9 +133,30 @@ function App() {
                 <Route path="apps" element={<TabOverlayRedirect segment="apps" />} />
                 <Route path="resources" element={<TabOverlayRedirect segment="resources" />} />
                 <Route path="tabs" element={<TabOverlayRedirect />} />
-                <Route path="apps/workspace" element={<PreviewWorkspaceView />} />
-                <Route path="apps/:appId/preview" element={<AppPreviewView />} />
-                <Route path="resources/:resourceId" element={<ResourceDetailView />} />
+                <Route
+                  path="apps/workspace"
+                  element={(
+                    <Suspense fallback={<RouteLoadingFallback />}>
+                      <PreviewWorkspaceView />
+                    </Suspense>
+                  )}
+                />
+                <Route
+                  path="apps/:appId/preview"
+                  element={(
+                    <Suspense fallback={<RouteLoadingFallback />}>
+                      <AppPreviewView />
+                    </Suspense>
+                  )}
+                />
+                <Route
+                  path="resources/:resourceId"
+                  element={(
+                    <Suspense fallback={<RouteLoadingFallback />}>
+                      <ResourceDetailView />
+                    </Suspense>
+                  )}
+                />
                 <Route path="logs" element={<TabOverlayRedirect segment="apps" />} />
                 <Route path="logs/:appId" element={<LogsAppRedirect />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

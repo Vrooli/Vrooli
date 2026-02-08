@@ -1,15 +1,15 @@
-#\!/usr/bin/env bash
+#!/usr/bin/env bash
 # App Monitor CLI - Lightweight wrapper for the Go API
 
 set -euo pipefail
 
 # Configuration
-# API_PORT must be provided by environment
-if [ -z "$API_PORT" ]; then
-    echo "Error: API_PORT environment variable is required"
-    exit 1
+# Prefer explicit URL; otherwise use API_PORT when provided; otherwise use default API port.
+if [ -n "${APP_MONITOR_API_URL:-}" ]; then
+    API_BASE_URL="${APP_MONITOR_API_URL}"
+else
+    API_BASE_URL="http://localhost:${API_PORT:-17480}"
 fi
-API_BASE_URL="${APP_MONITOR_API_URL:-http://localhost:${API_PORT}}"
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/app-monitor/cli"
 
@@ -54,7 +54,7 @@ api_request() {
 
 # Check if API is available
 check_api() {
-    if \! curl -s "$API_BASE_URL/health" > /dev/null 2>&1; then
+    if ! curl -s "$API_BASE_URL/health" > /dev/null 2>&1; then
         log_error "App Monitor API is not available at $API_BASE_URL"
         log_info "Make sure the App Monitor service is running"
         return 1
@@ -65,7 +65,7 @@ check_api() {
 cmd_status() {
     log_info "Checking App Monitor status..."
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
@@ -87,19 +87,34 @@ cmd_status() {
 cmd_list() {
     log_info "Listing managed apps..."
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
     local apps_response
     apps_response=$(api_request "GET" "/api/v1/apps")
-    
-    if [[ "$apps_response" == "[]" ]]; then
+
+    if ! echo "$apps_response" | jq -e . > /dev/null 2>&1; then
+        log_warning "Apps endpoint returned non-JSON response; unable to parse list."
+        return 0
+    fi
+
+    local rendered
+    rendered=$(echo "$apps_response" | jq -r '
+      if type == "array" then .
+      elif has("data") and (.data | type == "array") then .data
+      else []
+      end
+      | .[]?
+      | "\(.name) (\(.id[0:8])...): \(.status) - \(.scenario_name)"
+    ')
+
+    if [[ -z "$rendered" ]]; then
         log_info "No apps currently registered"
         return 0
     fi
-    
-    echo "$apps_response" | jq -r '.[] | "\(.name) (\(.id[0:8])...): \(.status) - \(.scenario_name)"'
+
+    echo "$rendered"
 }
 
 cmd_start() {
@@ -107,7 +122,7 @@ cmd_start() {
     
     log_info "Starting app: $app_id"
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
@@ -130,7 +145,7 @@ cmd_stop() {
     
     log_info "Stopping app: $app_id"
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
@@ -154,7 +169,7 @@ cmd_logs() {
     
     log_info "Fetching logs for app: $app_id"
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
@@ -175,7 +190,7 @@ cmd_metrics() {
     
     log_info "Fetching metrics for app: $app_id (last $hours hours)"
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
@@ -193,20 +208,28 @@ cmd_metrics() {
 cmd_docker() {
     log_info "Docker information..."
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
     local docker_response
     docker_response=$(api_request "GET" "/api/v1/docker/info")
-    
-    echo "$docker_response" | jq '{
-        "Containers": .Containers,
-        "Images": .Images,
-        "Server Version": .ServerVersion,
-        "Operating System": .OperatingSystem,
-        "Architecture": .Architecture
-    }'
+
+    if ! echo "$docker_response" | jq -e . > /dev/null 2>&1; then
+        log_warning "Docker endpoint returned non-JSON response; unable to parse details."
+        echo '{"Containers":"unavailable","Server Version":"unavailable"}'
+        return 0
+    fi
+
+    local rendered
+    rendered=$(echo "$docker_response" | jq '{
+        "Containers": (.data.Containers // .Containers // null),
+        "Images": (.data.Images // .Images // null),
+        "Server Version": (.data.ServerVersion // .ServerVersion // null),
+        "Operating System": (.data.OperatingSystem // .OperatingSystem // null),
+        "Architecture": (.data.Architecture // .Architecture // null)
+    }')
+    echo "$rendered"
 }
 
 cmd_health() {
@@ -214,7 +237,7 @@ cmd_health() {
     
     log_info "Checking health for app: $app_id"
     
-    if \! check_api; then
+    if ! check_api; then
         return 1
     fi
     
@@ -290,6 +313,7 @@ Commands:
     logs <app_id> [limit]   Show application logs (default: 50)
     metrics <app_id> [hrs]  Show application metrics (default: 24h)
     docker                  Show Docker system information
+    version                 Show CLI version
     help                    Show this help message
 
 Environment Variables:
@@ -305,6 +329,7 @@ Examples:
     app-monitor health abc123
     app-monitor logs abc123 100
     app-monitor metrics abc123 12
+    app-monitor version
 
 HELP
 }
@@ -320,12 +345,12 @@ main() {
     shift
     
     # Check for required tools
-    if \! command -v curl > /dev/null 2>&1; then
+    if ! command -v curl > /dev/null 2>&1; then
         log_error "curl is required but not installed"
         return 1
     fi
     
-    if \! command -v jq > /dev/null 2>&1; then
+    if ! command -v jq > /dev/null 2>&1; then
         log_error "jq is required but not installed"
         return 1
     fi
@@ -381,6 +406,9 @@ main() {
             ;;
         "docker")
             cmd_docker "$@"
+            ;;
+        "version"|"-v"|"--version")
+            echo "app-monitor cli 1.0.0"
             ;;
         "help"|"-h"|"--help")
             cmd_help

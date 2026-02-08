@@ -17,6 +17,7 @@ Enable concurrent scenario previews with pane-local state while preserving exist
 - `resolveWorkspaceLayout` in `ui/src/features/preview-workspace/utils/layout.ts` is pure and unit tested.
 - Workspace store actions are unit tested without rendering components.
 - Pane component depends on existing seams (`useIframeBridge`, `usePreviewNavigation`, `appService`) so protocol behavior remains centralized.
+- Preview report capture/origin/screenshot capability logic is shared with single preview via `ui/src/hooks/usePreviewReportSession.ts`.
 
 ## Overlay Scope Decision
 - Global overlay query (`overlay`) remains reserved for shell-level overlays (`tabs`, `actions`).

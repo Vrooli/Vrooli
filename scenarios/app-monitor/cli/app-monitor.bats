@@ -1,12 +1,12 @@
-#\!/usr/bin/env bats
+#!/usr/bin/env bats
 # BATS test suite for App Monitor CLI
 
 setup() {
     # Test configuration
-    export APP_MONITOR_API_URL="${APP_MONITOR_API_URL:-http://localhost:${API_PORT}}"
+    export APP_MONITOR_API_URL="${APP_MONITOR_API_URL:-http://localhost:${API_PORT:-17480}}"
     
     # Check if API is available
-    if \! curl -sf "$APP_MONITOR_API_URL/health" > /dev/null 2>&1; then
+    if ! curl -sf "$APP_MONITOR_API_URL/health" > /dev/null 2>&1; then
         skip "App Monitor API not available for testing"
     fi
 }

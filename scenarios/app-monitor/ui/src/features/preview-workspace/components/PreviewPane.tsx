@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
 import { GripVertical, Trash2 } from 'lucide-react';
 import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
@@ -15,8 +15,12 @@ import usePreviewInspector from '@/components/views/usePreviewInspector';
 import { useAppLogs } from '@/hooks/useAppLogs';
 import { useDeviceEmulation } from '@/hooks/useDeviceEmulation';
 import { usePreviewAppLifecycle } from '@/hooks/usePreviewAppLifecycle';
+import { usePreviewBridgeComplianceCheck } from '@/hooks/usePreviewBridgeComplianceCheck';
+import { usePreviewIframeReadinessFallback } from '@/hooks/usePreviewIframeReadinessFallback';
 import { usePreviewNavigationSession } from '@/hooks/usePreviewNavigationSession';
 import type { PreviewNavigationSessionSnapshot } from '@/hooks/usePreviewNavigationSession';
+import { usePreviewReportSession } from '@/hooks/usePreviewReportSession';
+import { usePreviewToolbarSession } from '@/hooks/usePreviewToolbarSession';
 import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { appService } from '@/services/api';
@@ -24,9 +28,7 @@ import { logger } from '@/services/logger';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
-import type { ReportElementCapture } from '@/components/report/reportTypes';
-import { buildPreviewUrl, isRunningStatus, locateAppByIdentifier } from '@/utils/appPreview';
-import { APP_OPEN_MODE_QUERY_KEY } from '@/components/tabSwitcher/tabSwitcherOpenMode';
+import { isRunningStatus, locateAppByIdentifier } from '@/utils/appPreview';
 import './PreviewPane.css';
 
 export interface PreviewPaneProps {
@@ -67,8 +69,6 @@ export function PreviewPane({
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportElementCaptures, setReportElementCaptures] = useState<ReportElementCapture[]>([]);
-  const [hasPrimaryCaptureDraft, setHasPrimaryCaptureDraft] = useState(false);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const [paneSurfaceNode, setPaneSurfaceNode] = useState<HTMLDivElement | null>(null);
   const [previewContainerNode, setPreviewContainerNode] = useState<HTMLDivElement | null>(null);
@@ -140,6 +140,30 @@ export function PreviewPane({
     setPreviewUrl,
     initialPreviewUrlRef,
   });
+  const activePreviewUrl = useMemo(
+    () => bridgeState.href || previewUrl || '',
+    [bridgeState.href, previewUrl],
+  );
+  const {
+    reportElementCaptures,
+    setHasPrimaryCaptureDraft,
+    stagedCaptureCount,
+    canCaptureScreenshot,
+    bridgeSupportsScreenshot,
+    isPreviewSameOrigin,
+    handleInspectorCaptureAdded,
+    handleElementCaptureNoteChange,
+    handleRemoveElementCapture,
+    resetElementCaptures: handleResetElementCaptures,
+    resetReportDraftState,
+  } = usePreviewReportSession({
+    activePreviewUrl,
+    bridgeState: {
+      isSupported: bridgeState.isSupported,
+      caps: bridgeState.caps,
+    },
+    logPrefix: '[preview-pane]',
+  });
 
   const deviceEmulation = useDeviceEmulation({ container: previewContainerNode });
   const {
@@ -153,40 +177,6 @@ export function PreviewPane({
     setReportDialogOpen(true);
   }, []);
 
-  const handleInspectorCaptureAdded = useCallback((capture: ReportElementCapture) => {
-    setReportElementCaptures((previous) => [...previous, capture]);
-  }, []);
-
-  const handleElementCaptureNoteChange = useCallback((captureId: string, note: string) => {
-    setReportElementCaptures((previous) => previous.map((capture) => (
-      capture.id === captureId ? { ...capture, note } : capture
-    )));
-  }, []);
-
-  const handleRemoveElementCapture = useCallback((captureId: string) => {
-    setReportElementCaptures((previous) => previous.filter((capture) => capture.id !== captureId));
-  }, []);
-
-  const handleResetElementCaptures = useCallback(() => {
-    setReportElementCaptures([]);
-  }, []);
-
-  const inspector = usePreviewInspector({
-    inspectState,
-    startInspect,
-    stopInspect,
-    setInspectTargetIndex,
-    shiftInspectTarget,
-    requestScreenshot,
-    previewUrl,
-    currentAppIdentifier: activeAppIdentifier,
-    iframeRef,
-    previewViewRef: paneRef,
-    previewViewNode: paneSurfaceNode,
-    onCaptureAdd: handleInspectorCaptureAdded,
-    onViewReportRequest: handleOpenReportDialog,
-  });
-
   useEffect(() => {
     if (!isFullView || typeof document === 'undefined') {
       return;
@@ -197,29 +187,15 @@ export function PreviewPane({
     };
   }, [isFullView]);
 
-  useEffect(() => {
-    if (!reportDialogOpen) {
-      return;
-    }
-
-    let cancelled = false;
-    runComplianceCheck()
-      .then((result) => {
-        if (!cancelled) {
-          setBridgeCompliance(result);
-        }
-      })
-      .catch((error) => {
-        logger.debug('[preview-pane] Bridge compliance check unavailable', error);
-        if (!cancelled) {
-          setBridgeCompliance(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reportDialogOpen, runComplianceCheck]);
+  usePreviewBridgeComplianceCheck({
+    enabled: reportDialogOpen,
+    runComplianceCheck,
+    onSuccess: setBridgeCompliance,
+    onError: (error) => {
+      logger.debug('[preview-pane] Bridge compliance check unavailable', error);
+      setBridgeCompliance(null);
+    },
+  });
 
   useEffect(() => {
     if (!activeAppIdentifier) {
@@ -230,8 +206,7 @@ export function PreviewPane({
       resetPaneViewState(paneId);
       setIframeLoadError(null);
       setReportDialogOpen(false);
-      setReportElementCaptures([]);
-      setHasPrimaryCaptureDraft(false);
+      resetReportDraftState();
       clearNavigationSession();
       resetPreviewState({ force: true });
       resetBridgeState();
@@ -273,7 +248,16 @@ export function PreviewPane({
     return () => {
       cancelled = true;
     };
-  }, [activeAppIdentifier, apps, clearNavigationSession, paneId, resetBridgeState, resetPaneViewState, resetPreviewState]);
+  }, [
+    activeAppIdentifier,
+    apps,
+    clearNavigationSession,
+    paneId,
+    resetBridgeState,
+    resetPaneViewState,
+    resetPreviewState,
+    resetReportDraftState,
+  ]);
 
   useEffect(() => {
     setPaneViewState(paneId, { isLogsVisible });
@@ -347,59 +331,36 @@ export function PreviewPane({
       });
   }, [activeAppIdentifier, resetBridgeState]);
 
-  const activePreviewUrl = useMemo(
-    () => bridgeState.href || previewUrl || '',
-    [bridgeState.href, previewUrl],
-  );
-  const urlSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const suggestions: string[] = [];
-    const addSuggestion = (value: string | null | undefined) => {
-      if (!value) {
-        return;
-      }
-      const trimmed = value.trim();
-      if (trimmed.length === 0 || seen.has(trimmed)) {
-        return;
-      }
-      seen.add(trimmed);
-      suggestions.push(trimmed);
-    };
+  const {
+    openPreviewTarget,
+    urlSuggestions,
+    handleOpenScenarioSelector,
+    handleOpenPreviewInNewTab: onOpenInNewTab,
+  } = usePreviewToolbarSession({
+    bridgeHref: bridgeState.href,
+    previewUrl,
+    history,
+    apps,
+    openOverlay,
+    appOpenMode: 'replace-focused',
+    onBeforeOpenScenarioSelector: () => onFocus(paneId),
+  });
 
-    for (let index = history.length - 1; index >= 0; index -= 1) {
-      addSuggestion(history[index]);
-      if (suggestions.length >= 10) {
-        break;
-      }
-    }
-
-    for (const app of apps) {
-      addSuggestion(buildPreviewUrl(app) ?? null);
-      if (suggestions.length >= 16) {
-        break;
-      }
-    }
-
-    return suggestions;
-  }, [apps, history]);
-
-  const handleOpenScenarioSelector = useCallback(() => {
-    onFocus(paneId);
-    openOverlay('tabs', {
-      params: {
-        segment: 'apps',
-        [APP_OPEN_MODE_QUERY_KEY]: 'replace-focused',
-      },
-    });
-  }, [onFocus, openOverlay, paneId]);
-
-  const onOpenInNewTab = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
-    if (!activePreviewUrl) {
-      return;
-    }
-    event.preventDefault();
-    window.open(activePreviewUrl, '_blank', 'noopener');
-  }, [activePreviewUrl]);
+  const inspector = usePreviewInspector({
+    inspectState,
+    startInspect,
+    stopInspect,
+    setInspectTargetIndex,
+    shiftInspectTarget,
+    requestScreenshot,
+    previewUrl,
+    currentAppIdentifier: activeAppIdentifier,
+    iframeRef,
+    previewViewRef: paneRef,
+    previewViewNode: paneSurfaceNode,
+    onCaptureAdd: handleInspectorCaptureAdded,
+    onViewReportRequest: handleOpenReportDialog,
+  });
 
   const onIframeLoad = useCallback(() => {
     setLoading(false);
@@ -412,48 +373,15 @@ export function PreviewPane({
     setIframeLoadError('Preview iframe failed to load.');
   }, []);
 
-  useEffect(() => {
-    if (!loading || !previewUrl || iframeLoadError) {
-      return;
-    }
-
-    let cancelled = false;
-    let attempts = 0;
-    const intervalId = window.setInterval(() => {
-      attempts += 1;
-      const iframe = iframeRef.current;
-      if (!iframe) {
-        if (attempts >= 40) {
-          window.clearInterval(intervalId);
-        }
-        return;
-      }
-
-      try {
-        const readyState = iframe.contentDocument?.readyState;
-        if (readyState === 'interactive' || readyState === 'complete') {
-          if (!cancelled) {
-            setLoading(false);
-            setIframeLoadError(null);
-            setStatusMessage(null);
-          }
-          window.clearInterval(intervalId);
-          return;
-        }
-      } catch {
-        // Cross-origin reads can fail; keep waiting for onLoad.
-      }
-
-      if (attempts >= 40) {
-        window.clearInterval(intervalId);
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [iframeLoadError, loading, previewUrl]);
+  usePreviewIframeReadinessFallback({
+    iframeRef,
+    enabled: loading && Boolean(previewUrl) && !iframeLoadError,
+    onReady: () => {
+      setLoading(false);
+      setIframeLoadError(null);
+      setStatusMessage(null);
+    },
+  });
 
   const lifecycle = usePreviewAppLifecycle({
     currentApp,
@@ -517,25 +445,6 @@ export function PreviewPane({
   const toggleActionLabel = lifecycle.toggleActionLabel;
   const restartActionLabel = lifecycle.restartActionLabel;
   const actionInProgress = lifecycle.actionInProgress;
-  const stagedCaptureCount = reportElementCaptures.length + (hasPrimaryCaptureDraft ? 1 : 0);
-  const canCaptureScreenshot = Boolean(activePreviewUrl);
-  const bridgeSupportsScreenshot = useMemo(
-    () => bridgeState.isSupported && Array.isArray(bridgeState.caps) && bridgeState.caps.includes('screenshot'),
-    [bridgeState.caps, bridgeState.isSupported],
-  );
-  const isPreviewSameOrigin = useMemo(() => {
-    if (typeof window === 'undefined' || !activePreviewUrl) {
-      return false;
-    }
-
-    try {
-      const targetOrigin = new URL(activePreviewUrl, window.location.href).origin;
-      return targetOrigin === window.location.origin;
-    } catch (error) {
-      logger.warn('[preview-pane] Failed to evaluate preview origin', { activePreviewUrl, error });
-      return false;
-    }
-  }, [activePreviewUrl]);
 
   return (
     <div
@@ -566,7 +475,7 @@ export function PreviewPane({
         onPreviewUrlInputBlur={handleUrlInputBlur}
         onPreviewUrlInputKeyDown={handleUrlInputKeyDown}
         onOpenInNewTab={onOpenInNewTab}
-        openPreviewTarget={activePreviewUrl}
+        openPreviewTarget={openPreviewTarget}
         urlStatusClass={lifecycle.urlStatusClass}
         urlStatusTitle={statusMessage ?? lifecycle.appStatusLabel}
         hasDetailsWarning={false}
@@ -701,7 +610,7 @@ export function PreviewPane({
             onClose={() => setReportDialogOpen(false)}
             appId={currentApp?.id ?? activeAppIdentifier ?? undefined}
             app={currentApp}
-            activePreviewUrl={activePreviewUrl || null}
+            activePreviewUrl={openPreviewTarget || null}
             canCaptureScreenshot={canCaptureScreenshot}
             previewContainerRef={previewContainerRef}
             iframeRef={iframeRef}

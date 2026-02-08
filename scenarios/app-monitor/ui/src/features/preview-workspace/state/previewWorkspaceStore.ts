@@ -303,13 +303,35 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
     };
   }),
 
-  setPaneApp: (paneId, appId) => set((state) => ({
-    panes: state.panes.map((pane) => (
-      pane.id === paneId
-        ? { ...pane, appId: normalizePaneApp(appId) }
-        : pane
-    )),
-  })),
+  setPaneApp: (paneId, appId) => set((state) => {
+    const nextAppId = normalizePaneApp(appId);
+    let didChangeApp = false;
+
+    const nextPanes = state.panes.map((pane) => {
+      if (pane.id !== paneId) {
+        return pane;
+      }
+
+      if (pane.appId === nextAppId) {
+        return pane;
+      }
+
+      didChangeApp = true;
+      return { ...pane, appId: nextAppId };
+    });
+
+    if (!didChangeApp) {
+      return state;
+    }
+
+    return {
+      panes: nextPanes,
+      paneViewState: {
+        ...state.paneViewState,
+        [paneId]: createDefaultPaneViewState(),
+      },
+    };
+  }),
 
   focusPane: (paneId) => set((state) => {
     if (!paneId) {

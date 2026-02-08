@@ -111,6 +111,7 @@ export default function PreviewWorkspaceView() {
   const setRowFractions = usePreviewWorkspaceStore((state) => state.setRowFractions);
 
   const panesContainerRef = useRef<HTMLDivElement | null>(null);
+  const lastHandledIntentRef = useRef<string | null>(null);
   const [activeResize, setActiveResize] = useState<ActiveResize | null>(null);
   const [activeArrangeDrag, setActiveArrangeDrag] = useState<ActiveArrangeDrag | null>(null);
 
@@ -121,8 +122,15 @@ export default function PreviewWorkspaceView() {
   useEffect(() => {
     const intent = readWorkspaceIntent(searchParams);
     if (!intent) {
+      lastHandledIntentRef.current = null;
       return;
     }
+
+    const intentSignature = `${intent.mode}:${intent.appId}:${searchParams.toString()}`;
+    if (lastHandledIntentRef.current === intentSignature) {
+      return;
+    }
+    lastHandledIntentRef.current = intentSignature;
 
     if (intent.mode === 'add-pane') {
       addPane(intent.appId);

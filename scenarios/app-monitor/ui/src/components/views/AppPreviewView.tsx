@@ -16,7 +16,6 @@ import { usePrevious } from '@/hooks/usePrevious';
 import AppModal from '../AppModal';
 import AppPreviewToolbar from '../AppPreviewToolbar';
 import ReportIssueDialog from '../report/ReportIssueDialog';
-import type { ReportElementCapture } from '../report/reportTypes';
 import PreviewInspectorPanel from './PreviewInspectorPanel';
 import usePreviewInspector from './usePreviewInspector';
 import {
@@ -50,13 +49,17 @@ import { useAppCompleteness } from '@/hooks/useAppCompleteness';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { usePreviewAppLifecycle } from '@/hooks/usePreviewAppLifecycle';
+import { usePreviewBridgeComplianceCheck } from '@/hooks/usePreviewBridgeComplianceCheck';
+import { usePreviewIframeReadinessFallback } from '@/hooks/usePreviewIframeReadinessFallback';
 import { usePreviewNavigationSession } from '@/hooks/usePreviewNavigationSession';
+import { usePreviewReportSession } from '@/hooks/usePreviewReportSession';
+import { usePreviewToolbarSession } from '@/hooks/usePreviewToolbarSession';
 import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
 import { PREVIEW_TIMEOUTS, PREVIEW_MESSAGES } from './previewConstants';
 import type { PreviewLocationState } from '@/types/preview';
 import { isPreviewLocationState } from '@/types/preview';
 import { HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER, type BridgeShortcutIntent } from '@vrooli/iframe-bridge';
-import { APP_OPEN_MODE_QUERY_KEY } from '@/components/tabSwitcher/tabSwitcherOpenMode';
+import { isPreviewDebugEventsEnabled } from '@/utils/previewDebug';
 import './AppPreviewView.css';
 
 const AppPreviewView = () => {
@@ -100,8 +103,6 @@ const AppPreviewView = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [fetchAttempted, setFetchAttempted] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportElementCaptures, setReportElementCaptures] = useState<ReportElementCapture[]>([]);
-  const [hasPrimaryCaptureDraft, setHasPrimaryCaptureDraft] = useState(false);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLayoutFullscreen, setIsLayoutFullscreen] = useState(false);
@@ -135,7 +136,6 @@ const AppPreviewView = () => {
   }, [appId, currentApp]);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const [bridgeMessageDismissed, setBridgeMessageDismissed] = useState(false);
-  const [complianceCheckRun, setComplianceCheckRun] = useState(false);
   const handleBridgeShortcut = useCallback((message: { intent: BridgeShortcutIntent }) => {
     const intent = message.intent;
     if (!intent || intent.action !== HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER) {
@@ -355,24 +355,6 @@ const AppPreviewView = () => {
     }, PREVIEW_TIMEOUTS.AUTO_NEXT_PREPARE);
   }, [apps, currentAppIdentifier, prepareAutoNext, scheduleAutoNextPrepare, clearAutoNextPrepare]);
 
-  const handleInspectorCaptureAdded = useCallback((capture: ReportElementCapture) => {
-    setReportElementCaptures(prev => [...prev, capture]);
-  }, []);
-
-  const handleElementCaptureNoteChange = useCallback((captureId: string, note: string) => {
-    setReportElementCaptures(prev => prev.map(capture => (
-      capture.id === captureId ? { ...capture, note } : capture
-    )));
-  }, []);
-
-  const handleRemoveElementCapture = useCallback((captureId: string) => {
-    setReportElementCaptures(prev => prev.filter(capture => capture.id !== captureId));
-  }, []);
-
-  const handleResetElementCaptures = useCallback(() => {
-    setReportElementCaptures([]);
-  }, []);
-
   useEffect(() => {
     if (!appId) {
       return;
@@ -412,6 +394,9 @@ const AppPreviewView = () => {
   const recordDebugEvent = useCallback((event: string, detail?: Record<string, unknown>) => {
     try {
       if (typeof window === 'undefined') {
+        return;
+      }
+      if (!isPreviewDebugEventsEnabled()) {
         return;
       }
       const payload = {
@@ -688,6 +673,28 @@ const AppPreviewView = () => {
     setReportDialogOpen(false);
   }, []);
 
+  const activePreviewUrl = useMemo(() => bridgeState.href || previewUrl || '', [bridgeState.href, previewUrl]);
+  const {
+    reportElementCaptures,
+    setHasPrimaryCaptureDraft,
+    stagedCaptureCount,
+    canCaptureScreenshot,
+    bridgeSupportsScreenshot,
+    isPreviewSameOrigin,
+    handleInspectorCaptureAdded,
+    handleElementCaptureNoteChange,
+    handleRemoveElementCapture,
+    resetElementCaptures: handleResetElementCaptures,
+    resetReportDraftState,
+  } = usePreviewReportSession({
+    activePreviewUrl,
+    bridgeState: {
+      isSupported: bridgeState.isSupported,
+      caps: bridgeState.caps,
+    },
+    logPrefix: '[app-preview]',
+  });
+
   const inspector = usePreviewInspector({
     inspectState,
     startInspect,
@@ -717,30 +724,17 @@ const AppPreviewView = () => {
     const scenarioKey = currentAppIdentifier ?? null;
     if (previousReportScenario !== null && previousReportScenario !== scenarioKey) {
       setReportDialogOpen(false);
-      setReportElementCaptures([]);
-      setHasPrimaryCaptureDraft(false);
+      resetReportDraftState();
     }
-  }, [previewIdentifier, previousPreviewIdentifier, currentAppIdentifier, previousReportScenario, inspectorHandleDialogClose]);
+  }, [
+    previewIdentifier,
+    previousPreviewIdentifier,
+    currentAppIdentifier,
+    previousReportScenario,
+    inspectorHandleDialogClose,
+    resetReportDraftState,
+  ]);
 
-  const activePreviewUrl = useMemo(() => bridgeState.href || previewUrl || '', [bridgeState.href, previewUrl]);
-  const canCaptureScreenshot = useMemo(() => Boolean(activePreviewUrl), [activePreviewUrl]);
-  const isPreviewSameOrigin = useMemo(() => {
-    if (typeof window === 'undefined' || !activePreviewUrl) {
-      return false;
-    }
-
-    try {
-      const targetOrigin = new URL(activePreviewUrl, window.location.href).origin;
-      return targetOrigin === window.location.origin;
-    } catch (error) {
-      logger.warn('Failed to evaluate preview origin', { activePreviewUrl, error });
-      return false;
-    }
-  }, [activePreviewUrl]);
-  const bridgeSupportsScreenshot = useMemo(
-    () => bridgeState.isSupported && Array.isArray(bridgeState.caps) && bridgeState.caps.includes('screenshot'),
-    [bridgeState.caps, bridgeState.isSupported],
-  );
   const logsState = useAppLogs({ app: currentApp, appId: appId ?? null, active: isLogsPanelOpen });
   const localhostIssueMessage = useMemo(() => {
     if (!localhostReport) {
@@ -833,47 +827,19 @@ const AppPreviewView = () => {
     }
   }, [bridgeIssueMessage]);
 
-  const openPreviewTarget = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
-  const toolbarUrlSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const suggestions: string[] = [];
-    const addSuggestion = (value: string | null | undefined) => {
-      if (!value) {
-        return;
-      }
-      const trimmed = value.trim();
-      if (trimmed.length === 0 || seen.has(trimmed)) {
-        return;
-      }
-      seen.add(trimmed);
-      suggestions.push(trimmed);
-    };
-
-    for (let index = history.length - 1; index >= 0; index -= 1) {
-      addSuggestion(history[index]);
-      if (suggestions.length >= 10) {
-        break;
-      }
-    }
-
-    for (const app of apps) {
-      addSuggestion(buildPreviewUrl(app));
-      if (suggestions.length >= 16) {
-        break;
-      }
-    }
-
-    return suggestions;
-  }, [apps, history]);
-
-  const handleOpenScenarioSelector = useCallback(() => {
-    openOverlay('tabs', {
-      params: {
-        segment: 'apps',
-        [APP_OPEN_MODE_QUERY_KEY]: 'single-preview',
-      },
-    });
-  }, [openOverlay]);
+  const {
+    openPreviewTarget,
+    urlSuggestions: toolbarUrlSuggestions,
+    handleOpenScenarioSelector,
+    handleOpenPreviewInNewTab: handleOpenPreviewInNewTabRaw,
+  } = usePreviewToolbarSession({
+    bridgeHref: bridgeState.isSupported ? bridgeState.href : null,
+    previewUrl,
+    history,
+    apps,
+    openOverlay,
+    appOpenMode: 'single-preview',
+  });
 
   useEffect(() => {
     if (!appId) {
@@ -899,7 +865,6 @@ const AppPreviewView = () => {
     stopLifecycleMonitor();
     setPreviewOverlay(null);
     clearNavigationSession();
-    setComplianceCheckRun(false);
     setBridgeCompliance(null);
     resetState();
     setIframeLoadedAt(null);
@@ -913,7 +878,6 @@ const AppPreviewView = () => {
 
   // Reset bridge compliance when preview URL changes
   useEffect(() => {
-    setComplianceCheckRun(false);
     setBridgeCompliance(null);
   }, [previewUrl]);
 
@@ -1090,33 +1054,17 @@ const AppPreviewView = () => {
     }
   }, [appId, apps, currentApp, location.key, locationState, recordDebugEvent]);
 
-  useEffect(() => {
-    if (!bridgeState.isSupported || !bridgeState.isReady || !bridgeState.href) {
-      return;
-    }
-    if (complianceCheckRun) {
-      return;
-    }
-
-    let cancelled = false;
-    setComplianceCheckRun(true);
-    runComplianceCheck()
-      .then(result => {
-        if (!cancelled) {
-          setBridgeCompliance(result);
-        }
-      })
-      .catch(error => {
-        logger.warn('Bridge compliance check failed', error);
-        if (!cancelled) {
-          setBridgeCompliance({ ok: false, failures: ['CHECK_FAILED'], checkedAt: Date.now() });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bridgeState.href, bridgeState.isReady, bridgeState.isSupported, complianceCheckRun, runComplianceCheck]);
+  usePreviewBridgeComplianceCheck({
+    enabled: bridgeState.isSupported && bridgeState.isReady && Boolean(bridgeState.href),
+    runComplianceCheck,
+    onSuccess: setBridgeCompliance,
+    onError: (error) => {
+      logger.warn('Bridge compliance check failed', error);
+      setBridgeCompliance({ ok: false, failures: ['CHECK_FAILED'], checkedAt: Date.now() });
+    },
+    runOnceWhileEnabled: true,
+    resetKey: previewUrl,
+  });
 
   const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
     if (action === 'restart') {
@@ -1168,15 +1116,9 @@ const AppPreviewView = () => {
   }, [currentApp, handleAppAction, lifecycle.actionInProgress]);
 
   const handleOpenPreviewInNewTab = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-    const target = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
-    if (!target) {
-      return;
-    }
-
-    event.preventDefault();
     // Keep the Referer header so the proxy can map shared asset URLs to the active scenario.
-    window.open(target, '_blank', 'noopener');
-  }, [bridgeState.href, bridgeState.isSupported, previewUrl]);
+    handleOpenPreviewInNewTabRaw(event);
+  }, [handleOpenPreviewInNewTabRaw]);
 
   const handleToggleLogsFromToolbar = useCallback(() => {
     updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
@@ -1224,49 +1166,16 @@ const AppPreviewView = () => {
     });
   }, [previewUrl, setPreviewOverlay]);
 
-  useEffect(() => {
-    if (!loading || !previewUrl || iframeLoadedAt || iframeLoadError) {
-      return;
-    }
-
-    let cancelled = false;
-    let attempts = 0;
-    const intervalId = window.setInterval(() => {
-      attempts += 1;
-      const iframe = iframeRef.current;
-      if (!iframe) {
-        if (attempts >= 40) {
-          window.clearInterval(intervalId);
-        }
-        return;
-      }
-
-      try {
-        const readyState = iframe.contentDocument?.readyState;
-        if (readyState === 'interactive' || readyState === 'complete') {
-          if (!cancelled) {
-            setLoading(false);
-            setIframeLoadError(null);
-            setIframeLoadedAt(Date.now());
-            setStatusMessage(null);
-          }
-          window.clearInterval(intervalId);
-          return;
-        }
-      } catch {
-        // Cross-origin reads can fail; keep waiting for onLoad/overlay timeout.
-      }
-
-      if (attempts >= 40) {
-        window.clearInterval(intervalId);
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [iframeLoadError, iframeLoadedAt, loading, previewUrl]);
+  usePreviewIframeReadinessFallback({
+    iframeRef,
+    enabled: loading && Boolean(previewUrl) && !iframeLoadedAt && !iframeLoadError,
+    onReady: () => {
+      setLoading(false);
+      setIframeLoadError(null);
+      setIframeLoadedAt(Date.now());
+      setStatusMessage(null);
+    },
+  });
 
   const handleToggleFullscreen = useCallback(() => {
     if (typeof document === 'undefined') {
@@ -1330,8 +1239,6 @@ const AppPreviewView = () => {
   }, [isLayoutFullscreen]);
 
   const isFullView = isFullscreen || isLayoutFullscreen;
-  const stagedCaptureCount = reportElementCaptures.length + (hasPrimaryCaptureDraft ? 1 : 0);
-
   return (
     <div
       className={clsx('app-preview-view', isLayoutFullscreen && 'app-preview-view--immersive')}

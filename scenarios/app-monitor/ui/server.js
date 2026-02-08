@@ -286,7 +286,9 @@ server.listen(PORT, () => {
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, closing server...')
-  proxyHost.destroy()
+  if (typeof proxyHost.destroy === 'function') {
+    proxyHost.destroy()
+  }
   server.close(() => {
     console.log('Server closed')
     process.exit(0)

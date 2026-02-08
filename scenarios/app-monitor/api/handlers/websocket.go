@@ -157,6 +157,24 @@ func (h *WebSocketHandler) handleClientMessages(conn *websocket.Conn, done chan 
 				}
 			}
 
+		case "command":
+			// Echo command requests with a basic acknowledgement for testability.
+			payload, _ := msg.Payload.(map[string]interface{})
+			command, _ := payload["command"].(string)
+			if command == "" {
+				command = "unknown"
+			}
+			if err := conn.WriteJSON(WebSocketMessage{
+				Type: "command_response",
+				Payload: map[string]interface{}{
+					"status":  "ok",
+					"command": command,
+				},
+			}); err != nil {
+				log.Printf("Failed to send command response: %v", err)
+				break
+			}
+
 		default:
 			log.Printf("Unknown message type: %s", msg.Type)
 		}

@@ -4,13 +4,13 @@
 
 ### Install Dependencies
 ```bash
-npm install
+pnpm install
 ```
 
 ### Development Mode
 Run both the Vite dev server and the Express backend server concurrently:
 ```bash
-npm run dev
+pnpm dev
 ```
 
 This will:
@@ -18,22 +18,13 @@ This will:
 - Start Express/WebSocket server on port 8085
 - Enable React DevTools and source maps for debugging
 
-### Individual Services
-```bash
-# Run only Vite dev server (frontend)
-npm run dev:vite
-
-# Run only Express server (backend)
-npm run dev:server
-```
-
 ### Production Build
 ```bash
 # Build the React app
-npm run build
+pnpm build
 
 # Serve the production build
-NODE_ENV=production npm start
+NODE_ENV=production pnpm start
 ```
 
 ## Debugging Features
@@ -56,16 +47,16 @@ NODE_ENV=production npm start
 ### 4. TypeScript Type Checking
 ```bash
 # Run type checking without building
-npm run typecheck
+pnpm typecheck
 
 # Run ESLint
-npm run lint
+pnpm lint
 ```
 
 ### 5. Debug Mode
 For verbose logging and forced refresh:
 ```bash
-npm run debug
+pnpm debug
 ```
 
 ## Project Structure
@@ -113,13 +104,13 @@ ui/
 
 ### Clean Install
 ```bash
-npm run clean
-npm install
+pnpm clean
+pnpm install
 ```
 
 ### Check TypeScript Errors
 ```bash
-npm run typecheck
+pnpm typecheck
 ```
 
 ### WebSocket Connection Issues
