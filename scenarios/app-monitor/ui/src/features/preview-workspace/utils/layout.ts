@@ -1,5 +1,3 @@
-import type { PreviewWorkspaceLayout } from '../state/previewWorkspaceStore';
-
 export type WorkspaceLayoutDescriptor = {
   className: string;
   columns: number;
@@ -13,20 +11,8 @@ const clampPaneCount = (count: number): number => {
   return Math.floor(count);
 };
 
-export const resolveWorkspaceLayout = (
-  layout: PreviewWorkspaceLayout,
-  paneCount: number,
-): WorkspaceLayoutDescriptor => {
+export const resolveWorkspaceLayout = (paneCount: number): WorkspaceLayoutDescriptor => {
   const normalizedCount = clampPaneCount(paneCount);
-
-  if (layout === 'split') {
-    const columns = normalizedCount === 1 ? 1 : 2;
-    return {
-      className: 'preview-workspace__panes--split',
-      columns,
-      rows: Math.ceil(normalizedCount / columns),
-    };
-  }
 
   if (normalizedCount <= 1) {
     return {

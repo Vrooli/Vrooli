@@ -7,15 +7,15 @@ import {
 
 describe('resolveWorkspaceLayout', () => {
   it('returns single-column for one pane', () => {
-    expect(resolveWorkspaceLayout('grid', 1)).toEqual({
+    expect(resolveWorkspaceLayout(1)).toEqual({
       className: 'preview-workspace__panes--single',
       columns: 1,
       rows: 1,
     });
   });
 
-  it('returns two columns for two panes in grid mode', () => {
-    expect(resolveWorkspaceLayout('grid', 2)).toEqual({
+  it('returns two columns for two panes', () => {
+    expect(resolveWorkspaceLayout(2)).toEqual({
       className: 'preview-workspace__panes--double',
       columns: 2,
       rows: 1,
@@ -23,16 +23,8 @@ describe('resolveWorkspaceLayout', () => {
   });
 
   it('returns two-by-two grid for four panes', () => {
-    expect(resolveWorkspaceLayout('grid', 4)).toEqual({
+    expect(resolveWorkspaceLayout(4)).toEqual({
       className: 'preview-workspace__panes--grid',
-      columns: 2,
-      rows: 2,
-    });
-  });
-
-  it('returns split mode descriptor', () => {
-    expect(resolveWorkspaceLayout('split', 3)).toEqual({
-      className: 'preview-workspace__panes--split',
       columns: 2,
       rows: 2,
     });

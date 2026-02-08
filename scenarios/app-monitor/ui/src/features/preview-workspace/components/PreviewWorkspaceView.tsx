@@ -96,7 +96,6 @@ export default function PreviewWorkspaceView() {
   const apps = useAppsStore((state) => state.apps);
 
   const panes = usePreviewWorkspaceStore((state) => state.panes);
-  const layout = usePreviewWorkspaceStore((state) => state.layout);
   const interactionMode = usePreviewWorkspaceStore((state) => state.interactionMode);
   const focusedPaneId = usePreviewWorkspaceStore((state) => state.focusedPaneId);
   const columnFractions = usePreviewWorkspaceStore((state) => state.columnFractions);
@@ -116,8 +115,8 @@ export default function PreviewWorkspaceView() {
   const [activeArrangeDrag, setActiveArrangeDrag] = useState<ActiveArrangeDrag | null>(null);
 
   const layoutDescriptor = useMemo(() => {
-    return resolveWorkspaceLayout(layout, panes.length);
-  }, [layout, panes.length]);
+    return resolveWorkspaceLayout(panes.length);
+  }, [panes.length]);
 
   useEffect(() => {
     const intent = readWorkspaceIntent(searchParams);

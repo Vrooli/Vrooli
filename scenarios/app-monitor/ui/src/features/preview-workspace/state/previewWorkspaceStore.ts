@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout';
 
-export type PreviewWorkspaceLayout = 'grid' | 'split';
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
 
 export interface PreviewWorkspacePane {
@@ -22,7 +21,6 @@ export interface PreviewWorkspacePaneViewState {
 }
 
 export interface PreviewWorkspaceState {
-  layout: PreviewWorkspaceLayout;
   interactionMode: PreviewWorkspaceInteractionMode;
   panes: PreviewWorkspacePane[];
   paneViewState: Record<string, PreviewWorkspacePaneViewState>;
@@ -34,7 +32,6 @@ export interface PreviewWorkspaceState {
   movePaneToIndex: (paneId: string, targetIndex: number) => void;
   setPaneApp: (paneId: string, appId: string | null) => void;
   focusPane: (paneId: string | null) => void;
-  setLayout: (layout: PreviewWorkspaceLayout) => void;
   setInteractionMode: (mode: PreviewWorkspaceInteractionMode) => void;
   setColumnFractions: (fractions: number[]) => void;
   setRowFractions: (fractions: number[]) => void;
@@ -62,11 +59,10 @@ const createPane = (appId: string | null = null): PreviewWorkspacePane => ({
 
 const buildInitialState = (): Pick<
   PreviewWorkspaceState,
-  'layout' | 'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
+  'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
 > => {
   const firstPane = createPane(null);
   return {
-    layout: 'grid',
     interactionMode: 'browse',
     panes: [firstPane],
     paneViewState: {},
@@ -84,7 +80,7 @@ const noopStorage: StateStorage = {
 
 const previewWorkspaceStorage = createJSONStorage<Pick<
   PreviewWorkspaceState,
-  'layout' | 'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
+  'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
 >>(() => {
   if (typeof window !== 'undefined' && window.localStorage) {
     return window.localStorage;
@@ -101,12 +97,11 @@ const normalizePaneApp = (value: string | null | undefined): string | null => {
 };
 
 const reconcileFractionsForWorkspace = (
-  layout: PreviewWorkspaceLayout,
   panes: PreviewWorkspacePane[],
   columnFractions: number[],
   rowFractions: number[],
 ): Pick<PreviewWorkspaceState, 'columnFractions' | 'rowFractions'> => {
-  const layoutDescriptor = resolveWorkspaceLayout(layout, panes.length);
+  const layoutDescriptor = resolveWorkspaceLayout(panes.length);
   return {
     columnFractions: reconcileTrackFractions(columnFractions, layoutDescriptor.columns),
     rowFractions: reconcileTrackFractions(rowFractions, layoutDescriptor.rows),
@@ -150,7 +145,6 @@ const normalizePersistedPaneViewState = (value: unknown): PreviewWorkspacePaneVi
     isLogsVisible: Boolean(record.isLogsVisible),
   };
 };
-const isLayout = (value: unknown): value is PreviewWorkspaceLayout => value === 'grid' || value === 'split';
 const isInteractionMode = (value: unknown): value is PreviewWorkspaceInteractionMode => (
   value === 'browse' || value === 'arrange'
 );
@@ -179,7 +173,7 @@ const normalizePersistedPane = (value: unknown): PreviewWorkspacePane | null => 
 
 const normalizePersistedWorkspaceState = (value: unknown): Pick<
   PreviewWorkspaceState,
-  'layout' | 'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
+  'interactionMode' | 'panes' | 'paneViewState' | 'focusedPaneId' | 'columnFractions' | 'rowFractions'
 > => {
   const defaults = buildInitialState();
   if (!value || typeof value !== 'object') {
@@ -187,7 +181,6 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
   }
 
   const record = value as Partial<PreviewWorkspaceState>;
-  const layout = isLayout(record.layout) ? record.layout : defaults.layout;
   const interactionMode = isInteractionMode(record.interactionMode) ? record.interactionMode : defaults.interactionMode;
   const panes = Array.isArray(record.panes)
     ? record.panes
@@ -217,10 +210,9 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
   const rowFractions = Array.isArray(record.rowFractions)
     ? record.rowFractions.filter((fraction): fraction is number => typeof fraction === 'number' && Number.isFinite(fraction))
     : defaults.rowFractions;
-  const reconciled = reconcileFractionsForWorkspace(layout, ensuredPanes, columnFractions, rowFractions);
+  const reconciled = reconcileFractionsForWorkspace(ensuredPanes, columnFractions, rowFractions);
 
   return {
-    layout,
     interactionMode,
     panes: ensuredPanes,
     paneViewState,
@@ -230,7 +222,7 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
   };
 };
 
-export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist((set, get) => ({
+export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist((set) => ({
   ...buildInitialState(),
 
   addPane: (appId) => {
@@ -248,7 +240,7 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
           [nextPane.id]: createDefaultPaneViewState(),
         },
         focusedPaneId: nextPane.id,
-        ...reconcileFractionsForWorkspace(state.layout, panes, state.columnFractions, state.rowFractions),
+        ...reconcileFractionsForWorkspace(panes, state.columnFractions, state.rowFractions),
       };
     });
     return nextPane.id;
@@ -271,7 +263,7 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
       panes: nextPanes,
       paneViewState: nextPaneViewState,
       focusedPaneId: state.focusedPaneId === paneId ? fallbackFocusedPane?.id ?? null : state.focusedPaneId,
-      ...reconcileFractionsForWorkspace(state.layout, nextPanes, state.columnFractions, state.rowFractions),
+      ...reconcileFractionsForWorkspace(nextPanes, state.columnFractions, state.rowFractions),
     };
   }),
 
@@ -341,26 +333,15 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
     return exists ? { focusedPaneId: paneId } : state;
   }),
 
-  setLayout: (layout) => {
-    const state = get();
-    const nextFractions = reconcileFractionsForWorkspace(
-      layout,
-      state.panes,
-      state.columnFractions,
-      state.rowFractions,
-    );
-    set({ layout, ...nextFractions });
-  },
-
   setInteractionMode: (interactionMode) => set({ interactionMode }),
 
   setColumnFractions: (fractions) => set((state) => {
-    const { columns } = resolveWorkspaceLayout(state.layout, state.panes.length);
+    const { columns } = resolveWorkspaceLayout(state.panes.length);
     return { columnFractions: reconcileTrackFractions(fractions, columns) };
   }),
 
   setRowFractions: (fractions) => set((state) => {
-    const { rows } = resolveWorkspaceLayout(state.layout, state.panes.length);
+    const { rows } = resolveWorkspaceLayout(state.panes.length);
     return { rowFractions: reconcileTrackFractions(fractions, rows) };
   }),
 
@@ -407,7 +388,6 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
   storage: previewWorkspaceStorage,
   version: 1,
   partialize: (state) => ({
-    layout: state.layout,
     interactionMode: state.interactionMode,
     panes: state.panes,
     paneViewState: state.paneViewState,

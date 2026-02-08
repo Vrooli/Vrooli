@@ -22,7 +22,6 @@ describe('previewWorkspaceStore', () => {
     const state = usePreviewWorkspaceStore.getState();
     expect(state.panes).toHaveLength(1);
     expect(state.focusedPaneId).toBe(state.panes[0]?.id ?? null);
-    expect(state.layout).toBe('grid');
     expect(state.interactionMode).toBe('browse');
     expect(state.columnFractions).toEqual([1]);
     expect(state.rowFractions).toEqual([1]);
@@ -86,7 +85,7 @@ describe('previewWorkspaceStore', () => {
     expect(nextState.focusedPaneId).toBe(paneA);
   });
 
-  it('updates pane app, layout, and interaction mode', () => {
+  it('updates pane app and interaction mode', () => {
     const state = usePreviewWorkspaceStore.getState();
     const paneId = state.panes[0]?.id;
     expect(paneId).toBeTruthy();
@@ -96,11 +95,9 @@ describe('previewWorkspaceStore', () => {
     }
 
     usePreviewWorkspaceStore.getState().setPaneApp(paneId, 'scenario-b');
-    usePreviewWorkspaceStore.getState().setLayout('split');
     usePreviewWorkspaceStore.getState().setInteractionMode('arrange');
 
     const nextState = usePreviewWorkspaceStore.getState();
-    expect(nextState.layout).toBe('split');
     expect(nextState.interactionMode).toBe('arrange');
     expect(nextState.panes[0]?.appId).toBe('scenario-b');
   });
@@ -136,10 +133,9 @@ describe('previewWorkspaceStore', () => {
     });
   });
 
-  it('rehydrates panes, focused pane, and split fractions from localStorage', async () => {
+  it('rehydrates panes, focused pane, and fractions from localStorage', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       state: {
-        layout: 'split',
         interactionMode: 'arrange',
         panes: [
           { id: 'pane-a', appId: 'scenario-a', createdAt: 1000 },
@@ -166,7 +162,6 @@ describe('previewWorkspaceStore', () => {
     await usePreviewWorkspaceStore.persist.rehydrate();
 
     const state = usePreviewWorkspaceStore.getState();
-    expect(state.layout).toBe('split');
     expect(state.interactionMode).toBe('arrange');
     expect(state.panes.map((pane) => pane.id)).toEqual(['pane-a', 'pane-b']);
     expect(state.focusedPaneId).toBe('pane-b');

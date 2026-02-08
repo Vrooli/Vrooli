@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
@@ -11,10 +11,14 @@ const {
   openOverlayMock,
   getAppMock,
   controlAppMock,
+  bridgeHarness,
 } = vi.hoisted(() => ({
   openOverlayMock: vi.fn(),
   getAppMock: vi.fn(),
   controlAppMock: vi.fn(),
+  bridgeHarness: {
+    onLocation: null as ((message: { href: string; title?: string | null }) => void) | null,
+  },
 }));
 
 vi.mock('@/hooks/useOverlayRouter', () => ({
@@ -42,7 +46,9 @@ vi.mock('@/services/api', () => ({
 }));
 
 vi.mock('@/hooks/useIframeBridge', () => ({
-  useIframeBridge: () => ({
+  useIframeBridge: (options: { onLocation?: (message: { href: string; title?: string | null }) => void }) => {
+    bridgeHarness.onLocation = options.onLocation ?? null;
+    return ({
     state: {
       isSupported: false,
       href: null,
@@ -78,7 +84,8 @@ vi.mock('@/hooks/useIframeBridge', () => ({
     stopInspect: vi.fn(() => false),
     setInspectTargetIndex: vi.fn(() => false),
     shiftInspectTarget: vi.fn(() => false),
-  }),
+    });
+  },
 }));
 
 vi.mock('@/hooks/useDeviceEmulation', () => ({
@@ -130,6 +137,7 @@ vi.mock('@/components/device-emulation/DeviceVisionFilterDefs', () => ({
 
 vi.mock('@/components/AppPreviewToolbar', () => ({
   default: (props: {
+    onRefresh: () => void;
     onToggleLogs: () => void;
     areLogsVisible: boolean;
     onOpenScenarioSelector: () => void;
@@ -138,6 +146,9 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
     rightInlineActions?: ReactNode;
   }) => (
     <div className="preview-toolbar">
+      <button type="button" aria-label="refresh preview" onClick={props.onRefresh}>
+        Refresh
+      </button>
       <button type="button" aria-label="toggle logs" onClick={props.onToggleLogs}>
         Toggle Logs
       </button>
@@ -197,10 +208,13 @@ const renderPane = (options?: {
 };
 
 describe('PreviewPane', () => {
+  const storageKey = 'app-monitor:preview-workspace-v1';
+
   beforeEach(async () => {
     openOverlayMock.mockReset();
     getAppMock.mockReset();
     controlAppMock.mockReset();
+    bridgeHarness.onLocation = null;
     controlAppMock.mockResolvedValue(true);
     getAppMock.mockResolvedValue(createApp());
     await usePreviewWorkspaceStore.persist.clearStorage();
@@ -288,6 +302,50 @@ describe('PreviewPane', () => {
     fireEvent.load(iframe);
     await waitFor(() => {
       expect(screen.queryByText('Loading preview...')).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps iframe URL on bridge navigation after refresh', async () => {
+    const user = userEvent.setup();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    renderPane({ paneId });
+
+    await waitFor(() => {
+      expect(bridgeHarness.onLocation).not.toBeNull();
+    });
+
+    act(() => {
+      bridgeHarness.onLocation?.({ href: 'http://localhost:4310/settings' });
+    });
+
+    await waitFor(() => {
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.previewUrl).toBe('http://localhost:4310/settings');
+      const iframe = document.querySelector('iframe');
+      expect(iframe?.getAttribute('src')).toBe('http://localhost:4310/settings');
+    });
+
+    await waitFor(() => {
+      const persisted = window.localStorage.getItem(storageKey);
+      expect(persisted).toBeTruthy();
+      if (!persisted) {
+        return;
+      }
+      const parsed = JSON.parse(persisted) as {
+        state?: { paneViewState?: Record<string, { previewUrl?: string }> };
+      };
+      expect(parsed.state?.paneViewState?.[paneId]?.previewUrl).toBe('http://localhost:4310/settings');
+    });
+
+    await user.click(screen.getByRole('button', { name: /refresh preview/i }));
+
+    await waitFor(() => {
+      const iframe = document.querySelector('iframe');
+      expect(iframe?.getAttribute('src')).toBe('http://localhost:4310/settings');
     });
   });
 

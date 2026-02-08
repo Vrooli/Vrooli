@@ -48,6 +48,7 @@ type UsePreviewNavigationResult = {
 };
 
 const normalizeUrl = (value: string): string => value.replace(/\/$/, '');
+const isSameUrl = (left: string, right: string): boolean => normalizeUrl(left) === normalizeUrl(right);
 
 export const usePreviewNavigation = ({
   previewUrl,
@@ -231,7 +232,20 @@ export const usePreviewNavigation = ({
     if (!href) {
       return;
     }
+    setPreviewUrl(href);
     setPreviewUrlInput(href);
+    setHistory(prevHistory => {
+      const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
+      const last = baseHistory[baseHistory.length - 1];
+      if (last && isSameUrl(last, href)) {
+        setHistoryIndex(baseHistory.length - 1);
+        return baseHistory;
+      }
+
+      const nextHistory = [...baseHistory, href];
+      setHistoryIndex(nextHistory.length - 1);
+      return nextHistory;
+    });
     if (!initialPreviewUrlRef.current) {
       initialPreviewUrlRef.current = href;
     }
@@ -243,9 +257,9 @@ export const usePreviewNavigation = ({
       if (!base) {
         return prev;
       }
-      return normalizeUrl(href) !== normalizeUrl(base);
+      return !isSameUrl(href, base);
     });
-  }, [initialPreviewUrlRef, setHasCustomPreviewUrl, setPreviewUrlInput]);
+  }, [historyIndex, initialPreviewUrlRef, setHasCustomPreviewUrl, setHistory, setHistoryIndex, setPreviewUrl, setPreviewUrlInput]);
 
   return {
     canGoBack,
