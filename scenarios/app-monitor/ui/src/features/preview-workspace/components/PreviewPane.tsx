@@ -30,6 +30,7 @@ import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { isRunningStatus, locateAppByIdentifier } from '@/utils/appPreview';
+import { parseScenarioProxyPreviewTarget } from '@/utils/previewUrl';
 import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
 import './PreviewPane.css';
 
@@ -176,7 +177,10 @@ export function PreviewPane({
     logPrefix: '[preview-pane]',
   });
 
-  const deviceEmulation = useDeviceEmulation({ container: previewContainerNode });
+  const deviceEmulation = useDeviceEmulation({
+    container: previewContainerNode,
+    storageNamespace: paneId,
+  });
   const {
     isActive: isDeviceEmulationActive,
     toggleActive: toggleDeviceEmulation,
@@ -230,14 +234,27 @@ export function PreviewPane({
     setStatusMessage('Loading app metadata...');
 
     let cancelled = false;
+    const retainMatchingCurrentApp = (): boolean => {
+      let retained = false;
+      setCurrentApp((previous) => {
+        const stillMatches = Boolean(previous && locateAppByIdentifier([previous], activeAppIdentifier));
+        if (stillMatches) {
+          retained = true;
+          return previous;
+        }
+        return null;
+      });
+      return retained;
+    };
+
     appService.getApp(activeAppIdentifier)
       .then((fetched) => {
         if (cancelled) {
           return;
         }
         if (!fetched) {
-          setCurrentApp(null);
-          setStatusMessage('App not found.');
+          const retained = retainMatchingCurrentApp();
+          setStatusMessage(retained ? 'App metadata unavailable.' : 'App not found.');
           setLoading(false);
           return;
         }
@@ -246,7 +263,7 @@ export function PreviewPane({
       .catch((error) => {
         if (!cancelled) {
           logger.warn('[preview-pane] Failed to load app', error);
-          setCurrentApp(null);
+          retainMatchingCurrentApp();
           setStatusMessage('Failed to load app metadata.');
           setLoading(false);
         }
@@ -455,6 +472,12 @@ export function PreviewPane({
   const toggleActionLabel = lifecycle.toggleActionLabel;
   const restartActionLabel = lifecycle.restartActionLabel;
   const actionInProgress = lifecycle.actionInProgress;
+  const scenarioTargetFromUrl = useMemo(
+    () => parseScenarioProxyPreviewTarget(previewUrlInput),
+    [previewUrlInput],
+  );
+  const scenarioActionIdentifier = activeAppIdentifier ?? scenarioTargetFromUrl?.scenarioIdentifier ?? null;
+  const hasScenarioContext = Boolean(currentApp || scenarioActionIdentifier);
 
   return (
     <div
@@ -489,17 +512,29 @@ export function PreviewPane({
         urlStatusClass={lifecycle.urlStatusClass}
         urlStatusTitle={statusMessage ?? lifecycle.appStatusLabel}
         hasDetailsWarning={false}
-        hasCurrentApp={Boolean(currentApp)}
+        hasCurrentApp={hasScenarioContext}
         isAppRunning={isAppRunning}
         pendingAction={lifecycle.pendingAction}
         actionInProgress={actionInProgress}
         toggleActionLabel={toggleActionLabel}
         onToggleApp={() => {
-          void lifecycle.handleToggleCurrentApp();
+          if (currentApp) {
+            void lifecycle.handleToggleCurrentApp();
+            return;
+          }
+          if (scenarioActionIdentifier) {
+            void lifecycle.runAction(scenarioActionIdentifier, 'start');
+          }
         }}
         restartActionLabel={restartActionLabel}
         onRestartApp={() => {
-          void lifecycle.handleRestartCurrentApp();
+          if (currentApp) {
+            void lifecycle.handleRestartCurrentApp();
+            return;
+          }
+          if (scenarioActionIdentifier) {
+            void lifecycle.runAction(scenarioActionIdentifier, 'restart');
+          }
         }}
         onToggleLogs={() => setIsLogsVisible((value) => !value)}
         areLogsVisible={isLogsVisible}

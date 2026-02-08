@@ -115,6 +115,9 @@ export default function PreviewWorkspaceView() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { openOverlay } = useOverlayRouter();
   const apps = useAppsStore((state) => state.apps);
+  const loadApps = useAppsStore((state) => state.loadApps);
+  const loadingInitial = useAppsStore((state) => state.loadingInitial);
+  const hasInitialized = useAppsStore((state) => state.hasInitialized);
   const [mobileLayout, setMobileLayout] = useState<boolean>(isMobileViewport);
   const [headerHeight, setHeaderHeight] = useState(48);
   const [pinnedRowFractions, setPinnedRowFractions] = useState<number[]>([1]);
@@ -178,6 +181,12 @@ export default function PreviewWorkspaceView() {
     }
     return panes[activeArrangeDrag.dropIndex]?.id ?? null;
   }, [activeArrangeDrag, panes]);
+  useEffect(() => {
+    if (!hasInitialized && !loadingInitial) {
+      void loadApps();
+    }
+  }, [hasInitialized, loadApps, loadingInitial]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;

@@ -113,6 +113,31 @@ describe('PreviewWorkspaceView', () => {
     });
   });
 
+  it('loads apps when workspace mounts before app catalog initialization', async () => {
+    const loadAppsSpy = vi.fn(async () => undefined);
+    useAppsStore.setState({
+      apps: [],
+      loadingInitial: false,
+      loadingDetailed: false,
+      error: null,
+      hasInitialized: false,
+      lastLoadTimestamp: null,
+      loadApps: loadAppsSpy,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(loadAppsSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('replaces the focused pane app for replace-focused intent', async () => {
     const store = usePreviewWorkspaceStore.getState();
     const paneId = store.panes[0]?.id;

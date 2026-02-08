@@ -53,6 +53,8 @@ Use this when a deployment likely already exists and you only have:
 
 ```bash
 scenario-to-cloud deployment resolve --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --json
+VPS_HOST_FROM_RESOLVE=$(scenario-to-cloud deployment resolve --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --json | jq -r '.deployment.host')
+scenario-to-cloud ssh bootstrap "$VPS_HOST_FROM_RESOLVE" --user root --non-interactive
 scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --json
 scenario-to-cloud redeploy --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --if-needed --preflight --wait
 ```
@@ -96,6 +98,15 @@ Use `--host {{VPS_HOST}}` selectors only when a domain selector is unavailable.
 Agent gating rule:
 - If `ssh bootstrap ... --non-interactive` fails **and deployment is missing**, stop and hand off the interactive bootstrap command.
 - If `ssh bootstrap ... --non-interactive` fails **but deployment exists**, continue to `deployment health` and use `ssh_key_auth` status to decide if bootstrap is required before convergence.
+
+`ssh_key_auth` decision table:
+
+| `ssh_key_auth` status | Deployment exists? | Action |
+|---|---|---|
+| `pass` | Yes/No | Continue to health/redeploy path |
+| `warn` with `unknown` | Yes | Continue to `deployment health`; allow one redeploy attempt |
+| `warn` with `unknown` | No | Stop and hand off interactive bootstrap command |
+| `fail` | Yes/No | Stop and hand off interactive bootstrap command |
 
 #### Step 3: Decision tree (always converge to desired state)
 
@@ -179,6 +190,15 @@ scenario-to-cloud deployment health <deployment-id>
 scenario-to-cloud deployment health <deployment-id>
 scenario-to-cloud inspect logs <deployment-id> --tail 200
 ```
+
+Convergence safety rule for `--if-needed`:
+- If `redeploy --if-needed --preflight --wait` succeeds, run selector health and endpoint checks once:
+```bash
+scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --json
+curl -I https://{{DOMAIN}}/health
+```
+- If deployment status is `deployed` and endpoint check is non-5xx, but freshness remains fingerprint-only `outdated`, stop automatic retries and hand off as potential deterministic-bundle/fingerprint drift.
+- Do not loop repeated redeploy attempts in the same session when only fingerprint freshness is drifting.
 
 ---
 

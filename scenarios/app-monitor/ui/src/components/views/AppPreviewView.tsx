@@ -114,7 +114,10 @@ const AppPreviewView = () => {
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [previewContainerNode, setPreviewContainerNode] = useState<HTMLDivElement | null>(null);
   const previousIsFullscreenRef = useRef(false);
-  const deviceEmulation = useDeviceEmulation({ container: previewContainerNode });
+  const deviceEmulation = useDeviceEmulation({
+    container: previewContainerNode,
+    storageNamespace: 'app-preview-view',
+  });
   const {
     isActive: isDeviceEmulationActive,
     toggleActive: toggleDeviceEmulation,

@@ -144,6 +144,7 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
     onSelectUrlSuggestion?: (value: string) => void;
     onToggleApp: () => void;
     onOpenInNewTab: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+    hasCurrentApp: boolean;
     rightInlineActions?: ReactNode;
   }) => (
     <div className="preview-toolbar">
@@ -169,6 +170,7 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
       <button type="button" aria-label="open in new tab" onClick={props.onOpenInNewTab}>
         Open in New Tab
       </button>
+      <span data-testid="toolbar-has-current-app">{String(props.hasCurrentApp)}</span>
       {props.rightInlineActions}
       <span>{props.areLogsVisible ? 'logs-visible' : 'logs-hidden'}</span>
     </div>
@@ -434,6 +436,114 @@ describe('PreviewPane', () => {
       const iframe = document.querySelector('iframe');
       expect(iframe).not.toBeNull();
       expect(iframe?.getAttribute('src')).toBe('https://example.com/path');
+    });
+  });
+
+  it('keeps hasCurrentApp when metadata refresh fails for an already-resolved pane app', async () => {
+    const app = createApp();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={app.id}
+          apps={[app]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('toolbar-has-current-app')).toHaveTextContent('true');
+
+    getAppMock.mockRejectedValueOnce(new Error('temporary metadata failure'));
+
+    rerender(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={app.id}
+          apps={[]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledWith(app.id);
+      expect(screen.getByTestId('toolbar-has-current-app')).toHaveTextContent('true');
+    });
+  });
+
+  it('treats pane app identifier as scenario context when metadata is unavailable', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    getAppMock.mockRejectedValueOnce(new Error('temporary metadata failure'));
+
+    render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId="git-control-tower"
+          apps={[]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledWith('git-control-tower');
+      expect(screen.getByTestId('toolbar-has-current-app')).toHaveTextContent('true');
+    });
+  });
+
+  it('treats scenario proxy URL input as scenario context even without pane app id', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneId, {
+      previewUrl: 'https://app-monitor.itsagitime.com/apps/git-control-tower/proxy/',
+      previewUrlInput: 'https://app-monitor.itsagitime.com/apps/git-control-tower/proxy/',
+      hasCustomPreviewUrl: true,
+      history: ['https://app-monitor.itsagitime.com/apps/git-control-tower/proxy/'],
+      historyIndex: 0,
+      initialPreviewUrl: 'https://app-monitor.itsagitime.com/apps/git-control-tower/proxy/',
+    });
+
+    render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={null}
+          apps={[]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toolbar-has-current-app')).toHaveTextContent('true');
     });
   });
 

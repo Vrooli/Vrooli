@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { logger } from '@/services/logger';
 
 export const DEVICE_EMULATION_STORAGE_KEY = 'app-monitor:device-emulation-settings';
+const DEFAULT_DEVICE_EMULATION_STORAGE_NAMESPACE = 'default';
 const DEVICE_MIN_WIDTH = 240;
 const DEVICE_MIN_HEIGHT = 320;
 const DEVICE_MAX_DIMENSION = 2400;
@@ -134,13 +135,21 @@ const sanitizeDeviceEmulationState = (
   };
 };
 
-const readDeviceEmulationSettings = (): { active: boolean; state: DeviceEmulationState } => {
+const resolveStorageKey = (storageNamespace?: string): string => {
+  const normalizedNamespace = typeof storageNamespace === 'string' ? storageNamespace.trim() : '';
+  const namespace = normalizedNamespace.length > 0
+    ? normalizedNamespace
+    : DEFAULT_DEVICE_EMULATION_STORAGE_NAMESPACE;
+  return `${DEVICE_EMULATION_STORAGE_KEY}:${namespace}`;
+};
+
+const readDeviceEmulationSettings = (storageNamespace?: string): { active: boolean; state: DeviceEmulationState } => {
   if (typeof window === 'undefined') {
     return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
   }
 
   try {
-    const raw = window.localStorage.getItem(DEVICE_EMULATION_STORAGE_KEY);
+    const raw = window.localStorage.getItem(resolveStorageKey(storageNamespace));
     if (!raw) {
       return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
     }
@@ -167,14 +176,14 @@ const readDeviceEmulationSettings = (): { active: boolean; state: DeviceEmulatio
   }
 };
 
-const writeDeviceEmulationSettings = (active: boolean, state: DeviceEmulationState) => {
+const writeDeviceEmulationSettings = (active: boolean, state: DeviceEmulationState, storageNamespace?: string) => {
   if (typeof window === 'undefined') {
     return;
   }
 
   try {
     window.localStorage.setItem(
-      DEVICE_EMULATION_STORAGE_KEY,
+      resolveStorageKey(storageNamespace),
       JSON.stringify({ active, state: sanitizeDeviceEmulationState(state) }),
     );
   } catch (error) {
@@ -184,6 +193,7 @@ const writeDeviceEmulationSettings = (active: boolean, state: DeviceEmulationSta
 
 interface UseDeviceEmulationOptions {
   container: HTMLDivElement | null;
+  storageNamespace?: string;
 }
 
 interface DeviceEmulationToolbarBindings {
@@ -226,8 +236,11 @@ interface DeviceEmulationHookValue {
   viewport: DeviceEmulationViewportBindings;
 }
 
-export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): DeviceEmulationHookValue => {
-  const initialSettings = useMemo(() => readDeviceEmulationSettings(), []);
+export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmulationOptions): DeviceEmulationHookValue => {
+  const initialSettings = useMemo(
+    () => readDeviceEmulationSettings(storageNamespace),
+    [storageNamespace],
+  );
   const [state, setState] = useState<DeviceEmulationState>(initialSettings.state);
   const [isActive, setIsActive] = useState<boolean>(initialSettings.active);
   const [viewportBounds, setViewportBounds] = useState<Readonly<{ width: number; height: number }>>({
@@ -421,8 +434,8 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
   }, [currentZoomDisplayLimits, isActive, selectedPreset.id, state.customHeight, state.customWidth, state.isRotated, state.zoom]);
 
   useEffect(() => {
-    writeDeviceEmulationSettings(isActive, state);
-  }, [isActive, state]);
+    writeDeviceEmulationSettings(isActive, state, storageNamespace);
+  }, [isActive, state, storageNamespace]);
 
   useLayoutEffect(() => {
     if (!isActive || typeof window === 'undefined') {
