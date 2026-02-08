@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { Info, Loader2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
 import { appService } from '@/services/api';
 import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
@@ -34,7 +34,6 @@ import DeviceEmulationViewport from '../device-emulation/DeviceEmulationViewport
 import DeviceVisionFilterDefs from '../device-emulation/DeviceVisionFilterDefs';
 import { useAppLogs } from '@/hooks/useAppLogs';
 import AppLogsPanel from '../logs/AppLogsPanel';
-import { useIosAutobackGuard, isIosSafariUserAgent } from './useIosAutobackGuard';
 import { usePreviewCapture } from './usePreviewCapture';
 import { useScheduledTimeout } from '@/hooks/useTimeout';
 import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
@@ -60,6 +59,7 @@ import type { PreviewLocationState } from '@/types/preview';
 import { isPreviewLocationState } from '@/types/preview';
 import { HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER, type BridgeShortcutIntent } from '@vrooli/iframe-bridge';
 import { isPreviewDebugEventsEnabled } from '@/utils/previewDebug';
+import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
 import './AppPreviewView.css';
 
 const AppPreviewView = () => {
@@ -88,7 +88,6 @@ const AppPreviewView = () => {
     return params.get('paneLogs') === '1';
   }, [location.search]);
   const [isLogsPanelOpen, setIsLogsPanelOpen] = useState(shouldOpenLogsFromQuery);
-  const isIosSafari = useMemo(() => isIosSafariUserAgent(), []);
   const { schedule: scheduleAutoNextPrepare, clear: clearAutoNextPrepare } = useScheduledTimeout();
   useEffect(() => {
     if (shouldOpenLogsFromQuery) {
@@ -152,23 +151,9 @@ const AppPreviewView = () => {
 
     openOverlay('tabs');
   }, [activeOverlay, openOverlay]);
-  const clearPreviewGuardForNavigation = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const guard = window.__appMonitorPreviewGuard;
-    if (!guard) {
-      return;
-    }
-    guard.active = false;
-    guard.key = null;
-    guard.recoverPath = null;
-    guard.recoverState = null;
-  }, []);
   const previewSession = usePreviewNavigationSession({
     iframeRef,
     setStatusMessage,
-    onBeforeLocalNavigation: clearPreviewGuardForNavigation,
     onShortcut: handleBridgeShortcut,
   });
   const {
@@ -438,26 +423,6 @@ const AppPreviewView = () => {
     });
   }, [currentApp?.id, isLogsPanelOpen, recordNavigateEvent]);
 
-  const updatePreviewGuard = useCallback((patch: Record<string, unknown>) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const guard = window.__appMonitorPreviewGuard ?? {
-      active: false,
-      armedAt: 0,
-      ttl: PREVIEW_TIMEOUTS.IOS_AUTOBACK_GUARD,
-      key: null,
-      appId: null,
-      recoverPath: null,
-      ignoreNextPopstate: false,
-      lastSuppressedAt: 0,
-    };
-    Object.assign(guard, patch);
-    guard.ttl = typeof guard.ttl === 'number' ? guard.ttl : PREVIEW_TIMEOUTS.IOS_AUTOBACK_GUARD;
-    window.__appMonitorPreviewGuard = guard;
-    recordDebugEvent('preview-guard-update', guard);
-  }, [recordDebugEvent]);
-
   useEffect(() => {
     if (!hasInitialized && !loadingInitial) {
       void loadApps();
@@ -522,41 +487,33 @@ const AppPreviewView = () => {
     recordDebugEvent('preview-mount', {
       appId,
       locationState,
-      isIosSafari,
       pathname: location.pathname,
     });
     return () => {
       recordDebugEvent('preview-unmount', {
         appId: previousAppId,
       });
-      updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
     };
-  }, [appId, previousAppId, isIosSafari, location.pathname, locationState, recordDebugEvent, updatePreviewGuard]);
-
-  useIosAutobackGuard({
-    appId: appId ?? null,
-    guardTtlMs: PREVIEW_TIMEOUTS.IOS_AUTOBACK_GUARD,
-    isIosSafari,
-    lastAppId: previousAppId ?? null,
-    location,
-    locationState,
-    navigate,
-    recordDebugEvent,
-    recordNavigateEvent,
-    updatePreviewGuard,
-  });
+  }, [appId, previousAppId, location.pathname, locationState, recordDebugEvent]);
 
   // matchesAppIdentifier is now imported from utils/appPreview
 
+  const preserveErrorMessages = useMemo(
+    () => [PREVIEW_MESSAGES.NO_UI, scenarioStoppedMessage],
+    [scenarioStoppedMessage],
+  );
+
   // Use shared preview overlay hook
-  const { previewOverlay, setPreviewOverlay } = usePreviewOverlay({
+  const { setPreviewOverlay, fallbackState } = usePreviewOverlay({
     previewUrl,
     previewReloadToken,
+    loading,
+    statusMessage,
+    defaultEmptyMessage: 'Preview unavailable.',
     bridgeIsReady: bridgeState.isReady,
     iframeLoadedAt,
     iframeLoadError,
-    scenarioStoppedMessage,
-    previewNoUiMessage: PREVIEW_MESSAGES.NO_UI,
+    preserveErrorMessages,
   });
 
   // Use shared preview background color hook
@@ -850,13 +807,12 @@ const AppPreviewView = () => {
         replace: true,
         locationState,
       });
-      updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
       navigate({
         pathname: '/apps',
         search: location.search || undefined,
       }, { replace: true });
     }
-  }, [appId, location.search, locationState, navigate, recordNavigateEvent, updatePreviewGuard]);
+  }, [appId, location.search, locationState, navigate, recordNavigateEvent]);
 
   // Consolidated appId-related state reset and cleanup
   useEffect(() => {
@@ -1121,9 +1077,8 @@ const AppPreviewView = () => {
   }, [handleOpenPreviewInNewTabRaw]);
 
   const handleToggleLogsFromToolbar = useCallback(() => {
-    updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
     toggleLogsPanel();
-  }, [toggleLogsPanel, updatePreviewGuard]);
+  }, [toggleLogsPanel]);
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(null);
@@ -1362,34 +1317,16 @@ const AppPreviewView = () => {
               onError={handleIframeError}
             />
           )}
-          {/* Show immediate loading overlay when iframe hasn't loaded yet */}
-          {previewUrl && loading && !iframeLoadedAt && !iframeLoadError && !previewOverlay && (
-            <div
-              className="preview-iframe-overlay preview-iframe-overlay--waiting"
-              aria-live="polite"
-            >
-              <Loader2 aria-hidden size={26} className="spinning" />
-              <span>Loading preview...</span>
-            </div>
-          )}
-          {previewOverlay && (
-            <div
-              className={clsx('preview-iframe-overlay', `preview-iframe-overlay--${previewOverlay.type}`)}
-              aria-live="polite"
-            >
-              {(previewOverlay.type === 'restart' || previewOverlay.type === 'waiting') ? (
-                <Loader2 aria-hidden size={26} className="spinning" />
-              ) : (
-                <Info aria-hidden size={26} />
-              )}
-              <span>{previewOverlay.message}</span>
-            </div>
-          )}
+          {fallbackState && <PreviewFallbackState state={fallbackState} variant="overlay" />}
         </div>
       ) : (
-        <div className="preview-placeholder">
-          {loading ? `Fetching ${scenarioDisplayName} details` : statusMessage ?? 'Preview unavailable.'}
-        </div>
+        fallbackState ? (
+          <PreviewFallbackState state={fallbackState} variant="panel" />
+        ) : (
+          <div className="preview-placeholder">
+            {loading ? `Fetching ${scenarioDisplayName} details` : statusMessage ?? 'Preview unavailable.'}
+          </div>
+        )
       )}
 
       {modalOpen && currentApp && (
@@ -1405,7 +1342,6 @@ const AppPreviewView = () => {
                 reason: 'modal-view-logs',
                 targetPath: `/logs/${appIdentifier}`,
               });
-              updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
               navigate(`/logs/${appIdentifier}`);
             }}
             proxyMetadata={proxyMetadata}

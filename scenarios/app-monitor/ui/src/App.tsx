@@ -1,7 +1,6 @@
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Shell from '@/components/Shell';
 import HomeView from '@/components/views/HomeView';
-import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import { KeyboardScopeProvider } from '@/hooks/useKeyboardScopes';
 import { logger } from '@/services/logger';
@@ -57,16 +56,6 @@ function LogsAppRedirect() {
   const search = params.toString();
   const targetSearch = search ? `?${search}` : '?paneLogs=1';
   const targetPath = appId ? `/apps/${encodeURIComponent(appId)}/preview${targetSearch}` : '';
-
-  useEffect(() => {
-    if (!appId || !isIosSafariUserAgent()) {
-      return;
-    }
-    primePreviewGuardForNavigation({
-      appId,
-      recoverPath: targetPath,
-    });
-  }, [appId, targetPath]);
 
   if (!appId) {
     return <TabOverlayRedirect segment="apps" />;

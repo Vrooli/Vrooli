@@ -8,6 +8,7 @@ import type {
   DeviceColorScheme,
   DeviceZoomLevel,
 } from '@/hooks/useDeviceEmulation';
+import './deviceEmulation.css';
 
 const DeviceEmulationToolbar = ({
   presets,

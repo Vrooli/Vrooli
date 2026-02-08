@@ -111,11 +111,6 @@ vi.mock('@/hooks/useKeyboardScopes', () => ({
   useKeyboardScope: vi.fn(),
 }));
 
-vi.mock('./useIosAutobackGuard', () => ({
-  useIosAutobackGuard: vi.fn(),
-  isIosSafariUserAgent: () => false,
-}));
-
 vi.mock('@/hooks/usePreviewNavigationSession', async () => {
   const React = await import('react');
   return {
@@ -242,7 +237,7 @@ vi.mock('@/hooks/usePreviewCapture', () => ({
 }));
 
 vi.mock('@/hooks/usePreviewOverlay', () => ({
-  usePreviewOverlay: () => ({ previewOverlay: null, setPreviewOverlay: vi.fn() }),
+  usePreviewOverlay: () => ({ previewOverlay: null, setPreviewOverlay: vi.fn(), fallbackState: null }),
 }));
 
 vi.mock('@/hooks/usePreviewBackgroundColor', () => ({

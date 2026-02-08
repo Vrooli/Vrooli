@@ -10,7 +10,6 @@ import { resolveAppIdentifier } from '@/utils/appPreview';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
 import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
-import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
 import type { App, Resource } from '@/types';
 import {
@@ -315,23 +314,12 @@ export default function TabSwitcherDialog() {
       autoSelectedAt: options?.autoSelected ? Date.now() : undefined,
     } as const;
 
-    let recoverPath = targetPath;
-
     let workspaceTarget: string | null = null;
     if (appOpenMode !== 'single-preview') {
       const workspaceParams = new URLSearchParams();
       workspaceParams.set(WORKSPACE_INTENT_APP_ID_KEY, identifier);
       workspaceParams.set(WORKSPACE_INTENT_MODE_KEY, appOpenMode);
       workspaceTarget = `/apps/workspace?${workspaceParams.toString()}`;
-      recoverPath = workspaceTarget;
-    }
-
-    if (isIosSafariUserAgent()) {
-      const guardAppId = app.id ?? identifier;
-      primePreviewGuardForNavigation({
-        appId: guardAppId,
-        recoverPath,
-      });
     }
 
     if (appOpenMode === 'single-preview') {

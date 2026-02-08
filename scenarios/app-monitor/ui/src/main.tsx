@@ -38,48 +38,7 @@ const sendDebugEvent = (event: string, detail?: Record<string, unknown>) => {
 
 if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
   const history = window.history as typeof window.history & { __appMonitorDebugPatched?: boolean }
-  const globalWindow = window as typeof window & {
-    __appMonitorPreviewGuard?: {
-      active: boolean
-      armedAt: number
-      ttl: number
-      key: string | null
-      appId: string | null
-      recoverPath: string | null
-      ignoreNextPopstate?: boolean
-      lastSuppressedAt?: number
-      recoverState?: unknown
-    }
-  }
-  if (!globalWindow.__appMonitorPreviewGuard) {
-    globalWindow.__appMonitorPreviewGuard = {
-      active: false,
-      armedAt: 0,
-      ttl: 15000,
-      key: null,
-      appId: null,
-      recoverPath: null,
-      ignoreNextPopstate: false,
-      lastSuppressedAt: 0,
-      recoverState: null,
-    }
-  }
   if (!history.__appMonitorDebugPatched) {
-    const resolvePathWithSearch = (target?: string | URL | null) => {
-      try {
-        if (typeof target === 'string') {
-          const resolved = target.startsWith('http') ? new URL(target) : new URL(target, window.location.origin)
-          return `${resolved.pathname}${resolved.search ?? ''}`
-        }
-        if (target instanceof URL) {
-          return `${target.pathname}${target.search ?? ''}`
-        }
-      } catch {
-        // Ignore malformed URLs and fall back to current location
-      }
-      return `${window.location.pathname}${window.location.search ?? ''}`
-    }
-
     const wrapHistoryMethod = <T extends 'pushState' | 'replaceState'>(method: T) => {
       const original = history[method]
       return function patched(this: typeof history, state: unknown, title: string, url?: string | URL | null) {
@@ -89,87 +48,17 @@ if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
           title,
           url: normalizedUrl,
         })
-        const result = original.apply(this, [state, title, url])
-        try {
-          const guard = globalWindow.__appMonitorPreviewGuard
-          if (guard?.active && guard.recoverPath) {
-            const targetPath = resolvePathWithSearch(url)
-            if (targetPath === guard.recoverPath) {
-              guard.recoverState = state
-              if (
-                typeof state === 'object'
-                && state !== null
-                && 'key' in state
-                && typeof (state as Record<string, unknown>).key === 'string'
-              ) {
-                guard.key = (state as Record<string, unknown>).key as string
-              }
-              globalWindow.__appMonitorPreviewGuard = guard
-              sendDebugEvent('history-guard-primed', {
-                method,
-                targetPath,
-              })
-            }
-          }
-        } catch {
-          // Guard instrumentation errors are non-fatal
-        }
-        return result
+        return original.apply(this, [state, title, url])
       }
     }
 
     history.pushState = wrapHistoryMethod('pushState')
     history.replaceState = wrapHistoryMethod('replaceState')
 
-    const extractStateKey = (state: unknown): string | null => {
-      if (!state || typeof state !== 'object') {
-        return null
-      }
-      if ('key' in state && typeof (state as Record<string, unknown>).key === 'string') {
-        return (state as Record<string, unknown>).key as string
-      }
-      return null
-    }
-
     window.addEventListener('popstate', (event) => {
       sendDebugEvent('history-popstate', {
         state: event.state,
       })
-      const guard = globalWindow.__appMonitorPreviewGuard
-      if (!guard) return
-      if (guard.ignoreNextPopstate) {
-        guard.ignoreNextPopstate = false
-        sendDebugEvent('history-popstate-ignored', {
-          reason: 'recover-forward',
-          state: event.state,
-        })
-        return
-      }
-
-      const now = Date.now()
-      const currentPath = `${window.location.pathname}${window.location.search ?? ''}`
-      const withinGuard = guard.active && now - guard.armedAt <= guard.ttl
-      const guardKey = guard.key ?? null
-      const poppedStateKey = extractStateKey(event.state)
-      const stateMismatch = Boolean(guardKey && guardKey !== poppedStateKey)
-
-      if (withinGuard) {
-        sendDebugEvent('history-popstate-suppressed', {
-          state: event.state,
-          currentPath,
-          guard,
-          stateMismatch,
-        })
-        guard.lastSuppressedAt = now
-        guard.ignoreNextPopstate = true
-        guard.active = true
-        guard.armedAt = now
-        const recoverUrl = guard.recoverPath ?? currentPath
-        const recoverState: unknown = guard.recoverState ?? history.state
-        history.pushState(recoverState ?? {}, '', recoverUrl)
-        window.dispatchEvent(new PopStateEvent('popstate', { state: recoverState }))
-        return
-      }
     })
     history.__appMonitorDebugPatched = true
   }

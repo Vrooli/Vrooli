@@ -22,6 +22,7 @@ import type { PreviewNavigationSessionSnapshot } from '@/hooks/usePreviewNavigat
 import { usePreviewReportSession } from '@/hooks/usePreviewReportSession';
 import { usePreviewToolbarSession } from '@/hooks/usePreviewToolbarSession';
 import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
+import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
@@ -29,6 +30,7 @@ import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { isRunningStatus, locateAppByIdentifier } from '@/utils/appPreview';
+import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
 import './PreviewPane.css';
 
 export interface PreviewPaneProps {
@@ -66,6 +68,7 @@ export function PreviewPane({
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isFullView, setIsFullView] = useState(false);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
+  const [iframeLoadedAt, setIframeLoadedAt] = useState<number | null>(null);
   const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
@@ -142,6 +145,16 @@ export function PreviewPane({
     () => bridgeState.href || previewUrl || '',
     [bridgeState.href, previewUrl],
   );
+  const { setPreviewOverlay, fallbackState } = usePreviewOverlay({
+    previewUrl,
+    previewReloadToken,
+    loading,
+    statusMessage,
+    defaultEmptyMessage: 'Select an app to start this pane.',
+    bridgeIsReady: bridgeState.isReady,
+    iframeLoadedAt,
+    iframeLoadError,
+  });
   const {
     reportElementCaptures,
     setHasPrimaryCaptureDraft,
@@ -283,11 +296,13 @@ export function PreviewPane({
   }, [currentApp, syncPreviewUrl]);
 
   useEffect(() => {
+    setPreviewOverlay(null);
     setIframeLoadError(null);
+    setIframeLoadedAt(null);
     if (previewUrl) {
       setLoading(true);
     }
-  }, [previewUrl, previewReloadToken]);
+  }, [previewReloadToken, previewUrl, setPreviewOverlay]);
 
   const logsState = useAppLogs({
     app: currentApp,
@@ -302,7 +317,9 @@ export function PreviewPane({
 
     setLoading(true);
     setStatusMessage('Refreshing preview...');
+    setPreviewOverlay(null);
     setIframeLoadError(null);
+    setIframeLoadedAt(null);
     resetBridgeState();
     setPreviewReloadToken((value) => value + 1);
 
@@ -318,7 +335,7 @@ export function PreviewPane({
       .finally(() => {
         setLoading(false);
       });
-  }, [activeAppIdentifier, resetBridgeState]);
+  }, [activeAppIdentifier, resetBridgeState, setPreviewOverlay]);
 
   const {
     openPreviewTarget,
@@ -353,12 +370,15 @@ export function PreviewPane({
 
   const onIframeLoad = useCallback(() => {
     setLoading(false);
+    setIframeLoadedAt(Date.now());
     setIframeLoadError(null);
     setStatusMessage(null);
-  }, []);
+    setPreviewOverlay(null);
+  }, [setPreviewOverlay]);
 
   const onIframeError = useCallback(() => {
     setLoading(false);
+    setIframeLoadedAt(null);
     setIframeLoadError('Preview iframe failed to load.');
   }, []);
 
@@ -367,6 +387,7 @@ export function PreviewPane({
     enabled: loading && Boolean(previewUrl) && !iframeLoadError,
     onReady: () => {
       setLoading(false);
+      setIframeLoadedAt(Date.now());
       setIframeLoadError(null);
       setStatusMessage(null);
     },
@@ -562,17 +583,16 @@ export function PreviewPane({
                 onError={onIframeError}
               />
             )}
-            {loading && !iframeLoadError && (
-              <div className="preview-pane__overlay" role="status">Loading preview...</div>
-            )}
-            {iframeLoadError && (
-              <div className="preview-pane__overlay preview-pane__overlay--error" role="status">{iframeLoadError}</div>
-            )}
+            {fallbackState && <PreviewFallbackState state={fallbackState} variant="overlay" />}
           </div>
         ) : (
-          <div className="preview-pane__empty" role="status">
-            {statusMessage ?? 'Select an app to start this pane.'}
-          </div>
+          fallbackState ? (
+            <PreviewFallbackState state={fallbackState} variant="panel" />
+          ) : (
+            <div className="preview-pane__empty" role="status">
+              {statusMessage ?? 'Select an app to start this pane.'}
+            </div>
+          )
         )}
       </div>
 

@@ -7,6 +7,9 @@ import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import type { App } from '@/types';
 import PreviewWorkspaceView from './PreviewWorkspaceView';
 
+const WORKSPACE_STORAGE_KEY = 'app-monitor:preview-workspace-v1';
+let mockPaneContentHeightPx = 0;
+
 vi.mock('./PreviewPane', () => ({
   default: ({
     paneId,
@@ -18,6 +21,10 @@ vi.mock('./PreviewPane', () => ({
     onArrangeDragStart: (paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
   }) => (
     <div data-testid={`preview-pane-${paneId}`}>
+      <div
+        data-testid={`preview-pane-content-${paneId}`}
+        style={mockPaneContentHeightPx > 0 ? { height: `${mockPaneContentHeightPx}px` } : undefined}
+      />
       <button
         type="button"
         aria-label={`Drag pane ${paneId}`}
@@ -64,6 +71,7 @@ const buildApp = (id: string): App => ({
 
 describe('PreviewWorkspaceView', () => {
   beforeEach(async () => {
+    mockPaneContentHeightPx = 0;
     if (!HTMLElement.prototype.setPointerCapture) {
       Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
         configurable: true,
@@ -261,7 +269,126 @@ describe('PreviewWorkspaceView', () => {
     });
   });
 
-  it('expands remaining row to full viewport height when reduced to one row', async () => {
+  it('resizes workspace rows via splitter drag and stores fractions', async () => {
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    usePreviewWorkspaceStore.getState().addPane('scenario-b');
+    const setRowFractionsSpy = vi.fn();
+    usePreviewWorkspaceStore.setState({ setRowFractions: setRowFractionsSpy });
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const panesContainer = document.querySelector('.preview-workspace__panes');
+    expect(panesContainer).not.toBeNull();
+    if (!panesContainer) {
+      return;
+    }
+
+    Object.defineProperty(panesContainer, 'clientHeight', {
+      configurable: true,
+      value: 900,
+    });
+
+    const resizeButton = screen.getByRole('button', { name: /resize row 1/i });
+    fireEvent.pointerDown(resizeButton, { pointerId: 4, clientX: 400, clientY: 520 });
+    fireEvent.pointerMove(window, { pointerId: 4, clientX: 400, clientY: 350 });
+    fireEvent.pointerUp(window, { pointerId: 4 });
+
+    await waitFor(() => {
+      expect(setRowFractionsSpy).toHaveBeenCalled();
+    });
+  });
+
+  it('restores row sizing from persisted workspace fractions after rehydrate', async () => {
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({
+      state: {
+        interactionMode: 'browse',
+        panes: [
+          { id: 'pane-a', appId: 'scenario-a', createdAt: 1000 },
+          { id: 'pane-b', appId: 'scenario-b', createdAt: 1001 },
+          { id: 'pane-c', appId: null, createdAt: 1002 },
+        ],
+        paneViewState: {},
+        focusedPaneId: 'pane-c',
+        pinnedPaneId: null,
+        pinnedColumn: null,
+        columnFractions: [0.45, 0.55],
+        rowFractions: [0.2, 0.8],
+      },
+      version: 1,
+    }));
+    await usePreviewWorkspaceStore.persist.rehydrate();
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const panesContainer = document.querySelector('.preview-workspace__panes') as HTMLElement | null;
+      expect(panesContainer).not.toBeNull();
+      if (!panesContainer) {
+        return;
+      }
+      expect(panesContainer.style.gridTemplateRows).toContain('0.2fr');
+      expect(panesContainer.style.gridTemplateRows).toContain('0.8fr');
+    });
+  });
+
+  it('keeps workspace grid height stable during loading-to-content handoff', async () => {
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    usePreviewWorkspaceStore.getState().addPane('scenario-b');
+
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 900,
+    });
+
+    const { rerender } = render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const panesContainer = document.querySelector('.preview-workspace__panes') as HTMLElement | null;
+    expect(panesContainer).not.toBeNull();
+    if (!panesContainer) {
+      return;
+    }
+    const initialHeight = panesContainer.style.height;
+    expect(initialHeight.length).toBeGreaterThan(0);
+
+    mockPaneContentHeightPx = 2400;
+    rerender(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const updatedContainer = document.querySelector('.preview-workspace__panes') as HTMLElement | null;
+      expect(updatedContainer).not.toBeNull();
+      if (!updatedContainer) {
+        return;
+      }
+      expect(updatedContainer.style.height).toBe(initialHeight);
+      expect(updatedContainer.style.minHeight).toBe(initialHeight);
+    });
+  });
+
+  it('expands remaining row to full height fraction when reduced to one row', async () => {
     usePreviewWorkspaceStore.getState().addPane('scenario-a');
     const removablePaneId = usePreviewWorkspaceStore.getState().addPane('scenario-b');
 
@@ -284,10 +411,7 @@ describe('PreviewWorkspaceView', () => {
       if (!panesContainer) {
         return;
       }
-      const firstRowMatch = panesContainer.style.gridTemplateRows.match(/minmax\(240px,\s*([0-9.]+)px\)/);
-      expect(firstRowMatch).not.toBeNull();
-      const firstRowHeight = firstRowMatch ? Number(firstRowMatch[1]) : 0;
-      expect(firstRowHeight).toBeLessThanOrEqual(300);
+      expect(panesContainer.style.gridTemplateRows).not.toBe('minmax(0, 1fr)');
     });
 
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`remove pane ${removablePaneId}`, 'i') }));
@@ -299,11 +423,7 @@ describe('PreviewWorkspaceView', () => {
       if (!panesContainer) {
         return;
       }
-
-      const singleRowMatch = panesContainer.style.gridTemplateRows.match(/minmax\(240px,\s*([0-9.]+)px\)/);
-      expect(singleRowMatch).not.toBeNull();
-      const singleRowHeight = singleRowMatch ? Number(singleRowMatch[1]) : 0;
-      expect(singleRowHeight).toBeGreaterThan(600);
+      expect(panesContainer.style.gridTemplateRows).toBe('minmax(0, 1fr)');
     });
   });
 

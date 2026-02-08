@@ -36,6 +36,7 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   background: rgba(4, 8, 20, 0.88);
 }
 
@@ -64,10 +65,7 @@
   background: rgba(12, 18, 36, 0.92);
 }
 
-.preview-pane__overlay,
 .preview-pane__empty {
-  position: absolute;
-  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,10 +74,6 @@
   color: var(--app-text-primary);
   background: rgba(10, 14, 28, 0.76);
   font-size: 0.88rem;
-}
-
-.preview-pane__overlay--error {
-  color: #ffc1c1;
 }
 
 .preview-pane__empty {

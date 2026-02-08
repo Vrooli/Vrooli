@@ -1,40 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PREVIEW_TIMEOUTS, PREVIEW_MESSAGES } from '@/components/views/previewConstants';
 import type { PreviewOverlayState } from '@/types/preview';
 
 interface UsePreviewOverlayOptions {
   previewUrl: string | null;
   previewReloadToken: number;
+  loading: boolean;
+  statusMessage: string | null;
+  defaultEmptyMessage?: string;
   bridgeIsReady: boolean;
   iframeLoadedAt: number | null;
   iframeLoadError: string | null;
-  scenarioStoppedMessage: string;
-  previewNoUiMessage: string;
+  preserveErrorMessages?: readonly string[];
 }
+
+export type PreviewFallbackState = {
+  type: 'loading' | 'waiting' | 'restart' | 'error' | 'empty';
+  message: string;
+  showSkeleton: boolean;
+  showSpinner: boolean;
+  isBlocking: boolean;
+};
 
 export interface UsePreviewOverlayReturn {
   previewOverlay: PreviewOverlayState;
   setPreviewOverlay: React.Dispatch<React.SetStateAction<PreviewOverlayState>>;
+  fallbackState: PreviewFallbackState | null;
 }
 
 export const usePreviewOverlay = ({
   previewUrl,
   previewReloadToken,
+  loading,
+  statusMessage,
+  defaultEmptyMessage,
   bridgeIsReady,
   iframeLoadedAt,
   iframeLoadError,
-  scenarioStoppedMessage,
-  previewNoUiMessage,
+  preserveErrorMessages = [],
 }: UsePreviewOverlayOptions): UsePreviewOverlayReturn => {
   const [previewOverlay, setPreviewOverlay] = useState<PreviewOverlayState>(null);
+  const preserveErrorKey = preserveErrorMessages.join('\u241f');
+  const persistentMessages = useMemo(() => new Set(preserveErrorMessages), [preserveErrorKey]);
 
   useEffect(() => {
-    // Check if we should preserve the current overlay state
     setPreviewOverlay(current => {
-      const preserveErrorOverlay = current?.type === 'error' && (
-        current.message === previewNoUiMessage ||
-        current.message === scenarioStoppedMessage
-      );
+      const preserveErrorOverlay = current?.type === 'error' && persistentMessages.has(current.message);
 
       if (preserveErrorOverlay) {
         return current;
@@ -65,17 +76,16 @@ export const usePreviewOverlay = ({
         return current;
       }
 
-      // If we reach here, we need to show loading state
       return current;
     });
 
-    // Early return if no preview URL or already loaded
     if (!previewUrl || bridgeIsReady || iframeLoadedAt) {
       return;
     }
 
     let cancelled = false;
     let waitingApplied = false;
+
     const waitingTimeoutId = window.setTimeout(() => {
       if (cancelled) {
         return;
@@ -91,6 +101,7 @@ export const usePreviewOverlay = ({
         return { type: 'waiting', message: PREVIEW_MESSAGES.CONNECTING };
       });
     }, PREVIEW_TIMEOUTS.WAITING_DELAY);
+
     const timeoutId = window.setTimeout(() => {
       if (cancelled || bridgeIsReady || iframeLoadedAt) {
         return;
@@ -134,12 +145,76 @@ export const usePreviewOverlay = ({
     bridgeIsReady,
     iframeLoadedAt,
     iframeLoadError,
-    scenarioStoppedMessage,
-    previewNoUiMessage,
+    persistentMessages,
   ]);
+
+  const fallbackState = (() => {
+    if (loading) {
+      return {
+        type: 'loading',
+        message: statusMessage ?? 'Loading preview...',
+        showSkeleton: true,
+        showSpinner: false,
+        isBlocking: true,
+      } satisfies PreviewFallbackState;
+    }
+
+    if (!previewUrl) {
+      return {
+        type: 'empty',
+        message: statusMessage ?? defaultEmptyMessage ?? 'Preview unavailable.',
+        showSkeleton: false,
+        showSpinner: false,
+        isBlocking: true,
+      } satisfies PreviewFallbackState;
+    }
+
+    if (previewOverlay) {
+      if (previewOverlay.type === 'error') {
+        return {
+          type: 'error',
+          message: previewOverlay.message,
+          showSkeleton: false,
+          showSpinner: false,
+          isBlocking: true,
+        } satisfies PreviewFallbackState;
+      }
+
+      return {
+        type: previewOverlay.type,
+        message: previewOverlay.message,
+        showSkeleton: true,
+        showSpinner: true,
+        isBlocking: true,
+      } satisfies PreviewFallbackState;
+    }
+
+    if (iframeLoadError) {
+      return {
+        type: 'error',
+        message: iframeLoadError,
+        showSkeleton: false,
+        showSpinner: false,
+        isBlocking: true,
+      } satisfies PreviewFallbackState;
+    }
+
+    if (!iframeLoadedAt) {
+      return {
+        type: 'loading',
+        message: 'Loading preview...',
+        showSkeleton: true,
+        showSpinner: false,
+        isBlocking: true,
+      } satisfies PreviewFallbackState;
+    }
+
+    return null;
+  })();
 
   return {
     previewOverlay,
     setPreviewOverlay,
+    fallbackState,
   };
 };

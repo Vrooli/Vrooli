@@ -98,33 +98,6 @@ const updateAdjacentFractions = ({
   return updated;
 };
 
-const updateAdjacentHeights = ({
-  startValues,
-  index,
-  delta,
-  minTrackPx,
-}: {
-  startValues: number[];
-  index: number;
-  delta: number;
-  minTrackPx: number;
-}): number[] => {
-  if (index < 0 || index >= startValues.length - 1) {
-    return startValues;
-  }
-
-  const current = Math.max(minTrackPx, startValues[index] ?? minTrackPx);
-  const next = Math.max(minTrackPx, startValues[index + 1] ?? minTrackPx);
-  const pairSize = current + next;
-  const nextCurrentPx = clamp(current + delta, minTrackPx, pairSize - minTrackPx);
-  const pairedPx = pairSize - nextCurrentPx;
-
-  const updated = [...startValues];
-  updated[index] = nextCurrentPx;
-  updated[index + 1] = pairedPx;
-  return updated;
-};
-
 const isMobileViewport = (): boolean => {
   if (typeof window === 'undefined') {
     return false;
@@ -138,58 +111,13 @@ const resolvePinnedColumnFractions = (fractions: number[]): [number, number] => 
   return [primary, 1 - primary];
 };
 
-const buildPixelTrackTemplate = (sizes: number[], splitterSize: number): string => {
-  if (sizes.length <= 1) {
-    return `minmax(${MIN_ROW_PX}px, ${Math.max(MIN_ROW_PX, sizes[0] ?? MIN_ROW_PX)}px)`;
-  }
-
-  const safeSplitter = Number.isFinite(splitterSize) && splitterSize > 0 ? splitterSize : SPLITTER_SIZE;
-  const segments: string[] = [];
-  sizes.forEach((size, index) => {
-    const clampedSize = Math.max(MIN_ROW_PX, Number.isFinite(size) ? size : MIN_ROW_PX);
-    segments.push(`minmax(${MIN_ROW_PX}px, ${clampedSize}px)`);
-    if (index < sizes.length - 1) {
-      segments.push(`${safeSplitter}px`);
-    }
-  });
-  return segments.join(' ');
-};
-
-const reconcileRowHeights = (current: number[], nextRowCount: number, defaultSize: number): number[] => {
-  const safeCount = Math.max(1, Math.floor(nextRowCount));
-  const baseSize = Math.max(MIN_ROW_PX, Math.floor(defaultSize));
-
-  if (safeCount === 1) {
-    // Always occupy the full available pane viewport when only one row remains.
-    return [baseSize];
-  }
-
-  if (current.length === safeCount) {
-    return current.map((value) => Math.max(MIN_ROW_PX, Number.isFinite(value) ? value : baseSize));
-  }
-
-  if (current.length > safeCount) {
-    return current.slice(0, safeCount).map((value) => Math.max(MIN_ROW_PX, Number.isFinite(value) ? value : baseSize));
-  }
-
-  const next = current.length > 0
-    ? current.map((value) => Math.max(MIN_ROW_PX, Number.isFinite(value) ? value : baseSize))
-    : [];
-
-  while (next.length < safeCount) {
-    next.push(baseSize);
-  }
-  return next;
-};
-
 export default function PreviewWorkspaceView() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { openOverlay } = useOverlayRouter();
   const apps = useAppsStore((state) => state.apps);
   const [mobileLayout, setMobileLayout] = useState<boolean>(isMobileViewport);
   const [headerHeight, setHeaderHeight] = useState(48);
-  const [normalRowHeights, setNormalRowHeights] = useState<number[]>([MIN_ROW_PX]);
-  const [pinnedRowHeights, setPinnedRowHeights] = useState<number[]>([MIN_ROW_PX]);
+  const [pinnedRowFractions, setPinnedRowFractions] = useState<number[]>([1]);
 
   const panes = usePreviewWorkspaceStore((state) => state.panes);
   const interactionMode = usePreviewWorkspaceStore((state) => state.interactionMode);
@@ -197,6 +125,7 @@ export default function PreviewWorkspaceView() {
   const pinnedPaneId = usePreviewWorkspaceStore((state) => state.pinnedPaneId);
   const pinnedColumn = usePreviewWorkspaceStore((state) => state.pinnedColumn);
   const columnFractions = usePreviewWorkspaceStore((state) => state.columnFractions);
+  const rowFractions = usePreviewWorkspaceStore((state) => state.rowFractions);
   const addPane = usePreviewWorkspaceStore((state) => state.addPane);
   const removePane = usePreviewWorkspaceStore((state) => state.removePane);
   const movePaneToIndex = usePreviewWorkspaceStore((state) => state.movePaneToIndex);
@@ -206,6 +135,7 @@ export default function PreviewWorkspaceView() {
   const clearPinnedPane = usePreviewWorkspaceStore((state) => state.clearPinnedPane);
   const setInteractionMode = usePreviewWorkspaceStore((state) => state.setInteractionMode);
   const setColumnFractions = usePreviewWorkspaceStore((state) => state.setColumnFractions);
+  const setRowFractions = usePreviewWorkspaceStore((state) => state.setRowFractions);
 
   const panesContainerRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
@@ -220,6 +150,9 @@ export default function PreviewWorkspaceView() {
   const effectiveColumnFractions = useMemo(() => {
     return reconcileTrackFractions(columnFractions, layoutDescriptor.columns);
   }, [columnFractions, layoutDescriptor.columns]);
+  const effectiveRowFractions = useMemo(() => {
+    return reconcileTrackFractions(rowFractions, layoutDescriptor.rows);
+  }, [layoutDescriptor.rows, rowFractions]);
   const pinnedColumnFractions = useMemo<[number, number]>(() => {
     return resolvePinnedColumnFractions(columnFractions);
   }, [columnFractions]);
@@ -236,15 +169,15 @@ export default function PreviewWorkspaceView() {
     return panes.filter((pane) => pane.id !== pinnedPane.id);
   }, [panes, pinnedPane]);
   const isPinnedLayout = Boolean(pinnedPane && pinnedColumn && maxColumns >= 2);
+  const effectivePinnedRowFractions = useMemo(() => {
+    return reconcileTrackFractions(pinnedRowFractions, scrollColumnPanes.length || 1);
+  }, [pinnedRowFractions, scrollColumnPanes.length]);
   const dragDropTargetPaneId = useMemo(() => {
     if (!activeArrangeDrag || activeArrangeDrag.intent === 'pin-left' || activeArrangeDrag.intent === 'pin-right') {
       return null;
     }
     return panes[activeArrangeDrag.dropIndex]?.id ?? null;
   }, [activeArrangeDrag, panes]);
-  const viewportHeight = typeof window === 'undefined' ? 0 : window.innerHeight;
-  const defaultPaneHeightPx = Math.max(MIN_ROW_PX, viewportHeight - headerHeight);
-
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -300,12 +233,8 @@ export default function PreviewWorkspaceView() {
   }, [clearPinnedPane, maxColumns, pinnedPaneId]);
 
   useEffect(() => {
-    setNormalRowHeights((current) => reconcileRowHeights(current, layoutDescriptor.rows, defaultPaneHeightPx));
-  }, [defaultPaneHeightPx, layoutDescriptor.rows]);
-
-  useEffect(() => {
-    setPinnedRowHeights((current) => reconcileRowHeights(current, scrollColumnPanes.length || 1, defaultPaneHeightPx));
-  }, [defaultPaneHeightPx, scrollColumnPanes.length]);
+    setPinnedRowFractions((current) => reconcileTrackFractions(current, scrollColumnPanes.length || 1));
+  }, [scrollColumnPanes.length]);
 
   useEffect(() => {
     const intent = readWorkspaceIntent(searchParams);
@@ -354,16 +283,18 @@ export default function PreviewWorkspaceView() {
         return;
       }
 
-      const nextHeights = updateAdjacentHeights({
+      const nextFractions = updateAdjacentFractions({
         startValues: activeResize.startValues,
         index: activeResize.index,
         delta,
+        containerSize: activeResize.containerSize,
+        splitterCount: Math.max(0, activeResize.startValues.length - 1),
         minTrackPx: MIN_ROW_PX,
       });
       if (activeResize.scope === 'pinned') {
-        setPinnedRowHeights(nextHeights);
+        setPinnedRowFractions(nextFractions);
       } else {
-        setNormalRowHeights(nextHeights);
+        setRowFractions(nextFractions);
       }
     };
 
@@ -380,7 +311,7 @@ export default function PreviewWorkspaceView() {
       window.removeEventListener('pointerup', stopResize);
       window.removeEventListener('pointercancel', stopResize);
     };
-  }, [activeResize, setColumnFractions]);
+  }, [activeResize, setColumnFractions, setRowFractions]);
 
   useEffect(() => {
     if (!activeArrangeDrag) {
@@ -576,9 +507,9 @@ export default function PreviewWorkspaceView() {
       index,
       startPointer: event.clientY,
       containerSize: containerNode.clientHeight,
-      startValues: scope === 'pinned' ? pinnedRowHeights : normalRowHeights,
+      startValues: scope === 'pinned' ? effectivePinnedRowFractions : effectiveRowFractions,
     });
-  }, [normalRowHeights, pinnedRowHeights]);
+  }, [effectivePinnedRowFractions, effectiveRowFractions]);
 
   const startArrangeDrag = useCallback((paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (interactionMode !== 'arrange') {
@@ -620,12 +551,14 @@ export default function PreviewWorkspaceView() {
 
   const rowLineEnd = (layoutDescriptor.rows * 2).toString();
   const columnLineEnd = (layoutDescriptor.columns * 2).toString();
+  const viewportPaneHeight = typeof window === 'undefined'
+    ? MIN_ROW_PX
+    : Math.max(MIN_ROW_PX, window.innerHeight - headerHeight);
   const rowSplittersHeight = Math.max(0, layoutDescriptor.rows - 1) * SPLITTER_SIZE;
-  const baseGridMinimumHeight = normalRowHeights.reduce((sum, size) => sum + size, 0) + rowSplittersHeight;
-  const expandedGridMinimumHeight = Math.max(
-    baseGridMinimumHeight,
-    Math.max(0, viewportHeight - headerHeight) + ((layoutDescriptor.rows - 1) * MIN_ROW_PX) + rowSplittersHeight,
-  );
+  // Critical: scale grid min-height by row count so each row can grow up to viewport height.
+  // Without this, fr tracks are forced to share a single-viewport container and panes shrink
+  // as rows are added instead of extending the scrollable surface.
+  const minimumGridHeightPx = (viewportPaneHeight * layoutDescriptor.rows) + rowSplittersHeight;
   const renderPane = (paneId: string, appId: string | null, isBeingDragged: boolean) => (
     <PreviewPane
       paneId={paneId}
@@ -723,7 +656,7 @@ export default function PreviewWorkspaceView() {
               <div
                 className="preview-workspace__scroll-column"
                 style={{
-                  gridTemplateRows: buildPixelTrackTemplate(pinnedRowHeights, SPLITTER_SIZE),
+                  gridTemplateRows: buildGridTrackTemplate(effectivePinnedRowFractions, SPLITTER_SIZE),
                 }}
               >
                 {scrollColumnPanes.map((pane, index) => {
@@ -770,7 +703,7 @@ export default function PreviewWorkspaceView() {
               <div
                 className="preview-workspace__scroll-column"
                 style={{
-                  gridTemplateRows: buildPixelTrackTemplate(pinnedRowHeights, SPLITTER_SIZE),
+                  gridTemplateRows: buildGridTrackTemplate(effectivePinnedRowFractions, SPLITTER_SIZE),
                 }}
               >
                 {scrollColumnPanes.map((pane, index) => {
@@ -834,8 +767,12 @@ export default function PreviewWorkspaceView() {
             )}
             style={{
               gridTemplateColumns: buildGridTrackTemplate(effectiveColumnFractions, SPLITTER_SIZE),
-              gridTemplateRows: buildPixelTrackTemplate(normalRowHeights, SPLITTER_SIZE),
-              minHeight: `max(${expandedGridMinimumHeight}px, calc(100dvh - var(--preview-workspace-header-min-height)))`,
+              gridTemplateRows: buildGridTrackTemplate(effectiveRowFractions, SPLITTER_SIZE),
+              // Keep track sizing deterministic during loading/fallback transitions.
+              // A fixed computed grid height prevents intrinsic pane content from temporarily
+              // expanding rows beyond the persisted fractions.
+              height: `${minimumGridHeightPx}px`,
+              minHeight: `${minimumGridHeightPx}px`,
             }}
           >
             {panes.map((pane, index) => {
