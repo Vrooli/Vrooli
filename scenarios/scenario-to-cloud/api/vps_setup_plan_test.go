@@ -58,7 +58,7 @@ func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {
 		if step.ID == "bootstrap" && strings.Contains(step.Command, "apt-get") {
 			hasBootstrap = true
 		}
-		if step.ID == "cleanup_scenarios" && strings.Contains(step.Command, "cleanup blocked: mutable path") {
+		if step.ID == "cleanup_scenarios" && strings.Contains(step.Command, "MUTABLE_REL_LIST=") && strings.Contains(step.Command, "xargs -0 -r tar -cf") {
 			hasCleanup = true
 		}
 	}

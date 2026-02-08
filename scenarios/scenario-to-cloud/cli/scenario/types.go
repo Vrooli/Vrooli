@@ -1,6 +1,8 @@
 // Package scenario provides scenario discovery commands for the CLI.
 package scenario
 
+import "time"
+
 // ListResponse represents the response from listing scenarios.
 type ListResponse struct {
 	Scenarios []ScenarioInfo `json:"scenarios"`
@@ -29,7 +31,7 @@ type PortsResponse struct {
 
 // PortInfo represents a port allocation.
 type PortInfo struct {
-	Service  string `json:"service"`  // api, ui, cli, resource name
+	Service  string `json:"service"` // api, ui, cli, resource name
 	Port     int    `json:"port"`
 	Protocol string `json:"protocol,omitempty"` // tcp, udp
 	Public   bool   `json:"public"`             // Exposed externally
@@ -38,17 +40,48 @@ type PortInfo struct {
 
 // DepsResponse represents the response from listing scenario dependencies.
 type DepsResponse struct {
-	ScenarioID   string           `json:"scenario_id"`
-	Dependencies []DependencyInfo `json:"dependencies"`
-	Timestamp    string           `json:"timestamp"`
+	ScenarioID        string   `json:"scenario_id"`
+	Resources         []string `json:"resources"`
+	Scenarios         []string `json:"scenarios"`
+	AnalyzerAvailable bool     `json:"analyzer_available"`
+	Source            string   `json:"source"`
+	Timestamp         string   `json:"timestamp"`
 }
 
-// DependencyInfo represents a scenario dependency.
-type DependencyInfo struct {
-	Type     string `json:"type"`     // resource, scenario
-	Name     string `json:"name"`
-	Version  string `json:"version,omitempty"`
-	Required bool   `json:"required"`
-	Status   string `json:"status,omitempty"` // available, missing, version_mismatch
-	Message  string `json:"message,omitempty"`
+// DeploymentReportResponse is a subset of scenario-dependency-analyzer deployment report.
+type DeploymentReportResponse struct {
+	Scenario     string                         `json:"scenario"`
+	GeneratedAt  time.Time                      `json:"generated_at"`
+	Dependencies []DeploymentDependencyNode     `json:"dependencies"`
+	Aggregates   map[string]DeploymentAggregate `json:"aggregates"`
+	MetadataGaps *DeploymentMetadataGaps        `json:"metadata_gaps,omitempty"`
+}
+
+type DeploymentDependencyNode struct {
+	Name         string                     `json:"name"`
+	Type         string                     `json:"type"`
+	ResourceType string                     `json:"resource_type,omitempty"`
+	Required     *bool                      `json:"required,omitempty"`
+	Enabled      *bool                      `json:"enabled,omitempty"`
+	Requirements *DeploymentRequirements    `json:"requirements,omitempty"`
+	TierSupport  map[string]TierSupport     `json:"tier_support,omitempty"`
+	Children     []DeploymentDependencyNode `json:"children,omitempty"`
+}
+
+type TierSupport struct {
+	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
+}
+
+type DeploymentRequirements struct {
+	RAMMB    float64 `json:"ram_mb,omitempty"`
+	DiskMB   float64 `json:"disk_mb,omitempty"`
+	CPUCores float64 `json:"cpu_cores,omitempty"`
+}
+
+type DeploymentAggregate struct {
+	EstimatedRequirements DeploymentRequirements `json:"estimated_requirements"`
+}
+
+type DeploymentMetadataGaps struct {
+	TotalGaps int `json:"total_gaps"`
 }

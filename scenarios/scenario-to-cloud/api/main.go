@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -378,14 +379,13 @@ func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Co
 // This is used by ManifestRefresher to get current dependencies when rebuilding.
 func createAnalyzerFetcher() func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error) {
 	return func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error) {
-		// Discover analyzer port via vrooli CLI
-		analyzerPort, err := discoverScenarioPort("scenario-dependency-analyzer", "api")
+		baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
 		if err != nil {
 			return nil, nil, fmt.Errorf("analyzer not available: %w", err)
 		}
 
 		// Call the analyzer API
-		url := fmt.Sprintf("http://localhost:%d/api/v1/analyze/%s", analyzerPort, scenarioID)
+		url := fmt.Sprintf("%s/api/v1/analyze/%s", strings.TrimSuffix(baseURL, "/"), scenarioID)
 
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {

@@ -61,6 +61,7 @@ type Resource struct {
 
 // ScenarioDependencySpec captures declared scenario dependencies.
 type ScenarioDependencySpec struct {
+	Enabled      bool   `json:"enabled"`
 	Required     bool   `json:"required"`
 	Version      string `json:"version"`
 	VersionRange string `json:"versionRange"`
@@ -316,6 +317,8 @@ type DeploymentDependencyNode struct {
 	Type         string                        `json:"type"`
 	ResourceType string                        `json:"resource_type,omitempty"`
 	Path         string                        `json:"path,omitempty"`
+	Required     *bool                         `json:"required,omitempty"`
+	Enabled      *bool                         `json:"enabled,omitempty"`
 	Requirements *DeploymentRequirements       `json:"requirements,omitempty"`
 	TierSupport  map[string]TierSupportSummary `json:"tier_support,omitempty"`
 	Alternatives []string                      `json:"alternatives,omitempty"`

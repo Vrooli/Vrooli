@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	scenariocmd "scenario-to-cloud/cli/scenario"
 )
 
 // testManifestJSON returns a valid CloudManifest JSON for testing.
@@ -197,6 +200,132 @@ func TestManifestInitPostsToInitEndpoint(t *testing.T) {
 	})
 	if !strings.Contains(output, "Initialized manifest") {
 		t.Fatalf("expected init output, got: %s", output)
+	}
+}
+
+func TestScenarioDepsPrintsResourcesFromCurrentAPIShape(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/scenarios/landing-page-business-suite/dependencies" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+		  "scenario_id": "landing-page-business-suite",
+		  "resources": ["postgres"],
+		  "scenarios": null,
+		  "analyzer_available": true,
+		  "source": "analyzer",
+		  "timestamp": "2026-02-08T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"scenario", "deps", "landing-page-business-suite"}); err != nil {
+			t.Fatalf("scenario deps failed: %v", err)
+		}
+	})
+	if strings.Contains(output, "No dependencies.") {
+		t.Fatalf("expected dependencies to be shown, got: %s", output)
+	}
+	if !strings.Contains(output, "resource") || !strings.Contains(output, "postgres") {
+		t.Fatalf("expected postgres resource in output, got: %s", output)
+	}
+}
+
+func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
+	app := newTestApp(t)
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/scenarios/landing-page-business-suite/dependencies" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+		  "scenario_id": "landing-page-business-suite",
+		  "resources": ["postgres"],
+		  "scenarios": ["auth-service"],
+		  "analyzer_available": true,
+		  "source": "analyzer",
+		  "timestamp": "2026-02-08T00:00:00Z"
+		}`)
+	}))
+	defer apiServer.Close()
+
+	analyzerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/scenarios/landing-page-business-suite/deployment") {
+			t.Fatalf("unexpected analyzer path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+		  "scenario": "landing-page-business-suite",
+		  "dependencies": [
+		    {
+		      "name": "postgres",
+		      "type": "resource",
+		      "required": true,
+		      "requirements": {"ram_mb": 768, "disk_mb": 4096, "cpu_cores": 1}
+		    },
+		    {
+		      "name": "auth-service",
+		      "type": "scenario",
+		      "required": true,
+		      "requirements": {"ram_mb": 256, "disk_mb": 512, "cpu_cores": 0.5},
+		      "children": [
+		        {
+		          "name": "redis",
+		          "type": "resource",
+		          "required": true,
+		          "requirements": {"ram_mb": 256, "disk_mb": 256, "cpu_cores": 0.5}
+		        }
+		      ]
+		    }
+		  ],
+		  "aggregates": {
+		    "tier-4-saas": {"estimated_requirements": {"ram_mb": 1280, "disk_mb": 4864, "cpu_cores": 2}}
+		  },
+		  "metadata_gaps": {"total_gaps": 0}
+		}`)
+	}))
+	defer analyzerServer.Close()
+
+	origResolve := scenariocmd.ResolveAnalyzerBaseURLForTest()
+	scenariocmd.SetResolveAnalyzerBaseURLForTest(func(ctx context.Context) (string, error) {
+		_ = ctx
+		return analyzerServer.URL, nil
+	})
+	t.Cleanup(func() {
+		scenariocmd.SetResolveAnalyzerBaseURLForTest(origResolve)
+	})
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", apiServer.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"scenario", "deps", "landing-page-business-suite", "--impact", "--verbose"}); err != nil {
+			t.Fatalf("scenario deps --impact failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "Impact Summary (tier-4-saas): RAM 1280 MB") {
+		t.Fatalf("expected impact summary in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Coverage: 3/3 dependencies") {
+		t.Fatalf("expected coverage summary in output, got: %s", output)
+	}
+	if !strings.Contains(output, "transitive") || !strings.Contains(output, "redis") {
+		t.Fatalf("expected transitive redis row in output, got: %s", output)
 	}
 }
 

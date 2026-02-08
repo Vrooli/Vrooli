@@ -40,7 +40,11 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Ser
 	visited := map[string]struct{}{}
 	visited[config.NormalizeName(scenarioName)] = struct{}{}
 	nodes := BuildDependencyNodeList(scenariosDir, scenarioName, cfg, visited)
-	aggregates := ComputeTierAggregates(nodes)
+	aggregateNodes := append([]types.DeploymentDependencyNode{}, nodes...)
+	if root := buildRootScenarioNode(scenarioName, scenarioPath, cfg); root != nil {
+		aggregateNodes = append(aggregateNodes, *root)
+	}
+	aggregates := ComputeTierAggregates(aggregateNodes)
 	manifest := BuildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes, cfg)
 
 	// Extract known tiers from aggregates
@@ -68,7 +72,7 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Ser
 		knownTiers = []string{"desktop", "server", "mobile", "saas"}
 	}
 
-	gaps := AnalyzeGaps(scenarioName, scenariosDir, nodes, knownTiers)
+	gaps := AnalyzeGaps(scenarioName, scenarioPath, scenariosDir, nodes, knownTiers)
 
 	return &types.DeploymentAnalysisReport{
 		Scenario:       scenarioName,
@@ -79,6 +83,37 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Ser
 		BundleManifest: manifest,
 		MetadataGaps:   gaps,
 	}
+}
+
+func buildRootScenarioNode(scenarioName, scenarioPath string, cfg *types.ServiceConfig) *types.DeploymentDependencyNode {
+	if cfg == nil || cfg.Deployment == nil {
+		return nil
+	}
+
+	required := true
+	enabled := true
+	node := &types.DeploymentDependencyNode{
+		Name:     scenarioName,
+		Type:     "scenario",
+		Path:     scenarioPath,
+		Required: &required,
+		Enabled:  &enabled,
+		Source:   "root",
+	}
+
+	if cfg.Deployment.AggregateRequirements != nil {
+		node.Requirements = cfg.Deployment.AggregateRequirements
+	}
+
+	if len(cfg.Deployment.Tiers) > 0 {
+		node.TierSupport = convertTierTierMap(cfg.Deployment.Tiers)
+	}
+
+	if node.Requirements == nil && len(node.TierSupport) == 0 {
+		return nil
+	}
+
+	return node
 }
 
 // PersistReport saves the deployment report to .vrooli/deployment/deployment-report.json

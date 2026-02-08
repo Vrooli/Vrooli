@@ -23,8 +23,9 @@ func (mapResolver) LookupHost(ctx context.Context, host string) ([]string, error
 }
 
 type fakeRunner struct {
-	ramKB      string
-	portsInUse bool
+	ramKB       string
+	portsInUse  bool
+	portProcess string
 }
 
 func (f fakeRunner) Run(ctx context.Context, cfg ssh.Config, command string, opts ssh.RunOptions) (ssh.Result, error) {
@@ -39,7 +40,11 @@ func (f fakeRunner) Run(ctx context.Context, cfg ssh.Config, command string, opt
 		return ssh.Result{Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"", ExitCode: 0}, nil
 	case strings.Contains(command, "sport = :80 or sport = :443"):
 		if f.portsInUse {
-			return ssh.Result{Stdout: `LISTEN 0 4096 *:80 *:* users:(("caddy",pid=123,fd=7))`, ExitCode: 0}, nil
+			process := f.portProcess
+			if strings.TrimSpace(process) == "" {
+				process = "caddy"
+			}
+			return ssh.Result{Stdout: fmt.Sprintf(`LISTEN 0 4096 *:80 *:* users:(("%s",pid=123,fd=7))`, process), ExitCode: 0}, nil
 		}
 		return ssh.Result{Stdout: "", ExitCode: 0}, nil
 	case strings.Contains(command, "ufw status"):
@@ -102,6 +107,11 @@ func TestRun_HappyPath(t *testing.T) {
 	runner := fakeRunner{ramKB: "2097152", portsInUse: false}
 
 	resp := Run(context.Background(), manifest, dnsService, runner, RunOptions{
+		Requirements: func(ctx context.Context, scenarioID string) (*ScenarioRequirements, error) {
+			_ = ctx
+			_ = scenarioID
+			return nil, fmt.Errorf("unavailable")
+		},
 		PortProbe: func(ctx context.Context, host string, port int, timeout time.Duration) error {
 			_ = ctx
 			_ = host
@@ -129,9 +139,14 @@ func TestRun_FailsOnLowRAMAndBusyEdgePorts(t *testing.T) {
 
 	manifest := testManifest()
 	dnsService := dns.NewService(mapResolver{}, dns.WithTimeout(2*time.Second))
-	runner := fakeRunner{ramKB: "900000", portsInUse: true}
+	runner := fakeRunner{ramKB: "500000", portsInUse: true, portProcess: "nginx"}
 
 	resp := Run(context.Background(), manifest, dnsService, runner, RunOptions{
+		Requirements: func(ctx context.Context, scenarioID string) (*ScenarioRequirements, error) {
+			_ = ctx
+			_ = scenarioID
+			return nil, fmt.Errorf("unavailable")
+		},
 		PortProbe: func(ctx context.Context, host string, port int, timeout time.Duration) error {
 			_ = ctx
 			_ = host
@@ -165,4 +180,96 @@ func TestRun_FailsOnLowRAMAndBusyEdgePorts(t *testing.T) {
 	if !failIDs[domain.PreflightPortsEdgeID] {
 		t.Fatalf("expected %s to fail, got checks: %+v", domain.PreflightPortsEdgeID, resp.Checks)
 	}
+}
+
+func TestRun_AllowsBusyEdgePortsWhenOwnedByCaddy(t *testing.T) {
+	t.Parallel()
+
+	manifest := testManifest()
+	dnsService := dns.NewService(mapResolver{}, dns.WithTimeout(2*time.Second))
+	runner := fakeRunner{ramKB: "2097152", portsInUse: true, portProcess: "caddy"}
+
+	resp := Run(context.Background(), manifest, dnsService, runner, RunOptions{
+		Requirements: func(ctx context.Context, scenarioID string) (*ScenarioRequirements, error) {
+			_ = ctx
+			_ = scenarioID
+			return nil, fmt.Errorf("unavailable")
+		},
+		PortProbe: func(ctx context.Context, host string, port int, timeout time.Duration) error {
+			_ = ctx
+			_ = host
+			_ = port
+			_ = timeout
+			return nil
+		},
+		TLSALPNProbe: func(ctx context.Context, host, serverName string, port int, timeout time.Duration) (string, error) {
+			_ = ctx
+			_ = host
+			_ = serverName
+			_ = port
+			_ = timeout
+			return "acme-tls/1", nil
+		},
+	})
+
+	if !resp.OK {
+		t.Fatalf("expected preflight OK=true when caddy owns edge ports, got false: %+v", resp.Checks)
+	}
+}
+
+func TestRun_FailsWhenAnalyzerRequirementExceedsStaticFloor(t *testing.T) {
+	t.Parallel()
+
+	manifest := testManifest()
+	dnsService := dns.NewService(mapResolver{}, dns.WithTimeout(2*time.Second))
+	runner := fakeRunner{ramKB: "2097152", portsInUse: false} // 2 GiB
+
+	resp := Run(context.Background(), manifest, dnsService, runner, RunOptions{
+		Requirements: func(ctx context.Context, scenarioID string) (*ScenarioRequirements, error) {
+			_ = ctx
+			_ = scenarioID
+			return &ScenarioRequirements{
+				RAMKB:      3 * 1024 * 1024, // 3 GiB requirement from dependency graph
+				DiskKB:     0,
+				CPUCores:   2,
+				Tier:       "tier-4-saas",
+				Source:     "scenario-dependency-analyzer",
+				Confidence: "medium",
+			}, nil
+		},
+		PortProbe: func(ctx context.Context, host string, port int, timeout time.Duration) error {
+			_ = ctx
+			_ = host
+			_ = port
+			_ = timeout
+			return nil
+		},
+		TLSALPNProbe: func(ctx context.Context, host, serverName string, port int, timeout time.Duration) (string, error) {
+			_ = ctx
+			_ = host
+			_ = serverName
+			_ = port
+			_ = timeout
+			return "acme-tls/1", nil
+		},
+	})
+
+	if resp.OK {
+		t.Fatalf("expected preflight OK=false when graph RAM requirement is unmet")
+	}
+
+	for _, check := range resp.Checks {
+		if check.ID != domain.PreflightRAMTotalID {
+			continue
+		}
+		if check.Status != domain.PreflightFail {
+			t.Fatalf("expected %s to fail, got status=%s", domain.PreflightRAMTotalID, check.Status)
+		}
+		if check.Data["required_by_graph_ram_kb"] != "3145728" {
+			t.Fatalf("expected graph RAM requirement in check data, got %+v", check.Data)
+		}
+		return
+	}
+
+	t.Fatalf("expected %s check in response", domain.PreflightRAMTotalID)
 }

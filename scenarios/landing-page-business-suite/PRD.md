@@ -124,8 +124,6 @@
 
 **Data + storage expectations**:
 - **postgres**: Required for each generated landing page (content, A/B variants, metrics, subscriptions)
-- **redis** (optional): Session caching for high-traffic landing pages
-- **qdrant** (optional): Semantic search for template recommendations
 
 **Integration strategy**:
 - **Vrooli CLI**: Primary interface for template listing and scenario generation
@@ -142,12 +140,6 @@
 
 **Required resources**:
 - **postgres**: Essential for all generated landing pages (content, variants, metrics, subscriptions)
-- **resource-claude-code**: Agent-based customization of landing pages
-
-**Optional resources**:
-- **redis**: Session caching for high-traffic scenarios
-- **qdrant**: Template recommendations based on user intent
-- **browserless**: Screenshot generation for template previews
 
 **Scenario dependencies**:
 - **scenario-authenticator** (future): Multi-tenant admin portal support
@@ -213,7 +205,6 @@
 
 ### Internal References
 - **Resource postgres**: `scripts/resources/resource-postgres/`
-- **Resource claude-code**: `scripts/resources/resource-claude-code/`
 - **Lifecycle system**: `scripts/lib/lifecycle/`
 - **Testing architecture**: `docs/testing/architecture/PHASED_TESTING.md`
 - **Template system**: `scripts/scenarios/templates/`

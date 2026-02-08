@@ -31,6 +31,7 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Servi
 	}
 	sort.Strings(resourceNames)
 	for _, name := range resourceNames {
+		resource := resources[name]
 		var meta *types.DeploymentDependency
 		if dependencyCatalog.Resources != nil {
 			if resourceMeta, ok := dependencyCatalog.Resources[name]; ok {
@@ -39,6 +40,10 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Servi
 			}
 		}
 		node := buildResourceDependencyNode(name, meta)
+		required := resource.Required
+		enabled := resource.Enabled
+		node.Required = &required
+		node.Enabled = &enabled
 		node.Source = "declared"
 		nodes = append(nodes, node)
 	}
@@ -50,6 +55,7 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Servi
 		}
 		sort.Strings(scenarioNames)
 		for _, depName := range scenarioNames {
+			depSpec := cfg.Dependencies.Scenarios[depName]
 			var meta *types.DeploymentDependency
 			if dependencyCatalog.Scenarios != nil {
 				if scenarioMeta, ok := dependencyCatalog.Scenarios[depName]; ok {
@@ -58,6 +64,10 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Servi
 				}
 			}
 			node := buildScenarioDependencyNode(scenariosDir, depName, meta, visited)
+			required := depSpec.Required
+			enabled := depSpec.Enabled
+			node.Required = &required
+			node.Enabled = &enabled
 			node.Source = "declared"
 			nodes = append(nodes, node)
 		}
@@ -195,7 +205,7 @@ func convertTierTierMap(tiers map[string]types.DeploymentTier) map[string]types.
 		case TierStatusLimited:
 			flag := false
 			supported = &flag
-		// TierStatusUnknown leaves supported as nil
+			// TierStatusUnknown leaves supported as nil
 		}
 		result[tier] = types.TierSupportSummary{
 			Supported:    supported,

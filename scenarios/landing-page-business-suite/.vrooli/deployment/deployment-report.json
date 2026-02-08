@@ -1,43 +1,13 @@
 {
   "scenario": "landing-page-business-suite",
   "report_version": 1,
-  "generated_at": "2026-02-07T02:43:32.926954627Z",
+  "generated_at": "2026-02-08T02:58:36.68604051Z",
   "dependencies": [
-    {
-      "name": "browserless",
-      "type": "resource",
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.6
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1
-        },
-        "mobile": {
-          "supported": false,
-          "fitness_score": 0.1,
-          "reason": "Heavy operations not suitable for mobile"
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.85
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95
-        }
-      },
-      "source": "declared"
-    },
     {
       "name": "postgres",
       "type": "resource",
+      "required": true,
+      "enabled": true,
       "tier_support": {
         "desktop": {
           "supported": true,
@@ -63,109 +33,6 @@
         "saas": {
           "supported": true,
           "fitness_score": 0.95
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95
-        }
-      },
-      "source": "declared"
-    },
-    {
-      "name": "qdrant",
-      "type": "resource",
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.9
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1
-        },
-        "mobile": {
-          "supported": false,
-          "fitness_score": 0.2,
-          "reason": "Database should be remote for mobile deployments",
-          "alternatives": [
-            "saas-variant",
-            "cloud-variant"
-          ]
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.95
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95
-        }
-      },
-      "source": "declared"
-    },
-    {
-      "name": "redis",
-      "type": "resource",
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.9
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1
-        },
-        "mobile": {
-          "supported": false,
-          "fitness_score": 0.2,
-          "reason": "Database should be remote for mobile deployments",
-          "alternatives": [
-            "saas-variant",
-            "cloud-variant"
-          ]
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.95
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95
-        }
-      },
-      "source": "declared"
-    },
-    {
-      "name": "resource-claude-code",
-      "type": "resource",
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.9
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1
-        },
-        "mobile": {
-          "supported": true,
-          "fitness_score": 0.4
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.85
         },
         "server": {
           "supported": true,
@@ -177,10 +44,9 @@
   ],
   "aggregates": {
     "desktop": {
-      "fitness_score": 0.78,
-      "dependency_count": 5,
+      "fitness_score": 0.6,
+      "dependency_count": 1,
       "blocking_dependencies": [
-        "browserless",
         "postgres"
       ],
       "estimated_requirements": {
@@ -190,8 +56,8 @@
       }
     },
     "enterprise": {
-      "fitness_score": 0.9800000000000001,
-      "dependency_count": 5,
+      "fitness_score": 0.98,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -200,7 +66,7 @@
     },
     "local": {
       "fitness_score": 1,
-      "dependency_count": 5,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -208,14 +74,10 @@
       }
     },
     "mobile": {
-      "fitness_score": 0.22000000000000003,
-      "dependency_count": 5,
+      "fitness_score": 0.2,
+      "dependency_count": 1,
       "blocking_dependencies": [
-        "browserless",
-        "postgres",
-        "qdrant",
-        "redis",
-        "resource-claude-code"
+        "postgres"
       ],
       "estimated_requirements": {
         "ram_mb": 0,
@@ -224,8 +86,8 @@
       }
     },
     "saas": {
-      "fitness_score": 0.9099999999999999,
-      "dependency_count": 5,
+      "fitness_score": 0.95,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -234,7 +96,16 @@
     },
     "server": {
       "fitness_score": 0.95,
-      "dependency_count": 5,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "tier-1-local": {
+      "fitness_score": 0,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -244,7 +115,7 @@
   },
   "bundle_manifest": {
     "scenario": "landing-page-business-suite",
-    "generated_at": "2026-02-07T02:43:32.926954627Z",
+    "generated_at": "2026-02-08T02:58:36.68604051Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -287,37 +158,6 @@
     ],
     "dependencies": [
       {
-        "name": "browserless",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.1,
-            "reason": "Heavy operations not suitable for mobile"
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
         "name": "postgres",
         "type": "resource",
         "tier_support": {
@@ -345,106 +185,6 @@
           "saas": {
             "supported": true,
             "fitness_score": 0.95
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "qdrant",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.2,
-            "reason": "Database should be remote for mobile deployments",
-            "alternatives": [
-              "saas-variant",
-              "cloud-variant"
-            ]
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.95
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "redis",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.2,
-            "reason": "Database should be remote for mobile deployments",
-            "alternatives": [
-              "saas-variant",
-              "cloud-variant"
-            ]
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.95
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "resource-claude-code",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": true,
-            "fitness_score": 0.4
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
           },
           "server": {
             "supported": true,
@@ -633,21 +373,39 @@
     }
   },
   "metadata_gaps": {
-    "total_gaps": 0,
+    "total_gaps": 8,
     "scenarios_missing_all": 0,
-    "gaps_by_scenario": {},
-    "missing_tiers": null,
-    "secret_requirements": [
-      {
-        "dependency_name": "browserless",
-        "dependency_type": "resource",
-        "secret_type": "browser_automation_token",
-        "required_secrets": [
-          "browserless_token"
+    "gaps_by_scenario": {
+      "landing-page-business-suite": {
+        "scenario_name": "landing-page-business-suite",
+        "scenario_path": "../../landing-page-business-suite",
+        "has_deployment_block": true,
+        "missing_dependency_catalog": true,
+        "missing_tier_definitions": [
+          "mobile",
+          "saas",
+          "enterprise",
+          "local",
+          "desktop",
+          "server"
         ],
-        "playbook_reference": "secrets-manager/playbooks/browser-automation.md",
-        "priority": "required"
-      },
+        "missing_resource_metadata": [
+          "postgres"
+        ],
+        "suggested_actions": [
+          "Add deployment.dependencies catalog for resources/scenarios"
+        ]
+      }
+    },
+    "missing_tiers": [
+      "desktop",
+      "enterprise",
+      "local",
+      "mobile",
+      "saas",
+      "server"
+    ],
+    "secret_requirements": [
       {
         "dependency_name": "postgres",
         "dependency_type": "resource",
@@ -657,26 +415,6 @@
           "postgres_user"
         ],
         "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "qdrant",
-        "dependency_type": "resource",
-        "secret_type": "vector_db_credentials",
-        "required_secrets": [
-          "qdrant_api_key"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/vector-db.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "redis",
-        "dependency_type": "resource",
-        "secret_type": "cache_credentials",
-        "required_secrets": [
-          "redis_password"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/cache-credentials.md",
         "priority": "required"
       }
     ],
@@ -691,21 +429,13 @@
         ],
         "relationship": "managed_service",
         "impact_description": "Eliminates database management overhead"
-      },
-      {
-        "original_resource": "redis",
-        "alternative_resource": "in-memory-cache",
-        "reason": "Embedded caching for desktop deployments",
-        "applicable_tiers": [
-          "desktop"
-        ],
-        "relationship": "embedded_alternative",
-        "impact_description": "Simplifies deployment, no separate service needed"
       }
     ],
     "recommendations": [
-      "Configure 4 secret(s) for dependencies - see secrets-manager playbooks",
-      "Consider 2 resource swap(s) for deployment optimization"
+      "Add tier definitions for: [desktop enterprise local mobile saas server]",
+      "Configure 1 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 1 resource swap(s) for deployment optimization",
+      "Review gaps_by_scenario for detailed per-scenario action items"
     ]
   }
 }

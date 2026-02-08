@@ -127,19 +127,13 @@ Resource requirements for the scenario.
     "required": true,
     "description": "Primary data store",
     "schema": "landing-page-business-suite"
-  },
-  "redis": {
-    "type": "redis",
-    "enabled": false,
-    "required": false,
-    "description": "Session caching (optional)"
   }
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `type` | string | Resource type (`postgres`, `redis`, `qdrant`, `resource`) |
+| `type` | string | Resource type (`postgres`) |
 | `enabled` | boolean | Whether to install on setup |
 | `required` | boolean | Whether scenario can run without it |
 | `description` | string | Purpose description |

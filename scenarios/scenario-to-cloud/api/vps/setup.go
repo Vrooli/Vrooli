@@ -308,31 +308,33 @@ func buildScenarioCleanupCommand(manifest domain.CloudManifest) (string, error) 
 			script.WriteString("PRESERVE_REL_LIST=" + shellutil.QuoteSingle(strings.Join(relPreserve, "\n")) + "; ")
 		}
 		// Block cleanup when known mutable paths exist under scenario directories but are not explicitly preserved.
-		script.WriteString("find \"$SCENARIO_DIR\" -mindepth 1 -maxdepth 5 -type d \\( ")
+		script.WriteString("MUTABLE_REL_LIST=$(find \"$SCENARIO_DIR\" -mindepth 1 -maxdepth 5 -type d \\( ")
 		for idx, name := range mutableNames {
 			if idx > 0 {
 				script.WriteString(" -o ")
 			}
 			script.WriteString("-name " + shellutil.QuoteSingle(name))
 		}
-		script.WriteString(" \\) -printf '%P\\n' | sort -u | while IFS= read -r rel; do ")
-		script.WriteString("[ -z \"$rel\" ] && continue; covered=0; ")
-		script.WriteString("for keep in $PRESERVE_REL_LIST; do ")
-		script.WriteString("case \"$rel\" in \"$keep\"|\"$keep\"/*) covered=1; break;; esac; ")
-		script.WriteString("case \"$keep\" in \"$rel\"/*) covered=1; break;; esac; ")
-		script.WriteString("done; ")
-		script.WriteString("if [ \"$covered\" -eq 0 ]; then echo \"cleanup blocked: mutable path '$SCENARIO_DIR/$rel' must be added to target.vps.preserve_paths\" >&2; exit 1; fi; ")
-		script.WriteString("done; ")
+		script.WriteString(" \\) -printf '%P\\n' | sort -u); ")
+		if len(relPreserve) == 0 {
+			// Backward-compatible safety for legacy deployments: preserve detected mutable directories.
+			script.WriteString("PRESERVE_REL_LIST=\"$MUTABLE_REL_LIST\"; ")
+		} else {
+			script.WriteString("printf '%s\\n' \"$MUTABLE_REL_LIST\" | while IFS= read -r rel; do ")
+			script.WriteString("[ -z \"$rel\" ] && continue; covered=0; ")
+			script.WriteString("for keep in $PRESERVE_REL_LIST; do ")
+			script.WriteString("case \"$rel\" in \"$keep\"|\"$keep\"/*) covered=1; break;; esac; ")
+			script.WriteString("case \"$keep\" in \"$rel\"/*) covered=1; break;; esac; ")
+			script.WriteString("done; ")
+			script.WriteString("if [ \"$covered\" -eq 0 ]; then echo \"cleanup blocked: mutable path '$SCENARIO_DIR/$rel' must be added to target.vps.preserve_paths\" >&2; exit 1; fi; ")
+			script.WriteString("done; ")
+		}
 
 		tarPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "cloud", "preserve", scenarioID+".tar")
 		script.WriteString("TAR_PATH=" + shellutil.QuoteSingle(tarPath) + "; rm -f \"$TAR_PATH\"; ")
-		if len(relPreserve) > 0 {
-			script.WriteString("(cd \"$SCENARIO_DIR\" && tar -cf \"$TAR_PATH\" --ignore-failed-read --")
-			for _, rel := range relPreserve {
-				script.WriteString(" " + shellutil.QuoteSingle(rel))
-			}
-			script.WriteString("); ")
-		}
+		script.WriteString("if [ -n \"$PRESERVE_REL_LIST\" ]; then ")
+		script.WriteString("(cd \"$SCENARIO_DIR\" && printf '%s\\n' \"$PRESERVE_REL_LIST\" | sed '/^$/d' | tr '\\n' '\\0' | xargs -0 -r tar -cf \"$TAR_PATH\" --ignore-failed-read --); ")
+		script.WriteString("fi; ")
 		script.WriteString("rm -rf \"$SCENARIO_DIR\"; mkdir -p \"$SCENARIO_DIR\"; ")
 		script.WriteString("if [ -f \"$TAR_PATH\" ]; then tar -xf \"$TAR_PATH\" -C \"$SCENARIO_DIR\"; fi; ")
 		script.WriteString("fi; ")

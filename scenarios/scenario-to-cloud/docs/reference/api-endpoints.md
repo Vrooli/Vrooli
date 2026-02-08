@@ -321,7 +321,7 @@ Return canonical VPS requirements used by runtime preflight checks.
     },
     "resources": {
       "min_disk_free_kb": 5242880,
-      "min_ram_kb": 1048576,
+      "min_ram_kb": 524288,
       "recommended_ram_kb": 2097152
     },
     "network": {

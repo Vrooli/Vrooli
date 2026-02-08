@@ -7,14 +7,13 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
@@ -394,14 +393,13 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 
 // fetchDependenciesFromAnalyzer tries to fetch dependencies from scenario-dependency-analyzer.
 func (s *Server) fetchDependenciesFromAnalyzer(ctx context.Context, scenarioID string) (*ScenarioDependenciesResponse, error) {
-	// Discover analyzer port via vrooli scenario port command
-	analyzerPort, err := discoverScenarioPort("scenario-dependency-analyzer", "api")
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover analyzer port: %w", err)
+		return nil, fmt.Errorf("failed to discover analyzer URL: %w", err)
 	}
 
 	// Call the analyzer API
-	url := fmt.Sprintf("http://localhost:%d/api/v1/analyze/%s", analyzerPort, scenarioID)
+	url := fmt.Sprintf("%s/api/v1/analyze/%s", strings.TrimSuffix(baseURL, "/"), scenarioID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -529,23 +527,6 @@ func (s *Server) extractDependenciesFromServiceJSON(scenarioID string) (*Scenari
 		Source:            "service.json",
 		Timestamp:         time.Now().UTC().Format(time.RFC3339),
 	}, nil
-}
-
-// discoverScenarioPort uses vrooli CLI to discover a scenario's port.
-func discoverScenarioPort(scenarioName, portType string) (int, error) {
-	cmd := exec.Command("vrooli", "scenario", "port", scenarioName, portType)
-	output, err := cmd.Output()
-	if err != nil {
-		return 0, fmt.Errorf("vrooli scenario port failed: %w", err)
-	}
-
-	portStr := strings.TrimSpace(string(output))
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid port number: %s", portStr)
-	}
-
-	return port, nil
 }
 
 // ExpectedSecret represents a secret expected by a scenario with its configuration status

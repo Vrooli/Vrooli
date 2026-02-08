@@ -8,7 +8,7 @@ const (
 	LegacyUbuntuAltVersion    = "20.04"
 
 	MinDiskFreeKB    int64 = 5 * 1024 * 1024 // 5 GiB
-	MinRAMKB         int64 = 1024 * 1024     // 1 GiB
+	MinRAMKB         int64 = 512 * 1024      // 512 MiB
 	RecommendedRAMKB int64 = 2 * 1024 * 1024 // 2 GiB
 	DefaultSSHPort         = 22
 	DefaultHTTPPort        = 80

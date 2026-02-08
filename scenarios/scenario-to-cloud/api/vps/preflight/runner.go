@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ type RunOptions struct {
 	ProvidedSecrets map[string]string
 	PortProbe       tlsinfo.PortProbeFunc
 	TLSALPNProbe    tlsinfo.ALPNProbeFunc
+	Requirements    ScenarioRequirementsFetcher
 }
 
 // Run executes all VPS preflight checks and returns the combined results.
@@ -35,8 +37,49 @@ func Run(
 	if opts.TLSALPNProbe == nil {
 		opts.TLSALPNProbe = tlsinfo.DefaultALPNProbe
 	}
+	if opts.Requirements == nil {
+		opts.Requirements = fetchScenarioRequirementsFromAnalyzer
+	}
 
 	cfg := ssh.ConfigFromManifest(manifest)
+	diskRequiredKB := MinDiskFreeKB
+	ramRequiredKB := MinRAMKB
+	ramRecommendedKB := RecommendedRAMKB
+	requirementData := map[string]string{
+		"static_floor_disk_kb":    strconv.FormatInt(MinDiskFreeKB, 10),
+		"static_floor_ram_kb":     strconv.FormatInt(MinRAMKB, 10),
+		"static_floor_ram_rec_kb": strconv.FormatInt(RecommendedRAMKB, 10),
+	}
+	if manifest.Scenario.ID != "" && opts.Requirements != nil {
+		estimate, err := opts.Requirements(ctx, manifest.Scenario.ID)
+		if err != nil {
+			requirementData["requirement_source"] = "static_fallback"
+			requirementData["requirement_error"] = err.Error()
+		} else if estimate != nil {
+			requirementData["requirement_source"] = estimate.Source
+			requirementData["requirement_confidence"] = estimate.Confidence
+			requirementData["requirement_tier"] = estimate.Tier
+			requirementData["required_by_graph_ram_kb"] = strconv.FormatInt(estimate.RAMKB, 10)
+			requirementData["required_by_graph_disk_kb"] = strconv.FormatInt(estimate.DiskKB, 10)
+			requirementData["required_by_graph_cpu_cores"] = strconv.FormatFloat(estimate.CPUCores, 'f', -1, 64)
+			if estimate.RAMKB > ramRequiredKB {
+				ramRequiredKB = estimate.RAMKB
+			}
+			if estimate.RAMKB > ramRecommendedKB {
+				ramRecommendedKB = estimate.RAMKB
+			}
+			if estimate.DiskKB > diskRequiredKB {
+				diskRequiredKB = estimate.DiskKB
+			}
+		}
+	}
+	requirementData["effective_required_ram_kb"] = strconv.FormatInt(ramRequiredKB, 10)
+	requirementData["effective_required_disk_kb"] = strconv.FormatInt(diskRequiredKB, 10)
+	requirementData["effective_recommended_ram_kb"] = strconv.FormatInt(ramRecommendedKB, 10)
+	requirementData["effective_required_ram_human"] = formatBytes(ramRequiredKB)
+	requirementData["effective_required_disk_human"] = formatBytes(diskRequiredKB)
+	requirementData["effective_recommended_ram_human"] = formatBytes(ramRecommendedKB)
+
 	checks := make([]domain.PreflightCheck, 0, 8)
 	fail := func(id, title, details, hint string, data map[string]string) {
 		checks = append(checks, domain.PreflightCheck{
@@ -190,10 +233,6 @@ func Run(
 		if len(bindings) > 0 {
 			details = fmt.Sprintf("Ports in use: %s", formatPortBindings(bindings))
 		}
-		hint := "Ports 80/443 must be free for Caddy to complete Let's Encrypt HTTP-01 challenges."
-		if len(bindings) > 0 {
-			hint = hint + " Use the Free Ports action or run: sudo systemctl stop <service> or sudo kill <pid>."
-		}
 		data := map[string]string{"ss": portsRes.Stdout}
 		if len(bindings) > 0 {
 			if encoded, err := json.Marshal(bindings); err == nil {
@@ -202,13 +241,35 @@ func Run(
 			data["ports_in_use"] = strings.Join(portBindingPorts(bindings), ",")
 			data["processes"] = strings.Join(portBindingProcessList(bindings), ", ")
 		}
-		fail(
-			domain.PreflightPortsEdgeID,
-			"Ports 80/443 availability",
-			details,
-			hint,
-			data,
-		)
+
+		// Caddy is the expected edge owner for deployed hosts; don't block convergence.
+		allCaddy := len(bindings) > 0
+		for _, binding := range bindings {
+			if !strings.EqualFold(binding.Process, "caddy") && !strings.EqualFold(binding.Service, "caddy") {
+				allCaddy = false
+				break
+			}
+		}
+		if allCaddy {
+			pass(
+				domain.PreflightPortsEdgeID,
+				"Ports 80/443 availability",
+				fmt.Sprintf("%s (expected edge owner: caddy)", details),
+				data,
+			)
+		} else {
+			hint := "Ports 80/443 must be free for Caddy to complete Let's Encrypt HTTP-01 challenges."
+			if len(bindings) > 0 {
+				hint = hint + " Use the Free Ports action or run: sudo systemctl stop <service> or sudo kill <pid>."
+			}
+			fail(
+				domain.PreflightPortsEdgeID,
+				"Ports 80/443 availability",
+				details,
+				hint,
+				data,
+			)
+		}
 	} else {
 		pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Ports 80/443 appear free", nil)
 	}
@@ -293,16 +354,25 @@ func Run(
 		warn(domain.PreflightDiskFreeID, "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(diskRes.Stdout), 10, 64)
-		if kb > 0 && kb < MinDiskFreeKB {
+		detailsData := map[string]string{
+			"free_kb":            diskRes.Stdout,
+			"free_human":         formatBytes(kb),
+			"required_min_kb":    strconv.FormatInt(diskRequiredKB, 10),
+			"required_min_human": formatBytes(diskRequiredKB),
+		}
+		for k, v := range requirementData {
+			detailsData[k] = v
+		}
+		if kb > 0 && kb < diskRequiredKB {
 			fail(
 				domain.PreflightDiskFreeID,
 				"Disk free space",
 				fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
-				"At least 5 GB free space is recommended. Run: sudo apt clean && sudo journalctl --vacuum-size=100M",
-				map[string]string{"free_kb": diskRes.Stdout, "free_human": formatBytes(kb)},
+				fmt.Sprintf("At least %s free space is required for this deployment. Run: sudo apt clean && sudo journalctl --vacuum-size=100M", formatBytes(diskRequiredKB)),
+				detailsData,
 			)
 		} else {
-			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), map[string]string{"free_kb": diskRes.Stdout, "free_human": formatBytes(kb)})
+			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), detailsData)
 		}
 	}
 
@@ -311,24 +381,36 @@ func Run(
 		warn(domain.PreflightRAMTotalID, "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(ramRes.Stdout), 10, 64)
-		if kb > 0 && kb < MinRAMKB {
+		detailsData := map[string]string{
+			"memtotal_kb":              ramRes.Stdout,
+			"memtotal_human":           formatBytes(kb),
+			"required_min_kb":          strconv.FormatInt(ramRequiredKB, 10),
+			"required_min_human":       formatBytes(ramRequiredKB),
+			"recommended_min_kb":       strconv.FormatInt(ramRecommendedKB, 10),
+			"recommended_min_human":    formatBytes(ramRecommendedKB),
+			"required_by_graph_ram_mb": strconv.FormatFloat(math.Ceil(float64(ramRequiredKB)/1024), 'f', -1, 64),
+		}
+		for k, v := range requirementData {
+			detailsData[k] = v
+		}
+		if kb > 0 && kb < ramRequiredKB {
 			fail(
 				domain.PreflightRAMTotalID,
 				"RAM",
 				fmt.Sprintf("Low RAM: %s", formatBytes(kb)),
-				"At least 1 GB RAM is required. 2+ GB is recommended for most scenarios.",
-				map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)},
+				fmt.Sprintf("At least %s RAM is required for this deployment. %s is recommended.", formatBytes(ramRequiredKB), formatBytes(ramRecommendedKB)),
+				detailsData,
 			)
-		} else if kb > 0 && kb < RecommendedRAMKB {
+		} else if kb > 0 && kb < ramRecommendedKB {
 			warn(
 				"ram_total",
 				"RAM",
-				fmt.Sprintf("RAM: %s (2+ GB recommended)", formatBytes(kb)),
-				"Your VPS has limited RAM. Consider upgrading for better performance.",
-				map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)},
+				fmt.Sprintf("RAM: %s (%s recommended)", formatBytes(kb), formatBytes(ramRecommendedKB)),
+				"Your VPS has limited RAM for this deployment profile. Consider upgrading for better performance.",
+				detailsData,
 			)
 		} else {
-			pass(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)})
+			pass(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), detailsData)
 		}
 	}
 

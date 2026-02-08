@@ -2,40 +2,12 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "dependencies": {
     "resources": {
-      "browserless": {
-        "description": "Screenshot generation for template previews",
-        "enabled": false,
-        "notes": "Optional for generating template thumbnails and admin portal previews",
-        "required": false,
-        "type": "resource"
-      },
       "postgres": {
         "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
         "enabled": true,
         "required": true,
         "schema": "landing-page-business-suite",
         "type": "postgres"
-      },
-      "qdrant": {
-        "description": "Template recommendations based on user intent",
-        "enabled": false,
-        "notes": "Optional for P2 features (semantic template search)",
-        "required": false,
-        "type": "qdrant"
-      },
-      "redis": {
-        "description": "Session caching for high-traffic landing pages",
-        "enabled": false,
-        "notes": "Optional performance optimization for generated landing pages",
-        "required": false,
-        "type": "redis"
-      },
-      "resource-claude-code": {
-        "description": "Agent-based customization of landing pages",
-        "enabled": false,
-        "notes": "Required for agent customization features (OT-P0-005, OT-P0-006)",
-        "required": false,
-        "type": "resource"
       }
     }
   },
