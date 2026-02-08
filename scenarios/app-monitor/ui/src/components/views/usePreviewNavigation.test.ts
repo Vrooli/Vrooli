@@ -17,6 +17,7 @@ interface HarnessOptions {
   };
   childOrigin?: string | null;
   sendBridgeNav?: (cmd: 'GO' | 'BACK' | 'FWD', href?: string) => boolean;
+  resetBridgeState?: () => void;
 }
 
 function useNavigationHarness(options: HarnessOptions) {
@@ -48,7 +49,7 @@ function useNavigationHarness(options: HarnessOptions) {
     },
     childOrigin: options.childOrigin ?? null,
     sendBridgeNav: options.sendBridgeNav ?? (() => false),
-    resetBridgeState: vi.fn(),
+    resetBridgeState: options.resetBridgeState ?? vi.fn(),
     setStatusMessage,
     onBeforeLocalNavigation: vi.fn(),
   });
@@ -68,33 +69,66 @@ describe('usePreviewNavigation', () => {
   it('marks manual URL navigation as custom immediately when bridge navigation succeeds', () => {
     const sendBridgeNav = vi.fn().mockReturnValue(true);
     const { result } = renderHook(() => useNavigationHarness({
-      previewUrl: 'http://localhost:4310',
-      previewUrlInput: 'http://localhost:4310',
+      previewUrl: 'http://localhost:3000/apps/git-control-tower/proxy/',
+      previewUrlInput: 'http://localhost:3000/apps/git-control-tower/proxy/',
       hasCustomPreviewUrl: false,
-      history: ['http://localhost:4310'],
+      history: ['http://localhost:3000/apps/git-control-tower/proxy/'],
       historyIndex: 0,
       bridgeState: {
         isSupported: true,
-        href: null,
+        href: 'http://localhost:3000/apps/git-control-tower/proxy/',
         canGoBack: false,
         canGoForward: false,
       },
+      childOrigin: 'http://localhost:3000',
       sendBridgeNav,
     }));
 
     act(() => {
-      result.current.navigation.applyPreviewUrlValue('https://example.com/settings');
+      result.current.navigation.applyPreviewUrlValue('http://localhost:3000/apps/git-control-tower/proxy/?path=README.md');
     });
 
-    expect(sendBridgeNav).toHaveBeenCalledWith('GO', 'https://example.com/settings');
+    expect(sendBridgeNav).toHaveBeenCalledWith('GO', 'http://localhost:3000/apps/git-control-tower/proxy/?path=README.md');
     expect(result.current.hasCustomPreviewUrl).toBe(true);
-    expect(result.current.previewUrl).toBe('https://example.com/settings');
+    expect(result.current.previewUrl).toBe('http://localhost:3000/apps/git-control-tower/proxy/');
     expect(result.current.historyIndex).toBe(1);
-    expect(result.current.history).toEqual(['http://localhost:4310', 'https://example.com/settings']);
+    expect(result.current.history).toEqual([
+      'http://localhost:3000/apps/git-control-tower/proxy/',
+      'http://localhost:3000/apps/git-control-tower/proxy/?path=README.md',
+    ]);
     expect(result.current.statusMessage).toBeNull();
   });
 
-  it('resolves root-relative input against app-monitor origin when no preview reference exists', () => {
+  it('does not send bridge GO when switching to a different scenario proxy URL', () => {
+    const sendBridgeNav = vi.fn().mockReturnValue(true);
+    const resetBridgeState = vi.fn();
+    const { result } = renderHook(() => useNavigationHarness({
+      previewUrl: 'http://localhost:3000/apps/git-control-tower/proxy/',
+      previewUrlInput: 'http://localhost:3000/apps/git-control-tower/proxy/',
+      hasCustomPreviewUrl: false,
+      history: ['http://localhost:3000/apps/git-control-tower/proxy/'],
+      historyIndex: 0,
+      bridgeState: {
+        isSupported: true,
+        href: 'http://localhost:3000/apps/git-control-tower/proxy/',
+        canGoBack: false,
+        canGoForward: false,
+      },
+      childOrigin: 'http://localhost:3000',
+      sendBridgeNav,
+      resetBridgeState,
+    }));
+
+    act(() => {
+      result.current.navigation.applyPreviewUrlValue('http://localhost:3000/apps/agent-inbox/proxy/');
+    });
+
+    expect(sendBridgeNav).not.toHaveBeenCalled();
+    expect(resetBridgeState).toHaveBeenCalledTimes(1);
+    expect(result.current.previewUrl).toBe('http://localhost:3000/apps/agent-inbox/proxy/');
+  });
+
+  it('falls back to iframe src navigation for root-relative input when no bridge scope exists', () => {
     const sendBridgeNav = vi.fn().mockReturnValue(true);
     const { result } = renderHook(() => useNavigationHarness({
       previewUrl: null,
@@ -115,7 +149,7 @@ describe('usePreviewNavigation', () => {
       result.current.navigation.applyPreviewUrlValue('/settings');
     });
 
-    expect(sendBridgeNav).toHaveBeenCalledWith('GO', 'http://localhost:3000/settings');
+    expect(sendBridgeNav).not.toHaveBeenCalled();
     expect(result.current.previewUrl).toBe('http://localhost:3000/settings');
     expect(result.current.hasCustomPreviewUrl).toBe(true);
     expect(result.current.statusMessage).toBeNull();
@@ -163,24 +197,24 @@ describe('usePreviewNavigation', () => {
     expect(result.current.history).toEqual(['http://localhost:4310/admin']);
   });
 
-  it('normalizes bridge-reported relative URLs to absolute URLs', () => {
+  it('updates URL input from bridge location without replacing iframe source URL', () => {
     const { result } = renderHook(() => useNavigationHarness({
-      previewUrl: '/apps/git-control-tower/proxy/',
-      previewUrlInput: '/apps/git-control-tower/proxy/',
+      previewUrl: 'http://localhost:3000/apps/git-control-tower/proxy/',
+      previewUrlInput: 'http://localhost:3000/apps/git-control-tower/proxy/',
       hasCustomPreviewUrl: false,
-      history: ['/apps/git-control-tower/proxy/'],
+      history: ['http://localhost:3000/apps/git-control-tower/proxy/'],
       historyIndex: 0,
     }));
 
     act(() => {
-      result.current.navigation.syncFromBridge('/apps/prompt-manager/proxy/?skill=scientific-debugging');
+      result.current.navigation.syncFromBridge('http://localhost:3000/apps/git-control-tower/proxy/?path=src%2FApp.tsx');
     });
 
-    expect(result.current.previewUrl).toBe('http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging');
-    expect(result.current.previewUrlInput).toBe('http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging');
+    expect(result.current.previewUrl).toBe('http://localhost:3000/apps/git-control-tower/proxy/');
+    expect(result.current.previewUrlInput).toBe('http://localhost:3000/apps/git-control-tower/proxy/?path=src%2FApp.tsx');
     expect(result.current.history).toEqual([
-      '/apps/git-control-tower/proxy/',
-      'http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging',
+      'http://localhost:3000/apps/git-control-tower/proxy/',
+      'http://localhost:3000/apps/git-control-tower/proxy/?path=src%2FApp.tsx',
     ]);
   });
 

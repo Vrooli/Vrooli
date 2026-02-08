@@ -15,6 +15,13 @@ describe('resolvePreviewUrlCandidate', () => {
   it('accepts localhost targets without protocol', () => {
     expect(resolvePreviewUrlCandidate('localhost:5173')).toBe('http://localhost:5173/');
   });
+
+  it('resolves root-relative paths against the active preview reference when provided', () => {
+    expect(resolvePreviewUrlCandidate(
+      '/apps/git-control-tower/proxy/?path=README.md',
+      'https://app-monitor.itsagitime.com/apps/workspace',
+    )).toBe('https://app-monitor.itsagitime.com/apps/git-control-tower/proxy/?path=README.md');
+  });
 });
 
 describe('parseScenarioProxyPreviewTarget', () => {

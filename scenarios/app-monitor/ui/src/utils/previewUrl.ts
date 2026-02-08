@@ -65,14 +65,17 @@ export const resolvePreviewUrlCandidate = (
       return new URL(`https://${trimmed}`).href;
     }
 
+    const base = resolveReferenceBase(reference);
     if (trimmed.startsWith('/')) {
+      if (base) {
+        return new URL(trimmed, base).href;
+      }
       const browserOrigin = getBrowserOrigin();
       if (browserOrigin) {
         return new URL(trimmed, browserOrigin).href;
       }
     }
 
-    const base = resolveReferenceBase(reference);
     if (!base) {
       return null;
     }

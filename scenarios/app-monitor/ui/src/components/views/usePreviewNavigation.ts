@@ -50,6 +50,86 @@ type UsePreviewNavigationResult = {
 
 const normalizeUrl = (value: string): string => value.replace(/\/$/, '');
 const isSameUrl = (left: string, right: string): boolean => normalizeUrl(left) === normalizeUrl(right);
+const PROXY_BASE_PATTERN = /^\/apps\/([^/]+)\/proxy(?:\/|$)/i;
+const URL_PARSE_BASE = 'http://localhost';
+
+type ProxyBase = {
+  origin: string;
+  scenarioIdentifier: string;
+  basePath: string;
+};
+
+const normalizePath = (path: string): string => {
+  if (path === '/') {
+    return path;
+  }
+  return path.endsWith('/') ? path.slice(0, -1) : path;
+};
+
+const parseProxyBase = (value: string): ProxyBase | null => {
+  try {
+    const parsed = new URL(value, URL_PARSE_BASE);
+    const match = parsed.pathname.match(PROXY_BASE_PATTERN);
+    if (!match) {
+      return null;
+    }
+
+    const rawScenarioIdentifier = decodeURIComponent(match[1] ?? '').trim();
+    if (!rawScenarioIdentifier) {
+      return null;
+    }
+    const scenarioIdentifier = rawScenarioIdentifier.toLowerCase();
+
+    return {
+      origin: parsed.origin,
+      scenarioIdentifier,
+      basePath: normalizePath(`/apps/${encodeURIComponent(rawScenarioIdentifier)}/proxy/`),
+    };
+  } catch {
+    return null;
+  }
+};
+
+const canBridgeNavigateToTarget = (
+  targetUrl: string,
+  currentReference: string | null,
+  childOrigin: string | null,
+): boolean => {
+  if (!currentReference) {
+    return false;
+  }
+
+  try {
+    const resolvedTarget = new URL(targetUrl, URL_PARSE_BASE);
+    if (childOrigin && resolvedTarget.origin !== childOrigin) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  const currentBase = parseProxyBase(currentReference);
+  const targetBase = parseProxyBase(targetUrl);
+  if (!currentBase || !targetBase) {
+    return false;
+  }
+
+  if (currentBase.origin !== targetBase.origin) {
+    return false;
+  }
+
+  if (currentBase.scenarioIdentifier !== targetBase.scenarioIdentifier) {
+    return false;
+  }
+
+  try {
+    const resolvedTarget = new URL(targetUrl, URL_PARSE_BASE);
+    const targetPath = normalizePath(resolvedTarget.pathname);
+    return targetPath === targetBase.basePath || targetPath.startsWith(`${targetBase.basePath}/`);
+  } catch {
+    return false;
+  }
+};
 
 export const usePreviewNavigation = ({
   previewUrl,
@@ -147,11 +227,10 @@ export const usePreviewNavigation = ({
 
     if (bridgeState.isSupported) {
       try {
-        if (!childOrigin || new URL(resolvedTarget).origin === childOrigin) {
+        if (canBridgeNavigateToTarget(resolvedTarget, navigationReference, childOrigin)) {
           const sent = sendBridgeNav('GO', resolvedTarget);
           if (sent) {
             setHasCustomPreviewUrl(true);
-            setPreviewUrl(resolvedTarget);
             setHistory(prevHistory => {
               const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
               const last = baseHistory[baseHistory.length - 1];
@@ -265,42 +344,27 @@ export const usePreviewNavigation = ({
       href,
       bridgeState.href || previewUrl || initialPreviewUrlRef.current,
     ) ?? href;
-    setPreviewUrl(normalizedHref);
     setPreviewUrlInput(normalizedHref);
     setHistory(prevHistory => {
-      const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
-      const last = baseHistory[baseHistory.length - 1];
+      const last = prevHistory[prevHistory.length - 1];
       if (last && isSameUrl(last, normalizedHref)) {
-        setHistoryIndex(baseHistory.length - 1);
-        return baseHistory;
+        setHistoryIndex(prevHistory.length - 1);
+        return prevHistory;
       }
 
-      const nextHistory = [...baseHistory, normalizedHref];
+      const nextHistory = [...prevHistory, normalizedHref];
       setHistoryIndex(nextHistory.length - 1);
       return nextHistory;
     });
     if (!initialPreviewUrlRef.current) {
       initialPreviewUrlRef.current = normalizedHref;
     }
-    setHasCustomPreviewUrl(prev => {
-      if (prev) {
-        return prev;
-      }
-      const base = initialPreviewUrlRef.current;
-      if (!base) {
-        return prev;
-      }
-      return !isSameUrl(normalizedHref, base);
-    });
   }, [
     bridgeState.href,
-    historyIndex,
     initialPreviewUrlRef,
     previewUrl,
-    setHasCustomPreviewUrl,
     setHistory,
     setHistoryIndex,
-    setPreviewUrl,
     setPreviewUrlInput,
   ]);
 

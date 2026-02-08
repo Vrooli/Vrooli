@@ -385,7 +385,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation, onShortcut 
 
   useEffect(() => {
     resetState();
-  }, [childOrigin, resetState, previewUrl]);
+  }, [childOrigin, resetState]);
 
   useEffect(() => {
     effectiveOriginRef.current = childOrigin ?? null;

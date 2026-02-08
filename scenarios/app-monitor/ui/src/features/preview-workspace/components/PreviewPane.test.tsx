@@ -325,7 +325,7 @@ describe('PreviewPane', () => {
     expect(iframe.getAttribute('loading')).toBe('eager');
   });
 
-  it('keeps iframe URL on bridge navigation after refresh', async () => {
+  it('preserves iframe src while bridge location updates URL state', async () => {
     const user = userEvent.setup();
     const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
     expect(paneId).toBeTruthy();
@@ -344,9 +344,12 @@ describe('PreviewPane', () => {
     });
 
     await waitFor(() => {
-      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.previewUrl).toBe('http://localhost:4310/settings');
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.previewUrl).toBe(
+        'http://localhost:3000/apps/scenario-1/proxy/',
+      );
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.previewUrlInput).toBe('http://localhost:4310/settings');
       const iframe = document.querySelector('iframe');
-      expect(iframe?.getAttribute('src')).toBe('http://localhost:4310/settings');
+      expect(iframe?.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-1/proxy/');
     });
 
     await waitFor(() => {
@@ -356,16 +359,17 @@ describe('PreviewPane', () => {
         return;
       }
       const parsed = JSON.parse(persisted) as {
-        state?: { paneViewState?: Record<string, { previewUrl?: string }> };
+        state?: { paneViewState?: Record<string, { previewUrl?: string; previewUrlInput?: string }> };
       };
-      expect(parsed.state?.paneViewState?.[paneId]?.previewUrl).toBe('http://localhost:4310/settings');
+      expect(parsed.state?.paneViewState?.[paneId]?.previewUrl).toBe('http://localhost:3000/apps/scenario-1/proxy/');
+      expect(parsed.state?.paneViewState?.[paneId]?.previewUrlInput).toBe('http://localhost:4310/settings');
     });
 
     await user.click(screen.getByRole('button', { name: /refresh preview/i }));
 
     await waitFor(() => {
       const iframe = document.querySelector('iframe');
-      expect(iframe?.getAttribute('src')).toBe('http://localhost:4310/settings');
+      expect(iframe?.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-1/proxy/');
     });
   });
 

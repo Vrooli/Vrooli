@@ -102,4 +102,55 @@ describe('usePreviewUrlOrchestration', () => {
     expect(setPreviewUrl).toHaveBeenCalledWith('http://localhost:6600');
     expect(applyDefaultPreviewUrl).not.toHaveBeenCalled();
   });
+
+  it('does not override in-app proxy navigation when URL changed within same scenario', () => {
+    buildPreviewUrlMock.mockReturnValue('/apps/git-control-tower/proxy/');
+    const applyDefaultPreviewUrl = vi.fn();
+    const resetPreviewState = vi.fn();
+    const setPreviewUrl = vi.fn();
+    const initialPreviewUrlRef = { current: 'http://localhost/apps/git-control-tower/proxy/' as string | null };
+
+    const { result } = renderHook(() => usePreviewUrlOrchestration({
+      hasCustomPreviewUrl: false,
+      previewUrl: '/apps/git-control-tower/proxy/?path=README.md',
+      applyDefaultPreviewUrl,
+      resetPreviewState,
+      setPreviewUrl,
+      initialPreviewUrlRef,
+    }));
+
+    act(() => {
+      result.current({
+        appForPreview: { id: 'git-control-tower' } as never,
+      });
+    });
+
+    expect(applyDefaultPreviewUrl).not.toHaveBeenCalled();
+    expect(resetPreviewState).not.toHaveBeenCalled();
+  });
+
+  it('still reapplies default URL when preview URL points outside the scenario proxy', () => {
+    buildPreviewUrlMock.mockReturnValue('/apps/git-control-tower/proxy/');
+    const applyDefaultPreviewUrl = vi.fn();
+    const resetPreviewState = vi.fn();
+    const setPreviewUrl = vi.fn();
+    const initialPreviewUrlRef = { current: null as string | null };
+
+    const { result } = renderHook(() => usePreviewUrlOrchestration({
+      hasCustomPreviewUrl: false,
+      previewUrl: 'https://example.com/dashboard',
+      applyDefaultPreviewUrl,
+      resetPreviewState,
+      setPreviewUrl,
+      initialPreviewUrlRef,
+    }));
+
+    act(() => {
+      result.current({
+        appForPreview: { id: 'git-control-tower' } as never,
+      });
+    });
+
+    expect(applyDefaultPreviewUrl).toHaveBeenCalledWith('/apps/git-control-tower/proxy/');
+  });
 });
