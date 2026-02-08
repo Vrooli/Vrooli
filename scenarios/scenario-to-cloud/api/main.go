@@ -16,7 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
-	corepreflight "github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
 	"scenario-to-cloud/agentmanager"
@@ -34,7 +34,7 @@ import (
 	"scenario-to-cloud/toolhandlers"
 	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
-	"scenario-to-cloud/vps/preflight"
+	vpspreflight "scenario-to-cloud/vps/preflight"
 )
 
 // Config holds minimal runtime configuration
@@ -230,13 +230,13 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/bundles/vps/list", bundle.HandleListVPSBundles(s.sshRunner)).Methods("POST")
 	api.HandleFunc("/bundles/vps/delete", bundle.HandleDeleteVPSBundle(s.sshRunner)).Methods("POST")
 	api.HandleFunc("/bundles/{sha256}", bundle.HandleDeleteBundle()).Methods("DELETE")
-	api.HandleFunc("/preflight", preflight.HandlePreflight(preflight.HandlerDeps{
+	api.HandleFunc("/preflight", vpspreflight.HandlePreflight(vpspreflight.HandlerDeps{
 		SSHRunner:         s.sshRunner,
 		DNSService:        s.dnsService,
 		ValidateManifest:  manifest.ValidateAndNormalize,
 		HasBlockingIssues: manifest.HasBlockingIssues,
 	})).Methods("POST")
-	api.HandleFunc("/preflight/requirements", preflight.HandleRequirements()).Methods("GET")
+	api.HandleFunc("/preflight/requirements", vpspreflight.HandleRequirements()).Methods("GET")
 	api.HandleFunc("/secrets/{scenario}", secrets.HandleGetSecrets(s.secretsFetcher)).Methods("GET")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
 	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
@@ -258,6 +258,7 @@ func (s *Server) setupRoutes() {
 
 	// Live state inspection (Ground Truth Redesign - Phase 1)
 	api.HandleFunc("/deployments/{id}/live-state", s.handleGetLiveState).Methods("GET")
+	api.HandleFunc("/deployments/{id}/metrics-debug", s.handleGetMetricsDebug).Methods("GET")
 	api.HandleFunc("/deployments/{id}/files", s.handleGetFiles).Methods("GET")
 	api.HandleFunc("/deployments/{id}/files/content", s.handleGetFileContent).Methods("GET")
 	api.HandleFunc("/deployments/{id}/drift", s.handleGetDrift).Methods("GET")
@@ -308,11 +309,11 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/ssh/copy-key", ssh.HandleCopyKey(keyCopier, ssh.DefaultHandlerOptions())).Methods("POST")
 
 	// Preflight fix actions
-	api.HandleFunc("/preflight/fix/ports", preflight.HandleStopPortServices(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/preflight/fix/firewall", preflight.HandleOpenFirewallPorts(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/preflight/fix/stop-processes", preflight.HandleStopScenarioProcesses(s.sshRunner, adaptStopScenarioFunc)).Methods("POST")
-	api.HandleFunc("/preflight/disk/usage", preflight.HandleDiskUsage(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/preflight/disk/cleanup", preflight.HandleDiskCleanup(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/preflight/fix/ports", vpspreflight.HandleStopPortServices(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/preflight/fix/firewall", vpspreflight.HandleOpenFirewallPorts(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/preflight/fix/stop-processes", vpspreflight.HandleStopScenarioProcesses(s.sshRunner, adaptStopScenarioFunc)).Methods("POST")
+	api.HandleFunc("/preflight/disk/usage", vpspreflight.HandleDiskUsage(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/preflight/disk/cleanup", vpspreflight.HandleDiskCleanup(s.sshRunner)).Methods("POST")
 
 	// Investigation endpoints (agent-manager integration) - legacy, kept for backward compatibility
 	api.HandleFunc("/deployments/{id}/investigate", s.handleInvestigateDeployment).Methods("POST")
@@ -365,9 +366,9 @@ func getEnvDefault(key, defaultValue string) string {
 }
 
 // adaptStopScenarioFunc adapts vps.StopExistingScenario to the preflight package interface.
-func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir, scenarioID string, targetPorts []int) preflight.StopScenarioResult {
+func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir, scenarioID string, targetPorts []int) vpspreflight.StopScenarioResult {
 	result := vps.StopExistingScenario(ctx, sshRunner, cfg, workdir, scenarioID, targetPorts)
-	return preflight.StopScenarioResult{
+	return vpspreflight.StopScenarioResult{
 		OK:      result.OK,
 		Message: result.Message,
 	}
@@ -444,7 +445,7 @@ func createAnalyzerFetcher() func(ctx context.Context, scenarioID string) (resou
 
 func main() {
 	// Preflight checks - must be first, before any initialization
-	if corepreflight.Run(corepreflight.Config{
+	if preflight.Run(preflight.Config{
 		ScenarioName: "scenario-to-cloud",
 	}) {
 		return // Process was re-exec'd after rebuild

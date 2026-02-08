@@ -12,39 +12,40 @@ import (
 
 func runHealth(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment health", flag.ContinueOnError)
-	host := fs.String("host", "", "VPS host selector")
-	scenarioID := fs.String("scenario", "", "Scenario ID selector")
-	domain := fs.String("domain", "", "Domain selector")
+	selectorArgs := registerSelectorFlags(fs)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
-	selectorFlagsUsed := strings.TrimSpace(*host) != "" || strings.TrimSpace(*scenarioID) != "" || strings.TrimSpace(*domain) != ""
+	selectorFlagsUsed := selectorArgs.anySet()
 	if fs.NArg() > 1 || (fs.NArg() == 1 && selectorFlagsUsed) || (fs.NArg() == 0 && !selectorFlagsUsed) {
-		return fmt.Errorf("usage: scenario-to-cloud deployment health <id> OR scenario-to-cloud deployment health --host <host> [--scenario <id>] [--domain <domain>]")
+		return fmt.Errorf("usage: scenario-to-cloud deployment health <id> OR scenario-to-cloud deployment health [--host <host> | --domain <domain> | --target <domain-or-host>] [--scenario <id>]")
 	}
 
 	id := ""
 	if fs.NArg() == 1 {
 		id = strings.TrimSpace(fs.Arg(0))
 	} else {
-		selector := ManifestSelector{
-			Host:       strings.TrimSpace(*host),
-			ScenarioID: strings.TrimSpace(*scenarioID),
-			Domain:     strings.TrimSpace(*domain),
+		selector, err := selectorArgs.toSelector()
+		if err != nil {
+			return err
 		}
 		resolved, err := ResolveLatestBySelector(client, selector)
 		if err != nil {
 			return err
 		}
 		if resolved == nil {
+			hostForManifest := displayOrNA(selector.Host)
+			if hostForManifest == "n/a" {
+				hostForManifest = displayOrNA(selector.Target)
+			}
 			return fmt.Errorf(
-				"no deployment found for selector host=%s scenario=%s domain=%s\n\nNext steps:\n  1) Create a manifest:\n     scenario-to-cloud manifest init --scenario <scenario-id> --host %s --domain <domain> --out scenarios/<scenario-id>/.vrooli/cloud/manifest.<env>.json\n  2) Validate it:\n     scenario-to-cloud manifest validate scenarios/<scenario-id>/.vrooli/cloud/manifest.<env>.json\n  3) Deploy:\n     scenario-to-cloud redeploy scenarios/<scenario-id>/.vrooli/cloud/manifest.<env>.json --if-needed --preflight --wait",
+				"no deployment found for selector host=%s scenario=%s domain=%s\n\nNext steps:\n  1) Create a manifest:\n     scenario-to-cloud manifest init --scenario <scenario-id> --host %s --domain <domain> --out scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json\n  2) Validate it:\n     scenario-to-cloud manifest validate scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json\n  3) Deploy:\n     scenario-to-cloud redeploy scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json --if-needed --preflight --wait",
 				displayOrNA(selector.Host),
 				displayOrNA(selector.ScenarioID),
 				displayOrNA(selector.Domain),
-				displayOrNA(selector.Host),
+				hostForManifest,
 			)
 		}
 		id = resolved.ID

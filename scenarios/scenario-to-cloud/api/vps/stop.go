@@ -7,7 +7,7 @@ import (
 
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"scenario-to-cloud/vps/preflight"
+	"scenario-to-cloud/vps/portparse"
 )
 
 // StopScenarioResult represents the result of stopping a scenario
@@ -62,7 +62,7 @@ func StopExistingScenario(
 		// Get PIDs on this port using ss
 		ssCmd := fmt.Sprintf("ss -tlnpH 'sport = :%d' 2>/dev/null || true", port)
 		ssResult, _ := sshRunner.Run(ctx, cfg, ssCmd, ssh.DefaultRunOptions())
-		pids := preflight.ExtractPIDsFromSS(ssResult.Stdout)
+		pids := portparse.ExtractPIDsFromSS(ssResult.Stdout)
 
 		for _, pid := range pids {
 			// Try graceful kill first, then SIGKILL as fallback

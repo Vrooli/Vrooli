@@ -9,6 +9,8 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/vps/portparse"
+	"scenario-to-cloud/vps/systemmetrics"
 )
 
 // ufwAllowsPort checks if a UFW rule line allows the specified port.
@@ -20,16 +22,7 @@ func ufwAllowsPort(line string, port int) bool {
 
 // parseOSRelease extracts ID and VERSION_ID from /etc/os-release content.
 func parseOSRelease(contents string) (id, versionID string) {
-	for _, line := range strings.Split(contents, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "ID=") {
-			id = strings.Trim(strings.TrimPrefix(line, "ID="), `"`)
-		}
-		if strings.HasPrefix(line, "VERSION_ID=") {
-			versionID = strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), `"`)
-		}
-	}
-	return strings.ToLower(id), versionID
+	return systemmetrics.ParseOSRelease(contents)
 }
 
 // EdgePortBinding represents a port binding on edge ports (80/443).
@@ -254,96 +247,11 @@ func checkStaleScenarioProcesses(
 // Format: State Recv-Q Send-Q Local Address:Port Peer Address:Port Process
 // Example: LISTEN 0 4096 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=1234,fd=3))
 func ParseSSOutput(output string) []domain.PortBinding {
-	var ports []domain.PortBinding
-	lines := strings.Split(output, "\n")
-
-	// Regex to extract port from address
-	portRegex := regexp.MustCompile(`:(\d+)$`)
-	// Regex to extract process info from users:((..."name",pid=123,...))
-	processRegex := regexp.MustCompile(`\(\("([^"]+)",pid=(\d+)`)
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		// Skip header line
-		if strings.HasPrefix(line, "State") || strings.HasPrefix(line, "Netid") {
-			continue
-		}
-
-		// Skip non-LISTEN lines
-		if !strings.HasPrefix(line, "LISTEN") {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 5 {
-			continue
-		}
-
-		// Extract port from local address (field 3 or 4 depending on format)
-		localAddr := fields[3]
-		portMatch := portRegex.FindStringSubmatch(localAddr)
-		if len(portMatch) < 2 {
-			continue
-		}
-
-		port, err := strconv.Atoi(portMatch[1])
-		if err != nil {
-			continue
-		}
-
-		// Extract process name and PID
-		var processName string
-		var pid int
-		if len(fields) >= 6 {
-			processInfo := fields[5]
-			if len(fields) > 6 {
-				processInfo = strings.Join(fields[5:], " ")
-			}
-			procMatch := processRegex.FindStringSubmatch(processInfo)
-			if len(procMatch) >= 3 {
-				processName = procMatch[1]
-				pid, _ = strconv.Atoi(procMatch[2])
-			}
-		}
-
-		binding := domain.PortBinding{
-			Port:    port,
-			Process: processName,
-		}
-		if pid > 0 {
-			binding.PID = &pid
-		}
-
-		ports = append(ports, binding)
-	}
-
-	return ports
+	return portparse.ParseSSOutput(output)
 }
 
 // ExtractPIDsFromSS parses PIDs from ss -ltnp output.
 // Example: LISTEN 0 4096 *:80 *:* users:(("nginx",pid=1234,fd=6))
 func ExtractPIDsFromSS(output string) []string {
-	var pids []string
-	seen := make(map[string]bool)
-
-	pidRegex := regexp.MustCompile(`pid=(\d+)`)
-
-	for _, line := range strings.Split(output, "\n") {
-		matches := pidRegex.FindAllStringSubmatch(line, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				pid := match[1]
-				if !seen[pid] {
-					seen[pid] = true
-					pids = append(pids, pid)
-				}
-			}
-		}
-	}
-
-	return pids
+	return portparse.ExtractPIDsFromSS(output)
 }

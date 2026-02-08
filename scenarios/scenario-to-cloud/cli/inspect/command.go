@@ -28,6 +28,8 @@ func Run(client *Client, args []string) error {
 		return runLive(client, args[1:])
 	case "drift":
 		return runDrift(client, args[1:])
+	case "metrics":
+		return runMetrics(client, args[1:])
 	case "logs":
 		return runLogs(client, args[1:])
 	case "files":
@@ -47,6 +49,7 @@ Commands:
   status <manifest.json>    Fetch remote status and logs
   live <deployment-id>      Get live state of a deployment
   drift <deployment-id>     Detect configuration drift
+  metrics <deployment-id>   Debug VPS system metrics collection
   logs <deployment-id>      View aggregated logs
   files <deployment-id>     Browse or read files on the VPS
 
@@ -254,6 +257,95 @@ Flags:
 	return nil
 }
 
+func runMetrics(client *Client, args []string) error {
+	var id string
+	jsonOutput := false
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-h", "--help":
+			fmt.Println(`Usage: scenario-to-cloud inspect metrics <deployment-id> [flags]
+
+Flags:
+  --json    Output raw JSON`)
+			return nil
+		case "--json":
+			jsonOutput = true
+		default:
+			if !strings.HasPrefix(args[i], "-") && id == "" {
+				id = args[i]
+			}
+		}
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: scenario-to-cloud inspect metrics <deployment-id>")
+	}
+
+	body, resp, err := client.MetricsDebug(id)
+	if err != nil {
+		return err
+	}
+
+	if jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	r := resp.Result
+	keyAuthState := r.System.SSH.KeyInAuthState
+	if keyAuthState == "" {
+		if r.System.SSH.KeyInAuth {
+			keyAuthState = "authorized"
+		} else {
+			keyAuthState = "unauthorized"
+		}
+	}
+	fmt.Printf("Metrics Debug for Deployment: %s\n", resp.DeploymentID)
+	fmt.Println(strings.Repeat("-", 70))
+	fmt.Printf("Collector: %s", r.Collector)
+	if r.OSID != "" {
+		fmt.Printf("  OS: %s", r.OSID)
+		if r.OSVersion != "" {
+			fmt.Printf(" %s", r.OSVersion)
+		}
+	}
+	fmt.Println()
+	fmt.Printf("SSH: connected=%v latency=%dms key_auth=%s\n", r.System.SSH.Connected, r.System.SSH.LatencyMs, keyAuthState)
+	fmt.Printf("CPU: usage=%.1f%% cores=%d load=[%.2f %.2f %.2f]\n",
+		r.System.CPU.UsagePercent,
+		r.System.CPU.Cores,
+		safeLoad(r.System.CPU.LoadAverage, 0),
+		safeLoad(r.System.CPU.LoadAverage, 1),
+		safeLoad(r.System.CPU.LoadAverage, 2),
+	)
+	fmt.Printf("Memory: used=%dMB total=%dMB (%.1f%%)\n", r.System.Memory.UsedMB, r.System.Memory.TotalMB, r.System.Memory.UsagePercent)
+	fmt.Printf("Disk: used=%dGB total=%dGB (%.1f%%)\n", r.System.Disk.UsedGB, r.System.Disk.TotalGB, r.System.Disk.UsagePercent)
+	fmt.Printf("       bytes: memory=%d/%d disk=%d/%d\n",
+		r.System.Memory.UsedBytes, r.System.Memory.TotalBytes,
+		r.System.Disk.UsedBytes, r.System.Disk.TotalBytes,
+	)
+	fmt.Printf("Swap: used=%dMB total=%dMB (%.1f%%)\n", r.System.Swap.UsedMB, r.System.Swap.TotalMB, r.System.Swap.UsagePercent)
+	if r.Error != "" {
+		fmt.Printf("Error: %s\n", r.Error)
+	}
+
+	fmt.Println("\nCommands:")
+	fmt.Printf("  %-15s %-6s %-8s %s\n", "ID", "EXIT", "TIME", "COMMAND")
+	for _, cmd := range r.Commands {
+		status := strconv.Itoa(cmd.ExitCode)
+		if cmd.Error != "" {
+			status = "ERR"
+		}
+		fmt.Printf("  %-15s %-6s %-8d %s\n", truncate(cmd.ID, 15), status, cmd.DurationMs, truncate(cmd.Command, 64))
+		if cmd.Error != "" {
+			fmt.Printf("    error: %s\n", cmd.Error)
+		}
+	}
+
+	return nil
+}
+
 func runLogs(client *Client, args []string) error {
 	var id string
 	opts := LogsOptions{Tail: 100}
@@ -458,4 +550,11 @@ func formatSize(bytes int64) string {
 	default:
 		return fmt.Sprintf("%dB", bytes)
 	}
+}
+
+func safeLoad(loads []float64, index int) float64 {
+	if index < 0 || index >= len(loads) {
+		return 0
+	}
+	return loads[index]
 }

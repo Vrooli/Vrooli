@@ -79,6 +79,19 @@ func (c *Client) Drift(id string) ([]byte, DriftResponse, error) {
 	return body, resp, nil
 }
 
+// MetricsDebug retrieves raw metrics command output and parsed system metrics.
+func (c *Client) MetricsDebug(id string) ([]byte, MetricsDebugResponse, error) {
+	body, err := c.api.Get(fmt.Sprintf("/api/v1/deployments/%s/metrics-debug", id), nil)
+	if err != nil {
+		return nil, MetricsDebugResponse{}, err
+	}
+	var resp MetricsDebugResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return body, MetricsDebugResponse{}, err
+	}
+	return body, resp, nil
+}
+
 // Logs retrieves aggregated logs for a deployment.
 func (c *Client) Logs(id string, opts LogsOptions) ([]byte, LogsResponse, error) {
 	query := url.Values{}

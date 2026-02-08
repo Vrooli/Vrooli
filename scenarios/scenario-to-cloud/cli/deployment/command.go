@@ -247,17 +247,15 @@ func runGet(client *Client, args []string) error {
 
 func runResolve(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment resolve", flag.ContinueOnError)
-	host := fs.String("host", "", "VPS host selector")
-	scenarioID := fs.String("scenario", "", "Scenario ID selector")
-	domain := fs.String("domain", "", "Domain selector")
+	selectorArgs := registerSelectorFlags(fs)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 	if err := flagutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
-	selectorFlagsUsed := strings.TrimSpace(*host) != "" || strings.TrimSpace(*scenarioID) != "" || strings.TrimSpace(*domain) != ""
+	selectorFlagsUsed := selectorArgs.anySet()
 	if fs.NArg() > 1 || (fs.NArg() == 1 && selectorFlagsUsed) || (fs.NArg() == 0 && !selectorFlagsUsed) {
-		return fmt.Errorf("usage: scenario-to-cloud deployment resolve <manifest.json> OR scenario-to-cloud deployment resolve --host <host> [--scenario <id>] [--domain <domain>]")
+		return fmt.Errorf("usage: scenario-to-cloud deployment resolve <manifest.json> OR scenario-to-cloud deployment resolve [--host <host> | --domain <domain> | --target <domain-or-host>] [--scenario <id>]")
 	}
 
 	var (
@@ -270,10 +268,9 @@ func runResolve(client *Client, args []string) error {
 			return err
 		}
 	} else {
-		selector = ManifestSelector{
-			Host:       strings.TrimSpace(*host),
-			ScenarioID: strings.TrimSpace(*scenarioID),
-			Domain:     strings.TrimSpace(*domain),
+		selector, err = selectorArgs.toSelector()
+		if err != nil {
+			return err
 		}
 	}
 
@@ -300,9 +297,12 @@ func runResolve(client *Client, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Selector: scenario=%s host=%s", selector.ScenarioID, selector.Host)
+	fmt.Printf("Selector: scenario=%s host=%s", selector.ScenarioID, displayOrNA(selector.Host))
 	if selector.Domain != "" {
 		fmt.Printf(" domain=%s", selector.Domain)
+	}
+	if selector.Target != "" {
+		fmt.Printf(" target=%s", selector.Target)
 	}
 	fmt.Println()
 

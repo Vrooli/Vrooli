@@ -44,6 +44,26 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleGetMetricsDebug returns raw system metric command output plus parsed metrics.
+// GET /api/v1/deployments/{id}/metrics-debug
+func (s *Server) handleGetMetricsDebug(w http.ResponseWriter, r *http.Request) {
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+
+	result := vps.RunSystemMetricsDebug(ctx, dc.Manifest, s.sshRunner)
+
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"deployment_id": dc.Deployment.ID,
+		"result":        result,
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
 // handleGetFiles lists directory contents on VPS.
 // GET /api/v1/deployments/{id}/files?path=...
 func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {

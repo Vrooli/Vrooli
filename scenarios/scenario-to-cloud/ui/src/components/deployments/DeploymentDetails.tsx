@@ -34,6 +34,7 @@ import {
 } from "../../hooks/useDeployments";
 import { useDeploymentProgress } from "../../hooks/useDeploymentProgress";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
+import { useLiveState } from "../../hooks/useLiveState";
 import { useDeploymentUrl } from "../../hooks/useDeploymentUrl";
 import { cn } from "../../lib/utils";
 import { runPreflight as runPreflightApi, type Deployment, type PreflightCheck, type PreflightResponse } from "../../lib/api";
@@ -104,6 +105,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
   // Investigation state
   const investigation = useDeploymentInvestigation(deploymentId);
+  const { data: liveState } = useLiveState(deploymentId);
 
   const statusInfo = getStatusInfo(deploymentRecord?.status ?? "pending");
   const manifest = (deploymentRecord?.manifest ?? {}) as {
@@ -435,6 +437,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           <h1 className="text-2xl font-bold text-white">{deploymentRecord.name}</h1>
           <div className="flex items-center gap-3 mt-2">
             <StatusBadgeLarge status={deploymentRecord.status} />
+            <SSHKeyAuthBadge liveState={liveState} />
             {manifest.edge?.domain && deploymentRecord.status === "deployed" && (
               <a
                 href={`https://${manifest.edge.domain}`}
@@ -1105,6 +1108,40 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         </>
       )}
     </div>
+  );
+}
+
+function SSHKeyAuthBadge({ liveState }: { liveState: { system?: { ssh?: { key_in_auth?: boolean; key_in_auth_state?: "authorized" | "unauthorized" | "unknown" } } } | null | undefined }) {
+  if (!liveState?.system?.ssh) {
+    return null;
+  }
+
+  const ssh = liveState.system.ssh;
+  const keyState = ssh.key_in_auth_state ?? (ssh.key_in_auth ? "authorized" : "unauthorized");
+
+  const config = {
+    authorized: {
+      text: "SSH key authorized",
+      className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      Icon: CheckCircle2,
+    },
+    unauthorized: {
+      text: "SSH key unauthorized",
+      className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      Icon: AlertCircle,
+    },
+    unknown: {
+      text: "SSH key auth unknown",
+      className: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+      Icon: AlertCircle,
+    },
+  }[keyState];
+
+  return (
+    <span className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium", config.className)}>
+      <config.Icon className="h-4 w-4" />
+      {config.text}
+    </span>
   );
 }
 

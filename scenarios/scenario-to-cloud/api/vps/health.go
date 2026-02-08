@@ -215,15 +215,36 @@ func buildSSHSection(liveState *domain.LiveStateResult) domain.HealthSection {
 	// Key authorization check
 	keyStatus := domain.HealthCheckPass
 	keyMsg := "Key authorized"
-	if !system.SSH.KeyInAuth {
+	keyDetails := map[string]string{}
+	keyState := system.SSH.KeyInAuthState
+	if keyState == "" {
+		// Backward compatibility with older snapshots that only populated bool.
+		if system.SSH.KeyInAuth {
+			keyState = "authorized"
+		} else {
+			keyState = "unauthorized"
+		}
+	}
+	switch keyState {
+	case "authorized":
+		keyStatus = domain.HealthCheckPass
+		keyMsg = "Key authorized"
+		keyDetails["state"] = "authorized"
+	case "unauthorized":
 		keyStatus = domain.HealthCheckWarn
 		keyMsg = "SSH key not found in authorized_keys"
+		keyDetails["state"] = "unauthorized"
+	default:
+		keyStatus = domain.HealthCheckWarn
+		keyMsg = "SSH key authorization unknown (no deployment key configured)"
+		keyDetails["state"] = "unknown"
 	}
 	addCheckToSection(&sec, domain.HealthCheck{
 		ID:      "ssh_key_auth",
 		Title:   "Key authorization",
 		Status:  keyStatus,
 		Message: keyMsg,
+		Details: keyDetails,
 	})
 
 	return sec
@@ -711,10 +732,14 @@ func checkToRecommendation(deploymentID string, manifest domain.CloudManifest, c
 			Command:  sshTestCmd,
 		}
 	case category == "ssh" && check.ID == "ssh_key_auth" && check.Status == domain.HealthCheckWarn:
+		summary := "SSH key is not authorized on VPS"
+		if state := strings.TrimSpace(check.Details["state"]); state == "unknown" {
+			summary = "SSH key authorization unknown; bootstrap required for unattended deploys"
+		}
 		return &domain.Recommendation{
 			Priority: 2,
 			Category: "ssh",
-			Summary:  "SSH key is not authorized on VPS",
+			Summary:  summary,
 			Command:  sshBootstrapCmd,
 		}
 	case category == "processes" && check.Status == domain.HealthCheckFail:

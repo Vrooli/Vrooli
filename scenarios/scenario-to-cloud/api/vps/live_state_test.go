@@ -5,6 +5,7 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/vps/systemmetrics"
 )
 
 func TestParsePSOutput(t *testing.T) {
@@ -305,7 +306,7 @@ func TestParseSystemState_Uptime(t *testing.T) {
 		"uptime": {result: ssh.Result{Stdout: "389593.24 1558372.96"}},
 	}
 
-	state := parseSystemState(results, "", "", 10)
+	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
 	if state.UptimeSeconds != 389593 {
 		t.Errorf("UptimeSeconds = %d, want 389593", state.UptimeSeconds)
 	}
@@ -318,7 +319,7 @@ func TestParseSystemState_Disk(t *testing.T) {
 		"df": {result: ssh.Result{Stdout: "/dev/sda1      200G   84G  116G  42% /"}},
 	}
 
-	state := parseSystemState(results, "", "", 10)
+	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
 	if state.Disk.TotalGB != 200 {
 		t.Errorf("Disk.TotalGB = %d, want 200", state.Disk.TotalGB)
 	}
@@ -340,14 +341,53 @@ func TestParseSystemState_Memory(t *testing.T) {
 		"free": {result: ssh.Result{Stdout: "Mem:           3944        2048        1024         100         872        1700\nSwap:          2048         512        1536"}},
 	}
 
-	state := parseSystemState(results, "", "", 10)
+	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
 	if state.Memory.TotalMB != 3944 {
 		t.Errorf("Memory.TotalMB = %d, want 3944", state.Memory.TotalMB)
 	}
-	if state.Memory.UsedMB != 2048 {
-		t.Errorf("Memory.UsedMB = %d, want 2048", state.Memory.UsedMB)
+	if state.Memory.UsedMB != 2244 {
+		t.Errorf("Memory.UsedMB = %d, want 2244", state.Memory.UsedMB)
+	}
+	if state.Memory.FreeMB != 1700 {
+		t.Errorf("Memory.FreeMB = %d, want 1700", state.Memory.FreeMB)
 	}
 	if state.Swap.TotalMB != 2048 {
 		t.Errorf("Swap.TotalMB = %d, want 2048", state.Swap.TotalMB)
+	}
+}
+
+func TestParseSystemState_SSHKeyAuthUnknownWithoutKey(t *testing.T) {
+	t.Parallel()
+
+	results := map[string]sshCommandResult{
+		"ssh_ping":      {result: ssh.Result{ExitCode: 0}},
+		"ssh_key_check": {result: ssh.Result{Stdout: "ssh-ed25519 AAAA existing-key user@host", ExitCode: 0}},
+	}
+
+	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
+	if state.SSH.KeyInAuthState != "unknown" {
+		t.Fatalf("KeyInAuthState=%q, want unknown", state.SSH.KeyInAuthState)
+	}
+}
+
+func TestParseSystemState_SSHKeyAuthAuthorized(t *testing.T) {
+	t.Parallel()
+
+	pubKey := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey generated-by-test"
+	results := map[string]sshCommandResult{
+		"ssh_ping": {
+			result: ssh.Result{ExitCode: 0},
+		},
+		"ssh_key_check": {
+			result: ssh.Result{Stdout: pubKey + "\nssh-ed25519 AAAA other", ExitCode: 0},
+		},
+	}
+
+	state := parseSystemState(results, "~/.ssh/id_ed25519", pubKey, systemmetrics.CollectorForOS("linux"))
+	if state.SSH.KeyInAuthState != "authorized" {
+		t.Fatalf("KeyInAuthState=%q, want authorized", state.SSH.KeyInAuthState)
+	}
+	if !state.SSH.KeyInAuth {
+		t.Fatal("KeyInAuth=false, want true")
 	}
 }

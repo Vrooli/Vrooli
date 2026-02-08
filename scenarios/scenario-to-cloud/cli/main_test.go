@@ -458,6 +458,94 @@ func TestDeploymentResolveByHostSelector(t *testing.T) {
 	}
 }
 
+func TestDeploymentResolveByDomainSelectorWithoutHost(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/deployments" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"deployments": [
+				{
+					"id": "dep-1",
+					"name": "by-domain",
+					"scenario_id": "landing-page-business-suite",
+					"status": "deployed",
+					"domain": "app.example.com",
+					"host": "203.0.113.10",
+					"progress_percent": 100,
+					"created_at": "2026-02-07T00:00:00Z"
+				}
+			],
+			"timestamp": "2026-02-07T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "resolve", "--domain", "app.example.com"}); err != nil {
+			t.Fatalf("deployment resolve failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "Resolved deployment: dep-1") {
+		t.Fatalf("expected deployment id in output, got: %s", output)
+	}
+}
+
+func TestDeploymentResolveByTargetPrefersDomainMatchBeforeHost(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/deployments" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"deployments": [
+				{
+					"id": "dep-host",
+					"name": "host-match",
+					"scenario_id": "landing-page-business-suite",
+					"status": "deployed",
+					"domain": "other.example.com",
+					"host": "app.example.com",
+					"progress_percent": 100,
+					"created_at": "2026-02-07T00:00:00Z"
+				},
+				{
+					"id": "dep-domain",
+					"name": "domain-match",
+					"scenario_id": "landing-page-business-suite",
+					"status": "deployed",
+					"domain": "app.example.com",
+					"host": "203.0.113.10",
+					"progress_percent": 100,
+					"created_at": "2026-02-06T00:00:00Z"
+				}
+			],
+			"timestamp": "2026-02-07T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "resolve", "--target", "app.example.com"}); err != nil {
+			t.Fatalf("deployment resolve failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "Resolved deployment: dep-domain") {
+		t.Fatalf("expected domain-priority match, got: %s", output)
+	}
+}
+
 func TestDeploymentHealthResolvesByHostAndScenario(t *testing.T) {
 	app := newTestApp(t)
 
@@ -512,6 +600,60 @@ func TestDeploymentHealthResolvesByHostAndScenario(t *testing.T) {
 
 	if !strings.Contains(output, "Deployment ID: dep-789") {
 		t.Fatalf("expected full deployment ID in output, got: %s", output)
+	}
+}
+
+func TestDeploymentHealthResolvesByTargetDomain(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"deployments": [
+					{
+						"id": "dep-900",
+						"name": "prod",
+						"scenario_id": "landing-page-business-suite",
+						"status": "deployed",
+						"domain": "vrooli.com",
+						"host": "138.197.95.182",
+						"progress_percent": 100,
+						"created_at": "2026-02-07T00:00:00Z"
+					}
+				],
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case "/api/v1/deployments/dep-900/health":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"ok": true,
+				"health": "healthy",
+				"deployment_id": "dep-900",
+				"deployment_name": "prod",
+				"scenario_id": "landing-page-business-suite",
+				"summary": "4 passed  |  0 warning  |  0 failed",
+				"sections": [],
+				"duration_ms": 200,
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "health", "--target", "vrooli.com"}); err != nil {
+			t.Fatalf("deployment health failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "Deployment ID: dep-900") {
+		t.Fatalf("expected target resolution to health check by id, got: %s", output)
 	}
 }
 
@@ -612,6 +754,255 @@ func TestRedeployAcceptsJSONFlagAfterManifestPath(t *testing.T) {
 	}
 }
 
+func TestRedeploySelectorModeIfNeededExecutesExistingDeployment(t *testing.T) {
+	app := newTestApp(t)
+
+	call := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call++
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments":
+			if got := r.URL.Query().Get("scenario_id"); got != "landing-page-business-suite" {
+				t.Fatalf("expected scenario_id query, got: %q", got)
+			}
+			fmt.Fprint(w, `{
+				"deployments": [{
+					"id": "dep-selector-1",
+					"name": "demo",
+					"scenario_id": "landing-page-business-suite",
+					"status": "failed",
+					"domain": "vrooli.com",
+					"host": "138.197.95.182",
+					"created_at": "2026-02-07T00:00:00Z"
+				}],
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-selector-1/health":
+			fmt.Fprint(w, `{
+				"ok": true,
+				"health": "failed",
+				"deployment_id": "dep-selector-1",
+				"deployment_name": "demo",
+				"scenario_id": "landing-page-business-suite",
+				"freshness": {"status":"outdated"},
+				"summary": "failed",
+				"sections": [],
+				"duration_ms": 1,
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/deployments/dep-selector-1/execute":
+			bodyBytes, _ := io.ReadAll(r.Body)
+			body := string(bodyBytes)
+			if !strings.Contains(body, `"run_preflight":true`) {
+				t.Fatalf("expected run_preflight true, got: %s", body)
+			}
+			if !strings.Contains(body, `"force_bundle_build":true`) {
+				t.Fatalf("expected force_bundle_build true for outdated deployment, got: %s", body)
+			}
+			fmt.Fprint(w, `{
+				"run_id": "run-selector-1",
+				"status": "started",
+				"message": "ok",
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{
+			"redeploy",
+			"--domain", "vrooli.com",
+			"--scenario", "landing-page-business-suite",
+			"--if-needed",
+			"--preflight",
+		}); err != nil {
+			t.Fatalf("selector redeploy failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "Found existing deployment by selector: dep-selector-1") {
+		t.Fatalf("expected selector match output, got: %s", output)
+	}
+	if !strings.Contains(output, "run-selector-1") {
+		t.Fatalf("expected run id output, got: %s", output)
+	}
+}
+
+func TestRedeploySelectorModeIfNeededWaitJSONOutputsStructuredResult(t *testing.T) {
+	app := newTestApp(t)
+
+	getCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments":
+			if got := r.URL.Query().Get("scenario_id"); got != "landing-page-business-suite" {
+				t.Fatalf("expected scenario_id query, got: %q", got)
+			}
+			fmt.Fprint(w, `{
+				"deployments": [{
+					"id": "dep-selector-json-1",
+					"name": "demo",
+					"scenario_id": "landing-page-business-suite",
+					"status": "failed",
+					"domain": "vrooli.com",
+					"host": "138.197.95.182",
+					"created_at": "2026-02-07T00:00:00Z"
+				}],
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-selector-json-1/health":
+			fmt.Fprint(w, `{
+				"ok": true,
+				"health": "failed",
+				"deployment_id": "dep-selector-json-1",
+				"deployment_name": "demo",
+				"scenario_id": "landing-page-business-suite",
+				"freshness": {"status":"outdated"},
+				"summary": "failed",
+				"sections": [],
+				"duration_ms": 1,
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/deployments/dep-selector-json-1/execute":
+			fmt.Fprint(w, `{
+				"run_id": "run-selector-json-1",
+				"status": "started",
+				"message": "ok",
+				"timestamp": "2026-02-07T00:00:00Z"
+			}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-selector-json-1":
+			getCount++
+			if getCount == 1 {
+				fmt.Fprint(w, `{
+					"deployment": {
+						"id": "dep-selector-json-1",
+						"name": "demo",
+						"scenario_id": "landing-page-business-suite",
+						"status": "deploying",
+						"progress_step": "bundle_build",
+						"progress_percent": 42,
+						"created_at": "2026-02-07T00:00:00Z",
+						"updated_at": "2026-02-07T00:00:01Z"
+					},
+					"timestamp": "2026-02-07T00:00:01Z"
+				}`)
+				return
+			}
+			fmt.Fprint(w, `{
+				"deployment": {
+					"id": "dep-selector-json-1",
+					"name": "demo",
+					"scenario_id": "landing-page-business-suite",
+					"status": "deployed",
+					"progress_step": "verify",
+					"progress_percent": 100,
+					"created_at": "2026-02-07T00:00:00Z",
+					"updated_at": "2026-02-07T00:00:03Z"
+				},
+				"timestamp": "2026-02-07T00:00:03Z"
+			}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{
+			"redeploy",
+			"--domain", "vrooli.com",
+			"--scenario", "landing-page-business-suite",
+			"--if-needed",
+			"--preflight",
+			"--wait",
+			"--json",
+		}); err != nil {
+			t.Fatalf("selector redeploy failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, `"mode": "selector_if_needed"`) {
+		t.Fatalf("expected selector_if_needed mode in JSON output, got: %s", output)
+	}
+	if !strings.Contains(output, `"run_id": "run-selector-json-1"`) {
+		t.Fatalf("expected run id in JSON output, got: %s", output)
+	}
+	if !strings.Contains(output, `"final_status": "deployed"`) {
+		t.Fatalf("expected wait summary final status in JSON output, got: %s", output)
+	}
+	if strings.Contains(output, "Waiting for deployment to complete") {
+		t.Fatalf("expected JSON-only output, got: %s", output)
+	}
+}
+
+func TestRedeploySelectorModeRequiresIfNeeded(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+	}))
+	defer server.Close()
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	err := app.Run([]string{
+		"redeploy",
+		"--domain", "vrooli.com",
+		"--scenario", "landing-page-business-suite",
+	})
+	if err == nil {
+		t.Fatalf("expected selector mode to require --if-needed")
+	}
+	if !strings.Contains(err.Error(), "selector mode requires --if-needed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRedeploySelectorModeMissingDeploymentReturnsManifestGuidance(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/deployments" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"deployments":[],"timestamp":"2026-02-07T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	err := app.Run([]string{
+		"redeploy",
+		"--domain", "vrooli.com",
+		"--scenario", "landing-page-business-suite",
+		"--if-needed",
+	})
+	if err == nil {
+		t.Fatalf("expected no deployment error")
+	}
+	if !strings.Contains(err.Error(), "no deployment found for selector") {
+		t.Fatalf("expected selector error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "manifest.prod.json") {
+		t.Fatalf("expected manifest.prod.json guidance, got: %v", err)
+	}
+}
+
 func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	// [REQ:STC-P0-006] inspect apply should be callable via CLI (integration layer)
 	app := newTestApp(t)
@@ -638,6 +1029,52 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	})
 	if !strings.Contains(output, "\"ok\": true") {
 		t.Fatalf("expected inspect apply output, got: %s", output)
+	}
+}
+
+func TestInspectMetricsGetsMetricsDebugEndpoint(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/deployments/dep-123/metrics-debug" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"deployment_id": "dep-123",
+			"result": {
+				"ok": true,
+				"collector": "linux",
+				"os_id": "ubuntu",
+				"os_version": "24.04",
+				"commands": [{"id":"meminfo","command":"cat /proc/meminfo","exit_code":0,"duration_ms":3}],
+				"system": {
+					"cpu": {"cores":4,"usage_percent":12.5,"load_average":[0.1,0.2,0.3]},
+					"memory": {"total_mb":1000,"used_mb":400,"free_mb":600,"usage_percent":40},
+					"disk": {"total_gb":100,"used_gb":40,"free_gb":60,"usage_percent":40},
+					"swap": {"total_mb":0,"used_mb":0,"usage_percent":0},
+					"ssh": {"connected":true,"latency_ms":10,"key_in_auth":true,"key_path":"~/.ssh/id_ed25519"},
+					"uptime_seconds": 100
+				},
+				"timestamp":"2026-02-07T00:00:00Z"
+			},
+			"timestamp":"2026-02-07T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"inspect", "metrics", "dep-123", "--json"}); err != nil {
+			t.Fatalf("inspect metrics failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"deployment_id\": \"dep-123\"") {
+		t.Fatalf("expected metrics JSON output, got: %s", output)
 	}
 }
 

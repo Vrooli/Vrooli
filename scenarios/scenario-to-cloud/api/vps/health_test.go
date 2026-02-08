@@ -138,6 +138,52 @@ func TestComputeHealth_Healthy(t *testing.T) {
 	}
 }
 
+func TestComputeHealth_SSHKeyAuthUnknownIsWarn(t *testing.T) {
+	dep := newTestDeployment(domain.StatusDeployed)
+	manifest := newTestManifest()
+	liveState := newHealthyLiveState()
+	liveState.System.SSH.KeyInAuth = false
+	liveState.System.SSH.KeyInAuthState = "unknown"
+
+	resp := ComputeHealth(dep, manifest, liveState, newHealthyDNSEval(), newHealthyTLSSnapshot(), nil)
+
+	var keyAuthCheck *domain.HealthCheck
+	for _, sec := range resp.Sections {
+		if sec.Category != "ssh" {
+			continue
+		}
+		for i := range sec.Checks {
+			if sec.Checks[i].ID == "ssh_key_auth" {
+				keyAuthCheck = &sec.Checks[i]
+				break
+			}
+		}
+	}
+	if keyAuthCheck == nil {
+		t.Fatal("ssh_key_auth check not found")
+	}
+	if keyAuthCheck.Status != domain.HealthCheckWarn {
+		t.Fatalf("ssh_key_auth status=%q, want %q", keyAuthCheck.Status, domain.HealthCheckWarn)
+	}
+	if got := keyAuthCheck.Details["state"]; got != "unknown" {
+		t.Fatalf("ssh_key_auth details.state=%q, want %q", got, "unknown")
+	}
+
+	found := false
+	for _, rec := range resp.Recommendations {
+		if rec.Category != "ssh" {
+			continue
+		}
+		if rec.Command == "scenario-to-cloud ssh bootstrap 1.2.3.4 --user root --non-interactive" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected bootstrap recommendation for unknown ssh_key_auth")
+	}
+}
+
 func TestComputeHealth_Degraded_TLSExpiring(t *testing.T) {
 	dep := newTestDeployment(domain.StatusDeployed)
 	manifest := newTestManifest()

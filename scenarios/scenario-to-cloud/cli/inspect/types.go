@@ -160,3 +160,90 @@ type FilesOptions struct {
 	Path    string // Path within deployment (default: /)
 	Content bool   // Read file content instead of listing
 }
+
+// MetricsDebugResponse represents the response from metrics debug endpoint.
+type MetricsDebugResponse struct {
+	DeploymentID string             `json:"deployment_id"`
+	Result       MetricsDebugResult `json:"result"`
+	Timestamp    string             `json:"timestamp"`
+}
+
+// MetricsDebugResult contains parsed system metrics and raw command output.
+type MetricsDebugResult struct {
+	OK        bool                  `json:"ok"`
+	Collector string                `json:"collector"`
+	OSID      string                `json:"os_id,omitempty"`
+	OSVersion string                `json:"os_version,omitempty"`
+	Commands  []MetricsDebugCommand `json:"commands"`
+	System    SystemState           `json:"system"`
+	Error     string                `json:"error,omitempty"`
+	Timestamp string                `json:"timestamp"`
+}
+
+// MetricsDebugCommand captures one command's raw output and metadata.
+type MetricsDebugCommand struct {
+	ID         string `json:"id"`
+	Command    string `json:"command"`
+	Stdout     string `json:"stdout,omitempty"`
+	Stderr     string `json:"stderr,omitempty"`
+	ExitCode   int    `json:"exit_code"`
+	DurationMs int64  `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
+}
+
+// SystemState mirrors parsed system metrics from the API.
+type SystemState struct {
+	CPU           CPUInfo    `json:"cpu"`
+	Memory        MemoryInfo `json:"memory"`
+	Disk          DiskInfo   `json:"disk"`
+	Swap          SwapInfo   `json:"swap"`
+	SSH           SSHHealth  `json:"ssh"`
+	UptimeSeconds int64      `json:"uptime_seconds"`
+}
+
+// CPUInfo contains CPU metrics.
+type CPUInfo struct {
+	Cores        int       `json:"cores"`
+	Model        string    `json:"model,omitempty"`
+	UsagePercent float64   `json:"usage_percent"`
+	LoadAverage  []float64 `json:"load_average"`
+}
+
+// MemoryInfo contains memory metrics.
+type MemoryInfo struct {
+	TotalMB      int     `json:"total_mb"`
+	UsedMB       int     `json:"used_mb"`
+	FreeMB       int     `json:"free_mb"`
+	TotalBytes   int64   `json:"total_bytes"`
+	UsedBytes    int64   `json:"used_bytes"`
+	FreeBytes    int64   `json:"free_bytes"`
+	UsagePercent float64 `json:"usage_percent"`
+}
+
+// DiskInfo contains disk metrics.
+type DiskInfo struct {
+	TotalGB      int     `json:"total_gb"`
+	UsedGB       int     `json:"used_gb"`
+	FreeGB       int     `json:"free_gb"`
+	TotalBytes   int64   `json:"total_bytes"`
+	UsedBytes    int64   `json:"used_bytes"`
+	FreeBytes    int64   `json:"free_bytes"`
+	UsagePercent float64 `json:"usage_percent"`
+}
+
+// SwapInfo contains swap metrics.
+type SwapInfo struct {
+	TotalMB      int     `json:"total_mb"`
+	UsedMB       int     `json:"used_mb"`
+	UsagePercent float64 `json:"usage_percent"`
+}
+
+// SSHHealth contains SSH connectivity details.
+type SSHHealth struct {
+	Connected      bool   `json:"connected"`
+	LatencyMs      int64  `json:"latency_ms"`
+	KeyInAuth      bool   `json:"key_in_auth"`
+	KeyInAuthState string `json:"key_in_auth_state,omitempty"`
+	KeyPath        string `json:"key_path"`
+	Error          string `json:"error,omitempty"`
+}

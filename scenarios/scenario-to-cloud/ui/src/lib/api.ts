@@ -1149,6 +1149,9 @@ export type MemoryInfo = {
   total_mb: number;
   used_mb: number;
   free_mb: number;
+  total_bytes?: number;
+  used_bytes?: number;
+  free_bytes?: number;
   usage_percent: number;
 };
 
@@ -1156,6 +1159,9 @@ export type DiskInfo = {
   total_gb: number;
   used_gb: number;
   free_gb: number;
+  total_bytes?: number;
+  used_bytes?: number;
+  free_bytes?: number;
   usage_percent: number;
 };
 
@@ -1169,6 +1175,7 @@ export type SSHHealth = {
   connected: boolean;
   latency_ms: number;
   key_in_auth: boolean;
+  key_in_auth_state?: "authorized" | "unauthorized" | "unknown";
   key_path: string;
   error?: string;
 };
