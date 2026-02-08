@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./components/CodeBlock";
 import { InlineCode } from "./components/InlineCode";
 import { LinkWithPreview } from "./components/LinkWithPreview";
+import { MermaidDiagram } from "./components/MermaidDiagram";
 
 /**
  * Lightweight error boundary specifically for markdown rendering.
@@ -81,6 +82,11 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         // Inline code
         if (isInline) {
           return <InlineCode>{children}</InlineCode>;
+        }
+
+        // Mermaid diagram
+        if (codeClassName === "language-mermaid") {
+          return <MermaidDiagram code={codeContent} />;
         }
 
         // Fenced code block

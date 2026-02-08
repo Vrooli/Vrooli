@@ -9,6 +9,15 @@ export default defineConfig({
       { find: "@", replacement: "/src" },
     ],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mermaid: ["mermaid"],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
