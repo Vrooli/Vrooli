@@ -1,11 +1,199 @@
-import { memo, useMemo, type ReactNode } from "react";
+import { Check, Copy } from "lucide-react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { BundledLanguage, Highlighter } from "shiki";
 import { MermaidDiagram } from "./MermaidDiagram";
 
 interface MarkdownPreviewProps {
   content: string;
 }
+
+interface MarkdownCodeBlockProps {
+  code: string;
+  language?: string;
+  className?: string;
+}
+
+let highlighterPromise: Promise<Highlighter> | null = null;
+
+async function getHighlighter(): Promise<Highlighter> {
+  if (!highlighterPromise) {
+    highlighterPromise = import("shiki").then((shiki) =>
+      shiki.createHighlighter({
+        themes: ["github-dark"],
+        langs: [
+          "typescript",
+          "javascript",
+          "python",
+          "go",
+          "json",
+          "bash",
+          "sql",
+          "html",
+          "css",
+          "yaml",
+          "markdown",
+          "jsx",
+          "tsx",
+          "rust",
+          "java",
+          "c",
+          "cpp",
+          "ruby",
+          "php",
+          "swift",
+          "kotlin",
+          "text",
+        ],
+      })
+    );
+  }
+  return highlighterPromise;
+}
+
+function normalizeLanguage(lang?: string): string {
+  if (!lang) return "";
+  const aliases: Record<string, string> = {
+    js: "javascript",
+    ts: "typescript",
+    py: "python",
+    sh: "bash",
+    shell: "bash",
+    yml: "yaml",
+    md: "markdown",
+    rs: "rust",
+    kt: "kotlin",
+    "c++": "cpp",
+  };
+  const normalized = lang.toLowerCase().trim();
+  return aliases[normalized] || normalized;
+}
+
+const MarkdownCodeBlock = memo(function MarkdownCodeBlock({
+  code,
+  language,
+  className,
+}: MarkdownCodeBlockProps) {
+  const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const extractedLang = className?.replace(/^language-/, "") || language || "";
+  const normalizedLang = normalizeLanguage(extractedLang);
+  const displayLang = normalizedLang || "text";
+
+  const copyCode = useCallback(() => {
+    const copyFallback = () => {
+      const textArea = document.createElement("textarea");
+      textArea.value = code;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+    };
+
+    void (navigator.clipboard?.writeText(code).catch(() => {
+      copyFallback();
+    }) ?? Promise.resolve(copyFallback()))
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        // Ignore copy failures.
+      });
+  }, [code]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function highlight(): Promise<void> {
+      try {
+        const highlighter = await getHighlighter();
+        if (cancelled) return;
+
+        const loadedLangs = highlighter.getLoadedLanguages();
+        let langToUse: string = normalizedLang || "text";
+
+        if (langToUse !== "text" && !loadedLangs.includes(langToUse as BundledLanguage)) {
+          try {
+            await highlighter.loadLanguage(langToUse as BundledLanguage);
+          } catch {
+            langToUse = "text";
+          }
+        }
+
+        const html = highlighter.codeToHtml(code, {
+          lang: langToUse as BundledLanguage | "text",
+          theme: "github-dark",
+        });
+        if (!cancelled) {
+          setHighlightedHtml(html);
+        }
+      } catch {
+        if (!cancelled) {
+          setHighlightedHtml(null);
+        }
+      }
+    }
+
+    void highlight();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [code, normalizedLang]);
+
+  return (
+    <div className="relative group rounded-lg overflow-hidden my-3">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
+        <span className="text-xs text-slate-400 font-mono">{displayLang}</span>
+        <button
+          onClick={copyCode}
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          aria-label={copied ? "Copied" : "Copy code"}
+          type="button"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-green-400" />
+              <span className="text-green-400">Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5" />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="bg-slate-800 overflow-x-auto">
+        {highlightedHtml ? (
+          <div
+            className="p-4 text-sm [&>pre]:!bg-transparent [&>pre]:!m-0 [&>pre]:!p-0"
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+        ) : (
+          <pre className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto">
+            {code}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+});
 
 function extractTextContent(children: ReactNode): string {
   if (typeof children === "string") {
@@ -75,34 +263,32 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       ),
       // Code
       code: ({
+        inline,
         className,
         children,
-      }: {
+        ...props
+      }: ComponentPropsWithoutRef<"code"> & {
+        inline?: boolean;
         className?: string;
-        children?: ReactNode;
       }) => {
-        if (className === "language-mermaid") {
-          return <MermaidDiagram code={extractTextContent(children)} />;
-        }
-        const isBlock = className?.includes("language-");
-        if (isBlock) {
+        const codeContent = extractTextContent(children);
+        const isInline = inline ?? (!className && !codeContent.includes("\n"));
+
+        if (isInline) {
           return (
-            <code className="block bg-slate-900 rounded-md p-4 text-sm font-mono text-slate-300 overflow-x-auto mb-4">
+            <code className="bg-slate-800 text-emerald-300 px-1.5 py-0.5 rounded text-sm font-mono">
               {children}
             </code>
           );
         }
-        return (
-          <code className="bg-slate-800 text-emerald-300 px-1.5 py-0.5 rounded text-sm font-mono">
-            {children}
-          </code>
-        );
+
+        if (className === "language-mermaid") {
+          return <MermaidDiagram code={codeContent} />;
+        }
+
+        return <MarkdownCodeBlock code={codeContent} className={className} {...props} />;
       },
-      pre: ({ children }: { children?: ReactNode }) => (
-        <pre className="bg-slate-900 rounded-md overflow-x-auto mb-4">
-          {children}
-        </pre>
-      ),
+      pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
       // Blockquotes
       blockquote: ({ children }: { children?: ReactNode }) => (
         <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-4">
