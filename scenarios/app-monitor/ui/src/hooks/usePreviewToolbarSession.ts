@@ -4,6 +4,7 @@ import { APP_OPEN_MODE_QUERY_KEY, type AppOpenMode } from '@/components/tabSwitc
 import type { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import type { App } from '@/types';
 import { buildPreviewUrl } from '@/utils/appPreview';
+import { resolvePreviewUrlCandidate } from '@/utils/previewUrl';
 
 type OpenOverlayFn = ReturnType<typeof useOverlayRouter>['openOverlay'];
 
@@ -17,7 +18,11 @@ interface UsePreviewToolbarSessionOptions {
   onBeforeOpenScenarioSelector?: () => void;
 }
 
-export const buildPreviewUrlSuggestions = (history: string[], apps: App[]): string[] => {
+export const buildPreviewUrlSuggestions = (
+  history: string[],
+  apps: App[],
+  referenceUrl: string | null = null,
+): string[] => {
   const seen = new Set<string>();
   const suggestions: string[] = [];
   const addSuggestion = (value: string | null | undefined) => {
@@ -25,11 +30,12 @@ export const buildPreviewUrlSuggestions = (history: string[], apps: App[]): stri
       return;
     }
     const trimmed = value.trim();
-    if (trimmed.length === 0 || seen.has(trimmed)) {
+    const normalized = resolvePreviewUrlCandidate(trimmed, referenceUrl) ?? trimmed;
+    if (normalized.length === 0 || seen.has(normalized)) {
       return;
     }
-    seen.add(trimmed);
-    suggestions.push(trimmed);
+    seen.add(normalized);
+    suggestions.push(normalized);
   };
 
   for (let index = history.length - 1; index >= 0; index -= 1) {
@@ -58,9 +64,15 @@ export function usePreviewToolbarSession({
   appOpenMode,
   onBeforeOpenScenarioSelector,
 }: UsePreviewToolbarSessionOptions) {
-  const openPreviewTarget = useMemo(() => bridgeHref || previewUrl || '', [bridgeHref, previewUrl]);
+  const openPreviewTarget = useMemo(() => {
+    const preferredTarget = bridgeHref || previewUrl || '';
+    return resolvePreviewUrlCandidate(preferredTarget, previewUrl || bridgeHref) ?? preferredTarget;
+  }, [bridgeHref, previewUrl]);
 
-  const urlSuggestions = useMemo(() => buildPreviewUrlSuggestions(history, apps), [apps, history]);
+  const urlSuggestions = useMemo(
+    () => buildPreviewUrlSuggestions(history, apps, bridgeHref || previewUrl),
+    [apps, bridgeHref, history, previewUrl],
+  );
 
   const handleOpenScenarioSelector = useCallback(() => {
     onBeforeOpenScenarioSelector?.();

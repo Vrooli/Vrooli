@@ -26,11 +26,24 @@ describe('buildPreviewUrlSuggestions', () => {
     const suggestions = buildPreviewUrlSuggestions(
       ['http://localhost:4310', 'http://localhost:9999', 'http://localhost:4310'],
       apps,
+      'http://localhost:3000/apps/app-monitor/proxy/',
     );
 
-    expect(suggestions[0]).toBe('http://localhost:4310');
-    expect(suggestions[1]).toBe('http://localhost:9999');
+    expect(suggestions[0]).toBe('http://localhost:4310/');
+    expect(suggestions[1]).toBe('http://localhost:9999/');
     expect(new Set(suggestions).size).toBe(suggestions.length);
+  });
+
+  it('normalizes relative proxy paths to absolute URLs', () => {
+    const apps = [createApp('scenario-a', 4310)];
+    const suggestions = buildPreviewUrlSuggestions(
+      ['/apps/git-control-tower/proxy/'],
+      apps,
+      'http://localhost:3000/apps/app-monitor/proxy/',
+    );
+
+    expect(suggestions).toContain('http://localhost:3000/apps/git-control-tower/proxy/');
+    expect(suggestions).toContain('http://localhost:3000/apps/scenario-a/proxy/');
   });
 });
 
@@ -78,7 +91,35 @@ describe('usePreviewToolbarSession', () => {
     });
 
     expect(preventDefault).toHaveBeenCalled();
-    expect(openSpy).toHaveBeenCalledWith('http://localhost:4310', '_blank', 'noopener');
+    expect(openSpy).toHaveBeenCalledWith('http://localhost:4310/', '_blank', 'noopener');
+    openSpy.mockRestore();
+  });
+
+  it('opens relative preview targets in a new tab as absolute URLs', () => {
+    const openOverlay = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const { result } = renderHook(() => usePreviewToolbarSession({
+      bridgeHref: null,
+      previewUrl: '/apps/prompt-manager/proxy/?skill=scientific-debugging',
+      history: [],
+      apps: [createApp('scenario-a', 4310)],
+      openOverlay,
+      appOpenMode: 'single-preview',
+    }));
+
+    const preventDefault = vi.fn();
+    act(() => {
+      result.current.handleOpenPreviewInNewTab({
+        preventDefault,
+      } as unknown as ReactMouseEvent<HTMLButtonElement>);
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(openSpy).toHaveBeenCalledWith(
+      'http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging',
+      '_blank',
+      'noopener',
+    );
     openSpy.mockRestore();
   });
 });

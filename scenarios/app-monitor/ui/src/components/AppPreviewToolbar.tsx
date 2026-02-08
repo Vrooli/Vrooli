@@ -32,6 +32,7 @@ import { useToolbarMenu, useMenuCoordinator, useMenuAutoFocus, useMenuOutsideCli
 import { PREVIEW_UI } from './views/previewConstants';
 import { AnchoredPopover } from './popover/AnchoredPopover';
 import { useAnchoredPopover } from './popover/useAnchoredPopover';
+import { formatPreviewUrlForDisplay } from '@/utils/previewUrl';
 
 import './AppPreviewToolbar.css';
 
@@ -193,6 +194,7 @@ const AppPreviewToolbar = ({
   const urlSuggestionItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [isUrlSuggestionsOpen, setIsUrlSuggestionsOpen] = useState(false);
   const [activeUrlSuggestionIndex, setActiveUrlSuggestionIndex] = useState(-1);
+  const [isUrlInputEditing, setIsUrlInputEditing] = useState(false);
   const normalizedUrlSuggestions = useMemo(() => {
     const seen = new Set<string>();
     const deduped: string[] = [];
@@ -211,6 +213,12 @@ const AppPreviewToolbar = ({
   }, [urlSuggestions]);
   const hasUrlSuggestionsContent = normalizedUrlSuggestions.length > 0 || Boolean(onOpenScenarioSelector);
   const urlSuggestionsCount = normalizedUrlSuggestions.length + (onOpenScenarioSelector ? 1 : 0);
+  const displayedPreviewUrlInput = useMemo(() => {
+    if (isUrlInputEditing) {
+      return previewUrlInput;
+    }
+    return formatPreviewUrlForDisplay(previewUrlInput);
+  }, [isUrlInputEditing, previewUrlInput]);
   const urlSuggestionsPopover = useAnchoredPopover({
     isOpen: isUrlSuggestionsOpen && hasUrlSuggestionsContent,
     anchorRef: urlWrapperRef,
@@ -372,6 +380,7 @@ const AppPreviewToolbar = ({
   }, [closeMenus, openOverlay]);
 
   const handleUrlInputFocus = useCallback(() => {
+    setIsUrlInputEditing(true);
     if (!hasUrlSuggestionsContent) {
       return;
     }
@@ -385,6 +394,7 @@ const AppPreviewToolbar = ({
 
   const handleUrlInputBlur = useCallback(() => {
     onPreviewUrlInputBlur();
+    setIsUrlInputEditing(false);
     if (closeUrlSuggestionsTimerRef.current !== null) {
       window.clearTimeout(closeUrlSuggestionsTimerRef.current);
     }
@@ -601,7 +611,7 @@ const AppPreviewToolbar = ({
           <input
             type="text"
             className="preview-toolbar__url-input"
-            value={previewUrlInput}
+            value={displayedPreviewUrlInput}
             onChange={onPreviewUrlInputChange}
             onBlur={handleUrlInputBlur}
             onFocus={handleUrlInputFocus}
@@ -679,8 +689,9 @@ const AppPreviewToolbar = ({
               ref={(node) => {
                 urlSuggestionItemRefs.current[index] = node;
               }}
+              title={suggestion}
             >
-              {suggestion}
+              {formatPreviewUrlForDisplay(suggestion)}
             </button>
           ))}
           {onOpenScenarioSelector && (

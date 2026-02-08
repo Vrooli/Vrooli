@@ -94,7 +94,7 @@ describe('usePreviewNavigation', () => {
     expect(result.current.statusMessage).toBeNull();
   });
 
-  it('rejects relative URL input when no preview reference exists', () => {
+  it('resolves root-relative input against app-monitor origin when no preview reference exists', () => {
     const sendBridgeNav = vi.fn().mockReturnValue(true);
     const { result } = renderHook(() => useNavigationHarness({
       previewUrl: null,
@@ -115,10 +115,10 @@ describe('usePreviewNavigation', () => {
       result.current.navigation.applyPreviewUrlValue('/settings');
     });
 
-    expect(sendBridgeNav).not.toHaveBeenCalled();
-    expect(result.current.previewUrl).toBeNull();
-    expect(result.current.hasCustomPreviewUrl).toBe(false);
-    expect(result.current.statusMessage).toContain('absolute URL');
+    expect(sendBridgeNav).toHaveBeenCalledWith('GO', 'http://localhost:3000/settings');
+    expect(result.current.previewUrl).toBe('http://localhost:3000/settings');
+    expect(result.current.hasCustomPreviewUrl).toBe(true);
+    expect(result.current.statusMessage).toBeNull();
   });
 
   it('resolves relative URLs against active preview URL instead of host page URL', () => {
@@ -143,5 +143,44 @@ describe('usePreviewNavigation', () => {
     expect(result.current.previewUrl).toBe('http://localhost:4310/app/settings');
     expect(result.current.hasCustomPreviewUrl).toBe(true);
     expect(result.current.history).toEqual(['http://localhost:4310/app/', 'http://localhost:4310/app/settings']);
+  });
+
+  it('accepts localhost URLs without an explicit protocol', () => {
+    const { result } = renderHook(() => useNavigationHarness({
+      previewUrl: null,
+      previewUrlInput: '',
+      hasCustomPreviewUrl: false,
+      history: [],
+      historyIndex: -1,
+    }));
+
+    act(() => {
+      result.current.navigation.applyPreviewUrlValue('localhost:4310/admin');
+    });
+
+    expect(result.current.previewUrl).toBe('http://localhost:4310/admin');
+    expect(result.current.hasCustomPreviewUrl).toBe(true);
+    expect(result.current.history).toEqual(['http://localhost:4310/admin']);
+  });
+
+  it('normalizes bridge-reported relative URLs to absolute URLs', () => {
+    const { result } = renderHook(() => useNavigationHarness({
+      previewUrl: '/apps/git-control-tower/proxy/',
+      previewUrlInput: '/apps/git-control-tower/proxy/',
+      hasCustomPreviewUrl: false,
+      history: ['/apps/git-control-tower/proxy/'],
+      historyIndex: 0,
+    }));
+
+    act(() => {
+      result.current.navigation.syncFromBridge('/apps/prompt-manager/proxy/?skill=scientific-debugging');
+    });
+
+    expect(result.current.previewUrl).toBe('http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging');
+    expect(result.current.previewUrlInput).toBe('http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging');
+    expect(result.current.history).toEqual([
+      '/apps/git-control-tower/proxy/',
+      'http://localhost:3000/apps/prompt-manager/proxy/?skill=scientific-debugging',
+    ]);
   });
 });

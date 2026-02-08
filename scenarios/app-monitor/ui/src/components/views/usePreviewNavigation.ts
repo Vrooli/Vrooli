@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { ChangeEvent, KeyboardEvent, MutableRefObject } from 'react';
 import { logger } from '@/services/logger';
+import { resolvePreviewUrlCandidate } from '@/utils/previewUrl';
 
 type BridgeSnapshot = {
   isSupported: boolean;
@@ -49,40 +50,6 @@ type UsePreviewNavigationResult = {
 
 const normalizeUrl = (value: string): string => value.replace(/\/$/, '');
 const isSameUrl = (left: string, right: string): boolean => normalizeUrl(left) === normalizeUrl(right);
-const ABSOLUTE_URL_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
-const DOMAIN_LIKE_PATTERN = /^[^\s/]+\.[^\s/]+(?:[/?#].*)?$/i;
-
-const resolveNavigationTarget = (
-  value: string,
-  reference: string | null,
-): string | null => {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  try {
-    if (ABSOLUTE_URL_PATTERN.test(trimmed)) {
-      return new URL(trimmed).href;
-    }
-
-    if (trimmed.startsWith('//')) {
-      return new URL(`https:${trimmed}`).href;
-    }
-
-    if (DOMAIN_LIKE_PATTERN.test(trimmed)) {
-      return new URL(`https://${trimmed}`).href;
-    }
-
-    if (!reference) {
-      return null;
-    }
-
-    return new URL(trimmed, reference).href;
-  } catch {
-    return null;
-  }
-};
 
 export const usePreviewNavigation = ({
   previewUrl,
@@ -123,24 +90,33 @@ export const usePreviewNavigation = ({
   }, [hasCustomPreviewUrl, initialPreviewUrlRef, setHistory, setPreviewUrl, setPreviewUrlInput, setHistoryIndex]);
 
   const applyDefaultPreviewUrl = useCallback((url: string) => {
-    initialPreviewUrlRef.current = url;
-    setPreviewUrl(url);
-    setPreviewUrlInput(url);
+    const normalizedUrl = resolvePreviewUrlCandidate(url, previewUrl) ?? url;
+    initialPreviewUrlRef.current = normalizedUrl;
+    setPreviewUrl(normalizedUrl);
+    setPreviewUrlInput(normalizedUrl);
     setHasCustomPreviewUrl(false);
     setHistory(prevHistory => {
       if (prevHistory.length === 0) {
         setHistoryIndex(0);
-        return [url];
+        return [normalizedUrl];
       }
-      if (prevHistory[prevHistory.length - 1] === url) {
+      if (prevHistory[prevHistory.length - 1] === normalizedUrl) {
         setHistoryIndex(prevHistory.length - 1);
         return prevHistory;
       }
-      const nextHistory = [...prevHistory, url];
+      const nextHistory = [...prevHistory, normalizedUrl];
       setHistoryIndex(nextHistory.length - 1);
       return nextHistory;
     });
-  }, [initialPreviewUrlRef, setHasCustomPreviewUrl, setHistory, setHistoryIndex, setPreviewUrl, setPreviewUrlInput]);
+  }, [
+    initialPreviewUrlRef,
+    previewUrl,
+    setHasCustomPreviewUrl,
+    setHistory,
+    setHistoryIndex,
+    setPreviewUrl,
+    setPreviewUrlInput,
+  ]);
 
   const applyPreviewUrlValue = useCallback((value: string) => {
     const trimmed = value.trim();
@@ -158,7 +134,7 @@ export const usePreviewNavigation = ({
     }
 
     const navigationReference = bridgeState.href || previewUrl || initialPreviewUrlRef.current;
-    const resolvedTarget = resolveNavigationTarget(trimmed, navigationReference);
+    const resolvedTarget = resolvePreviewUrlCandidate(trimmed, navigationReference);
 
     if (!resolvedTarget) {
       setStatusMessage('Enter an absolute URL or wait for preview to load before using relative paths.');
@@ -281,22 +257,26 @@ export const usePreviewNavigation = ({
     if (!href) {
       return;
     }
-    setPreviewUrl(href);
-    setPreviewUrlInput(href);
+    const normalizedHref = resolvePreviewUrlCandidate(
+      href,
+      bridgeState.href || previewUrl || initialPreviewUrlRef.current,
+    ) ?? href;
+    setPreviewUrl(normalizedHref);
+    setPreviewUrlInput(normalizedHref);
     setHistory(prevHistory => {
       const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
       const last = baseHistory[baseHistory.length - 1];
-      if (last && isSameUrl(last, href)) {
+      if (last && isSameUrl(last, normalizedHref)) {
         setHistoryIndex(baseHistory.length - 1);
         return baseHistory;
       }
 
-      const nextHistory = [...baseHistory, href];
+      const nextHistory = [...baseHistory, normalizedHref];
       setHistoryIndex(nextHistory.length - 1);
       return nextHistory;
     });
     if (!initialPreviewUrlRef.current) {
-      initialPreviewUrlRef.current = href;
+      initialPreviewUrlRef.current = normalizedHref;
     }
     setHasCustomPreviewUrl(prev => {
       if (prev) {
@@ -306,9 +286,19 @@ export const usePreviewNavigation = ({
       if (!base) {
         return prev;
       }
-      return !isSameUrl(href, base);
+      return !isSameUrl(normalizedHref, base);
     });
-  }, [historyIndex, initialPreviewUrlRef, setHasCustomPreviewUrl, setHistory, setHistoryIndex, setPreviewUrl, setPreviewUrlInput]);
+  }, [
+    bridgeState.href,
+    historyIndex,
+    initialPreviewUrlRef,
+    previewUrl,
+    setHasCustomPreviewUrl,
+    setHistory,
+    setHistoryIndex,
+    setPreviewUrl,
+    setPreviewUrlInput,
+  ]);
 
   return {
     canGoBack,
