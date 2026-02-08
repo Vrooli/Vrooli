@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "ui-design-system-migration",
+  "name": "UI Design System Migration",
+  "description": "Migrate scenario UIs to a token-driven design system with phased rollout, quality gates, and convergence tracking",
+  "modes": [
+    "steer",
+    "react",
+    "ux"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "palette",
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "architecture-scope",
+  "revision": 2,
+  "createdAt": "2026-02-07T00:00:00Z",
+  "updatedAt": "2026-02-07T20:12:00Z"
+}
