@@ -3,7 +3,7 @@
 Guide for creating **Tools** skills (where `modes[0] = "Tools"`). Tools skills teach how to use a resource, scenario, or tool safely and effectively.
 
 Required reading:
-- `prompt-manager skills read skill-principles`
+- `prompt-manager skill read skill-principles`
 
 ---
 
@@ -49,7 +49,18 @@ Example:
 
 ---
 
-### **4. Guardrails and Safety**
+### **4. CLI Output Contract (Human-First)**
+
+For agent workflows, default CLI output is the canonical path.
+
+- Prefer direct commands without `--json` / `--raw`
+- Do not add `jq` pipelines in normal workflows
+- Prefer selector-based commands over ID extraction when available
+- Use machine-readable output only when default output is too long or ambiguous for reliable execution, and state that exception explicitly
+
+---
+
+### **5. Guardrails and Safety**
 
 Tools skills should call out prohibited usage explicitly:
 - Do not bypass scenario lifecycle tooling
@@ -60,7 +71,7 @@ If a tool has strict do-not-do rules, include them near the top.
 
 ---
 
-### **5. Registration Notes**
+### **6. Registration Notes**
 
 Follow **Skill Principles** and ensure:
 - `modes[0]` is **Tools**
@@ -68,7 +79,7 @@ Follow **Skill Principles** and ensure:
 
 ---
 
-### **6. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 - Tools skills to improve clarity, safety, or troubleshooting coverage
@@ -78,3 +89,4 @@ You must:
 - Provide safe defaults and guardrails
 - Include verification steps
 - Keep guidance tool-focused, not feature-focused
+- Prefer human-first CLI output patterns and avoid parser-dependent workflows by default

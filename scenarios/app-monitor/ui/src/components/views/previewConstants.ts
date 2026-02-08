@@ -8,8 +8,6 @@ export const PREVIEW_TIMEOUTS = {
   WAITING_DELAY: 400,
   /** iOS Safari autoback guard duration (ms) */
   IOS_AUTOBACK_GUARD: 15000,
-  /** Delay before preparing auto-next scenario precomputation (ms) */
-  AUTO_NEXT_PREPARE: 4500,
   /** Duration to show status messages before auto-dismissing (ms) */
   STATUS_MESSAGE_DURATION: 1500,
   /** Duration to show copy feedback notifications (ms) */

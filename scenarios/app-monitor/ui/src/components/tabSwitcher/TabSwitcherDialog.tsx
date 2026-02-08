@@ -1,6 +1,5 @@
-import { logger } from '@/services/logger';
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
 import { useResourcesCatalog, normalizeResourceSort, type ResourceSortOption } from '@/hooks/useResourcesCatalog';
@@ -8,7 +7,6 @@ import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
 import { resolveAppIdentifier } from '@/utils/appPreview';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
-import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
 import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
 import type { App, Resource } from '@/types';
@@ -78,7 +76,6 @@ const getFocusable = (root: HTMLElement): HTMLElement[] => (
 
 export default function TabSwitcherDialog() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const segmentParam = searchParams.get(SEGMENT_QUERY_KEY);
   const { closeOverlay } = useOverlayRouter();
@@ -107,28 +104,8 @@ export default function TabSwitcherDialog() {
     resourcesLength: state.resources.length,
     error: state.error,
   }));
-  const { apps, filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
+  const { filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
   const { sortedResources } = useResourcesCatalog({ sort: resourceSortOption });
-
-  const {
-    autoSelect: autoSelectScenario,
-    status: autoNextStatus,
-    message: autoNextMessage,
-    resetAutoNextMessage,
-  } = useAutoNextScenario();
-
-  const currentAppId = useMemo(() => {
-    const match = location.pathname.match(/\/apps\/([^/]+)\//);
-    if (!match) {
-      return null;
-    }
-    try {
-      return decodeURIComponent(match[1] ?? '');
-    } catch (error) {
-      logger.warn('[tabSwitcher] Failed to decode current app id', error);
-      return match[1];
-    }
-  }, [location.pathname]);
 
   const {
     activeSegment,
@@ -295,8 +272,7 @@ export default function TabSwitcherDialog() {
     },
   });
 
-  const handleAppSelect = (app: App, options?: { autoSelected?: boolean; navigationId?: string }) => {
-    resetAutoNextMessage();
+  const handleAppSelect = (app: App, options?: { navigationId?: string }) => {
     const identifier = options?.navigationId ?? resolveAppIdentifier(app) ?? app.id;
     if (!identifier) {
       return;
@@ -310,8 +286,6 @@ export default function TabSwitcherDialog() {
       fromAppsList: true,
       originAppId: app.id,
       navTimestamp: Date.now(),
-      autoSelected: Boolean(options?.autoSelected),
-      autoSelectedAt: options?.autoSelected ? Date.now() : undefined,
     } as const;
 
     let workspaceTarget: string | null = null;
@@ -354,19 +328,6 @@ export default function TabSwitcherDialog() {
     }
   };
 
-  const isAutoNextRunning = autoNextStatus === 'running';
-
-  const handleAutoNext = async () => {
-    if (isAutoNextRunning) {
-      return;
-    }
-    await autoSelectScenario({
-      apps,
-      currentAppId,
-      onSelect: (app, navigationId) => handleAppSelect(app, { autoSelected: true, navigationId }),
-    });
-  };
-
   const handleRetryLoadApps = async (): Promise<void> => {
     setIsRefreshing(true);
     setRefreshError(null);
@@ -398,17 +359,7 @@ export default function TabSwitcherDialog() {
         onSearchClear={() => setSearch('')}
         onSearchEnter={handleSearchEnter}
         searchInputRef={searchInputRef}
-        showAutoNext={activeSegment === 'apps'}
-        isAutoNextRunning={isAutoNextRunning}
-        onAutoNext={handleAutoNext}
-        disableAutoNext={apps.length === 0}
       />
-
-      {activeSegment === 'apps' && autoNextMessage && (
-        <div className="tab-switcher__auto-next-message" role="status">
-          {autoNextMessage}
-        </div>
-      )}
 
       {activeSegment === 'apps' && (
         <section className="tab-switcher__open-mode" aria-label="Scenario open destination">

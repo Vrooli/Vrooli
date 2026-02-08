@@ -393,7 +393,8 @@ func (a *App) cmdCreate(args []string) error {
 
 #### 9.1 Two Output Modes
 
-Every command should support both human-readable and machine-readable output:
+Most commands should support both human-readable and machine-readable output.
+Default behavior must be human-friendly and actionable.
 
 ```go
 if *jsonOutput {
@@ -404,6 +405,11 @@ if *jsonOutput {
     fmt.Printf("Created: %s\n", resp.CreatedAt)
 }
 ```
+
+**Mode policy:**
+- Default mode is canonical for operators and agents
+- `--json` is supported for integration/debug/export paths
+- Skills should default to human mode unless machine-readable output is explicitly required
 
 #### 9.2 Error Output
 
@@ -418,7 +424,33 @@ return fmt.Errorf("API not available at %s. Try --auto-start or check scenario s
 return fmt.Errorf("error occurred")
 ```
 
-#### 9.3 Operational Output Contract (Status -> Triage -> Next Steps)
+#### 9.3 Human Output Contracts
+
+Use the contract that matches command intent:
+
+| Contract | Command types | Structure |
+|------|------|------|
+| Operational | `status`, `health`, `audit`, `validate`, `doctor` | `Status -> Triage -> Next Steps` |
+| Data Retrieval | `list`, `get`, `view`, `search` | `Summary -> Results -> Retrieval hints` |
+| Mutation Result | `create`, `update`, `delete`, `start`, `stop` | `Result -> What changed -> Next command` |
+| Streaming | `logs`, `watch`, `tail` | `Header -> Continuous events` |
+
+Convergence decision tree:
+
+```mermaid
+flowchart TD
+  A[Command intent?] --> B{Diagnostic decision?}
+  B -->|Yes| C[Operational Contract]
+  B -->|No| D{Read-only data retrieval?}
+  D -->|Yes| E[Data Retrieval Contract]
+  D -->|No| F{State mutation?}
+  F -->|Yes| G[Mutation Contract]
+  F -->|No| H{Streaming/continuous?}
+  H -->|Yes| I[Streaming Contract]
+  H -->|No| J[Fallback: concise summary + next step]
+```
+
+#### 9.4 Operational Output Contract (Status -> Triage -> Next Steps)
 
 For **diagnostic/decision commands** (for example: `status`, `health`, `audit`, `validate`, `doctor`), use this default human-readable structure:
 
@@ -426,7 +458,7 @@ For **diagnostic/decision commands** (for example: `status`, `health`, `audit`, 
 2. **Triage** (group findings by remediation path)
 3. **Next Steps** (exact commands to run now)
 
-This keeps output concise for operators while still giving agents a stable structure to parse.
+This keeps output concise for operators while still giving agents a stable structure to understand and act on directly.
 
 **Use this format when the user needs to answer:**
 - What is wrong?
@@ -448,7 +480,7 @@ This keeps output concise for operators while still giving agents a stable struc
 - Put highest-impact command first
 - Prefer one command per remediation group
 
-#### 9.4 Progressive Disclosure for Output
+#### 9.5 Progressive Disclosure for Output
 
 Use three levels of detail:
 
@@ -458,7 +490,7 @@ Use three levels of detail:
 | `--verbose` | Expanded human diagnostics | More examples/details, same section structure |
 | `--json` | Machine-readable automation | Full response fidelity, stable fields |
 
-**Steer:** Keep `--json` complete and deterministic. Human formatting can evolve, machine format should remain predictable for scripts/agents.
+**Steer:** Keep default human output as the primary product surface. Keep `--json` complete and deterministic for integration use cases.
 
 ---
 
@@ -559,7 +591,8 @@ file scenarios/{{TARGET}}/cli/* | grep -i "shell\|bash\|script"
 - [ ] CLI is a bash script, not Go binary
 - [ ] No go.mod or doesn't import cli-core
 - [ ] Hardcoded API URLs (should use env vars / config)
-- [ ] Missing `--json` flag support
+- [ ] Default output is hard to interpret or lacks clear next actions
+- [ ] Commands require parsing pipelines for normal operator/agent workflows
 - [ ] API endpoints without corresponding CLI commands
 - [ ] Commands that implement business logic instead of calling API
 - [ ] No install.sh / install.ps1 for cross-platform installation
@@ -622,7 +655,8 @@ You must:
 - Keep `{{TARGET}}` fully functional and non-regressed
 - Maintain feature parity between CLI and API
 - Use cli-core for all shared functionality (HTTP, config, env vars)
-- Support both human-readable and JSON output (`--json` flag)
+- Keep default output human-friendly and actionable
+- Most commands should support JSON output (`--json`) for machine-readable workflows
 - Include cross-platform installation scripts
 
 You must NOT:

@@ -5,9 +5,7 @@ import clsx from 'clsx';
 import { X } from 'lucide-react';
 import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
 import { appService } from '@/services/api';
-import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
 import { useAppsStore } from '@/state/appsStore';
-import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
 import { logger } from '@/services/logger';
 import type { App } from '@/types';
 import { useShellOverlayStore } from '@/state/shellOverlayStore';
@@ -24,7 +22,6 @@ import {
   isRunningStatus,
   isScenarioExplicitlyStopped,
   locateAppByIdentifier,
-  normalizeIdentifier,
   resolveAppIdentifier,
 } from '@/utils/appPreview';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
@@ -35,7 +32,6 @@ import DeviceVisionFilterDefs from '../device-emulation/DeviceVisionFilterDefs';
 import { useAppLogs } from '@/hooks/useAppLogs';
 import AppLogsPanel from '../logs/AppLogsPanel';
 import { usePreviewCapture } from './usePreviewCapture';
-import { useScheduledTimeout } from '@/hooks/useTimeout';
 import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
 import { usePreviewBackgroundColor } from '@/hooks/usePreviewBackgroundColor';
 import { useAppLifecycleMonitor } from '@/hooks/useAppLifecycleMonitor';
@@ -54,7 +50,7 @@ import { usePreviewNavigationSession } from '@/hooks/usePreviewNavigationSession
 import { usePreviewReportSession } from '@/hooks/usePreviewReportSession';
 import { usePreviewToolbarSession } from '@/hooks/usePreviewToolbarSession';
 import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
-import { PREVIEW_TIMEOUTS, PREVIEW_MESSAGES } from './previewConstants';
+import { PREVIEW_MESSAGES } from './previewConstants';
 import type { PreviewLocationState } from '@/types/preview';
 import { isPreviewLocationState } from '@/types/preview';
 import { HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER, type BridgeShortcutIntent } from '@vrooli/iframe-bridge';
@@ -69,7 +65,6 @@ const AppPreviewView = () => {
   const loadingInitial = useAppsStore(state => state.loadingInitial);
   const hasInitialized = useAppsStore(state => state.hasInitialized);
   const canOpenTabsOverlay = apps.length > 0;
-  const { prepareAutoNext } = useAutoNextScenario();
   const navigate = useNavigate();
   const { openOverlay, closeOverlay } = useOverlayRouter();
   const { appId } = useParams<{ appId: string }>();
@@ -77,18 +72,14 @@ const AppPreviewView = () => {
   const activeOverlay = useShellOverlayStore(state => state.activeView);
   const registerOverlayHost = useShellOverlayStore(state => state.registerHost);
   const setSurfaceScreenshot = useSurfaceMediaStore(state => state.setScreenshot);
-  const beginScenarioSession = useScenarioEngagementStore(state => state.beginSession);
-  const endScenarioSession = useScenarioEngagementStore(state => state.endSession);
   const locationState: PreviewLocationState | null = isPreviewLocationState(location.state)
     ? location.state
     : null;
-  const autoSelectedFromTabs = Boolean(locationState?.autoSelected);
   const shouldOpenLogsFromQuery = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('paneLogs') === '1';
   }, [location.search]);
   const [isLogsPanelOpen, setIsLogsPanelOpen] = useState(shouldOpenLogsFromQuery);
-  const { schedule: scheduleAutoNextPrepare, clear: clearAutoNextPrepare } = useScheduledTimeout();
   useEffect(() => {
     if (shouldOpenLogsFromQuery) {
       setIsLogsPanelOpen(true);
@@ -323,35 +314,6 @@ const AppPreviewView = () => {
   const previousAppId = usePrevious(appId);
   const previousPreviewIdentifier = usePrevious(previewIdentifier);
   const previousReportScenario = usePrevious(currentAppIdentifier);
-
-  useEffect(() => {
-    clearAutoNextPrepare();
-
-    if (apps.length === 0 || !currentAppIdentifier) {
-      return;
-    }
-
-    const normalizedKey = normalizeIdentifier(currentAppIdentifier);
-    if (!normalizedKey) {
-      return;
-    }
-
-    scheduleAutoNextPrepare(() => {
-      prepareAutoNext({ apps, currentAppId: normalizedKey }).catch((error) => {
-        logger.warn('[appPreview] Failed to precompute auto-next scenario', error);
-      });
-    }, PREVIEW_TIMEOUTS.AUTO_NEXT_PREPARE);
-  }, [apps, currentAppIdentifier, prepareAutoNext, scheduleAutoNextPrepare, clearAutoNextPrepare]);
-
-  useEffect(() => {
-    if (!appId) {
-      return;
-    }
-    beginScenarioSession(appId, { viaAutoNext: autoSelectedFromTabs });
-    return () => {
-      endScenarioSession(appId);
-    };
-  }, [appId, autoSelectedFromTabs, beginScenarioSession, endScenarioSession]);
 
   useEffect(() => {
     const trimmed = appId?.trim() ?? '';

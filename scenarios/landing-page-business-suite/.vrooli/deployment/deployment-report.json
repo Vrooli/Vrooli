@@ -1,7 +1,7 @@
 {
   "scenario": "landing-page-business-suite",
   "report_version": 1,
-  "generated_at": "2026-02-08T02:58:36.68604051Z",
+  "generated_at": "2026-02-08T03:52:16.349178902Z",
   "dependencies": [
     {
       "name": "postgres",
@@ -115,7 +115,7 @@
   },
   "bundle_manifest": {
     "scenario": "landing-page-business-suite",
-    "generated_at": "2026-02-08T02:58:36.68604051Z",
+    "generated_at": "2026-02-08T03:52:16.349178902Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -382,11 +382,11 @@
         "has_deployment_block": true,
         "missing_dependency_catalog": true,
         "missing_tier_definitions": [
-          "mobile",
-          "saas",
+          "desktop",
           "enterprise",
           "local",
-          "desktop",
+          "mobile",
+          "saas",
           "server"
         ],
         "missing_resource_metadata": [

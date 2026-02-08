@@ -67,6 +67,8 @@ Every skill must include:
 - **Boundary definition** (what is in scope and out of scope)
 - **Convergence patterns** (decision trees/tables/diagrams) when choices must be consistent
 - **Output expectations** describing what can/can't/must change or how results must be formatted
+- **Human-first CLI consumption** by default: prefer direct CLI output and avoid parser pipelines (`--json`, `--raw`, `jq`) unless default output is too long or ambiguous for reliable execution
+- **Selector-first workflows** by default: prefer stable human-readable selectors over extracted opaque IDs when tools support both
 
 ---
 

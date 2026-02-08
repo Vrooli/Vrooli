@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { Loader2, Search, Shuffle, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import clsx from 'clsx';
 import type { ShortcutState } from '@/utils/tabSwitcherShortcut';
 import { SEGMENTS, type SegmentId } from './tabSwitcherConstants';
@@ -61,10 +61,6 @@ export function TabSwitcherControls({
   onSearchClear,
   onSearchEnter,
   searchInputRef,
-  showAutoNext,
-  isAutoNextRunning,
-  onAutoNext,
-  disableAutoNext,
 }: {
   activeSegment: SegmentId;
   onSegmentSelect: (segmentId: SegmentId) => void;
@@ -73,10 +69,6 @@ export function TabSwitcherControls({
   onSearchClear: () => void;
   onSearchEnter: () => void;
   searchInputRef: RefObject<HTMLInputElement>;
-  showAutoNext: boolean;
-  isAutoNextRunning: boolean;
-  onAutoNext: () => void;
-  disableAutoNext: boolean;
 }) {
   return (
     <div className="tab-switcher__controls">
@@ -91,13 +83,6 @@ export function TabSwitcherControls({
         activeSegment={activeSegment}
         onSelect={onSegmentSelect}
       />
-      {showAutoNext && (
-        <AutoNextButton
-          isRunning={isAutoNextRunning}
-          onClick={onAutoNext}
-          disabled={disableAutoNext}
-        />
-      )}
     </div>
   );
 }
@@ -171,35 +156,5 @@ function SegmentSelector({
         );
       })}
     </div>
-  );
-}
-
-function AutoNextButton({
-  isRunning,
-  onClick,
-  disabled,
-}: {
-  isRunning: boolean;
-  onClick: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      className="tab-switcher__auto-next"
-      onClick={onClick}
-      disabled={isRunning || disabled}
-    >
-      <span className="tab-switcher__auto-next-icon">
-        {isRunning ? (
-          <Loader2 size={24} aria-hidden className="tab-switcher__auto-next-spinner" />
-        ) : (
-          <Shuffle size={24} aria-hidden />
-        )}
-      </span>
-      <span className="tab-switcher__auto-next-text">
-        {isRunning ? 'Selecting next scenario…' : 'Auto-next scenario'}
-      </span>
-    </button>
   );
 }

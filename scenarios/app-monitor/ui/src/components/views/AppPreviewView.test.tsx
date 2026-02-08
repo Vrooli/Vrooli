@@ -60,13 +60,6 @@ vi.mock('@/state/appsStore', () => ({
   useAppsStore: (selector: (state: typeof appsStoreState) => unknown) => selector(appsStoreState),
 }));
 
-vi.mock('@/state/scenarioEngagementStore', () => ({
-  useScenarioEngagementStore: (selector: (state: { beginSession: (...args: unknown[]) => void; endSession: (...args: unknown[]) => void }) => unknown) => selector({
-    beginSession: vi.fn(),
-    endSession: vi.fn(),
-  }),
-}));
-
 vi.mock('@/state/shellOverlayStore', () => ({
   useShellOverlayStore: (selector: (state: { activeView: string | null; registerHost: (node: HTMLElement | null) => void }) => unknown) => selector({
     activeView: null,
@@ -80,23 +73,10 @@ vi.mock('@/state/surfaceMediaStore', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useAutoNextScenario', () => ({
-  useAutoNextScenario: () => ({
-    prepareAutoNext: vi.fn().mockResolvedValue(undefined),
-  }),
-}));
-
 vi.mock('@/hooks/useOverlayRouter', () => ({
   useOverlayRouter: () => ({
     openOverlay: vi.fn(),
     closeOverlay: vi.fn(),
-  }),
-}));
-
-vi.mock('@/hooks/useScheduledTimeout', () => ({
-  useScheduledTimeout: () => ({
-    schedule: vi.fn(),
-    clear: vi.fn(),
   }),
 }));
 

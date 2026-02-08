@@ -29,7 +29,7 @@ export function AppsSection({
   normalizedSearch: string;
   sortOption: AppSortOption;
   onSortChange: (value: string) => void;
-  onSelect: (app: App, options?: { autoSelected?: boolean; navigationId?: string }) => void;
+  onSelect: (app: App, options?: { navigationId?: string }) => void;
   isLoading?: boolean;
   onRetry?: () => void;
   errorMessage?: string | null;

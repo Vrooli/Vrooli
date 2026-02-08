@@ -4,12 +4,12 @@ Analyze **{{SKILL}}** by running a structured “validation suite” that surfac
 
 Required reading:
 
-* `prompt-manager skills read {{SKILL}}`
-* `prompt-manager skills read skill-principles`
+* `prompt-manager skill read {{SKILL}}`
+* `prompt-manager skill read skill-principles`
 
 Optional reading (recommended follow-up after validation):
 
-* `prompt-manager skills read skill-improvement-suggestions`
+* `prompt-manager skill read skill-improvement-suggestions`
 
 ---
 
@@ -174,7 +174,7 @@ Validate:
 
 * **Referenced skills exist** (and the IDs match)
 
-  * Use: `prompt-manager skills read <skill-id>` for each referenced skill ID
+  * Use: `prompt-manager skill read <skill-id>` for each referenced skill ID
 * **Commands and flags are plausible and consistent**
 
   * Where possible, validate against `--help`, `schema`, `lint`, or “list” commands
@@ -182,6 +182,11 @@ Validate:
 * **Examples are copy-paste safe**
 
   * Balanced quotes, correct escaping, no missing braces, placeholders are obvious
+* **Parser dependency is justified**
+
+  * Prefer default CLI output over parser pipelines (`--json`, `--raw`, `jq`)
+  * Treat unnecessary parser pipelines as at least **Major** because they increase drift and break risk
+  * If parser usage is required, require an explicit justification and a guard for empty/changed output
 
 **Example executability test pattern:**
 
@@ -368,6 +373,7 @@ Different skill categories fail in different ways. Validate accordingly.
 * [ ] Debug playbook exists for common errors
 * [ ] Risky operations have guardrails
 * [ ] Placeholder conventions are consistent (`{{TARGET}}`, paths, env vars)
+* [ ] Parser pipelines are avoided by default; exceptions are explicit and justified
 
 #### **Search skills**
 

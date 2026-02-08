@@ -32,7 +32,6 @@ import type {
 } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App } from '@/types';
-import { useScenarioEngagementStore } from '@/state/scenarioEngagementStore';
 import { useScenarioIssuesStore } from '@/state/scenarioIssuesStore';
 import { useSnackPublisher } from '@/notifications/useSnackPublisher';
 import type { SnackPublishOptions, SnackUpdateOptions } from '@/notifications/snackBus';
@@ -170,7 +169,6 @@ const useReportIssueState = ({
   const lastResolvedAppIdRef = useRef<string | null>(null);
 
   // Zustand stores
-  const markScenarioIssueCreated = useScenarioEngagementStore(state => state.markIssueCreated);
   const flagScenarioIssueReported = useScenarioIssuesStore(state => state.flagIssueReported);
   const snackPublisher = useSnackPublisher();
 
@@ -528,10 +526,6 @@ const useReportIssueState = ({
       }
 
       flagScenarioIssueReported(targetAppId);
-      const engagementIdentifier = appId ?? app?.id ?? null;
-      if (engagementIdentifier) {
-        markScenarioIssueCreated(engagementIdentifier);
-      }
 
       onElementCapturesReset();
       if (onPrimaryCaptureDraftChange) {
@@ -591,7 +585,6 @@ const useReportIssueState = ({
     isOpen,
     onClose,
     flagScenarioIssueReported,
-    markScenarioIssueCreated,
     onElementCapturesReset,
     onPrimaryCaptureDraftChange,
     resetState,

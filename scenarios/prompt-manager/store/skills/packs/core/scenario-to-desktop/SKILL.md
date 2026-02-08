@@ -119,7 +119,7 @@ scenario-to-desktop deploy-target test <name>
 3. Remote profile on local LPBS with an active session (logged in)
 4. Download app registered on the remote LPBS with the given `app_key`
 
-See the `landing-page-desktop-upload` skill for LPBS prerequisite setup.
+See `landing-page-deploy-setup` for LPBS prerequisite setup, and `landing-page-desktop-upload` for end-to-end orchestration.
 
 ---
 
