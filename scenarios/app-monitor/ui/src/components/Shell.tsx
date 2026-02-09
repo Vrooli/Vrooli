@@ -86,6 +86,22 @@ export default function Shell({ isConnected }: ShellProps) {
   );
 
   useKeyboardScope({
+    id: 'shell-fullscreen-escape',
+    priority: 900,
+    onKeyDown: (event) => {
+      if (event.key !== 'Escape' || typeof document === 'undefined') {
+        return false;
+      }
+      if (!document.fullscreenElement || typeof document.exitFullscreen !== 'function') {
+        return false;
+      }
+      event.preventDefault();
+      void document.exitFullscreen();
+      return true;
+    },
+  });
+
+  useKeyboardScope({
     id: 'shell-overlay-escape',
     priority: 500,
     enabled: anyOverlayOpen,

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Grip, Layers, Plus, RotateCcw, Trash2, X, ZoomIn } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Grip, Layers, Maximize2, Minimize2, Plus, RotateCcw, Trash2, X, ZoomIn } from 'lucide-react';
 import clsx from 'clsx';
 import {
   PREVIEW_WORKSPACE_ZOOM_LEVELS,
@@ -25,6 +25,7 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
   const setInteractionMode = usePreviewWorkspaceStore(state => state.setInteractionMode);
   const resetLayout = usePreviewWorkspaceStore(state => state.resetLayout);
   const clearAllPanes = usePreviewWorkspaceStore(state => state.clearAllPanes);
+  const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
 
   const paneCount = panes.length;
   const canAddPane = paneCount < previewWorkspaceLimits.maxPanes;
@@ -39,6 +40,24 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
     return `${paneCount} pane${paneCount === 1 ? '' : 's'} active`;
   }, [paneCount]);
   const workspaceZoomPercent = Math.round(workspaceZoom * 100);
+  const canToggleWorkspaceFullscreen = typeof document !== 'undefined' && typeof document.exitFullscreen === 'function';
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const syncWorkspaceFullscreenState = () => {
+      const workspaceRoot = document.querySelector<HTMLElement>('.preview-workspace');
+      setIsWorkspaceFullscreen(Boolean(workspaceRoot && document.fullscreenElement === workspaceRoot));
+    };
+
+    syncWorkspaceFullscreenState();
+    document.addEventListener('fullscreenchange', syncWorkspaceFullscreenState);
+    return () => {
+      document.removeEventListener('fullscreenchange', syncWorkspaceFullscreenState);
+    };
+  }, []);
 
   const handleToggleArrange = () => {
     setInteractionMode(interactionMode === 'arrange' ? 'browse' : 'arrange');
@@ -83,6 +102,33 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
       return;
     }
     setWorkspaceZoom(parsed as PreviewWorkspaceZoomLevel);
+  };
+
+  const handleToggleWorkspaceFullscreen = async () => {
+    if (typeof document === 'undefined' || typeof document.exitFullscreen !== 'function') {
+      return;
+    }
+
+    const workspaceRoot = document.querySelector<HTMLElement>('.preview-workspace');
+    if (!workspaceRoot || typeof workspaceRoot.requestFullscreen !== 'function') {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === workspaceRoot) {
+        await document.exitFullscreen();
+        onClose();
+        return;
+      }
+
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+      await workspaceRoot.requestFullscreen();
+      onClose();
+    } catch {
+      // Ignore fullscreen API failures (e.g., browser policy/user gesture constraints).
+    }
   };
 
   return (
@@ -145,6 +191,21 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
           <div>
             <strong>{arrangeButtonLabel}</strong>
             <span>{arrangeButtonHint}</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="workspace-manager__action"
+          onClick={() => {
+            void handleToggleWorkspaceFullscreen();
+          }}
+          disabled={!canToggleWorkspaceFullscreen}
+        >
+          {isWorkspaceFullscreen ? <Minimize2 size={18} aria-hidden /> : <Maximize2 size={18} aria-hidden />}
+          <div>
+            <strong>{isWorkspaceFullscreen ? 'Exit workspace fullscreen' : 'Enter workspace fullscreen'}</strong>
+            <span>{canToggleWorkspaceFullscreen ? 'Expand the entire workspace view, not just one pane.' : 'Fullscreen is not supported in this environment.'}</span>
           </div>
         </button>
 

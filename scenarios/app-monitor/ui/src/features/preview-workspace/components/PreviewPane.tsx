@@ -26,6 +26,7 @@ import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
 import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
 import { useAppInsights } from '@/hooks/useAppInsights';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
+import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
 import { useAppsStore } from '@/state/appsStore';
@@ -257,6 +258,25 @@ export function PreviewPane({
       document.body.classList.remove('preview-pane-fullscreen-active');
     };
   }, [isFullView]);
+
+  useKeyboardScope({
+    id: `preview-pane-full-view-escape-${paneId}`,
+    priority: 850,
+    enabled: isFullView,
+    onKeyDown: (event) => {
+      if (event.key !== 'Escape' || typeof document === 'undefined') {
+        return false;
+      }
+      // If browser fullscreen is active, let the higher-priority shell handler
+      // handle exiting that first.
+      if (document.fullscreenElement) {
+        return false;
+      }
+      event.preventDefault();
+      setIsFullView(false);
+      return true;
+    },
+  });
 
   usePreviewBridgeComplianceCheck({
     enabled: reportDialogOpen,
