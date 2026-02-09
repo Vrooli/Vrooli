@@ -57,6 +57,7 @@ export function TabSwitcherControls({
   activeSegment,
   onSegmentSelect,
   search,
+  isSearching,
   onSearchChange,
   onSearchClear,
   onSearchEnter,
@@ -65,6 +66,7 @@ export function TabSwitcherControls({
   activeSegment: SegmentId;
   onSegmentSelect: (segmentId: SegmentId) => void;
   search: string;
+  isSearching?: boolean;
   onSearchChange: (value: string) => void;
   onSearchClear: () => void;
   onSearchEnter: () => void;
@@ -74,6 +76,7 @@ export function TabSwitcherControls({
     <div className="tab-switcher__controls">
       <TabSwitcherSearch
         value={search}
+        isSearching={isSearching}
         onChange={onSearchChange}
         onClear={onSearchClear}
         onEnter={onSearchEnter}
@@ -89,12 +92,14 @@ export function TabSwitcherControls({
 
 function TabSwitcherSearch({
   value,
+  isSearching,
   onChange,
   onClear,
   onEnter,
   inputRef,
 }: {
   value: string;
+  isSearching?: boolean;
   onChange: (value: string) => void;
   onClear: () => void;
   onEnter: () => void;
@@ -122,6 +127,11 @@ function TabSwitcherSearch({
         <button type="button" onClick={onClear} aria-label="Clear search">
           <X size={14} aria-hidden />
         </button>
+      )}
+      {isSearching && (
+        <span className="tab-switcher__search-pending" role="status" aria-live="polite">
+          Searching...
+        </span>
       )}
     </div>
   );

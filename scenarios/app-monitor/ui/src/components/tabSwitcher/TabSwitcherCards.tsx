@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Eye, RefreshCw, SlidersHorizontal, Target } from 'lucide-react';
 import clsx from 'clsx';
 import { AppsGridSkeleton, ResourcesGridSkeleton } from '@/components/LoadingSkeleton';
@@ -86,6 +86,36 @@ export function AppGrid({
   errorMessage?: string | null;
   isRefreshing?: boolean;
 }) {
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(apps.length, 24));
+
+  useEffect(() => {
+    if (apps.length <= 24) {
+      setVisibleCount(apps.length);
+      return;
+    }
+
+    setVisibleCount(24);
+    let rafId = 0;
+    const revealNextBatch = () => {
+      setVisibleCount((current) => {
+        if (current >= apps.length) {
+          return current;
+        }
+        const nextValue = Math.min(apps.length, current + 24);
+        if (nextValue < apps.length) {
+          rafId = window.requestAnimationFrame(revealNextBatch);
+        }
+        return nextValue;
+      });
+    };
+    rafId = window.requestAnimationFrame(revealNextBatch);
+    return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [apps]);
+
   const isBusy = Boolean(isLoading || isRefreshing);
   if (isBusy) {
     return <AppsGridSkeleton count={skeletonCount} viewMode="grid" />;
@@ -106,6 +136,9 @@ export function AppGrid({
     );
   }
 
+  const visibleApps = apps.slice(0, visibleCount);
+  const hasPendingRender = visibleCount < apps.length;
+
   return (
     <>
       {hasError && (
@@ -125,10 +158,15 @@ export function AppGrid({
         </div>
       )}
       <div className="tab-switcher__grid">
-        {apps.map(app => (
+        {visibleApps.map(app => (
           <AppTabCard key={app.id} app={app} onSelect={onSelect} />
         ))}
       </div>
+      {hasPendingRender && (
+        <div className="tab-switcher__progressive-status" role="status" aria-live="polite">
+          Loading more results...
+        </div>
+      )}
     </>
   );
 }
@@ -146,18 +184,57 @@ export function ResourceGrid({
   isLoading?: boolean;
   skeletonCount?: number;
 }) {
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(resources.length, 24));
+
+  useEffect(() => {
+    if (resources.length <= 24) {
+      setVisibleCount(resources.length);
+      return;
+    }
+
+    setVisibleCount(24);
+    let rafId = 0;
+    const revealNextBatch = () => {
+      setVisibleCount((current) => {
+        if (current >= resources.length) {
+          return current;
+        }
+        const nextValue = Math.min(resources.length, current + 24);
+        if (nextValue < resources.length) {
+          rafId = window.requestAnimationFrame(revealNextBatch);
+        }
+        return nextValue;
+      });
+    };
+    rafId = window.requestAnimationFrame(revealNextBatch);
+    return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [resources]);
+
   if (isLoading) {
     return <ResourcesGridSkeleton count={skeletonCount} />;
   }
   if (resources.length === 0) {
     return <EmptyState message={emptyMessage ?? 'No resources available.'} />;
   }
+  const visibleResources = resources.slice(0, visibleCount);
+  const hasPendingRender = visibleCount < resources.length;
   return (
-    <div className="tab-switcher__grid">
-      {resources.map(resource => (
-        <ResourceTabCard key={resource.id} resource={resource} onSelect={onSelect} />
-      ))}
-    </div>
+    <>
+      <div className="tab-switcher__grid">
+        {visibleResources.map(resource => (
+          <ResourceTabCard key={resource.id} resource={resource} onSelect={onSelect} />
+        ))}
+      </div>
+      {hasPendingRender && (
+        <div className="tab-switcher__progressive-status" role="status" aria-live="polite">
+          Loading more results...
+        </div>
+      )}
+    </>
   );
 }
 

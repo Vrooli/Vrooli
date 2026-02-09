@@ -33,6 +33,7 @@ import { PREVIEW_UI } from './views/previewConstants';
 import { AnchoredPopover } from './popover/AnchoredPopover';
 import { useAnchoredPopover } from './popover/useAnchoredPopover';
 import { formatPreviewUrlForDisplay } from '@/utils/previewUrl';
+import type { PreviewSuggestionSection } from '@/utils/workspaceDiscovery';
 
 import './AppPreviewToolbar.css';
 
@@ -82,7 +83,7 @@ export interface AppPreviewToolbarProps {
   showLifecycleMenu?: boolean;
   showDevMenu?: boolean;
   rightInlineActions?: ReactNode;
-  urlSuggestions?: string[];
+  buildUrlSuggestionSections?: (query: string) => PreviewSuggestionSection[];
   onSelectUrlSuggestion?: (value: string) => void;
   onOpenScenarioSelector?: () => void;
   scenarioSelectorLabel?: string;
@@ -132,7 +133,7 @@ const AppPreviewToolbar = ({
   showLifecycleMenu = true,
   showDevMenu = true,
   rightInlineActions,
-  urlSuggestions = [],
+  buildUrlSuggestionSections,
   onSelectUrlSuggestion,
   onOpenScenarioSelector,
   scenarioSelectorLabel = 'Open scenario selector',
@@ -196,24 +197,21 @@ const AppPreviewToolbar = ({
   const [isUrlSuggestionsOpen, setIsUrlSuggestionsOpen] = useState(false);
   const [activeUrlSuggestionIndex, setActiveUrlSuggestionIndex] = useState(-1);
   const [isUrlInputEditing, setIsUrlInputEditing] = useState(false);
-  const normalizedUrlSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const deduped: string[] = [];
-    for (const candidate of urlSuggestions) {
-      const trimmed = candidate.trim();
-      if (trimmed.length === 0 || seen.has(trimmed)) {
-        continue;
-      }
-      seen.add(trimmed);
-      deduped.push(trimmed);
-      if (deduped.length >= 14) {
-        break;
-      }
+  const urlSuggestionSections = useMemo<PreviewSuggestionSection[]>(() => {
+    if (!buildUrlSuggestionSections) {
+      return [];
     }
-    return deduped;
-  }, [urlSuggestions]);
-  const hasUrlSuggestionsContent = normalizedUrlSuggestions.length > 0 || Boolean(onOpenScenarioSelector);
-  const urlSuggestionsCount = normalizedUrlSuggestions.length + (onOpenScenarioSelector ? 1 : 0);
+    return buildUrlSuggestionSections(previewUrlInput);
+  }, [buildUrlSuggestionSections, previewUrlInput]);
+  const flattenedUrlSuggestions = useMemo(() => (
+    urlSuggestionSections.flatMap((section) => section.items)
+  ), [urlSuggestionSections]);
+  const urlSuggestionIndexById = useMemo(() => {
+    const entries = flattenedUrlSuggestions.map((item, index) => [item.id, index] as const);
+    return new Map(entries);
+  }, [flattenedUrlSuggestions]);
+  const hasUrlSuggestionsContent = flattenedUrlSuggestions.length > 0 || Boolean(onOpenScenarioSelector);
+  const urlSuggestionsCount = flattenedUrlSuggestions.length + (onOpenScenarioSelector ? 1 : 0);
   const displayedPreviewUrlInput = useMemo(() => {
     if (isUrlInputEditing) {
       return previewUrlInput;
@@ -439,21 +437,41 @@ const AppPreviewToolbar = ({
     if (index < 0 || index >= urlSuggestionsCount) {
       return;
     }
-    const urlCandidate = normalizedUrlSuggestions[index];
-    if (typeof urlCandidate === 'string') {
-      handleUrlSuggestionSelect(urlCandidate);
+    const suggestion = flattenedUrlSuggestions[index];
+    if (suggestion?.value) {
+      handleUrlSuggestionSelect(suggestion.value);
       return;
     }
-    if (onOpenScenarioSelector && index === normalizedUrlSuggestions.length) {
+    if (onOpenScenarioSelector && index === flattenedUrlSuggestions.length) {
       handleOpenScenarioSelectorClick();
     }
   }, [
+    flattenedUrlSuggestions,
     handleOpenScenarioSelectorClick,
     handleUrlSuggestionSelect,
-    normalizedUrlSuggestions,
     onOpenScenarioSelector,
     urlSuggestionsCount,
   ]);
+
+  const isExplicitUrlInput = useCallback((value: string): boolean => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return false;
+    }
+    if (trimmed.startsWith('/') || trimmed.startsWith('//')) {
+      return true;
+    }
+    if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+      return true;
+    }
+    if (/^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0)(:\d+)?(?:[/?#].*)?$/i.test(trimmed)) {
+      return true;
+    }
+    if (/^[a-z0-9.-]+:\d+(?:[/?#].*)?$/i.test(trimmed)) {
+      return true;
+    }
+    return /^[^\s/]+\.[^\s/]+(?:[/?#].*)?$/i.test(trimmed);
+  }, []);
 
   return (
     <div
@@ -666,6 +684,20 @@ const AppPreviewToolbar = ({
                 handleUrlSuggestionSelectByIndex(activeUrlSuggestionIndex);
                 return;
               }
+              if (event.key === 'Enter' && activeUrlSuggestionIndex < 0 && hasUrlSuggestionsContent) {
+                const shouldPreferSuggestion = !isExplicitUrlInput(previewUrlInput);
+                if (shouldPreferSuggestion) {
+                  event.preventDefault();
+                  if (flattenedUrlSuggestions.length > 0) {
+                    handleUrlSuggestionSelectByIndex(0);
+                    return;
+                  }
+                  if (onOpenScenarioSelector) {
+                    handleOpenScenarioSelectorClick();
+                    return;
+                  }
+                }
+              }
               onPreviewUrlInputKeyDown(event);
               if (event.defaultPrevented) {
                 setIsUrlSuggestionsOpen(false);
@@ -699,37 +731,48 @@ const AppPreviewToolbar = ({
           className="preview-toolbar__url-suggestions"
           role="listbox"
         >
-          {normalizedUrlSuggestions.map((suggestion, index) => (
-            <button
-              key={suggestion}
-              type="button"
-              className={clsx(
-                'preview-toolbar__url-suggestion',
-                activeUrlSuggestionIndex === index && 'preview-toolbar__url-suggestion--active',
-              )}
-              onPointerDown={handleUrlSuggestionPointerDown}
-              onMouseEnter={() => setActiveUrlSuggestionIndex(index)}
-              onClick={() => handleUrlSuggestionSelect(suggestion)}
-              ref={(node) => {
-                urlSuggestionItemRefs.current[index] = node;
-              }}
-              title={suggestion}
-            >
-              {formatPreviewUrlForDisplay(suggestion)}
-            </button>
+          {urlSuggestionSections.map((section) => (
+            <div key={section.id} className="preview-toolbar__url-section">
+              <div className="preview-toolbar__url-section-heading">{section.label}</div>
+              {section.items.map((suggestion) => {
+                const optionIndex = urlSuggestionIndexById.get(suggestion.id) ?? -1;
+                return (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    className={clsx(
+                      'preview-toolbar__url-suggestion',
+                      activeUrlSuggestionIndex === optionIndex && 'preview-toolbar__url-suggestion--active',
+                    )}
+                    onPointerDown={handleUrlSuggestionPointerDown}
+                    onMouseEnter={() => setActiveUrlSuggestionIndex(optionIndex)}
+                    onClick={() => handleUrlSuggestionSelect(suggestion.value)}
+                    ref={(node) => {
+                      urlSuggestionItemRefs.current[optionIndex] = node;
+                    }}
+                    title={suggestion.label}
+                  >
+                    <span>{formatPreviewUrlForDisplay(suggestion.label)}</span>
+                    {suggestion.detail && (
+                      <span className="preview-toolbar__url-suggestion-detail">{suggestion.detail}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           ))}
           {onOpenScenarioSelector && (
             <button
               type="button"
               className={clsx(
                 'preview-toolbar__url-selector',
-                activeUrlSuggestionIndex === normalizedUrlSuggestions.length && 'preview-toolbar__url-suggestion--active',
+                activeUrlSuggestionIndex === flattenedUrlSuggestions.length && 'preview-toolbar__url-suggestion--active',
               )}
               onPointerDown={handleUrlSuggestionPointerDown}
-              onMouseEnter={() => setActiveUrlSuggestionIndex(normalizedUrlSuggestions.length)}
+              onMouseEnter={() => setActiveUrlSuggestionIndex(flattenedUrlSuggestions.length)}
               onClick={handleOpenScenarioSelectorClick}
               ref={(node) => {
-                urlSuggestionItemRefs.current[normalizedUrlSuggestions.length] = node;
+                urlSuggestionItemRefs.current[flattenedUrlSuggestions.length] = node;
               }}
             >
               <Layers aria-hidden size={14} />

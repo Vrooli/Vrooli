@@ -127,6 +127,11 @@
   outline: none;
 }
 
+.tab-switcher__search-pending {
+  font-size: 0.74rem;
+  color: rgba(231, 235, 255, 0.72);
+}
+
 .tab-switcher__segment {
   display: flex;
   gap: 8px;
@@ -317,6 +322,12 @@
   overflow-y: auto;
   padding-right: 6px;
   -webkit-overflow-scrolling: touch;
+}
+
+.tab-switcher__progressive-status {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: rgba(231, 235, 255, 0.66);
 }
 
 .tab-switcher__section {

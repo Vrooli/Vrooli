@@ -198,6 +198,10 @@
   gap: 0.45rem;
 }
 
+.preview-toolbar__url-suggestion {
+  justify-content: space-between;
+}
+
 .preview-toolbar__url-suggestion:hover,
 .preview-toolbar__url-suggestion:focus-visible,
 .preview-toolbar__url-selector:hover,
@@ -215,6 +219,31 @@
   border-top: 1px solid rgba(122, 160, 255, 0.2);
   border-radius: 0;
   padding-top: 0.5rem;
+}
+
+.preview-toolbar__url-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.preview-toolbar__url-section + .preview-toolbar__url-section {
+  margin-top: 0.2rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid rgba(122, 160, 255, 0.12);
+}
+
+.preview-toolbar__url-section-heading {
+  padding: 0.12rem 0.55rem 0.1rem;
+  font-size: 0.68rem;
+  color: var(--app-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.preview-toolbar__url-suggestion-detail {
+  font-size: 0.68rem;
+  color: rgba(122, 160, 255, 0.85);
 }
 
 /* Icon buttons - clean, minimal style */

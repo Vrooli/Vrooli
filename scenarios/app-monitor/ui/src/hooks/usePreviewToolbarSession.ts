@@ -3,8 +3,11 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { APP_OPEN_MODE_QUERY_KEY, type AppOpenMode } from '@/components/tabSwitcher/tabSwitcherOpenMode';
 import type { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import type { App } from '@/types';
-import { buildPreviewUrl, isAppMonitorScenarioId } from '@/utils/appPreview';
-import { isAppMonitorProxyPreviewTarget, resolvePreviewUrlCandidate } from '@/utils/previewUrl';
+import { resolvePreviewUrlCandidate } from '@/utils/previewUrl';
+import {
+  buildPreviewSuggestionSections,
+  type PreviewSuggestionSection,
+} from '@/utils/workspaceDiscovery';
 
 type OpenOverlayFn = ReturnType<typeof useOverlayRouter>['openOverlay'];
 
@@ -23,42 +26,13 @@ export const buildPreviewUrlSuggestions = (
   apps: App[],
   referenceUrl: string | null = null,
 ): string[] => {
-  const seen = new Set<string>();
-  const suggestions: string[] = [];
-  const addSuggestion = (value: string | null | undefined) => {
-    if (!value) {
-      return;
-    }
-    const trimmed = value.trim();
-    const normalized = resolvePreviewUrlCandidate(trimmed, referenceUrl) ?? trimmed;
-    if (isAppMonitorProxyPreviewTarget(normalized)) {
-      return;
-    }
-    if (normalized.length === 0 || seen.has(normalized)) {
-      return;
-    }
-    seen.add(normalized);
-    suggestions.push(normalized);
-  };
-
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    addSuggestion(history[index]);
-    if (suggestions.length >= 10) {
-      break;
-    }
-  }
-
-  for (const app of apps) {
-    if (isAppMonitorScenarioId(app.id) || isAppMonitorScenarioId(app.scenario_name) || isAppMonitorScenarioId(app.name)) {
-      continue;
-    }
-    addSuggestion(buildPreviewUrl(app));
-    if (suggestions.length >= 16) {
-      break;
-    }
-  }
-
-  return suggestions;
+  const sections = buildPreviewSuggestionSections({
+    apps,
+    history,
+    query: '',
+    referenceUrl,
+  });
+  return sections.flatMap((section) => section.items.map((item) => item.value));
 };
 
 export function usePreviewToolbarSession({
@@ -75,10 +49,14 @@ export function usePreviewToolbarSession({
     return resolvePreviewUrlCandidate(preferredTarget, previewUrl || bridgeHref) ?? preferredTarget;
   }, [bridgeHref, previewUrl]);
 
-  const urlSuggestions = useMemo(
-    () => buildPreviewUrlSuggestions(history, apps, bridgeHref || previewUrl),
-    [apps, bridgeHref, history, previewUrl],
-  );
+  const buildUrlSuggestionSections = useCallback((query: string): PreviewSuggestionSection[] => (
+    buildPreviewSuggestionSections({
+      apps,
+      history,
+      query,
+      referenceUrl: bridgeHref || previewUrl,
+    })
+  ), [apps, bridgeHref, history, previewUrl]);
 
   const handleOpenScenarioSelector = useCallback(() => {
     onBeforeOpenScenarioSelector?.();
@@ -101,7 +79,7 @@ export function usePreviewToolbarSession({
 
   return {
     openPreviewTarget,
-    urlSuggestions,
+    buildUrlSuggestionSections,
     handleOpenScenarioSelector,
     handleOpenPreviewInNewTab,
   };

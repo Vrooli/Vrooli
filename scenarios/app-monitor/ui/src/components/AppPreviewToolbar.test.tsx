@@ -27,6 +27,19 @@ vi.mock('@/hooks/useDraggablePosition', () => ({
 }));
 
 describe('AppPreviewToolbar', () => {
+  const buildSingleSuggestionSection = (suggestion: string) => () => ([
+    {
+      id: 'recent-urls',
+      label: 'Recent URLs',
+      items: [{
+        id: `item-${suggestion}`,
+        label: suggestion,
+        value: suggestion,
+        kind: 'recent-url' as const,
+      }],
+    },
+  ]);
+
   it('does not blur-commit stale input when selecting a URL suggestion', () => {
     const onPreviewUrlInputBlur = vi.fn();
     const onSelectUrlSuggestion = vi.fn();
@@ -76,7 +89,7 @@ describe('AppPreviewToolbar', () => {
         showDetailsButton={false}
         showLifecycleMenu={false}
         showDevMenu={false}
-        urlSuggestions={[suggestion]}
+        buildUrlSuggestionSections={buildSingleSuggestionSection(suggestion)}
         onSelectUrlSuggestion={onSelectUrlSuggestion}
       />,
     );
@@ -143,7 +156,7 @@ describe('AppPreviewToolbar', () => {
         showDetailsButton={false}
         showLifecycleMenu={false}
         showDevMenu={false}
-        urlSuggestions={[suggestion]}
+        buildUrlSuggestionSections={buildSingleSuggestionSection(suggestion)}
         onSelectUrlSuggestion={onSelectUrlSuggestion}
       />,
     );
@@ -212,7 +225,7 @@ describe('AppPreviewToolbar', () => {
           showDetailsButton={false}
           showLifecycleMenu={false}
           showDevMenu={false}
-          urlSuggestions={[suggestion]}
+          buildUrlSuggestionSections={buildSingleSuggestionSection(suggestion)}
           onSelectUrlSuggestion={onSelectUrlSuggestion}
         />
       );
@@ -227,5 +240,206 @@ describe('AppPreviewToolbar', () => {
 
     expect(onSelectUrlSuggestion).not.toHaveBeenCalled();
     expect(onPreviewUrlInputKeyDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto-selects the first suggestion on Enter for non-URL text input', () => {
+    const onSelectUrlSuggestion = vi.fn();
+    const suggestion = 'http://localhost:3000/apps/deploy-manager/proxy/';
+
+    render(
+      <AppPreviewToolbar
+        canGoBack={false}
+        canGoForward={false}
+        onGoBack={vi.fn()}
+        onGoForward={vi.fn()}
+        onRefresh={vi.fn()}
+        isRefreshing={false}
+        onOpenDetails={vi.fn()}
+        previewUrlInput="depl"
+        onPreviewUrlInputChange={vi.fn()}
+        onPreviewUrlInputBlur={vi.fn()}
+        onPreviewUrlInputKeyDown={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        openPreviewTarget={null}
+        urlStatusClass="running"
+        urlStatusTitle="running"
+        hasDetailsWarning={false}
+        hasCurrentApp={true}
+        isAppRunning={true}
+        pendingAction={null}
+        actionInProgress={false}
+        toggleActionLabel="Stop"
+        onToggleApp={vi.fn()}
+        restartActionLabel="Restart"
+        onRestartApp={vi.fn()}
+        onToggleLogs={vi.fn()}
+        areLogsVisible={false}
+        onReportIssue={vi.fn()}
+        appStatusLabel="Running"
+        isFullView={false}
+        onToggleFullView={vi.fn()}
+        isDeviceEmulationActive={false}
+        onToggleDeviceEmulation={vi.fn()}
+        canInspect={false}
+        isInspecting={false}
+        onToggleInspect={vi.fn()}
+        menuPortalContainer={null}
+        canOpenTabsOverlay={true}
+        previewInteractionSignal={0}
+        issueCaptureCount={0}
+        showDetailsButton={false}
+        showLifecycleMenu={false}
+        showDevMenu={false}
+        onSelectUrlSuggestion={onSelectUrlSuggestion}
+        buildUrlSuggestionSections={() => ([
+          {
+            id: 'scenario-matches',
+            label: 'Scenario matches',
+            items: [{
+              id: 'match-1',
+              label: 'deploy-manager',
+              value: suggestion,
+              kind: 'scenario',
+            }],
+          },
+        ])}
+      />,
+    );
+
+    const input = screen.getByLabelText('Preview URL');
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSelectUrlSuggestion).toHaveBeenCalledWith(suggestion);
+  });
+
+  it('opens scenario selector on Enter when it is the only available option', () => {
+    const onOpenScenarioSelector = vi.fn();
+    render(
+      <AppPreviewToolbar
+        canGoBack={false}
+        canGoForward={false}
+        onGoBack={vi.fn()}
+        onGoForward={vi.fn()}
+        onRefresh={vi.fn()}
+        isRefreshing={false}
+        onOpenDetails={vi.fn()}
+        previewUrlInput="scenario-com"
+        onPreviewUrlInputChange={vi.fn()}
+        onPreviewUrlInputBlur={vi.fn()}
+        onPreviewUrlInputKeyDown={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        openPreviewTarget={null}
+        urlStatusClass="running"
+        urlStatusTitle="running"
+        hasDetailsWarning={false}
+        hasCurrentApp={true}
+        isAppRunning={true}
+        pendingAction={null}
+        actionInProgress={false}
+        toggleActionLabel="Stop"
+        onToggleApp={vi.fn()}
+        restartActionLabel="Restart"
+        onRestartApp={vi.fn()}
+        onToggleLogs={vi.fn()}
+        areLogsVisible={false}
+        onReportIssue={vi.fn()}
+        appStatusLabel="Running"
+        isFullView={false}
+        onToggleFullView={vi.fn()}
+        isDeviceEmulationActive={false}
+        onToggleDeviceEmulation={vi.fn()}
+        canInspect={false}
+        isInspecting={false}
+        onToggleInspect={vi.fn()}
+        menuPortalContainer={null}
+        canOpenTabsOverlay={true}
+        previewInteractionSignal={0}
+        issueCaptureCount={0}
+        showDetailsButton={false}
+        showLifecycleMenu={false}
+        showDevMenu={false}
+        onSelectUrlSuggestion={vi.fn()}
+        buildUrlSuggestionSections={() => []}
+        onOpenScenarioSelector={onOpenScenarioSelector}
+      />,
+    );
+
+    const input = screen.getByLabelText('Preview URL');
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onOpenScenarioSelector).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders grouped suggestion sections from shared discovery data', () => {
+    const onSelectUrlSuggestion = vi.fn();
+
+    render(
+      <AppPreviewToolbar
+        canGoBack={false}
+        canGoForward={false}
+        onGoBack={vi.fn()}
+        onGoForward={vi.fn()}
+        onRefresh={vi.fn()}
+        isRefreshing={false}
+        onOpenDetails={vi.fn()}
+        previewUrlInput="workspace"
+        onPreviewUrlInputChange={vi.fn()}
+        onPreviewUrlInputBlur={vi.fn()}
+        onPreviewUrlInputKeyDown={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        openPreviewTarget={null}
+        urlStatusClass="running"
+        urlStatusTitle="running"
+        hasDetailsWarning={false}
+        hasCurrentApp={true}
+        isAppRunning={true}
+        pendingAction={null}
+        actionInProgress={false}
+        toggleActionLabel="Stop"
+        onToggleApp={vi.fn()}
+        restartActionLabel="Restart"
+        onRestartApp={vi.fn()}
+        onToggleLogs={vi.fn()}
+        areLogsVisible={false}
+        onReportIssue={vi.fn()}
+        appStatusLabel="Running"
+        isFullView={false}
+        onToggleFullView={vi.fn()}
+        isDeviceEmulationActive={false}
+        onToggleDeviceEmulation={vi.fn()}
+        canInspect={false}
+        isInspecting={false}
+        onToggleInspect={vi.fn()}
+        menuPortalContainer={null}
+        canOpenTabsOverlay={true}
+        previewInteractionSignal={0}
+        issueCaptureCount={0}
+        showDetailsButton={false}
+        showLifecycleMenu={false}
+        showDevMenu={false}
+        onSelectUrlSuggestion={onSelectUrlSuggestion}
+        buildUrlSuggestionSections={() => ([
+          {
+            id: 'running-scenarios',
+            label: 'Running scenarios',
+            items: [
+              {
+                id: 'running-1',
+                label: 'workspace-manager',
+                value: 'http://localhost:3000/apps/workspace-manager/proxy/',
+                detail: 'Running',
+                kind: 'running-scenario',
+              },
+            ],
+          },
+        ])}
+      />,
+    );
+
+    const input = screen.getByLabelText('Preview URL');
+    fireEvent.focus(input);
+    expect(screen.getByText('Running scenarios')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /workspace-manager/i }));
+    expect(onSelectUrlSuggestion).toHaveBeenCalledWith('http://localhost:3000/apps/workspace-manager/proxy/');
   });
 });

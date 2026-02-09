@@ -17,14 +17,56 @@ describe('WorkspaceManagerDialog', () => {
     });
   });
 
-  it('adds a pane and closes the dialog', () => {
+  it('adds a pane, scrolls to it, focuses URL input, and closes the dialog', () => {
     const onClose = vi.fn();
+    const animationFrames: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    const scrollIntoViewSpy = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewSpy,
+    });
     render(<WorkspaceManagerDialog onClose={onClose} />);
 
     fireEvent.click(screen.getByRole('button', { name: /add pane/i }));
 
     expect(usePreviewWorkspaceStore.getState().panes).toHaveLength(2);
+    const newPaneId = usePreviewWorkspaceStore.getState().panes[1]?.id ?? null;
+    expect(newPaneId).toBeTruthy();
+    if (newPaneId) {
+      const paneElement = document.createElement('div');
+      paneElement.setAttribute('data-preview-pane-id', newPaneId);
+      const previewUrlInput = document.createElement('input');
+      previewUrlInput.setAttribute('aria-label', 'Preview URL');
+      const selectSpy = vi.spyOn(previewUrlInput, 'select');
+      paneElement.appendChild(previewUrlInput);
+      document.body.appendChild(paneElement);
+      animationFrames.shift()?.(0);
+      animationFrames.shift()?.(0);
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      });
+      expect(document.activeElement).toBe(previewUrlInput);
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      selectSpy.mockRestore();
+      paneElement.remove();
+    }
     expect(onClose).toHaveBeenCalledTimes(1);
+    requestAnimationFrameSpy.mockRestore();
+    if (originalScrollIntoView) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: originalScrollIntoView,
+      });
+    } else {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    }
   });
 
   it('toggles arrange mode and closes the dialog', () => {

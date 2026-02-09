@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
@@ -91,6 +91,8 @@ export default function TabSwitcherDialog() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const isSearchPending = search !== deferredSearch;
   const appLoadState = useAppsStore(state => ({
     loadingInitial: state.loadingInitial,
     hasInitialized: state.hasInitialized,
@@ -104,7 +106,7 @@ export default function TabSwitcherDialog() {
     resourcesLength: state.resources.length,
     error: state.error,
   }));
-  const { filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
+  const { filteredApps, recentApps } = useAppCatalog({ search: deferredSearch, sort: sortOption, historyLimit: 12 });
   const previewableFilteredApps = useMemo(
     () => filteredApps.filter((app) => !isAppMonitorScenarioId(resolveAppIdentifier(app))),
     [filteredApps],
@@ -126,7 +128,7 @@ export default function TabSwitcherDialog() {
     filteredResources,
     showAppHistory,
   } = useTabSwitcherFiltering({
-    search,
+    search: deferredSearch,
     sortedResources,
     recentApps: previewableRecentApps,
   });
@@ -351,6 +353,7 @@ export default function TabSwitcherDialog() {
         activeSegment={activeSegment}
         onSegmentSelect={handleSegmentSelect}
         search={search}
+        isSearching={isSearchPending}
         onSearchChange={setSearch}
         onSearchClear={() => setSearch('')}
         onSearchEnter={handleSearchEnter}

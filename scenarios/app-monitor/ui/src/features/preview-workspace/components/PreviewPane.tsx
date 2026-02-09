@@ -426,7 +426,7 @@ export function PreviewPane({
 
   const {
     openPreviewTarget,
-    urlSuggestions,
+    buildUrlSuggestionSections,
     handleOpenScenarioSelector,
     handleOpenPreviewInNewTab: onOpenInNewTab,
   } = usePreviewToolbarSession({
@@ -578,6 +578,7 @@ export function PreviewPane({
         isFullView && 'preview-pane--full-view',
         isBeingDragged && 'preview-pane--dragging',
       )}
+      data-preview-pane-id={paneId}
       onMouseDown={() => onFocus(paneId)}
       aria-label={`Preview pane ${paneId}`}
       ref={(node) => {
@@ -646,7 +647,7 @@ export function PreviewPane({
         showLifecycleMenu={true}
         showDevMenu={true}
         rightInlineActions={paneActions}
-        urlSuggestions={urlSuggestions}
+        buildUrlSuggestionSections={buildUrlSuggestionSections}
         onSelectUrlSuggestion={applyPreviewUrlValue}
         onOpenScenarioSelector={handleOpenScenarioSelector}
         scenarioSelectorLabel="Replace this pane from scenarios"

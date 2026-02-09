@@ -6,10 +6,11 @@ import {
   DEFAULT_APP_SORT,
   buildAlphabetizedApps,
   buildRecentApps,
-  filterAndSortApps,
+  sortApps,
   type AppSortOption,
 } from '@/utils/appCollections';
 import { collectAppIdentifiers, normalizeIdentifier } from '@/utils/appPreview';
+import { rankAppsByDiscoveryQuery } from '@/utils/workspaceDiscovery';
 import type { App } from '@/types';
 
 interface UseAppCatalogOptions {
@@ -30,7 +31,13 @@ export const useAppCatalog = (options: UseAppCatalogOptions = {}) => {
   } = options;
 
   const filteredApps = useMemo(
-    () => filterAndSortApps(apps, { search, sort }),
+    () => {
+      const normalizedSearch = search.trim();
+      if (!normalizedSearch) {
+        return sortApps(apps, sort);
+      }
+      return rankAppsByDiscoveryQuery(apps, normalizedSearch);
+    },
     [apps, search, sort],
   );
 

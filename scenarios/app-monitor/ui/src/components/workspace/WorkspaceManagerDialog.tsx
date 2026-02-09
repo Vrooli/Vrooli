@@ -68,7 +68,24 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
     if (!canAddPane) {
       return;
     }
-    addPane(null);
+    const newPaneId = addPane(null);
+    if (typeof document !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const newPane = document.querySelector<HTMLElement>(`[data-preview-pane-id="${newPaneId}"]`);
+          newPane?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest',
+          });
+          const urlInput = newPane?.querySelector<HTMLInputElement>('input[aria-label="Preview URL"]');
+          if (urlInput) {
+            urlInput.focus({ preventScroll: true });
+            urlInput.select();
+          }
+        });
+      });
+    }
     onClose();
   };
 
