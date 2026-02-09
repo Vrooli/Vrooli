@@ -277,9 +277,31 @@ scenario-to-desktop pipeline run my-scenario --platforms linux --wait
 
 **Key insight:** When you see a skill explaining polling/status-checking patterns, ask: Could the tool support `--wait` instead? That's a tool improvement suggestion.
 
+#### **3.9 Long-Tail Accretion in Troubleshooting**
+
+For skills with operational CLI workflows, treat `Troubleshooting & Edge Cases` as the deliberate long-tail zone.
+
+What to look for:
+- Repeated entries with similar causes/fixes
+- “Run X then Y then inspect Z” patterns that could be one command
+- Manual interpretation steps that should be emitted as CLI next actions
+
+Improvement direction:
+- Promote repeated troubleshooting prose into CLI output contracts or tool capabilities
+- Keep core workflow concise; keep only genuinely rare/manual cases in troubleshooting
+- When tooling improves, recommend deleting superseded troubleshooting prose
+
 ---
 
 ### **4. Three Categories of Suggestions**
+
+Pre-pass for CLI-operational skills:
+1. Scan `Troubleshooting & Edge Cases` first.
+2. Mark each item as one of:
+   - `Promote to CLI output contract`
+   - `Promote to tool capability`
+   - `Keep as rare/manual playbook item`
+3. Use these marks to prioritize tool/tooling suggestions before wording edits.
 
 #### **4.1 Tool Suggestions (New CLI capabilities)**
 
@@ -553,6 +575,11 @@ When analyzing {{SKILL}}, produce this structured report:
 
 ## Implementation Notes
 [Any dependencies, ordering considerations, or caveats]
+
+## Troubleshooting Promotion Map (CLI-Operational Skills)
+| Troubleshooting Item | Action | Target |
+|---|---|---|
+| ... | Promote to CLI output contract / Promote to tool capability / Keep in playbook | ... |
 ```
 
 ---

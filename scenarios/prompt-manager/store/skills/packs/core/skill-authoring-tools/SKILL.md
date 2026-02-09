@@ -23,15 +23,19 @@ Required reading:
 
 ### **2. Recommended Structure**
 
-Tools skills should be pragmatic and action-oriented:
+Tools skills should be pragmatic and action-oriented, but not over-templated.
 
-1. **Focus statement** - what the tool is for and when to use it
-2. **When to use / when not to use** - decision guidance
-3. **Prerequisites** - required setup or dependencies
-4. **Core commands** - minimal safe set with examples
-5. **Guardrails** - what not to do and why
-6. **Troubleshooting** - common failure modes and fixes
-7. **Verification** - how to confirm success
+Recommended shape:
+1. **Core flow content** - concise usage path, decision guidance, prerequisites, key commands, verification, guardrails
+2. **`Troubleshooting & Edge Cases`** - all long-tail operational content in one place
+
+Important:
+- Do not force rigid section naming for core flow content.
+- Do require the exact section name `Troubleshooting & Edge Cases` when operational complexity exists.
+
+Operational complexity rule:
+- If the tool has multi-step workflows, mutable state, external dependencies, or recurring failure patterns, include `Troubleshooting & Edge Cases`.
+- If the tool is genuinely simple/stable, you may omit it and add one explicit line such as: `No known operational edge cases for standard usage.`
 
 ---
 
@@ -71,7 +75,22 @@ If a tool has strict do-not-do rules, include them near the top.
 
 ---
 
-### **6. Registration Notes**
+### **6. Troubleshooting & Edge Cases (Standardized Section)**
+
+When present, this section is the single place for:
+- Failure matrices (`symptom -> likely cause -> first check -> fix`)
+- Rare edge cases and stop conditions
+- Diagnostic command order
+- Manual recovery and handoff guidance
+
+Keep this section separate from the primary workflow so the core path stays concise.
+
+Promotion rule:
+- If an item in this section is frequent/repetitive, prefer improving CLI output contracts or adding tool capabilities rather than expanding prose further.
+
+---
+
+### **7. Registration Notes**
 
 Follow **Skill Principles** and ensure:
 - `modes[0]` is **Tools**
@@ -79,7 +98,7 @@ Follow **Skill Principles** and ensure:
 
 ---
 
-### **7. Output Expectations**
+### **8. Output Expectations**
 
 You may update:
 - Tools skills to improve clarity, safety, or troubleshooting coverage
@@ -90,3 +109,4 @@ You must:
 - Include verification steps
 - Keep guidance tool-focused, not feature-focused
 - Prefer human-first CLI output patterns and avoid parser-dependent workflows by default
+- Keep long-tail failures centralized under `Troubleshooting & Edge Cases` when applicable

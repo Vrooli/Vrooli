@@ -197,19 +197,31 @@ ls -la platforms/electron/bin/cli/linux-x64/
 ls -la platforms/electron/ui/dist/index.html
 ```
 
-**Common preflight failures:**
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `service binary validation failed` | Binaries not compiled | Run `make build` in scenario dir |
-| `critical validation checks failed` | UI assets missing | Run `pnpm build` in ui/ dir |
-| `missing asset` | Bundle manifest references non-existent files | Rebuild or fix manifest paths |
+Long-tail preflight and deploy failures are consolidated in `Troubleshooting & Edge Cases`.
 
 ---
 
-### **9. Troubleshooting**
+### **9. Troubleshooting & Edge Cases**
 
-The CLI output provides all information needed for troubleshooting, organized as cleanly as possible.
+Use this section for failure diagnosis and recovery beyond the standard happy path.
+
+| Symptom | Likely cause | First check | Fix |
+|---|---|---|---|
+| `service binary validation failed` | Binaries not compiled | Verify `platforms/electron/bin/...` paths | Run `make build` in scenario dir |
+| `critical validation checks failed` | UI assets missing | Check `platforms/electron/ui/dist/index.html` | Run `pnpm build` in the UI dir |
+| `missing asset` during preflight | Bundle manifest points to non-existent paths | Inspect bundle manifest and referenced files | Rebuild scenario assets or fix manifest paths |
+| Deploy stage skipped unexpectedly | No deploy flags provided | Confirm pipeline args include deploy selector + app key | Re-run with `--deploy-target <name> --app-key <key>` or inline deploy flags |
+| Deploy target test fails | Missing/expired remote profile session on LPBS | `scenario-to-desktop deploy-target test <name>` and LPBS remote profile status | Re-run LPBS remote profile login/test via `landing-page-deploy-setup` |
+| Deploy fails with service auth 401/403 | `LPBS_SERVICE_SECRET` missing or mismatched | Confirm `LPBS_SERVICE_SECRET` in deploy shell and LPBS runtime config | Re-sync the secret with LPBS runtime and retry |
+
+Use CLI group help when needed:
+
+```bash
+scenario-to-desktop pipeline help
+scenario-to-desktop deploy-target help
+scenario-to-desktop signing help
+scenario-to-desktop telemetry help
+```
 
 ---
 

@@ -202,7 +202,9 @@ curl -I https://{{DOMAIN}}/health
 
 ---
 
-### **3. Troubleshooting Workflow**
+### **3. Troubleshooting & Edge Cases**
+
+Use this section for long-tail deployment failures and manual recovery/handoff paths.
 
 1. Run health first:
 ```bash
@@ -237,7 +239,7 @@ scenario-to-cloud deployment execute <deployment-id> --preflight --wait
 scenario-to-cloud deployment health <deployment-id> --json
 ```
 
-### Hard Blocker Handoff (When Preflight Cannot Converge)
+#### Hard Blocker Handoff (When Preflight Cannot Converge)
 
 If preflight fails on hard infrastructure requirements (for example RAM below policy), stop and report:
 - Failing checks from `scenario-to-cloud deployment get <deployment-id> --json` (`preflight_result.checks`)

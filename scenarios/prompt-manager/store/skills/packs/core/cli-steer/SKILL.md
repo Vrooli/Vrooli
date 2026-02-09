@@ -480,6 +480,10 @@ This keeps output concise for operators while still giving agents a stable struc
 - Put highest-impact command first
 - Prefer one command per remediation group
 
+Promotion trigger:
+- If the same troubleshooting clarification appears across multiple Tools skills (or repeatedly in one skill's `Troubleshooting & Edge Cases`), treat that as a CLI product gap.
+- Prefer fixing CLI default human output (`Status -> Triage -> Next Steps`) or adding a general-purpose command over expanding prose guidance.
+
 #### 9.5 Progressive Disclosure for Output
 
 Use three levels of detail:

@@ -32,8 +32,11 @@ Optional reading:
 
 **Out of scope:**
 - Desktop build and upload execution (`scenario-to-desktop`)
-- LPBS infrastructure deployment (`scenario-to-cloud`)
+- New LPBS infrastructure provisioning or first-time VPS/domain/TLS setup (`scenario-to-cloud`)
 - LPBS UI/content customization
+
+Clarification:
+- Selector-based health checks and convergence of an existing LPBS deployment (for example `scenario-to-cloud deployment health ...` and `scenario-to-cloud redeploy ... --if-needed --preflight --wait`) are in scope for readiness.
 
 ---
 
@@ -44,6 +47,11 @@ Required (base LPBS readiness):
 - Local LPBS admin credentials (`email`, `password`)
 - Remote LPBS admin credentials (`email`, `password`)
 - `LPBS_SERVICE_SECRET` value used by local LPBS runtime
+
+`LPBS_SERVICE_SECRET` source-of-truth rule:
+- Use the canonical secret configured by the local LPBS runtime.
+- Do not invent ad-hoc per-shell values.
+- If the canonical runtime value is unknown, stop and hand off to the LPBS runtime owner before continuing.
 
 One deployment selector is required for Gate B health checks:
 - `{{DOMAIN}}` remote LPBS domain (preferred), or
@@ -123,6 +131,17 @@ Pass condition:
 Quality rule:
 - If health reports `failed`/`unhealthy`, stop and follow `scenario-to-cloud` convergence flow.
 - If health reports `degraded`/warnings, setup may continue but record the risk before any deploy handoff.
+- If health reports freshness `outdated`, do not treat Gate B as passed for deploy handoff; converge first:
+  ```bash
+  scenario-to-cloud redeploy \
+    --domain {{DOMAIN}} \
+    --scenario landing-page-business-suite \
+    --if-needed --preflight --wait
+  ```
+  Then re-run `deployment health` and continue only when freshness is `current`, or record explicit approved risk for known deterministic fingerprint drift.
+  Drift stop condition:
+  - If health remains `healthy`, endpoint checks are non-5xx, and freshness is still fingerprint-only `outdated` after one `--if-needed` redeploy, stop automatic retries.
+  - Record deterministic fingerprint drift risk and proceed/handoff per `scenario-to-cloud` guidance.
 
 #### Gate C: Ensure local admin session
 
@@ -227,6 +246,10 @@ landing-page-business-suite remote-profiles-create \
 Resolve profile id by tag:
 
 ```bash
+# First inspect selector-first output:
+landing-page-business-suite remote-profiles-list
+
+# If ID is needed, confirm with JSON:
 landing-page-business-suite remote-profiles-list --json
 # Select object where tag == {{PROFILE_TAG}}, then set:
 REMOTE_PROFILE_ID=<numeric id tied to {{PROFILE_TAG}}>
@@ -237,6 +260,7 @@ Selector-first rule:
 - Pick the row where `tag == {{PROFILE_TAG}}`.
 - Do not use an ID from any other tag.
 - Never assume a fixed ID (for example `1`).
+- If mapping tag-to-ID is ambiguous or cannot be confirmed, stop and fix remote profile state before login/test.
 
 Login + test:
 
@@ -276,6 +300,23 @@ Fail Gate G if runtime logs show:
 
 If present, set the runtime secret and restart LPBS before deploy handoff.
 
+Gate G.2 (recommended): preflight deploy auth/session integration check
+
+Prerequisite:
+- If no deploy target exists for `{{PROFILE_TAG}}`, create one first:
+  ```bash
+  scenario-to-desktop deploy-target add {{PROFILE_TAG}} \
+    --scenario landing-page-business-suite \
+    --profile {{PROFILE_TAG}} \
+    --label Production
+  ```
+
+```bash
+scenario-to-desktop deploy-target test {{PROFILE_TAG}}
+```
+
+Fail Gate G.2 if deploy target test fails with auth/session errors; re-sync `LPBS_SERVICE_SECRET` with LPBS runtime config and re-validate before deploy handoff.
+
 ---
 
 ### 5. Readiness Verification Bundle
@@ -305,7 +346,9 @@ rm -f /tmp/lpbs-download-app.json
 
 ---
 
-### 6. Troubleshooting
+### 6. Troubleshooting & Edge Cases
+
+Use this section for long-tail operational failures and recovery paths.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -317,6 +360,7 @@ rm -f /tmp/lpbs-download-app.json
 | `remote-profiles-create` fails for API base problems (may be generic, including 4xx/5xx) | `api_base` missing `/api/v1` or endpoint mismatch | Re-run with `--api-base=https://{{DOMAIN}}/api/v1`; if still failing, run `scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario landing-page-business-suite` |
 | `Remote profile is not logged in` / session expired | Remote cookie missing/expired | Re-run `remote-profiles-login`, then `remote-profiles-test` |
 | `remote-profiles-login` returns `401` and later admin commands fail with `admin session not configured` | Remote login failure invalidated local admin session | Re-run `admin-login`, then retry `remote-profiles-login` and `remote-profiles-test` |
+| `deployment health` is healthy but freshness is `outdated` | Deployed bundle fingerprint drift vs local scenario state | Run `scenario-to-cloud redeploy --domain {{DOMAIN}} --scenario landing-page-business-suite --if-needed --preflight --wait`; if still drifting with healthy endpoint, record risk and hand off per `scenario-to-cloud` guidance |
 | Deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch | Set env var and ensure it matches LPBS runtime token |
 
 Command timing note:
@@ -329,7 +373,7 @@ Command timing note:
 - Use lifecycle commands only (`vrooli scenario start`, Makefile lifecycle).
 - Do not embed credentials directly in shell history; prefer `--password @file`.
 - Do not run desktop deploy commands in this skill.
-- Do not use this skill to deploy LPBS infrastructure.
+- Do not use this skill for first-time LPBS infrastructure provisioning/bootstrap.
 - Remove temporary files created under `/tmp` when setup is complete.
 
 ---
@@ -345,4 +389,4 @@ Command timing note:
 **Must not:**
 - Build desktop artifacts
 - Upload/apply desktop artifacts
-- Redeploy LPBS infrastructure
+- Provision or bootstrap brand-new LPBS infrastructure

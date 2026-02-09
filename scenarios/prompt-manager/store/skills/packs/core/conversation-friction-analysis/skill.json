@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "conversation-friction-analysis",
+  "name": "Conversation Friction Analysis",
+  "description": "Analyze a goal-oriented conversation to identify friction points, attribute root causes, and recommend high-leverage fixes across skills, tooling, docs, and process policy.",
+  "modes": [
+    "meta"
+  ],
+  "tags": [
+    "conversation",
+    "retrospective",
+    "friction",
+    "skills",
+    "cli",
+    "process-improvement"
+  ],
+  "icon": "lightbulb",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-09T00:00:00Z",
+  "updatedAt": "2026-02-09T00:00:00Z"
+}

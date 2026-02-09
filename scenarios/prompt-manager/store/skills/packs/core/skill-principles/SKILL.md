@@ -70,6 +70,14 @@ Every skill must include:
 - **Human-first CLI consumption** by default: prefer direct CLI output and avoid parser pipelines (`--json`, `--raw`, `jq`) unless default output is too long or ambiguous for reliable execution
 - **Selector-first workflows** by default: prefer stable human-readable selectors over extracted opaque IDs when tools support both
 
+For skills with **operational CLI complexity** (multi-step workflows, mutable state, external dependencies, or non-trivial failure modes):
+- Include a dedicated section named **`Troubleshooting & Edge Cases`**
+- Keep failure matrices, rare gotchas, diagnostics, and manual recovery guidance in that section instead of spreading them across core workflow text
+- Keep the main workflow readable and focused on standard execution
+
+For simple/stable skills with no meaningful long-tail behavior:
+- The section may be omitted, but state this explicitly (for example: `No known operational edge cases for standard usage.`)
+
 ---
 
 ### **5. Referencing Other Skills**
@@ -117,3 +125,18 @@ You must:
 - Keep skills transferable across scenarios
 - Include scope boundaries and output expectations
 - Use convergence patterns when decision consistency matters
+
+---
+
+### **9. Skill Architecture Heuristics**
+
+Use these heuristics when creating or evolving any skill:
+
+- **Optimize for entropy control, not content volume**: most skill failures come from unmanaged clarification growth, not missing facts.
+- **Standardize only high-leverage constraints**: avoid rigid global templates; enforce only structures that materially improve execution consistency.
+- **Keep the primary path clean**: standard execution should be easy to scan and run without long-tail context switching.
+- **Isolate long-tail operations**: for CLI-operational complexity, centralize rare failures and manual recovery in `Troubleshooting & Edge Cases`.
+- **Treat repeated prose as a product signal**: if the same workaround appears repeatedly, promote it to CLI output contracts or tool capabilities.
+- **Prefer promotion + retirement loops**: when tooling improves, remove superseded prose to prevent one-way growth.
+- **Use trigger-based governance**: apply heavier structure when operational complexity is present, not based on category labels alone.
+- **Preserve dual usability**: default human-readable flows should be directly actionable, while machine-readable paths remain deterministic when needed.

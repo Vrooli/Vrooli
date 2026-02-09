@@ -99,6 +99,11 @@ Every skill should have the universal quality bars from **Skill Principles**:
 * [ ] **Convergence patterns** when choices must be consistent (decision tree / table / rules)
 * [ ] **Output expectations** (what may/must/must not change or produce)
 
+Additional structure check for skills with operational CLI workflows:
+* [ ] Core workflow remains readable without rigid over-structuring
+* [ ] If operational complexity exists, a dedicated `Troubleshooting & Edge Cases` section exists
+* [ ] Long-tail failures are centralized in that section (not scattered through primary workflow)
+
 **Common failure:**
 
 * Skill has “good content” but lacks explicit boundaries → agents over-apply it.
@@ -237,6 +242,11 @@ Minimum expectation:
 * A small number of “most common fixes”
 * A clear distinction between symptoms vs root causes
 
+For skills with operational CLI complexity, validate placement:
+- Failure tables, rare gotchas, diagnostics, and manual recovery should live under `Troubleshooting & Edge Cases`.
+- If these details are spread through the main workflow and force context switching, treat as at least **Major** (maintainability + execution risk).
+- If the skill is simple and explicitly states no meaningful edge cases, do not force section expansion.
+
 **Red flags:**
 
 * Only happy paths exist
@@ -306,6 +316,10 @@ Classify every finding:
 | **Nice-to-have** | Quality upgrades not required for correctness                                                 | Handoff to Improvement Suggestions     |
 
 **Rule:** Treat “forces the agent to guess” as at least **Major**.
+
+Structure rule for CLI-operational skills:
+- For operationally complex skills that rely on CLI workflows, missing `Troubleshooting & Edge Cases` or scattering long-tail clarifications outside it should be classified as **Major**.
+- Repeated long-tail clarifications that should be promoted to CLI/tooling should be classified as **Gap** and handed off to Skill Improvement Suggestions.
 
 ---
 
@@ -458,6 +472,7 @@ When analyzing {{SKILL}}, produce this structured report:
 ## Cross-Skill Coherence Notes
 - References validated: [list what you checked]
 - Conflicts found: [if any]
+- Promotion candidates from `Troubleshooting & Edge Cases`: [items to convert into CLI/tool improvements]
 
 ## Recommended Next Step
 - If primarily correctness/gaps: apply patches above.
