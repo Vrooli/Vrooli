@@ -87,6 +87,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			{Name: "status", NeedsAPI: true, Description: "Check API health (/health)", Run: a.cmdStatus},
 			a.endpointCommand(endpointDef{Name: "health", Method: "GET", Path: "/health", Description: "Check API health (/api/v1/health)"}),
+			{Name: "service-auth-status", NeedsAPI: true, Description: "Check LPBS service-to-service auth readiness", Run: a.cmdServiceAuthStatus},
 		},
 	}
 
@@ -594,6 +595,13 @@ type healthResponse struct {
 	Operations map[string]interface{} `json:"operations"`
 }
 
+type usageHealthResponse struct {
+	Healthy               bool   `json:"healthy"`
+	DatabaseConnected     bool   `json:"database_connected"`
+	ServiceAuthConfigured bool   `json:"service_auth_configured"`
+	ServiceAuthMode       string `json:"service_auth_mode"`
+}
+
 type adminLoginResponse struct {
 	Email         string `json:"email,omitempty"`
 	Authenticated bool   `json:"authenticated"`
@@ -665,6 +673,61 @@ func (a *App) cmdStatus(args []string) error {
 	}
 
 	cliutil.PrintJSON(resp)
+	return nil
+}
+
+func (a *App) cmdServiceAuthStatus(args []string) error {
+	fs := flag.NewFlagSet("service-auth-status", flag.ContinueOnError)
+	requireEnabled := fs.Bool("require-enabled", false, "Exit non-zero if service auth is not configured")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() != 0 {
+		return fmt.Errorf("usage: service-auth-status [--require-enabled] [--json]")
+	}
+
+	resp, err := a.request(endpointDef{Method: "GET", Path: "/usage/health"}, "/usage/health", nil, nil)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOut {
+		cliutil.PrintJSON(resp)
+		var parsed usageHealthResponse
+		if err := json.Unmarshal(resp, &parsed); err != nil {
+			return nil
+		}
+		if *requireEnabled && !parsed.ServiceAuthConfigured {
+			return fmt.Errorf("service auth is not configured")
+		}
+		return nil
+	}
+
+	var parsed usageHealthResponse
+	if err := json.Unmarshal(resp, &parsed); err != nil {
+		return fmt.Errorf("parse usage health response: %w", err)
+	}
+
+	status := "disabled"
+	if parsed.ServiceAuthConfigured {
+		status = "enabled"
+	}
+	mode := parsed.ServiceAuthMode
+	if strings.TrimSpace(mode) == "" {
+		mode = "unknown"
+	}
+
+	fmt.Printf("Service auth: %s\n", status)
+	fmt.Printf("Mode: %s\n", mode)
+	if !parsed.DatabaseConnected {
+		fmt.Println("Database: disconnected")
+	}
+
+	if *requireEnabled && !parsed.ServiceAuthConfigured {
+		return fmt.Errorf("service auth is not configured")
+	}
 	return nil
 }
 

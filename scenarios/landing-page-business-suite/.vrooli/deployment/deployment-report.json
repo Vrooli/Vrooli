@@ -1,7 +1,7 @@
 {
   "scenario": "landing-page-business-suite",
   "report_version": 1,
-  "generated_at": "2026-02-08T03:52:16.349178902Z",
+  "generated_at": "2026-02-09T14:58:28.197875426Z",
   "dependencies": [
     {
       "name": "postgres",
@@ -115,7 +115,7 @@
   },
   "bundle_manifest": {
     "scenario": "landing-page-business-suite",
-    "generated_at": "2026-02-08T03:52:16.349178902Z",
+    "generated_at": "2026-02-09T14:58:28.197875426Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -141,7 +141,7 @@
       {
         "path": "cli/landing-page-business-suite",
         "type": "cli-binary",
-        "exists": false,
+        "exists": true,
         "notes": "Detected cli component (go)"
       },
       {

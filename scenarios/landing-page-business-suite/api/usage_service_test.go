@@ -711,6 +711,40 @@ func TestUsageService_ValidateServiceToken_ConstantTime(t *testing.T) {
 	}
 }
 
+func TestUsageService_HealthCheck_ServiceAuthConfigured_True(t *testing.T) {
+	svc, _, db := createTestUsageServiceWithToken(t, "service-secret")
+	defer db.Close()
+
+	status, err := svc.HealthCheck(context.Background())
+	if err != nil {
+		t.Fatalf("HealthCheck() returned error: %v", err)
+	}
+
+	if !status.ServiceAuthConfigured {
+		t.Fatal("expected service_auth_configured=true")
+	}
+	if status.ServiceAuthMode != "token" {
+		t.Fatalf("expected service_auth_mode=token, got %q", status.ServiceAuthMode)
+	}
+}
+
+func TestUsageService_HealthCheck_ServiceAuthConfigured_False(t *testing.T) {
+	svc, _, db := createTestUsageServiceWithToken(t, "")
+	defer db.Close()
+
+	status, err := svc.HealthCheck(context.Background())
+	if err != nil {
+		t.Fatalf("HealthCheck() returned error: %v", err)
+	}
+
+	if status.ServiceAuthConfigured {
+		t.Fatal("expected service_auth_configured=false")
+	}
+	if status.ServiceAuthMode != "disabled" {
+		t.Fatalf("expected service_auth_mode=disabled, got %q", status.ServiceAuthMode)
+	}
+}
+
 // ============================================================================
 // GetAllUsageForPeriod Tests
 // ============================================================================

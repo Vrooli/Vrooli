@@ -483,6 +483,7 @@ This keeps output concise for operators while still giving agents a stable struc
 Promotion trigger:
 - If the same troubleshooting clarification appears across multiple Tools skills (or repeatedly in one skill's `Troubleshooting & Edge Cases`), treat that as a CLI product gap.
 - Prefer fixing CLI default human output (`Status -> Triage -> Next Steps`) or adding a general-purpose command over expanding prose guidance.
+- Cross-skill contract: when `skill-validation` or `skill-improvement-suggestions` surfaces repeated troubleshooting clarifications, convert them into CLI backlog candidates with explicit output-contract intent.
 
 #### 9.5 Progressive Disclosure for Output
 
@@ -662,6 +663,7 @@ You must:
 - Keep default output human-friendly and actionable
 - Most commands should support JSON output (`--json`) for machine-readable workflows
 - Include cross-platform installation scripts
+- For promoted troubleshooting fixes, define how default human output improves and how to verify that behavior change
 
 You must NOT:
 - Implement business logic in CLI (belongs in API)

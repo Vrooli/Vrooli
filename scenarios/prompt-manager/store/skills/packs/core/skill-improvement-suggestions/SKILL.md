@@ -303,6 +303,9 @@ Pre-pass for CLI-operational skills:
    - `Keep as rare/manual playbook item`
 3. Use these marks to prioritize tool/tooling suggestions before wording edits.
 
+Handoff note:
+- If a prior `skill-validation` report exists, read its troubleshooting-related findings first and reuse that signal before adding new prose suggestions.
+
 #### **4.1 Tool Suggestions (New CLI capabilities)**
 
 **When to suggest:** You observe repeated manual patterns that could be automated.
@@ -525,6 +528,8 @@ Different skill categories need different evaluation focus:
 - Use the suggestion formats provided
 - Explain reasoning—not just what to change, but why it matters
 - Check for existing tools/guidance before suggesting new ones
+- For CLI-operational skills, start from troubleshooting promotion opportunities before wording-only edits
+- When suggesting a promoted CLI/tool fix, include a brief adopt/defer decision and why
 
 **You may:**
 - Suggest new CLI tools with clear capability specifications
@@ -575,6 +580,11 @@ When analyzing {{SKILL}}, produce this structured report:
 
 ## Implementation Notes
 [Any dependencies, ordering considerations, or caveats]
+
+## Promotion Decisions
+- Adopt now: [promotions that should be implemented immediately]
+- Defer: [promotions worth tracking later, with rationale]
+- Keep as manual playbook: [items that should remain in troubleshooting]
 
 ## Troubleshooting Promotion Map (CLI-Operational Skills)
 | Troubleshooting Item | Action | Target |

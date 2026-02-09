@@ -74,6 +74,7 @@ For skills with **operational CLI complexity** (multi-step workflows, mutable st
 - Include a dedicated section named **`Troubleshooting & Edge Cases`**
 - Keep failure matrices, rare gotchas, diagnostics, and manual recovery guidance in that section instead of spreading them across core workflow text
 - Keep the main workflow readable and focused on standard execution
+- Treat repeated troubleshooting clarifications as a tooling signal: prefer promoting them to CLI output contracts or tool capabilities before adding more prose
 
 For simple/stable skills with no meaningful long-tail behavior:
 - The section may be omitted, but state this explicitly (for example: `No known operational edge cases for standard usage.`)
@@ -138,5 +139,6 @@ Use these heuristics when creating or evolving any skill:
 - **Isolate long-tail operations**: for CLI-operational complexity, centralize rare failures and manual recovery in `Troubleshooting & Edge Cases`.
 - **Treat repeated prose as a product signal**: if the same workaround appears repeatedly, promote it to CLI output contracts or tool capabilities.
 - **Prefer promotion + retirement loops**: when tooling improves, remove superseded prose to prevent one-way growth.
+- **Prefer layered fixes**: use skill text as interim guardrails when needed, but prioritize durable CLI/tool improvements for recurring friction.
 - **Use trigger-based governance**: apply heavier structure when operational complexity is present, not based on category labels alone.
 - **Preserve dual usability**: default human-readable flows should be directly actionable, while machine-readable paths remain deterministic when needed.

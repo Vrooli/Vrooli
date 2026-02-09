@@ -263,6 +263,21 @@ For skills with operational CLI complexity, validate placement:
 | ...    | ...          | ...        | ... |
 ```
 
+#### **4.6.1 Troubleshooting-First Promotion Pass (CLI-Operational Skills)**
+
+For skills with operational CLI workflows, run a short promotion pass before proposing prose-heavy edits:
+
+1. Scan `Troubleshooting & Edge Cases` entries first.
+2. For each repeated or high-friction entry, decide:
+   - promote to CLI output contract improvement,
+   - promote to a tool capability improvement,
+   - or keep as a rare/manual playbook item.
+3. Use this pass to prioritize durable fixes before adding more skill text.
+
+Guidance:
+- This is a convergence aid, not a rigid format requirement.
+- If the same troubleshooting clarification appears multiple times, treat it as a product-signal candidate (usually at least **Gap**).
+
 #### **4.7 Safety & Guardrail Check**
 
 Even non-security skills can create dangerous behavior if they normalize unsafe patterns.
@@ -320,6 +335,7 @@ Classify every finding:
 Structure rule for CLI-operational skills:
 - For operationally complex skills that rely on CLI workflows, missing `Troubleshooting & Edge Cases` or scattering long-tail clarifications outside it should be classified as **Major**.
 - Repeated long-tail clarifications that should be promoted to CLI/tooling should be classified as **Gap** and handed off to Skill Improvement Suggestions.
+- If repeated troubleshooting clarifications are found, include at least one durable CLI/tool conversion recommendation in addition to any interim skill patch.
 
 ---
 
@@ -417,6 +433,7 @@ When validating **{{SKILL}}**, you must:
 * Include evidence (quotes/snippets) for each issue
 * Provide **expansion patches** for Critical/Major/Gap findings (copy-pastable)
 * Separate validation findings from optimization suggestions
+* For CLI-operational skills, include a concise troubleshooting-promotion analysis (what should move to CLI/tooling vs remain manual)
 
 You may:
 
@@ -473,6 +490,10 @@ When analyzing {{SKILL}}, produce this structured report:
 - References validated: [list what you checked]
 - Conflicts found: [if any]
 - Promotion candidates from `Troubleshooting & Edge Cases`: [items to convert into CLI/tool improvements]
+
+## Durable vs Interim Fixes
+- Durable CLI/tool conversion candidates: [high-leverage fixes that reduce repeated troubleshooting prose]
+- Interim skill-level guardrails: [minimal wording/structure patches needed now]
 
 ## Recommended Next Step
 - If primarily correctness/gaps: apply patches above.

@@ -226,9 +226,24 @@ Review `preflight_result.checks` and follow each failing check's `hint` first.
 scenario-to-cloud deployment get <deployment-id> --json
 
 # B) Port conflicts (80/443) only when owner is unexpected
-scenario-to-cloud preflight fix-ports --port 80 --port 443
+scenario-to-cloud preflight fix-ports \
+  --domain {{DOMAIN}} \
+  --scenario {{SCENARIO_NAME}} \
+  --port 80 --port 443
 
-# C) Re-check deployment diagnostics and identify unresolved failing checks
+# C) Disk pressure triage (selector-first; no manual SSH assembly)
+scenario-to-cloud preflight disk-usage \
+  --domain {{DOMAIN}} \
+  --scenario {{SCENARIO_NAME}}
+
+# D) Disk cleanup with actionable per-action diagnostics
+scenario-to-cloud preflight disk-cleanup \
+  --domain {{DOMAIN}} \
+  --scenario {{SCENARIO_NAME}} \
+  --action apt_clean \
+  --action journal_vacuum
+
+# E) Re-check deployment diagnostics and identify unresolved failing checks
 scenario-to-cloud deployment get <deployment-id> --json
 ```
 Do not run `fix-ports` when expected edge services (for example `caddy`) are the owners of 80/443; follow the preflight `hint` for that check instead.
@@ -245,6 +260,10 @@ If preflight fails on hard infrastructure requirements (for example RAM below po
 - Failing checks from `scenario-to-cloud deployment get <deployment-id> --json` (`preflight_result.checks`)
 - Required minimums from `scenario-to-cloud preflight requirements --json`
 - Exact next human action (for example: resize VPS to at least 1 GB RAM, then rerun convergence)
+
+For disk-space hard blockers specifically:
+- Run `scenario-to-cloud preflight disk-cleanup --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --json`
+- Include `action_results` failure details (`action`, `exit_code`, `summary`, `hint`) in the handoff.
 
 ---
 

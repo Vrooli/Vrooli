@@ -155,6 +155,7 @@ flowchart TD
 
 Escalation rule:
 - If the same pattern appears 2+ times in a conversation, treat it as systemic and recommend a durable fix (tooling or policy), not just local wording edits.
+- If repeated friction is currently handled via prose workarounds, recommend a CLI/tooling conversion path first and keep prose updates minimal/interim.
 
 ---
 
@@ -179,6 +180,7 @@ Rule:
 - Prefer promoting repeat friction into tooling/output contracts before adding prose.
 - Keep recommendations implementation-ready (no vague "be clearer" advice).
 - Distinguish facts from inferences explicitly.
+- If a recommendation adds wording only, explicitly state why a CLI/tool fix is not currently the better layer.
 
 ---
 
@@ -214,6 +216,11 @@ Produce this report:
 | Source Workaround | Promote To | Expected Benefit |
 |---|---|---|
 | ... | CLI output contract / new command / policy update | ... |
+
+## Conversion Signal
+- Prose workaround count: ...
+- Durable CLI/tool conversion count: ...
+- Notes: [Interpretation of whether layering is healthy or prose-heavy]
 
 ## Execution Plan
 1. ...

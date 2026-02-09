@@ -292,13 +292,10 @@ Pass condition:
 Gate G.1 (recommended for unattended runs): verify LPBS runtime has service auth enabled
 
 ```bash
-vrooli scenario logs landing-page-business-suite --runtime
+landing-page-business-suite service-auth-status --require-enabled
 ```
 
-Fail Gate G if runtime logs show:
-- `LPBS_SERVICE_SECRET not set; service-to-service auth disabled`
-
-If present, set the runtime secret and restart LPBS before deploy handoff.
+Fail Gate G if the command exits non-zero. If it fails, set/sync `LPBS_SERVICE_SECRET` in LPBS runtime configuration and re-check Gate G.1 before deploy handoff.
 
 Gate G.2 (recommended): preflight deploy auth/session integration check
 
@@ -361,7 +358,7 @@ Use this section for long-tail operational failures and recovery paths.
 | `Remote profile is not logged in` / session expired | Remote cookie missing/expired | Re-run `remote-profiles-login`, then `remote-profiles-test` |
 | `remote-profiles-login` returns `401` and later admin commands fail with `admin session not configured` | Remote login failure invalidated local admin session | Re-run `admin-login`, then retry `remote-profiles-login` and `remote-profiles-test` |
 | `deployment health` is healthy but freshness is `outdated` | Deployed bundle fingerprint drift vs local scenario state | Run `scenario-to-cloud redeploy --domain {{DOMAIN}} --scenario landing-page-business-suite --if-needed --preflight --wait`; if still drifting with healthy endpoint, record risk and hand off per `scenario-to-cloud` guidance |
-| Deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch | Set env var and ensure it matches LPBS runtime token |
+| `landing-page-business-suite service-auth-status --require-enabled` fails OR deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch | Set/sync `LPBS_SERVICE_SECRET` in LPBS runtime config, then re-run `landing-page-business-suite service-auth-status --require-enabled` |
 
 Command timing note:
 - `scenario-to-cloud deployment health ...` can take ~40s+ in normal conditions. Use long enough timeouts in scripted runs.

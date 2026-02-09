@@ -455,17 +455,24 @@ func (s *UsageService) ValidateServiceToken(token string) bool {
 
 // UsageHealthStatus contains the health status of the usage service.
 type UsageHealthStatus struct {
-	Healthy           bool       `json:"healthy"`
-	DatabaseConnected bool       `json:"database_connected"`
-	LastRecordAt      *time.Time `json:"last_record_at,omitempty"`
-	RecordsThisPeriod int64      `json:"records_this_period"`
+	Healthy               bool       `json:"healthy"`
+	DatabaseConnected     bool       `json:"database_connected"`
+	ServiceAuthConfigured bool       `json:"service_auth_configured"`
+	ServiceAuthMode       string     `json:"service_auth_mode"`
+	LastRecordAt          *time.Time `json:"last_record_at,omitempty"`
+	RecordsThisPeriod     int64      `json:"records_this_period"`
 }
 
 // HealthCheck returns the health status of the usage service.
 func (s *UsageService) HealthCheck(ctx context.Context) (*UsageHealthStatus, error) {
 	status := &UsageHealthStatus{
-		Healthy:           true,
-		DatabaseConnected: true,
+		Healthy:               true,
+		DatabaseConnected:     true,
+		ServiceAuthConfigured: strings.TrimSpace(s.serviceToken) != "",
+		ServiceAuthMode:       "disabled",
+	}
+	if status.ServiceAuthConfigured {
+		status.ServiceAuthMode = "token"
 	}
 
 	// Check database connectivity
