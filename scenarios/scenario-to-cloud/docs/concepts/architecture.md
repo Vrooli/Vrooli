@@ -362,3 +362,20 @@ Each SSE event carries:
 - `percent` — Overall progress percentage
 - `message` — Human-readable status message
 - `error_category`, `retryable`, `hint` — Structured error metadata (when applicable)
+
+## Canonical SSH Identity Lifecycle
+
+> [CODE: api/sshidentity/model.go]
+> [CODE: api/sshidentity/resolve.go]
+> [CODE: api/sshidentity/keys.go]
+> [CODE: api/deployment/orchestrator.go]
+> [CODE: api/handlers_health.go]
+
+Scenario-to-cloud now uses one canonical identity model persisted per deployment (`deployments.ssh_identity`) and shared across setup/deploy/live-state/health.
+
+1. Resolver determines identity precedence: manifest explicit key, persisted explicit key, ambient transport (`agent`/`default_ssh`).
+2. Orchestrator persists resolved identity before remote steps execute.
+3. Live-state and health use the same identity when building SSH config and key authorization checks.
+4. Post-deploy verification updates `verification_state` and `last_verified_at` on the same model.
+
+This removes split logic where deploy transport could succeed while health had no coherent identity context.

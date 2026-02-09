@@ -15,6 +15,7 @@ import (
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
@@ -572,8 +573,9 @@ func (e *ServerExecutor) getLiveState(ctx context.Context, args map[string]inter
 
 	stateCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-
-	result := vps.RunLiveStateInspection(stateCtx, m, e.sshRunner)
+	resolver := sshidentity.DefaultResolver{}
+	identity, _ := resolver.Resolve(m, nil)
+	result := vps.RunLiveStateInspection(stateCtx, m, identity, e.sshRunner)
 
 	return SuccessResult(map[string]interface{}{
 		"result":    result,

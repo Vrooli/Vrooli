@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -136,5 +137,25 @@ func TestWriteAPIError(t *testing.T) {
 	}
 	if !strings.Contains(body, "Test error message") {
 		t.Errorf("Body should contain error message: %s", body)
+	}
+}
+
+func TestWriteJSON_EncodingFailureReturnsStructuredError(t *testing.T) {
+	t.Parallel()
+
+	w := httptest.NewRecorder()
+	payload := map[string]float64{"bad": math.NaN()}
+
+	WriteJSON(w, http.StatusOK, payload)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("Status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "json_encode_failed") {
+		t.Fatalf("expected json_encode_failed in body, got: %s", body)
+	}
+	if !strings.Contains(body, "Failed to encode JSON response") {
+		t.Fatalf("expected encode failure message in body, got: %s", body)
 	}
 }

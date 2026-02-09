@@ -7,7 +7,13 @@ import (
 
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
+)
+
+const (
+	tlsALPNWarnDaysThreshold = 30
+	tlsALPNFailDaysThreshold = 14
 )
 
 // ComputeHealth composes live state, DNS, and TLS results into a unified health report.
@@ -15,6 +21,7 @@ import (
 func ComputeHealth(
 	dep *domain.Deployment,
 	manifest domain.CloudManifest,
+	identity sshidentity.DeploymentSSHIdentity,
 	liveState *domain.LiveStateResult,
 	dnsEval *dns.Evaluation,
 	tlsSnap *tlsinfo.Snapshot,
@@ -38,7 +45,7 @@ func ComputeHealth(
 	allSections = append(allSections, buildDeploymentSection(dep))
 
 	// --- SSH section ---
-	allSections = append(allSections, buildSSHSection(liveState))
+	allSections = append(allSections, buildSSHSection(identity, liveState))
 
 	// --- Processes section ---
 	allSections = append(allSections, buildProcessesSection(liveState, manifest))
@@ -163,7 +170,7 @@ func buildDeploymentSection(dep *domain.Deployment) domain.HealthSection {
 	return sec
 }
 
-func buildSSHSection(liveState *domain.LiveStateResult) domain.HealthSection {
+func buildSSHSection(identity sshidentity.DeploymentSSHIdentity, liveState *domain.LiveStateResult) domain.HealthSection {
 	sec := domain.HealthSection{
 		Category: "ssh",
 		Title:    "SSH & Connectivity",
@@ -212,32 +219,39 @@ func buildSSHSection(liveState *domain.LiveStateResult) domain.HealthSection {
 		Details: details,
 	})
 
-	// Key authorization check
-	keyStatus := domain.HealthCheckPass
-	keyMsg := "Key authorized"
-	keyDetails := map[string]string{}
-	keyState := system.SSH.KeyInAuthState
-	if keyState == "" {
-		// Backward compatibility with older snapshots that only populated bool.
-		if system.SSH.KeyInAuth {
-			keyState = "authorized"
-		} else {
-			keyState = "unauthorized"
-		}
+	// Canonical identity check
+	var keyStatus domain.HealthCheckStatus
+	var keyMsg string
+	keyDetails := map[string]string{
+		"auth_mode":          string(identity.AuthMode),
+		"verification_state": system.SSH.VerificationState,
 	}
-	switch keyState {
-	case "authorized":
-		keyStatus = domain.HealthCheckPass
-		keyMsg = "Key authorized"
-		keyDetails["state"] = "authorized"
-	case "unauthorized":
+	switch identity.AuthMode {
+	case sshidentity.AuthModeExplicitKey:
+		keyDetails["key_path"] = identity.KeyPath
+		if identity.PublicKeyFingerprint != "" {
+			keyDetails["public_key_fingerprint"] = identity.PublicKeyFingerprint
+		}
+		switch sshidentity.VerificationState(system.SSH.VerificationState) {
+		case sshidentity.VerificationAuthorized:
+			keyStatus = domain.HealthCheckPass
+			keyMsg = "Explicit SSH key is authorized on VPS"
+		case sshidentity.VerificationUnauthorized:
+			keyStatus = domain.HealthCheckFail
+			keyMsg = "Explicit SSH key is not authorized on VPS"
+		default:
+			keyStatus = domain.HealthCheckFail
+			keyMsg = "Explicit SSH key verification is unknown"
+		}
+	case sshidentity.AuthModeAgent:
 		keyStatus = domain.HealthCheckWarn
-		keyMsg = "SSH key not found in authorized_keys"
-		keyDetails["state"] = "unauthorized"
+		keyMsg = "Connected via SSH agent; deployment key is not pinned"
+	case sshidentity.AuthModeDefaultSSH:
+		keyStatus = domain.HealthCheckWarn
+		keyMsg = "Connected via default SSH identity; deployment key is not pinned"
 	default:
 		keyStatus = domain.HealthCheckWarn
-		keyMsg = "SSH key authorization unknown (no deployment key configured)"
-		keyDetails["state"] = "unknown"
+		keyMsg = "SSH identity mode is unknown"
 	}
 	addCheckToSection(&sec, domain.HealthCheck{
 		ID:      "ssh_key_auth",
@@ -545,11 +559,40 @@ func buildTLSSection(liveState *domain.LiveStateResult, tlsSnap *tlsinfo.Snapsho
 			Message: alpn.Message,
 		})
 	} else if alpn.Status == tlsinfo.ALPNWarn {
+		status := domain.HealthCheckWarn
+		message := "TLS-ALPN probe failed"
+		if probe.Valid && probe.DaysRemaining >= tlsALPNWarnDaysThreshold {
+			status = domain.HealthCheckPass
+			message = "TLS-ALPN readiness check is informational while certificate is healthy"
+		} else if probe.Valid && probe.DaysRemaining < tlsALPNFailDaysThreshold {
+			status = domain.HealthCheckFail
+			message = fmt.Sprintf("TLS-ALPN probe failed with certificate near expiry (%dd remaining)", probe.DaysRemaining)
+		} else if probe.Valid && probe.DaysRemaining < tlsALPNWarnDaysThreshold {
+			status = domain.HealthCheckWarn
+			message = fmt.Sprintf("TLS-ALPN probe failed within renewal window (%dd remaining)", probe.DaysRemaining)
+		}
+		if strings.TrimSpace(alpn.Message) != "" {
+			if status == domain.HealthCheckPass {
+				message = fmt.Sprintf("%s (%s)", message, strings.TrimSpace(alpn.Message))
+			} else {
+				message = fmt.Sprintf("%s: %s", message, strings.TrimSpace(alpn.Message))
+			}
+		}
+		details := map[string]string{
+			"cert_days_remaining": fmt.Sprintf("%d", probe.DaysRemaining),
+		}
+		if alpn.Protocol != "" {
+			details["protocol"] = alpn.Protocol
+		}
+		if alpn.Error != "" {
+			details["error"] = alpn.Error
+		}
 		addCheckToSection(&sec, domain.HealthCheck{
 			ID:      "tls_alpn",
 			Title:   "TLS-ALPN readiness",
-			Status:  domain.HealthCheckWarn,
-			Message: alpn.Message,
+			Status:  status,
+			Message: message,
+			Details: details,
 		})
 	}
 
@@ -731,13 +774,16 @@ func checkToRecommendation(deploymentID string, manifest domain.CloudManifest, c
 			Summary:  "VPS unreachable via SSH",
 			Command:  sshTestCmd,
 		}
-	case category == "ssh" && check.ID == "ssh_key_auth" && check.Status == domain.HealthCheckWarn:
-		summary := "SSH key is not authorized on VPS"
-		if state := strings.TrimSpace(check.Details["state"]); state == "unknown" {
-			summary = "SSH key authorization unknown; bootstrap required for unattended deploys"
+	case category == "ssh" && check.ID == "ssh_key_auth" && (check.Status == domain.HealthCheckWarn || check.Status == domain.HealthCheckFail):
+		summary := "SSH transport is not pinned to an explicit deployment key"
+		if strings.TrimSpace(check.Details["auth_mode"]) == string(sshidentity.AuthModeUnknown) {
+			summary = "SSH identity mode is unknown; run bootstrap and redeploy with explicit key"
+		}
+		if check.Status == domain.HealthCheckFail {
+			summary = "Explicit SSH deployment key is not authorized on VPS"
 		}
 		return &domain.Recommendation{
-			Priority: 2,
+			Priority: 1,
 			Category: "ssh",
 			Summary:  summary,
 			Command:  sshBootstrapCmd,
@@ -769,6 +815,24 @@ func checkToRecommendation(deploymentID string, manifest domain.CloudManifest, c
 			Priority: 2,
 			Category: "tls",
 			Summary:  fmt.Sprintf("TLS certificate expiring soon (%s days remaining)", days),
+			Command:  fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID),
+		}
+	case check.ID == "tls_alpn" && check.Status == domain.HealthCheckFail:
+		return &domain.Recommendation{
+			Priority: 1,
+			Category: "tls",
+			Summary:  "TLS-ALPN challenge path is failing with certificate near expiry",
+			Command:  fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID),
+		}
+	case check.ID == "tls_alpn" && check.Status == domain.HealthCheckWarn:
+		days := strings.TrimSpace(check.Details["cert_days_remaining"])
+		if days == "" {
+			days = "unknown"
+		}
+		return &domain.Recommendation{
+			Priority: 2,
+			Category: "tls",
+			Summary:  fmt.Sprintf("TLS-ALPN challenge path is degraded (%s days remaining)", days),
 			Command:  fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID),
 		}
 	case check.ID == "caddy_running" && check.Status == domain.HealthCheckFail:

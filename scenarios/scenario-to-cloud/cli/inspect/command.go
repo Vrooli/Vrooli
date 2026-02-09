@@ -293,13 +293,13 @@ Flags:
 	}
 
 	r := resp.Result
-	keyAuthState := r.System.SSH.KeyInAuthState
-	if keyAuthState == "" {
-		if r.System.SSH.KeyInAuth {
-			keyAuthState = "authorized"
-		} else {
-			keyAuthState = "unauthorized"
-		}
+	keyAuthState := r.System.SSH.VerificationState
+	if strings.TrimSpace(keyAuthState) == "" {
+		keyAuthState = "unknown"
+	}
+	authMode := r.System.SSH.AuthMode
+	if strings.TrimSpace(authMode) == "" {
+		authMode = "unknown"
 	}
 	fmt.Printf("Metrics Debug for Deployment: %s\n", resp.DeploymentID)
 	fmt.Println(strings.Repeat("-", 70))
@@ -311,7 +311,7 @@ Flags:
 		}
 	}
 	fmt.Println()
-	fmt.Printf("SSH: connected=%v latency=%dms key_auth=%s\n", r.System.SSH.Connected, r.System.SSH.LatencyMs, keyAuthState)
+	fmt.Printf("SSH: connected=%v latency=%dms auth_mode=%s key_auth=%s\n", r.System.SSH.Connected, r.System.SSH.LatencyMs, authMode, keyAuthState)
 	fmt.Printf("CPU: usage=%.1f%% cores=%d load=[%.2f %.2f %.2f]\n",
 		r.System.CPU.UsagePercent,
 		r.System.CPU.Cores,

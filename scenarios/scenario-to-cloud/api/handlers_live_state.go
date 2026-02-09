@@ -12,6 +12,7 @@ import (
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 )
@@ -34,8 +35,17 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
+	identity := s.resolveCanonicalIdentity(dc.Manifest, dc.Deployment)
 
-	result := vps.RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
+	result := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.sshRunner)
+	if result.OK && result.System != nil {
+		verified := sshidentity.ApplyVerificationResult(
+			identity,
+			sshidentity.VerificationState(result.System.SSH.VerificationState),
+			time.Now().UTC(),
+		)
+		s.persistCanonicalIdentity(ctx, dc.Deployment.ID, verified)
+	}
 	s.enrichCaddyTLS(ctx, &result)
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -204,8 +214,9 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
+	identity := s.resolveCanonicalIdentity(dc.Manifest, dc.Deployment)
 
-	liveState := vps.RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
+	liveState := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.sshRunner)
 	s.enrichCaddyTLS(ctx, &liveState)
 	if !liveState.OK {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{

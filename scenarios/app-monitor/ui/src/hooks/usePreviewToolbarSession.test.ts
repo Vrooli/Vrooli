@@ -80,7 +80,7 @@ describe('usePreviewToolbarSession', () => {
       history: [],
       apps: [createApp('scenario-a', 4310)],
       openOverlay,
-      appOpenMode: 'single-preview',
+      appOpenMode: 'replace-focused',
     }));
 
     const preventDefault = vi.fn();
@@ -104,7 +104,7 @@ describe('usePreviewToolbarSession', () => {
       history: [],
       apps: [createApp('scenario-a', 4310)],
       openOverlay,
-      appOpenMode: 'single-preview',
+      appOpenMode: 'replace-focused',
     }));
 
     const preventDefault = vi.fn();

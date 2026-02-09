@@ -1111,13 +1111,13 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   );
 }
 
-function SSHKeyAuthBadge({ liveState }: { liveState: { system?: { ssh?: { key_in_auth?: boolean; key_in_auth_state?: "authorized" | "unauthorized" | "unknown" } } } | null | undefined }) {
+function SSHKeyAuthBadge({ liveState }: { liveState: { system?: { ssh?: { verification_state?: "authorized" | "unauthorized" | "unknown" } } } | null | undefined }) {
   if (!liveState?.system?.ssh) {
     return null;
   }
 
   const ssh = liveState.system.ssh;
-  const keyState = ssh.key_in_auth_state ?? (ssh.key_in_auth ? "authorized" : "unauthorized");
+  const keyState = ssh.verification_state ?? "unknown";
 
   const config = {
     authorized: {

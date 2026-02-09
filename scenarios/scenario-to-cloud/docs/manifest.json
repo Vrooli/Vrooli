@@ -66,7 +66,8 @@
       "visibility": "developers-only",
       "description": "Architecture plans and refactoring proposals",
       "documents": [
-        { "path": "plans/screaming-architecture-refactor.md", "title": "Screaming Architecture Refactor", "description": "Import graph restructuring plan" }
+        { "path": "plans/screaming-architecture-refactor.md", "title": "Screaming Architecture Refactor", "description": "Import graph restructuring plan" },
+        { "path": "plans/ssh-identity-greenfield-implementation-plan.md", "title": "SSH Identity Greenfield Plan", "description": "Canonical SSH identity architecture and implementation plan (no legacy compatibility paths)" }
       ]
     }
   ],

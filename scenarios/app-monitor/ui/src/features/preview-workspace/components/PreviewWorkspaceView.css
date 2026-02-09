@@ -1,5 +1,4 @@
 .preview-workspace {
-  --preview-workspace-header-min-height: 48px;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -9,68 +8,11 @@
   background: var(--app-bg-base);
 }
 
-.preview-workspace__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-height: 48px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--app-border);
-  background: rgba(16, 19, 32, 0.94);
-}
-
-.preview-workspace__header-title {
-  margin: 0;
-  font-size: 0.76rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
-.preview-workspace__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.preview-workspace__header-btn {
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: rgba(122, 160, 255, 0.08);
-  color: var(--app-text-primary);
-  height: 30px;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 0.74rem;
-}
-
-.preview-workspace__header-btn--active {
-  background: rgba(122, 160, 255, 0.22);
-  border-color: rgba(122, 160, 255, 0.5);
-}
-
-.preview-workspace__header-btn:hover:not(:disabled),
-.preview-workspace__header-btn:focus-visible {
-  background: rgba(122, 160, 255, 0.16);
-  outline: none;
-}
-
-.preview-workspace__header-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .preview-workspace__panes-scroll {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  min-block-size: calc(100dvh - var(--preview-workspace-header-min-height));
+  min-block-size: 100dvh;
   overflow: auto;
   background: rgba(6, 10, 22, 0.72);
 }
@@ -188,7 +130,7 @@
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  min-block-size: calc(100dvh - var(--preview-workspace-header-min-height));
+  min-block-size: 100dvh;
   min-width: 0;
   display: grid;
   gap: 8px;
@@ -221,23 +163,6 @@
 }
 
 @media (max-width: 960px) {
-  .preview-workspace {
-    --preview-workspace-header-min-height: 60px;
-  }
-
-  .preview-workspace__header {
-    padding: 6px 10px;
-  }
-
-  .preview-workspace__actions {
-    gap: 6px;
-  }
-
-  .preview-workspace__header-btn {
-    font-size: 0.7rem;
-    padding: 0 8px;
-  }
-
   .preview-workspace__stack-slot {
     min-height: 0;
   }

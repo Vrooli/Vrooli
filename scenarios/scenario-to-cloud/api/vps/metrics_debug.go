@@ -8,15 +8,22 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/systemmetrics"
 )
 
 // RunSystemMetricsDebug executes all system metrics commands and returns both
 // raw command output and the parsed metrics snapshot for troubleshooting.
 func RunSystemMetricsDebug(ctx context.Context, manifest domain.CloudManifest, sshRunner ssh.Runner) domain.MetricsDebugResult {
-	cfg := ssh.ConfigFromManifest(manifest)
-	keyPath := cfg.KeyPath
-	pubKeyFingerprint := getPublicKeyFingerprint(keyPath)
+	resolver := sshidentity.DefaultResolver{}
+	identity, _ := resolver.Resolve(manifest, nil)
+	cfg := sshidentity.EffectiveSSHConfig(manifest, identity)
+	pubKeyContent := ""
+	if identity.AuthMode == sshidentity.AuthModeExplicitKey && identity.KeyPath != "" {
+		if content, _, err := sshidentity.ReadPublicKeyAndFingerprint(identity.KeyPath); err == nil {
+			pubKeyContent = content
+		}
+	}
 
 	result := domain.MetricsDebugResult{
 		OK:        true,
@@ -81,7 +88,7 @@ func RunSystemMetricsDebug(ctx context.Context, manifest domain.CloudManifest, s
 		return result
 	}
 
-	result.System = parseSystemState(results, keyPath, pubKeyFingerprint, collector)
+	result.System = parseSystemState(results, identity, pubKeyContent, collector)
 	result.OK = result.System.SSH.Connected
 	if !result.OK {
 		if first != nil {

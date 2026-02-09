@@ -40,6 +40,8 @@ export interface PreviewWorkspaceState {
   setInteractionMode: (mode: PreviewWorkspaceInteractionMode) => void;
   setColumnFractions: (fractions: number[]) => void;
   setRowFractions: (fractions: number[]) => void;
+  resetLayout: () => void;
+  clearAllPanes: () => void;
   setPaneViewState: (paneId: string, partial: Partial<PreviewWorkspacePaneViewState>) => void;
   resetPaneViewState: (paneId: string) => void;
   reset: () => void;
@@ -403,6 +405,19 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
     const { rows } = resolveWorkspaceLayout(state.panes.length);
     return { rowFractions: reconcileTrackFractions(fractions, rows) };
   }),
+
+  resetLayout: () => set((state) => {
+    const reconciled = reconcileFractionsForWorkspace(state.panes, [1], [1]);
+    return {
+      interactionMode: 'browse',
+      pinnedPaneId: null,
+      pinnedColumn: null,
+      columnFractions: reconciled.columnFractions,
+      rowFractions: reconciled.rowFractions,
+    };
+  }),
+
+  clearAllPanes: () => set(buildInitialState()),
 
   setPaneViewState: (paneId, partial) => set((state) => {
     if (!state.panes.some((pane) => pane.id === paneId)) {

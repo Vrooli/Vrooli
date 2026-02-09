@@ -91,6 +91,7 @@ type Deployment struct {
 	DeployResult      NullRawMessage `json:"deploy_result,omitempty"`
 	PreflightResult   NullRawMessage `json:"preflight_result,omitempty"`
 	LastInspectResult NullRawMessage `json:"last_inspect_result,omitempty"`
+	SSHIdentity       NullRawMessage `json:"ssh_identity,omitempty"`
 
 	// Deployment history (timeline of events)
 	DeploymentHistory NullRawMessage `json:"deployment_history,omitempty"`

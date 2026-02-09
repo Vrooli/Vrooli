@@ -1174,9 +1174,11 @@ export type SwapInfo = {
 export type SSHHealth = {
   connected: boolean;
   latency_ms: number;
-  key_in_auth: boolean;
-  key_in_auth_state?: "authorized" | "unauthorized" | "unknown";
-  key_path: string;
+  auth_mode: "explicit_key" | "agent" | "default_ssh" | "unknown";
+  verification_state: "authorized" | "unauthorized" | "unknown";
+  key_path?: string;
+  public_key_fingerprint?: string;
+  last_verified_at?: string;
   error?: string;
 };
 

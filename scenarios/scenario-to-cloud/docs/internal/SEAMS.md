@@ -566,3 +566,23 @@ type AnalyzerClient interface {
 **New tests:**
 - `ValidateSSHPath` table-driven tests in `ssh/path_test.go`
 - `boundedBuffer` and `exitCode` tests in `ssh/runner_test.go`
+
+## SSH Identity Seams (2026-02)
+
+> [CODE: api/sshidentity/resolve.go]
+> [CODE: api/sshidentity/keys.go]
+> [CODE: api/ssh_identity_runtime.go]
+
+Canonical SSH identity flow is enforced through explicit seams:
+
+| Seam | Interface | Responsibility |
+|------|-----------|----------------|
+| `IdentityResolver` | `sshidentity.Resolver` | Resolve canonical auth mode + key provenance from manifest/state |
+| `AuthorizedKeysInspector` | `sshidentity.AuthorizedKeysInspector` | Verify explicit key authorization on remote host |
+| `DeploymentIdentityStore` | repository `UpdateDeploymentSSHIdentity` | Persist canonical identity JSON in deployment row |
+| `SSHRunner` | `ssh.Runner` | Execute remote commands used by inspect/deploy/health |
+
+Dependency direction:
+- handlers/orchestrator -> `sshidentity`
+- `sshidentity` -> `ssh.Runner` seam only for remote inspection
+- health rendering reads canonical identity values; it does not infer state from ad hoc booleans

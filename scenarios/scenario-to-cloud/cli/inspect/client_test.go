@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -85,5 +86,63 @@ func TestTruncateAndSafeLoadHelpers(t *testing.T) {
 	}
 	if got := safeLoad([]float64{0.1}, 3); got != 0 {
 		t.Fatalf("safeLoad out-of-range=%v", got)
+	}
+}
+
+func TestLiveStateSupportsEnvelopeShape(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/deployments/dep-789/live-state" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"result":{
+				"ok":true,
+				"timestamp":"2026-02-08T23:00:00Z",
+				"processes":{
+					"scenarios":[
+						{"id":"landing-page-business-suite","status":"running","pid":123,"resources":{"cpu_percent":1.2,"memory_mb":42}}
+					],
+					"resources":[
+						{"id":"postgres","status":"running","pid":456}
+					]
+				},
+				"system":{
+					"cpu":{"usage_percent":2.5},
+					"memory":{"usage_percent":45.0},
+					"disk":{"used_gb":17,"total_gb":23},
+					"swap":{},
+					"ssh":{"public_key_fingerprint":"SHA256:test"},
+					"uptime_seconds":100
+				}
+			},
+			"timestamp":"2026-02-08T23:00:01Z"
+		}`))
+	}))
+	defer server.Close()
+
+	client := inspectTestClient(server.URL)
+	_, resp, err := client.LiveState("dep-789")
+	if err != nil {
+		t.Fatalf("LiveState returned error: %v", err)
+	}
+
+	if resp.DeploymentID != "dep-789" {
+		t.Fatalf("DeploymentID = %q, want dep-789", resp.DeploymentID)
+	}
+	if !resp.State.Running {
+		t.Fatalf("expected running=true")
+	}
+	if !resp.State.Healthy {
+		t.Fatalf("expected healthy=true")
+	}
+	if !strings.Contains(resp.State.CPUPercent, "2.5") {
+		t.Fatalf("unexpected CPUPercent: %q", resp.State.CPUPercent)
+	}
+	if len(resp.Processes) != 1 || resp.Processes[0].Name != "landing-page-business-suite" {
+		t.Fatalf("unexpected processes: %+v", resp.Processes)
+	}
+	if len(resp.Resources) != 1 || resp.Resources[0].Name != "postgres" {
+		t.Fatalf("unexpected resources: %+v", resp.Resources)
 	}
 }

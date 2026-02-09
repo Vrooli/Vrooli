@@ -5,10 +5,10 @@
   align-items: center;
   padding: 0.55rem 0.75rem;
   margin: 0;
-  border: 1px solid rgba(0, 255, 255, 0.2);
-  background: rgba(0, 22, 18, 0.72);
+  border: 1px solid var(--app-border);
+  background: rgba(11, 16, 34, 0.82);
   border-radius: 8px;
-  color: var(--matrix-cyan);
+  color: var(--app-text-primary);
   font-size: 0.6rem;
 }
 
@@ -16,8 +16,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  background: rgba(0, 18, 14, 0.72);
-  border: 1px solid rgba(0, 255, 255, 0.22);
+  background: rgba(11, 16, 34, 0.76);
+  border: 1px solid var(--app-border);
   border-radius: 6px;
   padding: 0 0 0 0.45rem;
   height: 1.5rem;
@@ -34,17 +34,17 @@
 .device-emulation-toolbar__select {
   display: inline-block;
   height: 100%;
-  background: rgba(0, 18, 14, 0.88);
-  border: 1px solid rgba(0, 255, 255, 0.3);
-  color: var(--matrix-cyan);
+  background: rgba(11, 16, 34, 0.92);
+  border: 1px solid var(--app-border);
+  color: var(--app-text-primary);
   font: inherit;
   padding: 0 1.35rem 0 0.4rem;
   border-radius: 4px;
   appearance: none;
   line-height: 1.2;
   box-sizing: border-box;
-  background-image: linear-gradient(45deg, transparent 50%, rgba(0, 255, 255, 0.8) 50%),
-    linear-gradient(135deg, rgba(0, 255, 255, 0.8) 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, rgba(122, 160, 255, 0.8) 50%),
+    linear-gradient(135deg, rgba(122, 160, 255, 0.8) 50%, transparent 50%);
   background-position: calc(100% - 0.9rem) 50%, calc(100% - 0.6rem) 50%;
   background-size: 0.35rem 0.35rem;
   background-repeat: no-repeat;
@@ -52,7 +52,7 @@
 }
 
 .device-emulation-toolbar__select:focus-visible {
-  outline: 2px solid rgba(0, 255, 255, 0.45);
+  outline: 2px solid rgba(122, 160, 255, 0.55);
   outline-offset: 2px;
 }
 
@@ -60,7 +60,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  background: rgba(0, 18, 14, 0.72);
+  background: rgba(11, 16, 34, 0.76);
   border-radius: 6px;
   height: 1.5rem;
   min-height: 1.5rem;
@@ -76,9 +76,9 @@
 .device-emulation-toolbar__dimensions-input input {
   width: 2.5rem;
   text-align: right;
-  background: rgba(0, 255, 255, 0.12);
-  border: 1px solid rgba(0, 255, 255, 0.3);
-  color: var(--matrix-cyan);
+  background: rgba(122, 160, 255, 0.14);
+  border: 1px solid rgba(122, 160, 255, 0.36);
+  color: var(--app-text-primary);
   font: inherit;
   line-height: 1;
   appearance: textfield;
@@ -100,7 +100,7 @@
 }
 
 .device-emulation-toolbar__dimensions-input input:focus-visible {
-  outline: 2px solid rgba(0, 255, 255, 0.45);
+  outline: 2px solid rgba(122, 160, 255, 0.55);
   outline-offset: 2px;
 }
 
@@ -116,8 +116,8 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 6px;
-  border: 1px solid rgba(0, 255, 255, 0.22);
-  background: rgba(0, 18, 14, 0.72);
+  border: 1px solid var(--app-border);
+  background: rgba(11, 16, 34, 0.76);
   color: inherit;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease;
@@ -125,12 +125,12 @@
 
 .device-emulation-toolbar__icon-btn:hover,
 .device-emulation-toolbar__icon-btn:focus-visible {
-  background: rgba(0, 255, 255, 0.18);
+  background: rgba(122, 160, 255, 0.22);
   transform: translateY(-1px);
 }
 
 .device-emulation-toolbar__icon-btn:focus-visible {
-  outline: 2px solid rgba(0, 255, 255, 0.45);
+  outline: 2px solid rgba(122, 160, 255, 0.55);
   outline-offset: 2px;
 }
 
@@ -140,9 +140,9 @@
   width: auto;
   height: auto;
   border-radius: 12px;
-  border: 1px solid rgba(0, 255, 255, 0.18);
-  background: rgba(0, 8, 6, 0.92);
-  box-shadow: 0 0 20px rgba(0, 255, 140, 0.12);
+  border: 1px solid var(--app-border);
+  background: rgba(6, 10, 22, 0.94);
+  box-shadow: 0 10px 26px rgba(3, 7, 18, 0.5);
   overflow: visible;
 }
 
@@ -204,9 +204,9 @@
   inset: 26% 5px 26% 7px;
   background: linear-gradient(
     180deg,
-    rgba(122, 255, 231, 0.1),
-    rgba(122, 255, 231, 0.7),
-    rgba(122, 255, 231, 0.1)
+    rgba(122, 160, 255, 0.12),
+    rgba(122, 160, 255, 0.74),
+    rgba(122, 160, 255, 0.12)
   );
 }
 
@@ -222,9 +222,9 @@
   inset: 7px 26% 5px 26%;
   background: linear-gradient(
     90deg,
-    rgba(122, 255, 231, 0.1),
-    rgba(122, 255, 231, 0.7),
-    rgba(122, 255, 231, 0.1)
+    rgba(122, 160, 255, 0.12),
+    rgba(122, 160, 255, 0.74),
+    rgba(122, 160, 255, 0.12)
   );
 }
 
@@ -243,8 +243,8 @@
   width: 3px;
   background: linear-gradient(
     180deg,
-    rgba(122, 255, 231, 0.1),
-    rgba(122, 255, 231, 0.65)
+    rgba(122, 160, 255, 0.12),
+    rgba(122, 160, 255, 0.68)
   );
 }
 
@@ -255,8 +255,8 @@
   height: 3px;
   background: linear-gradient(
     90deg,
-    rgba(122, 255, 231, 0.1),
-    rgba(122, 255, 231, 0.65)
+    rgba(122, 160, 255, 0.12),
+    rgba(122, 160, 255, 0.68)
   );
 }
 

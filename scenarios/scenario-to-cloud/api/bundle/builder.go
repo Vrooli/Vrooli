@@ -150,7 +150,13 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 
 	excludes := DefaultExcludes()
 
-	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")
+	manifestForBundle := manifest
+	// Secrets are fetched/provisioned during deployment execution and do not need to be
+	// embedded in bundle metadata. Excluding them keeps bundle fingerprinting reproducible
+	// for freshness checks that operate on stored deployment manifests.
+	manifestForBundle.Secrets = nil
+
+	manifestBytes, err := json.MarshalIndent(manifestForBundle, "", "  ")
 	if err != nil {
 		return MiniBundleSpec{}, err
 	}

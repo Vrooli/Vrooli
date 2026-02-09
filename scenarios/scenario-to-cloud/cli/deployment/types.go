@@ -30,11 +30,12 @@ type Deployment struct {
 	BundleSHA256    *string          `json:"bundle_sha256,omitempty"`
 	BundleSizeBytes *int64           `json:"bundle_size_bytes,omitempty"`
 
-	ErrorMessage    *string `json:"error_message,omitempty"`
-	ErrorStep       *string `json:"error_step,omitempty"`
-	ProgressStep    *string `json:"progress_step,omitempty"`
-	ProgressPercent float64 `json:"progress_percent"`
-	RunID           *string `json:"run_id,omitempty"`
+	ErrorMessage    *string         `json:"error_message,omitempty"`
+	ErrorStep       *string         `json:"error_step,omitempty"`
+	ProgressStep    *string         `json:"progress_step,omitempty"`
+	ProgressPercent float64         `json:"progress_percent"`
+	RunID           *string         `json:"run_id,omitempty"`
+	SSHIdentity     json.RawMessage `json:"ssh_identity,omitempty"`
 
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`

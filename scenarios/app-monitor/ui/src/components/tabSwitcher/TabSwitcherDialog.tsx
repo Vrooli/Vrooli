@@ -84,7 +84,7 @@ export default function TabSwitcherDialog() {
   const [resourceSortOption, setResourceSortOption] = useState<ResourceSortOption>('status');
   const requestedOpenMode = searchParams.get(APP_OPEN_MODE_QUERY_KEY);
   const [appOpenMode, setAppOpenMode] = useState<AppOpenMode>(
-    () => (isAppOpenMode(requestedOpenMode) ? requestedOpenMode : 'single-preview'),
+    () => (isAppOpenMode(requestedOpenMode) ? requestedOpenMode : 'replace-focused'),
   );
   const [shortcut, setShortcut] = useState<ShortcutState | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -278,32 +278,18 @@ export default function TabSwitcherDialog() {
       return;
     }
     closeOverlay({ replace: true });
-    const encodedIdentifier = encodeURIComponent(identifier);
-    const targetPath = appOpenMode === 'single-preview'
-      ? `/apps/${encodedIdentifier}/preview`
-      : '/apps/workspace';
     const navigationState = {
       fromAppsList: true,
       originAppId: app.id,
       navTimestamp: Date.now(),
     } as const;
 
-    let workspaceTarget: string | null = null;
-    if (appOpenMode !== 'single-preview') {
-      const workspaceParams = new URLSearchParams();
-      workspaceParams.set(WORKSPACE_INTENT_APP_ID_KEY, identifier);
-      workspaceParams.set(WORKSPACE_INTENT_MODE_KEY, appOpenMode);
-      workspaceTarget = `/apps/workspace?${workspaceParams.toString()}`;
-    }
+    const workspaceParams = new URLSearchParams();
+    workspaceParams.set(WORKSPACE_INTENT_APP_ID_KEY, identifier);
+    workspaceParams.set(WORKSPACE_INTENT_MODE_KEY, appOpenMode);
+    const workspaceTarget = `/apps/workspace?${workspaceParams.toString()}`;
 
-    if (appOpenMode === 'single-preview') {
-      navigate(targetPath, {
-        state: navigationState,
-      });
-      return;
-    }
-
-    navigate(workspaceTarget ?? '/apps/workspace', {
+    navigate(workspaceTarget, {
       state: navigationState,
     });
   };
@@ -368,7 +354,7 @@ export default function TabSwitcherDialog() {
             <span className="tab-switcher__open-mode-hint" aria-label="Shortcut hints">
               <kbd>Alt+O</kbd>
               <span>/</span>
-              <kbd>Alt+1..3</kbd>
+              <kbd>Alt+1..2</kbd>
             </span>
           </span>
           <div className="tab-switcher__open-mode-options" role="radiogroup" aria-label="Scenario open mode">

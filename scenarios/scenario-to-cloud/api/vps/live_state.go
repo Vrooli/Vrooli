@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/portparse"
 	"scenario-to-cloud/vps/systemmetrics"
 )
@@ -54,15 +54,24 @@ type ProcessInfo struct {
 }
 
 // RunLiveStateInspection executes SSH commands to gather live state from a VPS.
-func RunLiveStateInspection(ctx context.Context, manifest domain.CloudManifest, sshRunner ssh.Runner) domain.LiveStateResult {
+// DOC: docs/reference/api-endpoints.md#get-deployment-live-state
+func RunLiveStateInspection(
+	ctx context.Context,
+	manifest domain.CloudManifest,
+	identity sshidentity.DeploymentSSHIdentity,
+	sshRunner ssh.Runner,
+) domain.LiveStateResult {
 	start := time.Now()
-	cfg := ssh.ConfigFromManifest(manifest)
+	cfg := sshidentity.EffectiveSSHConfig(manifest, identity)
 	workdir := manifest.Target.VPS.Workdir
 	targetScenario := manifest.Scenario.ID
 
-	// Get the public key fingerprint for SSH key verification
-	keyPath := cfg.KeyPath
-	pubKeyFingerprint := getPublicKeyFingerprint(keyPath)
+	pubKeyContent := ""
+	if identity.AuthMode == sshidentity.AuthModeExplicitKey && identity.KeyPath != "" {
+		if content, _, err := sshidentity.ReadPublicKeyAndFingerprint(identity.KeyPath); err == nil {
+			pubKeyContent = content
+		}
+	}
 
 	// Build directory check command for expected processes
 	dirCheckCmd := buildDirCheckCommand(workdir, manifest)
@@ -89,7 +98,15 @@ func RunLiveStateInspection(ctx context.Context, manifest domain.CloudManifest, 
 		// Check directory existence for expected processes
 		{id: "dir_check", command: dirCheckCmd},
 	}
+	var cpuUsageCommand *sshCommand
 	for _, spec := range collector.SystemCommands() {
+		// Run CPU usage sampling separately after concurrent inspection commands to
+		// avoid self-inflating usage on small VPS instances.
+		if spec.ID == "cpuusage" {
+			cmd := cpuUsageCommandForLiveState(spec.Command)
+			cpuUsageCommand = &sshCommand{id: spec.ID, command: cmd}
+			continue
+		}
 		commands = append(commands, sshCommand{id: spec.ID, command: spec.Command})
 	}
 
@@ -116,6 +133,16 @@ func RunLiveStateInspection(ctx context.Context, manifest domain.CloudManifest, 
 	}
 
 	wg.Wait()
+	if cpuUsageCommand != nil {
+		cmdStart := time.Now()
+		res, err := sshRunner.Run(ctx, cfg, cpuUsageCommand.command, ssh.DefaultRunOptions())
+		results[cpuUsageCommand.id] = sshCommandResult{
+			id:         cpuUsageCommand.id,
+			result:     res,
+			err:        err,
+			durationMs: time.Since(cmdStart).Milliseconds(),
+		}
+	}
 
 	// Check for context cancellation
 	if ctx.Err() != nil {
@@ -134,7 +161,7 @@ func RunLiveStateInspection(ctx context.Context, manifest domain.CloudManifest, 
 	}
 
 	// Parse system info (including SSH health)
-	systemState := parseSystemState(results, keyPath, pubKeyFingerprint, collector)
+	systemState := parseSystemState(results, identity, pubKeyContent, collector)
 	liveState.System = &systemState
 
 	// Parse port bindings
@@ -179,6 +206,16 @@ func RunLiveStateInspection(ctx context.Context, manifest domain.CloudManifest, 
 	return liveState
 }
 
+func cpuUsageCommandForLiveState(base string) string {
+	if strings.TrimSpace(base) == "" {
+		return base
+	}
+	if strings.Contains(base, "/proc/stat") {
+		return "for i in 1 2 3 4; do cat /proc/stat | head -1; if [ \"$i\" -lt 4 ]; then sleep 1; fi; done"
+	}
+	return base
+}
+
 // buildProcessState constructs domain.ProcessState from raw data.
 func buildProcessState(
 	processes []ProcessInfo,
@@ -199,12 +236,14 @@ func buildProcessState(
 	if scenarioStatusJSON != "" {
 		_ = json.Unmarshal([]byte(scenarioStatusJSON), &scenarioStatus)
 	}
+	scenarioStatusRaw := validRawJSON(scenarioStatusJSON)
 
 	// Parse vrooli resource status output
 	var resourceStatus map[string]interface{}
 	if resourceStatusJSON != "" {
 		_ = json.Unmarshal([]byte(resourceStatusJSON), &resourceStatus)
 	}
+	resourceStatusRaw := validRawJSON(resourceStatusJSON)
 
 	// Build a map of PID to process for quick lookup
 	pidToProcess := make(map[int]ProcessInfo)
@@ -242,11 +281,6 @@ func buildProcessState(
 	// Find the main scenario process
 	for _, p := range processes {
 		if containsSubstring(p.Command, targetScenario) || containsSubstring(p.Command, "scenario-") {
-			var vrooliStatusRaw json.RawMessage
-			if scenarioStatusJSON != "" {
-				vrooliStatusRaw = json.RawMessage(scenarioStatusJSON)
-			}
-
 			scenarioProc := domain.ScenarioProcess{
 				ID:            targetScenario,
 				Status:        "running",
@@ -257,7 +291,7 @@ func buildProcessState(
 					MemoryMB:      int(p.MemoryMB),
 					MemoryPercent: p.MemoryPercent,
 				},
-				VrooliStatus: vrooliStatusRaw,
+				VrooliStatus: scenarioStatusRaw,
 			}
 
 			// Find ports for this scenario
@@ -285,17 +319,12 @@ func buildProcessState(
 		for procPattern, resourceName := range knownResources {
 			if containsSubstring(p.Command, procPattern) {
 				if _, expected := expectedResources[resourceName]; expected {
-					var vrooliStatusRaw json.RawMessage
-					if resourceStatusJSON != "" {
-						vrooliStatusRaw = json.RawMessage(resourceStatusJSON)
-					}
-
 					resourceProc := domain.ResourceProcess{
 						ID:            resourceName,
 						Status:        "running",
 						PID:           p.PID,
 						UptimeSeconds: 0,
-						VrooliStatus:  vrooliStatusRaw,
+						VrooliStatus:  resourceStatusRaw,
 					}
 
 					// Find port for this resource
@@ -425,25 +454,15 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
-// getPublicKeyFingerprint reads the public key content from the key file.
-// Returns the public key content (not fingerprint) for matching in authorized_keys.
-func getPublicKeyFingerprint(keyPath string) string {
-	// Expand ~ in path
-	if len(keyPath) > 0 && keyPath[0] == '~' {
-		if home, err := os.UserHomeDir(); err == nil {
-			keyPath = home + keyPath[1:]
-		}
+func validRawJSON(s string) json.RawMessage {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return nil
 	}
-
-	// Read public key file (.pub extension)
-	pubKeyPath := keyPath + ".pub"
-	content, err := os.ReadFile(pubKeyPath)
-	if err != nil {
-		return ""
+	if !json.Valid([]byte(trimmed)) {
+		return nil
 	}
-
-	// Return the key content for matching
-	return strings.TrimSpace(string(content))
+	return json.RawMessage(trimmed)
 }
 
 // buildDirCheckCommand creates a shell command to check if directories exist for expected processes.
@@ -640,9 +659,17 @@ func ParseSSOutput(output string) []domain.PortBinding {
 // parseSystemState parses command output into domain.SystemState.
 func parseSystemState(
 	results map[string]sshCommandResult,
-	keyPath, pubKeyContent string,
+	identity sshidentity.DeploymentSSHIdentity,
+	pubKeyContent string,
 	collector systemmetrics.Collector,
 ) domain.SystemState {
+	if identity.AuthMode == "" {
+		identity.AuthMode = sshidentity.AuthModeUnknown
+	}
+	if identity.VerificationState == "" {
+		identity.VerificationState = sshidentity.VerificationUnknown
+	}
+
 	metricResults := make(map[string]systemmetrics.CommandResult, len(results))
 	for id, res := range results {
 		metricResults[id] = systemmetrics.CommandResult{
@@ -661,24 +688,29 @@ func parseSystemState(
 		latencyMs = pingResult.durationMs
 	}
 	state.SSH = domain.SSHHealth{
-		Connected:      connected,
-		LatencyMs:      latencyMs,
-		KeyInAuthState: "unknown",
-		KeyPath:        keyPath,
+		Connected:            connected,
+		LatencyMs:            latencyMs,
+		KeyPath:              identity.KeyPath,
+		AuthMode:             string(identity.AuthMode),
+		VerificationState:    string(identity.VerificationState),
+		PublicKeyFingerprint: identity.PublicKeyFingerprint,
+		LastVerifiedAt:       identity.LastVerifiedAt,
 	}
 
-	// Check if our public key is in authorized_keys.
-	if sshKeyResult, ok := results["ssh_key_check"]; ok && sshKeyResult.err == nil {
-		authorizedKeys := sshKeyResult.result.Stdout
-		if pubKeyContent != "" {
+	// For explicit key auth, verify whether the configured key exists in authorized_keys.
+	if identity.AuthMode == sshidentity.AuthModeExplicitKey {
+		state.SSH.VerificationState = string(sshidentity.VerificationUnknown)
+	}
+	if identity.AuthMode == sshidentity.AuthModeExplicitKey && pubKeyContent != "" {
+		if sshKeyResult, ok := results["ssh_key_check"]; ok && sshKeyResult.err == nil {
+			authorizedKeys := sshKeyResult.result.Stdout
 			pubKeyParts := strings.Fields(pubKeyContent)
 			if len(pubKeyParts) >= 2 {
 				keyToMatch := pubKeyParts[0] + " " + pubKeyParts[1]
-				state.SSH.KeyInAuth = strings.Contains(authorizedKeys, keyToMatch)
-				if state.SSH.KeyInAuth {
-					state.SSH.KeyInAuthState = "authorized"
+				if strings.Contains(authorizedKeys, keyToMatch) {
+					state.SSH.VerificationState = string(sshidentity.VerificationAuthorized)
 				} else {
-					state.SSH.KeyInAuthState = "unauthorized"
+					state.SSH.VerificationState = string(sshidentity.VerificationUnauthorized)
 				}
 			}
 		}

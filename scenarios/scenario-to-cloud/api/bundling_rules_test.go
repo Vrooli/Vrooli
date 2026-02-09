@@ -235,6 +235,57 @@ func TestMiniVrooliBundleSpec_OverridesServiceJSONEnabledResources(t *testing.T)
 	}
 }
 
+func TestMiniVrooliBundleSpec_ManifestOmitsSecrets(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
+
+	m := domain.CloudManifest{
+		Version: "1.0.0",
+		Target:  domain.ManifestTarget{Type: "vps", VPS: &domain.ManifestVPS{Host: "203.0.113.10"}},
+		Scenario: domain.ManifestScenario{
+			ID: "app-a",
+		},
+		Dependencies: domain.ManifestDependencies{
+			Scenarios: []string{"app-a"},
+		},
+		Bundle: domain.ManifestBundle{
+			Scenarios: []string{"app-a"},
+		},
+		Edge: domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true}},
+		Secrets: &domain.ManifestSecrets{
+			BundleSecrets: []domain.BundleSecretPlan{
+				{
+					ID:    "postgres-password",
+					Class: "per_install_generated",
+					Target: domain.BundleSecretTarget{
+						Type: "env",
+						Name: "POSTGRES_PASSWORD",
+					},
+				},
+			},
+			Summary: domain.SecretsSummary{TotalSecrets: 1, PerInstallGenerated: 1},
+		},
+	}
+
+	spec, err := bundle.MiniVrooliBundleSpec(repoRoot, m)
+	if err != nil {
+		t.Fatalf("MiniVrooliBundleSpec: %v", err)
+	}
+
+	manifestBytes, ok := spec.ExtraFiles[".vrooli/cloud/manifest.json"]
+	if !ok {
+		t.Fatalf("expected embedded manifest file")
+	}
+
+	var embedded domain.CloudManifest
+	if err := json.Unmarshal(manifestBytes, &embedded); err != nil {
+		t.Fatalf("parse embedded manifest: %v", err)
+	}
+	if embedded.Secrets != nil {
+		t.Fatalf("expected embedded manifest secrets to be omitted")
+	}
+}
+
 func TestMiniVrooliBundleSpec_EmbedsTrimmedGoWork(t *testing.T) {
 	// [REQ:STC-P0-002] mini-Vrooli bundle must not ship a go.work that references stripped modules.
 	repoRoot := t.TempDir()

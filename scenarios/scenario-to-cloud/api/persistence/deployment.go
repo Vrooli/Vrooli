@@ -16,15 +16,15 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 		INSERT INTO deployments (
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			preflight_result,
+			preflight_result, ssh_identity,
 			error_message, error_step,
 			created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8,
-			$9,
-			$10, $11,
-			$12, $13
+			$9, $10,
+			$11, $12,
+			$13, $14
 		)
 	`
 	_, err := r.db.ExecContext(ctx, q,
@@ -37,6 +37,7 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 		d.BundleSHA256,
 		d.BundleSizeBytes,
 		d.PreflightResult,
+		d.SSHIdentity,
 		d.ErrorMessage,
 		d.ErrorStep,
 		d.CreatedAt,
@@ -54,7 +55,7 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -75,6 +76,7 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 		&d.DeployResult,
 		&d.PreflightResult,
 		&d.LastInspectResult,
+		&d.SSHIdentity,
 		&d.ErrorMessage,
 		&d.ErrorStep,
 		&d.ProgressStep,
@@ -99,7 +101,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -123,6 +125,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 		&d.DeployResult,
 		&d.PreflightResult,
 		&d.LastInspectResult,
+		&d.SSHIdentity,
 		&d.ErrorMessage,
 		&d.ErrorStep,
 		&d.ProgressStep,
@@ -147,7 +150,7 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -198,6 +201,7 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 			&d.DeployResult,
 			&d.PreflightResult,
 			&d.LastInspectResult,
+			&d.SSHIdentity,
 			&d.ErrorMessage,
 			&d.ErrorStep,
 			&d.ProgressStep,
@@ -234,11 +238,12 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 			deploy_result = $10,
 			preflight_result = $11,
 			last_inspect_result = $12,
-			error_message = $13,
-			error_step = $14,
-			updated_at = $15,
-			last_deployed_at = $16,
-			last_inspected_at = $17
+			ssh_identity = $13,
+			error_message = $14,
+			error_step = $15,
+			updated_at = $16,
+			last_deployed_at = $17,
+			last_inspected_at = $18
 		WHERE id = $1
 	`
 	result, err := r.db.ExecContext(ctx, q,
@@ -254,6 +259,7 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 		d.DeployResult,
 		d.PreflightResult,
 		d.LastInspectResult,
+		d.SSHIdentity,
 		d.ErrorMessage,
 		d.ErrorStep,
 		d.UpdatedAt,
@@ -414,6 +420,29 @@ func (r *Repository) UpdateDeploymentManifest(ctx context.Context, id string, ma
 		return fmt.Errorf("deployment not found: %s", id)
 	}
 
+	return nil
+}
+
+// UpdateDeploymentSSHIdentity persists the canonical SSH identity model.
+func (r *Repository) UpdateDeploymentSSHIdentity(ctx context.Context, id string, identity json.RawMessage) error {
+	const q = `
+		UPDATE deployments SET
+			ssh_identity = $2,
+			updated_at = $3
+		WHERE id = $1
+	`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, q, id, identity, now)
+	if err != nil {
+		return fmt.Errorf("failed to update ssh_identity: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("deployment not found: %s", id)
+	}
 	return nil
 }
 

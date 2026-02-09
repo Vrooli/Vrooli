@@ -11,17 +11,6 @@
   --app-success: #33e29a;
   --app-warning: #ffd166;
   --app-danger: #ff6f91;
-  --matrix-green: var(--app-success);
-  --matrix-dark-green: #2a8f63;
-  --matrix-light-green: #74f0c3;
-  --matrix-cyan: #6fe4ff;
-  --matrix-bg: var(--app-bg-base);
-  --matrix-dark: #050813;
-  --matrix-card: rgba(16, 19, 32, 0.92);
-  --matrix-border: var(--app-border);
-  --matrix-red: var(--app-danger);
-  --matrix-yellow: var(--app-warning);
-  --matrix-blue: var(--app-accent);
 }
 
 * {

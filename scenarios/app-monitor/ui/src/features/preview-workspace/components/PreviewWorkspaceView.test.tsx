@@ -201,6 +201,7 @@ describe('PreviewWorkspaceView', () => {
     const secondPaneId = usePreviewWorkspaceStore.getState().addPane('scenario-a');
     expect(firstPaneId).toBeTruthy();
     expect(secondPaneId).toBeTruthy();
+    usePreviewWorkspaceStore.getState().setInteractionMode('arrange');
     const movePaneToIndexSpy = vi.fn();
     usePreviewWorkspaceStore.setState({ movePaneToIndex: movePaneToIndexSpy });
 
@@ -228,14 +229,6 @@ describe('PreviewWorkspaceView', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /toggle pane arrange mode/i })).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole('button', { name: /toggle pane arrange mode/i }));
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /toggle pane arrange mode/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
     const dragButton = screen.getByRole('button', { name: new RegExp(`drag pane ${firstPaneId}`, 'i') });

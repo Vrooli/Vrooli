@@ -1772,3 +1772,41 @@ Common status codes:
 - `500` — Internal Server Error
 
 SSH-related endpoints include structured error metadata. See [configuration.md](configuration.md#error-categories) for the full error category taxonomy.
+
+## SSH Identity Health Semantics
+
+> [CODE: api/vps/health.go]
+> [CODE: api/vps/live_state.go]
+
+`GET /deployments/{id}/health` evaluates `ssh_key_auth` from canonical identity:
+
+- `pass`: `auth_mode=explicit_key` and `verification_state=authorized`
+- `warn`: `auth_mode=agent|default_ssh|unknown` (connected, but unpinned transport)
+- `fail`: `auth_mode=explicit_key` with `verification_state=unauthorized|unknown`, or SSH unreachable
+
+`GET /deployments/{id}/live-state` includes SSH identity fields under `result.system.ssh`:
+
+```json
+{
+  "auth_mode": "explicit_key",
+  "verification_state": "authorized",
+  "key_path": "~/.ssh/id_ed25519",
+  "public_key_fingerprint": "SHA256:...",
+  "last_verified_at": "2026-02-08T18:30:00Z"
+}
+```
+
+## TLS-ALPN Health Semantics
+
+> [CODE: api/vps/health.go]
+> [CODE: api/tlsinfo/alpn.go]
+
+`GET /deployments/{id}/health` evaluates `tls_alpn` relative to certificate validity window:
+
+- `pass`: `acme-tls/1` negotiated successfully, or ALPN probe fails while cert remains healthy (`days_remaining >= 30`)
+- `warn`: ALPN probe fails and cert is in renewal window (`14 <= days_remaining < 30`)
+- `fail`: ALPN probe fails with near-expiry cert (`days_remaining < 14`)
+
+Operational guidance:
+- ALPN warning with a healthy cert is informational and should not be treated as an outage by itself.
+- Investigate immediately when ALPN is `warn`/`fail` inside renewal windows.

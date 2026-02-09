@@ -15,6 +15,7 @@ import (
 	"scenario-to-cloud/persistence"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
 )
@@ -126,6 +127,8 @@ func (o *Orchestrator) RunPipeline(
 	defer cancel()
 
 	progress := 0.0
+	canonicalIdentity, effectiveManifest := o.resolveAndPersistIdentity(ctx, id, manifest)
+	manifest = effectiveManifest
 
 	// Helper to emit and persist progress
 	emitProgress := func(eventType, step, stepTitle string, pct float64, errMsg string) {
@@ -349,6 +352,7 @@ func (o *Orchestrator) RunPipeline(
 		DurationMs: time.Since(deployStart).Milliseconds(),
 		Success:    boolPtr(true),
 	})
+	o.verifyAndPersistIdentity(ctx, id, manifest, canonicalIdentity)
 
 	// Success!
 	o.progressHub.Broadcast(id, Event{
@@ -371,6 +375,8 @@ func (o *Orchestrator) RunStartPipeline(
 	defer cancel()
 
 	progress := 0.0
+	canonicalIdentity, effectiveManifest := o.resolveAndPersistIdentity(ctx, id, manifest)
+	manifest = effectiveManifest
 
 	// Log the start operation
 	o.log("start pipeline initiated", map[string]interface{}{
@@ -441,6 +447,7 @@ func (o *Orchestrator) RunStartPipeline(
 		DurationMs: time.Since(startTime).Milliseconds(),
 		Success:    boolPtr(true),
 	})
+	o.verifyAndPersistIdentity(ctx, id, manifest, canonicalIdentity)
 
 	// Success!
 	o.progressHub.Broadcast(id, Event{
@@ -611,6 +618,79 @@ func (o *Orchestrator) cleanupOldBundles(bundlesDir, scenarioID string) {
 		o.log("cleaned old bundles", map[string]interface{}{
 			"scenario_id": scenarioID,
 			"count":       len(deleted),
+		})
+	}
+}
+
+func (o *Orchestrator) resolveAndPersistIdentity(ctx context.Context, deploymentID string, manifest domain.CloudManifest) (sshidentity.DeploymentSSHIdentity, domain.CloudManifest) {
+	resolver := sshidentity.DefaultResolver{}
+	var existing *sshidentity.DeploymentSSHIdentity
+
+	if dep, err := o.repo.GetDeployment(ctx, deploymentID); err == nil && dep != nil {
+		if parsed, parseErr := sshidentity.FromDeployment(dep); parseErr == nil {
+			existing = &parsed
+		}
+	}
+
+	resolved, err := resolver.Resolve(manifest, existing)
+	if err != nil {
+		o.log("ssh identity resolve failed", map[string]interface{}{
+			"deployment_id": deploymentID,
+			"error":         err.Error(),
+		})
+		resolved = sshidentity.DeploymentSSHIdentity{
+			AuthMode:          sshidentity.AuthModeUnknown,
+			VerificationState: sshidentity.VerificationUnknown,
+		}
+	}
+
+	if identityJSON, marshalErr := sshidentity.Marshal(resolved); marshalErr == nil {
+		if persistErr := o.repo.UpdateDeploymentSSHIdentity(ctx, deploymentID, identityJSON); persistErr != nil {
+			o.log("failed to persist resolved ssh identity", map[string]interface{}{
+				"deployment_id": deploymentID,
+				"error":         persistErr.Error(),
+			})
+		}
+	}
+
+	return resolved, sshidentity.ApplyToManifest(manifest, resolved)
+}
+
+func (o *Orchestrator) verifyAndPersistIdentity(
+	ctx context.Context,
+	deploymentID string,
+	manifest domain.CloudManifest,
+	identity sshidentity.DeploymentSSHIdentity,
+) {
+	verified := identity.Clone()
+	if verified.AuthMode == sshidentity.AuthModeExplicitKey {
+		cfg := sshidentity.EffectiveSSHConfig(manifest, verified)
+		inspector := sshidentity.RemoteAuthorizedKeysInspector{Runner: o.sshRunner}
+		state, err := inspector.Inspect(ctx, cfg, verified)
+		if err != nil {
+			o.log("ssh identity verification failed", map[string]interface{}{
+				"deployment_id": deploymentID,
+				"error":         err.Error(),
+			})
+			state = sshidentity.VerificationUnknown
+		}
+		verified = sshidentity.ApplyVerificationResult(verified, state, time.Now().UTC())
+	} else {
+		verified = sshidentity.ApplyVerificationResult(verified, sshidentity.VerificationUnknown, time.Now().UTC())
+	}
+
+	identityJSON, err := sshidentity.Marshal(verified)
+	if err != nil {
+		o.log("failed to marshal verified ssh identity", map[string]interface{}{
+			"deployment_id": deploymentID,
+			"error":         err.Error(),
+		})
+		return
+	}
+	if err := o.repo.UpdateDeploymentSSHIdentity(ctx, deploymentID, identityJSON); err != nil {
+		o.log("failed to persist verified ssh identity", map[string]interface{}{
+			"deployment_id": deploymentID,
+			"error":         err.Error(),
 		})
 	}
 }

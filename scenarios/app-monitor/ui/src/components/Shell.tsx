@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Outlet } from 'react-router-dom';
-import { Layers, MoreHorizontal } from 'lucide-react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Layers, MoreHorizontal, Settings } from 'lucide-react';
 import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
 import clsx from 'clsx';
 import TabSwitcherDialog from '@/components/tabSwitcher/TabSwitcherDialog';
 import ActionsDialog from '@/components/actions/ActionsDialog';
+import WorkspaceManagerDialog from '@/components/workspace/WorkspaceManagerDialog';
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
@@ -21,12 +22,21 @@ type ShellProps = {
 const DESKTOP_BREAKPOINT = 768;
 const NAV_STORAGE_KEY = 'app-monitor:shell-nav-position';
 const NAV_FLOATING_MARGIN = 24;
-const NAV_WIDTH = 132; // 2 buttons (44px each) + gap (12px) + padding (32px)
+const NAV_BUTTON_SIZE = 44;
+const NAV_BUTTON_GAP = 12;
+const NAV_HORIZONTAL_PADDING = 32;
 const NAV_HEIGHT = 64;
 
 export default function Shell({ isConnected }: ShellProps) {
   const { overlay: activeOverlay, openOverlay, closeOverlay } = useOverlayRouter();
   const overlayHost = useShellOverlayStore(state => state.overlayHost);
+  const location = useLocation();
+  const normalizedPathname = location.pathname.replace(/\/+$/, '') || '/';
+  const isWorkspaceRoute = normalizedPathname === '/apps/workspace';
+  const navButtonCount = isWorkspaceRoute ? 3 : 2;
+  const navWidth = (navButtonCount * NAV_BUTTON_SIZE)
+    + (Math.max(0, navButtonCount - 1) * NAV_BUTTON_GAP)
+    + NAV_HORIZONTAL_PADDING;
 
   // Detect desktop breakpoint for draggable nav
   const [isDesktop, setIsDesktop] = useState(() =>
@@ -53,10 +63,10 @@ export default function Shell({ isConnected }: ShellProps) {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     // Center horizontally, position near bottom
-    const x = Math.max(NAV_FLOATING_MARGIN, (viewportWidth - NAV_WIDTH) / 2);
+    const x = Math.max(NAV_FLOATING_MARGIN, (viewportWidth - navWidth) / 2);
     const y = Math.max(NAV_FLOATING_MARGIN, viewportHeight - NAV_HEIGHT - NAV_FLOATING_MARGIN);
     return { x, y };
-  }, []);
+  }, [navWidth]);
 
   // Draggable nav for desktop
   const draggable = useDraggablePosition({
@@ -110,6 +120,13 @@ export default function Shell({ isConnected }: ShellProps) {
   });
 
   useEffect(() => {
+    if (activeOverlay !== 'workspace' || isWorkspaceRoute) {
+      return;
+    }
+    closeOverlay();
+  }, [activeOverlay, closeOverlay, isWorkspaceRoute]);
+
+  useEffect(() => {
     if (!anyOverlayOpen) {
       return;
     }
@@ -137,6 +154,17 @@ export default function Shell({ isConnected }: ShellProps) {
       openOverlay('actions');
     }
   }, [activeOverlay, closeOverlay, openOverlay]);
+
+  const handleToggleWorkspace = useCallback(() => {
+    if (!isWorkspaceRoute) {
+      return;
+    }
+    if (activeOverlay === 'workspace') {
+      closeOverlay();
+    } else {
+      openOverlay('workspace');
+    }
+  }, [activeOverlay, closeOverlay, isWorkspaceRoute, openOverlay]);
 
   return (
     <div className="shell">
@@ -188,6 +216,22 @@ export default function Shell({ isConnected }: ShellProps) {
           </span>
           <span className="shell__nav-label">More</span>
         </button>
+
+        {isWorkspaceRoute && (
+          <button
+            type="button"
+            className={clsx('shell__nav-btn', activeOverlay === 'workspace' && 'shell__nav-btn--active')}
+            onClick={handleToggleWorkspace}
+            aria-pressed={activeOverlay === 'workspace'}
+            aria-haspopup="dialog"
+            aria-label="Workspace"
+          >
+            <span className="shell__nav-icon" aria-hidden>
+              <Settings size={20} />
+            </span>
+            <span className="shell__nav-label">Workspace</span>
+          </button>
+        )}
       </nav>
 
       {activeOverlay === 'tabs' && mountOverlay(
@@ -211,6 +255,18 @@ export default function Shell({ isConnected }: ShellProps) {
         >
           <ErrorBoundary fallback={SectionErrorFallback}>
             <ActionsDialog isConnected={isConnected} />
+          </ErrorBoundary>
+        </ResponsiveDialog>,
+      )}
+
+      {activeOverlay === 'workspace' && isWorkspaceRoute && mountOverlay(
+        <ResponsiveDialog
+          isOpen
+          ariaLabel="Workspace manager"
+          className="shell__dialog"
+        >
+          <ErrorBoundary fallback={SectionErrorFallback}>
+            <WorkspaceManagerDialog onClose={() => closeOverlay()} />
           </ErrorBoundary>
         </ResponsiveDialog>,
       )}

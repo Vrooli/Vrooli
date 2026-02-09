@@ -240,10 +240,12 @@ type SwapInfo struct {
 
 // SSHHealth contains SSH connectivity details.
 type SSHHealth struct {
-	Connected      bool   `json:"connected"`
-	LatencyMs      int64  `json:"latency_ms"`
-	KeyInAuth      bool   `json:"key_in_auth"`
-	KeyInAuthState string `json:"key_in_auth_state,omitempty"`
-	KeyPath        string `json:"key_path"`
-	Error          string `json:"error,omitempty"`
+	Connected            bool   `json:"connected"`
+	LatencyMs            int64  `json:"latency_ms"`
+	KeyPath              string `json:"key_path,omitempty"`
+	AuthMode             string `json:"auth_mode"`
+	VerificationState    string `json:"verification_state"`
+	PublicKeyFingerprint string `json:"public_key_fingerprint,omitempty"`
+	LastVerifiedAt       string `json:"last_verified_at,omitempty"`
+	Error                string `json:"error,omitempty"`
 }

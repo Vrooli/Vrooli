@@ -125,6 +125,49 @@ describe('previewWorkspaceStore', () => {
     expect(state.pinnedColumn).toBeNull();
   });
 
+  it('resets layout while preserving panes and assignments', () => {
+    const paneA = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    const paneB = usePreviewWorkspaceStore.getState().addPane('scenario-b');
+    expect(paneA).toBeTruthy();
+    expect(paneB).toBeTruthy();
+    if (!paneA || !paneB) {
+      return;
+    }
+
+    usePreviewWorkspaceStore.getState().setInteractionMode('arrange');
+    usePreviewWorkspaceStore.getState().setColumnFractions([0.2, 0.8]);
+    usePreviewWorkspaceStore.getState().pinPaneToColumn(paneB, 'left');
+
+    usePreviewWorkspaceStore.getState().resetLayout();
+    const state = usePreviewWorkspaceStore.getState();
+
+    expect(state.panes).toHaveLength(2);
+    expect(state.panes.find((pane) => pane.id === paneB)?.appId).toBe('scenario-b');
+    expect(state.interactionMode).toBe('browse');
+    expect(state.pinnedPaneId).toBeNull();
+    expect(state.pinnedColumn).toBeNull();
+    expect(state.columnFractions).toEqual([0.5, 0.5]);
+    expect(state.rowFractions).toEqual([1]);
+  });
+
+  it('clears all panes back to one empty pane', () => {
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    usePreviewWorkspaceStore.getState().addPane('scenario-b');
+    usePreviewWorkspaceStore.getState().setInteractionMode('arrange');
+
+    usePreviewWorkspaceStore.getState().clearAllPanes();
+    const state = usePreviewWorkspaceStore.getState();
+
+    expect(state.panes).toHaveLength(1);
+    expect(state.panes[0]?.appId).toBeNull();
+    expect(state.focusedPaneId).toBe(state.panes[0]?.id ?? null);
+    expect(state.interactionMode).toBe('browse');
+    expect(state.pinnedPaneId).toBeNull();
+    expect(state.pinnedColumn).toBeNull();
+    expect(state.columnFractions).toEqual([1]);
+    expect(state.rowFractions).toEqual([1]);
+  });
+
   it('resets pane-local view state when pane app changes', () => {
     const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
     expect(paneId).toBeTruthy();

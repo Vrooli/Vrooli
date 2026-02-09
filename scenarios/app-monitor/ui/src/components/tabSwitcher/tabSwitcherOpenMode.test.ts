@@ -17,12 +17,10 @@ const buildEvent = (overrides?: Partial<KeyboardEvent>): KeyboardEvent => {
 
 describe('tabSwitcherOpenMode', () => {
   it('cycles through all open modes', () => {
-    const cycle: AppOpenMode[] = ['single-preview', 'replace-focused', 'add-pane'];
+    const cycle: AppOpenMode[] = ['replace-focused', 'add-pane'];
     let mode: AppOpenMode = cycle[0];
     mode = cycleAppOpenMode(mode);
     expect(mode).toBe(cycle[1]);
-    mode = cycleAppOpenMode(mode);
-    expect(mode).toBe(cycle[2]);
     mode = cycleAppOpenMode(mode);
     expect(mode).toBe(cycle[0]);
   });
@@ -33,13 +31,12 @@ describe('tabSwitcherOpenMode', () => {
   });
 
   it('resolves direct mode shortcuts', () => {
-    expect(resolveAppOpenModeShortcut(buildEvent({ key: '1', altKey: true }))).toBe('single-preview');
-    expect(resolveAppOpenModeShortcut(buildEvent({ key: '2', altKey: true }))).toBe('replace-focused');
-    expect(resolveAppOpenModeShortcut(buildEvent({ key: '3', altKey: true }))).toBe('add-pane');
+    expect(resolveAppOpenModeShortcut(buildEvent({ key: '1', altKey: true }))).toBe('replace-focused');
+    expect(resolveAppOpenModeShortcut(buildEvent({ key: '2', altKey: true }))).toBe('add-pane');
+    expect(resolveAppOpenModeShortcut(buildEvent({ key: '3', altKey: true }))).toBeNull();
   });
 
   it('ignores shortcuts when alt is not pressed', () => {
     expect(resolveAppOpenModeShortcut(buildEvent({ key: 'o' }))).toBeNull();
   });
 });
-

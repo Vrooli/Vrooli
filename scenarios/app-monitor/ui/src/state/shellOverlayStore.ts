@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type OverlayView = 'tabs' | 'actions' | null;
+type OverlayView = 'tabs' | 'actions' | 'workspace' | null;
 
 interface ShellOverlayState {
   activeView: OverlayView;

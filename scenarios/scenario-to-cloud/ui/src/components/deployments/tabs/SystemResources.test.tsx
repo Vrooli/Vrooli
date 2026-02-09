@@ -32,7 +32,8 @@ function baseSystem(): SystemState {
     ssh: {
       connected: true,
       latency_ms: 55,
-      key_in_auth: false,
+      auth_mode: "default_ssh",
+      verification_state: "unknown",
       key_path: "",
     },
     uptime_seconds: 1000,
@@ -42,19 +43,20 @@ function baseSystem(): SystemState {
 describe("SystemResources SSH key auth state", () => {
   test("shows unknown status and guidance when key state is unknown", () => {
     const system = baseSystem();
-    system.ssh.key_in_auth_state = "unknown";
+    system.ssh.verification_state = "unknown";
 
     render(<SystemResources system={system} />);
 
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(
-      screen.getByText(/SSH key authorization is unknown because no deployment key path is configured/i)
+      screen.getByText(/Authorization is unknown because SSH auth is not pinned to an explicit deployment key/i)
     ).toBeInTheDocument();
   });
 
   test("shows unauthorized status and warning when key state is unauthorized", () => {
     const system = baseSystem();
-    system.ssh.key_in_auth_state = "unauthorized";
+    system.ssh.auth_mode = "explicit_key";
+    system.ssh.verification_state = "unauthorized";
 
     render(<SystemResources system={system} />);
 

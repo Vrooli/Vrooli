@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -59,11 +60,126 @@ func (c *Client) LiveState(id string) ([]byte, LiveStateResponse, error) {
 	if err != nil {
 		return nil, LiveStateResponse{}, err
 	}
+
+	// First try legacy flat shape for backward compatibility.
 	var resp LiveStateResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return body, LiveStateResponse{}, err
 	}
-	return body, resp, nil
+	if hasLegacyLiveStatePayload(resp) {
+		return body, resp, nil
+	}
+
+	// Then support the current envelope shape: {"result": {...}, "timestamp": "..."}.
+	var envelope liveStateEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return body, LiveStateResponse{}, err
+	}
+	adapted, ok := adaptLiveStateEnvelope(id, envelope)
+	if !ok {
+		return body, resp, nil
+	}
+	return body, adapted, nil
+}
+
+type liveStateEnvelope struct {
+	Result    liveStateV2 `json:"result"`
+	Timestamp string      `json:"timestamp"`
+}
+
+type liveStateV2 struct {
+	OK        bool            `json:"ok"`
+	Timestamp string          `json:"timestamp"`
+	Processes *processStateV2 `json:"processes,omitempty"`
+	System    *SystemState    `json:"system,omitempty"`
+	Error     string          `json:"error,omitempty"`
+}
+
+type processStateV2 struct {
+	Scenarios []scenarioProcessV2 `json:"scenarios"`
+	Resources []resourceProcessV2 `json:"resources"`
+}
+
+type scenarioProcessV2 struct {
+	ID        string             `json:"id"`
+	Status    string             `json:"status"`
+	PID       int                `json:"pid"`
+	Resources processResourcesV2 `json:"resources"`
+}
+
+type processResourcesV2 struct {
+	CPUPercent float64 `json:"cpu_percent"`
+	MemoryMB   int     `json:"memory_mb"`
+}
+
+type resourceProcessV2 struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	PID    int    `json:"pid"`
+}
+
+func hasLegacyLiveStatePayload(resp LiveStateResponse) bool {
+	return strings.TrimSpace(resp.DeploymentID) != "" ||
+		resp.State.Running ||
+		resp.State.Healthy ||
+		len(resp.Processes) > 0 ||
+		len(resp.Resources) > 0
+}
+
+func adaptLiveStateEnvelope(deploymentID string, env liveStateEnvelope) (LiveStateResponse, bool) {
+	if !env.Result.OK && env.Result.System == nil && env.Result.Processes == nil && strings.TrimSpace(env.Result.Error) == "" {
+		return LiveStateResponse{}, false
+	}
+
+	resp := LiveStateResponse{
+		DeploymentID: deploymentID,
+		Timestamp:    strings.TrimSpace(env.Timestamp),
+	}
+	if resp.Timestamp == "" {
+		resp.Timestamp = strings.TrimSpace(env.Result.Timestamp)
+	}
+
+	resp.State.Healthy = env.Result.OK && strings.TrimSpace(env.Result.Error) == ""
+	resp.State.ErrorMessage = strings.TrimSpace(env.Result.Error)
+
+	if env.Result.Processes != nil {
+		for _, sc := range env.Result.Processes.Scenarios {
+			p := ProcessInfo{
+				PID:        sc.PID,
+				Name:       sc.ID,
+				Status:     sc.Status,
+				CPUPercent: fmt.Sprintf("%.1f%%", sc.Resources.CPUPercent),
+			}
+			if sc.Resources.MemoryMB > 0 {
+				p.MemoryMB = fmt.Sprintf("%dMB", sc.Resources.MemoryMB)
+			}
+			resp.Processes = append(resp.Processes, p)
+			if strings.EqualFold(sc.Status, "running") {
+				resp.State.Running = true
+			}
+		}
+		for _, rs := range env.Result.Processes.Resources {
+			resp.Resources = append(resp.Resources, ResourceStatus{
+				Name:    rs.ID,
+				Type:    "resource",
+				Status:  rs.Status,
+				Healthy: strings.EqualFold(rs.Status, "running"),
+			})
+		}
+	}
+
+	if env.Result.System != nil {
+		sys := env.Result.System
+		resp.State.CPUPercent = fmt.Sprintf("%.1f%%", sys.CPU.UsagePercent)
+		resp.State.MemoryPercent = fmt.Sprintf("%.1f%%", sys.Memory.UsagePercent)
+		resp.State.DiskUsedGB = fmt.Sprintf("%d/%d GB", sys.Disk.UsedGB, sys.Disk.TotalGB)
+		if sys.UptimeSeconds > 0 {
+			resp.State.Uptime = fmt.Sprintf("%ds", sys.UptimeSeconds)
+		}
+		resp.State.SSHFingerprint = sys.SSH.PublicKeyFingerprint
+	}
+
+	return resp, true
 }
 
 // Drift retrieves drift detection results for a deployment.

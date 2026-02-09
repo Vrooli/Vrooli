@@ -58,6 +58,7 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		deploy_result JSONB,
 		preflight_result JSONB,
 		last_inspect_result JSONB,
+		ssh_identity JSONB,
 
 		-- Error tracking
 		error_message TEXT,
@@ -123,6 +124,9 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		`},
 		{"add_preflight_result", `
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS preflight_result JSONB;
+		`},
+		{"add_ssh_identity", `
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS ssh_identity JSONB;
 		`},
 		{"add_task_columns", `
 			-- Add columns for unified task system (investigate/fix tasks)

@@ -15,19 +15,19 @@
   gap: 1rem;
   padding: 4rem 2rem;
   text-align: center;
-  color: rgba(180, 255, 230, 0.7);
+  color: var(--app-text-muted);
   font-size: 0.95rem;
 }
 
 .tech-stack-tab__error {
-  color: var(--color-error, #ff6f91);
+  color: var(--app-danger);
 }
 
 .tech-stack-tab__retry {
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
-  border: 1px solid var(--color-primary, #3b82f6);
-  background: var(--color-primary, #3b82f6);
+  border: 1px solid var(--app-accent);
+  background: var(--app-accent);
   color: #fff;
   font-weight: 500;
   cursor: pointer;
@@ -40,7 +40,7 @@
 
 .tech-stack-tab__loading-icon {
   animation: spin 2s linear infinite;
-  color: var(--matrix-cyan);
+  color: var(--app-accent);
 }
 
 @keyframes spin {
@@ -64,8 +64,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--matrix-cyan);
-  text-shadow: 0 0 12px rgba(0, 255, 255, 0.4);
+  color: var(--app-text-primary);
 }
 
 /* Grid Layout */
@@ -80,31 +79,29 @@
   flex-direction: column;
   gap: 0.4rem;
   padding: 1rem 1.2rem;
-  background: rgba(0, 28, 24, 0.4);
-  border: 1px solid rgba(0, 255, 170, 0.2);
+  background: rgba(11, 16, 34, 0.44);
+  border: 1px solid var(--app-border);
   border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .tech-stack-card:hover {
-  background: rgba(0, 28, 24, 0.6);
-  border-color: rgba(0, 255, 170, 0.35);
-  box-shadow: 0 0 16px rgba(0, 255, 128, 0.15);
+  background: rgba(11, 16, 34, 0.58);
+  border-color: rgba(122, 160, 255, 0.45);
 }
 
 .tech-stack-card__label {
   font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(160, 255, 220, 0.7);
+  color: var(--app-text-muted);
 }
 
 .tech-stack-card__value {
   font-size: 1.1rem;
   font-weight: 600;
-  font-family: 'Orbitron', monospace;
-  color: var(--matrix-green);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: var(--app-success);
 }
 
 /* Resources */
@@ -116,24 +113,24 @@
 
 .tech-stack-resource {
   padding: 1rem 1.2rem;
-  background: rgba(0, 28, 24, 0.35);
-  border: 1px solid rgba(0, 255, 170, 0.18);
+  background: rgba(11, 16, 34, 0.42);
+  border: 1px solid var(--app-border);
   border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .tech-stack-resource--enabled {
-  border-left: 3px solid var(--matrix-green);
+  border-left: 3px solid var(--app-success);
 }
 
 .tech-stack-resource--disabled {
-  border-left: 3px solid rgba(160, 160, 160, 0.4);
-  opacity: 0.6;
+  border-left: 3px solid rgba(148, 163, 184, 0.45);
+  opacity: 0.72;
 }
 
 .tech-stack-resource:hover {
-  background: rgba(0, 28, 24, 0.5);
-  border-color: rgba(0, 255, 170, 0.3);
+  background: rgba(11, 16, 34, 0.56);
+  border-color: rgba(122, 160, 255, 0.4);
 }
 
 .tech-stack-resource__header {
@@ -147,10 +144,10 @@
 .tech-stack-resource__type {
   font-size: 0.95rem;
   font-weight: 600;
-  font-family: 'Orbitron', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--matrix-cyan);
+  color: var(--app-text-primary);
 }
 
 .tech-stack-resource__badges {
@@ -171,58 +168,57 @@
 
 .tech-stack-badge--enabled {
   color: #fff;
-  background: rgba(0, 255, 128, 0.25);
-  border: 1px solid rgba(0, 255, 128, 0.5);
+  background: rgba(51, 226, 154, 0.24);
+  border: 1px solid rgba(51, 226, 154, 0.5);
 }
 
 .tech-stack-badge--disabled {
-  color: rgba(200, 200, 200, 0.8);
-  background: rgba(100, 100, 100, 0.2);
-  border: 1px solid rgba(150, 150, 150, 0.3);
+  color: rgba(226, 232, 240, 0.9);
+  background: rgba(71, 85, 105, 0.3);
+  border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
 .tech-stack-badge--required {
   color: #fff;
-  background: rgba(255, 160, 0, 0.3);
-  border: 1px solid rgba(255, 160, 0, 0.6);
+  background: rgba(255, 209, 102, 0.28);
+  border: 1px solid rgba(255, 209, 102, 0.6);
 }
 
 .tech-stack-badge--info {
-  color: rgba(230, 240, 255, 0.9);
-  background: rgba(100, 150, 255, 0.2);
-  border: 1px solid rgba(100, 150, 255, 0.4);
+  color: rgba(235, 241, 255, 0.95);
+  background: rgba(122, 160, 255, 0.24);
+  border: 1px solid rgba(122, 160, 255, 0.45);
 }
 
 .tech-stack-badge--success {
   color: #fff;
-  background: rgba(0, 255, 128, 0.3);
-  border: 1px solid rgba(0, 255, 128, 0.6);
+  background: rgba(51, 226, 154, 0.28);
+  border: 1px solid rgba(51, 226, 154, 0.6);
 }
 
 .tech-stack-badge--healthy {
   color: #fff;
-  background: rgba(0, 255, 65, 0.35);
-  border: 1px solid rgba(0, 255, 65, 0.7);
-  box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+  background: rgba(51, 226, 154, 0.32);
+  border: 1px solid rgba(51, 226, 154, 0.7);
 }
 
 .tech-stack-badge--unhealthy {
   color: #fff;
-  background: rgba(255, 100, 0, 0.35);
-  border: 1px solid rgba(255, 100, 0, 0.7);
+  background: rgba(255, 111, 145, 0.32);
+  border: 1px solid rgba(255, 111, 145, 0.7);
 }
 
 .tech-stack-badge--stopped {
-  color: rgba(200, 200, 200, 0.85);
-  background: rgba(120, 120, 120, 0.25);
-  border: 1px solid rgba(150, 150, 150, 0.4);
+  color: rgba(226, 232, 240, 0.9);
+  background: rgba(71, 85, 105, 0.3);
+  border: 1px solid rgba(148, 163, 184, 0.4);
 }
 
 .tech-stack-resource__purpose {
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.5;
-  color: rgba(180, 255, 230, 0.75);
+  color: var(--app-text-muted);
 }
 
 .tech-stack-resource__note {
@@ -231,16 +227,16 @@
   font-size: 0.8rem;
   line-height: 1.4;
   font-style: italic;
-  color: rgba(200, 230, 255, 0.7);
-  background: rgba(0, 100, 200, 0.1);
-  border-left: 2px solid rgba(0, 150, 255, 0.4);
+  color: rgba(219, 228, 255, 0.85);
+  background: rgba(122, 160, 255, 0.12);
+  border-left: 2px solid rgba(122, 160, 255, 0.45);
   border-radius: 4px;
 }
 
 .tech-stack-resource__subtype {
   font-size: 0.8rem;
   font-weight: normal;
-  color: rgba(160, 255, 220, 0.6);
+  color: var(--app-text-muted);
   text-transform: none;
 }
 
@@ -256,30 +252,29 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.8rem 1rem;
-  background: rgba(0, 28, 24, 0.4);
-  border: 1px solid rgba(0, 255, 170, 0.18);
+  background: rgba(11, 16, 34, 0.44);
+  border: 1px solid var(--app-border);
   border-radius: 8px;
   transition: all 0.2s ease;
 }
 
 .tech-stack-port:hover {
-  background: rgba(0, 28, 24, 0.6);
-  border-color: rgba(0, 255, 170, 0.3);
+  background: rgba(11, 16, 34, 0.56);
+  border-color: rgba(122, 160, 255, 0.4);
 }
 
 .tech-stack-port__name {
   font-size: 0.8rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(160, 255, 220, 0.8);
+  color: var(--app-text-muted);
 }
 
 .tech-stack-port__value {
   font-size: 0.95rem;
   font-weight: 600;
-  font-family: 'Courier New', monospace;
-  color: var(--matrix-cyan);
-  text-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: var(--app-text-primary);
 }
 
 /* Tags */
@@ -294,15 +289,14 @@
   font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: rgba(200, 255, 240, 0.9);
-  background: rgba(0, 255, 128, 0.12);
-  border: 1px solid rgba(0, 255, 170, 0.25);
+  color: var(--app-text-primary);
+  background: rgba(122, 160, 255, 0.12);
+  border: 1px solid var(--app-border);
   border-radius: 16px;
   transition: all 0.2s ease;
 }
 
 .tech-stack-tag:hover {
-  background: rgba(0, 255, 128, 0.18);
-  border-color: rgba(0, 255, 170, 0.4);
-  box-shadow: 0 0 12px rgba(0, 255, 128, 0.2);
+  background: rgba(122, 160, 255, 0.2);
+  border-color: rgba(122, 160, 255, 0.5);
 }

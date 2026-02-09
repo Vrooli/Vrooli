@@ -157,12 +157,14 @@ type MetricsDebugResult struct {
 
 // SSHHealth contains SSH connectivity status.
 type SSHHealth struct {
-	Connected      bool   `json:"connected"`
-	LatencyMs      int64  `json:"latency_ms"`
-	KeyInAuth      bool   `json:"key_in_auth"`                 // Deprecated bool for backward compatibility.
-	KeyInAuthState string `json:"key_in_auth_state,omitempty"` // authorized, unauthorized, unknown
-	KeyPath        string `json:"key_path"`                    // Path to the key file used
-	Error          string `json:"error,omitempty"`
+	Connected            bool   `json:"connected"`
+	LatencyMs            int64  `json:"latency_ms"`
+	KeyPath              string `json:"key_path,omitempty"`               // Path to explicit key when auth_mode=explicit_key
+	AuthMode             string `json:"auth_mode"`                        // explicit_key, agent, default_ssh, unknown
+	VerificationState    string `json:"verification_state"`               // authorized, unauthorized, unknown
+	PublicKeyFingerprint string `json:"public_key_fingerprint,omitempty"` // Local fingerprint for explicit keys
+	LastVerifiedAt       string `json:"last_verified_at,omitempty"`       // RFC3339
+	Error                string `json:"error,omitempty"`
 }
 
 // CPUInfo contains CPU information.

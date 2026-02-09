@@ -1,12 +1,60 @@
 package vps
 
 import (
+	"encoding/json"
 	"testing"
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/systemmetrics"
 )
+
+func TestValidRawJSON(t *testing.T) {
+	t.Parallel()
+
+	if got := validRawJSON(""); got != nil {
+		t.Fatalf("expected nil for empty input")
+	}
+	if got := validRawJSON("not json"); got != nil {
+		t.Fatalf("expected nil for invalid json")
+	}
+	if got := validRawJSON(`{"ok":true}`); got == nil {
+		t.Fatalf("expected raw json for valid payload")
+	}
+}
+
+func TestBuildProcessState_IgnoresInvalidRawJSON(t *testing.T) {
+	t.Parallel()
+
+	processes := []ProcessInfo{
+		{
+			User:    "root",
+			PID:     123,
+			Command: "/root/Vrooli/scenarios/landing-page-business-suite/api/landing-page-business-suite-api",
+		},
+	}
+
+	state := buildProcessState(
+		processes,
+		nil,
+		"[INFO] The API may not be running",
+		"[INFO] resource status unavailable",
+		"landing-page-business-suite",
+		map[string]bool{"postgres": true},
+	)
+
+	if len(state.Scenarios) != 1 {
+		t.Fatalf("expected one scenario process, got %d", len(state.Scenarios))
+	}
+	if len(state.Scenarios[0].VrooliStatus) != 0 {
+		t.Fatalf("expected invalid raw JSON to be dropped from scenario status")
+	}
+
+	if _, err := json.Marshal(state); err != nil {
+		t.Fatalf("expected process state to marshal, got error: %v", err)
+	}
+}
 
 func TestParsePSOutput(t *testing.T) {
 	t.Parallel()
@@ -306,7 +354,7 @@ func TestParseSystemState_Uptime(t *testing.T) {
 		"uptime": {result: ssh.Result{Stdout: "389593.24 1558372.96"}},
 	}
 
-	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
+	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
 	if state.UptimeSeconds != 389593 {
 		t.Errorf("UptimeSeconds = %d, want 389593", state.UptimeSeconds)
 	}
@@ -319,7 +367,7 @@ func TestParseSystemState_Disk(t *testing.T) {
 		"df": {result: ssh.Result{Stdout: "/dev/sda1      200G   84G  116G  42% /"}},
 	}
 
-	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
+	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
 	if state.Disk.TotalGB != 200 {
 		t.Errorf("Disk.TotalGB = %d, want 200", state.Disk.TotalGB)
 	}
@@ -341,7 +389,7 @@ func TestParseSystemState_Memory(t *testing.T) {
 		"free": {result: ssh.Result{Stdout: "Mem:           3944        2048        1024         100         872        1700\nSwap:          2048         512        1536"}},
 	}
 
-	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
+	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
 	if state.Memory.TotalMB != 3944 {
 		t.Errorf("Memory.TotalMB = %d, want 3944", state.Memory.TotalMB)
 	}
@@ -364,9 +412,9 @@ func TestParseSystemState_SSHKeyAuthUnknownWithoutKey(t *testing.T) {
 		"ssh_key_check": {result: ssh.Result{Stdout: "ssh-ed25519 AAAA existing-key user@host", ExitCode: 0}},
 	}
 
-	state := parseSystemState(results, "", "", systemmetrics.CollectorForOS("linux"))
-	if state.SSH.KeyInAuthState != "unknown" {
-		t.Fatalf("KeyInAuthState=%q, want unknown", state.SSH.KeyInAuthState)
+	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{AuthMode: sshidentity.AuthModeDefaultSSH}, "", systemmetrics.CollectorForOS("linux"))
+	if state.SSH.VerificationState != string(sshidentity.VerificationUnknown) {
+		t.Fatalf("VerificationState=%q, want unknown", state.SSH.VerificationState)
 	}
 }
 
@@ -383,11 +431,12 @@ func TestParseSystemState_SSHKeyAuthAuthorized(t *testing.T) {
 		},
 	}
 
-	state := parseSystemState(results, "~/.ssh/id_ed25519", pubKey, systemmetrics.CollectorForOS("linux"))
-	if state.SSH.KeyInAuthState != "authorized" {
-		t.Fatalf("KeyInAuthState=%q, want authorized", state.SSH.KeyInAuthState)
-	}
-	if !state.SSH.KeyInAuth {
-		t.Fatal("KeyInAuth=false, want true")
+	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{
+		KeyPath:           "~/.ssh/id_ed25519",
+		AuthMode:          sshidentity.AuthModeExplicitKey,
+		VerificationState: sshidentity.VerificationUnknown,
+	}, pubKey, systemmetrics.CollectorForOS("linux"))
+	if state.SSH.VerificationState != string(sshidentity.VerificationAuthorized) {
+		t.Fatalf("VerificationState=%q, want authorized", state.SSH.VerificationState)
 	}
 }

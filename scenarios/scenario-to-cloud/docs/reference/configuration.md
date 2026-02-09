@@ -138,3 +138,31 @@ When a deployment step fails, the result types (`VPSSetupResult`, `VPSDeployResu
 ```
 
 Progress events (SSE) also carry structured error fields when available: `error_category`, `retryable`, and `hint`.
+
+## Canonical SSH Identity Model
+
+> [CODE: api/sshidentity/model.go]
+> [CODE: api/persistence/deployment.go]
+
+Per-deployment SSH identity is stored in `deployments.ssh_identity` as JSON:
+
+```json
+{
+  "key_path": "~/.ssh/id_ed25519",
+  "public_key_fingerprint": "SHA256:...",
+  "auth_mode": "explicit_key",
+  "verification_state": "authorized",
+  "last_verified_at": "2026-02-08T18:30:00Z"
+}
+```
+
+Field semantics:
+- `auth_mode`: `explicit_key` | `agent` | `default_ssh` | `unknown`
+- `verification_state`: `authorized` | `unauthorized` | `unknown`
+  - only meaningful as `authorized`/`unauthorized` for `explicit_key`
+  - `agent`/`default_ssh` remain `unknown` because identity is ambient, not pinned
+
+Resolver precedence:
+1. `target.vps.key_path` from manifest
+2. persisted explicit key path (if present and local key exists)
+3. ambient SSH transport classification (`agent` or `default_ssh`)

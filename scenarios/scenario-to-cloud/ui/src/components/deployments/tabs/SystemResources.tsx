@@ -17,8 +17,8 @@ interface SystemResourcesProps {
 }
 
 export function SystemResources({ system }: SystemResourcesProps) {
-  const keyAuthState =
-    system.ssh.key_in_auth_state ?? (system.ssh.key_in_auth ? "authorized" : "unauthorized");
+  const keyAuthState = system.ssh.verification_state;
+  const authMode = system.ssh.auth_mode;
   const isKeyAuthUnknown = keyAuthState === "unknown";
   const isKeyAuthorized = keyAuthState === "authorized";
 
@@ -179,6 +179,11 @@ export function SystemResources({ system }: SystemResourcesProps) {
             )}
           </div>
 
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">Auth mode:</span>
+            <span className="text-slate-300 font-mono">{authMode}</span>
+          </div>
+
           {/* Key Path */}
           {system.ssh.key_path && (
             <div className="flex items-center justify-between text-xs">
@@ -208,7 +213,7 @@ export function SystemResources({ system }: SystemResourcesProps) {
           {system.ssh.connected && keyAuthState === "unknown" && (
             <div className="mt-2 p-2 rounded bg-slate-500/10 border border-slate-500/20">
               <p className="text-xs text-slate-300">
-                SSH key authorization is unknown because no deployment key path is configured.
+                Authorization is unknown because SSH auth is not pinned to an explicit deployment key.
               </p>
             </div>
           )}

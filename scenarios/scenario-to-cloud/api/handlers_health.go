@@ -9,6 +9,7 @@ import (
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 )
@@ -25,6 +26,7 @@ func (s *Server) handleGetDeploymentHealth(w http.ResponseWriter, r *http.Reques
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
+	identity := s.resolveCanonicalIdentity(dc.Manifest, dc.Deployment)
 
 	// Run checks in parallel
 	var (
@@ -39,7 +41,7 @@ func (s *Server) handleGetDeploymentHealth(w http.ResponseWriter, r *http.Reques
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		result := vps.RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
+		result := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.sshRunner)
 		s.enrichCaddyTLS(ctx, &result)
 		liveState = &result
 	}()
@@ -72,9 +74,18 @@ func (s *Server) handleGetDeploymentHealth(w http.ResponseWriter, r *http.Reques
 	}()
 
 	wg.Wait()
+	if liveState != nil && liveState.OK && liveState.System != nil {
+		verified := sshidentity.ApplyVerificationResult(
+			identity,
+			sshidentity.VerificationState(liveState.System.SSH.VerificationState),
+			time.Now().UTC(),
+		)
+		identity = verified
+		s.persistCanonicalIdentity(ctx, dc.Deployment.ID, verified)
+	}
 
 	// Compute health report
-	resp := vps.ComputeHealth(dc.Deployment, dc.Manifest, liveState, dnsEval, tlsSnap, tlsErr)
+	resp := vps.ComputeHealth(dc.Deployment, dc.Manifest, identity, liveState, dnsEval, tlsSnap, tlsErr)
 	resp.Freshness = s.evaluateDeploymentFreshness(ctx, dc.Deployment, dc.Manifest)
 	if resp.Freshness != nil && resp.Freshness.Status == domain.FreshnessOutdated {
 		resp.Recommendations = append(resp.Recommendations, domain.Recommendation{

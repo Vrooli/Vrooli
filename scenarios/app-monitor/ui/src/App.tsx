@@ -1,6 +1,9 @@
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Shell from '@/components/Shell';
-import HomeView from '@/components/views/HomeView';
+import {
+  WORKSPACE_INTENT_APP_ID_KEY,
+  WORKSPACE_INTENT_MODE_KEY,
+} from '@/features/preview-workspace/utils/navigationIntent';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import { KeyboardScopeProvider } from '@/hooks/useKeyboardScopes';
 import { logger } from '@/services/logger';
@@ -17,7 +20,6 @@ import {
 } from 'react-router-dom';
 import './App.css';
 
-const AppPreviewView = lazy(() => import('@/components/views/AppPreviewView'));
 const ResourceDetailView = lazy(() => import('@/components/views/ResourceDetailView'));
 const PreviewWorkspaceView = lazy(() => import('@/features/preview-workspace/components/PreviewWorkspaceView'));
 
@@ -52,18 +54,53 @@ function LogsAppRedirect() {
   const location = useLocation();
 
   const params = new URLSearchParams(location.search);
-  params.set('paneLogs', '1');
+  const normalizedAppId = appId?.trim();
+  if (normalizedAppId) {
+    params.set(WORKSPACE_INTENT_APP_ID_KEY, normalizedAppId);
+    params.set(WORKSPACE_INTENT_MODE_KEY, 'replace-focused');
+    params.set('paneLogs', '1');
+  }
   const search = params.toString();
-  const targetSearch = search ? `?${search}` : '?paneLogs=1';
-  const targetPath = appId ? `/apps/${encodeURIComponent(appId)}/preview${targetSearch}` : '';
+  const targetPath = normalizedAppId ? `/apps/workspace?${search}` : '';
 
-  if (!appId) {
+  if (!normalizedAppId) {
     return <TabOverlayRedirect segment="apps" />;
   }
 
   const navigationState = {
     fromAppsList: true,
-    originAppId: appId,
+    originAppId: normalizedAppId,
+    navTimestamp: Date.now(),
+    suppressedAutoBack: false,
+  } as const;
+
+  return (
+    <Navigate
+      to={targetPath}
+      state={navigationState}
+      replace
+    />
+  );
+}
+
+function AppPreviewRedirect() {
+  const { appId } = useParams<{ appId?: string }>();
+  const location = useLocation();
+  const normalizedAppId = appId?.trim();
+
+  if (!normalizedAppId) {
+    return <Navigate to="/apps/workspace" replace />;
+  }
+
+  const nextParams = new URLSearchParams(location.search);
+  nextParams.set(WORKSPACE_INTENT_APP_ID_KEY, normalizedAppId);
+  nextParams.set(WORKSPACE_INTENT_MODE_KEY, 'replace-focused');
+  const search = nextParams.toString();
+  const targetPath = search ? `/apps/workspace?${search}` : '/apps/workspace';
+
+  const navigationState = {
+    fromAppsList: true,
+    originAppId: normalizedAppId,
     navTimestamp: Date.now(),
     suppressedAutoBack: false,
   } as const;
@@ -118,7 +155,7 @@ function App() {
           <div className="app">
             <Routes>
               <Route element={<Shell isConnected={isConnected} />}>
-                <Route index element={<HomeView />} />
+                <Route index element={<Navigate to="/apps/workspace" replace />} />
                 <Route path="apps" element={<TabOverlayRedirect segment="apps" />} />
                 <Route path="resources" element={<TabOverlayRedirect segment="resources" />} />
                 <Route path="tabs" element={<TabOverlayRedirect />} />
@@ -130,14 +167,7 @@ function App() {
                     </Suspense>
                   )}
                 />
-                <Route
-                  path="apps/:appId/preview"
-                  element={(
-                    <Suspense fallback={<RouteLoadingFallback />}>
-                      <AppPreviewView />
-                    </Suspense>
-                  )}
-                />
+                <Route path="apps/:appId/preview" element={<AppPreviewRedirect />} />
                 <Route
                   path="resources/:resourceId"
                   element={(

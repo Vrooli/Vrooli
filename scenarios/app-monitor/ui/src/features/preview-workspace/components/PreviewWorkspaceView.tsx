@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
-import { Command, Grip, Layers, Plus } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useAppsStore } from '@/state/appsStore';
 import {
   previewWorkspaceLimits,
@@ -113,13 +111,11 @@ const resolvePinnedColumnFractions = (fractions: number[]): [number, number] => 
 
 export default function PreviewWorkspaceView() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { openOverlay } = useOverlayRouter();
   const apps = useAppsStore((state) => state.apps);
   const loadApps = useAppsStore((state) => state.loadApps);
   const loadingInitial = useAppsStore((state) => state.loadingInitial);
   const hasInitialized = useAppsStore((state) => state.hasInitialized);
   const [mobileLayout, setMobileLayout] = useState<boolean>(isMobileViewport);
-  const [headerHeight, setHeaderHeight] = useState(48);
   const [pinnedRowFractions, setPinnedRowFractions] = useState<number[]>([1]);
 
   const panes = usePreviewWorkspaceStore((state) => state.panes);
@@ -136,12 +132,10 @@ export default function PreviewWorkspaceView() {
   const focusPane = usePreviewWorkspaceStore((state) => state.focusPane);
   const pinPaneToColumn = usePreviewWorkspaceStore((state) => state.pinPaneToColumn);
   const clearPinnedPane = usePreviewWorkspaceStore((state) => state.clearPinnedPane);
-  const setInteractionMode = usePreviewWorkspaceStore((state) => state.setInteractionMode);
   const setColumnFractions = usePreviewWorkspaceStore((state) => state.setColumnFractions);
   const setRowFractions = usePreviewWorkspaceStore((state) => state.setRowFractions);
 
   const panesContainerRef = useRef<HTMLDivElement | null>(null);
-  const headerRef = useRef<HTMLElement | null>(null);
   const lastHandledIntentRef = useRef<string | null>(null);
   const [activeResize, setActiveResize] = useState<ActiveResize | null>(null);
   const [activeArrangeDrag, setActiveArrangeDrag] = useState<ActiveArrangeDrag | null>(null);
@@ -199,36 +193,6 @@ export default function PreviewWorkspaceView() {
     window.addEventListener('resize', onResize);
     return () => {
       window.removeEventListener('resize', onResize);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const node = headerRef.current;
-    if (!node) {
-      return;
-    }
-
-    const syncHeight = () => {
-      setHeaderHeight(Math.max(40, Math.ceil(node.getBoundingClientRect().height)));
-    };
-    syncHeight();
-
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', syncHeight);
-      return () => {
-        window.removeEventListener('resize', syncHeight);
-      };
-    }
-
-    const observer = new ResizeObserver(syncHeight);
-    observer.observe(node);
-    window.addEventListener('resize', syncHeight);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', syncHeight);
     };
   }, []);
 
@@ -482,8 +446,6 @@ export default function PreviewWorkspaceView() {
     scrollColumnPanes,
   ]);
 
-  const canAddPane = panes.length < previewWorkspaceLimits.maxPanes;
-
   const startColumnResize = useCallback((index: number, event: ReactPointerEvent<HTMLButtonElement>) => {
     const containerNode = panesContainerRef.current;
     if (!containerNode) {
@@ -562,7 +524,7 @@ export default function PreviewWorkspaceView() {
   const columnLineEnd = (layoutDescriptor.columns * 2).toString();
   const viewportPaneHeight = typeof window === 'undefined'
     ? MIN_ROW_PX
-    : Math.max(MIN_ROW_PX, window.innerHeight - headerHeight);
+    : Math.max(MIN_ROW_PX, window.innerHeight);
   const rowSplittersHeight = Math.max(0, layoutDescriptor.rows - 1) * SPLITTER_SIZE;
   // Critical: scale grid min-height by row count so each row can grow up to viewport height.
   // Without this, fr tracks are forced to share a single-viewport container and panes shrink
@@ -584,68 +546,7 @@ export default function PreviewWorkspaceView() {
   );
 
   return (
-    <div
-      className="preview-workspace"
-      style={{
-        ['--preview-workspace-header-min-height' as string]: `${headerHeight}px`,
-        ['--workspace-header-height' as string]: `${headerHeight}px`,
-      }}
-    >
-      <header className="preview-workspace__header" ref={headerRef}>
-        <div className="preview-workspace__header-title">Workspace</div>
-
-        <div className="preview-workspace__actions">
-          <button
-            type="button"
-            className="preview-workspace__header-btn"
-            onClick={() => openOverlay('tabs', {
-              params: { segment: 'apps' },
-            })}
-            aria-label="Open tab switcher"
-            title="Open tab switcher"
-          >
-            <Layers size={16} aria-hidden />
-            <span>Tabs</span>
-          </button>
-
-          <button
-            type="button"
-            className="preview-workspace__header-btn"
-            onClick={() => openOverlay('actions')}
-            aria-label="Open command center"
-            title="Open command center"
-          >
-            <Command size={16} aria-hidden />
-            <span>Command Center</span>
-          </button>
-
-          <button
-            type="button"
-            className="preview-workspace__header-btn"
-            onClick={() => addPane(null)}
-            disabled={!canAddPane}
-          >
-            <Plus size={16} aria-hidden />
-            <span>{canAddPane ? 'Add Pane' : `Max ${previewWorkspaceLimits.maxPanes} panes`}</span>
-          </button>
-
-          <button
-            type="button"
-            className={clsx(
-              'preview-workspace__header-btn',
-              interactionMode === 'arrange' && 'preview-workspace__header-btn--active',
-            )}
-            onClick={() => setInteractionMode(interactionMode === 'arrange' ? 'browse' : 'arrange')}
-            aria-pressed={interactionMode === 'arrange'}
-            aria-label="Toggle pane arrange mode"
-            title="Toggle pane arrange mode"
-          >
-            <Grip size={16} aria-hidden />
-            <span>{interactionMode === 'arrange' ? 'Arrange On' : 'Arrange Off'}</span>
-          </button>
-        </div>
-      </header>
-
+    <div className="preview-workspace">
       {isPinnedLayout && pinnedPane ? (
         <div
           ref={panesContainerRef}
