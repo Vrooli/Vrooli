@@ -922,6 +922,14 @@ export interface DiskCleanupResponse {
   message: string;
   actions_run: string[];
   actions_failed?: string[];
+  action_results?: {
+    action: string;
+    ok: boolean;
+    exit_code: number;
+    summary?: string;
+    stderr?: string;
+    hint?: string;
+  }[];
   timestamp: string;
 }
 

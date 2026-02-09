@@ -16,6 +16,11 @@ func NewClient(api *cliutil.APIClient) *Client {
 	return &Client{api: api}
 }
 
+// APIClient returns the underlying API client.
+func (c *Client) APIClient() *cliutil.APIClient {
+	return c.api
+}
+
 // Run executes preflight checks for a manifest.
 // Returns raw bytes for JSON output and parsed response for formatted output.
 func (c *Client) Run(manifest map[string]interface{}) ([]byte, Response, error) {
@@ -44,34 +49,34 @@ func (c *Client) FixPorts(req FixPortsRequest) ([]byte, FixResponse, error) {
 }
 
 // FixFirewall fixes firewall rules.
-func (c *Client) FixFirewall(req FixFirewallRequest) ([]byte, FixResponse, error) {
+func (c *Client) FixFirewall(req FixFirewallRequest) ([]byte, FixFirewallResponse, error) {
 	body, err := c.api.Request("POST", "/api/v1/preflight/fix/firewall", nil, req)
 	if err != nil {
-		return nil, FixResponse{}, err
+		return nil, FixFirewallResponse{}, err
 	}
-	var resp FixResponse
+	var resp FixFirewallResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, FixResponse{}, err
+		return body, FixFirewallResponse{}, err
 	}
 	return body, resp, nil
 }
 
 // FixProcesses stops conflicting processes.
-func (c *Client) FixProcesses(req FixProcessesRequest) ([]byte, FixResponse, error) {
+func (c *Client) FixProcesses(req FixProcessesRequest) ([]byte, FixProcessesResponse, error) {
 	body, err := c.api.Request("POST", "/api/v1/preflight/fix/stop-processes", nil, req)
 	if err != nil {
-		return nil, FixResponse{}, err
+		return nil, FixProcessesResponse{}, err
 	}
-	var resp FixResponse
+	var resp FixProcessesResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, FixResponse{}, err
+		return body, FixProcessesResponse{}, err
 	}
 	return body, resp, nil
 }
 
 // DiskUsage returns disk usage information.
-func (c *Client) DiskUsage() ([]byte, DiskUsageResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/preflight/disk/usage", nil, nil)
+func (c *Client) DiskUsage(req DiskUsageRequest) ([]byte, DiskUsageResponse, error) {
+	body, err := c.api.Request("POST", "/api/v1/preflight/disk/usage", nil, req)
 	if err != nil {
 		return nil, DiskUsageResponse{}, err
 	}

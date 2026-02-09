@@ -19,8 +19,8 @@ type Check struct {
 
 // FixResponse represents a generic response from fix operations.
 type FixResponse struct {
-	Success   bool     `json:"success"`
-	Fixed     []string `json:"fixed,omitempty"`
+	OK        bool     `json:"ok"`
+	Stopped   []string `json:"stopped,omitempty"`
 	Failed    []string `json:"failed,omitempty"`
 	Message   string   `json:"message,omitempty"`
 	Timestamp string   `json:"timestamp"`
@@ -28,57 +28,109 @@ type FixResponse struct {
 
 // FixPortsRequest represents the request for fixing port conflicts.
 type FixPortsRequest struct {
-	Ports []int `json:"ports,omitempty"` // Specific ports to fix, empty = all conflicting
+	Host              string   `json:"host"`
+	Port              int      `json:"port,omitempty"`
+	User              string   `json:"user,omitempty"`
+	KeyPath           string   `json:"key_path"`
+	Ports             []int    `json:"ports,omitempty"`               // Specific ports to fix, empty = all conflicting
+	PIDs              []int    `json:"pids,omitempty"`                // Optional explicit PIDs to stop
+	Services          []string `json:"services,omitempty"`            // Optional explicit services to stop
+	PreferServiceStop *bool    `json:"prefer_service_stop,omitempty"` // Prefer stopping owning systemd service first
 }
 
 // FixFirewallRequest represents the request for fixing firewall rules.
 type FixFirewallRequest struct {
-	Ports    []int  `json:"ports,omitempty"`    // Specific ports to open
-	Protocol string `json:"protocol,omitempty"` // tcp, udp, both
+	Host    string `json:"host"`
+	Port    int    `json:"port,omitempty"`
+	User    string `json:"user,omitempty"`
+	KeyPath string `json:"key_path"`
+	Ports   []int  `json:"ports,omitempty"` // Specific ports to open
 }
 
-// FixProcessesRequest represents the request for stopping conflicting processes.
+// FixFirewallResponse represents firewall rule update results.
+type FixFirewallResponse struct {
+	OK        bool   `json:"ok"`
+	Message   string `json:"message"`
+	Ports     []int  `json:"ports"`
+	Status    string `json:"status,omitempty"`
+	Timestamp string `json:"timestamp"`
+}
+
+// FixProcessesRequest represents the request for stopping stale scenario processes.
 type FixProcessesRequest struct {
-	PIDs  []int `json:"pids,omitempty"`  // Specific PIDs to stop
-	Ports []int `json:"ports,omitempty"` // Stop processes using these ports
-	Force bool  `json:"force,omitempty"` // Use SIGKILL instead of SIGTERM
+	Host       string `json:"host"`
+	Port       int    `json:"port,omitempty"`
+	User       string `json:"user,omitempty"`
+	KeyPath    string `json:"key_path"`
+	Workdir    string `json:"workdir"`
+	ScenarioID string `json:"scenario_id,omitempty"`
+}
+
+// FixProcessesResponse is returned by /preflight/fix/stop-processes.
+type FixProcessesResponse struct {
+	OK        bool   `json:"ok"`
+	Action    string `json:"action"`
+	Message   string `json:"message"`
+	Output    string `json:"output,omitempty"`
+	Timestamp string `json:"timestamp"`
 }
 
 // DiskUsageResponse represents the response from disk usage query.
 type DiskUsageResponse struct {
-	TotalBytes     int64           `json:"total_bytes"`
-	UsedBytes      int64           `json:"used_bytes"`
-	AvailableBytes int64           `json:"available_bytes"`
-	UsedPercent    float64         `json:"used_percent"`
-	Breakdown      []DiskBreakdown `json:"breakdown,omitempty"`
-	Timestamp      string          `json:"timestamp"`
+	OK          bool             `json:"ok"`
+	FreeSpace   string           `json:"free_space"`
+	FreeBytes   int64            `json:"free_bytes"`
+	TotalSpace  string           `json:"total_space"`
+	TotalBytes  int64            `json:"total_bytes"`
+	UsedPercent int              `json:"used_percent"`
+	LargestDirs []DiskUsageEntry `json:"largest_dirs,omitempty"`
+	Timestamp   string           `json:"timestamp"`
 }
 
-// DiskBreakdown represents disk usage for a specific path/category.
-type DiskBreakdown struct {
-	Path      string `json:"path"`
-	SizeBytes int64  `json:"size_bytes"`
-	Category  string `json:"category,omitempty"` // bundles, logs, tmp, etc.
+// DiskUsageEntry represents one directory usage row.
+type DiskUsageEntry struct {
+	Path  string `json:"path"`
+	Size  string `json:"size"`
+	Bytes int64  `json:"bytes"`
+}
+
+// DiskUsageRequest represents the request for disk usage.
+type DiskUsageRequest struct {
+	Host    string `json:"host"`
+	Port    int    `json:"port,omitempty"`
+	User    string `json:"user,omitempty"`
+	KeyPath string `json:"key_path"`
 }
 
 // DiskCleanupRequest represents the request for disk cleanup.
 type DiskCleanupRequest struct {
-	CleanBundles  bool `json:"clean_bundles,omitempty"`   // Remove old bundles
-	CleanLogs     bool `json:"clean_logs,omitempty"`      // Remove old logs
-	CleanTmp      bool `json:"clean_tmp,omitempty"`       // Remove temp files
-	OlderThanDays int  `json:"older_than_days,omitempty"` // Only clean files older than this
-	DryRun        bool `json:"dry_run,omitempty"`         // Just report, don't delete
+	Host    string   `json:"host"`
+	Port    int      `json:"port,omitempty"`
+	User    string   `json:"user,omitempty"`
+	KeyPath string   `json:"key_path"`
+	Actions []string `json:"actions,omitempty"` // apt_clean, journal_vacuum, docker_prune, tmp_clean
 }
 
 // DiskCleanupResponse represents the response from disk cleanup.
 type DiskCleanupResponse struct {
-	Success      bool     `json:"success"`
-	FreedBytes   int64    `json:"freed_bytes"`
-	RemovedFiles int      `json:"removed_files"`
-	Removed      []string `json:"removed,omitempty"` // List of removed items
-	DryRun       bool     `json:"dry_run"`
-	Message      string   `json:"message,omitempty"`
-	Timestamp    string   `json:"timestamp"`
+	OK            bool                `json:"ok"`
+	SpaceFreed    string              `json:"space_freed"`
+	SpaceFreedKB  int64               `json:"space_freed_kb"`
+	Message       string              `json:"message,omitempty"`
+	ActionsRun    []string            `json:"actions_run,omitempty"`
+	ActionsFailed []string            `json:"actions_failed,omitempty"`
+	ActionResults []DiskCleanupAction `json:"action_results,omitempty"`
+	Timestamp     string              `json:"timestamp"`
+}
+
+// DiskCleanupAction captures execution details for one cleanup action.
+type DiskCleanupAction struct {
+	Action   string `json:"action"`
+	OK       bool   `json:"ok"`
+	ExitCode int    `json:"exit_code"`
+	Summary  string `json:"summary,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // RequirementsResponse represents canonical VPS requirements from the API.

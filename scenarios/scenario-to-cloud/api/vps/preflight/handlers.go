@@ -383,13 +383,24 @@ type DiskCleanupRequest struct {
 
 // DiskCleanupResponse is the response from disk cleanup.
 type DiskCleanupResponse struct {
-	OK            bool     `json:"ok"`
-	SpaceFreed    string   `json:"space_freed"`
-	SpaceFreedKB  int64    `json:"space_freed_kb"`
-	Message       string   `json:"message"`
-	ActionsRun    []string `json:"actions_run"`
-	ActionsFailed []string `json:"actions_failed,omitempty"`
-	Timestamp     string   `json:"timestamp"`
+	OK            bool                      `json:"ok"`
+	SpaceFreed    string                    `json:"space_freed"`
+	SpaceFreedKB  int64                     `json:"space_freed_kb"`
+	Message       string                    `json:"message"`
+	ActionsRun    []string                  `json:"actions_run"`
+	ActionsFailed []string                  `json:"actions_failed,omitempty"`
+	ActionResults []DiskCleanupActionResult `json:"action_results,omitempty"`
+	Timestamp     string                    `json:"timestamp"`
+}
+
+// DiskCleanupActionResult captures execution details for one cleanup action.
+type DiskCleanupActionResult struct {
+	Action   string `json:"action"`
+	OK       bool   `json:"ok"`
+	ExitCode int    `json:"exit_code"`
+	Summary  string `json:"summary,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // HandleDiskCleanup creates a handler for running disk cleanup.
@@ -413,7 +424,11 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 		beforeRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
 		beforeKB, _ := strconv.ParseInt(strings.TrimSpace(beforeRes.Stdout), 10, 64)
 
-		var actionsRun, actionsFailed []string
+		var (
+			actionsRun    []string
+			actionsFailed []string
+			actionResults []DiskCleanupActionResult
+		)
 
 		actionCommands := map[string]string{
 			"apt_clean":      "apt-get clean && apt-get autoremove -y",
@@ -421,14 +436,42 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 			"docker_prune":   "docker system prune -af 2>/dev/null || true",
 			"tmp_clean":      "find /tmp -type f -atime +7 -delete 2>/dev/null || true",
 		}
+		actionHints := map[string]string{
+			"apt_clean":      "Ensure apt/dpkg locks are clear, then retry apt cleanup.",
+			"journal_vacuum": "Check journalctl permissions and available journal space settings.",
+			"docker_prune":   "Ensure Docker is installed/running, or remove docker_prune from actions.",
+			"tmp_clean":      "Verify /tmp permissions and retry tmp_clean.",
+		}
 
 		for _, action := range req.Actions {
 			cmd, ok := actionCommands[action]
 			if !ok {
+				actionsFailed = append(actionsFailed, action)
+				actionResults = append(actionResults, DiskCleanupActionResult{
+					Action:   action,
+					OK:       false,
+					ExitCode: 1,
+					Summary:  "unsupported cleanup action",
+					Hint:     "Use one of: apt_clean, journal_vacuum, docker_prune, tmp_clean",
+				})
 				continue
 			}
-			_, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-			if err != nil {
+			res, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
+			actionOK := err == nil && res.ExitCode == 0
+			summary := summarizeDiskCleanupAction(res.Stdout, res.Stderr)
+			if summary == "" && err != nil {
+				summary = err.Error()
+			}
+			actionResult := DiskCleanupActionResult{
+				Action:   action,
+				OK:       actionOK,
+				ExitCode: res.ExitCode,
+				Summary:  summary,
+				Stderr:   strings.TrimSpace(res.Stderr),
+				Hint:     actionHints[action],
+			}
+			actionResults = append(actionResults, actionResult)
+			if !actionOK {
 				actionsFailed = append(actionsFailed, action)
 			} else {
 				actionsRun = append(actionsRun, action)
@@ -456,9 +499,23 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 			Message:       msg,
 			ActionsRun:    actionsRun,
 			ActionsFailed: actionsFailed,
+			ActionResults: actionResults,
 			Timestamp:     time.Now().UTC().Format(time.RFC3339),
 		})
 	}
+}
+
+func summarizeDiskCleanupAction(stdout, stderr string) string {
+	for _, source := range []string{stderr, stdout} {
+		lines := strings.Split(source, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				return trimmed
+			}
+		}
+	}
+	return ""
 }
 
 // StopScenarioProcessesRequest is the request body for stopping stale scenario processes.

@@ -493,12 +493,29 @@ Free disk space on the VPS by running cleanup actions.
 **Response:**
 ```json
 {
-  "ok": true,
+  "ok": false,
   "space_freed": "1.2 GB",
   "space_freed_kb": 1258291,
-  "message": "Cleaned up 1.2 GB",
-  "actions_run": ["apt_clean", "journal_vacuum"],
-  "actions_failed": [],
+  "message": "Freed 1.2 GB of disk space",
+  "actions_run": ["journal_vacuum"],
+  "actions_failed": ["apt_clean"],
+  "action_results": [
+    {
+      "action": "apt_clean",
+      "ok": false,
+      "exit_code": 100,
+      "summary": "Could not get lock /var/lib/dpkg/lock-frontend",
+      "stderr": "E: Could not get lock /var/lib/dpkg/lock-frontend...",
+      "hint": "Ensure apt/dpkg locks are clear, then retry apt cleanup."
+    },
+    {
+      "action": "journal_vacuum",
+      "ok": true,
+      "exit_code": 0,
+      "summary": "Vacuuming done, freed 64.0M of archived journals.",
+      "hint": "Check journalctl permissions and available journal space settings."
+    }
+  ],
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```

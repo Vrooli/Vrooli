@@ -408,7 +408,7 @@ func TestPreflightPostsToPreflightEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"preflight", manifestPath}); err != nil {
+		if err := app.Run([]string{"preflight", "run", manifestPath}); err != nil {
 			t.Fatalf("preflight failed: %v", err)
 		}
 	})
