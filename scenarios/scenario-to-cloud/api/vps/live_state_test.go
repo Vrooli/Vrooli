@@ -56,6 +56,42 @@ func TestBuildProcessState_IgnoresInvalidRawJSON(t *testing.T) {
 	}
 }
 
+func TestBuildProcessState_DedupesResourceRowsByID(t *testing.T) {
+	t.Parallel()
+
+	processes := []ProcessInfo{
+		{
+			User:    "postgres",
+			PID:     900,
+			Command: "postgres: checkpointer process",
+		},
+		{
+			User:    "postgres",
+			PID:     800,
+			Command: "postgres: writer process",
+		},
+	}
+
+	state := buildProcessState(
+		processes,
+		nil,
+		`{"scenarios":[]}`,
+		`{"resources":[]}`,
+		"landing-page-business-suite",
+		map[string]bool{"postgres": true},
+	)
+
+	if len(state.Resources) != 1 {
+		t.Fatalf("expected one postgres resource row, got %d", len(state.Resources))
+	}
+	if state.Resources[0].ID != "postgres" {
+		t.Fatalf("expected postgres resource id, got %q", state.Resources[0].ID)
+	}
+	if state.Resources[0].PID != 800 {
+		t.Fatalf("expected canonical postgres PID to be earliest (800), got %d", state.Resources[0].PID)
+	}
+}
+
 func TestParsePSOutput(t *testing.T) {
 	t.Parallel()
 

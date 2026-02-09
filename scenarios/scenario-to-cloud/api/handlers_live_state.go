@@ -49,8 +49,9 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 	s.enrichCaddyTLS(ctx, &result)
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"result":    result,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"deployment_id": dc.Deployment.ID,
+		"result":        result,
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

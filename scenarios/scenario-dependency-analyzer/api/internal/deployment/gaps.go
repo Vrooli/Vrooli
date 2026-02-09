@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
@@ -147,6 +148,10 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 			}
 		}
 	}
+
+	sort.Strings(gap.MissingTierDefinitions)
+	sort.Strings(gap.MissingResourceMetadata)
+	sort.Strings(gap.MissingScenarioMetadata)
 
 	return gap, gapHasFindings(gap)
 }

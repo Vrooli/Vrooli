@@ -14,6 +14,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"time"
 
 	"scenario-dependency-analyzer/internal/config"
@@ -71,6 +73,7 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Ser
 	if len(knownTiers) == 0 {
 		knownTiers = []string{"desktop", "server", "mobile", "saas"}
 	}
+	sort.Strings(knownTiers)
 
 	gaps := AnalyzeGaps(scenarioName, scenarioPath, scenariosDir, nodes, knownTiers)
 
@@ -126,15 +129,59 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 		return err
 	}
 	reportPath := filepath.Join(reportDir, "deployment-report.json")
+	if existing, err := LoadReport(scenarioPath); err == nil && existing != nil {
+		if reportsEqualIgnoringGeneratedAt(existing, report) {
+			report.GeneratedAt = existing.GeneratedAt
+			report.BundleManifest.GeneratedAt = existing.BundleManifest.GeneratedAt
+		}
+	}
+
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return err
+	}
+	if existingData, err := os.ReadFile(reportPath); err == nil && string(existingData) == string(data) {
+		return nil
 	}
 	tmpPath := reportPath + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, reportPath)
+}
+
+func reportsEqualIgnoringGeneratedAt(a, b *types.DeploymentAnalysisReport) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+
+	cloneA, err := cloneReport(a)
+	if err != nil {
+		return false
+	}
+	cloneB, err := cloneReport(b)
+	if err != nil {
+		return false
+	}
+
+	cloneA.GeneratedAt = time.Time{}
+	cloneA.BundleManifest.GeneratedAt = time.Time{}
+	cloneB.GeneratedAt = time.Time{}
+	cloneB.BundleManifest.GeneratedAt = time.Time{}
+
+	return reflect.DeepEqual(cloneA, cloneB)
+}
+
+func cloneReport(report *types.DeploymentAnalysisReport) (*types.DeploymentAnalysisReport, error) {
+	data, err := json.Marshal(report)
+	if err != nil {
+		return nil, err
+	}
+	var cloned types.DeploymentAnalysisReport
+	if err := json.Unmarshal(data, &cloned); err != nil {
+		return nil, err
+	}
+	return &cloned, nil
 }
 
 // LoadReport loads a previously saved deployment report.

@@ -226,6 +226,76 @@ func TestPersistReport(t *testing.T) {
 			t.Errorf("expected %d dependencies, got %d", len(original.Dependencies), len(loaded.Dependencies))
 		}
 	})
+
+	t.Run("NoRewriteWhenOnlyGeneratedAtChanges", func(t *testing.T) {
+		scenarioDir := t.TempDir()
+		reportPath := filepath.Join(scenarioDir, ".vrooli", "deployment", "deployment-report.json")
+
+		first := &types.DeploymentAnalysisReport{
+			Scenario:      "test-scenario",
+			ReportVersion: ReportVersion,
+			GeneratedAt:   time.Date(2026, 2, 8, 3, 0, 0, 0, time.UTC),
+			BundleManifest: types.BundleManifest{
+				Scenario:    "test-scenario",
+				GeneratedAt: time.Date(2026, 2, 8, 3, 0, 0, 0, time.UTC),
+			},
+			MetadataGaps: &types.DeploymentMetadataGaps{
+				GapsByScenario: map[string]types.ScenarioGapInfo{
+					"test-scenario": {
+						MissingTierDefinitions: []string{"desktop", "server"},
+					},
+				},
+			},
+		}
+		if err := PersistReport(scenarioDir, first); err != nil {
+			t.Fatalf("PersistReport(first) error: %v", err)
+		}
+
+		infoBefore, err := os.Stat(reportPath)
+		if err != nil {
+			t.Fatalf("stat before: %v", err)
+		}
+		contentBefore, err := os.ReadFile(reportPath)
+		if err != nil {
+			t.Fatalf("read before: %v", err)
+		}
+
+		second := &types.DeploymentAnalysisReport{
+			Scenario:      "test-scenario",
+			ReportVersion: ReportVersion,
+			GeneratedAt:   time.Date(2026, 2, 8, 3, 30, 0, 0, time.UTC),
+			BundleManifest: types.BundleManifest{
+				Scenario:    "test-scenario",
+				GeneratedAt: time.Date(2026, 2, 8, 3, 30, 0, 0, time.UTC),
+			},
+			MetadataGaps: &types.DeploymentMetadataGaps{
+				GapsByScenario: map[string]types.ScenarioGapInfo{
+					"test-scenario": {
+						MissingTierDefinitions: []string{"desktop", "server"},
+					},
+				},
+			},
+		}
+		if err := PersistReport(scenarioDir, second); err != nil {
+			t.Fatalf("PersistReport(second) error: %v", err)
+		}
+
+		infoAfter, err := os.Stat(reportPath)
+		if err != nil {
+			t.Fatalf("stat after: %v", err)
+		}
+		contentAfter, err := os.ReadFile(reportPath)
+		if err != nil {
+			t.Fatalf("read after: %v", err)
+		}
+
+		if !infoAfter.ModTime().Equal(infoBefore.ModTime()) {
+			t.Fatalf("expected report file mtime unchanged when only timestamps differ")
+		}
+		if string(contentAfter) != string(contentBefore) {
+			t.Fatalf("expected report contents unchanged when only timestamps differ")
+		}
+	})
 }
 
 // TestLoadReport tests report loading.

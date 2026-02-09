@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -60,31 +59,21 @@ func (c *Client) LiveState(id string) ([]byte, LiveStateResponse, error) {
 	if err != nil {
 		return nil, LiveStateResponse{}, err
 	}
-
-	// First try legacy flat shape for backward compatibility.
-	var resp LiveStateResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, LiveStateResponse{}, err
-	}
-	if hasLegacyLiveStatePayload(resp) {
-		return body, resp, nil
-	}
-
-	// Then support the current envelope shape: {"result": {...}, "timestamp": "..."}.
 	var envelope liveStateEnvelope
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return body, LiveStateResponse{}, err
 	}
-	adapted, ok := adaptLiveStateEnvelope(id, envelope)
-	if !ok {
-		return body, resp, nil
+	adapted, err := adaptLiveStateEnvelope(id, envelope)
+	if err != nil {
+		return body, LiveStateResponse{}, err
 	}
 	return body, adapted, nil
 }
 
 type liveStateEnvelope struct {
-	Result    liveStateV2 `json:"result"`
-	Timestamp string      `json:"timestamp"`
+	DeploymentID string      `json:"deployment_id"`
+	Result       liveStateV2 `json:"result"`
+	Timestamp    string      `json:"timestamp"`
 }
 
 type liveStateV2 struct {
@@ -118,29 +107,23 @@ type resourceProcessV2 struct {
 	PID    int    `json:"pid"`
 }
 
-func hasLegacyLiveStatePayload(resp LiveStateResponse) bool {
-	return strings.TrimSpace(resp.DeploymentID) != "" ||
-		resp.State.Running ||
-		resp.State.Healthy ||
-		len(resp.Processes) > 0 ||
-		len(resp.Resources) > 0
-}
-
-func adaptLiveStateEnvelope(deploymentID string, env liveStateEnvelope) (LiveStateResponse, bool) {
-	if !env.Result.OK && env.Result.System == nil && env.Result.Processes == nil && strings.TrimSpace(env.Result.Error) == "" {
-		return LiveStateResponse{}, false
+func adaptLiveStateEnvelope(deploymentID string, env liveStateEnvelope) (LiveStateResponse, error) {
+	if env.Result.System == nil && env.Result.Processes == nil && env.Result.Error == "" && env.Result.Timestamp == "" {
+		return LiveStateResponse{}, fmt.Errorf("invalid live-state response: missing result payload")
 	}
 
 	resp := LiveStateResponse{
 		DeploymentID: deploymentID,
-		Timestamp:    strings.TrimSpace(env.Timestamp),
+		Timestamp:    env.Timestamp,
+	}
+	if env.DeploymentID != "" {
+		resp.DeploymentID = env.DeploymentID
 	}
 	if resp.Timestamp == "" {
-		resp.Timestamp = strings.TrimSpace(env.Result.Timestamp)
+		resp.Timestamp = env.Result.Timestamp
 	}
-
-	resp.State.Healthy = env.Result.OK && strings.TrimSpace(env.Result.Error) == ""
-	resp.State.ErrorMessage = strings.TrimSpace(env.Result.Error)
+	resp.State.Healthy = env.Result.OK && env.Result.Error == ""
+	resp.State.ErrorMessage = env.Result.Error
 
 	if env.Result.Processes != nil {
 		for _, sc := range env.Result.Processes.Scenarios {
@@ -154,7 +137,7 @@ func adaptLiveStateEnvelope(deploymentID string, env liveStateEnvelope) (LiveSta
 				p.MemoryMB = fmt.Sprintf("%dMB", sc.Resources.MemoryMB)
 			}
 			resp.Processes = append(resp.Processes, p)
-			if strings.EqualFold(sc.Status, "running") {
+			if sc.Status == "running" {
 				resp.State.Running = true
 			}
 		}
@@ -163,7 +146,7 @@ func adaptLiveStateEnvelope(deploymentID string, env liveStateEnvelope) (LiveSta
 				Name:    rs.ID,
 				Type:    "resource",
 				Status:  rs.Status,
-				Healthy: strings.EqualFold(rs.Status, "running"),
+				Healthy: rs.Status == "running",
 			})
 		}
 	}
@@ -179,7 +162,7 @@ func adaptLiveStateEnvelope(deploymentID string, env liveStateEnvelope) (LiveSta
 		resp.State.SSHFingerprint = sys.SSH.PublicKeyFingerprint
 	}
 
-	return resp, true
+	return resp, nil
 }
 
 // Drift retrieves drift detection results for a deployment.

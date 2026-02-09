@@ -311,6 +311,7 @@ func buildProcessState(
 	}
 
 	// Find resource processes
+	resourceIndexByID := make(map[string]int)
 	for _, p := range processes {
 		if classifiedPIDs[p.PID] {
 			continue
@@ -335,7 +336,17 @@ func buildProcessState(
 						}
 					}
 
-					state.Resources = append(state.Resources, resourceProc)
+					if idx, exists := resourceIndexByID[resourceName]; exists {
+						existing := state.Resources[idx]
+						// Prefer the earliest (typically parent) PID as the canonical row.
+						if existing.PID <= 0 || (resourceProc.PID > 0 && resourceProc.PID < existing.PID) {
+							resourceProc.Port = chooseResourcePort(existing.Port, resourceProc.Port)
+							state.Resources[idx] = resourceProc
+						}
+					} else {
+						resourceIndexByID[resourceName] = len(state.Resources)
+						state.Resources = append(state.Resources, resourceProc)
+					}
 					classifiedPIDs[p.PID] = true
 					break
 				}
@@ -452,6 +463,13 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func chooseResourcePort(a, b int) int {
+	if a > 0 {
+		return a
+	}
+	return b
 }
 
 func validRawJSON(s string) json.RawMessage {
