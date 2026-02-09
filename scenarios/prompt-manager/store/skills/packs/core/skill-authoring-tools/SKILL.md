@@ -89,6 +89,7 @@ Promotion rule:
 - If an item in this section is frequent/repetitive, prefer improving CLI output contracts or adding tool capabilities rather than expanding prose further.
 - If multiple entries share the same root cause, add a short promotion note (what should move to CLI/tooling, or why it should remain manual).
 - Keep this as guidance, not a rigid section template.
+- Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
 
 ---
 

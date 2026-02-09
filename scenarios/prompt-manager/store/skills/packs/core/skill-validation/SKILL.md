@@ -15,32 +15,12 @@ Optional reading (recommended follow-up after validation):
 
 ### **1. Why This Matters**
 
-A skill is **crystallized operational knowledge**: it’s not just “documentation,” it’s a **contract** between the agent and the future.
+Skill validation keeps operational guidance reliable.
 
-When a skill is wrong, ambiguous, or incomplete, the failure doesn’t just happen once:
-
-* It repeats across sessions
-* It creates inconsistent decisions across agents
-* It burns tokens on confusion and retries
-* It erodes trust in the skill system itself
-
-**Validation is quality assurance for intelligence.**
-It’s the equivalent of unit tests + integration tests + contract tests for a mental model.
-
-And it compounds:
-
-* Fixing a single broken command example can prevent dozens of future tool failures
-* Adding one missing “failure mode” section can eliminate whole classes of debugging loops
-* Clarifying one ambiguous decision rule can keep the codebase from drifting for months
-
-**Skill Validation expands capability surface.**
-It identifies what’s missing or unreliable and proposes concrete expansions (new sections, new examples, missing guardrails, missing verification steps).
-Then **Skill Improvement Suggestions** can streamline and optimize the expanded skill so it becomes easy and cheap to apply.
-
-Think of them as complementary forces:
-
-* **Validation**: “Make it true and complete.”
-* **Improvement Suggestions**: “Make it sharp and efficient.”
+* It catches correctness and contract drift before they spread.
+* It reduces guesswork by enforcing explicit verification and failure paths.
+* It distinguishes immediate correctness fixes from optimization follow-up.
+* For CLI-operational skills, it enforces the promotion-retirement lifecycle from `skill-principles`.
 
 ---
 
@@ -316,6 +296,24 @@ When you find cross-skill conflicts:
 * Recommend a “single source of truth” location
 * Propose a patch: either consolidate or reference
 
+#### **4.9 Complexity Retirement Pass (Required for CLI-Operational Skills)**
+
+Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
+
+For each major gate/workflow instruction in {{SKILL}}, classify:
+- `Keep` (policy/safety/ownership boundary; should remain in skill)
+- `Collapse to CLI contract` (replace detailed prose with command + output contract expectation)
+- `Delete` (fully superseded by durable CLI/tool contract)
+
+For `Collapse`/`Delete`, include:
+- prerequisite CLI/tool contract improvement (or existing contract evidence),
+- the exact skill area to compress/remove,
+- a residual risk note (if any).
+
+Classification rule:
+- If the instruction describes volatile operational mechanics already emitted by CLI output, default to `Collapse` or `Delete`, not expansion.
+- If the instruction encodes durable policy or safety constraints, default to `Keep`.
+
 ---
 
 ### **5. Severity Model (Triage Like a Production System)**
@@ -379,47 +377,42 @@ High-leverage expansion patch types:
 **Patch style rules:**
 
 * Small, local edits that can be applied surgically
-* Prefer adding a section over rewriting large paragraphs
+* Prefer the smallest reliable delta: add when missing, but collapse/delete prose when CLI/tool contracts already cover it
 * When clarifying inconsistency, define a single canonical way and explicitly list alternatives if they truly exist
 
 ---
 
 ### **8. Category-Specific Validation Checklists**
 
-Different skill categories fail in different ways. Validate accordingly.
+Use short, category-specific delta checks here. Baseline authoring structure belongs to:
+- `skill-principles`
+- `skill-authoring`
+- `skill-authoring-tools`
+- `skill-authoring-search`
+- `skill-authoring-meta`
 
 #### **Steer skills**
 
 * [ ] Decision rules are explicit and consistent (tables/trees)
-* [ ] Constraints are clear (what must not change)
-* [ ] Examples are aligned with the claimed architecture
-* [ ] No tool-flag micromanagement (belongs in Tools skills)
-* [ ] Clear “migration patterns” when refactors are expected
+* [ ] No tool-command micromanagement that belongs in Tools skills
+* [ ] Architecture guidance is coherent with referenced Steer skills
 
 #### **Tools skills**
 
-* [ ] Every major workflow has a runnable example
-* [ ] Verification steps exist (what to check after running)
-* [ ] Debug playbook exists for common errors
-* [ ] Risky operations have guardrails
-* [ ] Placeholder conventions are consistent (`{{TARGET}}`, paths, env vars)
-* [ ] Parser pipelines are avoided by default; exceptions are explicit and justified
+* [ ] Decision rules are explicit and consistent for cross-tool orchestration
+* [ ] Troubleshooting is centralized and promotion-ready (`Troubleshooting & Edge Cases`)
+* [ ] CLI-operational guidance follows promotion-retirement lifecycle (not one-way prose growth)
 
 #### **Search skills**
 
-* [ ] Output contract exists (format, evidence level, stop conditions)
-* [ ] Clear “done criteria” (when to stop searching)
-* [ ] Bias toward primary sources where relevant
-* [ ] Includes negative paths (“if you can’t find X, do Y”)
-* [ ] Avoids “read everything” token sinks without filters
+* [ ] Evidence contract and stop conditions are explicit and enforceable
+* [ ] Failure paths avoid token-sink “read everything” behavior
 
 #### **Meta skills**
 
-* [ ] Governance surface is explicit (what it controls)
-* [ ] Avoids duplicating rules from other Meta skills
 * [ ] Has clear decision rules for ambiguous cases
-* [ ] Explicit boundaries (what it does *not* govern)
-* [ ] References **Skill Principles** where appropriate
+* [ ] Governance rules do not duplicate canonical policy from `skill-principles`
+* [ ] Meta guidance defines boundaries and ownership clearly
 
 ---
 
@@ -434,6 +427,7 @@ When validating **{{SKILL}}**, you must:
 * Provide **expansion patches** for Critical/Major/Gap findings (copy-pastable)
 * Separate validation findings from optimization suggestions
 * For CLI-operational skills, include a concise troubleshooting-promotion analysis (what should move to CLI/tooling vs remain manual)
+* For CLI-operational skills, include a required `Complexity Retirement` section with `Keep/Collapse/Delete` decisions
 
 You may:
 
@@ -467,21 +461,17 @@ When analyzing {{SKILL}}, produce this structured report:
 
 ## Findings
 
-### Critical
-- **[Title]**
-  - Evidence: “...quote...”
-  - Why it fails validation: ...
-  - Impact: ...
-  - **Patch (copy-paste):**
-    ```markdown
-    ...minimal patch...
-    ```
+### [Severity]: [Title]
+- Evidence: “...quote...”
+- Why it fails validation: ...
+- Impact: ...
+- **Patch (copy-paste):**
+  ```markdown
+  ...minimal patch...
+  ```
 
-### Major
-[Same structure]
-
-### Gaps
-[Same structure, but focus on missing capability paths/playbooks]
+Repeat the block above for each finding under `Critical`, `Major`, and `Gaps`.
+Use the `Minor / Nice-to-have` section for brief non-blocking items.
 
 ### Minor / Nice-to-have
 [Brief list]
@@ -495,6 +485,16 @@ When analyzing {{SKILL}}, produce this structured report:
 - Durable CLI/tool conversion candidates: [high-leverage fixes that reduce repeated troubleshooting prose]
 - Interim skill-level guardrails: [minimal wording/structure patches needed now]
 
+## Complexity Retirement (CLI-Operational Skills)
+| Skill Instruction / Gate | Decision (Keep/Collapse/Delete) | Rationale | Prerequisite Contract | Risk |
+|---|---|---|---|---|
+| ... | ... | ... | ... | ... |
+
+## Complexity Signals
+- Gate/step count: [before -> after if patches applied]
+- Troubleshooting item count: [before -> after if patches applied]
+- Net effect: [reduced / neutral / increased] with rationale
+
 ## Recommended Next Step
 - If primarily correctness/gaps: apply patches above.
 - If primarily efficiency/streamlining: run **Skill Improvement Suggestions** next.
@@ -504,9 +504,4 @@ When analyzing {{SKILL}}, produce this structured report:
 
 ### **11. Remember**
 
-A validated skill is not “perfect prose.”
-A validated skill is **reliable operational truth**: consistent, executable, observable, and safe.
-
-Your job is to make it hard for future agents to misunderstand, guess, or fail silently.
-
-Validation is how the skill system earns trust.
+A validated skill is reliable operational truth: consistent, executable, observable, and safe.

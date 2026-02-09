@@ -95,7 +95,30 @@ Only require what is essential; keep optional lists short and relevant.
 
 ---
 
-### **6. Registration and Metadata**
+### **6. Promotion-Retirement Lifecycle (Canonical)**
+
+Use one lifecycle for all CLI-operational skills:
+
+1. **Interim prose guardrail**: add minimal skill guidance when tools do not yet provide deterministic output contracts.
+2. **Promote to CLI/tool contract**: implement pass/fail signals, next-step guidance, and structured failure hints in the tool.
+3. **Retire superseded prose**: remove or collapse skill instructions now covered by tool output contracts.
+
+Retirement criteria:
+- The CLI/tool can return a deterministic status for the workflow decision (`pass/fail` or equivalent).
+- The CLI/tool output contains actionable next steps for common failures.
+- Keeping both tool contract and detailed skill prose would duplicate volatile operational logic.
+
+Retention criteria (do not retire):
+- Safety constraints (`must not`, irreversible operations, credential handling).
+- Scope boundaries and ownership boundaries.
+- Human handoff rules where automation is intentionally impossible.
+
+Output requirement for meta analyses (`skill-validation`, `skill-improvement-suggestions`, `conversation-friction-analysis`):
+- Explicitly classify major workflow instructions as `Keep`, `Collapse to CLI contract`, or `Delete`.
+
+---
+
+### **7. Registration and Metadata**
 
 1. Create the skill directory in `scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`
 2. Add the following files:
@@ -106,7 +129,7 @@ Only require what is essential; keep optional lists short and relevant.
 
 ---
 
-### **7. Avoid Skill Sprawl**
+### **8. Avoid Skill Sprawl**
 
 Before creating a new skill:
 - Search for existing skills that already cover the concept
@@ -115,7 +138,7 @@ Before creating a new skill:
 
 ---
 
-### **8. Output Expectations**
+### **9. Output Expectations**
 
 You may:
 - Add or update skill files in the packs directory
@@ -129,7 +152,7 @@ You must:
 
 ---
 
-### **9. Skill Architecture Heuristics**
+### **10. Skill Architecture Heuristics**
 
 Use these heuristics when creating or evolving any skill:
 
@@ -142,3 +165,4 @@ Use these heuristics when creating or evolving any skill:
 - **Prefer layered fixes**: use skill text as interim guardrails when needed, but prioritize durable CLI/tool improvements for recurring friction.
 - **Use trigger-based governance**: apply heavier structure when operational complexity is present, not based on category labels alone.
 - **Preserve dual usability**: default human-readable flows should be directly actionable, while machine-readable paths remain deterministic when needed.
+- **Track complexity budget drift**: if gates/steps/long-tail prose increase, require explicit rationale and a retirement plan.

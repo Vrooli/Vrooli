@@ -134,6 +134,20 @@ Ensure recommendations are:
 - appropriately layered (do not solve tooling gaps with only prose if avoidable)
 - compatible with existing principles (human-first CLI consumption, selector-first flows)
 
+#### Step G: Retirement Mapping (Required for CLI-Operational Friction)
+
+Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
+
+For each systemic friction pattern tied to skill prose workarounds, classify:
+- `Keep` (durable policy/safety/ownership rule)
+- `Collapse` (replace detailed prose with CLI output contract guidance)
+- `Delete` (fully superseded by durable CLI/tooling behavior)
+
+When using `Collapse` or `Delete`, specify:
+- trigger contract (existing or proposed CLI/tool output behavior),
+- target skill section/gate for compression/removal,
+- residual risk if retirement happens before tooling updates land.
+
 ---
 
 ### 5. Convergence Patterns
@@ -216,6 +230,11 @@ Produce this report:
 | Source Workaround | Promote To | Expected Benefit |
 |---|---|---|
 | ... | CLI output contract / new command / policy update | ... |
+
+## Retirement Candidates
+| Skill Section / Workaround | Decision (Keep/Collapse/Delete) | Trigger Contract | Risk |
+|---|---|---|---|
+| ... | ... | ... | ... |
 
 ## Conversion Signal
 - Prose workaround count: ...

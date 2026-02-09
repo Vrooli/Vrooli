@@ -3,41 +3,23 @@
 Analyze **{{SKILL}}** and propose meaningful improvements to its tools, wording, or structure. This skill teaches the reasoning behind good suggestions—not just what to look for, but how to think about skill quality and why it matters.
 
 Required reading:
-- `prompt-manager skills read {{SKILL}}`
-- `prompt-manager skills read skill-principles`
+- `prompt-manager skill read {{SKILL}}`
+- `prompt-manager skill read skill-principles`
 
 Conditional required reading (when {{SKILL}} includes CLI guidance or CLI workflows):
-- `prompt-manager skills read cli-steer`
+- `prompt-manager skill read cli-steer`
   - `cli-steer` is the canonical guidance for setting up CLIs properly (cli-core usage, API parity, output contracts, and professional CLI UX patterns).
 
 ---
 
 ### **1. Why This Matters**
 
-Every skill in prompt-manager represents crystallized intelligence—a reusable mental model that agents can apply across sessions. But skills degrade in value when they're:
+Use this skill to reduce execution friction without losing correctness.
 
-- **Long and confusing** → Burns more tokens, costs more, takes longer
-- **Multi-step with unclear transitions** → Agents make mistakes or misuse tools
-- **Full of concepts without explanation** → Agents guess instead of understand
-- **Dependent on manual research** → Agents spend time searching instead of acting
-
-**The recursive improvement loop:**
-
-```
-Agent uses skill → encounters friction → skill takes longer, costs more, fails more
-        ↓
-Agent analyzes skill → proposes improvements → we implement the best ones
-        ↓
-Improved skill → less friction → faster, cheaper, more reliable
-        ↓
-Better skills → better agents → better skill improvement suggestions → ∞
-```
-
-This is not busywork. Every genuine improvement to a skill compounds over every future use:
-- A skill used 100 times that saves 1000 tokens per use = 100,000 tokens saved
-- A skill that reduces failure rate from 10% to 5% = 5 fewer wasted runs per 100 uses
-
-**You are not just reviewing documentation.** You are identifying leverage points where small changes create outsized value. Take this seriously.
+- Improve tooling first where manual loops repeat.
+- Keep skill guidance concise and decision-oriented.
+- Apply the `skill-principles` lifecycle: interim prose -> promote -> retire.
+- Prioritize changes that reduce drift, retries, and token cost across repeated use.
 
 ---
 
@@ -54,6 +36,10 @@ This is not busywork. Every genuine improvement to a skill compounds over every 
 - Scenario-specific feature requests (belongs in PRD or issues)
 - Creating new skills (see skill-authoring-* guides)
 - Tool usage instructions (belongs in Tools skills)
+
+Lifecycle rule:
+- Follow the canonical lifecycle in `skill-principles` section `Promotion-Retirement Lifecycle`.
+- Do not stop at promotion suggestions; explicitly identify what skill prose can be collapsed or deleted after promotion.
 
 ---
 
@@ -293,7 +279,7 @@ Improvement direction:
 
 ---
 
-### **4. Three Categories of Suggestions**
+### **4. Suggestion Categories + Retirement Pass**
 
 Pre-pass for CLI-operational skills:
 1. Scan `Troubleshooting & Edge Cases` first.
@@ -453,7 +439,8 @@ Why this helps:
 **Priority ordering:**
 1. **Tool suggestions** — Highest impact (automates entire workflows)
 2. **Tool improvements** — Medium impact (reduces friction in existing tools)
-3. **Skill wording** — Essential but lower impact (prevents misunderstanding)
+3. **Retirement opportunities** — Remove/collapse superseded prose after tool improvements
+4. **Skill wording** — Essential but lower impact (prevents misunderstanding)
 
 ---
 
@@ -530,6 +517,7 @@ Different skill categories need different evaluation focus:
 - Check for existing tools/guidance before suggesting new ones
 - For CLI-operational skills, start from troubleshooting promotion opportunities before wording-only edits
 - When suggesting a promoted CLI/tool fix, include a brief adopt/defer decision and why
+- Include explicit prose retirement recommendations (`Keep/Collapse/Delete`) tied to each adopted promotion
 
 **You may:**
 - Suggest new CLI tools with clear capability specifications
@@ -590,16 +578,20 @@ When analyzing {{SKILL}}, produce this structured report:
 | Troubleshooting Item | Action | Target |
 |---|---|---|
 | ... | Promote to CLI output contract / Promote to tool capability / Keep in playbook | ... |
+
+## Prose Retirement Map (CLI-Operational Skills)
+| Skill Instruction / Gate | Decision (Keep/Collapse/Delete) | Trigger | Notes |
+|---|---|---|---|
+| ... | ... | CLI output contract available / not available | ... |
+
+## Complexity Budget Impact
+- Estimated gate/step count change: [before -> after]
+- Estimated troubleshooting prose change: [before -> after]
+- Net outcome: [reduced / neutral / increased] with rationale
 ```
 
 ---
 
 ### **10. Remember**
 
-The goal is not to find fault. The goal is to find leverage.
-
-A skill that works "well enough" might still have a 10x improvement hiding in it—a tool that eliminates five steps, a paragraph that clarifies a common misunderstanding, a decision tree that prevents inconsistent choices.
-
-**Tool design and skill design are coupled.** Sometimes the right fix isn't better documentation—it's a better tool. When a tool improvement enables a simpler skill (e.g., adding `<group> help` subcommands so the skill doesn't need to list every flag), that's often the highest-value suggestion. Look for these opportunities.
-
-Every improvement you surface becomes permanent intelligence that helps all future agents. This is how Vrooli gets smarter over time. Do this well.
+Prefer durable leverage over wording churn: improve CLI/tool contracts, then retire superseded prose.
