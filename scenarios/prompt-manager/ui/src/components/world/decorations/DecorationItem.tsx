@@ -280,11 +280,18 @@ function FloorLamp({ lightOn, castShadow }: { lightOn: boolean; castShadow: bool
         <meshStandardMaterial
           color={lightOn ? '#fffacd' : '#333333'}
           emissive={lightOn ? '#fffacd' : '#000000'}
-          emissiveIntensity={lightOn ? 1 : 0}
+          emissiveIntensity={lightOn ? 2 : 0}
         />
       </mesh>
+      {/* Glow halo (visible without bloom post-processing) */}
+      {lightOn && (
+        <mesh position={[0, 1.3, 0]}>
+          <sphereGeometry args={[0.15, 12, 12]} />
+          <meshBasicMaterial color="#fff5e6" transparent opacity={0.12} depthWrite={false} />
+        </mesh>
+      )}
       {/* Point light */}
-      {lightOn && <pointLight position={[0, 1.25, 0]} intensity={0.5} color="#fff5e6" distance={3} />}
+      {lightOn && <pointLight position={[0, 1.25, 0]} intensity={1.5} color="#fff5e6" distance={5} decay={2} />}
     </group>
   )
 }
@@ -313,11 +320,18 @@ function DeskLamp({ lightOn, castShadow }: { lightOn: boolean; castShadow: boole
           <meshStandardMaterial
             color={lightOn ? '#fffacd' : '#333333'}
             emissive={lightOn ? '#fffacd' : '#000000'}
-            emissiveIntensity={lightOn ? 0.8 : 0}
+            emissiveIntensity={lightOn ? 1.5 : 0}
           />
         </mesh>
+        {/* Glow halo */}
+        {lightOn && (
+          <mesh position={[0, -0.02, 0]}>
+            <sphereGeometry args={[0.08, 10, 10]} />
+            <meshBasicMaterial color="#fff5e6" transparent opacity={0.1} depthWrite={false} />
+          </mesh>
+        )}
       </group>
-      {lightOn && <spotLight position={[0, 0.25, 0.05]} angle={0.5} intensity={0.3} distance={1} target-position={[0, 0, 0.5]} />}
+      {lightOn && <spotLight position={[0, 0.25, 0.05]} angle={0.5} intensity={0.8} distance={2} target-position={[0, 0, 0.5]} />}
     </group>
   )
 }
@@ -341,10 +355,17 @@ function HangingLamp({ lightOn }: { lightOn: boolean }) {
         <meshStandardMaterial
           color={lightOn ? '#fffacd' : '#333333'}
           emissive={lightOn ? '#fffacd' : '#000000'}
-          emissiveIntensity={lightOn ? 1.2 : 0}
+          emissiveIntensity={lightOn ? 2 : 0}
         />
       </mesh>
-      {lightOn && <pointLight position={[0, -0.05, 0]} intensity={0.8} color="#fff5e6" distance={4} />}
+      {/* Glow halo */}
+      {lightOn && (
+        <mesh position={[0, -0.02, 0]}>
+          <sphereGeometry args={[0.18, 12, 12]} />
+          <meshBasicMaterial color="#fff5e6" transparent opacity={0.12} depthWrite={false} />
+        </mesh>
+      )}
+      {lightOn && <pointLight position={[0, -0.05, 0]} intensity={2} color="#fff5e6" distance={6} decay={2} />}
     </group>
   )
 }

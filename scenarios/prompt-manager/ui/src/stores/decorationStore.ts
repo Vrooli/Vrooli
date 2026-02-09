@@ -4,7 +4,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { DecorationInstance, DecorationType } from '@/types/decoration'
+import type { DecorationInstance, DecorationType, LightMode } from '@/types/decoration'
 import { DEFAULT_DECORATION_COLORS, DECORATION_CONFIGS } from '@/types/decoration'
 
 interface DecorationState {
@@ -27,8 +27,8 @@ interface DecorationActions {
   moveDecoration: (id: string, position: [number, number, number]) => void
   /** Rotate decoration */
   rotateDecoration: (id: string, rotation: number) => void
-  /** Toggle lamp light */
-  toggleLight: (id: string) => void
+  /** Set light mode for a decoration */
+  setLightMode: (id: string, mode: LightMode) => void
   /** Get decoration by ID */
   getDecoration: (id: string) => DecorationInstance | undefined
   /** Clear all decorations */
@@ -70,7 +70,7 @@ export const useDecorationStore = create<DecorationStore>()(
           rotation,
           scale,
           color: color ?? DEFAULT_DECORATION_COLORS[type],
-          lightOn: config.emitsLight ? true : undefined,
+          lightMode: config.emitsLight ? 'auto' : undefined,
         }
 
         set((state) => ({
@@ -102,12 +102,10 @@ export const useDecorationStore = create<DecorationStore>()(
         }))
       },
 
-      toggleLight: (id) => {
+      setLightMode: (id, mode) => {
         set((state) => ({
           decorations: state.decorations.map((d) =>
-            d.id === id && d.lightOn !== undefined
-              ? { ...d, lightOn: !d.lightOn }
-              : d
+            d.id === id ? { ...d, lightMode: mode } : d
           ),
         }))
       },
@@ -135,15 +133,6 @@ export function useDecorationList(): DecorationInstance[] {
 }
 
 /**
- * Hook to get only light-emitting decorations that are on
- */
-export function useActiveLights(): DecorationInstance[] {
-  return useDecorationStore((state) =>
-    state.decorations.filter((d) => d.lightOn === true)
-  )
-}
-
-/**
  * Hook to add decoration at a position.
  */
 export function useAddDecoration() {
@@ -155,11 +144,4 @@ export function useAddDecoration() {
  */
 export function useRemoveDecoration() {
   return useDecorationStore((state) => state.removeDecoration)
-}
-
-/**
- * Hook to toggle decoration light.
- */
-export function useToggleDecorationLight() {
-  return useDecorationStore((state) => state.toggleLight)
 }

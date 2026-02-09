@@ -12,6 +12,7 @@ import { Loader } from '@react-three/drei'
 import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
 import type { FurnitureInstance } from '@/types/furniture'
+import type { DecorationInstance } from '@/types/decoration'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
@@ -25,6 +26,7 @@ import { DisplayPanel } from './DisplayPanel'
 import { AgentOverlay } from './AgentOverlay'
 import { WorldEditorToolbar, ObjectPalette } from './editor'
 import { FurnitureContextMenu } from './furniture'
+import { DecorationContextMenu } from './decorations'
 import { AgentCustomizeModal } from '../agent/AgentCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { RenderPipeline } from './rendering/RenderPipeline'
@@ -124,6 +126,9 @@ export function WorldCanvas({
   // Furniture context menu state
   const [selectedFurniture, setSelectedFurniture] = useState<FurnitureInstance | null>(null)
 
+  // Decoration context menu state
+  const [selectedDecoration, setSelectedDecoration] = useState<DecorationInstance | null>(null)
+
   // Convert seatedAgents object to Map for FurnitureContextMenu
   const seatedAgentsMap = useMemo(() => {
     return new Map(Object.entries(seatedAgents))
@@ -183,17 +188,30 @@ export function WorldCanvas({
   // Handle agent click in 3D scene - opens the agent menu
   const handleAgentClick = useCallback((agentId: string, position: [number, number, number]) => {
     setSelectedFurniture(null) // Close furniture menu when clicking an agent
+    setSelectedDecoration(null) // Close decoration menu too
     zoomToAgent(agentId, position)
   }, [zoomToAgent])
 
   // Handle furniture click - opens furniture context menu
   const handleFurnitureClick = useCallback((furniture: FurnitureInstance) => {
+    setSelectedDecoration(null) // Close decoration menu when clicking furniture
     setSelectedFurniture(furniture)
   }, [])
 
   // Handle closing furniture context menu
   const handleCloseFurnitureMenu = useCallback(() => {
     setSelectedFurniture(null)
+  }, [])
+
+  // Handle decoration click - opens decoration context menu
+  const handleDecorationClick = useCallback((decoration: DecorationInstance) => {
+    setSelectedFurniture(null) // Close furniture menu when clicking decoration
+    setSelectedDecoration(decoration)
+  }, [])
+
+  // Handle closing decoration context menu
+  const handleCloseDecorationMenu = useCallback(() => {
+    setSelectedDecoration(null)
   }, [])
 
   // Handle seating an agent
@@ -346,6 +364,7 @@ export function WorldCanvas({
                       agentsWithPositions={agentsWithPositions}
                       onAgentClick={handleAgentClick}
                       onFurnitureClick={handleFurnitureClick}
+                      onDecorationClick={handleDecorationClick}
                       onAgentPositionChange={handleAgentPositionChange}
                       isDarkMode={isDarkMode}
                     />
@@ -393,6 +412,16 @@ export function WorldCanvas({
             onSitAgent={handleSitAgent}
             onUnsitAgent={handleUnsitAgent}
             seatedAgents={seatedAgentsMap}
+          />
+        </div>
+      )}
+
+      {/* Decoration context menu */}
+      {selectedDecoration && (
+        <div className="absolute top-16 right-4">
+          <DecorationContextMenu
+            decoration={selectedDecoration}
+            onClose={handleCloseDecorationMenu}
           />
         </div>
       )}

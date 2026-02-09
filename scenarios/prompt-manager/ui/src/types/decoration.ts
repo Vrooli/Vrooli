@@ -20,6 +20,9 @@ export type DecorationType =
   | 'clock'
   | 'trophy'
 
+/** Light behavior mode for light-emitting decorations */
+export type LightMode = 'auto' | 'on' | 'off'
+
 /** Decoration placement in the world */
 export interface DecorationInstance {
   id: string
@@ -28,8 +31,8 @@ export interface DecorationInstance {
   rotation: number
   scale?: number
   color?: string
-  /** For lamps - whether the light is on */
-  lightOn?: boolean
+  /** Light behavior: 'auto' follows day/night, 'on' always on, 'off' always off */
+  lightMode?: LightMode
 }
 
 /** Decoration configuration */

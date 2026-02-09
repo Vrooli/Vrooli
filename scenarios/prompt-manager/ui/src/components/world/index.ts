@@ -58,5 +58,4 @@ export {
   DecorationManager,
   useAddDecoration,
   useRemoveDecoration,
-  useToggleDecorationLight,
 } from './decorations'

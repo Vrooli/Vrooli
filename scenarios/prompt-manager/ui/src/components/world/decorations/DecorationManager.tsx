@@ -9,6 +9,7 @@ import { DraggableObject } from '../interaction'
 import { useDecorationStore, useDecorationList } from '@/stores/decorationStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { DecorationInstance } from '@/types/decoration'
+import { DECORATION_CONFIGS } from '@/types/decoration'
 import { applyPlacementConstraints } from '@/lib/world'
 
 interface DecorationManagerProps {
@@ -33,6 +34,10 @@ export function DecorationManager({
   const placementConfig = useEnvironmentStore((state) => state.current.placement)
   const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
   const groundSize = useEnvironmentStore((state) => state.current.ground.size)
+  const timeValue = useEnvironmentStore((state) => state.timeValue)
+
+  // Lamps auto-turn-on at night (before 6 AM or after 6 PM)
+  const isNightTime = timeValue < 6 || timeValue >= 18
 
   const constrainPosition = useMemo(() => {
     return (position: [number, number, number]) =>
@@ -60,6 +65,14 @@ export function DecorationManager({
   return (
     <group name="decoration-manager">
       {decorationList.map((decoration) => {
+        // Resolve effective light state from mode + time of day
+        const config = DECORATION_CONFIGS[decoration.type]
+        let effectiveLightOn: boolean | undefined
+        if (config.emitsLight) {
+          const mode = decoration.lightMode ?? 'auto'
+          effectiveLightOn = mode === 'on' ? true : mode === 'off' ? false : isNightTime
+        }
+
         const item = (
           <DecorationItem
             key={decoration.id}
@@ -69,7 +82,7 @@ export function DecorationManager({
             rotation={decoration.rotation}
             scale={decoration.scale}
             color={decoration.color}
-            lightOn={decoration.lightOn}
+            lightOn={effectiveLightOn}
             onClick={interactive ? () => handleClick(decoration) : undefined}
           />
         )

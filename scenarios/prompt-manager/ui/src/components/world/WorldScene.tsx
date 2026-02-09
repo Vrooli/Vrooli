@@ -32,6 +32,7 @@ import { calculateStarOpacity } from '@/lib/sky/sunPosition'
 import { applyPlacementConstraints } from '@/lib/world'
 import type { Agent } from '@/types/agent'
 import type { FurnitureInstance } from '@/types/furniture'
+import type { DecorationInstance } from '@/types/decoration'
 
 /**
  * Custom star field with fog disabled and rotation tied to timeValue.
@@ -126,6 +127,8 @@ interface WorldSceneProps {
   onAgentClick?: (agentId: string, position: [number, number, number]) => void
   /** Called when furniture is clicked */
   onFurnitureClick?: (furniture: FurnitureInstance) => void
+  /** Called when a decoration is clicked */
+  onDecorationClick?: (decoration: DecorationInstance) => void
   /** Called when an agent is repositioned via drag */
   onAgentPositionChange?: (agentId: string, newPosition: [number, number, number]) => void
   isDarkMode?: boolean
@@ -142,6 +145,7 @@ export function WorldScene({
   agentsWithPositions,
   onAgentClick,
   onFurnitureClick,
+  onDecorationClick,
   onAgentPositionChange,
   isDarkMode = true,
   showFpsOverlay = false,
@@ -279,6 +283,7 @@ export function WorldScene({
       <DecorationManager
         interactive={!isPlacing}
         draggable={isEditMode && !isPlacing}
+        onDecorationClick={onDecorationClick}
       />
 
       {/* Render all agents with accessories and overlays */}
