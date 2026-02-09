@@ -44,6 +44,60 @@
   gap: 10px;
 }
 
+.workspace-manager__zoom {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(24, 27, 40, 0.65);
+}
+
+.workspace-manager__zoom-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-manager__zoom-heading strong {
+  font-size: 0.95rem;
+}
+
+.workspace-manager__zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.workspace-manager__zoom-controls label {
+  font-size: 0.82rem;
+  color: rgba(231, 235, 255, 0.68);
+}
+
+.workspace-manager__zoom-controls select,
+.workspace-manager__zoom-controls button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(12, 16, 28, 0.9);
+  color: inherit;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+}
+
+.workspace-manager__zoom-controls button {
+  cursor: pointer;
+}
+
+.workspace-manager__zoom-controls button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.workspace-manager__zoom p {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: rgba(231, 235, 255, 0.66);
+}
+
 .workspace-manager__action {
   display: flex;
   align-items: center;

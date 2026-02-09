@@ -5,6 +5,9 @@ import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout
 
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
 export type PreviewWorkspacePinnedColumn = 'left' | 'right';
+export const PREVIEW_WORKSPACE_ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5] as const;
+export type PreviewWorkspaceZoomLevel = typeof PREVIEW_WORKSPACE_ZOOM_LEVELS[number];
+const DEFAULT_WORKSPACE_ZOOM: PreviewWorkspaceZoomLevel = 1;
 
 export interface PreviewWorkspacePane {
   id: string;
@@ -24,6 +27,7 @@ export interface PreviewWorkspacePaneViewState {
 
 export interface PreviewWorkspaceState {
   interactionMode: PreviewWorkspaceInteractionMode;
+  workspaceZoom: PreviewWorkspaceZoomLevel;
   panes: PreviewWorkspacePane[];
   paneViewState: Record<string, PreviewWorkspacePaneViewState>;
   focusedPaneId: string | null;
@@ -39,6 +43,8 @@ export interface PreviewWorkspaceState {
   pinPaneToColumn: (paneId: string, column: PreviewWorkspacePinnedColumn) => void;
   clearPinnedPane: () => void;
   setInteractionMode: (mode: PreviewWorkspaceInteractionMode) => void;
+  setWorkspaceZoom: (zoom: PreviewWorkspaceZoomLevel) => void;
+  resetWorkspaceZoom: () => void;
   setColumnFractions: (fractions: number[]) => void;
   setRowFractions: (fractions: number[]) => void;
   resetLayout: () => void;
@@ -68,6 +74,7 @@ const createPane = (appId: string | null = null): PreviewWorkspacePane => ({
 const buildInitialState = (): Pick<
   PreviewWorkspaceState,
   | 'interactionMode'
+  | 'workspaceZoom'
   | 'panes'
   | 'paneViewState'
   | 'focusedPaneId'
@@ -79,6 +86,7 @@ const buildInitialState = (): Pick<
   const firstPane = createPane(null);
   return {
     interactionMode: 'browse',
+    workspaceZoom: DEFAULT_WORKSPACE_ZOOM,
     panes: [firstPane],
     paneViewState: {},
     focusedPaneId: firstPane.id,
@@ -98,6 +106,7 @@ const noopStorage: StateStorage = {
 const previewWorkspaceStorage = createJSONStorage<Pick<
   PreviewWorkspaceState,
   | 'interactionMode'
+  | 'workspaceZoom'
   | 'panes'
   | 'paneViewState'
   | 'focusedPaneId'
@@ -176,6 +185,25 @@ const isInteractionMode = (value: unknown): value is PreviewWorkspaceInteraction
   value === 'browse' || value === 'arrange'
 );
 
+const normalizeWorkspaceZoom = (value: unknown): PreviewWorkspaceZoomLevel => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_WORKSPACE_ZOOM;
+  }
+  if (PREVIEW_WORKSPACE_ZOOM_LEVELS.includes(value as PreviewWorkspaceZoomLevel)) {
+    return value as PreviewWorkspaceZoomLevel;
+  }
+  let nearest: PreviewWorkspaceZoomLevel = PREVIEW_WORKSPACE_ZOOM_LEVELS[0] ?? DEFAULT_WORKSPACE_ZOOM;
+  let nearestDelta = Math.abs(value - nearest);
+  PREVIEW_WORKSPACE_ZOOM_LEVELS.forEach((candidate) => {
+    const delta = Math.abs(value - candidate);
+    if (delta < nearestDelta) {
+      nearest = candidate;
+      nearestDelta = delta;
+    }
+  });
+  return nearest;
+};
+
 const normalizePersistedPane = (value: unknown): PreviewWorkspacePane | null => {
   if (!value || typeof value !== 'object') {
     return null;
@@ -201,6 +229,7 @@ const normalizePersistedPane = (value: unknown): PreviewWorkspacePane | null => 
 const normalizePersistedWorkspaceState = (value: unknown): Pick<
   PreviewWorkspaceState,
   | 'interactionMode'
+  | 'workspaceZoom'
   | 'panes'
   | 'paneViewState'
   | 'focusedPaneId'
@@ -216,6 +245,7 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
 
   const record = value as Partial<PreviewWorkspaceState>;
   const interactionMode = isInteractionMode(record.interactionMode) ? record.interactionMode : defaults.interactionMode;
+  const workspaceZoom = normalizeWorkspaceZoom(record.workspaceZoom);
   const panes = Array.isArray(record.panes)
     ? record.panes
       .map(normalizePersistedPane)
@@ -254,6 +284,7 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
 
   return {
     interactionMode,
+    workspaceZoom,
     panes: ensuredPanes,
     paneViewState,
     focusedPaneId,
@@ -400,6 +431,10 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
 
   setInteractionMode: (interactionMode) => set({ interactionMode }),
 
+  setWorkspaceZoom: (workspaceZoom) => set({ workspaceZoom: normalizeWorkspaceZoom(workspaceZoom) }),
+
+  resetWorkspaceZoom: () => set({ workspaceZoom: DEFAULT_WORKSPACE_ZOOM }),
+
   setColumnFractions: (fractions) => set((state) => {
     const { columns } = resolveWorkspaceLayout(state.panes.length);
     return { columnFractions: reconcileTrackFractions(fractions, columns) };
@@ -467,6 +502,7 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
   version: 1,
   partialize: (state) => ({
     interactionMode: state.interactionMode,
+    workspaceZoom: state.workspaceZoom,
     panes: state.panes,
     paneViewState: state.paneViewState,
     focusedPaneId: state.focusedPaneId,

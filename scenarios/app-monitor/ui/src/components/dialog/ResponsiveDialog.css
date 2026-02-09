@@ -10,6 +10,14 @@
   backdrop-filter: blur(12px);
 }
 
+.responsive-dialog__overlay--floating {
+  display: block;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
 .responsive-dialog__content {
   position: relative;
   width: min(720px, 100%);
@@ -19,6 +27,26 @@
   overflow: hidden;
   border-radius: 18px;
   min-height: 0;
+}
+
+.responsive-dialog__content--floating {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(720px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  pointer-events: auto;
+}
+
+.responsive-dialog__content--draggable {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  will-change: transform;
+}
+
+.responsive-dialog__content--dragging {
+  cursor: grabbing;
 }
 
 .responsive-dialog__content--wide {

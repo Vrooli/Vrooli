@@ -43,4 +43,14 @@ describe('WorkspaceManagerDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     confirmSpy.mockRestore();
   });
+
+  it('updates workspace zoom without closing the dialog', () => {
+    const onClose = vi.fn();
+    render(<WorkspaceManagerDialog onClose={onClose} />);
+
+    fireEvent.change(screen.getByLabelText(/all panes/i), { target: { value: '0.75' } });
+
+    expect(usePreviewWorkspaceStore.getState().workspaceZoom).toBe(0.75);
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

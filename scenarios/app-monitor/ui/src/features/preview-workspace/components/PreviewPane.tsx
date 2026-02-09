@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
 import { GripVertical, Trash2 } from 'lucide-react';
@@ -65,6 +66,7 @@ export function PreviewPane({
   const { openOverlay } = useOverlayRouter();
   const setAppsState = useAppsStore((state) => state.setAppsState);
   const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
+  const workspaceZoom = usePreviewWorkspaceStore((state) => state.workspaceZoom);
   const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
   const [statusMessage, setStatusMessage] = useState<string | null>('Select an app to preview.');
   const [isIframeLoading, setIsIframeLoading] = useState(false);
@@ -228,6 +230,19 @@ export function PreviewPane({
     toolbar: deviceToolbar,
     viewport: deviceViewport,
   } = deviceEmulation;
+  const standardPreviewZoom = isDeviceEmulationActive ? 1 : workspaceZoom;
+  const standardPreviewStyle = useMemo<CSSProperties | undefined>(() => {
+    if (standardPreviewZoom === 1) {
+      return undefined;
+    }
+    const percent = 100 / standardPreviewZoom;
+    return {
+      width: `${percent}%`,
+      height: `${percent}%`,
+      transform: `scale(${standardPreviewZoom})`,
+      transformOrigin: 'top left',
+    };
+  }, [standardPreviewZoom]);
 
   const handleOpenReportDialog = useCallback(() => {
     setReportDialogOpen(true);
@@ -663,16 +678,24 @@ export function PreviewPane({
                 />
               </DeviceEmulationViewport>
             ) : (
-              <iframe
-                key={previewReloadToken}
-                ref={iframeRef}
-                src={previewUrl}
-                title={`${currentApp?.name ?? 'Application'} preview pane`}
-                className="preview-pane__iframe"
-                loading="eager"
-                onLoad={onIframeLoad}
-                onError={onIframeError}
-              />
+              <div
+                className={clsx(
+                  'preview-pane__iframe-scale',
+                  standardPreviewZoom !== 1 && 'preview-pane__iframe-scale--zoomed',
+                )}
+                style={standardPreviewStyle}
+              >
+                <iframe
+                  key={previewReloadToken}
+                  ref={iframeRef}
+                  src={previewUrl}
+                  title={`${currentApp?.name ?? 'Application'} preview pane`}
+                  className="preview-pane__iframe"
+                  loading="eager"
+                  onLoad={onIframeLoad}
+                  onError={onIframeError}
+                />
+              </div>
             )}
             {fallbackState && <PreviewFallbackState state={fallbackState} variant="overlay" />}
           </div>

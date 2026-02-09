@@ -263,7 +263,13 @@ export default function Shell({ isConnected }: ShellProps) {
         <ResponsiveDialog
           isOpen
           ariaLabel="Workspace manager"
-          className="shell__dialog"
+          className="shell__dialog shell__dialog--workspace-floating"
+          mode="floating"
+          draggable
+          dragHandleSelector=".workspace-manager__header"
+          floatingStorageKey="app-monitor:workspace-manager-dialog-position"
+          floatingDefaultPosition={{ x: 24, y: 96 }}
+          floatingMargin={24}
         >
           <ErrorBoundary fallback={SectionErrorFallback}>
             <WorkspaceManagerDialog onClose={() => closeOverlay()} />

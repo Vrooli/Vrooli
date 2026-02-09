@@ -41,8 +41,10 @@
 }
 
 .preview-pane__iframe-shell {
+  position: relative;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .preview-pane__iframe-shell--emulated {
@@ -57,6 +59,15 @@
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+.preview-pane__iframe-scale {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-pane__iframe-scale--zoomed {
+  will-change: transform;
 }
 
 .preview-pane__emulation-toolbar-wrap {

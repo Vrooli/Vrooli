@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
-import { Grip, Layers, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { Grip, Layers, Plus, RotateCcw, Trash2, X, ZoomIn } from 'lucide-react';
 import clsx from 'clsx';
 import {
+  PREVIEW_WORKSPACE_ZOOM_LEVELS,
+  type PreviewWorkspaceZoomLevel,
   previewWorkspaceLimits,
   usePreviewWorkspaceStore,
 } from '@/features/preview-workspace/state/previewWorkspaceStore';
@@ -14,8 +16,11 @@ type WorkspaceManagerDialogProps = {
 export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDialogProps) {
   const panes = usePreviewWorkspaceStore(state => state.panes);
   const interactionMode = usePreviewWorkspaceStore(state => state.interactionMode);
+  const workspaceZoom = usePreviewWorkspaceStore(state => state.workspaceZoom);
   const pinnedPaneId = usePreviewWorkspaceStore(state => state.pinnedPaneId);
   const addPane = usePreviewWorkspaceStore(state => state.addPane);
+  const setWorkspaceZoom = usePreviewWorkspaceStore(state => state.setWorkspaceZoom);
+  const resetWorkspaceZoom = usePreviewWorkspaceStore(state => state.resetWorkspaceZoom);
   const clearPinnedPane = usePreviewWorkspaceStore(state => state.clearPinnedPane);
   const setInteractionMode = usePreviewWorkspaceStore(state => state.setInteractionMode);
   const resetLayout = usePreviewWorkspaceStore(state => state.resetLayout);
@@ -33,6 +38,7 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
   const paneSummary = useMemo(() => {
     return `${paneCount} pane${paneCount === 1 ? '' : 's'} active`;
   }, [paneCount]);
+  const workspaceZoomPercent = Math.round(workspaceZoom * 100);
 
   const handleToggleArrange = () => {
     setInteractionMode(interactionMode === 'arrange' ? 'browse' : 'arrange');
@@ -71,6 +77,14 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
     onClose();
   };
 
+  const handleWorkspaceZoomChange = (value: string) => {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+    setWorkspaceZoom(parsed as PreviewWorkspaceZoomLevel);
+  };
+
   return (
     <div className="workspace-manager">
       <header className="workspace-manager__header">
@@ -89,6 +103,36 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
       </header>
 
       <section className="workspace-manager__actions" aria-label="Workspace actions">
+        <div className="workspace-manager__zoom" role="group" aria-label="Workspace zoom controls">
+          <div className="workspace-manager__zoom-heading">
+            <ZoomIn size={18} aria-hidden />
+            <strong>Workspace zoom</strong>
+          </div>
+          <div className="workspace-manager__zoom-controls">
+            <label htmlFor="workspace-zoom-level">All panes</label>
+            <select
+              id="workspace-zoom-level"
+              value={workspaceZoom}
+              onChange={(event) => handleWorkspaceZoomChange(event.target.value)}
+            >
+              {PREVIEW_WORKSPACE_ZOOM_LEVELS.map((level) => (
+                <option key={level} value={level}>{`${Math.round(level * 100)}%`}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={resetWorkspaceZoom}
+              disabled={workspaceZoom === 1}
+            >
+              Reset
+            </button>
+          </div>
+          <p>
+            Active zoom: {workspaceZoomPercent}%.
+            Pane device emulation zoom overrides this value.
+          </p>
+        </div>
+
         <button
           type="button"
           className={clsx(

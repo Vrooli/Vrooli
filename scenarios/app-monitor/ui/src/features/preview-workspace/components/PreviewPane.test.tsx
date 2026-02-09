@@ -1041,4 +1041,15 @@ describe('PreviewPane', () => {
     });
   });
 
+  it('applies workspace zoom to standard iframe preview', async () => {
+    usePreviewWorkspaceStore.getState().setWorkspaceZoom(0.75);
+    renderPane();
+
+    await waitFor(() => {
+      const scaleLayer = document.querySelector('.preview-pane__iframe-scale') as HTMLDivElement | null;
+      expect(scaleLayer).not.toBeNull();
+      expect(scaleLayer).toHaveStyle({ transform: 'scale(0.75)' });
+    });
+  });
+
 });

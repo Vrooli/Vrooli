@@ -95,6 +95,11 @@
   padding: 24px 24px 24px;
 }
 
+.shell__dialog--workspace-floating {
+  width: min(440px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+}
+
 @media (min-width: 768px) {
   /* Desktop: remove padding since nav is draggable and doesn't need reserved space */
   .shell__content {

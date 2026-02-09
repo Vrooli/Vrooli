@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CSSProperties,
+  MutableRefObject,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
-  RefObject,
 } from 'react';
 import { useFloatingPosition } from './useFloatingPosition';
 import { logger } from '@/services/logger';
@@ -47,7 +47,7 @@ export interface UseDraggablePositionOptions {
 }
 
 export interface UseDraggablePositionReturn {
-  elementRef: RefObject<HTMLElement | null>;
+  elementRef: MutableRefObject<HTMLElement | null>;
   position: { x: number; y: number };
   isDragging: boolean;
   floatingStyle: CSSProperties | undefined;
