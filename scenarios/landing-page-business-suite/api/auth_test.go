@@ -468,21 +468,26 @@ func TestBuildLoginResponse(t *testing.T) {
 		name          string
 		email         string
 		authenticated bool
+		sessionID     string
 		wantEmail     string
+		wantSessionID string
 	}{
-		{"authenticated with email", "test@example.com", true, "test@example.com"},
-		{"authenticated no email", "", true, ""},
-		{"not authenticated", "ignored@example.com", false, ""},
+		{"authenticated with email", "test@example.com", true, "session-abc", "test@example.com", "session-abc"},
+		{"authenticated no email", "", true, "session-abc", "", ""},
+		{"not authenticated", "ignored@example.com", false, "session-abc", "", ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp := buildLoginResponse(tt.email, tt.authenticated)
+			resp := buildLoginResponse(tt.email, tt.authenticated, tt.sessionID)
 			if resp.Authenticated != tt.authenticated {
 				t.Errorf("Expected authenticated=%v, got %v", tt.authenticated, resp.Authenticated)
 			}
 			if resp.Email != tt.wantEmail {
 				t.Errorf("Expected email='%s', got '%s'", tt.wantEmail, resp.Email)
+			}
+			if resp.SessionID != tt.wantSessionID {
+				t.Errorf("Expected session_id='%s', got '%s'", tt.wantSessionID, resp.SessionID)
 			}
 			if !resp.ResetEnabled {
 				t.Error("Expected ResetEnabled=true")

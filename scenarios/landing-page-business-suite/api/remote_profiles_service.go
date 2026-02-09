@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -64,6 +66,8 @@ type RemoteProfile struct {
 	Tag              string     `json:"tag"`
 	Label            *string    `json:"label,omitempty"`
 	APIBase          string     `json:"api_base"`
+	ConnectorID      string     `json:"connector_id,omitempty"`
+	RemoteSessionID  *string    `json:"remote_session_id,omitempty"`
 	Status           string     `json:"status"`
 	HasSession       bool       `json:"has_session"`
 	SessionExpiresAt *time.Time `json:"session_expires_at,omitempty"`
@@ -108,6 +112,30 @@ type RemoteProxyResponse struct {
 	StatusCode  int
 	Body        []byte
 	ContentType string
+}
+
+type IncomingRemoteProfileSession struct {
+	SessionID    string    `json:"session_id"`
+	AdminEmail   string    `json:"admin_email"`
+	ConnectorID  string    `json:"connector_id"`
+	ProfileTag   string    `json:"profile_tag,omitempty"`
+	Origin       string    `json:"origin,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	LastActivity time.Time `json:"last_activity"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	IPAddress    *string   `json:"ip_address,omitempty"`
+	UserAgent    *string   `json:"user_agent,omitempty"`
+}
+
+type RemoteProfileSessionLinks struct {
+	ProfileID             int64                          `json:"profile_id"`
+	ProfileTag            string                         `json:"profile_tag"`
+	ConnectorID           string                         `json:"connector_id"`
+	LocalHasSession       bool                           `json:"local_has_session"`
+	LocalStatus           string                         `json:"local_status"`
+	LocalSessionExpiresAt *time.Time                     `json:"local_session_expires_at,omitempty"`
+	RemoteSessionID       *string                        `json:"remote_session_id,omitempty"`
+	RemoteSessions        []IncomingRemoteProfileSession `json:"remote_sessions"`
 }
 
 // RemoteProfileError wraps errors with HTTP status + type for handlers.
@@ -268,6 +296,10 @@ func normalizeRemoteProfileLabel(label string) *string {
 	return &trimmed
 }
 
+func normalizeRemoteProfileSessionID(sessionID string) string {
+	return strings.TrimSpace(sessionID)
+}
+
 func normalizeRemoteProfileAPIBase(raw string) (string, error) {
 	clean, err := ValidateURL(raw)
 	if err != nil {
@@ -291,6 +323,26 @@ func normalizeRemoteProfileAPIBase(raw string) (string, error) {
 	}
 	parsed.Path = pathValue
 	return strings.TrimSuffix(parsed.String(), "/"), nil
+}
+
+func generateRemoteConnectorID() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+func remoteProfileOriginLabel() string {
+	if value := sanitizeRemoteProfileSessionMetaValue(resolveSecret("LPBS_REMOTE_PROFILE_ORIGIN")); value != "" {
+		return value
+	}
+	if host, err := os.Hostname(); err == nil {
+		if value := sanitizeRemoteProfileSessionMetaValue(host); value != "" {
+			return value
+		}
+	}
+	return "unknown"
 }
 
 func normalizeRemoteProxyPath(raw string) (string, error) {
@@ -331,8 +383,8 @@ func isAllowedRemoteProxyPath(path string) bool {
 
 func (s *RemoteProfileService) List(ctx context.Context) ([]RemoteProfile, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, tag, label, api_base, status, encrypted_session,
-		       session_expires_at, last_login_at, last_used_at,
+		SELECT id, tag, label, api_base, connector_id, remote_session_id, status, encrypted_session,
+		       session_expires_at, remote_session_last_synced_at, last_login_at, last_used_at,
 		       created_by, created_at, updated_at
 		FROM remote_profiles
 		ORDER BY created_at DESC
@@ -347,6 +399,14 @@ func (s *RemoteProfileService) List(ctx context.Context) ([]RemoteProfile, error
 		rec, err := scanRemoteProfile(rows)
 		if err != nil {
 			return nil, err
+		}
+		connectorID := remoteProfileConnectorID(rec)
+		if connectorID == "" {
+			connectorID, ensureErr := s.ensureConnectorID(ctx, rec.ID, connectorID)
+			if ensureErr != nil {
+				return nil, ensureErr
+			}
+			rec.ConnectorID = sql.NullString{String: connectorID, Valid: true}
 		}
 		profiles = append(profiles, rec.toProfile(s.nowTime()))
 	}
@@ -366,6 +426,10 @@ func (s *RemoteProfileService) Create(ctx context.Context, req RemoteProfileCrea
 		return nil, err
 	}
 	label := normalizeRemoteProfileLabel(req.Label)
+	connectorID, err := generateRemoteConnectorID()
+	if err != nil {
+		return nil, err
+	}
 
 	exists, err := s.tagExists(ctx, tag, 0)
 	if err != nil {
@@ -382,10 +446,10 @@ func (s *RemoteProfileService) Create(ctx context.Context, req RemoteProfileCrea
 
 	var id int64
 	err = s.db.QueryRowContext(ctx, `
-		INSERT INTO remote_profiles (tag, label, api_base, status, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		INSERT INTO remote_profiles (tag, label, api_base, connector_id, status, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 		RETURNING id
-	`, tag, StringToNullString(label), apiBase, remoteProfileStatusUnknown, Int64ToNullInt64(createdByID)).Scan(&id)
+	`, tag, StringToNullString(label), apiBase, connectorID, remoteProfileStatusUnknown, Int64ToNullInt64(createdByID)).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -448,6 +512,8 @@ func (s *RemoteProfileService) Update(ctx context.Context, id int64, req RemoteP
 			    label = $2,
 			    api_base = $3,
 			    encrypted_session = NULL,
+			    remote_session_id = NULL,
+			    remote_session_last_synced_at = NOW(),
 			    session_expires_at = NULL,
 			    status = $4,
 			    last_used_at = NOW(),
@@ -508,13 +574,23 @@ func (s *RemoteProfileService) Login(ctx context.Context, id int64, email string
 	if err != nil {
 		return nil, err
 	}
+	connectorID, err := s.ensureConnectorID(ctx, id, remoteProfileConnectorID(rec))
+	if err != nil {
+		return nil, err
+	}
+	rec.ConnectorID = sql.NullString{String: connectorID, Valid: true}
 
-	sessionValue, expiresAt, err := s.remoteLogin(ctx, rec.APIBase, email, password)
+	meta := RemoteProfileSessionMetadata{
+		ConnectorID: connectorID,
+		ProfileTag:  rec.Tag,
+		Origin:      remoteProfileOriginLabel(),
+	}
+	sessionValue, remoteSessionID, expiresAt, err := s.remoteLogin(ctx, rec.APIBase, email, password, meta)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.setSession(ctx, id, sessionValue, expiresAt); err != nil {
+	if err := s.setSession(ctx, id, sessionValue, remoteSessionID, expiresAt); err != nil {
 		return nil, err
 	}
 
@@ -617,6 +693,79 @@ func (s *RemoteProfileService) Test(ctx context.Context, id int64) (*RemoteProfi
 	}
 
 	return profile, nil
+}
+
+func (s *RemoteProfileService) SessionLinks(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error) {
+	rec, err := s.getRecordByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	links := &RemoteProfileSessionLinks{
+		ProfileID:             rec.ID,
+		ProfileTag:            rec.Tag,
+		ConnectorID:           remoteProfileConnectorID(rec),
+		LocalHasSession:       rec.EncryptedSession.Valid && strings.TrimSpace(rec.EncryptedSession.String) != "",
+		LocalStatus:           rec.Status,
+		LocalSessionExpiresAt: NullTimeValue(rec.SessionExpiresAt),
+		RemoteSessionID:       NullStringValue(rec.RemoteSessionID),
+		RemoteSessions:        []IncomingRemoteProfileSession{},
+	}
+	if !links.LocalHasSession {
+		return links, nil
+	}
+
+	sessionValue, err := s.decrypt(rec.EncryptedSession.String)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(sessionValue) == "" {
+		return links, nil
+	}
+
+	sessions, err := s.listIncomingRemoteSessions(ctx, rec.APIBase, sessionValue, remoteProfileConnectorID(rec))
+	if err != nil {
+		var remoteErr *RemoteProfileError
+		if errors.As(err, &remoteErr) && remoteErr.Status == http.StatusUnauthorized {
+			_ = s.clearSession(ctx, id, remoteProfileStatusExpired)
+		}
+		return nil, err
+	}
+	links.RemoteSessions = sessions
+	return links, nil
+}
+
+func (s *RemoteProfileService) RevokeRemoteSessions(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error) {
+	rec, err := s.getRecordByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !rec.EncryptedSession.Valid || strings.TrimSpace(rec.EncryptedSession.String) == "" {
+		return nil, ErrRemoteProfileSessionMissing
+	}
+
+	sessionValue, err := s.decrypt(rec.EncryptedSession.String)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(sessionValue) == "" {
+		return nil, ErrRemoteProfileSessionMissing
+	}
+
+	sessions, err := s.listIncomingRemoteSessions(ctx, rec.APIBase, sessionValue, remoteProfileConnectorID(rec))
+	if err != nil {
+		return nil, err
+	}
+	for _, session := range sessions {
+		if revokeErr := s.revokeIncomingRemoteSession(ctx, rec.APIBase, sessionValue, session.SessionID); revokeErr != nil {
+			return nil, revokeErr
+		}
+	}
+
+	if err := s.clearSession(ctx, id, remoteProfileStatusExpired); err != nil {
+		return nil, err
+	}
+	return s.SessionLinks(ctx, id)
 }
 
 func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemoteProfileProxyRequest) (*RemoteProxyResponse, error) {
@@ -722,13 +871,22 @@ func (s *RemoteProfileService) GetByID(ctx context.Context, id int64) (*RemotePr
 
 func (s *RemoteProfileService) getRecordByID(ctx context.Context, id int64) (*remoteProfileRecord, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, tag, label, api_base, status, encrypted_session,
-		       session_expires_at, last_login_at, last_used_at,
+		SELECT id, tag, label, api_base, connector_id, remote_session_id, status, encrypted_session,
+		       session_expires_at, remote_session_last_synced_at, last_login_at, last_used_at,
 		       created_by, created_at, updated_at
 		FROM remote_profiles
 		WHERE id = $1
 	`, id)
-	return scanRemoteProfileRow(row)
+	rec, err := scanRemoteProfileRow(row)
+	if err != nil {
+		return nil, err
+	}
+	connectorID, err := s.ensureConnectorID(ctx, id, remoteProfileConnectorID(rec))
+	if err != nil {
+		return nil, err
+	}
+	rec.ConnectorID = sql.NullString{String: connectorID, Valid: true}
+	return rec, nil
 }
 
 func (s *RemoteProfileService) tagExists(ctx context.Context, tag string, excludeID int64) (bool, error) {
@@ -743,6 +901,36 @@ func (s *RemoteProfileService) tagExists(ctx context.Context, tag string, exclud
 		}
 	}
 	return count > 0, nil
+}
+
+func (s *RemoteProfileService) ensureConnectorID(ctx context.Context, id int64, current string) (string, error) {
+	trimmed := strings.TrimSpace(current)
+	if trimmed != "" {
+		return trimmed, nil
+	}
+
+	connectorID, err := generateRemoteConnectorID()
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE remote_profiles
+		SET connector_id = $1,
+		    updated_at = NOW()
+		WHERE id = $2 AND (connector_id IS NULL OR connector_id = '')
+	`, connectorID, id); err != nil {
+		return "", err
+	}
+
+	var resolved sql.NullString
+	if err := s.db.QueryRowContext(ctx, `SELECT connector_id FROM remote_profiles WHERE id = $1`, id).Scan(&resolved); err != nil {
+		return "", err
+	}
+	if !resolved.Valid || strings.TrimSpace(resolved.String) == "" {
+		return "", fmt.Errorf("connector id missing for remote profile %d", id)
+	}
+	return strings.TrimSpace(resolved.String), nil
 }
 
 func (s *RemoteProfileService) lookupAdminID(ctx context.Context, email string) (*int64, error) {
@@ -761,21 +949,28 @@ func (s *RemoteProfileService) lookupAdminID(ctx context.Context, email string) 
 	return &id, nil
 }
 
-func (s *RemoteProfileService) setSession(ctx context.Context, id int64, sessionValue string, expiresAt *time.Time) error {
+func (s *RemoteProfileService) setSession(ctx context.Context, id int64, sessionValue string, remoteSessionID string, expiresAt *time.Time) error {
 	encrypted, err := s.encrypt(sessionValue)
 	if err != nil {
 		return err
 	}
+	normalizedRemoteSessionID := normalizeRemoteProfileSessionID(remoteSessionID)
+	var remoteSessionIDPtr *string
+	if normalizedRemoteSessionID != "" {
+		remoteSessionIDPtr = &normalizedRemoteSessionID
+	}
 	_, err = s.db.ExecContext(ctx, `
 		UPDATE remote_profiles
 		SET encrypted_session = $1,
-		    session_expires_at = $2,
-		    status = $3,
+		    remote_session_id = $2,
+		    remote_session_last_synced_at = NOW(),
+		    session_expires_at = $3,
+		    status = $4,
 		    last_login_at = NOW(),
 		    last_used_at = NOW(),
 		    updated_at = NOW()
-		WHERE id = $4
-	`, encrypted, TimeToNullTime(expiresAt), remoteProfileStatusActive, id)
+		WHERE id = $5
+	`, encrypted, StringToNullString(remoteSessionIDPtr), TimeToNullTime(expiresAt), remoteProfileStatusActive, id)
 	return err
 }
 
@@ -783,6 +978,8 @@ func (s *RemoteProfileService) clearSession(ctx context.Context, id int64, statu
 	_, err := s.db.ExecContext(ctx, `
 		UPDATE remote_profiles
 		SET encrypted_session = NULL,
+		    remote_session_id = NULL,
+		    remote_session_last_synced_at = NOW(),
 		    session_expires_at = NULL,
 		    status = $1,
 		    last_used_at = NOW(),
@@ -820,19 +1017,22 @@ func (s *RemoteProfileService) buildRemoteURL(apiBase string, pathValue string, 
 	return parsed.String(), nil
 }
 
-func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, email string, password string) (string, *time.Time, error) {
+func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, email string, password string, metadata RemoteProfileSessionMetadata) (string, string, *time.Time, error) {
 	payload, err := json.Marshal(LoginRequest{Email: email, Password: password})
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/login"
-	resp, body, err := s.doJSONRequest(ctx, http.MethodPost, urlValue, payload, nil)
+	headers := map[string]string{
+		"User-Agent": buildRemoteProfileSessionUserAgent(metadata),
+	}
+	resp, body, err := s.doJSONRequestWithHeaders(ctx, http.MethodPost, urlValue, payload, nil, headers)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		message := extractRemoteErrorMessage(body)
-		return "", nil, &RemoteProfileError{
+		return "", "", nil, &RemoteProfileError{
 			Status:    mapRemoteStatus(resp.StatusCode),
 			ErrorType: inferErrorType(resp.StatusCode),
 			Message:   message,
@@ -841,7 +1041,7 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 
 	cookie := findCookie(resp.Cookies(), remoteProfileCookieName)
 	if cookie == nil || cookie.Value == "" {
-		return "", nil, &RemoteProfileError{
+		return "", "", nil, &RemoteProfileError{
 			Status:    http.StatusBadGateway,
 			ErrorType: ApiErrorTypeServerError,
 			Message:   "Remote login did not return a session cookie",
@@ -849,10 +1049,10 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 	}
 	var sessionResp LoginResponse
 	if err := json.Unmarshal(body, &sessionResp); err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 	if !sessionResp.Authenticated {
-		return "", nil, &RemoteProfileError{
+		return "", "", nil, &RemoteProfileError{
 			Status:    http.StatusUnauthorized,
 			ErrorType: ApiErrorTypeUnauthorized,
 			Message:   "Remote login failed",
@@ -861,10 +1061,10 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 
 	authenticated, err := s.remoteSessionCheck(ctx, apiBase, cookie.Value)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 	if !authenticated {
-		return "", nil, &RemoteProfileError{
+		return "", "", nil, &RemoteProfileError{
 			Status:    http.StatusUnauthorized,
 			ErrorType: ApiErrorTypeUnauthorized,
 			Message:   "Remote session verification failed",
@@ -872,7 +1072,7 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 	}
 
 	expiresAt := deriveCookieExpiry(cookie, s.nowTime())
-	return cookie.Value, expiresAt, nil
+	return cookie.Value, normalizeRemoteProfileSessionID(sessionResp.SessionID), expiresAt, nil
 }
 
 func (s *RemoteProfileService) nowTime() time.Time {
@@ -927,7 +1127,80 @@ func (s *RemoteProfileService) remoteLogout(ctx context.Context, apiBase string,
 	return nil
 }
 
+func (s *RemoteProfileService) listIncomingRemoteSessions(ctx context.Context, apiBase string, sessionValue string, connectorID string) ([]IncomingRemoteProfileSession, error) {
+	query := url.Values{}
+	if trimmed := strings.TrimSpace(connectorID); trimmed != "" {
+		query.Set("connector_id", trimmed)
+	}
+	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/remote-profile-sessions"
+	if encoded := query.Encode(); encoded != "" {
+		urlValue += "?" + encoded
+	}
+
+	cookies := []*http.Cookie{{Name: remoteProfileCookieName, Value: sessionValue}}
+	resp, body, err := s.doJSONRequest(ctx, http.MethodGet, urlValue, nil, cookies)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return nil, &RemoteProfileError{
+			Status:    http.StatusUnauthorized,
+			ErrorType: ApiErrorTypeUnauthorized,
+			Message:   "Remote session expired. Please log in again.",
+		}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, &RemoteProfileError{
+			Status:    mapRemoteStatus(resp.StatusCode),
+			ErrorType: inferErrorType(resp.StatusCode),
+			Message:   extractRemoteErrorMessage(body),
+		}
+	}
+
+	var payload struct {
+		Sessions []IncomingRemoteProfileSession `json:"sessions"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+	if payload.Sessions == nil {
+		payload.Sessions = []IncomingRemoteProfileSession{}
+	}
+	return payload.Sessions, nil
+}
+
+func (s *RemoteProfileService) revokeIncomingRemoteSession(ctx context.Context, apiBase string, sessionValue string, sessionID string) error {
+	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/remote-profile-sessions/" + url.PathEscape(strings.TrimSpace(sessionID))
+	cookies := []*http.Cookie{{Name: remoteProfileCookieName, Value: sessionValue}}
+	resp, body, err := s.doJSONRequest(ctx, http.MethodDelete, urlValue, nil, cookies)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return &RemoteProfileError{
+			Status:    http.StatusUnauthorized,
+			ErrorType: ApiErrorTypeUnauthorized,
+			Message:   "Remote session expired. Please log in again.",
+		}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return &RemoteProfileError{
+			Status:    mapRemoteStatus(resp.StatusCode),
+			ErrorType: inferErrorType(resp.StatusCode),
+			Message:   extractRemoteErrorMessage(body),
+		}
+	}
+	return nil
+}
+
 func (s *RemoteProfileService) doJSONRequest(ctx context.Context, method, urlValue string, body []byte, cookies []*http.Cookie) (*http.Response, []byte, error) {
+	return s.doJSONRequestWithHeaders(ctx, method, urlValue, body, cookies, nil)
+}
+
+func (s *RemoteProfileService) doJSONRequestWithHeaders(ctx context.Context, method, urlValue string, body []byte, cookies []*http.Cookie, headers map[string]string) (*http.Response, []byte, error) {
 	var reader io.Reader
 	if len(body) > 0 {
 		reader = bytes.NewReader(body)
@@ -939,6 +1212,12 @@ func (s *RemoteProfileService) doJSONRequest(ctx context.Context, method, urlVal
 	req.Header.Set("Accept", "application/json")
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	for key, value := range headers {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+			continue
+		}
+		req.Header.Set(key, value)
 	}
 	for _, cookie := range cookies {
 		if cookie != nil {
@@ -1034,18 +1313,21 @@ func findCookie(cookies []*http.Cookie, name string) *http.Cookie {
 }
 
 type remoteProfileRecord struct {
-	ID               int64
-	Tag              string
-	Label            sql.NullString
-	APIBase          string
-	Status           string
-	EncryptedSession sql.NullString
-	SessionExpiresAt sql.NullTime
-	LastLoginAt      sql.NullTime
-	LastUsedAt       sql.NullTime
-	CreatedBy        sql.NullInt64
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                        int64
+	Tag                       string
+	Label                     sql.NullString
+	APIBase                   string
+	ConnectorID               sql.NullString
+	RemoteSessionID           sql.NullString
+	Status                    string
+	EncryptedSession          sql.NullString
+	SessionExpiresAt          sql.NullTime
+	RemoteSessionLastSyncedAt sql.NullTime
+	LastLoginAt               sql.NullTime
+	LastUsedAt                sql.NullTime
+	CreatedBy                 sql.NullInt64
+	CreatedAt                 time.Time
+	UpdatedAt                 time.Time
 }
 
 func (r *remoteProfileRecord) toProfile(now time.Time) RemoteProfile {
@@ -1062,6 +1344,8 @@ func (r *remoteProfileRecord) toProfile(now time.Time) RemoteProfile {
 		Tag:              r.Tag,
 		Label:            NullStringValue(r.Label),
 		APIBase:          r.APIBase,
+		ConnectorID:      strings.TrimSpace(r.ConnectorID.String),
+		RemoteSessionID:  NullStringValue(r.RemoteSessionID),
 		Status:           status,
 		HasSession:       hasSession,
 		SessionExpiresAt: NullTimeValue(r.SessionExpiresAt),
@@ -1073,6 +1357,13 @@ func (r *remoteProfileRecord) toProfile(now time.Time) RemoteProfile {
 	}
 }
 
+func remoteProfileConnectorID(rec *remoteProfileRecord) string {
+	if !rec.ConnectorID.Valid {
+		return ""
+	}
+	return strings.TrimSpace(rec.ConnectorID.String)
+}
+
 func scanRemoteProfile(rows *sql.Rows) (*remoteProfileRecord, error) {
 	var rec remoteProfileRecord
 	if err := rows.Scan(
@@ -1080,9 +1371,12 @@ func scanRemoteProfile(rows *sql.Rows) (*remoteProfileRecord, error) {
 		&rec.Tag,
 		&rec.Label,
 		&rec.APIBase,
+		&rec.ConnectorID,
+		&rec.RemoteSessionID,
 		&rec.Status,
 		&rec.EncryptedSession,
 		&rec.SessionExpiresAt,
+		&rec.RemoteSessionLastSyncedAt,
 		&rec.LastLoginAt,
 		&rec.LastUsedAt,
 		&rec.CreatedBy,
@@ -1101,9 +1395,12 @@ func scanRemoteProfileRow(row *sql.Row) (*remoteProfileRecord, error) {
 		&rec.Tag,
 		&rec.Label,
 		&rec.APIBase,
+		&rec.ConnectorID,
+		&rec.RemoteSessionID,
 		&rec.Status,
 		&rec.EncryptedSession,
 		&rec.SessionExpiresAt,
+		&rec.RemoteSessionLastSyncedAt,
 		&rec.LastLoginAt,
 		&rec.LastUsedAt,
 		&rec.CreatedBy,

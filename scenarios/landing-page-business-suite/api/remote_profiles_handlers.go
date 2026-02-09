@@ -16,6 +16,8 @@ type RemoteProfileManager interface {
 	Login(ctx context.Context, id int64, email string, password string) (*RemoteProfile, error)
 	Logout(ctx context.Context, id int64) (*RemoteProfile, error)
 	Test(ctx context.Context, id int64) (*RemoteProfile, error)
+	SessionLinks(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error)
+	RevokeRemoteSessions(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error)
 	Proxy(ctx context.Context, id int64, req RemoteProfileProxyRequest) (*RemoteProxyResponse, error)
 }
 
@@ -179,6 +181,50 @@ func handleAdminRemoteProfileTest(svc RemoteProfileManager) http.HandlerFunc {
 			return
 		}
 		writeJSONSuccessData(w, profile)
+	}
+}
+
+func handleAdminRemoteProfileSessionLinks(svc RemoteProfileManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := getPathParamInt64(w, r, "id")
+		if !ok {
+			return
+		}
+		links, err := svc.SessionLinks(r.Context(), id)
+		if err != nil {
+			if writeRemoteProfileError(w, err) {
+				return
+			}
+			logStructuredError("remote_profile_session_links_failed", map[string]interface{}{
+				"error": err.Error(),
+				"id":    id,
+			})
+			writeJSONError(w, http.StatusInternalServerError, "Remote profile session inspection failed", ApiErrorTypeServerError)
+			return
+		}
+		writeJSONSuccessData(w, links)
+	}
+}
+
+func handleAdminRemoteProfileRemoteRevoke(svc RemoteProfileManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := getPathParamInt64(w, r, "id")
+		if !ok {
+			return
+		}
+		links, err := svc.RevokeRemoteSessions(r.Context(), id)
+		if err != nil {
+			if writeRemoteProfileError(w, err) {
+				return
+			}
+			logStructuredError("remote_profile_remote_revoke_failed", map[string]interface{}{
+				"error": err.Error(),
+				"id":    id,
+			})
+			writeJSONError(w, http.StatusInternalServerError, "Remote session revoke failed", ApiErrorTypeServerError)
+			return
+		}
+		writeJSONSuccessData(w, links)
 	}
 }
 

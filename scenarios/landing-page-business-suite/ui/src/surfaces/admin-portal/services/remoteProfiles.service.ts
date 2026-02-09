@@ -1,9 +1,13 @@
-import type { RemoteProfile } from '../../../shared/api';
+import type { IncomingRemoteProfileSession, RemoteProfile, RemoteProfileSessionLinks } from '../../../shared/api';
 import {
   createRemoteProfileAdmin,
   deleteRemoteProfileAdmin,
   listRemoteProfilesAdmin,
+  listIncomingRemoteProfileSessionsAdmin,
   loginRemoteProfileAdmin,
+  getRemoteProfileSessionLinksAdmin,
+  revokeIncomingRemoteProfileSessionAdmin,
+  revokeRemoteProfileSessionsAdmin,
   logoutRemoteProfileAdmin,
   testRemoteProfileAdmin,
   updateRemoteProfileAdmin,
@@ -133,4 +137,29 @@ export async function logoutRemoteProfile(id: number): Promise<RemoteProfile> {
 
 export async function testRemoteProfile(id: number): Promise<RemoteProfile> {
   return testRemoteProfileAdmin(id);
+}
+
+export async function getRemoteProfileSessionLinks(id: number): Promise<RemoteProfileSessionLinks> {
+  const links = await getRemoteProfileSessionLinksAdmin(id);
+  return {
+    ...links,
+    remote_sessions: links.remote_sessions ?? [],
+  };
+}
+
+export async function revokeRemoteProfileSessions(id: number): Promise<RemoteProfileSessionLinks> {
+  const links = await revokeRemoteProfileSessionsAdmin(id);
+  return {
+    ...links,
+    remote_sessions: links.remote_sessions ?? [],
+  };
+}
+
+export async function fetchIncomingRemoteProfileSessions(connectorID?: string): Promise<IncomingRemoteProfileSession[]> {
+  const response = await listIncomingRemoteProfileSessionsAdmin(connectorID);
+  return response.sessions ?? [];
+}
+
+export async function revokeIncomingRemoteProfileSession(sessionID: string): Promise<void> {
+  await revokeIncomingRemoteProfileSessionAdmin(sessionID);
 }

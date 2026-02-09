@@ -503,7 +503,7 @@ func (a *App) runEndpoint(def endpointDef, args []string) error {
 	fs.Var(&queries, "query", "Query parameters (key=value or key=value&key2=value2). Repeatable.")
 	body := fs.String("body", "", "JSON body payload or @file.json")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -839,12 +839,76 @@ func resolveSecretArg(value string) (string, error) {
 	return trimmed, nil
 }
 
+type boolFlag interface {
+	IsBoolFlag() bool
+}
+
+// parseFlagSetInterspersed allows trailing flags after positional arguments.
+// Go's standard flag parser stops parsing flags at the first positional argument.
+func parseFlagSetInterspersed(fs *flag.FlagSet, args []string) error {
+	return fs.Parse(reorderInterspersedArgs(fs, args))
+}
+
+func reorderInterspersedArgs(fs *flag.FlagSet, args []string) []string {
+	flags := make([]string, 0, len(args))
+	positionals := make([]string, 0, len(args))
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			positionals = append(positionals, args[i+1:]...)
+			break
+		}
+		if !strings.HasPrefix(arg, "-") || arg == "-" {
+			positionals = append(positionals, arg)
+			continue
+		}
+
+		name := parseFlagTokenName(arg)
+		flagDef := fs.Lookup(name)
+		if flagDef == nil {
+			flags = append(flags, arg)
+			continue
+		}
+
+		flags = append(flags, arg)
+		if strings.Contains(arg, "=") || isBoolFlag(flagDef) {
+			continue
+		}
+		if i+1 < len(args) {
+			i++
+			flags = append(flags, args[i])
+		}
+	}
+
+	return append(flags, positionals...)
+}
+
+func parseFlagTokenName(arg string) string {
+	token := strings.TrimLeft(arg, "-")
+	if token == "" {
+		return ""
+	}
+	if idx := strings.IndexByte(token, '='); idx >= 0 {
+		return token[:idx]
+	}
+	return token
+}
+
+func isBoolFlag(f *flag.Flag) bool {
+	if f == nil {
+		return false
+	}
+	bf, ok := f.Value.(boolFlag)
+	return ok && bf.IsBoolFlag()
+}
+
 func (a *App) cmdAdminLogin(args []string) error {
 	fs := flag.NewFlagSet("admin-login", flag.ContinueOnError)
 	email := fs.String("email", "", "Admin email")
 	password := fs.String("password", "", "Admin password or @file")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -940,7 +1004,7 @@ func (a *App) cmdAdminLogin(args []string) error {
 func (a *App) cmdAdminLogout(args []string) error {
 	fs := flag.NewFlagSet("admin-logout", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
@@ -985,7 +1049,7 @@ func (a *App) cmdAdminLogout(args []string) error {
 func (a *App) cmdAdminSession(args []string) error {
 	fs := flag.NewFlagSet("admin-session", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
@@ -1007,7 +1071,7 @@ func (a *App) cmdAdminSession(args []string) error {
 func (a *App) cmdRemoteProfilesList(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-list", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
@@ -1031,7 +1095,7 @@ func (a *App) cmdRemoteProfilesCreate(args []string) error {
 	label := fs.String("label", "", "Profile label")
 	apiBase := fs.String("api-base", "", "Remote API base (must end with /api/v1)")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
@@ -1077,7 +1141,7 @@ func (a *App) cmdRemoteProfilesUpdate(args []string) error {
 	fs.Var(&label, "label", "Updated label (use empty string to clear)")
 	fs.Var(&apiBase, "api-base", "Updated API base")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) != 1 {
@@ -1121,7 +1185,7 @@ func (a *App) cmdRemoteProfilesUpdate(args []string) error {
 func (a *App) cmdRemoteProfilesDelete(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-delete", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) != 1 {
@@ -1149,7 +1213,7 @@ func (a *App) cmdRemoteProfilesLogin(args []string) error {
 	email := fs.String("email", "", "Remote admin email")
 	password := fs.String("password", "", "Remote admin password or @file")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) != 1 {
@@ -1194,7 +1258,7 @@ func (a *App) cmdRemoteProfilesLogin(args []string) error {
 func (a *App) cmdRemoteProfilesLogout(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-logout", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) != 1 {
@@ -1220,7 +1284,7 @@ func (a *App) cmdRemoteProfilesLogout(args []string) error {
 func (a *App) cmdRemoteProfilesTest(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-test", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) != 1 {
@@ -1254,7 +1318,7 @@ func (a *App) cmdRemoteProfilesProxy(args []string) error {
 	fs.Var(&queries, "query", "Query parameters (key=value or key=value&key2=value2). Repeatable.")
 	fs.Var(&headers, "header", "Header override (key=value or key:value). Repeatable.")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) != 1 {

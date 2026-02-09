@@ -23,9 +23,12 @@ CREATE TABLE IF NOT EXISTS remote_profiles (
     tag VARCHAR(100) UNIQUE NOT NULL,
     label TEXT,
     api_base TEXT NOT NULL,
+    connector_id VARCHAR(64) UNIQUE,
+    remote_session_id TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'unknown' CHECK (status IN ('unknown','active','expired','error')),
     encrypted_session TEXT,
     session_expires_at TIMESTAMP,
+    remote_session_last_synced_at TIMESTAMP,
     last_login_at TIMESTAMP,
     last_used_at TIMESTAMP,
     created_by INTEGER REFERENCES admin_users(id) ON DELETE SET NULL,
@@ -35,6 +38,7 @@ CREATE TABLE IF NOT EXISTS remote_profiles (
 
 CREATE INDEX IF NOT EXISTS idx_remote_profiles_tag ON remote_profiles(tag);
 CREATE INDEX IF NOT EXISTS idx_remote_profiles_status ON remote_profiles(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_remote_profiles_connector_id ON remote_profiles(connector_id);
 
 -- Metrics Events Table (OT-P0-019 through OT-P0-022)
 -- Stores analytics events (variant_slug is stored as text, not FK)

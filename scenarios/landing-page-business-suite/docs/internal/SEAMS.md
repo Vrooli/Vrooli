@@ -94,7 +94,7 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 ## Remote Profiles & Proxy Seam (NEW)
 
 - **Remote profile service** (`api/remote_profiles_service.go`)  
-  Centralizes remote admin sessions in one place and encrypts stored `admin_session` cookies at rest. The service owns validation of remote API bases, session storage, and status updates so handlers remain transport-only.
+  Centralizes remote admin sessions in one place and encrypts stored `admin_session` cookies at rest. The service owns validation of remote API bases, connector IDs, remote session linkage (`remote_session_id`), and status updates so handlers remain transport-only.
 
 - **HTTP client seam** (`RemoteProfileService.httpClient`)  
   All remote admin calls flow through an injected `HTTPDoer`, making login/test/proxy flows testable with `httptest.Server` or mock clients.
@@ -107,6 +107,9 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 - **Proxy allowlist seam** (`remoteProfileProxyAllowlist`)  
   Only explicitly allowlisted `/admin/*` endpoints can be proxied, preventing accidental exposure of unrelated admin routes.
+
+- **Incoming session observability seam** (`api/remote_profile_sessions_handlers.go`)  
+  Incoming connector sessions are discovered and revoked via dedicated admin endpoints (`/admin/remote-profile-sessions*`) by parsing connector metadata from admin-session user-agent values. This keeps remote-profile ingress controls separate from generic auth and avoids coupling UI flows directly to auth storage internals.
 
 ---
 

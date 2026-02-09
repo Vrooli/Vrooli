@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -277,6 +278,130 @@ func TestHandleAdminRemoteProfileTest_RemoteError(t *testing.T) {
 	}
 }
 
+func TestHandleAdminRemoteProfileSessionLinks_Success(t *testing.T) {
+	handler := handleAdminRemoteProfileSessionLinks(remoteProfileManagerStub{
+		sessionLinksFn: func(_ context.Context, id int64) (*RemoteProfileSessionLinks, error) {
+			if id != 55 {
+				t.Fatalf("expected id 55, got %d", id)
+			}
+			return &RemoteProfileSessionLinks{
+				ProfileID:       id,
+				ProfileTag:      "prod",
+				ConnectorID:     "connector-1",
+				LocalHasSession: true,
+			}, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/remote-profiles/55/session-links", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "55"})
+	resp := httptest.NewRecorder()
+
+	handler(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.Code)
+	}
+}
+
+func TestHandleAdminRemoteProfileSessionLinks_InternalError(t *testing.T) {
+	handler := handleAdminRemoteProfileSessionLinks(remoteProfileManagerStub{
+		sessionLinksFn: func(_ context.Context, _ int64) (*RemoteProfileSessionLinks, error) {
+			return nil, errors.New("boom")
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/remote-profiles/55/session-links", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "55"})
+	resp := httptest.NewRecorder()
+
+	handler(resp, req)
+
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", resp.Code)
+	}
+}
+
+func TestHandleAdminRemoteProfileRemoteRevoke_RemoteError(t *testing.T) {
+	handler := handleAdminRemoteProfileRemoteRevoke(remoteProfileManagerStub{
+		revokeRemoteFn: func(_ context.Context, _ int64) (*RemoteProfileSessionLinks, error) {
+			return nil, &RemoteProfileError{
+				Status:    http.StatusUnauthorized,
+				ErrorType: ApiErrorTypeUnauthorized,
+				Message:   "expired",
+			}
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/remote-profiles/55/remote-revoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "55"})
+	resp := httptest.NewRecorder()
+
+	handler(resp, req)
+
+	if resp.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.Code)
+	}
+}
+
+func TestHandleAdminRemoteProfileRemoteRevoke_Success(t *testing.T) {
+	handler := handleAdminRemoteProfileRemoteRevoke(remoteProfileManagerStub{
+		revokeRemoteFn: func(_ context.Context, id int64) (*RemoteProfileSessionLinks, error) {
+			if id != 55 {
+				t.Fatalf("expected id 55, got %d", id)
+			}
+			return &RemoteProfileSessionLinks{
+				ProfileID:       id,
+				ProfileTag:      "prod",
+				ConnectorID:     "connector-1",
+				LocalHasSession: false,
+			}, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/remote-profiles/55/remote-revoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "55"})
+	resp := httptest.NewRecorder()
+
+	handler(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.Code)
+	}
+}
+
+func TestHandleAdminRemoteProfileRemoteRevoke_InternalError(t *testing.T) {
+	handler := handleAdminRemoteProfileRemoteRevoke(remoteProfileManagerStub{
+		revokeRemoteFn: func(_ context.Context, _ int64) (*RemoteProfileSessionLinks, error) {
+			return nil, errors.New("boom")
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/remote-profiles/55/remote-revoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "55"})
+	resp := httptest.NewRecorder()
+
+	handler(resp, req)
+
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", resp.Code)
+	}
+}
+
+func TestHandleAdminRemoteProfileRemoteRevoke_InvalidID(t *testing.T) {
+	handler := handleAdminRemoteProfileRemoteRevoke(remoteProfileManagerStub{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/remote-profiles/not-a-number/remote-revoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "not-a-number"})
+	resp := httptest.NewRecorder()
+
+	handler(resp, req)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.Code)
+	}
+}
+
 func TestHandleAdminRemoteProfileProxy_ContentType(t *testing.T) {
 	handler := handleAdminRemoteProfileProxy(remoteProfileManagerStub{
 		proxyFn: func(_ context.Context, id int64, req RemoteProfileProxyRequest) (*RemoteProxyResponse, error) {
@@ -411,14 +536,16 @@ func TestWriteRemoteProfileErrorMapping(t *testing.T) {
 }
 
 type remoteProfileManagerStub struct {
-	listFn   func(context.Context) ([]RemoteProfile, error)
-	createFn func(context.Context, RemoteProfileCreateRequest, string) (*RemoteProfile, error)
-	updateFn func(context.Context, int64, RemoteProfileUpdateRequest) (*RemoteProfile, error)
-	deleteFn func(context.Context, int64) error
-	loginFn  func(context.Context, int64, string, string) (*RemoteProfile, error)
-	logoutFn func(context.Context, int64) (*RemoteProfile, error)
-	testFn   func(context.Context, int64) (*RemoteProfile, error)
-	proxyFn  func(context.Context, int64, RemoteProfileProxyRequest) (*RemoteProxyResponse, error)
+	listFn         func(context.Context) ([]RemoteProfile, error)
+	createFn       func(context.Context, RemoteProfileCreateRequest, string) (*RemoteProfile, error)
+	updateFn       func(context.Context, int64, RemoteProfileUpdateRequest) (*RemoteProfile, error)
+	deleteFn       func(context.Context, int64) error
+	loginFn        func(context.Context, int64, string, string) (*RemoteProfile, error)
+	logoutFn       func(context.Context, int64) (*RemoteProfile, error)
+	testFn         func(context.Context, int64) (*RemoteProfile, error)
+	sessionLinksFn func(context.Context, int64) (*RemoteProfileSessionLinks, error)
+	revokeRemoteFn func(context.Context, int64) (*RemoteProfileSessionLinks, error)
+	proxyFn        func(context.Context, int64, RemoteProfileProxyRequest) (*RemoteProxyResponse, error)
 }
 
 func (s remoteProfileManagerStub) List(ctx context.Context) ([]RemoteProfile, error) {
@@ -466,6 +593,20 @@ func (s remoteProfileManagerStub) Logout(ctx context.Context, id int64) (*Remote
 func (s remoteProfileManagerStub) Test(ctx context.Context, id int64) (*RemoteProfile, error) {
 	if s.testFn != nil {
 		return s.testFn(ctx, id)
+	}
+	return nil, nil
+}
+
+func (s remoteProfileManagerStub) SessionLinks(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error) {
+	if s.sessionLinksFn != nil {
+		return s.sessionLinksFn(ctx, id)
+	}
+	return nil, nil
+}
+
+func (s remoteProfileManagerStub) RevokeRemoteSessions(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error) {
+	if s.revokeRemoteFn != nil {
+		return s.revokeRemoteFn(ctx, id)
 	}
 	return nil, nil
 }

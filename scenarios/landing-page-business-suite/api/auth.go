@@ -173,15 +173,17 @@ type LoginResponse struct {
 	Email         string `json:"email,omitempty"`
 	Authenticated bool   `json:"authenticated"`
 	ResetEnabled  bool   `json:"reset_enabled"`
+	SessionID     string `json:"session_id,omitempty"`
 }
 
-func buildLoginResponse(email string, authenticated bool) LoginResponse {
+func buildLoginResponse(email string, authenticated bool, sessionID string) LoginResponse {
 	resp := LoginResponse{
 		Authenticated: authenticated,
 		ResetEnabled:  true, // Always enabled - UI handles confirmation
 	}
 	if authenticated && email != "" {
 		resp.Email = email
+		resp.SessionID = strings.TrimSpace(sessionID)
 	}
 	return resp
 }
@@ -292,7 +294,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Return user data
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(buildLoginResponse(req.Email, true)); err != nil {
+	if err := json.NewEncoder(w).Encode(buildLoginResponse(req.Email, true, serverSessionID)); err != nil {
 		logStructuredError("login_response_encode_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
@@ -338,7 +340,7 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 	if !ok || email == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		if err := json.NewEncoder(w).Encode(buildLoginResponse("", false)); err != nil {
+		if err := json.NewEncoder(w).Encode(buildLoginResponse("", false, "")); err != nil {
 			logStructuredError("session_response_encode_failed", map[string]interface{}{
 				"error": err.Error(),
 			})
@@ -365,7 +367,7 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			if err := json.NewEncoder(w).Encode(buildLoginResponse("", false)); err != nil {
+			if err := json.NewEncoder(w).Encode(buildLoginResponse("", false, "")); err != nil {
 				logStructuredError("session_response_encode_failed", map[string]interface{}{
 					"error": err.Error(),
 				})
@@ -390,7 +392,7 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(buildLoginResponse(email, true)); err != nil {
+	if err := json.NewEncoder(w).Encode(buildLoginResponse(email, true, serverSessionID)); err != nil {
 		logStructuredError("session_response_encode_failed", map[string]interface{}{
 			"error": err.Error(),
 		})

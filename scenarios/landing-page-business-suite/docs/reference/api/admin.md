@@ -160,6 +160,8 @@ Lists configured remote profiles.
       "tag": "prod",
       "label": "Production",
       "api_base": "https://example.com/api/v1",
+      "connector_id": "b88495f9f4c14e5c90183f5f6f8d0b2a",
+      "remote_session_id": "af9d9f4b...",
       "status": "active",
       "has_session": true,
       "session_expires_at": "2026-02-04T18:15:00Z",
@@ -276,6 +278,97 @@ Validates the stored remote session.
 
 **Errors:**
 - `401 Unauthorized` - Remote session expired
+
+---
+
+### GET /admin/remote-profiles/{id}/session-links
+
+Returns "both sides" session visibility for one profile:
+- local stored-session status (`has_session`, local status, expiry)
+- remote-side sessions discovered on the connected LPBS deployment for this profile's connector id
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "profile_id": 1,
+  "profile_tag": "prod",
+  "connector_id": "b88495f9f4c14e5c90183f5f6f8d0b2a",
+  "local_has_session": true,
+  "local_status": "active",
+  "local_session_expires_at": "2026-02-04T18:15:00Z",
+  "remote_session_id": "af9d9f4b...",
+  "remote_sessions": [
+    {
+      "session_id": "af9d9f4b...",
+      "admin_email": "admin@localhost",
+      "connector_id": "b88495f9f4c14e5c90183f5f6f8d0b2a",
+      "profile_tag": "prod",
+      "origin": "lpbs-local",
+      "created_at": "2026-02-04T17:15:00Z",
+      "last_activity": "2026-02-04T17:45:00Z",
+      "expires_at": "2026-02-11T17:15:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### POST /admin/remote-profiles/{id}/remote-revoke
+
+Revokes all remote-side sessions linked to this profile connector, then clears the local stored session.
+
+**Authentication:** Admin session required
+
+**Response:** Same shape as `GET /admin/remote-profiles/{id}/session-links`
+
+---
+
+### GET /admin/remote-profile-sessions
+
+Lists incoming connector sessions on the current LPBS instance (this is what the deployed LPBS uses to show and revoke remote-profile logins).
+
+**Authentication:** Admin session required
+
+**Query params:**
+- `connector_id` (optional): filter to one connector
+
+**Response:**
+```json
+{
+  "sessions": [
+    {
+      "session_id": "af9d9f4b...",
+      "admin_email": "admin@localhost",
+      "connector_id": "b88495f9f4c14e5c90183f5f6f8d0b2a",
+      "profile_tag": "prod",
+      "origin": "lpbs-local",
+      "created_at": "2026-02-04T17:15:00Z",
+      "last_activity": "2026-02-04T17:45:00Z",
+      "expires_at": "2026-02-11T17:15:00Z",
+      "ip_address": "203.0.113.10",
+      "user_agent": "LPBS-RemoteProfile/1 connector_id=..."
+    }
+  ]
+}
+```
+
+---
+
+### DELETE /admin/remote-profile-sessions/{session_id}
+
+Revokes one incoming connector session on the current LPBS instance.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
 
 ---
 

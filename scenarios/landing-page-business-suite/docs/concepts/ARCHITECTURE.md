@@ -131,8 +131,8 @@ api/
 │   ├── variant_service      # Variant selection
 │   ├── content_service      # Section CRUD
 │   ├── metrics_service      # Event processing
-│   ├── download_service     # Entitlement gating
-│   └── remote_profiles_service # Remote admin sessions + proxying
+│   ├── download_service        # Entitlement gating
+│   └── remote_profiles_service # Remote admin sessions, connector linking, remote-side visibility/revoke
 ├── auth.go                  # Session middleware
 ├── logging.go               # Structured logging
 └── initialization/
@@ -181,7 +181,7 @@ api/
 
 The database stores runtime state (sessions, subscriptions, metrics) rather than configuration:
 
-- `admin_users`, `admin_sessions` — admin auth/session state
+- `admin_users`, `admin_sessions` — admin auth/session state (includes connector-attributed remote-profile sessions via user-agent metadata)
 - `metrics_events` — analytics events
 - `checkout_sessions` — Stripe checkout tracking
 - `subscriptions`, `subscription_schedules` — subscription lifecycle cache

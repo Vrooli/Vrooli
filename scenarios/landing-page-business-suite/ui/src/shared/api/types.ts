@@ -220,6 +220,8 @@ export interface RemoteProfile {
   tag: string;
   label?: string | null;
   api_base: string;
+  connector_id?: string;
+  remote_session_id?: string | null;
   status: RemoteProfileStatus;
   has_session: boolean;
   session_expires_at?: string;
@@ -228,6 +230,30 @@ export interface RemoteProfile {
   created_by?: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface IncomingRemoteProfileSession {
+  session_id: string;
+  admin_email: string;
+  connector_id: string;
+  profile_tag?: string;
+  origin?: string;
+  created_at: string;
+  last_activity: string;
+  expires_at: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
+}
+
+export interface RemoteProfileSessionLinks {
+  profile_id: number;
+  profile_tag: string;
+  connector_id: string;
+  local_has_session: boolean;
+  local_status: string;
+  local_session_expires_at?: string;
+  remote_session_id?: string | null;
+  remote_sessions?: IncomingRemoteProfileSession[];
 }
 
 export type SectionType =

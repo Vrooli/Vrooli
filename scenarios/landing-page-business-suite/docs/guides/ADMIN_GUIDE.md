@@ -264,11 +264,20 @@ landing-page-business-suite instances so automation can route admin tasks throug
 Use this page to create a profile, authenticate to the remote admin portal, verify session status,
 and revoke access when needed.
 
+The page now exposes both sides of connector sessions:
+- **Outgoing profile state** (local): stored session status, connector id, remote session id, and remote inspection/revoke actions.
+- **Incoming connector sessions** (current LPBS): sessions created by remote-profile logins from other LPBS instances, with direct revoke controls.
+
+This means:
+- On your local LPBS, you can inspect/revoke the remote VPS-side session tied to a profile.
+- On the deployed LPBS, you can see and revoke incoming remote-profile sessions directly.
+
 #### Troubleshooting
 
 - **"Remote session expired"**: Click Login to refresh the session cookie.
 - **"API base must include /api/v1"**: Use the full remote API base URL (for example, `https://your-domain/api/v1`).
 - **Remote test failures**: Confirm the deployment is reachable and the admin credentials are valid.
+- **Incoming session appears but profile action fails**: revoke the incoming session and re-login the profile to re-establish linkage.
 
 ### Usage
 

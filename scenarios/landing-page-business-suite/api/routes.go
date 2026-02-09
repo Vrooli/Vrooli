@@ -101,7 +101,11 @@ func registerRemoteProfileRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/login", s.requireAdmin(handleAdminRemoteProfileLogin(s.remoteProfileService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/logout", s.requireAdmin(handleAdminRemoteProfileLogout(s.remoteProfileService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/test", s.requireAdminOrService(handleAdminRemoteProfileTest(s.remoteProfileService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/session-links", s.requireAdmin(handleAdminRemoteProfileSessionLinks(s.remoteProfileService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/remote-revoke", s.requireAdmin(handleAdminRemoteProfileRemoteRevoke(s.remoteProfileService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireAdminOrService(handleAdminRemoteProfileProxy(s.remoteProfileService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions", s.requireAdmin(handleAdminListIncomingRemoteProfileSessions(s.db))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions/{session_id}", s.requireAdmin(handleAdminRevokeIncomingRemoteProfileSession(s.db))).Methods("DELETE")
 }
 
 func registerCommerceAdminRoutes(s *Server) {

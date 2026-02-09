@@ -52,10 +52,16 @@ export function RemoteProfiles() {
   const { addToast } = useToast();
   const {
     profiles,
+    incomingSessions,
+    sessionLinksByProfileId,
     loading,
     error,
     actions,
     refresh,
+    refreshIncomingSessions,
+    handleLoadSessionLinks,
+    handleRevokeRemoteSessions,
+    handleRevokeIncomingSession,
     handleCreate,
     handleUpdate,
     handleDelete,
@@ -186,6 +192,36 @@ export function RemoteProfiles() {
     });
   };
 
+  const handleInspectRemoteProfile = async (profile: RemoteProfile) => {
+    const result = await handleLoadSessionLinks(profile.id);
+    addToast({
+      type: result.success ? 'success' : 'error',
+      message: result.message ?? (result.success ? 'Remote state loaded' : 'Failed to inspect remote state'),
+    });
+  };
+
+  const handleRemoteRevokeProfile = async (profile: RemoteProfile) => {
+    if (!confirm(`Revoke remote session(s) for "${profile.tag}" and clear local stored session?`)) {
+      return;
+    }
+    const result = await handleRevokeRemoteSessions(profile.id);
+    addToast({
+      type: result.success ? 'success' : 'error',
+      message: result.message ?? (result.success ? 'Remote sessions revoked' : 'Failed to revoke remote sessions'),
+    });
+  };
+
+  const handleIncomingRevoke = async (sessionID: string) => {
+    if (!confirm(`Revoke incoming remote session "${sessionID}"?`)) {
+      return;
+    }
+    const result = await handleRevokeIncomingSession(sessionID);
+    addToast({
+      type: result.success ? 'success' : 'error',
+      message: result.message ?? (result.success ? 'Incoming remote session revoked' : 'Failed to revoke incoming remote session'),
+    });
+  };
+
   const sortedProfiles = useMemo(() => profiles, [profiles]);
 
   return (
@@ -231,136 +267,240 @@ export function RemoteProfiles() {
 
         {loading ? (
           <div className="text-center py-10 text-slate-400">Loading remote profiles...</div>
-        ) : sortedProfiles.length === 0 ? (
-          <Card className={`${LAYOUT.card.base} border-dashed`}>
-            <CardContent className="pt-6 text-center">
-              <Server className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-              <p className="text-slate-400 mb-4">No remote profiles configured yet</p>
-              <Button onClick={openCreateModal} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Your First Profile
-              </Button>
-            </CardContent>
-          </Card>
         ) : (
           <div className={LAYOUT.sectionSpacing}>
-            {sortedProfiles.map((profile) => {
-              const status = getRemoteProfileStatusMeta(profile);
-              const StatusIcon = STATUS_ICONS[status.tone];
-              const busy = {
-                login: actions.loginId === profile.id,
-                logout: actions.logoutId === profile.id,
-                test: actions.testingId === profile.id,
-                delete: actions.deletingId === profile.id,
-                update: actions.updatingId === profile.id,
-              };
-              const canTest = profile.has_session && !busy.login;
-              return (
-                <Card key={profile.id} className={LAYOUT.card.base}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-slate-800">
-                          <Server className="h-5 w-5 text-sky-300" />
+            <Card className={LAYOUT.card.base}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-lg">Incoming Remote Sessions</CardTitle>
+                    <CardDescription>
+                      Sessions created by remote-profile connectors logging into this LPBS instance.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshIncomingSessions}
+                    disabled={actions.incomingRefreshing}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${actions.incomingRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh Incoming
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {incomingSessions.length === 0 ? (
+                  <p className="text-sm text-slate-400">No incoming remote-profile sessions detected.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {incomingSessions.map((session) => (
+                      <div key={session.session_id} className="rounded-lg border border-slate-700 p-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1 text-sm">
+                            <p className="text-slate-200 font-medium">
+                              {session.profile_tag ? `#${session.profile_tag}` : session.connector_id}
+                            </p>
+                            <p className="text-slate-400">
+                              Admin: {session.admin_email} • Origin: {session.origin || 'unknown'}
+                            </p>
+                            <p className="text-slate-500 font-mono text-xs">Session: {session.session_id}</p>
+                            <p className="text-slate-500 text-xs">
+                              Last activity: {formatDateTime(session.last_activity, 'short')} • Expires: {formatDateTime(session.expires_at, 'short')}
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleIncomingRevoke(session.session_id)}
+                            disabled={actions.incomingRevokeSessionId === session.session_id}
+                            className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Revoke
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            {sortedProfiles.length === 0 ? (
+              <Card className={`${LAYOUT.card.base} border-dashed`}>
+                <CardContent className="pt-6 text-center">
+                  <Server className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+                  <p className="text-slate-400 mb-4">No remote profiles configured yet</p>
+                  <Button onClick={openCreateModal} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Your First Profile
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              sortedProfiles.map((profile) => {
+                const links = sessionLinksByProfileId[profile.id];
+                const status = getRemoteProfileStatusMeta(profile);
+                const StatusIcon = STATUS_ICONS[status.tone];
+                const busy = {
+                  login: actions.loginId === profile.id,
+                  logout: actions.logoutId === profile.id,
+                  test: actions.testingId === profile.id,
+                  delete: actions.deletingId === profile.id,
+                  update: actions.updatingId === profile.id,
+                };
+                const canTest = profile.has_session && !busy.login;
+                return (
+                  <Card key={profile.id} className={LAYOUT.card.base}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-slate-800">
+                            <Server className="h-5 w-5 text-sky-300" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">
+                              {profile.label?.trim() || profile.tag}
+                            </CardTitle>
+                            <CardDescription className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-slate-300">#{profile.tag}</span>
+                              <span className="text-slate-500">•</span>
+                              <span className="inline-flex items-center gap-1">
+                                <Link2 className="h-3 w-3" />
+                                {profile.api_base}
+                              </span>
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${STATUS_STYLES[status.tone]}`}>
+                          <StatusIcon className="h-3 w-3" />
+                          <span className="font-semibold">{status.label}</span>
+                          <span className="text-slate-400">{status.description}</span>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-4 md:grid-cols-3 text-sm text-slate-400">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-500">Session</p>
+                          <p className="text-slate-200">
+                            {profile.has_session ? 'Stored session' : 'Not logged in'}
+                          </p>
+                          <p className="text-xs text-slate-500 font-mono">
+                            Connector: {profile.connector_id || 'pending'}
+                          </p>
+                          <p className="text-xs text-slate-500 font-mono">
+                            Remote session ID: {profile.remote_session_id || 'unknown'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Expires: {formatDateTime(profile.session_expires_at, 'short')}
+                          </p>
                         </div>
                         <div>
-                          <CardTitle className="text-lg">
-                            {profile.label?.trim() || profile.tag}
-                          </CardTitle>
-                          <CardDescription className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-slate-300">#{profile.tag}</span>
-                            <span className="text-slate-500">•</span>
-                            <span className="inline-flex items-center gap-1">
-                              <Link2 className="h-3 w-3" />
-                              {profile.api_base}
-                            </span>
-                          </CardDescription>
+                          <p className="text-xs uppercase tracking-wide text-slate-500">Last login</p>
+                          <p className="text-slate-200">{formatDateTime(profile.last_login_at, 'short')}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-500">Last used</p>
+                          <p className="text-slate-200">{formatDateTime(profile.last_used_at, 'short')}</p>
                         </div>
                       </div>
-                      <div className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${STATUS_STYLES[status.tone]}`}>
-                        <StatusIcon className="h-3 w-3" />
-                        <span className="font-semibold">{status.label}</span>
-                        <span className="text-slate-400">{status.description}</span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-3 text-sm text-slate-400">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">Session</p>
-                        <p className="text-slate-200">
-                          {profile.has_session ? 'Stored session' : 'Not logged in'}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Expires: {formatDateTime(profile.session_expires_at, 'short')}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">Last login</p>
-                        <p className="text-slate-200">{formatDateTime(profile.last_login_at, 'short')}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">Last used</p>
-                        <p className="text-slate-200">{formatDateTime(profile.last_used_at, 'short')}</p>
-                      </div>
-                    </div>
 
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openLoginModal(profile)}
-                        disabled={busy.login}
-                        className="gap-1"
-                      >
-                        <LogIn className={`h-4 w-4 ${busy.login ? 'animate-pulse' : ''}`} />
-                        {profile.has_session ? 'Re-login' : 'Login'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleTestProfile(profile)}
-                        disabled={!canTest || busy.test}
-                        className="gap-1"
-                      >
-                        <RefreshCw className={`h-4 w-4 ${busy.test ? 'animate-spin' : ''}`} />
-                        Test
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleLogoutProfile(profile)}
-                        disabled={!profile.has_session || busy.logout}
-                        className="gap-1"
-                      >
-                        <LogOut className={`h-4 w-4 ${busy.logout ? 'animate-pulse' : ''}`} />
-                        Logout
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(profile)}
-                        disabled={busy.update}
-                        className="gap-1"
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteProfile(profile)}
-                        disabled={busy.delete}
-                        className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openLoginModal(profile)}
+                          disabled={busy.login}
+                          className="gap-1"
+                        >
+                          <LogIn className={`h-4 w-4 ${busy.login ? 'animate-pulse' : ''}`} />
+                          {profile.has_session ? 'Re-login' : 'Login'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestProfile(profile)}
+                          disabled={!canTest || busy.test}
+                          className="gap-1"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${busy.test ? 'animate-spin' : ''}`} />
+                          Test
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleLogoutProfile(profile)}
+                          disabled={!profile.has_session || busy.logout}
+                          className="gap-1"
+                        >
+                          <LogOut className={`h-4 w-4 ${busy.logout ? 'animate-pulse' : ''}`} />
+                          Logout
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleInspectRemoteProfile(profile)}
+                          disabled={actions.loadingLinksId === profile.id || !profile.has_session}
+                          className="gap-1"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${actions.loadingLinksId === profile.id ? 'animate-spin' : ''}`} />
+                          Inspect Remote
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemoteRevokeProfile(profile)}
+                          disabled={actions.remoteRevokeId === profile.id || !profile.has_session}
+                          className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
+                        >
+                          <LogOut className={`h-4 w-4 ${actions.remoteRevokeId === profile.id ? 'animate-pulse' : ''}`} />
+                          Revoke Remote
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(profile)}
+                          disabled={busy.update}
+                          className="gap-1"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteProfile(profile)}
+                          disabled={busy.delete}
+                          className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
+                      {links && (
+                        <div className="mt-4 rounded-lg border border-slate-700/60 bg-slate-900/60 p-3">
+                          <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Remote Side Visibility</p>
+                          <p className="text-sm text-slate-300">
+                            Linked sessions on remote instance: <span className="font-semibold">{links.remote_sessions?.length ?? 0}</span>
+                          </p>
+                          {(links.remote_sessions?.length ?? 0) > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {links.remote_sessions!.map((session) => (
+                                <p key={session.session_id} className="text-xs text-slate-400 font-mono">
+                                  {session.session_id} • {session.origin || 'unknown'} • {formatDateTime(session.last_activity, 'short')}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
         )}
       </div>

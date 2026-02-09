@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { RemoteProfile } from '../../../shared/api';
+import type { IncomingRemoteProfileSession, RemoteProfile, RemoteProfileSessionLinks } from '../../../shared/api';
 import {
   createRemoteProfile,
   deleteRemoteProfile,
+  fetchIncomingRemoteProfileSessions,
   fetchRemoteProfiles,
+  getRemoteProfileSessionLinks,
   loginRemoteProfile,
+  revokeIncomingRemoteProfileSession,
+  revokeRemoteProfileSessions,
   logoutRemoteProfile,
   testRemoteProfile,
   updateRemoteProfile,
@@ -26,14 +30,24 @@ export interface RemoteProfileActionState {
   logoutId: number | null;
   testingId: number | null;
   refreshing: boolean;
+  loadingLinksId: number | null;
+  remoteRevokeId: number | null;
+  incomingRefreshing: boolean;
+  incomingRevokeSessionId: string | null;
 }
 
 export interface UseRemoteProfilesFormReturn {
   profiles: RemoteProfile[];
+  incomingSessions: IncomingRemoteProfileSession[];
+  sessionLinksByProfileId: Record<number, RemoteProfileSessionLinks>;
   loading: boolean;
   error: string | null;
   actions: RemoteProfileActionState;
   refresh: () => Promise<void>;
+  refreshIncomingSessions: () => Promise<void>;
+  handleLoadSessionLinks: (id: number) => Promise<RemoteProfileActionResult & { links?: RemoteProfileSessionLinks }>;
+  handleRevokeRemoteSessions: (id: number) => Promise<RemoteProfileActionResult & { links?: RemoteProfileSessionLinks }>;
+  handleRevokeIncomingSession: (sessionID: string) => Promise<RemoteProfileActionResult>;
   handleCreate: (form: RemoteProfileFormState) => Promise<RemoteProfileActionResult>;
   handleUpdate: (id: number, form: RemoteProfileFormState) => Promise<RemoteProfileActionResult>;
   handleDelete: (id: number) => Promise<RemoteProfileActionResult>;
@@ -50,10 +64,16 @@ const defaultActionState: RemoteProfileActionState = {
   logoutId: null,
   testingId: null,
   refreshing: false,
+  loadingLinksId: null,
+  remoteRevokeId: null,
+  incomingRefreshing: false,
+  incomingRevokeSessionId: null,
 };
 
 export function useRemoteProfilesForm(): UseRemoteProfilesFormReturn {
   const [profiles, setProfiles] = useState<RemoteProfile[]>([]);
+  const [incomingSessions, setIncomingSessions] = useState<IncomingRemoteProfileSession[]>([]);
+  const [sessionLinksByProfileId, setSessionLinksByProfileId] = useState<Record<number, RemoteProfileSessionLinks>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actions, setActions] = useState<RemoteProfileActionState>(defaultActionState);
@@ -95,13 +115,37 @@ export function useRemoteProfilesForm(): UseRemoteProfilesFormReturn {
     }
   }, []);
 
+  const loadIncomingSessions = useCallback(async (silent = false) => {
+    if (silent) {
+      setActions((prev) => ({ ...prev, incomingRefreshing: true }));
+    }
+    try {
+      const data = await fetchIncomingRemoteProfileSessions();
+      setIncomingSessions(data);
+    } finally {
+      if (silent) {
+        setActions((prev) => ({ ...prev, incomingRefreshing: false }));
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    loadProfiles(false);
-  }, [loadProfiles]);
+    void Promise.all([
+      loadProfiles(false),
+      loadIncomingSessions(false),
+    ]);
+  }, [loadProfiles, loadIncomingSessions]);
 
   const refresh = useCallback(async () => {
-    await loadProfiles(true);
-  }, [loadProfiles]);
+    await Promise.all([
+      loadProfiles(true),
+      loadIncomingSessions(true),
+    ]);
+  }, [loadProfiles, loadIncomingSessions]);
+
+  const refreshIncomingSessions = useCallback(async () => {
+    await loadIncomingSessions(true);
+  }, [loadIncomingSessions]);
 
   const handleCreate = useCallback(async (form: RemoteProfileFormState): Promise<RemoteProfileActionResult> => {
     setActions((prev) => ({ ...prev, creating: true }));
@@ -181,14 +225,64 @@ export function useRemoteProfilesForm(): UseRemoteProfilesFormReturn {
     }
   }, [upsertProfile]);
 
+  const handleLoadSessionLinks = useCallback(async (id: number): Promise<RemoteProfileActionResult & { links?: RemoteProfileSessionLinks }> => {
+    setActions((prev) => ({ ...prev, loadingLinksId: id }));
+    try {
+      const links = await getRemoteProfileSessionLinks(id);
+      setSessionLinksByProfileId((prev) => ({ ...prev, [id]: links }));
+      return { success: true, links, message: 'Remote session state loaded' };
+    } catch (err) {
+      return { success: false, message: err instanceof Error ? err.message : 'Failed to load remote session state' };
+    } finally {
+      setActions((prev) => ({ ...prev, loadingLinksId: null }));
+    }
+  }, []);
+
+  const handleRevokeRemoteSessions = useCallback(async (id: number): Promise<RemoteProfileActionResult & { links?: RemoteProfileSessionLinks }> => {
+    setActions((prev) => ({ ...prev, remoteRevokeId: id }));
+    try {
+      const links = await revokeRemoteProfileSessions(id);
+      setSessionLinksByProfileId((prev) => ({ ...prev, [id]: links }));
+      const refreshed = await fetchRemoteProfiles();
+      setProfiles(refreshed);
+      await loadIncomingSessions(true);
+      return { success: true, links, message: 'Remote sessions revoked and local session cleared' };
+    } catch (err) {
+      return { success: false, message: err instanceof Error ? err.message : 'Failed to revoke remote sessions' };
+    } finally {
+      setActions((prev) => ({ ...prev, remoteRevokeId: null }));
+    }
+  }, [loadIncomingSessions]);
+
+  const handleRevokeIncomingSession = useCallback(async (sessionID: string): Promise<RemoteProfileActionResult> => {
+    setActions((prev) => ({ ...prev, incomingRevokeSessionId: sessionID }));
+    try {
+      await revokeIncomingRemoteProfileSession(sessionID);
+      setIncomingSessions((prev) => prev.filter((session) => session.session_id !== sessionID));
+      return { success: true, message: 'Incoming session revoked' };
+    } catch (err) {
+      return { success: false, message: err instanceof Error ? err.message : 'Failed to revoke incoming session' };
+    } finally {
+      setActions((prev) => ({ ...prev, incomingRevokeSessionId: null }));
+    }
+  }, []);
+
   const stableProfiles = useMemo(() => profiles, [profiles]);
+  const stableIncomingSessions = useMemo(() => incomingSessions, [incomingSessions]);
+  const stableSessionLinks = useMemo(() => sessionLinksByProfileId, [sessionLinksByProfileId]);
 
   return {
     profiles: stableProfiles,
+    incomingSessions: stableIncomingSessions,
+    sessionLinksByProfileId: stableSessionLinks,
     loading,
     error,
     actions,
     refresh,
+    refreshIncomingSessions,
+    handleLoadSessionLinks,
+    handleRevokeRemoteSessions,
+    handleRevokeIncomingSession,
     handleCreate,
     handleUpdate,
     handleDelete,

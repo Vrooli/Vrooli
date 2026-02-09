@@ -1,8 +1,13 @@
 import { apiCall } from './common';
 import { parseOrNull } from './safeParse';
-import { RemoteProfileSchema, RemoteProfilesListResponseSchema } from './schemas/remoteProfiles.schema';
+import {
+  IncomingRemoteProfileSessionsResponseSchema,
+  RemoteProfileSchema,
+  RemoteProfilesListResponseSchema,
+  RemoteProfileSessionLinksSchema,
+} from './schemas/remoteProfiles.schema';
 import { SuccessResponseSchema } from './schemas/common.schema';
-import type { RemoteProfile } from './types';
+import type { IncomingRemoteProfileSession, RemoteProfile, RemoteProfileSessionLinks } from './types';
 
 export interface RemoteProfileCreatePayload {
   tag: string;
@@ -110,6 +115,51 @@ export function testRemoteProfileAdmin(id: number) {
     const validated = parseOrNull(RemoteProfileSchema, resp, 'RemoteProfile');
     if (!validated) {
       throw new Error('Invalid remote profile response from API');
+    }
+    return validated;
+  });
+}
+
+export function getRemoteProfileSessionLinksAdmin(id: number) {
+  return apiCall<RemoteProfileSessionLinks>(`/admin/remote-profiles/${id}/session-links`).then((resp) => {
+    const validated = parseOrNull(RemoteProfileSessionLinksSchema, resp, 'RemoteProfileSessionLinks');
+    if (!validated) {
+      throw new Error('Invalid remote profile session links response from API');
+    }
+    return validated;
+  });
+}
+
+export function revokeRemoteProfileSessionsAdmin(id: number) {
+  return apiCall<RemoteProfileSessionLinks>(`/admin/remote-profiles/${id}/remote-revoke`, {
+    method: 'POST',
+  }).then((resp) => {
+    const validated = parseOrNull(RemoteProfileSessionLinksSchema, resp, 'RemoteProfileSessionLinks');
+    if (!validated) {
+      throw new Error('Invalid remote profile session links response from API');
+    }
+    return validated;
+  });
+}
+
+export function listIncomingRemoteProfileSessionsAdmin(connectorID?: string) {
+  const query = connectorID?.trim() ? `?connector_id=${encodeURIComponent(connectorID.trim())}` : '';
+  return apiCall<{ sessions: IncomingRemoteProfileSession[] }>(`/admin/remote-profile-sessions${query}`).then((resp) => {
+    const validated = parseOrNull(IncomingRemoteProfileSessionsResponseSchema, resp, 'IncomingRemoteProfileSessionsResponse');
+    if (!validated) {
+      return { sessions: [] };
+    }
+    return { sessions: validated.sessions ?? [] };
+  });
+}
+
+export function revokeIncomingRemoteProfileSessionAdmin(sessionID: string) {
+  return apiCall<{ success: boolean }>(`/admin/remote-profile-sessions/${encodeURIComponent(sessionID)}`, {
+    method: 'DELETE',
+  }).then((resp) => {
+    const validated = parseOrNull(SuccessResponseSchema, resp, 'IncomingRemoteProfileSessionRevokeResponse');
+    if (!validated) {
+      throw new Error('Invalid revoke incoming remote profile session response from API');
     }
     return validated;
   });
