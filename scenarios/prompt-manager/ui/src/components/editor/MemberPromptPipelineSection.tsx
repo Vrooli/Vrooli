@@ -126,10 +126,10 @@ function extractAgentFileBlocks(sectionContent: string): AgentFileBlock[] {
   for (let i = 0; i < matches.length; i += 1) {
     const match = matches[i]
     if (!match) continue
-    const fullMatch = match[0] ?? ''
+    const fullMatch = match[0]
     const heading = match[1]
     if (!heading) continue
-    const start = (match.index ?? 0) + fullMatch.length
+    const start = match.index + fullMatch.length
     const end = matches[i + 1]?.index ?? sectionContent.length
     const content = sectionContent.slice(start, end).trim()
     blocks.push({ path: heading.trim(), content })

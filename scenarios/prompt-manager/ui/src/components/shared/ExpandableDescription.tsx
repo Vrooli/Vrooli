@@ -34,15 +34,6 @@ export function ExpandableDescription({
   isLoading,
   maxLines = 2,
 }: ExpandableDescriptionProps) {
-  if (isLoading) {
-    return (
-      <div className={cn('space-y-1.5', className)}>
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-2/3" />
-      </div>
-    )
-  }
-
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -116,6 +107,15 @@ export function ExpandableDescription({
     setEditValue(e.target.value)
     autoResize(e.target)
   }, [])
+
+  if (isLoading) {
+    return (
+      <div className={cn('space-y-1.5', className)}>
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+    )
+  }
 
   // Line clamp class based on maxLines
   const lineClampClass = {

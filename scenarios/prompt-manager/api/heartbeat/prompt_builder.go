@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"prompt-manager/interop"
 	"prompt-manager/store"
 )
 
@@ -236,6 +237,77 @@ func (b *PromptBuilder) buildRelationshipSection(ctx context.Context, teamID, ag
 	section += fmt.Sprintf("- Delete a message: `prompt-manager team message-delete %s %s <message-id>`\n", teamID, agentID)
 	section += fmt.Sprintf("- Clear inbox: `prompt-manager team message-clear %s %s`\n", teamID, agentID)
 	return section
+}
+
+// BuildTeamLeadPrompt constructs a prompt for single-process spawn mode.
+// It loads the full team snapshot, converts to CC config, and generates spawn instructions.
+func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, vrooliRoot string) (string, error) {
+	if b.teamStore == nil {
+		return "", fmt.Errorf("team store is not configured")
+	}
+
+	team, err := b.teamStore.Get(ctx, teamID)
+	if err != nil {
+		return "", fmt.Errorf("loading team: %w", err)
+	}
+
+	// Build snapshot
+	snapshot := &interop.PMTeamSnapshot{
+		Team: *team,
+	}
+
+	// Load members
+	members, err := b.teamStore.GetMembers(ctx, teamID)
+	if err == nil {
+		for _, rel := range members {
+			pm := interop.PMTeamMember{
+				Relation: rel,
+			}
+			if b.agentStore != nil {
+				if agent, err := b.agentStore.Get(ctx, rel.AgentID); err == nil {
+					pm.Agent = *agent
+				}
+			}
+			if resp, err := b.teamStore.GetResponsibilities(ctx, teamID, rel.AgentID); err == nil {
+				pm.Responsibilities = resp
+			}
+			if instr, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, rel.AgentID); err == nil {
+				pm.HeartbeatInstr = instr
+			}
+			snapshot.Members = append(snapshot.Members, pm)
+		}
+	}
+
+	// Load roles
+	if roles, err := b.teamStore.GetRoles(ctx, teamID); err == nil {
+		snapshot.Roles = roles.Roles
+	}
+
+	// Load org chart
+	if org, err := b.teamStore.GetOrgChart(ctx, teamID); err == nil {
+		snapshot.OrgEdges = org.Edges
+	}
+
+	// Convert to CC config
+	converter := interop.ClaudeCodeConverter{}
+	ccConfig, err := converter.FromPMTeam(snapshot)
+	if err != nil {
+		return "", fmt.Errorf("converting to CC config: %w", err)
+	}
+
+	// Generate spawn prompt
+	spawnCtx := interop.SpawnContext{
+		WorkingDir: vrooliRoot,
+		VrooliRoot: vrooliRoot,
+		TeamID:     teamID,
+	}
+
+	prompt, err := converter.FormatSpawnPrompt(ccConfig, spawnCtx)
+	if err != nil {
+		return "", fmt.Errorf("generating spawn prompt: %w", err)
+	}
+
+	return prompt, nil
 }
 
 func (b *PromptBuilder) buildInboxSection(ctx context.Context, teamID, agentID string) string {

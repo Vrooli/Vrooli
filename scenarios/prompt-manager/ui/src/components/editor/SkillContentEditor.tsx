@@ -334,7 +334,7 @@ export function SkillContentEditor({
   headerRight,
 }: SkillContentEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
-  const searchDecorationsRef = useRef<string[]>([])
+  const searchDecorationsRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
   const [editorReady, setEditorReady] = useState(false)
   const monaco = useMonaco()
   const isMobile = useIsMobile()
@@ -451,7 +451,7 @@ export function SkillContentEditor({
       if (!model || model.isDisposed()) return
 
       // Build decorations for search matches
-      const decorations: Parameters<typeof editor.deltaDecorations>[1] = []
+      const decorations: Parameters<typeof editor.createDecorationsCollection>[0] = []
 
       for (const match of searchMatches) {
         // Each matchRange is a character position within the line
@@ -476,11 +476,12 @@ export function SkillContentEditor({
 
       console.log('[SearchHighlight] Applying decorations:', decorations.length)
 
-      // Apply decorations using deltaDecorations (handles adding/removing efficiently)
-      searchDecorationsRef.current = editor.deltaDecorations(
-        searchDecorationsRef.current,
-        decorations
-      )
+      // Apply decorations using createDecorationsCollection
+      if (searchDecorationsRef.current) {
+        searchDecorationsRef.current.set(decorations)
+      } else {
+        searchDecorationsRef.current = editor.createDecorationsCollection(decorations)
+      }
     })
 
     // Cleanup decorations when component unmounts or matches change
@@ -488,12 +489,9 @@ export function SkillContentEditor({
       cancelAnimationFrame(frameId)
       const model = editor.getModel()
       // Clear decorations if editor still exists
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- model may be disposed at cleanup time
       if (model && !model.isDisposed()) {
-        searchDecorationsRef.current = editor.deltaDecorations(
-          searchDecorationsRef.current,
-          []
-        )
+        searchDecorationsRef.current?.clear()
+        searchDecorationsRef.current = null
       }
     }
   }, [monaco, searchMatches, editorType, editorReady, value])

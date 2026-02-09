@@ -9,6 +9,7 @@ type Response struct {
 	DisplayName string `json:"displayName"`
 	Mission     string `json:"mission,omitempty"`
 	Enabled     bool   `json:"enabled"`
+	SpawnMode   string `json:"spawnMode,omitempty"`
 	MemberCount int    `json:"memberCount"`
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
@@ -64,6 +65,7 @@ type CreateRequest struct {
 	ID          string `json:"id,omitempty"`
 	DisplayName string `json:"displayName"`
 	Mission     string `json:"mission,omitempty"`
+	SpawnMode   string `json:"spawnMode,omitempty"`
 }
 
 // UpdateRequest is the request body for updating a team.
@@ -71,6 +73,7 @@ type UpdateRequest struct {
 	DisplayName *string `json:"displayName,omitempty"`
 	Mission     *string `json:"mission,omitempty"`
 	Enabled     *bool   `json:"enabled,omitempty"`
+	SpawnMode   *string `json:"spawnMode,omitempty"`
 }
 
 // AddMemberRequest is the request body for adding a member to a team.

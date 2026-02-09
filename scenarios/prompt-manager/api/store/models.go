@@ -84,6 +84,7 @@ type Team struct {
 	Mission     string      `json:"mission,omitempty"`
 	Enabled     bool        `json:"enabled"`
 	EnabledSet  bool        `json:"-"`
+	SpawnMode   string      `json:"spawnMode,omitempty"` // "multi-process" or "single-process"
 	Shared      *TeamShared `json:"shared,omitempty"`
 	Timestamps
 }

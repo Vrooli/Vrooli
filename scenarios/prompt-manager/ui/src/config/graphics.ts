@@ -27,6 +27,7 @@ export const PERFORMANCE_TIERS: Record<PerformanceTier, GraphicsConfig> = {
     antialiasing: 'none',
     vignette: false,
     contactShadows: false,
+    agentWobble: false,
   },
   medium: {
     dpr: [1, 1.5],
@@ -40,6 +41,7 @@ export const PERFORMANCE_TIERS: Record<PerformanceTier, GraphicsConfig> = {
     antialiasing: 'fxaa',
     vignette: true,
     contactShadows: true,
+    agentWobble: true,
   },
   high: {
     dpr: [1, 2],
@@ -53,6 +55,7 @@ export const PERFORMANCE_TIERS: Record<PerformanceTier, GraphicsConfig> = {
     antialiasing: 'smaa',
     vignette: true,
     contactShadows: true,
+    agentWobble: true,
   },
   ultra: {
     dpr: 2,
@@ -66,6 +69,7 @@ export const PERFORMANCE_TIERS: Record<PerformanceTier, GraphicsConfig> = {
     antialiasing: 'smaa',
     vignette: true,
     contactShadows: true,
+    agentWobble: true,
   },
 }
 

@@ -209,10 +209,10 @@ export function AgentWithAccessories({
         </group>
       )}
 
-      {/* Hover glow effect - uses agent's accent color */}
+      {/* Hover glow effect - centered on body (0.4 = body radius offset) */}
       <HoverGlow
         isActive={isHovered}
-        position={LOCAL_ORIGIN}
+        position={[0, 0.4, 0]}
         size={0.8}
         color={agentColors.accent || '#6366f1'}
         intensity={0.6}

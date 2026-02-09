@@ -22,6 +22,7 @@ type Team struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"displayName"`
 	Mission     string `json:"mission,omitempty"`
+	SpawnMode   string `json:"spawnMode,omitempty"`
 	MemberCount int    `json:"memberCount"`
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
@@ -100,12 +101,14 @@ type CreateTeamRequest struct {
 	ID          string `json:"id,omitempty"`
 	DisplayName string `json:"displayName"`
 	Mission     string `json:"mission,omitempty"`
+	SpawnMode   string `json:"spawnMode,omitempty"`
 }
 
 // UpdateTeamRequest is the request body for updating a team
 type UpdateTeamRequest struct {
 	DisplayName *string `json:"displayName,omitempty"`
 	Mission     *string `json:"mission,omitempty"`
+	SpawnMode   *string `json:"spawnMode,omitempty"`
 }
 
 // AddMemberRequest is the request body for adding a member
@@ -129,7 +132,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "team",
 				Aliases:     []string{"teams", "t"},
 				NeedsAPI:    true,
-				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|org-*|message-*|heartbeat-*)",
+				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|org-*|message-*|heartbeat-*|import-cc|export-cc|trigger)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -196,6 +199,12 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdResponsibilities(ctx, subArgs)
 	case "heartbeat-instructions":
 		return cmdHeartbeatInstructions(ctx, subArgs)
+	case "import-cc":
+		return cmdImportCC(ctx, subArgs)
+	case "export-cc":
+		return cmdExportCC(ctx, subArgs)
+	case "trigger":
+		return cmdTriggerTeam(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -237,7 +246,12 @@ Heartbeat Commands:
 
 Member Document Commands:
   responsibilities <team-id> <agent-id>       Get/set RESPONSIBILITIES.md
-  heartbeat-instructions <team-id> <agent-id> Get/set HEARTBEAT.md`
+  heartbeat-instructions <team-id> <agent-id> Get/set HEARTBEAT.md
+
+Claude Code Interop Commands:
+  import-cc <team-name>                       Import a Claude Code team
+  export-cc <team-id>                         Export team as Claude Code config
+  trigger <team-id>                           Trigger team (spawn mode aware)`
 }
 
 func cmdList(ctx appctx.Context, args []string) error {
@@ -311,6 +325,9 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	if team.Mission != "" {
 		fmt.Printf("Mission: %s\n", team.Mission)
 	}
+	if team.SpawnMode != "" {
+		fmt.Printf("Spawn Mode: %s\n", team.SpawnMode)
+	}
 	fmt.Printf("Members: %d\n", team.MemberCount)
 	if len(team.Members) > 0 {
 		fmt.Println("  Members:")
@@ -363,19 +380,21 @@ func cmdShow(ctx appctx.Context, args []string) error {
 func cmdCreate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
 	mission := fs.String("mission", "", "Team mission statement")
+	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team create <name> [--mission=...]")
+		return fmt.Errorf("usage: team create <name> [--mission=...] [--spawn-mode=...]")
 	}
 	name := fs.Arg(0)
 
 	req := CreateTeamRequest{
 		DisplayName: name,
 		Mission:     *mission,
+		SpawnMode:   *spawnMode,
 	}
 
 	var team TeamDetails
@@ -397,13 +416,14 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	name := fs.String("name", "", "New display name")
 	mission := fs.String("mission", "", "New mission statement")
+	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...]")
+		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--spawn-mode=...]")
 	}
 	teamID := fs.Arg(0)
 
@@ -413,6 +433,9 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 	if *mission != "" {
 		req.Mission = mission
+	}
+	if *spawnMode != "" {
+		req.SpawnMode = spawnMode
 	}
 
 	var team TeamDetails
@@ -1304,5 +1327,141 @@ func cmdHeartbeatInstructions(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Println(resp.Content)
+	return nil
+}
+
+// ImportCCRequest is the request body for importing a Claude Code team.
+type ImportCCRequest struct {
+	TeamName string `json:"teamName"`
+}
+
+func cmdImportCC(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("import-cc", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team import-cc <team-name> [--json]")
+	}
+	teamName := fs.Arg(0)
+
+	req := ImportCCRequest{TeamName: teamName}
+	var team TeamDetails
+	if err := ctx.Post("/teams/import/claude-code", req, &team); err != nil {
+		return fmt.Errorf("failed to import CC team: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(team)
+	}
+
+	fmt.Printf("Imported team: %s [%s]\n", team.DisplayName, team.ID)
+	fmt.Printf("Members: %d\n", team.MemberCount)
+	for _, m := range team.Members {
+		fmt.Printf("  - %s (%s)\n", m.DisplayName, m.AgentID)
+	}
+	return nil
+}
+
+// CCExportResponse matches the ToolTeamConfig from the interop package.
+type CCExportResponse struct {
+	TeamName    string           `json:"teamName"`
+	Description string           `json:"description,omitempty"`
+	Members     []CCExportMember `json:"members"`
+}
+
+// CCExportMember represents a member in the CC export.
+type CCExportMember struct {
+	Name      string `json:"name"`
+	AgentType string `json:"agentType"`
+	Model     string `json:"model,omitempty"`
+	Mode      string `json:"mode,omitempty"`
+}
+
+func cmdExportCC(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("export-cc", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	output := fs.String("output", "", "Write output to file path")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team export-cc <team-id> [--json] [--output=path]")
+	}
+	teamID := fs.Arg(0)
+
+	var resp CCExportResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/export/claude-code", teamID), &resp); err != nil {
+		return fmt.Errorf("failed to export CC team: %w", err)
+	}
+
+	data, err := json.MarshalIndent(resp, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal response: %w", err)
+	}
+
+	if *output != "" {
+		if err := os.WriteFile(*output, data, 0o644); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+		fmt.Printf("Exported team %s to %s\n", teamID, *output)
+		return nil
+	}
+
+	if *jsonOut {
+		fmt.Println(string(data))
+		return nil
+	}
+
+	fmt.Printf("Team: %s\n", resp.TeamName)
+	if resp.Description != "" {
+		fmt.Printf("Description: %s\n", resp.Description)
+	}
+	fmt.Printf("Members: %d\n", len(resp.Members))
+	for _, m := range resp.Members {
+		fmt.Printf("  - %s (type: %s)\n", m.Name, m.AgentType)
+	}
+	return nil
+}
+
+// TriggerTeamResponse matches the heartbeat TriggerTeamResponse.
+type TriggerTeamResponse struct {
+	TeamID    string            `json:"teamId"`
+	SpawnMode string            `json:"spawnMode"`
+	Triggers  []TriggerResponse `json:"triggers"`
+}
+
+func cmdTriggerTeam(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("trigger", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team trigger <team-id> [--json]")
+	}
+	teamID := fs.Arg(0)
+
+	var resp TriggerTeamResponse
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/trigger", teamID), nil, &resp); err != nil {
+		return fmt.Errorf("failed to trigger team: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Triggered team %s (mode: %s)\n", teamID, resp.SpawnMode)
+	for _, t := range resp.Triggers {
+		fmt.Printf("  - %s: run=%s status=%s\n", t.AgentID, t.RunID, t.Status)
+	}
 	return nil
 }

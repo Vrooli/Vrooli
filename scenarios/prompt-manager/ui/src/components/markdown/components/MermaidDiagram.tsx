@@ -35,7 +35,7 @@ async function getMermaid() {
         })
         return mermaid
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         mermaidPromise = null
         throw err
       })
@@ -73,6 +73,7 @@ export const MermaidDiagram = memo(function MermaidDiagram({
 
           const id = `mermaid-${crypto.randomUUID()}`
           const { svg } = await mermaid.render(id, code)
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- cancelled is mutated asynchronously by cleanup
           if (cancelled) return
 
           setSvgHtml(svg)

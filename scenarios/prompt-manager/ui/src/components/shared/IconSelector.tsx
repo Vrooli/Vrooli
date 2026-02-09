@@ -23,10 +23,6 @@ interface IconSelectorProps {
  * Icon selector component with dropdown picker.
  */
 export function IconSelector({ value, onChange, disabled, isLoading, className }: IconSelectorProps) {
-  if (isLoading) {
-    return <Skeleton className={cn('w-10 h-10 rounded-lg', className)} />
-  }
-
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -72,6 +68,10 @@ export function IconSelector({ value, onChange, disabled, isLoading, className }
       setSearch('')
     }
   }, [isOpen])
+
+  if (isLoading) {
+    return <Skeleton className={cn('w-10 h-10 rounded-lg', className)} />
+  }
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>

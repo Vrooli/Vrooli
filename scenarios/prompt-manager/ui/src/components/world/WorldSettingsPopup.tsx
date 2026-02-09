@@ -419,6 +419,11 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
                   value={graphicsConfig.envMap}
                   onChange={(v) => setOverride('envMap', v)}
                 />
+                <SettingsToggle
+                  label="Agent Wobble"
+                  value={graphicsConfig.agentWobble}
+                  onChange={(v) => setOverride('agentWobble', v)}
+                />
               </div>
             )}
           </section>

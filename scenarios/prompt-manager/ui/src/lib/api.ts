@@ -54,6 +54,8 @@ import {
   TeamMemberSchema,
   TeamSharedFileListResponseSchema,
   TeamSharedFileContentResponseSchema,
+  AvailableCCTeamSchema,
+  ExportCCResponseSchema,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -93,6 +95,8 @@ import {
   type TeamSharedFileContentResponse,
   type TeamSharedFileCreateRequest,
   type TeamSharedFileRenameRequest,
+  type AvailableCCTeam,
+  type ExportCCResponse,
 } from '@/lib/schemas'
 import type { SearchFilters, Folder } from '@/types'
 
@@ -745,6 +749,34 @@ class ApiClient {
       {
         method: 'DELETE',
       }
+    )
+  }
+
+  // Claude Code interop methods
+  async listAvailableCCTeams(): Promise<AvailableCCTeam[]> {
+    return this.request<AvailableCCTeam[]>(
+      '/teams/import/claude-code/available',
+      undefined,
+      AvailableCCTeamSchema.array()
+    )
+  }
+
+  async importClaudeCodeTeam(teamName: string): Promise<TeamDetails> {
+    return this.request<TeamDetails>(
+      '/teams/import/claude-code',
+      {
+        method: 'POST',
+        body: JSON.stringify({ teamName }),
+      },
+      TeamDetailsSchema
+    )
+  }
+
+  async exportClaudeCodeTeam(teamId: string): Promise<ExportCCResponse> {
+    return this.request<ExportCCResponse>(
+      `/teams/${encodeURIComponent(teamId)}/export/claude-code`,
+      undefined,
+      ExportCCResponseSchema
     )
   }
 }

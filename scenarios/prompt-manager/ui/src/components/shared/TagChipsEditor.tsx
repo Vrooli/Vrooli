@@ -37,17 +37,6 @@ export function TagChipsEditor({
   isLoading,
   className,
 }: TagChipsEditorProps) {
-  if (isLoading) {
-    return (
-      <div className={cn('flex items-center gap-1', className)}>
-        <Tag className="h-3 w-3 text-muted-foreground mr-0.5" />
-        <Skeleton className="h-5 w-14 rounded-full" />
-        <Skeleton className="h-5 w-16 rounded-full" />
-        <Skeleton className="h-5 w-12 rounded-full" />
-      </div>
-    )
-  }
-
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -55,17 +44,6 @@ export function TagChipsEditor({
 
   // Tags are now passed as an array directly
   const tags = value
-
-  // Filter suggestions based on input and exclude already-selected tags
-  const lower = inputValue.toLowerCase()
-  const filteredSuggestions = availableTags
-    .filter((t) => !tags.includes(t))
-    .filter((t) => !inputValue || t.toLowerCase().includes(lower))
-    .slice(0, 10)
-
-  // Check if current input is a new tag
-  const trimmedInput = inputValue.trim()
-  const isNewTag = trimmedInput && !availableTags.includes(trimmedInput) && !tags.includes(trimmedInput)
 
   // Handle click outside to close popover
   const handleClickOutside = useCallback((event: MouseEvent) => {
@@ -129,6 +107,28 @@ export function TagChipsEditor({
     },
     [inputValue, addTag, tags, removeTag]
   )
+
+  if (isLoading) {
+    return (
+      <div className={cn('flex items-center gap-1', className)}>
+        <Tag className="h-3 w-3 text-muted-foreground mr-0.5" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+        <Skeleton className="h-5 w-12 rounded-full" />
+      </div>
+    )
+  }
+
+  // Filter suggestions based on input and exclude already-selected tags
+  const lower = inputValue.toLowerCase()
+  const filteredSuggestions = availableTags
+    .filter((t) => !tags.includes(t))
+    .filter((t) => !inputValue || t.toLowerCase().includes(lower))
+    .slice(0, 10)
+
+  // Check if current input is a new tag
+  const trimmedInput = inputValue.trim()
+  const isNewTag = trimmedInput && !availableTags.includes(trimmedInput) && !tags.includes(trimmedInput)
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>

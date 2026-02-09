@@ -169,6 +169,42 @@ POST /teams/{teamId}/heartbeats/{agentId}/trigger
 
 ---
 
+### Trigger Team
+
+Trigger heartbeats for an entire team. Behavior depends on the team's `spawnMode`.
+
+```
+POST /teams/{teamId}/trigger
+```
+
+- **`single-process`**: Triggers only the team lead's heartbeat (identified from the org chart).
+- **`multi-process`** (default): Triggers all members that have heartbeat configs.
+
+**Response:** `202 Accepted`
+```json
+{
+  "teamId": "my-team",
+  "spawnMode": "multi-process",
+  "triggers": [
+    {
+      "teamId": "my-team",
+      "agentId": "agent-1",
+      "runId": "run-xyz",
+      "status": "running",
+      "logPath": "2026-02-01T10-00-00Z.log"
+    }
+  ]
+}
+```
+
+**Errors:**
+- `400 Bad Request` - No team lead found (single-process mode)
+- `404 Not Found` - Team not found
+- `409 Conflict` - Team is disabled
+- `503 Service Unavailable` - Executor not configured
+
+---
+
 ## Execution Logs
 
 ### List Logs

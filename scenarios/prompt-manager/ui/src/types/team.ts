@@ -6,6 +6,7 @@
 
 // Re-export API types from schemas (these include runtime validation)
 export type {
+  SpawnMode,
   Team,
   TeamDetails,
   TeamRole,
@@ -22,4 +23,7 @@ export type {
   TeamSharedFileWriteRequest,
   TeamSharedFileCreateRequest,
   TeamSharedFileRenameRequest,
+  AvailableCCTeam,
+  ImportCCRequest,
+  ExportCCResponse,
 } from '@/lib/schemas'

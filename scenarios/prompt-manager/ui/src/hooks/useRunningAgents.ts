@@ -60,7 +60,7 @@ export function useRunningAgents(): UseRunningAgentsResult {
         }
       }
       if (mountedRef.current) {
-        timeoutId = setTimeout(poll, POLL_INTERVAL_MS)
+        timeoutId = setTimeout(() => void poll(), POLL_INTERVAL_MS)
       }
     }
 
@@ -86,10 +86,12 @@ export function useRunningAgents(): UseRunningAgentsResult {
         })
         order.push(agent.teamId)
       }
-      groups.get(agent.teamId)!.agents.push(agent)
+      groups.get(agent.teamId)?.agents.push(agent)
     }
 
-    return order.map((id) => groups.get(id)!).filter(Boolean)
+    return order.map((id) => groups.get(id)).filter(
+      (g): g is TeamGroup => g !== undefined
+    )
   }, [runningAgents])
 
   // Stop action with optimistic removal

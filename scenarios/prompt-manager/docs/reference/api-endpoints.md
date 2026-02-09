@@ -771,13 +771,16 @@ Create a new team.
 {
   "id": "engineering",
   "displayName": "Engineering Team",
-  "mission": "Build great software"
+  "mission": "Build great software",
+  "spawnMode": "multi-process"
 }
 ```
 
 **Required Fields:** `displayName`
 
-**Optional Fields:** `id` (auto-generated from displayName), `mission`
+**Optional Fields:** `id` (auto-generated from displayName), `mission`, `spawnMode`
+
+**spawnMode Values:** `multi-process` (default) - each member runs as a separate agent-manager process. `single-process` - one Claude Code team lead agent coordinates all members.
 
 **Response:** Created team object with `201 Created`.
 
@@ -789,7 +792,8 @@ Update an existing team.
 ```json
 {
   "displayName": "Updated Name",
-  "mission": "New mission"
+  "mission": "New mission",
+  "spawnMode": "single-process"
 }
 ```
 
@@ -1000,6 +1004,94 @@ Clear all messages for a team member.
 Delete a single message.
 
 **Response:** `204 No Content`
+
+### GET /api/v1/teams/import/claude-code/available
+
+[CODE: api/teams/handlers_import.go]
+
+List Claude Code teams available for import from `~/.claude/teams/`.
+
+**Response:**
+```json
+[
+  { "name": "my-team", "memberCount": 3 },
+  { "name": "research-team", "memberCount": 1 }
+]
+```
+
+Returns an empty array if the directory does not exist or contains no team subdirectories.
+
+### POST /api/v1/teams/import/claude-code
+
+[CODE: api/teams/handlers_import.go]
+
+Import a Claude Code team into prompt-manager.
+
+**Request Body:**
+```json
+{
+  "teamName": "my-cc-team"
+}
+```
+
+Reads the CC team config from `~/.claude/teams/{teamName}/config.json` and creates the corresponding PM team, agents, member relations, and org chart.
+
+**Response:** `201 Created` with team details.
+
+**Errors:**
+- `400` - Missing teamName or invalid config JSON
+- `404` - CC team not found at expected path
+- `409` - Team with that ID already exists
+
+### GET /api/v1/teams/{id}/export/claude-code
+
+[CODE: api/teams/handlers_export.go]
+
+Export a prompt-manager team as a Claude Code team config.
+
+**Response:**
+```json
+{
+  "teamName": "engineering",
+  "description": "Build great software",
+  "members": [
+    {"name": "lead", "agentType": "general-purpose"},
+    {"name": "researcher", "agentType": "Explore"}
+  ]
+}
+```
+
+### POST /api/v1/teams/{id}/trigger
+
+[CODE: api/heartbeat/handlers.go#TriggerTeam]
+
+Trigger heartbeats for an entire team. Behavior depends on `spawnMode`:
+
+- **`single-process`**: Triggers only the team lead's heartbeat (the lead agent spawns all members via CC Teams).
+- **`multi-process`** (default): Triggers heartbeats for all members that have heartbeat configs.
+
+**Response:** `202 Accepted`
+```json
+{
+  "teamId": "engineering",
+  "spawnMode": "multi-process",
+  "triggers": [
+    {
+      "teamId": "engineering",
+      "agentId": "agent-1",
+      "runId": "run-abc",
+      "status": "running",
+      "logPath": "2026-02-01T10-00-00Z.log"
+    }
+  ]
+}
+```
+
+**Errors:**
+- `400` - No team lead found (single-process mode)
+- `404` - Team not found
+- `409` - Team is disabled
+- `503` - Executor not configured
 
 ---
 

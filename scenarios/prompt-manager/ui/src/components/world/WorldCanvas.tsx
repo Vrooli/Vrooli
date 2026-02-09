@@ -40,8 +40,8 @@ import { selectors } from '@/constants/selectors'
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
 const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 0, 0]
 
-/** Y position for agents standing on ground (accounts for body geometry offset) */
-const AGENT_GROUND_Y = 0.8
+/** Y position for agents standing on ground (inner offset group in SlimeAgent handles body radius) */
+const AGENT_GROUND_Y = 0
 
 /**
  * Generate a deterministic position for an agent based on its ID.
@@ -177,6 +177,7 @@ export function WorldCanvas({
         seatRotation: 0,
       }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- furnitureList and seatedAgents are signal deps that force recalculation when furniture/seating state changes (getAgentSeatPosition is referentially stable)
   }, [agents, getAgentSeatPosition, seatedAgents, furnitureList, agentPositionOverrides])
 
   // Get position of focused agent (for camera targeting)

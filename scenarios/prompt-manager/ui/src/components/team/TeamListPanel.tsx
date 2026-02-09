@@ -2,15 +2,33 @@
  * TeamListPanel - Panel for listing and managing teams.
  */
 
-import { Plus, Users, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Users, Trash2, Download, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTeamData } from '@/hooks/useTeamData'
 import { selectors } from '@/constants/selectors'
+import * as teamService from '@/services/teamService'
+import { CCTeamImportModal } from './CCTeamImportModal'
 
 interface TeamListPanelProps {
   selectedTeamId: string | null
   onSelectTeam: (id: string) => void
   className?: string
+}
+
+/**
+ * Trigger a browser download of a JSON object.
+ */
+function downloadJson(data: unknown, filename: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 /**
@@ -21,7 +39,8 @@ export function TeamListPanel({
   onSelectTeam,
   className,
 }: TeamListPanelProps) {
-  const { teams, isLoading, isError, createTeam, deleteTeam } = useTeamData()
+  const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
+  const [importModalOpen, setImportModalOpen] = useState(false)
 
   const handleCreateTeam = async () => {
     const name = `Team ${teams.length + 1}`
@@ -34,6 +53,21 @@ export function TeamListPanel({
 
   const handleDeleteTeam = async (id: string) => {
     await deleteTeam(id)
+  }
+
+  const handleExportTeam = async (e: React.MouseEvent, teamId: string, teamName: string) => {
+    e.stopPropagation()
+    try {
+      const data = await teamService.exportClaudeCodeTeam(teamId)
+      downloadJson(data, `${teamName}-cc-config.json`)
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
+  }
+
+  const handleImported = (teamId: string) => {
+    refetch()
+    onSelectTeam(teamId)
   }
 
   if (isLoading) {
@@ -121,6 +155,15 @@ export function TeamListPanel({
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   type="button"
+                  onClick={(e) => void handleExportTeam(e, team.id, team.displayName)}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Export as Claude Code config"
+                  data-testid={selectors.teams.exportButton}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     void handleDeleteTeam(team.id)
@@ -136,8 +179,8 @@ export function TeamListPanel({
         )}
       </div>
 
-      {/* Footer - New team button */}
-      <div className="flex-shrink-0 px-3 py-3 border-t border-border">
+      {/* Footer - New team + Import buttons */}
+      <div className="flex-shrink-0 px-3 py-3 border-t border-border space-y-2">
         <button
           type="button"
           onClick={() => void handleCreateTeam()}
@@ -150,7 +193,26 @@ export function TeamListPanel({
           <Plus className="h-4 w-4" />
           New Team
         </button>
+        <button
+          type="button"
+          onClick={() => setImportModalOpen(true)}
+          className={cn(
+            'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
+            'border border-border hover:bg-muted text-foreground rounded-lg transition-colors'
+          )}
+          data-testid={selectors.teams.importButton}
+        >
+          <Upload className="h-4 w-4" />
+          Import from Claude Code
+        </button>
       </div>
+
+      {/* Import modal */}
+      <CCTeamImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImported={handleImported}
+      />
     </div>
   )
 }

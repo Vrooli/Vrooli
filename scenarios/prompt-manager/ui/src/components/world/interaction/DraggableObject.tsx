@@ -45,6 +45,7 @@ const DRAG_SCALE_FACTOR = 1.05
  * Compute the constrained world position from the initial position + drag offset.
  * Exported for testing.
  */
+// eslint-disable-next-line react-refresh/only-export-components -- exported for unit testing
 export function computeDragPosition(
   initialPos: [number, number, number],
   offset: [number, number, number],

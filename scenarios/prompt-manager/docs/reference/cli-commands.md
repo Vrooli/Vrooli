@@ -364,18 +364,20 @@ prompt-manager team show engineering
 Create a new team.
 
 ```bash
-prompt-manager team create <name> [--mission=...] [--json]
+prompt-manager team create <name> [--mission=...] [--spawn-mode=multi-process|single-process] [--json]
 ```
 
 **Options:**
 | Flag | Description |
 |------|-------------|
 | `--mission` | Team mission statement |
+| `--spawn-mode` | How the team is spawned: `multi-process` (default) or `single-process` |
 | `--json` | Output as JSON |
 
 **Example:**
 ```bash
 prompt-manager team create "Engineering" --mission="Build and maintain core platform"
+prompt-manager team create "Agent Swarm" --spawn-mode=single-process
 ```
 
 ### prompt-manager team add-member
@@ -476,7 +478,52 @@ Clear all inbox messages for a team member.
 prompt-manager team message-clear <team-id> <agent-id>
 ```
 
-Shows available roles for a team.
+### prompt-manager team import-cc
+
+Import a Claude Code team into prompt-manager.
+
+```bash
+prompt-manager team import-cc <team-name> [--json]
+```
+
+Reads the CC team config from `~/.claude/teams/{team-name}/config.json` and creates the corresponding PM team, agents, member relations, and org chart.
+
+**Example:**
+```bash
+prompt-manager team import-cc my-cc-team
+prompt-manager team import-cc my-cc-team --json
+```
+
+### prompt-manager team export-cc
+
+Export a prompt-manager team as a Claude Code team config.
+
+```bash
+prompt-manager team export-cc <team-id> [--json]
+```
+
+**Example:**
+```bash
+prompt-manager team export-cc engineering
+prompt-manager team export-cc engineering --json
+```
+
+### prompt-manager team trigger
+
+Trigger heartbeats for an entire team.
+
+```bash
+prompt-manager team trigger <team-id> [--json]
+```
+
+Behavior depends on the team's `spawnMode`:
+- **`single-process`**: Triggers only the team lead's heartbeat.
+- **`multi-process`** (default): Triggers all member heartbeats.
+
+**Example:**
+```bash
+prompt-manager team trigger engineering
+```
 
 ---
 

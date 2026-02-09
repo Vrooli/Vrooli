@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"prompt-manager/store"
@@ -15,6 +17,16 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// defaultReadCCConfig reads a Claude Code team config from the standard location.
+func defaultReadCCConfig(teamName string) ([]byte, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine home directory: %w", err)
+	}
+	configPath := filepath.Join(homeDir, ".claude", "teams", teamName, "config.json")
+	return os.ReadFile(configPath)
+}
+
 // Handlers provides HTTP handlers for team operations.
 type Handlers struct {
 	teamStore          store.TeamStore
@@ -22,6 +34,8 @@ type Handlers struct {
 	relationStore      store.RelationStore
 	indexStore         store.IndexStore
 	heartbeatScheduler HeartbeatScheduler
+	readCCConfig       func(teamName string) ([]byte, error) // Testing seam for CC config reader
+	listCCTeamDirs     func() ([]AvailableCCTeam, error)     // Testing seam for CC team listing
 }
 
 // NewHandlers creates a new teams handler.
@@ -38,6 +52,8 @@ func NewHandlers(
 		relationStore:      relationStore,
 		indexStore:         indexStore,
 		heartbeatScheduler: heartbeatScheduler,
+		readCCConfig:       defaultReadCCConfig,
+		listCCTeamDirs:     defaultListCCTeamDirs,
 	}
 }
 
@@ -116,6 +132,14 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		Mission:     req.Mission,
 	}
 
+	if req.SpawnMode != "" {
+		if req.SpawnMode != "multi-process" && req.SpawnMode != "single-process" {
+			http.Error(w, "spawnMode must be 'multi-process' or 'single-process'", http.StatusBadRequest)
+			return
+		}
+		team.SpawnMode = req.SpawnMode
+	}
+
 	if err := h.teamStore.Create(ctx, team); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			http.Error(w, err.Error(), http.StatusConflict)
@@ -158,6 +182,13 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Enabled != nil {
 		updates.Enabled = *req.Enabled
 		updates.EnabledSet = true
+	}
+	if req.SpawnMode != nil {
+		if *req.SpawnMode != "multi-process" && *req.SpawnMode != "single-process" {
+			http.Error(w, "spawnMode must be 'multi-process' or 'single-process'", http.StatusBadRequest)
+			return
+		}
+		updates.SpawnMode = *req.SpawnMode
 	}
 
 	if err := h.teamStore.Update(ctx, id, updates); err != nil {
@@ -779,6 +810,7 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 		DisplayName: t.DisplayName,
 		Mission:     t.Mission,
 		Enabled:     t.Enabled,
+		SpawnMode:   t.SpawnMode,
 		MemberCount: memberCount,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,

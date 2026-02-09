@@ -73,8 +73,13 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		return result, result.Error
 	}
 
-	// Build the prompt
-	prompt, err := e.BuildPrompt(ctx, teamID, agentID)
+	// Build the prompt (branch on spawnMode for single-process teams)
+	var prompt string
+	if team.SpawnMode == "single-process" {
+		prompt, err = e.promptBuilder.BuildTeamLeadPrompt(ctx, teamID, e.vrooliRoot)
+	} else {
+		prompt, err = e.BuildPrompt(ctx, teamID, agentID)
+	}
 	if err != nil {
 		result.Error = fmt.Errorf("building prompt: %w", err)
 		result.Status = store.HeartbeatStatusFailed
@@ -154,7 +159,10 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	if e.runRegistry != nil {
 		e.runRegistry.Register(teamID, agentID, run.ID, startedAt, waitCancel)
 	}
-	go e.waitForCompletion(waitCtx, teamID, agentID, run.ID, startedAt, logPath)
+	go func() {
+		defer waitCancel()
+		e.waitForCompletion(waitCtx, teamID, agentID, run.ID, startedAt, logPath)
+	}()
 
 	result.Status = store.HeartbeatStatusRunning
 	return result, nil

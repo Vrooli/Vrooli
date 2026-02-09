@@ -12,24 +12,24 @@ import type { AccessoryOffset } from '@/types/accessory'
  * Type-specific offsets for head accessories.
  * Different accessories sit at different positions relative to the head.
  *
- * SlimeAgent body: sphere at origin, radius 0.4, Y-squash ~0.85
- * - Top of dome: Y ≈ 0.35
- * - Front of face: Z ≈ 0.3 (eyes at [±0.12, 0.1, 0.3])
+ * SlimeAgent body: sphere center at Y=0.4 (inner offset), radius 0.4, Y-squash ~0.85
+ * - Top of dome: Y ≈ 0.75
+ * - Front of face: Z ≈ 0.3 (eyes at [±0.12, 0.5, 0.3])
  */
 const HEAD_ACCESSORY_OFFSETS: Record<string, AccessoryOffset> = {
   // Hat sits on top of dome
-  hat: { position: [0, 0.4, 0], rotation: [0, 0, 0], scale: 1 },
+  hat: { position: [0, 0.8, 0], rotation: [0, 0, 0], scale: 1 },
   // Crown sits on top of dome
-  crown: { position: [0, 0.4, 0], rotation: [0, 0, 0], scale: 1 },
-  // Glasses sit on the face (eyes at Y=0.1, Z=0.3)
-  glasses: { position: [0, 0.1, 0.05], rotation: [0, 0, 0], scale: 1 },
+  crown: { position: [0, 0.8, 0], rotation: [0, 0, 0], scale: 1 },
+  // Glasses sit on the face (eyes at Y=0.5, Z=0.3)
+  glasses: { position: [0, 0.5, 0.05], rotation: [0, 0, 0], scale: 1 },
   // Headphones wrap around at eye level
-  headphones: { position: [0, 0.1, 0], rotation: [0, 0, 0], scale: 1 },
+  headphones: { position: [0, 0.5, 0], rotation: [0, 0, 0], scale: 1 },
   // Halo floats above the dome
-  halo: { position: [0, 0.55, 0], rotation: [0, 0, 0], scale: 1 },
+  halo: { position: [0, 0.95, 0], rotation: [0, 0, 0], scale: 1 },
 }
 
-const DEFAULT_HEAD_OFFSET: AccessoryOffset = { position: [0, 0.4, 0], rotation: [0, 0, 0], scale: 1 }
+const DEFAULT_HEAD_OFFSET: AccessoryOffset = { position: [0, 0.8, 0], rotation: [0, 0, 0], scale: 1 }
 
 /**
  * Renders a head accessory based on type.

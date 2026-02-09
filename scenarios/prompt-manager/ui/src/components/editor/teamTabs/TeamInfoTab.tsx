@@ -11,8 +11,10 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Clock, Hash, Users, Shield, Target } from 'lucide-react'
+import { Clock, Hash, Users, Shield, Target, Cpu } from 'lucide-react'
 import type { TeamDetails, TeamRole, UpdateTeamRequest } from '@/types/team'
+import { cn } from '@/lib/utils'
+import { selectors } from '@/constants/selectors'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
@@ -127,6 +129,39 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate }: TeamInfoTabProps) {
             value={`${team.roles.length} role${team.roles.length !== 1 ? 's' : ''} defined`}
           />
         </dl>
+      </section>
+
+      {/* Execution Mode */}
+      <section data-testid={selectors.teamEditor.spawnMode}>
+        <h3 className="text-sm font-medium text-foreground mb-3">Execution Mode</h3>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(['multi-process', 'single-process'] as const).map((mode) => {
+              const selected = team.spawnMode === mode
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => void onUpdate({ spawnMode: mode })}
+                  className={cn(
+                    'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+                    selected
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20'
+                  )}
+                >
+                  <Cpu className="h-3.5 w-3.5 mx-auto mb-1" />
+                  {mode === 'multi-process' ? 'Multi-Process' : 'Single-Process'}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {team.spawnMode === 'multi-process'
+              ? 'Each member runs as an independent agent process with its own heartbeat.'
+              : 'One team lead agent coordinates all members via Claude Code Teams.'}
+          </p>
+        </div>
       </section>
 
       {/* Mission */}

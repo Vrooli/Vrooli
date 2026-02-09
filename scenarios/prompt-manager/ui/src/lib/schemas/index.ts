@@ -130,6 +130,7 @@ export {
 
 // Team schemas
 export {
+  SpawnModeSchema,
   TeamMemberStatusSchema,
   TeamRoleSchema,
   TeamMemberSchema,
@@ -147,6 +148,10 @@ export {
   TeamSharedFileWriteRequestSchema,
   TeamSharedFileCreateRequestSchema,
   TeamSharedFileRenameRequestSchema,
+  AvailableCCTeamSchema,
+  ImportCCRequestSchema,
+  ExportCCResponseSchema,
+  type SpawnMode,
   type TeamMemberStatus,
   type TeamRole,
   type TeamMember,
@@ -163,6 +168,9 @@ export {
   type TeamSharedFileWriteRequest,
   type TeamSharedFileCreateRequest,
   type TeamSharedFileRenameRequest,
+  type AvailableCCTeam,
+  type ImportCCRequest,
+  type ExportCCResponse,
 } from './team.schema'
 
 // Template schemas

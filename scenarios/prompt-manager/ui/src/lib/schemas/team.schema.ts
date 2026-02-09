@@ -48,6 +48,12 @@ export const TeamMemberSchema = z.object({
 export type TeamMember = z.infer<typeof TeamMemberSchema>
 
 /**
+ * Spawn mode for team execution.
+ */
+export const SpawnModeSchema = z.enum(['multi-process', 'single-process'])
+export type SpawnMode = z.infer<typeof SpawnModeSchema>
+
+/**
  * Team schema matching the API's Response type (brief version).
  */
 export const TeamSchema = z.object({
@@ -55,6 +61,7 @@ export const TeamSchema = z.object({
   displayName: z.string(),
   mission: z.string().optional(),
   enabled: z.boolean().optional().default(false),
+  spawnMode: SpawnModeSchema.optional().default('multi-process'),
   memberCount: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -85,6 +92,7 @@ export const CreateTeamRequestSchema = z.object({
   id: z.string().optional(),
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   mission: z.string().max(500).optional(),
+  spawnMode: SpawnModeSchema.optional(),
 })
 
 export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
@@ -97,6 +105,7 @@ export const UpdateTeamRequestSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   mission: z.string().max(500).optional(),
   enabled: z.boolean().optional(),
+  spawnMode: SpawnModeSchema.optional(),
 })
 
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>
@@ -176,3 +185,38 @@ export const TeamSharedFileRenameRequestSchema = z.object({
 })
 
 export type TeamSharedFileRenameRequest = z.infer<typeof TeamSharedFileRenameRequestSchema>
+
+/**
+ * Available CC team entry (from GET /teams/import/claude-code/available).
+ */
+export const AvailableCCTeamSchema = z.object({
+  name: z.string(),
+  memberCount: z.number().int(),
+})
+
+export type AvailableCCTeam = z.infer<typeof AvailableCCTeamSchema>
+
+/**
+ * Import CC team request.
+ */
+export const ImportCCRequestSchema = z.object({
+  teamName: z.string().min(1),
+})
+
+export type ImportCCRequest = z.infer<typeof ImportCCRequestSchema>
+
+/**
+ * Export CC team response (tool-agnostic CC config).
+ */
+export const ExportCCResponseSchema = z.object({
+  teamName: z.string(),
+  description: z.string().optional(),
+  members: z.array(z.object({
+    name: z.string(),
+    agentType: z.string(),
+    model: z.string().optional(),
+    mode: z.string().optional(),
+  })),
+})
+
+export type ExportCCResponse = z.infer<typeof ExportCCResponseSchema>

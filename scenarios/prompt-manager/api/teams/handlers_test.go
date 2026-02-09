@@ -14,22 +14,47 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// MockTeamStore implements store.TeamStore for testing
+// MockTeamStore implements store.TeamStore for testing.
+// Also implements teamDocReader for export handler tests.
 type MockTeamStore struct {
-	teams    map[string]*store.Team
-	roles    map[string]*store.TeamRoles
-	orgChart map[string]*store.OrgChart
-	inboxes  map[string]map[string]*store.TeamInbox
-	err      error // Inject errors for testing failure paths
+	teams                 map[string]*store.Team
+	roles                 map[string]*store.TeamRoles
+	orgChart              map[string]*store.OrgChart
+	inboxes               map[string]map[string]*store.TeamInbox
+	responsibilities      map[string]map[string]string // teamID -> agentID -> content
+	heartbeatInstructions map[string]map[string]string // teamID -> agentID -> content
+	err                   error                        // Inject errors for testing failure paths
 }
 
 func NewMockTeamStore() *MockTeamStore {
 	return &MockTeamStore{
-		teams:    make(map[string]*store.Team),
-		roles:    make(map[string]*store.TeamRoles),
-		orgChart: make(map[string]*store.OrgChart),
-		inboxes:  make(map[string]map[string]*store.TeamInbox),
+		teams:                 make(map[string]*store.Team),
+		roles:                 make(map[string]*store.TeamRoles),
+		orgChart:              make(map[string]*store.OrgChart),
+		inboxes:               make(map[string]map[string]*store.TeamInbox),
+		responsibilities:      make(map[string]map[string]string),
+		heartbeatInstructions: make(map[string]map[string]string),
 	}
+}
+
+// GetResponsibilities implements teamDocReader.
+func (m *MockTeamStore) GetResponsibilities(_ context.Context, teamID, agentID string) (string, error) {
+	if agents, ok := m.responsibilities[teamID]; ok {
+		if content, ok := agents[agentID]; ok {
+			return content, nil
+		}
+	}
+	return "", fmt.Errorf("not found")
+}
+
+// GetHeartbeatInstructions implements teamDocReader.
+func (m *MockTeamStore) GetHeartbeatInstructions(_ context.Context, teamID, agentID string) (string, error) {
+	if agents, ok := m.heartbeatInstructions[teamID]; ok {
+		if content, ok := agents[agentID]; ok {
+			return content, nil
+		}
+	}
+	return "", fmt.Errorf("not found")
 }
 
 func (m *MockTeamStore) List(ctx context.Context) ([]store.Team, error) {
@@ -83,6 +108,9 @@ func (m *MockTeamStore) Update(ctx context.Context, id string, updates *store.Te
 	}
 	if updates.EnabledSet {
 		existing.Enabled = updates.Enabled
+	}
+	if updates.SpawnMode != "" {
+		existing.SpawnMode = updates.SpawnMode
 	}
 	return nil
 }
@@ -504,6 +532,127 @@ func TestCreateWithCustomID(t *testing.T) {
 
 	if _, ok := teamStore.teams["custom-team-id"]; !ok {
 		t.Error("Team was not stored with custom ID")
+	}
+}
+
+func TestCreateWithSpawnMode(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	body := CreateRequest{
+		DisplayName: "SP Team",
+		SpawnMode:   "single-process",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handlers.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response TeamDetailsResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response.SpawnMode != "single-process" {
+		t.Errorf("expected spawnMode 'single-process', got %q", response.SpawnMode)
+	}
+
+	stored := teamStore.teams["sp-team"]
+	if stored == nil {
+		t.Fatal("team not stored")
+	}
+	if stored.SpawnMode != "single-process" {
+		t.Errorf("stored spawnMode = %q, want 'single-process'", stored.SpawnMode)
+	}
+}
+
+func TestCreateWithInvalidSpawnMode(t *testing.T) {
+	handlers, _, _, _ := setupTestHandlers()
+
+	body := CreateRequest{
+		DisplayName: "Bad Mode",
+		SpawnMode:   "invalid-mode",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handlers.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateSpawnMode(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Original",
+		SpawnMode:   "multi-process",
+	}
+	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
+	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
+
+	newMode := "single-process"
+	body := UpdateRequest{
+		SpawnMode: &newMode,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.Update(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response TeamDetailsResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode: %v", err)
+	}
+
+	if response.SpawnMode != "single-process" {
+		t.Errorf("expected spawnMode 'single-process', got %q", response.SpawnMode)
+	}
+
+	if teamStore.teams["team-1"].SpawnMode != "single-process" {
+		t.Errorf("stored spawnMode = %q, want 'single-process'", teamStore.teams["team-1"].SpawnMode)
+	}
+}
+
+func TestUpdateInvalidSpawnMode(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Team",
+	}
+
+	invalid := "bad-mode"
+	body := UpdateRequest{
+		SpawnMode: &invalid,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.Update(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

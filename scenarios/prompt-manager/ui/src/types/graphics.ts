@@ -39,6 +39,8 @@ export interface GraphicsConfig {
   vignette: boolean
   /** Enable contact shadows */
   contactShadows: boolean
+  /** Enable agent vertex wobble animation */
+  agentWobble: boolean
 }
 
 /**

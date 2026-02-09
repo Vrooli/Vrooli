@@ -66,7 +66,7 @@ export function AgentOverlayGroup({
           name={name}
           position={position}
           isHovered={isHovered}
-          yOffset={1.0}
+          yOffset={1.4}
         />
       </WorldErrorBoundary>
 
@@ -75,7 +75,7 @@ export function AgentOverlayGroup({
         <StatusIcon
           status={effectiveStatus}
           position={position}
-          yOffset={1.3}
+          yOffset={1.7}
           message={statusMessage}
         />
       </WorldErrorBoundary>
@@ -85,7 +85,7 @@ export function AgentOverlayGroup({
         <ThinkingBubble
           agentId={agentId}
           position={position}
-          yOffset={1.5}
+          yOffset={1.9}
         />
       </WorldErrorBoundary>
 
@@ -94,7 +94,7 @@ export function AgentOverlayGroup({
         <SpeechBubble
           agentId={agentId}
           position={position}
-          yOffset={1.7}
+          yOffset={2.1}
         />
       </WorldErrorBoundary>
     </>

@@ -63,21 +63,21 @@ export interface AccessoryRenderInfo {
 /**
  * Default accessory offsets relative to agent origin.
  *
- * SlimeAgent anatomy (relative to agent origin at Y=0):
- * - Body sphere: center at [0, 0, 0], radius 0.4, slight Y squash (0.82-0.88)
- * - Top of dome: Y ≈ 0.35
- * - Eyes: at Y=0.1, Z=0.3
- * - Body extends to X/Z ≈ ±0.4
+ * SlimeAgent anatomy (body center at Y=0.4 via inner offset group):
+ * - Body sphere: center at [0, 0.4, 0], radius 0.4, slight Y squash (0.82-0.88)
+ * - Top of dome: Y ≈ 0.75
+ * - Eyes: at Y=0.5, Z=0.3
+ * - Body extends to X/Z ≈ ±0.4, Y from 0 (ground) to ~0.75
  */
 const DEFAULT_OFFSETS: Record<'head' | 'back' | 'leftHand' | 'rightHand', AccessoryOffset> = {
   // Hat sits on top of dome
-  head: { position: [0, 0.4, 0], rotation: [0, 0, 0], scale: 1 },
+  head: { position: [0, 0.8, 0], rotation: [0, 0, 0], scale: 1 },
   // Backpack attaches to rear surface
-  back: { position: [0, 0, -0.35], rotation: [0, 0, 0], scale: 1 },
+  back: { position: [0, 0.4, -0.35], rotation: [0, 0, 0], scale: 1 },
   // Left hand floats beside body
-  leftHand: { position: [-0.4, 0, 0.1], rotation: [0, 0, 0], scale: 0.8 },
+  leftHand: { position: [-0.4, 0.4, 0.1], rotation: [0, 0, 0], scale: 0.8 },
   // Right hand floats beside body
-  rightHand: { position: [0.4, 0, 0.1], rotation: [0, 0, 0], scale: 0.8 },
+  rightHand: { position: [0.4, 0.4, 0.1], rotation: [0, 0, 0], scale: 0.8 },
 }
 
 /**

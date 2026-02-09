@@ -18,8 +18,12 @@ import * as THREE from 'three'
 import type { AgentProps } from '@/types/world'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import { useLODStore } from '@/stores/lodStore'
+import { useGraphicsStore } from '@/stores/graphicsStore'
 import type { LODLevel } from '@/types/lod'
 import { bindSlimeShader, syncSlimeShader } from '@/lib/shaders/slimeShader'
+
+// Body sphere radius - used for ground offset so bottom of sphere sits on ground
+const BODY_RADIUS = 0.4
 
 // Default agent colors
 const DEFAULT_COLORS = {
@@ -239,9 +243,11 @@ export function SlimeAgent({
     }
 
     // ===== SHADER SYNC =====
-    const wobbleIntensity = lodLevel === 'high' ? 0.02
-      : lodLevel === 'medium' ? 0.01
-        : 0
+    const wobbleEnabled = useGraphicsStore.getState().config.agentWobble
+    const wobbleIntensity = !wobbleEnabled ? 0
+      : lodLevel === 'high' ? 0.02
+        : lodLevel === 'medium' ? 0.01
+          : 0
     syncSlimeShader(bodyMaterial, state.time * variation.wobbleSpeed, 1.0, wobbleIntensity)
 
     // ===== HOP LOCOMOTION (when moving) =====
@@ -285,21 +291,20 @@ export function SlimeAgent({
 
     // ===== IDLE BREATHING (all LOD levels except culled) =====
     const seatedOffset = isSeated ? -0.2 : 0
-    const floatMultiplier = isSeated ? 0.1 : 1
+    const breathMult = isSeated ? 0.1 : 1
 
     if (lodLevel === 'low') {
-      const breathY = Math.sin(state.time * 2) * 0.015 * floatMultiplier
-      groupRef.current.position.y = position[1] + breathY + seatedOffset
+      // No sway or scale breathing at low LOD
+      groupRef.current.position.y = position[1] + seatedOffset
       groupRef.current.position.x = position[0]
     } else {
-      // Full breathing + lateral sway
-      const breathY = Math.sin(state.time * 2) * 0.03 * floatMultiplier
-      const swayX = Math.sin(state.time * 0.8) * 0.01 * floatMultiplier
-      groupRef.current.position.y = position[1] + breathY + seatedOffset
+      // Lateral sway only (no Y bobbing - agent sits on ground)
+      const swayX = Math.sin(state.time * 0.8) * 0.01 * breathMult
+      groupRef.current.position.y = position[1] + seatedOffset
       groupRef.current.position.x = position[0] + swayX
 
-      // Breathing scale
-      const breathScale = 1.0 + Math.sin(state.time * 2) * 0.03 * floatMultiplier
+      // Breathing via scale only (bottom stays grounded because inner offset = body radius)
+      const breathScale = 1.0 + Math.sin(state.time * 2) * 0.03 * breathMult
       groupRef.current.scale.set(1, breathScale, 1)
       syncSlimeShader(bodyMaterial, state.time * variation.wobbleSpeed, breathScale, wobbleIntensity)
     }
@@ -321,12 +326,12 @@ export function SlimeAgent({
       if (leftPupilRef.current) {
         leftPupilRef.current.position.x = clampedDx
         leftPupilRef.current.position.y = clampedDy
-        leftPupilRef.current.position.z = 0.04
+        leftPupilRef.current.position.z = 0.06
       }
       if (rightPupilRef.current) {
         rightPupilRef.current.position.x = clampedDx
         rightPupilRef.current.position.y = clampedDy
-        rightPupilRef.current.position.z = 0.04
+        rightPupilRef.current.position.z = 0.06
       }
 
       // Body lean (high LOD only)
@@ -375,74 +380,77 @@ export function SlimeAgent({
 
   return (
     <group ref={groupRef} position={position} onClick={handleClick} {...hoverProps}>
-      {/* Body - egg-shaped sphere with slime shader */}
-      <mesh
-        ref={bodyRef}
-        scale={[1, variation.bodyAspectY / 0.85, 1]}
-        material={bodyMaterial}
-        castShadow
-      >
-        <sphereGeometry args={[0.4, 32, 32]} />
-      </mesh>
-
-      {/* Eyes */}
-      {/* Left eye */}
-      <mesh position={[-0.12, 0.1, 0.3]} material={eyeMaterial}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        {/* Left pupil */}
-        <mesh ref={leftPupilRef} position={[0, 0, 0.04]} material={pupilMaterial}>
-          <sphereGeometry args={[0.055, 12, 12]} />
+      {/* Inner offset group - lifts body so sphere bottom sits at ground level */}
+      <group position={[0, BODY_RADIUS, 0]}>
+        {/* Body - egg-shaped sphere with slime shader */}
+        <mesh
+          ref={bodyRef}
+          scale={[1, variation.bodyAspectY / 0.85, 1]}
+          material={bodyMaterial}
+          castShadow
+        >
+          <sphereGeometry args={[0.4, 32, 32]} />
         </mesh>
-      </mesh>
 
-      {/* Right eye */}
-      <mesh position={[0.12, 0.1, 0.3]} material={eyeMaterial}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        {/* Right pupil */}
-        <mesh ref={rightPupilRef} position={[0, 0, 0.04]} material={pupilMaterial}>
-          <sphereGeometry args={[0.055, 12, 12]} />
+        {/* Eyes */}
+        {/* Left eye */}
+        <mesh position={[-0.12, 0.1, 0.3]} material={eyeMaterial}>
+          <sphereGeometry args={[0.1, 16, 16]} />
+          {/* Left pupil - z=0.06 protrudes past eye surface (r=0.1) */}
+          <mesh ref={leftPupilRef} position={[0, 0, 0.06]} material={pupilMaterial}>
+            <sphereGeometry args={[0.055, 12, 12]} />
+          </mesh>
         </mesh>
-      </mesh>
 
-      {/* Mouth */}
-      <SlimeMouth style={variation.mouthStyle} material={accentMaterial} />
+        {/* Right eye */}
+        <mesh position={[0.12, 0.1, 0.3]} material={eyeMaterial}>
+          <sphereGeometry args={[0.1, 16, 16]} />
+          {/* Right pupil - z=0.06 protrudes past eye surface (r=0.1) */}
+          <mesh ref={rightPupilRef} position={[0, 0, 0.06]} material={pupilMaterial}>
+            <sphereGeometry args={[0.055, 12, 12]} />
+          </mesh>
+        </mesh>
 
-      {/* Ear nubs (50% of agents) */}
-      {variation.hasEarNubs && (
-        <>
-          <mesh position={[-0.2, 0.3, 0]} material={accentMaterial}>
-            <sphereGeometry args={[0.08, 12, 12]} />
-          </mesh>
-          <mesh position={[0.2, 0.3, 0]} material={accentMaterial}>
-            <sphereGeometry args={[0.08, 12, 12]} />
-          </mesh>
-        </>
-      )}
+        {/* Mouth */}
+        <SlimeMouth style={variation.mouthStyle} material={accentMaterial} />
 
-      {/* Blush marks (50% of agents) */}
-      {variation.hasBlush && (
-        <>
-          <mesh position={[-0.22, 0.0, 0.25]} material={blushMaterial}>
-            <circleGeometry args={[0.06, 16]} />
-          </mesh>
-          <mesh position={[0.22, 0.0, 0.25]} material={blushMaterial}>
-            <circleGeometry args={[0.06, 16]} />
-          </mesh>
-        </>
-      )}
+        {/* Ear nubs (50% of agents) */}
+        {variation.hasEarNubs && (
+          <>
+            <mesh position={[-0.2, 0.3, 0]} material={accentMaterial}>
+              <sphereGeometry args={[0.08, 12, 12]} />
+            </mesh>
+            <mesh position={[0.2, 0.3, 0]} material={accentMaterial}>
+              <sphereGeometry args={[0.08, 12, 12]} />
+            </mesh>
+          </>
+        )}
 
-      {/* Floating orbs around agent when selected */}
-      {selectedNodes.length > 0 && (
-        <group>
-          {selectedNodes.slice(0, 5).map((_, i) => (
-            <FloatingOrb
-              key={i}
-              index={i}
-              total={Math.min(selectedNodes.length, 5)}
-            />
-          ))}
-        </group>
-      )}
+        {/* Blush marks (50% of agents) */}
+        {variation.hasBlush && (
+          <>
+            <mesh position={[-0.22, 0.0, 0.25]} material={blushMaterial}>
+              <circleGeometry args={[0.06, 16]} />
+            </mesh>
+            <mesh position={[0.22, 0.0, 0.25]} material={blushMaterial}>
+              <circleGeometry args={[0.06, 16]} />
+            </mesh>
+          </>
+        )}
+
+        {/* Floating orbs around agent when selected */}
+        {selectedNodes.length > 0 && (
+          <group>
+            {selectedNodes.slice(0, 5).map((_, i) => (
+              <FloatingOrb
+                key={i}
+                index={i}
+                total={Math.min(selectedNodes.length, 5)}
+              />
+            ))}
+          </group>
+        )}
+      </group>
     </group>
   )
 }
@@ -453,19 +461,20 @@ export function SlimeAgent({
 function SlimeMouth({ style, material }: { style: MouthStyle; material: THREE.Material }) {
   switch (style) {
     case 'smile':
+      // Half-torus arc (0→π) sweeps right→top→left (∩ frown). Rotate π around Z to flip to ∪ smile.
       return (
-        <mesh position={[0, -0.05, 0.38]} rotation={[0, 0, 0]} material={material}>
+        <mesh position={[0, -0.05, 0.42]} rotation={[0, 0, Math.PI]} material={material}>
           <torusGeometry args={[0.04, 0.01, 8, 16, Math.PI]} />
         </mesh>
       )
     case 'cat':
-      // :3 cat mouth - two small arcs
+      // :3 cat mouth - two small arcs, each flipped to ∪ (ω shape)
       return (
-        <group position={[0, -0.05, 0.38]}>
-          <mesh position={[-0.025, 0, 0]} rotation={[0, 0, -0.2]} material={material}>
+        <group position={[0, -0.05, 0.42]}>
+          <mesh position={[-0.025, 0, 0]} rotation={[0, 0, Math.PI - 0.2]} material={material}>
             <torusGeometry args={[0.025, 0.008, 8, 12, Math.PI]} />
           </mesh>
-          <mesh position={[0.025, 0, 0]} rotation={[0, 0, 0.2]} material={material}>
+          <mesh position={[0.025, 0, 0]} rotation={[0, 0, Math.PI + 0.2]} material={material}>
             <torusGeometry args={[0.025, 0.008, 8, 12, Math.PI]} />
           </mesh>
         </group>
@@ -473,7 +482,7 @@ function SlimeMouth({ style, material }: { style: MouthStyle; material: THREE.Ma
     case 'chevron':
       // ^ mouth
       return (
-        <group position={[0, -0.06, 0.38]}>
+        <group position={[0, -0.06, 0.42]}>
           <mesh position={[-0.015, 0.01, 0]} rotation={[0, 0, 0.4]} material={material}>
             <boxGeometry args={[0.04, 0.008, 0.008]} />
           </mesh>

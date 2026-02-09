@@ -42,7 +42,9 @@ const literalSelectors = {
   teams: {
     list: 'team-list',
     newButton: 'team-new-button',
+    importButton: 'team-import-button',
     row: 'team-row',
+    exportButton: 'team-export-button',
   },
   teamEditor: {
     header: 'team-editor-header',
@@ -51,6 +53,7 @@ const literalSelectors = {
     orgChart: 'team-editor-org-chart',
     memberDetail: 'team-editor-member-detail',
     addMemberButton: 'team-editor-add-member',
+    spawnMode: 'team-editor-spawn-mode',
   },
   world: {
     canvas: 'world-canvas',

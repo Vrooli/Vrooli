@@ -160,6 +160,60 @@ Member cleanup is centralized in the team handlers:
   `store/teams/{team-id}/members/{agent-id}/` via the file store when available.
   Tests can assert scheduler calls while keeping file I/O isolated to temporary directories.
 
+## Interop Seams
+
+The `interop` package provides a tool-agnostic conversion layer for bidirectional team
+config translation between prompt-manager and external tools (currently Claude Code).
+
+### Converter Interface
+
+```go
+type Converter interface {
+    ToolID() string
+    FromPMTeam(snapshot *PMTeamSnapshot) (*ToolTeamConfig, error)
+    ToPMTeam(config *ToolTeamConfig) (*PMTeamImport, error)
+    FormatSpawnPrompt(config *ToolTeamConfig, ctx SpawnContext) (string, error)
+}
+```
+
+The `ClaudeCodeConverter` implements this interface. Tests verify roundtrip conversion
+(PM → CC → PM) preserves essential data without requiring filesystem access.
+
+### CC Config Reader Seam
+
+The import handler (`teams.Handlers.ImportClaudeCode`) uses a `readCCConfig` function
+field to read Claude Code team configs from disk. In production, `defaultReadCCConfig`
+reads from `~/.claude/teams/{name}/config.json`. Tests inject a function that returns
+in-memory JSON, enabling full handler testing without filesystem dependencies.
+
+### CC Team Directory Listing Seam
+
+The `ListAvailableCCTeams` handler uses a `listCCTeamDirs` function field to enumerate
+Claude Code teams on disk. In production, `defaultListCCTeamDirs` reads subdirectories
+of `~/.claude/teams/` and parses each `config.json` to count members. Tests inject a
+function that returns in-memory team lists, keeping handler tests filesystem-independent.
+
+### teamDocReader Interface
+
+The export handler uses a local `teamDocReader` interface instead of asserting to
+`*store.FileTeamStore`:
+
+```go
+type teamDocReader interface {
+    GetResponsibilities(ctx context.Context, teamID, agentID string) (string, error)
+    GetHeartbeatInstructions(ctx context.Context, teamID, agentID string) (string, error)
+}
+```
+
+`MockTeamStore` in tests implements this interface, making the export handler fully
+testable with mock stores.
+
+### ParseCCConfig
+
+`interop.ParseCCConfig(data []byte, teamNameFallback string)` centralizes CC config
+JSON parsing, eliminating duplication between the import handler and the interop package.
+Tests cover valid configs, fallback team names, invalid JSON, and empty members.
+
 ## UI Seams
 
 ### Service Layer

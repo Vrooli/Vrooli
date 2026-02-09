@@ -808,6 +808,120 @@ func (h *Handlers) StopRunning(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// TriggerTeam handles POST /teams/{id}/trigger - triggers all or lead heartbeat based on spawnMode.
+func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+
+	if h.executor == nil {
+		http.Error(w, "Executor not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+
+	if !team.Enabled {
+		http.Error(w, "Team is disabled; enable the team to run heartbeats", http.StatusConflict)
+		return
+	}
+
+	if team.SpawnMode == "single-process" {
+		// Find team lead from org chart (agent with no manager)
+		leadAgentID := h.findTeamLead(ctx, teamID)
+		if leadAgentID == "" {
+			http.Error(w, "no team lead found in org chart", http.StatusBadRequest)
+			return
+		}
+
+		result, err := h.executor.TriggerManual(ctx, teamID, leadAgentID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(TriggerTeamResponse{
+			TeamID:    teamID,
+			SpawnMode: "single-process",
+			Triggers:  []TriggerHeartbeatResponse{{TeamID: result.TeamID, AgentID: result.AgentID, RunID: result.RunID, Status: result.Status, LogPath: result.LogPath}},
+		})
+		return
+	}
+
+	// multi-process (default): trigger all member heartbeats
+	members, err := h.relationStore.ListTeamMembers(ctx, teamID)
+	if err != nil {
+		http.Error(w, "failed to list team members", http.StatusInternalServerError)
+		return
+	}
+
+	var triggers []TriggerHeartbeatResponse
+	for _, m := range members {
+		// Only trigger members that have heartbeat configs
+		config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, m.AgentID)
+		if err != nil || config == nil {
+			continue
+		}
+
+		result, err := h.executor.TriggerManual(ctx, teamID, m.AgentID)
+		if err != nil {
+			log.Printf("Warning: Failed to trigger heartbeat for %s/%s: %v", teamID, m.AgentID, err)
+			continue
+		}
+		triggers = append(triggers, TriggerHeartbeatResponse{
+			TeamID:  result.TeamID,
+			AgentID: result.AgentID,
+			RunID:   result.RunID,
+			Status:  result.Status,
+			LogPath: result.LogPath,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(TriggerTeamResponse{
+		TeamID:    teamID,
+		SpawnMode: "multi-process",
+		Triggers:  triggers,
+	})
+}
+
+// findTeamLead returns the agent ID of the team lead (agent with no manager in org chart).
+// Falls back to the first member if no org chart is defined.
+func (h *Handlers) findTeamLead(ctx context.Context, teamID string) string {
+	org, err := h.teamStore.GetOrgChart(ctx, teamID)
+	if err == nil && len(org.Edges) > 0 {
+		// Collect all agents that are reports (have a manager)
+		reports := make(map[string]bool, len(org.Edges))
+		managers := make(map[string]bool, len(org.Edges))
+		for _, edge := range org.Edges {
+			reports[edge.ReportAgentID] = true
+			managers[edge.ManagerAgentID] = true
+		}
+		// Find a manager who is not a report to anyone
+		for managerID := range managers {
+			if !reports[managerID] {
+				return managerID
+			}
+		}
+	}
+
+	// Fallback: first member
+	if h.relationStore != nil {
+		members, err := h.relationStore.ListTeamMembers(ctx, teamID)
+		if err == nil && len(members) > 0 {
+			return members[0].AgentID
+		}
+	}
+	return ""
+}
+
 // formatDuration returns a human-readable duration string.
 func formatDuration(d time.Duration) string {
 	d = d.Round(time.Second)

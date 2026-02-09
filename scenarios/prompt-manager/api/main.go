@@ -246,6 +246,9 @@ func main() {
 
 	// Team routes
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
+	// Import routes must come before /teams/{id} to avoid mux treating "import" as an ID
+	v1.HandleFunc("/teams/import/claude-code/available", teamHandlers.ListAvailableCCTeams).Methods("GET")
+	v1.HandleFunc("/teams/import/claude-code", teamHandlers.ImportClaudeCode).Methods("POST")
 	v1.HandleFunc("/teams", teamHandlers.List).Methods("GET")
 	v1.HandleFunc("/teams", teamHandlers.Create).Methods("POST")
 	v1.HandleFunc("/teams/{id}", teamHandlers.Get).Methods("GET")
@@ -270,6 +273,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.SendTeamMessage).Methods("POST")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ClearTeamMessages).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/messages/{messageId}", teamHandlers.DeleteTeamMessage).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/export/claude-code", teamHandlers.ExportClaudeCode).Methods("GET")
 
 	// Heartbeat system
 	// Get Vrooli root for working directory
@@ -341,6 +345,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.UpdateHeartbeat).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.DeleteHeartbeat).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/trigger", heartbeatHandlers.TriggerHeartbeat).Methods("POST")
+	v1.HandleFunc("/teams/{id}/trigger", heartbeatHandlers.TriggerTeam).Methods("POST")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs", heartbeatHandlers.ListLogs).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs/{logId}", heartbeatHandlers.GetLog).Methods("GET")
 

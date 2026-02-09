@@ -131,6 +131,7 @@ describe('Agent registry', () => {
   })
 
   it('slime agent has correct metadata', () => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- test already asserts key exists
     const slimeConfig = AGENT_REGISTRY.slime!
     expect(slimeConfig.displayName).toBe('Slime Agent')
     expect(slimeConfig.description).toContain('blob')

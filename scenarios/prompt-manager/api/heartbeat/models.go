@@ -114,6 +114,13 @@ type StopAgentResponse struct {
 	Status  string `json:"status"`
 }
 
+// TriggerTeamResponse is the response for team-level trigger.
+type TriggerTeamResponse struct {
+	TeamID    string                     `json:"teamId"`
+	SpawnMode string                     `json:"spawnMode"`
+	Triggers  []TriggerHeartbeatResponse `json:"triggers"`
+}
+
 // PromptPreviewRequest is the request body for previewing a built prompt.
 type PromptPreviewRequest struct {
 	AgentID string `json:"agentId"`
