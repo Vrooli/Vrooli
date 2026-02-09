@@ -3,6 +3,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
 import { useSearchParams } from 'react-router-dom';
 import { useAppsStore } from '@/state/appsStore';
+import { isAppMonitorScenarioId } from '@/utils/appPreview';
 import {
   previewWorkspaceLimits,
   usePreviewWorkspaceStore,
@@ -134,6 +135,7 @@ export default function PreviewWorkspaceView() {
   const clearPinnedPane = usePreviewWorkspaceStore((state) => state.clearPinnedPane);
   const setColumnFractions = usePreviewWorkspaceStore((state) => state.setColumnFractions);
   const setRowFractions = usePreviewWorkspaceStore((state) => state.setRowFractions);
+  const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
 
   const panesContainerRef = useRef<HTMLDivElement | null>(null);
   const lastHandledIntentRef = useRef<string | null>(null);
@@ -211,7 +213,17 @@ export default function PreviewWorkspaceView() {
 
   useEffect(() => {
     const intent = readWorkspaceIntent(searchParams);
+    const shouldOpenLogs = searchParams.get('paneLogs') === '1';
     if (!intent) {
+      if (shouldOpenLogs) {
+        const targetPaneId = focusedPaneId ?? panes[0]?.id ?? null;
+        if (targetPaneId) {
+          setPaneViewState(targetPaneId, { isLogsVisible: true });
+        }
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('paneLogs');
+        setSearchParams(nextParams, { replace: true });
+      }
       lastHandledIntentRef.current = null;
       return;
     }
@@ -222,18 +234,40 @@ export default function PreviewWorkspaceView() {
     }
     lastHandledIntentRef.current = intentSignature;
 
+    if (isAppMonitorScenarioId(intent.appId)) {
+      if (shouldOpenLogs) {
+        const targetPaneId = focusedPaneId ?? panes[0]?.id ?? null;
+        if (targetPaneId) {
+          setPaneViewState(targetPaneId, { isLogsVisible: true });
+        }
+      }
+
+      const nextParams = clearWorkspaceIntent(searchParams);
+      nextParams.delete('paneLogs');
+      setSearchParams(nextParams, { replace: true });
+      return;
+    }
+
+    let nextFocusedPaneId: string | null = null;
     if (intent.mode === 'add-pane') {
-      addPane(intent.appId);
+      nextFocusedPaneId = addPane(intent.appId);
     } else {
       const targetPaneId = focusedPaneId ?? panes[0]?.id ?? null;
       if (targetPaneId) {
         setPaneApp(targetPaneId, intent.appId);
         focusPane(targetPaneId);
+        nextFocusedPaneId = targetPaneId;
       }
     }
 
-    setSearchParams(clearWorkspaceIntent(searchParams), { replace: true });
-  }, [addPane, focusPane, focusedPaneId, panes, searchParams, setPaneApp, setSearchParams]);
+    if (shouldOpenLogs && nextFocusedPaneId) {
+      setPaneViewState(nextFocusedPaneId, { isLogsVisible: true });
+    }
+
+    const nextParams = clearWorkspaceIntent(searchParams);
+    nextParams.delete('paneLogs');
+    setSearchParams(nextParams, { replace: true });
+  }, [addPane, focusPane, focusedPaneId, panes, searchParams, setPaneApp, setPaneViewState, setSearchParams]);
 
   useEffect(() => {
     if (!activeResize) {

@@ -147,6 +147,10 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
     onRefresh: () => void;
     onToggleLogs: () => void;
     areLogsVisible: boolean;
+    previewUrlInput: string;
+    onPreviewUrlInputChange: (event: { target: { value: string } }) => void;
+    onPreviewUrlInputKeyDown: (event: { key: string; preventDefault: () => void }) => void;
+    onPreviewUrlInputBlur: () => void;
     onOpenScenarioSelector: () => void;
     onSelectUrlSuggestion?: (value: string) => void;
     onToggleApp: () => void;
@@ -154,6 +158,7 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
     hasCurrentApp: boolean;
     isAppRunning: boolean;
     appStatusLabel: string;
+    urlStatusTitle: string;
     rightInlineActions?: ReactNode;
   }) => (
     <div className="preview-toolbar">
@@ -166,6 +171,20 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
       <button type="button" aria-label="open scenario selector" onClick={props.onOpenScenarioSelector}>
         Open Scenario Selector
       </button>
+      <input
+        aria-label="Preview URL"
+        value={props.previewUrlInput}
+        onChange={(event) => props.onPreviewUrlInputChange({ target: { value: event.target.value } })}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            props.onPreviewUrlInputKeyDown({
+              key: 'Enter',
+              preventDefault: () => event.preventDefault(),
+            });
+          }
+        }}
+        onBlur={() => props.onPreviewUrlInputBlur()}
+      />
       <button
         type="button"
         aria-label="select url suggestion"
@@ -182,6 +201,7 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
       <span data-testid="toolbar-has-current-app">{String(props.hasCurrentApp)}</span>
       <span data-testid="toolbar-is-running">{String(props.isAppRunning)}</span>
       <span data-testid="toolbar-status-label">{props.appStatusLabel}</span>
+      <span data-testid="toolbar-url-status-title">{props.urlStatusTitle}</span>
       {props.rightInlineActions}
       <span>{props.areLogsVisible ? 'logs-visible' : 'logs-hidden'}</span>
     </div>
@@ -199,6 +219,15 @@ const createApp = (): App => ({
   port_mappings: { UI_PORT: 4310 },
   environment: {},
   config: {},
+});
+
+const createAppWithId = (id: string): App => ({
+  ...createApp(),
+  id,
+  name: id,
+  scenario_name: id,
+  path: `/tmp/${id}`,
+  port_mappings: { UI_PORT: 4310 },
 });
 
 const renderPane = (options?: {
@@ -404,6 +433,76 @@ describe('PreviewPane', () => {
     });
   });
 
+  it('throttles repeated metadata hydration requests during rapid app snapshot churn', async () => {
+    const partialApp: App = {
+      ...createApp(),
+      status: 'unknown',
+      is_partial: true,
+    };
+    getAppMock.mockResolvedValue(null);
+
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    const { rerender } = render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={partialApp.id}
+          apps={[partialApp]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledTimes(1);
+      expect(getAppMock).toHaveBeenCalledWith(partialApp.id);
+    });
+
+    rerender(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={partialApp.id}
+          apps={[{ ...partialApp, updated_at: '2026-02-08T00:00:01Z' }]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    rerender(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={partialApp.id}
+          apps={[{ ...partialApp, updated_at: '2026-02-08T00:00:02Z' }]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('does not downgrade hydrated running status from later unknown store snapshots', async () => {
     const partialApp: App = {
       ...createApp(),
@@ -519,6 +618,51 @@ describe('PreviewPane', () => {
     });
   });
 
+  it('prioritizes scenario identifier from custom proxy URL over stale pane app id', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneId, {
+      hasCustomPreviewUrl: true,
+      previewUrlInput: '/apps/url-scenario/proxy/',
+      previewUrl: '/apps/url-scenario/proxy/',
+    });
+
+    const fetchedApp = {
+      ...createApp(),
+      id: 'url-scenario',
+      status: 'running' as const,
+      is_partial: false,
+    };
+
+    getAppMock.mockImplementation(async (identifier: string) => {
+      if (identifier === 'url-scenario') {
+        return fetchedApp;
+      }
+      return null;
+    });
+
+    render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId="scenario-1"
+          apps={[createApp()]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledWith('url-scenario');
+    });
+    expect(getAppMock).not.toHaveBeenCalledWith('scenario-1');
+  });
+
   it('opens tab switcher in focused-pane mode from scenario selector action', async () => {
     const user = userEvent.setup();
     const onFocus = vi.fn();
@@ -567,7 +711,7 @@ describe('PreviewPane', () => {
     expect(iframe.getAttribute('loading')).toBe('eager');
   });
 
-  it('preserves iframe src while bridge location updates URL state', async () => {
+  it('persists bridge-resolved URL so refresh keeps the current in-app route', async () => {
     const user = userEvent.setup();
     const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
     expect(paneId).toBeTruthy();
@@ -611,7 +755,114 @@ describe('PreviewPane', () => {
 
     await waitFor(() => {
       const iframe = document.querySelector('iframe');
-      expect(iframe?.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-1/proxy/');
+      expect(iframe?.getAttribute('src')).toBe('http://localhost:4310/settings');
+    });
+
+    await waitFor(() => {
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.previewUrl).toBe('http://localhost:4310/settings');
+      const persisted = window.localStorage.getItem(storageKey);
+      expect(persisted).toBeTruthy();
+      if (!persisted) {
+        return;
+      }
+      const parsed = JSON.parse(persisted) as {
+        state?: { paneViewState?: Record<string, { previewUrl?: string; previewUrlInput?: string }> };
+      };
+      expect(parsed.state?.paneViewState?.[paneId]?.previewUrl).toBe('http://localhost:4310/settings');
+      expect(parsed.state?.paneViewState?.[paneId]?.previewUrlInput).toBe('http://localhost:4310/settings');
+    });
+  });
+
+  it('blocks shell URL entry from replacing iframe src with app-monitor workspace route', async () => {
+    const user = userEvent.setup();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+
+    renderPane({ paneId });
+
+    const iframe = await waitFor(() => {
+      const found = document.querySelector('iframe');
+      expect(found).not.toBeNull();
+      return found as HTMLIFrameElement;
+    });
+    expect(iframe.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-1/proxy/');
+
+    const urlInput = screen.getByLabelText('Preview URL');
+    await user.clear(urlInput);
+    await user.type(urlInput, '/apps/workspace{enter}');
+
+    await waitFor(() => {
+      const currentIframe = document.querySelector('iframe');
+      expect(currentIframe?.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-1/proxy/');
+      expect(screen.getByTestId('toolbar-url-status-title')).toHaveTextContent(
+        'Preview URL points to App Monitor shell. Use a scenario proxy URL like /apps/<scenario>/proxy/.',
+      );
+    });
+  });
+
+  it('resets stale custom URL state when pane app assignment changes', async () => {
+    const user = userEvent.setup();
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    const appOne = createAppWithId('scenario-1');
+    const appTwo = createAppWithId('scenario-2');
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={appOne.id}
+          apps={[appOne, appTwo]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const initialIframe = await waitFor(() => {
+      const found = document.querySelector('iframe');
+      expect(found).not.toBeNull();
+      return found as HTMLIFrameElement;
+    });
+    expect(initialIframe.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-1/proxy/');
+
+    const urlInput = screen.getByLabelText('Preview URL');
+    await user.clear(urlInput);
+    await user.type(urlInput, '/apps/missing-scenario/proxy/{enter}');
+
+    await waitFor(() => {
+      const updatedIframe = document.querySelector('iframe');
+      expect(updatedIframe?.getAttribute('src')).toBe('http://localhost:3000/apps/missing-scenario/proxy/');
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.hasCustomPreviewUrl).toBe(true);
+    });
+
+    rerender(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={appTwo.id}
+          apps={[appOne, appTwo]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const updatedIframe = document.querySelector('iframe');
+      expect(updatedIframe?.getAttribute('src')).toBe('http://localhost:3000/apps/scenario-2/proxy/');
+      const paneState = usePreviewWorkspaceStore.getState().paneViewState[paneId];
+      expect(paneState?.hasCustomPreviewUrl).toBe(false);
+      expect(paneState?.previewUrl).toBe('http://localhost:3000/apps/scenario-2/proxy/');
+      expect(paneState?.previewUrlInput).toBe('http://localhost:3000/apps/scenario-2/proxy/');
     });
   });
 

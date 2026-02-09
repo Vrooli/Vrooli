@@ -71,6 +71,12 @@ export const parseTimestampValue = (value?: string | null): number | null => {
   return parsed;
 };
 
+export const APP_MONITOR_SCENARIO_ID = 'app-monitor';
+
+export const isAppMonitorScenarioId = (value?: string | null): boolean => (
+  normalizeIdentifier(value) === APP_MONITOR_SCENARIO_ID
+);
+
 const APP_PROXY_PREFIX = '/apps';
 
 export const buildProxyPreviewUrl = (identifier: string): string => {

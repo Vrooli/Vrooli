@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
 import { useResourcesCatalog, normalizeResourceSort, type ResourceSortOption } from '@/hooks/useResourcesCatalog';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
-import { resolveAppIdentifier } from '@/utils/appPreview';
+import { isAppMonitorScenarioId, resolveAppIdentifier } from '@/utils/appPreview';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
@@ -105,6 +105,14 @@ export default function TabSwitcherDialog() {
     error: state.error,
   }));
   const { filteredApps, recentApps } = useAppCatalog({ search, sort: sortOption, historyLimit: 12 });
+  const previewableFilteredApps = useMemo(
+    () => filteredApps.filter((app) => !isAppMonitorScenarioId(resolveAppIdentifier(app))),
+    [filteredApps],
+  );
+  const previewableRecentApps = useMemo(
+    () => recentApps.filter((app) => !isAppMonitorScenarioId(resolveAppIdentifier(app))),
+    [recentApps],
+  );
   const { sortedResources } = useResourcesCatalog({ sort: resourceSortOption });
 
   const {
@@ -120,7 +128,7 @@ export default function TabSwitcherDialog() {
   } = useTabSwitcherFiltering({
     search,
     sortedResources,
-    recentApps,
+    recentApps: previewableRecentApps,
   });
 
   // Consider loading if:
@@ -274,7 +282,7 @@ export default function TabSwitcherDialog() {
 
   const handleAppSelect = (app: App, options?: { navigationId?: string }) => {
     const identifier = options?.navigationId ?? resolveAppIdentifier(app) ?? app.id;
-    if (!identifier) {
+    if (!identifier || isAppMonitorScenarioId(identifier)) {
       return;
     }
     closeOverlay({ replace: true });
@@ -301,7 +309,9 @@ export default function TabSwitcherDialog() {
 
   const handleSearchEnter = () => {
     if (activeSegment === 'apps') {
-      const firstApp = showAppHistory ? (recentApps[0] ?? filteredApps[0]) : filteredApps[0];
+      const firstApp = showAppHistory
+        ? (previewableRecentApps[0] ?? previewableFilteredApps[0])
+        : previewableFilteredApps[0];
       if (firstApp) {
         handleAppSelect(firstApp);
       }
@@ -385,8 +395,8 @@ export default function TabSwitcherDialog() {
           <div className="tab-switcher__section">
             <AppsSection
               showHistory={showAppHistory}
-              recentApps={recentApps}
-              apps={filteredApps}
+              recentApps={previewableRecentApps}
+              apps={previewableFilteredApps}
               normalizedSearch={normalizedSearch}
               sortOption={sortOption}
               onSortChange={value => setSortOption(normalizeAppSort(value))}

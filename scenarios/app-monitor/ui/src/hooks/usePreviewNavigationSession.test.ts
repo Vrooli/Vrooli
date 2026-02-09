@@ -84,13 +84,13 @@ describe('usePreviewNavigationSession', () => {
       onStateChange,
     }));
 
-    expect(result.current.previewUrl).toBe('http://localhost:4310');
+    expect(result.current.previewUrl).toBe('http://localhost:5000');
     expect(result.current.history).toEqual(['http://localhost:4310', 'http://localhost:5000']);
     expect(result.current.historyIndex).toBe(1);
 
     await waitFor(() => {
       expect(onStateChange).toHaveBeenCalledWith(expect.objectContaining({
-        previewUrl: 'http://localhost:4310',
+        previewUrl: 'http://localhost:5000',
         hasCustomPreviewUrl: true,
         history: ['http://localhost:4310', 'http://localhost:5000'],
         historyIndex: 1,
@@ -98,7 +98,29 @@ describe('usePreviewNavigationSession', () => {
     });
   });
 
-  it('clears session state when clearNavigationSession is called', () => {
+  it('restores previewUrl from history entry so reload resumes last committed route', () => {
+    const { result } = renderHook(() => usePreviewNavigationSession({
+      iframeRef: { current: null },
+      setStatusMessage: vi.fn(),
+      initialState: {
+        previewUrl: 'http://localhost:3000/apps/scenario-1/proxy/',
+        previewUrlInput: 'http://localhost:3000/apps/scenario-1/proxy/?path=README.md',
+        hasCustomPreviewUrl: true,
+        history: [
+          'http://localhost:3000/apps/scenario-1/proxy/',
+          'http://localhost:3000/apps/scenario-1/proxy/?path=README.md',
+        ],
+        historyIndex: 1,
+        initialPreviewUrl: 'http://localhost:3000/apps/scenario-1/proxy/',
+      },
+    }));
+
+    expect(result.current.previewUrl).toBe('http://localhost:3000/apps/scenario-1/proxy/?path=README.md');
+    expect(result.current.previewUrlInput).toBe('http://localhost:3000/apps/scenario-1/proxy/?path=README.md');
+    expect(result.current.initialPreviewUrlRef.current).toBe('http://localhost:3000/apps/scenario-1/proxy/?path=README.md');
+  });
+
+  it('clears session state when clearNavigationSession is called', async () => {
     const { result } = renderHook(() => usePreviewNavigationSession({
       iframeRef: { current: null },
       setStatusMessage: vi.fn(),
@@ -116,11 +138,13 @@ describe('usePreviewNavigationSession', () => {
       result.current.clearNavigationSession();
     });
 
-    expect(result.current.previewUrl).toBeNull();
-    expect(result.current.previewUrlInput).toBe('');
-    expect(result.current.history).toEqual([]);
-    expect(result.current.historyIndex).toBe(-1);
-    expect(result.current.hasCustomPreviewUrl).toBe(false);
-    expect(result.current.initialPreviewUrlRef.current).toBeNull();
+    await waitFor(() => {
+      expect(result.current.previewUrl).toBeNull();
+      expect(result.current.previewUrlInput).toBe('');
+      expect(result.current.history).toEqual([]);
+      expect(result.current.historyIndex).toBe(-1);
+      expect(result.current.hasCustomPreviewUrl).toBe(false);
+      expect(result.current.initialPreviewUrlRef.current).toBeNull();
+    });
   });
 });

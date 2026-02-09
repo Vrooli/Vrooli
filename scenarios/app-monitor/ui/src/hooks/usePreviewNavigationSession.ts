@@ -3,6 +3,12 @@ import type { RefObject } from 'react';
 import type { BridgeShortcutIntent } from '@vrooli/iframe-bridge';
 import { useIframeBridge } from '@/hooks/useIframeBridge';
 import usePreviewNavigation from '@/components/views/usePreviewNavigation';
+import {
+  previewNavigationActions,
+  reducePreviewNavigationState,
+  type PreviewNavigationAction,
+  type PreviewNavigationState,
+} from '@/components/views/previewNavigationStateMachine';
 
 type ShortcutMessage = {
   intent: BridgeShortcutIntent;
@@ -40,8 +46,15 @@ export function usePreviewNavigationSession({
   const normalizedInitialHistoryIndex = typeof initialState?.historyIndex === 'number' && Number.isFinite(initialState.historyIndex)
     ? Math.max(-1, Math.min(normalizedInitialHistory.length - 1, Math.floor(initialState.historyIndex)))
     : normalizedInitialHistory.length - 1;
+  const normalizedInitialPreviewUrl = typeof initialState?.previewUrl === 'string' && initialState.previewUrl.trim().length > 0
+    ? initialState.previewUrl.trim()
+    : null;
+  const historyPreviewUrl = normalizedInitialHistoryIndex >= 0
+    ? (normalizedInitialHistory[normalizedInitialHistoryIndex] ?? null)
+    : null;
+  const resolvedInitialPreviewUrl = historyPreviewUrl ?? normalizedInitialPreviewUrl;
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    () => (typeof initialState?.previewUrl === 'string' && initialState.previewUrl.trim().length > 0 ? initialState.previewUrl.trim() : null),
+    () => resolvedInitialPreviewUrl,
   );
   const [previewUrlInput, setPreviewUrlInput] = useState<string>(
     () => (typeof initialState?.previewUrlInput === 'string' ? initialState.previewUrlInput : ''),
@@ -50,11 +63,42 @@ export function usePreviewNavigationSession({
   const [history, setHistory] = useState<string[]>(() => normalizedInitialHistory);
   const [historyIndex, setHistoryIndex] = useState<number>(() => normalizedInitialHistoryIndex);
   const initialPreviewUrlRef = useRef<string | null>(
-    typeof initialState?.initialPreviewUrl === 'string' && initialState.initialPreviewUrl.trim().length > 0
-      ? initialState.initialPreviewUrl.trim()
-      : null,
+    resolvedInitialPreviewUrl,
   );
+  const latestSessionStateRef = useRef<PreviewNavigationState>({
+    previewUrl: resolvedInitialPreviewUrl,
+    previewUrlInput: typeof initialState?.previewUrlInput === 'string' ? initialState.previewUrlInput : '',
+    hasCustomPreviewUrl: Boolean(initialState?.hasCustomPreviewUrl),
+    history: normalizedInitialHistory,
+    historyIndex: normalizedInitialHistoryIndex,
+    initialPreviewUrl: resolvedInitialPreviewUrl,
+  });
   const syncFromBridgeRef = useRef<(href: string | null) => void>(() => {});
+
+  latestSessionStateRef.current = {
+    previewUrl,
+    previewUrlInput,
+    hasCustomPreviewUrl,
+    history,
+    historyIndex,
+    initialPreviewUrl: initialPreviewUrlRef.current,
+  };
+
+  const applySessionState = useCallback((nextState: PreviewNavigationState) => {
+    latestSessionStateRef.current = nextState;
+    setPreviewUrl(nextState.previewUrl);
+    setPreviewUrlInput(nextState.previewUrlInput);
+    setHasCustomPreviewUrl(nextState.hasCustomPreviewUrl);
+    setHistory(nextState.history);
+    setHistoryIndex(nextState.historyIndex);
+    initialPreviewUrlRef.current = nextState.initialPreviewUrl;
+  }, []);
+
+  const transitionSessionState = useCallback((action: PreviewNavigationAction) => {
+    const current = latestSessionStateRef.current;
+    const next = reducePreviewNavigationState(current, action);
+    applySessionState(next);
+  }, [applySessionState]);
 
   const handleBridgeLocation = useCallback((message: { href: string; title?: string | null }) => {
     syncFromBridgeRef.current(message.href ?? null);
@@ -112,13 +156,9 @@ export function usePreviewNavigationSession({
   }, [hasCustomPreviewUrl, history, historyIndex, onStateChange, previewUrl, previewUrlInput]);
 
   const clearNavigationSession = useCallback(() => {
+    transitionSessionState(previewNavigationActions.reset(true));
     setHasCustomPreviewUrl(false);
-    setHistory([]);
-    setHistoryIndex(-1);
-    setPreviewUrl(null);
-    setPreviewUrlInput('');
-    initialPreviewUrlRef.current = null;
-  }, []);
+  }, [setHasCustomPreviewUrl, transitionSessionState]);
 
   return {
     bridge,

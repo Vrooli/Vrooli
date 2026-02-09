@@ -40,8 +40,7 @@ export const usePreviewOverlay = ({
   preserveErrorMessages = [],
 }: UsePreviewOverlayOptions): UsePreviewOverlayReturn => {
   const [previewOverlay, setPreviewOverlay] = useState<PreviewOverlayState>(null);
-  const preserveErrorKey = preserveErrorMessages.join('\u241f');
-  const persistentMessages = useMemo(() => new Set(preserveErrorMessages), [preserveErrorKey]);
+  const persistentMessages = useMemo(() => new Set(preserveErrorMessages), [preserveErrorMessages]);
 
   useEffect(() => {
     setPreviewOverlay(current => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
+import { isAppMonitorScenarioId } from '@/utils/appPreview';
 import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout';
 
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
@@ -116,7 +117,10 @@ const normalizePaneApp = (value: string | null | undefined): string | null => {
     return null;
   }
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  if (trimmed.length === 0 || isAppMonitorScenarioId(trimmed)) {
+    return null;
+  }
+  return trimmed;
 };
 
 const reconcileFractionsForWorkspace = (

@@ -1,7 +1,21 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent, MutableRefObject } from 'react';
 import { logger } from '@/services/logger';
-import { resolvePreviewUrlCandidate } from '@/utils/previewUrl';
+import {
+  isAppMonitorProxyPreviewTarget,
+  isBlockedHostEmbedPreviewTarget,
+  resolvePreviewUrlCandidate,
+} from '@/utils/previewUrl';
+import {
+  PREVIEW_NAV_BLOCKED_HOST_MESSAGE,
+  createPreviewNavigationPlan,
+  isSameNormalizedUrl,
+} from './previewNavigationPlanner';
+import {
+  previewNavigationActions,
+  reducePreviewNavigationState,
+  type PreviewNavigationState,
+} from './previewNavigationStateMachine';
 
 type BridgeSnapshot = {
   isSupported: boolean;
@@ -48,88 +62,7 @@ type UsePreviewNavigationResult = {
   syncFromBridge: (href: string | null) => void;
 };
 
-const normalizeUrl = (value: string): string => value.replace(/\/$/, '');
-const isSameUrl = (left: string, right: string): boolean => normalizeUrl(left) === normalizeUrl(right);
-const PROXY_BASE_PATTERN = /^\/apps\/([^/]+)\/proxy(?:\/|$)/i;
-const URL_PARSE_BASE = 'http://localhost';
-
-type ProxyBase = {
-  origin: string;
-  scenarioIdentifier: string;
-  basePath: string;
-};
-
-const normalizePath = (path: string): string => {
-  if (path === '/') {
-    return path;
-  }
-  return path.endsWith('/') ? path.slice(0, -1) : path;
-};
-
-const parseProxyBase = (value: string): ProxyBase | null => {
-  try {
-    const parsed = new URL(value, URL_PARSE_BASE);
-    const match = parsed.pathname.match(PROXY_BASE_PATTERN);
-    if (!match) {
-      return null;
-    }
-
-    const rawScenarioIdentifier = decodeURIComponent(match[1] ?? '').trim();
-    if (!rawScenarioIdentifier) {
-      return null;
-    }
-    const scenarioIdentifier = rawScenarioIdentifier.toLowerCase();
-
-    return {
-      origin: parsed.origin,
-      scenarioIdentifier,
-      basePath: normalizePath(`/apps/${encodeURIComponent(rawScenarioIdentifier)}/proxy/`),
-    };
-  } catch {
-    return null;
-  }
-};
-
-const canBridgeNavigateToTarget = (
-  targetUrl: string,
-  currentReference: string | null,
-  childOrigin: string | null,
-): boolean => {
-  if (!currentReference) {
-    return false;
-  }
-
-  try {
-    const resolvedTarget = new URL(targetUrl, URL_PARSE_BASE);
-    if (childOrigin && resolvedTarget.origin !== childOrigin) {
-      return false;
-    }
-  } catch {
-    return false;
-  }
-
-  const currentBase = parseProxyBase(currentReference);
-  const targetBase = parseProxyBase(targetUrl);
-  if (!currentBase || !targetBase) {
-    return false;
-  }
-
-  if (currentBase.origin !== targetBase.origin) {
-    return false;
-  }
-
-  if (currentBase.scenarioIdentifier !== targetBase.scenarioIdentifier) {
-    return false;
-  }
-
-  try {
-    const resolvedTarget = new URL(targetUrl, URL_PARSE_BASE);
-    const targetPath = normalizePath(resolvedTarget.pathname);
-    return targetPath === targetBase.basePath || targetPath.startsWith(`${targetBase.basePath}/`);
-  } catch {
-    return false;
-  }
-};
+const BRIDGE_NAVIGATION_FALLBACK_MS = 1200;
 
 export const usePreviewNavigation = ({
   previewUrl,
@@ -151,7 +84,64 @@ export const usePreviewNavigation = ({
   onBeforeLocalNavigation,
 }: UsePreviewNavigationOptions): UsePreviewNavigationResult => {
   const latestPreviewUrlInputRef = useRef(previewUrlInput);
+  const latestStateRef = useRef<PreviewNavigationState>({
+    previewUrl,
+    previewUrlInput,
+    hasCustomPreviewUrl,
+    history,
+    historyIndex,
+    initialPreviewUrl: initialPreviewUrlRef.current,
+  });
+  const blockedHostEmbedAttemptsRef = useRef(0);
+  const pendingBridgeNavigationRef = useRef<{
+    target: string;
+    timeoutId: number;
+  } | null>(null);
   latestPreviewUrlInputRef.current = previewUrlInput;
+  latestStateRef.current = {
+    previewUrl,
+    previewUrlInput,
+    hasCustomPreviewUrl,
+    history,
+    historyIndex,
+    initialPreviewUrl: initialPreviewUrlRef.current,
+  };
+
+  const applyNavigationState = useCallback((nextState: PreviewNavigationState) => {
+    latestStateRef.current = nextState;
+    initialPreviewUrlRef.current = nextState.initialPreviewUrl;
+    setPreviewUrl(nextState.previewUrl);
+    setPreviewUrlInput(nextState.previewUrlInput);
+    setHasCustomPreviewUrl(nextState.hasCustomPreviewUrl);
+    setHistory(nextState.history);
+    setHistoryIndex(nextState.historyIndex);
+  }, [
+    initialPreviewUrlRef,
+    setHasCustomPreviewUrl,
+    setHistory,
+    setHistoryIndex,
+    setPreviewUrl,
+    setPreviewUrlInput,
+  ]);
+
+  const transitionNavigationState = useCallback(
+    (action: Parameters<typeof reducePreviewNavigationState>[1]): PreviewNavigationState => {
+      const current = latestStateRef.current;
+      const next = reducePreviewNavigationState(current, action);
+      applyNavigationState(next);
+      return next;
+    },
+    [applyNavigationState],
+  );
+
+  const clearPendingBridgeNavigationFallback = useCallback(() => {
+    const pending = pendingBridgeNavigationRef.current;
+    if (!pending) {
+      return;
+    }
+    window.clearTimeout(pending.timeoutId);
+    pendingBridgeNavigationRef.current = null;
+  }, []);
 
   const canGoBack = useMemo(() => (
     bridgeState.isSupported ? bridgeState.canGoBack : historyIndex > 0
@@ -162,120 +152,103 @@ export const usePreviewNavigation = ({
   ), [bridgeState.canGoForward, bridgeState.isSupported, history.length, historyIndex]);
 
   const resetPreviewState = useCallback((options?: { force?: boolean }) => {
-    if (!options?.force && hasCustomPreviewUrl) {
-      return;
-    }
-    setPreviewUrl(null);
-    setPreviewUrlInput('');
-    setHistory([]);
-    setHistoryIndex(-1);
-    initialPreviewUrlRef.current = null;
-  }, [hasCustomPreviewUrl, initialPreviewUrlRef, setHistory, setPreviewUrl, setPreviewUrlInput, setHistoryIndex]);
+    transitionNavigationState(previewNavigationActions.reset(options?.force));
+  }, [transitionNavigationState]);
 
   const applyDefaultPreviewUrl = useCallback((url: string) => {
-    const normalizedUrl = resolvePreviewUrlCandidate(url, previewUrl) ?? url;
-    initialPreviewUrlRef.current = normalizedUrl;
-    setPreviewUrl(normalizedUrl);
-    setPreviewUrlInput(normalizedUrl);
-    setHasCustomPreviewUrl(false);
-    setHistory(prevHistory => {
-      if (prevHistory.length === 0) {
-        setHistoryIndex(0);
-        return [normalizedUrl];
-      }
-      if (prevHistory[prevHistory.length - 1] === normalizedUrl) {
-        setHistoryIndex(prevHistory.length - 1);
-        return prevHistory;
-      }
-      const nextHistory = [...prevHistory, normalizedUrl];
-      setHistoryIndex(nextHistory.length - 1);
-      return nextHistory;
-    });
-  }, [
-    initialPreviewUrlRef,
-    previewUrl,
-    setHasCustomPreviewUrl,
-    setHistory,
-    setHistoryIndex,
-    setPreviewUrl,
-    setPreviewUrlInput,
-  ]);
+    const reference = latestStateRef.current.previewUrl;
+    const normalizedUrl = resolvePreviewUrlCandidate(url, reference) ?? url;
+    transitionNavigationState(previewNavigationActions.applyDefaultUrl(normalizedUrl));
+  }, [transitionNavigationState]);
+
+  const clearStatusMessage = useCallback(() => {
+    setStatusMessage(null);
+  }, [setStatusMessage]);
+
+  const commitLocalNavigation = useCallback((resolvedTarget: string) => {
+    transitionNavigationState(previewNavigationActions.applyLocalNavigation(resolvedTarget));
+    resetBridgeState();
+    clearStatusMessage();
+  }, [clearStatusMessage, resetBridgeState, transitionNavigationState]);
+
+  const syncUrlInput = useCallback((value: string) => {
+    if (value !== latestStateRef.current.previewUrlInput) {
+      transitionNavigationState(previewNavigationActions.setInput(value));
+    }
+    latestPreviewUrlInputRef.current = value;
+  }, [transitionNavigationState]);
 
   const applyPreviewUrlValue = useCallback((value: string) => {
-    const trimmed = value.trim();
+    clearPendingBridgeNavigationFallback();
+    const currentState = latestStateRef.current;
+    const navigationReference = bridgeState.href || currentState.previewUrl || currentState.initialPreviewUrl;
+    const hostOrigin = typeof window !== 'undefined' ? window.location.origin : null;
+    const plan = createPreviewNavigationPlan({
+      rawValue: value,
+      navigationReference,
+      hostOrigin,
+      bridgeSupported: bridgeState.isSupported,
+      childOrigin,
+    });
 
-    if (!trimmed) {
-      if (previewUrlInput !== '') {
-        setPreviewUrlInput('');
-      }
-      setHasCustomPreviewUrl(false);
+    syncUrlInput(plan.nextInput);
+
+    if (plan.kind === 'empty') {
+      transitionNavigationState(previewNavigationActions.markDefaultCleared());
       return;
     }
 
-    if (trimmed !== previewUrlInput) {
-      setPreviewUrlInput(trimmed);
-    }
-    latestPreviewUrlInputRef.current = trimmed;
-
-    const navigationReference = bridgeState.href || previewUrl || initialPreviewUrlRef.current;
-    const resolvedTarget = resolvePreviewUrlCandidate(trimmed, navigationReference);
-
-    if (!resolvedTarget) {
-      setStatusMessage('Enter an absolute URL or wait for preview to load before using relative paths.');
+    if (plan.kind === 'invalid') {
+      setStatusMessage(plan.message);
       return;
     }
 
-    if (bridgeState.isSupported) {
-      try {
-        if (canBridgeNavigateToTarget(resolvedTarget, navigationReference, childOrigin)) {
-          const sent = sendBridgeNav('GO', resolvedTarget);
-          if (sent) {
-            setHasCustomPreviewUrl(true);
-            setHistory(prevHistory => {
-              const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
-              const last = baseHistory[baseHistory.length - 1];
-              const nextHistory = last === resolvedTarget ? baseHistory : [...baseHistory, resolvedTarget];
-              setHistoryIndex(nextHistory.length - 1);
-              return nextHistory;
-            });
-            setStatusMessage(null);
+    if (plan.kind === 'blocked-host') {
+      blockedHostEmbedAttemptsRef.current += 1;
+      logger.warn('Blocked preview navigation to app-monitor shell target', {
+        target: plan.resolvedTarget,
+        blockedHostEmbedAttempts: blockedHostEmbedAttemptsRef.current,
+      });
+      setStatusMessage(plan.message);
+      return;
+    }
+
+    if (plan.kind === 'bridge-go') {
+      const sent = sendBridgeNav('GO', plan.resolvedTarget);
+      if (sent) {
+        const timeoutId = window.setTimeout(() => {
+          if (latestPreviewUrlInputRef.current !== plan.nextInput) {
             return;
           }
-        }
-      } catch (error) {
-        logger.warn('Bridge navigation failed to parse URL', error);
+          commitLocalNavigation(plan.resolvedTarget);
+          pendingBridgeNavigationRef.current = null;
+        }, BRIDGE_NAVIGATION_FALLBACK_MS);
+        pendingBridgeNavigationRef.current = { target: plan.resolvedTarget, timeoutId };
+        transitionNavigationState(previewNavigationActions.applyLocalNavigation(plan.resolvedTarget));
+        // Bridge GO should not immediately replace iframe src; retain current src
+        // while still reflecting address bar/history intent.
+        applyNavigationState({
+          ...latestStateRef.current,
+          previewUrl: currentState.previewUrl,
+        });
+        clearStatusMessage();
+        return;
       }
     }
 
-    setHasCustomPreviewUrl(true);
-    setPreviewUrl(resolvedTarget);
-    initialPreviewUrlRef.current = resolvedTarget;
-    resetBridgeState();
-    setStatusMessage(null);
-
-    setHistory(prevHistory => {
-      const baseHistory = historyIndex >= 0 ? prevHistory.slice(0, historyIndex + 1) : [];
-      const last = baseHistory[baseHistory.length - 1];
-      const nextHistory = last === resolvedTarget ? baseHistory : [...baseHistory, resolvedTarget];
-      setHistoryIndex(nextHistory.length - 1);
-      return nextHistory;
-    });
+    commitLocalNavigation(plan.resolvedTarget);
   }, [
     bridgeState.href,
     bridgeState.isSupported,
     childOrigin,
-    historyIndex,
-    initialPreviewUrlRef,
-    previewUrl,
-    previewUrlInput,
-    resetBridgeState,
+    applyNavigationState,
+    commitLocalNavigation,
+    clearPendingBridgeNavigationFallback,
+    clearStatusMessage,
     sendBridgeNav,
-    setHasCustomPreviewUrl,
-    setHistory,
-    setHistoryIndex,
-    setPreviewUrl,
-    setPreviewUrlInput,
     setStatusMessage,
+    syncUrlInput,
+    transitionNavigationState,
   ]);
 
   const applyPreviewUrlInput = useCallback(() => {
@@ -283,8 +256,8 @@ export const usePreviewNavigation = ({
   }, [applyPreviewUrlValue]);
 
   const handleUrlInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setPreviewUrlInput(event.target.value);
-  }, [setPreviewUrlInput]);
+    syncUrlInput(event.target.value);
+  }, [syncUrlInput]);
 
   const handleUrlInputKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
@@ -298,6 +271,7 @@ export const usePreviewNavigation = ({
   }, [applyPreviewUrlInput]);
 
   const handleGoBack = useCallback(() => {
+    clearPendingBridgeNavigationFallback();
     onBeforeLocalNavigation();
     if (bridgeState.isSupported) {
       sendBridgeNav('BACK');
@@ -308,16 +282,12 @@ export const usePreviewNavigation = ({
       return;
     }
 
-    const targetIndex = historyIndex - 1;
-    const targetUrl = history[targetIndex] ?? null;
-    setHistoryIndex(targetIndex);
-    setPreviewUrl(targetUrl);
-    setPreviewUrlInput(targetUrl ?? '');
-    setHasCustomPreviewUrl(true);
-    setStatusMessage(null);
-  }, [bridgeState.isSupported, history, historyIndex, onBeforeLocalNavigation, sendBridgeNav, setHasCustomPreviewUrl, setHistoryIndex, setPreviewUrl, setPreviewUrlInput, setStatusMessage]);
+    transitionNavigationState(previewNavigationActions.travelHistory('back'));
+    clearStatusMessage();
+  }, [bridgeState.isSupported, clearPendingBridgeNavigationFallback, clearStatusMessage, historyIndex, onBeforeLocalNavigation, sendBridgeNav, transitionNavigationState]);
 
   const handleGoForward = useCallback(() => {
+    clearPendingBridgeNavigationFallback();
     if (bridgeState.isSupported) {
       sendBridgeNav('FWD');
       return;
@@ -327,46 +297,47 @@ export const usePreviewNavigation = ({
       return;
     }
 
-    const targetIndex = historyIndex + 1;
-    const targetUrl = history[targetIndex] ?? null;
-    setHistoryIndex(targetIndex);
-    setPreviewUrl(targetUrl);
-    setPreviewUrlInput(targetUrl ?? '');
-    setHasCustomPreviewUrl(true);
-    setStatusMessage(null);
-  }, [bridgeState.isSupported, history, historyIndex, sendBridgeNav, setHasCustomPreviewUrl, setHistoryIndex, setPreviewUrl, setPreviewUrlInput, setStatusMessage]);
+    transitionNavigationState(previewNavigationActions.travelHistory('forward'));
+    clearStatusMessage();
+  }, [bridgeState.isSupported, clearPendingBridgeNavigationFallback, clearStatusMessage, history, historyIndex, sendBridgeNav, transitionNavigationState]);
 
   const syncFromBridge = useCallback((href: string | null) => {
     if (!href) {
       return;
     }
+    const currentState = latestStateRef.current;
     const normalizedHref = resolvePreviewUrlCandidate(
       href,
-      bridgeState.href || previewUrl || initialPreviewUrlRef.current,
+      bridgeState.href || currentState.previewUrl || currentState.initialPreviewUrl,
     ) ?? href;
-    setPreviewUrlInput(normalizedHref);
-    setHistory(prevHistory => {
-      const last = prevHistory[prevHistory.length - 1];
-      if (last && isSameUrl(last, normalizedHref)) {
-        setHistoryIndex(prevHistory.length - 1);
-        return prevHistory;
-      }
-
-      const nextHistory = [...prevHistory, normalizedHref];
-      setHistoryIndex(nextHistory.length - 1);
-      return nextHistory;
-    });
-    if (!initialPreviewUrlRef.current) {
-      initialPreviewUrlRef.current = normalizedHref;
+    const hostOrigin = typeof window !== 'undefined' ? window.location.origin : null;
+    if (
+      isBlockedHostEmbedPreviewTarget(normalizedHref, hostOrigin)
+      || isAppMonitorProxyPreviewTarget(normalizedHref)
+    ) {
+      blockedHostEmbedAttemptsRef.current += 1;
+      logger.warn('Blocked preview bridge sync to app-monitor shell target', {
+        target: normalizedHref,
+        blockedHostEmbedAttempts: blockedHostEmbedAttemptsRef.current,
+      });
+      setStatusMessage(PREVIEW_NAV_BLOCKED_HOST_MESSAGE);
+      return;
     }
+    const pending = pendingBridgeNavigationRef.current;
+    if (pending && isSameNormalizedUrl(pending.target, normalizedHref)) {
+      clearPendingBridgeNavigationFallback();
+    }
+    transitionNavigationState(previewNavigationActions.syncFromBridge(normalizedHref));
   }, [
     bridgeState.href,
-    initialPreviewUrlRef,
-    previewUrl,
-    setHistory,
-    setHistoryIndex,
-    setPreviewUrlInput,
+    clearPendingBridgeNavigationFallback,
+    transitionNavigationState,
   ]);
+  useEffect(() => {
+    return () => {
+      clearPendingBridgeNavigationFallback();
+    };
+  }, [clearPendingBridgeNavigationFallback]);
 
   return {
     canGoBack,

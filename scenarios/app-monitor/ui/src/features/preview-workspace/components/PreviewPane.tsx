@@ -34,6 +34,7 @@ import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { isRunningStatus, locateAppByIdentifier, resolveAppIdentifier } from '@/utils/appPreview';
 import { parseScenarioProxyPreviewTarget } from '@/utils/previewUrl';
 import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
+import { usePaneMetadata } from './usePaneMetadata';
 import './PreviewPane.css';
 
 export interface PreviewPaneProps {
@@ -65,9 +66,8 @@ export function PreviewPane({
   const setAppsState = useAppsStore((state) => state.setAppsState);
   const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
   const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
-  const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>('Select an app to preview.');
-  const [loading, setLoading] = useState(false);
+  const [isIframeLoading, setIsIframeLoading] = useState(false);
   const [isLogsVisible, setIsLogsVisible] = useState(() => paneViewState?.isLogsVisible ?? false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isFullView, setIsFullView] = useState(false);
@@ -81,7 +81,7 @@ export function PreviewPane({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const paneRef = useRef<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
-  const metadataFetchKeyRef = useRef<string | null>(null);
+  const lastAssignedAppIdentifierRef = useRef<string | null>(null);
 
   const activeAppIdentifier = useMemo(() => {
     if (!appId) {
@@ -133,15 +133,29 @@ export function PreviewPane({
     setPreviewUrl,
     initialPreviewUrlRef,
     history,
+    historyIndex,
+    clearNavigationSession,
   } = navigationSession;
   const scenarioTargetFromUrl = useMemo(
     () => parseScenarioProxyPreviewTarget(previewUrlInput),
     [previewUrlInput],
   );
-  const resolvedAppIdentifier = useMemo(
-    () => activeAppIdentifier ?? scenarioTargetFromUrl?.scenarioIdentifier ?? null,
-    [activeAppIdentifier, scenarioTargetFromUrl?.scenarioIdentifier],
-  );
+  const resolvedAppIdentifier = useMemo(() => {
+    const scenarioIdentifierFromUrl = scenarioTargetFromUrl?.scenarioIdentifier ?? null;
+    if (!scenarioIdentifierFromUrl) {
+      return activeAppIdentifier ?? null;
+    }
+    if (!activeAppIdentifier) {
+      return scenarioIdentifierFromUrl;
+    }
+    if (!hasCustomPreviewUrl) {
+      return activeAppIdentifier;
+    }
+
+    return scenarioIdentifierFromUrl.toLowerCase() === activeAppIdentifier.toLowerCase()
+      ? activeAppIdentifier
+      : scenarioIdentifierFromUrl;
+  }, [activeAppIdentifier, hasCustomPreviewUrl, scenarioTargetFromUrl?.scenarioIdentifier]);
   const {
     state: bridgeState,
     runComplianceCheck,
@@ -176,7 +190,7 @@ export function PreviewPane({
   const { setPreviewOverlay, fallbackState } = usePreviewOverlay({
     previewUrl,
     previewReloadToken,
-    loading,
+    loading: isIframeLoading,
     statusMessage,
     defaultEmptyMessage: 'Select an app to start this pane.',
     bridgeIsReady: bridgeState.isReady,
@@ -238,127 +252,28 @@ export function PreviewPane({
       setBridgeCompliance(null);
     },
   });
-
-  useEffect(() => {
-    if (!resolvedAppIdentifier) {
-      metadataFetchKeyRef.current = null;
-      setCurrentApp(null);
-      setLoading(false);
+  const {
+    currentApp,
+    setCurrentApp,
+    isMetadataLoading: metadataLoadingFromHydration,
+  } = usePaneMetadata({
+    paneId,
+    apps,
+    resolvedAppIdentifier,
+    scenarioIdentifierFromUrl: scenarioTargetFromUrl?.scenarioIdentifier ?? null,
+    shouldPreferExistingApp,
+    setAppsState,
+    getApp: appService.getApp,
+    setStatusMessage,
+    onResetForMissingIdentifier: () => {
+      setIsIframeLoading(false);
       setStatusMessage('Select an app to preview.');
       setIsLogsVisible(false);
       setIframeLoadError(null);
       setReportDialogOpen(false);
       resetReportDraftState();
-      return;
-    }
-
-    const localMatch = locateAppByIdentifier(apps, resolvedAppIdentifier);
-    if (localMatch) {
-      setCurrentApp((existing) => (
-        shouldPreferExistingApp(existing, localMatch) ? existing : localMatch
-      ));
-      const needsHydration = Boolean(
-        localMatch.is_partial || !localMatch.status || localMatch.status === 'unknown',
-      );
-      if (!needsHydration) {
-        setLoading(false);
-        return;
-      }
-    }
-
-    setLoading(true);
-    setStatusMessage('Loading app metadata...');
-
-    const retainMatchingCurrentApp = (): boolean => {
-      let retained = false;
-      setCurrentApp((previous) => {
-        const stillMatches = Boolean(previous && locateAppByIdentifier([previous], resolvedAppIdentifier));
-        if (stillMatches) {
-          retained = true;
-          return previous;
-        }
-        return null;
-      });
-      return retained;
-    };
-
-    const fetchIdentifiers = [
-      localMatch ? resolveAppIdentifier(localMatch) : null,
-      resolvedAppIdentifier,
-      scenarioTargetFromUrl?.scenarioIdentifier ?? null,
-    ].filter((value, index, list): value is string => (
-      typeof value === 'string' && value.trim().length > 0 && list.indexOf(value) === index
-    ));
-    if (fetchIdentifiers.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchKey = fetchIdentifiers.join('|');
-    if (metadataFetchKeyRef.current === fetchKey) {
-      return;
-    }
-    metadataFetchKeyRef.current = fetchKey;
-    const fetchAppMetadata = async (): Promise<App | null> => {
-      for (const identifier of fetchIdentifiers) {
-        const fetched = await appService.getApp(identifier);
-        if (fetched) {
-          return fetched;
-        }
-      }
-      return null;
-    };
-
-    fetchAppMetadata()
-      .then((fetched) => {
-        if (metadataFetchKeyRef.current !== fetchKey) {
-          return;
-        }
-        if (!fetched) {
-          const retained = retainMatchingCurrentApp();
-          setStatusMessage(retained ? 'App metadata unavailable.' : 'App not found.');
-          setLoading(false);
-          return;
-        }
-        setCurrentApp(fetched);
-        setAppsState((currentApps) => {
-          const index = currentApps.findIndex((app) => (
-            app.id === fetched.id
-            || app.scenario_name === fetched.scenario_name
-            || app.name === fetched.name
-          ));
-          if (index < 0) {
-            return [...currentApps, fetched];
-          }
-          const updated = [...currentApps];
-          updated[index] = { ...updated[index], ...fetched };
-          return updated;
-        });
-      })
-      .catch((error) => {
-        if (metadataFetchKeyRef.current !== fetchKey) {
-          return;
-        }
-        logger.warn('[preview-pane] Failed to load app', error);
-        retainMatchingCurrentApp();
-        setStatusMessage('Failed to load app metadata.');
-        setLoading(false);
-      })
-      .finally(() => {
-        if (metadataFetchKeyRef.current === fetchKey) {
-          metadataFetchKeyRef.current = null;
-        }
-      });
-
-    return undefined;
-  }, [
-    apps,
-    resetReportDraftState,
-    resolvedAppIdentifier,
-    scenarioTargetFromUrl?.scenarioIdentifier,
-    setAppsState,
-    shouldPreferExistingApp,
-  ]);
+    },
+  });
 
   useEffect(() => {
     setPaneViewState(paneId, { isLogsVisible });
@@ -374,6 +289,42 @@ export function PreviewPane({
   }, [paneViewState]);
 
   useEffect(() => {
+    const normalize = (value: string | null): string | null => {
+      if (!value) {
+        return null;
+      }
+      const trimmed = value.trim().toLowerCase();
+      return trimmed.length > 0 ? trimmed : null;
+    };
+
+    const previous = normalize(lastAssignedAppIdentifierRef.current);
+    const next = normalize(activeAppIdentifier);
+    lastAssignedAppIdentifierRef.current = activeAppIdentifier;
+
+    if (previous === null || previous === next) {
+      return;
+    }
+
+    // Changing the pane's assigned app should reset stale per-pane URL state so
+    // a prior custom/invalid proxy target cannot keep the pane stuck.
+    clearNavigationSession();
+    resetBridgeState();
+    setIsIframeLoading(false);
+    setIframeLoadedAt(null);
+    setIframeLoadError(null);
+    setStatusMessage('Loading app metadata...');
+    setPreviewOverlay(null);
+    setReportDialogOpen(false);
+    resetReportDraftState();
+  }, [
+    activeAppIdentifier,
+    clearNavigationSession,
+    resetBridgeState,
+    resetReportDraftState,
+    setPreviewOverlay,
+  ]);
+
+  useEffect(() => {
     if (!currentApp) {
       return;
     }
@@ -382,7 +333,7 @@ export function PreviewPane({
       appForPreview: currentApp,
     });
     if (!hasPreviewCandidate) {
-      setLoading(false);
+      setIsIframeLoading(false);
       setStatusMessage('Preview unavailable for this app (no UI port found).');
       return;
     }
@@ -398,9 +349,7 @@ export function PreviewPane({
     setPreviewOverlay(null);
     setIframeLoadError(null);
     setIframeLoadedAt(null);
-    if (previewUrl) {
-      setLoading(true);
-    }
+    setIsIframeLoading(Boolean(previewUrl));
   }, [previewReloadToken, previewUrl, setPreviewOverlay]);
 
   const logsState = useAppLogs({
@@ -414,7 +363,14 @@ export function PreviewPane({
       return;
     }
 
-    setLoading(true);
+    const historyTarget = historyIndex >= 0 ? (history[historyIndex] ?? null) : null;
+    const refreshTarget = bridgeState.href || historyTarget || previewUrl;
+
+    if (refreshTarget && refreshTarget !== previewUrl) {
+      setPreviewUrl(refreshTarget);
+    }
+
+    setIsIframeLoading(Boolean(refreshTarget || previewUrl));
     setStatusMessage('Refreshing preview...');
     setPreviewOverlay(null);
     setIframeLoadError(null);
@@ -430,11 +386,8 @@ export function PreviewPane({
       })
       .catch((error) => {
         logger.warn('[preview-pane] Failed to refresh app', error);
-      })
-      .finally(() => {
-        setLoading(false);
       });
-  }, [resolvedAppIdentifier, resetBridgeState, setPreviewOverlay]);
+  }, [bridgeState.href, history, historyIndex, previewUrl, resolvedAppIdentifier, resetBridgeState, setCurrentApp, setPreviewOverlay, setPreviewUrl]);
 
   const {
     openPreviewTarget,
@@ -468,7 +421,7 @@ export function PreviewPane({
   });
 
   const onIframeLoad = useCallback(() => {
-    setLoading(false);
+    setIsIframeLoading(false);
     setIframeLoadedAt(Date.now());
     setIframeLoadError(null);
     setStatusMessage(null);
@@ -476,16 +429,16 @@ export function PreviewPane({
   }, [setPreviewOverlay]);
 
   const onIframeError = useCallback(() => {
-    setLoading(false);
+    setIsIframeLoading(false);
     setIframeLoadedAt(null);
     setIframeLoadError('Preview iframe failed to load.');
   }, []);
 
   usePreviewIframeReadinessFallback({
     iframeRef,
-    enabled: loading && Boolean(previewUrl) && !iframeLoadError,
+    enabled: isIframeLoading && Boolean(previewUrl) && !iframeLoadError,
     onReady: () => {
-      setLoading(false);
+      setIsIframeLoading(false);
       setIframeLoadedAt(Date.now());
       setIframeLoadError(null);
       setStatusMessage(null);
@@ -604,7 +557,7 @@ export function PreviewPane({
         onGoBack={handleGoBack}
         onGoForward={handleGoForward}
         onRefresh={onRefresh}
-        isRefreshing={loading}
+        isRefreshing={metadataLoadingFromHydration || isIframeLoading}
         onOpenDetails={() => setIsDetailsOpen(true)}
         previewUrlInput={previewUrlInput}
         onPreviewUrlInputChange={handleUrlInputChange}

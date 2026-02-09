@@ -45,6 +45,30 @@ describe('buildPreviewUrlSuggestions', () => {
     expect(suggestions).toContain('http://localhost:3000/apps/git-control-tower/proxy/');
     expect(suggestions).toContain('http://localhost:3000/apps/scenario-a/proxy/');
   });
+
+  it('omits app-monitor scenario suggestions to prevent recursive preview', () => {
+    const apps = [createApp('app-monitor', 3000), createApp('scenario-a', 4310)];
+    const suggestions = buildPreviewUrlSuggestions(
+      [],
+      apps,
+      'http://localhost:3000/apps/scenario-a/proxy/',
+    );
+
+    expect(suggestions).toContain('http://localhost:3000/apps/scenario-a/proxy/');
+    expect(suggestions).not.toContain('http://localhost:3000/apps/app-monitor/proxy/');
+  });
+
+  it('omits app-monitor proxy URLs from history suggestions', () => {
+    const apps = [createApp('scenario-a', 4310)];
+    const suggestions = buildPreviewUrlSuggestions(
+      ['http://localhost:3000/apps/app-monitor/proxy/', '/apps/scenario-a/proxy/'],
+      apps,
+      'http://localhost:3000/apps/scenario-a/proxy/',
+    );
+
+    expect(suggestions).toContain('http://localhost:3000/apps/scenario-a/proxy/');
+    expect(suggestions).not.toContain('http://localhost:3000/apps/app-monitor/proxy/');
+  });
 });
 
 describe('usePreviewToolbarSession', () => {

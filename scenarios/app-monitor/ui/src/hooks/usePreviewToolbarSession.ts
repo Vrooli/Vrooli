@@ -3,8 +3,8 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { APP_OPEN_MODE_QUERY_KEY, type AppOpenMode } from '@/components/tabSwitcher/tabSwitcherOpenMode';
 import type { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import type { App } from '@/types';
-import { buildPreviewUrl } from '@/utils/appPreview';
-import { resolvePreviewUrlCandidate } from '@/utils/previewUrl';
+import { buildPreviewUrl, isAppMonitorScenarioId } from '@/utils/appPreview';
+import { isAppMonitorProxyPreviewTarget, resolvePreviewUrlCandidate } from '@/utils/previewUrl';
 
 type OpenOverlayFn = ReturnType<typeof useOverlayRouter>['openOverlay'];
 
@@ -31,6 +31,9 @@ export const buildPreviewUrlSuggestions = (
     }
     const trimmed = value.trim();
     const normalized = resolvePreviewUrlCandidate(trimmed, referenceUrl) ?? trimmed;
+    if (isAppMonitorProxyPreviewTarget(normalized)) {
+      return;
+    }
     if (normalized.length === 0 || seen.has(normalized)) {
       return;
     }
@@ -46,6 +49,9 @@ export const buildPreviewUrlSuggestions = (
   }
 
   for (const app of apps) {
+    if (isAppMonitorScenarioId(app.id) || isAppMonitorScenarioId(app.scenario_name) || isAppMonitorScenarioId(app.name)) {
+      continue;
+    }
     addSuggestion(buildPreviewUrl(app));
     if (suggestions.length >= 16) {
       break;

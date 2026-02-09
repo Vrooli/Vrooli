@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatPreviewUrlForDisplay,
+  isAppMonitorProxyPreviewTarget,
+  isBlockedHostEmbedPreviewTarget,
+  normalizeScenarioNavigationInput,
   parseScenarioProxyPreviewTarget,
   resolvePreviewUrlCandidate,
 } from './previewUrl';
@@ -43,5 +46,47 @@ describe('formatPreviewUrlForDisplay', () => {
 
   it('preserves non-scenario URLs', () => {
     expect(formatPreviewUrlForDisplay('https://example.com/docs')).toBe('https://example.com/docs');
+  });
+});
+
+describe('normalizeScenarioNavigationInput', () => {
+  it('rewrites bare scenario identifier to proxy path', () => {
+    expect(normalizeScenarioNavigationInput('agent-inbox')).toBe('/apps/agent-inbox/proxy/');
+  });
+
+  it('rewrites /apps/<scenario> to proxy path', () => {
+    expect(normalizeScenarioNavigationInput('/apps/git-control-tower')).toBe('/apps/git-control-tower/proxy/');
+  });
+
+  it('does not rewrite reserved shell routes', () => {
+    expect(normalizeScenarioNavigationInput('/apps/workspace')).toBeNull();
+  });
+
+  it('does not rewrite generic relative paths', () => {
+    expect(normalizeScenarioNavigationInput('settings')).toBeNull();
+  });
+});
+
+describe('isBlockedHostEmbedPreviewTarget', () => {
+  it('blocks app-monitor workspace URL on host origin', () => {
+    expect(isBlockedHostEmbedPreviewTarget('http://localhost:3000/apps/workspace', 'http://localhost:3000')).toBe(true);
+  });
+
+  it('allows scenario proxy URL on host origin', () => {
+    expect(isBlockedHostEmbedPreviewTarget('http://localhost:3000/apps/git-control-tower/proxy/', 'http://localhost:3000')).toBe(false);
+  });
+
+  it('allows same path on non-host origin', () => {
+    expect(isBlockedHostEmbedPreviewTarget('http://localhost:4310/apps/workspace', 'http://localhost:3000')).toBe(false);
+  });
+});
+
+describe('isAppMonitorProxyPreviewTarget', () => {
+  it('detects app-monitor proxy URLs', () => {
+    expect(isAppMonitorProxyPreviewTarget('/apps/app-monitor/proxy/')).toBe(true);
+  });
+
+  it('ignores non app-monitor scenario proxy URLs', () => {
+    expect(isAppMonitorProxyPreviewTarget('/apps/git-control-tower/proxy/')).toBe(false);
   });
 });

@@ -104,6 +104,21 @@ describe('previewWorkspaceStore', () => {
     expect(nextState.panes[0]?.appId).toBe('scenario-b');
   });
 
+  it('disallows assigning app-monitor to a pane', () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    usePreviewWorkspaceStore.getState().setPaneApp(paneId, 'app-monitor');
+    expect(usePreviewWorkspaceStore.getState().panes[0]?.appId).toBeNull();
+
+    const secondPaneId = usePreviewWorkspaceStore.getState().addPane('app-monitor');
+    const secondPane = usePreviewWorkspaceStore.getState().panes.find((pane) => pane.id === secondPaneId);
+    expect(secondPane?.appId).toBeNull();
+  });
+
   it('pins and unpins panes by column', () => {
     const paneA = usePreviewWorkspaceStore.getState().panes[0]?.id;
     const paneB = usePreviewWorkspaceStore.getState().addPane('scenario-b');

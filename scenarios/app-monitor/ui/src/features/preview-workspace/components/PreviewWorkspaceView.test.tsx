@@ -162,6 +162,80 @@ describe('PreviewWorkspaceView', () => {
     });
   });
 
+  it('ignores app-monitor replace-focused intent to prevent recursive workspace preview', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+    usePreviewWorkspaceStore.getState().setPaneApp(paneId, 'scenario-b');
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace?workspaceAppId=app-monitor&workspaceMode=replace-focused']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<><PreviewWorkspaceView /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const pane = usePreviewWorkspaceStore.getState().panes.find((entry) => entry.id === paneId);
+      expect(pane?.appId).toBe('scenario-b');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search').textContent).toBe('');
+    });
+  });
+
+  it('opens logs for the target pane when paneLogs intent is provided with replace-focused', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace?workspaceAppId=scenario-a&workspaceMode=replace-focused&paneLogs=1']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<><PreviewWorkspaceView /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.isLogsVisible).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search').textContent).toBe('');
+    });
+  });
+
+  it('opens logs in focused pane when paneLogs=1 is present without workspace intent', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace?paneLogs=1']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<><PreviewWorkspaceView /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(usePreviewWorkspaceStore.getState().paneViewState[paneId]?.isLogsVisible).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search').textContent).toBe('');
+    });
+  });
+
   it('resizes workspace columns via splitter drag', async () => {
     usePreviewWorkspaceStore.getState().addPane('scenario-a');
     const setColumnFractionsSpy = vi.fn();
