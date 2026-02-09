@@ -143,6 +143,15 @@ Quality rule:
   - If health remains `healthy`, endpoint checks are non-5xx, and freshness is still fingerprint-only `outdated` after one `--if-needed` redeploy, stop automatic retries.
   - Record deterministic fingerprint drift risk and proceed/handoff per `scenario-to-cloud` guidance.
 
+Operator override (only when a human explicitly requests immediate redeploy):
+
+```bash
+scenario-to-cloud redeploy \
+  --domain {{DOMAIN}} \
+  --scenario landing-page-business-suite \
+  --force-run --preflight --wait
+```
+
 #### Gate C: Ensure local admin session
 
 ```bash
@@ -297,7 +306,7 @@ landing-page-business-suite service-auth-status --require-enabled
 
 Fail Gate G if the command exits non-zero. If it fails, set/sync `LPBS_SERVICE_SECRET` in LPBS runtime configuration and re-check Gate G.1 before deploy handoff.
 
-Gate G.2 (recommended): preflight deploy auth/session integration check
+Gate G.2 (recommended): remote-session preflight (session-only)
 
 Prerequisite:
 - If no deploy target exists for `{{PROFILE_TAG}}`, create one first:
@@ -312,7 +321,19 @@ Prerequisite:
 scenario-to-desktop deploy-target test {{PROFILE_TAG}}
 ```
 
-Fail Gate G.2 if deploy target test fails with auth/session errors; re-sync `LPBS_SERVICE_SECRET` with LPBS runtime config and re-validate before deploy handoff.
+Pass condition:
+- Deploy target test reports active remote profile session.
+
+Contract note:
+- `deploy-target test` without extra flags validates remote profile session only.
+- It does not validate LPBS service auth configuration.
+- For auth validation, run:
+
+```bash
+scenario-to-desktop deploy-target test {{PROFILE_TAG}} --require-service-auth
+```
+
+Fail Gate G.2 on session/auth failures and re-run Gate G.1 before deploy handoff.
 
 ---
 
@@ -358,7 +379,7 @@ Use this section for long-tail operational failures and recovery paths.
 | `Remote profile is not logged in` / session expired | Remote cookie missing/expired | Re-run `remote-profiles-login`, then `remote-profiles-test` |
 | `remote-profiles-login` returns `401` and later admin commands fail with `admin session not configured` | Remote login failure invalidated local admin session | Re-run `admin-login`, then retry `remote-profiles-login` and `remote-profiles-test` |
 | `deployment health` is healthy but freshness is `outdated` | Deployed bundle fingerprint drift vs local scenario state | Run `scenario-to-cloud redeploy --domain {{DOMAIN}} --scenario landing-page-business-suite --if-needed --preflight --wait`; if still drifting with healthy endpoint, record risk and hand off per `scenario-to-cloud` guidance |
-| `landing-page-business-suite service-auth-status --require-enabled` fails OR deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch | Set/sync `LPBS_SERVICE_SECRET` in LPBS runtime config, then re-run `landing-page-business-suite service-auth-status --require-enabled` |
+| `landing-page-business-suite service-auth-status --require-enabled` fails OR deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch, or LPBS runtime service auth disabled | Stop this workflow. Hand off to LPBS runtime owner with exact command output and request runtime `LPBS_SERVICE_SECRET` sync + LPBS restart. Resume only after `service-auth-status --require-enabled` succeeds. |
 
 Command timing note:
 - `scenario-to-cloud deployment health ...` can take ~40s+ in normal conditions. Use long enough timeouts in scripted runs.

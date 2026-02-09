@@ -2,5 +2,5 @@
  * Agents module exports
  */
 
-export { GeometricAgent } from './GeometricAgent'
+export { SlimeAgent } from './SlimeAgent'
 export { AgentWithAccessories } from './AgentWithAccessories'

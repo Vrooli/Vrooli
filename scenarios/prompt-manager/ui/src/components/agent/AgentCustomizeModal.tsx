@@ -4,21 +4,17 @@
  * Features:
  * - Name editing
  * - Color pickers for body, head, and accent colors
+ * - Head accessory selection
  * - Live preview
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Palette, Shirt, Crown, Briefcase } from 'lucide-react'
+import { X, Palette, Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent, UpdateAgentRequest } from '@/types/agent'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { useAccessoryStore } from '@/stores/accessoryStore'
-import type {
-  HeadAccessoryType,
-  ClothingTopType,
-  ClothingBottomType,
-  FootwearType,
-} from '@/types/accessory'
+import type { HeadAccessoryType } from '@/types/accessory'
 
 interface AgentCustomizeModalProps {
   isOpen: boolean
@@ -46,36 +42,12 @@ const COLOR_PRESETS = [
 
 // Accessory options
 const HEAD_ACCESSORIES: { type: HeadAccessoryType; icon: string; label: string }[] = [
-  { type: 'none', icon: '❌', label: 'None' },
-  { type: 'hat', icon: '🎩', label: 'Hat' },
-  { type: 'glasses', icon: '👓', label: 'Glasses' },
-  { type: 'crown', icon: '👑', label: 'Crown' },
-  { type: 'headphones', icon: '🎧', label: 'Headphones' },
-  { type: 'halo', icon: '😇', label: 'Halo' },
-]
-
-const CLOTHING_TOPS: { type: ClothingTopType; icon: string; label: string }[] = [
-  { type: 'none', icon: '❌', label: 'None' },
-  { type: 'tshirt', icon: '👕', label: 'T-Shirt' },
-  { type: 'hoodie', icon: '🧥', label: 'Hoodie' },
-  { type: 'jacket', icon: '🧥', label: 'Jacket' },
-  { type: 'vest', icon: '🦺', label: 'Vest' },
-  { type: 'dress', icon: '👗', label: 'Dress' },
-]
-
-const CLOTHING_BOTTOMS: { type: ClothingBottomType; icon: string; label: string }[] = [
-  { type: 'none', icon: '❌', label: 'None' },
-  { type: 'pants', icon: '👖', label: 'Pants' },
-  { type: 'shorts', icon: '🩳', label: 'Shorts' },
-  { type: 'skirt', icon: '👗', label: 'Skirt' },
-]
-
-const FOOTWEAR: { type: FootwearType; icon: string; label: string }[] = [
-  { type: 'none', icon: '❌', label: 'None' },
-  { type: 'shoes', icon: '👞', label: 'Shoes' },
-  { type: 'boots', icon: '🥾', label: 'Boots' },
-  { type: 'sneakers', icon: '👟', label: 'Sneakers' },
-  { type: 'sandals', icon: '🩴', label: 'Sandals' },
+  { type: 'none', icon: '\u274C', label: 'None' },
+  { type: 'hat', icon: '\uD83C\uDFA9', label: 'Hat' },
+  { type: 'glasses', icon: '\uD83D\uDC53', label: 'Glasses' },
+  { type: 'crown', icon: '\uD83D\uDC51', label: 'Crown' },
+  { type: 'headphones', icon: '\uD83C\uDFA7', label: 'Headphones' },
+  { type: 'halo', icon: '\uD83D\uDE07', label: 'Halo' },
 ]
 
 /**
@@ -100,9 +72,6 @@ export function AgentCustomizeModal({
 
   // Accessory state
   const [headAccessory, setHeadAccessory] = useState<HeadAccessoryType>('none')
-  const [clothingTop, setClothingTop] = useState<ClothingTopType>('none')
-  const [clothingBottom, setClothingBottom] = useState<ClothingBottomType>('none')
-  const [footwear, setFootwear] = useState<FootwearType>('none')
 
   // Accessory store
   const getAgentAccessories = useAccessoryStore((state) => state.getAgentAccessories)
@@ -119,9 +88,6 @@ export function AgentCustomizeModal({
       // Load accessories from store
       const accessories = getAgentAccessories(agent.id)
       setHeadAccessory(accessories.head?.type ?? 'none')
-      setClothingTop(accessories.clothingTop?.type ?? 'none')
-      setClothingBottom(accessories.clothingBottom?.type ?? 'none')
-      setFootwear(accessories.footwear?.type ?? 'none')
     }
   }, [agent, getAgentAccessories])
 
@@ -178,9 +144,6 @@ export function AgentCustomizeModal({
     // Save accessories to store
     setAgentAccessories(agent.id, {
       head: { type: headAccessory },
-      clothingTop: { type: clothingTop },
-      clothingBottom: { type: clothingBottom },
-      footwear: { type: footwear },
     })
 
     // Save agent data
@@ -242,7 +205,7 @@ export function AgentCustomizeModal({
           </div>
         </div>
 
-        {/* Preview */}
+        {/* Preview - slime blob shape */}
         <div className="flex justify-center mb-4">
           <div className="relative">
             {/* Head accessory preview */}
@@ -251,32 +214,32 @@ export function AgentCustomizeModal({
                 {HEAD_ACCESSORIES.find((a) => a.type === headAccessory)?.icon}
               </span>
             )}
-            {/* Body */}
+            {/* Slime body */}
             <div
-              className="w-20 h-28 rounded-full flex items-start justify-center pt-4"
+              className="w-24 h-20 rounded-[50%] flex items-center justify-center relative"
               style={{ backgroundColor: bodyColor }}
             >
-              {/* Head */}
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: headColor }}
-              >
-                {/* Accent (antenna) */}
+              {/* Eyes */}
+              <div className="flex gap-3 -mt-1">
                 <div
-                  className="absolute -top-2 w-3 h-3 rounded-full"
-                  style={{ backgroundColor: accentColor }}
-                />
+                  className="w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: '#ffffff' }}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#1e1b4b' }} />
+                </div>
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: '#ffffff' }}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#1e1b4b' }} />
+                </div>
               </div>
+              {/* Accent dot */}
+              <div
+                className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
+                style={{ backgroundColor: accentColor }}
+              />
             </div>
-            {/* Arms */}
-            <div
-              className="absolute top-8 -left-3 w-4 h-12 rounded-full"
-              style={{ backgroundColor: bodyColor }}
-            />
-            <div
-              className="absolute top-8 -right-3 w-4 h-12 rounded-full"
-              style={{ backgroundColor: bodyColor }}
-            />
           </div>
         </div>
 
@@ -326,7 +289,7 @@ export function AgentCustomizeModal({
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            <Shirt className="h-4 w-4" />
+            <Crown className="h-4 w-4" />
             Accessories
           </button>
         </div>
@@ -340,7 +303,7 @@ export function AgentCustomizeModal({
               onChange={setBodyColor}
             />
             <ColorPicker
-              label="Head Color"
+              label="Highlight Color"
               value={headColor}
               onChange={setHeadColor}
             />
@@ -362,33 +325,6 @@ export function AgentCustomizeModal({
               options={HEAD_ACCESSORIES}
               value={headAccessory}
               onChange={(type) => setHeadAccessory(type as HeadAccessoryType)}
-            />
-
-            {/* Clothing Top */}
-            <AccessoryPicker
-              label="Top"
-              icon={<Shirt className="h-4 w-4" />}
-              options={CLOTHING_TOPS}
-              value={clothingTop}
-              onChange={(type) => setClothingTop(type as ClothingTopType)}
-            />
-
-            {/* Clothing Bottom */}
-            <AccessoryPicker
-              label="Bottom"
-              icon={<Briefcase className="h-4 w-4" />}
-              options={CLOTHING_BOTTOMS}
-              value={clothingBottom}
-              onChange={(type) => setClothingBottom(type as ClothingBottomType)}
-            />
-
-            {/* Footwear */}
-            <AccessoryPicker
-              label="Footwear"
-              icon={<span className="text-sm">👟</span>}
-              options={FOOTWEAR}
-              value={footwear}
-              onChange={(type) => setFootwear(type as FootwearType)}
             />
           </div>
         )}

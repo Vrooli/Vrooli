@@ -19,7 +19,7 @@
  * it('renders agent', () => {
  *   render(
  *     <R3FTestHarness>
- *       <GeometricAgent position={[0, 0, 0]} />
+ *       <SlimeAgent position={[0, 0, 0]} />
  *     </R3FTestHarness>
  *   )
  * })

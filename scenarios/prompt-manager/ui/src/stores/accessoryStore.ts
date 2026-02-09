@@ -46,9 +46,6 @@ const initialState: AccessoryState = {
     head: { type: 'none' },
     back: { type: 'none' },
     held: { type: 'none' },
-    clothingTop: { type: 'none' },
-    clothingBottom: { type: 'none' },
-    footwear: { type: 'none' },
   },
 }
 
@@ -108,9 +105,6 @@ export const useAccessoryStore = create<AccessoryStore>()(
           head: agentState?.accessories.head ?? defaults.head ?? { type: 'none' },
           back: agentState?.accessories.back ?? defaults.back ?? { type: 'none' },
           held: agentState?.accessories.held ?? defaults.held ?? { type: 'none' },
-          clothingTop: agentState?.accessories.clothingTop ?? defaults.clothingTop ?? { type: 'none' },
-          clothingBottom: agentState?.accessories.clothingBottom ?? defaults.clothingBottom ?? { type: 'none' },
-          footwear: agentState?.accessories.footwear ?? defaults.footwear ?? { type: 'none' },
         }
       },
 

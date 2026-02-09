@@ -109,8 +109,12 @@ scenario-to-desktop pipeline run {{TARGET}} --platforms linux --clean --wait \
 scenario-to-desktop deploy-target list
 scenario-to-desktop deploy-target add <name> --scenario <s> --profile <p> [--label <l>]
 scenario-to-desktop deploy-target remove <name>
-scenario-to-desktop deploy-target test <name>
+scenario-to-desktop deploy-target test <name> [--require-service-auth]
 ```
+
+Selector note:
+- Use the target key (`<name>`, for example `prod`) when testing/running.
+- `deploy-target list` shows both key and label to avoid key/label confusion.
 
 #### Prerequisites for deploy
 
@@ -212,6 +216,7 @@ Use this section for failure diagnosis and recovery beyond the standard happy pa
 | `missing asset` during preflight | Bundle manifest points to non-existent paths | Inspect bundle manifest and referenced files | Rebuild scenario assets or fix manifest paths |
 | Deploy stage skipped unexpectedly | No deploy flags provided | Confirm pipeline args include deploy selector + app key | Re-run with `--deploy-target <name> --app-key <key>` or inline deploy flags |
 | Deploy target test fails | Missing/expired remote profile session on LPBS | `scenario-to-desktop deploy-target test <name>` and LPBS remote profile status | Re-run LPBS remote profile login/test via `landing-page-deploy-setup` |
+| Deploy target auth check fails | LPBS service auth disabled or `LPBS_SERVICE_SECRET` missing/mismatched | `scenario-to-desktop deploy-target test <name> --require-service-auth` | Re-sync LPBS runtime service auth and `LPBS_SERVICE_SECRET`, then re-test |
 | Deploy fails with service auth 401/403 | `LPBS_SERVICE_SECRET` missing or mismatched | Confirm `LPBS_SERVICE_SECRET` in deploy shell and LPBS runtime config | Re-sync the secret with LPBS runtime and retry |
 
 Use CLI group help when needed:

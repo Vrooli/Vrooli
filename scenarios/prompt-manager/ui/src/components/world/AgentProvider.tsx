@@ -8,22 +8,19 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useMemo } from 'react'
 import type { AgentConfig, AgentRegistry, AgentProps } from '@/types/world'
-import { GeometricAgent } from './agents/GeometricAgent'
+import { SlimeAgent } from './agents/SlimeAgent'
 
 // Agent registry - add new agents here
 const AGENT_REGISTRY: AgentRegistry = {
-  geometric: {
-    Component: GeometricAgent,
-    displayName: 'Geometric Agent',
-    description: 'Abstract geometric agent built with Three.js primitives',
+  slime: {
+    Component: SlimeAgent,
+    displayName: 'Slime Agent',
+    description: 'Cute blob creature with jelly-like appearance and organic animations',
   },
-  // Future agents can be added here:
-  // mixamo: { Component: MixamoAgent, preloadAssets: () => loadModel(), displayName: 'Animated' },
-  // rive: { Component: RiveAgent, displayName: '2.5D Character' },
 }
 
 // Default agent
-const DEFAULT_AGENT = 'geometric'
+const DEFAULT_AGENT = 'slime'
 
 // Context
 const AgentContext = createContext<AgentConfig | null>(null)

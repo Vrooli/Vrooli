@@ -11,6 +11,7 @@ Use `scenario-to-cloud` to deploy a scenario to an existing VPS and operate that
 | Resolve existing deployment by selector | `scenario-to-cloud deployment resolve --domain <domain> --scenario <id>` |
 | Deploy/redeploy only when required (manifest path) | `scenario-to-cloud redeploy cloud-manifest.json --if-needed --preflight --wait` |
 | Deploy/redeploy only when required (existing deployment by selector) | `scenario-to-cloud redeploy --domain <domain> --scenario <id> --if-needed --preflight --wait` |
+| Force immediate redeploy on existing deployment (operator override) | `scenario-to-cloud redeploy --domain <domain> --scenario <id> --force-run --preflight --wait` |
 | Validate deployment health by selector or id | `scenario-to-cloud deployment health --domain <domain> --scenario <id>` |
 | Read deployment logs | `scenario-to-cloud inspect logs <deployment-id>` |
 | Verify SSH access safely (agent mode) | `scenario-to-cloud ssh bootstrap <host> --user root --non-interactive` |
@@ -57,6 +58,12 @@ VPS_HOST_FROM_RESOLVE=$(scenario-to-cloud deployment resolve --domain {{DOMAIN}}
 scenario-to-cloud ssh bootstrap "$VPS_HOST_FROM_RESOLVE" --user root --non-interactive
 scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --json
 scenario-to-cloud redeploy --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --if-needed --preflight --wait
+```
+
+Operator override (only when a human explicitly requests immediate execution):
+
+```bash
+scenario-to-cloud redeploy --domain {{DOMAIN}} --scenario {{SCENARIO_NAME}} --force-run --preflight --wait
 ```
 
 #### Step 1: Resolve deployment state first (selector-first)

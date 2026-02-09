@@ -12,15 +12,6 @@ export type BackAccessoryType = 'none' | 'paper' | 'folder' | 'briefcase' | 'bac
 /** Types of held items */
 export type HeldItemType = 'none' | 'book' | 'tool' | 'orb' | 'wand'
 
-/** Types of clothing - tops */
-export type ClothingTopType = 'none' | 'tshirt' | 'hoodie' | 'jacket' | 'vest' | 'dress'
-
-/** Types of clothing - bottoms */
-export type ClothingBottomType = 'none' | 'pants' | 'shorts' | 'skirt'
-
-/** Types of footwear */
-export type FootwearType = 'none' | 'shoes' | 'boots' | 'sneakers' | 'sandals'
-
 /**
  * Head accessory configuration
  */
@@ -53,44 +44,12 @@ export interface HeldAccessory {
 }
 
 /**
- * Clothing top configuration
- */
-export interface ClothingTop {
-  type: ClothingTopType
-  /** Primary color */
-  color?: string
-  /** Secondary/accent color for patterns */
-  accentColor?: string
-}
-
-/**
- * Clothing bottom configuration
- */
-export interface ClothingBottom {
-  type: ClothingBottomType
-  /** Primary color */
-  color?: string
-}
-
-/**
- * Footwear configuration
- */
-export interface Footwear {
-  type: FootwearType
-  /** Primary color */
-  color?: string
-}
-
-/**
  * Complete accessory configuration for an agent
  */
 export interface AgentAccessories {
   head?: HeadAccessory
   back?: BackAccessory
   held?: HeldAccessory
-  clothingTop?: ClothingTop
-  clothingBottom?: ClothingBottom
-  footwear?: Footwear
 }
 
 /**
@@ -121,64 +80,41 @@ export interface AccessoryOffset {
 }
 
 /** All accessory slot types */
-export type AccessorySlot = 'head' | 'back' | 'leftHand' | 'rightHand' | 'torso' | 'legs' | 'feet'
+export type AccessorySlot = 'head' | 'back' | 'leftHand' | 'rightHand'
 
 /**
  * Default accessory offsets for each slot relative to agent origin.
  *
- * GeometricAgent anatomy (relative to agent origin at Y=0):
- * - Head sphere: center at [0, 0.4, 0], radius 0.3 -> top at Y=0.7
- * - Body capsule: center at [0, -0.3, 0], radius 0.25, height 0.5 -> extends from Y=-0.55 to Y=+0.2
- * - Arms: positioned at X=±0.35, Y=-0.1
- *
- * Note: Agent origin is typically at Y=0.8 to place feet on ground.
+ * SlimeAgent anatomy (relative to agent origin at Y=0):
+ * - Body sphere: center at [0, 0, 0], radius 0.4, slight Y squash (0.82-0.88)
+ * - Top of dome: Y ≈ 0.35
+ * - Eyes: at Y=0.1, Z=0.3
+ * - Body extends to X/Z ≈ ±0.4
  */
 export const ACCESSORY_OFFSETS: Record<AccessorySlot, AccessoryOffset> = {
-  // Hat sits on top of head (head top at Y=0.7, add small gap)
+  // Hat sits on top of dome
   head: {
-    position: [0, 0.75, 0],
+    position: [0, 0.4, 0],
     rotation: [0, 0, 0],
     scale: 1,
   },
-  // Backpack attaches to back of body (body extends to Z≈-0.25, add small gap)
+  // Backpack attaches to back of body
   back: {
-    position: [0, -0.15, -0.35],
+    position: [0, 0, -0.35],
     rotation: [0, 0, 0],
     scale: 1,
   },
-  // Left hand position (arm is at X=-0.35, Y=-0.1)
+  // Left hand floats beside body
   leftHand: {
-    position: [-0.4, -0.3, 0.15],
+    position: [-0.4, 0, 0.1],
     rotation: [0, 0, 0],
     scale: 0.8,
   },
-  // Right hand position (arm is at X=0.35, Y=-0.1)
+  // Right hand floats beside body
   rightHand: {
-    position: [0.4, -0.3, 0.15],
+    position: [0.4, 0, 0.1],
     rotation: [0, 0, 0],
     scale: 0.8,
-  },
-  // Torso clothing wraps around body (body center at Y=-0.3)
-  // ClothingTop adds +0.05 internal offset, so offset of -0.35 puts it at body center
-  torso: {
-    position: [0, -0.35, 0],
-    rotation: [0, 0, 0],
-    scale: 1,
-  },
-  // Pants/shorts - ClothingBottom adds +0.25 for waist position
-  // Body bottom is at Y=-0.8, waist should be around Y=-0.5
-  // offset = -0.5 - 0.25 = -0.75
-  legs: {
-    position: [0, -0.75, 0],
-    rotation: [0, 0, 0],
-    scale: 1,
-  },
-  // Shoes at the bottom (agent bottom at Y=-0.8)
-  // FootwearAccessory geometry base is at Y=0 relative to offset
-  feet: {
-    position: [0, -0.8, 0],
-    rotation: [0, 0, 0],
-    scale: 1,
   },
 }
 

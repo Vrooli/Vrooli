@@ -14,7 +14,7 @@ export { DisplayPanel } from './DisplayPanel'
 
 // Agent system
 export { AgentProvider, useAgent, useAgentComponent, getAvailableAgents, registerAgent } from './AgentProvider'
-export { GeometricAgent, AgentWithAccessories } from './agents'
+export { SlimeAgent, AgentWithAccessories } from './agents'
 
 // Rendering pipeline
 export { RenderPipeline, EnvironmentSetup, ShadowSystem, useShadowConfig } from './rendering'
@@ -40,9 +40,6 @@ export {
   BackpackAccessory,
   HeadAccessory,
   HeldItemAccessory,
-  ClothingTop,
-  ClothingBottom,
-  FootwearAccessory,
   useAccessoryLoader,
 } from './accessories'
 

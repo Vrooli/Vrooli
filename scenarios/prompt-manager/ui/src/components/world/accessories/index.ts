@@ -5,7 +5,6 @@
 export { BackpackAccessory } from './BackpackAccessory'
 export { HeadAccessory } from './HeadAccessory'
 export { HeldItemAccessory } from './HeldItemAccessory'
-export { ClothingTop, ClothingBottom, FootwearAccessory } from './ClothingAccessory'
 
 export {
   type AccessoryBaseProps,

@@ -1,16 +1,18 @@
 /**
  * AgentWithAccessories - Wrapper component that combines an agent with accessories and overlays.
  * Provides a complete agent representation with all visual enhancements.
+ *
+ * Uses the AgentProvider DI system to resolve the agent component at runtime,
+ * making the agent type truly pluggable.
  */
 
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group } from 'three'
-import { GeometricAgent } from './GeometricAgent'
+import { useAgentComponent } from '../AgentProvider'
 import { BackpackAccessory } from '../accessories/BackpackAccessory'
 import { HeadAccessory } from '../accessories/HeadAccessory'
 import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
-import { ClothingTop, ClothingBottom, FootwearAccessory } from '../accessories/ClothingAccessory'
 import { AgentOverlayGroup } from '../overlays/AgentOverlayGroup'
 import { HoverGlow } from '../effects'
 import { useAccessoryStore } from '@/stores/accessoryStore'
@@ -66,6 +68,10 @@ export function AgentWithAccessories({
 }: AgentWithAccessoriesProps) {
   // Defensive: ensure selectedNodes is always an array
   const selectedNodes = selectedNodesProp ?? []
+
+  // Resolve agent component via DI
+  const AgentComponent = useAgentComponent()
+
   // Get stable references from accessory store
   const agentAccessoriesState = useAccessoryStore((state) => state.agentAccessories)
   const accessoryDefaults = useAccessoryStore((state) => state.defaults)
@@ -79,9 +85,6 @@ export function AgentWithAccessories({
       head: agentState?.accessories.head ?? defaults.head ?? { type: 'none' as const },
       back: agentState?.accessories.back ?? defaults.back ?? { type: 'none' as const },
       held: agentState?.accessories.held ?? defaults.held ?? { type: 'none' as const },
-      clothingTop: agentState?.accessories.clothingTop ?? defaults.clothingTop ?? { type: 'none' as const },
-      clothingBottom: agentState?.accessories.clothingBottom ?? defaults.clothingBottom ?? { type: 'none' as const },
-      footwear: agentState?.accessories.footwear ?? defaults.footwear ?? { type: 'none' as const },
     }
   }, [agentAccessoriesState, agent.id, accessoryDefaults])
 
@@ -128,7 +131,6 @@ export function AgentWithAccessories({
     if (dist < ARRIVAL_THRESHOLD) {
       pos.set(tx, ty, tz)
       // Smoothly reset locomotion group rotation to 0 after arriving
-      // (GeometricAgent handles seatRotation in its own frame loop)
       if (Math.abs(locomotionRef.current.rotation.y) > 0.01) {
         locomotionRef.current.rotation.y *= 1 - Math.min(1, 8 * delta)
       } else {
@@ -163,8 +165,8 @@ export function AgentWithAccessories({
 
   return (
     <group ref={locomotionRef} position={initialPosition.current} {...(enableHover ? hoverProps : {})}>
-      {/* Base agent model */}
-      <GeometricAgent
+      {/* Base agent model (resolved via DI) */}
+      <AgentComponent
         agentId={agent.id}
         position={LOCAL_ORIGIN}
         cursorPosition={cursorPosition}
@@ -202,31 +204,6 @@ export function AgentWithAccessories({
               type={storedAccessories.held.type}
               hand={storedAccessories.held.hand}
               color={storedAccessories.held.color}
-            />
-          )}
-
-          {/* Clothing - top */}
-          {storedAccessories.clothingTop.type !== 'none' && (
-            <ClothingTop
-              type={storedAccessories.clothingTop.type}
-              color={storedAccessories.clothingTop.color}
-              accentColor={storedAccessories.clothingTop.accentColor}
-            />
-          )}
-
-          {/* Clothing - bottom */}
-          {storedAccessories.clothingBottom.type !== 'none' && (
-            <ClothingBottom
-              type={storedAccessories.clothingBottom.type}
-              color={storedAccessories.clothingBottom.color}
-            />
-          )}
-
-          {/* Footwear */}
-          {storedAccessories.footwear.type !== 'none' && (
-            <FootwearAccessory
-              type={storedAccessories.footwear.type}
-              color={storedAccessories.footwear.color}
             />
           )}
         </group>

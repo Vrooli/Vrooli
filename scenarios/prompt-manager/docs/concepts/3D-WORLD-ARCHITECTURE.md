@@ -2,8 +2,6 @@
 
 This document describes the architecture of the 3D world visualization system in the prompt-manager UI, built with React Three Fiber.
 
-> **Terminology Note:** In the codebase, 3D character components use "Member" naming (e.g., `GeometricMember`, `MemberProvider`) for historical reasons. At the API and data model level, these are **Agents**. The "Member" terminology in code refers to the visual representation of an Agent entity.
-
 ---
 
 ## Technology Stack
@@ -35,12 +33,12 @@ This document describes the architecture of the 3D world visualization system in
 ui/src/
 ├── components/world/
 │   ├── WorldCanvas.tsx          # Main entry point (canvas + state orchestration)
-│   ├── WorldScene.tsx           # 3D scene composition (lights, controls, members)
-│   ├── MemberProvider.tsx       # Dependency injection for swappable member types
+│   ├── WorldScene.tsx           # 3D scene composition (lights, controls, agents)
+│   ├── AgentProvider.tsx        # Dependency injection for swappable agent types
 │   │
-│   ├── members/
-│   │   ├── GeometricMember.tsx        # Procedural 3D character (capsules/spheres)
-│   │   └── MemberWithAccessories.tsx  # Wraps member + backpack/head/held items
+│   ├── agents/
+│   │   ├── SlimeAgent.tsx             # Cute blob creature with jelly shader
+│   │   └── AgentWithAccessories.tsx   # Wraps agent + accessories + overlays
 │   │
 │   ├── accessories/
 │   │   ├── BackpackAccessory.tsx   # Auto-sized by skill count (paper->backpack)
@@ -48,7 +46,7 @@ ui/src/
 │   │   └── HeldItemAccessory.tsx   # Book, orb, wand, etc.
 │   │
 │   ├── overlays/
-│   │   ├── MemberOverlayGroup.tsx  # Stacks 2D UI in 3D space
+│   │   ├── AgentOverlayGroup.tsx  # Stacks 2D UI in 3D space
 │   │   ├── NameTag.tsx
 │   │   ├── StatusIcon.tsx
 │   │   └── SpeechBubble.tsx
@@ -63,11 +61,19 @@ ui/src/
 │       ├── GroundSurface.tsx       # Grid/plane ground composition
 │       └── GroundMaterial.tsx      # Textured ground materials + shader wiring
 │
+├── lib/shaders/
+│   ├── glsl/
+│   │   ├── ground.glsl.ts         # Ground texture shader GLSL
+│   │   ├── sky.glsl.ts            # Sky shader GLSL
+│   │   └── slime.glsl.ts          # Slime wobble shader GLSL (simplex noise)
+│   ├── groundShader.ts            # Ground shader binding/sync
+│   └── slimeShader.ts             # Slime shader binding/sync
+│
 ├── stores/                  # Zustand state management
 │   ├── cameraStore.ts       # Position, zoom, modes (freeform/zoomed/top-down)
 │   ├── graphicsStore.ts     # Performance tiers (low->ultra)
 │   ├── environmentStore.ts  # HDR presets, time of day
-│   ├── accessoryStore.ts    # Per-member accessories
+│   ├── accessoryStore.ts    # Per-agent accessories
 │   └── interactionStore.ts  # Hover/drag state
 │
 ├── hooks/
@@ -76,8 +82,8 @@ ui/src/
 │   └── useDeviceCapability.ts  # Auto-detect GPU tier
 │
 ├── types/
-│   ├── world.ts       # MemberProps, CameraState
-│   ├── member.ts      # Member interface, colors
+│   ├── world.ts       # AgentProps, CameraState
+│   ├── agent.ts       # Agent interface, colors
 │   ├── graphics.ts    # PerformanceTier, GraphicsConfig
 │   ├── accessory.ts   # Accessory types, backpack thresholds
 │   └── environment.ts # TimeOfDay, SceneType
@@ -105,7 +111,7 @@ WorldCanvas
 │   │
 │   ├── MaterialProvider ───────────► Material cache (Map<key, Material>)
 │   │
-│   └── MemberProvider ─────────────► WorldScene
+│   └── AgentProvider ────────────► WorldScene
 │                                      │
 │       ┌──────────────────────────────┘
 │       │
@@ -121,21 +127,23 @@ WorldCanvas
 │       │
 │       ├── OrbitControls
 │       │
-│       └── Members (loop) ─────────► MemberWithAccessories
+│       └── Agents (loop) ─────────► AgentWithAccessories
 │                                      │
 │           ┌──────────────────────────┘
 │           │
-│           ├── GeometricMember ────► Body (capsule)
-│           │                         Head (sphere + eyes)
-│           │                         Arms (capsules)
-│           │                         Hover glow
-│           │                         Floating orbs
+│           ├── SlimeAgent ──────► Body (sphere + MeshPhysicalMaterial)
+│           │                      Eyes (spheres with tracking pupils)
+│           │                      Mouth (torus arc / box variants)
+│           │                      Ear nubs (optional, per-agent)
+│           │                      Blush marks (optional, per-agent)
+│           │                      Floating orbs (when selected)
+│           │                      Slime shader (vertex wobble)
 │           │
 │           ├── BackpackAccessory ──► paper/folder/briefcase/backpack
 │           ├── HeadAccessory ──────► hat/glasses/crown/halo
 │           ├── HeldItemAccessory ──► book/tool/orb/wand
 │           │
-│           └── MemberOverlayGroup ─► NameTag (y:1.0)
+│           └── AgentOverlayGroup ─► NameTag (y:1.0)
 │                                     StatusIcon (y:1.3)
 │                                     ThinkingBubble (y:1.5)
 │                                     SpeechBubble (y:1.7)
@@ -143,7 +151,7 @@ WorldCanvas
 └── UI Overlays (HTML)
     ├── WorldControls
     ├── CombinePanel
-    └── MemberOverlay
+    └── AgentOverlay
 ```
 
 ---
@@ -276,57 +284,113 @@ The system uses multiple techniques to eliminate visible texture repetition:
 | File | Purpose |
 |------|---------|
 | `lib/groundTextures.ts` | Procedural texture generation + caching |
-| `lib/groundShader.ts` | Custom shader injection, stochastic + triplanar |
+| `lib/shaders/groundShader.ts` | Custom shader injection, stochastic + triplanar |
 | `rendering/GroundMaterial.tsx` | Wires shader to material |
 | `rendering/GroundSurface.tsx` | Ground plane composition |
 | `types/environment.ts` | TypeScript interfaces |
 
 [CODE: ui/src/lib/groundTextures.ts]
-[CODE: ui/src/lib/groundShader.ts]
+[CODE: ui/src/lib/shaders/groundShader.ts]
 
-## GeometricMember Anatomy
+## SlimeAgent Anatomy
 
-The `GeometricMember` is a procedurally generated 3D character built with Three.js primitives:
+The `SlimeAgent` is a cute blob creature with a jelly-like appearance, built with `MeshPhysicalMaterial` and custom vertex shader injection:
 
 ```
-                    ╭────────────╮
-                   ( * antenna * )   <- accent sphere
-                    ╰────────────╯
-                   ╭──────────────╮
-                  (   O       O   )  <- eyes with pupils
-                   │    HEAD      │  <- sphere (r=0.3)
-                    ╰────────────╯
-                   ┌──────────────┐
-         arm ───► ═╡    BODY      ╞═  <─── arm
-        capsule    │   capsule    │      capsule
-                   │  (r=0.25)    │
-                   └──────────────┘
-
-Interactive behaviors:
-  * Head follows cursor (smooth lerp)
-  * Wave animation (1-2 skills selected)
-  * Celebration spin+bounce (3+ skills)
-  * Floating orbs orbit when selected
+         ∧  ∧          ← optional ear nubs (50% of agents)
+       ╭──────╮
+      (  ◕  ◕  )      ← large eyes (r=0.1) with tracking pupils
+      (  ○ ○   )      ← optional blush marks (50% of agents)
+      (   ω    )      ← mouth (4 style variants)
+       ╰──────╯       ← sphere body, vertex-wobbled via slime shader
+        ~~~~~         ← contact shadow from EnvironmentSetup
 ```
+
+**Body**: `sphereGeometry(0.4, 32, 32)` with `MeshPhysicalMaterial`:
+- `clearcoat: 1.0`, `clearcoatRoughness: 0.05` (glossy shell)
+- `transmission: 0.15`, `thickness: 1.5`, `ior: 1.4` (subtle jelly translucency)
+- `iridescence: 0.3`, `iridescenceIOR: 1.2` (color-shifting sheen)
+- `roughness: 0.2`, `metalness: 0.0`
+- Vertex wobble via `bindSlimeShader()` (simplex 3D noise displacement)
 
 **Geometry Components:**
 | Part | Geometry | Dimensions |
 |------|----------|------------|
-| Body | Capsule | radius 0.25, height 0.5 |
-| Head | Sphere | radius 0.3 |
-| Eyes | Spheres (x2) | radius 0.06 |
-| Pupils | Spheres (x2) | radius 0.03 |
-| Arms | Capsules (x2) | radius 0.06, height 0.25 |
-| Antenna | Cylinder + Sphere | height 0.15, sphere r=0.05 |
+| Body | Sphere | radius 0.4, Y-scaled 0.82-0.88 |
+| Eyes | Spheres (x2) | radius 0.1, at [±0.12, 0.1, 0.3] |
+| Pupils | Spheres (x2) | radius 0.055, nested inside eyes |
+| Mouth | Torus arc / Boxes | 4 variants: smile, cat :3, chevron ^, none |
+| Ear nubs | Spheres (x2) | radius 0.08, optional (50% of agents) |
+| Blush | Circles (x2) | radius 0.06, semi-transparent pink |
 
-**Materials:**
-| Part | Metalness | Roughness | Special |
-|------|-----------|-----------|---------|
-| Body | 0.3 | 0.6 | - |
-| Head | 0.2 | 0.5 | - |
-| Accent | 0.4 | 0.4 | Emissive glow |
+### Slime Shader Injection
 
-[CODE: ui/src/components/world/members/GeometricMember.tsx]
+The slime shader follows the same `onBeforeCompile` injection pattern as `groundShader.ts`:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  SLIME SHADER PIPELINE                    │
+│                                                           │
+│  glsl/slime.glsl.ts (GLSL source of truth)               │
+│       │                                                   │
+│       ├── VERTEX_COMMON_INJECTION                         │
+│       │   ├── Simplex 3D noise function (Ashima Arts)     │
+│       │   └── uniform declarations (uTime, uWobbleInt.)   │
+│       │                                                   │
+│       └── VERTEX_DISPLACEMENT_INJECTION                   │
+│           ├── Noise-based vertex displacement              │
+│           └── Y-axis squash/stretch (uSquashY)            │
+│                                                           │
+│  slimeShader.ts (runtime binding)                         │
+│       ├── bindSlimeShader(material, config)                │
+│       │   └── Sets onBeforeCompile + marker check          │
+│       └── syncSlimeShader(material, time, squashY, wobble)│
+│           └── Updates uniforms each frame                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Per-Agent Variation
+
+Deterministic from `agentId` hash — ensures the same agent always looks the same:
+
+| Feature | Probability | Range |
+|---------|-------------|-------|
+| Ear nubs | 50% | accent-colored spheres at top-sides |
+| Blush marks | 50% | semi-transparent pink circles on cheeks |
+| Mouth style | 4 variants | smile arc, cat :3, chevron ^, none |
+| Wobble speed | continuous | 1.3 - 1.7 |
+| Body aspect Y | continuous | 0.82 - 0.88 (slight height variation) |
+
+### Animation System
+
+All animations run in a single `useFrame` callback with LOD-based optimization:
+
+| Animation | Trigger | LOD | Implementation |
+|-----------|---------|-----|----------------|
+| Breathing | Always idle | All | `scale.y = 1.0 + sin(t*2)*0.03` |
+| Vertex wobble | Always idle | High/Medium | `uTime` uniform driven each frame |
+| Lateral sway | Always idle | High/Medium | `position.x += sin(t*0.8)*0.01` |
+| Cursor tracking | Cursor present | High/Medium | Pupil offset clamped to ±0.03 |
+| Body lean | Cursor present | High only | `rotation.y = cursorDir.x * 0.1` |
+| Hop locomotion | Moving | All | `abs(sin(t*6))*0.15` Y bounce |
+| Squash on land | Moving, Y↓ | High/Medium | Compress Y scale, expand XZ |
+| Stretch on jump | Moving, Y↑ | High/Medium | Extend Y scale, compress XZ |
+| Wave | 1-2 skills selected | High | Body tilts side to side |
+| Celebration | 3+ skills selected | High | Spin + bounce + increased wobble |
+
+### Accessory Offsets
+
+Offsets are tuned for the slime's spherical body:
+
+| Slot | Position | Notes |
+|------|----------|-------|
+| head | [0, 0.4, 0] | On top of dome |
+| back | [0, 0, -0.35] | Rear surface |
+| leftHand | [-0.4, 0, 0.1] | Floating beside body |
+| rightHand | [0.4, 0, 0.1] | Floating beside body |
+
+[CODE: ui/src/components/world/agents/SlimeAgent.tsx]
+[CODE: ui/src/lib/shaders/slimeShader.ts]
 
 ---
 
@@ -346,9 +410,9 @@ Interactive behaviors:
 ├─────────────────┴─────────────────┴─────────────────────────────┤
 │  accessoryStore              │  interactionStore                │
 │  ──────────────────          │  ──────────────────              │
-│  * memberAccessories         │  * hoveredObjectId               │
-│    (per-member head/held)    │  * isDragging                    │
-│  * memberStatus              │                                  │
+│  * agentAccessories          │  * hoveredObjectId               │
+│    (per-agent head/held)     │  * isDragging                    │
+│  * agentStatus               │                                  │
 └─────────────────────────────────────────────────────────────────┘
              │
              ▼
@@ -363,10 +427,10 @@ Interactive behaviors:
 
 | Store | Purpose | Key State |
 |-------|---------|-----------|
-| `cameraStore` | Camera position, zoom, focus | position, target, mode, focusedMemberId |
+| `cameraStore` | Camera position, zoom, focus | position, target, mode, focusedAgentId |
 | `graphicsStore` | Performance settings | tier, config, overrides |
 | `environmentStore` | HDR and lighting | dreiPreset, timeOfDay, syncWithTheme |
-| `accessoryStore` | Member customization | memberAccessories, memberStatus |
+| `accessoryStore` | Agent customization | agentAccessories, agentStatus |
 | `interactionStore` | User interaction | hoveredObjectId, isDragging |
 
 [CODE: ui/src/stores/cameraStore.ts]
@@ -394,7 +458,7 @@ The graphics system supports four performance tiers with graceful degradation:
 
 ## Backpack Evolution (Skill Count Indicator)
 
-The backpack accessory automatically scales based on member skill count:
+The backpack accessory automatically scales based on agent skill count:
 
 ```
 Skills: 0        1-2          3-5           6-10          11+
@@ -421,45 +485,46 @@ Skills: 0        1-2          3-5           6-10          11+
 
 ## Dependency Injection Pattern
 
-The `MemberProvider` implements dependency injection for pluggable member components:
+The `AgentProvider` implements dependency injection for pluggable agent components:
 
 ```typescript
-const MEMBER_REGISTRY: MemberRegistry = {
-  geometric: {
-    Component: GeometricMember,
-    displayName: 'Geometric Member',
-    description: 'Abstract geometric member built with Three.js primitives',
+const AGENT_REGISTRY: AgentRegistry = {
+  slime: {
+    Component: SlimeAgent,
+    displayName: 'Slime Agent',
+    description: 'Cute blob creature with jelly-like appearance and organic animations',
   },
-  // Future members (mixamo, rive, etc.) can be registered here
 }
 ```
 
 **Key Functions:**
-- `useMember()` - Access current member config
-- `useMemberComponent()` - Get the member component type
-- `getAvailableMembers()` - List all registered members
-- `registerMember()` - Runtime member registration
+- `useAgent()` - Access current agent config
+- `useAgentComponent()` - Get the agent component type
+- `getAvailableAgents()` - List all registered agents
+- `registerAgent()` - Runtime agent registration
 
-This pattern allows swapping member implementations without changing consumer code.
+`AgentWithAccessories` uses `useAgentComponent()` to resolve the agent component at runtime, making the system truly pluggable for future agent types.
 
-[CODE: ui/src/components/world/MemberProvider.tsx]
+[CODE: ui/src/components/world/AgentProvider.tsx]
 
 ---
 
 ## Key Type Definitions
 
-### MemberProps Interface
+### AgentProps Interface
 
 ```typescript
-interface MemberProps {
+interface AgentProps {
   position: [number, number, number]
   cursorPosition: { x: number; y: number } | null
   selectedNodes: string[]
   isAnimating: boolean
   onAnimationComplete?: () => void
-  onMemberClick?: () => void
-  memberId?: string
+  onAgentClick?: () => void
+  agentId?: string
   colors?: { body: string; head: string; accent: string }
+  isSeated?: boolean
+  seatRotation?: number
 }
 ```
 
@@ -557,12 +622,12 @@ y offset:
 ```
 
 **Overlay Types:**
-- **NameTag** - Displays member name with outline
+- **NameTag** - Displays agent name with outline
 - **StatusIcon** - Visual indicator (normal, warning, error, info, thinking, speaking)
 - **ThinkingBubble** - Animated thinking indicator with dots
-- **SpeechBubble** - For member speech/messages
+- **SpeechBubble** - For agent speech/messages
 
-[CODE: ui/src/components/world/overlays/MemberOverlayGroup.tsx]
+[CODE: ui/src/components/world/overlays/AgentOverlayGroup.tsx]
 
 ---
 
@@ -573,11 +638,11 @@ The camera supports three modes:
 | Mode | Position | Use Case |
 |------|----------|----------|
 | freeform | [0, 5, 10] | Default exploration |
-| top-down | [0, 20, 0.1] | Overview of all members |
-| zoomed-member | Member + [0, 2, 5] | Focus on specific member |
+| top-down | [0, 20, 0.1] | Overview of all agents |
+| zoomed-agent | Agent + [0, 2, 5] | Focus on specific agent |
 
 **Key Actions:**
-- `zoomToMember(memberId, position)` - Animate camera to focus on member
+- `zoomToAgent(agentId, position)` - Animate camera to focus on agent
 - `exitZoom()` - Return to previous mode
 - `cycleCameraMode()` - Toggle between modes
 - `setTopDown()` / `setFreeform()` - Direct mode setting
