@@ -25,6 +25,7 @@ func Run(client *deployment.Client, args []string) error {
 	target := fs.String("target", "", "Convenience selector (domain or host, existing deployment mode)")
 	preflight := fs.Bool("preflight", false, "Run VPS preflight checks")
 	forceBuild := fs.Bool("force-bundle", false, "Force rebuild of bundle")
+	forceRun := fs.Bool("force-run", false, "Selector mode only: execute existing deployment immediately (requires explicit opt-in)")
 	ifNeeded := fs.Bool("if-needed", false, "Deploy only when missing, unhealthy, or outdated")
 	wait := fs.Bool("wait", false, "Wait for completion and print stage durations")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
@@ -38,12 +39,18 @@ func Run(client *deployment.Client, args []string) error {
 	}
 
 	if selectorMode {
-		if !*ifNeeded {
-			return fmt.Errorf("selector mode requires --if-needed to avoid unsafe ad-hoc execution")
+		if *ifNeeded && *forceRun {
+			return fmt.Errorf("--if-needed and --force-run cannot be combined")
+		}
+		if !*ifNeeded && !*forceRun {
+			return fmt.Errorf("selector mode requires --if-needed or --force-run to avoid unsafe ad-hoc execution")
 		}
 		selector, err := toSelector(*host, *scenarioID, *domain, *target)
 		if err != nil {
 			return err
+		}
+		if *forceRun {
+			return runSelectorForce(client, selector, *preflight, *forceBuild, *wait, *jsonOutput)
 		}
 		return runSelectorIfNeeded(client, selector, *preflight, *forceBuild, *wait, *jsonOutput)
 	}
@@ -169,6 +176,33 @@ func runSelectorIfNeeded(client *deployment.Client, selector deployment.Manifest
 		"selector":            selector,
 		"resolved_deployment": existing,
 		"health":              health,
+		"action":              "execute",
+	})
+}
+
+func runSelectorForce(client *deployment.Client, selector deployment.ManifestSelector, preflight bool, forceBuild bool, wait bool, jsonOutput bool) error {
+	existing, err := deployment.ResolveLatestBySelector(client, selector)
+	if err != nil {
+		return fmt.Errorf("resolve deployment: %w", err)
+	}
+	if existing == nil {
+		return fmt.Errorf(
+			"no deployment found for selector host=%s scenario=%s domain=%s target=%s\n\nNext steps:\n  1) Create a manifest:\n     scenario-to-cloud manifest init --scenario <scenario-id> --host <host> --domain <domain> --out scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json\n  2) Validate it:\n     scenario-to-cloud manifest validate scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json\n  3) Deploy:\n     scenario-to-cloud redeploy scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json --if-needed --preflight --wait",
+			displayOrNA(selector.Host),
+			displayOrNA(selector.ScenarioID),
+			displayOrNA(selector.Domain),
+			displayOrNA(selector.Target),
+		)
+	}
+
+	if !jsonOutput {
+		fmt.Printf("Found existing deployment by selector: %s (%s)\n", existing.ID, existing.Status)
+		fmt.Println("Force run requested; executing existing deployment now.")
+	}
+	return executeExisting(client, existing.ID, preflight, forceBuild, wait, jsonOutput, map[string]interface{}{
+		"mode":                "selector_force",
+		"selector":            selector,
+		"resolved_deployment": existing,
 		"action":              "execute",
 	})
 }
@@ -463,7 +497,8 @@ Selector mode operates on an existing deployment and does not require a local ma
 	  --target <value>    Convenience selector (domain or host, existing deployment mode)
 	  --preflight         Run VPS preflight checks before deployment
 	  --force-bundle      Force rebuild of bundle even if one exists
-	  --if-needed         Only execute when deployment is missing, unhealthy, stopped, or outdated
+	  --if-needed         Selector mode: only execute when deployment is missing, unhealthy, stopped, or outdated
+	  --force-run         Selector mode: execute existing deployment immediately (explicit operator override)
 	  --wait              Wait for completion and print stage durations
 	  --json              Output raw JSON
 
@@ -472,6 +507,7 @@ Selector mode operates on an existing deployment and does not require a local ma
 	  scenario-to-cloud redeploy cloud-manifest.json --preflight
 	  scenario-to-cloud redeploy cloud-manifest.json --if-needed --preflight --wait
 	  scenario-to-cloud redeploy --domain vrooli.com --scenario landing-page-business-suite --if-needed --preflight --wait
+	  scenario-to-cloud redeploy --domain vrooli.com --scenario landing-page-business-suite --force-run --preflight --wait
 	  scenario-to-cloud redeploy cloud-manifest.json --preflight --wait
 	  scenario-to-cloud redeploy cloud-manifest.json --name "Production Deploy"`)
 	return nil

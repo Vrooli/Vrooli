@@ -110,6 +110,7 @@ scenario-to-desktop deploy-target list
 scenario-to-desktop deploy-target add <name> --scenario <s> --profile <p> [--label <l>]
 scenario-to-desktop deploy-target remove <name>
 scenario-to-desktop deploy-target test <name> [--require-service-auth]
+scenario-to-desktop deploy-target doctor <name>
 ```
 
 Selector note:

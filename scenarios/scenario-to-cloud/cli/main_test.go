@@ -535,6 +535,48 @@ func TestDeploymentHealthPrintsFreshnessNotes(t *testing.T) {
 	}
 }
 
+func TestDeploymentHealthPrintsFreshnessNextStepCommand(t *testing.T) {
+	app := newTestApp(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/deployments/dep-789/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"ok": true,
+			"health": "healthy",
+			"deployment_id": "dep-789",
+			"deployment_name": "demo",
+			"scenario_id": "landing-page-business-suite",
+			"domain": "vrooli.com",
+			"summary": "1 passed  |  0 warning  |  0 failed",
+			"sections": [],
+			"freshness": {
+				"status": "outdated",
+				"summary": "Deployment is healthy but outdated relative to local scenario state",
+				"version_status": "current",
+				"fingerprint_status": "outdated"
+			},
+			"duration_ms": 1234,
+			"timestamp": "2026-02-10T00:00:00Z"
+		}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"deployment", "health", "dep-789"}); err != nil {
+			t.Fatalf("deployment health failed: %v", err)
+		}
+	})
+	expected := "Next step: scenario-to-cloud redeploy --domain vrooli.com --scenario landing-page-business-suite --if-needed --preflight --wait"
+	if !strings.Contains(output, expected) {
+		t.Fatalf("expected freshness next-step command in output, got: %s", output)
+	}
+}
+
 func TestDeploymentResolveByHostSelector(t *testing.T) {
 	app := newTestApp(t)
 

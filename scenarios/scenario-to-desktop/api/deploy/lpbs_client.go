@@ -66,6 +66,12 @@ type RemoteProfile struct {
 	Status  string `json:"status"`
 }
 
+// ServiceAuthStatus describes LPBS service-to-service auth readiness.
+type ServiceAuthStatus struct {
+	ServiceAuthConfigured bool   `json:"service_auth_configured"`
+	ServiceAuthMode       string `json:"service_auth_mode"`
+}
+
 // UploadRequest describes one artifact to upload.
 type UploadRequest struct {
 	RemoteProfile  string
@@ -107,6 +113,19 @@ func (c *LPBSClient) TestRemoteProfile(ctx context.Context, profileTag string) e
 		return fmt.Errorf("test remote profile %q: %w", profileTag, err)
 	}
 	return nil
+}
+
+// GetServiceAuthStatus returns LPBS service-auth readiness from /api/v1/usage/health.
+func (c *LPBSClient) GetServiceAuthStatus(ctx context.Context) (*ServiceAuthStatus, error) {
+	body, err := c.adminRequest(ctx, "GET", "/api/v1/usage/health", nil)
+	if err != nil {
+		return nil, fmt.Errorf("get service auth status: %w", err)
+	}
+	var status ServiceAuthStatus
+	if err := json.Unmarshal(body, &status); err != nil {
+		return nil, fmt.Errorf("decode service auth status: %w", err)
+	}
+	return &status, nil
 }
 
 // ProxyRequest forwards an admin API call through a remote profile.

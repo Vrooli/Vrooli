@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"sort"
 	"strings"
 
 	"scenario-to-desktop/cli/cmdutil"
@@ -63,12 +64,18 @@ func (c *Commands) List(args []string) error {
 	}
 
 	fmt.Println("Deploy targets:")
-	for name, t := range resp.Targets {
+	names := make([]string, 0, len(resp.Targets))
+	for name := range resp.Targets {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		t := resp.Targets[name]
 		label := t.Label
 		if label == "" {
 			label = name
 		}
-		fmt.Printf("  %-20s scenario=%s profile=%s\n", label, t.ScenarioName, t.RemoteProfile)
+		fmt.Printf("  %-16s label=%q scenario=%s profile=%s\n", name, label, t.ScenarioName, t.RemoteProfile)
 	}
 	return nil
 }
@@ -148,8 +155,10 @@ func (c *Commands) Remove(args []string) error {
 // Test validates a deploy target's remote profile session.
 func (c *Commands) Test(args []string) error {
 	fs := flag.NewFlagSet("deploy-target-test", flag.ContinueOnError)
+	requireServiceAuth := fs.Bool("require-service-auth", false, "Also verify LPBS service auth is enabled and LPBS_SERVICE_SECRET is set")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	reordered := reorderArgs(args)
+	if err := fs.Parse(reordered); err != nil {
 		return err
 	}
 
@@ -158,8 +167,18 @@ func (c *Commands) Test(args []string) error {
 	}
 	name := fs.Args()[0]
 
-	body, err := c.api.Request("POST", c.apiPath("/deploy-targets/"+name+"/test"), nil, nil)
+	req := map[string]bool{
+		"require_service_auth": *requireServiceAuth,
+	}
+	body, err := c.api.Request("POST", c.apiPath("/deploy-targets/"+name+"/test"), nil, req)
 	if err != nil {
+		if *requireServiceAuth && isServiceAuthReadinessError(err) {
+			return fmt.Errorf(
+				"%v\n\nNext steps:\n  1) Set shared secret (portable): scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart\n  2) Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
+				err,
+				name,
+			)
+		}
 		return err
 	}
 
@@ -168,8 +187,22 @@ func (c *Commands) Test(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Deploy target %q: remote profile session is active\n", name)
+	if *requireServiceAuth {
+		fmt.Printf("Deploy target %q: remote profile session is active and service auth is ready\n", name)
+	} else {
+		fmt.Printf("Deploy target %q: remote profile session is active\n", name)
+	}
 	return nil
+}
+
+func isServiceAuthReadinessError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(msg, "lpbs_service_secret is not set") ||
+		strings.Contains(msg, "service auth") ||
+		strings.Contains(msg, "service-auth")
 }
 
 // reorderArgs moves flag arguments before positional arguments.

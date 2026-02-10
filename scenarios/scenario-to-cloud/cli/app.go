@@ -182,8 +182,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{
 				Name:        "secrets",
 				NeedsAPI:    true,
-				Description: "Secrets management (get)",
-				Run:         func(args []string) error { return secrets.Run(a.secretsClient, args) },
+				Description: "Secrets management (set/get/delete)",
+				Run:         func(args []string) error { return secrets.Run(a.secretsClient, a.deploymentClient, args) },
+			},
+			{
+				Name:        "secret",
+				NeedsAPI:    true,
+				Description: "Alias for 'secrets'",
+				Run:         func(args []string) error { return secrets.Run(a.secretsClient, a.deploymentClient, args) },
 			},
 			{
 				Name:        "scenario",

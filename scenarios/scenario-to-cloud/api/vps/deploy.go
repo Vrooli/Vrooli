@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/internal/stringutil"
@@ -118,9 +119,14 @@ func BuildPortEnvVars(ports domain.ManifestPorts) string {
 }
 
 func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[string]string) map[string]string {
-	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 || len(providedSecrets) == 0 {
+	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
 		return nil
 	}
+
+	repoRoot, _ := bundle.FindRepoRootFromCWD()
+	workspaceSecrets := readLocalSecretsMap(filepath.Join(repoRoot, ".vrooli", "secrets.json"))
+	scenarioSecrets := readLocalSecretsMap(filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "secrets.json"))
+
 	out := make(map[string]string)
 	for _, secret := range manifest.Secrets.BundleSecrets {
 		if secret.Class != "user_prompt" {
@@ -130,12 +136,49 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 		if key == "" {
 			key = secret.ID
 		}
-		if value, ok := providedSecrets[key]; ok {
-			out[key] = value
+		if key == "" {
+			continue
+		}
+
+		// Merge precedence (lowest -> highest):
+		// workspace/.vrooli/secrets.json -> scenarios/<id>/.vrooli/secrets.json -> explicit provided secrets
+		if v, ok := workspaceSecrets[key]; ok && strings.TrimSpace(v) != "" {
+			out[key] = v
+		}
+		if v, ok := scenarioSecrets[key]; ok && strings.TrimSpace(v) != "" {
+			out[key] = v
+		}
+		if v, ok := providedSecrets[key]; ok && strings.TrimSpace(v) != "" {
+			out[key] = v
 		}
 	}
+
 	if len(out) == 0 {
 		return nil
+	}
+	return out
+}
+
+func readLocalSecretsMap(path string) map[string]string {
+	out := make(map[string]string)
+	if strings.TrimSpace(path) == "" {
+		return out
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return out
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return out
+	}
+	for k, v := range raw {
+		if strings.HasPrefix(k, "_") {
+			continue
+		}
+		if str, ok := v.(string); ok {
+			out[k] = str
+		}
 	}
 	return out
 }

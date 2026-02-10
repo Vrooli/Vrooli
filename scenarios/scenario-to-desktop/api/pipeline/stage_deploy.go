@@ -3,9 +3,9 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"scenario-to-desktop-api/deploy"
+	sharedenv "scenario-to-desktop-api/shared/env"
 	"scenario-to-desktop-api/shared/errors"
 )
 
@@ -100,13 +100,13 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	appendInfo(result, "Deploy target: scenario=%s, profile=%s, app=%s", scenarioName, remoteProfile, cfg.AppKey)
 
 	// Get service token
-	serviceToken := os.Getenv("LPBS_SERVICE_SECRET")
+	serviceToken := sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
 	if serviceToken == "" {
-		failStage(result, s.timeProvider, errors.New(errors.CodeUnauthorized, "LPBS_SERVICE_SECRET environment variable not set").
-			WithRecovery(errors.RecoveryProvideCredentials, "Set LPBS_SERVICE_SECRET to enable service-to-service auth").
+		failStage(result, s.timeProvider, errors.New(errors.CodeUnauthorized, "LPBS_SERVICE_SECRET is not set (checked env and .vrooli/secrets.json)").
+			WithRecovery(errors.RecoveryProvideCredentials, "Set LPBS_SERVICE_SECRET to enable service-to-service auth via scenario-to-cloud secrets command").
 			WithManualSteps([]string{
-				"Set LPBS_SERVICE_SECRET environment variable",
-				"Use the same secret configured in the LPBS instance",
+				"Set LPBS_SERVICE_SECRET using scenario-to-cloud secrets set ... --targets scenario,deployment",
+				"Use the same secret configured in the LPBS instance and this runtime",
 			}).
 			InDomain("deploy"))
 		return result

@@ -60,9 +60,9 @@ func TestToSelectorValidationAndTrim(t *testing.T) {
 func TestRunSelectorModeRequiresIfNeeded(t *testing.T) {
 	err := Run(nil, []string{"--domain", "vrooli.com", "--scenario", "landing-page-business-suite"})
 	if err == nil {
-		t.Fatal("expected selector mode to require --if-needed")
+		t.Fatal("expected selector mode to require --if-needed or --force-run")
 	}
-	if !strings.Contains(err.Error(), "selector mode requires --if-needed") {
+	if !strings.Contains(err.Error(), "selector mode requires --if-needed or --force-run") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -75,12 +75,27 @@ func TestRunAllowsJSONAndWaitTogether(t *testing.T) {
 		"--json",
 	})
 	if err == nil {
-		t.Fatal("expected selector mode to require --if-needed")
+		t.Fatal("expected selector mode to require --if-needed or --force-run")
 	}
 	if strings.Contains(err.Error(), "cannot be combined") {
 		t.Fatalf("unexpected incompatible-flags error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "selector mode requires --if-needed") {
+	if !strings.Contains(err.Error(), "selector mode requires --if-needed or --force-run") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunSelectorModeRejectsIfNeededAndForceRunTogether(t *testing.T) {
+	err := Run(nil, []string{
+		"--domain", "vrooli.com",
+		"--scenario", "landing-page-business-suite",
+		"--if-needed",
+		"--force-run",
+	})
+	if err == nil {
+		t.Fatal("expected incompatible flag error")
+	}
+	if !strings.Contains(err.Error(), "--if-needed and --force-run cannot be combined") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

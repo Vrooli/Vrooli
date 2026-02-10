@@ -283,6 +283,51 @@ func TestDeriveUpdateURL(t *testing.T) {
 	}
 }
 
+func TestGetServiceAuthStatus(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/usage/health" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"service_auth_configured":true,"service_auth_mode":"bearer"}`))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	client := newTestClient(server)
+	status, err := client.GetServiceAuthStatus(context.Background())
+	if err != nil {
+		t.Fatalf("GetServiceAuthStatus: %v", err)
+	}
+	if status == nil || !status.ServiceAuthConfigured {
+		t.Fatalf("expected configured service auth, got %+v", status)
+	}
+	if status.ServiceAuthMode != "bearer" {
+		t.Fatalf("expected mode bearer, got %q", status.ServiceAuthMode)
+	}
+}
+
+func TestGetServiceAuthStatusDecodeError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"service_auth_configured":`))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	client := newTestClient(server)
+	_, err := client.GetServiceAuthStatus(context.Background())
+	if err == nil {
+		t.Fatal("expected decode error")
+	}
+	if !strings.Contains(err.Error(), "decode service auth status") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestInferContentType(t *testing.T) {
 	tests := []struct {
 		filename string

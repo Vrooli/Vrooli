@@ -260,6 +260,14 @@
             "description": "Encrypts stored remote admin sessions for remote profiles. Required in production deployments.",
             "required": false,
             "default_hint": "Generate with: openssl rand -base64 32"
+          },
+          {
+            "secret_id": "LPBS_SERVICE_SECRET",
+            "classification": "service",
+            "label": "Service Auth Secret",
+            "description": "Shared secret used for LPBS service-to-service authentication (for example scenario-to-desktop deploy target auth).",
+            "required": false,
+            "default_hint": "Set with scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain>"
           }
         ]
       }

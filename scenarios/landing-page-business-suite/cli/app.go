@@ -88,6 +88,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "status", NeedsAPI: true, Description: "Check API health (/health)", Run: a.cmdStatus},
 			a.endpointCommand(endpointDef{Name: "health", Method: "GET", Path: "/health", Description: "Check API health (/api/v1/health)"}),
 			{Name: "service-auth-status", NeedsAPI: true, Description: "Check LPBS service-to-service auth readiness", Run: a.cmdServiceAuthStatus},
+			{Name: "deploy-readiness", NeedsAPI: true, Description: "Run LPBS readiness checks for desktop deploy handoff", Run: a.cmdDeployReadiness},
 		},
 	}
 
@@ -602,6 +603,24 @@ type usageHealthResponse struct {
 	ServiceAuthMode       string `json:"service_auth_mode"`
 }
 
+type deployReadinessCheck struct {
+	Name     string `json:"name"`
+	Required bool   `json:"required"`
+	Passed   bool   `json:"passed"`
+	Blocked  bool   `json:"blocked,omitempty"`
+	Detail   string `json:"detail"`
+}
+
+type deployReadinessReport struct {
+	Ready      bool                   `json:"ready"`
+	ProfileTag string                 `json:"profile_tag,omitempty"`
+	ProfileID  string                 `json:"profile_id,omitempty"`
+	Domain     string                 `json:"domain,omitempty"`
+	Checks     []deployReadinessCheck `json:"checks"`
+	NextSteps  []string               `json:"next_steps,omitempty"`
+	CheckedAt  string                 `json:"checked_at"`
+}
+
 type adminLoginResponse struct {
 	Email         string `json:"email,omitempty"`
 	Authenticated bool   `json:"authenticated"`
@@ -700,7 +719,7 @@ func (a *App) cmdServiceAuthStatus(args []string) error {
 			return nil
 		}
 		if *requireEnabled && !parsed.ServiceAuthConfigured {
-			return fmt.Errorf("service auth is not configured")
+			return serviceAuthNotConfiguredError()
 		}
 		return nil
 	}
@@ -726,9 +745,234 @@ func (a *App) cmdServiceAuthStatus(args []string) error {
 	}
 
 	if *requireEnabled && !parsed.ServiceAuthConfigured {
-		return fmt.Errorf("service auth is not configured")
+		return serviceAuthNotConfiguredError()
 	}
 	return nil
+}
+
+func (a *App) cmdDeployReadiness(args []string) error {
+	fs := flag.NewFlagSet("deploy-readiness", flag.ContinueOnError)
+	profileIDFlag := fs.String("profile-id", "", "Remote profile id to test")
+	profileTagFlag := fs.String("profile-tag", "", "Remote profile tag to test")
+	domainFlag := fs.String("domain", "", "Deployment domain used for next-step guidance")
+	requireServiceAuth := fs.Bool("require-service-auth", true, "Require LPBS service auth to be enabled")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("usage: deploy-readiness [--profile-id <id> | --profile-tag <tag>] [--domain <domain>] [--require-service-auth=true|false] [--json]")
+	}
+
+	profileID := strings.TrimSpace(*profileIDFlag)
+	profileTag := strings.TrimSpace(*profileTagFlag)
+	domain := strings.TrimSpace(*domainFlag)
+	if profileID != "" && profileTag != "" {
+		return fmt.Errorf("use either --profile-id or --profile-tag, not both")
+	}
+
+	checks := make([]deployReadinessCheck, 0, 4)
+	nextSteps := make([]string, 0, 6)
+	ready := true
+
+	sessionCfg, sessionErr := a.loadAdminSession()
+	adminSessionConfigured := sessionErr == nil && strings.TrimSpace(sessionCfg.Session) != ""
+	adminSessionCheck := deployReadinessCheck{
+		Name:     "admin_session",
+		Required: true,
+		Passed:   adminSessionConfigured,
+	}
+	if sessionErr != nil {
+		adminSessionCheck.Detail = fmt.Sprintf("failed to load admin session: %v", sessionErr)
+	} else if !adminSessionConfigured {
+		adminSessionCheck.Detail = "admin session not configured"
+	} else {
+		adminSessionCheck.Detail = "admin session is configured"
+	}
+	checks = append(checks, adminSessionCheck)
+	if !adminSessionCheck.Passed {
+		ready = false
+		nextSteps = append(nextSteps, "landing-page-business-suite admin-login --email <local_admin_email> --password @/path/to/local-admin-password.txt")
+	}
+
+	storageCheck := deployReadinessCheck{
+		Name:     "download_storage",
+		Required: true,
+	}
+	if adminSessionConfigured {
+		_, err := a.requestAdmin("POST", "/admin/download-storage/test", nil, nil)
+		if err != nil {
+			storageCheck.Passed = false
+			storageCheck.Detail = err.Error()
+			ready = false
+			nextSteps = append(nextSteps, "landing-page-business-suite admin-download-storage-test")
+		} else {
+			storageCheck.Passed = true
+			storageCheck.Detail = "download storage test succeeded"
+		}
+	} else {
+		storageCheck.Passed = false
+		storageCheck.Blocked = true
+		storageCheck.Detail = "skipped: admin session is required"
+		ready = false
+	}
+	checks = append(checks, storageCheck)
+
+	if profileTag != "" || profileID != "" {
+		resolvedProfileID := profileID
+		profileCheck := deployReadinessCheck{
+			Name:     "remote_profile_session",
+			Required: true,
+		}
+		if !adminSessionConfigured {
+			profileCheck.Passed = false
+			profileCheck.Blocked = true
+			profileCheck.Detail = "skipped: admin session is required"
+			ready = false
+		} else {
+			if resolvedProfileID == "" {
+				id, err := a.resolveRemoteProfileIDByTag(profileTag)
+				if err != nil {
+					profileCheck.Passed = false
+					profileCheck.Detail = err.Error()
+					ready = false
+				} else {
+					resolvedProfileID = id
+				}
+			}
+			if profileCheck.Detail == "" {
+				_, err := a.requestAdmin("POST", "/admin/remote-profiles/"+url.PathEscape(resolvedProfileID)+"/test", nil, nil)
+				if err != nil {
+					profileCheck.Passed = false
+					profileCheck.Detail = err.Error()
+					ready = false
+				} else {
+					profileCheck.Passed = true
+					profileCheck.Detail = "remote profile session is active"
+				}
+			}
+		}
+		checks = append(checks, profileCheck)
+		if !profileCheck.Passed && !profileCheck.Blocked {
+			if profileTag != "" {
+				nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-login --tag %s --email <remote_admin_email> --password @/path/to/remote-admin-password.txt", profileTag))
+			} else {
+				nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-login %s --email <remote_admin_email> --password @/path/to/remote-admin-password.txt", resolvedProfileID))
+			}
+		}
+		profileID = resolvedProfileID
+	}
+
+	serviceAuthCheck := deployReadinessCheck{
+		Name:     "service_auth",
+		Required: *requireServiceAuth,
+	}
+	serviceAuthResp, err := a.request(endpointDef{Method: "GET", Path: "/usage/health"}, "/usage/health", nil, nil)
+	if err != nil {
+		serviceAuthCheck.Passed = false
+		serviceAuthCheck.Detail = err.Error()
+		if serviceAuthCheck.Required {
+			ready = false
+		}
+	} else {
+		var parsed usageHealthResponse
+		if err := json.Unmarshal(serviceAuthResp, &parsed); err != nil {
+			serviceAuthCheck.Passed = false
+			serviceAuthCheck.Detail = fmt.Sprintf("parse usage health response: %v", err)
+			if serviceAuthCheck.Required {
+				ready = false
+			}
+		} else if parsed.ServiceAuthConfigured {
+			mode := strings.TrimSpace(parsed.ServiceAuthMode)
+			if mode == "" {
+				mode = "unknown"
+			}
+			serviceAuthCheck.Passed = true
+			serviceAuthCheck.Detail = fmt.Sprintf("service auth enabled (mode=%s)", mode)
+		} else {
+			serviceAuthCheck.Passed = false
+			serviceAuthCheck.Detail = "service auth is disabled"
+			if serviceAuthCheck.Required {
+				ready = false
+			}
+		}
+	}
+	checks = append(checks, serviceAuthCheck)
+	if !serviceAuthCheck.Passed {
+		domainArg := "<domain>"
+		if domain != "" {
+			domainArg = domain
+		}
+		nextSteps = append(nextSteps,
+			fmt.Sprintf("scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain %s --restart", domainArg),
+			"landing-page-business-suite service-auth-status --require-enabled",
+		)
+		if profileTag != "" {
+			nextSteps = append(nextSteps, fmt.Sprintf("scenario-to-desktop deploy-target test %s --require-service-auth", profileTag))
+		}
+	}
+
+	if ready {
+		nextSteps = append(nextSteps, "LPBS deploy readiness passed. Continue with scenario-to-desktop pipeline run ... --deploy-target <target> --app-key <app_key> --wait")
+	}
+
+	report := deployReadinessReport{
+		Ready:      ready,
+		ProfileTag: profileTag,
+		ProfileID:  profileID,
+		Domain:     domain,
+		Checks:     checks,
+		NextSteps:  nextSteps,
+		CheckedAt:  time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if *jsonOut {
+		encoded, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			return fmt.Errorf("encode readiness report: %w", err)
+		}
+		cliutil.PrintJSON(encoded)
+		if !ready {
+			return fmt.Errorf("deploy readiness checks failed")
+		}
+		return nil
+	}
+
+	status := "NOT READY"
+	if ready {
+		status = "READY"
+	}
+	fmt.Printf("Status: %s\n", status)
+	fmt.Println("Triage:")
+	for _, check := range checks {
+		checkStatus := "PASS"
+		if check.Blocked {
+			checkStatus = "BLOCKED"
+		} else if !check.Passed {
+			checkStatus = "FAIL"
+		}
+		required := ""
+		if !check.Required {
+			required = " (optional)"
+		}
+		fmt.Printf("  [%s] %s%s: %s\n", checkStatus, check.Name, required, check.Detail)
+	}
+	if len(nextSteps) > 0 {
+		fmt.Println("Next steps:")
+		for i, step := range nextSteps {
+			fmt.Printf("  %d) %s\n", i+1, step)
+		}
+	}
+	if !ready {
+		return fmt.Errorf("deploy readiness checks failed")
+	}
+	return nil
+}
+
+func serviceAuthNotConfiguredError() error {
+	return fmt.Errorf(
+		"service auth is not configured\n\nNext steps:\n  1) Set shared secret (portable): scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart\n  2) Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled\n  3) Verify desktop deploy auth gate: scenario-to-desktop deploy-target test <target-name> --require-service-auth",
+	)
 }
 
 func (a *App) adminSessionConfigFile() (*cliutil.ConfigFile, error) {
@@ -1273,16 +1517,48 @@ func (a *App) cmdRemoteProfilesDelete(args []string) error {
 
 func (a *App) cmdRemoteProfilesLogin(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-login", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage of remote-profiles-login:")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-login <id> --email <email> --password <password> [--json]")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-login --profile-id <id> --email <email> --password <password> [--json]")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-login --tag <tag> --email <email> --password <password> [--json]")
+		fs.PrintDefaults()
+	}
+	profileIDFlag := fs.String("profile-id", "", "Remote profile id")
+	tag := fs.String("tag", "", "Remote profile tag (resolves id automatically)")
 	email := fs.String("email", "", "Remote admin email")
 	password := fs.String("password", "", "Remote admin password or @file")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 1 {
+	if len(fs.Args()) > 1 {
 		return fmt.Errorf("usage: remote-profiles-login <id> --email <email> --password <password> [--json]")
 	}
-	profileID := strings.TrimSpace(fs.Args()[0])
+	positionalProfileID := ""
+	if len(fs.Args()) == 1 {
+		positionalProfileID = strings.TrimSpace(fs.Args()[0])
+	}
+	flagProfileID := strings.TrimSpace(*profileIDFlag)
+	tagValue := strings.TrimSpace(*tag)
+	if positionalProfileID != "" && flagProfileID != "" {
+		return fmt.Errorf("use either positional <id> or --profile-id, not both")
+	}
+	if tagValue != "" && (positionalProfileID != "" || flagProfileID != "") {
+		return fmt.Errorf("use either --tag or an explicit profile id (--profile-id or positional <id>)")
+	}
+
+	profileID := positionalProfileID
+	if profileID == "" {
+		profileID = flagProfileID
+	}
+	if profileID == "" && tagValue != "" {
+		resolvedProfileID, err := a.resolveRemoteProfileIDByTag(tagValue)
+		if err != nil {
+			return err
+		}
+		profileID = resolvedProfileID
+	}
 	if profileID == "" {
 		return fmt.Errorf("usage: remote-profiles-login <id> --email <email> --password <password> [--json]")
 	}
@@ -1318,6 +1594,74 @@ func (a *App) cmdRemoteProfilesLogin(args []string) error {
 	return nil
 }
 
+func (a *App) resolveRemoteProfileIDByTag(tag string) (string, error) {
+	tag = strings.TrimSpace(tag)
+	if tag == "" {
+		return "", fmt.Errorf("--tag is required")
+	}
+
+	resp, err := a.requestAdmin("GET", "/admin/remote-profiles", nil, nil)
+	if err != nil {
+		return "", err
+	}
+
+	var payload struct {
+		Profiles []struct {
+			ID  json.RawMessage `json:"id"`
+			Tag string          `json:"tag"`
+		} `json:"profiles"`
+	}
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		return "", fmt.Errorf("parse remote profiles list: %w", err)
+	}
+
+	var matchedID string
+	for _, profile := range payload.Profiles {
+		if strings.TrimSpace(profile.Tag) != tag {
+			continue
+		}
+		candidateID, err := normalizeRemoteProfileID(profile.ID)
+		if err != nil {
+			return "", fmt.Errorf("parse remote profile id for tag %q: %w", tag, err)
+		}
+		if matchedID != "" && matchedID != candidateID {
+			return "", fmt.Errorf("remote profile tag %q maps to multiple ids; run remote-profiles-list --json and fix duplicates", tag)
+		}
+		matchedID = candidateID
+	}
+	if matchedID == "" {
+		return "", fmt.Errorf("remote profile tag %q not found; run remote-profiles-list to inspect available tags", tag)
+	}
+	return matchedID, nil
+}
+
+func normalizeRemoteProfileID(raw json.RawMessage) (string, error) {
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" {
+		return "", fmt.Errorf("missing id")
+	}
+
+	var asString string
+	if err := json.Unmarshal(raw, &asString); err == nil {
+		asString = strings.TrimSpace(asString)
+		if asString == "" {
+			return "", fmt.Errorf("missing id")
+		}
+		return asString, nil
+	}
+
+	var asNumber json.Number
+	if err := json.Unmarshal(raw, &asNumber); err == nil {
+		s := strings.TrimSpace(asNumber.String())
+		if s == "" {
+			return "", fmt.Errorf("missing id")
+		}
+		return s, nil
+	}
+
+	return "", fmt.Errorf("unsupported id format %q", trimmed)
+}
+
 func (a *App) cmdRemoteProfilesLogout(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-logout", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -1346,14 +1690,46 @@ func (a *App) cmdRemoteProfilesLogout(args []string) error {
 
 func (a *App) cmdRemoteProfilesTest(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-test", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage of remote-profiles-test:")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-test <id> [--json]")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-test --profile-id <id> [--json]")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-test --tag <tag> [--json]")
+		fs.PrintDefaults()
+	}
+	profileIDFlag := fs.String("profile-id", "", "Remote profile id")
+	tag := fs.String("tag", "", "Remote profile tag (resolves id automatically)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 1 {
+	if len(fs.Args()) > 1 {
 		return fmt.Errorf("usage: remote-profiles-test <id> [--json]")
 	}
-	profileID := strings.TrimSpace(fs.Args()[0])
+	positionalProfileID := ""
+	if len(fs.Args()) == 1 {
+		positionalProfileID = strings.TrimSpace(fs.Args()[0])
+	}
+	flagProfileID := strings.TrimSpace(*profileIDFlag)
+	tagValue := strings.TrimSpace(*tag)
+	if positionalProfileID != "" && flagProfileID != "" {
+		return fmt.Errorf("use either positional <id> or --profile-id, not both")
+	}
+	if tagValue != "" && (positionalProfileID != "" || flagProfileID != "") {
+		return fmt.Errorf("use either --tag or an explicit profile id (--profile-id or positional <id>)")
+	}
+
+	profileID := positionalProfileID
+	if profileID == "" {
+		profileID = flagProfileID
+	}
+	if profileID == "" && tagValue != "" {
+		resolvedProfileID, err := a.resolveRemoteProfileIDByTag(tagValue)
+		if err != nil {
+			return err
+		}
+		profileID = resolvedProfileID
+	}
 	if profileID == "" {
 		return fmt.Errorf("usage: remote-profiles-test <id> [--json]")
 	}

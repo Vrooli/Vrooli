@@ -109,6 +109,11 @@ func printHealthReport(resp HealthResponse) {
 		for _, note := range resp.Freshness.Notes {
 			fmt.Printf("  Note: %s\n", note)
 		}
+		if strings.EqualFold(strings.TrimSpace(resp.Freshness.Status), "outdated") {
+			if command := freshnessConvergenceCommand(resp); command != "" {
+				fmt.Printf("  Next step: %s\n", command)
+			}
+		}
 	}
 	fmt.Println(thinDivider)
 
@@ -191,4 +196,27 @@ func shortHashOrNA(v string) string {
 		return v
 	}
 	return v[:12]
+}
+
+func freshnessConvergenceCommand(resp HealthResponse) string {
+	for _, recommendation := range resp.Recommendations {
+		if strings.TrimSpace(recommendation.Command) == "" {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(recommendation.Category), "freshness") {
+			return strings.TrimSpace(recommendation.Command)
+		}
+	}
+
+	scenarioID := strings.TrimSpace(resp.ScenarioID)
+	if scenarioID == "" {
+		return ""
+	}
+	if domain := strings.TrimSpace(resp.Domain); domain != "" {
+		return fmt.Sprintf("scenario-to-cloud redeploy --domain %s --scenario %s --if-needed --preflight --wait", domain, scenarioID)
+	}
+	if host := strings.TrimSpace(resp.Host); host != "" {
+		return fmt.Sprintf("scenario-to-cloud redeploy --host %s --scenario %s --if-needed --preflight --wait", host, scenarioID)
+	}
+	return ""
 }

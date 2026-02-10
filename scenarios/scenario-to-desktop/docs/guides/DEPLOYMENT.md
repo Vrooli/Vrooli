@@ -66,7 +66,12 @@ scenario-to-desktop deploy-target remove vrooli-production
 
 # Test connectivity
 scenario-to-desktop deploy-target test vrooli-production
+
+# Test connectivity + service auth readiness
+scenario-to-desktop deploy-target test vrooli-production --require-service-auth
 ```
+
+`deploy-target list` prints both target key and label. Use the key (for example `vrooli-production`) in `deploy-target test` and pipeline commands.
 
 ## Running the Deploy Stage
 
@@ -175,3 +180,7 @@ Run build first and confirm the build stage produced at least one artifact.
 ### Remote profile test fails
 
 Use `scenario-to-desktop deploy-target test <name>` and confirm the remote profile is active/logged in on LPBS.
+
+### Service auth readiness fails
+
+Run `scenario-to-desktop deploy-target test <name> --require-service-auth`. If it fails, sync LPBS runtime `LPBS_SERVICE_SECRET` and service-auth configuration, then retry.
