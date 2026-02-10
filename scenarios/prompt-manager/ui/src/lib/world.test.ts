@@ -4,6 +4,26 @@ import { seatLocalToWorld, seatWorldToLocal, seatFacingArrowOffset, rotateAllSea
 const PI = Math.PI
 const HALF_PI = PI / 2
 
+// ---------------------------------------------------------------------------
+// Three.js Ry(θ) reference implementation for test verification.
+// Ry(θ) = [[cos θ, 0, sin θ], [0, 1, 0], [-sin θ, 0, cos θ]]
+// ---------------------------------------------------------------------------
+
+/** Apply Three.js Ry(θ) matrix to a point, then add an offset. */
+function threeJsRotateY(
+  point: [number, number, number],
+  offset: [number, number, number],
+  theta: number,
+): [number, number, number] {
+  const cos = Math.cos(theta)
+  const sin = Math.sin(theta)
+  return [
+    offset[0] + point[0] * cos + point[2] * sin,
+    offset[1] + point[1],
+    offset[2] - point[0] * sin + point[2] * cos,
+  ]
+}
+
 describe('seatLocalToWorld', () => {
   it('zero rotation + zero offset → identity', () => {
     const pos: [number, number, number] = [5, 0, 3]
@@ -17,26 +37,36 @@ describe('seatLocalToWorld', () => {
     expect(result[2]).toBeCloseTo(12)
   })
 
-  it('offset with π/2 rotation', () => {
-    // Rotating 90° CW: x→z, z→-x  (standard Y-up rotation matrix)
+  it('offset with π/2 rotation — matches Three.js Ry(π/2)', () => {
+    // Three.js Ry(π/2): (1,0,0) → (0, 0, -1)
     const result = seatLocalToWorld([1, 0, 0], [0, 0, 0], HALF_PI)
-    expect(result[0]).toBeCloseTo(0)  // cos(π/2)*1 ≈ 0
+    expect(result[0]).toBeCloseTo(0)
     expect(result[1]).toBeCloseTo(0)
-    expect(result[2]).toBeCloseTo(1)  // sin(π/2)*1 ≈ 1
+    expect(result[2]).toBeCloseTo(-1)
   })
 
-  it('offset with π rotation', () => {
+  it('offset with π rotation — matches Three.js Ry(π)', () => {
+    // Three.js Ry(π): (1,0,0) → (-1, 0, 0)
     const result = seatLocalToWorld([1, 0, 0], [0, 0, 0], PI)
-    expect(result[0]).toBeCloseTo(-1) // cos(π)*1 = -1
+    expect(result[0]).toBeCloseTo(-1)
     expect(result[1]).toBeCloseTo(0)
-    expect(result[2]).toBeCloseTo(0)  // sin(π)*1 ≈ 0
+    expect(result[2]).toBeCloseTo(0)
   })
 
-  it('offset with 3π/2 rotation', () => {
+  it('offset with 3π/2 rotation — matches Three.js Ry(3π/2)', () => {
+    // Three.js Ry(3π/2): (1,0,0) → (0, 0, 1)
     const result = seatLocalToWorld([1, 0, 0], [5, 0, 5], 3 * HALF_PI)
-    expect(result[0]).toBeCloseTo(5)  // 5 + cos(3π/2)*1 ≈ 5+0
+    expect(result[0]).toBeCloseTo(5)
     expect(result[1]).toBeCloseTo(0)
-    expect(result[2]).toBeCloseTo(4)  // 5 + sin(3π/2)*1 ≈ 5-1
+    expect(result[2]).toBeCloseTo(6)
+  })
+
+  it('Z offset with π/2 rotation — matches Three.js', () => {
+    // Three.js Ry(π/2): (0,0,1) → (1, 0, 0)
+    const result = seatLocalToWorld([0, 0, 1], [0, 0, 0], HALF_PI)
+    expect(result[0]).toBeCloseTo(1)
+    expect(result[1]).toBeCloseTo(0)
+    expect(result[2]).toBeCloseTo(0)
   })
 
   it('Y-axis preservation — rotation only affects XZ', () => {
@@ -59,8 +89,9 @@ describe('seatWorldToLocal', () => {
     expect(result[2]).toBeCloseTo(2)
   })
 
-  it('π/2 rotation inverse', () => {
-    const result = seatWorldToLocal([0, 0, 1], [0, 0, 0], HALF_PI)
+  it('π/2 rotation inverse — undoes Three.js Ry(π/2)', () => {
+    // Forward: (1,0,0) at π/2 → (0,0,-1), so inverse: (0,0,-1) at π/2 → (1,0,0)
+    const result = seatWorldToLocal([0, 0, -1], [0, 0, 0], HALF_PI)
     expect(result[0]).toBeCloseTo(1)
     expect(result[1]).toBeCloseTo(0)
     expect(result[2]).toBeCloseTo(0)
@@ -88,6 +119,88 @@ describe('seatLocalToWorld ↔ seatWorldToLocal roundtrip', () => {
   }
 })
 
+describe('seatLocalToWorld matches Three.js Ry(θ)', () => {
+  const cases: Array<{
+    label: string
+    local: [number, number, number]
+    furnPos: [number, number, number]
+    rotation: number
+  }> = [
+    { label: 'X-axis seat at 0°', local: [1, 0, 0], furnPos: [0, 0, 0], rotation: 0 },
+    { label: 'X-axis seat at 45°', local: [1, 0, 0], furnPos: [0, 0, 0], rotation: PI / 4 },
+    { label: 'X-axis seat at 90°', local: [1, 0, 0], furnPos: [0, 0, 0], rotation: HALF_PI },
+    { label: 'X-axis seat at 180°', local: [1, 0, 0], furnPos: [0, 0, 0], rotation: PI },
+    { label: 'X-axis seat at 270°', local: [1, 0, 0], furnPos: [0, 0, 0], rotation: 3 * HALF_PI },
+    { label: 'Z-axis seat at 90°', local: [0, 0, 1], furnPos: [0, 0, 0], rotation: HALF_PI },
+    { label: 'diagonal seat at 90°', local: [1, 0, 1], furnPos: [0, 0, 0], rotation: HALF_PI },
+    { label: 'bench left seat at 45°', local: [-0.4, 0.5, 0.05], furnPos: [2, 0, 3], rotation: PI / 4 },
+    { label: 'bench right seat at 225°', local: [0.4, 0.5, 0.05], furnPos: [-1, 0, 2], rotation: 5 * PI / 4 },
+    { label: 'arbitrary offset + rotation', local: [1.5, 0.3, -0.8], furnPos: [3, 1, -4], rotation: 2.1 },
+  ]
+
+  for (const { label, local, furnPos, rotation } of cases) {
+    it(label, () => {
+      const result = seatLocalToWorld(local, furnPos, rotation)
+      const expected = threeJsRotateY(local, furnPos, rotation)
+      expect(result[0]).toBeCloseTo(expected[0], 10)
+      expect(result[1]).toBeCloseTo(expected[1], 10)
+      expect(result[2]).toBeCloseTo(expected[2], 10)
+    })
+  }
+})
+
+describe('bench seat alignment across rotations', () => {
+  const benchSeats: [number, number, number][] = [
+    [-0.4, 0.5, 0.05],
+    [0, 0.5, 0.05],
+    [0.4, 0.5, 0.05],
+  ]
+  const furnPos: [number, number, number] = [0, 0, 0]
+
+  it('seats at 0° are spread along X axis', () => {
+    const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, 0))
+    // At 0° rotation, seats should be at x = -0.4, 0, 0.4
+    expect(worldSeats[0]![0]).toBeCloseTo(-0.4)
+    expect(worldSeats[1]![0]).toBeCloseTo(0)
+    expect(worldSeats[2]![0]).toBeCloseTo(0.4)
+    // Z should all be 0.05
+    for (const ws of worldSeats) {
+      expect(ws![2]).toBeCloseTo(0.05)
+    }
+  })
+
+  it('seats at 90° are spread along -Z axis', () => {
+    const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, HALF_PI))
+    // Ry(π/2) rotates +X → -Z, so seats spread along -Z
+    expect(worldSeats[0]![2]).toBeCloseTo(0.4)  // -(-0.4)*sin(π/2)
+    expect(worldSeats[1]![2]).toBeCloseTo(0)
+    expect(worldSeats[2]![2]).toBeCloseTo(-0.4) // -(0.4)*sin(π/2)
+    // X should all be ~0.05*sin(π/2) = 0.05
+    for (const ws of worldSeats) {
+      expect(ws![0]).toBeCloseTo(0.05)
+    }
+  })
+
+  it('seats at 180° are spread along -X axis (mirrored)', () => {
+    const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, PI))
+    expect(worldSeats[0]![0]).toBeCloseTo(0.4)
+    expect(worldSeats[1]![0]).toBeCloseTo(0)
+    expect(worldSeats[2]![0]).toBeCloseTo(-0.4)
+  })
+
+  it('seat spread distance is preserved across all rotations', () => {
+    const rotations = [0, PI / 4, HALF_PI, PI, 3 * HALF_PI, 5.5]
+    for (const rot of rotations) {
+      const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, rot))
+      // Distance between left and right seats should always be 0.8
+      const dx = worldSeats[2]![0] - worldSeats[0]![0]
+      const dz = worldSeats[2]![2] - worldSeats[0]![2]
+      const dist = Math.hypot(dx, dz)
+      expect(dist).toBeCloseTo(0.8, 5)
+    }
+  })
+})
+
 describe('seatFacingArrowOffset', () => {
   it('0 rotation → offset along +Z', () => {
     const result = seatFacingArrowOffset(0)
@@ -113,16 +226,28 @@ describe('seatFacingArrowOffset', () => {
     const result = seatFacingArrowOffset(1.23, 5)
     expect(result[1]).toBe(0)
   })
+
+  it('matches Three.js Ry(θ) applied to +Z unit vector', () => {
+    const rotations = [0, PI / 4, HALF_PI, PI, 3 * HALF_PI, 2.7]
+    for (const rot of rotations) {
+      const arrow = seatFacingArrowOffset(rot, 1)
+      const expected = threeJsRotateY([0, 0, 1], [0, 0, 0], rot)
+      expect(arrow[0]).toBeCloseTo(expected[0], 10)
+      expect(arrow[1]).toBeCloseTo(expected[1], 10)
+      expect(arrow[2]).toBeCloseTo(expected[2], 10)
+    }
+  })
 })
 
 describe('rotateAllSeats', () => {
-  it('rotate by π/2 — XZ swaps', () => {
+  it('rotate by π/2 — matches Three.js convention', () => {
     const seats = [{ position: [1, 0.5, 0] as [number, number, number], rotation: 0 }]
     const result = rotateAllSeats(seats, HALF_PI)
     expect(result).toHaveLength(1)
+    // Ry(π/2) * (1, 0.5, 0) → (0, 0.5, -1)
     expect(result[0]!.position[0]).toBeCloseTo(0)
     expect(result[0]!.position[1]).toBeCloseTo(0.5)
-    expect(result[0]!.position[2]).toBeCloseTo(1)
+    expect(result[0]!.position[2]).toBeCloseTo(-1)
     expect(result[0]!.rotation).toBeCloseTo(HALF_PI)
   })
 
@@ -158,5 +283,21 @@ describe('rotateAllSeats', () => {
     expect(result[0]!.rotation).toBeGreaterThanOrEqual(0)
     expect(result[0]!.rotation).toBeLessThan(PI * 2)
     expect(result[0]!.rotation).toBeCloseTo(0.5 + PI)
+  })
+
+  it('XZ transform matches Three.js Ry(δ)', () => {
+    const seats = [
+      { position: [1, 0, 0] as [number, number, number], rotation: 0 },
+      { position: [0, 0, 1] as [number, number, number], rotation: 0 },
+      { position: [1, 0, 1] as [number, number, number], rotation: 0 },
+    ]
+    const delta = PI / 3
+    const result = rotateAllSeats(seats, delta)
+    for (let i = 0; i < seats.length; i++) {
+      const expected = threeJsRotateY(seats[i]!.position, [0, 0, 0], delta)
+      expect(result[i]!.position[0]).toBeCloseTo(expected[0], 10)
+      expect(result[i]!.position[1]).toBeCloseTo(expected[1], 10)
+      expect(result[i]!.position[2]).toBeCloseTo(expected[2], 10)
+    }
   })
 })

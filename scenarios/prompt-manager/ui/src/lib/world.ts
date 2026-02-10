@@ -195,6 +195,11 @@ export function clampPointToBoundary(point: XZPoint, boundary: ResolvedBoundary)
 /**
  * Convert a seat's local offset to world coordinates by applying furniture
  * position and Y-axis rotation.
+ *
+ * Uses the Three.js Ry(θ) matrix convention:
+ *   | cos(θ)   0   sin(θ) |
+ *   |   0      1     0     |
+ *   | -sin(θ)  0   cos(θ) |
  */
 export function seatLocalToWorld(
   seatLocal: [number, number, number],
@@ -205,23 +210,23 @@ export function seatLocalToWorld(
   const sin = Math.sin(furnitureRotation)
   const [sx, sy, sz] = seatLocal
   return [
-    furniturePos[0] + sx * cos - sz * sin,
+    furniturePos[0] + sx * cos + sz * sin,
     furniturePos[1] + sy,
-    furniturePos[2] + sx * sin + sz * cos,
+    furniturePos[2] - sx * sin + sz * cos,
   ]
 }
 
 /**
  * Convert a world position back to a seat-local offset relative to furniture.
- * Inverse of `seatLocalToWorld`.
+ * Inverse of `seatLocalToWorld` — applies Ry(θ)^T (the transpose).
  */
 export function seatWorldToLocal(
   worldPos: [number, number, number],
   furniturePos: [number, number, number],
   furnitureRotation: number,
 ): [number, number, number] {
-  const cos = Math.cos(-furnitureRotation)
-  const sin = Math.sin(-furnitureRotation)
+  const cos = Math.cos(furnitureRotation)
+  const sin = Math.sin(furnitureRotation)
   const dx = worldPos[0] - furniturePos[0]
   const dy = worldPos[1] - furniturePos[1]
   const dz = worldPos[2] - furniturePos[2]
@@ -263,9 +268,9 @@ export function rotateAllSeats(
     const [x, y, z] = seat.position
     return {
       position: [
-        x * cos - z * sin,
+        x * cos + z * sin,
         y,
-        x * sin + z * cos,
+        -x * sin + z * cos,
       ] as [number, number, number],
       rotation: ((seat.rotation + deltaRadians) % TAU + TAU) % TAU,
     }

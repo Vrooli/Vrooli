@@ -259,15 +259,16 @@ export const useFurnitureStore = create<FurnitureStore>()(
         if (!seat) return null
 
         // Calculate world position (furniture position + rotated seat offset)
+        // Uses Three.js Ry(θ) convention: [[cos,sin],[-sin,cos]] in XZ
         const cos = Math.cos(furn.rotation)
         const sin = Math.sin(furn.rotation)
         const [sx, sy, sz] = seat.position
 
         return {
           position: [
-            furn.position[0] + sx * cos - sz * sin,
+            furn.position[0] + sx * cos + sz * sin,
             furn.position[1] + sy,
-            furn.position[2] + sx * sin + sz * cos,
+            furn.position[2] - sx * sin + sz * cos,
           ] as [number, number, number],
           rotation: furn.rotation + seat.rotation,
         }

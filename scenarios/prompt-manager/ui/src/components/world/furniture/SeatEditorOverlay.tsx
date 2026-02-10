@@ -95,18 +95,18 @@ export function SeatEditorOverlay() {
         <div className="flex items-center gap-1.5 mb-3">
           <span className="text-[10px] text-slate-500 uppercase">Rotate All</span>
           <button
-            onClick={() => handleRotateAll(-90)}
+            onClick={() => handleRotateAll(-45)}
             className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-700/30 text-slate-400 hover:bg-slate-600/50 hover:text-slate-300 transition-colors"
           >
             <RotateCcw className="h-2.5 w-2.5" />
-            90
+            45
           </button>
           <button
-            onClick={() => handleRotateAll(90)}
+            onClick={() => handleRotateAll(45)}
             className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-700/30 text-slate-400 hover:bg-slate-600/50 hover:text-slate-300 transition-colors"
           >
             <RotateCw className="h-2.5 w-2.5" />
-            90
+            45
           </button>
         </div>
       )}
