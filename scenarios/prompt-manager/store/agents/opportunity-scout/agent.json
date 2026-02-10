@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "opportunity-scout",
+  "displayName": "Opportunity Scout",
+  "description": "Generates revenue ideas by scanning market trends, unmet needs, and capability gaps.",
+  "status": "active",
+  "appearance": {
+    "body": "#0F766E",
+    "head": "#2DD4BF",
+    "accent": "#99F6E4"
+  },
+  "tags": [
+    "research",
+    "ideation",
+    "trends",
+    "opportunities"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

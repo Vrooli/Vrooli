@@ -1,0 +1,16 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "revenue-research",
+  "displayName": "Revenue Research Team",
+  "mission": "Identify and evaluate opportunities for increasing Vrooli revenue and profitability.",
+  "enabled": false,
+  "spawnMode": "multi-process",
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

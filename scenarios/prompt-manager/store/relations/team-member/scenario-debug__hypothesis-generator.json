@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "scenario-debug",
+  "agentId": "hypothesis-generator",
+  "roles": [
+    "investigator"
+  ],
+  "status": "active"
+}

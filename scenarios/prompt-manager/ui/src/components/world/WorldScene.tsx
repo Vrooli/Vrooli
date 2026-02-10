@@ -120,7 +120,6 @@ export interface AgentWithPosition {
 interface WorldSceneProps {
   cameraState: CameraState
   selectedNodeIds: string[]
-  cursorPosition: { x: number; y: number } | null
   /** All agents with their positions */
   agentsWithPositions: AgentWithPosition[]
   /** Called when an agent is clicked, with agent ID and position */
@@ -141,7 +140,6 @@ interface WorldSceneProps {
 export function WorldScene({
   cameraState,
   selectedNodeIds,
-  cursorPosition,
   agentsWithPositions,
   onAgentClick,
   onFurnitureClick,
@@ -293,7 +291,6 @@ export function WorldScene({
             key={agent.id}
             agent={agent}
             position={agentDraggable ? [0, 0, 0] : position}
-            cursorPosition={cursorPosition}
             selectedNodes={selectedNodeIds}
             isAnimating={false}
             isSeated={isSeated}

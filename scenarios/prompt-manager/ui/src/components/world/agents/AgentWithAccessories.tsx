@@ -44,7 +44,6 @@ interface AgentWithAccessoriesProps extends Omit<AgentProps, 'agentId'> {
  * <AgentWithAccessories
  *   agent={agent}
  *   position={[0, 0, 0]}
- *   cursorPosition={cursor}
  *   selectedNodes={[]}
  *   isAnimating={false}
  *   onAgentClick={() => handleClick(agent.id)}
@@ -54,7 +53,6 @@ interface AgentWithAccessoriesProps extends Omit<AgentProps, 'agentId'> {
 export function AgentWithAccessories({
   agent,
   position,
-  cursorPosition,
   selectedNodes: selectedNodesProp,
   isAnimating,
   onAnimationComplete,
@@ -169,7 +167,6 @@ export function AgentWithAccessories({
       <AgentComponent
         agentId={agent.id}
         position={LOCAL_ORIGIN}
-        cursorPosition={cursorPosition}
         selectedNodes={selectedNodes}
         isAnimating={isAnimating}
         onAnimationComplete={onAnimationComplete}

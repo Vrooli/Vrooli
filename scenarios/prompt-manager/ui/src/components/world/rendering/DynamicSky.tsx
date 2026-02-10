@@ -5,7 +5,7 @@
  * The gradient is rendered on BackSide, allowing stars and celestial bodies to render inside.
  */
 
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useEnvironmentStore } from '@/stores/environmentStore'
@@ -21,33 +21,6 @@ interface DynamicSkyProps {
   /** Radius of the sky dome */
   radius?: number
 }
-
-/**
- * Convert hex color to THREE.Color
- */
-function hexToColor(hex: string): THREE.Color {
-  return new THREE.Color(hex)
-}
-
-/**
- * Create a gradient shader material for the sky dome (used for abstract-space)
- */
-function createGradientMaterial(colors: { top: string; middle: string; bottom: string }): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      topColor: { value: hexToColor(colors.top) },
-      middleColor: { value: hexToColor(colors.middle) },
-      bottomColor: { value: hexToColor(colors.bottom) },
-      offset: { value: 0.5 },
-      exponent: { value: 0.6 },
-    },
-    vertexShader: SKY_VERTEX_SHADER,
-    fragmentShader: SKY_FRAGMENT_SHADER,
-    side: THREE.BackSide,
-    depthWrite: false,
-  })
-}
-
 
 /**
  * Dynamic sky that changes based on continuous time.
@@ -71,10 +44,40 @@ export function DynamicSky({
   // Calculate sky colors based on continuous time
   const skyColors = useMemo(() => calculateSkyColors(timeValue), [timeValue])
 
-  // Always use time-based gradient colors so the sky responds to time changes.
-  // Static skybox configs (solid/gradient) produced stale colors that didn't
-  // update when timeValue changed, causing the sky to appear wrong on load.
-  const gradientMaterial = useMemo(() => createGradientMaterial(skyColors), [skyColors])
+  // Stable Color objects — passed into the shader as uniform values and
+  // mutated directly when skyColors changes.  Avoids re-creating the
+  // ShaderMaterial (which triggers a ~2-5 ms GPU shader recompilation).
+  const topColor = useMemo(() => new THREE.Color(), [])
+  const middleColor = useMemo(() => new THREE.Color(), [])
+  const bottomColor = useMemo(() => new THREE.Color(), [])
+
+  const gradientMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        topColor: { value: topColor },
+        middleColor: { value: middleColor },
+        bottomColor: { value: bottomColor },
+        offset: { value: 0.5 },
+        exponent: { value: 0.6 },
+      },
+      vertexShader: SKY_VERTEX_SHADER,
+      fragmentShader: SKY_FRAGMENT_SHADER,
+      side: THREE.BackSide,
+      depthWrite: false,
+    })
+  }, [topColor, middleColor, bottomColor])
+
+  // Update Color objects when sky colors change (no shader recompilation)
+  useEffect(() => {
+    topColor.set(skyColors.top)
+    middleColor.set(skyColors.middle)
+    bottomColor.set(skyColors.bottom)
+  }, [skyColors, topColor, middleColor, bottomColor])
+
+  // Dispose material on unmount
+  useEffect(() => {
+    return () => { gradientMaterial.dispose() }
+  }, [gradientMaterial])
 
   // Slowly rotate the sky dome for a subtle effect
   useFrame((_, delta) => {

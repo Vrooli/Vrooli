@@ -42,6 +42,11 @@ vi.mock('@/lib/shaders/slimeShader', () => ({
   syncSlimeShader: vi.fn(),
 }))
 
+// Mock cursorRef module
+vi.mock('../../cursorRef', () => ({
+  cursorRef: { current: null },
+}))
+
 // Now import the component under test
 import { SlimeAgent } from '../SlimeAgent'
 import { AGENT_REGISTRY } from '../../AgentProvider'
@@ -49,7 +54,6 @@ import { AGENT_REGISTRY } from '../../AgentProvider'
 describe('SlimeAgent', () => {
   const defaultProps = {
     position: [0, 0, 0] as [number, number, number],
-    cursorPosition: null,
     selectedNodes: [],
     isAnimating: false,
   }
@@ -67,7 +71,6 @@ describe('SlimeAgent', () => {
   it('accepts all AgentProps fields', () => {
     const fullProps = {
       position: [1, 2, 3] as [number, number, number],
-      cursorPosition: { x: 0.5, y: -0.3 },
       selectedNodes: ['node-1', 'node-2'],
       isAnimating: true,
       onAnimationComplete: vi.fn(),

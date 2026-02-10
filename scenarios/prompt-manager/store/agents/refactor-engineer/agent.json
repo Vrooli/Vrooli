@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "refactor-engineer",
+  "displayName": "Refactor Engineer",
+  "description": "Executes refactoring changes in small, safe steps while preserving behavior.",
+  "status": "active",
+  "appearance": {
+    "body": "#1E40AF",
+    "head": "#3B82F6",
+    "accent": "#DBEAFE"
+  },
+  "tags": [
+    "refactoring",
+    "implementation",
+    "clean-code"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

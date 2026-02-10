@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "fix-engineer",
+  "displayName": "Fix Engineer",
+  "description": "Implements minimal, focused fixes with regression tests once root cause is confirmed.",
+  "status": "active",
+  "appearance": {
+    "body": "#7F1D1D",
+    "head": "#DC2626",
+    "accent": "#FCA5A5"
+  },
+  "tags": [
+    "debugging",
+    "fixing",
+    "regression-testing"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

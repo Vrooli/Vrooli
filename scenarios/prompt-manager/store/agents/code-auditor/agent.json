@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "code-auditor",
+  "displayName": "Code Auditor",
+  "description": "Reviews scenario code for anti-patterns, security issues, and architecture violations.",
+  "status": "active",
+  "appearance": {
+    "body": "#15803D",
+    "head": "#4ADE80",
+    "accent": "#BBF7D0"
+  },
+  "tags": [
+    "quality",
+    "code-review",
+    "security",
+    "architecture"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

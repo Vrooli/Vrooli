@@ -1,0 +1,27 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "scenario-refactor",
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Lead",
+      "description": "Orchestrates refactoring strategy, prioritizes by impact and risk."
+    },
+    {
+      "id": "analyst",
+      "name": "Analyst",
+      "description": "Identifies complexity hotspots, code smells, and duplication."
+    },
+    {
+      "id": "engineer",
+      "name": "Engineer",
+      "description": "Executes refactoring in small, safe, verifiable steps."
+    },
+    {
+      "id": "guard",
+      "name": "Guard",
+      "description": "Validates behavior preservation through testing."
+    }
+  ]
+}

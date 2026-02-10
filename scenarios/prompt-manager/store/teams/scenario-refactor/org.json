@@ -1,0 +1,19 @@
+{
+  "kind": "org-chart",
+  "schemaVersion": 1,
+  "teamId": "scenario-refactor",
+  "edges": [
+    {
+      "managerAgentId": "refactor-lead",
+      "reportAgentId": "complexity-analyst"
+    },
+    {
+      "managerAgentId": "refactor-lead",
+      "reportAgentId": "refactor-engineer"
+    },
+    {
+      "managerAgentId": "refactor-lead",
+      "reportAgentId": "regression-guard"
+    }
+  ]
+}

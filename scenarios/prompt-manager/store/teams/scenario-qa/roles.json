@@ -1,0 +1,27 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "scenario-qa",
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Lead",
+      "description": "Orchestrates quality assessment, prioritizes areas, synthesizes findings."
+    },
+    {
+      "id": "auditor",
+      "name": "Auditor",
+      "description": "Reviews code for anti-patterns, security issues, and architecture violations."
+    },
+    {
+      "id": "tester",
+      "name": "Tester",
+      "description": "Assesses test coverage and recommends testing improvements."
+    },
+    {
+      "id": "reviewer",
+      "name": "Reviewer",
+      "description": "Audits documentation health and bidirectional traceability."
+    }
+  ]
+}

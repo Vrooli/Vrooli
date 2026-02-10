@@ -16,6 +16,7 @@ import { MeshWobbleMaterial } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
 import type { AgentProps } from '@/types/world'
+import { cursorRef } from '../cursorRef'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import { useLODStore } from '@/stores/lodStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
@@ -24,6 +25,9 @@ import { bindSlimeShader, syncSlimeShader } from '@/lib/shaders/slimeShader'
 
 // Body sphere radius - used for ground offset so bottom of sphere sits on ground
 const BODY_RADIUS = 0.4
+
+// Reusable unit scale vector — avoids allocating a new Vector3 every frame
+const UNIT_SCALE = new THREE.Vector3(1, 1, 1)
 
 // Default agent colors
 const DEFAULT_COLORS = {
@@ -71,7 +75,6 @@ function getAgentVariation(agentId: string): AgentVariation {
 
 export function SlimeAgent({
   position,
-  cursorPosition,
   selectedNodes: selectedNodesProp,
   isAnimating: _isAnimating,
   onAgentClick,
@@ -283,7 +286,7 @@ export function SlimeAgent({
 
     // Reset scale when stopping
     if (groupRef.current.scale.x !== 1 || groupRef.current.scale.y !== 1) {
-      groupRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.15)
+      groupRef.current.scale.lerp(UNIT_SCALE, 0.15)
       if (Math.abs(groupRef.current.scale.x - 1) < 0.001) {
         groupRef.current.scale.set(1, 1, 1)
       }
@@ -314,6 +317,7 @@ export function SlimeAgent({
     }
 
     // ===== CURSOR TRACKING (high and medium LOD only) =====
+    const cursorPosition = cursorRef.current
     if ((lodLevel === 'high' || lodLevel === 'medium') && cursorPosition) {
       const trackingStrength = lodLevel === 'high' ? 0.03 : 0.02
       const dx = cursorPosition.x * trackingStrength

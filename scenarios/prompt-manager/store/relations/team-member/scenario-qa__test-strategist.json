@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "scenario-qa",
+  "agentId": "test-strategist",
+  "roles": [
+    "tester"
+  ],
+  "status": "active"
+}

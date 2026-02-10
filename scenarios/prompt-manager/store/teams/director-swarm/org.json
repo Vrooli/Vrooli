@@ -1,0 +1,19 @@
+{
+  "kind": "org-chart",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "edges": [
+    {
+      "managerAgentId": "director",
+      "reportAgentId": "strategist"
+    },
+    {
+      "managerAgentId": "director",
+      "reportAgentId": "operations-chief"
+    },
+    {
+      "managerAgentId": "director",
+      "reportAgentId": "intelligence-officer"
+    }
+  ]
+}

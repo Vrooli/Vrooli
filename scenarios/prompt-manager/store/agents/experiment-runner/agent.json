@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "experiment-runner",
+  "displayName": "Experiment Runner",
+  "description": "Designs and executes minimal experiments to confirm or reject debugging hypotheses.",
+  "status": "active",
+  "appearance": {
+    "body": "#991B1B",
+    "head": "#EF4444",
+    "accent": "#FEE2E2"
+  },
+  "tags": [
+    "debugging",
+    "testing",
+    "experiments"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

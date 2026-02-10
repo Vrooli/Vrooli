@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "revenue-research",
+  "agentId": "research-lead",
+  "roles": [
+    "lead"
+  ],
+  "status": "active"
+}

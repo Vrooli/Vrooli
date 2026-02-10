@@ -1,0 +1,19 @@
+{
+  "kind": "org-chart",
+  "schemaVersion": 1,
+  "teamId": "scenario-debug",
+  "edges": [
+    {
+      "managerAgentId": "debug-lead",
+      "reportAgentId": "hypothesis-generator"
+    },
+    {
+      "managerAgentId": "debug-lead",
+      "reportAgentId": "experiment-runner"
+    },
+    {
+      "managerAgentId": "debug-lead",
+      "reportAgentId": "fix-engineer"
+    }
+  ]
+}

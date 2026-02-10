@@ -12,8 +12,6 @@
 export interface AgentProps {
   /** Agent position in 3D space */
   position: [number, number, number]
-  /** Current cursor/pointer position for look-at behavior */
-  cursorPosition: { x: number; y: number } | null
   /** Currently selected node IDs (may be undefined during initialization) */
   selectedNodes?: string[]
   /** Whether the agent is in an animation state */

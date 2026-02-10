@@ -1,0 +1,27 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "meta-optimization",
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Lead",
+      "description": "Orchestrates optimization cycles, identifies highest-leverage improvements."
+    },
+    {
+      "id": "skill-specialist",
+      "name": "Skill Specialist",
+      "description": "Audits and improves the skill library."
+    },
+    {
+      "id": "agent-specialist",
+      "name": "Agent Specialist",
+      "description": "Audits and improves agent configurations."
+    },
+    {
+      "id": "team-specialist",
+      "name": "Team Specialist",
+      "description": "Audits and improves team structures."
+    }
+  ]
+}

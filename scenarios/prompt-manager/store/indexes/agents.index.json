@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-03T14:52:59Z",
+  "generatedAt": "2026-02-09T12:00:00Z",
   "items": [
     {
       "id": "agent-1",
@@ -44,6 +44,171 @@
     {
       "id": "agent-9",
       "displayName": "Agent 9",
+      "status": "active"
+    },
+    {
+      "id": "agent-optimizer",
+      "displayName": "Agent Optimizer",
+      "status": "active"
+    },
+    {
+      "id": "code-auditor",
+      "displayName": "Code Auditor",
+      "status": "active"
+    },
+    {
+      "id": "complexity-analyst",
+      "displayName": "Complexity Analyst",
+      "status": "active"
+    },
+    {
+      "id": "content-creator",
+      "displayName": "Content Creator",
+      "status": "active"
+    },
+    {
+      "id": "content-editor",
+      "displayName": "Content Editor",
+      "status": "active"
+    },
+    {
+      "id": "contrarian",
+      "displayName": "Contrarian",
+      "status": "active"
+    },
+    {
+      "id": "debug-lead",
+      "displayName": "Debug Lead",
+      "status": "active"
+    },
+    {
+      "id": "director",
+      "displayName": "Director",
+      "status": "active"
+    },
+    {
+      "id": "doc-reviewer",
+      "displayName": "Doc Reviewer",
+      "status": "active"
+    },
+    {
+      "id": "experiment-runner",
+      "displayName": "Experiment Runner",
+      "status": "active"
+    },
+    {
+      "id": "feasibility-analyst",
+      "displayName": "Feasibility Analyst",
+      "status": "active"
+    },
+    {
+      "id": "feature-architect",
+      "displayName": "Feature Architect",
+      "status": "active"
+    },
+    {
+      "id": "feature-implementer",
+      "displayName": "Feature Implementer",
+      "status": "active"
+    },
+    {
+      "id": "feature-lead",
+      "displayName": "Feature Lead",
+      "status": "active"
+    },
+    {
+      "id": "feature-reviewer",
+      "displayName": "Feature Reviewer",
+      "status": "active"
+    },
+    {
+      "id": "fix-engineer",
+      "displayName": "Fix Engineer",
+      "status": "active"
+    },
+    {
+      "id": "hypothesis-generator",
+      "displayName": "Hypothesis Generator",
+      "status": "active"
+    },
+    {
+      "id": "intelligence-officer",
+      "displayName": "Intelligence Officer",
+      "status": "active"
+    },
+    {
+      "id": "market-researcher",
+      "displayName": "Market Researcher",
+      "status": "active"
+    },
+    {
+      "id": "market-validator",
+      "displayName": "Market Validator",
+      "status": "active"
+    },
+    {
+      "id": "marketing-lead",
+      "displayName": "Marketing Lead",
+      "status": "active"
+    },
+    {
+      "id": "meta-lead",
+      "displayName": "Meta Lead",
+      "status": "active"
+    },
+    {
+      "id": "operations-chief",
+      "displayName": "Operations Chief",
+      "status": "active"
+    },
+    {
+      "id": "opportunity-scout",
+      "displayName": "Opportunity Scout",
+      "status": "active"
+    },
+    {
+      "id": "qa-lead",
+      "displayName": "QA Lead",
+      "status": "active"
+    },
+    {
+      "id": "refactor-engineer",
+      "displayName": "Refactor Engineer",
+      "status": "active"
+    },
+    {
+      "id": "refactor-lead",
+      "displayName": "Refactor Lead",
+      "status": "active"
+    },
+    {
+      "id": "regression-guard",
+      "displayName": "Regression Guard",
+      "status": "active"
+    },
+    {
+      "id": "research-lead",
+      "displayName": "Research Lead",
+      "status": "active"
+    },
+    {
+      "id": "skill-optimizer",
+      "displayName": "Skill Optimizer",
+      "status": "active"
+    },
+    {
+      "id": "strategist",
+      "displayName": "Strategist",
+      "status": "active"
+    },
+    {
+      "id": "team-optimizer",
+      "displayName": "Team Optimizer",
+      "status": "active"
+    },
+    {
+      "id": "test-strategist",
+      "displayName": "Test Strategist",
       "status": "active"
     }
   ]

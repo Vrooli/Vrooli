@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "meta-optimization",
+  "agentId": "team-optimizer",
+  "roles": [
+    "team-specialist"
+  ],
+  "status": "active"
+}

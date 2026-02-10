@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "skill-optimizer",
+  "displayName": "Skill Optimizer",
+  "description": "Audits skill effectiveness, rewrites underperforming skills, and creates missing skills.",
+  "status": "active",
+  "appearance": {
+    "body": "#B45309",
+    "head": "#FBBF24",
+    "accent": "#FDE68A"
+  },
+  "tags": [
+    "meta",
+    "skills",
+    "authoring",
+    "optimization"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

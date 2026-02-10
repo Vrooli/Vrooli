@@ -50,6 +50,7 @@ vi.mock('three', async () => {
       g: 0.5,
       b: 0.5,
       getHexString: () => hex?.replace('#', '') ?? 'ffffff',
+      set: vi.fn(),
     })),
     BackSide: 1,
   }

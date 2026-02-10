@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "refactor-lead",
+  "displayName": "Refactor Lead",
+  "description": "Orchestrates refactoring strategy, prioritizes by impact and risk, ensures behavior preservation.",
+  "status": "active",
+  "appearance": {
+    "body": "#2563EB",
+    "head": "#3B82F6",
+    "accent": "#93C5FD"
+  },
+  "tags": [
+    "refactoring",
+    "strategy",
+    "orchestration"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

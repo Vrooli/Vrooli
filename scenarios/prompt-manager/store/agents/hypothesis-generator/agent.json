@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "hypothesis-generator",
+  "displayName": "Hypothesis Generator",
+  "description": "Generates multiple falsifiable hypotheses from bug symptoms using divergent thinking.",
+  "status": "active",
+  "appearance": {
+    "body": "#B91C1C",
+    "head": "#F87171",
+    "accent": "#FECACA"
+  },
+  "tags": [
+    "debugging",
+    "hypothesis",
+    "divergent-thinking"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

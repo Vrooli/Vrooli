@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "market-researcher",
+  "displayName": "Market Researcher",
+  "description": "Researches audience, competitors, and trends to inform content strategy and positioning.",
+  "status": "active",
+  "appearance": {
+    "body": "#9A3412",
+    "head": "#F97316",
+    "accent": "#FFEDD5"
+  },
+  "tags": [
+    "marketing",
+    "research",
+    "trends",
+    "competitive-analysis"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

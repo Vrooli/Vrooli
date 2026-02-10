@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "feasibility-analyst",
+  "displayName": "Feasibility Analyst",
+  "description": "Evaluates ideas against Vrooli existing capabilities, estimates effort and identifies reusable scenarios.",
+  "status": "active",
+  "appearance": {
+    "body": "#115E59",
+    "head": "#14B8A6",
+    "accent": "#CCFBF1"
+  },
+  "tags": [
+    "research",
+    "feasibility",
+    "capability-mapping",
+    "estimation"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

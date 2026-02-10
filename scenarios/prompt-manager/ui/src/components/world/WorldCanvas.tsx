@@ -34,6 +34,7 @@ import { EnvironmentSetup } from './rendering/EnvironmentSetup'
 import { MaterialProvider } from './materials/MaterialProvider'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { WorldErrorProvider } from './WorldErrorProvider'
+import { cursorRef } from './cursorRef'
 import { selectors } from '@/constants/selectors'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
@@ -98,9 +99,6 @@ export function WorldCanvas({
 
   // Seed world with default furniture/decorations on first load
   useWorldDefaults()
-
-  // Cursor tracking for agent
-  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
 
   // Selection state from centralized Zustand store
   const selectedSkillIds = useSelectionStore((state) => state.selectedSkillIds)
@@ -282,11 +280,11 @@ export function WorldCanvas({
     const rect = e.currentTarget.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 2 - 1
     const y = -((e.clientY - rect.top) / rect.height) * 2 + 1
-    setCursorPosition({ x: x * 5, y: y * 3 })
+    cursorRef.current = { x: x * 5, y: y * 3 }
   }, [])
 
   const handleMouseLeave = useCallback(() => {
-    setCursorPosition(null)
+    cursorRef.current = null
   }, [])
 
   // Handle display
@@ -361,7 +359,6 @@ export function WorldCanvas({
                     <WorldScene
                       cameraState={cameraState}
                       selectedNodeIds={selectedSkillIds}
-                      cursorPosition={cursorPosition}
                       agentsWithPositions={agentsWithPositions}
                       onAgentClick={handleAgentClick}
                       onFurnitureClick={handleFurnitureClick}

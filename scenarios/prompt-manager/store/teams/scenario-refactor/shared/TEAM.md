@@ -1,0 +1,37 @@
+# Scenario Refactor Team
+
+## Mission
+Improve scenario code quality, reduce complexity, and modernize patterns while preserving existing behavior exactly. Refactoring is investment in future velocity.
+
+## Principles
+1. **Behavior preservation** — Every change must pass all existing tests. No exceptions.
+2. **Small steps** — Each step is independently verifiable and reversible.
+3. **Tests first** — If coverage is insufficient, write tests before refactoring.
+4. **Measurable improvement** — Quantify complexity before and after.
+5. **No feature creep** — Refactoring sessions never add features or fix bugs.
+
+## Safety Protocol
+1. complexity-analyst identifies and ranks hotspots.
+2. refactor-lead verifies test coverage is adequate.
+3. refactor-engineer executes in small steps.
+4. regression-guard validates after each step.
+5. If any test fails, the step is reverted immediately.
+
+## Refactoring Priorities
+1. **Security** — Eliminate patterns that could become vulnerabilities.
+2. **Reliability** — Reduce complexity that causes intermittent failures.
+3. **Maintainability** — Reduce cognitive load for future development.
+4. **Consistency** — Unify patterns, naming, and utilities.
+
+## Cross-Team Coordination
+- **QA Team** provides code smell findings that feed our priorities.
+- **Debug Team** may need us to simplify complex code causing bugs.
+- **Feature Team** benefits from cleaner code that is easier to extend.
+- **Director Swarm** approves refactoring scope and priorities.
+
+## Key Skills
+- `prompt-manager skill read refactor`
+- `prompt-manager skill read cognitive-load-reduction`
+- `prompt-manager skill read utils-unification`
+- `prompt-manager skill read concept-vocabulary-unification`
+- `prompt-manager skill read domain-compression`

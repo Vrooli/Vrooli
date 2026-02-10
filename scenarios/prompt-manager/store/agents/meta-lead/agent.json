@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "meta-lead",
+  "displayName": "Meta Lead",
+  "description": "Orchestrates optimization cycles for Skills, Agents, and Teams to increase system-wide capability.",
+  "status": "active",
+  "appearance": {
+    "body": "#D97706",
+    "head": "#F59E0B",
+    "accent": "#FCD34D"
+  },
+  "tags": [
+    "meta",
+    "optimization",
+    "orchestration",
+    "recursive-improvement"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

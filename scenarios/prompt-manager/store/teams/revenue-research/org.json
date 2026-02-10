@@ -1,0 +1,23 @@
+{
+  "kind": "org-chart",
+  "schemaVersion": 1,
+  "teamId": "revenue-research",
+  "edges": [
+    {
+      "managerAgentId": "research-lead",
+      "reportAgentId": "opportunity-scout"
+    },
+    {
+      "managerAgentId": "research-lead",
+      "reportAgentId": "feasibility-analyst"
+    },
+    {
+      "managerAgentId": "research-lead",
+      "reportAgentId": "market-validator"
+    },
+    {
+      "managerAgentId": "research-lead",
+      "reportAgentId": "contrarian"
+    }
+  ]
+}

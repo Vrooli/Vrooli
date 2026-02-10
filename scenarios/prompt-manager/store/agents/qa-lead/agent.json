@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "qa-lead",
+  "displayName": "QA Lead",
+  "description": "Orchestrates quality assessment across code, tests, and documentation for Vrooli scenarios.",
+  "status": "active",
+  "appearance": {
+    "body": "#16A34A",
+    "head": "#22C55E",
+    "accent": "#86EFAC"
+  },
+  "tags": [
+    "quality",
+    "auditing",
+    "orchestration"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

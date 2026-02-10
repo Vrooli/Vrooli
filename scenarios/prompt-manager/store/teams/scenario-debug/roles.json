@@ -1,0 +1,27 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "scenario-debug",
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Lead",
+      "description": "Triages bugs, orchestrates debugging, synthesizes root cause analyses."
+    },
+    {
+      "id": "investigator",
+      "name": "Investigator",
+      "description": "Generates falsifiable hypotheses from bug symptoms."
+    },
+    {
+      "id": "tester",
+      "name": "Tester",
+      "description": "Designs and executes experiments to validate hypotheses."
+    },
+    {
+      "id": "fixer",
+      "name": "Fixer",
+      "description": "Implements minimal fixes with regression tests."
+    }
+  ]
+}

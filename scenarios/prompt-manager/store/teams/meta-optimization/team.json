@@ -1,0 +1,16 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "meta-optimization",
+  "displayName": "Meta Optimization Team",
+  "mission": "Continuously improve the effectiveness of Skills, Agents, and Teams to increase system-wide capability.",
+  "enabled": false,
+  "spawnMode": "multi-process",
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

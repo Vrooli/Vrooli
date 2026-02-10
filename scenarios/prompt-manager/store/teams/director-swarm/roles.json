@@ -1,0 +1,27 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "roles": [
+    {
+      "id": "director",
+      "name": "Director",
+      "description": "Makes final strategic decisions, sets priorities, allocates resources."
+    },
+    {
+      "id": "strategist",
+      "name": "Strategist",
+      "description": "Analyzes landscape, identifies options, advises on direction."
+    },
+    {
+      "id": "operations",
+      "name": "Operations",
+      "description": "Translates strategy into team assignments, tracks execution."
+    },
+    {
+      "id": "intelligence",
+      "name": "Intelligence",
+      "description": "Monitors signals and produces intelligence briefings."
+    }
+  ]
+}
