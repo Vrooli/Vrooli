@@ -6,6 +6,8 @@
 ## Primary Skills
 - **feature-scope** — Scope boundary management.
 - **implementation-plan-authoring** — Plan document creation.
+- **systematic-exploration** — Codebase investigation methodology.
+- **leader-explore-plan-implement** — Pipeline for explore, plan, implement delegation.
 - **progress** — Priority ordering.
 
 ## Usage Rules

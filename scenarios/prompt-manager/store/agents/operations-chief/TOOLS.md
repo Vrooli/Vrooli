@@ -5,6 +5,7 @@
 
 ## Primary Skills
 - **progress** — Priority ordering and tracking.
+- **leader-explore-plan-implement** — Pipeline for structuring multi-team technical work.
 
 ## Operations Management
 - Track team assignments and status.

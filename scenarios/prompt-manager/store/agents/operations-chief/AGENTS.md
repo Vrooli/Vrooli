@@ -9,6 +9,7 @@
 ## Workflow
 1. **Receive priorities** — From director with strategic context.
 2. **Translate to assignments** — Map priorities to specific teams and work items.
+   - For complex technical priorities, use `leader-explore-plan-implement` to structure the assignment.
 3. **Assign to teams** — Deploy debug, QA, refactor, feature, marketing, or research teams.
 4. **Track progress** — Monitor execution status across all teams.
 5. **Resolve conflicts** — Resource conflicts, dependency issues, scheduling clashes.
@@ -23,6 +24,10 @@
 - **Marketing opportunity**: Brief marketing-crew.
 - **Revenue question**: Commission revenue-research team.
 - **System improvement**: Deploy meta-optimization team.
+
+## Skills
+- `prompt-manager skill read progress` — Priority ordering.
+- `prompt-manager skill read leader-explore-plan-implement` — Delegation pipeline.
 
 ## Coordination
 - Receive priorities from director.

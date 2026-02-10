@@ -13,6 +13,7 @@
 3. **Review proposals** — Research briefs, feature requests, escalations.
 4. **Make decisions** — Prioritize, approve, defer, or reject with clear reasoning.
 5. **Deploy teams** — Assign work to appropriate teams via operations-chief.
+   - For complex technical work, use `leader-explore-plan-implement` pipeline to structure delegation.
 6. **Communicate** — Ensure all teams understand current priorities and why.
 
 ## Decision Framework
@@ -26,6 +27,7 @@ For each decision:
 ## Skills
 - `prompt-manager skill read progress` — Priority ordering.
 - `prompt-manager skill read explore` — Strategic exploration.
+- `prompt-manager skill read leader-explore-plan-implement` — Delegation pipeline.
 
 ## Coordination
 - Receive intelligence from intelligence-officer.

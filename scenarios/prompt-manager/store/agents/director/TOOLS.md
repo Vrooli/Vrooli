@@ -6,6 +6,7 @@
 ## Primary Skills
 - **progress** — Priority ordering and advancement methodology.
 - **explore** — Strategic exploration of options.
+- **leader-explore-plan-implement** — Pipeline for delegating technical work: explore, plan, implement.
 
 ## Decision Support
 - Revenue research briefs from revenue-research team.

@@ -103,21 +103,7 @@ export function FurnitureItem({
         )
 
       case 'bench':
-        return (
-          <group>
-            {/* Seat plank */}
-            <mesh position={[0, 0.3, 0]} castShadow={castShadow} receiveShadow={receiveShadow} material={material}>
-              <boxGeometry args={[1.2, 0.06, 0.35]} />
-            </mesh>
-            {/* Support beams */}
-            <mesh position={[-0.4, 0.15, 0]} castShadow={castShadow} material={material}>
-              <boxGeometry args={[0.08, 0.3, 0.3]} />
-            </mesh>
-            <mesh position={[0.4, 0.15, 0]} castShadow={castShadow} material={material}>
-              <boxGeometry args={[0.08, 0.3, 0.3]} />
-            </mesh>
-          </group>
-        )
+        return <ParkBench color={finalColor} castShadow={castShadow} receiveShadow={receiveShadow} />
 
       case 'stool':
         return (
@@ -201,33 +187,7 @@ export function FurnitureItem({
         )
 
       case 'picnic-table':
-        return (
-          <group>
-            {/* Tabletop */}
-            <mesh position={[0, 0.7, 0]} castShadow={castShadow} receiveShadow={receiveShadow} material={material}>
-              <boxGeometry args={[0.9, 0.05, 0.5]} />
-            </mesh>
-            {/* Benches */}
-            <mesh position={[0, 0.35, 0.55]} castShadow={castShadow} receiveShadow={receiveShadow} material={material}>
-              <boxGeometry args={[0.9, 0.04, 0.25]} />
-            </mesh>
-            <mesh position={[0, 0.35, -0.55]} castShadow={castShadow} receiveShadow={receiveShadow} material={material}>
-              <boxGeometry args={[0.9, 0.04, 0.25]} />
-            </mesh>
-            {/* A-frame supports */}
-            {[-0.35, 0.35].map((x, i) => (
-              <group key={i} position={[x, 0, 0]}>
-                {/* Table support */}
-                <mesh position={[0, 0.35, 0.15]} rotation={[0.3, 0, 0]} castShadow={castShadow} material={material}>
-                  <boxGeometry args={[0.06, 0.75, 0.06]} />
-                </mesh>
-                <mesh position={[0, 0.35, -0.15]} rotation={[-0.3, 0, 0]} castShadow={castShadow} material={material}>
-                  <boxGeometry args={[0.06, 0.75, 0.06]} />
-                </mesh>
-              </group>
-            ))}
-          </group>
-        )
+        return <PicnicTableDetailed color={finalColor} castShadow={castShadow} receiveShadow={receiveShadow} />
 
       case 'coffee-table':
         return (
@@ -270,6 +230,287 @@ export function FurnitureItem({
           <meshBasicMaterial color="#ffffff" transparent opacity={0.1} wireframe />
         </mesh>
       )}
+    </group>
+  )
+}
+
+// ── Detailed furniture components ──
+
+/** Park bench with slatted seat, angled backrest, and metal frame */
+function ParkBench({
+  color,
+  castShadow,
+  receiveShadow,
+}: {
+  color: string
+  castShadow: boolean
+  receiveShadow: boolean
+}) {
+  const wood = useMemo(
+    () => new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.05 }),
+    [color]
+  )
+  const metal = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: '#2a2a2a', roughness: 0.25, metalness: 0.85 }),
+    []
+  )
+
+  // Dimensions
+  const W = 1.2 // bench width (x)
+  const seatY = 0.30 // seat surface height
+  const slat = 0.022 // plank thickness (y)
+  const slatD = 0.052 // plank depth (z)
+  const gap = 0.007
+  const nSeat = 5
+  const seatZ = nSeat * slatD + (nSeat - 1) * gap // total seat depth ~0.288
+  const backTilt = -0.18 // backrest lean (radians, ~10°)
+  const fX = W / 2 + 0.02 // frame x offset
+  // Backrest top world-y ≈ seatY + topSlat(0.20) ≈ 0.50
+  const backLegH = 0.52 // back leg height (ground to just above backrest)
+  const armrestY = 0.50 // armrest at top backrest level
+
+  return (
+    <group>
+      {/* Seat slats */}
+      {Array.from({ length: nSeat }, (_, i) => (
+        <mesh
+          key={`s${i}`}
+          position={[0, seatY, (i - 2) * (slatD + gap)]}
+          castShadow={castShadow}
+          receiveShadow={receiveShadow}
+          material={wood}
+        >
+          <boxGeometry args={[W, slat, slatD]} />
+        </mesh>
+      ))}
+
+      {/* Backrest (3 slats, tilted back) */}
+      <group
+        position={[0, seatY, -seatZ / 2 + slatD / 2]}
+        rotation={[backTilt, 0, 0]}
+      >
+        {[0.06, 0.13, 0.20].map((y, i) => (
+          <mesh
+            key={`b${i}`}
+            position={[0, y, 0]}
+            castShadow={castShadow}
+            receiveShadow={receiveShadow}
+            material={wood}
+          >
+            <boxGeometry args={[W, slatD, slat]} />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Metal side frames (left & right) */}
+      {[-fX, fX].map((x, fi) => (
+        <group key={`f${fi}`} position={[x, 0, 0]}>
+          {/* Front leg (ground to seat) */}
+          <mesh
+            position={[0, seatY / 2, seatZ / 2 - slatD / 2]}
+            castShadow={castShadow}
+            material={metal}
+          >
+            <boxGeometry args={[0.035, seatY, 0.035]} />
+          </mesh>
+          {/* Back leg (ground to backrest top) */}
+          <mesh
+            position={[0, backLegH / 2, -seatZ / 2 + slatD / 2]}
+            rotation={[backTilt * 0.3, 0, 0]}
+            castShadow={castShadow}
+            material={metal}
+          >
+            <boxGeometry args={[0.035, backLegH, 0.035]} />
+          </mesh>
+          {/* Seat support rail (under slats) */}
+          <mesh
+            position={[0, seatY - slat - 0.012, 0]}
+            castShadow={castShadow}
+            material={metal}
+          >
+            <boxGeometry args={[0.028, 0.018, seatZ + 0.01]} />
+          </mesh>
+          {/* Armrest */}
+          <mesh
+            position={[0, armrestY, 0.02]}
+            castShadow={castShadow}
+            material={metal}
+          >
+            <boxGeometry args={[0.042, 0.022, 0.22]} />
+          </mesh>
+          {/* Armrest front support (bridges front leg top to armrest) */}
+          <mesh
+            position={[0, (seatY + armrestY) / 2, seatZ / 2 - slatD / 2]}
+            castShadow={castShadow}
+            material={metal}
+          >
+            <boxGeometry args={[0.024, armrestY - seatY, 0.024]} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Stretcher bars (cylindrical, front & back) */}
+      {[seatZ / 2 - slatD / 2, -seatZ / 2 + slatD / 2].map((z, i) => (
+        <mesh
+          key={`st${i}`}
+          position={[0, 0.06, z]}
+          rotation={[0, 0, Math.PI / 2]}
+          castShadow={castShadow}
+          material={metal}
+        >
+          <cylinderGeometry args={[0.01, 0.01, W + 0.05, 8]} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Picnic table with slatted top, bench seats, and A-frame legs */
+function PicnicTableDetailed({
+  color,
+  castShadow,
+  receiveShadow,
+}: {
+  color: string
+  castShadow: boolean
+  receiveShadow: boolean
+}) {
+  const wood = useMemo(
+    () => new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.05 }),
+    [color]
+  )
+  const brace = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color).multiplyScalar(0.8),
+        roughness: 0.85,
+        metalness: 0.05,
+      }),
+    [color]
+  )
+
+  // Dimensions
+  const tableW = 1.15 // tabletop width (x) — extends past legs
+  const W = 0.9 // bench width (x)
+  const tableY = 0.44 // tabletop height (2x bench height)
+  const benchY = 0.22 // bench seat height
+  const plank = 0.022 // plank thickness (y)
+  const plankD = 0.072 // plank depth (z)
+  const gap = 0.006
+  const benchZ = 0.40 // bench center z offset
+
+  // Table top: 10 planks (wide in z-direction, extending past benches)
+  const nTable = 10
+  const tableDepth = nTable * plankD + (nTable - 1) * gap
+
+  // Criss-cross A-frame leg geometry
+  // Each leg attaches near the OPPOSITE table edge and extends to ground past the far bench
+  const fX = W / 2 - 0.07
+  const legSec = 0.050
+  const topZ = tableDepth / 2 - 0.03 // leg attaches near opposite table edge
+  const botZ = benchZ + 0.04 // leg reaches ground past bench
+  const totalZ = topZ + botZ
+  const legAng = Math.atan2(totalZ / 2, tableY / 2)
+  const legLen = Math.hypot(totalZ, tableY)
+  const fwdCenterZ = (botZ - topZ) / 2 // z-center of forward leg
+
+  // Cross beam directly under bench seats (top of beam touches bottom of seat planks)
+  const crossBeamH = 0.035
+  const crossY = benchY - plank / 2 - crossBeamH / 2
+
+  return (
+    <group>
+      {/* Table top planks */}
+      {Array.from({ length: nTable }, (_, i) => (
+        <mesh
+          key={`t${i}`}
+          position={[0, tableY, (i - (nTable - 1) / 2) * (plankD + gap)]}
+          castShadow={castShadow}
+          receiveShadow={receiveShadow}
+          material={wood}
+        >
+          <boxGeometry args={[tableW, plank, plankD]} />
+        </mesh>
+      ))}
+
+      {/* Front bench planks */}
+      {Array.from({ length: 2 }, (_, i) => (
+        <mesh
+          key={`bf${i}`}
+          position={[0, benchY, benchZ + (i - 0.5) * (plankD + gap)]}
+          castShadow={castShadow}
+          receiveShadow={receiveShadow}
+          material={wood}
+        >
+          <boxGeometry args={[W, plank, plankD]} />
+        </mesh>
+      ))}
+
+      {/* Back bench planks */}
+      {Array.from({ length: 2 }, (_, i) => (
+        <mesh
+          key={`bb${i}`}
+          position={[0, benchY, -benchZ + (i - 0.5) * (plankD + gap)]}
+          castShadow={castShadow}
+          receiveShadow={receiveShadow}
+          material={wood}
+        >
+          <boxGeometry args={[W, plank, plankD]} />
+        </mesh>
+      ))}
+
+      {/* Criss-cross A-frame leg assemblies */}
+      {[-fX, fX].map((x, fi) => (
+        <group key={`a${fi}`} position={[x, 0, 0]}>
+          {/* Forward leg: top near -z table edge, bottom past +z bench */}
+          <mesh
+            position={[0, tableY / 2, fwdCenterZ]}
+            rotation={[-legAng, 0, 0]}
+            castShadow={castShadow}
+            material={brace}
+          >
+            <boxGeometry args={[legSec, legLen, legSec]} />
+          </mesh>
+          {/* Back leg: top near +z table edge, bottom past -z bench */}
+          <mesh
+            position={[0, tableY / 2, -fwdCenterZ]}
+            rotation={[legAng, 0, 0]}
+            castShadow={castShadow}
+            material={brace}
+          >
+            <boxGeometry args={[legSec, legLen, legSec]} />
+          </mesh>
+          {/* Cross beam at the leg crossing point */}
+          <mesh
+            position={[0, crossY, 0]}
+            castShadow={castShadow}
+            material={brace}
+          >
+            <boxGeometry args={[legSec, crossBeamH, benchZ * 2 + 0.1]} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Table support rail (under tabletop, connects A-frames in x) */}
+      <mesh
+        position={[0, tableY - plank / 2 - 0.025, 0]}
+        castShadow={castShadow}
+        material={brace}
+      >
+        <boxGeometry args={[tableW - 0.06, 0.035, 0.05]} />
+      </mesh>
+
+      {/* Bench support rails */}
+      {[benchZ, -benchZ].map((bz, i) => (
+        <mesh
+          key={`br${i}`}
+          position={[0, benchY - plank / 2 - 0.018, bz]}
+          castShadow={castShadow}
+          material={brace}
+        >
+          <boxGeometry args={[W - 0.08, 0.025, 0.04]} />
+        </mesh>
+      ))}
     </group>
   )
 }

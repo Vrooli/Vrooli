@@ -30,6 +30,8 @@ Skill validation keeps operational guidance reliable.
 
 * Testing whether {{SKILL}} is **internally consistent**
 * Testing whether {{SKILL}} is **externally executable** (commands, flags, paths, references)
+* Detecting **CLI output contract bypass** (examples that bypass default human-friendly CLI output contracts via format flags, parsing pipelines, or shell extraction)
+* Detecting **capability leakage** (core workflows that rely on non-Vrooli tools like direct API calls, OS-specific glue, scripts, or direct resource CLIs)
 * Identifying **capability gaps** (things the skill claims or implies, but doesn’t actually enable)
 * Identifying **missing guardrails** (verification steps, stop conditions, safety constraints)
 * Identifying **broken references** to other skills/tools/concepts
@@ -167,11 +169,28 @@ Validate:
 * **Examples are copy-paste safe**
 
   * Balanced quotes, correct escaping, no missing braces, placeholders are obvious
-* **Parser dependency is justified**
+* **Contract bypass and parsing are justified (human-first output is canonical)**
 
-  * Prefer default CLI output over parser pipelines (`--json`, `--raw`, `jq`)
-  * Treat unnecessary parser pipelines as at least **Major** because they increase drift and break risk
-  * If parser usage is required, require an explicit justification and a guard for empty/changed output
+  * Prefer default human-friendly CLI output for primary workflows.
+  * Treat contract bypass in primary workflows as suspicious unless explicitly justified:
+    * Format switches: `--json`, `--raw`, `--format json`, `--quiet` (when it hides actionable next steps)
+    * Parsing/scraping: `jq`, `grep`, `sed`, `awk`, `cut`, `tr`, regex scraping, `head`/`tail`
+    * Shell extraction: `$(...)`, backticks, and similar output-to-input coupling
+  * If bypass is required, the skill must:
+    * justify why default output is insufficient (too long, ambiguous, missing required data),
+    * include guardrails for empty/changed output,
+    * recommend a durable fix: improve default CLI output contract or add a small CLI capability (for example: `--print <field>`).
+* **Non-Vrooli tooling in primary workflows is justified (capability leakage audit)**
+
+  * Prefer Vrooli CLIs for core operations so work benefits from scenario testing, lifecycle safety, and output contract control.
+  * Treat non-Vrooli commands in a primary workflow as a capability signal (usually at least **Gap**) unless explicitly justified:
+    * Direct API calls for core operations (for example: `curl https://.../api/v1/...`)
+    * OS-specific glue or bespoke scripts (bash/python/systemctl)
+    * Direct resource CLIs for routine workflows (`psql`, `redis-cli`, etc.)
+  * Allowed exceptions must be labeled explicitly:
+    * Black-box verification against public endpoints (for example: `curl` to confirm a deployed update URL responds)
+    * Minimal file creation required to provide CLI input (`cat > /tmp/payload.json`)
+    * One-off diagnostics when a Vrooli CLI capability is missing (must include a tool promotion recommendation)
 
 **Example executability test pattern:**
 
@@ -190,7 +209,7 @@ A skill is not truly usable if it can’t tell you what “done” looks like.
 
 For each major workflow, ensure it includes at least one of:
 
-* A file to inspect (`README.md`, logs, output JSON)
+* A file or artifact to inspect (`README.md`, logs, generated outputs)
 * A command that returns a clear status
 * A deterministic condition (“element exists,” “tests pass,” “build succeeds”)
 
@@ -330,6 +349,11 @@ Classify every finding:
 
 **Rule:** Treat “forces the agent to guess” as at least **Major**.
 
+Contract integrity rules:
+- **Major**: Primary workflow bypasses default human-friendly CLI output contracts (format switches, parsing/scraping, shell extraction) without explicit justification and guardrails.
+- **Gap**: Skill’s core promise requires non-Vrooli tools/commands for routine execution (capability leakage). Prefer a Vrooli CLI/tool promotion recommendation over expanding prose workarounds.
+- **Critical**: Out-of-band steps normalize unsafe behavior (secrets exposure, destructive ops, production mutation) without warnings and verification.
+
 Structure rule for CLI-operational skills:
 - For operationally complex skills that rely on CLI workflows, missing `Troubleshooting & Edge Cases` or scattering long-tail clarifications outside it should be classified as **Major**.
 - Repeated long-tail clarifications that should be promoted to CLI/tooling should be classified as **Gap** and handed off to Skill Improvement Suggestions.
@@ -421,13 +445,17 @@ Use short, category-specific delta checks here. Baseline authoring structure bel
 When validating **{{SKILL}}**, you must:
 
 * Read {{SKILL}} fully before reporting
-* Extract and present a capability map
+* Produce the report in the format defined below: `Summary` -> `Findings` -> `Recommendations` -> `Notes`
+* Extract and present a capability map (inside `Findings`)
+* For any skill that includes CLI commands, identify contract bypass and capability leakage (if any) and classify them (inside `Findings`)
 * Classify findings by severity
 * Include evidence (quotes/snippets) for each issue
 * Provide **expansion patches** for Critical/Major/Gap findings (copy-pastable)
 * Separate validation findings from optimization suggestions
 * For CLI-operational skills, include a concise troubleshooting-promotion analysis (what should move to CLI/tooling vs remain manual)
 * For CLI-operational skills, include a required `Complexity Retirement` section with `Keep/Collapse/Delete` decisions
+* In `Recommendations`, provide numbered recommendations with choices (`A`, `B`, `C`...) and mark one choice as **(Recommended)**
+* Each recommendation choice must include enough detail to execute: what to do, why, verification, and any required copy-paste patch
 
 You may:
 
@@ -454,12 +482,40 @@ When analyzing {{SKILL}}, produce this structured report:
 ## Summary
 [2–4 sentences: overall reliability, main risk areas, whether it’s safe to use as-is]
 
-## Capability Map
+## Findings
+
+### Capability Map
 | Capability | Primary Path Exists? | Verification Exists? | Failure/Debug Path Exists? | Notes |
 |-----------|-----------------------|----------------------|----------------------------|------|
 | ...       | Yes/No                | Yes/No               | Yes/No                     | ...  |
 
-## Findings
+### Contract Integrity (Required When {{SKILL}} Includes CLI Commands)
+
+#### Contract Bypass Register
+| Command / Step | Bypass Type | Why It’s A Bypass | Allowed? | Notes / Fix |
+|---|---|---|---|---|
+| ... | `--json` / `--raw` / parsing / shell extraction | ... | Yes/No | ... |
+
+#### Non-Vrooli Dependency Register (Capability Leakage)
+| Non-Vrooli Command / Step | Purpose | Why It’s Needed | Vrooli Replacement | Notes |
+|---|---|---|---|---|
+| ... | ... | ... | Existing or proposed CLI/tool contract | ... |
+
+### Validation Findings
+
+#### Critical
+[Findings, if any]
+
+#### Major
+[Findings, if any]
+
+#### Gap
+[Findings, if any]
+
+#### Minor / Nice-to-have
+[Brief list]
+
+Finding template (use for each `Critical` / `Major` / `Gap` item):
 
 ### [Severity]: [Title]
 - Evidence: “...quote...”
@@ -470,34 +526,56 @@ When analyzing {{SKILL}}, produce this structured report:
   ...minimal patch...
   ```
 
-Repeat the block above for each finding under `Critical`, `Major`, and `Gaps`.
-Use the `Minor / Nice-to-have` section for brief non-blocking items.
-
-### Minor / Nice-to-have
-[Brief list]
-
-## Cross-Skill Coherence Notes
+### Cross-Skill Coherence Notes
 - References validated: [list what you checked]
 - Conflicts found: [if any]
 - Promotion candidates from `Troubleshooting & Edge Cases`: [items to convert into CLI/tool improvements]
 
-## Durable vs Interim Fixes
+### Durable vs Interim Fixes
 - Durable CLI/tool conversion candidates: [high-leverage fixes that reduce repeated troubleshooting prose]
 - Interim skill-level guardrails: [minimal wording/structure patches needed now]
 
-## Complexity Retirement (CLI-Operational Skills)
+### Complexity Retirement (CLI-Operational Skills)
 | Skill Instruction / Gate | Decision (Keep/Collapse/Delete) | Rationale | Prerequisite Contract | Risk |
 |---|---|---|---|---|
 | ... | ... | ... | ... | ... |
 
-## Complexity Signals
+### Complexity Signals
 - Gate/step count: [before -> after if patches applied]
 - Troubleshooting item count: [before -> after if patches applied]
 - Net effect: [reduced / neutral / increased] with rationale
 
-## Recommended Next Step
-- If primarily correctness/gaps: apply patches above.
-- If primarily efficiency/streamlining: run **Skill Improvement Suggestions** next.
+## Recommendations
+
+Selection hint:
+- You should be able to choose a path like `R1A, R2B, R3A`.
+
+### R1: [Recommendation title]
+
+**A (Recommended):** [Choice summary]
+- What to do: ...
+- Why: ...
+- Verification: ...
+- Patch (copy-paste) / Tooling change: ...
+
+**B:** [Choice summary]
+- What to do: ...
+- Why: ...
+- Verification: ...
+- Patch (copy-paste) / Tooling change: ...
+
+**C:** [Choice summary]
+- What to do: ...
+- Why: ...
+- Verification: ...
+- Patch (copy-paste) / Tooling change: ...
+
+Repeat for each recommendation (`R2`, `R3`...).
+
+## Notes
+- Unverified items: ...
+- Residual risks: ...
+- Suggested follow-ups (optional): run **Skill Improvement Suggestions**, open tool backlog item(s), etc.
 ````
 
 ---

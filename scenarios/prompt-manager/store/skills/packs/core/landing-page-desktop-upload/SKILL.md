@@ -52,18 +52,28 @@ Conditional input:
 
 Run stages in order. Each stage has a strict pass condition.
 
+#### Stage 0 (Recommended): Local tool health (fast fail)
+
+These checks catch the most common "CLI can't reach its API" issues early.
+
+```bash
+scenario-to-cloud --auto-start status
+landing-page-business-suite --auto-start status
+scenario-to-desktop --auto-start status
+```
+
 #### Stage 1: LPBS deployment convergence (`scenario-to-cloud`)
 
 Check LPBS deployment by selector:
 
 ```bash
-scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario landing-page-business-suite --json
+scenario-to-cloud --auto-start deployment health --domain {{DOMAIN}} --scenario landing-page-business-suite --json
 ```
 
 If missing/unhealthy, converge:
 
 ```bash
-scenario-to-cloud redeploy \
+scenario-to-cloud --auto-start redeploy \
   --domain {{DOMAIN}} \
   --scenario landing-page-business-suite \
   --if-needed --preflight --wait
@@ -72,7 +82,7 @@ scenario-to-cloud redeploy \
 Freshness rule (fingerprint drift safe-guard):
 - If health is `ok=true` but freshness is `outdated`, run a single convergence attempt with a forced bundle rebuild:
   ```bash
-  scenario-to-cloud redeploy \
+  scenario-to-cloud --auto-start redeploy \
     --domain {{DOMAIN}} \
     --scenario landing-page-business-suite \
     --if-needed --preflight --wait --force-bundle
@@ -97,7 +107,7 @@ Sequencing rule:
 Minimal readiness check (preferred; single contract):
 
 ```bash
-landing-page-business-suite deploy-readiness \
+landing-page-business-suite --auto-start deploy-readiness \
   --profile-tag {{PROFILE_TAG}} \
   --domain {{DOMAIN}} \
   --json
@@ -110,16 +120,16 @@ Remote readiness gates (required for deploy handoff):
 Remote storage test (via remote profile proxy):
 ```bash
 # Preferred: selector-first by tag (no numeric id required)
-landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
   --method POST --path /admin/download-storage/test --json
 
 # Optional: inspect available profiles (useful for debugging tag/id drift)
-landing-page-business-suite remote-profiles-list --json
+landing-page-business-suite --auto-start remote-profiles-list --json
 ```
 
 Remote app registry check + optional onboarding:
 ```bash
-landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
   --method GET --path /admin/download-apps --json
 ```
 
@@ -151,7 +161,7 @@ Pass condition:
 Run deploy pipeline:
 
 ```bash
-scenario-to-desktop pipeline run {{TARGET}} \
+scenario-to-desktop --auto-start pipeline run {{TARGET}} \
   --platforms {{PLATFORMS}} \
   --clean --wait \
   --deploy-to landing-page-business-suite \
@@ -186,6 +196,7 @@ curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/latest-linu
 Artifact download checks (recommended):
 - The manifest only proves update metadata is published.
 - Also verify the artifact path itself resolves (LPBS commonly responds `302` to a storage URL, but `200` may occur depending on edge/CDN configuration).
+- If the artifact filename contains spaces, URL-encode them (spaces → `%20`) or the check may return `404`.
 
 Use the artifact filename from the pipeline output (Stage 3) and check it:
 
@@ -198,18 +209,18 @@ curl -sS -o /dev/null -w '%{http_code}\n' --max-redirs 0 \
 Pass expectation:
 - Returns `302` or `200` for each artifact you shipped (must not be 4xx/5xx).
 
-Optionally verify LPBS artifact records:
+Optionally verify remote LPBS artifact records (via remote profile proxy):
 
 ```bash
-landing-page-business-suite admin-download-artifacts-by-app \
-  --query app_key={{APP_KEY}} --json
+landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+  --method GET --path /admin/download-artifacts --query app_key={{APP_KEY}} --json
 ```
 
 Discovery fallback (when manifest URL returns 404 but Stage 3 succeeded):
-- Use LPBS artifact records to discover what the current deployed artifact+version are:
+- Use remote LPBS artifact records to discover what the current deployed artifact+version are:
   ```bash
-  landing-page-business-suite admin-download-artifacts-by-app \
-    --query app_key={{APP_KEY}} --json
+  landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+    --method GET --path /admin/download-artifacts --query app_key={{APP_KEY}} --json
   ```
 - Then re-run the manifest and artifact checks using the discovered filenames/versions.
 
@@ -263,7 +274,7 @@ If Stage 3 fails with a generic deploy error (for example `deploy failed` / `INT
 
 1. Inspect pipeline status:
 ```bash
-scenario-to-desktop pipeline status <pipeline_id> --verbose --json
+scenario-to-desktop --auto-start pipeline status <pipeline_id> --verbose --json
 ```
 
 2. Confirm build artifacts exist in the pipeline output:
@@ -271,15 +282,15 @@ scenario-to-desktop pipeline status <pipeline_id> --verbose --json
 
 3. Validate remote prerequisites deterministically (via remote profile proxy):
 ```bash
-landing-page-business-suite admin-session
-landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+landing-page-business-suite --auto-start admin-session
+landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
   --method POST --path /admin/download-storage/test --json
 
-landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
   --method GET --path /admin/download-apps --json
 
 # Optional: list profiles for debugging
-landing-page-business-suite remote-profiles-list --json
+landing-page-business-suite --auto-start remote-profiles-list --json
 ```
 
 If remote storage test fails (common symptom: S3 credential errors), stop and hand off to `landing-page-deploy-setup` remote-storage convergence; do not retry deploy until remote `/admin/download-storage/test` succeeds.

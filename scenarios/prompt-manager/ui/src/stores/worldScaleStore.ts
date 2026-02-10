@@ -65,3 +65,6 @@ export const useWorldScaleStore = create<WorldScaleStore>()((set, get) => ({
     debouncedSave({ ...DEFAULT_WORLD_SCALE })
   },
 }))
+
+// Auto-fetch on first import so scales are applied before the settings popup opens
+useWorldScaleStore.getState().fetchScales()

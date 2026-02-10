@@ -67,7 +67,7 @@ export const FURNITURE_CONFIGS: Record<FurnitureType, FurnitureConfig> = {
       { position: [0.4, 1.1, 0], rotation: 0 },
     ],
     movable: true,
-    size: [1.5, 0.6, 0.5],
+    size: [1.4, 0.85, 0.5],
   },
   stool: {
     type: 'stool',
@@ -106,13 +106,13 @@ export const FURNITURE_CONFIGS: Record<FurnitureType, FurnitureConfig> = {
     type: 'picnic-table',
     displayName: 'Picnic Table',
     seats: [
-      { position: [-0.3, 1.1, 0.6], rotation: Math.PI },
-      { position: [0.3, 1.1, 0.6], rotation: Math.PI },
-      { position: [-0.3, 1.1, -0.6], rotation: 0 },
-      { position: [0.3, 1.1, -0.6], rotation: 0 },
+      { position: [-0.25, 1.10, 0.40], rotation: Math.PI },
+      { position: [0.25, 1.10, 0.40], rotation: Math.PI },
+      { position: [-0.25, 1.10, -0.40], rotation: 0 },
+      { position: [0.25, 1.10, -0.40], rotation: 0 },
     ],
     movable: false,
-    size: [1.2, 0.8, 1.4],
+    size: [1.1, 0.7, 1.0],
   },
   'coffee-table': {
     type: 'coffee-table',

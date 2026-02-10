@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "systematic-exploration",
+  "name": "Systematic Exploration",
+  "description": "Methodology for systematically investigating any codebase or system: scope the investigation, map the landscape, form understanding hypotheses, validate through targeted reads, and produce a structured findings document.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "exploration",
+    "investigation",
+    "codebase-analysis",
+    "methodology"
+  ],
+  "icon": "search",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-10T00:00:00Z",
+  "updatedAt": "2026-02-10T00:00:00Z"
+}
