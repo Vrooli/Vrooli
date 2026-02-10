@@ -4,11 +4,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 )
+
+var errCollectionNotFound = errors.New("collection not found")
 
 type qdrantCollectionsResponse struct {
 	Result struct {
@@ -54,4 +57,31 @@ func (s *Server) listQdrantCollectionsHTTP(ctx context.Context) ([]string, error
 		}
 	}
 	return out, nil
+}
+
+func (s *Server) deleteQdrantCollectionHTTP(ctx context.Context, collection string) error {
+	baseURL, err := url.Parse(strings.TrimRight(s.qdrantURL(), "/"))
+	if err != nil {
+		return fmt.Errorf("invalid qdrant url: %w", err)
+	}
+	baseURL.Path = fmt.Sprintf("%s/collections/%s", strings.TrimRight(baseURL.Path, "/"), collection)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, baseURL.String(), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create delete collection request: %w", err)
+	}
+
+	resp, err := s.qdrantDo(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("%w: %s", errCollectionNotFound, collection)
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("qdrant delete collection returned status %d", resp.StatusCode)
+	}
+	return nil
 }

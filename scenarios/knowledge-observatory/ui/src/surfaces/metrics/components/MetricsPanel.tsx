@@ -4,7 +4,14 @@ import { cn } from "../../../shared/lib/utils";
 import { Button } from "../../../shared/ui/button";
 import { selectors } from "../../../consts/selectors";
 import type { MetricCardView, MetricsViewModel } from "../../../shared/controllers/knowledgeController";
-import type { CollectionDiagnostics, IngestHealthResponse } from "../../../shared/services/api";
+import type {
+  CollectionDiagnostics,
+  CollectionInventoryItem,
+  CollectionMaintenanceResponse,
+  CollectionRecordsResponse,
+  DocumentDeleteResponse,
+  IngestHealthResponse,
+} from "../../../shared/services/api";
 
 // AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
 
@@ -25,6 +32,18 @@ const DEFAULT_VIEW_MODEL: MetricsViewModel = {
   hasMetrics: false,
 };
 
+type MaintenanceAction = "prune-stale-chunks" | "dedupe-content";
+type CollectionDrilldownTab = "integrity" | "chunking" | "failures" | "records" | "maintenance";
+type OwnershipTone = "good" | "medium" | "poor";
+
+type DocumentOption = {
+  key: string;
+  namespace: string;
+  documentID: string;
+  label: string;
+  count: number;
+};
+
 function MetricCard({ label, percentageLabel, description, tone }: MetricCardView) {
   const styles = toneStyles[tone] ?? toneStyles.medium;
 
@@ -40,6 +59,130 @@ function MetricCard({ label, percentageLabel, description, tone }: MetricCardVie
   );
 }
 
+function scoreDriverHints(
+  diagnostics: CollectionDiagnostics | null | undefined,
+  ingestHealth: IngestHealthResponse | null | undefined
+): string[] {
+  const hints: string[] = [];
+
+  if (diagnostics) {
+    const duplicateRatio = diagnostics.redundancy?.duplicate_ratio ?? 0;
+    if (duplicateRatio >= 0.15) {
+      hints.push("Redundancy is likely suppressing health; preview dedupe-content and apply if candidates look safe.");
+    }
+
+    const staleCandidates = diagnostics.stale_chunks?.candidate_delete_rows ?? 0;
+    if (staleCandidates > 0) {
+      hints.push("Stale chunk versions detected; preview prune-stale-chunks to remove superseded document chunk indexes.");
+    }
+
+    const vectorDimensions = Array.isArray(diagnostics.vector_dimensions) ? diagnostics.vector_dimensions.length : 0;
+    if (vectorDimensions > 1) {
+      hints.push("Mixed vector dimensions detected; reingest with one embedding model to restore consistency.");
+    }
+
+    const avgChars = diagnostics.chunk_length?.avg_characters ?? 0;
+    if (avgChars > 0 && (avgChars < 300 || avgChars > 1500)) {
+      hints.push("Average chunk size is outside the healthy 300-1500 range; adjust chunk_size/chunk_overlap and reingest.");
+    }
+
+    const missingFields = diagnostics.missing_payload_fields ?? {};
+    if ((missingFields.namespace ?? 0) > 0 || (missingFields.document_id ?? 0) > 0) {
+      hints.push("Missing namespace/document_id payload fields reduce traceability; reingest affected records with complete metadata.");
+    }
+  }
+
+  if (ingestHealth) {
+    const failures = ingestHealth.failures_last_24h ?? 0;
+    if (failures > 0) {
+      hints.push("Recent ingest failures detected; verify Ollama/Qdrant availability before reingesting.");
+    }
+  }
+
+  if (hints.length === 0) {
+    hints.push("No critical drivers detected in current diagnostics; continue sampling and monitor drift over time.");
+  }
+
+  return hints;
+}
+
+function inferCollectionOwnership(
+  collectionName: string,
+  selectedCollection: string,
+  diagnostics: CollectionDiagnostics | null | undefined
+): { label: string; tone: OwnershipTone; reason: string } {
+  if (collectionName === "knowledge_chunks_v1") {
+    return {
+      label: "Likely KO-managed",
+      tone: "good",
+      reason: "Default collection used by knowledge-observatory ingest.",
+    };
+  }
+
+  if (collectionName === selectedCollection && diagnostics) {
+    const missingFields = diagnostics.missing_payload_fields ?? {};
+    const missingCore =
+      (missingFields.namespace ?? 0) +
+      (missingFields.document_id ?? 0) +
+      (missingFields.chunk_index ?? 0) +
+      (missingFields.content_hash ?? 0);
+    const hasIngestHistory = (diagnostics.ingest_history?.total_attempts ?? 0) > 0;
+    if (hasIngestHistory || missingCore === 0) {
+      return {
+        label: "Likely KO-managed",
+        tone: "good",
+        reason: "Diagnostics indicate KO payload shape and/or ingest history.",
+      };
+    }
+    if (missingCore > 0) {
+      return {
+        label: "Likely external/mixed",
+        tone: "poor",
+        reason: "Core KO payload fields are missing for some points.",
+      };
+    }
+  }
+
+  return {
+    label: "Unknown ownership",
+    tone: "medium",
+    reason: "Inspect diagnostics to classify this collection.",
+  };
+}
+
+function resolveCollectionOwnership(
+  collectionName: string,
+  selectedCollection: string,
+  diagnostics: CollectionDiagnostics | null | undefined,
+  inventory: CollectionInventoryItem | null
+): { label: string; tone: OwnershipTone; reason: string } {
+  if (inventory) {
+    const tone: OwnershipTone =
+      inventory.ownership === "knowledge_observatory"
+        ? "good"
+        : inventory.ownership === "mixed"
+          ? "poor"
+          : "medium";
+    const provenanceBits = [
+      `ingest attempts: ${inventory.ingest_attempts}`,
+      `metadata rows: ${inventory.metadata_rows}`,
+      `namespaces: ${inventory.distinct_namespaces}`,
+    ];
+    return {
+      label: inventory.ownership_label || "Unknown ownership",
+      tone,
+      reason: provenanceBits.join(" · "),
+    };
+  }
+  return inferCollectionOwnership(collectionName, selectedCollection, diagnostics);
+}
+
+function ownershipToneClass(tone: OwnershipTone): string {
+  if (tone === "good") return "ko-tone-good";
+  if (tone === "poor") return "ko-tone-poor";
+  return "ko-tone-medium";
+}
+
 export type MetricsPanelProps = {
   isLoading: boolean;
   hasError: boolean;
@@ -51,10 +194,40 @@ export type MetricsPanelProps = {
   diagnostics?: CollectionDiagnostics | null;
   diagnosticsError: string;
   diagnosticsLoading: boolean;
-  maintenanceActionLabel: string;
+  diagnosticsMode: "sample" | "full";
+  diagnosticsLimit: number;
+  drilldownTab: CollectionDrilldownTab;
+  maintenanceInFlight: boolean;
+  maintenanceNotice: string;
+  maintenanceMaxDeletes: number;
+  getMaintenancePreview: (collection: string, action: MaintenanceAction) => CollectionMaintenanceResponse | null;
+  getCollectionInventory: (collection: string) => CollectionInventoryItem | null;
+  documentOptions: DocumentOption[];
+  selectedDocumentKey: string;
+  documentDeletePreview?: DocumentDeleteResponse | null;
+  collectionRecords: CollectionRecordsResponse | null;
+  recordsLoading: boolean;
+  recordsError: string;
+  recordsSearch: string;
+  recordsNamespaceFilter: string;
+  recordsDocumentFilter: string;
   onSelectCollection: (name: string) => void;
-  onRunPruneStale: (collection: string) => void;
-  onRunDedupe: (collection: string) => void;
+  onDrilldownTabChange: (tab: CollectionDrilldownTab) => void;
+  onSelectedDocumentKeyChange: (key: string) => void;
+  onUseSampleDiagnostics: () => void;
+  onUseFullDiagnostics: () => void;
+  onMaintenanceMaxDeletesChange: (value: number) => void;
+  onRecordsSearchChange: (value: string) => void;
+  onRecordsNamespaceFilterChange: (value: string) => void;
+  onRecordsDocumentFilterChange: (value: string) => void;
+  onRecordsNextPage: () => void;
+  onRecordsPreviousPage: () => void;
+  onPreviewMaintenance: (collection: string, action: MaintenanceAction) => void;
+  onApplyMaintenance: (collection: string, action: MaintenanceAction) => void;
+  onPreviewDeleteDocument: () => void;
+  onApplyDeleteDocument: () => void;
+  collectionDeleteInFlight: boolean;
+  onDeleteCollection: (collection: string) => void;
   onRetry: () => void;
 };
 
@@ -69,10 +242,38 @@ export function MetricsPanel({
   diagnostics,
   diagnosticsError,
   diagnosticsLoading,
-  maintenanceActionLabel,
+  diagnosticsMode,
+  diagnosticsLimit,
+  drilldownTab,
+  maintenanceInFlight,
+  maintenanceNotice,
+  maintenanceMaxDeletes,
+  getMaintenancePreview,
+  getCollectionInventory,
+  documentOptions,
+  selectedDocumentKey,
+  documentDeletePreview,
+  collectionRecords,
+  recordsLoading,
+  recordsError,
+  recordsSearch,
+  recordsNamespaceFilter,
+  recordsDocumentFilter,
   onSelectCollection,
-  onRunPruneStale,
-  onRunDedupe,
+  onDrilldownTabChange,
+  onSelectedDocumentKeyChange,
+  onUseSampleDiagnostics,
+  onUseFullDiagnostics,
+  onMaintenanceMaxDeletesChange,
+  onRecordsSearchChange,
+  onRecordsNamespaceFilterChange,
+  onRecordsDocumentFilterChange,
+  onRecordsNextPage,
+  onRecordsPreviousPage,
+  onPreviewMaintenance,
+  onApplyMaintenance,
+  onPreviewDeleteDocument,
+  onApplyDeleteDocument,
   onRetry,
 }: MetricsPanelProps) {
   const handleRetry = () => {
@@ -156,6 +357,11 @@ export function MetricsPanel({
         better when lower.
       </div>
 
+      <div className="ko-panel p-3 ko-text-xs ko-subtle">
+        Each collection card shows how many items (embeddings) are currently stored. Click <strong>Open Details</strong> to
+        debug or manage a specific collection.
+      </div>
+
       <div className="ko-panel p-4">
         <h4 className="font-semibold ko-text-strong mb-2">Ingest Pipeline</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
@@ -201,43 +407,54 @@ export function MetricsPanel({
                 typeof collection.name === "string" && collection.name.trim().length > 0
                   ? collection.name
                   : `Collection ${index + 1}`;
-              const sizeLabel =
-                typeof collection.sizeLabel === "string" && collection.sizeLabel.trim().length > 0
-                  ? collection.sizeLabel
-                  : "Vectors: unknown";
+              const inventory = getCollectionInventory(name);
+              const itemCountLabel =
+                typeof inventory?.total_points === "number"
+                  ? inventory.total_points.toLocaleString()
+                  : typeof collection.sizeLabel === "string" && collection.sizeLabel.trim().length > 0
+                    ? collection.sizeLabel
+                    : "Unknown";
+              const ownership = resolveCollectionOwnership(
+                name,
+                selectedCollection,
+                diagnostics,
+                inventory
+              );
 
               return (
                 <div key={name} className="ko-card p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="ko-text-sm font-semibold ko-text-primary">{name}</span>
-                    <span className="ko-text-xs ko-subtle">{sizeLabel}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="ko-text-sm font-semibold ko-text-primary">{name}</span>
+                      <span className={cn("ko-text-[11px] px-2 py-0.5 rounded", ownershipToneClass(ownership.tone))}>
+                        {ownership.label}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mb-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 mb-3">
+                    <div className="ko-panel p-2">
+                      <p className="ko-meta">Items</p>
+                      <p className="text-lg font-semibold ko-text-strong">{itemCountLabel}</p>
+                      <p className="ko-subtle text-[11px]">Embeddings stored in this collection</p>
+                    </div>
+                    <div className="ko-panel p-2">
+                      <p className="ko-meta">Namespaces</p>
+                      <p className="text-lg font-semibold ko-text-strong">{inventory?.distinct_namespaces ?? 0}</p>
+                    </div>
+                    <div className="ko-panel p-2">
+                      <p className="ko-meta">Ingest Attempts</p>
+                      <p className="text-lg font-semibold ko-text-strong">{inventory?.ingest_attempts ?? 0}</p>
+                    </div>
+                  </div>
+                  <p className="ko-text-xs ko-subtle mb-3">{ownership.reason}</p>
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="primary"
                       size="sm"
                       onClick={() => onSelectCollection(name)}
                     >
-                      {selectedCollection === name ? "Refresh Diagnostics" : "Inspect"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onRunPruneStale(name)}
-                      disabled={maintenanceActionLabel !== ""}
-                    >
-                      Prune Stale
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onRunDedupe(name)}
-                      disabled={maintenanceActionLabel !== ""}
-                    >
-                      Dedupe
+                      Open Details
                     </Button>
                   </div>
                   {metrics.length > 0 && (
@@ -252,49 +469,7 @@ export function MetricsPanel({
                       ))}
                     </div>
                   )}
-                  {selectedCollection === name && (
-                    <div className="mt-3 p-3 ko-surface-strong rounded ko-text-xs">
-                      {diagnosticsLoading && <p className="ko-subtle">Loading diagnostics…</p>}
-                      {!diagnosticsLoading && diagnosticsError && <p className="ko-text-danger-muted">{diagnosticsError}</p>}
-                      {!diagnosticsLoading && !diagnosticsError && diagnostics && (
-                        <div className="ko-stack-xs">
-                          <div>
-                            <span className="ko-subtle">Analyzed:</span>
-                            <span className="ko-text-strong ml-1">
-                              {diagnostics.analyzed_points}
-                              {typeof diagnostics.total_points === "number" ? ` / ${diagnostics.total_points}` : ""}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="ko-subtle">Stale delete candidates:</span>
-                            <span className="ko-text-strong ml-1">{diagnostics.stale_chunks.candidate_delete_rows}</span>
-                          </div>
-                          <div>
-                            <span className="ko-subtle">Duplicate ratio:</span>
-                            <span className="ko-text-strong ml-1">{(diagnostics.redundancy.duplicate_ratio * 100).toFixed(1)}%</span>
-                          </div>
-                          <div>
-                            <span className="ko-subtle">Chunk length:</span>
-                            <span className="ko-text-strong ml-1">
-                              {Math.round(diagnostics.chunk_length.avg_characters)} avg
-                              {" · "}
-                              {diagnostics.chunk_length.min_characters}-{diagnostics.chunk_length.max_characters}
-                            </span>
-                          </div>
-                          {Array.isArray(diagnostics.recommendations) && diagnostics.recommendations.length > 0 && (
-                            <div>
-                              <p className="ko-subtle mb-1">Recommendations</p>
-                              <ul className="list-disc list-inside ko-text-primary">
-                                {diagnostics.recommendations.slice(0, 3).map((entry, recIndex) => (
-                                  <li key={`${name}-rec-${recIndex}`}>{entry}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="ko-text-xs ko-subtle mt-2">Open details to inspect chunking, failures, records, and cleanup actions.</div>
                 </div>
               );
             })}
@@ -302,9 +477,9 @@ export function MetricsPanel({
         </div>
       )}
 
-      {maintenanceActionLabel && (
+      {maintenanceNotice && (
         <div className="ko-panel p-3 ko-text-xs ko-subtle">
-          {maintenanceActionLabel}
+          {maintenanceNotice}
         </div>
       )}
 

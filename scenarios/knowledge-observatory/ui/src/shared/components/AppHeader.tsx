@@ -54,8 +54,19 @@ type TabLinkProps = {
   testId?: string;
 };
 
+function isRouteActive(activeRoute: Route, navRoute: Route): boolean {
+  if (activeRoute === navRoute) {
+    return true;
+  }
+  // Collection details is a child surface of Metrics.
+  if (activeRoute === "collection" && navRoute === "metrics") {
+    return true;
+  }
+  return false;
+}
+
 function TabLink({ route, activeRoute, label, icon, testId }: TabLinkProps) {
-  const isActive = route === activeRoute;
+  const isActive = isRouteActive(activeRoute, route);
   return (
     <a
       href={routeToHash(route)}
@@ -166,9 +177,9 @@ export function AppHeader({ route, pageTitle, statusPulse, statusLabel }: AppHea
               data-testid={item.testId}
               className={[
                 "ko-mobile-nav-link",
-                item.route === route ? "ko-mobile-nav-link-active" : "ko-mobile-nav-link-inactive",
+                isRouteActive(route, item.route) ? "ko-mobile-nav-link-active" : "ko-mobile-nav-link-inactive",
               ].join(" ")}
-              aria-current={item.route === route ? "page" : undefined}
+              aria-current={isRouteActive(route, item.route) ? "page" : undefined}
               onClick={closeMobileMenu}
             >
               {item.icon}

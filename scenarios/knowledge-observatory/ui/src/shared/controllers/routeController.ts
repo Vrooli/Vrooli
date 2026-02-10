@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui-surface
-export type Route = "dashboard" | "search" | "explorer" | "viewer" | "metrics" | "graph";
+export type Route = "dashboard" | "search" | "explorer" | "viewer" | "metrics" | "graph" | "collection";
 
 const ROUTE_HASHES: Record<Route, string> = {
   dashboard: "#/",
@@ -8,6 +8,7 @@ const ROUTE_HASHES: Record<Route, string> = {
   viewer: "#/viewer",
   metrics: "#/metrics",
   graph: "#/graph",
+  collection: "#/collections",
 };
 
 const ROUTE_TITLES: Record<Route, string> = {
@@ -17,6 +18,7 @@ const ROUTE_TITLES: Record<Route, string> = {
   viewer: "Document Viewer",
   metrics: "Quality Metrics",
   graph: "Knowledge Graph",
+  collection: "Collection Details",
 };
 
 export function parseRouteFromHash(hash: string): Route {
@@ -27,11 +29,32 @@ export function parseRouteFromHash(hash: string): Route {
   if (value.startsWith("viewer")) return "viewer";
   if (value.startsWith("metrics")) return "metrics";
   if (value.startsWith("graph")) return "graph";
+  if (value.startsWith("collections/")) return "collection";
   return "dashboard";
+}
+
+export function parseCollectionNameFromHash(hash: string): string {
+  const value = hash.replace(/^#\/?/, "").trim();
+  if (!value.toLowerCase().startsWith("collections/")) {
+    return "";
+  }
+  const encoded = value.slice("collections/".length).trim();
+  if (!encoded) {
+    return "";
+  }
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded;
+  }
 }
 
 export function routeToHash(route: Route): string {
   return ROUTE_HASHES[route];
+}
+
+export function collectionToHash(collectionName: string): string {
+  return `#/collections/${encodeURIComponent(collectionName.trim())}`;
 }
 
 export function getPageTitle(route: Route): string {

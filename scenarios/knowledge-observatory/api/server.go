@@ -335,7 +335,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/knowledge/records/{record_id}", s.handleDeleteRecord).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/knowledge/documents/ingest", s.handleIngestDocument).Methods("POST")
 	s.router.HandleFunc("/api/v1/knowledge/documents/delete", s.handleDeleteDocument).Methods("POST")
+	s.router.HandleFunc("/api/v1/knowledge/collections", s.handleCollectionInventory).Methods("GET")
+	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}", s.handleDeleteCollection).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/diagnostics", s.handleCollectionDiagnostics).Methods("GET")
+	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/records", s.handleCollectionRecords).Methods("GET")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/maintenance/prune-stale-chunks", s.handlePruneStaleChunks).Methods("POST")
 	s.router.HandleFunc("/api/v1/knowledge/collections/{collection}/maintenance/dedupe-content", s.handleDedupeContent).Methods("POST")
 

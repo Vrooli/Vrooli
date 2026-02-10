@@ -17,6 +17,9 @@ const GraphPage = lazy(() =>
 const MetricsPage = lazy(() =>
   import("./surfaces/metrics/MetricsPage").then((module) => ({ default: module.MetricsPage }))
 );
+const CollectionDetailsPage = lazy(() =>
+  import("./surfaces/metrics/CollectionDetailsPage").then((module) => ({ default: module.CollectionDetailsPage }))
+);
 const SearchPage = lazy(() =>
   import("./surfaces/search/SearchPage").then((module) => ({ default: module.SearchPage }))
 );
@@ -39,7 +42,7 @@ function ViewerRedirect({ onNavigate }: { onNavigate: (route: "explorer") => voi
 // AI_CHECK: REACT_STABILITY=6 | LAST: 2026-01-25
 
 export default function App() {
-  const { route, navigate } = useHashRoute();
+  const { route, navigate, collectionName, navigateToCollection } = useHashRoute();
   const healthState = useHealthStatus();
   const pageTitle = useMemo(() => getPageTitle(route), [route]);
 
@@ -71,7 +74,14 @@ export default function App() {
         {route === "search" && <SearchPage onNavigate={navigate} />}
         {route === "explorer" && <ExplorerPage onNavigate={navigate} />}
         {route === "viewer" && <ViewerRedirect onNavigate={navigate} />}
-        {route === "metrics" && <MetricsPage onNavigate={navigate} />}
+        {route === "metrics" && <MetricsPage onNavigate={navigate} onOpenCollection={navigateToCollection} />}
+        {route === "collection" && (
+          <CollectionDetailsPage
+            collectionName={collectionName}
+            onNavigate={navigate}
+            onOpenCollection={navigateToCollection}
+          />
+        )}
         {route === "graph" && <GraphPage onNavigate={navigate} />}
       </Suspense>
     </div>

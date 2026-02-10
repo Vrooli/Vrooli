@@ -569,6 +569,61 @@ Enqueues an async document ingest job.
 
 [CODE: api/jobs.go]
 
+## Collection Inventory
+`GET /api/v1/knowledge/collections`
+
+Lists collections with ownership/provenance signals for triage.
+
+**Response**
+```json
+{
+  "collections": [
+    {
+      "name": "knowledge_chunks_v1",
+      "total_points": 12600,
+      "ownership": "knowledge_observatory",
+      "ownership_label": "Likely KO-managed",
+      "ingest_attempts": 850,
+      "metadata_rows": 12440,
+      "distinct_namespaces": 21,
+      "last_ingest_at": "2026-02-08T18:31:15Z"
+    }
+  ],
+  "timestamp": "2026-02-08T18:32:01Z"
+}
+```
+
+[CODE: api/collections.go]
+
+## Collection Records Preview
+`GET /api/v1/knowledge/collections/{collection}/records?limit=25&offset=0&namespace=...&document_id=...&search=...`
+
+Returns paginated record previews for investigation.
+
+**Response**
+```json
+{
+  "collection": "knowledge_chunks_v1",
+  "total_count": 5820,
+  "offset": 0,
+  "limit": 25,
+  "next_offset": 25,
+  "records": [
+    {
+      "id": "point-id",
+      "namespace": "ecosystem-manager",
+      "document_id": "doc-123",
+      "chunk_index": 2,
+      "content_hash": "abc123",
+      "ingested_at": "2026-02-08T18:31:15Z",
+      "content_preview": "Chunk text preview..."
+    }
+  ]
+}
+```
+
+[CODE: api/collections.go]
+
 ## Collection Diagnostics
 `GET /api/v1/knowledge/collections/{collection}/diagnostics?mode=sample|full&limit=500`
 

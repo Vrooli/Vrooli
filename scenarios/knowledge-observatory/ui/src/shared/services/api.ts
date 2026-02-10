@@ -329,6 +329,25 @@ export interface CollectionMaintenanceResponse {
   took_ms: number;
 }
 
+export interface DocumentDeleteResponse {
+  collection: string;
+  namespace: string;
+  document_id: string;
+  external_id?: string;
+  dry_run: boolean;
+  candidate_delete_count: number;
+  deleted_count: number;
+  took_ms: number;
+}
+
+export interface DocumentDeleteRequest {
+  namespace: string;
+  collection?: string;
+  document_id?: string;
+  external_id?: string;
+  dry_run?: boolean;
+}
+
 export interface IngestHealthResponse {
   runner_interval_ms: number;
   pending_jobs: number;
@@ -338,6 +357,56 @@ export interface IngestHealthResponse {
   failures_last_24h: number;
   oldest_pending_age_ms?: number;
   status: string;
+  timestamp: string;
+}
+
+export interface CollectionInventoryItem {
+  name: string;
+  total_points?: number;
+  ownership: "knowledge_observatory" | "mixed" | "external_or_unknown" | string;
+  ownership_label: string;
+  ingest_attempts: number;
+  metadata_rows: number;
+  distinct_namespaces: number;
+  last_ingest_at?: string;
+}
+
+export interface CollectionInventoryResponse {
+  collections: CollectionInventoryItem[];
+  timestamp: string;
+}
+
+export interface CollectionRecordPreview {
+  id: string;
+  namespace?: string;
+  document_id?: string;
+  chunk_index?: number;
+  external_id?: string;
+  visibility?: string;
+  content_hash?: string;
+  ingested_at?: string;
+  source?: string;
+  source_type?: string;
+  tags?: string[];
+  content_preview?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CollectionRecordsResponse {
+  collection: string;
+  total_count: number;
+  offset: number;
+  limit: number;
+  next_offset?: number;
+  records: CollectionRecordPreview[];
+}
+
+export interface CollectionDeleteResponse {
+  collection: string;
+  deleted: boolean;
+  metadata_rows_deleted: number;
+  ingest_history_rows_deleted: number;
+  warning?: string;
   timestamp: string;
 }
 
@@ -390,6 +459,27 @@ export async function runCollectionMaintenance(
   return (await res.json()) as CollectionMaintenanceResponse;
 }
 
+export async function runDocumentDelete(request: DocumentDeleteRequest): Promise<DocumentDeleteResponse> {
+  const url = buildApiUrl("/api/v1/knowledge/documents/delete", {
+    baseUrl: API_BASE,
+  });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    const errorMessage =
+      isRecord(errorPayload) && typeof errorPayload.error === "string"
+        ? errorPayload.error
+        : `Document delete failed: ${res.status}`;
+    throw new Error(errorMessage);
+  }
+  return (await res.json()) as DocumentDeleteResponse;
+}
+
 export async function fetchIngestHealth(): Promise<IngestHealthResponse> {
   const url = buildApiUrl("/api/v1/ingest/health", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -400,4 +490,72 @@ export async function fetchIngestHealth(): Promise<IngestHealthResponse> {
     throw new Error(`Ingest health fetch failed: ${res.status}`);
   }
   return (await res.json()) as IngestHealthResponse;
+}
+
+export async function fetchCollectionInventory(): Promise<CollectionInventoryResponse> {
+  const url = buildApiUrl("/api/v1/knowledge/collections", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Collection inventory fetch failed: ${res.status}`);
+  }
+  return (await res.json()) as CollectionInventoryResponse;
+}
+
+export async function fetchCollectionRecords(
+  collection: string,
+  request: {
+    limit?: number;
+    offset?: number;
+    namespace?: string;
+    document_id?: string;
+    search?: string;
+  } = {}
+): Promise<CollectionRecordsResponse> {
+  const params = new URLSearchParams();
+  if (request.limit && request.limit > 0) params.set("limit", String(request.limit));
+  if (request.offset && request.offset >= 0) params.set("offset", String(request.offset));
+  if (request.namespace?.trim()) params.set("namespace", request.namespace.trim());
+  if (request.document_id?.trim()) params.set("document_id", request.document_id.trim());
+  if (request.search?.trim()) params.set("search", request.search.trim());
+  const suffix = params.toString();
+  const url = buildApiUrl(
+    `/api/v1/knowledge/collections/${encodeURIComponent(collection)}/records${suffix ? `?${suffix}` : ""}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    const errorMessage =
+      isRecord(errorPayload) && typeof errorPayload.error === "string"
+        ? errorPayload.error
+        : `Collection records fetch failed: ${res.status}`;
+    throw new Error(errorMessage);
+  }
+  return (await res.json()) as CollectionRecordsResponse;
+}
+
+export async function runCollectionDelete(collection: string): Promise<CollectionDeleteResponse> {
+  const url = buildApiUrl(`/api/v1/knowledge/collections/${encodeURIComponent(collection)}`, {
+    baseUrl: API_BASE,
+  });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    const errorMessage =
+      isRecord(errorPayload) && typeof errorPayload.error === "string"
+        ? errorPayload.error
+        : `Collection delete failed: ${res.status}`;
+    throw new Error(errorMessage);
+  }
+  return (await res.json()) as CollectionDeleteResponse;
 }

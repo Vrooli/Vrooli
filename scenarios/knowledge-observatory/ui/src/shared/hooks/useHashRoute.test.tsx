@@ -14,13 +14,15 @@ describe("useHashRoute", () => {
 
     const { result } = renderHook(() => useHashRoute());
     expect(result.current.route).toBe("metrics");
+    expect(result.current.collectionName).toBe("");
 
     act(() => {
-      window.location.hash = "#/search";
+      window.location.hash = "#/collections/knowledge_chunks_v1";
       window.dispatchEvent(new Event("hashchange"));
     });
 
-    expect(result.current.route).toBe("search");
+    expect(result.current.route).toBe("collection");
+    expect(result.current.collectionName).toBe("knowledge_chunks_v1");
   });
 
   it("navigate updates the hash and route state", () => {
@@ -34,5 +36,18 @@ describe("useHashRoute", () => {
 
     expect(window.location.hash).toBe("#/graph");
     expect(result.current.route).toBe("graph");
+  });
+
+  it("navigateToCollection updates hash and collection state", () => {
+    window.location.hash = "#/";
+    const { result } = renderHook(() => useHashRoute());
+
+    act(() => {
+      result.current.navigateToCollection("knowledge_chunks_v1");
+    });
+
+    expect(window.location.hash).toBe("#/collections/knowledge_chunks_v1");
+    expect(result.current.route).toBe("collection");
+    expect(result.current.collectionName).toBe("knowledge_chunks_v1");
   });
 });
