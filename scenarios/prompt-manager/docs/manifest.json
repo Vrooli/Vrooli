@@ -86,6 +86,19 @@
       ]
     },
     {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "compass",
+      "documents": [
+        {
+          "path": "guides/ASSET-GENERATION.md",
+          "title": "3D Asset Generation",
+          "description": "How to create new 3D objects (decorations, props) using the Node.js GLB generator pipeline",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
@@ -113,7 +126,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "reference"],
+    "primary": ["getting-started", "concepts", "guides", "reference"],
     "secondary": ["internal"]
   }
 }

@@ -1,6 +1,8 @@
 /**
  * Asset manifest for 3D world resources.
  * Centralizes paths to all loadable assets.
+ *
+ * DOC: docs/guides/ASSET-GENERATION.md
  */
 
 /** Asset categories */

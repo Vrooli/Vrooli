@@ -661,5 +661,6 @@ For testing strategies and dependency injection patterns, see [DOC: docs/SEAMS.m
 
 ## Related Documentation
 
+- [DOC: docs/guides/ASSET-GENERATION.md] - How to create new 3D objects using the GLB generator pipeline
 - [DOC: docs/SEAMS.md] - Testing seams and dependency injection patterns
 - [DOC: PRD.md] - Product requirements and operational targets

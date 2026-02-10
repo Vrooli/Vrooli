@@ -1,6 +1,8 @@
 /**
  * DecorationItem - Renders individual decorative objects in the 3D world.
  * Procedural geometry for plants, lamps, and other decorations.
+ *
+ * DOC: docs/guides/ASSET-GENERATION.md
  */
 
 import { Suspense, useMemo, useRef, useCallback, useEffect } from 'react'

@@ -4,6 +4,8 @@
  *
  * Creates tree-oak.glb, tree-pine.glb, tree-birch.glb in public/assets/models/decorations/
  * Uses a minimal GLB builder (no browser APIs required).
+ *
+ * DOC: docs/guides/ASSET-GENERATION.md
  */
 import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'

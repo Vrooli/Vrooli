@@ -1,6 +1,8 @@
 /**
  * Decoration types for the 3D world.
  * Decorative objects that add visual interest to the scene.
+ *
+ * DOC: docs/guides/ASSET-GENERATION.md
  */
 
 /** Types of decorations available */
