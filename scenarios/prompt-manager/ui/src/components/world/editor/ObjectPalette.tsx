@@ -31,6 +31,7 @@ const FURNITURE_ITEMS: { type: FurnitureType; icon: string }[] = [
   { type: 'table', icon: '🪵' },
   { type: 'picnic-table', icon: '🏕️' },
   { type: 'coffee-table', icon: '☕' },
+  { type: 'campfire', icon: '🔥' },
 ]
 
 // Decoration items grouped by category

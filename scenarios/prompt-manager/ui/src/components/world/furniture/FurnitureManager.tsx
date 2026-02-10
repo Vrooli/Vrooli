@@ -10,6 +10,7 @@ import { useFurnitureStore, useFurnitureList } from '@/stores/furnitureStore'
 import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { FurnitureInstance } from '@/types/furniture'
+import { FURNITURE_CONFIGS } from '@/types/furniture'
 import { applyPlacementConstraints } from '@/lib/world'
 
 interface FurnitureManagerProps {
@@ -35,6 +36,10 @@ export function FurnitureManager({
   const placementConfig = useEnvironmentStore((state) => state.current.placement)
   const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
   const groundSize = useEnvironmentStore((state) => state.current.ground.size)
+  const timeValue = useEnvironmentStore((state) => state.timeValue)
+
+  // Campfire (and other light-emitting furniture) auto-lights at night
+  const isNightTime = timeValue < 6 || timeValue >= 18
 
   const constrainPosition = useMemo(() => {
     return (position: [number, number, number]) =>
@@ -62,6 +67,14 @@ export function FurnitureManager({
   return (
     <group name="furniture-manager">
       {furnitureList.map((furniture) => {
+        // Resolve effective light state from mode + time of day
+        const config = FURNITURE_CONFIGS[furniture.type]
+        let effectiveLightOn: boolean | undefined
+        if (config.emitsLight) {
+          const mode = furniture.lightMode ?? 'auto'
+          effectiveLightOn = mode === 'on' ? true : mode === 'off' ? false : isNightTime
+        }
+
         const item = (
           <FurnitureItem
             key={furniture.id}
@@ -71,6 +84,7 @@ export function FurnitureManager({
             rotation={furniture.rotation}
             scale={furnitureScale}
             color={furniture.color}
+            lightOn={effectiveLightOn}
             onClick={interactive ? () => handleClick(furniture) : undefined}
           />
         )

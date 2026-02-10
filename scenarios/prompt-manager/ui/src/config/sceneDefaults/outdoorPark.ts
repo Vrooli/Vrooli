@@ -83,6 +83,14 @@ export function generateOutdoorPark(): SceneDefaults {
     occupiedBy: null,
   })
 
+  // ---- Campfire ----------------------------------------------------------
+  furniture.push({
+    type: 'campfire',
+    position: [1, 0, -2],
+    rotation: 0,
+    occupiedBy: null,
+  })
+
   // ---- Floor lamps near seating ----------------------------------------
   decorations.push({
     type: 'floor-lamp',

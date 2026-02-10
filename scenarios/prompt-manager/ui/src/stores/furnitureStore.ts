@@ -10,6 +10,7 @@ import { useCallback } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { FurnitureInstance, FurnitureType, SeatPosition } from '@/types/furniture'
+import type { LightMode } from '@/types/decoration'
 import { FURNITURE_CONFIGS, DEFAULT_FURNITURE_COLORS } from '@/types/furniture'
 import type { SceneType } from '@/types/environment'
 import { useEnvironmentStore } from './environmentStore'
@@ -48,6 +49,8 @@ interface FurnitureActions {
   hasAvailableSeats: (furnitureId: string) => boolean
   /** Get furniture by ID from the active scene */
   getFurniture: (id: string) => FurnitureInstance | undefined
+  /** Set light mode for light-emitting furniture (e.g. campfire) */
+  setLightMode: (id: string, mode: LightMode) => void
   /** Clear the active scene's furniture and seating (sets to `[]`/`{}`). */
   reset: () => void
   /** Clear and re-seed from scene generator. If no type given, uses the active scene. */
@@ -276,6 +279,18 @@ export const useFurnitureStore = create<FurnitureStore>()(
       getFurniture: (id) => {
         const scene = activeScene()
         return (get().scenes[scene] ?? []).find((f) => f.id === id)
+      },
+
+      setLightMode: (id, mode) => {
+        const scene = activeScene()
+        set((state) => ({
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).map((f) =>
+              f.id === id ? { ...f, lightMode: mode } : f
+            ),
+          },
+        }))
       },
 
       reset: () => {

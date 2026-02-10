@@ -4,12 +4,19 @@
  */
 
 import { useCallback, useMemo } from 'react'
-import { Move, Trash2, X, UserPlus } from 'lucide-react'
+import { Move, Trash2, X, UserPlus, Sun, Lightbulb, LightbulbOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useFurnitureStore } from '@/stores/furnitureStore'
+import { useFurnitureStore, useFurnitureList } from '@/stores/furnitureStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { FURNITURE_CONFIGS, type FurnitureInstance } from '@/types/furniture'
+import type { LightMode } from '@/types/decoration'
 import type { Agent } from '@/types/agent'
+
+const LIGHT_MODES: Array<{ mode: LightMode; label: string; Icon: typeof Sun }> = [
+  { mode: 'auto', label: 'Auto', Icon: Sun },
+  { mode: 'on', label: 'On', Icon: Lightbulb },
+  { mode: 'off', label: 'Off', Icon: LightbulbOff },
+]
 
 interface FurnitureContextMenuProps {
   furniture: FurnitureInstance | null
@@ -34,8 +41,23 @@ export function FurnitureContextMenu({
   className,
 }: FurnitureContextMenuProps) {
   const removeFurniture = useFurnitureStore((state) => state.removeFurniture)
+  const setFurnitureLightMode = useFurnitureStore((state) => state.setLightMode)
   const setEditMode = useWorldEditorStore((state) => state.setEditMode)
   const selectObject = useWorldEditorStore((state) => state.selectObject)
+
+  // Read live furniture so light mode changes reflect immediately
+  const furnitureListLive = useFurnitureList()
+  const liveFurniture = furnitureListLive.find((f) => f.id === furniture?.id) ?? null
+  const current = liveFurniture ?? furniture
+  const currentLightMode: LightMode = current?.lightMode ?? 'auto'
+
+  const handleSetLightMode = useCallback(
+    (mode: LightMode) => {
+      if (!furniture) return
+      setFurnitureLightMode(furniture.id, mode)
+    },
+    [furniture, setFurnitureLightMode]
+  )
 
   // Get furniture config
   const config = furniture ? FURNITURE_CONFIGS[furniture.type] : null
@@ -140,6 +162,37 @@ export function FurnitureContextMenu({
           <X className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Light Mode Controls - only for light-emitting furniture */}
+      {config?.emitsLight && (
+        <div className="mb-3">
+          <div className="text-xs text-slate-400 mb-1.5">Light Mode</div>
+          <div className="flex gap-1">
+            {LIGHT_MODES.map(({ mode, label, Icon }) => (
+              <button
+                key={mode}
+                onClick={() => handleSetLightMode(mode)}
+                className={`
+                  flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs
+                  transition-colors
+                  ${currentLightMode === mode
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'bg-slate-700/30 text-slate-400 hover:bg-slate-600/50 hover:text-slate-300 border border-transparent'
+                  }
+                `}
+              >
+                <Icon className="h-3 w-3" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="text-[10px] text-slate-500 mt-1">
+            {currentLightMode === 'auto' && 'Follows day/night cycle'}
+            {currentLightMode === 'on' && 'Always on'}
+            {currentLightMode === 'off' && 'Always off'}
+          </div>
+        </div>
+      )}
 
       {/* Seated Agents */}
       {agentsOnThisFurniture.length > 0 && (
