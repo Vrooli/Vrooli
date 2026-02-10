@@ -1,4 +1,5 @@
 import type { BoundaryConfig, PlacementConfig } from '@/types/environment'
+import type { SeatPosition } from '@/types/furniture'
 
 export type XZPoint = [number, number]
 
@@ -185,6 +186,90 @@ export function clampPointToBoundary(point: XZPoint, boundary: ResolvedBoundary)
   }
 
   return closest
+}
+
+// ---------------------------------------------------------------------------
+// Seat coordinate helpers (extracted from SeatHandle3D for testability)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a seat's local offset to world coordinates by applying furniture
+ * position and Y-axis rotation.
+ */
+export function seatLocalToWorld(
+  seatLocal: [number, number, number],
+  furniturePos: [number, number, number],
+  furnitureRotation: number,
+): [number, number, number] {
+  const cos = Math.cos(furnitureRotation)
+  const sin = Math.sin(furnitureRotation)
+  const [sx, sy, sz] = seatLocal
+  return [
+    furniturePos[0] + sx * cos - sz * sin,
+    furniturePos[1] + sy,
+    furniturePos[2] + sx * sin + sz * cos,
+  ]
+}
+
+/**
+ * Convert a world position back to a seat-local offset relative to furniture.
+ * Inverse of `seatLocalToWorld`.
+ */
+export function seatWorldToLocal(
+  worldPos: [number, number, number],
+  furniturePos: [number, number, number],
+  furnitureRotation: number,
+): [number, number, number] {
+  const cos = Math.cos(-furnitureRotation)
+  const sin = Math.sin(-furnitureRotation)
+  const dx = worldPos[0] - furniturePos[0]
+  const dy = worldPos[1] - furniturePos[1]
+  const dz = worldPos[2] - furniturePos[2]
+  return [
+    dx * cos - dz * sin,
+    dy,
+    dx * sin + dz * cos,
+  ]
+}
+
+/**
+ * Compute the XZ offset for a seat's facing-direction arrow.
+ * `worldRotation` is the combined furniture + seat rotation.
+ */
+export function seatFacingArrowOffset(
+  worldRotation: number,
+  length = 0.15,
+): [number, number, number] {
+  return [
+    Math.sin(worldRotation) * length,
+    0,
+    Math.cos(worldRotation) * length,
+  ]
+}
+
+/**
+ * Rotate all seat positions by a delta angle (radians) around the Y axis.
+ * Applies 2D rotation to each seat's XZ offset and adds delta to the
+ * seat's facing rotation, normalizing to [0, 2π).
+ */
+export function rotateAllSeats(
+  seats: SeatPosition[],
+  deltaRadians: number,
+): SeatPosition[] {
+  const cos = Math.cos(deltaRadians)
+  const sin = Math.sin(deltaRadians)
+  const TAU = Math.PI * 2
+  return seats.map((seat) => {
+    const [x, y, z] = seat.position
+    return {
+      position: [
+        x * cos - z * sin,
+        y,
+        x * sin + z * cos,
+      ] as [number, number, number],
+      rotation: ((seat.rotation + deltaRadians) % TAU + TAU) % TAU,
+    }
+  })
 }
 
 export function snapPointToGrid(point: XZPoint, snapSize: number): XZPoint {

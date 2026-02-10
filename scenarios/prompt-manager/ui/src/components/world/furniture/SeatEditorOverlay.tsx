@@ -5,19 +5,26 @@
  */
 
 import { useCallback } from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Plus, Trash2, X, RotateCcw, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useWorldSeatsStore } from '@/stores/worldSeatsStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import type { SeatPosition } from '@/types/furniture'
 import { FURNITURE_CONFIGS } from '@/types/furniture'
+import { rotateAllSeats } from '@/lib/world'
+
+/** Stable empty array for selector fallback — avoids new references triggering re-render loops. */
+const EMPTY_SEATS: SeatPosition[] = []
 
 const SEAT_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899']
 
 export function SeatEditorOverlay() {
   const editingSeatType = useWorldEditorStore((s) => s.editingSeatType)
   const stopSeatEdit = useWorldEditorStore((s) => s.stopSeatEdit)
-  const seats = useWorldSeatsStore((s) => editingSeatType ? s.seats[editingSeatType] ?? [] : [])
+  const seats = useWorldSeatsStore(
+    useCallback((s) => editingSeatType ? s.seats[editingSeatType] ?? EMPTY_SEATS : EMPTY_SEATS, [editingSeatType])
+  )
+  const setSeats = useWorldSeatsStore((s) => s.setSeats)
   const updateSeat = useWorldSeatsStore((s) => s.updateSeat)
   const addSeat = useWorldSeatsStore((s) => s.addSeat)
   const removeSeat = useWorldSeatsStore((s) => s.removeSeat)
@@ -54,6 +61,14 @@ export function SeatEditorOverlay() {
     [editingSeatType, removeSeat]
   )
 
+  const handleRotateAll = useCallback(
+    (deltaDeg: number) => {
+      if (!editingSeatType || seats.length === 0) return
+      setSeats(editingSeatType, rotateAllSeats(seats, (deltaDeg * Math.PI) / 180))
+    },
+    [editingSeatType, seats, setSeats]
+  )
+
   if (!editingSeatType) return null
 
   const config = FURNITURE_CONFIGS[editingSeatType]
@@ -61,7 +76,7 @@ export function SeatEditorOverlay() {
   return (
     <div className="w-72 max-h-[70vh] overflow-y-auto p-3 bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-medium text-slate-200">
           Edit Seats - {config.displayName}
         </h3>
@@ -74,6 +89,27 @@ export function SeatEditorOverlay() {
           <X className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Rotate All Seats */}
+      {seats.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-[10px] text-slate-500 uppercase">Rotate All</span>
+          <button
+            onClick={() => handleRotateAll(-90)}
+            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-700/30 text-slate-400 hover:bg-slate-600/50 hover:text-slate-300 transition-colors"
+          >
+            <RotateCcw className="h-2.5 w-2.5" />
+            90
+          </button>
+          <button
+            onClick={() => handleRotateAll(90)}
+            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-700/30 text-slate-400 hover:bg-slate-600/50 hover:text-slate-300 transition-colors"
+          >
+            <RotateCw className="h-2.5 w-2.5" />
+            90
+          </button>
+        </div>
+      )}
 
       {/* Seats list */}
       <div className="space-y-3">

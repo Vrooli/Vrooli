@@ -39,6 +39,7 @@ Use the category that matches the skill's primary outcome (this is `modes[0]` in
 | Primary intent | Category (modes[0]) | What it optimizes |
 |---|---|---|
 | Build or improve scenario behavior | Steer | Architecture, quality, reliability |
+| Build or improve shared platform/packages | Platform | Compatibility, standardization, cross-scenario reliability |
 | Find or map information | Search | Discovery, coverage, evidence |
 | Use a tool/resource/scenario | Tools | Correct operation, safety, efficiency |
 | Apply a systematic engineering methodology | Practice | Process rigor, repeatability, knowledge capture |
@@ -48,6 +49,8 @@ Decision check:
 ```
 Is the skill about how to change the scenario itself?
   -> Steer
+Is the skill about evolving shared packages/platform code (used across scenarios)?
+  -> Platform
 Is the skill about finding information or tracing implementation?
   -> Search
 Is the skill about using a tool or resource correctly?

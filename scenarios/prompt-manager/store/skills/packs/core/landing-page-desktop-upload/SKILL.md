@@ -46,6 +46,11 @@ Required reading:
 Conditional input:
 - `{{APP_NAME}}` only required when `{{APP_KEY}}` does not already exist and must be onboarded
 
+Additional required prerequisites (inherited from `landing-page-deploy-setup`; do not guess):
+- Local LPBS admin credentials (`email`, `password`) if local admin session is not already active
+- Remote LPBS admin credentials (`email`, `password`) if the remote profile session is not already active
+- Canonical LPBS service secret (`LPBS_SERVICE_SECRET`) used by the local LPBS runtime (must match the runtime’s configured value)
+
 ---
 
 ### 4. Orchestration Flow
@@ -61,6 +66,20 @@ scenario-to-cloud --auto-start status
 landing-page-business-suite --auto-start status
 scenario-to-desktop --auto-start status
 ```
+
+#### Stage 0.5 (Recommended): Desktop build prerequisites gate (fast fail)
+
+Why: `scenario-to-desktop status` being healthy does not guarantee your target scenario can build.
+
+Timeout guidance:
+- Real desktop builds can exceed the default 600s. Prefer `--timeout 1800` in Stage 3 unless the user requests otherwise.
+
+Linux packaging target note (common failure):
+- If the target scenario’s Electron config includes Linux `deb` targets, Linux builds may require `fpm` (and Ruby).
+- If you do not need `.deb` distribution, prefer limiting the scenario to AppImage-only targets to avoid `fpm` as a hard prerequisite.
+
+Stop condition:
+- If the pipeline fails with `BUILD_FAILED` and mentions `fpm`, do not proceed to deploy verification. Fix packaging targets or prerequisites first.
 
 #### Stage 1: LPBS deployment convergence (`scenario-to-cloud`)
 
@@ -127,7 +146,7 @@ Run deploy pipeline:
 ```bash
 scenario-to-desktop --auto-start pipeline run {{TARGET}} \
   --platforms {{PLATFORMS}} \
-  --clean --wait \
+  --clean --wait --timeout 1800 \
   --deploy-to landing-page-business-suite \
   --remote-profile {{PROFILE_TAG}} \
   --app-key {{APP_KEY}}
@@ -159,6 +178,9 @@ curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/latest-linu
 
 Note:
 - Some deployments may return `405` for `HEAD` requests on manifest URLs. Use `GET` (`curl -fsS ...`) as the authoritative check.
+
+When redeploying the same version:
+- Confirm `sha512` and/or `releaseDate` changes (don’t rely only on `version`).
 
 Discovery fallback (when manifest URL returns 404 but Stage 3 succeeded):
 - Run `scenario-to-desktop pipeline status <pipeline_id> --verbose` and use the printed update URL to confirm you’re checking the correct domain/app key.
@@ -217,6 +239,15 @@ scenario-to-desktop --auto-start pipeline status <pipeline_id> --verbose
 
 2. Confirm build artifacts exist in the pipeline output:
 - `stages.build.details.artifacts` must include at least one platform path for the platforms you deployed.
+
+### Bundle stage fails with `BUNDLE_PACKAGE_ERROR` / `directory not empty`
+
+Symptom:
+- Error like: `bundle packaging failed: unlinkat .../bundle/ui/dist/assets: directory not empty`
+
+Action:
+- Clear stale bundle output for the target scenario and retry the pipeline with `--clean`.
+- If no Vrooli-native cleanup command exists, treat this as a tooling gap and record it for promotion.
 
 ### Stage 3 appears stuck / prints nothing
 

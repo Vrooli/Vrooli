@@ -1,40 +1,187 @@
 {
-  "chair": [
-    { "position": [0, 1.1, 0], "rotation": 0 }
+  "armchair": [
+    {
+      "position": [
+        0,
+        1.05,
+        0
+      ],
+      "rotation": 0
+    }
   ],
   "bench": [
-    { "position": [-0.4, 1.1, 0], "rotation": 0 },
-    { "position": [0, 1.1, 0], "rotation": 0 },
-    { "position": [0.4, 1.1, 0], "rotation": 0 }
+    {
+      "position": [
+        -0.0026864840973859,
+        0.5,
+        -0.5476998671939977
+      ],
+      "rotation": 0
+    },
+    {
+      "position": [
+        0.01,
+        0.5,
+        -0.054742443515286066
+      ],
+      "rotation": 0
+    },
+    {
+      "position": [
+        0.00301602213708797,
+        0.5,
+        0.5095981822734408
+      ],
+      "rotation": 0
+    }
   ],
-  "stool": [
-    { "position": [0, 1.2, 0], "rotation": 0 }
+  "campfire": [
+    {
+      "position": [
+        0.8,
+        0.2,
+        0
+      ],
+      "rotation": 4.73
+    },
+    {
+      "position": [
+        0.5,
+        0.2,
+        0.69282
+      ],
+      "rotation": 3.82
+    },
+    {
+      "position": [
+        -0.5,
+        0.2,
+        0.64282
+      ],
+      "rotation": 2.52
+    },
+    {
+      "position": [
+        -0.8,
+        0.2,
+        -0.2
+      ],
+      "rotation": 1.42
+    },
+    {
+      "position": [
+        -0.5,
+        0.2,
+        -0.84282
+      ],
+      "rotation": 0.51
+    },
+    {
+      "position": [
+        0.45,
+        0.2,
+        -0.79282
+      ],
+      "rotation": 5.92
+    }
   ],
-  "armchair": [
-    { "position": [0, 1.05, 0], "rotation": 0 }
-  ],
-  "desk": [
-    { "position": [0, 0.8, 0.5], "rotation": 3.141593 }
-  ],
-  "table": [
-    { "position": [0, 0.8, 0.7], "rotation": 3.141593 },
-    { "position": [0, 0.8, -0.7], "rotation": 0 },
-    { "position": [0.7, 0.8, 0], "rotation": -1.570796 },
-    { "position": [-0.7, 0.8, 0], "rotation": 1.570796 }
-  ],
-  "picnic-table": [
-    { "position": [-0.25, 1.1, 0.4], "rotation": 3.141593 },
-    { "position": [0.25, 1.1, 0.4], "rotation": 3.141593 },
-    { "position": [-0.25, 1.1, -0.4], "rotation": 0 },
-    { "position": [0.25, 1.1, -0.4], "rotation": 0 }
+  "chair": [
+    {
+      "position": [
+        0,
+        1.1,
+        0
+      ],
+      "rotation": 0
+    }
   ],
   "coffee-table": [],
-  "campfire": [
-    { "position": [0.8, 0.2, 0], "rotation": 3.141593 },
-    { "position": [0.4, 0.2, 0.69282], "rotation": 4.18879 },
-    { "position": [-0.4, 0.2, 0.69282], "rotation": 5.235988 },
-    { "position": [-0.8, 0.2, 0], "rotation": 6.283185 },
-    { "position": [-0.4, 0.2, -0.69282], "rotation": 7.330383 },
-    { "position": [0.4, 0.2, -0.69282], "rotation": 8.37758 }
+  "desk": [
+    {
+      "position": [
+        0,
+        0.8,
+        0.5
+      ],
+      "rotation": 3.141593
+    }
+  ],
+  "picnic-table": [
+    {
+      "position": [
+        0.337653819301001,
+        0.4,
+        0.594133396156873
+      ],
+      "rotation": 3.141593
+    },
+    {
+      "position": [
+        0.653399848423263,
+        0.4,
+        0.0437001672388467
+      ],
+      "rotation": 3.141593
+    },
+    {
+      "position": [
+        -0.671710605427475,
+        0.4,
+        0.110884712986931
+      ],
+      "rotation": 0
+    },
+    {
+      "position": [
+        -0.379577752818726,
+        0.4,
+        -0.484828222477785
+      ],
+      "rotation": 0
+    }
+  ],
+  "stool": [
+    {
+      "position": [
+        0,
+        1.2,
+        0
+      ],
+      "rotation": 0
+    }
+  ],
+  "table": [
+    {
+      "position": [
+        0,
+        0.8,
+        0.7
+      ],
+      "rotation": 3.141593
+    },
+    {
+      "position": [
+        0,
+        0.8,
+        -0.7
+      ],
+      "rotation": 0
+    },
+    {
+      "position": [
+        0.7,
+        0.8,
+        0
+      ],
+      "rotation": -1.570796
+    },
+    {
+      "position": [
+        -0.7,
+        0.8,
+        0
+      ],
+      "rotation": 1.570796
+    }
   ]
 }

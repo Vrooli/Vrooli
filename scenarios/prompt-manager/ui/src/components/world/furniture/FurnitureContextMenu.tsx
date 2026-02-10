@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useMemo } from 'react'
-import { Move, Trash2, X, UserPlus, Sun, Lightbulb, LightbulbOff, Settings2 } from 'lucide-react'
+import { Move, Trash2, X, UserPlus, Sun, Lightbulb, LightbulbOff, Settings2, RotateCcw, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useFurnitureStore, useFurnitureList } from '@/stores/furnitureStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
@@ -42,6 +42,7 @@ export function FurnitureContextMenu({
   className,
 }: FurnitureContextMenuProps) {
   const removeFurniture = useFurnitureStore((state) => state.removeFurniture)
+  const rotateFurniture = useFurnitureStore((state) => state.rotateFurniture)
   const setFurnitureLightMode = useFurnitureStore((state) => state.setLightMode)
   const setEditMode = useWorldEditorStore((state) => state.setEditMode)
   const selectObject = useWorldEditorStore((state) => state.selectObject)
@@ -52,6 +53,17 @@ export function FurnitureContextMenu({
   const liveFurniture = furnitureListLive.find((f) => f.id === furniture?.id) ?? null
   const current = liveFurniture ?? furniture
   const currentLightMode: LightMode = current?.lightMode ?? 'auto'
+  const currentRotationDeg = Math.round(((current?.rotation ?? 0) * 180) / Math.PI)
+
+  const handleRotate = useCallback(
+    (deltaDeg: number) => {
+      if (!furniture) return
+      const TAU = Math.PI * 2
+      const newRad = (((current?.rotation ?? 0) + (deltaDeg * Math.PI) / 180) % TAU + TAU) % TAU
+      rotateFurniture(furniture.id, newRad)
+    },
+    [furniture, current?.rotation, rotateFurniture]
+  )
 
   const handleSetLightMode = useCallback(
     (mode: LightMode) => {
@@ -202,6 +214,28 @@ export function FurnitureContextMenu({
           </div>
         </div>
       )}
+
+      {/* Rotation Controls */}
+      <div className="mb-3">
+        <div className="text-xs text-slate-400 mb-1.5">Rotation</div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleRotate(-45)}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs bg-slate-700/30 text-slate-400 hover:bg-slate-600/50 hover:text-slate-300 border border-transparent transition-colors"
+          >
+            <RotateCcw className="h-3 w-3" />
+            -45
+          </button>
+          <span className="flex-1 text-center text-xs text-slate-300">{currentRotationDeg}&deg;</span>
+          <button
+            onClick={() => handleRotate(45)}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs bg-slate-700/30 text-slate-400 hover:bg-slate-600/50 hover:text-slate-300 border border-transparent transition-colors"
+          >
+            <RotateCw className="h-3 w-3" />
+            +45
+          </button>
+        </div>
+      </div>
 
       {/* Seated Agents */}
       {agentsOnThisFurniture.length > 0 && (

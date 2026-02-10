@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "platform-package-consumption-audit",
+  "name": "Platform Package Consumption Audit",
+  "description": "Audit how scenarios consume a shared package, identify friction/inconsistency, and produce a prioritized package-level reliability backlog with verification plans.",
+  "modes": [
+    "platform",
+    "audit"
+  ],
+  "tags": [
+    "platform",
+    "packages",
+    "audit",
+    "compatibility"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "platform-scope",
+  "revision": 1,
+  "createdAt": "2026-02-10T00:00:00Z",
+  "updatedAt": "2026-02-10T00:00:00Z"
+}
+

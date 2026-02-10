@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { Text } from '@react-three/drei'
 import { DraggableObject } from '../interaction'
+import { seatLocalToWorld, seatWorldToLocal, seatFacingArrowOffset } from '@/lib/world'
 import type { SeatPosition } from '@/types/furniture'
 
 /** Colors cycle for seats so they're visually distinguishable */
@@ -30,41 +31,22 @@ export function SeatHandle3D({
   const color = SEAT_COLORS[index % SEAT_COLORS.length] ?? '#ffffff'
 
   // Compute world position: furniture origin + rotated seat offset
-  const worldPosition = useMemo<[number, number, number]>(() => {
-    const cos = Math.cos(furnitureRotation)
-    const sin = Math.sin(furnitureRotation)
-    const [sx, sy, sz] = seat.position
-    return [
-      furniturePosition[0] + sx * cos - sz * sin,
-      furniturePosition[1] + sy,
-      furniturePosition[2] + sx * sin + sz * cos,
-    ]
-  }, [seat.position, furniturePosition, furnitureRotation])
+  const worldPosition = useMemo<[number, number, number]>(
+    () => seatLocalToWorld(seat.position, furniturePosition, furnitureRotation),
+    [seat.position, furniturePosition, furnitureRotation],
+  )
 
   // World-space facing direction
   const worldRotation = furnitureRotation + seat.rotation
 
   // Arrow direction vector for the cone
-  const arrowOffset = useMemo<[number, number, number]>(() => {
-    return [
-      Math.sin(worldRotation) * 0.15,
-      0,
-      Math.cos(worldRotation) * 0.15,
-    ]
-  }, [worldRotation])
+  const arrowOffset = useMemo<[number, number, number]>(
+    () => seatFacingArrowOffset(worldRotation),
+    [worldRotation],
+  )
 
   const handleDragEnd = (newPos: [number, number, number]) => {
-    // Convert world position back to seat-local offset
-    const cos = Math.cos(-furnitureRotation)
-    const sin = Math.sin(-furnitureRotation)
-    const dx = newPos[0] - furniturePosition[0]
-    const dy = newPos[1] - furniturePosition[1]
-    const dz = newPos[2] - furniturePosition[2]
-    onPositionChange([
-      dx * cos - dz * sin,
-      dy,
-      dx * sin + dz * cos,
-    ])
+    onPositionChange(seatWorldToLocal(newPos, furniturePosition, furnitureRotation))
   }
 
   return (

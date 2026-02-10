@@ -12,9 +12,12 @@ import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { useWorldSeatsStore } from '@/stores/worldSeatsStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
-import type { FurnitureInstance } from '@/types/furniture'
+import type { FurnitureInstance, SeatPosition } from '@/types/furniture'
 import { FURNITURE_CONFIGS } from '@/types/furniture'
 import { applyPlacementConstraints } from '@/lib/world'
+
+/** Stable empty array for selector fallback — avoids new references triggering R3F re-render loops. */
+const EMPTY_SEATS: SeatPosition[] = []
 
 interface FurnitureManagerProps {
   /** Called when furniture is clicked */
@@ -70,7 +73,9 @@ export function FurnitureManager({
   // Seat editing state
   const editingSeatFurnitureId = useWorldEditorStore((s) => s.editingSeatFurnitureId)
   const editingSeatType = useWorldEditorStore((s) => s.editingSeatType)
-  const editingSeats = useWorldSeatsStore((s) => editingSeatType ? s.seats[editingSeatType] ?? [] : [])
+  const editingSeats = useWorldSeatsStore(
+    useCallback((s) => editingSeatType ? s.seats[editingSeatType] ?? EMPTY_SEATS : EMPTY_SEATS, [editingSeatType])
+  )
   const updateSeat = useWorldSeatsStore((s) => s.updateSeat)
 
   // Find the furniture instance being seat-edited
