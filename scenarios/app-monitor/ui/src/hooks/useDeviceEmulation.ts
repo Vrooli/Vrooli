@@ -299,15 +299,11 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
       return null;
     }
 
-    const widthLimit = viewportBounds.width / state.zoom;
-    const heightLimit = viewportBounds.height / state.zoom;
-
-    if (!Number.isFinite(widthLimit) || !Number.isFinite(heightLimit)) {
-      return null;
-    }
-
-    return { width: widthLimit, height: heightLimit } as const;
-  }, [isActive, state.zoom, viewportBounds.height, viewportBounds.width]);
+    // In responsive mode, on-screen size = display dimensions (zoom only
+    // changes the effective resolution inside the iframe), so limits are
+    // the raw container bounds.
+    return { width: viewportBounds.width, height: viewportBounds.height } as const;
+  }, [isActive, viewportBounds.height, viewportBounds.width]);
 
   const maxZoomForDimensions = useMemo(() => {
     if (!isActive) {
@@ -352,8 +348,10 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
       let next = sanitizeDeviceEmulationState(prev);
 
       if (next.presetId === 'responsive') {
-        const maxDisplayWidth = viewportBounds.width / next.zoom;
-        const maxDisplayHeight = viewportBounds.height / next.zoom;
+        // On-screen size = display dimensions (zoom only changes effective
+        // resolution), so clamp against raw container bounds.
+        const maxDisplayWidth = viewportBounds.width;
+        const maxDisplayHeight = viewportBounds.height;
 
         const currentDisplay = {
           width: next.isRotated ? next.customHeight : next.customWidth,
@@ -506,13 +504,16 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
 
       const adjustWidth = resizeState.mode === 'both' || resizeState.mode === 'width';
       const adjustHeight = resizeState.mode === 'both' || resizeState.mode === 'height';
-      const deltaX = adjustWidth ? (event.clientX - resizeState.startX) / state.zoom : 0;
-      const deltaY = adjustHeight ? (event.clientY - resizeState.startY) / state.zoom : 0;
+      // Resize handles only appear in responsive mode where on-screen size
+      // equals display dimensions, so mouse deltas map 1:1 to display changes
+      // and limits are the raw container bounds.
+      const deltaX = adjustWidth ? (event.clientX - resizeState.startX) : 0;
+      const deltaY = adjustHeight ? (event.clientY - resizeState.startY) : 0;
       const widthLimit = Number.isFinite(viewportBounds.width)
-        ? viewportBounds.width / state.zoom
+        ? viewportBounds.width
         : Number.POSITIVE_INFINITY;
       const heightLimit = Number.isFinite(viewportBounds.height)
-        ? viewportBounds.height / state.zoom
+        ? viewportBounds.height
         : Number.POSITIVE_INFINITY;
 
       const nextDisplayWidth = adjustWidth
@@ -648,30 +649,9 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
       }
 
       if (next.presetId === 'responsive') {
-        const maxDisplayWidth = viewportBounds.width / next.zoom;
-        const maxDisplayHeight = viewportBounds.height / next.zoom;
-
-        const currentDisplay = {
-          width: next.isRotated ? next.customHeight : next.customWidth,
-          height: next.isRotated ? next.customWidth : next.customHeight,
-        };
-
-        const limitedDisplay = {
-          width: clampDisplayToLimit(currentDisplay.width, maxDisplayWidth, DEVICE_MIN_WIDTH),
-          height: clampDisplayToLimit(currentDisplay.height, maxDisplayHeight, DEVICE_MIN_HEIGHT),
-        };
-
-        if (limitedDisplay.width !== currentDisplay.width || limitedDisplay.height !== currentDisplay.height) {
-          const base = mapDisplayToBaseDimensions(limitedDisplay, next.isRotated);
-          next = sanitizeDeviceEmulationState({
-            ...next,
-            customWidth: base.width,
-            customHeight: base.height,
-          }, {
-            minWidth: Math.max(1, Math.min(DEVICE_MIN_WIDTH, base.width)),
-            minHeight: Math.max(1, Math.min(DEVICE_MIN_HEIGHT, base.height)),
-          });
-        }
+        // Responsive zoom only changes the effective resolution inside the
+        // iframe — on-screen size stays the same, so no dimension clamping
+        // is needed when zoom changes.
       } else {
         const preset = DEVICE_PRESETS.find(candidate => candidate.id === next.presetId) ?? DEVICE_PRESETS[0];
         const presetDisplay = {

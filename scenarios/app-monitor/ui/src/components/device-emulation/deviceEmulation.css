@@ -253,11 +253,11 @@
 }
 
 .device-emulation-viewport__scheme--light {
-  filter: none;
+  filter: invert(0.92) hue-rotate(180deg);
 }
 
 .device-emulation-viewport__scheme--dark {
-  filter: invert(0.92) hue-rotate(180deg);
+  filter: none;
 }
 
 .device-emulation-viewport__vision--none {

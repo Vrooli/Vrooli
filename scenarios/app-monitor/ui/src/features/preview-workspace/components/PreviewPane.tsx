@@ -233,7 +233,7 @@ export function PreviewPane({
     viewport: deviceViewport,
   } = deviceEmulation;
   const useDeviceViewport = isDeviceEmulationActive && isDeviceViewportActive;
-  const standardPreviewZoom = useDeviceViewport ? 1 : workspaceZoom;
+  const standardPreviewZoom = useDeviceViewport ? 1 : (isDeviceEmulationActive ? deviceViewport.zoom : workspaceZoom);
   const standardPreviewStyle = useMemo<CSSProperties | undefined>(() => {
     if (standardPreviewZoom === 1) {
       return undefined;
