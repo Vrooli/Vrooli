@@ -1,5 +1,4 @@
 .diagnostics-tab {
-  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -28,7 +27,7 @@
   border-radius: 0.5rem;
   border: 1px solid var(--app-accent);
   background: var(--app-accent);
-  color: #fff;
+  color: var(--app-text-primary);
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.2s ease;
@@ -41,11 +40,6 @@
 .diagnostics-tab__loading-icon {
   animation: pulse 1.5s ease-in-out infinite;
   color: var(--app-accent);
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.1); }
 }
 
 .diagnostics-tab__success {
@@ -83,11 +77,11 @@
   align-items: center;
   gap: 0.6rem;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--app-text-primary);
+  color: var(--app-text-label);
 }
 
 /* Summary */
@@ -116,29 +110,29 @@
 
 .diagnostics-severity--ok,
 .diagnostics-severity--success {
-  color: #fff;
-  background: rgba(51, 226, 154, 0.2);
-  border: 1px solid rgba(51, 226, 154, 0.45);
+  color: var(--app-text-primary);
+  background: rgba(51, 226, 154, 0.16);
+  border: 1px solid rgba(51, 226, 154, 0.40);
 }
 
 .diagnostics-severity--warn,
 .diagnostics-severity--warning {
-  color: #fff;
-  background: rgba(255, 209, 102, 0.2);
-  border: 1px solid rgba(255, 209, 102, 0.45);
+  color: var(--app-text-primary);
+  background: rgba(255, 209, 102, 0.16);
+  border: 1px solid rgba(255, 209, 102, 0.40);
 }
 
 .diagnostics-severity--error {
-  color: #fff;
-  background: rgba(255, 111, 145, 0.2);
-  border: 1px solid rgba(255, 111, 145, 0.45);
+  color: var(--app-text-primary);
+  background: rgba(255, 111, 145, 0.16);
+  border: 1px solid rgba(255, 111, 145, 0.40);
 }
 
 .diagnostics-severity--unknown,
 .diagnostics-severity--degraded {
-  color: #fff;
-  background: rgba(148, 163, 184, 0.2);
-  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: var(--app-text-primary);
+  background: rgba(148, 163, 184, 0.16);
+  border: 1px solid rgba(148, 163, 184, 0.40);
 }
 
 .diagnostics-summary__text {
@@ -152,8 +146,8 @@
   align-items: center;
   gap: 0.6rem;
   padding: 0.6rem 1rem;
-  background: rgba(255, 209, 102, 0.15);
-  border: 1px solid rgba(255, 209, 102, 0.3);
+  background: rgba(255, 209, 102, 0.16);
+  border: 1px solid rgba(255, 209, 102, 0.40);
   border-radius: 10px;
   font-size: 0.9rem;
   font-weight: 600;
@@ -216,18 +210,18 @@
 }
 
 .diagnostics-warning__severity--error {
-  color: #fff;
-  background: rgba(255, 111, 145, 0.32);
+  color: var(--app-text-primary);
+  background: rgba(255, 111, 145, 0.16);
 }
 
 .diagnostics-warning__severity--warn {
-  color: #fff;
-  background: rgba(255, 209, 102, 0.3);
+  color: var(--app-text-primary);
+  background: rgba(255, 209, 102, 0.16);
 }
 
 .diagnostics-warning__severity--info {
-  color: #fff;
-  background: rgba(122, 160, 255, 0.3);
+  color: var(--app-text-primary);
+  background: rgba(122, 160, 255, 0.16);
 }
 
 .diagnostics-warning__message {
@@ -291,7 +285,7 @@
 
 .diagnostics-health-check__latency {
   font-size: 0.75rem;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--app-font-mono);
   color: var(--app-accent);
 }
 
@@ -348,8 +342,8 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: 4px;
-  color: #fff;
-  background: rgba(255, 168, 85, 0.36);
+  color: var(--app-text-primary);
+  background: rgba(255, 168, 85, 0.16);
 }
 
 .diagnostics-violation__description {
@@ -403,8 +397,8 @@
   align-items: flex-start;
   gap: 0.8rem;
   padding: 1rem;
-  background: rgba(255, 209, 102, 0.12);
-  border: 1px solid rgba(255, 209, 102, 0.3);
+  background: rgba(255, 209, 102, 0.16);
+  border: 1px solid rgba(255, 209, 102, 0.40);
   border-radius: 8px;
   color: rgba(255, 227, 167, 0.96);
 }
@@ -447,7 +441,7 @@
   font-size: 0.75rem;
   line-height: 1.4;
   color: rgba(226, 232, 255, 0.86);
-  background: rgba(6, 10, 22, 0.72);
+  background: var(--app-surface-sunken);
   border: 1px solid var(--app-border);
   border-radius: 6px;
   overflow-x: auto;
@@ -493,7 +487,7 @@
 .diagnostics-issues__stat-value {
   font-size: 1.8rem;
   font-weight: 700;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--app-font-mono);
   color: var(--app-accent);
 }
 

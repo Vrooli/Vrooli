@@ -97,18 +97,6 @@ export default function TechStackTab({ app, techStack, loading, error, onRetry }
                     )}
                   </span>
                   <div className="tech-stack-resource__badges">
-                    {dep.required && (
-                      <span className="tech-stack-badge tech-stack-badge--required">Required</span>
-                    )}
-                    {dep.installed && (
-                      <span className="tech-stack-badge tech-stack-badge--info">Installed</span>
-                    )}
-                    {dep.enabled && (
-                      <span className="tech-stack-badge tech-stack-badge--enabled">Enabled</span>
-                    )}
-                    {dep.running && (
-                      <span className="tech-stack-badge tech-stack-badge--success">Running</span>
-                    )}
                     {dep.running && dep.healthy && (
                       <span className="tech-stack-badge tech-stack-badge--healthy">Healthy</span>
                     )}
@@ -117,6 +105,12 @@ export default function TechStackTab({ app, techStack, loading, error, onRetry }
                     )}
                     {!dep.running && dep.enabled && (
                       <span className="tech-stack-badge tech-stack-badge--stopped">Stopped</span>
+                    )}
+                    {!dep.running && !dep.enabled && (
+                      <span className="tech-stack-badge tech-stack-badge--disabled">Disabled</span>
+                    )}
+                    {dep.required && !dep.running && (
+                      <span className="tech-stack-badge tech-stack-badge--required">Required</span>
                     )}
                   </div>
                 </div>

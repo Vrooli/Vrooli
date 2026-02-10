@@ -5,6 +5,8 @@ import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App.tsx'
 import { SnackStackProvider } from '@/notifications/SnackStackProvider'
 import './index.css'
+import './shared.css'
+import './components/app-modal/TabStateView.css'
 
 const sendDebugEvent = (event: string, detail?: Record<string, unknown>) => {
   try {

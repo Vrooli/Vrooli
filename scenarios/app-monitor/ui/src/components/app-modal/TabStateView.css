@@ -1,0 +1,30 @@
+.tab-state-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--app-text-muted);
+  font-size: 0.95rem;
+}
+
+.tab-state-view--error {
+  color: var(--app-danger);
+}
+
+.tab-state-view__retry {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--app-accent);
+  background: var(--app-accent);
+  color: var(--app-text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.tab-state-view__retry:hover {
+  opacity: 0.92;
+}

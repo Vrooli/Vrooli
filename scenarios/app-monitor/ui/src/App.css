@@ -4,13 +4,19 @@
   --app-bg-alt: #0b1022;
   --app-bg-overlay: rgba(12, 16, 28, 0.72);
   --app-surface: rgba(16, 19, 32, 0.9);
+  --app-surface-elevated: rgba(18, 26, 52, 0.64);
+  --app-surface-sunken: rgba(6, 10, 22, 0.72);
   --app-border: rgba(122, 160, 255, 0.28);
   --app-text-primary: #f5f6ff;
   --app-text-muted: rgba(245, 246, 255, 0.72);
+  --app-text-label: rgba(215, 228, 255, 0.72);
   --app-accent: #7aa0ff;
   --app-success: #33e29a;
   --app-warning: #ffd166;
   --app-danger: #ff6f91;
+  --app-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --app-btn-accent-text: #eafff4;
+  --app-btn-danger-text: #ffe9ef;
 }
 
 * {
