@@ -1,0 +1,40 @@
+{
+  "chair": [
+    { "position": [0, 1.1, 0], "rotation": 0 }
+  ],
+  "bench": [
+    { "position": [-0.4, 1.1, 0], "rotation": 0 },
+    { "position": [0, 1.1, 0], "rotation": 0 },
+    { "position": [0.4, 1.1, 0], "rotation": 0 }
+  ],
+  "stool": [
+    { "position": [0, 1.2, 0], "rotation": 0 }
+  ],
+  "armchair": [
+    { "position": [0, 1.05, 0], "rotation": 0 }
+  ],
+  "desk": [
+    { "position": [0, 0.8, 0.5], "rotation": 3.141593 }
+  ],
+  "table": [
+    { "position": [0, 0.8, 0.7], "rotation": 3.141593 },
+    { "position": [0, 0.8, -0.7], "rotation": 0 },
+    { "position": [0.7, 0.8, 0], "rotation": -1.570796 },
+    { "position": [-0.7, 0.8, 0], "rotation": 1.570796 }
+  ],
+  "picnic-table": [
+    { "position": [-0.25, 1.1, 0.4], "rotation": 3.141593 },
+    { "position": [0.25, 1.1, 0.4], "rotation": 3.141593 },
+    { "position": [-0.25, 1.1, -0.4], "rotation": 0 },
+    { "position": [0.25, 1.1, -0.4], "rotation": 0 }
+  ],
+  "coffee-table": [],
+  "campfire": [
+    { "position": [0.8, 0.2, 0], "rotation": 3.141593 },
+    { "position": [0.4, 0.2, 0.69282], "rotation": 4.18879 },
+    { "position": [-0.4, 0.2, 0.69282], "rotation": 5.235988 },
+    { "position": [-0.8, 0.2, 0], "rotation": 6.283185 },
+    { "position": [-0.4, 0.2, -0.69282], "rotation": 7.330383 },
+    { "position": [0.4, 0.2, -0.69282], "rotation": 8.37758 }
+  ]
+}

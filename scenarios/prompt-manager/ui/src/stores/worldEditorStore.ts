@@ -37,6 +37,10 @@ interface WorldEditorState {
   actionHistory: EditorAction[]
   /** Redo stack */
   redoStack: EditorAction[]
+  /** Furniture type currently being seat-edited (null = not editing) */
+  editingSeatType: FurnitureType | null
+  /** Furniture instance ID being seat-edited */
+  editingSeatFurnitureId: string | null
 }
 
 /** Actions for undo/redo */
@@ -75,6 +79,10 @@ interface WorldEditorActions {
   redo: () => void
   /** Clear undo/redo history without touching edit mode or selection. */
   clearHistory: () => void
+  /** Start editing seats for a furniture instance */
+  startSeatEdit: (furnitureId: string, furnitureType: FurnitureType) => void
+  /** Stop editing seats */
+  stopSeatEdit: () => void
   /** Reset editor state */
   reset: () => void
 }
@@ -89,6 +97,8 @@ const initialState: WorldEditorState = {
   paletteTab: 'furniture',
   actionHistory: [],
   redoStack: [],
+  editingSeatType: null,
+  editingSeatFurnitureId: null,
 }
 
 const MAX_HISTORY = 50
@@ -194,6 +204,20 @@ export const useWorldEditorStore = create<WorldEditorStore>((set, get) => ({
   },
 
   clearHistory: () => set({ actionHistory: [], redoStack: [] }),
+
+  startSeatEdit: (furnitureId, furnitureType) => {
+    set({
+      editingSeatFurnitureId: furnitureId,
+      editingSeatType: furnitureType,
+    })
+  },
+
+  stopSeatEdit: () => {
+    set({
+      editingSeatFurnitureId: null,
+      editingSeatType: null,
+    })
+  },
 
   reset: () => set(initialState),
 }))

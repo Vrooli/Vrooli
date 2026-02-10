@@ -6,6 +6,7 @@
 ## Primary Skills
 - **progress** — Priority ordering and tracking.
 - **leader-explore-plan-implement** — Pipeline for structuring multi-team technical work.
+- **triage-methodology** — Severity assessment for prioritizing escalations and conflicts.
 
 ## Operations Management
 - Track team assignments and status.

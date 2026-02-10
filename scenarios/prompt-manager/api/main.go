@@ -28,6 +28,7 @@ import (
 	"prompt-manager/templates"
 	"prompt-manager/testing"
 	"prompt-manager/worldscale"
+	"prompt-manager/worldseats"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -361,6 +362,10 @@ func main() {
 	// World scale routes
 	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")
 	v1.HandleFunc("/world-scale", worldscale.HandlePut(absStoreDir)).Methods("PUT")
+
+	// World seats routes
+	v1.HandleFunc("/world-seats", worldseats.HandleGet(absStoreDir)).Methods("GET")
+	v1.HandleFunc("/world-seats", worldseats.HandlePut(absStoreDir)).Methods("PUT")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")

@@ -59,7 +59,9 @@ import {
   ExportCCResponseSchema,
   ExclusiveMembersResponseSchema,
   WorldScaleConfigSchema,
+  WorldSeatsConfigSchema,
   type WorldScaleConfig,
+  type WorldSeatsConfig,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -815,6 +817,22 @@ class ApiClient {
         body: JSON.stringify(config),
       },
       WorldScaleConfigSchema
+    )
+  }
+
+  // World seats methods
+  async getWorldSeats(): Promise<WorldSeatsConfig> {
+    return this.request<WorldSeatsConfig>('/world-seats', undefined, WorldSeatsConfigSchema)
+  }
+
+  async setWorldSeats(config: WorldSeatsConfig): Promise<WorldSeatsConfig> {
+    return this.request<WorldSeatsConfig>(
+      '/world-seats',
+      {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      },
+      WorldSeatsConfigSchema
     )
   }
 }

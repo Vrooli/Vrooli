@@ -5,9 +5,12 @@
 
 import { useCallback, useMemo } from 'react'
 import { FurnitureItem } from './FurnitureItem'
+import { SeatHandle3D } from './SeatHandle3D'
 import { DraggableObject } from '../interaction'
 import { useFurnitureStore, useFurnitureList } from '@/stores/furnitureStore'
 import { useWorldScaleStore } from '@/stores/worldScaleStore'
+import { useWorldSeatsStore } from '@/stores/worldSeatsStore'
+import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { FurnitureInstance } from '@/types/furniture'
 import { FURNITURE_CONFIGS } from '@/types/furniture'
@@ -64,6 +67,27 @@ export function FurnitureManager({
     [moveFurniture]
   )
 
+  // Seat editing state
+  const editingSeatFurnitureId = useWorldEditorStore((s) => s.editingSeatFurnitureId)
+  const editingSeatType = useWorldEditorStore((s) => s.editingSeatType)
+  const editingSeats = useWorldSeatsStore((s) => editingSeatType ? s.seats[editingSeatType] ?? [] : [])
+  const updateSeat = useWorldSeatsStore((s) => s.updateSeat)
+
+  // Find the furniture instance being seat-edited
+  const editingFurniture = editingSeatFurnitureId
+    ? furnitureList.find((f) => f.id === editingSeatFurnitureId)
+    : null
+
+  const handleSeatPositionChange = useCallback(
+    (index: number, newLocalPos: [number, number, number]) => {
+      if (!editingSeatType) return
+      const currentSeat = editingSeats[index]
+      if (!currentSeat) return
+      updateSeat(editingSeatType, index, { ...currentSeat, position: newLocalPos })
+    },
+    [editingSeatType, editingSeats, updateSeat]
+  )
+
   return (
     <group name="furniture-manager">
       {furnitureList.map((furniture) => {
@@ -105,6 +129,18 @@ export function FurnitureManager({
 
         return item
       })}
+
+      {/* Seat editing handles */}
+      {editingFurniture && editingSeats.map((seat, index) => (
+        <SeatHandle3D
+          key={`seat-${index}`}
+          seat={seat}
+          index={index}
+          furniturePosition={editingFurniture.position}
+          furnitureRotation={editingFurniture.rotation}
+          onPositionChange={(newLocalPos) => handleSeatPositionChange(index, newLocalPos)}
+        />
+      ))}
     </group>
   )
 }

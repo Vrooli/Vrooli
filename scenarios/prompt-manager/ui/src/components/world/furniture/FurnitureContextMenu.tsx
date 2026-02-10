@@ -4,11 +4,12 @@
  */
 
 import { useCallback, useMemo } from 'react'
-import { Move, Trash2, X, UserPlus, Sun, Lightbulb, LightbulbOff } from 'lucide-react'
+import { Move, Trash2, X, UserPlus, Sun, Lightbulb, LightbulbOff, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useFurnitureStore, useFurnitureList } from '@/stores/furnitureStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { FURNITURE_CONFIGS, type FurnitureInstance } from '@/types/furniture'
+import { useWorldSeatsStore } from '@/stores/worldSeatsStore'
 import type { LightMode } from '@/types/decoration'
 import type { Agent } from '@/types/agent'
 
@@ -44,6 +45,7 @@ export function FurnitureContextMenu({
   const setFurnitureLightMode = useFurnitureStore((state) => state.setLightMode)
   const setEditMode = useWorldEditorStore((state) => state.setEditMode)
   const selectObject = useWorldEditorStore((state) => state.selectObject)
+  const startSeatEdit = useWorldEditorStore((state) => state.startSeatEdit)
 
   // Read live furniture so light mode changes reflect immediately
   const furnitureListLive = useFurnitureList()
@@ -61,7 +63,8 @@ export function FurnitureContextMenu({
 
   // Get furniture config
   const config = furniture ? FURNITURE_CONFIGS[furniture.type] : null
-  const seats = useMemo(() => config?.seats ?? [], [config])
+  const seatPositions = useWorldSeatsStore((s) => furniture ? s.seats[furniture.type] : undefined)
+  const seats = useMemo(() => seatPositions ?? [], [seatPositions])
   const hasSeat = seats.length > 0
 
   // Find which seats are occupied
@@ -116,6 +119,12 @@ export function FurnitureContextMenu({
     removeFurniture(furniture.id)
     onClose()
   }, [furniture, agentsOnThisFurniture, onUnsitAgent, removeFurniture, onClose])
+
+  const handleEditSeats = useCallback(() => {
+    if (!furniture) return
+    startSeatEdit(furniture.id, furniture.type)
+    onClose()
+  }, [furniture, startSeatEdit, onClose])
 
   const handleSitAgent = useCallback(
     (agentId: string) => {
@@ -272,6 +281,15 @@ export function FurnitureContextMenu({
         >
           <Move className="h-3.5 w-3.5" />
           <span className="text-xs">Move</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleEditSeats}
+          className="flex-1 h-8 gap-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20"
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          <span className="text-xs">Seats</span>
         </Button>
         <Button
           variant="ghost"

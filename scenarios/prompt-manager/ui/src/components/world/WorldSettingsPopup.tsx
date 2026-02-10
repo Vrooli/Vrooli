@@ -156,7 +156,7 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
       document.addEventListener('keydown', handleKeyDown)
       document.addEventListener('mousedown', handleClickOutside)
       document.body.style.overflow = 'hidden'
-      fetchScales()
+      void fetchScales()
     }
 
     return () => {

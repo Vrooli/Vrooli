@@ -11,7 +11,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { FurnitureInstance, FurnitureType, SeatPosition } from '@/types/furniture'
 import type { LightMode } from '@/types/decoration'
-import { FURNITURE_CONFIGS, DEFAULT_FURNITURE_COLORS } from '@/types/furniture'
+import { DEFAULT_FURNITURE_COLORS } from '@/types/furniture'
+import { getSeats } from '@/stores/worldSeatsStore'
 import type { SceneType } from '@/types/environment'
 import { useEnvironmentStore } from './environmentStore'
 import { getSceneDefaults } from '@/config/sceneDefaults'
@@ -166,8 +167,8 @@ export const useFurnitureStore = create<FurnitureStore>()(
         const furn = furnitureList.find((f) => f.id === furnitureId)
         if (!furn) return false
 
-        const config = FURNITURE_CONFIGS[furn.type]
-        if (config.seats.length === 0) return false
+        const seats = getSeats(furn.type)
+        if (seats.length === 0) return false
 
         // Find occupied seat indices for this furniture
         const occupiedIndices = new Set(
@@ -179,7 +180,7 @@ export const useFurnitureStore = create<FurnitureStore>()(
         // Determine which seat to use
         let targetSeatIndex = seatIndex ?? 0
         if (seatIndex === undefined) {
-          const availableSeat = config.seats.findIndex(
+          const availableSeat = seats.findIndex(
             (_, idx) => !occupiedIndices.has(idx)
           )
           if (availableSeat === -1) return false
@@ -188,7 +189,7 @@ export const useFurnitureStore = create<FurnitureStore>()(
           if (occupiedIndices.has(seatIndex)) return false
         }
 
-        if (targetSeatIndex >= config.seats.length) return false
+        if (targetSeatIndex >= seats.length) return false
 
         // Unseat from previous furniture if any
         if (seatedAgents[agentId]) {
@@ -233,14 +234,14 @@ export const useFurnitureStore = create<FurnitureStore>()(
         const furn = furnitureList.find((f) => f.id === furnitureId)
         if (!furn) return []
 
-        const config = FURNITURE_CONFIGS[furn.type]
+        const seats = getSeats(furn.type)
         const occupiedIndices = new Set(
           Object.values(seatedAgents)
             .filter((info) => info.furnitureId === furnitureId)
             .map((info) => info.seatIndex)
         )
 
-        return config.seats.filter((_, idx) => !occupiedIndices.has(idx))
+        return seats.filter((_, idx) => !occupiedIndices.has(idx))
       },
 
       getAgentSeatPosition: (agentId) => {
@@ -253,8 +254,8 @@ export const useFurnitureStore = create<FurnitureStore>()(
         const furn = furnitureList.find((f) => f.id === seatInfo.furnitureId)
         if (!furn) return null
 
-        const config = FURNITURE_CONFIGS[furn.type]
-        const seat = config.seats[seatInfo.seatIndex]
+        const seats = getSeats(furn.type)
+        const seat = seats[seatInfo.seatIndex]
         if (!seat) return null
 
         // Calculate world position (furniture position + rotated seat offset)

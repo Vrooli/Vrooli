@@ -27,6 +27,7 @@ import { DisplayPanel } from './DisplayPanel'
 import { AgentOverlay } from './AgentOverlay'
 import { WorldEditorToolbar, ObjectPalette } from './editor'
 import { FurnitureContextMenu } from './furniture'
+import { SeatEditorOverlay } from './furniture/SeatEditorOverlay'
 import { DecorationContextMenu } from './decorations'
 import { AgentCustomizeModal } from '../agent/AgentCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
@@ -428,6 +429,11 @@ export function WorldCanvas({
           />
         </div>
       )}
+
+      {/* Seat editor overlay */}
+      <div className="absolute top-16 left-4 z-10">
+        <SeatEditorOverlay />
+      </div>
 
       {/* Decoration context menu */}
       {selectedDecoration && (

@@ -67,7 +67,7 @@ scenario-to-desktop --auto-start status
 Check LPBS deployment by selector:
 
 ```bash
-scenario-to-cloud --auto-start deployment health --domain {{DOMAIN}} --scenario landing-page-business-suite --json
+scenario-to-cloud --auto-start deployment health --domain {{DOMAIN}} --scenario landing-page-business-suite
 ```
 
 If missing/unhealthy, converge:
@@ -110,41 +110,7 @@ Minimal readiness check (preferred; single contract):
 landing-page-business-suite --auto-start deploy-readiness \
   --profile-tag {{PROFILE_TAG}} \
   --domain {{DOMAIN}} \
-  --json
-```
-
-Remote readiness gates (required for deploy handoff):
-- Remote download storage must be configured and testable (this is the most common deploy blocker).
-- Remote app registry must contain `{{APP_KEY}}` (deploy requires the remote LPBS to know this app key).
-
-Remote storage test (via remote profile proxy):
-```bash
-# Preferred: selector-first by tag (no numeric id required)
-landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
-  --method POST --path /admin/download-storage/test --json
-
-# Optional: inspect available profiles (useful for debugging tag/id drift)
-landing-page-business-suite --auto-start remote-profiles-list --json
-```
-
-Remote app registry check + optional onboarding:
-```bash
-landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
-  --method GET --path /admin/download-apps --json
-```
-
-If `{{APP_KEY}}` is missing and you intend to onboard it, create it:
-```bash
-cat > /tmp/lpbs-remote-app.json <<'JSON'
-{
-  "app_key": "{{APP_KEY}}",
-  "name": "{{APP_NAME}}",
-  "description": "Desktop application"
-}
-JSON
-
-landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
-  --method POST --path /admin/download-apps --body @/tmp/lpbs-remote-app.json --json
+  --app-key {{APP_KEY}} \
 ```
 
 If any readiness check fails:
@@ -152,9 +118,7 @@ If any readiness check fails:
 - Follow `landing-page-deploy-setup` to converge
 
 Pass condition:
-- Base setup gates pass for `{{PROFILE_TAG}}`.
-- Remote storage test passes for `{{PROFILE_TAG}}` (via remote proxy).
-- Remote app gate passes for `{{APP_KEY}}` (existing app or newly created app).
+- `deploy-readiness` passes for `{{PROFILE_TAG}}` + `{{APP_KEY}}` (includes remote storage and remote app-key gates).
 
 #### Stage 3: Build + deploy desktop artifact (`scenario-to-desktop`)
 
@@ -193,40 +157,14 @@ Manifest checks:
 curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/latest-linux.yml"
 ```
 
-Artifact download checks (recommended):
-- The manifest only proves update metadata is published.
-- Also verify the artifact path itself resolves (LPBS commonly responds `302` to a storage URL, but `200` may occur depending on edge/CDN configuration).
-- If the artifact filename contains spaces, URL-encode them (spaces → `%20`) or the check may return `404`.
-
-Use the artifact filename from the pipeline output (Stage 3) and check it:
-
-```bash
-# Example (artifact filename must match the built output)
-curl -sS -o /dev/null -w '%{http_code}\n' --max-redirs 0 \
-  "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/<artifact-filename>"
-```
-
-Pass expectation:
-- Returns `302` or `200` for each artifact you shipped (must not be 4xx/5xx).
-
-Optionally verify remote LPBS artifact records (via remote profile proxy):
-
-```bash
-landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
-  --method GET --path /admin/download-artifacts --query app_key={{APP_KEY}} --json
-```
+Note:
+- Some deployments may return `405` for `HEAD` requests on manifest URLs. Use `GET` (`curl -fsS ...`) as the authoritative check.
 
 Discovery fallback (when manifest URL returns 404 but Stage 3 succeeded):
-- Use remote LPBS artifact records to discover what the current deployed artifact+version are:
-  ```bash
-  landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
-    --method GET --path /admin/download-artifacts --query app_key={{APP_KEY}} --json
-  ```
-- Then re-run the manifest and artifact checks using the discovered filenames/versions.
+- Run `scenario-to-desktop pipeline status <pipeline_id> --verbose` and use the printed update URL to confirm you’re checking the correct domain/app key.
 
 Pass condition:
 - Manifest request(s) succeed for each platform in `{{PLATFORMS}}`.
-- Artifact metadata exists in LPBS.
 
 ---
 
@@ -274,11 +212,48 @@ If Stage 3 fails with a generic deploy error (for example `deploy failed` / `INT
 
 1. Inspect pipeline status:
 ```bash
-scenario-to-desktop --auto-start pipeline status <pipeline_id> --verbose --json
+scenario-to-desktop --auto-start pipeline status <pipeline_id> --verbose
 ```
 
 2. Confirm build artifacts exist in the pipeline output:
 - `stages.build.details.artifacts` must include at least one platform path for the platforms you deployed.
+
+### Stage 3 appears stuck / prints nothing
+
+Symptom:
+- `scenario-to-desktop ... --wait` prints nothing for a long time, and you can’t tell whether the pipeline is running.
+
+First check:
+```bash
+scenario-to-desktop pipeline active {{TARGET}} --json
+```
+
+Cases:
+- If `status=idle` and `current_state=created`:
+  - start it explicitly:
+    ```bash
+    scenario-to-desktop --auto-start pipeline start {{TARGET}} \
+      --platforms {{PLATFORMS}} \
+      --wait \
+      --deploy-to landing-page-business-suite \
+      --remote-profile {{PROFILE_TAG}} \
+      --app-key {{APP_KEY}}
+    ```
+- If `status=running`:
+  - poll status until it completes:
+    ```bash
+    scenario-to-desktop --auto-start pipeline status <pipeline_id> --verbose
+    ```
+- If `status=failed`:
+  - rerun with app output:
+    ```bash
+    scenario-to-desktop --auto-start pipeline start {{TARGET}} \
+      --platforms {{PLATFORMS}} \
+      --wait --show-output \
+      --deploy-to landing-page-business-suite \
+      --remote-profile {{PROFILE_TAG}} \
+      --app-key {{APP_KEY}}
+    ```
 
 3. Validate remote prerequisites deterministically (via remote profile proxy):
 ```bash

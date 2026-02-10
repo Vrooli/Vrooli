@@ -194,3 +194,10 @@ export {
   WorldScaleConfigSchema,
   type WorldScaleConfig,
 } from './worldScale.schema'
+
+// World seats schemas
+export {
+  SeatPositionSchema,
+  WorldSeatsConfigSchema,
+  type WorldSeatsConfig,
+} from './worldSeats.schema'

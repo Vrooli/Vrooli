@@ -75,11 +75,19 @@ Run gates in order. Do not skip a failing gate.
 Primary-path rule:
 - Run Gate A and Gate B first.
 - Then run the readiness-first check:
-  ```bash
-  landing-page-business-suite deploy-readiness \
-    --profile-tag {{PROFILE_TAG}} \
-    --domain {{DOMAIN}}
-  ```
+  - Base readiness:
+    ```bash
+    landing-page-business-suite deploy-readiness \
+      --profile-tag {{PROFILE_TAG}} \
+      --domain {{DOMAIN}}
+    ```
+  - If you are preparing for a specific desktop app release, include the app gate:
+    ```bash
+    landing-page-business-suite deploy-readiness \
+      --profile-tag {{PROFILE_TAG}} \
+      --domain {{DOMAIN}} \
+      --app-key {{APP_KEY}}
+    ```
 - If `deploy-readiness` reports `READY`, continue directly to Gate G.1 and Gate 5.
 - If `deploy-readiness` fails, use Gates C/D/F as remediation gates based on the reported failing checks.
 
@@ -376,13 +384,10 @@ landing-page-business-suite deploy-readiness \
   --profile-tag {{PROFILE_TAG}} \
   --domain {{DOMAIN}}
 
+# If validating readiness for a specific release, include:
+#   --app-key {{APP_KEY}}
+
 scenario-to-desktop deploy-target test {{PROFILE_TAG}} --require-service-auth
-```
-
-Optional app-level check:
-
-```bash
-landing-page-business-suite admin-download-apps-list
 ```
 
 All executed commands must succeed.

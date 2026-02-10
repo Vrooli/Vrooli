@@ -28,7 +28,7 @@ const DEBOUNCE_MS = 500
 function debouncedSave(config: WorldScaleConfig) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    api.setWorldScale(config).catch((err) => {
+    api.setWorldScale(config).catch((err: unknown) => {
       console.error('[worldScaleStore] Failed to save scales:', err)
     })
   }, DEBOUNCE_MS)
@@ -67,4 +67,4 @@ export const useWorldScaleStore = create<WorldScaleStore>()((set, get) => ({
 }))
 
 // Auto-fetch on first import so scales are applied before the settings popup opens
-useWorldScaleStore.getState().fetchScales()
+void useWorldScaleStore.getState().fetchScales()
