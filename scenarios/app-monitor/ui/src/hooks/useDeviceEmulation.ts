@@ -143,23 +143,23 @@ const resolveStorageKey = (storageNamespace?: string): string => {
   return `${DEVICE_EMULATION_STORAGE_KEY}:${namespace}`;
 };
 
-const readDeviceEmulationSettings = (storageNamespace?: string): { active: boolean; state: DeviceEmulationState } => {
+const readDeviceEmulationSettings = (storageNamespace?: string): { active: boolean; viewportActive: boolean; state: DeviceEmulationState } => {
   if (typeof window === 'undefined') {
-    return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+    return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
   }
 
   try {
     const raw = window.localStorage.getItem(resolveStorageKey(storageNamespace));
     if (!raw) {
-      return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+      return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
     }
 
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') {
-      return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+      return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
     }
 
-    const record = parsed as { active?: unknown; state?: unknown };
+    const record = parsed as { active?: unknown; viewportActive?: unknown; state?: unknown };
     const rawState = typeof record.state === 'object' && record.state !== null
       ? sanitizeDeviceEmulationState(record.state as Partial<DeviceEmulationState>)
       : { ...DEFAULT_DEVICE_EMULATION_STATE };
@@ -169,14 +169,19 @@ const readDeviceEmulationSettings = (storageNamespace?: string): { active: boole
       active = record.active;
     }
 
-    return { active, state: rawState };
+    let viewportActive = true;
+    if (typeof record.viewportActive === 'boolean') {
+      viewportActive = record.viewportActive;
+    }
+
+    return { active, viewportActive, state: rawState };
   } catch (error) {
     logger.warn('Failed to read device emulation settings', error);
-    return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+    return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
   }
 };
 
-const writeDeviceEmulationSettings = (active: boolean, state: DeviceEmulationState, storageNamespace?: string) => {
+const writeDeviceEmulationSettings = (active: boolean, viewportActive: boolean, state: DeviceEmulationState, storageNamespace?: string) => {
   if (typeof window === 'undefined') {
     return;
   }
@@ -184,7 +189,7 @@ const writeDeviceEmulationSettings = (active: boolean, state: DeviceEmulationSta
   try {
     window.localStorage.setItem(
       resolveStorageKey(storageNamespace),
-      JSON.stringify({ active, state: sanitizeDeviceEmulationState(state) }),
+      JSON.stringify({ active, viewportActive, state: sanitizeDeviceEmulationState(state) }),
     );
   } catch (error) {
     logger.warn('Failed to persist device emulation settings', error);
@@ -206,8 +211,10 @@ interface DeviceEmulationToolbarBindings {
   colorScheme: DeviceColorScheme;
   vision: DeviceVisionMode;
   isResponsive: boolean;
+  isViewportActive: boolean;
   maxResponsiveWidth: number | null;
   maxResponsiveHeight: number | null;
+  onToggleViewportActive: () => void;
   onPresetChange: (presetId: DevicePresetId) => void;
   onDimensionChange: (dimension: 'width' | 'height', value: number) => void;
   onZoomChange: (zoom: DeviceZoomLevel) => void;
@@ -231,6 +238,7 @@ interface DeviceEmulationViewportBindings {
 
 interface DeviceEmulationHookValue {
   isActive: boolean;
+  isViewportActive: boolean;
   toggleActive: () => void;
   toolbar: DeviceEmulationToolbarBindings;
   viewport: DeviceEmulationViewportBindings;
@@ -243,6 +251,7 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
   );
   const [state, setState] = useState<DeviceEmulationState>(initialSettings.state);
   const [isActive, setIsActive] = useState<boolean>(initialSettings.active);
+  const [isViewportActive, setIsViewportActive] = useState<boolean>(initialSettings.viewportActive ?? true);
   const [viewportBounds, setViewportBounds] = useState<Readonly<{ width: number; height: number }>>({
     width: Number.POSITIVE_INFINITY,
     height: Number.POSITIVE_INFINITY,
@@ -434,8 +443,8 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
   }, [currentZoomDisplayLimits, isActive, selectedPreset.id, state.customHeight, state.customWidth, state.isRotated, state.zoom]);
 
   useEffect(() => {
-    writeDeviceEmulationSettings(isActive, state, storageNamespace);
-  }, [isActive, state, storageNamespace]);
+    writeDeviceEmulationSettings(isActive, isViewportActive, state, storageNamespace);
+  }, [isActive, isViewportActive, state, storageNamespace]);
 
   useLayoutEffect(() => {
     if (!isActive || typeof window === 'undefined') {
@@ -569,6 +578,10 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
 
   const toggleActive = useCallback(() => {
     setIsActive(current => !current);
+  }, []);
+
+  const toggleViewportActive = useCallback(() => {
+    setIsViewportActive(current => !current);
   }, []);
 
   const handlePresetChange = useCallback((nextPresetId: DevicePresetId) => {
@@ -735,8 +748,10 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
     colorScheme: state.colorScheme,
     vision: state.vision,
     isResponsive: selectedPreset.id === 'responsive',
+    isViewportActive,
     maxResponsiveWidth: currentZoomDisplayLimits?.width ?? null,
     maxResponsiveHeight: currentZoomDisplayLimits?.height ?? null,
+    onToggleViewportActive: toggleViewportActive,
     onPresetChange: handlePresetChange,
     onDimensionChange: handleDimensionChange,
     onZoomChange: handleZoomChange,
@@ -760,6 +775,7 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
 
   return {
     isActive,
+    isViewportActive,
     toggleActive,
     toolbar: toolbarBindings,
     viewport: viewportBindings,

@@ -227,11 +227,13 @@ export function PreviewPane({
   });
   const {
     isActive: isDeviceEmulationActive,
+    isViewportActive: isDeviceViewportActive,
     toggleActive: toggleDeviceEmulation,
     toolbar: deviceToolbar,
     viewport: deviceViewport,
   } = deviceEmulation;
-  const standardPreviewZoom = isDeviceEmulationActive ? 1 : workspaceZoom;
+  const useDeviceViewport = isDeviceEmulationActive && isDeviceViewportActive;
+  const standardPreviewZoom = useDeviceViewport ? 1 : workspaceZoom;
   const standardPreviewStyle = useMemo<CSSProperties | undefined>(() => {
     if (standardPreviewZoom === 1) {
       return undefined;
@@ -678,14 +680,14 @@ export function PreviewPane({
           <div
             className={clsx(
               'preview-pane__iframe-shell',
-              isDeviceEmulationActive && 'preview-pane__iframe-shell--emulated',
+              useDeviceViewport && 'preview-pane__iframe-shell--emulated',
             )}
             ref={(node) => {
               previewContainerRef.current = node;
               setPreviewContainerNode(node);
             }}
           >
-            {isDeviceEmulationActive ? (
+            {useDeviceViewport ? (
               <DeviceEmulationViewport {...deviceViewport}>
                 <iframe
                   key={previewReloadToken}
@@ -703,19 +705,27 @@ export function PreviewPane({
                 className={clsx(
                   'preview-pane__iframe-scale',
                   standardPreviewZoom !== 1 && 'preview-pane__iframe-scale--zoomed',
+                  isDeviceEmulationActive && `device-emulation-viewport__scheme--${deviceViewport.colorScheme}`,
                 )}
                 style={standardPreviewStyle}
               >
-                <iframe
-                  key={previewReloadToken}
-                  ref={iframeRef}
-                  src={previewUrl}
-                  title={`${currentApp?.name ?? 'Application'} preview pane`}
-                  className="preview-pane__iframe"
-                  loading="eager"
-                  onLoad={onIframeLoad}
-                  onError={onIframeError}
-                />
+                <div
+                  className={clsx(
+                    'preview-pane__iframe-scale-inner',
+                    isDeviceEmulationActive && `device-emulation-viewport__vision--${deviceViewport.vision}`,
+                  )}
+                >
+                  <iframe
+                    key={previewReloadToken}
+                    ref={iframeRef}
+                    src={previewUrl}
+                    title={`${currentApp?.name ?? 'Application'} preview pane`}
+                    className="preview-pane__iframe"
+                    loading="eager"
+                    onLoad={onIframeLoad}
+                    onError={onIframeError}
+                  />
+                </div>
               </div>
             )}
             {fallbackState && <PreviewFallbackState state={fallbackState} variant="overlay" />}

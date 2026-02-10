@@ -3,11 +3,12 @@
   flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
-  padding: 0.55rem 0.75rem;
+  padding: 0.45rem 0.6rem;
   margin: 0;
-  border: 1px solid var(--app-border);
-  background: rgba(11, 16, 34, 0.82);
-  border-radius: 8px;
+  border: 0;
+  border-bottom: 1px solid var(--app-border);
+  background: rgba(12, 18, 36, 0.92);
+  border-radius: 0;
   color: var(--app-text-primary);
   font-size: 0.6rem;
 }
@@ -33,7 +34,7 @@
 
 .device-emulation-toolbar__select {
   display: inline-block;
-  height: 100%;
+  height: 1.5rem;
   background: rgba(11, 16, 34, 0.92);
   border: 1px solid var(--app-border);
   color: var(--app-text-primary);
@@ -134,12 +135,17 @@
   outline-offset: 2px;
 }
 
+.device-emulation-toolbar__icon-btn--active {
+  background: rgba(122, 160, 255, 0.28);
+  border-color: rgba(122, 160, 255, 0.48);
+}
+
 .device-emulation-viewport {
   position: relative;
   display: inline-block;
   width: auto;
   height: auto;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid var(--app-border);
   background: rgba(6, 10, 22, 0.94);
   box-shadow: 0 10px 26px rgba(3, 7, 18, 0.5);
@@ -182,82 +188,64 @@
   z-index: 2;
   touch-action: none;
   user-select: none;
+  background: rgba(122, 160, 255, 0.10);
+  transition: background 0.15s ease;
 }
 
-.device-emulation-viewport__resize-handle::before,
-.device-emulation-viewport__resize-handle::after {
+.device-emulation-viewport__resize-handle:hover {
+  background: rgba(122, 160, 255, 0.28);
+}
+
+.device-emulation-viewport__resize-handle::before {
   content: '';
   position: absolute;
   pointer-events: none;
   border-radius: 1px;
+  background: rgba(122, 160, 255, 0.45);
 }
 
 .device-emulation-viewport__resize-handle--right {
   top: 0;
-  bottom: 12px;
-  right: -5px;
-  width: 12px;
+  bottom: 0;
+  right: -7px;
+  width: 7px;
   cursor: ew-resize;
 }
 
 .device-emulation-viewport__resize-handle--right::before {
-  inset: 26% 5px 26% 7px;
-  background: linear-gradient(
-    180deg,
-    rgba(122, 160, 255, 0.12),
-    rgba(122, 160, 255, 0.74),
-    rgba(122, 160, 255, 0.12)
-  );
+  top: 50%;
+  left: 50%;
+  width: 1px;
+  height: 28px;
+  transform: translate(-50%, -50%);
 }
 
 .device-emulation-viewport__resize-handle--bottom {
   left: 0;
-  right: 12px;
-  bottom: -5px;
-  height: 12px;
+  right: 0;
+  bottom: -7px;
+  height: 7px;
   cursor: ns-resize;
 }
 
 .device-emulation-viewport__resize-handle--bottom::before {
-  inset: 7px 26% 5px 26%;
-  background: linear-gradient(
-    90deg,
-    rgba(122, 160, 255, 0.12),
-    rgba(122, 160, 255, 0.74),
-    rgba(122, 160, 255, 0.12)
-  );
+  top: 50%;
+  left: 50%;
+  height: 1px;
+  width: 28px;
+  transform: translate(-50%, -50%);
 }
 
 .device-emulation-viewport__resize-handle--corner {
-  width: 16px;
-  height: 16px;
-  right: -5px;
-  bottom: -5px;
+  width: 7px;
+  height: 7px;
+  right: -7px;
+  bottom: -7px;
   cursor: nwse-resize;
 }
 
 .device-emulation-viewport__resize-handle--corner::before {
-  top: 3px;
-  bottom: 3px;
-  left: 6px;
-  width: 3px;
-  background: linear-gradient(
-    180deg,
-    rgba(122, 160, 255, 0.12),
-    rgba(122, 160, 255, 0.68)
-  );
-}
-
-.device-emulation-viewport__resize-handle--corner::after {
-  left: 3px;
-  right: 3px;
-  bottom: 6px;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(122, 160, 255, 0.12),
-    rgba(122, 160, 255, 0.68)
-  );
+  display: none;
 }
 
 .device-emulation-viewport__scheme--system {
