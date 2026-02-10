@@ -255,52 +255,59 @@ landing-page-business-suite remote-profiles-create \
 Resolve profile id by tag:
 
 ```bash
-# First inspect selector-first output:
-landing-page-business-suite remote-profiles-list
+# Selector-first login path:
+landing-page-business-suite remote-profiles-login \
+  --tag {{PROFILE_TAG}} \
+  --email <remote_admin_email> \
+  --password @/path/to/remote-admin-password.txt
 
-# If ID is needed, confirm with JSON:
-landing-page-business-suite remote-profiles-list --json
-# Select object where tag == {{PROFILE_TAG}}, then set:
-REMOTE_PROFILE_ID=<numeric id tied to {{PROFILE_TAG}}>
-test -n "$REMOTE_PROFILE_ID"
+# Canonical readiness check (tag-supported):
+landing-page-business-suite remote-profiles-test --tag {{PROFILE_TAG}}
 ```
 
 Selector-first rule:
-- Pick the row where `tag == {{PROFILE_TAG}}`.
-- Do not use an ID from any other tag.
+- Prefer `--tag {{PROFILE_TAG}}` over numeric IDs.
+- If a numeric ID must be used, it must map to `tag == {{PROFILE_TAG}}`.
 - Never assume a fixed ID (for example `1`).
-- If mapping tag-to-ID is ambiguous or cannot be confirmed, stop and fix remote profile state before login/test.
 
 Login + test:
 
 ```bash
 landing-page-business-suite remote-profiles-login \
+  --tag {{PROFILE_TAG}} \
   --email <remote_admin_email> \
-  --password @/path/to/remote-admin-password.txt \
-  "$REMOTE_PROFILE_ID"
+  --password @/path/to/remote-admin-password.txt
 
-landing-page-business-suite remote-profiles-test "$REMOTE_PROFILE_ID"
+landing-page-business-suite remote-profiles-test --tag {{PROFILE_TAG}}
 ```
 
 Pass condition:
-- `remote-profiles-test` succeeds for the profile id tied to `{{PROFILE_TAG}}`.
-- `landing-page-business-suite remote-profiles-test "$REMOTE_PROFILE_ID"` is the canonical readiness check.
+- `remote-profiles-test --tag {{PROFILE_TAG}}` succeeds.
 - Do not treat `scenario-to-desktop deploy-target test <name>` as a replacement for Gate F pass/fail.
 
 #### Gate G: Ensure `LPBS_SERVICE_SECRET` is set for deploy stage auth
 
 ```bash
-export LPBS_SERVICE_SECRET='<shared-secret>'
-test -n "${LPBS_SERVICE_SECRET:-}"
+scenario-to-cloud secrets set LPBS_SERVICE_SECRET \
+  --scenario landing-page-business-suite \
+  --generate hex:64 \
+  --targets scenario,deployment \
+  --domain {{DOMAIN}} \
+  --restart
 ```
 
 Pass condition:
-- `LPBS_SERVICE_SECRET` is non-empty in the shell that runs `scenario-to-desktop pipeline run ... --deploy-*`.
+- `LPBS_SERVICE_SECRET` is configured through scenario CLI surfaces (scenario + deployment targets).
 - Presence check validates non-empty only. If deploy later fails with service auth 401/403, treat as mismatch and re-sync with LPBS runtime configuration.
 
 Gate G.1 (recommended for unattended runs): verify LPBS runtime has service auth enabled
 
 ```bash
+scenario-to-cloud secrets verify LPBS_SERVICE_SECRET \
+  --scenario landing-page-business-suite \
+  --targets scenario,deployment \
+  --domain {{DOMAIN}}
+
 landing-page-business-suite service-auth-status --require-enabled
 ```
 
@@ -335,6 +342,15 @@ scenario-to-desktop deploy-target test {{PROFILE_TAG}} --require-service-auth
 
 Fail Gate G.2 on session/auth failures and re-run Gate G.1 before deploy handoff.
 
+Known-good auth probe set (run before deploy handoff):
+
+```bash
+landing-page-business-suite service-auth-status --require-enabled
+scenario-to-desktop deploy-target test {{PROFILE_TAG}} --require-service-auth
+```
+
+If either command fails, stop and hand off LPBS runtime secret sync/restart to the LPBS runtime owner.
+
 ---
 
 ### 5. Readiness Verification Bundle
@@ -342,9 +358,13 @@ Fail Gate G.2 on session/auth failures and re-run Gate G.1 before deploy handoff
 Run this before handing off to deployment:
 
 ```bash
+landing-page-business-suite deploy-readiness \
+  --profile-tag {{PROFILE_TAG}} \
+  --domain {{DOMAIN}}
+
 landing-page-business-suite admin-session
 landing-page-business-suite admin-download-storage-test
-landing-page-business-suite remote-profiles-test "$REMOTE_PROFILE_ID"
+landing-page-business-suite remote-profiles-test --tag {{PROFILE_TAG}}
 ```
 
 Optional app-level check:
@@ -376,10 +396,10 @@ Use this section for long-tail operational failures and recovery paths.
 | `remote-profiles-create` returns `409` `Remote profile tag already exists` | `{{PROFILE_TAG}}` already exists | Run `remote-profiles-list`, select existing profile where `tag == {{PROFILE_TAG}}`, and continue with login/test using that ID |
 | `remote-profiles-list` returns `500` | Legacy/invalid remote profile rows (for example `connector_id` is `NULL`) or server-side schema drift | Run `vrooli scenario logs landing-page-business-suite --runtime`; if logs show `list_remote_profiles_failed`, stop Gate F and hand off a data/code fix task before retrying |
 | `remote-profiles-create` fails for API base problems (may be generic, including 4xx/5xx) | `api_base` missing `/api/v1` or endpoint mismatch | Re-run with `--api-base=https://{{DOMAIN}}/api/v1`; if still failing, run `scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario landing-page-business-suite` |
-| `Remote profile is not logged in` / session expired | Remote cookie missing/expired | Re-run `remote-profiles-login`, then `remote-profiles-test` |
+| `Remote profile is not logged in` / session expired | Remote cookie missing/expired | Re-run `remote-profiles-login --tag {{PROFILE_TAG}}`, then `remote-profiles-test --tag {{PROFILE_TAG}}` |
 | `remote-profiles-login` returns `401` and later admin commands fail with `admin session not configured` | Remote login failure invalidated local admin session | Re-run `admin-login`, then retry `remote-profiles-login` and `remote-profiles-test` |
-| `deployment health` is healthy but freshness is `outdated` | Deployed bundle fingerprint drift vs local scenario state | Run `scenario-to-cloud redeploy --domain {{DOMAIN}} --scenario landing-page-business-suite --if-needed --preflight --wait`; if still drifting with healthy endpoint, record risk and hand off per `scenario-to-cloud` guidance |
-| `landing-page-business-suite service-auth-status --require-enabled` fails OR deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch, or LPBS runtime service auth disabled | Stop this workflow. Hand off to LPBS runtime owner with exact command output and request runtime `LPBS_SERVICE_SECRET` sync + LPBS restart. Resume only after `service-auth-status --require-enabled` succeeds. |
+| `deployment health` is healthy but freshness is `outdated` | Deployed bundle fingerprint drift vs local scenario state | Run `deployment health` and follow the emitted `Next step` command first. If drift persists with healthy endpoint after one `--if-needed` convergence, record risk and hand off per `scenario-to-cloud` guidance |
+| `landing-page-business-suite service-auth-status --require-enabled` fails OR deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch, or LPBS runtime service auth disabled | Run `landing-page-business-suite deploy-readiness --profile-tag {{PROFILE_TAG}} --domain {{DOMAIN}}` and follow the emitted `Next steps`. Resume only after readiness passes |
 
 Command timing note:
 - `scenario-to-cloud deployment health ...` can take ~40s+ in normal conditions. Use long enough timeouts in scripted runs.

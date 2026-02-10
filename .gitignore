@@ -81,6 +81,7 @@ scenarios/**/test/artifacts/
 
 # Generated bundles
 scenarios/**/platforms/
+.AppImage
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
@@ -267,6 +268,7 @@ tests/helpers
 # Local configuration
 .vrooli/*.local.json
 .vrooli/secrets.json
+**/.vrooli/secrets.json
 .vrooli/resource-registry/
 .vrooli/app-identity.json
 
@@ -448,3 +450,4 @@ scenarios/knowledge-observatory/cli/cli
 scenarios/browser-automation-studio/cli/browser-automation-studio
 scenarios/swarm-manager/cli/cli
 scenarios/swarm-manager/cli/swarm-manager
+scenarios/landing-page-business-suite/cli/cli

@@ -9,6 +9,7 @@ import {
   Lamp,
   Flower2,
   Frame,
+  TreePine,
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ const FURNITURE_ITEMS: { type: FurnitureType; icon: string }[] = [
 // Decoration items grouped by category
 const DECORATION_CATEGORIES = {
   plants: ['potted-plant', 'tall-plant', 'cactus', 'flowers'] as DecorationType[],
+  trees: ['oak-tree', 'pine-tree', 'birch-tree'] as DecorationType[],
   lighting: ['floor-lamp', 'desk-lamp', 'hanging-lamp'] as DecorationType[],
   furniture: ['bookshelf', 'rug'] as DecorationType[],
   decor: ['painting', 'vase', 'globe', 'clock', 'trophy'] as DecorationType[],
@@ -45,6 +47,9 @@ const DECORATION_ICONS: Record<string, string> = {
   'tall-plant': '🌿',
   cactus: '🌵',
   flowers: '🌸',
+  'oak-tree': '🌳',
+  'pine-tree': '🌲',
+  'birch-tree': '🍃',
   'floor-lamp': '🪔',
   'desk-lamp': '💡',
   'hanging-lamp': '🔦',
@@ -188,6 +193,36 @@ export function ObjectPalette({ className }: ObjectPaletteProps) {
             </div>
             <div className="grid grid-cols-4 gap-1.5">
               {DECORATION_CATEGORIES.plants.map((type) => {
+                const config = DECORATION_CONFIGS[type]
+                return (
+                  <button
+                    key={type}
+                    onClick={() => handleDecorationClick(type)}
+                    className="
+                      flex flex-col items-center justify-center
+                      p-1.5 h-12
+                      bg-slate-700/50 hover:bg-slate-600/50
+                      border border-slate-600 hover:border-slate-500
+                      rounded-md
+                      transition-colors
+                    "
+                    title={config.displayName}
+                  >
+                    <span className="text-base">{DECORATION_ICONS[type]}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Trees */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <TreePine className="h-3 w-3 text-green-500" />
+              <span className="text-xs text-slate-400">Trees</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {DECORATION_CATEGORIES.trees.map((type) => {
                 const config = DECORATION_CONFIGS[type]
                 return (
                   <button

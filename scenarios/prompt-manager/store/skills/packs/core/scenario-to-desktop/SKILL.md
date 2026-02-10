@@ -118,7 +118,7 @@ Selector note:
 
 #### Prerequisites for deploy
 
-1. `LPBS_SERVICE_SECRET` env var set (same secret as the LPBS instance)
+1. `LPBS_SERVICE_SECRET` configured for local runtime (env and/or `.vrooli/secrets.json`) and matching the LPBS instance
 2. Local LPBS running (discovered automatically via api-core/discovery)
 3. Remote profile on local LPBS with an active session (logged in)
 4. Download app registered on the remote LPBS with the given `app_key`
@@ -216,8 +216,8 @@ Use this section for failure diagnosis and recovery beyond the standard happy pa
 | `missing asset` during preflight | Bundle manifest points to non-existent paths | Inspect bundle manifest and referenced files | Rebuild scenario assets or fix manifest paths |
 | Deploy stage skipped unexpectedly | No deploy flags provided | Confirm pipeline args include deploy selector + app key | Re-run with `--deploy-target <name> --app-key <key>` or inline deploy flags |
 | Deploy target test fails | Missing/expired remote profile session on LPBS | `scenario-to-desktop deploy-target test <name>` and LPBS remote profile status | Re-run LPBS remote profile login/test via `landing-page-deploy-setup` |
-| Deploy target auth check fails | LPBS service auth disabled or `LPBS_SERVICE_SECRET` missing/mismatched | `scenario-to-desktop deploy-target test <name> --require-service-auth` | Re-sync LPBS runtime service auth and `LPBS_SERVICE_SECRET`, then re-test |
-| Deploy fails with service auth 401/403 | `LPBS_SERVICE_SECRET` missing or mismatched | Confirm `LPBS_SERVICE_SECRET` in deploy shell and LPBS runtime config | Re-sync the secret with LPBS runtime and retry |
+| Deploy target auth check fails | LPBS service auth disabled or `LPBS_SERVICE_SECRET` missing/mismatched | `scenario-to-desktop deploy-target test <name> --require-service-auth` | Run CLI next steps (`scenario-to-cloud secrets set ... --targets scenario,deployment ... --restart`), then re-test |
+| Deploy fails with service auth 401/403 | `LPBS_SERVICE_SECRET` missing or mismatched | Confirm LPBS and scenario-to-desktop both resolve the same secret | Re-sync with `scenario-to-cloud secrets set ...` and retry |
 
 Use CLI group help when needed:
 

@@ -105,6 +105,28 @@ export const MODEL_ASSETS: Record<string, AssetMeta> = {
     path: '/assets/models/decorations/lamp-floor.glb',
     name: 'Floor Lamp',
   },
+
+  // Tree models - CC0 (Public Domain) low-poly stylized trees
+  // Style reference: Quaternius (https://quaternius.com / https://poly.pizza/u/Quaternius)
+  // Generated as low-poly GLB via scripts/generate-tree-models.mjs
+  'tree-oak': {
+    id: 'tree-oak',
+    category: 'model',
+    path: '/assets/models/decorations/tree-oak.glb',
+    name: 'Oak Tree',
+  },
+  'tree-pine': {
+    id: 'tree-pine',
+    category: 'model',
+    path: '/assets/models/decorations/tree-pine.glb',
+    name: 'Pine Tree',
+  },
+  'tree-birch': {
+    id: 'tree-birch',
+    category: 'model',
+    path: '/assets/models/decorations/tree-birch.glb',
+    name: 'Birch Tree',
+  },
 }
 
 /**

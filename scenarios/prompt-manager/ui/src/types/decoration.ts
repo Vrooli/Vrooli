@@ -9,6 +9,9 @@ export type DecorationType =
   | 'tall-plant'
   | 'cactus'
   | 'flowers'
+  | 'oak-tree'
+  | 'pine-tree'
+  | 'birch-tree'
   | 'floor-lamp'
   | 'desk-lamp'
   | 'hanging-lamp'
@@ -83,6 +86,30 @@ export const DECORATION_CONFIGS: Record<DecorationType, DecorationConfig> = {
     emitsLight: false,
     movable: true,
     size: [0.25, 0.35, 0.25],
+    defaultY: 0,
+  },
+  'oak-tree': {
+    type: 'oak-tree',
+    displayName: 'Oak Tree',
+    emitsLight: false,
+    movable: true,
+    size: [3, 4, 3],
+    defaultY: 0,
+  },
+  'pine-tree': {
+    type: 'pine-tree',
+    displayName: 'Pine Tree',
+    emitsLight: false,
+    movable: true,
+    size: [2.5, 5, 2.5],
+    defaultY: 0,
+  },
+  'birch-tree': {
+    type: 'birch-tree',
+    displayName: 'Birch Tree',
+    emitsLight: false,
+    movable: true,
+    size: [2, 3.5, 2],
     defaultY: 0,
   },
   'floor-lamp': {
@@ -175,6 +202,9 @@ export const DEFAULT_DECORATION_COLORS: Partial<Record<DecorationType, string>> 
   'tall-plant': '#2e8b57',
   cactus: '#3cb371',
   flowers: '#ff69b4',
+  'oak-tree': '#2d5a1e',
+  'pine-tree': '#1a4d2e',
+  'birch-tree': '#5a8f3c',
   'floor-lamp': '#c0c0c0',
   'desk-lamp': '#2f4f4f',
   'hanging-lamp': '#d4af37',

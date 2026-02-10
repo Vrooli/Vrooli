@@ -3,12 +3,14 @@
  * Procedural geometry for plants, lamps, and other decorations.
  */
 
-import { useMemo, useRef, useCallback } from 'react'
+import { Suspense, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { useGLTF } from '@react-three/drei'
 import type { Mesh } from 'three'
 import * as THREE from 'three'
 import type { DecorationType } from '@/types/decoration'
-import { DEFAULT_DECORATION_COLORS } from '@/types/decoration'
+import { DEFAULT_DECORATION_COLORS, DECORATION_CONFIGS } from '@/types/decoration'
+import { getAssetPath } from '@/config/assetManifest'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 
 interface DecorationItemProps {
@@ -68,6 +70,19 @@ export function DecorationItem({
       case 'flowers':
         return <Flowers color={finalColor} castShadow={castShadow} />
 
+      case 'oak-tree':
+      case 'pine-tree':
+      case 'birch-tree': {
+        const assetId = type === 'oak-tree' ? 'tree-oak' : type === 'pine-tree' ? 'tree-pine' : 'tree-birch'
+        const modelPath = getAssetPath(assetId)
+        if (!modelPath) return <TreeFallback color={finalColor} castShadow={castShadow} />
+        return (
+          <Suspense fallback={<TreeFallback color={finalColor} castShadow={castShadow} />}>
+            <TreeModel modelPath={modelPath} castShadow={castShadow} />
+          </Suspense>
+        )
+      }
+
       case 'floor-lamp':
         return <FloorLamp lightOn={lightOn} castShadow={castShadow} />
 
@@ -106,12 +121,17 @@ export function DecorationItem({
       {...hoverProps}
     >
       {renderDecoration()}
-      {isHovered && (
-        <mesh position={[0, 0.3, 0]}>
-          <sphereGeometry args={[0.4, 8, 8]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.1} wireframe />
-        </mesh>
-      )}
+      {isHovered && (() => {
+        const size = DECORATION_CONFIGS[type]?.size ?? [0.8, 0.8, 0.8]
+        const highlightY = size[1] / 2
+        const highlightRadius = Math.max(size[0], size[2]) / 2
+        return (
+          <mesh position={[0, highlightY, 0]}>
+            <sphereGeometry args={[highlightRadius, 8, 8]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.1} wireframe />
+          </mesh>
+        )
+      })()}
     </group>
   )
 }
@@ -511,4 +531,46 @@ function Trophy({ castShadow }: { castShadow: boolean }) {
       ))}
     </group>
   )
+}
+
+/** Procedural fallback tree (shown while GLB loads or if model is missing) */
+function TreeFallback({ color, castShadow }: { color: string; castShadow: boolean }) {
+  return (
+    <group>
+      {/* Trunk */}
+      <mesh position={[0, 0.6, 0]} castShadow={castShadow}>
+        <cylinderGeometry args={[0.08, 0.12, 1.2, 8]} />
+        <meshStandardMaterial color="#5c3a1e" roughness={0.9} />
+      </mesh>
+      {/* Canopy */}
+      <mesh position={[0, 1.8, 0]} castShadow={castShadow}>
+        <coneGeometry args={[0.8, 1.8, 8]} />
+        <meshStandardMaterial color={color} roughness={0.85} />
+      </mesh>
+    </group>
+  )
+}
+
+/** Renders an external GLB tree model */
+function TreeModel({ modelPath, castShadow }: { modelPath: string; castShadow: boolean }) {
+  const { scene } = useGLTF(modelPath)
+  const clonedScene = useMemo(() => scene.clone(), [scene])
+
+  useEffect(() => {
+    clonedScene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        child.castShadow = castShadow
+        child.receiveShadow = true
+      }
+    })
+  }, [clonedScene, castShadow])
+
+  return <primitive object={clonedScene} />
+}
+
+// Preload tree models so they start loading immediately
+const treeAssetIds = ['tree-oak', 'tree-pine', 'tree-birch'] as const
+for (const id of treeAssetIds) {
+  const path = getAssetPath(id)
+  if (path) useGLTF.preload(path)
 }
