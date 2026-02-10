@@ -1,65 +1,84 @@
 /**
  * Furniture store for managing furniture instances in the 3D world.
- * Handles furniture placement, removal, and agent seating.
+ * State is per-scene: each SceneType has its own furniture and seating maps.
+ *
+ * - `undefined` = scene never visited (seed defaults on first visit)
+ * - `[]` = user explicitly cleared the scene
  */
 
+import { useCallback } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { FurnitureInstance, FurnitureType, SeatPosition } from '@/types/furniture'
 import { FURNITURE_CONFIGS, DEFAULT_FURNITURE_COLORS } from '@/types/furniture'
+import type { SceneType } from '@/types/environment'
+import { useEnvironmentStore } from './environmentStore'
+import { getSceneDefaults } from '@/config/sceneDefaults'
 
 interface FurnitureState {
-  /** All furniture instances in the world */
-  furniture: FurnitureInstance[]
-  /** Map of agent IDs to their seated furniture ID and seat index */
-  seatedAgents: Record<string, { furnitureId: string; seatIndex: number }>
+  /** Per-scene furniture arrays. `undefined` = never visited; `[]` = cleared. */
+  scenes: Partial<Record<SceneType, FurnitureInstance[]>>
+  /** Per-scene agent seating maps. */
+  seatedAgentsByScene: Partial<Record<SceneType, Record<string, { furnitureId: string; seatIndex: number }>>>
 }
 
 interface FurnitureActions {
-  /** Add new furniture to the world */
+  /** Add new furniture to the active scene */
   addFurniture: (
     type: FurnitureType,
     position: [number, number, number],
     rotation?: number,
     color?: string
   ) => string
-  /** Remove furniture from the world */
+  /** Remove furniture from the active scene */
   removeFurniture: (id: string) => void
   /** Move furniture to new position */
   moveFurniture: (id: string, position: [number, number, number]) => void
   /** Rotate furniture */
   rotateFurniture: (id: string, rotation: number) => void
-  /** Seat a agent at furniture */
+  /** Seat an agent at furniture in the active scene */
   seatAgent: (agentId: string, furnitureId: string, seatIndex?: number) => boolean
-  /** Unseat a agent */
+  /** Unseat an agent in the active scene */
   unseatAgent: (agentId: string) => void
-  /** Get available seats for furniture */
+  /** Get available seats for furniture in the active scene */
   getAvailableSeats: (furnitureId: string) => SeatPosition[]
-  /** Get seat position for a agent (if seated) */
+  /** Get seat position for an agent (if seated) in the active scene */
   getAgentSeatPosition: (agentId: string) => { position: [number, number, number]; rotation: number } | null
   /** Check if furniture has available seats */
   hasAvailableSeats: (furnitureId: string) => boolean
-  /** Get furniture by ID */
+  /** Get furniture by ID from the active scene */
   getFurniture: (id: string) => FurnitureInstance | undefined
-  /** Clear all furniture */
+  /** Clear the active scene's furniture and seating (sets to `[]`/`{}`). */
   reset: () => void
+  /** Clear and re-seed from scene generator. If no type given, uses the active scene. */
+  resetToDefaults: (sceneType?: SceneType) => void
+  /** Seed a scene with an array of items (used by useWorldDefaults). */
+  seedScene: (sceneType: SceneType, items: Omit<FurnitureInstance, 'id'>[]) => void
 }
 
 type FurnitureStore = FurnitureState & FurnitureActions
 
 const initialState: FurnitureState = {
-  furniture: [],
-  seatedAgents: {},
+  scenes: {},
+  seatedAgentsByScene: {},
 }
+
+/** Stable empty array for selector fallback — avoids new references on every evaluation. */
+const EMPTY_FURNITURE: FurnitureInstance[] = []
+
+/** Stable empty object for seated agents fallback — avoids new references on every evaluation. */
+const EMPTY_SEATED: Record<string, { furnitureId: string; seatIndex: number }> = {}
 
 let furnitureIdCounter = 0
 
-/**
- * Generate unique furniture ID
- */
 function generateFurnitureId(): string {
   furnitureIdCounter++
   return `furniture-${furnitureIdCounter}-${Date.now()}`
+}
+
+/** Read the active scene type from the environment store. */
+function activeScene(): SceneType {
+  return useEnvironmentStore.getState().current.type
 }
 
 /**
@@ -72,6 +91,7 @@ export const useFurnitureStore = create<FurnitureStore>()(
 
       addFurniture: (type, position, rotation = 0, color) => {
         const id = generateFurnitureId()
+        const scene = activeScene()
         const newFurniture: FurnitureInstance = {
           id,
           type,
@@ -82,14 +102,18 @@ export const useFurnitureStore = create<FurnitureStore>()(
         }
 
         set((state) => ({
-          furniture: [...state.furniture, newFurniture],
+          scenes: {
+            ...state.scenes,
+            [scene]: [...(state.scenes[scene] ?? []), newFurniture],
+          },
         }))
 
         return id
       },
 
       removeFurniture: (id) => {
-        const { seatedAgents } = get()
+        const scene = activeScene()
+        const seatedAgents = get().seatedAgentsByScene[scene] ?? {}
 
         // Unseat any agents on this furniture
         const updatedSeated = Object.fromEntries(
@@ -97,30 +121,46 @@ export const useFurnitureStore = create<FurnitureStore>()(
         )
 
         set((state) => ({
-          furniture: state.furniture.filter((f) => f.id !== id),
-          seatedAgents: updatedSeated,
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).filter((f) => f.id !== id),
+          },
+          seatedAgentsByScene: {
+            ...state.seatedAgentsByScene,
+            [scene]: updatedSeated,
+          },
         }))
       },
 
       moveFurniture: (id, position) => {
+        const scene = activeScene()
         set((state) => ({
-          furniture: state.furniture.map((f) =>
-            f.id === id ? { ...f, position } : f
-          ),
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).map((f) =>
+              f.id === id ? { ...f, position } : f
+            ),
+          },
         }))
       },
 
       rotateFurniture: (id, rotation) => {
+        const scene = activeScene()
         set((state) => ({
-          furniture: state.furniture.map((f) =>
-            f.id === id ? { ...f, rotation } : f
-          ),
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).map((f) =>
+              f.id === id ? { ...f, rotation } : f
+            ),
+          },
         }))
       },
 
       seatAgent: (agentId, furnitureId, seatIndex) => {
-        const { furniture, seatedAgents } = get()
-        const furn = furniture.find((f) => f.id === furnitureId)
+        const scene = activeScene()
+        const furnitureList = get().scenes[scene] ?? []
+        const seatedAgents = get().seatedAgentsByScene[scene] ?? {}
+        const furn = furnitureList.find((f) => f.id === furnitureId)
         if (!furn) return false
 
         const config = FURNITURE_CONFIGS[furn.type]
@@ -136,7 +176,6 @@ export const useFurnitureStore = create<FurnitureStore>()(
         // Determine which seat to use
         let targetSeatIndex = seatIndex ?? 0
         if (seatIndex === undefined) {
-          // Find first available seat
           const availableSeat = config.seats.findIndex(
             (_, idx) => !occupiedIndices.has(idx)
           )
@@ -149,36 +188,49 @@ export const useFurnitureStore = create<FurnitureStore>()(
         if (targetSeatIndex >= config.seats.length) return false
 
         // Unseat from previous furniture if any
-        const current = seatedAgents[agentId]
-        if (current) {
+        if (seatedAgents[agentId]) {
           get().unseatAgent(agentId)
         }
 
-        set((state) => ({
-          seatedAgents: {
-            ...state.seatedAgents,
-            [agentId]: { furnitureId, seatIndex: targetSeatIndex },
-          },
-        }))
+        set((state) => {
+          const current = state.seatedAgentsByScene[scene] ?? {}
+          return {
+            seatedAgentsByScene: {
+              ...state.seatedAgentsByScene,
+              [scene]: {
+                ...current,
+                [agentId]: { furnitureId, seatIndex: targetSeatIndex },
+              },
+            },
+          }
+        })
 
         return true
       },
 
       unseatAgent: (agentId) => {
+        const scene = activeScene()
         set((state) => {
-          const { [agentId]: _, ...rest } = state.seatedAgents
+          const current = state.seatedAgentsByScene[scene] ?? {}
+          const { [agentId]: _, ...rest } = current
           void _
-          return { seatedAgents: rest }
+          return {
+            seatedAgentsByScene: {
+              ...state.seatedAgentsByScene,
+              [scene]: rest,
+            },
+          }
         })
       },
 
       getAvailableSeats: (furnitureId) => {
-        const { furniture, seatedAgents } = get()
-        const furn = furniture.find((f) => f.id === furnitureId)
+        const scene = activeScene()
+        const furnitureList = get().scenes[scene] ?? []
+        const seatedAgents = get().seatedAgentsByScene[scene] ?? {}
+        const furn = furnitureList.find((f) => f.id === furnitureId)
         if (!furn) return []
 
         const config = FURNITURE_CONFIGS[furn.type]
-
         const occupiedIndices = new Set(
           Object.values(seatedAgents)
             .filter((info) => info.furnitureId === furnitureId)
@@ -189,11 +241,13 @@ export const useFurnitureStore = create<FurnitureStore>()(
       },
 
       getAgentSeatPosition: (agentId) => {
-        const { furniture, seatedAgents } = get()
+        const scene = activeScene()
+        const furnitureList = get().scenes[scene] ?? []
+        const seatedAgents = get().seatedAgentsByScene[scene] ?? {}
         const seatInfo = seatedAgents[agentId]
         if (!seatInfo) return null
 
-        const furn = furniture.find((f) => f.id === seatInfo.furnitureId)
+        const furn = furnitureList.find((f) => f.id === seatInfo.furnitureId)
         if (!furn) return null
 
         const config = FURNITURE_CONFIGS[furn.type]
@@ -220,26 +274,72 @@ export const useFurnitureStore = create<FurnitureStore>()(
       },
 
       getFurniture: (id) => {
-        return get().furniture.find((f) => f.id === id)
+        const scene = activeScene()
+        return (get().scenes[scene] ?? []).find((f) => f.id === id)
       },
 
-      reset: () => set(initialState),
+      reset: () => {
+        const scene = activeScene()
+        set((state) => ({
+          scenes: { ...state.scenes, [scene]: [] },
+          seatedAgentsByScene: { ...state.seatedAgentsByScene, [scene]: {} },
+        }))
+      },
+
+      resetToDefaults: (sceneType?) => {
+        const scene = sceneType ?? activeScene()
+        const defaults = getSceneDefaults(scene)
+        const items: FurnitureInstance[] = defaults.furniture.map((f) => ({
+          ...f,
+          id: generateFurnitureId(),
+        }))
+        set((state) => ({
+          scenes: { ...state.scenes, [scene]: items },
+          seatedAgentsByScene: { ...state.seatedAgentsByScene, [scene]: {} },
+        }))
+      },
+
+      seedScene: (sceneType, rawItems) => {
+        const items: FurnitureInstance[] = rawItems.map((f) => ({
+          ...f,
+          id: generateFurnitureId(),
+        }))
+        set((state) => ({
+          scenes: { ...state.scenes, [sceneType]: items },
+        }))
+      },
     }),
     {
       name: 'world-furniture',
       partialize: (state) => ({
-        furniture: state.furniture,
-        seatedAgents: state.seatedAgents,
+        scenes: state.scenes,
+        seatedAgentsByScene: state.seatedAgentsByScene,
       }),
     }
   )
 )
 
 /**
- * Hook to get all furniture instances
+ * Hook to get the furniture list for the current scene.
  */
 export function useFurnitureList(): FurnitureInstance[] {
-  return useFurnitureStore((state) => state.furniture)
+  const sceneType = useEnvironmentStore((s) => s.current.type)
+  return useFurnitureStore(
+    useCallback((state) => state.scenes[sceneType] ?? EMPTY_FURNITURE, [sceneType])
+  )
+}
+
+/**
+ * Hook to get the seated agents map for the current scene.
+ */
+export function useSeatedAgents(): Record<string, { furnitureId: string; seatIndex: number }> {
+  const sceneType = useEnvironmentStore((s) => s.current.type)
+  return useFurnitureStore(
+    useCallback(
+      (state) => state.seatedAgentsByScene[sceneType] ?? EMPTY_SEATED,
+      [sceneType]
+    )
+  )
 }
 
 /**
@@ -257,8 +357,14 @@ export function useRemoveFurniture() {
 }
 
 /**
- * Hook to check if a agent is seated
+ * Hook to check if an agent is seated in the current scene
  */
 export function useIsAgentSeated(agentId: string): boolean {
-  return useFurnitureStore((state) => agentId in state.seatedAgents)
+  const sceneType = useEnvironmentStore((s) => s.current.type)
+  return useFurnitureStore(
+    useCallback(
+      (state) => agentId in (state.seatedAgentsByScene[sceneType] ?? EMPTY_SEATED),
+      [sceneType, agentId]
+    )
+  )
 }

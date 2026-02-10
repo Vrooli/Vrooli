@@ -178,7 +178,7 @@ function detectIntegratedGPU(): boolean {
     if (!gl) return true // No WebGL = assume weak
     const ext = (gl as WebGLRenderingContext).getExtension('WEBGL_debug_renderer_info')
     if (!ext) return false // Extension unavailable — can't tell
-    const renderer = (gl as WebGLRenderingContext).getParameter(ext.UNMASKED_RENDERER_WEBGL)
+    const renderer = String((gl as WebGLRenderingContext).getParameter(ext.UNMASKED_RENDERER_WEBGL))
     canvas.remove()
     return /Intel|Integrated|UHD|HD Graphics|Mali|Adreno|Apple GPU/i.test(renderer)
   } catch {
@@ -201,7 +201,7 @@ export function detectRecommendedTier(): PerformanceTier {
 
   // Integrated GPUs and low-core machines should stay conservative
   const isIntegrated = detectIntegratedGPU()
-  const cores = navigator.hardwareConcurrency ?? 4
+  const cores = navigator.hardwareConcurrency || 4
   const dpr = window.devicePixelRatio
 
   if (isIntegrated || cores <= 4) {

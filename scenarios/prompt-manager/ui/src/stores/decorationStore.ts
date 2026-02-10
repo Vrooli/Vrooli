@@ -1,19 +1,27 @@
 /**
  * Decoration store for managing decorative objects in the 3D world.
+ * State is per-scene: each SceneType has its own array of decorations.
+ *
+ * - `undefined` = scene never visited (seed defaults on first visit)
+ * - `[]` = user explicitly cleared the scene
  */
 
+import { useCallback } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { DecorationInstance, DecorationType, LightMode } from '@/types/decoration'
 import { DEFAULT_DECORATION_COLORS, DECORATION_CONFIGS } from '@/types/decoration'
+import type { SceneType } from '@/types/environment'
+import { useEnvironmentStore } from './environmentStore'
+import { getSceneDefaults } from '@/config/sceneDefaults'
 
 interface DecorationState {
-  /** All decoration instances in the world */
-  decorations: DecorationInstance[]
+  /** Per-scene decoration arrays. `undefined` = never visited; `[]` = cleared. */
+  scenes: Partial<Record<SceneType, DecorationInstance[]>>
 }
 
 interface DecorationActions {
-  /** Add new decoration to the world */
+  /** Add new decoration to the active scene */
   addDecoration: (
     type: DecorationType,
     position: [number, number, number],
@@ -21,7 +29,7 @@ interface DecorationActions {
     color?: string,
     scale?: number
   ) => string
-  /** Remove decoration from the world */
+  /** Remove decoration from the active scene */
   removeDecoration: (id: string) => void
   /** Move decoration to new position */
   moveDecoration: (id: string, position: [number, number, number]) => void
@@ -29,26 +37,35 @@ interface DecorationActions {
   rotateDecoration: (id: string, rotation: number) => void
   /** Set light mode for a decoration */
   setLightMode: (id: string, mode: LightMode) => void
-  /** Get decoration by ID */
+  /** Get decoration by ID from the active scene */
   getDecoration: (id: string) => DecorationInstance | undefined
-  /** Clear all decorations */
+  /** Clear the active scene's decorations (sets to `[]`). */
   reset: () => void
+  /** Clear and re-seed from scene generator. If no type given, uses the active scene. */
+  resetToDefaults: (sceneType?: SceneType) => void
+  /** Seed a scene with an array of items (used by useWorldDefaults). */
+  seedScene: (sceneType: SceneType, items: Omit<DecorationInstance, 'id'>[]) => void
 }
 
 type DecorationStore = DecorationState & DecorationActions
 
 const initialState: DecorationState = {
-  decorations: [],
+  scenes: {},
 }
+
+/** Stable empty array for selector fallback — avoids new references on every evaluation. */
+const EMPTY_DECORATIONS: DecorationInstance[] = []
 
 let decorationIdCounter = 0
 
-/**
- * Generate unique decoration ID
- */
 function generateDecorationId(): string {
   decorationIdCounter++
   return `decoration-${decorationIdCounter}-${Date.now()}`
+}
+
+/** Read the active scene type from the environment store. */
+function activeScene(): SceneType {
+  return useEnvironmentStore.getState().current.type
 }
 
 /**
@@ -62,6 +79,7 @@ export const useDecorationStore = create<DecorationStore>()(
       addDecoration: (type, position, rotation = 0, color, scale = 1) => {
         const id = generateDecorationId()
         const config = DECORATION_CONFIGS[type]
+        const scene = activeScene()
 
         const newDecoration: DecorationInstance = {
           id,
@@ -74,62 +92,113 @@ export const useDecorationStore = create<DecorationStore>()(
         }
 
         set((state) => ({
-          decorations: [...state.decorations, newDecoration],
+          scenes: {
+            ...state.scenes,
+            [scene]: [...(state.scenes[scene] ?? []), newDecoration],
+          },
         }))
 
         return id
       },
 
       removeDecoration: (id) => {
+        const scene = activeScene()
         set((state) => ({
-          decorations: state.decorations.filter((d) => d.id !== id),
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).filter((d) => d.id !== id),
+          },
         }))
       },
 
       moveDecoration: (id, position) => {
+        const scene = activeScene()
         set((state) => ({
-          decorations: state.decorations.map((d) =>
-            d.id === id ? { ...d, position } : d
-          ),
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).map((d) =>
+              d.id === id ? { ...d, position } : d
+            ),
+          },
         }))
       },
 
       rotateDecoration: (id, rotation) => {
+        const scene = activeScene()
         set((state) => ({
-          decorations: state.decorations.map((d) =>
-            d.id === id ? { ...d, rotation } : d
-          ),
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).map((d) =>
+              d.id === id ? { ...d, rotation } : d
+            ),
+          },
         }))
       },
 
       setLightMode: (id, mode) => {
+        const scene = activeScene()
         set((state) => ({
-          decorations: state.decorations.map((d) =>
-            d.id === id ? { ...d, lightMode: mode } : d
-          ),
+          scenes: {
+            ...state.scenes,
+            [scene]: (state.scenes[scene] ?? []).map((d) =>
+              d.id === id ? { ...d, lightMode: mode } : d
+            ),
+          },
         }))
       },
 
       getDecoration: (id) => {
-        return get().decorations.find((d) => d.id === id)
+        const scene = activeScene()
+        return (get().scenes[scene] ?? []).find((d) => d.id === id)
       },
 
-      reset: () => set(initialState),
+      reset: () => {
+        const scene = activeScene()
+        set((state) => ({
+          scenes: { ...state.scenes, [scene]: [] },
+        }))
+      },
+
+      resetToDefaults: (sceneType?) => {
+        const scene = sceneType ?? activeScene()
+        const defaults = getSceneDefaults(scene)
+        const items: DecorationInstance[] = defaults.decorations.map((d) => ({
+          ...d,
+          id: generateDecorationId(),
+        }))
+        set((state) => ({
+          scenes: { ...state.scenes, [scene]: items },
+        }))
+      },
+
+      seedScene: (sceneType, rawItems) => {
+        const items: DecorationInstance[] = rawItems.map((d) => ({
+          ...d,
+          id: generateDecorationId(),
+        }))
+        set((state) => ({
+          scenes: { ...state.scenes, [sceneType]: items },
+        }))
+      },
     }),
     {
       name: 'world-decorations',
       partialize: (state) => ({
-        decorations: state.decorations,
+        scenes: state.scenes,
       }),
     }
   )
 )
 
 /**
- * Hook to get all decoration instances
+ * Hook to get the decoration list for the current scene.
+ * Composes with environmentStore so it re-renders on scene change.
  */
 export function useDecorationList(): DecorationInstance[] {
-  return useDecorationStore((state) => state.decorations)
+  const sceneType = useEnvironmentStore((s) => s.current.type)
+  return useDecorationStore(
+    useCallback((state) => state.scenes[sceneType] ?? EMPTY_DECORATIONS, [sceneType])
+  )
 }
 
 /**

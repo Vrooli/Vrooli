@@ -39,7 +39,7 @@ export function InfoTab({ agent }: InfoTabProps) {
 
   useEffect(() => {
     let cancelled = false
-    getAgentTeams(agent.id).then((result) => {
+    void getAgentTeams(agent.id).then((result) => {
       if (!cancelled) setMemberships(result)
     })
     return () => { cancelled = true }

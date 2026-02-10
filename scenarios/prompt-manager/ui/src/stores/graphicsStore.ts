@@ -3,7 +3,7 @@
  * Supports performance tiers and individual setting overrides.
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#performance-tiers
-// DOC: docs/SEAMS.md#4-graphics-tier-system
+// DOC: docs/internal/SEAMS.md#4-graphics-tier-system
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'

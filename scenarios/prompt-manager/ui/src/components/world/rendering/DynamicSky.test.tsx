@@ -162,12 +162,14 @@ describe('DynamicSky', () => {
   })
 
   describe('component mounting', () => {
-    it('registers useFrame callback on mount', async () => {
+    it('renders sky dome mesh on mount', async () => {
       const { DynamicSky } = await import('./DynamicSky')
 
-      render(<DynamicSky />)
+      const { container } = render(<DynamicSky />)
 
-      expect(frameCallbacks.length).toBeGreaterThan(0)
+      // Component renders a mesh with sphere geometry (no useFrame since rotation was removed for perf)
+      expect(container).toBeDefined()
+      expect(frameCallbacks.length).toBe(0)
     })
 
     it('renders without crashing with default props', async () => {
@@ -336,22 +338,13 @@ describe('DynamicSky', () => {
   })
 
   describe('rotation animation', () => {
-    it('rotates sky dome slowly via useFrame', async () => {
+    it('does not register useFrame since rotation was removed for perf', async () => {
       const { DynamicSky } = await import('./DynamicSky')
 
       render(<DynamicSky />)
 
-      // Get the frame callback that was registered
-      expect(frameCallbacks.length).toBeGreaterThan(0)
-
-      // Simulate 60 frames (1 second)
-      // Rotation rate is delta * 0.01
-      act(() => {
-        tickFrames(60)
-      })
-
-      // Animation should have run without errors
-      expect(true).toBe(true)
+      // Rotation was removed (imperceptible on a gradient with BackSide rendering)
+      expect(frameCallbacks.length).toBe(0)
     })
 
     it('uses delta time for frame-rate independent rotation', () => {

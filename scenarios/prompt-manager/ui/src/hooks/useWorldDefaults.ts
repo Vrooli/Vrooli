@@ -1,87 +1,67 @@
 /**
- * useWorldDefaults - Hook to seed the world with default furniture and decorations.
- * Only seeds if the stores are empty (first-time setup).
+ * useWorldDefaults - Hook to seed each scene with defaults on first visit.
+ *
+ * Distinguishes between `undefined` (never visited — seed) and `[]`
+ * (explicitly cleared — skip seeding).
  */
 
 import { useEffect, useRef } from 'react'
 import { useFurnitureStore } from '@/stores/furnitureStore'
 import { useDecorationStore } from '@/stores/decorationStore'
+import { useEnvironmentStore } from '@/stores/environmentStore'
+import type { SceneType } from '@/types/environment'
+import { getSceneDefaults } from '@/config/sceneDefaults'
 
 /**
- * Default furniture items to seed
- */
-const DEFAULT_FURNITURE = [
-  { type: 'bench' as const, position: [3, 0, -3] as [number, number, number], rotation: Math.PI / 4 },
-  { type: 'chair' as const, position: [-3, 0, 2] as [number, number, number], rotation: -Math.PI / 6 },
-  { type: 'coffee-table' as const, position: [0, 0, -4] as [number, number, number], rotation: 0 },
-]
-
-/**
- * Default decorations to seed
- */
-const DEFAULT_DECORATIONS = [
-  { type: 'potted-plant' as const, position: [-4, 0, -4] as [number, number, number] },
-  { type: 'tall-plant' as const, position: [4, 0, -3] as [number, number, number] },
-  { type: 'floor-lamp' as const, position: [-4, 0, 3] as [number, number, number] },
-  { type: 'globe' as const, position: [3, 0, 4] as [number, number, number] },
-]
-
-/**
- * Hook to seed the world with default furniture and decorations.
- * Only runs once on initial mount when stores are empty.
+ * Hook to seed the current scene with defaults on first visit.
+ * Runs whenever the active scene type changes.
+ *
+ * Reads store data imperatively via getState() inside the effect to avoid
+ * subscribing to the entire `scenes` objects. Subscribing to `scenes` would
+ * cause the effect to re-fire on every unrelated store update, which—combined
+ * with the `?? []` selector fallbacks—could trigger an infinite re-render loop
+ * (React error #185).
  */
 export function useWorldDefaults() {
-  const furniture = useFurnitureStore((state) => state.furniture)
-  const addFurniture = useFurnitureStore((state) => state.addFurniture)
+  const sceneType = useEnvironmentStore((s) => s.current.type)
 
-  const decorations = useDecorationStore((state) => state.decorations)
-  const addDecoration = useDecorationStore((state) => state.addDecoration)
-
-  const hasSeeded = useRef(false)
+  // Track which scenes we've already attempted to seed this session,
+  // so we don't re-seed if the user clears and then switches away/back.
+  const seededRef = useRef<Set<SceneType>>(new Set())
 
   useEffect(() => {
-    // Only seed once and only if both stores are empty
-    if (hasSeeded.current) return
-    if (furniture.length > 0 || decorations.length > 0) {
-      hasSeeded.current = true
-      return
-    }
+    if (seededRef.current.has(sceneType)) return
 
-    hasSeeded.current = true
+    seededRef.current.add(sceneType)
 
-    // Seed furniture
-    for (const item of DEFAULT_FURNITURE) {
-      addFurniture(item.type, item.position, item.rotation)
-    }
+    // Read store state imperatively — no reactive subscription needed here.
+    const decoData = useDecorationStore.getState().scenes[sceneType]
+    const furnData = useFurnitureStore.getState().scenes[sceneType]
 
-    // Seed decorations
-    for (const item of DEFAULT_DECORATIONS) {
-      addDecoration(item.type, item.position)
+    // `undefined` means never visited — seed from generator.
+    // An explicit `[]` means the user cleared it — don't re-seed.
+    if (decoData !== undefined && furnData !== undefined) return
+
+    const defaults = getSceneDefaults(sceneType)
+
+    if (decoData === undefined) {
+      useDecorationStore.getState().seedScene(sceneType, defaults.decorations)
     }
-  }, [furniture.length, decorations.length, addFurniture, addDecoration])
+    if (furnData === undefined) {
+      useFurnitureStore.getState().seedScene(sceneType, defaults.furniture)
+    }
+  }, [sceneType])
 }
 
 /**
- * Reset world to defaults by clearing and re-seeding.
+ * Returns a function that resets the current scene to its generator defaults.
  */
 export function useResetWorldToDefaults() {
-  const resetFurniture = useFurnitureStore((state) => state.reset)
-  const resetDecorations = useDecorationStore((state) => state.reset)
-  const addFurniture = useFurnitureStore((state) => state.addFurniture)
-  const addDecoration = useDecorationStore((state) => state.addDecoration)
+  const resetDecorations = useDecorationStore((s) => s.resetToDefaults)
+  const resetFurniture = useFurnitureStore((s) => s.resetToDefaults)
 
   return () => {
-    // Clear existing
-    resetFurniture()
     resetDecorations()
-
-    // Re-seed
-    for (const item of DEFAULT_FURNITURE) {
-      addFurniture(item.type, item.position, item.rotation)
-    }
-
-    for (const item of DEFAULT_DECORATIONS) {
-      addDecoration(item.type, item.position)
-    }
+    resetFurniture()
   }
 }

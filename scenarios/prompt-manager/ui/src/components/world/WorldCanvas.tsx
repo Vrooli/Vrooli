@@ -4,9 +4,9 @@
  * Skill selection is handled via the sidebar for skill operations.
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
-// DOC: docs/SEAMS.md#3d-world-testing-seams
+// DOC: docs/internal/SEAMS.md#3d-world-testing-seams
 
-import { Suspense, useCallback, useState, useMemo } from 'react'
+import { Suspense, useCallback, useState, useMemo, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import type { Skill } from '@/types'
@@ -16,7 +16,8 @@ import type { DecorationInstance } from '@/types/decoration'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
-import { useFurnitureStore } from '@/stores/furnitureStore'
+import { useFurnitureStore, useFurnitureList, useSeatedAgents } from '@/stores/furnitureStore'
+import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useAgentData } from '@/hooks/useAgentData'
 import { useWorldDefaults } from '@/hooks/useWorldDefaults'
 import { AgentProvider } from './AgentProvider'
@@ -118,9 +119,10 @@ export function WorldCanvas({
   const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
   const focusedAgent = agents.find((a) => a.id === focusedAgentId) ?? null
 
-  // Furniture and seating state
-  const furnitureList = useFurnitureStore((state) => state.furniture)
-  const seatedAgents = useFurnitureStore((state) => state.seatedAgents)
+  // Furniture and seating state (scene-aware)
+  const sceneType = useEnvironmentStore((s) => s.current.type)
+  const furnitureList = useFurnitureList()
+  const seatedAgents = useSeatedAgents()
   const seatAgent = useFurnitureStore((state) => state.seatAgent)
   const unseatAgent = useFurnitureStore((state) => state.unseatAgent)
   const getAgentSeatPosition = useFurnitureStore((state) => state.getAgentSeatPosition)
@@ -140,6 +142,15 @@ export function WorldCanvas({
   const [agentPositionOverrides, setAgentPositionOverrides] = useState<
     Record<string, [number, number, number]>
   >({})
+
+  // Clear agent drag overrides when scene changes
+  const prevSceneType = useRef(sceneType)
+  useEffect(() => {
+    if (sceneType !== prevSceneType.current) {
+      setAgentPositionOverrides({})
+      prevSceneType.current = sceneType
+    }
+  }, [sceneType])
 
   const handleAgentPositionChange = useCallback(
     (agentId: string, newPosition: [number, number, number]) => {

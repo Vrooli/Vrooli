@@ -73,6 +73,8 @@ interface WorldEditorActions {
   undo: () => void
   /** Redo last undone action */
   redo: () => void
+  /** Clear undo/redo history without touching edit mode or selection. */
+  clearHistory: () => void
   /** Reset editor state */
   reset: () => void
 }
@@ -190,6 +192,8 @@ export const useWorldEditorStore = create<WorldEditorStore>((set, get) => ({
       actionHistory: [...state.actionHistory, action],
     }))
   },
+
+  clearHistory: () => set({ actionHistory: [], redoStack: [] }),
 
   reset: () => set(initialState),
 }))

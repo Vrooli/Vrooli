@@ -3,7 +3,7 @@
  * Allows easy swapping of agent implementations.
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#dependency-injection-pattern
-// DOC: docs/SEAMS.md#1-agentprovider-dependency-injection
+// DOC: docs/internal/SEAMS.md#1-agentprovider-dependency-injection
 
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useMemo } from 'react'

@@ -7,7 +7,7 @@
 import { useCallback } from 'react'
 import { Move, Trash2, X, Sun, Lightbulb, LightbulbOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useDecorationStore } from '@/stores/decorationStore'
+import { useDecorationStore, useDecorationList } from '@/stores/decorationStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { DECORATION_CONFIGS, type DecorationInstance, type LightMode } from '@/types/decoration'
 
@@ -37,9 +37,8 @@ export function DecorationContextMenu({
   const selectObject = useWorldEditorStore((state) => state.selectObject)
 
   // Read the live decoration from the store so light mode changes are reflected immediately
-  const liveDecoration = useDecorationStore(
-    (state) => state.decorations.find((d) => d.id === decoration?.id) ?? null
-  )
+  const decorations = useDecorationList()
+  const liveDecoration = decorations.find((d) => d.id === decoration?.id) ?? null
   const current = liveDecoration ?? decoration
   const config = current ? DECORATION_CONFIGS[current.type] : null
 

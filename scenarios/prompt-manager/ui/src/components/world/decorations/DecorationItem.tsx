@@ -124,7 +124,7 @@ export function DecorationItem({
     >
       {renderDecoration()}
       {isHovered && (() => {
-        const size = DECORATION_CONFIGS[type]?.size ?? [0.8, 0.8, 0.8]
+        const size = DECORATION_CONFIGS[type].size
         const highlightY = size[1] / 2
         const highlightRadius = Math.max(size[0], size[2]) / 2
         return (
@@ -560,7 +560,7 @@ function TreeModel({ modelPath, castShadow }: { modelPath: string; castShadow: b
 
   useEffect(() => {
     clonedScene.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
+      if (child instanceof THREE.Mesh) {
         child.castShadow = castShadow
         child.receiveShadow = true
       }

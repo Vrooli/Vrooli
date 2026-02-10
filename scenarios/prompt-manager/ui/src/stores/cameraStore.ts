@@ -5,7 +5,7 @@
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#camera-system
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#state-management-flow
-// DOC: docs/SEAMS.md#2-zustand-stores-state-injection
+// DOC: docs/internal/SEAMS.md#2-zustand-stores-state-injection
 
 import { create } from 'zustand'
 
