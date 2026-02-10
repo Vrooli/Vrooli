@@ -58,6 +58,8 @@ import {
   AvailableCCTeamSchema,
   ExportCCResponseSchema,
   ExclusiveMembersResponseSchema,
+  WorldScaleConfigSchema,
+  type WorldScaleConfig,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -797,6 +799,22 @@ class ApiClient {
       `/teams/${encodeURIComponent(teamId)}/export/claude-code`,
       undefined,
       ExportCCResponseSchema
+    )
+  }
+
+  // World scale methods
+  async getWorldScale(): Promise<WorldScaleConfig> {
+    return this.request<WorldScaleConfig>('/world-scale', undefined, WorldScaleConfigSchema)
+  }
+
+  async setWorldScale(config: WorldScaleConfig): Promise<WorldScaleConfig> {
+    return this.request<WorldScaleConfig>(
+      '/world-scale',
+      {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      },
+      WorldScaleConfigSchema
     )
   }
 }

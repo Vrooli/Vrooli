@@ -7,6 +7,7 @@ import { useCallback, useMemo } from 'react'
 import { DecorationItem } from './DecorationItem'
 import { DraggableObject } from '../interaction'
 import { useDecorationStore, useDecorationList } from '@/stores/decorationStore'
+import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { DecorationInstance } from '@/types/decoration'
 import { DECORATION_CONFIGS } from '@/types/decoration'
@@ -30,6 +31,7 @@ export function DecorationManager({
   draggable = false,
 }: DecorationManagerProps) {
   const decorationList = useDecorationList()
+  const decorationScale = useWorldScaleStore((state) => state.decoration)
   const moveDecoration = useDecorationStore((state) => state.moveDecoration)
   const placementConfig = useEnvironmentStore((state) => state.current.placement)
   const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
@@ -80,7 +82,7 @@ export function DecorationManager({
             type={decoration.type}
             position={draggable ? [0, 0, 0] : decoration.position}
             rotation={decoration.rotation}
-            scale={decoration.scale}
+            scale={(decoration.scale ?? 1) * decorationScale}
             color={decoration.color}
             lightOn={effectiveLightOn}
             onClick={interactive ? () => handleClick(decoration) : undefined}

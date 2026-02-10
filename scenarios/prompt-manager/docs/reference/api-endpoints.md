@@ -1095,6 +1095,52 @@ Trigger heartbeats for an entire team. Behavior depends on `spawnMode`:
 
 ---
 
+## World Scale
+
+[CODE: api/worldscale/handlers.go]
+
+### GET /api/v1/world-scale
+
+Get the current object scale configuration.
+
+**Response:**
+```json
+{
+  "agent": 1.0,
+  "furniture": 1.0,
+  "decoration": 1.0,
+  "overlay": 1.0
+}
+```
+
+**Notes:**
+- Returns default values (all 1.0) if the config file doesn't exist yet
+- Config persists in `store/world-scale.json`
+
+### PUT /api/v1/world-scale
+
+Update the object scale configuration.
+
+**Request Body:**
+```json
+{
+  "agent": 1.2,
+  "furniture": 0.8,
+  "decoration": 1.5,
+  "overlay": 1.0
+}
+```
+
+**Validation:**
+- All values must be between 0.1 and 3.0
+
+**Response:** Updated config object.
+
+**Errors:**
+- `400` - Value out of range or invalid JSON
+
+---
+
 ## Open Graph Metadata
 
 [CODE: api/ogmeta/handlers.go]

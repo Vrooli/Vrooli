@@ -14,6 +14,7 @@ interface FurnitureItemProps {
   type: FurnitureType
   position: [number, number, number]
   rotation?: number
+  scale?: number
   color?: string
   castShadow?: boolean
   receiveShadow?: boolean
@@ -28,6 +29,7 @@ export function FurnitureItem({
   type,
   position,
   rotation = 0,
+  scale = 1,
   color,
   castShadow = true,
   receiveShadow = true,
@@ -256,6 +258,7 @@ export function FurnitureItem({
     <group
       position={position}
       rotation={[0, rotation, 0]}
+      scale={scale}
       onClick={handleClick}
       {...hoverProps}
     >

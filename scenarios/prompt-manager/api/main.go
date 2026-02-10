@@ -27,6 +27,7 @@ import (
 	"prompt-manager/teams"
 	"prompt-manager/templates"
 	"prompt-manager/testing"
+	"prompt-manager/worldscale"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -356,6 +357,10 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.SetResponsibilities).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.GetHeartbeatInstructions).Methods("GET")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
+
+	// World scale routes
+	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")
+	v1.HandleFunc("/world-scale", worldscale.HandlePut(absStoreDir)).Methods("PUT")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")

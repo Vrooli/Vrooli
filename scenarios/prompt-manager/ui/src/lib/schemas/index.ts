@@ -188,3 +188,9 @@ export {
   type AgentFileTemplate,
   type AgentFileTemplateListResponse,
 } from './template.schema'
+
+// World scale schemas
+export {
+  WorldScaleConfigSchema,
+  type WorldScaleConfig,
+} from './worldScale.schema'

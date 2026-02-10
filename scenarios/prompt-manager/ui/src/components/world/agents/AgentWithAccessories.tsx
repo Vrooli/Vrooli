@@ -16,6 +16,7 @@ import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
 import { AgentOverlayGroup } from '../overlays/AgentOverlayGroup'
 import { HoverGlow } from '../effects'
 import { useAccessoryStore } from '@/stores/accessoryStore'
+import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import type { AgentProps } from '@/types/world'
 import type { Agent } from '@/types/agent'
@@ -69,6 +70,10 @@ export function AgentWithAccessories({
 
   // Resolve agent component via DI
   const AgentComponent = useAgentComponent()
+
+  // World scale multipliers
+  const agentScale = useWorldScaleStore((state) => state.agent)
+  const overlayScale = useWorldScaleStore((state) => state.overlay)
 
   // Get stable references from accessory store
   const agentAccessoriesState = useAccessoryStore((state) => state.agentAccessories)
@@ -163,65 +168,68 @@ export function AgentWithAccessories({
 
   return (
     <group ref={locomotionRef} position={initialPosition.current} {...(enableHover ? hoverProps : {})}>
-      {/* Base agent model (resolved via DI) */}
-      <AgentComponent
-        agentId={agent.id}
-        position={LOCAL_ORIGIN}
-        selectedNodes={selectedNodes}
-        isAnimating={isAnimating}
-        onAnimationComplete={onAnimationComplete}
-        onAgentClick={onAgentClick}
-        colors={agentColors}
-        isSeated={isSeated}
-        seatRotation={seatRotation}
-      />
+      <group scale={[agentScale, agentScale, agentScale]}>
+        {/* Base agent model (resolved via DI) */}
+        <AgentComponent
+          agentId={agent.id}
+          position={LOCAL_ORIGIN}
+          selectedNodes={selectedNodes}
+          isAnimating={isAnimating}
+          onAnimationComplete={onAnimationComplete}
+          onAgentClick={onAgentClick}
+          colors={agentColors}
+          isSeated={isSeated}
+          seatRotation={seatRotation}
+        />
 
-      {/* Accessories */}
-      {showAccessories && (
-        <group>
-          {/* Back accessory from store */}
-          {storedAccessories.back.type !== 'none' && (
-            <BackpackAccessory
-              type={storedAccessories.back.type}
-              scale={storedAccessories.back.scale}
-            />
-          )}
+        {/* Accessories */}
+        {showAccessories && (
+          <group>
+            {/* Back accessory from store */}
+            {storedAccessories.back.type !== 'none' && (
+              <BackpackAccessory
+                type={storedAccessories.back.type}
+                scale={storedAccessories.back.scale}
+              />
+            )}
 
-          {/* Head accessory from store */}
-          {storedAccessories.head.type !== 'none' && (
-            <HeadAccessory
-              type={storedAccessories.head.type}
-              color={storedAccessories.head.color}
-            />
-          )}
+            {/* Head accessory from store */}
+            {storedAccessories.head.type !== 'none' && (
+              <HeadAccessory
+                type={storedAccessories.head.type}
+                color={storedAccessories.head.color}
+              />
+            )}
 
-          {/* Held item from store */}
-          {storedAccessories.held.type !== 'none' && (
-            <HeldItemAccessory
-              type={storedAccessories.held.type}
-              hand={storedAccessories.held.hand}
-              color={storedAccessories.held.color}
-            />
-          )}
-        </group>
-      )}
+            {/* Held item from store */}
+            {storedAccessories.held.type !== 'none' && (
+              <HeldItemAccessory
+                type={storedAccessories.held.type}
+                hand={storedAccessories.held.hand}
+                color={storedAccessories.held.color}
+              />
+            )}
+          </group>
+        )}
 
-      {/* Hover glow effect - centered on body (0.4 = body radius offset) */}
-      <HoverGlow
-        isActive={isHovered}
-        position={[0, 0.4, 0]}
-        size={0.8}
-        color={agentColors.accent || '#6366f1'}
-        intensity={0.6}
-      />
+        {/* Hover glow effect - centered on body (0.4 = body radius offset) */}
+        <HoverGlow
+          isActive={isHovered}
+          position={[0, 0.4, 0]}
+          size={0.8}
+          color={agentColors.accent || '#6366f1'}
+          intensity={0.6}
+        />
+      </group>
 
-      {/* Overlays (name tag, status, speech) */}
+      {/* Overlays (name tag, status, speech) - outside agent scale, uses own overlay scale */}
       {showOverlays && (
         <AgentOverlayGroup
           agentId={agent.id}
           name={agent.displayName}
           position={LOCAL_ORIGIN}
           isHovered={isHovered}
+          overlayScale={overlayScale}
         />
       )}
     </group>

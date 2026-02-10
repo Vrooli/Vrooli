@@ -25,6 +25,8 @@ interface AgentOverlayGroupProps {
   status?: AgentStatusType
   /** Whether to show overlays at all */
   enabled?: boolean
+  /** Uniform scale multiplier for all overlays */
+  overlayScale?: number
 }
 
 /**
@@ -38,6 +40,7 @@ export function AgentOverlayGroup({
   isHovered = false,
   status,
   enabled = true,
+  overlayScale = 1,
 }: AgentOverlayGroupProps) {
   // Get stable reference to agent accessories state
   const agentAccessories = useAccessoryStore((state) => state.agentAccessories)
@@ -58,7 +61,7 @@ export function AgentOverlayGroup({
   }
 
   return (
-    <>
+    <group scale={[overlayScale, overlayScale, overlayScale]}>
       {/* Name tag - lowest layer */}
       <WorldErrorBoundary componentName="NameTag" minimal>
         <NameTag
@@ -97,6 +100,6 @@ export function AgentOverlayGroup({
           yOffset={2.1}
         />
       </WorldErrorBoundary>
-    </>
+    </group>
   )
 }

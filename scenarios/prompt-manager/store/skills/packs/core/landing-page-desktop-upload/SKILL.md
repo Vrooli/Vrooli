@@ -41,6 +41,7 @@ Required reading:
 - `{{APP_KEY}}` LPBS download app key (stable ID for the specific app release)
 - `{{PROFILE_TAG}}` LPBS remote profile tag (example: `prod`)
 - `{{PLATFORMS}}` target platforms (example: `linux` or `linux,win`)
+- `{{CHANNEL}}` update channel (default: `stable`)
 
 Conditional input:
 - `{{APP_NAME}}` only required when `{{APP_KEY}}` does not already exist and must be onboarded
@@ -59,7 +60,7 @@ Check LPBS deployment by selector:
 scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario landing-page-business-suite --json
 ```
 
-If missing/unhealthy/outdated, converge:
+If missing/unhealthy, converge:
 
 ```bash
 scenario-to-cloud redeploy \
@@ -68,6 +69,16 @@ scenario-to-cloud redeploy \
   --if-needed --preflight --wait
 ```
 
+Freshness rule (fingerprint drift safe-guard):
+- If health is `ok=true` but freshness is `outdated`, run a single convergence attempt with a forced bundle rebuild:
+  ```bash
+  scenario-to-cloud redeploy \
+    --domain {{DOMAIN}} \
+    --scenario landing-page-business-suite \
+    --if-needed --preflight --wait --force-bundle
+  ```
+- If health remains `healthy` but freshness is still fingerprint-only `outdated` after one `--if-needed` convergence attempt, stop automatic retries and record the drift risk before proceeding.
+
 Pass condition:
 - Deployment health is successful for `landing-page-business-suite` on `{{DOMAIN}}`.
 
@@ -75,12 +86,55 @@ Pass condition:
 
 Run the setup skill gates (local LPBS started, admin session, storage test, remote profile tested, `LPBS_SERVICE_SECRET` set), then run optional app gate for the release `{{APP_KEY}}`.
 
-Minimal readiness re-check commands:
+Targeting rule (do not skip):
+- All `landing-page-business-suite ...` commands in Stage 2 are intended to run against the **local LPBS control-plane instance** (the one `scenario-to-desktop` deploys through).
+- The **remote deployed LPBS** at `{{DOMAIN}}` is validated indirectly via the remote profile session (`remote-profiles-*` and `remote-profiles-proxy`).
+- Do not point `--api-base` at `https://{{DOMAIN}}` for Stage 2 unless you are intentionally operating the remote instance directly and have an admin session there.
+
+Sequencing rule:
+- `landing-page-business-suite admin-login` must succeed before running any `landing-page-business-suite admin-*` or `landing-page-business-suite remote-profiles-*` commands.
+
+Minimal readiness check (preferred; single contract):
 
 ```bash
-landing-page-business-suite admin-download-storage-test --json
-landing-page-business-suite admin-download-apps-list --json
+landing-page-business-suite deploy-readiness \
+  --profile-tag {{PROFILE_TAG}} \
+  --domain {{DOMAIN}} \
+  --json
+```
+
+Remote readiness gates (required for deploy handoff):
+- Remote download storage must be configured and testable (this is the most common deploy blocker).
+- Remote app registry must contain `{{APP_KEY}}` (deploy requires the remote LPBS to know this app key).
+
+Remote storage test (via remote profile proxy):
+```bash
+# Preferred: selector-first by tag (no numeric id required)
+landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+  --method POST --path /admin/download-storage/test --json
+
+# Optional: inspect available profiles (useful for debugging tag/id drift)
 landing-page-business-suite remote-profiles-list --json
+```
+
+Remote app registry check + optional onboarding:
+```bash
+landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+  --method GET --path /admin/download-apps --json
+```
+
+If `{{APP_KEY}}` is missing and you intend to onboard it, create it:
+```bash
+cat > /tmp/lpbs-remote-app.json <<'JSON'
+{
+  "app_key": "{{APP_KEY}}",
+  "name": "{{APP_NAME}}",
+  "description": "Desktop application"
+}
+JSON
+
+landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+  --method POST --path /admin/download-apps --body @/tmp/lpbs-remote-app.json --json
 ```
 
 If any readiness check fails:
@@ -89,7 +143,8 @@ If any readiness check fails:
 
 Pass condition:
 - Base setup gates pass for `{{PROFILE_TAG}}`.
-- App gate passes for `{{APP_KEY}}` (existing app or newly created app).
+- Remote storage test passes for `{{PROFILE_TAG}}` (via remote proxy).
+- Remote app gate passes for `{{APP_KEY}}` (existing app or newly created app).
 
 #### Stage 3: Build + deploy desktop artifact (`scenario-to-desktop`)
 
@@ -111,11 +166,37 @@ Pass condition:
 
 #### Stage 4: Post-release verification
 
-Verify update manifest endpoint:
+Verify update manifest endpoint(s) based on platform.
+
+Electron-updater manifest filename mapping:
+
+| Platform | Manifest file |
+|---|---|
+| `win` | `latest.yml` |
+| `mac` | `latest-mac.yml` |
+| `linux` | `latest-linux.yml` |
+
+Manifest checks:
 
 ```bash
-curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/stable/latest.yml"
+# Linux example
+curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/latest-linux.yml"
 ```
+
+Artifact download checks (recommended):
+- The manifest only proves update metadata is published.
+- Also verify the artifact path itself resolves (LPBS commonly responds `302` to a storage URL, but `200` may occur depending on edge/CDN configuration).
+
+Use the artifact filename from the pipeline output (Stage 3) and check it:
+
+```bash
+# Example (artifact filename must match the built output)
+curl -sS -o /dev/null -w '%{http_code}\n' --max-redirs 0 \
+  "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/<artifact-filename>"
+```
+
+Pass expectation:
+- Returns `302` or `200` for each artifact you shipped (must not be 4xx/5xx).
 
 Optionally verify LPBS artifact records:
 
@@ -124,8 +205,17 @@ landing-page-business-suite admin-download-artifacts-by-app \
   --query app_key={{APP_KEY}} --json
 ```
 
+Discovery fallback (when manifest URL returns 404 but Stage 3 succeeded):
+- Use LPBS artifact records to discover what the current deployed artifact+version are:
+  ```bash
+  landing-page-business-suite admin-download-artifacts-by-app \
+    --query app_key={{APP_KEY}} --json
+  ```
+- Then re-run the manifest and artifact checks using the discovered filenames/versions.
+
 Pass condition:
-- Update manifest request succeeds and artifact metadata exists in LPBS.
+- Manifest request(s) succeed for each platform in `{{PLATFORMS}}`.
+- Artifact metadata exists in LPBS.
 
 ---
 
@@ -164,3 +254,32 @@ Pass condition:
 **Must not:**
 - Bypass prerequisite gates
 - Mutate unrelated LPBS business/content configuration
+
+---
+
+### 8. Troubleshooting & Edge Cases
+
+If Stage 3 fails with a generic deploy error (for example `deploy failed` / `INTERNAL_ERROR`) and the stage logs do not include a sub-step cause:
+
+1. Inspect pipeline status:
+```bash
+scenario-to-desktop pipeline status <pipeline_id> --verbose --json
+```
+
+2. Confirm build artifacts exist in the pipeline output:
+- `stages.build.details.artifacts` must include at least one platform path for the platforms you deployed.
+
+3. Validate remote prerequisites deterministically (via remote profile proxy):
+```bash
+landing-page-business-suite admin-session
+landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+  --method POST --path /admin/download-storage/test --json
+
+landing-page-business-suite remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
+  --method GET --path /admin/download-apps --json
+
+# Optional: list profiles for debugging
+landing-page-business-suite remote-profiles-list --json
+```
+
+If remote storage test fails (common symptom: S3 credential errors), stop and hand off to `landing-page-deploy-setup` remote-storage convergence; do not retry deploy until remote `/admin/download-storage/test` succeeds.

@@ -19,6 +19,7 @@ import {
   Gauge,
   Rocket,
   Flame,
+  Ruler,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Slider } from '@/components/ui/slider'
@@ -30,7 +31,8 @@ import { formatTimeFromHour } from '@/lib/sky/sunPosition'
 import { useRealTimeClock } from '@/hooks/useRealTimeClock'
 import type { SceneType } from '@/types/environment'
 import type { PerformanceTier, GraphicsConfig, MaterialQuality, AntialiasingMethod } from '@/types/graphics'
-import { SettingsToggle, SettingsSelect } from './settings'
+import { SettingsToggle, SettingsSelect, SettingsSlider } from './settings'
+import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { selectors } from '@/constants/selectors'
 
 interface WorldSettingsPopupProps {
@@ -113,6 +115,15 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
 
   const hasCustomOverrides = Object.keys(graphicsOverrides).length > 0
 
+  // World scale store
+  const agentScale = useWorldScaleStore((state) => state.agent)
+  const furnitureScale = useWorldScaleStore((state) => state.furniture)
+  const decorationScale = useWorldScaleStore((state) => state.decoration)
+  const overlayScale = useWorldScaleStore((state) => state.overlay)
+  const setScale = useWorldScaleStore((state) => state.setScale)
+  const resetAllScales = useWorldScaleStore((state) => state.resetAll)
+  const fetchScales = useWorldScaleStore((state) => state.fetchScales)
+
   // Performance store — auto-adjust
   const autoAdjust = usePerformanceStore((state) => state.config.autoAdjust)
 
@@ -145,6 +156,7 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
       document.addEventListener('keydown', handleKeyDown)
       document.addEventListener('mousedown', handleClickOutside)
       document.body.style.overflow = 'hidden'
+      fetchScales()
     }
 
     return () => {
@@ -152,7 +164,7 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
       document.removeEventListener('mousedown', handleClickOutside)
       document.body.style.overflow = ''
     }
-  }, [isOpen, handleKeyDown, handleClickOutside])
+  }, [isOpen, handleKeyDown, handleClickOutside, fetchScales])
 
   // Handle camera mode change
   const handleCameraModeChange = useCallback(
@@ -322,6 +334,59 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
                   <span className="text-xs">{label}</span>
                 </button>
               ))}
+            </div>
+          </section>
+
+          <div className="border-t border-white/10" />
+
+          {/* Object Scales Section */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-indigo-400 flex items-center gap-1.5">
+                <Ruler className="h-4 w-4" />
+                Object Scales
+              </h3>
+              <button
+                type="button"
+                onClick={resetAllScales}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+            <div className="space-y-2.5">
+              <SettingsSlider
+                label="Agent"
+                value={agentScale}
+                onChange={(v) => setScale('agent', v)}
+                min={0.1}
+                max={3}
+                step={0.05}
+              />
+              <SettingsSlider
+                label="Furniture"
+                value={furnitureScale}
+                onChange={(v) => setScale('furniture', v)}
+                min={0.1}
+                max={3}
+                step={0.05}
+              />
+              <SettingsSlider
+                label="Decoration"
+                value={decorationScale}
+                onChange={(v) => setScale('decoration', v)}
+                min={0.1}
+                max={3}
+                step={0.05}
+              />
+              <SettingsSlider
+                label="Overlay"
+                value={overlayScale}
+                onChange={(v) => setScale('overlay', v)}
+                min={0.1}
+                max={3}
+                step={0.05}
+              />
             </div>
           </section>
 

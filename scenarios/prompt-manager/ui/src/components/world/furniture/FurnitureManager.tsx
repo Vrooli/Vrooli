@@ -7,6 +7,7 @@ import { useCallback, useMemo } from 'react'
 import { FurnitureItem } from './FurnitureItem'
 import { DraggableObject } from '../interaction'
 import { useFurnitureStore, useFurnitureList } from '@/stores/furnitureStore'
+import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { FurnitureInstance } from '@/types/furniture'
 import { applyPlacementConstraints } from '@/lib/world'
@@ -29,6 +30,7 @@ export function FurnitureManager({
   draggable = false,
 }: FurnitureManagerProps) {
   const furnitureList = useFurnitureList()
+  const furnitureScale = useWorldScaleStore((state) => state.furniture)
   const moveFurniture = useFurnitureStore((state) => state.moveFurniture)
   const placementConfig = useEnvironmentStore((state) => state.current.placement)
   const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
@@ -67,6 +69,7 @@ export function FurnitureManager({
             type={furniture.type}
             position={draggable ? [0, 0, 0] : furniture.position}
             rotation={furniture.rotation}
+            scale={furnitureScale}
             color={furniture.color}
             onClick={interactive ? () => handleClick(furniture) : undefined}
           />

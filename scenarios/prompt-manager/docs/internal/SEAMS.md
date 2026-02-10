@@ -214,6 +214,15 @@ testable with mock stores.
 JSON parsing, eliminating duplication between the import handler and the interop package.
 Tests cover valid configs, fallback team names, invalid JSON, and empty members.
 
+## World Scale Config
+
+The world-scale system uses a simple file-based config (`store/world-scale.json`) with
+GET/PUT handlers in `api/worldscale/handlers.go`. The handlers use `store.LoadJSON` and
+`store.SaveJSON` — the same seams as other file-based stores.
+
+**Testing:** Handlers accept `storeDir string`, so tests can point at a temp directory.
+No interfaces needed — the seam is the filesystem path.
+
 ## UI Seams
 
 ### Service Layer
