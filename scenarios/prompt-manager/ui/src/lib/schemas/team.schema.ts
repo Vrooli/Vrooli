@@ -206,6 +206,26 @@ export const ImportCCRequestSchema = z.object({
 export type ImportCCRequest = z.infer<typeof ImportCCRequestSchema>
 
 /**
+ * Exclusive member - an agent that only belongs to one team.
+ */
+export const ExclusiveMemberSchema = z.object({
+  agentId: z.string(),
+  displayName: z.string(),
+})
+
+export type ExclusiveMember = z.infer<typeof ExclusiveMemberSchema>
+
+/**
+ * Response for GET /teams/{id}/exclusive-members.
+ */
+export const ExclusiveMembersResponseSchema = z.object({
+  teamId: z.string(),
+  members: z.array(ExclusiveMemberSchema),
+})
+
+export type ExclusiveMembersResponse = z.infer<typeof ExclusiveMembersResponseSchema>
+
+/**
  * Export CC team response (tool-agnostic CC config).
  */
 export const ExportCCResponseSchema = z.object({

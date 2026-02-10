@@ -17,17 +17,21 @@ import (
 
 // Handlers provides HTTP handlers for agent operations.
 type Handlers struct {
-	agentStore store.AgentStore
-	indexStore store.IndexStore
-	storeDir   string
+	agentStore    store.AgentStore
+	indexStore    store.IndexStore
+	relationStore store.RelationStore
+	teamStore     store.TeamStore
+	storeDir      string
 }
 
 // NewHandlers creates a new agents handler.
-func NewHandlers(agentStore store.AgentStore, indexStore store.IndexStore, storeDir string) *Handlers {
+func NewHandlers(agentStore store.AgentStore, indexStore store.IndexStore, storeDir string, relationStore store.RelationStore, teamStore store.TeamStore) *Handlers {
 	return &Handlers{
-		agentStore: agentStore,
-		indexStore: indexStore,
-		storeDir:   storeDir,
+		agentStore:    agentStore,
+		indexStore:    indexStore,
+		relationStore: relationStore,
+		teamStore:     teamStore,
+		storeDir:      storeDir,
 	}
 }
 
@@ -322,6 +326,53 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListTeams handles GET /agents/{id}/teams - returns team memberships for an agent.
+func (h *Handlers) ListTeams(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Verify agent exists
+	if _, err := h.agentStore.Get(ctx, id); err != nil {
+		http.Error(w, "Agent not found", http.StatusNotFound)
+		return
+	}
+
+	relations, err := h.relationStore.ListAgentTeams(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	memberships := make([]AgentTeamMembershipDTO, 0, len(relations))
+	for _, rel := range relations {
+		displayName := rel.TeamID
+		if h.teamStore != nil {
+			if team, err := h.teamStore.Get(ctx, rel.TeamID); err == nil {
+				displayName = team.DisplayName
+			}
+		}
+		roles := rel.Roles
+		if roles == nil {
+			roles = []string{}
+		}
+		memberships = append(memberships, AgentTeamMembershipDTO{
+			TeamID:          rel.TeamID,
+			TeamDisplayName: displayName,
+			Roles:           roles,
+			Status:          rel.Status,
+		})
+	}
+
+	resp := AgentTeamsResponse{
+		AgentID:     id,
+		Memberships: memberships,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // GetSoul handles GET /agents/{id}/soul - returns the SOUL.md content for an agent.

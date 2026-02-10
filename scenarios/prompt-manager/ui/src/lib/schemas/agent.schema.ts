@@ -224,6 +224,25 @@ export const PromptPreviewResponseSchema = z.object({
 export type PromptPreviewResponse = z.infer<typeof PromptPreviewResponseSchema>
 
 /**
+ * Agent team membership schemas for /agents/{id}/teams endpoint.
+ */
+export const AgentTeamMembershipSchema = z.object({
+  teamId: z.string(),
+  teamDisplayName: z.string(),
+  roles: z.array(z.string()).nullable().optional().transform((val) => val ?? []),
+  status: z.string(),
+})
+
+export type AgentTeamMembership = z.infer<typeof AgentTeamMembershipSchema>
+
+export const AgentTeamsResponseSchema = z.object({
+  agentId: z.string(),
+  memberships: z.array(AgentTeamMembershipSchema).nullable().optional().transform((val) => val ?? []),
+})
+
+export type AgentTeamsResponse = z.infer<typeof AgentTeamsResponseSchema>
+
+/**
  * Default agent colors for new agents.
  */
 export const DEFAULT_AGENT_COLORS: AgentAppearance = {

@@ -25,10 +25,11 @@ import { Slider } from '@/components/ui/slider'
 import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
+import { usePerformanceStore } from '@/stores/performanceStore'
 import { formatTimeFromHour } from '@/lib/sky/sunPosition'
 import { useRealTimeClock } from '@/hooks/useRealTimeClock'
 import type { SceneType } from '@/types/environment'
-import type { PerformanceTier, MaterialQuality, AntialiasingMethod } from '@/types/graphics'
+import type { PerformanceTier, GraphicsConfig, MaterialQuality, AntialiasingMethod } from '@/types/graphics'
 import { SettingsToggle, SettingsSelect } from './settings'
 import { selectors } from '@/constants/selectors'
 
@@ -112,6 +113,9 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
 
   const hasCustomOverrides = Object.keys(graphicsOverrides).length > 0
 
+  // Performance store — auto-adjust
+  const autoAdjust = usePerformanceStore((state) => state.config.autoAdjust)
+
   // Time display
   const timeDisplay = useMemo(() => formatTimeFromHour(timeValue), [timeValue])
 
@@ -177,13 +181,17 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
     [timeValue, setTimeValue, realTimeMode, setRealTimeMode]
   )
 
-  // Handle graphics tier change
+  // Handle graphics tier change — disable auto-adjust so the user's choice sticks
+  const setAutoDetect = useGraphicsStore((state) => state.setAutoDetect)
   const handleTierChange = useCallback(
     (tier: PerformanceTier) => {
       clearOverrides()
       setTier(tier)
+      // Disable auto-adjust and auto-detect so the manual choice persists
+      usePerformanceStore.getState().setConfig({ autoAdjust: false })
+      setAutoDetect(false)
     },
-    [setTier, clearOverrides]
+    [setTier, clearOverrides, setAutoDetect]
   )
 
   if (!isOpen) return null
@@ -342,13 +350,31 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
               ))}
             </div>
 
+            {/* Auto-adjust toggle */}
+            <SettingsToggle
+              label="Auto-adjust quality"
+              value={autoAdjust}
+              onChange={(v) => {
+                usePerformanceStore.getState().setConfig({ autoAdjust: v })
+                if (v) {
+                  setAutoDetect(true)
+                }
+              }}
+            />
+
             {/* Custom checkbox */}
-            <label className="flex items-center gap-2 mb-4 cursor-pointer">
+            <label className="flex items-center gap-2 mb-4 mt-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={hasCustomOverrides}
                 onChange={(e) => {
-                  if (!e.target.checked) {
+                  if (e.target.checked) {
+                    // Seed overrides with current config so the custom panel appears
+                    const currentConfig = useGraphicsStore.getState().config
+                    for (const [key, value] of Object.entries(currentConfig)) {
+                      setOverride(key as keyof GraphicsConfig, value as GraphicsConfig[keyof GraphicsConfig])
+                    }
+                  } else {
                     clearOverrides()
                   }
                 }}

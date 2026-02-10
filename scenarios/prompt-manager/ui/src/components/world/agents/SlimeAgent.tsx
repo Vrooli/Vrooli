@@ -29,6 +29,20 @@ const BODY_RADIUS = 0.4
 // Reusable unit scale vector — avoids allocating a new Vector3 every frame
 const UNIT_SCALE = new THREE.Vector3(1, 1, 1)
 
+// Perf: Share geometry across all agents — avoids N duplicate allocations in VRAM.
+// Segment counts reduced where imperceptible at these radii.
+const BODY_GEO = new THREE.SphereGeometry(0.4, 24, 16) // was 32x32
+const EYE_GEO = new THREE.SphereGeometry(0.1, 12, 12)  // was 16x16
+const PUPIL_GEO = new THREE.SphereGeometry(0.055, 8, 8) // was 12x12
+const EAR_GEO = new THREE.SphereGeometry(0.08, 8, 8)    // was 12x12
+const BLUSH_GEO = new THREE.CircleGeometry(0.06, 12)     // was 16 segments
+const ORB_GEO = new THREE.SphereGeometry(0.04, 6, 6)     // was 8x8
+
+// Perf: Static materials shared across all agent instances — identical for every agent.
+const SHARED_EYE_MAT = new THREE.MeshBasicMaterial({ color: '#ffffff' })
+const SHARED_PUPIL_MAT = new THREE.MeshBasicMaterial({ color: '#1e1b4b' })
+const SHARED_BLUSH_MAT = new THREE.MeshBasicMaterial({ color: '#ff8fa3', transparent: true, opacity: 0.3 })
+
 // Default agent colors
 const DEFAULT_COLORS = {
   body: '#6366f1', // Indigo
@@ -146,30 +160,46 @@ export function SlimeAgent({
     }
   }, [])
 
-  // Create body material with slime shader
-  const bodyMaterial = useMemo(() => {
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: COLORS.body,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.05,
-      transmission: 0.15,
-      thickness: 1.5,
-      ior: 1.4,
-      iridescence: 0.3,
-      iridescenceIOR: 1.2,
-      roughness: 0.2,
-      metalness: 0.0,
-    })
-    bindSlimeShader(mat, {
-      wobbleIntensity: 0.02,
-      wobbleSpeed: variation.wobbleSpeed,
-    })
-    return mat
-  }, [COLORS.body, variation.wobbleSpeed])
+  // Perf: Read materialQuality from graphics tier — MeshPhysicalMaterial only at 'physical' tier.
+  // Clearcoat/transmission/iridescence each add extra shader passes, causing significant GPU overhead per agent.
+  const materialQuality = useGraphicsStore((state) => state.config.materialQuality)
 
-  // Eye/pupil materials
-  const eyeMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: COLORS.eye }), [COLORS.eye])
-  const pupilMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: COLORS.pupil }), [COLORS.pupil])
+  // Create body material — tier-aware
+  const bodyMaterial = useMemo(() => {
+    if (materialQuality === 'physical') {
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: COLORS.body,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
+        transmission: 0.15,
+        thickness: 1.5,
+        ior: 1.4,
+        iridescence: 0.3,
+        iridescenceIOR: 1.2,
+        roughness: 0.2,
+        metalness: 0.0,
+      })
+      bindSlimeShader(mat, {
+        wobbleIntensity: 0.02,
+        wobbleSpeed: variation.wobbleSpeed,
+      })
+      return mat
+    }
+    if (materialQuality === 'standard') {
+      return new THREE.MeshStandardMaterial({
+        color: COLORS.body,
+        roughness: 0.3,
+        metalness: 0.0,
+      })
+    }
+    // 'basic' — cheapest, no lighting calculations
+    return new THREE.MeshBasicMaterial({ color: COLORS.body })
+  }, [COLORS.body, variation.wobbleSpeed, materialQuality])
+
+  // Track whether the body material supports the slime shader (only MeshPhysicalMaterial)
+  const isPhysicalMaterial = materialQuality === 'physical'
+
+  // Accent material (varies per agent color, so stays per-instance)
   const accentMaterial = useMemo(
     () => new THREE.MeshStandardMaterial({
       color: COLORS.accent,
@@ -179,14 +209,6 @@ export function SlimeAgent({
       emissiveIntensity: 0.2,
     }),
     [COLORS.accent, COLORS.glow]
-  )
-  const blushMaterial = useMemo(
-    () => new THREE.MeshBasicMaterial({
-      color: '#ff8fa3',
-      transparent: true,
-      opacity: 0.3,
-    }),
-    []
   )
 
   const handleClick = useCallback(
@@ -245,13 +267,15 @@ export function SlimeAgent({
       return
     }
 
-    // ===== SHADER SYNC =====
+    // ===== SHADER SYNC (physical material only — other tiers have no slime shader) =====
     const wobbleEnabled = useGraphicsStore.getState().config.agentWobble
     const wobbleIntensity = !wobbleEnabled ? 0
       : lodLevel === 'high' ? 0.02
         : lodLevel === 'medium' ? 0.01
           : 0
-    syncSlimeShader(bodyMaterial, state.time * variation.wobbleSpeed, 1.0, wobbleIntensity)
+    if (isPhysicalMaterial) {
+      syncSlimeShader(bodyMaterial as THREE.MeshPhysicalMaterial, state.time * variation.wobbleSpeed, 1.0, wobbleIntensity)
+    }
 
     // ===== HOP LOCOMOTION (when moving) =====
     if (isMovingRef.current) {
@@ -271,13 +295,17 @@ export function SlimeAgent({
           const stretchY = 1.0 + sinVal * 0.15
           const stretchXZ = 1.0 - sinVal * 0.08
           groupRef.current.scale.set(stretchXZ, stretchY, stretchXZ)
-          syncSlimeShader(bodyMaterial, state.time * variation.wobbleSpeed, stretchY, wobbleIntensity)
+          if (isPhysicalMaterial) {
+            syncSlimeShader(bodyMaterial as THREE.MeshPhysicalMaterial, state.time * variation.wobbleSpeed, stretchY, wobbleIntensity)
+          }
         } else {
           // Landing - squash
           const squashY = 1.0 - Math.abs(sinVal) * 0.12
           const squashXZ = 1.0 + Math.abs(sinVal) * 0.06
           groupRef.current.scale.set(squashXZ, squashY, squashXZ)
-          syncSlimeShader(bodyMaterial, state.time * variation.wobbleSpeed, squashY, wobbleIntensity)
+          if (isPhysicalMaterial) {
+            syncSlimeShader(bodyMaterial as THREE.MeshPhysicalMaterial, state.time * variation.wobbleSpeed, squashY, wobbleIntensity)
+          }
         }
       }
 
@@ -309,7 +337,9 @@ export function SlimeAgent({
       // Breathing via scale only (bottom stays grounded because inner offset = body radius)
       const breathScale = 1.0 + Math.sin(state.time * 2) * 0.03 * breathMult
       groupRef.current.scale.set(1, breathScale, 1)
-      syncSlimeShader(bodyMaterial, state.time * variation.wobbleSpeed, breathScale, wobbleIntensity)
+      if (isPhysicalMaterial) {
+        syncSlimeShader(bodyMaterial as THREE.MeshPhysicalMaterial, state.time * variation.wobbleSpeed, breathScale, wobbleIntensity)
+      }
     }
 
     if (isSeated) {
@@ -370,7 +400,9 @@ export function SlimeAgent({
         groupRef.current.scale.setScalar(1 + bounce)
 
         // Increased wobble during celebration
-        syncSlimeShader(bodyMaterial, state.time * variation.wobbleSpeed, 1.0, 0.05)
+        if (isPhysicalMaterial) {
+          syncSlimeShader(bodyMaterial as THREE.MeshPhysicalMaterial, state.time * variation.wobbleSpeed, 1.0, 0.05)
+        }
 
         if (state.celebrationProgress > 1.5) {
           state.isCelebrating = false
@@ -383,7 +415,8 @@ export function SlimeAgent({
   })
 
   return (
-    <group ref={groupRef} position={position} onClick={handleClick} {...hoverProps}>
+    // Perf: dispose={null} prevents R3F from disposing shared module-level geometries/materials
+    <group ref={groupRef} position={position} onClick={handleClick} dispose={null} {...hoverProps}>
       {/* Inner offset group - lifts body so sphere bottom sits at ground level */}
       <group position={[0, BODY_RADIUS, 0]}>
         {/* Body - egg-shaped sphere with slime shader */}
@@ -391,28 +424,21 @@ export function SlimeAgent({
           ref={bodyRef}
           scale={[1, variation.bodyAspectY / 0.85, 1]}
           material={bodyMaterial}
+          geometry={BODY_GEO}
           castShadow
-        >
-          <sphereGeometry args={[0.4, 32, 32]} />
-        </mesh>
+        />
 
         {/* Eyes */}
         {/* Left eye */}
-        <mesh position={[-0.12, 0.1, 0.3]} material={eyeMaterial}>
-          <sphereGeometry args={[0.1, 16, 16]} />
+        <mesh position={[-0.12, 0.1, 0.3]} material={SHARED_EYE_MAT} geometry={EYE_GEO}>
           {/* Left pupil - z=0.06 protrudes past eye surface (r=0.1) */}
-          <mesh ref={leftPupilRef} position={[0, 0, 0.06]} material={pupilMaterial}>
-            <sphereGeometry args={[0.055, 12, 12]} />
-          </mesh>
+          <mesh ref={leftPupilRef} position={[0, 0, 0.06]} material={SHARED_PUPIL_MAT} geometry={PUPIL_GEO} />
         </mesh>
 
         {/* Right eye */}
-        <mesh position={[0.12, 0.1, 0.3]} material={eyeMaterial}>
-          <sphereGeometry args={[0.1, 16, 16]} />
+        <mesh position={[0.12, 0.1, 0.3]} material={SHARED_EYE_MAT} geometry={EYE_GEO}>
           {/* Right pupil - z=0.06 protrudes past eye surface (r=0.1) */}
-          <mesh ref={rightPupilRef} position={[0, 0, 0.06]} material={pupilMaterial}>
-            <sphereGeometry args={[0.055, 12, 12]} />
-          </mesh>
+          <mesh ref={rightPupilRef} position={[0, 0, 0.06]} material={SHARED_PUPIL_MAT} geometry={PUPIL_GEO} />
         </mesh>
 
         {/* Mouth */}
@@ -421,24 +447,16 @@ export function SlimeAgent({
         {/* Ear nubs (50% of agents) */}
         {variation.hasEarNubs && (
           <>
-            <mesh position={[-0.2, 0.3, 0]} material={accentMaterial}>
-              <sphereGeometry args={[0.08, 12, 12]} />
-            </mesh>
-            <mesh position={[0.2, 0.3, 0]} material={accentMaterial}>
-              <sphereGeometry args={[0.08, 12, 12]} />
-            </mesh>
+            <mesh position={[-0.2, 0.3, 0]} material={accentMaterial} geometry={EAR_GEO} />
+            <mesh position={[0.2, 0.3, 0]} material={accentMaterial} geometry={EAR_GEO} />
           </>
         )}
 
         {/* Blush marks (50% of agents) */}
         {variation.hasBlush && (
           <>
-            <mesh position={[-0.22, 0.0, 0.25]} material={blushMaterial}>
-              <circleGeometry args={[0.06, 16]} />
-            </mesh>
-            <mesh position={[0.22, 0.0, 0.25]} material={blushMaterial}>
-              <circleGeometry args={[0.06, 16]} />
-            </mesh>
+            <mesh position={[-0.22, 0.0, 0.25]} material={SHARED_BLUSH_MAT} geometry={BLUSH_GEO} />
+            <mesh position={[0.22, 0.0, 0.25]} material={SHARED_BLUSH_MAT} geometry={BLUSH_GEO} />
           </>
         )}
 
@@ -521,8 +539,7 @@ function FloatingOrb({ index, total }: { index: number; total: number }) {
   })
 
   return (
-    <mesh ref={meshRef}>
-      <sphereGeometry args={[0.04, 8, 8]} />
+    <mesh ref={meshRef} geometry={ORB_GEO}>
       <MeshWobbleMaterial
         color={DEFAULT_COLORS.glow}
         emissive={DEFAULT_COLORS.accent}

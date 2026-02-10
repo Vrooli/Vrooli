@@ -9,6 +9,7 @@
 import { memo, useMemo, useRef } from 'react'
 import { Cloud, Clouds } from '@react-three/drei'
 import { useEnvironmentStore } from '@/stores/environmentStore'
+import { useGraphicsStore } from '@/stores/graphicsStore'
 import type { SceneType } from '@/types/environment'
 
 // Stable constants for Cloud props - NEVER inline these in JSX
@@ -121,11 +122,17 @@ export const ProceduralClouds = memo(function ProceduralClouds({
   const storeTimeValue = useEnvironmentStore((state) => state.timeValue)
   const storeSceneType = useEnvironmentStore((state) => state.current.type)
 
+  // Perf: Tier-aware cloud rendering — volumetric billboard quads are very fill-rate-intensive
+  const tier = useGraphicsStore((state) => state.tier)
+
   const timeValue = timeValueProp ?? storeTimeValue
   const sceneType = sceneTypeProp ?? storeSceneType
 
-  // Reduce count for low quality mode
-  const actualCount = lowQuality ? Math.ceil(count / 2) : count
+  // Perf: At low tier, skip clouds entirely (320 alpha-blended quads at default settings)
+  // At medium tier, halve the instance count
+  const tierCount = tier === 'low' ? 0 : tier === 'medium' ? Math.ceil(count / 2) : count
+  // Also respect the lowQuality prop
+  const actualCount = lowQuality ? Math.ceil(tierCount / 2) : tierCount
 
   // IMPORTANT: All hooks must be called before any conditional returns (Rules of Hooks)
   // Use ref to store cloud data - this persists across ALL re-renders and never regenerates
@@ -150,12 +157,13 @@ export const ProceduralClouds = memo(function ProceduralClouds({
     return opacity
   }, [timeValue, sceneType])
 
-  // Don't render clouds for abstract-space (after all hooks)
-  if (sceneType === 'abstract-space') {
+  // Don't render clouds for abstract-space or when tier eliminates them (after all hooks)
+  if (sceneType === 'abstract-space' || actualCount === 0) {
     return null
   }
 
-  const segments = lowQuality ? CLOUD_SEGMENTS_LOW : CLOUD_SEGMENTS_HIGH
+  // Perf: Use fewer segments at medium tier
+  const segments = (lowQuality || tier === 'medium') ? CLOUD_SEGMENTS_LOW : CLOUD_SEGMENTS_HIGH
 
   return (
     <Clouds>

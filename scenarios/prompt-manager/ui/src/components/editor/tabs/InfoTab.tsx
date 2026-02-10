@@ -5,13 +5,17 @@
  * - Read-only metadata display
  * - ID, status, timestamps
  * - Runtime configuration
- * - Team memberships (future)
+ * - Team memberships
  * - Tags display
  */
 
-import { Clock, Hash, Activity, Folder, Tag, Server } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Clock, Hash, Activity, Folder, Tag, Server, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
+import type { AgentTeamMembership } from '@/lib/schemas'
+import { getAgentTeams } from '@/services/agentService'
+import { useSelectionStore } from '@/stores/selectionStore'
 
 // Extended agent type with optional v1 fields for display purposes
 interface AgentWithLegacyFields extends Agent {
@@ -30,6 +34,17 @@ interface InfoTabProps {
  * Info display tab component.
  */
 export function InfoTab({ agent }: InfoTabProps) {
+  const [memberships, setMemberships] = useState<AgentTeamMembership[]>([])
+  const setSelectedTeamId = useSelectionStore((s) => s.setSelectedTeamId)
+
+  useEffect(() => {
+    let cancelled = false
+    getAgentTeams(agent.id).then((result) => {
+      if (!cancelled) setMemberships(result)
+    })
+    return () => { cancelled = true }
+  }, [agent.id])
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown'
     return new Date(dateString).toLocaleString()
@@ -200,6 +215,38 @@ export function InfoTab({ agent }: InfoTabProps) {
               <span>{agent.heartbeat.maxMissedBeats ?? 3}</span>
             </div>
           </dl>
+        </section>
+      )}
+
+      {/* Team Memberships */}
+      {memberships.length > 0 && (
+        <section>
+          <h3 className="text-sm font-medium text-foreground mb-3">Team Memberships</h3>
+          <ul className="space-y-2">
+            {memberships.map((membership) => (
+              <li
+                key={membership.teamId}
+                className="flex items-center justify-between p-2 bg-muted rounded-lg"
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => setSelectedTeamId(membership.teamId)}
+                  >
+                    {membership.teamDisplayName}
+                  </button>
+                  {membership.roles.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      ({membership.roles.join(', ')})
+                    </span>
+                  )}
+                </div>
+                <StatusBadge status={membership.status} />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>

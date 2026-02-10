@@ -3,8 +3,7 @@
  * Positioned opposite to the sun, visible at night.
  */
 
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useMemo } from 'react'
 import * as THREE from 'three'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { calculateMoonPosition, isNightTime } from '@/lib/sky/sunPosition'
@@ -21,9 +20,6 @@ interface MoonProps {
  * Only rendered when the sun is below the horizon.
  */
 export function Moon({ timeValue: timeValueProp, size = 1.5 }: MoonProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
-  const glowRef = useRef<THREE.Mesh>(null)
-
   const storeTimeValue = useEnvironmentStore((state) => state.timeValue)
   const timeValue = timeValueProp ?? storeTimeValue
 
@@ -46,12 +42,7 @@ export function Moon({ timeValue: timeValueProp, size = 1.5 }: MoonProps) {
     return 1
   }, [timeValue])
 
-  // Subtle rotation for visual interest
-  useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.02
-    }
-  })
+  // Perf: Removed useFrame rotation (0.02 rad/s is imperceptible on a distant sphere)
 
   if (!isVisible) {
     return null
@@ -60,8 +51,9 @@ export function Moon({ timeValue: timeValueProp, size = 1.5 }: MoonProps) {
   return (
     <group position={position}>
       {/* Main moon sphere */}
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[size, 32, 32]} />
+      {/* Perf: 16x16 segments — distant object, polygon difference invisible */}
+      <mesh>
+        <sphereGeometry args={[size, 16, 16]} />
         <meshBasicMaterial
           color="#E8E8E8"
           toneMapped={false}
@@ -71,8 +63,8 @@ export function Moon({ timeValue: timeValueProp, size = 1.5 }: MoonProps) {
       </mesh>
 
       {/* Glow effect */}
-      <mesh ref={glowRef} scale={1.3}>
-        <sphereGeometry args={[size, 32, 32]} />
+      <mesh scale={1.3}>
+        <sphereGeometry args={[size, 16, 16]} />
         <meshBasicMaterial
           color="#B8C4D8"
           toneMapped={false}

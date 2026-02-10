@@ -98,7 +98,7 @@ func main() {
 	templateHandlers := templates.NewHandlers(templates.NewStore(absStoreDir))
 
 	// Agent handlers (new storage-backed, replaces member handlers)
-	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), absStoreDir)
+	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), absStoreDir, fileStore.Relations(), fileStore.Teams())
 
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()
@@ -239,6 +239,7 @@ func main() {
 	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.SetFile).Methods("PUT")
 	v1.HandleFunc("/agents/{id}/files", agentHandlers.CreateFile).Methods("POST")
 	v1.HandleFunc("/agents/{id}/files/rename", agentHandlers.RenameFile).Methods("POST")
+	v1.HandleFunc("/agents/{id}/teams", agentHandlers.ListTeams).Methods("GET")
 	v1.HandleFunc("/agents/{id}/files", agentHandlers.DeleteFile).Methods("DELETE")
 
 	// Agent file templates
@@ -254,6 +255,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}", teamHandlers.Get).Methods("GET")
 	v1.HandleFunc("/teams/{id}", teamHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/teams/{id}", teamHandlers.Delete).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/exclusive-members", teamHandlers.GetExclusiveMembers).Methods("GET")
 	v1.HandleFunc("/teams/{id}/members", teamHandlers.AddMember).Methods("POST")
 	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.UpdateMember).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.RemoveMember).Methods("DELETE")

@@ -152,3 +152,15 @@ type TeamSharedFileRenameRequest struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 }
+
+// ExclusiveMemberDTO represents a member that belongs only to this team.
+type ExclusiveMemberDTO struct {
+	AgentID     string `json:"agentId"`
+	DisplayName string `json:"displayName"`
+}
+
+// ExclusiveMembersResponse is the API response for exclusive members.
+type ExclusiveMembersResponse struct {
+	TeamID  string               `json:"teamId"`
+	Members []ExclusiveMemberDTO `json:"members"`
+}

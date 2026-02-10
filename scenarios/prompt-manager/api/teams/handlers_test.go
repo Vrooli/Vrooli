@@ -332,6 +332,21 @@ func (m *MockRelationStore) ListTeamMembers(ctx context.Context, teamID string) 
 	return result, nil
 }
 
+func (m *MockRelationStore) ListAgentTeams(ctx context.Context, agentID string) ([]store.TeamMemberRelation, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	var result []store.TeamMemberRelation
+	for _, team := range m.teamMembers {
+		for _, rel := range team {
+			if rel.AgentID == agentID {
+				result = append(result, *rel)
+			}
+		}
+	}
+	return result, nil
+}
+
 // MockIndexStore implements store.IndexStore for testing
 type MockIndexStore struct{}
 
@@ -1344,6 +1359,114 @@ func TestSendTeamMessage(t *testing.T) {
 	}
 	if message.FromAgentID != "sender-1" || message.ToAgentID != "recipient-1" {
 		t.Errorf("Unexpected message payload: %+v", message)
+	}
+}
+
+// ============== GetExclusiveMembers Tests ==============
+
+func TestGetExclusiveMembers(t *testing.T) {
+	handlers, teamStore, agentStore, relationStore := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Test Team",
+	}
+	teamStore.teams["team-2"] = &store.Team{
+		ID:          "team-2",
+		DisplayName: "Other Team",
+	}
+
+	agentStore.agents["agent-1"] = &store.Agent{ID: "agent-1", DisplayName: "Exclusive Agent"}
+	agentStore.agents["agent-2"] = &store.Agent{ID: "agent-2", DisplayName: "Shared Agent"}
+	agentStore.agents["agent-3"] = &store.Agent{ID: "agent-3", DisplayName: "Another Exclusive"}
+
+	// agent-1 only in team-1
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1"})
+	// agent-2 in both teams
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-2"})
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-2", AgentID: "agent-2"})
+	// agent-3 only in team-1
+	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-3"})
+
+	req := httptest.NewRequest("GET", "/teams/team-1/exclusive-members", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetExclusiveMembers(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response ExclusiveMembersResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response.TeamID != "team-1" {
+		t.Errorf("Expected teamId 'team-1', got '%s'", response.TeamID)
+	}
+
+	if len(response.Members) != 2 {
+		t.Fatalf("Expected 2 exclusive members, got %d", len(response.Members))
+	}
+
+	// Verify exclusive members (order may vary)
+	exclusiveIDs := make(map[string]string) // agentID -> displayName
+	for _, m := range response.Members {
+		exclusiveIDs[m.AgentID] = m.DisplayName
+	}
+
+	if name, ok := exclusiveIDs["agent-1"]; !ok || name != "Exclusive Agent" {
+		t.Errorf("Expected agent-1 with name 'Exclusive Agent', got ok=%v name='%s'", ok, name)
+	}
+	if name, ok := exclusiveIDs["agent-3"]; !ok || name != "Another Exclusive" {
+		t.Errorf("Expected agent-3 with name 'Another Exclusive', got ok=%v name='%s'", ok, name)
+	}
+	if _, ok := exclusiveIDs["agent-2"]; ok {
+		t.Error("agent-2 should NOT be exclusive (belongs to 2 teams)")
+	}
+}
+
+func TestGetExclusiveMembersTeamNotFound(t *testing.T) {
+	handlers, _, _, _ := setupTestHandlers()
+
+	req := httptest.NewRequest("GET", "/teams/nonexistent/exclusive-members", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
+	w := httptest.NewRecorder()
+
+	handlers.GetExclusiveMembers(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestGetExclusiveMembersNoMembers(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Empty Team",
+	}
+
+	req := httptest.NewRequest("GET", "/teams/team-1/exclusive-members", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetExclusiveMembers(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var response ExclusiveMembersResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if len(response.Members) != 0 {
+		t.Errorf("Expected 0 exclusive members, got %d", len(response.Members))
 	}
 }
 

@@ -1,51 +1,6 @@
 {
-  "generatedAt": "2026-02-09T12:00:00Z",
+  "generatedAt": "2026-02-10T03:35:27Z",
   "items": [
-    {
-      "id": "agent-1",
-      "displayName": "Member 1",
-      "status": "active"
-    },
-    {
-      "id": "agent-1-copy",
-      "displayName": "Member 1 (Copy)",
-      "status": "active"
-    },
-    {
-      "id": "agent-2",
-      "displayName": "Member 2",
-      "status": "active"
-    },
-    {
-      "id": "agent-3",
-      "displayName": "Member 3",
-      "status": "active"
-    },
-    {
-      "id": "agent-5",
-      "displayName": "Member 5",
-      "status": "active"
-    },
-    {
-      "id": "agent-6",
-      "displayName": "Member 6",
-      "status": "active"
-    },
-    {
-      "id": "agent-7",
-      "displayName": "Member 7",
-      "status": "active"
-    },
-    {
-      "id": "agent-8",
-      "displayName": "Member 8",
-      "status": "active"
-    },
-    {
-      "id": "agent-9",
-      "displayName": "Agent 9",
-      "status": "active"
-    },
     {
       "id": "agent-optimizer",
       "displayName": "Agent Optimizer",

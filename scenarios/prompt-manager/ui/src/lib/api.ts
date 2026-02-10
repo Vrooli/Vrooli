@@ -43,6 +43,7 @@ import {
   AgentFileContentResponseSchema,
   AgentFileTemplateListResponseSchema,
   PromptPreviewResponseSchema,
+  AgentTeamsResponseSchema,
   AISearchResponseSchema,
   AISearchStatusSchema,
   AIReindexStatusSchema,
@@ -56,6 +57,7 @@ import {
   TeamSharedFileContentResponseSchema,
   AvailableCCTeamSchema,
   ExportCCResponseSchema,
+  ExclusiveMembersResponseSchema,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -77,6 +79,7 @@ import {
   type AgentFileRenameRequest,
   type AgentFileTemplateListResponse,
   type PromptPreviewResponse,
+  type AgentTeamsResponse,
   type AISearchResponse,
   type AISearchStatus,
   type AIReindexStatus,
@@ -97,6 +100,7 @@ import {
   type TeamSharedFileRenameRequest,
   type AvailableCCTeam,
   type ExportCCResponse,
+  type ExclusiveMembersResponse,
 } from '@/lib/schemas'
 import type { SearchFilters, Folder } from '@/types'
 
@@ -605,6 +609,14 @@ class ApiClient {
     })
   }
 
+  async getAgentTeams(id: string): Promise<AgentTeamsResponse> {
+    return this.request<AgentTeamsResponse>(
+      `/agents/${encodeURIComponent(id)}/teams`,
+      undefined,
+      AgentTeamsResponseSchema
+    )
+  }
+
   // Team methods - aligned with api/teams/handlers.go
   async getTeams(): Promise<Team[]> {
     return this.request<Team[]>('/teams', undefined, TeamArraySchema)
@@ -644,6 +656,14 @@ class ApiClient {
     await this.requestVoid(`/teams/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
+  }
+
+  async getTeamExclusiveMembers(teamId: string): Promise<ExclusiveMembersResponse> {
+    return this.request<ExclusiveMembersResponse>(
+      `/teams/${encodeURIComponent(teamId)}/exclusive-members`,
+      undefined,
+      ExclusiveMembersResponseSchema
+    )
   }
 
   async addTeamMember(teamId: string, request: AddMemberRequest): Promise<TeamMember> {

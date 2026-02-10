@@ -35,6 +35,7 @@ import { MaterialProvider } from './materials/MaterialProvider'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { WorldErrorProvider } from './WorldErrorProvider'
 import { cursorRef } from './cursorRef'
+import { useGraphicsStore } from '@/stores/graphicsStore'
 import { selectors } from '@/constants/selectors'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
@@ -96,6 +97,9 @@ export function WorldCanvas({
   // Theme for 3D colors
   const resolvedTheme = useResolvedTheme()
   const isDarkMode = resolvedTheme === 'dark'
+
+  // Perf: Read DPR from graphics tier — hardcoded [1,2] renders 4x fragments on retina at low tier
+  const dpr = useGraphicsStore((state) => state.config.dpr)
 
   // Seed world with default furniture/decorations on first load
   useWorldDefaults()
@@ -348,7 +352,7 @@ export function WorldCanvas({
               far: 100,
             }}
             gl={{ antialias: true, alpha: false }}
-            dpr={[1, 2]}
+            dpr={dpr}
           >
             <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />
             <RenderPipeline>

@@ -80,6 +80,8 @@ export {
   AgentFileCreateRequestSchema,
   AgentFileRenameRequestSchema,
   PromptPreviewResponseSchema,
+  AgentTeamMembershipSchema,
+  AgentTeamsResponseSchema,
   DEFAULT_AGENT_COLORS,
   type AgentStatus,
   type AgentAppearance,
@@ -100,6 +102,8 @@ export {
   type AgentFileCreateRequest,
   type AgentFileRenameRequest,
   type PromptPreviewResponse,
+  type AgentTeamMembership,
+  type AgentTeamsResponse,
 } from './agent.schema'
 
 // Search schemas
@@ -151,6 +155,8 @@ export {
   AvailableCCTeamSchema,
   ImportCCRequestSchema,
   ExportCCResponseSchema,
+  ExclusiveMemberSchema,
+  ExclusiveMembersResponseSchema,
   type SpawnMode,
   type TeamMemberStatus,
   type TeamRole,
@@ -171,6 +177,8 @@ export {
   type AvailableCCTeam,
   type ImportCCRequest,
   type ExportCCResponse,
+  type ExclusiveMember,
+  type ExclusiveMembersResponse,
 } from './team.schema'
 
 // Template schemas

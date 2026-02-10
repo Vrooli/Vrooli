@@ -27,6 +27,7 @@ import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, Moon, Procedura
 import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
+import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useIsPlacing, useIsEditMode } from '@/stores/worldEditorStore'
 import { calculateStarOpacity } from '@/lib/sky/sunPosition'
 import { applyPlacementConstraints } from '@/lib/world'
@@ -157,6 +158,11 @@ export function WorldScene({
   const isPlacing = useIsPlacing()
   const isEditMode = useIsEditMode()
 
+  // Perf: Read shadow and tier settings from graphics store — avoids hardcoding expensive defaults
+  const shadows = useGraphicsStore((state) => state.config.shadows)
+  const shadowMapSize = useGraphicsStore((state) => state.config.shadowMapSize)
+  const tier = useGraphicsStore((state) => state.tier)
+
   // Environment config for ground styling
   const currentEnv = useEnvironmentStore((state) => state.current)
   const timeValue = useEnvironmentStore((state) => state.timeValue)
@@ -191,7 +197,9 @@ export function WorldScene({
 
   // Calculate star opacity based on continuous time
   const starOpacity = useMemo(() => calculateStarOpacity(timeValue), [timeValue])
-  const showStars = starOpacity > 0
+  // Perf: Tier-aware star count — 3000 points is expensive fill at low tiers
+  const starCount = tier === 'low' ? 0 : tier === 'medium' ? 1000 : 3000
+  const showStars = starOpacity > 0 && starCount > 0
 
   // Update camera position when state changes
   useEffect(() => {
@@ -213,8 +221,8 @@ export function WorldScene({
       />
       {showFpsOverlay && <FPSOverlay position={[-6, 4, 0]} detailed />}
 
-      {/* Dynamic Lighting from environment config */}
-      <DynamicLighting enableShadows shadowMapSize={2048} />
+      {/* Dynamic Lighting from environment config — reads shadow settings from graphics tier */}
+      <DynamicLighting enableShadows={shadows} shadowMapSize={shadowMapSize} />
 
       {/* Dynamic Fog from environment config */}
       <DynamicFog />
@@ -237,7 +245,7 @@ export function WorldScene({
       {showStars && (
         <WorldErrorBoundary componentName="Stars" minimal>
           <StarField
-            count={3000}
+            count={starCount}
             radius={50}
             depth={25}
             opacity={starOpacity}

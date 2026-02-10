@@ -749,6 +749,58 @@ func (h *Handlers) DeleteSharedFile(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// GetExclusiveMembers handles GET /teams/{id}/exclusive-members - returns members only in this team.
+func (h *Handlers) GetExclusiveMembers(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Verify team exists
+	if _, err := h.teamStore.Get(ctx, id); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+
+	// Get this team's members
+	var members []store.TeamMemberRelation
+	if h.relationStore != nil {
+		var err error
+		members, err = h.relationStore.ListTeamMembers(ctx, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	exclusive := make([]ExclusiveMemberDTO, 0)
+	for _, m := range members {
+		teams, err := h.relationStore.ListAgentTeams(ctx, m.AgentID)
+		if err != nil {
+			continue
+		}
+		if len(teams) == 1 {
+			displayName := m.AgentID
+			if h.agentStore != nil {
+				if agent, err := h.agentStore.Get(ctx, m.AgentID); err == nil {
+					displayName = agent.DisplayName
+				}
+			}
+			exclusive = append(exclusive, ExclusiveMemberDTO{
+				AgentID:     m.AgentID,
+				DisplayName: displayName,
+			})
+		}
+	}
+
+	resp := ExclusiveMembersResponse{
+		TeamID:  id,
+		Members: exclusive,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 // Helper functions
 
 func (h *Handlers) updateHeartbeatSchedules(ctx context.Context, teamID string, enable bool) {

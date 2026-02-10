@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power } from 'lucide-react'
+import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -24,6 +24,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 import * as orgChartService from '@/services/orgChartService'
 
+import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import { OrgChartPanel } from './OrgChartPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
@@ -55,6 +56,10 @@ interface TeamEditorPanelProps {
   onSetRoles: (roles: TeamRole[]) => Promise<TeamRole[]>
   /** Callback to close the editor */
   onClose: () => void
+  /** Callback to trigger team deletion */
+  onDelete: () => void
+  /** Whether a delete operation is in progress */
+  isDeleting?: boolean
   /** Additional class names */
   className?: string
 }
@@ -71,6 +76,8 @@ export function TeamEditorPanel({
   onRemoveMember,
   onSetRoles,
   onClose,
+  onDelete,
+  isDeleting = false,
   className,
 }: TeamEditorPanelProps) {
   // Active tab state
@@ -348,6 +355,20 @@ export function TeamEditorPanel({
                 <Power className="h-3.5 w-3.5" />
                 {team.enabled ? 'Team On' : 'Team Off'}
               </button>
+              <ToolbarDropdown
+                icon={<MoreHorizontal className="h-4 w-4" />}
+                label="More actions"
+                showChevron={false}
+                align="right"
+                className="p-1.5 rounded-lg"
+              >
+                <DropdownItem
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
+                  label={isDeleting ? 'Deleting...' : 'Delete team'}
+                />
+              </ToolbarDropdown>
             </div>
           </div>
 

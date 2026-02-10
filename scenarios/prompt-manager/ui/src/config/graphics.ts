@@ -30,7 +30,7 @@ export const PERFORMANCE_TIERS: Record<PerformanceTier, GraphicsConfig> = {
     agentWobble: false,
   },
   medium: {
-    dpr: [1, 1.5],
+    dpr: 1,
     shadows: true,
     shadowMapSize: 1024,
     postProcessing: true,
@@ -44,7 +44,7 @@ export const PERFORMANCE_TIERS: Record<PerformanceTier, GraphicsConfig> = {
     agentWobble: true,
   },
   high: {
-    dpr: [1, 2],
+    dpr: [1, 1.5],
     shadows: true,
     shadowMapSize: 2048,
     postProcessing: true,
@@ -168,7 +168,27 @@ export const GPU_TIER_THRESHOLDS = {
 }
 
 /**
- * Detect recommended performance tier based on device
+ * Detect whether the device has an integrated (low-power) GPU
+ * by checking the WebGL renderer string.
+ */
+function detectIntegratedGPU(): boolean {
+  try {
+    const canvas = document.createElement('canvas')
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+    if (!gl) return true // No WebGL = assume weak
+    const ext = (gl as WebGLRenderingContext).getExtension('WEBGL_debug_renderer_info')
+    if (!ext) return false // Extension unavailable — can't tell
+    const renderer = (gl as WebGLRenderingContext).getParameter(ext.UNMASKED_RENDERER_WEBGL)
+    canvas.remove()
+    return /Intel|Integrated|UHD|HD Graphics|Mali|Adreno|Apple GPU/i.test(renderer)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Detect recommended performance tier based on device capabilities.
+ * Checks mobile UA, GPU type, core count, and DPR.
  */
 export function detectRecommendedTier(): PerformanceTier {
   if (typeof window === 'undefined') return 'medium'
@@ -177,11 +197,17 @@ export function detectRecommendedTier(): PerformanceTier {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
   )
-
   if (isMobile) return 'low'
 
-  // Check device pixel ratio as rough GPU indicator
+  // Integrated GPUs and low-core machines should stay conservative
+  const isIntegrated = detectIntegratedGPU()
+  const cores = navigator.hardwareConcurrency ?? 4
   const dpr = window.devicePixelRatio
+
+  if (isIntegrated || cores <= 4) {
+    return dpr > 1.5 ? 'low' : 'medium'
+  }
+
   if (dpr < 1.5) return 'medium'
   if (dpr < 2) return 'high'
   return 'ultra'
@@ -205,14 +231,14 @@ export const CANVAS_CONFIGS: Record<PerformanceTier, {
     depth: true,
   },
   medium: {
-    dpr: [1, 1.5],
+    dpr: 1,
     antialias: true,
     alpha: false,
     stencil: false,
     depth: true,
   },
   high: {
-    dpr: [1, 2],
+    dpr: [1, 1.5],
     antialias: true,
     alpha: false,
     stencil: true,

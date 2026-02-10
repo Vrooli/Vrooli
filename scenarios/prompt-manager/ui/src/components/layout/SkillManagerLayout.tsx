@@ -19,6 +19,7 @@ import { toast } from '@/hooks/use-toast'
 import { Menu, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { DeleteTeamDialog } from '../shared/DeleteTeamDialog'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
@@ -69,6 +70,8 @@ export function SkillManagerLayout() {
   // Dialog states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDeleteAgentDialog, setShowDeleteAgentDialog] = useState(false)
+  const [showDeleteTeamDialog, setShowDeleteTeamDialog] = useState(false)
+  const [isTeamDeleting, setIsTeamDeleting] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
 
   // Delete folder dialog state
@@ -99,6 +102,7 @@ export function SkillManagerLayout() {
 
   const {
     updateTeam,
+    deleteTeam,
     addMember,
     updateMember,
     removeMember,
@@ -667,6 +671,46 @@ export function SkillManagerLayout() {
     }
   }, [agentFromEditor, deleteCurrentAgent, setSelectedAgentId])
 
+  const handleConfirmDeleteTeam = useCallback(async (agentIdsToDelete: string[]) => {
+    if (!selectedTeamId) {
+      setShowDeleteTeamDialog(false)
+      return
+    }
+
+    setIsTeamDeleting(true)
+    try {
+      // Delete selected exclusive agents first
+      for (const agentId of agentIdsToDelete) {
+        try {
+          await deleteAgent(agentId)
+        } catch (error) {
+          console.error(`Failed to delete agent ${agentId}:`, error)
+        }
+      }
+
+      // Delete the team
+      await deleteTeam(selectedTeamId)
+      setSelectedTeamId(null)
+
+      toast({
+        title: 'Team deleted',
+        description: agentIdsToDelete.length > 0
+          ? `Team and ${agentIdsToDelete.length} agent${agentIdsToDelete.length !== 1 ? 's' : ''} deleted.`
+          : 'Team has been deleted.',
+      })
+    } catch (error) {
+      console.error('Failed to delete team:', error)
+      toast({
+        title: 'Delete failed',
+        description: 'Unable to delete team. Try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsTeamDeleting(false)
+      setShowDeleteTeamDialog(false)
+    }
+  }, [selectedTeamId, deleteTeam, deleteAgent, setSelectedTeamId])
+
   // Handle move to folder (update skill modes)
   const handleMoveToFolder = useCallback(async (skillId: string, path: string[]) => {
     try {
@@ -864,6 +908,10 @@ export function SkillManagerLayout() {
       // Close any open dialogs first
       if (showDeleteDialog) {
         setShowDeleteDialog(false)
+        return
+      }
+      if (showDeleteTeamDialog) {
+        setShowDeleteTeamDialog(false)
         return
       }
       if (showSettingsDialog) {
@@ -1091,6 +1139,8 @@ export function SkillManagerLayout() {
                   throw new Error('No team selected')
                 }}
                 onClose={() => setSelectedTeamId(null)}
+                onDelete={() => setShowDeleteTeamDialog(true)}
+                isDeleting={isTeamDeleting}
                 className="h-full"
               />
             ) : selectedAgentId ? (
@@ -1276,6 +1326,16 @@ export function SkillManagerLayout() {
         confirmLabel="Delete"
         variant="danger"
         isLoading={isAgentDeleting}
+      />
+
+      {/* Delete team dialog with exclusive member cleanup */}
+      <DeleteTeamDialog
+        isOpen={showDeleteTeamDialog}
+        teamId={selectedTeamId}
+        teamName={currentTeam?.displayName ?? ''}
+        onClose={() => setShowDeleteTeamDialog(false)}
+        onConfirm={(agentIds) => void handleConfirmDeleteTeam(agentIds)}
+        isLoading={isTeamDeleting}
       />
 
       {/* Delete folder confirmation dialog */}

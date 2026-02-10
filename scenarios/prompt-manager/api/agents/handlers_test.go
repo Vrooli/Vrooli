@@ -84,6 +84,85 @@ func (m *MockIndexStore) GetTeamsIndex(ctx context.Context) (*store.TeamsIndex, 
 	return nil, nil
 }
 
+// MockRelationStore implements store.RelationStore for testing
+type MockRelationStore struct {
+	relations []store.TeamMemberRelation
+}
+
+func (m *MockRelationStore) GetTeamMember(ctx context.Context, teamID, agentID string) (*store.TeamMemberRelation, error) {
+	return nil, fmt.Errorf("not found")
+}
+
+func (m *MockRelationStore) SetTeamMember(ctx context.Context, rel *store.TeamMemberRelation) error {
+	return nil
+}
+
+func (m *MockRelationStore) DeleteTeamMember(ctx context.Context, teamID, agentID string) error {
+	return nil
+}
+
+func (m *MockRelationStore) ListTeamMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error) {
+	return nil, nil
+}
+
+func (m *MockRelationStore) ListAgentTeams(ctx context.Context, agentID string) ([]store.TeamMemberRelation, error) {
+	var result []store.TeamMemberRelation
+	for _, rel := range m.relations {
+		if rel.AgentID == agentID {
+			result = append(result, rel)
+		}
+	}
+	return result, nil
+}
+
+// MockTeamStore implements store.TeamStore for testing
+type MockTeamStore struct {
+	teams map[string]*store.Team
+}
+
+func NewMockTeamStore() *MockTeamStore {
+	return &MockTeamStore{teams: make(map[string]*store.Team)}
+}
+
+func (m *MockTeamStore) List(ctx context.Context) ([]store.Team, error) { return nil, nil }
+func (m *MockTeamStore) Get(ctx context.Context, id string) (*store.Team, error) {
+	if t, ok := m.teams[id]; ok {
+		return t, nil
+	}
+	return nil, fmt.Errorf("team not found: %s", id)
+}
+
+func (m *MockTeamStore) Create(ctx context.Context, team *store.Team) error            { return nil }
+func (m *MockTeamStore) Update(ctx context.Context, id string, team *store.Team) error { return nil }
+func (m *MockTeamStore) Delete(ctx context.Context, id string) error                   { return nil }
+func (m *MockTeamStore) GetRoles(ctx context.Context, teamID string) (*store.TeamRoles, error) {
+	return nil, nil
+}
+
+func (m *MockTeamStore) SetRoles(ctx context.Context, teamID string, roles *store.TeamRoles) error {
+	return nil
+}
+
+func (m *MockTeamStore) GetOrgChart(ctx context.Context, teamID string) (*store.OrgChart, error) {
+	return nil, nil
+}
+
+func (m *MockTeamStore) SetOrgChart(ctx context.Context, teamID string, org *store.OrgChart) error {
+	return nil
+}
+
+func (m *MockTeamStore) GetMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error) {
+	return nil, nil
+}
+
+func (m *MockTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
+	return nil, nil
+}
+
+func (m *MockTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *store.TeamInbox) error {
+	return nil
+}
+
 func TestList(t *testing.T) {
 	agentStore := NewMockAgentStore()
 	agentStore.agents["agent-1"] = &store.Agent{
@@ -92,7 +171,7 @@ func TestList(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	req := httptest.NewRequest("GET", "/agents", nil)
 	w := httptest.NewRecorder()
@@ -119,7 +198,7 @@ func TestList(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	body := CreateRequest{
 		DisplayName: "New Agent",
@@ -156,7 +235,7 @@ func TestCreate(t *testing.T) {
 
 func TestCreateMissingDisplayName(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	body := CreateRequest{}
 	bodyBytes, _ := json.Marshal(body)
@@ -173,7 +252,7 @@ func TestCreateMissingDisplayName(t *testing.T) {
 
 func TestCreateInvalidColor(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	body := CreateRequest{
 		DisplayName: "New Agent",
@@ -203,7 +282,7 @@ func TestGet(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	req := httptest.NewRequest("GET", "/agents/agent-1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
@@ -227,7 +306,7 @@ func TestGet(t *testing.T) {
 
 func TestGetNotFound(t *testing.T) {
 	agentStore := NewMockAgentStore()
-	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	req := httptest.NewRequest("GET", "/agents/nonexistent", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
@@ -248,7 +327,7 @@ func TestDelete(t *testing.T) {
 		Status:      store.AgentStatusActive,
 	}
 
-	handlers := NewHandlers(agentStore, &MockIndexStore{}, "")
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
 
 	req := httptest.NewRequest("DELETE", "/agents/agent-1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
@@ -262,5 +341,74 @@ func TestDelete(t *testing.T) {
 
 	if _, ok := agentStore.agents["agent-1"]; ok {
 		t.Error("Expected agent to be deleted")
+	}
+}
+
+func TestListTeams(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	agentStore.agents["agent-1"] = &store.Agent{
+		ID:          "agent-1",
+		DisplayName: "Test Agent",
+		Status:      store.AgentStatusActive,
+	}
+
+	relationStore := &MockRelationStore{
+		relations: []store.TeamMemberRelation{
+			{TeamID: "team-alpha", AgentID: "agent-1", Roles: []string{"developer"}, Status: "active"},
+			{TeamID: "team-beta", AgentID: "agent-1", Roles: []string{"lead"}, Status: "active"},
+		},
+	}
+
+	teamStore := NewMockTeamStore()
+	teamStore.teams["team-alpha"] = &store.Team{ID: "team-alpha", DisplayName: "Alpha Team"}
+	teamStore.teams["team-beta"] = &store.Team{ID: "team-beta", DisplayName: "Beta Team"}
+
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", relationStore, teamStore)
+
+	req := httptest.NewRequest("GET", "/agents/agent-1/teams", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.ListTeams(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var response AgentTeamsResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response.AgentID != "agent-1" {
+		t.Errorf("Expected agentId 'agent-1', got '%s'", response.AgentID)
+	}
+
+	if len(response.Memberships) != 2 {
+		t.Fatalf("Expected 2 memberships, got %d", len(response.Memberships))
+	}
+
+	// Check that display names are enriched
+	found := map[string]bool{}
+	for _, m := range response.Memberships {
+		found[m.TeamDisplayName] = true
+	}
+	if !found["Alpha Team"] || !found["Beta Team"] {
+		t.Errorf("Expected enriched display names, got %v", response.Memberships)
+	}
+}
+
+func TestListTeamsAgentNotFound(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	handlers := NewHandlers(agentStore, &MockIndexStore{}, "", &MockRelationStore{}, NewMockTeamStore())
+
+	req := httptest.NewRequest("GET", "/agents/nonexistent/teams", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
+	w := httptest.NewRecorder()
+
+	handlers.ListTeams(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
 	}
 }

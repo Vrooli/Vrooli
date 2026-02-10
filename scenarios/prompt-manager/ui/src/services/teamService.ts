@@ -24,6 +24,7 @@ import type {
   TeamSharedFileRenameRequest,
   AvailableCCTeam,
   ExportCCResponse,
+  ExclusiveMember,
 } from '@/lib/schemas'
 
 // Create cache for teams list
@@ -115,6 +116,22 @@ export async function updateTeam(id: string, updates: UpdateTeamRequest): Promis
 export async function deleteTeam(id: string): Promise<void> {
   await api.deleteTeam(id)
   invalidateCache()
+}
+
+/**
+ * Get exclusive members of a team (agents only in this team).
+ *
+ * @param teamId - Team ID
+ * @returns Array of exclusive members (empty array on error)
+ */
+export async function getTeamExclusiveMembers(teamId: string): Promise<ExclusiveMember[]> {
+  try {
+    const response = await api.getTeamExclusiveMembers(teamId)
+    return response.members
+  } catch (error) {
+    console.error(`[teamService] Failed to get exclusive members for ${teamId}:`, error)
+    return []
+  }
 }
 
 /**

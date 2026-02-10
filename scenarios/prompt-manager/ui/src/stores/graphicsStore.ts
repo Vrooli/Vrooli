@@ -28,7 +28,7 @@ const TIER_CONFIGS: Record<PerformanceTier, GraphicsConfig> = {
     agentWobble: false,
   },
   medium: {
-    dpr: [1, 1.5],
+    dpr: 1,
     shadows: true,
     shadowMapSize: 1024,
     postProcessing: true,
@@ -42,7 +42,7 @@ const TIER_CONFIGS: Record<PerformanceTier, GraphicsConfig> = {
     agentWobble: true,
   },
   high: {
-    dpr: [1, 2],
+    dpr: [1, 1.5],
     shadows: true,
     shadowMapSize: 2048,
     postProcessing: true,

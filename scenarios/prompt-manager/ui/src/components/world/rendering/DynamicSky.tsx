@@ -5,8 +5,7 @@
  * The gradient is rendered on BackSide, allowing stars and celestial bodies to render inside.
  */
 
-import { useMemo, useRef, useEffect } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import {
@@ -34,8 +33,6 @@ export function DynamicSky({
   timeValue: timeValueProp,
   radius = 80,
 }: DynamicSkyProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
-
   const storeTimeValue = useEnvironmentStore((state) => state.timeValue)
 
   // Use prop time value, or convert legacy timeOfDay prop, or use store value
@@ -79,17 +76,12 @@ export function DynamicSky({
     return () => { gradientMaterial.dispose() }
   }, [gradientMaterial])
 
-  // Slowly rotate the sky dome for a subtle effect
-  useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.01
-    }
-  })
+  // Perf: Removed useFrame rotation (0.01 rad/s is imperceptible on a gradient with BackSide rendering)
 
-  // Render the gradient sky dome
+  // Perf: 16x16 segments (not 32x32) — distant sky dome, polygon difference invisible
   return (
-    <mesh ref={meshRef} material={gradientMaterial}>
-      <sphereGeometry args={[radius, 32, 32]} />
+    <mesh material={gradientMaterial}>
+      <sphereGeometry args={[radius, 16, 16]} />
     </mesh>
   )
 }
@@ -140,9 +132,10 @@ export function CelestialBody({
     return null
   }
 
+  // Perf: 16x16 segments — distant object, polygon difference invisible
   return (
     <mesh position={sunPosition}>
-      <sphereGeometry args={[1.5, 32, 32]} />
+      <sphereGeometry args={[1.5, 16, 16]} />
       <meshBasicMaterial
         color={color}
         toneMapped={false}

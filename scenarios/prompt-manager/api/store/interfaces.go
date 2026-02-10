@@ -100,6 +100,7 @@ type RelationStore interface {
 	SetTeamMember(ctx context.Context, rel *TeamMemberRelation) error
 	DeleteTeamMember(ctx context.Context, teamID, agentID string) error
 	ListTeamMembers(ctx context.Context, teamID string) ([]TeamMemberRelation, error)
+	ListAgentTeams(ctx context.Context, agentID string) ([]TeamMemberRelation, error)
 }
 
 // IndexStore defines operations for index management

@@ -23,6 +23,7 @@ import type {
   AgentFileRenameRequest,
   AgentFileTemplate,
   PromptPreviewResponse,
+  AgentTeamMembership,
 } from '@/lib/schemas'
 
 // Create cache for agents list
@@ -187,6 +188,26 @@ export async function deleteAgentFile(agentId: string, path: string): Promise<vo
  */
 export async function previewAgentPrompt(agentId: string, teamId?: string): Promise<PromptPreviewResponse> {
   return api.previewPrompt(agentId, teamId)
+}
+
+/**
+ * Get team memberships for an agent.
+ *
+ * @param agentId - Agent ID
+ * @returns Array of team memberships (empty array on errors)
+ */
+export async function getAgentTeams(agentId: string): Promise<AgentTeamMembership[]> {
+  try {
+    const response = await api.getAgentTeams(agentId)
+    return response.memberships
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn(`[agentService] Invalid API response for agent teams ${agentId}:`, error.message)
+      return []
+    }
+    console.error(`[agentService] Failed to get agent teams ${agentId}:`, error)
+    return []
+  }
 }
 
 /**

@@ -130,3 +130,17 @@ type AgentFileRenameRequest struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 }
+
+// AgentTeamMembershipDTO represents a team membership for an agent.
+type AgentTeamMembershipDTO struct {
+	TeamID          string   `json:"teamId"`
+	TeamDisplayName string   `json:"teamDisplayName"`
+	Roles           []string `json:"roles"`
+	Status          string   `json:"status"`
+}
+
+// AgentTeamsResponse is the response for listing an agent's team memberships.
+type AgentTeamsResponse struct {
+	AgentID     string                   `json:"agentId"`
+	Memberships []AgentTeamMembershipDTO `json:"memberships"`
+}
