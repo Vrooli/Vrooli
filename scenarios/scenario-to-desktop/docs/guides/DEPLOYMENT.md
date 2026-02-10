@@ -69,6 +69,9 @@ scenario-to-desktop deploy-target test vrooli-production
 
 # Test connectivity + service auth readiness
 scenario-to-desktop deploy-target test vrooli-production --require-service-auth
+
+# One-shot readiness diagnosis (session + auth + secret scope)
+scenario-to-desktop deploy-target doctor vrooli-production
 ```
 
 `deploy-target list` prints both target key and label. Use the key (for example `vrooli-production`) in `deploy-target test` and pipeline commands.
@@ -183,4 +186,7 @@ Use `scenario-to-desktop deploy-target test <name>` and confirm the remote profi
 
 ### Service auth readiness fails
 
-Run `scenario-to-desktop deploy-target test <name> --require-service-auth`. If it fails, sync LPBS runtime `LPBS_SERVICE_SECRET` and service-auth configuration, then retry.
+Run `scenario-to-desktop deploy-target doctor <name>` for a triage report and exact next steps.
+If `deploy-target test <name> --require-service-auth` fails, verify both scopes:
+1) LPBS runtime scope (`landing-page-business-suite` scenario/deployment)
+2) `scenario-to-desktop` scenario scope

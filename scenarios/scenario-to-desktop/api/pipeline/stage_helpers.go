@@ -83,9 +83,19 @@ func checkCancellation(ctx context.Context, result *StageResult, tp TimeProvider
 func failStage(result *StageResult, tp TimeProvider, domainErr *errors.DomainError) {
 	result.Status = StatusFailed
 	result.CompletedAt = tp.Now()
-	result.Error = domainErr.Message
+	// Include the underlying cause in the user-facing error (redacted) so operators
+	// can converge without spelunking server logs.
+	cause := ""
+	if domainErr != nil && domainErr.Cause != nil {
+		cause = errors.Redact(domainErr.Cause.Error())
+	}
+	if cause != "" {
+		result.Error = domainErr.Message + ": " + cause
+	} else {
+		result.Error = domainErr.Message
+	}
 	result.ErrorInfo = domainErrorToStageErrorInfo(domainErr)
-	appendError(result, "Stage %s failed: %s", result.Stage, domainErr.Message)
+	appendError(result, "Stage %s failed: %s", result.Stage, result.Error)
 }
 
 // domainErrorToStageErrorInfo converts a DomainError to StageErrorInfo.
@@ -94,11 +104,29 @@ func domainErrorToStageErrorInfo(de *errors.DomainError) *StageErrorInfo {
 		return nil
 	}
 
+	details := de.Details
+	if details == nil {
+		details = map[string]interface{}{}
+	} else {
+		// Copy to avoid mutating the original DomainError.
+		copied := make(map[string]interface{}, len(details)+2)
+		for k, v := range details {
+			copied[k] = v
+		}
+		details = copied
+	}
+
+	if de.Cause != nil {
+		// Provide a redacted, stable field for debugging. Avoid dumping raw nested objects.
+		details["_cause"] = errors.Redact(de.Cause.Error())
+		details["_cause_type"] = fmt.Sprintf("%T", de.Cause)
+	}
+
 	info := &StageErrorInfo{
 		Code:         string(de.Code),
 		Message:      de.Message,
 		Domain:       de.Domain,
-		Details:      de.Details,
+		Details:      details,
 		Recovery:     string(de.GetRecovery()),
 		RecoveryHint: de.RecoveryHint,
 		ManualSteps:  de.ManualSteps,

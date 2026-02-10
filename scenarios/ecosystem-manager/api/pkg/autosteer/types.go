@@ -183,6 +183,8 @@ type SteerPhase struct {
 	SkillID        string          `json:"skill_id"`
 	SkillName      string          `json:"skill_name"`
 	Modes          []string        `json:"modes,omitempty"`
+	WithScope      bool            `json:"with_scope,omitempty"` // Include default scope from skill
+	Scope          string          `json:"scope,omitempty"`      // Explicit scope skill override
 	StopConditions []StopCondition `json:"stop_conditions"`
 	MaxIterations  int             `json:"max_iterations"`
 	Description    string          `json:"description,omitempty"`
@@ -291,6 +293,8 @@ type PhaseExecution struct {
 	SkillID      string          `json:"skill_id"`
 	SkillName    string          `json:"skill_name"`
 	Modes        []string        `json:"modes,omitempty"`
+	WithScope    bool            `json:"with_scope,omitempty"` // Whether scope was included
+	Scope        string          `json:"scope,omitempty"`      // Scope skill that was used
 	Iterations   int             `json:"iterations"`
 	StartMetrics MetricsSnapshot `json:"start_metrics"`
 	EndMetrics   MetricsSnapshot `json:"end_metrics"`

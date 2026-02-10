@@ -204,6 +204,7 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 			{Name: "add", Description: "Add/update deploy target: add <name> --scenario <s> --profile <p> [--label <l>]", Run: a.deployTarget.Add},
 			{Name: "remove", Description: "Remove deploy target: remove <name>", Run: a.deployTarget.Remove},
 			{Name: "test", Description: "Test deploy target session: test <name> [--require-service-auth]", Run: a.deployTarget.Test},
+			{Name: "doctor", Description: "Diagnose deploy target readiness: doctor <name>", Run: a.deployTarget.Doctor},
 		},
 	}
 

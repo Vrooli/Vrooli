@@ -228,6 +228,9 @@ func TestDeployReadinessPassesWithProfileTag(t *testing.T) {
 			_, _ = w.Write([]byte(`{"profiles":[{"id":"9","tag":"prod"}]}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/remote-profiles/9/test":
 			_, _ = w.Write([]byte(`{"ok":true}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/remote-profiles/9/proxy":
+			// deploy-readiness validates remote download storage via the profile proxy.
+			_, _ = w.Write([]byte(`{"ok":true}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/usage/health":
 			_, _ = w.Write([]byte(`{"healthy":true,"database_connected":true,"service_auth_configured":true,"service_auth_mode":"token"}`))
 		default:

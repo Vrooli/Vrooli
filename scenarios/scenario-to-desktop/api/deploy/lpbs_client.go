@@ -95,10 +95,16 @@ func (c *LPBSClient) ListRemoteProfiles(ctx context.Context) ([]RemoteProfile, e
 		return nil, fmt.Errorf("list remote profiles: %w", err)
 	}
 	var profiles []RemoteProfile
-	if err := json.Unmarshal(body, &profiles); err != nil {
+	if err := json.Unmarshal(body, &profiles); err == nil {
+		return profiles, nil
+	}
+	var wrapped struct {
+		Profiles []RemoteProfile `json:"profiles"`
+	}
+	if err := json.Unmarshal(body, &wrapped); err != nil {
 		return nil, fmt.Errorf("decode remote profiles: %w", err)
 	}
-	return profiles, nil
+	return wrapped.Profiles, nil
 }
 
 // TestRemoteProfile validates that a remote profile has an active session.
@@ -258,6 +264,23 @@ func (c *LPBSClient) uploadToS3(ctx context.Context, presign *presignResponse, b
 	if err != nil {
 		return fmt.Errorf("create S3 request: %w", err)
 	}
+
+	// Some S3-compatible endpoints reject chunked transfer encoding. When uploading
+	// a real file, set Content-Length explicitly to force a non-chunked request.
+	//
+	// NOTE: This must be best-effort. If we can't determine length, we keep the
+	// default net/http behavior.
+	if f, ok := body.(*os.File); ok {
+		if st, statErr := f.Stat(); statErr == nil {
+			if off, offErr := f.Seek(0, io.SeekCurrent); offErr == nil {
+				remaining := st.Size() - off
+				if remaining >= 0 {
+					httpReq.ContentLength = remaining
+				}
+			}
+		}
+	}
+
 	for key, value := range presign.RequiredHeaders {
 		if strings.EqualFold(key, "host") || strings.TrimSpace(value) == "" {
 			continue

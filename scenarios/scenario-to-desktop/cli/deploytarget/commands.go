@@ -18,6 +18,21 @@ type Commands struct {
 	api *cliutil.APIClient
 }
 
+type doctorReport struct {
+	Ready         bool   `json:"ready"`
+	Name          string `json:"name"`
+	ScenarioName  string `json:"scenario_name"`
+	RemoteProfile string `json:"remote_profile"`
+	Checks        []struct {
+		Name     string `json:"name"`
+		Required bool   `json:"required"`
+		Passed   bool   `json:"passed"`
+		Blocked  bool   `json:"blocked"`
+		Detail   string `json:"detail"`
+	} `json:"checks"`
+	NextSteps []string `json:"next_steps"`
+}
+
 // New creates a new deploy target Commands instance.
 func New(api *cliutil.APIClient) *Commands {
 	return &Commands{api: api}
@@ -174,9 +189,9 @@ func (c *Commands) Test(args []string) error {
 	if err != nil {
 		if *requireServiceAuth && isServiceAuthReadinessError(err) {
 			return fmt.Errorf(
-				"%v\n\nNext steps:\n  1) Set shared secret (portable): scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart\n  2) Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
+				"%v\n\nNext steps:\n%s",
 				err,
-				name,
+				buildServiceAuthNextSteps(err, name),
 			)
 		}
 		return err
@@ -195,6 +210,64 @@ func (c *Commands) Test(args []string) error {
 	return nil
 }
 
+// Doctor runs an end-to-end deploy-target readiness diagnosis with triage output.
+func (c *Commands) Doctor(args []string) error {
+	fs := flag.NewFlagSet("deploy-target-doctor", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	reordered := reorderArgs(args)
+	if err := fs.Parse(reordered); err != nil {
+		return err
+	}
+
+	if len(fs.Args()) == 0 {
+		return fmt.Errorf("usage: deploy-target doctor <name>")
+	}
+	name := fs.Args()[0]
+
+	body, err := c.api.Request("POST", c.apiPath("/deploy-targets/"+name+"/doctor"), nil, map[string]bool{})
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var report doctorReport
+	if err := json.Unmarshal(body, &report); err != nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	status := "NOT READY"
+	if report.Ready {
+		status = "READY"
+	}
+	fmt.Printf("Status: %s\n", status)
+	fmt.Printf("Target: %s (scenario=%s profile=%s)\n", report.Name, report.ScenarioName, report.RemoteProfile)
+	fmt.Println("Triage:")
+	for _, check := range report.Checks {
+		state := "PASS"
+		if check.Blocked {
+			state = "BLOCKED"
+		} else if !check.Passed {
+			state = "FAIL"
+		}
+		fmt.Printf("  [%s] %s: %s\n", state, check.Name, check.Detail)
+	}
+	if len(report.NextSteps) > 0 {
+		fmt.Println("Next steps:")
+		for i, step := range report.NextSteps {
+			fmt.Printf("  %d) %s\n", i+1, step)
+		}
+	}
+	if !report.Ready {
+		return fmt.Errorf("deploy target doctor checks failed")
+	}
+	return nil
+}
+
 func isServiceAuthReadinessError(err error) bool {
 	if err == nil {
 		return false
@@ -203,6 +276,25 @@ func isServiceAuthReadinessError(err error) bool {
 	return strings.Contains(msg, "lpbs_service_secret is not set") ||
 		strings.Contains(msg, "service auth") ||
 		strings.Contains(msg, "service-auth")
+}
+
+func buildServiceAuthNextSteps(err error, name string) string {
+	msg := ""
+	if err != nil {
+		msg = strings.ToLower(strings.TrimSpace(err.Error()))
+	}
+
+	if strings.Contains(msg, "scenario-to-desktop runtime") {
+		return fmt.Sprintf(
+			"  1) Verify LPBS source secret exists: scenario-to-cloud secrets get LPBS_SERVICE_SECRET --scenario landing-page-business-suite --targets scenario\n  2) Set scenario-to-desktop secret to the same value: scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario scenario-to-desktop --value <same_secret_value> --targets scenario\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
+			name,
+		)
+	}
+
+	return fmt.Sprintf(
+		"  1) Set shared secret (portable): scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart\n  2) Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
+		name,
+	)
 }
 
 // reorderArgs moves flag arguments before positional arguments.

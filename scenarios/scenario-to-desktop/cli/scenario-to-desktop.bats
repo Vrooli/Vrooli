@@ -50,9 +50,9 @@ setup() {
     [[ "$status" -eq 0 ]] || [[ "$output" =~ "template" ]] || [[ "$output" =~ "API" ]]
 }
 
-# Test: Generate command requires scenario name
-@test "Generate command requires scenario name argument" {
-    run "$CLI_PATH" generate
+# Test: Pipeline run requires scenario name
+@test "Pipeline run requires scenario name argument" {
+    run "$CLI_PATH" pipeline-run
     [ "$status" -ne 0 ]
     [[ "$output" =~ "scenario" ]] || [[ "$output" =~ "Usage" ]] || [[ "$output" =~ "required" ]]
 }

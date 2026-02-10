@@ -1,11 +1,13 @@
 {
   "scenario": "git-control-tower",
   "report_version": 1,
-  "generated_at": "2026-02-06T02:16:38.717366624Z",
+  "generated_at": "2026-02-10T14:24:52.05866437Z",
   "dependencies": [
     {
       "name": "ollama",
       "type": "resource",
+      "required": false,
+      "enabled": false,
       "tier_support": {
         "desktop": {
           "supported": true,
@@ -44,6 +46,8 @@
     {
       "name": "redis",
       "type": "resource",
+      "required": false,
+      "enabled": false,
       "tier_support": {
         "desktop": {
           "supported": true,
@@ -80,6 +84,8 @@
     {
       "name": "resource-openrouter",
       "type": "resource",
+      "required": false,
+      "enabled": false,
       "tier_support": {
         "desktop": {
           "supported": true,
@@ -111,6 +117,8 @@
     {
       "name": "sqlite",
       "type": "resource",
+      "required": true,
+      "enabled": true,
       "tier_support": {
         "desktop": {
           "supported": true,
@@ -142,11 +150,8 @@
   ],
   "aggregates": {
     "desktop": {
-      "fitness_score": 0.825,
-      "dependency_count": 4,
-      "blocking_dependencies": [
-        "ollama"
-      ],
+      "fitness_score": 0.9,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -155,7 +160,7 @@
     },
     "enterprise": {
       "fitness_score": 0.98,
-      "dependency_count": 4,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -164,7 +169,7 @@
     },
     "local": {
       "fitness_score": 1,
-      "dependency_count": 4,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -172,12 +177,9 @@
       }
     },
     "mobile": {
-      "fitness_score": 0.25,
-      "dependency_count": 4,
+      "fitness_score": 0.4,
+      "dependency_count": 1,
       "blocking_dependencies": [
-        "ollama",
-        "redis",
-        "resource-openrouter",
         "sqlite"
       ],
       "estimated_requirements": {
@@ -187,11 +189,8 @@
       }
     },
     "saas": {
-      "fitness_score": 0.7375,
-      "dependency_count": 4,
-      "blocking_dependencies": [
-        "ollama"
-      ],
+      "fitness_score": 0.85,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -200,7 +199,7 @@
     },
     "server": {
       "fitness_score": 0.95,
-      "dependency_count": 4,
+      "dependency_count": 1,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -210,7 +209,7 @@
   },
   "bundle_manifest": {
     "scenario": "git-control-tower",
-    "generated_at": "2026-02-06T02:16:38.717366624Z",
+    "generated_at": "2026-02-10T14:24:52.05866437Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -565,9 +564,19 @@
     }
   },
   "metadata_gaps": {
-    "total_gaps": 0,
-    "scenarios_missing_all": 0,
-    "gaps_by_scenario": {},
+    "total_gaps": 10,
+    "scenarios_missing_all": 1,
+    "gaps_by_scenario": {
+      "git-control-tower": {
+        "scenario_name": "git-control-tower",
+        "scenario_path": "../../git-control-tower",
+        "has_deployment_block": false,
+        "missing_dependency_catalog": false,
+        "suggested_actions": [
+          "Add deployment block to .vrooli/service.json"
+        ]
+      }
+    },
     "missing_tiers": null,
     "secret_requirements": [
       {
@@ -616,8 +625,10 @@
       }
     ],
     "recommendations": [
+      "1 scenario(s) missing deployment blocks entirely - run scan --apply to initialize",
       "Configure 1 secret(s) for dependencies - see secrets-manager playbooks",
-      "Consider 3 resource swap(s) for deployment optimization"
+      "Consider 3 resource swap(s) for deployment optimization",
+      "Review gaps_by_scenario for detailed per-scenario action items"
     ]
   }
 }

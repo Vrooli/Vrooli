@@ -7,19 +7,40 @@ import (
 	"strings"
 )
 
+// SecretResolution describes where a secret value was resolved from.
+type SecretResolution struct {
+	Value      string
+	Source     string
+	SourcePath string
+}
+
 // ResolveSecret resolves a secret using the standard order:
 // 1) environment variable, 2) nearest .vrooli/secrets.json, 3) empty string.
 func ResolveSecret(key string) string {
+	return ResolveSecretWithSource(key).Value
+}
+
+// ResolveSecretWithSource resolves a secret and reports where it came from.
+func ResolveSecretWithSource(key string) SecretResolution {
 	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-		return value
+		return SecretResolution{
+			Value:  value,
+			Source: "env",
+		}
 	}
 
 	if file := findSecretsFile(); file != "" {
 		if value := readSecretFromJSON(file, key); value != "" {
-			return value
+			return SecretResolution{
+				Value:      value,
+				Source:     "file",
+				SourcePath: file,
+			}
 		}
 	}
-	return ""
+	return SecretResolution{
+		Source: "missing",
+	}
 }
 
 func findSecretsFile() string {

@@ -2,6 +2,7 @@ package autosteer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,6 +27,7 @@ type PromptResponse struct {
 	Tags                []string `json:"tags"`
 	Icon                string   `json:"icon,omitempty"`
 	TargetToolID        *string  `json:"targetToolId,omitempty"`
+	DefaultScope        string   `json:"defaultScope,omitempty"` // Default scope skill ID
 	Draft               bool     `json:"draft"`
 	Folder              string   `json:"folder"`
 	CreatedAt           string   `json:"createdAt"`
@@ -348,6 +350,63 @@ func (l *PromptLoader) GetCachedSkills() []PromptResponse {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return l.rawSkills
+}
+
+// ReadRequest is the request body for reading skills with scope support.
+type ReadRequest struct {
+	Identifiers []string `json:"identifiers"`
+	Output      string   `json:"output,omitempty"`
+	Format      string   `json:"format,omitempty"`
+	WithScope   bool     `json:"withScope,omitempty"`
+	Scope       string   `json:"scope,omitempty"`
+}
+
+// ReadResponse is the response from the prompt-manager read endpoint.
+type ReadResponse struct {
+	Skills     []PromptResponse `json:"skills,omitempty"`
+	Combined   string           `json:"combined,omitempty"`
+	ScopeSkill *PromptResponse  `json:"scopeSkill,omitempty"`
+}
+
+// ReadSkillsWithScope fetches skills with optional scope inclusion.
+// Returns the combined output with scope prepended if requested.
+func (l *PromptLoader) ReadSkillsWithScope(skillIDs []string, withScope bool, scopeOverride string) (string, error) {
+	if !l.IsAvailable() {
+		return "", fmt.Errorf("prompt-manager unavailable")
+	}
+
+	url := fmt.Sprintf("%s/api/v1/skills/read", l.cfg.PromptManagerURL)
+
+	req := ReadRequest{
+		Identifiers: skillIDs,
+		Output:      "combined",
+		Format:      "xml",
+		WithScope:   withScope,
+		Scope:       scopeOverride,
+	}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := l.client.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch skills: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("prompt-manager returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var readResp ReadResponse
+	if err := json.NewDecoder(resp.Body).Decode(&readResp); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return readResp.Combined, nil
 }
 
 // parsePhasePrompt parses a markdown prompt into structured data.

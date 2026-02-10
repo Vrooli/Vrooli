@@ -24,7 +24,7 @@
    ```
 3) Distribute the installers to users - they work completely offline
 
-See [Hello Desktop Tutorial](../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
+See [Hello Desktop Tutorial](../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
 
 ## Alternative: Thin Client Mode
 
@@ -51,7 +51,7 @@ Thin client mode is available for scenarios where you want a lightweight desktop
 - Auto-updates, signing, and app-store submissions remain optional/manual
 
 ## Related docs
-- Bundled desktop tutorial: `../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md`
+- Bundled desktop tutorial: `../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md`
 - Runtime supervisor details: `runtime/README.md`
 - Choosing deployment modes: `docs/deployment-modes.md`
 - Build/troubleshoot: `docs/build-and-packaging.md`, `docs/DEBUGGING_WINDOWS.md`, `docs/WINE_INSTALLATION.md`

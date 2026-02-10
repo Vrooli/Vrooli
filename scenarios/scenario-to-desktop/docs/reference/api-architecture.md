@@ -411,7 +411,7 @@ type Status struct {
 - [SEAMS.md](../internal/SEAMS.md) - Detailed seam definitions and testability patterns
 - [Smoke Test Pipeline](./smoke-test-pipeline.md) - Deep dive into smoke test stage execution
 - [Pipeline Interfaces](../../api/pipeline/interfaces.go) - Go interface definitions
-- [Tool Execution](../../api/toolexecution/) - Tool executor implementations
+- [Tool Execution](../../api/toolexecution/executor.go) - Tool executor implementations
 
 ---
 

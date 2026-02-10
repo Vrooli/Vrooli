@@ -344,7 +344,7 @@ The smoke test stage follows the scenario's seam architecture for testability:
 | `Store` | `smoketest.Store` | Abstracts status persistence |
 | `CancelManager` | `smoketest.CancelManager` | Manages cancellation of running tests |
 
-See [SEAMS.md](../SEAMS.md) for the full seam architecture.
+See [SEAMS.md](../internal/SEAMS.md) for the full seam architecture.
 
 ---
 
@@ -353,4 +353,4 @@ See [SEAMS.md](../SEAMS.md) for the full seam architecture.
 - [API Architecture](./api-architecture.md) - Overall pipeline system overview
 - [Telemetry](../telemetry.md) - Telemetry collection and upload
 - [Build & Packaging](../build-and-packaging.md) - Prerequisites and build commands
-- [SEAMS.md](../SEAMS.md) - Integration boundaries and testability patterns
+- [SEAMS.md](../internal/SEAMS.md) - Integration boundaries and testability patterns

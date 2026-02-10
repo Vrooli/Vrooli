@@ -1,5 +1,5 @@
 // DOC: docs/reference/api-architecture.md#pipeline-system-core-engine
-// DOC: docs/SEAMS.md#pipeline-orchestrator-seam
+// DOC: docs/internal/SEAMS.md#pipeline-orchestrator-seam
 package pipeline
 
 import (

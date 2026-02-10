@@ -61,6 +61,36 @@ func TestListRemoteProfiles(t *testing.T) {
 	}
 }
 
+func TestListRemoteProfilesWrappedResponse(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/admin/remote-profiles" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if auth := r.Header.Get("Authorization"); auth != "Bearer test-service-token" {
+			t.Errorf("unexpected auth: %s", auth)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"profiles":[{"id":1,"tag":"prod","api_base":"https://prod.example.com/api/v1","status":"active"}]}`))
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	client := newTestClient(server)
+	profiles, err := client.ListRemoteProfiles(context.Background())
+	if err != nil {
+		t.Fatalf("ListRemoteProfiles: %v", err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %d", len(profiles))
+	}
+	if profiles[0].Tag != "prod" {
+		t.Errorf("expected tag 'prod', got %q", profiles[0].Tag)
+	}
+}
+
 func TestTestRemoteProfile(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

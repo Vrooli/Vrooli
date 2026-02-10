@@ -261,4 +261,4 @@ electron-builder artifacts + updater metadata (latest*.yml)
 
 - [electron-updater documentation](https://www.electron.build/auto-update)
 - [LPBS Deployment](./DEPLOYMENT.md)
-- [Pipeline Stages](../internal/PIPELINE.md)
+- [Pipeline Stages](../reference/smoke-test-pipeline.md)

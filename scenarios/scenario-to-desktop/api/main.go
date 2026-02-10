@@ -1,5 +1,5 @@
 // DOC: docs/reference/api-architecture.md
-// DOC: docs/SEAMS.md
+// DOC: docs/internal/SEAMS.md
 package main
 
 import (

@@ -635,6 +635,12 @@ type adminSessionConfig struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
+// adminSessionStore allows the CLI to keep multiple admin sessions keyed by API base.
+// This avoids clobbering a local dev session when temporarily targeting a remote API base.
+type adminSessionStore struct {
+	Sessions map[string]adminSessionConfig `json:"sessions,omitempty"`
+}
+
 type optionalString struct {
 	value string
 	set   bool
@@ -754,6 +760,7 @@ func (a *App) cmdDeployReadiness(args []string) error {
 	fs := flag.NewFlagSet("deploy-readiness", flag.ContinueOnError)
 	profileIDFlag := fs.String("profile-id", "", "Remote profile id to test")
 	profileTagFlag := fs.String("profile-tag", "", "Remote profile tag to test")
+	appKeyFlag := fs.String("app-key", "", "Remote download app key to verify exists (optional)")
 	domainFlag := fs.String("domain", "", "Deployment domain used for next-step guidance")
 	requireServiceAuth := fs.Bool("require-service-auth", true, "Require LPBS service auth to be enabled")
 	jsonOut := cliutil.JSONFlag(fs)
@@ -761,11 +768,12 @@ func (a *App) cmdDeployReadiness(args []string) error {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return fmt.Errorf("usage: deploy-readiness [--profile-id <id> | --profile-tag <tag>] [--domain <domain>] [--require-service-auth=true|false] [--json]")
+		return fmt.Errorf("usage: deploy-readiness [--profile-id <id> | --profile-tag <tag>] [--app-key <key>] [--domain <domain>] [--require-service-auth=true|false] [--json]")
 	}
 
 	profileID := strings.TrimSpace(*profileIDFlag)
 	profileTag := strings.TrimSpace(*profileTagFlag)
+	appKey := strings.TrimSpace(*appKeyFlag)
 	domain := strings.TrimSpace(*domainFlag)
 	if profileID != "" && profileTag != "" {
 		return fmt.Errorf("use either --profile-id or --profile-tag, not both")
@@ -861,6 +869,106 @@ func (a *App) cmdDeployReadiness(args []string) error {
 			}
 		}
 		profileID = resolvedProfileID
+
+		// Remote checks (executed via the remote profile session). These gates reduce
+		// "deploy failed" surprises by validating the actual remote LPBS state.
+		remoteStorageCheck := deployReadinessCheck{
+			Name:     "remote_download_storage",
+			Required: true,
+		}
+		if !adminSessionConfigured {
+			remoteStorageCheck.Passed = false
+			remoteStorageCheck.Blocked = true
+			remoteStorageCheck.Detail = "skipped: admin session is required"
+			ready = false
+		} else if !profileCheck.Passed {
+			remoteStorageCheck.Passed = false
+			remoteStorageCheck.Blocked = true
+			remoteStorageCheck.Detail = "skipped: remote profile session is required"
+			ready = false
+		} else {
+			_, err := a.requestRemoteProxy(profileID, "POST", "/admin/download-storage/test", nil, nil, nil)
+			if err != nil {
+				remoteStorageCheck.Passed = false
+				remoteStorageCheck.Detail = err.Error()
+				ready = false
+				if profileTag != "" {
+					nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-proxy --profile-tag %s --method POST --path /admin/download-storage/test --json", profileTag))
+				} else {
+					nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-proxy %s --method POST --path /admin/download-storage/test --json", profileID))
+				}
+			} else {
+				remoteStorageCheck.Passed = true
+				remoteStorageCheck.Detail = "remote download storage test succeeded"
+			}
+		}
+		checks = append(checks, remoteStorageCheck)
+
+		if appKey != "" {
+			remoteAppKeyCheck := deployReadinessCheck{
+				Name:     "remote_app_key",
+				Required: true,
+			}
+			if !adminSessionConfigured {
+				remoteAppKeyCheck.Passed = false
+				remoteAppKeyCheck.Blocked = true
+				remoteAppKeyCheck.Detail = "skipped: admin session is required"
+				ready = false
+			} else if !profileCheck.Passed {
+				remoteAppKeyCheck.Passed = false
+				remoteAppKeyCheck.Blocked = true
+				remoteAppKeyCheck.Detail = "skipped: remote profile session is required"
+				ready = false
+			} else {
+				resp, err := a.requestRemoteProxy(profileID, "GET", "/admin/download-apps", nil, nil, nil)
+				if err != nil {
+					remoteAppKeyCheck.Passed = false
+					remoteAppKeyCheck.Detail = err.Error()
+					ready = false
+				} else {
+					var parsed struct {
+						Apps []struct {
+							AppKey string `json:"app_key"`
+							Name   string `json:"name"`
+						} `json:"apps"`
+					}
+					if err := json.Unmarshal(resp, &parsed); err != nil {
+						remoteAppKeyCheck.Passed = false
+						remoteAppKeyCheck.Detail = fmt.Sprintf("parse remote download apps: %v", err)
+						ready = false
+					} else {
+						found := false
+						foundName := ""
+						for _, app := range parsed.Apps {
+							if strings.TrimSpace(app.AppKey) == appKey {
+								found = true
+								foundName = strings.TrimSpace(app.Name)
+								break
+							}
+						}
+						if found {
+							remoteAppKeyCheck.Passed = true
+							if foundName != "" {
+								remoteAppKeyCheck.Detail = fmt.Sprintf("remote app key exists (%s)", foundName)
+							} else {
+								remoteAppKeyCheck.Detail = "remote app key exists"
+							}
+						} else {
+							remoteAppKeyCheck.Passed = false
+							remoteAppKeyCheck.Detail = fmt.Sprintf("remote app key missing: %s", appKey)
+							ready = false
+							if profileTag != "" {
+								nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-proxy --profile-tag %s --method GET --path /admin/download-apps --json", profileTag))
+							} else {
+								nextSteps = append(nextSteps, fmt.Sprintf("landing-page-business-suite remote-profiles-proxy %s --method GET --path /admin/download-apps --json", profileID))
+							}
+							nextSteps = append(nextSteps, "If you intend to onboard this app key, create it via remote proxy POST /admin/download-apps (see landing-page-desktop-upload for an example payload).")
+						}
+					}
+				}
+			}
+			checks = append(checks, remoteAppKeyCheck)
+		}
 	}
 
 	serviceAuthCheck := deployReadinessCheck{
@@ -983,31 +1091,80 @@ func (a *App) adminSessionConfigFile() (*cliutil.ConfigFile, error) {
 	return cliutil.NewConfigFile(filepath.Join(dir, "admin_session.json"))
 }
 
+func normalizeAPIBase(value string) string {
+	return strings.TrimRight(strings.TrimSpace(value), "/")
+}
+
+func (a *App) currentAPIBase() string {
+	if a.core == nil || a.core.APIClient == nil {
+		return ""
+	}
+	return normalizeAPIBase(a.core.APIClient.BaseURL())
+}
+
 func (a *App) loadAdminSession() (adminSessionConfig, error) {
 	cfgFile, err := a.adminSessionConfigFile()
 	if err != nil {
 		return adminSessionConfig{}, err
 	}
-	var cfg adminSessionConfig
-	if err := cfgFile.Load(&cfg); err != nil {
-		return cfg, err
+
+	// Manual load so we can support both legacy single-session and multi-session formats.
+	data, readErr := os.ReadFile(cfgFile.Path)
+	if readErr != nil {
+		if os.IsNotExist(readErr) {
+			return adminSessionConfig{}, nil
+		}
+		return adminSessionConfig{}, fmt.Errorf("read config file: %w", readErr)
 	}
-	if strings.TrimSpace(cfg.Session) == "" {
+	if len(data) == 0 {
+		return adminSessionConfig{}, nil
+	}
+
+	base := a.currentAPIBase()
+
+	// New format: map of sessions keyed by API base.
+	var store adminSessionStore
+	if err := json.Unmarshal(data, &store); err == nil && len(store.Sessions) > 0 {
+		if base == "" {
+			return adminSessionConfig{}, fmt.Errorf("api base URL is empty; configure an API base first")
+		}
+		cfg := store.Sessions[base]
+		if strings.TrimSpace(cfg.Session) == "" {
+			return adminSessionConfig{}, nil
+		}
+		if cfg.ExpiresAt != nil && time.Now().After(cfg.ExpiresAt.UTC()) {
+			// Expired: prune only this base entry.
+			delete(store.Sessions, base)
+			_ = cfgFile.Save(store)
+			return adminSessionConfig{}, nil
+		}
+		// Ensure APIBase is always normalized for display/debugging.
+		cfg.APIBase = base
 		return cfg, nil
 	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.APIClient.BaseURL()), "/")
+
+	// Legacy format: single session (api_base/session/...).
+	var legacy adminSessionConfig
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return adminSessionConfig{}, fmt.Errorf("parse config: %w", err)
+	}
+	if strings.TrimSpace(legacy.Session) == "" {
+		return adminSessionConfig{}, nil
+	}
 	if base == "" {
-		return cfg, fmt.Errorf("api base URL is empty; configure an API base first")
+		return adminSessionConfig{}, fmt.Errorf("api base URL is empty; configure an API base first")
 	}
-	if cfg.APIBase != "" && !strings.EqualFold(strings.TrimRight(cfg.APIBase, "/"), base) {
+	// If the stored session is for a different API base, do not clobber it. Just ignore it.
+	if legacy.APIBase != "" && !strings.EqualFold(normalizeAPIBase(legacy.APIBase), base) {
+		return adminSessionConfig{}, nil
+	}
+	if legacy.ExpiresAt != nil && time.Now().After(legacy.ExpiresAt.UTC()) {
+		// Expired legacy session: clear it (legacy has no multi-base preservation anyway).
 		_ = cfgFile.Save(adminSessionConfig{})
 		return adminSessionConfig{}, nil
 	}
-	if cfg.ExpiresAt != nil && time.Now().After(cfg.ExpiresAt.UTC()) {
-		_ = cfgFile.Save(adminSessionConfig{})
-		return adminSessionConfig{}, nil
-	}
-	return cfg, nil
+	legacy.APIBase = base
+	return legacy, nil
 }
 
 func (a *App) saveAdminSession(cfg adminSessionConfig) error {
@@ -1015,8 +1172,35 @@ func (a *App) saveAdminSession(cfg adminSessionConfig) error {
 	if err != nil {
 		return err
 	}
+	base := a.currentAPIBase()
+	if base == "" {
+		return fmt.Errorf("api base URL is empty; configure an API base first")
+	}
+
+	// Load existing store (legacy or new) and upsert per-base entry.
+	store := adminSessionStore{Sessions: map[string]adminSessionConfig{}}
+	if data, err := os.ReadFile(cfgFile.Path); err == nil && len(data) > 0 {
+		var loaded adminSessionStore
+		if jsonErr := json.Unmarshal(data, &loaded); jsonErr == nil && len(loaded.Sessions) > 0 {
+			store = loaded
+			if store.Sessions == nil {
+				store.Sessions = map[string]adminSessionConfig{}
+			}
+		} else {
+			var legacy adminSessionConfig
+			if jsonErr := json.Unmarshal(data, &legacy); jsonErr == nil && strings.TrimSpace(legacy.Session) != "" {
+				legacyBase := normalizeAPIBase(legacy.APIBase)
+				if legacyBase != "" {
+					store.Sessions[legacyBase] = legacy
+				}
+			}
+		}
+	}
+
+	cfg.APIBase = base
 	cfg.UpdatedAt = time.Now().UTC()
-	return cfgFile.Save(cfg)
+	store.Sessions[base] = cfg
+	return cfgFile.Save(store)
 }
 
 func (a *App) clearAdminSession() error {
@@ -1024,6 +1208,30 @@ func (a *App) clearAdminSession() error {
 	if err != nil {
 		return err
 	}
+	base := a.currentAPIBase()
+	if base == "" {
+		// If we can't resolve the base, fall back to legacy full clear.
+		return cfgFile.Save(adminSessionConfig{})
+	}
+
+	data, err := os.ReadFile(cfgFile.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read config file: %w", err)
+	}
+	if len(data) == 0 {
+		return nil
+	}
+
+	var store adminSessionStore
+	if err := json.Unmarshal(data, &store); err == nil && len(store.Sessions) > 0 {
+		delete(store.Sessions, base)
+		return cfgFile.Save(store)
+	}
+
+	// Legacy: clear entire file.
 	return cfgFile.Save(adminSessionConfig{})
 }
 
@@ -1414,10 +1622,14 @@ func (a *App) cmdRemoteProfilesCreate(args []string) error {
 	if tagValue == "" || apiBaseValue == "" {
 		return fmt.Errorf("usage: remote-profiles-create --tag <tag> --api-base <url> [--label <label>] [--json]")
 	}
+	normalizedAPIBase, err := validateRemoteProfileAPIBase(apiBaseValue)
+	if err != nil {
+		return err
+	}
 
 	payload := map[string]string{
 		"tag":      tagValue,
-		"api_base": apiBaseValue,
+		"api_base": normalizedAPIBase,
 	}
 	if strings.TrimSpace(*label) != "" {
 		payload["label"] = strings.TrimSpace(*label)
@@ -1437,6 +1649,23 @@ func (a *App) cmdRemoteProfilesCreate(args []string) error {
 	}
 	cliutil.PrintJSON(resp)
 	return nil
+}
+
+func validateRemoteProfileAPIBase(value string) (string, error) {
+	trimmed := strings.TrimSpace(value)
+	trimmed = strings.TrimRight(trimmed, "/")
+	parsed, err := url.ParseRequestURI(trimmed)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf(
+			"Status: INVALID INPUT\nTriage:\n  [FAIL] api_base_url: --api-base must be an absolute URL\nNext steps:\n  1) Use canonical form: --api-base https://<domain>/api/v1\n  2) Re-run remote-profiles-create with the corrected value",
+		)
+	}
+	if !strings.HasSuffix(trimmed, "/api/v1") {
+		return "", fmt.Errorf(
+			"Status: INVALID INPUT\nTriage:\n  [FAIL] api_base_format: --api-base must end with /api/v1\nNext steps:\n  1) Use canonical form: --api-base https://<domain>/api/v1\n  2) Re-run remote-profiles-create with the corrected value",
+		)
+	}
+	return trimmed, nil
 }
 
 func (a *App) cmdRemoteProfilesUpdate(args []string) error {
@@ -1749,21 +1978,66 @@ func (a *App) cmdRemoteProfilesTest(args []string) error {
 // DOC: docs/reference/api/admin.md#post-adminremote-profilesidproxy
 func (a *App) cmdRemoteProfilesProxy(args []string) error {
 	fs := flag.NewFlagSet("remote-profiles-proxy", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage of remote-profiles-proxy:")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-proxy <id> --method <METHOD> --path <path> [--query k=v] [--header k=v] [--body @file.json] [--json]")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-proxy --profile-id <id> --method <METHOD> --path <path> [--query k=v] [--header k=v] [--body @file.json] [--json]")
+		fmt.Fprintln(fs.Output(), "  remote-profiles-proxy --profile-tag <tag> --method <METHOD> --path <path> [--query k=v] [--header k=v] [--body @file.json] [--json]")
+		fmt.Fprintln(fs.Output(), "")
+		fmt.Fprintln(fs.Output(), "Examples:")
+		fmt.Fprintln(fs.Output(), "  landing-page-business-suite remote-profiles-proxy --profile-tag prod --method POST --path /admin/download-storage/test --json")
+		fmt.Fprintln(fs.Output(), "  landing-page-business-suite remote-profiles-proxy 12 --method GET --path /admin/download-apps --json")
+	}
 	method := fs.String("method", "", "HTTP method (GET, POST, PUT, PATCH, DELETE)")
 	pathValue := fs.String("path", "", "Admin path (e.g., /admin/download-artifacts)")
 	var queries cliutil.StringList
 	var headers cliutil.StringList
 	body := fs.String("body", "", "JSON body payload or @file.json")
+	profileIDFlag := fs.String("profile-id", "", "Remote profile id (alternative to positional <id>)")
+	profileTag := fs.String("profile-tag", "", "Remote profile tag (resolves id automatically)")
+	tagAlias := fs.String("tag", "", "Alias for --profile-tag")
 	fs.Var(&queries, "query", "Query parameters (key=value or key=value&key2=value2). Repeatable.")
 	fs.Var(&headers, "header", "Header override (key=value or key:value). Repeatable.")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := parseFlagSetInterspersed(fs, args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 1 {
+
+	if len(fs.Args()) > 1 {
 		return fmt.Errorf("usage: remote-profiles-proxy <id> --method <METHOD> --path <path> [--query k=v] [--header k=v] [--body @file.json] [--json]")
 	}
-	profileID := strings.TrimSpace(fs.Args()[0])
+
+	positionalProfileID := ""
+	if len(fs.Args()) == 1 {
+		positionalProfileID = strings.TrimSpace(fs.Args()[0])
+	}
+	flagProfileID := strings.TrimSpace(*profileIDFlag)
+	tagValue := strings.TrimSpace(*profileTag)
+	tagAliasValue := strings.TrimSpace(*tagAlias)
+	if tagValue == "" && tagAliasValue != "" {
+		tagValue = tagAliasValue
+	}
+	if tagValue != "" && tagAliasValue != "" && tagValue != tagAliasValue {
+		return fmt.Errorf("use only one of --profile-tag or --tag (values differ)")
+	}
+	if positionalProfileID != "" && flagProfileID != "" {
+		return fmt.Errorf("use either positional <id> or --profile-id, not both")
+	}
+	if tagValue != "" && (positionalProfileID != "" || flagProfileID != "") {
+		return fmt.Errorf("use either --profile-tag/--tag or an explicit profile id (--profile-id or positional <id>)")
+	}
+
+	profileID := positionalProfileID
+	if profileID == "" {
+		profileID = flagProfileID
+	}
+	if profileID == "" && tagValue != "" {
+		resolvedProfileID, err := a.resolveRemoteProfileIDByTag(tagValue)
+		if err != nil {
+			return err
+		}
+		profileID = resolvedProfileID
+	}
 	if profileID == "" {
 		return fmt.Errorf("usage: remote-profiles-proxy <id> --method <METHOD> --path <path> [--query k=v] [--header k=v] [--body @file.json] [--json]")
 	}

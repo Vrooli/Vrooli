@@ -117,7 +117,19 @@ func TestDeployStage_Execute_NilConfig(t *testing.T) {
 
 func TestDeployStage_Execute_MissingServiceToken(t *testing.T) {
 	// Ensure env var is unset
-	os.Unsetenv("LPBS_SERVICE_SECRET")
+	t.Setenv("LPBS_SERVICE_SECRET", "")
+	t.Setenv("VROOLI_ROOT", t.TempDir())
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	tmpWD := t.TempDir()
+	if err := os.Chdir(tmpWD); err != nil {
+		t.Fatalf("chdir tempdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWD)
+	})
 
 	stage := NewDeployStage(WithDeployTimeProvider(newMockTP()))
 
