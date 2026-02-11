@@ -262,7 +262,7 @@ List bundles present on a remote VPS.
   "ok": true,
   "bundles": [
     {
-      "filename": "vrooli-bundle-my-scenario-20240115.tar.gz",
+      "filename": "mini-vrooli_my-scenario_<sha256>.tar.gz",
       "scenario_id": "my-scenario",
       "sha256": "abc123...",
       "size_bytes": 15000000,
@@ -286,7 +286,7 @@ Delete a specific bundle from a remote VPS.
   "user": "root",
   "key_path": "~/.ssh/id_rsa",
   "workdir": "~/Vrooli",
-  "filename": "vrooli-bundle-my-scenario-20240115.tar.gz"
+  "filename": "mini-vrooli_my-scenario_<sha256>.tar.gz"
 }
 ```
 
@@ -297,6 +297,53 @@ Delete a specific bundle from a remote VPS.
   "freed_bytes": 15000000,
   "message": "VPS bundle deleted",
   "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### GET /deployments/{id}/bundles/vps
+
+List bundles present in the VPS bundle cache directory for a specific deployment target.
+
+This is the recommended list endpoint for operators because it is **deployment-scoped**
+(no need to pass SSH parameters in the request body). It uses the deployment’s stored
+manifest + SSH identity to connect to the VPS.
+
+**Response:** same shape as `POST /bundles/vps/list`.
+
+### POST /deployments/{id}/bundles/vps/gc
+
+Garbage-collect old bundles in the VPS bundle cache directory for a specific deployment target.
+
+This is designed to prevent repeated redeploys from accumulating unbounded disk usage in:
+`<workdir>/.vrooli/cloud/bundles`.
+
+Default policy (if omitted in request):
+- Keep `keep_latest=2` bundles for the deployment’s scenario (newest by `mod_time`)
+- Also protect the deployment’s currently recorded `bundle_sha256` (if present)
+
+**Request Body:**
+```json
+{
+  "scenario_id": "landing-page-business-suite",
+  "keep_latest": 2,
+  "protect_sha256": ["<optional extra sha>"],
+  "dry_run": true
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "dry_run": true,
+  "deleted_count": 12,
+  "deleted_bytes": 1200000000,
+  "total_before_bytes": 3500000000,
+  "total_after_bytes": 300000000,
+  "deleted": [{"filename":"mini-vrooli_...","sha256":"...","size_bytes":123,"mod_time":"..."}],
+  "kept": [{"filename":"mini-vrooli_...","sha256":"...","size_bytes":123,"mod_time":"..."}],
+  "message": "Would delete 12 VPS bundle(s)",
+  "timestamp": "2026-02-10T21:19:55Z"
 }
 ```
 

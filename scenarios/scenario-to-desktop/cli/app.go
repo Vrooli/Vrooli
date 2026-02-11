@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 
+	"scenario-to-desktop/cli/bundle"
 	"scenario-to-desktop/cli/deploytarget"
 	"scenario-to-desktop/cli/pipeline"
 	"scenario-to-desktop/cli/signing"
@@ -29,6 +30,7 @@ var (
 type App struct {
 	core         *cliapp.ScenarioApp
 	pipeline     *pipeline.Commands
+	bundle       *bundle.Commands
 	signing      *signing.Commands
 	telemetry    *telemetry.Commands
 	system       *system.Commands
@@ -66,6 +68,7 @@ func NewApp() (*App, error) {
 	app := &App{
 		core:         core,
 		pipeline:     pipeline.New(core.APIClient),
+		bundle:       bundle.New(core.APIClient),
 		signing:      signing.New(core.APIClient),
 		telemetry:    telemetry.New(core.APIClient),
 		system:       system.New(core.APIClient),
@@ -150,6 +153,15 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 		},
 	}
 
+	bundleGroup := cliapp.SubcommandGroup{
+		Name:        "bundle",
+		Description: "Bundle output utilities (run 'bundle help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "clean", Description: "Clean bundle output directory: clean <scenario> [--location-mode ...]", Run: a.bundle.Clean},
+		},
+	}
+
 	// Telemetry subcommands
 	telemetryGroup := cliapp.SubcommandGroup{
 		Name:        "telemetry",
@@ -208,5 +220,5 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 		},
 	}
 
-	return []cliapp.SubcommandGroup{pipelineGroup, telemetryGroup, signingGroup, deployTargetGroup, wineGroup}
+	return []cliapp.SubcommandGroup{pipelineGroup, bundleGroup, telemetryGroup, signingGroup, deployTargetGroup, wineGroup}
 }

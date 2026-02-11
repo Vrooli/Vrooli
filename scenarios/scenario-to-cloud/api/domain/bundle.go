@@ -119,3 +119,46 @@ type VPSBundleDeleteResponse struct {
 	Error      string `json:"error,omitempty"`
 	Timestamp  string `json:"timestamp"`
 }
+
+// VPSBundleGCRequest is the request body for garbage-collecting bundle cache on a VPS.
+//
+// This is intentionally conservative: it is designed to keep deployments recoverable
+// (keep current + previous known-good bundles) while bounding disk growth from repeated redeploys.
+type VPSBundleGCRequest struct {
+	// ScenarioID limits GC to one scenario's bundles. If empty, GC may operate on all scenarios.
+	ScenarioID string `json:"scenario_id,omitempty"`
+
+	// KeepLatest keeps N newest bundles per scenario (default applied server-side).
+	KeepLatest int `json:"keep_latest,omitempty"`
+
+	// ProtectSHA256 are additional bundle hashes that must not be deleted even if older than KeepLatest.
+	ProtectSHA256 []string `json:"protect_sha256,omitempty"`
+
+	// DryRun returns the plan without deleting.
+	DryRun bool `json:"dry_run,omitempty"`
+}
+
+// VPSBundleGCResponse is the response from garbage-collecting VPS bundles.
+type VPSBundleGCResponse struct {
+	OK bool `json:"ok"`
+
+	DryRun bool `json:"dry_run,omitempty"`
+
+	// BundlesBefore/BundlesAfter are the observed bundle lists (after may equal before in dry-run).
+	BundlesBefore []VPSBundleInfo `json:"bundles_before,omitempty"`
+	BundlesAfter  []VPSBundleInfo `json:"bundles_after,omitempty"`
+
+	// Deleted/Kept are the computed plan decisions (subset of BundlesBefore).
+	Deleted []VPSBundleInfo `json:"deleted,omitempty"`
+	Kept    []VPSBundleInfo `json:"kept,omitempty"`
+
+	DeletedCount int   `json:"deleted_count,omitempty"`
+	DeletedBytes int64 `json:"deleted_bytes,omitempty"`
+
+	TotalBeforeBytes int64 `json:"total_before_bytes,omitempty"`
+	TotalAfterBytes  int64 `json:"total_after_bytes,omitempty"`
+
+	Message   string `json:"message,omitempty"`
+	Error     string `json:"error,omitempty"`
+	Timestamp string `json:"timestamp"`
+}

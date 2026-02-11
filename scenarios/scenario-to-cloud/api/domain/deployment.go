@@ -188,6 +188,8 @@ const (
 	EventStarted            HistoryEventType = "started"
 	EventRestarted          HistoryEventType = "restarted"
 	EventAutohealTriggered  HistoryEventType = "autoheal_triggered"
+	// EventVPSBundleGC records automatic or manual garbage collection of VPS bundle cache.
+	EventVPSBundleGC HistoryEventType = "vps_bundle_gc"
 )
 
 // HistoryEvent represents a single event in the deployment timeline.

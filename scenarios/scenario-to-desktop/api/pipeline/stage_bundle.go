@@ -110,7 +110,7 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	if input.Config != nil && input.Config.Clean {
 		if desktopPath != "" && strings.Contains(desktopPath, filepath.Join("platforms", framework)) {
 			appendInfo(result, "Cleaning desktop output: %s", desktopPath)
-			if err := os.RemoveAll(desktopPath); err != nil {
+			if err := removeAllRobust(desktopPath); err != nil {
 				failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
 				return result
 			}

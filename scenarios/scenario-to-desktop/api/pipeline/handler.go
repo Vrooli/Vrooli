@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -87,6 +90,93 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// POST /api/v1/scenarios/{name}/pipeline/start - start active pipeline with config
 	r.HandleFunc("/api/v1/scenarios/{name}/pipeline/start", h.handleStartActivePipeline).Methods("POST")
+
+	// POST /api/v1/scenarios/{name}/bundle/clean - clean bundle output directory for a scenario
+	r.HandleFunc("/api/v1/scenarios/{name}/bundle/clean", h.handleBundleClean).Methods("POST")
+}
+
+type bundleCleanRequest struct {
+	Framework    string `json:"framework,omitempty"`
+	LocationMode string `json:"location_mode,omitempty"`
+	PipelineID   string `json:"pipeline_id,omitempty"`
+}
+
+type bundleCleanResponse struct {
+	ScenarioName string `json:"scenario_name"`
+	Framework    string `json:"framework"`
+	LocationMode string `json:"location_mode"`
+	PipelineID   string `json:"pipeline_id,omitempty"`
+	Path         string `json:"path"`
+	Removed      bool   `json:"removed"`
+}
+
+func (h *Handler) handleBundleClean(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+	if scenarioName == "" {
+		httputil.WriteError(w, errors.ErrBadRequest("scenario name is required"))
+		return
+	}
+
+	var req bundleCleanRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		httputil.WriteError(w, errors.ErrBadRequest("invalid request body").
+			WithCause(err).
+			WithRecovery(errors.RecoveryFixInput, "Ensure the request body is valid JSON"))
+		return
+	}
+
+	framework := req.Framework
+	if framework == "" {
+		framework = FrameworkElectron
+	}
+	locationMode := req.LocationMode
+	if locationMode == "" {
+		locationMode = "proper"
+	}
+	if isStagingLocation(locationMode) && strings.TrimSpace(req.PipelineID) == "" {
+		httputil.WriteError(w, errors.ErrBadRequest("pipeline_id is required for staging/temp location_mode"))
+		return
+	}
+
+	// Compute scenario path from conventional repo layout.
+	home, _ := os.UserHomeDir()
+	scenarioPath := filepath.Join(home, "Vrooli", "scenarios", scenarioName)
+
+	cfg := &Config{
+		ScenarioName:   scenarioName,
+		LocationMode:   locationMode,
+		Framework:      framework,
+		Platforms:      nil,
+		DeploymentMode: "",
+	}
+	_, desktopPath := resolvePipelineOutputPaths(cfg, scenarioPath, req.PipelineID, framework)
+	if desktopPath == "" || !strings.Contains(desktopPath, filepath.Join("platforms", framework)) {
+		httputil.WriteError(w, errors.ErrBadRequest("refusing to clean: computed output path is unsafe"))
+		return
+	}
+	bundlePath := filepath.Join(desktopPath, "bundle")
+
+	removed := false
+	if _, statErr := os.Stat(bundlePath); statErr == nil {
+		if err := removeAllRobust(bundlePath); err != nil {
+			httputil.WriteError(w, errors.ErrBadRequest("failed to clean bundle directory").WithCause(err))
+			return
+		}
+		removed = true
+	} else if !os.IsNotExist(statErr) {
+		httputil.WriteError(w, errors.ErrBadRequest("failed to stat bundle directory").WithCause(statErr))
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, bundleCleanResponse{
+		ScenarioName: scenarioName,
+		Framework:    framework,
+		LocationMode: locationMode,
+		PipelineID:   req.PipelineID,
+		Path:         bundlePath,
+		Removed:      removed,
+	})
 }
 
 // extendWriteDeadline extends the HTTP response write deadline for long-running blocking requests.

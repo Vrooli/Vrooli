@@ -215,6 +215,17 @@ func (o *Orchestrator) RunPipeline(
 		preflightResp := preflight.Run(ctx, manifest, o.dnsService, o.sshRunner, preflight.RunOptions{
 			ProvidedSecrets: providedSecrets,
 		})
+
+		// Automatic remediation: VPS bundle cache can accumulate across repeated redeploys.
+		// If preflight fails due to low disk, attempt a single VPS bundle GC pass and re-run preflight.
+		if !preflightResp.OK && hasFailingPreflightCheck(preflightResp, domain.PreflightDiskFreeID) {
+			if gcApplied := o.tryAutoVPSBundleGC(ctx, id, manifest); gcApplied {
+				preflightResp = preflight.Run(ctx, manifest, o.dnsService, o.sshRunner, preflight.RunOptions{
+					ProvidedSecrets: providedSecrets,
+				})
+			}
+		}
+
 		preflightJSON, _ := json.Marshal(preflightResp)
 		if err := o.repo.UpdateDeploymentPreflightResult(ctx, id, preflightJSON); err != nil {
 			o.log("failed to save preflight result", map[string]interface{}{"error": err.Error()})
@@ -352,6 +363,11 @@ func (o *Orchestrator) RunPipeline(
 		DurationMs: time.Since(deployStart).Milliseconds(),
 		Success:    boolPtr(true),
 	})
+
+	// Proactively enforce VPS bundle cache retention so repeated redeploys do not accumulate disk usage.
+	// This is best-effort and must not block a successful deployment.
+	o.enforceVPSBundleRetentionBestEffort(ctx, id, manifest)
+
 	o.verifyAndPersistIdentity(ctx, id, manifest, canonicalIdentity)
 
 	// Success!
@@ -771,6 +787,109 @@ func FormatPreflightFailureDetails(resp domain.PreflightResponse) string {
 		return "Preflight failed (no failing checks reported)"
 	}
 	return b.String()
+}
+
+func hasFailingPreflightCheck(resp domain.PreflightResponse, checkID string) bool {
+	for _, c := range resp.Checks {
+		if c.ID == checkID && c.Status == domain.PreflightFail {
+			return true
+		}
+	}
+	return false
+}
+
+// tryAutoVPSBundleGC attempts to garbage-collect old bundles on the VPS to relieve disk pressure.
+// Returns true if a GC pass was applied (and preflight should be re-run).
+func (o *Orchestrator) tryAutoVPSBundleGC(ctx context.Context, deploymentID string, manifest domain.CloudManifest) bool {
+	if manifest.Target.VPS == nil {
+		return false
+	}
+
+	// Keep the deployment's currently recorded bundle hash (if present) as an explicit protect.
+	var protect []string
+	if dep, err := o.repo.GetDeployment(ctx, deploymentID); err == nil && dep != nil {
+		if dep.BundleSHA256 != nil && strings.TrimSpace(*dep.BundleSHA256) != "" {
+			protect = append(protect, strings.TrimSpace(*dep.BundleSHA256))
+		}
+	}
+
+	cfg := ssh.ConfigFromManifest(manifest)
+	req := domain.VPSBundleGCRequest{
+		ScenarioID:     manifest.Scenario.ID,
+		KeepLatest:     bundle.DefaultVPSBundleKeepLatest,
+		ProtectSHA256:  protect,
+		DryRun:         false,
+	}
+
+	gcStart := time.Now()
+	resp := bundle.GCVPSBundles(ctx, o.sshRunner, cfg, manifest.Target.VPS.Workdir, req)
+
+	// History event is intentionally non-blocking: GC is a best-effort remediation.
+	details := fmt.Sprintf("keep_latest=%d deleted=%d deleted_bytes=%d before_bytes=%d after_bytes=%d dry_run=%v",
+		req.KeepLatest, resp.DeletedCount, resp.DeletedBytes, resp.TotalBeforeBytes, resp.TotalAfterBytes, resp.DryRun)
+	if resp.Error != "" {
+		details += "\nerror: " + resp.Error
+	}
+	success := resp.OK
+	o.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
+		Type:       domain.EventVPSBundleGC,
+		Timestamp:  gcStart.UTC(),
+		Message:    "VPS bundle cache GC attempted",
+		Details:    details,
+		DurationMs: time.Since(gcStart).Milliseconds(),
+		Success:    boolPtr(success),
+		StepName:   "preflight",
+	})
+
+	return resp.OK && resp.DeletedCount > 0
+}
+
+func (o *Orchestrator) enforceVPSBundleRetentionBestEffort(ctx context.Context, deploymentID string, manifest domain.CloudManifest) {
+	if manifest.Target.VPS == nil {
+		return
+	}
+
+	// Protect the currently recorded bundle hash (if present). This should also be among the newest,
+	// but we keep it explicit to avoid accidental deletion on clock skew or manual rollbacks.
+	var protect []string
+	if dep, err := o.repo.GetDeployment(ctx, deploymentID); err == nil && dep != nil {
+		if dep.BundleSHA256 != nil && strings.TrimSpace(*dep.BundleSHA256) != "" {
+			protect = append(protect, strings.TrimSpace(*dep.BundleSHA256))
+		}
+	}
+
+	cfg := ssh.ConfigFromManifest(manifest)
+	req := domain.VPSBundleGCRequest{
+		ScenarioID:    manifest.Scenario.ID,
+		KeepLatest:    bundle.DefaultVPSBundleKeepLatest,
+		ProtectSHA256: protect,
+		DryRun:        false,
+	}
+
+	gcStart := time.Now()
+	resp := bundle.GCVPSBundles(ctx, o.sshRunner, cfg, manifest.Target.VPS.Workdir, req)
+	if !resp.OK {
+		o.log("vps bundle retention gc warning", map[string]interface{}{
+			"deployment_id": deploymentID,
+			"scenario_id":   manifest.Scenario.ID,
+			"error":         resp.Error,
+		})
+	}
+
+	// Record in history for auditability; this is operational hygiene, not a deploy stage.
+	details := fmt.Sprintf("keep_latest=%d deleted=%d deleted_bytes=%d before_bytes=%d after_bytes=%d",
+		req.KeepLatest, resp.DeletedCount, resp.DeletedBytes, resp.TotalBeforeBytes, resp.TotalAfterBytes)
+	if resp.Error != "" {
+		details += "\nerror: " + resp.Error
+	}
+	o.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
+		Type:       domain.EventVPSBundleGC,
+		Timestamp:  gcStart.UTC(),
+		Message:    "VPS bundle cache retention enforced",
+		Details:    details,
+		DurationMs: time.Since(gcStart).Milliseconds(),
+		Success:    boolPtr(resp.OK),
+	})
 }
 
 func boolPtr(value bool) *bool {

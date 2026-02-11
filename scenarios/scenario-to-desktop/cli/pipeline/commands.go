@@ -6,11 +6,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
+	"time"
 
 	"scenario-to-desktop/cli/cmdutil"
 
@@ -64,6 +63,63 @@ func (c *Commands) apiPost(path string, body interface{}) ([]byte, error) {
 	return c.api.Request("POST", c.apiPath(path), nil, body)
 }
 
+func (c *Commands) waitForPipeline(pipelineID string, timeoutSeconds int, deployRequested bool, notice *versionUpdateNotice, showOutput bool) error {
+	// Human-first progress: print only when the status/progress meaningfully changes.
+	fmt.Printf("Pipeline: %s\n", pipelineID)
+
+	deadline := time.Now().Add(time.Duration(timeoutSeconds) * time.Second)
+	var lastKey string
+
+	for {
+		status, err := c.fetchPipelineStatus(pipelineID, false)
+		if err != nil {
+			return err
+		}
+
+		key := fmt.Sprintf("%s|%s|%d|%s", status.Status, status.CurrentStage, status.ProgressPercent, status.ProgressMessage)
+		if key != lastKey {
+			lastKey = key
+
+			msg := strings.TrimSpace(status.ProgressMessage)
+			stage := strings.TrimSpace(status.CurrentStage)
+			if msg != "" && stage != "" {
+				fmt.Printf("Status: %s (%d%%) stage=%s (%s)\n", status.Status, status.ProgressPercent, stage, msg)
+			} else if stage != "" {
+				fmt.Printf("Status: %s (%d%%) stage=%s\n", status.Status, status.ProgressPercent, stage)
+			} else if msg != "" {
+				fmt.Printf("Status: %s (%d%%) %s\n", status.Status, status.ProgressPercent, msg)
+			} else {
+				fmt.Printf("Status: %s (%d%%)\n", status.Status, status.ProgressPercent)
+			}
+		}
+
+		switch status.Status {
+		case "completed":
+			// If a deploy was requested, fetch the verbose status so we can print derived update URLs
+			// and other deploy details as part of the default success contract.
+			if deployRequested {
+				if verboseStatus, err := c.fetchPipelineStatus(status.PipelineID, true); err == nil {
+					status = verboseStatus
+				}
+			}
+			printPipelineSuccess(status, notice)
+			return nil
+		case "failed":
+			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
+			printPipelineError(status, showOutput)
+			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
+		}
+
+		if time.Now().After(deadline) {
+			fmt.Printf("Pipeline still running after %ds: %s\n", timeoutSeconds, pipelineID)
+			fmt.Printf("Check status: %s pipeline-status %s --verbose\n", appName, pipelineID)
+			return fmt.Errorf("pipeline timed out")
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+}
+
 // Run starts a new pipeline.
 func (c *Commands) Run(args []string) error {
 	fs := flag.NewFlagSet("pipeline-run", flag.ContinueOnError)
@@ -98,6 +154,7 @@ func (c *Commands) Run(args []string) error {
 	}
 
 	scenario := fs.Args()[0]
+	deployRequested := false
 	req := map[string]interface{}{
 		"scenario_name": scenario,
 	}
@@ -175,6 +232,7 @@ func (c *Commands) Run(args []string) error {
 
 	// Build deploy config if any deploy flags are set
 	if *deployTarget != "" || *deployTo != "" || *appKey != "" {
+		deployRequested = true
 		deploy := map[string]interface{}{}
 		if *deployTarget != "" {
 			deploy["target_name"] = *deployTarget
@@ -192,21 +250,79 @@ func (c *Commands) Run(args []string) error {
 	}
 
 	// Build query params for blocking mode
-	query := url.Values{}
 	if *wait {
-		query.Set("block", "true")
-		query.Set("timeout", strconv.Itoa(*timeout))
+		// IMPORTANT: /pipeline/run with blocking semantics has historically been able to create a pipeline
+		// without actually starting it (leaving it in "created"). To provide a reliable CLI contract for
+		// --wait, we do:
+		// 1) run (create/configure) asynchronously
+		// 2) start asynchronously
+		// 3) poll status client-side until completion/failure/timeout
+
+		createBody, err := c.api.Request("POST", c.apiPath("/pipeline/run"), nil, req)
+		if err != nil {
+			printAPIError(err, *debug)
+			return &ErrAlreadyPrinted{Err: err}
+		}
+
+		if *jsonOutput {
+			cliutil.PrintJSON(createBody)
+			return nil
+		}
+
+		var createResp struct {
+			PipelineID string `json:"pipeline_id"`
+			StatusURL  string `json:"status_url"`
+			Message    string `json:"message"`
+		}
+		if err := json.Unmarshal(createBody, &createResp); err != nil || createResp.PipelineID == "" {
+			cliutil.PrintJSON(createBody)
+			return nil
+		}
+
+		startReq := map[string]interface{}{}
+		if *platforms != "" {
+			startReq["platforms"] = strings.Split(*platforms, ",")
+		}
+		if *stages != "" {
+			startReq["stages"] = strings.Split(*stages, ",")
+		}
+		if *deployTarget != "" || *deployTo != "" || *appKey != "" {
+			deploy := map[string]interface{}{}
+			if *deployTarget != "" {
+				deploy["target_name"] = *deployTarget
+			}
+			if *deployTo != "" {
+				deploy["scenario_name"] = *deployTo
+			}
+			if *remoteProfile != "" {
+				deploy["remote_profile"] = *remoteProfile
+			}
+			if *appKey != "" {
+				deploy["app_key"] = *appKey
+			}
+			startReq["deploy"] = deploy
+		}
+
+		var startBody []byte
+		if len(startReq) > 0 {
+			startBody, err = c.api.Request("POST", c.apiPath("/scenarios/"+scenario+"/pipeline/start"), nil, startReq)
+		} else {
+			startBody, err = c.api.Request("POST", c.apiPath("/scenarios/"+scenario+"/pipeline/start"), nil, nil)
+		}
+		if err != nil {
+			printAPIError(err, *debug)
+			return &ErrAlreadyPrinted{Err: err}
+		}
+
+		// Even if the start response isn't parseable (API shape may change), we can still poll the pipeline ID
+		// returned by the run/create step.
+		_ = startBody
+
+		return c.waitForPipeline(createResp.PipelineID, *timeout, deployRequested, notice, *showOutput)
 	}
 
-	body, err := c.api.Request("POST", c.apiPath("/pipeline/run"), query, req)
+	body, err := c.api.Request("POST", c.apiPath("/pipeline/run"), nil, req)
 	if err != nil {
-		// In blocking mode, the API returns an error but the response body may contain
-		// a full pipeline status with rich error info. Try to extract it.
-		if *wait {
-			if printed := printPipelineAPIError(err, *debug, *showOutput); printed {
-				return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
-			}
-		}
 		printAPIError(err, *debug)
 		return &ErrAlreadyPrinted{Err: err}
 	}
@@ -214,27 +330,6 @@ func (c *Commands) Run(args []string) error {
 	if *jsonOutput {
 		cliutil.PrintJSON(body)
 		return nil
-	}
-
-	// If blocking mode, the response is a Status object
-	if *wait {
-		var status pipelineStatus
-		if err := json.Unmarshal(body, &status); err != nil {
-			cliutil.PrintJSON(body)
-			return nil
-		}
-
-		if status.Status == "completed" {
-			printPipelineSuccess(&status, notice)
-			return nil
-		} else if status.Status == "failed" {
-			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
-			printPipelineError(&status, *showOutput)
-			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
-		} else {
-			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
-			return nil
-		}
 	}
 
 	// Async mode response
@@ -602,28 +697,14 @@ func (c *Commands) Start(args []string) error {
 		req["deploy"] = deployConfig
 	}
 
-	// Build query params for blocking mode
-	query := url.Values{}
-	if *wait {
-		query.Set("block", "true")
-		query.Set("timeout", strconv.Itoa(*timeout))
-	}
-
 	var body []byte
 	var err error
 	if len(req) > 0 {
-		body, err = c.api.Request("POST", c.apiPath("/scenarios/"+scenario+"/pipeline/start"), query, req)
+		body, err = c.api.Request("POST", c.apiPath("/scenarios/"+scenario+"/pipeline/start"), nil, req)
 	} else {
-		body, err = c.api.Request("POST", c.apiPath("/scenarios/"+scenario+"/pipeline/start"), query, nil)
+		body, err = c.api.Request("POST", c.apiPath("/scenarios/"+scenario+"/pipeline/start"), nil, nil)
 	}
 	if err != nil {
-		// In blocking mode, the API returns an error but the response body may contain
-		// a full pipeline status with rich error info. Try to extract it.
-		if *wait {
-			if printed := printPipelineAPIError(err, *debug, *showOutput); printed {
-				return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
-			}
-		}
 		printAPIError(err, *debug)
 		return &ErrAlreadyPrinted{Err: err}
 	}
@@ -633,25 +714,20 @@ func (c *Commands) Start(args []string) error {
 		return nil
 	}
 
-	// If blocking mode, the response is a Status object
 	if *wait {
-		var status pipelineStatus
-		if err := json.Unmarshal(body, &status); err != nil {
+		// Pipeline start returns a small response. Polling is the reliable progress + exit-code contract.
+		var resp struct {
+			Pipeline struct {
+				PipelineID string `json:"pipeline_id"`
+			} `json:"pipeline"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(body, &resp); err != nil || resp.Pipeline.PipelineID == "" {
 			cliutil.PrintJSON(body)
 			return nil
 		}
 
-		if status.Status == "completed" {
-			printPipelineSuccess(&status, nil)
-			return nil
-		} else if status.Status == "failed" {
-			fmt.Printf("Pipeline failed: %s\n", status.PipelineID)
-			printPipelineError(&status, *showOutput)
-			return &ErrAlreadyPrinted{Err: fmt.Errorf("pipeline failed")}
-		} else {
-			fmt.Printf("Pipeline %s: %s\n", status.Status, status.PipelineID)
-			return nil
-		}
+		return c.waitForPipeline(resp.Pipeline.PipelineID, *timeout, false, nil, *showOutput)
 	}
 
 	// Async mode response
@@ -673,19 +749,30 @@ func (c *Commands) Start(args []string) error {
 
 // pipelineStatus represents a full pipeline status response with error info.
 type pipelineStatus struct {
-	PipelineID     string                  `json:"pipeline_id"`
-	Status         string                  `json:"status"`
-	ScenarioName   string                  `json:"scenario_name,omitempty"`
-	FinalArtifacts map[string]string       `json:"final_artifacts,omitempty"`
-	StartedAt      int64                   `json:"started_at,omitempty"`
-	CompletedAt    int64                   `json:"completed_at,omitempty"`
-	Error          string                  `json:"error,omitempty"`
-	Stages         map[string]*stageResult `json:"stages,omitempty"`
-	Config         *pipelineConfig         `json:"config,omitempty"`
+	PipelineID      string                  `json:"pipeline_id"`
+	Status          string                  `json:"status"`
+	CurrentStage    string                  `json:"current_stage,omitempty"`
+	CurrentState    string                  `json:"current_state,omitempty"`
+	ProgressPercent int                     `json:"progress_percent,omitempty"`
+	ProgressMessage string                  `json:"progress_message,omitempty"`
+	ScenarioName    string                  `json:"scenario_name,omitempty"`
+	FinalArtifacts  map[string]string       `json:"final_artifacts,omitempty"`
+	StartedAt       int64                   `json:"started_at,omitempty"`
+	CompletedAt     int64                   `json:"completed_at,omitempty"`
+	Error           string                  `json:"error,omitempty"`
+	Stages          map[string]*stageResult `json:"stages,omitempty"`
+	Config          *pipelineConfig         `json:"config,omitempty"`
 }
 
 type pipelineConfig struct {
-	Version string `json:"version,omitempty"`
+	Version   string   `json:"version,omitempty"`
+	Platforms []string `json:"platforms,omitempty"`
+	Deploy    *struct {
+		ScenarioName  string `json:"scenario_name,omitempty"`
+		RemoteProfile string `json:"remote_profile,omitempty"`
+		AppKey        string `json:"app_key,omitempty"`
+		Channel       string `json:"channel,omitempty"`
+	} `json:"deploy,omitempty"`
 }
 
 // stageResult represents a stage result with optional error info.
@@ -695,6 +782,39 @@ type stageResult struct {
 	ErrorInfo *stageErrorInfo `json:"error_info,omitempty"`
 	Logs      []string        `json:"logs,omitempty"`
 	Details   json.RawMessage `json:"details,omitempty"`
+}
+
+type deployStageDetails struct {
+	UpdateURL string `json:"update_url"`
+}
+
+func pipelineManifestFilename(platform string) string {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case "win", "windows":
+		return "latest.yml"
+	case "mac", "macos", "darwin":
+		return "latest-mac.yml"
+	case "linux":
+		return "latest-linux.yml"
+	default:
+		return ""
+	}
+}
+
+func (c *Commands) fetchPipelineStatus(pipelineID string, verbose bool) (*pipelineStatus, error) {
+	query := map[string]string{}
+	if verbose {
+		query["verbose"] = "true"
+	}
+	body, err := c.apiGet("/pipeline/"+pipelineID, query)
+	if err != nil {
+		return nil, err
+	}
+	var resp pipelineStatus
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 // getSmokeTestDetails extracts smoke test details from the raw JSON details.
@@ -1067,6 +1187,33 @@ func printPipelineSuccess(status *pipelineStatus, notice *versionUpdateNotice) {
 		fmt.Println("Artifacts:")
 		for platform, path := range status.FinalArtifacts {
 			fmt.Printf("  %s: %s\n", platform, path)
+		}
+	}
+
+	// Deploy/update URLs (when deploy stage ran)
+	if deployStage, ok := status.Stages["deploy"]; ok && deployStage != nil && len(deployStage.Details) > 0 {
+		var details deployStageDetails
+		if err := json.Unmarshal(deployStage.Details, &details); err == nil && strings.TrimSpace(details.UpdateURL) != "" {
+			updateURL := strings.TrimSpace(details.UpdateURL)
+			channel := "stable"
+			if status.Config != nil && status.Config.Deploy != nil && strings.TrimSpace(status.Config.Deploy.Channel) != "" {
+				channel = strings.TrimSpace(status.Config.Deploy.Channel)
+			}
+
+			fmt.Println()
+			fmt.Println("Updates:")
+			fmt.Printf("  Base:    %s\n", updateURL)
+			fmt.Printf("  Channel: %s\n", channel)
+			if len(status.FinalArtifacts) > 0 {
+				fmt.Println("  Manifests:")
+				for platform := range status.FinalArtifacts {
+					manifest := pipelineManifestFilename(platform)
+					if manifest == "" {
+						continue
+					}
+					fmt.Printf("    %s: %s/%s/%s\n", platform, updateURL, channel, manifest)
+				}
+			}
 		}
 	}
 

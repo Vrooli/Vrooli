@@ -52,6 +52,25 @@ The bundle is transferred to the VPS and setup runs:
 3. Install required tools (git, curl, etc.)
 4. Configure environment
 
+#### VPS Bundle Cache (Disk Management)
+
+Deployments store uploaded mini-Vrooli bundles on the VPS under:
+`<workdir>/.vrooli/cloud/bundles`.
+
+Without cleanup, repeated redeploys can accumulate many large bundles and eventually
+fail preflight due to low disk space. The deployment pipeline includes an automatic
+remediation step:
+- If preflight fails with low disk space, `scenario-to-cloud` attempts a single
+  VPS bundle cache GC pass (default `keep_latest=2`) and re-runs preflight once.
+
+Operator endpoints:
+- `GET /api/v1/deployments/{id}/bundles/vps`
+- `POST /api/v1/deployments/{id}/bundles/vps/gc`
+
+Operator CLI:
+- `scenario-to-cloud bundle vps-list --domain <domain> --scenario <scenario>`
+- `scenario-to-cloud bundle vps-gc --domain <domain> --scenario <scenario> --keep 2`
+
 ### 4. Deploy Scenario (`deploying`)
 
 With setup complete, the scenario is deployed:

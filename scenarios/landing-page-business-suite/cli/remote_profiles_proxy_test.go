@@ -107,3 +107,88 @@ func TestRemoteProfilesProxyPositionalIDStillWorks(t *testing.T) {
 	}
 }
 
+func TestRemoteProfilesDownloadStorageTest_UsesProxyEndpoint(t *testing.T) {
+	var sawList, sawProxy bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
+			sawList = true
+			_, _ = w.Write([]byte(`{"profiles":[{"id":12,"tag":"prod"}]}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/remote-profiles/12/proxy":
+			sawProxy = true
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode proxy payload: %v", err)
+			}
+			if payload["method"] != "POST" {
+				t.Fatalf("unexpected method: %v", payload["method"])
+			}
+			if payload["path"] != "/admin/download-storage/test" {
+				t.Fatalf("unexpected path: %v", payload["path"])
+			}
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	withAPIBase(t, server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() error: %v", err)
+	}
+	withAdminSession(t, app, server.URL)
+
+	if err := app.cmdRemoteProfilesDownloadStorageTest([]string{
+		"--profile-tag", "prod",
+		"--json",
+	}); err != nil {
+		t.Fatalf("cmdRemoteProfilesDownloadStorageTest returned error: %v", err)
+	}
+	if !sawList {
+		t.Fatal("expected remote profiles list request for tag resolution")
+	}
+	if !sawProxy {
+		t.Fatal("expected remote proxy request")
+	}
+}
+
+func TestRemoteProfilesDownloadAppsList_UsesProxyEndpoint(t *testing.T) {
+	var sawProxy bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/admin/remote-profiles/12/proxy" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		sawProxy = true
+		var payload map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode proxy payload: %v", err)
+		}
+		if payload["method"] != "GET" {
+			t.Fatalf("unexpected method: %v", payload["method"])
+		}
+		if payload["path"] != "/admin/download-apps" {
+			t.Fatalf("unexpected path: %v", payload["path"])
+		}
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	withAPIBase(t, server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() error: %v", err)
+	}
+	withAdminSession(t, app, server.URL)
+
+	if err := app.cmdRemoteProfilesDownloadAppsList([]string{
+		"12",
+		"--json",
+	}); err != nil {
+		t.Fatalf("cmdRemoteProfilesDownloadAppsList returned error: %v", err)
+	}
+	if !sawProxy {
+		t.Fatal("expected remote proxy request")
+	}
+}

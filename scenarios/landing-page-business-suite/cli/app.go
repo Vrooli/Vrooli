@@ -247,6 +247,8 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "remote-profiles-login", NeedsAPI: true, Description: "Login remote profile (admin)", Run: a.cmdRemoteProfilesLogin},
 			{Name: "remote-profiles-logout", NeedsAPI: true, Description: "Logout remote profile (admin)", Run: a.cmdRemoteProfilesLogout},
 			{Name: "remote-profiles-test", NeedsAPI: true, Description: "Test remote profile session (admin)", Run: a.cmdRemoteProfilesTest},
+			{Name: "remote-profiles-download-storage-test", NeedsAPI: true, Description: "Test remote download storage via profile session (admin)", Run: a.cmdRemoteProfilesDownloadStorageTest},
+			{Name: "remote-profiles-download-apps-list", NeedsAPI: true, Description: "List remote download apps via profile session (admin)", Run: a.cmdRemoteProfilesDownloadAppsList},
 			{Name: "remote-profiles-proxy", NeedsAPI: true, Description: "Proxy remote admin request via profile session (admin)", Run: a.cmdRemoteProfilesProxy},
 		},
 	}
@@ -2076,6 +2078,93 @@ func (a *App) cmdRemoteProfilesProxy(args []string) error {
 	}
 	cliutil.PrintJSON(resp)
 	return nil
+}
+
+func (a *App) cmdRemoteProfilesDownloadStorageTest(args []string) error {
+	profileID, jsonOut, err := a.parseRemoteProfileSelector("remote-profiles-download-storage-test", args)
+	if err != nil {
+		return err
+	}
+	resp, err := a.requestRemoteProxy(profileID, http.MethodPost, "/admin/download-storage/test", nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	if jsonOut {
+		cliutil.PrintJSON(resp)
+		return nil
+	}
+	cliutil.PrintJSON(resp)
+	return nil
+}
+
+func (a *App) cmdRemoteProfilesDownloadAppsList(args []string) error {
+	profileID, jsonOut, err := a.parseRemoteProfileSelector("remote-profiles-download-apps-list", args)
+	if err != nil {
+		return err
+	}
+	resp, err := a.requestRemoteProxy(profileID, http.MethodGet, "/admin/download-apps", nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	if jsonOut {
+		cliutil.PrintJSON(resp)
+		return nil
+	}
+	cliutil.PrintJSON(resp)
+	return nil
+}
+
+// parseRemoteProfileSelector parses either a positional remote profile id, --profile-id, or --profile-tag/--tag.
+// Returns the resolved profile ID and whether --json was requested.
+func (a *App) parseRemoteProfileSelector(cmdName string, args []string) (string, bool, error) {
+	fs := flag.NewFlagSet(cmdName, flag.ContinueOnError)
+	profileIDFlag := fs.String("profile-id", "", "Remote profile id (alternative to positional <id>)")
+	profileTag := fs.String("profile-tag", "", "Remote profile tag (resolves id automatically)")
+	tagAlias := fs.String("tag", "", "Alias for --profile-tag")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := parseFlagSetInterspersed(fs, args); err != nil {
+		return "", false, err
+	}
+	if len(fs.Args()) > 1 {
+		return "", false, fmt.Errorf("usage: %s <id> [--profile-id <id> | --profile-tag <tag>] [--json]", cmdName)
+	}
+
+	positionalProfileID := ""
+	if len(fs.Args()) == 1 {
+		positionalProfileID = strings.TrimSpace(fs.Args()[0])
+	}
+	flagProfileID := strings.TrimSpace(*profileIDFlag)
+	tagValue := strings.TrimSpace(*profileTag)
+	tagAliasValue := strings.TrimSpace(*tagAlias)
+	if tagValue == "" && tagAliasValue != "" {
+		tagValue = tagAliasValue
+	}
+	if tagValue != "" && tagAliasValue != "" && tagValue != tagAliasValue {
+		return "", false, fmt.Errorf("use only one of --profile-tag or --tag (values differ)")
+	}
+	if positionalProfileID != "" && flagProfileID != "" {
+		return "", false, fmt.Errorf("use either positional <id> or --profile-id, not both")
+	}
+	if tagValue != "" && (positionalProfileID != "" || flagProfileID != "") {
+		return "", false, fmt.Errorf("use either --profile-tag/--tag or an explicit profile id (--profile-id or positional <id>)")
+	}
+
+	profileID := positionalProfileID
+	if profileID == "" {
+		profileID = flagProfileID
+	}
+	if profileID == "" && tagValue != "" {
+		resolvedProfileID, err := a.resolveRemoteProfileIDByTag(tagValue)
+		if err != nil {
+			return "", false, err
+		}
+		profileID = resolvedProfileID
+	}
+	if profileID == "" {
+		return "", false, fmt.Errorf("usage: %s <id> [--profile-id <id> | --profile-tag <tag>] [--json]", cmdName)
+	}
+
+	return profileID, *jsonOut, nil
 }
 
 // DOC: docs/guides/ADMIN_GUIDE.md#downloads

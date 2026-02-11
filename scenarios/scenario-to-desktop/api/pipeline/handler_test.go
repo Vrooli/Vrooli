@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -136,6 +138,37 @@ func TestRegisterRoutes(t *testing.T) {
 		if !router.Match(req, match) {
 			t.Errorf("expected route %s %s to be registered", tt.method, tt.path)
 		}
+	}
+}
+
+func TestHandleBundleClean_RemovesBundleDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create fake bundle output under the conventional path used by the handler.
+	scenario := "test-scenario"
+	bundleDir := filepath.Join(home, "Vrooli", "scenarios", scenario, "platforms", "electron", "bundle")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bundleDir, "junk.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	h := NewHandler()
+	router := mux.NewRouter()
+	h.RegisterRoutes(router)
+
+	body := []byte(`{"framework":"electron","location_mode":"proper"}`)
+	req := httptest.NewRequest("POST", "/api/v1/scenarios/"+scenario+"/bundle/clean", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(bundleDir); !os.IsNotExist(err) {
+		t.Fatalf("expected bundle dir removed; stat err=%v", err)
 	}
 }
 

@@ -226,6 +226,26 @@ curl -X POST http://localhost:19044/api/v1/desktop/generate \
 
 **Conclusion**: Core functionality validated. Full Electron builds require Electron tooling installation (out of scope for current testing).
 
+### 3. Desktop Build Prerequisites + Bundle Cleanup Gaps (Skill Validation Feedback)
+**Severity**: Medium
+**Status**: ⚠️ Open
+**Date Discovered**: 2026-02-10
+
+**Problem**: Some common desktop pipeline failures are either not deterministically preflighted or not recoverable without manual filesystem cleanup.
+
+**Impact**:
+- Operators/agents can hit `BUILD_FAILED` (for example missing `fpm` for Linux `.deb` targets) without a first-class prereq check.
+- Operators/agents can hit `BUNDLE_PACKAGE_ERROR` (for example stale bundle output cleanup issues) and need to manually clear generated output before retrying.
+
+**Evidence (2026-02-10)**:
+- Pipeline failure mode: `BUILD_FAILED` with manual hints mentioning `fpm` and electron-builder output.
+- Pipeline failure mode: `BUNDLE_PACKAGE_ERROR` with `directory not empty` during bundle output cleanup.
+
+**Recommended tool promotions**:
+- Add `scenario-to-desktop prerequisites --platform <win|mac|linux>` that checks common external requirements (for example `fpm`/Ruby when `.deb` targets are enabled, Wine for Windows builds on Linux) and returns pass/fail with next steps.
+- Add `scenario-to-desktop pipeline logs <id>` (or improve `pipeline status --verbose`) to surface the decisive electron-builder error excerpt without rerunning.
+- Fix bundle-stage cleanup to be robust for directory trees (use recursive removal for generated bundle output dirs).
+
 ## Resolved Issues (2025-10-19 - Session 10)
 
 ### 1. Health Check Schema Compliance (RESOLVED)

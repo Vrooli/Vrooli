@@ -231,6 +231,10 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/bundles/vps/list", bundle.HandleListVPSBundles(s.sshRunner)).Methods("POST")
 	api.HandleFunc("/bundles/vps/delete", bundle.HandleDeleteVPSBundle(s.sshRunner)).Methods("POST")
 	api.HandleFunc("/bundles/{sha256}", bundle.HandleDeleteBundle()).Methods("DELETE")
+
+	// Deployment-scoped VPS bundle cache (recommended, selector-first via deployment resolve).
+	api.HandleFunc("/deployments/{id}/bundles/vps", s.handleListDeploymentVPSBundles).Methods("GET")
+	api.HandleFunc("/deployments/{id}/bundles/vps/gc", s.handleGCDeploymentVPSBundles).Methods("POST")
 	api.HandleFunc("/preflight", vpspreflight.HandlePreflight(vpspreflight.HandlerDeps{
 		SSHRunner:         s.sshRunner,
 		DNSService:        s.dnsService,
