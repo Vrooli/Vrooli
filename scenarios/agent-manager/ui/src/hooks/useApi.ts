@@ -63,6 +63,10 @@ import {
   ErrorResponseSchema,
   HealthResponseSchema,
 } from "@vrooli/proto-types/common/v1/types_pb";
+import {
+  ExtraFlagListSchema,
+  FeatureFlagsSchema,
+} from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 interface ApiState<T> {
   data: T | null;
@@ -283,6 +287,17 @@ function buildProfile(profile: ProfileFormData): AgentProfile {
     requiresApproval: profile.requiresApproval ?? true,
     allowedPaths: profile.allowedPaths ?? [],
     deniedPaths: profile.deniedPaths ?? [],
+    features: profile.features?.enableBrowser
+      ? create(FeatureFlagsSchema, { enableBrowser: true })
+      : undefined,
+    extraFlags: profile.extraFlags
+      ? Object.fromEntries(
+          Object.entries(profile.extraFlags).map(([rt, flags]) => [
+            rt,
+            create(ExtraFlagListSchema, { flags }),
+          ])
+        )
+      : undefined,
   });
 }
 
@@ -352,6 +367,22 @@ function buildRunConfigOverrides(run: RunFormData) {
       payload.clearDeniedPaths = true;
     }
   }
+  if (run.features !== undefined) {
+    payload.features = create(FeatureFlagsSchema, {
+      enableBrowser: run.features.enableBrowser ?? false,
+    });
+  }
+  if (run.extraFlags !== undefined) {
+    payload.extraFlags = Object.fromEntries(
+      Object.entries(run.extraFlags).map(([rt, flags]) => [
+        rt,
+        create(ExtraFlagListSchema, { flags }),
+      ])
+    );
+    if (Object.keys(run.extraFlags).length === 0) {
+      payload.clearExtraFlags = true;
+    }
+  }
   return create(RunConfigOverridesSchema, payload);
 }
 
@@ -369,7 +400,9 @@ function hasInlineConfig(run: RunFormData): boolean {
       typeof run.requiresSandbox === "boolean" ||
       typeof run.requiresApproval === "boolean" ||
       run.allowedPaths !== undefined ||
-      run.deniedPaths !== undefined
+      run.deniedPaths !== undefined ||
+      run.features !== undefined ||
+      run.extraFlags !== undefined
   );
 }
 

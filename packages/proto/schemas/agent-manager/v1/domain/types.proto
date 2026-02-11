@@ -130,6 +130,30 @@ message SandboxConfig {
 }
 
 // =============================================================================
+// FEATURE FLAGS
+// =============================================================================
+
+// FeatureFlags contains well-known typed feature flags.
+//
+// Add new feature flags here as new fields (not a repeated enum)
+// to keep them discoverable and independently toggleable.
+//
+// @usage AgentProfile.features, RunConfig.features
+message FeatureFlags {
+  // Enable browser automation tools.
+  // Claude Code: maps to --chrome flag.
+  // Other runners: silently ignored.
+  bool enable_browser = 1;
+}
+
+// ExtraFlagList wraps a repeated string for use in map values.
+//
+// @usage AgentProfile.extra_flags, RunConfig.extra_flags
+message ExtraFlagList {
+  repeated string flags = 1;
+}
+
+// =============================================================================
 // TASK STATUS
 // =============================================================================
 

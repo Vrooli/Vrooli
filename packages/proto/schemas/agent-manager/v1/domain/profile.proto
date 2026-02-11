@@ -99,6 +99,13 @@ message AgentProfile {
   // WARNING: Enables autonomous execution without user confirmation.
   bool skip_permission_prompt = 10;
 
+  // Feature flags (typed, discoverable capabilities).
+  FeatureFlags features = 23;
+
+  // Extra CLI flags per runner type (validated escape hatch).
+  // Key is runner type string (e.g., "claude-code").
+  map<string, ExtraFlagList> extra_flags = 24;
+
   // Whether runs using this profile require sandbox isolation.
   // Default: true for safety.
   bool requires_sandbox = 11;
@@ -171,6 +178,12 @@ message RunConfig {
   // Skip permission prompts.
   bool skip_permission_prompt = 7;
 
+  // Feature flags (typed, discoverable capabilities).
+  FeatureFlags features = 16;
+
+  // Extra CLI flags per runner type (validated escape hatch).
+  map<string, ExtraFlagList> extra_flags = 17;
+
   // Require sandbox isolation.
   bool requires_sandbox = 8;
 
@@ -224,6 +237,15 @@ message RunConfigOverrides {
 
   // Skip permission prompts.
   optional bool skip_permission_prompt = 7;
+
+  // Feature flags override.
+  optional FeatureFlags features = 21;
+
+  // Extra CLI flags per runner type override.
+  map<string, ExtraFlagList> extra_flags = 22;
+
+  // Clear extra flags inherited from profile.
+  bool clear_extra_flags = 23;
 
   // Require sandbox isolation.
   optional bool requires_sandbox = 8;

@@ -1279,6 +1279,106 @@ func (x *SandboxConfig) GetAcceptance() *SandboxAcceptanceConfig {
 	return nil
 }
 
+// FeatureFlags contains well-known typed feature flags.
+//
+// Add new feature flags here as new fields (not a repeated enum)
+// to keep them discoverable and independently toggleable.
+//
+// @usage AgentProfile.features, RunConfig.features
+type FeatureFlags struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enable browser automation tools.
+	// Claude Code: maps to --chrome flag.
+	// Other runners: silently ignored.
+	EnableBrowser bool `protobuf:"varint,1,opt,name=enable_browser,json=enableBrowser,proto3" json:"enable_browser,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureFlags) Reset() {
+	*x = FeatureFlags{}
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureFlags) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureFlags) ProtoMessage() {}
+
+func (x *FeatureFlags) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureFlags.ProtoReflect.Descriptor instead.
+func (*FeatureFlags) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FeatureFlags) GetEnableBrowser() bool {
+	if x != nil {
+		return x.EnableBrowser
+	}
+	return false
+}
+
+// ExtraFlagList wraps a repeated string for use in map values.
+//
+// @usage AgentProfile.extra_flags, RunConfig.extra_flags
+type ExtraFlagList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flags         []string               `protobuf:"bytes,1,rep,name=flags,proto3" json:"flags,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExtraFlagList) Reset() {
+	*x = ExtraFlagList{}
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExtraFlagList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExtraFlagList) ProtoMessage() {}
+
+func (x *ExtraFlagList) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExtraFlagList.ProtoReflect.Descriptor instead.
+func (*ExtraFlagList) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ExtraFlagList) GetFlags() []string {
+	if x != nil {
+		return x.Flags
+	}
+	return nil
+}
+
 var File_agent_manager_v1_domain_types_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
@@ -1308,7 +1408,11 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\tlifecycle\x18\x01 \x01(\v2(.agent_manager.v1.SandboxLifecycleConfigR\tlifecycle\x12I\n" +
 	"\n" +
 	"acceptance\x18\x02 \x01(\v2).agent_manager.v1.SandboxAcceptanceConfigR\n" +
-	"acceptance*w\n" +
+	"acceptance\"5\n" +
+	"\fFeatureFlags\x12%\n" +
+	"\x0eenable_browser\x18\x01 \x01(\bR\renableBrowser\"%\n" +
+	"\rExtraFlagList\x12\x14\n" +
+	"\x05flags\x18\x01 \x03(\tR\x05flags*w\n" +
 	"\n" +
 	"RunnerType\x12\x1b\n" +
 	"\x17RUNNER_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
@@ -1428,7 +1532,7 @@ func file_agent_manager_v1_domain_types_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_agent_manager_v1_domain_types_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_agent_manager_v1_domain_types_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(RunnerType)(0),                 // 0: agent_manager.v1.RunnerType
 	(ModelPreset)(0),                // 1: agent_manager.v1.ModelPreset
@@ -1448,7 +1552,9 @@ var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(*SandboxAcceptanceConfig)(nil), // 15: agent_manager.v1.SandboxAcceptanceConfig
 	(*SandboxLifecycleConfig)(nil),  // 16: agent_manager.v1.SandboxLifecycleConfig
 	(*SandboxConfig)(nil),           // 17: agent_manager.v1.SandboxConfig
-	(*durationpb.Duration)(nil),     // 18: google.protobuf.Duration
+	(*FeatureFlags)(nil),            // 18: agent_manager.v1.FeatureFlags
+	(*ExtraFlagList)(nil),           // 19: agent_manager.v1.ExtraFlagList
+	(*durationpb.Duration)(nil),     // 20: google.protobuf.Duration
 }
 var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	3,  // 0: agent_manager.v1.SandboxAcceptanceConfig.mode:type_name -> agent_manager.v1.SandboxAcceptanceMode
@@ -1456,8 +1562,8 @@ var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	14, // 2: agent_manager.v1.SandboxAcceptanceConfig.deny:type_name -> agent_manager.v1.SandboxFileCriteria
 	2,  // 3: agent_manager.v1.SandboxLifecycleConfig.stop_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
 	2,  // 4: agent_manager.v1.SandboxLifecycleConfig.delete_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
-	18, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
-	18, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
+	20, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
+	20, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
 	16, // 7: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
 	15, // 8: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
 	9,  // [9:9] is the sub-list for method output_type
@@ -1478,7 +1584,7 @@ func file_agent_manager_v1_domain_types_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_types_proto_rawDesc), len(file_agent_manager_v1_domain_types_proto_rawDesc)),
 			NumEnums:      14,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

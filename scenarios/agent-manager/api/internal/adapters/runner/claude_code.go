@@ -125,6 +125,8 @@ func (r *ClaudeCodeRunner) Capabilities() Capabilities {
 			"claude-opus-4-5-20251101",
 			"claude-haiku-4-5-20251001",
 		},
+		SupportedFeatures: []string{"EnableBrowser"},
+		AllowedExtraFlags: []string{"--verbose", "--allowedTools", "--disallowedTools"},
 	}
 }
 
@@ -694,8 +696,21 @@ func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
 	args := []string{
 		"run",
 		"--tag", req.GetTag(),
-		"-", // Read prompt from stdin
 	}
+
+	cfg := req.GetConfig()
+
+	// Typed features → CLI flags (only this runner knows the mapping)
+	if cfg.Features.EnableBrowser {
+		args = append(args, "--chrome")
+	}
+
+	// Validated extra flags for this runner
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
+		args = append(args, extras...)
+	}
+
+	args = append(args, "-") // Read prompt from stdin
 	return args
 }
 

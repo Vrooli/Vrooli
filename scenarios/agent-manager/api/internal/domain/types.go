@@ -43,6 +43,12 @@ type AgentProfile struct {
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty" db:"skip_permission_prompt"`
 
+	// Feature flags (typed, discoverable capabilities)
+	Features FeatureFlags `json:"features,omitempty" db:"features"`
+
+	// Extra CLI flags per runner type (validated escape hatch)
+	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty" db:"extra_flags"`
+
 	// Default policies (can be overridden per task)
 	RequiresSandbox  bool `json:"requiresSandbox" db:"requires_sandbox"`
 	RequiresApproval bool `json:"requiresApproval" db:"requires_approval"`
@@ -151,6 +157,24 @@ type SandboxConfig struct {
 	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
 	NoLock     bool                    `json:"noLock,omitempty"`
 }
+
+// FeatureFlags contains well-known typed feature flags.
+// Each flag maps to runner-specific CLI args at execution time.
+// Runners that don't support a feature silently ignore it.
+type FeatureFlags struct {
+	// EnableBrowser enables browser automation tools.
+	// Claude Code: maps to --chrome flag.
+	// Other runners: silently ignored (not supported).
+	EnableBrowser bool `json:"enableBrowser,omitempty"`
+}
+
+// IsZero reports whether all feature flags are at their zero values.
+func (f FeatureFlags) IsZero() bool {
+	return !f.EnableBrowser
+}
+
+// RunnerExtraFlags maps runner types to validated extra CLI flags.
+type RunnerExtraFlags map[RunnerType][]string
 
 // -----------------------------------------------------------------------------
 // Task - Defines WHAT needs to be done
@@ -414,6 +438,12 @@ type RunConfig struct {
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty"`
 
+	// Feature flags (typed, discoverable capabilities)
+	Features FeatureFlags `json:"features,omitempty"`
+
+	// Extra CLI flags per runner type (validated escape hatch)
+	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty"`
+
 	// Policy flags
 	RequiresSandbox  bool `json:"requiresSandbox"`
 	RequiresApproval bool `json:"requiresApproval"`
@@ -442,6 +472,13 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.AllowedTools = profile.AllowedTools
 	c.DeniedTools = profile.DeniedTools
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
+	c.Features = profile.Features
+	if len(profile.ExtraFlags) > 0 {
+		c.ExtraFlags = make(RunnerExtraFlags, len(profile.ExtraFlags))
+		for rt, flags := range profile.ExtraFlags {
+			c.ExtraFlags[rt] = append([]string(nil), flags...)
+		}
+	}
 	c.RequiresSandbox = profile.RequiresSandbox
 	c.RequiresApproval = profile.RequiresApproval
 	c.SandboxConfig = profile.SandboxConfig

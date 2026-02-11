@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     allowed_tools JSONB DEFAULT '[]',
     denied_tools JSONB DEFAULT '[]',
     skip_permission_prompt BOOLEAN DEFAULT FALSE,
+    features JSONB DEFAULT '{}'::jsonb,
+    extra_flags JSONB DEFAULT '{}'::jsonb,
     requires_sandbox BOOLEAN DEFAULT TRUE,
     requires_approval BOOLEAN DEFAULT TRUE,
     sandbox_config JSONB DEFAULT '{}'::jsonb,

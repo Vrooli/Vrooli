@@ -10,6 +10,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -84,6 +85,14 @@ type Capabilities struct {
 
 	// SupportedModels lists the models this runner can use.
 	SupportedModels []string
+
+	// SupportedFeatures lists which typed FeatureFlags this runner supports.
+	// Unsupported features are silently ignored during arg building.
+	SupportedFeatures []string
+
+	// AllowedExtraFlags is the allowlist of extra CLI flags this runner accepts.
+	// Flags not in this list are rejected during validation.
+	AllowedExtraFlags []string
 }
 
 // ExecuteRequest contains everything needed to execute an agent.
@@ -218,6 +227,77 @@ type EventSink interface {
 	// Close signals that no more events will be sent.
 	Close() error
 }
+
+// -----------------------------------------------------------------------------
+// FlagValidator - Validates runner-specific flags against allowlists
+// -----------------------------------------------------------------------------
+
+// FlagValidator validates runner-specific flags against runner allowlists.
+// This is a SEAM: testable without real runners, swappable in tests.
+type FlagValidator interface {
+	ValidateFlags(runnerType domain.RunnerType, flags []string) error
+	AllowedFlags(runnerType domain.RunnerType) []string
+	SupportedFeatures(runnerType domain.RunnerType) []string
+}
+
+// RegistryFlagValidator derives allowlists from runner Capabilities.
+type RegistryFlagValidator struct {
+	registry Registry
+}
+
+// NewRegistryFlagValidator creates a FlagValidator backed by a runner registry.
+func NewRegistryFlagValidator(registry Registry) *RegistryFlagValidator {
+	return &RegistryFlagValidator{registry: registry}
+}
+
+// ValidateFlags checks that all flags are in the runner's allowlist.
+func (v *RegistryFlagValidator) ValidateFlags(rt domain.RunnerType, flags []string) error {
+	r, err := v.registry.Get(rt)
+	if err != nil {
+		return err
+	}
+	allowed := make(map[string]bool)
+	for _, f := range r.Capabilities().AllowedExtraFlags {
+		allowed[f] = true
+	}
+	var invalid []string
+	for _, flag := range flags {
+		name := flag
+		if idx := strings.Index(flag, "="); idx > 0 {
+			name = flag[:idx]
+		}
+		if !allowed[name] {
+			invalid = append(invalid, flag)
+		}
+	}
+	if len(invalid) > 0 {
+		return domain.NewValidationError("extraFlags",
+			"runner "+string(rt)+" does not allow: "+strings.Join(invalid, ", ")+
+				" (allowed: "+strings.Join(r.Capabilities().AllowedExtraFlags, ", ")+")")
+	}
+	return nil
+}
+
+// AllowedFlags returns the allowlist for the given runner type.
+func (v *RegistryFlagValidator) AllowedFlags(rt domain.RunnerType) []string {
+	r, err := v.registry.Get(rt)
+	if err != nil {
+		return nil
+	}
+	return r.Capabilities().AllowedExtraFlags
+}
+
+// SupportedFeatures returns the supported features for the given runner type.
+func (v *RegistryFlagValidator) SupportedFeatures(rt domain.RunnerType) []string {
+	r, err := v.registry.Get(rt)
+	if err != nil {
+		return nil
+	}
+	return r.Capabilities().SupportedFeatures
+}
+
+// Verify interface compliance
+var _ FlagValidator = (*RegistryFlagValidator)(nil)
 
 // -----------------------------------------------------------------------------
 // Registry - Runner registration and lookup

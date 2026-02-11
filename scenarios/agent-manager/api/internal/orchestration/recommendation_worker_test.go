@@ -239,11 +239,11 @@ func TestRecommendationWorker_ProcessQueue(t *testing.T) {
 	// Create a complete investigation run with pending recommendation status
 	now := time.Now()
 	run := &domain.Run{
-		ID:                   uuid.New(),
-		TaskID:               task.ID,
-		Tag:                  "agent-manager-investigation",
-		Status:               domain.RunStatusComplete,
-		RecommendationStatus: domain.RecommendationStatusPending,
+		ID:                     uuid.New(),
+		TaskID:                 task.ID,
+		Tag:                    "agent-manager-investigation",
+		Status:                 domain.RunStatusComplete,
+		RecommendationStatus:   domain.RecommendationStatusPending,
 		RecommendationQueuedAt: &now,
 		Summary: &domain.RunSummary{
 			Description: "Test investigation output with recommendations.",
@@ -334,11 +334,11 @@ func TestRecommendationWorker_RetryOnFailure(t *testing.T) {
 	// Create a complete investigation run
 	now := time.Now()
 	run := &domain.Run{
-		ID:                   uuid.New(),
-		TaskID:               task.ID,
-		Tag:                  "agent-manager-investigation",
-		Status:               domain.RunStatusComplete,
-		RecommendationStatus: domain.RecommendationStatusPending,
+		ID:                     uuid.New(),
+		TaskID:                 task.ID,
+		Tag:                    "agent-manager-investigation",
+		Status:                 domain.RunStatusComplete,
+		RecommendationStatus:   domain.RecommendationStatusPending,
 		RecommendationQueuedAt: &now,
 		Summary: &domain.RunSummary{
 			Description: "Test investigation output.",

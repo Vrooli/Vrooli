@@ -190,6 +190,41 @@ func (m *MockRunner) Continue(ctx context.Context, req ContinueRequest) (*Execut
 var _ Runner = (*MockRunner)(nil)
 
 // =============================================================================
+// Mock FlagValidator (for testing)
+// =============================================================================
+
+// MockFlagValidator is a configurable FlagValidator for tests.
+type MockFlagValidator struct {
+	ValidateFlagsFunc     func(domain.RunnerType, []string) error
+	AllowedFlagsFunc      func(domain.RunnerType) []string
+	SupportedFeaturesFunc func(domain.RunnerType) []string
+}
+
+func (m *MockFlagValidator) ValidateFlags(rt domain.RunnerType, flags []string) error {
+	if m.ValidateFlagsFunc != nil {
+		return m.ValidateFlagsFunc(rt, flags)
+	}
+	return nil
+}
+
+func (m *MockFlagValidator) AllowedFlags(rt domain.RunnerType) []string {
+	if m.AllowedFlagsFunc != nil {
+		return m.AllowedFlagsFunc(rt)
+	}
+	return nil
+}
+
+func (m *MockFlagValidator) SupportedFeatures(rt domain.RunnerType) []string {
+	if m.SupportedFeaturesFunc != nil {
+		return m.SupportedFeaturesFunc(rt)
+	}
+	return nil
+}
+
+// Verify interface compliance
+var _ FlagValidator = (*MockFlagValidator)(nil)
+
+// =============================================================================
 // Stub Runner (for unavailable runners)
 // =============================================================================
 

@@ -322,6 +322,16 @@ export function RunDetail({
                       .join(", ")}
                   </div>
                 ) : null}
+                {run.resolvedConfig?.features?.enableBrowser && (
+                  <div className="col-span-2 flex flex-wrap gap-1">
+                    <Badge variant="outline">Browser</Badge>
+                  </div>
+                )}
+                {run.resolvedConfig?.extraFlags && Object.entries(run.resolvedConfig.extraFlags).map(([rt, list]) =>
+                  list.flags?.map((flag, i) => (
+                    <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
+                  ))
+                )}
                 {run.sandboxId && (
                   <div>
                     <span className="text-muted-foreground">Sandbox: </span>

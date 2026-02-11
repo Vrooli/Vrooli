@@ -257,6 +257,8 @@ func (r *CodexRunner) Capabilities() Capabilities {
 			"gpt-5.1-codex-mini",
 			"gpt-5.2",
 		},
+		SupportedFeatures: []string{},
+		AllowedExtraFlags: []string{"--verbose"},
 	}
 }
 
@@ -749,6 +751,11 @@ func (r *CodexRunner) buildJSONArgs(req ExecuteRequest) []string {
 	// Working directory
 	if req.WorkingDir != "" {
 		args = append(args, "-C", req.WorkingDir)
+	}
+
+	// Validated extra flags for this runner
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeCodex]; ok {
+		args = append(args, extras...)
 	}
 
 	// Read prompt from stdin

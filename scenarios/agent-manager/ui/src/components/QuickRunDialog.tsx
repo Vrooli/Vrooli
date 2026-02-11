@@ -69,6 +69,10 @@ interface AgentConfigData {
   runMode: RunMode;
   skipPermissionPrompt: boolean;
   fallbackRunnerTypes: RunnerType[];
+  features?: {
+    enableBrowser?: boolean;
+  };
+  extraFlags?: Record<string, string[]>;
 }
 
 type Step = 1 | 2 | 3;
@@ -122,6 +126,8 @@ export function QuickRunDialog({
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
     fallbackRunnerTypes: [],
+    features: { enableBrowser: false },
+    extraFlags: {},
   });
   const [existingSandboxId, setExistingSandboxId] = useState("");
 
@@ -168,6 +174,8 @@ export function QuickRunDialog({
       runMode: RunMode.SANDBOXED,
       skipPermissionPrompt: true,
       fallbackRunnerTypes: [],
+      features: { enableBrowser: false },
+      extraFlags: {},
     });
   };
 
@@ -279,6 +287,12 @@ export function QuickRunDialog({
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
         if (agentConfig.fallbackRunnerTypes.length > 0) {
           runRequest.fallbackRunnerTypes = agentConfig.fallbackRunnerTypes;
+        }
+        if (agentConfig.features?.enableBrowser) {
+          runRequest.features = { enableBrowser: true };
+        }
+        if (agentConfig.extraFlags && Object.keys(agentConfig.extraFlags).length > 0) {
+          runRequest.extraFlags = agentConfig.extraFlags;
         }
       }
       if (existingSandboxId.trim() !== "") {
@@ -473,6 +487,9 @@ export function QuickRunDialog({
                                   {profile.requiresApproval && (
                                     <Badge variant="outline">Approval</Badge>
                                   )}
+                                  {profile.features?.enableBrowser && (
+                                    <Badge variant="outline">Browser</Badge>
+                                  )}
                                 </div>
                                 {profile.description && (
                                   <p className="text-muted-foreground">
@@ -645,6 +662,41 @@ export function QuickRunDialog({
                     <span className="text-sm">Skip Permission Prompts</span>
                   </label>
 
+                  {agentConfig.runnerType === RunnerTypeEnum.CLAUDE_CODE && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={agentConfig.features?.enableBrowser ?? false}
+                        onChange={(e) =>
+                          setAgentConfig({
+                            ...agentConfig,
+                            features: { ...agentConfig.features, enableBrowser: e.target.checked },
+                          })
+                        }
+                        className="h-4 w-4 rounded border-input"
+                      />
+                      <span className="text-sm">Browser automation (--chrome)</span>
+                    </label>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Extra CLI Flags</Label>
+                    <Input
+                      placeholder="--verbose, --allowedTools"
+                      value={(agentConfig.extraFlags?.[runnerTypeToSlug(agentConfig.runnerType)] ?? []).join(", ")}
+                      onChange={(e) => {
+                        const flags = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+                        setAgentConfig(prev => ({
+                          ...prev,
+                          extraFlags: { ...prev.extraFlags, [runnerTypeToSlug(prev.runnerType)]: flags },
+                        }));
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Flags validated against runner allowlist on save
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="existingSandboxId">Reuse Sandbox ID (optional)</Label>
                     <Input
@@ -743,6 +795,14 @@ export function QuickRunDialog({
                               {profile.requiresApproval && (
                                 <Badge variant="outline">Approval Required</Badge>
                               )}
+                              {profile.features?.enableBrowser && (
+                                <Badge variant="outline">Browser</Badge>
+                              )}
+                              {profile.extraFlags && Object.entries(profile.extraFlags).map(([rt, flagList]) =>
+                                flagList.flags?.map((flag, i) => (
+                                  <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
+                                ))
+                              )}
                             </div>
                           </>
                         );
@@ -768,6 +828,14 @@ export function QuickRunDialog({
                         <Badge variant="outline">
                           {agentConfig.timeoutMinutes}min timeout
                         </Badge>
+                        {agentConfig.features?.enableBrowser && (
+                          <Badge variant="outline">Browser</Badge>
+                        )}
+                        {agentConfig.extraFlags && Object.entries(agentConfig.extraFlags).map(([rt, flags]) =>
+                          flags.map((flag, i) => (
+                            <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
+                          ))
+                        )}
                       </div>
                     </>
                   )}

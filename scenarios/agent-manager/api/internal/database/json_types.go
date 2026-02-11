@@ -239,6 +239,71 @@ func (n NullableSandboxConfig) Value() (driver.Value, error) {
 	return json.Marshal(n.V)
 }
 
+// NullableFeatureFlags wraps domain.FeatureFlags for JSONB scanning.
+type NullableFeatureFlags struct {
+	V domain.FeatureFlags
+}
+
+// Scan implements sql.Scanner for NullableFeatureFlags.
+func (n *NullableFeatureFlags) Scan(src interface{}) error {
+	if src == nil {
+		n.V = domain.FeatureFlags{}
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableFeatureFlags", src)
+	}
+
+	n.V = domain.FeatureFlags{}
+	return wrapScanError("NullableFeatureFlags", json.Unmarshal(data, &n.V))
+}
+
+// Value implements driver.Valuer for NullableFeatureFlags.
+func (n NullableFeatureFlags) Value() (driver.Value, error) {
+	return json.Marshal(n.V)
+}
+
+// NullableRunnerExtraFlags wraps domain.RunnerExtraFlags for JSONB scanning.
+type NullableRunnerExtraFlags struct {
+	V domain.RunnerExtraFlags
+}
+
+// Scan implements sql.Scanner for NullableRunnerExtraFlags.
+func (n *NullableRunnerExtraFlags) Scan(src interface{}) error {
+	if src == nil {
+		n.V = nil
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableRunnerExtraFlags", src)
+	}
+
+	n.V = nil
+	return wrapScanError("NullableRunnerExtraFlags", json.Unmarshal(data, &n.V))
+}
+
+// Value implements driver.Valuer for NullableRunnerExtraFlags.
+func (n NullableRunnerExtraFlags) Value() (driver.Value, error) {
+	if n.V == nil {
+		return "{}", nil
+	}
+	return json.Marshal(n.V)
+}
+
 // PolicyRulesJSON wraps domain.PolicyRules for JSONB scanning.
 type PolicyRulesJSON struct {
 	V domain.PolicyRules

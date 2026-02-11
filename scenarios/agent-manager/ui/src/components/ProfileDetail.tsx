@@ -80,6 +80,14 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
         {profile.requiresApproval && (
           <Badge variant="outline">Approval Required</Badge>
         )}
+        {profile.features?.enableBrowser && (
+          <Badge variant="outline">Browser</Badge>
+        )}
+        {profile.extraFlags && Object.entries(profile.extraFlags).map(([runner, flagList]) => (
+          flagList.flags?.map((flag, i) => (
+            <Badge key={`${runner}-${i}`} variant="outline">{runner}: {flag}</Badge>
+          ))
+        ))}
       </div>
 
       {/* Configuration Details */}

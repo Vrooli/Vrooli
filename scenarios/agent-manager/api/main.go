@@ -261,6 +261,9 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		}
 	}
 
+	// Create flag validator for runner-specific CLI flag validation
+	flagValidator := runner.NewRegistryFlagValidator(runnerRegistry)
+
 	// Create workspace-sandbox provider
 	sandboxURL := os.Getenv("WORKSPACE_SANDBOX_URL")
 	if sandboxURL == "" {
@@ -337,6 +340,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithModelRegistry(modelRegistryStore),
 		orchestration.WithRecommendationExtractor(recommendationExtractor),
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
+		orchestration.WithFlagValidator(flagValidator),
 	)
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)

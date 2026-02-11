@@ -1312,6 +1312,13 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			skipPermissionPrompt := inline.GetSkipPermissionPrompt()
 			req.SkipPermissionPrompt = &skipPermissionPrompt
 		}
+		if inline.Features != nil {
+			f := protoconv.FeatureFlagsFromProto(inline.Features)
+			req.EnableBrowser = &f.EnableBrowser
+		}
+		if len(inline.ExtraFlags) > 0 || inline.ClearExtraFlags {
+			req.ExtraFlags = protoconv.RunnerExtraFlagsFromProto(inline.ExtraFlags)
+		}
 		if inline.RequiresSandbox != nil {
 			requiresSandbox := inline.GetRequiresSandbox()
 			req.RequiresSandbox = &requiresSandbox

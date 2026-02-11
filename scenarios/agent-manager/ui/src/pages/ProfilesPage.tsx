@@ -141,6 +141,8 @@ export function ProfilesPage({
     requiresApproval: true,
     timeoutMinutes: 30,
     fallbackRunnerTypes: [],
+    features: { enableBrowser: false },
+    extraFlags: {},
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -182,6 +184,8 @@ export function ProfilesPage({
       requiresApproval: true,
       timeoutMinutes: 30,
       fallbackRunnerTypes: [],
+      features: { enableBrowser: false },
+      extraFlags: {},
     });
     setEditingProfile(null);
     setShowForm(false);
@@ -205,6 +209,12 @@ export function ProfilesPage({
       deniedTools: profile.deniedTools,
       timeoutMinutes: durationToMinutes(profile.timeout),
       fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
+      features: {
+        enableBrowser: profile.features?.enableBrowser ?? false,
+      },
+      extraFlags: Object.fromEntries(
+        Object.entries(profile.extraFlags ?? {}).map(([rt, list]) => [rt, list.flags ?? []])
+      ),
     });
     setShowForm(true);
   };
@@ -649,6 +659,43 @@ export function ProfilesPage({
                   />
                   <span className="text-sm">Require Approval</span>
                 </label>
+              </div>
+
+              <div className="flex gap-6">
+                {formData.runnerType === RunnerTypeEnum.CLAUDE_CODE && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.features?.enableBrowser ?? false}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          features: { ...formData.features, enableBrowser: e.target.checked },
+                        })
+                      }
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <span className="text-sm">Browser automation (--chrome)</span>
+                  </label>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Extra CLI Flags</Label>
+                <Input
+                  placeholder="--verbose, --allowedTools"
+                  value={(formData.extraFlags?.[runnerTypeToSlug(formData.runnerType)] ?? []).join(", ")}
+                  onChange={(e) => {
+                    const flags = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+                    setFormData(prev => ({
+                      ...prev,
+                      extraFlags: { ...prev.extraFlags, [runnerTypeToSlug(prev.runnerType)]: flags },
+                    }));
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Flags validated against runner allowlist on save
+                </p>
               </div>
             </DialogBody>
             <DialogFooter>

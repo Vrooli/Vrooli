@@ -213,6 +213,10 @@ func (p *AgentProfile) Validate() error {
 		return err
 	}
 
+	if err := validateExtraFlagsStructure(p.ExtraFlags); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -700,6 +704,48 @@ func hasStringOverlap(a, b []string) bool {
 	}
 	for _, v := range b {
 		if set[v] {
+			return true
+		}
+	}
+	return false
+}
+
+// validateExtraFlagsStructure performs structural validation on extra flags.
+// It checks runner type validity, flag count limits, flag syntax, and shell meta characters.
+// It does NOT validate flags against runner allowlists (that's the runner layer's job).
+func validateExtraFlagsStructure(flags RunnerExtraFlags) error {
+	for rt, flagList := range flags {
+		if !rt.IsValid() {
+			return NewValidationError("extraFlags", "invalid runner type key: "+string(rt))
+		}
+		if len(flagList) > 20 {
+			return NewValidationError("extraFlags",
+				fmt.Sprintf("too many flags for runner %s (max 20)", rt))
+		}
+		for i, flag := range flagList {
+			if strings.TrimSpace(flag) == "" {
+				return NewValidationError("extraFlags",
+					fmt.Sprintf("empty flag at index %d for runner %s", i, rt))
+			}
+			if !strings.HasPrefix(flag, "-") {
+				return NewValidationError("extraFlags",
+					fmt.Sprintf("flag %q must start with '-'", flag))
+			}
+			if containsShellMeta(flag) {
+				return NewValidationError("extraFlags",
+					fmt.Sprintf("flag %q contains disallowed characters", flag))
+			}
+		}
+	}
+	return nil
+}
+
+// containsShellMeta returns true if the string contains shell metacharacters
+// that could enable command injection.
+func containsShellMeta(s string) bool {
+	for _, c := range s {
+		switch c {
+		case '|', '&', ';', '$', '`', '(', ')', '{', '}', '<', '>', '\n', '\r':
 			return true
 		}
 	}

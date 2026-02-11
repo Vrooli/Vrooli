@@ -1045,8 +1045,12 @@ type RunnerCapabilities struct {
 	MaxTurns int32 `protobuf:"varint,6,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
 	// Supports session continuation (resume/continue conversation).
 	SupportsContinuation bool `protobuf:"varint,7,opt,name=supports_continuation,json=supportsContinuation,proto3" json:"supports_continuation,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Feature flags this runner supports (e.g., "EnableBrowser").
+	SupportedFeatures []string `protobuf:"bytes,8,rep,name=supported_features,json=supportedFeatures,proto3" json:"supported_features,omitempty"`
+	// Extra CLI flags this runner allows (e.g., "--verbose").
+	AllowedExtraFlags []string `protobuf:"bytes,9,rep,name=allowed_extra_flags,json=allowedExtraFlags,proto3" json:"allowed_extra_flags,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RunnerCapabilities) Reset() {
@@ -1126,6 +1130,20 @@ func (x *RunnerCapabilities) GetSupportsContinuation() bool {
 		return x.SupportsContinuation
 	}
 	return false
+}
+
+func (x *RunnerCapabilities) GetSupportedFeatures() []string {
+	if x != nil {
+		return x.SupportedFeatures
+	}
+	return nil
+}
+
+func (x *RunnerCapabilities) GetAllowedExtraFlags() []string {
+	if x != nil {
+		return x.AllowedExtraFlags
+	}
+	return nil
 }
 
 // ProbeResult contains the result of a runner connectivity probe.
@@ -1939,7 +1957,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12!\n" +
 	"\finstall_hint\x18\x04 \x01(\tR\vinstallHint\x12)\n" +
 	"\x10supported_models\x18\x05 \x03(\tR\x0fsupportedModels\x12H\n" +
-	"\fcapabilities\x18\x06 \x01(\v2$.agent_manager.v1.RunnerCapabilitiesR\fcapabilities\"\xdf\x02\n" +
+	"\fcapabilities\x18\x06 \x01(\v2$.agent_manager.v1.RunnerCapabilitiesR\fcapabilities\"\xbe\x03\n" +
 	"\x12RunnerCapabilities\x12-\n" +
 	"\x12supports_streaming\x18\x01 \x01(\bR\x11supportsStreaming\x12+\n" +
 	"\x11supports_messages\x18\x02 \x01(\bR\x10supportsMessages\x120\n" +
@@ -1947,7 +1965,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x16supports_cost_tracking\x18\x04 \x01(\bR\x14supportsCostTracking\x123\n" +
 	"\x15supports_cancellation\x18\x05 \x01(\bR\x14supportsCancellation\x12\x1b\n" +
 	"\tmax_turns\x18\x06 \x01(\x05R\bmaxTurns\x123\n" +
-	"\x15supports_continuation\x18\a \x01(\bR\x14supportsContinuation\"\xde\x01\n" +
+	"\x15supports_continuation\x18\a \x01(\bR\x14supportsContinuation\x12-\n" +
+	"\x12supported_features\x18\b \x03(\tR\x11supportedFeatures\x12.\n" +
+	"\x13allowed_extra_flags\x18\t \x03(\tR\x11allowedExtraFlags\"\xde\x01\n" +
 	"\vProbeResult\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1d\n" +
 	"\n" +

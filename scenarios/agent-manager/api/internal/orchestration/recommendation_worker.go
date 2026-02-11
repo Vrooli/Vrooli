@@ -89,9 +89,9 @@ func DefaultRecommendationWorkerConfig() RecommendationWorkerConfig {
 		Interval:          30 * time.Second,
 		MaxRetries:        3,
 		RetryBackoff:      1 * time.Minute,
-		MaxConcurrent:     1,                // Serial processing to avoid overloading Ollama
-		StaleTimeout:      5 * time.Minute,  // Recover stuck extractions after 5 minutes
-		ExtractionTimeout: 3 * time.Minute,  // Max time for a single LLM extraction
+		MaxConcurrent:     1,               // Serial processing to avoid overloading Ollama
+		StaleTimeout:      5 * time.Minute, // Recover stuck extractions after 5 minutes
+		ExtractionTimeout: 3 * time.Minute, // Max time for a single LLM extraction
 	}
 }
 

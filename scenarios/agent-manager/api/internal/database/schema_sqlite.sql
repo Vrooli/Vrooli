@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     allowed_tools TEXT DEFAULT '[]',
     denied_tools TEXT DEFAULT '[]',
     skip_permission_prompt INTEGER DEFAULT 0,
+    features TEXT DEFAULT '{}',
+    extra_flags TEXT DEFAULT '{}',
     requires_sandbox INTEGER DEFAULT 1,
     requires_approval INTEGER DEFAULT 1,
     sandbox_config TEXT DEFAULT '{}',

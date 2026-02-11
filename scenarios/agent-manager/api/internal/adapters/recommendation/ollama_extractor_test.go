@@ -16,13 +16,13 @@ func TestExtractJSON(t *testing.T) {
 			expected: `{"categories": [{"name": "Test", "recommendations": [{"text": "Do something"}]}]}`,
 		},
 		{
-			name: "JSON in markdown code block",
-			input: "```json\n{\"categories\": [{\"name\": \"Test\", \"recommendations\": [{\"text\": \"Do something\"}]}]}\n```",
+			name:     "JSON in markdown code block",
+			input:    "```json\n{\"categories\": [{\"name\": \"Test\", \"recommendations\": [{\"text\": \"Do something\"}]}]}\n```",
 			expected: `{"categories": [{"name": "Test", "recommendations": [{"text": "Do something"}]}]}`,
 		},
 		{
-			name: "JSON in plain code block",
-			input: "```\n{\"categories\": [{\"name\": \"Test\", \"recommendations\": [{\"text\": \"Do something\"}]}]}\n```",
+			name:     "JSON in plain code block",
+			input:    "```\n{\"categories\": [{\"name\": \"Test\", \"recommendations\": [{\"text\": \"Do something\"}]}]}\n```",
 			expected: `{"categories": [{"name": "Test", "recommendations": [{"text": "Do something"}]}]}`,
 		},
 		{
@@ -31,14 +31,14 @@ func TestExtractJSON(t *testing.T) {
 			expected: `{"categories": []}`,
 		},
 		{
-			name: "JSON with trailing text",
+			name:  "JSON with trailing text",
 			input: "{\"categories\": []}\nThat's the output.",
 			// Fixed: Now properly isolates the JSON object
 			expected: `{"categories": []}`,
 		},
 		{
-			name: "nested objects",
-			input: `{"categories": [{"name": "Test", "recommendations": [{"text": "Do {something} weird"}]}]}`,
+			name:     "nested objects",
+			input:    `{"categories": [{"name": "Test", "recommendations": [{"text": "Do {something} weird"}]}]}`,
 			expected: `{"categories": [{"name": "Test", "recommendations": [{"text": "Do {something} weird"}]}]}`,
 		},
 		{
@@ -72,8 +72,8 @@ func TestExtractJSON(t *testing.T) {
 			expected: `{"categories": []}`,
 		},
 		{
-			name: "multiple code blocks - takes first",
-			input: "```json\n{\"first\": true}\n```\n\n```json\n{\"second\": true}\n```",
+			name:     "multiple code blocks - takes first",
+			input:    "```json\n{\"first\": true}\n```\n\n```json\n{\"second\": true}\n```",
 			expected: `{"first": true}`,
 		},
 	}

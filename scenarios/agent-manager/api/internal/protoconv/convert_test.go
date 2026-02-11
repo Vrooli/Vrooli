@@ -649,6 +649,188 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 }
 
 // =============================================================================
+// FEATURE FLAGS PROTO ROUND-TRIP TESTS
+// =============================================================================
+
+func TestFeatureFlagsRoundTrip(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags domain.FeatureFlags
+	}{
+		{
+			name:  "zero value",
+			flags: domain.FeatureFlags{},
+		},
+		{
+			name:  "EnableBrowser true",
+			flags: domain.FeatureFlags{EnableBrowser: true},
+		},
+		{
+			name:  "EnableBrowser false",
+			flags: domain.FeatureFlags{EnableBrowser: false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proto := FeatureFlagsToProto(tt.flags)
+			result := FeatureFlagsFromProto(proto)
+			if result != tt.flags {
+				t.Errorf("round-trip failed: expected %+v, got %+v", tt.flags, result)
+			}
+		})
+	}
+}
+
+func TestFeatureFlagsToProto_ZeroReturnsNil(t *testing.T) {
+	result := FeatureFlagsToProto(domain.FeatureFlags{})
+	if result != nil {
+		t.Errorf("expected nil for zero FeatureFlags, got %+v", result)
+	}
+}
+
+func TestFeatureFlagsFromProto_NilReturnsZero(t *testing.T) {
+	result := FeatureFlagsFromProto(nil)
+	if result != (domain.FeatureFlags{}) {
+		t.Errorf("expected zero FeatureFlags for nil, got %+v", result)
+	}
+}
+
+// =============================================================================
+// RUNNER EXTRA FLAGS PROTO ROUND-TRIP TESTS
+// =============================================================================
+
+func TestRunnerExtraFlagsRoundTrip(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags domain.RunnerExtraFlags
+	}{
+		{
+			name:  "nil flags",
+			flags: nil,
+		},
+		{
+			name: "single runner single flag",
+			flags: domain.RunnerExtraFlags{
+				domain.RunnerTypeClaudeCode: []string{"--verbose"},
+			},
+		},
+		{
+			name: "single runner multiple flags",
+			flags: domain.RunnerExtraFlags{
+				domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools=Read,Write"},
+			},
+		},
+		{
+			name: "multiple runners",
+			flags: domain.RunnerExtraFlags{
+				domain.RunnerTypeClaudeCode: []string{"--verbose"},
+				domain.RunnerTypeCodex:      []string{"--verbose"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proto := RunnerExtraFlagsToProto(tt.flags)
+			result := RunnerExtraFlagsFromProto(proto)
+
+			// Both nil and empty should be treated equivalently
+			if len(tt.flags) == 0 && len(result) == 0 {
+				return // Both nil/empty - OK
+			}
+
+			if len(result) != len(tt.flags) {
+				t.Errorf("round-trip failed: expected %d runner types, got %d", len(tt.flags), len(result))
+				return
+			}
+
+			for rt, expectedFlags := range tt.flags {
+				gotFlags, ok := result[rt]
+				if !ok {
+					t.Errorf("round-trip failed: missing runner type %s", rt)
+					continue
+				}
+				if len(gotFlags) != len(expectedFlags) {
+					t.Errorf("round-trip failed for %s: expected %d flags, got %d", rt, len(expectedFlags), len(gotFlags))
+					continue
+				}
+				for i, flag := range expectedFlags {
+					if gotFlags[i] != flag {
+						t.Errorf("round-trip failed for %s[%d]: expected %q, got %q", rt, i, flag, gotFlags[i])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestRunnerExtraFlagsToProto_NilReturnsNil(t *testing.T) {
+	result := RunnerExtraFlagsToProto(nil)
+	if result != nil {
+		t.Errorf("expected nil for nil RunnerExtraFlags, got %+v", result)
+	}
+}
+
+func TestRunnerExtraFlagsToProto_EmptyReturnsNil(t *testing.T) {
+	result := RunnerExtraFlagsToProto(domain.RunnerExtraFlags{})
+	if result != nil {
+		t.Errorf("expected nil for empty RunnerExtraFlags, got %+v", result)
+	}
+}
+
+func TestRunnerExtraFlagsFromProto_NilReturnsNil(t *testing.T) {
+	result := RunnerExtraFlagsFromProto(nil)
+	if result != nil {
+		t.Errorf("expected nil for nil proto, got %+v", result)
+	}
+}
+
+// =============================================================================
+// AGENT PROFILE WITH FEATURES ROUND-TRIP TEST
+// =============================================================================
+
+func TestAgentProfileWithFeaturesRoundTrip(t *testing.T) {
+	original := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "features-profile",
+		ProfileKey: "features-key",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools"},
+			domain.RunnerTypeCodex:      []string{"--verbose"},
+		},
+		CreatedAt: time.Now().Truncate(time.Second),
+		UpdatedAt: time.Now().Truncate(time.Second),
+	}
+
+	proto := AgentProfileToProto(original)
+	result := AgentProfileFromProto(proto)
+
+	// Verify features round-trip
+	if result.Features.EnableBrowser != original.Features.EnableBrowser {
+		t.Errorf("Features.EnableBrowser: expected %v, got %v", original.Features.EnableBrowser, result.Features.EnableBrowser)
+	}
+
+	// Verify extra flags round-trip
+	if len(result.ExtraFlags) != len(original.ExtraFlags) {
+		t.Errorf("ExtraFlags: expected %d runner types, got %d", len(original.ExtraFlags), len(result.ExtraFlags))
+	}
+
+	for rt, expectedFlags := range original.ExtraFlags {
+		gotFlags, ok := result.ExtraFlags[rt]
+		if !ok {
+			t.Errorf("ExtraFlags: missing runner type %s", rt)
+			continue
+		}
+		if !reflect.DeepEqual(gotFlags, expectedFlags) {
+			t.Errorf("ExtraFlags[%s]: expected %v, got %v", rt, expectedFlags, gotFlags)
+		}
+	}
+}
+
+// =============================================================================
 // JSON SERIALIZATION TESTS
 // =============================================================================
 

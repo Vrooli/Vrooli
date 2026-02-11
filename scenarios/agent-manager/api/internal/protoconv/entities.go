@@ -39,6 +39,8 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
+		Features:             FeatureFlagsToProto(p.Features),
+		ExtraFlags:           RunnerExtraFlagsToProto(p.ExtraFlags),
 		RequiresSandbox:      p.RequiresSandbox,
 		RequiresApproval:     p.RequiresApproval,
 		SandboxConfig:        SandboxConfigToProto(p.SandboxConfig),
@@ -76,6 +78,8 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
+		Features:             FeatureFlagsFromProto(p.Features),
+		ExtraFlags:           RunnerExtraFlagsFromProto(p.ExtraFlags),
 		RequiresSandbox:      p.RequiresSandbox,
 		RequiresApproval:     p.RequiresApproval,
 		SandboxConfig:        SandboxConfigFromProto(p.SandboxConfig),
@@ -408,6 +412,8 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,
+		Features:             FeatureFlagsToProto(c.Features),
+		ExtraFlags:           RunnerExtraFlagsToProto(c.ExtraFlags),
 		RequiresSandbox:      c.RequiresSandbox,
 		RequiresApproval:     c.RequiresApproval,
 		SandboxConfig:        SandboxConfigToProto(c.SandboxConfig),
@@ -438,12 +444,60 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,
+		Features:             FeatureFlagsFromProto(c.Features),
+		ExtraFlags:           RunnerExtraFlagsFromProto(c.ExtraFlags),
 		RequiresSandbox:      c.RequiresSandbox,
 		RequiresApproval:     c.RequiresApproval,
 		SandboxConfig:        SandboxConfigFromProto(c.SandboxConfig),
 		AllowedPaths:         c.AllowedPaths,
 		DeniedPaths:          c.DeniedPaths,
 	}
+}
+
+// =============================================================================
+// FEATURE FLAGS
+// =============================================================================
+
+// FeatureFlagsToProto converts domain FeatureFlags to proto FeatureFlags.
+func FeatureFlagsToProto(f domain.FeatureFlags) *pb.FeatureFlags {
+	if f.IsZero() {
+		return nil
+	}
+	return &pb.FeatureFlags{EnableBrowser: f.EnableBrowser}
+}
+
+// FeatureFlagsFromProto converts proto FeatureFlags to domain FeatureFlags.
+func FeatureFlagsFromProto(f *pb.FeatureFlags) domain.FeatureFlags {
+	if f == nil {
+		return domain.FeatureFlags{}
+	}
+	return domain.FeatureFlags{EnableBrowser: f.EnableBrowser}
+}
+
+// RunnerExtraFlagsToProto converts domain RunnerExtraFlags to proto map.
+func RunnerExtraFlagsToProto(flags domain.RunnerExtraFlags) map[string]*pb.ExtraFlagList {
+	if len(flags) == 0 {
+		return nil
+	}
+	result := make(map[string]*pb.ExtraFlagList, len(flags))
+	for rt, flagList := range flags {
+		result[string(rt)] = &pb.ExtraFlagList{Flags: flagList}
+	}
+	return result
+}
+
+// RunnerExtraFlagsFromProto converts proto map to domain RunnerExtraFlags.
+func RunnerExtraFlagsFromProto(flags map[string]*pb.ExtraFlagList) domain.RunnerExtraFlags {
+	if len(flags) == 0 {
+		return nil
+	}
+	result := make(domain.RunnerExtraFlags, len(flags))
+	for rt, flagList := range flags {
+		if flagList != nil && len(flagList.Flags) > 0 {
+			result[domain.RunnerType(rt)] = flagList.Flags
+		}
+	}
+	return result
 }
 
 // =============================================================================
@@ -776,6 +830,8 @@ func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStat
 			SupportsCostTracking: r.Capabilities.SupportsCostTracking,
 			SupportsCancellation: r.Capabilities.SupportsCancellation,
 			MaxTurns:             int32(r.Capabilities.MaxTurns),
+			SupportedFeatures:    r.Capabilities.SupportedFeatures,
+			AllowedExtraFlags:    r.Capabilities.AllowedExtraFlags,
 		},
 		SupportedModels: r.Capabilities.SupportedModels,
 	}
@@ -807,4 +863,6 @@ type RunnerCapabilities struct {
 	SupportsCancellation bool
 	MaxTurns             int
 	SupportedModels      []string
+	SupportedFeatures    []string
+	AllowedExtraFlags    []string
 }

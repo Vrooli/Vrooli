@@ -117,6 +117,8 @@ func (r *OpenCodeRunner) Capabilities() Capabilities {
 			"google/gemini-2.0-flash",
 			"deepseek/deepseek-chat",
 		},
+		SupportedFeatures: []string{},
+		AllowedExtraFlags: []string{"--verbose"},
 	}
 }
 
@@ -580,6 +582,11 @@ func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 	// Model selection via CLI flag
 	if cfg.Model != "" {
 		args = append(args, "--model", cfg.Model)
+	}
+
+	// Validated extra flags for this runner
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeOpenCode]; ok {
+		args = append(args, extras...)
 	}
 
 	return args

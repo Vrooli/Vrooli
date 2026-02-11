@@ -175,19 +175,21 @@ type CreateRunRequest struct {
 	Tag string `json:"tag,omitempty"`
 
 	// Inline config (optional - used if no profile, or overrides profile)
-	RunnerType           *domain.RunnerType  `json:"runnerType,omitempty"`
-	Model                *string             `json:"model,omitempty"`
-	ModelPreset          *domain.ModelPreset `json:"modelPreset,omitempty"`
-	MaxTurns             *int                `json:"maxTurns,omitempty"`
-	Timeout              *time.Duration      `json:"timeout,omitempty"`
-	FallbackRunnerTypes  []domain.RunnerType `json:"fallbackRunnerTypes,omitempty"`
-	AllowedTools         []string            `json:"allowedTools,omitempty"`
-	DeniedTools          []string            `json:"deniedTools,omitempty"`
-	SkipPermissionPrompt *bool               `json:"skipPermissionPrompt,omitempty"`
-	RequiresSandbox      *bool               `json:"requiresSandbox,omitempty"`
-	RequiresApproval     *bool               `json:"requiresApproval,omitempty"`
-	AllowedPaths         []string            `json:"allowedPaths,omitempty"`
-	DeniedPaths          []string            `json:"deniedPaths,omitempty"`
+	RunnerType           *domain.RunnerType      `json:"runnerType,omitempty"`
+	Model                *string                 `json:"model,omitempty"`
+	ModelPreset          *domain.ModelPreset     `json:"modelPreset,omitempty"`
+	MaxTurns             *int                    `json:"maxTurns,omitempty"`
+	Timeout              *time.Duration          `json:"timeout,omitempty"`
+	FallbackRunnerTypes  []domain.RunnerType     `json:"fallbackRunnerTypes,omitempty"`
+	AllowedTools         []string                `json:"allowedTools,omitempty"`
+	DeniedTools          []string                `json:"deniedTools,omitempty"`
+	SkipPermissionPrompt *bool                   `json:"skipPermissionPrompt,omitempty"`
+	EnableBrowser        *bool                   `json:"enableBrowser,omitempty"`
+	ExtraFlags           domain.RunnerExtraFlags `json:"extraFlags,omitempty"`
+	RequiresSandbox      *bool                   `json:"requiresSandbox,omitempty"`
+	RequiresApproval     *bool                   `json:"requiresApproval,omitempty"`
+	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
+	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
 
 	// Sandbox behavior overrides (optional)
 	SandboxConfig *domain.SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -382,6 +384,9 @@ type Orchestrator struct {
 	// Robust termination (Phase 2)
 	terminator *Terminator
 
+	// Flag validation
+	flagValidator runner.FlagValidator
+
 	// Configuration
 	config OrchestratorConfig
 
@@ -512,6 +517,13 @@ func WithModelRegistry(store *modelregistry.Store) Option {
 func WithInvestigationSettings(repo repository.InvestigationSettingsRepository) Option {
 	return func(o *Orchestrator) {
 		o.investigationSettings = repo
+	}
+}
+
+// WithFlagValidator sets the flag validator for runner-specific flag validation.
+func WithFlagValidator(v runner.FlagValidator) Option {
+	return func(o *Orchestrator) {
+		o.flagValidator = v
 	}
 }
 
@@ -1152,6 +1164,19 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.SkipPermissionPrompt != nil {
 		cfg.SkipPermissionPrompt = *req.SkipPermissionPrompt
 	}
+	// Feature flag overrides
+	if req.EnableBrowser != nil {
+		cfg.Features.EnableBrowser = *req.EnableBrowser
+	}
+	// Extra flags overrides (replace per runner type)
+	if req.ExtraFlags != nil {
+		if cfg.ExtraFlags == nil {
+			cfg.ExtraFlags = make(domain.RunnerExtraFlags)
+		}
+		for rt, flags := range req.ExtraFlags {
+			cfg.ExtraFlags[rt] = append([]string(nil), flags...)
+		}
+	}
 	if req.RequiresSandbox != nil {
 		cfg.RequiresSandbox = *req.RequiresSandbox
 	}
@@ -1202,6 +1227,16 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		}
 		cfg.Model = resolved
 	}
+
+	// Validate extra flags against runner allowlists (delegate to seam)
+	if o.flagValidator != nil {
+		for rt, flags := range cfg.ExtraFlags {
+			if err := o.flagValidator.ValidateFlags(rt, flags); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
 	return cfg, profile, nil
 }
 

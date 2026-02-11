@@ -205,7 +205,7 @@ class RunnerStatus(_message.Message):
     def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., available: _Optional[bool] = ..., message: _Optional[str] = ..., install_hint: _Optional[str] = ..., supported_models: _Optional[_Iterable[str]] = ..., capabilities: _Optional[_Union[RunnerCapabilities, _Mapping]] = ...) -> None: ...
 
 class RunnerCapabilities(_message.Message):
-    __slots__ = ("supports_streaming", "supports_messages", "supports_tool_events", "supports_cost_tracking", "supports_cancellation", "max_turns", "supports_continuation")
+    __slots__ = ("supports_streaming", "supports_messages", "supports_tool_events", "supports_cost_tracking", "supports_cancellation", "max_turns", "supports_continuation", "supported_features", "allowed_extra_flags")
     SUPPORTS_STREAMING_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_MESSAGES_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_TOOL_EVENTS_FIELD_NUMBER: _ClassVar[int]
@@ -213,6 +213,8 @@ class RunnerCapabilities(_message.Message):
     SUPPORTS_CANCELLATION_FIELD_NUMBER: _ClassVar[int]
     MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_CONTINUATION_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_FEATURES_FIELD_NUMBER: _ClassVar[int]
+    ALLOWED_EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
     supports_streaming: bool
     supports_messages: bool
     supports_tool_events: bool
@@ -220,7 +222,9 @@ class RunnerCapabilities(_message.Message):
     supports_cancellation: bool
     max_turns: int
     supports_continuation: bool
-    def __init__(self, supports_streaming: _Optional[bool] = ..., supports_messages: _Optional[bool] = ..., supports_tool_events: _Optional[bool] = ..., supports_cost_tracking: _Optional[bool] = ..., supports_cancellation: _Optional[bool] = ..., max_turns: _Optional[int] = ..., supports_continuation: _Optional[bool] = ...) -> None: ...
+    supported_features: _containers.RepeatedScalarFieldContainer[str]
+    allowed_extra_flags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, supports_streaming: _Optional[bool] = ..., supports_messages: _Optional[bool] = ..., supports_tool_events: _Optional[bool] = ..., supports_cost_tracking: _Optional[bool] = ..., supports_cancellation: _Optional[bool] = ..., max_turns: _Optional[int] = ..., supports_continuation: _Optional[bool] = ..., supported_features: _Optional[_Iterable[str]] = ..., allowed_extra_flags: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ProbeResult(_message.Message):
     __slots__ = ("success", "latency_ms", "error", "details")

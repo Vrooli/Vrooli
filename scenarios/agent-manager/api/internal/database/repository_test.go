@@ -214,6 +214,223 @@ func TestProfileListPagination(t *testing.T) {
 }
 
 // ============================================================================
+// Profile Feature Flags & Extra Flags Persistence Tests
+// ============================================================================
+
+func TestProfileWithFeatureFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with features enabled
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "features-profile",
+		ProfileKey: "features-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+	if !got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be true")
+	}
+
+	// Update: disable feature
+	profile.Features.EnableBrowser = false
+	if err := repos.Profiles.Update(ctx, profile); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err = repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be false after update")
+	}
+}
+
+func TestProfileWithZeroFeatureFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with zero (default) features
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "zero-features-profile",
+		ProfileKey: "zero-features-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{}, // Zero value
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+	if got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be false for zero-value profile")
+	}
+}
+
+func TestProfileWithExtraFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "extra-flags-profile",
+		ProfileKey: "extra-flags-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools=Read,Write"},
+			domain.RunnerTypeCodex:      []string{"--verbose"},
+		},
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+
+	// Verify extra flags round-trip
+	if len(got.ExtraFlags) != 2 {
+		t.Fatalf("expected 2 runner types in ExtraFlags, got %d", len(got.ExtraFlags))
+	}
+
+	ccFlags, ok := got.ExtraFlags[domain.RunnerTypeClaudeCode]
+	if !ok {
+		t.Fatal("missing claude-code in ExtraFlags")
+	}
+	if len(ccFlags) != 2 {
+		t.Errorf("expected 2 claude-code flags, got %d", len(ccFlags))
+	}
+	if len(ccFlags) >= 1 && ccFlags[0] != "--verbose" {
+		t.Errorf("expected first flag '--verbose', got %q", ccFlags[0])
+	}
+	if len(ccFlags) >= 2 && ccFlags[1] != "--allowedTools=Read,Write" {
+		t.Errorf("expected second flag '--allowedTools=Read,Write', got %q", ccFlags[1])
+	}
+
+	codexFlags, ok := got.ExtraFlags[domain.RunnerTypeCodex]
+	if !ok {
+		t.Fatal("missing codex in ExtraFlags")
+	}
+	if len(codexFlags) != 1 {
+		t.Errorf("expected 1 codex flag, got %d", len(codexFlags))
+	}
+}
+
+func TestProfileWithNilExtraFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with nil extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "nil-extras-profile",
+		ProfileKey: "nil-extras-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		ExtraFlags: nil,
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+
+	// Nil or empty should round-trip as nil/empty
+	if len(got.ExtraFlags) != 0 {
+		t.Errorf("expected nil/empty ExtraFlags, got %v", got.ExtraFlags)
+	}
+}
+
+func TestProfileWithFeaturesAndExtraFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with both features and extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "full-flags-profile",
+		ProfileKey: "full-flags-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose"},
+		},
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+
+	if !got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be true")
+	}
+	if len(got.ExtraFlags) != 1 {
+		t.Errorf("expected 1 runner type in ExtraFlags, got %d", len(got.ExtraFlags))
+	}
+	if flags, ok := got.ExtraFlags[domain.RunnerTypeClaudeCode]; !ok || len(flags) != 1 || flags[0] != "--verbose" {
+		t.Errorf("expected ExtraFlags[claude-code] = [--verbose], got %v", got.ExtraFlags)
+	}
+}
+
+// ============================================================================
 // Task Repository Tests
 // ============================================================================
 

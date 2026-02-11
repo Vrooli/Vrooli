@@ -128,7 +128,6 @@ func TestSpawnCodingAgent_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "spawn_coding_agent", map[string]interface{}{
 		"task": "Write a hello world program",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -149,7 +148,6 @@ func TestSpawnCodingAgent_MissingTask(t *testing.T) {
 	})
 
 	result, err := executor.Execute(context.Background(), "spawn_coding_agent", map[string]interface{}{})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -193,7 +191,6 @@ func TestSpawnCodingAgent_WithContextAttachments(t *testing.T) {
 			},
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -230,7 +227,6 @@ func TestCheckAgentStatus_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "check_agent_status", map[string]interface{}{
 		"run_id": runID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -263,7 +259,6 @@ func TestCheckAgentStatus_NotFound(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "check_agent_status", map[string]interface{}{
 		"run_id": uuid.New().String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -281,7 +276,6 @@ func TestCheckAgentStatus_MissingRunID(t *testing.T) {
 	})
 
 	result, err := executor.Execute(context.Background(), "check_agent_status", map[string]interface{}{})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,7 +306,6 @@ func TestStopAgent_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "stop_agent", map[string]interface{}{
 		"run_id": runID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -344,7 +337,6 @@ func TestListActiveAgents_Success(t *testing.T) {
 	executor := NewServerExecutor(ServerExecutorConfig{Orchestrator: mock})
 
 	result, err := executor.Execute(context.Background(), "list_active_agents", nil)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -390,7 +382,6 @@ func TestGetAgentDiff_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "get_agent_diff", map[string]interface{}{
 		"run_id": runID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -433,7 +424,6 @@ func TestApproveAgentChanges_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "approve_agent_changes", map[string]interface{}{
 		"run_id": runID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -462,7 +452,6 @@ func TestInvalidRunID(t *testing.T) {
 			result, err := executor.Execute(context.Background(), tool, map[string]interface{}{
 				"run_id": "not-a-valid-uuid",
 			})
-
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

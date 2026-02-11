@@ -89,6 +89,10 @@ export interface ProfileFormData {
   requiresApproval?: boolean;
   allowedPaths?: string[];
   deniedPaths?: string[];
+  features?: {
+    enableBrowser?: boolean;
+  };
+  extraFlags?: Record<string, string[]>;
 }
 
 export interface TaskFormData {
@@ -117,6 +121,10 @@ export interface RunFormData {
   requiresApproval?: boolean;
   allowedPaths?: string[];
   deniedPaths?: string[];
+  features?: {
+    enableBrowser?: boolean;
+  };
+  extraFlags?: Record<string, string[]>;
   prompt?: string;
   runMode?: RunMode;
   idempotencyKey?: string;

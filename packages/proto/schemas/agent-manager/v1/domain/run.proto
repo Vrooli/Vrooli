@@ -362,6 +362,12 @@ message RunnerCapabilities {
 
   // Supports session continuation (resume/continue conversation).
   bool supports_continuation = 7;
+
+  // Feature flags this runner supports (e.g., "EnableBrowser").
+  repeated string supported_features = 8;
+
+  // Extra CLI flags this runner allows (e.g., "--verbose").
+  repeated string allowed_extra_flags = 9;
 }
 
 // =============================================================================

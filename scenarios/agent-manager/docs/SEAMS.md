@@ -80,6 +80,37 @@ type Runner interface {
 
 ---
 
+### 1b. Flag Validator (`adapters/runner`)
+
+**Purpose:** Validate runner-specific CLI flags against runner allowlists without coupling orchestration to runner internals.
+
+**Interface:** `runner.FlagValidator`
+```go
+type FlagValidator interface {
+    ValidateFlags(runnerType domain.RunnerType, flags []string) error
+    AllowedFlags(runnerType domain.RunnerType) []string
+    SupportedFeatures(runnerType domain.RunnerType) []string
+}
+```
+
+**Why it's a seam:**
+- Decouples flag validation from runner execution
+- Orchestration validates without knowing runner internals
+- Runners declare capabilities (features + allowed flags) via `Capabilities()`
+- `MockFlagValidator` for testing, `RegistryFlagValidator` for production
+
+**Implementations:**
+- `RegistryFlagValidator` — Derives allowlists from `Capabilities()` (production)
+- `MockFlagValidator` — Configurable validation via func fields (testing)
+
+**Related types:**
+- `domain.FeatureFlags` — Typed feature flags (e.g., `EnableBrowser`) mapped to runner-specific CLI args
+- `domain.RunnerExtraFlags` — Per-runner validated extra CLI flags (`map[RunnerType][]string`)
+- `Capabilities.SupportedFeatures` — Which typed features a runner supports
+- `Capabilities.AllowedExtraFlags` — Allowlist of extra CLI flags a runner accepts
+
+---
+
 ### 2. Sandbox Provider (`adapters/sandbox`)
 
 **Purpose:** Abstract sandbox creation and lifecycle management.
@@ -288,6 +319,7 @@ Each seam enables specific testing patterns:
 | Seam | Test Approach |
 |------|---------------|
 | Runner | Mock runner returns controlled results; test execution flow |
+| Flag Validator | MockFlagValidator with configurable validation; test flag rejection |
 | Sandbox | Mock provider skips isolation; test orchestration logic |
 | Events | In-memory store; verify event sequences |
 | Policy | Test policy rules in isolation; mock for orchestration tests |

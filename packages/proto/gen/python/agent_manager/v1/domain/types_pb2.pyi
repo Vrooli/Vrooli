@@ -271,3 +271,15 @@ class SandboxConfig(_message.Message):
     lifecycle: SandboxLifecycleConfig
     acceptance: SandboxAcceptanceConfig
     def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ...) -> None: ...
+
+class FeatureFlags(_message.Message):
+    __slots__ = ("enable_browser",)
+    ENABLE_BROWSER_FIELD_NUMBER: _ClassVar[int]
+    enable_browser: bool
+    def __init__(self, enable_browser: _Optional[bool] = ...) -> None: ...
+
+class ExtraFlagList(_message.Message):
+    __slots__ = ("flags",)
+    FLAGS_FIELD_NUMBER: _ClassVar[int]
+    flags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, flags: _Optional[_Iterable[str]] = ...) -> None: ...

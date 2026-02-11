@@ -413,6 +413,207 @@ func TestExecuteRequest_WithEnvironment(t *testing.T) {
 }
 
 // =============================================================================
+// CLAUDE CODE BUILD ARGS TESTS
+// =============================================================================
+
+func TestClaudeCodeRunner_BuildArgs_EnableBrowser(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	tests := []struct {
+		name       string
+		config     *domain.RunConfig
+		wantChrome bool
+	}{
+		{
+			name: "EnableBrowser true adds --chrome",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				Features:   domain.FeatureFlags{EnableBrowser: true},
+			},
+			wantChrome: true,
+		},
+		{
+			name: "EnableBrowser false omits --chrome",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				Features:   domain.FeatureFlags{EnableBrowser: false},
+			},
+			wantChrome: false,
+		},
+		{
+			name: "zero features omits --chrome",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				Features:   domain.FeatureFlags{},
+			},
+			wantChrome: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := runner.ExecuteRequest{
+				RunID:          uuid.New(),
+				ResolvedConfig: tt.config,
+			}
+			args := r.BuildArgsForTest(req)
+
+			hasChrome := false
+			for _, arg := range args {
+				if arg == "--chrome" {
+					hasChrome = true
+					break
+				}
+			}
+			if hasChrome != tt.wantChrome {
+				t.Errorf("args = %v, wantChrome = %v, hasChrome = %v", args, tt.wantChrome, hasChrome)
+			}
+		})
+	}
+}
+
+func TestClaudeCodeRunner_BuildArgs_ExtraFlags(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	tests := []struct {
+		name      string
+		config    *domain.RunConfig
+		wantFlags []string
+	}{
+		{
+			name: "extra flags appended",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				ExtraFlags: domain.RunnerExtraFlags{
+					domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools=Read,Write"},
+				},
+			},
+			wantFlags: []string{"--verbose", "--allowedTools=Read,Write"},
+		},
+		{
+			name: "no extra flags for this runner",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				ExtraFlags: domain.RunnerExtraFlags{
+					domain.RunnerTypeCodex: []string{"--verbose"},
+				},
+			},
+			wantFlags: nil,
+		},
+		{
+			name: "nil extra flags",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				ExtraFlags: nil,
+			},
+			wantFlags: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := runner.ExecuteRequest{
+				RunID:          uuid.New(),
+				ResolvedConfig: tt.config,
+			}
+			args := r.BuildArgsForTest(req)
+
+			for _, wantFlag := range tt.wantFlags {
+				found := false
+				for _, arg := range args {
+					if arg == wantFlag {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected flag %q in args %v", wantFlag, args)
+				}
+			}
+		})
+	}
+}
+
+func TestClaudeCodeRunner_BuildArgs_FeaturesAndExtraFlags(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	config := &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose"},
+		},
+	}
+
+	req := runner.ExecuteRequest{
+		RunID:          uuid.New(),
+		ResolvedConfig: config,
+	}
+	args := r.BuildArgsForTest(req)
+
+	hasChrome := false
+	hasVerbose := false
+	for _, arg := range args {
+		if arg == "--chrome" {
+			hasChrome = true
+		}
+		if arg == "--verbose" {
+			hasVerbose = true
+		}
+	}
+
+	if !hasChrome {
+		t.Errorf("expected --chrome in args %v", args)
+	}
+	if !hasVerbose {
+		t.Errorf("expected --verbose in args %v", args)
+	}
+}
+
+func TestClaudeCodeRunner_Capabilities_SupportedFeatures(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+	caps := r.Capabilities()
+
+	if len(caps.SupportedFeatures) == 0 {
+		t.Fatal("expected SupportedFeatures to be non-empty")
+	}
+	found := false
+	for _, f := range caps.SupportedFeatures {
+		if f == "EnableBrowser" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'EnableBrowser' in SupportedFeatures %v", caps.SupportedFeatures)
+	}
+}
+
+func TestClaudeCodeRunner_Capabilities_AllowedExtraFlags(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+	caps := r.Capabilities()
+
+	if len(caps.AllowedExtraFlags) == 0 {
+		t.Fatal("expected AllowedExtraFlags to be non-empty")
+	}
+	expected := map[string]bool{
+		"--verbose":         false,
+		"--allowedTools":    false,
+		"--disallowedTools": false,
+	}
+	for _, f := range caps.AllowedExtraFlags {
+		if _, ok := expected[f]; ok {
+			expected[f] = true
+		}
+	}
+	for flag, found := range expected {
+		if !found {
+			t.Errorf("expected %q in AllowedExtraFlags %v", flag, caps.AllowedExtraFlags)
+		}
+	}
+}
+
+// =============================================================================
 // NIL SAFETY TESTS
 // =============================================================================
 
