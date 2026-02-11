@@ -214,6 +214,142 @@ describe('previewWorkspaceStore', () => {
     });
   });
 
+  it('exportPresetData captures current state correctly including preview URLs', () => {
+    const paneA = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    usePreviewWorkspaceStore.getState().setWorkspaceZoom(0.75);
+
+    // Set a same-origin proxy URL on the second pane
+    const paneB = usePreviewWorkspaceStore.getState().panes[1]?.id;
+    if (paneB) {
+      usePreviewWorkspaceStore.getState().setPaneViewState(paneB, {
+        previewUrl: 'http://localhost:3000/apps/scenario-a/proxy/',
+        previewUrlInput: 'http://localhost:3000/apps/scenario-a/proxy/',
+      });
+    }
+
+    if (paneA) {
+      usePreviewWorkspaceStore.getState().pinPaneToColumn(paneA, 'left');
+    }
+
+    const data = usePreviewWorkspaceStore.getState().exportPresetData();
+    expect(data.interactionMode).toBe('browse');
+    expect(data.workspaceZoom).toBe(0.75);
+    expect(data.paneApps).toHaveLength(2);
+    expect(data.paneApps[0]).toBeNull();
+    expect(data.paneApps[1]).toBe('scenario-a');
+    expect(data.panePreviewURLs).toHaveLength(2);
+    expect(data.panePreviewURLs[0]).toBeNull();
+    // Same-origin URL is stored as a portable relative path
+    expect(data.panePreviewURLs[1]).toBe('/apps/scenario-a/proxy/');
+    expect(data.pinnedPaneIndex).toBe(0);
+    expect(data.pinnedColumn).toBe('left');
+  });
+
+  it('applyPreset replaces state with fresh pane IDs and restores URLs', () => {
+    usePreviewWorkspaceStore.getState().addPane('old-app');
+    const oldPaneIds = usePreviewWorkspaceStore.getState().panes.map((p) => p.id);
+
+    usePreviewWorkspaceStore.getState().applyPreset({
+      interaction_mode: 'arrange',
+      workspace_zoom: 0.67,
+      pane_apps: ['scenario-x', null, 'scenario-y'],
+      pane_preview_urls: ['http://localhost:4000', null, 'http://localhost:5000'],
+      column_fractions: [0.3, 0.7],
+      row_fractions: [0.5, 0.5],
+      pinned_pane_index: 2,
+      pinned_column: 'right',
+    });
+
+    const state = usePreviewWorkspaceStore.getState();
+    expect(state.interactionMode).toBe('arrange');
+    expect(state.workspaceZoom).toBe(0.67);
+    expect(state.panes).toHaveLength(3);
+    expect(state.panes[0]?.appId).toBe('scenario-x');
+    expect(state.panes[1]?.appId).toBeNull();
+    expect(state.panes[2]?.appId).toBe('scenario-y');
+    // Fresh pane IDs
+    const newPaneIds = state.panes.map((p) => p.id);
+    expect(newPaneIds).not.toEqual(oldPaneIds);
+    // Pinned pane
+    expect(state.pinnedPaneId).toBe(state.panes[2]?.id);
+    expect(state.pinnedColumn).toBe('right');
+    // Focused first pane
+    expect(state.focusedPaneId).toBe(state.panes[0]?.id);
+    // Preview URLs restored for panes that had them
+    const pane0Id = state.panes[0]?.id ?? '';
+    const pane1Id = state.panes[1]?.id ?? '';
+    const pane2Id = state.panes[2]?.id ?? '';
+    expect(state.paneViewState[pane0Id]?.previewUrl).toBe('http://localhost:4000');
+    expect(state.paneViewState[pane0Id]?.previewUrlInput).toBe('http://localhost:4000');
+    expect(state.paneViewState[pane1Id]).toBeUndefined();
+    expect(state.paneViewState[pane2Id]?.previewUrl).toBe('http://localhost:5000');
+  });
+
+  it('preset round-trip makes same-origin URLs portable and restores them', () => {
+    // Set up workspace: pane A with same-origin proxy URL, pane B with external URL
+    const paneAId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? '';
+    usePreviewWorkspaceStore.getState().setPaneApp(paneAId, 'scenario-a');
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneAId, {
+      previewUrl: 'http://localhost:3000/apps/scenario-a/proxy/',
+      previewUrlInput: 'http://localhost:3000/apps/scenario-a/proxy/',
+      hasCustomPreviewUrl: true,
+    });
+    usePreviewWorkspaceStore.getState().addPane('scenario-b');
+    const paneBId = usePreviewWorkspaceStore.getState().panes[1]?.id ?? '';
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneBId, {
+      previewUrl: 'http://localhost:8080',
+      previewUrlInput: 'http://localhost:8080',
+    });
+
+    // Export: same-origin URL becomes relative, external stays absolute
+    const exported = usePreviewWorkspaceStore.getState().exportPresetData();
+    expect(exported.panePreviewURLs).toEqual([
+      '/apps/scenario-a/proxy/',
+      'http://localhost:8080',
+    ]);
+
+    // Clear workspace and re-apply
+    usePreviewWorkspaceStore.getState().clearAllPanes();
+    usePreviewWorkspaceStore.getState().applyPreset({
+      interaction_mode: exported.interactionMode,
+      workspace_zoom: exported.workspaceZoom,
+      pane_apps: exported.paneApps,
+      pane_preview_urls: exported.panePreviewURLs,
+      column_fractions: exported.columnFractions,
+      row_fractions: exported.rowFractions,
+      pinned_pane_index: exported.pinnedPaneIndex,
+      pinned_column: exported.pinnedColumn,
+    });
+
+    const state = usePreviewWorkspaceStore.getState();
+    expect(state.panes).toHaveLength(2);
+    // Same-origin URL restored with current origin
+    const newPaneAView = state.paneViewState[state.panes[0]?.id ?? ''];
+    expect(newPaneAView?.previewUrl).toBe('http://localhost:3000/apps/scenario-a/proxy/');
+    expect(newPaneAView?.previewUrlInput).toBe('http://localhost:3000/apps/scenario-a/proxy/');
+    // External URL preserved as-is
+    const newPaneBView = state.paneViewState[state.panes[1]?.id ?? ''];
+    expect(newPaneBView?.previewUrl).toBe('http://localhost:8080');
+    expect(newPaneBView?.previewUrlInput).toBe('http://localhost:8080');
+  });
+
+  it('applyPreset with empty paneApps creates one empty pane', () => {
+    usePreviewWorkspaceStore.getState().applyPreset({
+      interaction_mode: 'browse',
+      workspace_zoom: 1,
+      pane_apps: [],
+      column_fractions: [],
+      row_fractions: [],
+      pinned_pane_index: null,
+      pinned_column: null,
+    });
+
+    const state = usePreviewWorkspaceStore.getState();
+    expect(state.panes).toHaveLength(1);
+    expect(state.panes[0]?.appId).toBeNull();
+  });
+
   it('rehydrates panes, focused pane, and fractions from localStorage', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       state: {

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatPreviewUrlForDisplay,
+  fromPortablePreviewUrl,
   isAppMonitorProxyPreviewTarget,
   isBlockedHostEmbedPreviewTarget,
   normalizeScenarioNavigationInput,
   parseScenarioProxyPreviewTarget,
   resolvePreviewUrlCandidate,
+  toPortablePreviewUrl,
 } from './previewUrl';
 
 describe('resolvePreviewUrlCandidate', () => {
@@ -88,5 +90,54 @@ describe('isAppMonitorProxyPreviewTarget', () => {
 
   it('ignores non app-monitor scenario proxy URLs', () => {
     expect(isAppMonitorProxyPreviewTarget('/apps/git-control-tower/proxy/')).toBe(false);
+  });
+});
+
+describe('toPortablePreviewUrl', () => {
+  it('strips the current origin from same-origin proxy URLs', () => {
+    expect(toPortablePreviewUrl('http://localhost:3000/apps/scenario-name/proxy/')).toBe(
+      '/apps/scenario-name/proxy/',
+    );
+  });
+
+  it('preserves query and hash when stripping origin', () => {
+    expect(toPortablePreviewUrl('http://localhost:3000/apps/scenario/proxy/?skill=debug#section')).toBe(
+      '/apps/scenario/proxy/?skill=debug#section',
+    );
+  });
+
+  it('returns external URLs unchanged', () => {
+    expect(toPortablePreviewUrl('https://external.example.com/page')).toBe(
+      'https://external.example.com/page',
+    );
+  });
+
+  it('returns already-relative URLs as-is', () => {
+    expect(toPortablePreviewUrl('/apps/scenario/proxy/')).toBe('/apps/scenario/proxy/');
+  });
+
+  it('returns null for null or empty input', () => {
+    expect(toPortablePreviewUrl(null)).toBeNull();
+    expect(toPortablePreviewUrl('')).toBeNull();
+    expect(toPortablePreviewUrl('  ')).toBeNull();
+  });
+});
+
+describe('fromPortablePreviewUrl', () => {
+  it('resolves relative paths against the current origin', () => {
+    expect(fromPortablePreviewUrl('/apps/scenario-name/proxy/')).toBe(
+      'http://localhost:3000/apps/scenario-name/proxy/',
+    );
+  });
+
+  it('returns absolute external URLs unchanged', () => {
+    expect(fromPortablePreviewUrl('https://external.example.com/page')).toBe(
+      'https://external.example.com/page',
+    );
+  });
+
+  it('returns null for null or empty input', () => {
+    expect(fromPortablePreviewUrl(null)).toBeNull();
+    expect(fromPortablePreviewUrl('')).toBeNull();
   });
 });

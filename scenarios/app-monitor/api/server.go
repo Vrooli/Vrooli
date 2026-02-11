@@ -20,6 +20,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Server holds all server dependencies
@@ -38,6 +39,7 @@ type Handlers struct {
 	lighthouse    *handlers.LighthouseHandler
 	tools         *handlers.ToolsHandler
 	toolExecution *toolexecution.Handler
+	presets       *handlers.PresetHandler
 }
 
 // NewServer creates and configures a new server instance
@@ -71,6 +73,22 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	appService := services.NewAppService(appRepo)
 	metricsService := services.NewMetricsService()
 
+	// Create storage resolver for filesystem-based repositories
+	storageResolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Printf("Warning: Storage resolver init failed: %v", err)
+	}
+
+	// Create preset repository and service (filesystem-based, independent of DB)
+	var presetRepo repository.WorkspacePresetRepository
+	if storageResolver != nil {
+		presetRepo = repository.NewFilePresetRepository(storageResolver)
+	}
+	presetService := services.NewPresetService(presetRepo)
+
 	// Initialize Tool Discovery Protocol registry
 	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
 		ScenarioName:        "app-monitor",
@@ -102,6 +120,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		lighthouse:    handlers.NewLighthouseHandler(),
 		tools:         handlers.NewToolsHandler(toolReg),
 		toolExecution: toolexecution.NewHandler(toolExecutor),
+		presets:       handlers.NewPresetHandler(presetService),
 	}
 
 	// Setup router
@@ -199,6 +218,13 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.POST("/scenarios/:scenario/lighthouse/run", h.lighthouse.RunLighthouse)
 		v1.GET("/scenarios/:scenario/lighthouse/history", h.lighthouse.GetLighthouseHistory)
 		v1.GET("/scenarios/:scenario/lighthouse/report/:reportId", h.lighthouse.GetLighthouseReport)
+
+		// Workspace preset endpoints
+		v1.GET("/workspace/presets", h.presets.ListPresets)
+		v1.GET("/workspace/presets/:id", h.presets.GetPreset)
+		v1.POST("/workspace/presets", h.presets.CreatePreset)
+		v1.PUT("/workspace/presets/:id", h.presets.UpdatePreset)
+		v1.DELETE("/workspace/presets/:id", h.presets.DeletePreset)
 
 		// Tool Discovery Protocol endpoints
 		v1.GET("/tools", h.tools.GetManifest)

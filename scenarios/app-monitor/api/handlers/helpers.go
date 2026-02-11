@@ -49,7 +49,11 @@ func HandleServiceCall[T any](
 		switch {
 		case errors.Is(err, services.ErrAppNotFound):
 			status = http.StatusNotFound
+		case errors.Is(err, services.ErrPresetNotFound):
+			status = http.StatusNotFound
 		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrPresetNameRequired):
 			status = http.StatusBadRequest
 		case errors.Is(err, services.ErrDatabaseUnavailable):
 			status = http.StatusServiceUnavailable
@@ -81,7 +85,11 @@ func HandleServiceCallRaw[T any](
 		switch {
 		case errors.Is(err, services.ErrAppNotFound):
 			status = http.StatusNotFound
+		case errors.Is(err, services.ErrPresetNotFound):
+			status = http.StatusNotFound
 		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrPresetNameRequired):
 			status = http.StatusBadRequest
 		case errors.Is(err, services.ErrDatabaseUnavailable):
 			status = http.StatusServiceUnavailable
@@ -116,7 +124,11 @@ func HandleServiceAction(
 		switch {
 		case errors.Is(err, services.ErrAppNotFound):
 			status = http.StatusNotFound
+		case errors.Is(err, services.ErrPresetNotFound):
+			status = http.StatusNotFound
 		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrPresetNameRequired):
 			status = http.StatusBadRequest
 		case errors.Is(err, services.ErrDatabaseUnavailable):
 			status = http.StatusServiceUnavailable

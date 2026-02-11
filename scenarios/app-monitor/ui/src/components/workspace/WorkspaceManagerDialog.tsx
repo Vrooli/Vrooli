@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Eye, Grip, Layers, Maximize2, Minimize2, Pin, Plus, RotateCcw, Trash2, X, ZoomIn } from 'lucide-react';
+import { Bookmark, ChevronDown, ChevronUp, Eye, Grip, Layers, Maximize2, Minimize2, Pin, Plus, RotateCcw, Save, Trash2, Upload, X, ZoomIn } from 'lucide-react';
 import clsx from 'clsx';
 import {
   PREVIEW_WORKSPACE_ZOOM_LEVELS,
@@ -9,7 +9,13 @@ import {
 } from '@/features/preview-workspace/state/previewWorkspaceStore';
 import { useAppsStore } from '@/state/appsStore';
 import { getAppDisplayName } from '@/components/tabSwitcher/tabSwitcherUtils';
+import { presetService, type WorkspacePreset } from '@/services/api';
 import './WorkspaceManagerDialog.css';
+
+const PRESET_COLORS = [
+  '#7aa0ff', '#ff7a7a', '#7aff9e', '#ffd97a',
+  '#d97aff', '#ff7ad9', '#7affea', '#ffb07a',
+] as const;
 
 type WorkspaceManagerDialogProps = {
   onClose: () => void;
@@ -31,8 +37,14 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
   const setInteractionMode = usePreviewWorkspaceStore(state => state.setInteractionMode);
   const resetLayout = usePreviewWorkspaceStore(state => state.resetLayout);
   const clearAllPanes = usePreviewWorkspaceStore(state => state.clearAllPanes);
+  const exportPresetData = usePreviewWorkspaceStore(state => state.exportPresetData);
+  const applyPreset = usePreviewWorkspaceStore(state => state.applyPreset);
   const apps = useAppsStore(state => state.apps);
   const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
+  const [presets, setPresets] = useState<WorkspacePreset[]>([]);
+  const [presetName, setPresetName] = useState('');
+  const [presetColor, setPresetColor] = useState<string>(PRESET_COLORS[0]);
+  const [isLoadingPresets, setIsLoadingPresets] = useState(true);
 
   const paneCount = panes.length;
   const canAddPane = paneCount < previewWorkspaceLimits.maxPanes;
@@ -64,6 +76,18 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
     return () => {
       document.removeEventListener('fullscreenchange', syncWorkspaceFullscreenState);
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingPresets(true);
+    presetService.listPresets().then((result) => {
+      if (!cancelled) {
+        setPresets(result);
+        setIsLoadingPresets(false);
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const handleToggleArrange = () => {
@@ -196,6 +220,42 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
     }
   };
 
+  const handleSavePreset = async () => {
+    const trimmedName = presetName.trim();
+    if (!trimmedName) return;
+    const data = exportPresetData();
+    const created = await presetService.createPreset({
+      name: trimmedName,
+      color: presetColor,
+      interaction_mode: data.interactionMode,
+      workspace_zoom: data.workspaceZoom,
+      pane_apps: data.paneApps,
+      pane_preview_urls: data.panePreviewURLs,
+      column_fractions: data.columnFractions,
+      row_fractions: data.rowFractions,
+      pinned_pane_index: data.pinnedPaneIndex,
+      pinned_column: data.pinnedColumn,
+    });
+    if (created) {
+      setPresets((prev) => [created, ...prev]);
+      setPresetName('');
+    }
+  };
+
+  const handleLoadPreset = (preset: WorkspacePreset) => {
+    applyPreset(preset);
+    onClose();
+  };
+
+  const handleDeletePreset = async (id: string) => {
+    const confirmed = typeof window === 'undefined' || window.confirm('Delete this preset?');
+    if (!confirmed) return;
+    const deleted = await presetService.deletePreset(id);
+    if (deleted) {
+      setPresets((prev) => prev.filter((p) => p.id !== id));
+    }
+  };
+
   return (
     <div className="workspace-manager">
       <header className="workspace-manager__header">
@@ -324,6 +384,92 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
             <span>{isWorkspaceEmpty ? 'Workspace is already empty.' : 'Reset to one empty pane.'}</span>
           </div>
         </button>
+      </section>
+
+      <section className="workspace-manager__presets" aria-label="Workspace presets">
+        <h3 className="workspace-manager__presets-heading">
+          <Bookmark size={16} aria-hidden />
+          Presets
+        </h3>
+
+        {isLoadingPresets ? (
+          <p className="workspace-manager__presets-empty">Loading presets...</p>
+        ) : presets.length === 0 ? (
+          <p className="workspace-manager__presets-empty">No saved presets yet.</p>
+        ) : (
+          <ul className="workspace-manager__preset-list">
+            {presets.map((preset) => (
+              <li key={preset.id} className="workspace-manager__preset-row">
+                <span
+                  className="workspace-manager__preset-swatch"
+                  style={{ background: preset.color }}
+                  aria-hidden
+                />
+                <span className="workspace-manager__preset-name">
+                  {preset.name}
+                </span>
+                <span className="workspace-manager__preset-meta">
+                  {preset.pane_apps.length} pane{preset.pane_apps.length === 1 ? '' : 's'}
+                </span>
+                <span className="workspace-manager__preset-actions">
+                  <button
+                    type="button"
+                    aria-label={`Load preset ${preset.name}`}
+                    onClick={() => handleLoadPreset(preset)}
+                  >
+                    <Upload size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Delete preset ${preset.name}`}
+                    onClick={() => { void handleDeletePreset(preset.id); }}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="workspace-manager__preset-save">
+          <input
+            type="text"
+            className="workspace-manager__preset-name-input"
+            placeholder="Preset name..."
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            maxLength={100}
+            aria-label="Preset name"
+          />
+          <div className="workspace-manager__preset-colors" role="group" aria-label="Preset color">
+            {PRESET_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                className={clsx(
+                  'workspace-manager__preset-color-btn',
+                  presetColor === color && 'workspace-manager__preset-color-btn--selected',
+                )}
+                style={{ background: color }}
+                aria-label={`Color ${color}`}
+                onClick={() => setPresetColor(color)}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            className="workspace-manager__action"
+            disabled={!presetName.trim()}
+            onClick={() => { void handleSavePreset(); }}
+          >
+            <Save size={18} aria-hidden />
+            <div>
+              <strong>Save current workspace</strong>
+              <span>Save panes, zoom, and arrangement as a named preset.</span>
+            </div>
+          </button>
+        </div>
       </section>
 
       <section className="workspace-manager__pane-list" aria-label="Pane list">

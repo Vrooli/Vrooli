@@ -18,14 +18,16 @@ var (
 	ErrScenarioAuditorUnavailable    = errors.New("scenario-auditor unavailable")
 	ErrScenarioBridgeScenarioMissing = errors.New("scenario missing for bridge audit")
 	ErrIssueTrackerUnavailable       = errors.New("app-issue-tracker unavailable")
+	ErrPresetNotFound                = errors.New("workspace preset not found")
+	ErrPresetNameRequired            = errors.New("preset name is required")
 )
 
 // Cache and timing constants
 const (
-	orchestratorCacheTTL   = 90 * time.Second  // Increased from 60s to reduce cache misses during slow scenario status calls
-	partialCacheTTL        = 45 * time.Second  // Increased proportionally
-	enrichmentCacheTTL     = 90 * time.Second  // Per-scenario tech stack / dependency insights
-	completenessCacheTTL   = 24 * time.Hour    // Completeness scores change less frequently than runtime status
+	orchestratorCacheTTL   = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
+	partialCacheTTL        = 45 * time.Second // Increased proportionally
+	enrichmentCacheTTL     = 90 * time.Second // Per-scenario tech stack / dependency insights
+	completenessCacheTTL   = 24 * time.Hour   // Completeness scores change less frequently than runtime status
 	issueTrackerCacheTTL   = 30 * time.Second
 	issueTrackerFetchLimit = 50
 )
@@ -694,11 +696,11 @@ type IssueReportResult struct {
 
 // CompletenessResponse represents the raw output from `vrooli scenario completeness --json`
 type CompletenessResponse struct {
-	Scenario       string   `json:"scenario"`
-	Category       string   `json:"category"`
-	Score          int      `json:"score"`
-	Classification string   `json:"classification"`
-	Warnings       []string `json:"warnings,omitempty"`
+	Scenario        string   `json:"scenario"`
+	Category        string   `json:"category"`
+	Score           int      `json:"score"`
+	Classification  string   `json:"classification"`
+	Warnings        []string `json:"warnings,omitempty"`
 	Recommendations []string `json:"recommendations,omitempty"`
 }
 

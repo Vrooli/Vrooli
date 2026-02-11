@@ -237,3 +237,133 @@
   opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* ── Presets ── */
+
+.workspace-manager__presets {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 14px;
+}
+
+.workspace-manager__presets-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.workspace-manager__presets-empty {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  color: rgba(231, 235, 255, 0.55);
+}
+
+.workspace-manager__preset-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspace-manager__preset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(24, 27, 40, 0.5);
+}
+
+.workspace-manager__preset-swatch {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.workspace-manager__preset-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.workspace-manager__preset-meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: rgba(231, 235, 255, 0.5);
+}
+
+.workspace-manager__preset-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.workspace-manager__preset-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(231, 235, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+}
+
+.workspace-manager__preset-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f5ff;
+}
+
+.workspace-manager__preset-save {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-manager__preset-name-input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(12, 16, 28, 0.9);
+  color: inherit;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+
+.workspace-manager__preset-name-input::placeholder {
+  color: rgba(231, 235, 255, 0.4);
+}
+
+.workspace-manager__preset-colors {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-manager__preset-color-btn {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+
+.workspace-manager__preset-color-btn--selected {
+  border-color: #fff;
+}

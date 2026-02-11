@@ -3,7 +3,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import WorkspaceManagerDialog from './WorkspaceManagerDialog';
 import { usePreviewWorkspaceStore } from '@/features/preview-workspace/state/previewWorkspaceStore';
 import { useAppsStore } from '@/state/appsStore';
+import { presetService } from '@/services/api';
 import type { App } from '@/types';
+
+vi.mock('@/services/api', () => ({
+  presetService: {
+    listPresets: vi.fn().mockResolvedValue([]),
+    createPreset: vi.fn().mockResolvedValue(null),
+    deletePreset: vi.fn().mockResolvedValue(true),
+  },
+}));
 
 const makeApp = (overrides: Partial<App>): App => ({
   id: 'test-app',
@@ -264,6 +273,132 @@ describe('WorkspaceManagerDialog', () => {
       render(<WorkspaceManagerDialog onClose={vi.fn()} />);
 
       expect(screen.getByRole('button', { name: /remove pane 1/i })).toBeDisabled();
+    });
+  });
+
+  describe('presets', () => {
+    it('shows empty state message when no presets exist', async () => {
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No saved presets yet.')).toBeInTheDocument();
+      });
+    });
+
+    it('saves a preset and adds it to the list', async () => {
+      const mockPreset = {
+        id: 'preset-1',
+        name: 'My Layout',
+        color: '#7aa0ff',
+        interaction_mode: 'browse' as const,
+        workspace_zoom: 1,
+        pane_apps: [null],
+        pane_preview_urls: [null],
+        column_fractions: [1],
+        row_fractions: [1],
+        pinned_pane_index: null,
+        pinned_column: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+      vi.mocked(presetService.createPreset).mockResolvedValueOnce(mockPreset);
+
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No saved presets yet.')).toBeInTheDocument();
+      });
+
+      const nameInput = screen.getByLabelText('Preset name');
+      fireEvent.change(nameInput, { target: { value: 'My Layout' } });
+      fireEvent.click(screen.getByRole('button', { name: /save current workspace/i }));
+
+      await waitFor(() => {
+        expect(presetService.createPreset).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('My Layout')).toBeInTheDocument();
+      });
+    });
+
+    it('loads a preset with preview URLs and closes the dialog', async () => {
+      const onClose = vi.fn();
+      const mockPreset = {
+        id: 'preset-1',
+        name: 'Debug Layout',
+        color: '#ff7a7a',
+        interaction_mode: 'arrange' as const,
+        workspace_zoom: 0.75,
+        pane_apps: ['scenario-a', 'scenario-b'],
+        // First URL is a portable relative path (saved from another origin),
+        // second is an external absolute URL
+        pane_preview_urls: ['/apps/scenario-a/proxy/', 'http://localhost:5000'],
+        column_fractions: [0.5, 0.5],
+        row_fractions: [1],
+        pinned_pane_index: null,
+        pinned_column: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+      vi.mocked(presetService.listPresets).mockResolvedValueOnce([mockPreset]);
+
+      render(<WorkspaceManagerDialog onClose={onClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Debug Layout')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /load preset debug layout/i }));
+
+      const state = usePreviewWorkspaceStore.getState();
+      expect(state.panes).toHaveLength(2);
+      // Portable relative URL resolved against current origin
+      const pane0View = state.paneViewState[state.panes[0]?.id ?? ''];
+      const pane1View = state.paneViewState[state.panes[1]?.id ?? ''];
+      expect(pane0View?.previewUrl).toBe('http://localhost:3000/apps/scenario-a/proxy/');
+      // External URL preserved as-is
+      expect(pane1View?.previewUrl).toBe('http://localhost:5000');
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('deletes a preset after confirmation', async () => {
+      const mockPreset = {
+        id: 'preset-del',
+        name: 'To Delete',
+        color: '#7aff9e',
+        interaction_mode: 'browse' as const,
+        workspace_zoom: 1,
+        pane_apps: [null],
+        pane_preview_urls: [null],
+        column_fractions: [1],
+        row_fractions: [1],
+        pinned_pane_index: null,
+        pinned_column: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+      vi.mocked(presetService.listPresets).mockResolvedValueOnce([mockPreset]);
+      vi.mocked(presetService.deletePreset).mockResolvedValueOnce(true);
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('To Delete')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /delete preset to delete/i }));
+
+      await waitFor(() => {
+        expect(presetService.deletePreset).toHaveBeenCalledWith('preset-del');
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText('To Delete')).not.toBeInTheDocument();
+      });
+
+      confirmSpy.mockRestore();
     });
   });
 });

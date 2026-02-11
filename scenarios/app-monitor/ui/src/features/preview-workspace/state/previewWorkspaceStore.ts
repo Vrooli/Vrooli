@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { isAppMonitorScenarioId } from '@/utils/appPreview';
+import { fromPortablePreviewUrl, toPortablePreviewUrl } from '@/utils/previewUrl';
 import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout';
 
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
@@ -52,6 +53,26 @@ export interface PreviewWorkspaceState {
   setPaneViewState: (paneId: string, partial: Partial<PreviewWorkspacePaneViewState>) => void;
   resetPaneViewState: (paneId: string) => void;
   reset: () => void;
+  exportPresetData: () => {
+    interactionMode: PreviewWorkspaceInteractionMode;
+    workspaceZoom: PreviewWorkspaceZoomLevel;
+    paneApps: (string | null)[];
+    panePreviewURLs: (string | null)[];
+    columnFractions: number[];
+    rowFractions: number[];
+    pinnedPaneIndex: number | null;
+    pinnedColumn: PreviewWorkspacePinnedColumn | null;
+  };
+  applyPreset: (data: {
+    interaction_mode: string;
+    workspace_zoom: number;
+    pane_apps: (string | null)[];
+    pane_preview_urls?: (string | null)[];
+    column_fractions: number[];
+    row_fractions: number[];
+    pinned_pane_index: number | null;
+    pinned_column: string | null;
+  }) => void;
 }
 
 const MIN_PANES = 1;
@@ -295,7 +316,7 @@ const normalizePersistedWorkspaceState = (value: unknown): Pick<
   };
 };
 
-export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist((set) => ({
+export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist((set, get) => ({
   ...buildInitialState(),
 
   addPane: (appId) => {
@@ -496,6 +517,69 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
   }),
 
   reset: () => set(buildInitialState()),
+
+  exportPresetData: () => {
+    const state = get();
+    const pinnedPaneIndex = state.pinnedPaneId
+      ? state.panes.findIndex((pane) => pane.id === state.pinnedPaneId)
+      : null;
+    return {
+      interactionMode: state.interactionMode,
+      workspaceZoom: state.workspaceZoom,
+      paneApps: state.panes.map((pane) => pane.appId),
+      panePreviewURLs: state.panes.map((pane) => {
+        const viewState = state.paneViewState[pane.id];
+        return toPortablePreviewUrl(viewState?.previewUrl ?? null);
+      }),
+      columnFractions: state.columnFractions,
+      rowFractions: state.rowFractions,
+      pinnedPaneIndex: pinnedPaneIndex !== null && pinnedPaneIndex >= 0 ? pinnedPaneIndex : null,
+      pinnedColumn: state.pinnedColumn,
+    };
+  },
+
+  applyPreset: (data) => set(() => {
+    const paneApps = Array.isArray(data.pane_apps) && data.pane_apps.length > 0
+      ? data.pane_apps
+      : [null];
+    const previewURLs = Array.isArray(data.pane_preview_urls) ? data.pane_preview_urls : [];
+    const newPanes = paneApps.map((appId) => createPane(normalizePaneApp(appId)));
+    const interactionMode = isInteractionMode(data.interaction_mode) ? data.interaction_mode : 'browse';
+    const workspaceZoom = normalizeWorkspaceZoom(data.workspace_zoom);
+    const columnFractions = Array.isArray(data.column_fractions) ? data.column_fractions : [1];
+    const rowFractions = Array.isArray(data.row_fractions) ? data.row_fractions : [1];
+    const reconciled = reconcileFractionsForWorkspace(newPanes, columnFractions, rowFractions);
+    const pinnedPaneId = typeof data.pinned_pane_index === 'number' && data.pinned_pane_index >= 0 && data.pinned_pane_index < newPanes.length
+      ? newPanes[data.pinned_pane_index]?.id ?? null
+      : null;
+    const pinnedColumn: PreviewWorkspacePinnedColumn | null =
+      pinnedPaneId && (data.pinned_column === 'left' || data.pinned_column === 'right')
+        ? data.pinned_column
+        : null;
+    const paneViewState: Record<string, PreviewWorkspacePaneViewState> = {};
+    for (let i = 0; i < newPanes.length; i++) {
+      const url = fromPortablePreviewUrl(previewURLs[i] ?? null);
+      if (typeof url === 'string' && url.trim().length > 0) {
+        paneViewState[newPanes[i]!.id] = {
+          ...createDefaultPaneViewState(),
+          previewUrl: url,
+          previewUrlInput: url,
+          initialPreviewUrl: url,
+        };
+      }
+    }
+    return {
+      interactionMode,
+      workspaceZoom,
+      panes: newPanes,
+      paneViewState,
+      focusedPaneId: newPanes[0]?.id ?? null,
+      pinnedPaneId,
+      pinnedColumn,
+      columnFractions: reconciled.columnFractions,
+      rowFractions: reconciled.rowFractions,
+    };
+  }),
 }), {
   name: PREVIEW_WORKSPACE_STORAGE_KEY,
   storage: previewWorkspaceStorage,

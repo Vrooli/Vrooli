@@ -185,6 +185,51 @@ export const normalizeScenarioNavigationInput = (value: string): string | null =
   }
 };
 
+/**
+ * Strips the current browser origin from a URL when it matches, producing a
+ * relative path that is portable across different access points (localhost vs
+ * Cloudflare tunnel, etc.). External URLs are returned unchanged.
+ */
+export const toPortablePreviewUrl = (url: string | null): string | null => {
+  if (!url || !url.trim()) {
+    return null;
+  }
+
+  const origin = getBrowserOrigin();
+  if (!origin) {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.origin === origin) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    return url;
+  } catch {
+    return url;
+  }
+};
+
+/**
+ * Resolves a portable (possibly relative) preview URL against the current
+ * browser origin. Absolute URLs are returned unchanged.
+ */
+export const fromPortablePreviewUrl = (url: string | null): string | null => {
+  if (!url || !url.trim()) {
+    return null;
+  }
+
+  if (url.startsWith('/')) {
+    const origin = getBrowserOrigin();
+    if (origin) {
+      return `${origin}${url}`;
+    }
+  }
+
+  return url;
+};
+
 export const isBlockedHostEmbedPreviewTarget = (
   targetUrl: string,
   hostOrigin: string | null,
