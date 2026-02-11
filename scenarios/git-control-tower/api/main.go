@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
 
 	"git-control-tower/ssh"
@@ -31,14 +32,15 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config  *Config
-	db      *sql.DB
-	router  *mux.Router
-	git     GitRunner
-	audit   AuditLogger
-	sandbox *WorkspaceSandboxClient
-	sshDeps ssh.SSHDeps
-	repos   *RepoService
+	config          *Config
+	db              *sql.DB
+	router          *mux.Router
+	git             GitRunner
+	audit           AuditLogger
+	sandbox         *WorkspaceSandboxClient
+	sshDeps         ssh.SSHDeps
+	repos           *RepoService
+	storageResolver *storage.Resolver
 }
 
 // NewServer initializes configuration, database, and routes
@@ -90,6 +92,12 @@ func NewServer() (*Server, error) {
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
 
+	resolver, err := storage.NewResolver(storage.ResolverConfig{})
+	if err != nil {
+		return nil, fmt.Errorf("storage resolver init failed: %w", err)
+	}
+	srv.storageResolver = resolver
+
 	srv.setupRoutes()
 	return srv, nil
 }
@@ -122,6 +130,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/sync-status", s.handleSyncStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/discard", s.handleDiscard).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/ignore", s.handleIgnore).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/grouping-rules", s.handleGetGroupingRules).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/grouping-rules", s.handleSaveGroupingRules).Methods("PUT")
+	s.router.HandleFunc("/api/v1/repo/gitignore/health", s.handleGitignoreHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/gitignore/move", s.handleGitignoreMove).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/push", s.handlePush).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/pull", s.handlePull).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/upstream-action", s.handleUpstreamAction).Methods("POST")
@@ -541,6 +553,7 @@ func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
 
 	result, err := IgnorePath(hctx.Ctx, IgnoreDeps{
 		Git:     hctx.Git,
+		FS:      OSFileIO{},
 		RepoDir: hctx.RepoDir,
 	}, req)
 
@@ -1006,6 +1019,129 @@ func sqliteFileDSN(path string) (string, error) {
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
 		path,
 	), nil
+}
+
+func (s *Server) groupingConfigPath(repoID int64) (string, error) {
+	return s.storageResolver.Path(
+		storage.Options{ScenarioID: "git-control-tower"},
+		storage.ClassConfig,
+		fmt.Sprintf("%d/grouping-rules.json", repoID),
+	)
+}
+
+func (s *Server) handleGetGroupingRules(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	configPath, err := s.groupingConfigPath(hctx.RepoID)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	cfg, err := LoadGroupingRules(GroupingDeps{FS: OSFileIO{}, ConfigPath: configPath})
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(cfg)
+}
+
+func (s *Server) handleSaveGroupingRules(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	var cfg GroupingRulesConfig
+	if !ParseJSONBody(w, r, &cfg) {
+		return
+	}
+
+	configPath, err := s.groupingConfigPath(hctx.RepoID)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	if err := SaveGroupingRules(GroupingDeps{FS: OSFileIO{}, ConfigPath: configPath}, cfg); err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(cfg)
+}
+
+func (s *Server) handleGitignoreHealth(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	configPath, err := s.groupingConfigPath(hctx.RepoID)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	result, err := AnalyzeGitignoreHealth(HealthDeps{
+		FS:      OSFileIO{},
+		RepoDir: hctx.RepoDir,
+		GroupingDeps: GroupingDeps{
+			FS:         OSFileIO{},
+			ConfigPath: configPath,
+		},
+	})
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(result)
+}
+
+func (s *Server) handleGitignoreMove(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	var req GitignoreMoveRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	configPath, err := s.groupingConfigPath(hctx.RepoID)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	result, err := MoveGitignoreEntry(HealthDeps{
+		FS:      OSFileIO{},
+		RepoDir: hctx.RepoDir,
+		GroupingDeps: GroupingDeps{
+			FS:         OSFileIO{},
+			ConfigPath: configPath,
+		},
+	}, req)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		hctx.Resp.UnprocessableEntity(result)
+		return
+	}
+	hctx.Resp.OK(result)
 }
 
 // loggingMiddleware prints simple request logs

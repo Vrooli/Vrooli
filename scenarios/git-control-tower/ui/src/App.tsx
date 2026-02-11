@@ -23,7 +23,7 @@ import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
 import type { UrlState } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode, FileViewMode } from "./lib/api";
+import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 
 /** State for viewing a historical commit (read-only mode) */
@@ -60,6 +60,8 @@ import {
   useSetActiveRepo,
   useRemoveRepo,
   useRepoSelection,
+  useGroupingRules,
+  useSaveGroupingRules,
   queryKeys
 } from "./lib/hooks";
 
@@ -367,6 +369,8 @@ export default function App() {
   const cloneRepoMutation = useCloneRepo();
   const setActiveRepoMutation = useSetActiveRepo();
   const removeRepoMutation = useRemoveRepo();
+  const groupingRulesQuery = useGroupingRules(repoId);
+  const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
   const isDeleting = deletePathMutation.isPending;
@@ -893,9 +897,9 @@ export default function App() {
   }, [pendingDiscardFiles, discardMutation, queryClient, selectedFile, repoId]);
 
   const handleIgnoreFile = useCallback(
-    (path: string) => {
+    (path: string, level?: "project" | "group", groupDir?: string) => {
       ignoreMutation.mutate(
-        { path },
+        { path, level, group_dir: groupDir },
         {
           onSuccess: () => {
             if (selectedFile === path) {
@@ -1305,36 +1309,71 @@ export default function App() {
     if (!repoDir) return;
     if (groupingLoadedKey === repoKey) return;
 
+    // View mode still from localStorage (it's a UI-only preference)
     const viewModeKey = `gct.viewMode.${repoKey}`;
-    const rulesKey = `gct.grouping.${repoKey}.rules`;
     const storedViewMode = localStorage.getItem(viewModeKey);
-    const storedRules = localStorage.getItem(rulesKey);
-    // Support legacy "gct.grouping.*.enabled" key for migration
     const legacyEnabledKey = `gct.grouping.${repoKey}.enabled`;
     const legacyEnabled = localStorage.getItem(legacyEnabledKey);
     if (storedViewMode === "flat" || storedViewMode === "grouped" || storedViewMode === "tree") {
       setFileViewMode(storedViewMode);
     } else if (legacyEnabled === "true") {
-      // Migrate from old boolean to new enum
       setFileViewMode("grouped");
     } else {
       setFileViewMode("flat");
     }
-    if (storedRules) {
-      try {
-        const parsed = JSON.parse(storedRules) as GroupingRule[];
-        setGroupingRules(Array.isArray(parsed) ? normalizeGroupingRules(parsed) : []);
-        setGroupingDefaultsPending(false);
-      } catch {
+
+    // Load grouping rules from API
+    if (groupingRulesQuery.data) {
+      const apiRules = groupingRulesQuery.data.rules ?? [];
+      // Convert API format to UI format
+      const uiRules: GroupingRule[] = apiRules.map(r => ({
+        id: r.id,
+        label: r.label,
+        prefixes: r.prefixes,
+        mode: r.mode as "prefix" | "segment",
+      }));
+      setGroupingRules(normalizeGroupingRules(uiRules));
+      setGroupingDefaultsPending(apiRules.length === 0);
+    } else if (!groupingRulesQuery.isLoading) {
+      // API returned no data and isn't loading - check localStorage for migration
+      const rulesKey = `gct.grouping.${repoKey}.rules`;
+      const storedRules = localStorage.getItem(rulesKey);
+      if (storedRules) {
+        try {
+          const parsed = JSON.parse(storedRules) as GroupingRule[];
+          const normalized = Array.isArray(parsed) ? normalizeGroupingRules(parsed) : [];
+          setGroupingRules(normalized);
+          setGroupingDefaultsPending(false);
+          // Migrate to API
+          if (normalized.length > 0) {
+            const apiConfig: GroupingRulesConfig = {
+              enabled: true,
+              rules: normalized.map(r => ({
+                id: r.id,
+                label: r.label,
+                prefixes: r.prefixes ?? (r.prefix ? [r.prefix] : []),
+                mode: r.mode ?? "prefix",
+              })),
+            };
+            saveGroupingRulesMutation.mutate(apiConfig, {
+              onSuccess: () => {
+                // Clear localStorage after successful migration
+                localStorage.removeItem(rulesKey);
+              },
+            });
+          }
+        } catch {
+          setGroupingRules([]);
+          setGroupingDefaultsPending(true);
+        }
+      } else {
         setGroupingRules([]);
         setGroupingDefaultsPending(true);
       }
-    } else {
-      setGroupingRules([]);
-      setGroupingDefaultsPending(true);
     }
     setGroupingLoadedKey(repoKey);
-  }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules, groupingRulesQuery.data, groupingRulesQuery.isLoading]);
 
   useEffect(() => {
     if (!repoDir) return;
@@ -1367,9 +1406,18 @@ export default function App() {
   useEffect(() => {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
     const viewModeKey = `gct.viewMode.${repoKey}`;
-    const rulesKey = `gct.grouping.${repoKey}.rules`;
     localStorage.setItem(viewModeKey, fileViewMode);
-    localStorage.setItem(rulesKey, JSON.stringify(groupingRules));
+    // Save grouping rules to API (instead of localStorage)
+    saveGroupingRulesMutation.mutate({
+      enabled: groupingRules.length > 0,
+      rules: groupingRules.map(r => ({
+        id: r.id,
+        label: r.label,
+        prefixes: r.prefixes ?? (r.prefix ? [r.prefix] : []),
+        mode: r.mode ?? "prefix",
+      })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoDir, repoKey, groupingLoadedKey, fileViewMode, groupingRules]);
 
   useEffect(() => {

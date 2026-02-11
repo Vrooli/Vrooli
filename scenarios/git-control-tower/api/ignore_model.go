@@ -4,7 +4,9 @@ import "time"
 
 // IgnoreRequest specifies a file to ignore.
 type IgnoreRequest struct {
-	Path string `json:"path"`
+	Path     string `json:"path"`
+	Level    string `json:"level,omitempty"`     // "project" | "group" (default: "project")
+	GroupDir string `json:"group_dir,omitempty"` // required when level="group"
 }
 
 // IgnoreResponse contains the result of an ignore operation.

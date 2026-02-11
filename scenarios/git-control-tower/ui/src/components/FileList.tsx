@@ -32,6 +32,7 @@ import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
+import { resolveGroupForFile } from "../lib/grouping";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
@@ -84,7 +85,7 @@ interface FileListProps {
   onStageFile: (path: string) => void;
   onUnstageFile: (path: string) => void;
   onDiscardFile: (path: string, untracked: boolean) => void;
-  onIgnoreFile: (path: string) => void;
+  onIgnoreFile: (path: string, level?: "project" | "group", groupDir?: string) => void;
   onStageAll: () => void;
   onUnstageAll: () => void;
   isStaging: boolean;
@@ -139,10 +140,11 @@ interface FileSectionProps {
   isDiscarding?: boolean;
   confirmingDiscard?: string | null;
   onConfirmDiscard?: (path: string | null) => void;
-  onIgnore?: (path: string) => void;
+  onIgnore?: (path: string, level?: "project" | "group", groupDir?: string) => void;
   isIgnoring?: boolean;
   confirmingIgnore?: string | null;
   onConfirmIgnore?: (path: string | null) => void;
+  groupingRules?: GroupingRule[];
   onOpenMobileActions?: (file: string) => void;
   onContextMenu?: (file: string, event: React.MouseEvent) => void;
 }
@@ -280,10 +282,11 @@ interface FileRowProps {
   onAction: (path: string) => void;
   onDiscard?: (path: string) => void;
   onConfirmDiscard?: (path: string | null) => void;
-  onIgnore?: (path: string) => void;
+  onIgnore?: (path: string, level?: "project" | "group", groupDir?: string) => void;
   onConfirmIgnore?: (path: string | null) => void;
   confirmingDiscard?: string | null;
   confirmingIgnore?: string | null;
+  groupingRules?: GroupingRule[];
   onOpenMobileActions?: (file: string) => void;
   onContextMenu?: (file: string, event: React.MouseEvent) => void;
 }
@@ -314,6 +317,7 @@ const FileRow = memo(function FileRow({
   onConfirmIgnore,
   confirmingDiscard,
   confirmingIgnore,
+  groupingRules,
   onOpenMobileActions,
   onContextMenu,
 }: FileRowProps) {
@@ -376,32 +380,60 @@ const FileRow = memo(function FileRow({
         </span>
       )}
 
-      {isConfirmingIgnore && onConfirmIgnore && onIgnore && (
-        <div
-          className="flex items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-xs text-amber-300 mr-1">Ignore?</span>
-          <button
-            className="px-1.5 py-0.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 rounded transition-colors"
-            onClick={() => {
-              onIgnore(file);
-              onConfirmIgnore(null);
-            }}
-            disabled={isIgnoring}
-            data-testid="confirm-ignore-yes"
-          >
-            Yes
-          </button>
-          <button
-            className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
-            onClick={() => onConfirmIgnore(null)}
-            data-testid="confirm-ignore-no"
-          >
-            No
-          </button>
-        </div>
-      )}
+      {isConfirmingIgnore && onConfirmIgnore && onIgnore && (() => {
+        const group = groupingRules ? resolveGroupForFile(file, groupingRules) : null;
+        return (
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            {group ? (
+              <>
+                <span className="text-xs text-amber-300 mr-1">Ignore in:</span>
+                <button
+                  className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
+                  onClick={() => { onIgnore(file, "project"); onConfirmIgnore(null); }}
+                  disabled={isIgnoring}
+                  data-testid="confirm-ignore-project"
+                >
+                  Project
+                </button>
+                <button
+                  className="px-1.5 py-0.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 rounded transition-colors"
+                  onClick={() => { onIgnore(file, "group", group.groupDir); onConfirmIgnore(null); }}
+                  disabled={isIgnoring}
+                  data-testid="confirm-ignore-group"
+                >
+                  {group.groupLabel}
+                </button>
+                <button
+                  className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+                  onClick={() => onConfirmIgnore(null)}
+                  data-testid="confirm-ignore-cancel"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-amber-300 mr-1">Ignore?</span>
+                <button
+                  className="px-1.5 py-0.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 rounded transition-colors"
+                  onClick={() => { onIgnore(file); onConfirmIgnore(null); }}
+                  disabled={isIgnoring}
+                  data-testid="confirm-ignore-yes"
+                >
+                  Yes
+                </button>
+                <button
+                  className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+                  onClick={() => onConfirmIgnore(null)}
+                  data-testid="confirm-ignore-no"
+                >
+                  No
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {isConfirmingDiscard && onConfirmDiscard && onDiscard && (
         <div
@@ -560,6 +592,7 @@ function FileSection({
   isIgnoring,
   confirmingIgnore,
   onConfirmIgnore,
+  groupingRules,
   onOpenMobileActions,
   onContextMenu,
 }: FileSectionProps) {
@@ -649,6 +682,7 @@ function FileSection({
               onConfirmIgnore={onConfirmIgnore}
               confirmingDiscard={confirmingDiscard}
               confirmingIgnore={confirmingIgnore}
+              groupingRules={groupingRules}
               onOpenMobileActions={onOpenMobileActions}
               onContextMenu={onContextMenu}
             />
@@ -837,7 +871,7 @@ export function FileList({
     [onDiscardFile],
   );
   const handleIgnoreFile = useCallback(
-    (path: string) => onIgnoreFile(path),
+    (path: string, level?: "project" | "group", groupDir?: string) => onIgnoreFile(path, level, groupDir),
     [onIgnoreFile],
   );
   const toggleGroupCollapse = useCallback((groupId: string) => {
@@ -1348,6 +1382,7 @@ export function FileList({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
+                                groupingRules={groupingRules}
                                 onOpenMobileActions={setMobileActionFile}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
@@ -1381,6 +1416,7 @@ export function FileList({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
+                                groupingRules={groupingRules}
                                 onOpenMobileActions={setMobileActionFile}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
@@ -1418,6 +1454,7 @@ export function FileList({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
+                                groupingRules={groupingRules}
                                 onOpenMobileActions={setMobileActionFile}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
@@ -1456,6 +1493,7 @@ export function FileList({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
+                                groupingRules={groupingRules}
                                 onOpenMobileActions={setMobileActionFile}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
@@ -1495,6 +1533,7 @@ export function FileList({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
+                      groupingRules={groupingRules}
                       onOpenMobileActions={setMobileActionFile}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
@@ -1527,6 +1566,7 @@ export function FileList({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
+                      groupingRules={groupingRules}
                       onOpenMobileActions={setMobileActionFile}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
@@ -1561,6 +1601,7 @@ export function FileList({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
+                      groupingRules={groupingRules}
                       onOpenMobileActions={setMobileActionFile}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
@@ -1596,6 +1637,7 @@ export function FileList({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
+                      groupingRules={groupingRules}
                       onOpenMobileActions={setMobileActionFile}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
@@ -1661,15 +1703,44 @@ export function FileList({
             )}
 
             {/* Ignore action */}
-            <BottomSheetAction
-              icon={<EyeOff className="h-5 w-5 text-amber-300" />}
-              label="Ignore"
-              description="Add to .gitignore"
-              onClick={() => {
-                onIgnoreFile(mobileActionFileInfo.path);
-                setMobileActionFile(null);
-              }}
-            />
+            {(() => {
+              const group = groupingRules ? resolveGroupForFile(mobileActionFileInfo.path, groupingRules) : null;
+              if (group) {
+                return (
+                  <>
+                    <BottomSheetAction
+                      icon={<EyeOff className="h-5 w-5 text-blue-400" />}
+                      label="Ignore (Project)"
+                      description="Add to root .gitignore"
+                      onClick={() => {
+                        onIgnoreFile(mobileActionFileInfo.path, "project");
+                        setMobileActionFile(null);
+                      }}
+                    />
+                    <BottomSheetAction
+                      icon={<EyeOff className="h-5 w-5 text-amber-300" />}
+                      label={`Ignore (${group.groupLabel})`}
+                      description={`Add to ${group.groupDir}.gitignore`}
+                      onClick={() => {
+                        onIgnoreFile(mobileActionFileInfo.path, "group", group.groupDir);
+                        setMobileActionFile(null);
+                      }}
+                    />
+                  </>
+                );
+              }
+              return (
+                <BottomSheetAction
+                  icon={<EyeOff className="h-5 w-5 text-amber-300" />}
+                  label="Ignore"
+                  description="Add to .gitignore"
+                  onClick={() => {
+                    onIgnoreFile(mobileActionFileInfo.path);
+                    setMobileActionFile(null);
+                  }}
+                />
+              );
+            })()}
 
             {/* Discard action - only for unstaged/untracked */}
             {(mobileActionFileInfo.isUnstaged ||

@@ -311,6 +311,8 @@ export interface DiscardResponse {
 
 export interface IgnoreRequest {
   path: string;
+  level?: "project" | "group";
+  group_dir?: string;
 }
 
 export interface IgnoreResponse {
@@ -320,6 +322,49 @@ export interface IgnoreResponse {
   errors?: string[];
   gitignore_path?: string;
   timestamp: string;
+}
+
+// Grouping rules types
+export interface GroupingRulesConfig {
+  enabled: boolean;
+  rules: GroupingRuleAPI[];
+}
+
+export interface GroupingRuleAPI {
+  id: string;
+  label: string;
+  prefixes: string[];
+  mode: string; // "prefix" | "segment"
+}
+
+// Gitignore health types
+export interface GitignoreHealthResponse {
+  root_entry_count: number;
+  suggestions: GitignoreSuggestion[];
+}
+
+export interface GitignoreSuggestion {
+  line: number;
+  pattern: string;
+  type: "single_group" | "cross_group";
+  group_label: string;
+  group_dir: string;
+  target_pattern: string;
+  has_gitignore: boolean;
+}
+
+export interface GitignoreMoveRequest {
+  line: number;
+  pattern: string;
+  group_dir: string;
+  target_pattern: string;
+}
+
+export interface GitignoreMoveResponse {
+  success: boolean;
+  removed_from?: string;
+  added_to?: string;
+  error?: string;
 }
 
 export interface PushRequest {
@@ -909,6 +954,52 @@ export async function deletePath(
     body: JSON.stringify(request)
   });
   return handleResponse<DeletePathResponse>(res);
+}
+
+// ============================================================================
+// Grouping Rules API Functions
+// ============================================================================
+
+export async function fetchGroupingRules(repoId?: string): Promise<GroupingRulesConfig> {
+  const url = buildApiUrl("/repo/grouping-rules", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "GET",
+    headers: buildRepoHeaders(repoId),
+  });
+  return handleResponse<GroupingRulesConfig>(res);
+}
+
+export async function saveGroupingRules(config: GroupingRulesConfig, repoId?: string): Promise<GroupingRulesConfig> {
+  const url = buildApiUrl("/repo/grouping-rules", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(config),
+  });
+  return handleResponse<GroupingRulesConfig>(res);
+}
+
+// ============================================================================
+// Gitignore Health API Functions
+// ============================================================================
+
+export async function fetchGitignoreHealth(repoId?: string): Promise<GitignoreHealthResponse> {
+  const url = buildApiUrl("/repo/gitignore/health", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "GET",
+    headers: buildRepoHeaders(repoId),
+  });
+  return handleResponse<GitignoreHealthResponse>(res);
+}
+
+export async function moveGitignoreEntry(request: GitignoreMoveRequest, repoId?: string): Promise<GitignoreMoveResponse> {
+  const url = buildApiUrl("/repo/gitignore/move", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request),
+  });
+  return handleResponse<GitignoreMoveResponse>(res);
 }
 
 // ============================================================================

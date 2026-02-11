@@ -40,6 +40,13 @@ import {
   getSSHPublicKey,
   testSSHConnection,
   deleteSSHKey,
+  fetchGroupingRules,
+  saveGroupingRules,
+  fetchGitignoreHealth,
+  moveGitignoreEntry,
+  type GroupingRulesConfig,
+  type GitignoreMoveRequest,
+  type GitignoreHealthResponse,
   type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
@@ -100,6 +107,8 @@ export const queryKeys = {
   contentSearch: (query: string, opts?: Partial<ContentSearchRequest>, repoId?: string | null) =>
     ["repo", "search", "content", repoId ?? "default", query, opts] as const,
   credentials: (repoId?: string | null) => ["credentials", repoId ?? "default"] as const,
+  groupingRules: (repoId?: string | null) => ["repo", "grouping-rules", repoId ?? "default"] as const,
+  gitignoreHealth: (repoId?: string | null) => ["repo", "gitignore", "health", repoId ?? "default"] as const,
   sshKeys: ["ssh", "keys"] as const,
   repos: ["repos"] as const,
   activeRepo: ["repos", "active"] as const
@@ -550,5 +559,50 @@ export function useDeleteSSHKey() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
     }
+  });
+}
+
+// ============================================================================
+// Grouping Rules Hooks
+// ============================================================================
+
+export function useGroupingRules(repoId?: string | null) {
+  return useQuery<GroupingRulesConfig, Error>({
+    queryKey: queryKeys.groupingRules(repoId),
+    queryFn: () => fetchGroupingRules(repoId ?? undefined),
+    enabled: Boolean(repoId),
+  });
+}
+
+export function useSaveGroupingRules(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (config: GroupingRulesConfig) => saveGroupingRules(config, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupingRules(repoId) });
+    },
+  });
+}
+
+// ============================================================================
+// Gitignore Health Hooks
+// ============================================================================
+
+export function useGitignoreHealth(repoId?: string | null) {
+  return useQuery<GitignoreHealthResponse, Error>({
+    queryKey: queryKeys.gitignoreHealth(repoId),
+    queryFn: () => fetchGitignoreHealth(repoId ?? undefined),
+    enabled: Boolean(repoId),
+  });
+}
+
+export function useGitignoreMove(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: GitignoreMoveRequest) => moveGitignoreEntry(request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.gitignoreHealth(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+    },
   });
 }

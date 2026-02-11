@@ -4,10 +4,11 @@ import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
 import { SettingsTabLayout } from "./SettingsTabLayout";
 import { SettingsTabCredentials } from "./SettingsTabCredentials";
+import { SettingsTabHealth } from "./SettingsTabHealth";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { SyncStatusResponse } from "../lib/api";
 
-export type SettingsTab = "layout" | "credentials";
+export type SettingsTab = "layout" | "credentials" | "health";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,7 +28,8 @@ interface SettingsModalProps {
 
 const tabLabels: Record<SettingsTab, string> = {
   layout: "Layout",
-  credentials: "Credentials"
+  credentials: "Credentials",
+  health: "Health",
 };
 
 export function SettingsModal({
@@ -119,6 +121,13 @@ export function SettingsModal({
               repoId={repoId}
             />
           )}
+
+          {activeTab === "health" && (
+            <SettingsTabHealth
+              isMobile={true}
+              repoId={repoId}
+            />
+          )}
         </div>
 
         {/* Footer */}
@@ -144,7 +153,7 @@ export function SettingsModal({
       aria-modal="true"
       aria-label="Settings"
     >
-      <div className="w-full max-w-2xl rounded-xl border border-slate-800 bg-slate-950 shadow-xl">
+      <div className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-xl border border-slate-800 bg-slate-950 shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <div className="flex items-center gap-2">
@@ -185,7 +194,7 @@ export function SettingsModal({
         </div>
 
         {/* Content */}
-        <div className="px-4 py-4 min-h-[300px]">
+        <div className="flex-1 overflow-y-auto px-4 py-4 min-h-[300px]">
           {activeTab === "layout" && (
             <SettingsTabLayout
               preset={preset}
@@ -201,6 +210,13 @@ export function SettingsModal({
             <SettingsTabCredentials
               remoteUrl={remoteUrl}
               hasUpstream={hasUpstream}
+              isMobile={false}
+              repoId={repoId}
+            />
+          )}
+
+          {activeTab === "health" && (
+            <SettingsTabHealth
               isMobile={false}
               repoId={repoId}
             />
