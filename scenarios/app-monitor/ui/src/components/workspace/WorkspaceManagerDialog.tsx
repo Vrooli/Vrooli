@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Grip, Layers, Maximize2, Minimize2, Plus, RotateCcw, Trash2, X, ZoomIn } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Eye, Grip, Layers, Maximize2, Minimize2, Pin, Plus, RotateCcw, Trash2, X, ZoomIn } from 'lucide-react';
 import clsx from 'clsx';
 import {
   PREVIEW_WORKSPACE_ZOOM_LEVELS,
@@ -7,6 +7,8 @@ import {
   previewWorkspaceLimits,
   usePreviewWorkspaceStore,
 } from '@/features/preview-workspace/state/previewWorkspaceStore';
+import { useAppsStore } from '@/state/appsStore';
+import { getAppDisplayName } from '@/components/tabSwitcher/tabSwitcherUtils';
 import './WorkspaceManagerDialog.css';
 
 type WorkspaceManagerDialogProps = {
@@ -18,13 +20,18 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
   const interactionMode = usePreviewWorkspaceStore(state => state.interactionMode);
   const workspaceZoom = usePreviewWorkspaceStore(state => state.workspaceZoom);
   const pinnedPaneId = usePreviewWorkspaceStore(state => state.pinnedPaneId);
+  const focusedPaneId = usePreviewWorkspaceStore(state => state.focusedPaneId);
   const addPane = usePreviewWorkspaceStore(state => state.addPane);
+  const removePane = usePreviewWorkspaceStore(state => state.removePane);
+  const movePaneToIndex = usePreviewWorkspaceStore(state => state.movePaneToIndex);
+  const focusPane = usePreviewWorkspaceStore(state => state.focusPane);
   const setWorkspaceZoom = usePreviewWorkspaceStore(state => state.setWorkspaceZoom);
   const resetWorkspaceZoom = usePreviewWorkspaceStore(state => state.resetWorkspaceZoom);
   const clearPinnedPane = usePreviewWorkspaceStore(state => state.clearPinnedPane);
   const setInteractionMode = usePreviewWorkspaceStore(state => state.setInteractionMode);
   const resetLayout = usePreviewWorkspaceStore(state => state.resetLayout);
   const clearAllPanes = usePreviewWorkspaceStore(state => state.clearAllPanes);
+  const apps = useAppsStore(state => state.apps);
   const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
 
   const paneCount = panes.length;
@@ -112,6 +119,47 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
     clearPinnedPane();
     onClose();
   };
+
+  const appsByKey = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const app of apps) {
+      map.set(app.id, getAppDisplayName(app));
+      if (app.scenario_name) {
+        map.set(app.scenario_name, getAppDisplayName(app));
+      }
+    }
+    return map;
+  }, [apps]);
+
+  const getPaneLabel = useCallback((appId: string | null): string => {
+    if (!appId) return 'Empty pane';
+    return appsByKey.get(appId) ?? appId;
+  }, [appsByKey]);
+
+  const handleScrollToPane = useCallback((paneId: string) => {
+    focusPane(paneId);
+    onClose();
+    window.requestAnimationFrame(() => {
+      const paneEl = document.querySelector<HTMLElement>(`[data-preview-pane-id="${paneId}"]`);
+      paneEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    });
+  }, [focusPane, onClose]);
+
+  const handleRemovePane = useCallback((paneId: string) => {
+    removePane(paneId);
+  }, [removePane]);
+
+  const handleMoveUp = useCallback((paneId: string, index: number) => {
+    if (index > 0) {
+      movePaneToIndex(paneId, index - 1);
+    }
+  }, [movePaneToIndex]);
+
+  const handleMoveDown = useCallback((paneId: string, index: number) => {
+    if (index < panes.length - 1) {
+      movePaneToIndex(paneId, index + 1);
+    }
+  }, [movePaneToIndex, panes.length]);
 
   const handleWorkspaceZoomChange = (value: string) => {
     const parsed = Number.parseFloat(value);
@@ -276,6 +324,66 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
             <span>{isWorkspaceEmpty ? 'Workspace is already empty.' : 'Reset to one empty pane.'}</span>
           </div>
         </button>
+      </section>
+
+      <section className="workspace-manager__pane-list" aria-label="Pane list">
+        <h3 className="workspace-manager__pane-list-heading">Panes</h3>
+        <ol className="workspace-manager__pane-list-items">
+          {panes.map((pane, index) => {
+            const isFocused = pane.id === focusedPaneId;
+            const isPinned = pane.id === pinnedPaneId;
+            const canMoveUp = index > 0;
+            const canMoveDown = index < panes.length - 1;
+            const canRemove = panes.length > 1;
+            return (
+              <li
+                key={pane.id}
+                className={clsx(
+                  'workspace-manager__pane-row',
+                  isFocused && 'workspace-manager__pane-row--focused',
+                )}
+              >
+                <span className="workspace-manager__pane-label">
+                  {isPinned && <Pin size={12} aria-label="Pinned" className="workspace-manager__pane-pin" />}
+                  <span className="workspace-manager__pane-name">{getPaneLabel(pane.appId)}</span>
+                </span>
+                <span className="workspace-manager__pane-controls">
+                  <button
+                    type="button"
+                    aria-label={`Move pane ${index + 1} up`}
+                    disabled={!canMoveUp}
+                    onClick={() => handleMoveUp(pane.id, index)}
+                  >
+                    <ChevronUp size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move pane ${index + 1} down`}
+                    disabled={!canMoveDown}
+                    onClick={() => handleMoveDown(pane.id, index)}
+                  >
+                    <ChevronDown size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Scroll to pane ${index + 1}`}
+                    onClick={() => handleScrollToPane(pane.id)}
+                  >
+                    <Eye size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove pane ${index + 1}`}
+                    disabled={!canRemove}
+                    onClick={() => handleRemovePane(pane.id)}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       </section>
     </div>
   );

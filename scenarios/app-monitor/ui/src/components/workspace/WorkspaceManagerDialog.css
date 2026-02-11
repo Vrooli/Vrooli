@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .workspace-manager__header {
@@ -143,4 +146,94 @@
 
 .workspace-manager__action--danger:hover:not(:disabled) {
   background: rgba(120, 28, 52, 0.55);
+}
+
+/* ── Pane list ── */
+
+.workspace-manager__pane-list {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 14px;
+}
+
+.workspace-manager__pane-list-heading {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.workspace-manager__pane-list-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspace-manager__pane-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(24, 27, 40, 0.5);
+}
+
+.workspace-manager__pane-row--focused {
+  border-color: rgba(122, 160, 255, 0.4);
+  background: rgba(122, 160, 255, 0.08);
+}
+
+.workspace-manager__pane-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.workspace-manager__pane-pin {
+  flex-shrink: 0;
+  color: rgba(122, 160, 255, 0.7);
+}
+
+.workspace-manager__pane-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.workspace-manager__pane-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.workspace-manager__pane-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(231, 235, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+}
+
+.workspace-manager__pane-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f5ff;
+}
+
+.workspace-manager__pane-controls button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }

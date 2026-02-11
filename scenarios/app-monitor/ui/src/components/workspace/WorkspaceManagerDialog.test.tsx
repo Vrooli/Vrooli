@@ -2,6 +2,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import WorkspaceManagerDialog from './WorkspaceManagerDialog';
 import { usePreviewWorkspaceStore } from '@/features/preview-workspace/state/previewWorkspaceStore';
+import { useAppsStore } from '@/state/appsStore';
+import type { App } from '@/types';
+
+const makeApp = (overrides: Partial<App>): App => ({
+  id: 'test-app',
+  name: 'Test App',
+  scenario_name: 'test-scenario',
+  path: '/test',
+  created_at: '2024-01-01',
+  updated_at: '2024-01-01',
+  status: 'running',
+  port_mappings: {},
+  environment: {},
+  config: {},
+  ...overrides,
+});
 
 describe('WorkspaceManagerDialog', () => {
   let fullscreenElement: Element | null = null;
@@ -10,6 +26,7 @@ describe('WorkspaceManagerDialog', () => {
     await usePreviewWorkspaceStore.persist.clearStorage();
     await usePreviewWorkspaceStore.persist.rehydrate();
     usePreviewWorkspaceStore.getState().reset();
+    useAppsStore.setState({ apps: [] });
     fullscreenElement = null;
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
@@ -161,5 +178,92 @@ describe('WorkspaceManagerDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
 
     workspaceRoot.remove();
+  });
+
+  describe('pane list', () => {
+    it('renders a row for each pane with the app display name', () => {
+      useAppsStore.setState({
+        apps: [makeApp({ id: 'scenario-a', scenario_name: 'My Dashboard', name: 'dashboard' })],
+      });
+      usePreviewWorkspaceStore.getState().addPane('scenario-a');
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      const list = screen.getByRole('list');
+      const items = list.querySelectorAll('li');
+      expect(items).toHaveLength(2);
+      expect(items[0]?.textContent).toContain('Empty pane');
+      expect(items[1]?.textContent).toContain('My Dashboard');
+    });
+
+    it('shows appId as fallback when app is not in the store', () => {
+      usePreviewWorkspaceStore.getState().addPane('unknown-app');
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      const items = screen.getByRole('list').querySelectorAll('li');
+      expect(items[1]?.textContent).toContain('unknown-app');
+    });
+
+    it('moves a pane up when the up button is clicked', () => {
+      usePreviewWorkspaceStore.getState().addPane('scenario-a');
+      usePreviewWorkspaceStore.getState().addPane('scenario-b');
+      const paneIds = usePreviewWorkspaceStore.getState().panes.map(p => p.id);
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      // Move last pane (index 2) up
+      fireEvent.click(screen.getByRole('button', { name: /move pane 3 up/i }));
+
+      const reordered = usePreviewWorkspaceStore.getState().panes;
+      expect(reordered[1]?.id).toBe(paneIds[2]);
+      expect(reordered[2]?.id).toBe(paneIds[1]);
+    });
+
+    it('moves a pane down when the down button is clicked', () => {
+      usePreviewWorkspaceStore.getState().addPane('scenario-a');
+      const paneIds = usePreviewWorkspaceStore.getState().panes.map(p => p.id);
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      // Move first pane (index 0) down
+      fireEvent.click(screen.getByRole('button', { name: /move pane 1 down/i }));
+
+      const reordered = usePreviewWorkspaceStore.getState().panes;
+      expect(reordered[0]?.id).toBe(paneIds[1]);
+      expect(reordered[1]?.id).toBe(paneIds[0]);
+    });
+
+    it('disables up on first pane and down on last pane', () => {
+      usePreviewWorkspaceStore.getState().addPane('scenario-a');
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      expect(screen.getByRole('button', { name: /move pane 1 up/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /move pane 2 down/i })).toBeDisabled();
+    });
+
+    it('scroll-to button focuses the pane and closes the dialog', () => {
+      const onClose = vi.fn();
+      usePreviewWorkspaceStore.getState().addPane('scenario-a');
+      const paneId = usePreviewWorkspaceStore.getState().panes[1]?.id ?? '';
+      render(<WorkspaceManagerDialog onClose={onClose} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /scroll to pane 2/i }));
+
+      expect(usePreviewWorkspaceStore.getState().focusedPaneId).toBe(paneId);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('removes a pane when the remove button is clicked', () => {
+      usePreviewWorkspaceStore.getState().addPane('scenario-a');
+      expect(usePreviewWorkspaceStore.getState().panes).toHaveLength(2);
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /remove pane 2/i }));
+
+      expect(usePreviewWorkspaceStore.getState().panes).toHaveLength(1);
+    });
+
+    it('disables remove when only one pane exists', () => {
+      render(<WorkspaceManagerDialog onClose={vi.fn()} />);
+
+      expect(screen.getByRole('button', { name: /remove pane 1/i })).toBeDisabled();
+    });
   });
 });
