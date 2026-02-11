@@ -7,6 +7,7 @@
  * - Direct navigation to agents via URL (/?agent=<agentId>)
  * - Direct navigation to teams via URL (/?team=<teamId>)
  * - Direct navigation to settings modal (/?settings=true)
+ * - Cross-reference highlight navigation (/?hlFile=...&hlLine=...&hlText=...)
  * - Browser back/forward navigation support
  *
  * URL Structure:
@@ -14,16 +15,21 @@
  * - /?agent=<agentId> - Select and open agent for editing
  * - /?team=<teamId> - Select and open team for editing
  * - /?settings=true - Open settings modal
+ * - /?hlFile=<path>&hlLine=<n>&hlText=<text> - Highlight a reference
  * - Combinations: /?skill=<id>&settings=true, etc.
  */
 
 import { useEffect, useCallback, useRef } from 'react'
+import type { HighlightRequest } from '@/lib/highlight'
 
 export interface UrlState {
   skillId: string | null
   agentId: string | null
   teamId: string | null
   settingsOpen: boolean
+  hlFile: string | null
+  hlLine: number | null
+  hlText: string | null
 }
 
 export interface UseUrlStateOptions {
@@ -35,6 +41,8 @@ export interface UseUrlStateOptions {
   onTeamIdChange: (id: string | null) => void
   /** Called when settings open state changes from URL navigation */
   onSettingsOpenChange: (open: boolean) => void
+  /** Called when highlight params change from URL navigation */
+  onHighlightChange?: (hl: HighlightRequest | null) => void
   /** Whether there are unsaved changes */
   isDirty: boolean
   /** Function to store current changes before navigation */
@@ -54,6 +62,9 @@ const URL_PARAMS = {
   AGENT: 'agent',
   TEAM: 'team',
   SETTINGS: 'settings',
+  HL_FILE: 'hlFile',
+  HL_LINE: 'hlLine',
+  HL_TEXT: 'hlText',
 } as const
 
 /**
@@ -61,11 +72,16 @@ const URL_PARAMS = {
  */
 function parseUrlState(search: string): UrlState {
   const params = new URLSearchParams(search)
+  const hlLineRaw = params.get(URL_PARAMS.HL_LINE)
+  const hlLine = hlLineRaw ? parseInt(hlLineRaw, 10) : null
   return {
     skillId: params.get(URL_PARAMS.SKILL),
     agentId: params.get(URL_PARAMS.AGENT),
     teamId: params.get(URL_PARAMS.TEAM),
     settingsOpen: params.get(URL_PARAMS.SETTINGS) === 'true',
+    hlFile: params.get(URL_PARAMS.HL_FILE),
+    hlLine: hlLine !== null && !Number.isNaN(hlLine) ? hlLine : null,
+    hlText: params.get(URL_PARAMS.HL_TEXT),
   }
 }
 
@@ -91,8 +107,34 @@ function buildUrlSearch(state: UrlState): string {
     params.set(URL_PARAMS.SETTINGS, 'true')
   }
 
+  if (state.hlFile) {
+    params.set(URL_PARAMS.HL_FILE, state.hlFile)
+  }
+
+  if (state.hlLine !== null && state.hlLine !== undefined) {
+    params.set(URL_PARAMS.HL_LINE, String(state.hlLine))
+  }
+
+  if (state.hlText) {
+    params.set(URL_PARAMS.HL_TEXT, state.hlText)
+  }
+
   const search = params.toString()
   return search ? `?${search}` : ''
+}
+
+/**
+ * Extract a HighlightRequest from UrlState, or null if not present.
+ */
+function extractHighlightRequest(state: UrlState): HighlightRequest | null {
+  if (state.hlLine !== null && state.hlText) {
+    return {
+      file: state.hlFile ?? undefined,
+      line: state.hlLine,
+      text: state.hlText,
+    }
+  }
+  return null
 }
 
 /**
@@ -110,6 +152,9 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     agentId: null,
     teamId: null,
     settingsOpen: false,
+    hlFile: null,
+    hlLine: null,
+    hlText: null,
   })
 
   // Store options in ref to avoid stale closures
@@ -123,7 +168,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
    */
   const getInitialState = useCallback((): UrlState => {
     if (typeof window === 'undefined') {
-      return { skillId: null, agentId: null, teamId: null, settingsOpen: false }
+      return { skillId: null, agentId: null, teamId: null, settingsOpen: false, hlFile: null, hlLine: null, hlText: null }
     }
     return parseUrlState(window.location.search)
   }, [])
@@ -145,7 +190,10 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
       newState.skillId === currentStateRef.current.skillId &&
       newState.agentId === currentStateRef.current.agentId &&
       newState.teamId === currentStateRef.current.teamId &&
-      newState.settingsOpen === currentStateRef.current.settingsOpen
+      newState.settingsOpen === currentStateRef.current.settingsOpen &&
+      newState.hlFile === currentStateRef.current.hlFile &&
+      newState.hlLine === currentStateRef.current.hlLine &&
+      newState.hlText === currentStateRef.current.hlText
     ) {
       return
     }
@@ -184,6 +232,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     opts.onAgentIdChange(urlState.agentId)
     opts.onTeamIdChange(urlState.teamId)
     opts.onSettingsOpenChange(urlState.settingsOpen)
+    opts.onHighlightChange?.(extractHighlightRequest(urlState))
   }, [])
 
   // Set up popstate listener
@@ -198,7 +247,8 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     currentStateRef.current = initialState
 
     // Apply initial state (defer to allow component to mount)
-    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.settingsOpen) {
+    const hlRequest = extractHighlightRequest(initialState)
+    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.settingsOpen || hlRequest) {
       // Use setTimeout to ensure this runs after initial render
       setTimeout(() => {
         if (initialState.skillId) {
@@ -212,6 +262,9 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
         }
         if (initialState.settingsOpen) {
           onSettingsOpenChange(initialState.settingsOpen)
+        }
+        if (hlRequest) {
+          options.onHighlightChange?.(hlRequest)
         }
       }, 0)
     }

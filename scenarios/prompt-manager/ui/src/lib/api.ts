@@ -36,6 +36,7 @@ import {
   RatingResponseSchema,
   HealthResponseSchema,
   DisplayResponseSchema,
+  SkillXRefsResponseSchema,
   AgentSchema,
   AgentArraySchema,
   SoulResponseSchema,
@@ -73,6 +74,7 @@ import {
   type HealthResponse,
   type DisplayResponse,
   type DisplayFormat,
+  type SkillXRefsResponse,
   type Agent,
   type CreateAgentRequest,
   type UpdateAgentRequest,
@@ -324,6 +326,14 @@ class ApiClient {
     await this.requestVoid(`/skills/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
+  }
+
+  async getSkillXRefs(id: string): Promise<SkillXRefsResponse> {
+    return this.request<SkillXRefsResponse>(
+      `/skills/${encodeURIComponent(id)}/xrefs`,
+      undefined,
+      SkillXRefsResponseSchema
+    )
   }
 
   // Usage tracking

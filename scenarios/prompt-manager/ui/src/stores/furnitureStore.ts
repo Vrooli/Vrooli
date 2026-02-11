@@ -16,6 +16,7 @@ import { getSeats } from '@/stores/worldSeatsStore'
 import type { SceneType } from '@/types/environment'
 import { useEnvironmentStore } from './environmentStore'
 import { getSceneDefaults } from '@/config/sceneDefaults'
+import type { SceneGeneratorContext } from '@/config/sceneDefaults'
 
 interface FurnitureState {
   /** Per-scene furniture arrays. `undefined` = never visited; `[]` = cleared. */
@@ -55,7 +56,7 @@ interface FurnitureActions {
   /** Clear the active scene's furniture and seating (sets to `[]`/`{}`). */
   reset: () => void
   /** Clear and re-seed from scene generator. If no type given, uses the active scene. */
-  resetToDefaults: (sceneType?: SceneType) => void
+  resetToDefaults: (sceneType?: SceneType, ctx?: SceneGeneratorContext) => void
   /** Seed a scene with an array of items (used by useWorldDefaults). */
   seedScene: (sceneType: SceneType, items: Omit<FurnitureInstance, 'id'>[]) => void
 }
@@ -303,9 +304,9 @@ export const useFurnitureStore = create<FurnitureStore>()(
         }))
       },
 
-      resetToDefaults: (sceneType?) => {
+      resetToDefaults: (sceneType?, ctx?) => {
         const scene = sceneType ?? activeScene()
-        const defaults = getSceneDefaults(scene)
+        const defaults = getSceneDefaults(scene, ctx)
         const items: FurnitureInstance[] = defaults.furniture.map((f) => ({
           ...f,
           id: generateFurnitureId(),

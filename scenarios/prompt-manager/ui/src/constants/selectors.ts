@@ -69,6 +69,12 @@ const literalSelectors = {
     graphics: 'world-settings-graphics',
     customToggle: 'world-settings-custom-toggle',
   },
+  xrefs: {
+    panel: 'xrefs-panel',
+    toggle: 'xrefs-toggle',
+    list: 'xrefs-list',
+    item: 'xrefs-item',
+  },
   environment: {
     controls: 'environment-controls',
     sceneSpace: 'environment-scene-space',

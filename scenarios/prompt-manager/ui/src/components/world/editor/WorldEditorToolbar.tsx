@@ -20,6 +20,7 @@ import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { useDecorationStore } from '@/stores/decorationStore'
 import { useFurnitureStore } from '@/stores/furnitureStore'
 import { useCameraStore } from '@/stores/cameraStore'
+import { useAgentData } from '@/hooks/useAgentData'
 
 interface WorldEditorToolbarProps {
   className?: string
@@ -29,6 +30,7 @@ interface WorldEditorToolbarProps {
  * Toolbar for world editor controls.
  */
 export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
+  const { agents } = useAgentData()
   const isEditMode = useWorldEditorStore((state) => state.isEditMode)
   const setEditMode = useWorldEditorStore((state) => state.setEditMode)
   const togglePalette = useWorldEditorStore((state) => state.togglePalette)
@@ -84,12 +86,13 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
       useFurnitureStore.getState().reset()
       clearHistory()
     } else if (confirmAction === 'defaults') {
-      useDecorationStore.getState().resetToDefaults()
-      useFurnitureStore.getState().resetToDefaults()
+      const ctx = { numAgents: agents.length }
+      useDecorationStore.getState().resetToDefaults(undefined, ctx)
+      useFurnitureStore.getState().resetToDefaults(undefined, ctx)
       clearHistory()
     }
     setConfirmAction(null)
-  }, [confirmAction, clearHistory])
+  }, [confirmAction, clearHistory, agents.length])
 
   return (
     <>

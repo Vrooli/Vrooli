@@ -24,7 +24,7 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
-import type { ContentSearchMatch } from '@/lib/schemas'
+import type { ContentSearchMatch, Reference } from '@/lib/schemas'
 import { SkillContentEditor } from './SkillContentEditor'
 import { FilePathMenu } from './FilePathMenu'
 import { ScopeSelector } from './ScopeSelector'
@@ -35,6 +35,7 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { DraftToggle } from '../shared/DraftToggle'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
+import { CrossReferencePanel } from './CrossReferencePanel'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
 
@@ -84,6 +85,9 @@ interface SkillEditorPanelProps {
   /** Called after the editor has scrolled to the requested line */
   onScrollToLineHandled?: () => void
 
+  /** Called when a cross-reference is clicked, for highlight navigation */
+  onNavigateToXRef?: (ref: Reference) => void
+
   className?: string
 }
 
@@ -116,6 +120,7 @@ export function SkillEditorPanel({
   searchMatches = [],
   scrollToLine,
   onScrollToLineHandled,
+  onNavigateToXRef,
   className,
 }: SkillEditorPanelProps) {
   // Access the selection store for closing the editor
@@ -278,6 +283,13 @@ export function SkillEditorPanel({
               className="flex-shrink-0"
             />
           </div>
+
+          {/* Row 4: Cross-references */}
+          <CrossReferencePanel
+            skillId={currentSkill.id}
+            onNavigateToReference={onNavigateToXRef}
+            className="px-4 py-1"
+          />
         </div>
 
         {/* Content area - full width */}

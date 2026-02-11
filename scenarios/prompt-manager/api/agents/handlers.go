@@ -15,13 +15,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// XRefInvalidator allows triggering cross-reference index invalidation.
+type XRefInvalidator interface {
+	Invalidate()
+}
+
 // Handlers provides HTTP handlers for agent operations.
 type Handlers struct {
-	agentStore    store.AgentStore
-	indexStore    store.IndexStore
-	relationStore store.RelationStore
-	teamStore     store.TeamStore
-	storeDir      string
+	agentStore      store.AgentStore
+	indexStore       store.IndexStore
+	relationStore    store.RelationStore
+	teamStore        store.TeamStore
+	xrefInvalidator  XRefInvalidator
+	storeDir         string
 }
 
 // NewHandlers creates a new agents handler.
@@ -32,6 +38,17 @@ func NewHandlers(agentStore store.AgentStore, indexStore store.IndexStore, store
 		relationStore: relationStore,
 		teamStore:     teamStore,
 		storeDir:      storeDir,
+	}
+}
+
+// SetXRefInvalidator sets the cross-reference invalidator.
+func (h *Handlers) SetXRefInvalidator(inv XRefInvalidator) {
+	h.xrefInvalidator = inv
+}
+
+func (h *Handlers) invalidateXRefs() {
+	if h.xrefInvalidator != nil {
+		h.xrefInvalidator.Invalidate()
 	}
 }
 
@@ -185,6 +202,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateAgents(ctx)
 	}
+	h.invalidateXRefs()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -324,6 +342,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateAgents(ctx)
 	}
+	h.invalidateXRefs()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -434,6 +453,7 @@ func (h *Handlers) SetSoul(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	h.invalidateXRefs()
 
 	resp := SoulResponse{
 		AgentID: id,
@@ -560,6 +580,7 @@ func (h *Handlers) SetFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	h.invalidateXRefs()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -594,6 +615,7 @@ func (h *Handlers) CreateFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	h.invalidateXRefs()
 
 	w.WriteHeader(http.StatusCreated)
 }
@@ -628,6 +650,7 @@ func (h *Handlers) RenameFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	h.invalidateXRefs()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -657,6 +680,7 @@ func (h *Handlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	h.invalidateXRefs()
 
 	w.WriteHeader(http.StatusNoContent)
 }

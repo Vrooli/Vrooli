@@ -19,13 +19,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// XRefInvalidator allows triggering cross-reference index invalidation.
+type XRefInvalidator interface {
+	Invalidate()
+}
+
 // Handlers provides HTTP handlers for skill operations.
 // Depends on interfaces (SkillStore, MetricsService) for testability.
 type Handlers struct {
-	store     SkillStore
-	metrics   MetricsService
-	aiIndexer AISearchIndexer // Optional: nil if AI search not available
-	storeDir  string          // Absolute path to store directory for computing file paths
+	store            SkillStore
+	metrics          MetricsService
+	aiIndexer        AISearchIndexer  // Optional: nil if AI search not available
+	xrefInvalidator  XRefInvalidator  // Optional: nil if xrefs not available
+	storeDir         string           // Absolute path to store directory for computing file paths
 }
 
 // NewHandlers creates a new skills handler.
@@ -43,6 +49,18 @@ func NewHandlers(store SkillStore, metrics MetricsService, storeDir string) *Han
 // This is called after the aisearch.Service is initialized to avoid circular deps.
 func (h *Handlers) SetAIIndexer(indexer AISearchIndexer) {
 	h.aiIndexer = indexer
+}
+
+// SetXRefInvalidator sets the cross-reference invalidator.
+func (h *Handlers) SetXRefInvalidator(inv XRefInvalidator) {
+	h.xrefInvalidator = inv
+}
+
+// invalidateXRefs triggers cross-reference index invalidation if available.
+func (h *Handlers) invalidateXRefs() {
+	if h.xrefInvalidator != nil {
+		h.xrefInvalidator.Invalidate()
+	}
 }
 
 // triggerIndexAsync asynchronously indexes a skill if AI search is available.
@@ -268,6 +286,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger async AI index update
 	h.triggerIndexAsync(req.ID)
+	h.invalidateXRefs()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -506,6 +525,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger async AI index update
 	h.triggerIndexAsync(id)
+	h.invalidateXRefs()
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
@@ -583,6 +603,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger async AI index delete
 	h.triggerDeleteAsync(id)
+	h.invalidateXRefs()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -818,6 +839,8 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 	if len(versions) > 0 {
 		newVersion = versions[len(versions)-1].Version + 1
 	}
+
+	h.invalidateXRefs()
 
 	response := RevertResponse{
 		SkillID:    id,

@@ -16,6 +16,7 @@ import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, Mo
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
+import type { HighlightRequest } from '@/lib/highlight'
 import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
@@ -60,6 +61,10 @@ interface TeamEditorPanelProps {
   onDelete: () => void
   /** Whether a delete operation is in progress */
   isDeleting?: boolean
+  /** Cross-reference highlight request */
+  highlightRequest?: HighlightRequest | null
+  /** Called after highlight is applied (clears URL params) */
+  onHighlightHandled?: () => void
   /** Additional class names */
   className?: string
 }
@@ -78,6 +83,8 @@ export function TeamEditorPanel({
   onClose,
   onDelete,
   isDeleting = false,
+  highlightRequest,
+  onHighlightHandled,
   className,
 }: TeamEditorPanelProps) {
   // Active tab state
@@ -180,6 +187,13 @@ export function TeamEditorPanel({
       setActiveTab('members')
     }
   }, [showDetailOnly, activeTab])
+
+  // Auto-switch to files tab when a highlight request targets a file
+  useEffect(() => {
+    if (highlightRequest?.file && activeTab !== 'files') {
+      setActiveTab('files')
+    }
+  }, [highlightRequest, activeTab])
 
   const handleSwitchToGraph = useCallback(() => {
     setMembersViewMode('graph')
@@ -512,7 +526,12 @@ export function TeamEditorPanel({
             value="files"
             className="flex-1 min-h-0 data-[state=inactive]:hidden"
           >
-            <TeamFilesTab teamId={team.id} className="h-full min-h-0" />
+            <TeamFilesTab
+              teamId={team.id}
+              highlightRequest={highlightRequest}
+              onHighlightHandled={onHighlightHandled}
+              className="h-full min-h-0"
+            />
           </Tabs.Content>
         </div>
       </Tabs.Root>

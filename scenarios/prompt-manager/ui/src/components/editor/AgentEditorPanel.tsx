@@ -23,6 +23,7 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 
+import type { HighlightRequest } from '@/lib/highlight'
 import { InfoTab, FilesTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
@@ -69,6 +70,10 @@ interface AgentEditorPanelProps {
   isSaving?: boolean
   /** Whether the agent is being deleted */
   isDeleting?: boolean
+  /** Cross-reference highlight request */
+  highlightRequest?: HighlightRequest | null
+  /** Called after highlight is applied (clears URL params) */
+  onHighlightHandled?: () => void
   /** Additional class names */
   className?: string
 }
@@ -100,6 +105,8 @@ export function AgentEditorPanel({
   onClose,
   isSaving = false,
   isDeleting = false,
+  highlightRequest,
+  onHighlightHandled,
   className,
 }: AgentEditorPanelProps) {
   // TODO: Wire up save all button in the actions menu
@@ -267,6 +274,8 @@ export function AgentEditorPanel({
               onDiscard={onDiscard}
               isSaving={isSaving}
               isValid={validation.valid}
+              highlightRequest={highlightRequest}
+              onHighlightHandled={onHighlightHandled}
             />
           </Tabs.Content>
 

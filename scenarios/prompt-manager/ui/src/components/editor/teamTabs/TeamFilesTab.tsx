@@ -31,12 +31,19 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
 import type { TeamSharedFileEntry } from '@/types/team'
+import type { HighlightRequest } from '@/lib/highlight'
+import type { ContentSearchMatch } from '@/lib/schemas'
+import { createHighlightMatch } from '@/lib/highlight'
 import * as teamService from '@/services/teamService'
 import { SkillContentEditor } from '../SkillContentEditor'
 import { FilePathMenu } from '../FilePathMenu'
 
 interface TeamFilesTabProps {
   teamId: string
+  /** Cross-reference highlight request */
+  highlightRequest?: HighlightRequest | null
+  /** Called after highlight is applied (clears URL params) */
+  onHighlightHandled?: () => void
   className?: string
 }
 
@@ -102,7 +109,7 @@ function isMarkdownFile(path: string): boolean {
   return path.toLowerCase().endsWith('.md')
 }
 
-export function TeamFilesTab({ teamId, className }: TeamFilesTabProps) {
+export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, className }: TeamFilesTabProps) {
   const [files, setFiles] = useState<TeamSharedFileEntry[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
@@ -121,6 +128,10 @@ export function TeamFilesTab({ teamId, className }: TeamFilesTabProps) {
     isDir: boolean
   } | null>(null)
   const skipFileLoadRef = useRef<string | null>(null)
+
+  // Cross-reference highlight state
+  const [highlightMatches, setHighlightMatches] = useState<ContentSearchMatch[]>([])
+  const [highlightScrollToLine, setHighlightScrollToLine] = useState<number | null>(null)
 
   const tree = useMemo(() => buildFileTree(files), [files])
   const recommendedMissing = useMemo(
@@ -218,6 +229,48 @@ export function TeamFilesTab({ teamId, className }: TeamFilesTabProps) {
       cancelled = true
     }
   }, [teamId, selectedPath, isDirectorySelected])
+
+  // Handle highlight request: auto-select file and create match decorations
+  useEffect(() => {
+    if (!highlightRequest) {
+      setHighlightMatches([])
+      setHighlightScrollToLine(null)
+      return
+    }
+
+    // Auto-select the file if specified and different from current
+    if (highlightRequest.file && highlightRequest.file !== selectedPath) {
+      if (files.some((f) => f.path === highlightRequest.file)) {
+        setSelectedPath(highlightRequest.file)
+      }
+      return
+    }
+
+    // File is already selected — create the highlight match
+    if (fileContent && !isFileLoading) {
+      const match = createHighlightMatch(fileContent, highlightRequest)
+      if (match) {
+        setHighlightMatches([match])
+        setHighlightScrollToLine(highlightRequest.line)
+      } else {
+        setHighlightMatches([])
+        setHighlightScrollToLine(highlightRequest.line)
+      }
+      onHighlightHandled?.()
+    }
+  }, [highlightRequest, selectedPath, fileContent, isFileLoading, files, onHighlightHandled])
+
+  // Clear highlights when user selects a different file manually
+  const prevSelectedPathRef = useRef(selectedPath)
+  useEffect(() => {
+    if (prevSelectedPathRef.current !== selectedPath) {
+      if (!highlightRequest || highlightRequest.file !== selectedPath) {
+        setHighlightMatches([])
+        setHighlightScrollToLine(null)
+      }
+      prevSelectedPathRef.current = selectedPath
+    }
+  }, [selectedPath, highlightRequest])
 
   const ensureExpandedForPath = useCallback((path: string) => {
     const parts = path.split('/').filter(Boolean)
@@ -586,6 +639,9 @@ export function TeamFilesTab({ teamId, className }: TeamFilesTabProps) {
                   isSaving={isFileSaving}
                   isValid
                   headerRight={filePathMenu ?? undefined}
+                  searchMatches={highlightMatches.length > 0 ? highlightMatches : undefined}
+                  scrollToLine={highlightScrollToLine}
+                  onScrollToLineHandled={() => setHighlightScrollToLine(null)}
                   className="h-full"
                 />
               )}

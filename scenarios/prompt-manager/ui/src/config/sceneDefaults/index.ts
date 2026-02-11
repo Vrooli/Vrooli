@@ -11,7 +11,7 @@
  */
 
 import type { SceneType } from '@/types/environment'
-import type { SceneDefaults, SceneGenerator } from './types'
+import type { SceneDefaults, SceneGenerator, SceneGeneratorContext } from './types'
 import { generateOutdoorPark } from './outdoorPark'
 import { generateIndoorOffice } from './indoorOffice'
 import { generateAbstractSpace } from './abstractSpace'
@@ -25,8 +25,8 @@ const SCENE_GENERATORS: Record<SceneType, SceneGenerator> = {
 }
 
 /** Get the default decorations and furniture for a scene type. */
-export function getSceneDefaults(sceneType: SceneType): SceneDefaults {
-  return SCENE_GENERATORS[sceneType]()
+export function getSceneDefaults(sceneType: SceneType, ctx?: SceneGeneratorContext): SceneDefaults {
+  return SCENE_GENERATORS[sceneType](ctx)
 }
 
-export type { SceneDefaults, SceneGenerator } from './types'
+export type { SceneDefaults, SceneGenerator, SceneGeneratorContext } from './types'

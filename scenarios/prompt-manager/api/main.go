@@ -29,6 +29,7 @@ import (
 	"prompt-manager/testing"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
+	"prompt-manager/xrefs"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -137,6 +138,19 @@ func main() {
 	// Set AI indexer on skill handlers for CRUD hook integration
 	skillHandlers.SetAIIndexer(aiSearchService)
 
+	// Cross-reference detection
+	xrefScanner := xrefs.NewScanner(
+		fileStore.Agents().(*store.FileAgentStore),
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.FileSkills(),
+	)
+	xrefIndex := xrefs.NewIndexStore(absStoreDir, xrefScanner)
+	xrefHandlers := xrefs.NewHandlers(xrefIndex)
+
+	// Inject xref invalidator into mutation handlers
+	skillHandlers.SetXRefInvalidator(xrefIndex)
+	agentHandlers.SetXRefInvalidator(xrefIndex)
+
 	// Log AI search status and trigger startup indexing if available
 	if ollamaURL != "" && qdrantURL != "" {
 		log.Printf("AI Search: Ollama=%s, Qdrant=%s, Collection=%s", ollamaURL, qdrantURL, aiSearchCollection)
@@ -205,6 +219,9 @@ func main() {
 	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
 	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
 
+	// Cross-reference routes
+	v1.HandleFunc("/skills/{id}/xrefs", xrefHandlers.GetSkillXRefs).Methods("GET")
+
 	// Usage tracking routes (part of skills domain)
 	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
 	v1.HandleFunc("/skills/{id}/rating", skillHandlers.SetRating).Methods("PUT")
@@ -249,6 +266,7 @@ func main() {
 
 	// Team routes
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
+	teamHandlers.SetXRefInvalidator(xrefIndex)
 	// Import routes must come before /teams/{id} to avoid mux treating "import" as an ID
 	v1.HandleFunc("/teams/import/claude-code/available", teamHandlers.ListAvailableCCTeams).Methods("GET")
 	v1.HandleFunc("/teams/import/claude-code", teamHandlers.ImportClaudeCode).Methods("POST")

@@ -57,6 +57,18 @@ Additional required prerequisites (inherited from `landing-page-deploy-setup`; d
 
 Run stages in order. Each stage has a strict pass condition.
 
+#### Stage -0 (Recommended): Input discovery (fast fail)
+
+Why: this skill requires stable selectors (remote profile tag + app key). Prefer discovering them deterministically over guessing.
+
+```bash
+# Discover local remote profile tags
+landing-page-business-suite --auto-start remote-profiles-list --json
+
+# Confirm remote app keys exist on the deployed LPBS (source of truth)
+landing-page-business-suite --auto-start remote-profiles-download-apps-list --profile-tag {{PROFILE_TAG}} --json
+```
+
 #### Stage 0 (Recommended): Local tool health (fast fail)
 
 These checks catch the most common "CLI can't reach its API" issues early.
@@ -101,6 +113,10 @@ scenario-to-cloud --auto-start redeploy \
 Freshness rule (fingerprint drift safe-guard):
 - If health is `ok=true` but freshness is `outdated`, run a single convergence attempt with a forced bundle rebuild:
   ```bash
+  # If you already have a deployment ID from the health output, prefer the tool's direct recommendation:
+  scenario-to-cloud --auto-start deployment execute <deployment_id> --force-bundle
+
+  # Selector-first alternative (no deployment id required):
   scenario-to-cloud --auto-start redeploy \
     --domain {{DOMAIN}} \
     --scenario landing-page-business-suite \
@@ -161,6 +177,9 @@ Pass condition:
 
 Verify update manifest endpoint(s) based on platform.
 
+Primary rule:
+- Prefer the manifest URL(s) printed by `scenario-to-desktop ... --wait` on success (source of truth).
+
 Electron-updater manifest filename mapping:
 
 | Platform | Manifest file |
@@ -172,7 +191,7 @@ Electron-updater manifest filename mapping:
 Manifest checks:
 
 ```bash
-# Linux example
+# Linux example (fallback)
 curl -fsS "https://{{DOMAIN}}/api/v1/updates/{{APP_KEY}}/{{CHANNEL}}/latest-linux.yml"
 ```
 
@@ -246,8 +265,11 @@ Symptom:
 - Error like: `bundle packaging failed: unlinkat .../bundle/ui/dist/assets: directory not empty`
 
 Action:
-- Clear stale bundle output for the target scenario and retry the pipeline with `--clean`.
-- If no Vrooli-native cleanup command exists, treat this as a tooling gap and record it for promotion.
+- Clear stale bundle output for the target scenario, then retry.
+  ```bash
+  scenario-to-desktop --auto-start bundle clean {{TARGET}}
+  scenario-to-desktop --auto-start pipeline run {{TARGET}} --clean --wait ...
+  ```
 
 ### Stage 3 appears stuck / prints nothing
 
@@ -289,11 +311,9 @@ Cases:
 3. Validate remote prerequisites deterministically (via remote profile proxy):
 ```bash
 landing-page-business-suite --auto-start admin-session
-landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
-  --method POST --path /admin/download-storage/test --json
+landing-page-business-suite --auto-start remote-profiles-download-storage-test --profile-tag {{PROFILE_TAG}} --json
 
-landing-page-business-suite --auto-start remote-profiles-proxy --profile-tag {{PROFILE_TAG}} \
-  --method GET --path /admin/download-apps --json
+landing-page-business-suite --auto-start remote-profiles-download-apps-list --profile-tag {{PROFILE_TAG}} --json
 
 # Optional: list profiles for debugging
 landing-page-business-suite --auto-start remote-profiles-list --json

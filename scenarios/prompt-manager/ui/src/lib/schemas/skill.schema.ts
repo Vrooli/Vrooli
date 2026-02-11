@@ -217,3 +217,26 @@ export const DisplayResponseSchema = z.object({
 })
 
 export type DisplayResponse = z.infer<typeof DisplayResponseSchema>
+
+export const ReferenceSourceSchema = z.object({
+  entityType: z.enum(['agent', 'team', 'skill']),
+  entityId: z.string(),
+  entityName: z.string(),
+  filePath: z.string(),
+  lineNumber: z.number(),
+})
+export type ReferenceSource = z.infer<typeof ReferenceSourceSchema>
+
+export const ReferenceSchema = z.object({
+  skillId: z.string(),
+  refType: z.enum(['cli-read', 'bold-listed', 'default-scope', 'path-ref']),
+  source: ReferenceSourceSchema,
+})
+export type Reference = z.infer<typeof ReferenceSchema>
+
+export const SkillXRefsResponseSchema = z.object({
+  skillId: z.string(),
+  references: z.array(ReferenceSchema),
+  total: z.number(),
+})
+export type SkillXRefsResponse = z.infer<typeof SkillXRefsResponseSchema>

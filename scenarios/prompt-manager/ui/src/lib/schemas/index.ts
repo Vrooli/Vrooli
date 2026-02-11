@@ -56,6 +56,12 @@ export {
   type SyncResponse,
   type DisplayFormat,
   type DisplayResponse,
+  SkillXRefsResponseSchema,
+  ReferenceSchema,
+  ReferenceSourceSchema,
+  type SkillXRefsResponse,
+  type Reference,
+  type ReferenceSource,
 } from './skill.schema'
 
 // Agent schemas

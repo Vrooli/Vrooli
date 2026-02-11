@@ -49,7 +49,9 @@ import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
-import type { ContentSearchMatch } from '@/lib/schemas'
+import type { ContentSearchMatch, Reference } from '@/lib/schemas'
+import type { HighlightRequest } from '@/lib/highlight'
+import { createHighlightMatch } from '@/lib/highlight'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
@@ -140,6 +142,9 @@ export function SkillManagerLayout() {
 
   // Line number to scroll to in the editor (set when clicking a content search result)
   const [scrollToLine, setScrollToLine] = useState<number | null>(null)
+
+  // Cross-reference highlight request (set when clicking an xref)
+  const [highlightRequest, setHighlightRequest] = useState<HighlightRequest | null>(null)
 
   // Filter matches to only those for the currently selected skill
   const currentSkillMatches = useMemo(() => {
@@ -446,6 +451,9 @@ export function SkillManagerLayout() {
     }, [isDirty, selectedTeamId, storeCurrentChanges, setSelectedTeamId]),
     onSettingsOpenChange: useCallback((open: boolean) => {
       setShowSettingsDialog(open)
+    }, []),
+    onHighlightChange: useCallback((hl: HighlightRequest | null) => {
+      setHighlightRequest(hl)
     }, []),
     isDirty,
     storeCurrentChanges,
@@ -963,6 +971,62 @@ export function SkillManagerLayout() {
     [setActiveTab, setSelectedTeamId, isMobile]
   )
 
+  // Handle cross-reference navigation with highlight
+  const handleNavigateToXRef = useCallback(
+    (ref: Reference) => {
+      const { entityType, entityId } = ref.source
+      const hlRequest: HighlightRequest = {
+        file: ref.source.filePath || undefined,
+        line: ref.source.lineNumber,
+        text: ref.skillId,
+      }
+
+      // Set entity selection (each setter auto-clears the other entity types)
+      if (entityType === 'agent') {
+        setSelectedAgentId(entityId)
+      } else if (entityType === 'team') {
+        setSelectedTeamId(entityId)
+      } else {
+        setSelectedSkillId(entityId)
+      }
+
+      // Set highlight request
+      setHighlightRequest(hlRequest)
+
+      // Update URL with entity + highlight params
+      updateUrl({
+        skillId: entityType === 'skill' ? entityId : null,
+        agentId: entityType === 'agent' ? entityId : null,
+        teamId: entityType === 'team' ? entityId : null,
+        hlFile: hlRequest.file ?? null,
+        hlLine: hlRequest.line,
+        hlText: hlRequest.text,
+      })
+    },
+    [setSelectedAgentId, setSelectedTeamId, setSelectedSkillId, updateUrl]
+  )
+
+  // Clear highlight URL params after highlight is applied visually
+  const handleHighlightHandled = useCallback(() => {
+    updateUrl({ hlFile: null, hlLine: null, hlText: null })
+  }, [updateUrl])
+
+  // Compute highlight-based search matches for skill editor
+  const highlightSkillMatches = useMemo(() => {
+    if (!highlightRequest || !selectedSkillId || selectedAgentId || selectedTeamId) return []
+    if (!formState.content) return []
+    const match = createHighlightMatch(formState.content, highlightRequest)
+    return match ? [match] : []
+  }, [highlightRequest, selectedSkillId, selectedAgentId, selectedTeamId, formState.content])
+
+  const effectiveSkillSearchMatches = highlightSkillMatches.length > 0
+    ? highlightSkillMatches
+    : currentSkillMatches
+
+  const effectiveScrollToLine = highlightRequest && !selectedAgentId && !selectedTeamId
+    ? highlightRequest.line
+    : scrollToLine
+
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
     <PanelErrorBoundary panelName="Skill Tree" className="h-full">
@@ -1141,6 +1205,8 @@ export function SkillManagerLayout() {
                 onClose={() => setSelectedTeamId(null)}
                 onDelete={() => setShowDeleteTeamDialog(true)}
                 isDeleting={isTeamDeleting}
+                highlightRequest={highlightRequest}
+                onHighlightHandled={handleHighlightHandled}
                 className="h-full"
               />
             ) : selectedAgentId ? (
@@ -1165,6 +1231,8 @@ export function SkillManagerLayout() {
                 onClose={() => setSelectedAgentId(null)}
                 isSaving={isAgentSaving}
                 isDeleting={isAgentDeleting}
+                highlightRequest={highlightRequest}
+                onHighlightHandled={handleHighlightHandled}
                 className="h-full"
               />
             ) : (
@@ -1190,9 +1258,15 @@ export function SkillManagerLayout() {
                 isSaving={isSaving}
                 isDeleting={isDeleting}
                 isLoadingContent={isLoadingContent}
-                searchMatches={currentSkillMatches}
-                scrollToLine={scrollToLine}
-                onScrollToLineHandled={() => setScrollToLine(null)}
+                searchMatches={effectiveSkillSearchMatches}
+                scrollToLine={effectiveScrollToLine}
+                onScrollToLineHandled={() => {
+                  setScrollToLine(null)
+                  if (highlightRequest) {
+                    handleHighlightHandled()
+                  }
+                }}
+                onNavigateToXRef={handleNavigateToXRef}
                 className="h-full"
               />
             )}

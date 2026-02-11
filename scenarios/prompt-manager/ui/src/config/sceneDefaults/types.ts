@@ -20,5 +20,10 @@ export interface SceneDefaults {
   furniture: Omit<FurnitureInstance, 'id'>[]
 }
 
+/** Context passed to scene generators so they can adapt to the current state. */
+export interface SceneGeneratorContext {
+  numAgents: number
+}
+
 /** A function that produces the default objects for a scene type. */
-export type SceneGenerator = () => SceneDefaults
+export type SceneGenerator = (ctx?: SceneGeneratorContext) => SceneDefaults

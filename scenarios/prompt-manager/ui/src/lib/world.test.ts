@@ -4,6 +4,13 @@ import { seatLocalToWorld, seatWorldToLocal, seatFacingArrowOffset, rotateAllSea
 const PI = Math.PI
 const HALF_PI = PI / 2
 
+/** Asserts array element exists (avoids non-null assertions flagged by eslint). */
+function el<T>(arr: T[], i: number): T {
+  const v = arr[i]
+  if (v === undefined) throw new Error(`No element at index ${i}`)
+  return v
+}
+
 // ---------------------------------------------------------------------------
 // Three.js Ry(θ) reference implementation for test verification.
 // Ry(θ) = [[cos θ, 0, sin θ], [0, 1, 0], [-sin θ, 0, cos θ]]
@@ -160,32 +167,32 @@ describe('bench seat alignment across rotations', () => {
   it('seats at 0° are spread along X axis', () => {
     const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, 0))
     // At 0° rotation, seats should be at x = -0.4, 0, 0.4
-    expect(worldSeats[0]![0]).toBeCloseTo(-0.4)
-    expect(worldSeats[1]![0]).toBeCloseTo(0)
-    expect(worldSeats[2]![0]).toBeCloseTo(0.4)
+    expect(el(worldSeats, 0)[0]).toBeCloseTo(-0.4)
+    expect(el(worldSeats, 1)[0]).toBeCloseTo(0)
+    expect(el(worldSeats, 2)[0]).toBeCloseTo(0.4)
     // Z should all be 0.05
     for (const ws of worldSeats) {
-      expect(ws![2]).toBeCloseTo(0.05)
+      expect(ws[2]).toBeCloseTo(0.05)
     }
   })
 
   it('seats at 90° are spread along -Z axis', () => {
     const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, HALF_PI))
     // Ry(π/2) rotates +X → -Z, so seats spread along -Z
-    expect(worldSeats[0]![2]).toBeCloseTo(0.4)  // -(-0.4)*sin(π/2)
-    expect(worldSeats[1]![2]).toBeCloseTo(0)
-    expect(worldSeats[2]![2]).toBeCloseTo(-0.4) // -(0.4)*sin(π/2)
+    expect(el(worldSeats, 0)[2]).toBeCloseTo(0.4)  // -(-0.4)*sin(π/2)
+    expect(el(worldSeats, 1)[2]).toBeCloseTo(0)
+    expect(el(worldSeats, 2)[2]).toBeCloseTo(-0.4) // -(0.4)*sin(π/2)
     // X should all be ~0.05*sin(π/2) = 0.05
     for (const ws of worldSeats) {
-      expect(ws![0]).toBeCloseTo(0.05)
+      expect(ws[0]).toBeCloseTo(0.05)
     }
   })
 
   it('seats at 180° are spread along -X axis (mirrored)', () => {
     const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, PI))
-    expect(worldSeats[0]![0]).toBeCloseTo(0.4)
-    expect(worldSeats[1]![0]).toBeCloseTo(0)
-    expect(worldSeats[2]![0]).toBeCloseTo(-0.4)
+    expect(el(worldSeats, 0)[0]).toBeCloseTo(0.4)
+    expect(el(worldSeats, 1)[0]).toBeCloseTo(0)
+    expect(el(worldSeats, 2)[0]).toBeCloseTo(-0.4)
   })
 
   it('seat spread distance is preserved across all rotations', () => {
@@ -193,8 +200,8 @@ describe('bench seat alignment across rotations', () => {
     for (const rot of rotations) {
       const worldSeats = benchSeats.map((s) => seatLocalToWorld(s, furnPos, rot))
       // Distance between left and right seats should always be 0.8
-      const dx = worldSeats[2]![0] - worldSeats[0]![0]
-      const dz = worldSeats[2]![2] - worldSeats[0]![2]
+      const dx = el(worldSeats, 2)[0] - el(worldSeats, 0)[0]
+      const dz = el(worldSeats, 2)[2] - el(worldSeats, 0)[2]
       const dist = Math.hypot(dx, dz)
       expect(dist).toBeCloseTo(0.8, 5)
     }
@@ -245,10 +252,11 @@ describe('rotateAllSeats', () => {
     const result = rotateAllSeats(seats, HALF_PI)
     expect(result).toHaveLength(1)
     // Ry(π/2) * (1, 0.5, 0) → (0, 0.5, -1)
-    expect(result[0]!.position[0]).toBeCloseTo(0)
-    expect(result[0]!.position[1]).toBeCloseTo(0.5)
-    expect(result[0]!.position[2]).toBeCloseTo(-1)
-    expect(result[0]!.rotation).toBeCloseTo(HALF_PI)
+    const r0 = el(result, 0)
+    expect(r0.position[0]).toBeCloseTo(0)
+    expect(r0.position[1]).toBeCloseTo(0.5)
+    expect(r0.position[2]).toBeCloseTo(-1)
+    expect(r0.rotation).toBeCloseTo(HALF_PI)
   })
 
   it('rotate by 2π — identity', () => {
@@ -258,10 +266,12 @@ describe('rotateAllSeats', () => {
     ]
     const result = rotateAllSeats(seats, PI * 2)
     for (let i = 0; i < seats.length; i++) {
-      expect(result[i]!.position[0]).toBeCloseTo(seats[i]!.position[0])
-      expect(result[i]!.position[1]).toBeCloseTo(seats[i]!.position[1])
-      expect(result[i]!.position[2]).toBeCloseTo(seats[i]!.position[2])
-      expect(result[i]!.rotation).toBeCloseTo(seats[i]!.rotation)
+      const ri = el(result, i)
+      const si = el(seats, i)
+      expect(ri.position[0]).toBeCloseTo(si.position[0])
+      expect(ri.position[1]).toBeCloseTo(si.position[1])
+      expect(ri.position[2]).toBeCloseTo(si.position[2])
+      expect(ri.rotation).toBeCloseTo(si.rotation)
     }
   })
 
@@ -273,16 +283,17 @@ describe('rotateAllSeats', () => {
     const seats = [{ position: [0, 0, 0] as [number, number, number], rotation: PI * 1.5 }]
     const result = rotateAllSeats(seats, PI)
     // 1.5π + π = 2.5π → normalized to 0.5π
-    expect(result[0]!.rotation).toBeCloseTo(HALF_PI)
+    expect(el(result, 0).rotation).toBeCloseTo(HALF_PI)
   })
 
   it('negative delta normalizes correctly', () => {
     const seats = [{ position: [0, 0, 0] as [number, number, number], rotation: 0.5 }]
     const result = rotateAllSeats(seats, -PI)
     // 0.5 - π ≈ -2.64 → normalized to ≈ 3.64
-    expect(result[0]!.rotation).toBeGreaterThanOrEqual(0)
-    expect(result[0]!.rotation).toBeLessThan(PI * 2)
-    expect(result[0]!.rotation).toBeCloseTo(0.5 + PI)
+    const r0 = el(result, 0)
+    expect(r0.rotation).toBeGreaterThanOrEqual(0)
+    expect(r0.rotation).toBeLessThan(PI * 2)
+    expect(r0.rotation).toBeCloseTo(0.5 + PI)
   })
 
   it('XZ transform matches Three.js Ry(δ)', () => {
@@ -294,10 +305,11 @@ describe('rotateAllSeats', () => {
     const delta = PI / 3
     const result = rotateAllSeats(seats, delta)
     for (let i = 0; i < seats.length; i++) {
-      const expected = threeJsRotateY(seats[i]!.position, [0, 0, 0], delta)
-      expect(result[i]!.position[0]).toBeCloseTo(expected[0], 10)
-      expect(result[i]!.position[1]).toBeCloseTo(expected[1], 10)
-      expect(result[i]!.position[2]).toBeCloseTo(expected[2], 10)
+      const expected = threeJsRotateY(el(seats, i).position, [0, 0, 0], delta)
+      const ri = el(result, i)
+      expect(ri.position[0]).toBeCloseTo(expected[0], 10)
+      expect(ri.position[1]).toBeCloseTo(expected[1], 10)
+      expect(ri.position[2]).toBeCloseTo(expected[2], 10)
     }
   })
 })

@@ -14,6 +14,7 @@ import { DEFAULT_DECORATION_COLORS, DECORATION_CONFIGS } from '@/types/decoratio
 import type { SceneType } from '@/types/environment'
 import { useEnvironmentStore } from './environmentStore'
 import { getSceneDefaults } from '@/config/sceneDefaults'
+import type { SceneGeneratorContext } from '@/config/sceneDefaults'
 
 interface DecorationState {
   /** Per-scene decoration arrays. `undefined` = never visited; `[]` = cleared. */
@@ -42,7 +43,7 @@ interface DecorationActions {
   /** Clear the active scene's decorations (sets to `[]`). */
   reset: () => void
   /** Clear and re-seed from scene generator. If no type given, uses the active scene. */
-  resetToDefaults: (sceneType?: SceneType) => void
+  resetToDefaults: (sceneType?: SceneType, ctx?: SceneGeneratorContext) => void
   /** Seed a scene with an array of items (used by useWorldDefaults). */
   seedScene: (sceneType: SceneType, items: Omit<DecorationInstance, 'id'>[]) => void
 }
@@ -159,9 +160,9 @@ export const useDecorationStore = create<DecorationStore>()(
         }))
       },
 
-      resetToDefaults: (sceneType?) => {
+      resetToDefaults: (sceneType?, ctx?) => {
         const scene = sceneType ?? activeScene()
-        const defaults = getSceneDefaults(scene)
+        const defaults = getSceneDefaults(scene, ctx)
         const items: DecorationInstance[] = defaults.decorations.map((d) => ({
           ...d,
           id: generateDecorationId(),

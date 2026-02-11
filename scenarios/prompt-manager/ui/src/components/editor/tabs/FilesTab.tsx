@@ -37,6 +37,9 @@ import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
 import type { AgentFileEntry } from '@/types/agent'
+import type { HighlightRequest } from '@/lib/highlight'
+import type { ContentSearchMatch } from '@/lib/schemas'
+import { createHighlightMatch } from '@/lib/highlight'
 import * as agentService from '@/services/agentService'
 import { AppearanceTab } from './AppearanceTab'
 import { EditorActionButtons, SkillContentEditor } from '../SkillContentEditor'
@@ -60,6 +63,10 @@ interface FilesTabProps {
   onDiscard: () => void
   isSaving: boolean
   isValid: boolean
+  /** Cross-reference highlight request */
+  highlightRequest?: HighlightRequest | null
+  /** Called after highlight is applied (clears URL params) */
+  onHighlightHandled?: () => void
 }
 
 interface FileNode {
@@ -166,6 +173,8 @@ export function FilesTab({
   onDiscard,
   isSaving,
   isValid,
+  highlightRequest,
+  onHighlightHandled,
 }: FilesTabProps) {
   void _updateFields
 
@@ -190,6 +199,10 @@ export function FilesTab({
     isReserved: boolean
   } | null>(null)
   const skipFileLoadRef = useRef<string | null>(null)
+
+  // Cross-reference highlight state
+  const [highlightMatches, setHighlightMatches] = useState<ContentSearchMatch[]>([])
+  const [highlightScrollToLine, setHighlightScrollToLine] = useState<number | null>(null)
 
   const tree = useMemo(() => buildFileTree(files), [files])
   const recommendedMissing = useMemo(
@@ -367,6 +380,52 @@ export function FilesTab({
       cancelled = true
     }
   }, [agentId, selectedPath, isDirectorySelected, isReservedSelected])
+
+  // Handle highlight request: auto-select file and create match decorations
+  useEffect(() => {
+    if (!highlightRequest) {
+      setHighlightMatches([])
+      setHighlightScrollToLine(null)
+      return
+    }
+
+    // Auto-select the file if specified and different from current
+    if (highlightRequest.file && highlightRequest.file !== selectedPath) {
+      // Check that the requested file exists
+      if (files.some((f) => f.path === highlightRequest.file)) {
+        setSelectedPath(highlightRequest.file)
+      }
+      // The match will be created once file content loads (via the dependency below)
+      return
+    }
+
+    // File is already selected (or no file specified for skill highlights)
+    // Create the highlight match from current file content
+    if (fileContent && !isFileLoading) {
+      const match = createHighlightMatch(fileContent, highlightRequest)
+      if (match) {
+        setHighlightMatches([match])
+        setHighlightScrollToLine(highlightRequest.line)
+      } else {
+        setHighlightMatches([])
+        setHighlightScrollToLine(highlightRequest.line)
+      }
+      onHighlightHandled?.()
+    }
+  }, [highlightRequest, selectedPath, fileContent, isFileLoading, files, onHighlightHandled])
+
+  // Clear highlights when user selects a different file manually
+  const prevSelectedPathRef = useRef(selectedPath)
+  useEffect(() => {
+    if (prevSelectedPathRef.current !== selectedPath) {
+      // Only clear if this wasn't triggered by highlightRequest
+      if (!highlightRequest || highlightRequest.file !== selectedPath) {
+        setHighlightMatches([])
+        setHighlightScrollToLine(null)
+      }
+      prevSelectedPathRef.current = selectedPath
+    }
+  }, [selectedPath, highlightRequest])
 
   const ensureExpandedForPath = useCallback((path: string) => {
     const parts = path.split('/').filter(Boolean)
@@ -1006,6 +1065,9 @@ export function FilesTab({
                   isSaving={isFileSaving}
                   isValid
                   headerRight={headerRight ?? undefined}
+                  searchMatches={highlightMatches.length > 0 ? highlightMatches : undefined}
+                  scrollToLine={highlightScrollToLine}
+                  onScrollToLineHandled={() => setHighlightScrollToLine(null)}
                   className="h-full"
                 />
               )}

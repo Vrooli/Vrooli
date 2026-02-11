@@ -8,14 +8,20 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useFurnitureStore } from './furnitureStore'
 import { useEnvironmentStore } from './environmentStore'
+import { useWorldSeatsStore } from './worldSeatsStore'
 
-/** Reset both stores to a known-clean state before each test. */
+/** Reset all stores to a known-clean state before each test. */
 function resetStores() {
   useFurnitureStore.setState({ scenes: {}, seatedAgentsByScene: {} })
   const envState = useEnvironmentStore.getState()
   if (envState.current.type !== 'abstract-space') {
     useEnvironmentStore.getState().setSceneType('abstract-space')
   }
+  // Seed desk seats so seatAgent can find valid seat positions
+  useWorldSeatsStore.setState({
+    seats: { desk: [{ position: [0, 0.5, 0.3], rotation: 0 }] },
+    loaded: true,
+  })
 }
 
 describe('furnitureStore', () => {

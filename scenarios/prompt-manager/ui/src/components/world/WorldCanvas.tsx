@@ -103,8 +103,11 @@ export function WorldCanvas({
   // Perf: Read DPR from graphics tier — hardcoded [1,2] renders 4x fragments on retina at low tier
   const dpr = useGraphicsStore((state) => state.config.dpr)
 
+  // Agent data (must be above useWorldDefaults so agents.length is available)
+  const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
+
   // Seed world with default furniture/decorations on first load
-  useWorldDefaults()
+  useWorldDefaults(agents.length)
 
   // Selection state from centralized Zustand store
   const selectedSkillIds = useSelectionStore((state) => state.selectedSkillIds)
@@ -115,9 +118,6 @@ export function WorldCanvas({
   const focusedAgentId = useCameraStore((state) => state.focusedAgentId)
   const exitZoom = useCameraStore((state) => state.exitZoom)
   const zoomToAgent = useCameraStore((state) => state.zoomToAgent)
-
-  // Agent data
-  const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
   const focusedAgent = agents.find((a) => a.id === focusedAgentId) ?? null
 
   // Furniture and seating state (scene-aware)

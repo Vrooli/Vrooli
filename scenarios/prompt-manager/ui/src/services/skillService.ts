@@ -11,7 +11,7 @@
 import { api } from '@/lib/api'
 import { createCacheManager } from '@/lib/cache'
 import { ValidationError } from '@/lib/schemas'
-import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/lib/schemas'
+import type { Skill, CreateSkillRequest, UpdateSkillRequest, SkillXRefsResponse } from '@/lib/schemas'
 
 // Create cache for skills list
 const skillsCache = createCacheManager<Skill[]>()
@@ -249,4 +249,12 @@ export async function getAISearchReindexStatus() {
  */
 export async function cancelAISearchReindex() {
   return api.cancelAISearchReindex()
+}
+
+export async function getSkillXRefs(id: string): Promise<SkillXRefsResponse | null> {
+  try {
+    return await api.getSkillXRefs(id)
+  } catch {
+    return null
+  }
 }
