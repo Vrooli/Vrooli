@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "vrooli-ui-interop",
+  "name": "Vrooli UI Interop",
+  "description": "Vrooli-specific UI architecture for reliable behavior across deployment contexts (localhost, tunnel, proxy/iframe)",
+  "modes": [
+    "steer",
+    "react"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "globe",
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "architecture-scope",
+  "revision": 1,
+  "createdAt": "2026-02-11T00:00:00Z",
+  "updatedAt": "2026-02-11T00:00:00Z"
+}
