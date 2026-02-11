@@ -15,7 +15,7 @@ requests==2.31.0
 aiofiles==23.2.1
 
 # Security
-cryptography==41.0.7
+cryptography==46.0.5
 mitmproxy==10.1.6
 
 # Async support
