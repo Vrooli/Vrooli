@@ -14,7 +14,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "@radix-ui/react-slot": "^1.0.3",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "axios": "^1.6.0",
+    "axios": "^1.13.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "express": "^4.21.2",
