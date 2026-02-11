@@ -49,12 +49,15 @@ type AgentProfile struct {
 	CreatedBy            string        `json:"createdBy,omitempty"`
 }
 
-// Task represents a task for agent execution
+// Task represents a task for agent execution.
+// Field names and JSON tags must match the agent-manager proto schema
+// (protojson with DiscardUnknown=false rejects any unrecognised field).
 type Task struct {
 	ID          string `json:"id,omitempty"`
-	Prompt      string `json:"prompt"`
-	WorkingDir  string `json:"workingDir,omitempty"`
-	Description string `json:"description,omitempty"`
+	Title       string `json:"title"`                  // Short label (required, 1-255 chars)
+	Description string `json:"description"`            // Main prompt sent to the agent
+	ScopePath   string `json:"scope_path"`             // Working directory (required, non-empty)
+	ProjectRoot string `json:"project_root,omitempty"` // Optional project root
 }
 
 // CreateTaskRequest is the request for creating a task

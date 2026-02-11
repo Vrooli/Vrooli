@@ -22,6 +22,7 @@ import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { DragPlane, DraggableObject, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
+import { TeamOverlayManager } from './overlays/TeamOverlayManager'
 import { PerformanceMonitor, FPSOverlay } from './performance'
 import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, Moon, ProceduralClouds, GroundSurface } from './rendering'
 import { BoundaryOutline } from './rendering/BoundaryOutline'
@@ -129,6 +130,8 @@ interface WorldSceneProps {
   onFurnitureClick?: (furniture: FurnitureInstance) => void
   /** Called when a decoration is clicked */
   onDecorationClick?: (decoration: DecorationInstance) => void
+  /** Called when a team countdown overlay is clicked */
+  onTeamClick?: (teamId: string) => void
   /** Called when an agent is repositioned via drag */
   onAgentPositionChange?: (agentId: string, newPosition: [number, number, number]) => void
   isDarkMode?: boolean
@@ -145,6 +148,7 @@ export function WorldScene({
   onAgentClick,
   onFurnitureClick,
   onDecorationClick,
+  onTeamClick,
   onAgentPositionChange,
   isDarkMode = true,
   showFpsOverlay = false,
@@ -291,6 +295,9 @@ export function WorldScene({
         draggable={isEditMode && !isPlacing}
         onDecorationClick={onDecorationClick}
       />
+
+      {/* Team activity overlays */}
+      <TeamOverlayManager onTeamClick={onTeamClick} />
 
       {/* Render all agents with accessories and overlays */}
       {agentsWithPositions.map(({ agent, position, isSeated = false, seatRotation = 0 }) => {

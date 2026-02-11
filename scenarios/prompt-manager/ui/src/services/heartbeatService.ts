@@ -24,6 +24,7 @@ export interface HeartbeatConfig {
   profileKey?: string
   lastExecution?: HeartbeatExecResult
   nextExecution?: string
+  nextExecutions?: string[]
   createdAt: string
   updatedAt: string
 }

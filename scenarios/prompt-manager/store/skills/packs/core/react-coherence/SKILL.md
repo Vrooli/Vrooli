@@ -32,30 +32,11 @@ This skill defines that shared model.
 
 ---
 
-### **0.5 Keyboard Shortcut Coherence (Embedded Scenarios)**
+### **0.5 Keyboard Shortcut Coherence**
 
-Scenarios can run inside a host frame. Keyboard behavior must follow one coherent model:
+One keyboard shortcut manager per app shell. Do not scatter `document/window keydown` listeners across unrelated components — route all app-level shortcut handling through a single central hook.
 
-1. **One local shortcut manager per app shell**
-  - Do not scatter `document/window keydown` listeners across unrelated components.
-  - Route shortcut handling through one central manager or hook.
-
-2. **Local-first, relay-on-noop/unhandled**
-  - Scenario handles shortcut first.
-  - If action is noop/idempotent/unhandled, relay intent to host via `@vrooli/iframe-bridge` (`emitShortcutIntent`).
-  - This is required because iframe key events do not naturally bubble to the parent.
-
-3. **Prevent browser defaults for reserved chords**
-  - If claiming `Ctrl/Cmd+K`, call `preventDefault()` even on noop before relay.
-  - Otherwise browser shortcuts can steal flow.
-
-4. **Use shared host action identifiers**
-  - Prefer shared constants from `@vrooli/iframe-bridge` such as `HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER`.
-  - Do not invent per-scenario message formats.
-
-5. **Focus-aware semantics are mandatory**
-  - Explicitly define behavior when focus is in input/editor elements.
-  - Do not rely on incidental bubbling/capture behavior.
+For the full implementation shape — including iframe relay via `@vrooli/iframe-bridge`, focus-aware suppression, the local-first/relay-on-noop pattern, and the canonical file slot — see **`vrooli-ui-interop`** section 4 (slot [G]).
 
 ---
 

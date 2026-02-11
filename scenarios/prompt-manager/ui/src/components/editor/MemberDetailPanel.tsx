@@ -25,12 +25,18 @@ import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
 // Types
 // ============================================================================
 
+export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat'
+
 interface MemberDetailPanelProps {
   team: TeamDetails
   member: TeamMember
   appearance?: AgentAppearance
   manager?: TeamMember | null
   directReports?: TeamMember[]
+  /** Which section tab to navigate to */
+  initialSection?: MemberDetailSection
+  /** Nonce that changes on each navigation request to guarantee the effect fires */
+  initialSectionNonce?: number
   onUpdateMember: (agentId: string, request: UpdateMemberRequest) => Promise<TeamMember>
   onRemoveMember: (agentId: string) => Promise<void>
   onClose: () => void
@@ -57,6 +63,8 @@ export function MemberDetailPanel({
   appearance,
   manager = null,
   directReports = [],
+  initialSection,
+  initialSectionNonce,
   onUpdateMember,
   onRemoveMember,
   onClose,
@@ -66,7 +74,16 @@ export function MemberDetailPanel({
   const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
 
   // Local state
-  const [activeSection, setActiveSection] = useState<'overview' | 'responsibilities' | 'heartbeat'>('overview')
+  const [activeSection, setActiveSection] = useState<MemberDetailSection>(initialSection ?? 'overview')
+
+  // Sync when a navigation request arrives (e.g. clicking a heartbeat in Info tab).
+  // The nonce ensures the effect fires even for repeated navigations to the same section.
+  useEffect(() => {
+    if (initialSection) {
+      setActiveSection(initialSection)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nonce forces re-fire
+  }, [initialSection, initialSectionNonce])
   const [responsibilities, setResponsibilities] = useState('')
   const [heartbeatInstructions, setHeartbeatInstructions] = useState('')
   const [heartbeatConfig, setHeartbeatConfig] = useState<HeartbeatConfig | null>(null)
@@ -209,6 +226,7 @@ export function MemberDetailPanel({
       setSchedule(updated.schedule)
     } catch (err) {
       console.error('Failed to update heartbeat state:', err)
+      setError('Failed to update heartbeat state. The schedule may be invalid.')
     } finally {
       setIsSaving(false)
     }

@@ -960,10 +960,16 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 		}
 	}
 
-	// Get next execution time from scheduler
+	// Get next execution times from scheduler
 	if config.Enabled && h.scheduler != nil {
 		if nextRun := h.scheduler.GetNextRun(config.TeamID, config.AgentID); nextRun != nil {
 			resp.NextExecution = nextRun.Format(time.RFC3339)
+		}
+		if runs := h.scheduler.GetNextRuns(config.TeamID, config.AgentID, 5); len(runs) > 0 {
+			resp.NextExecutions = make([]string, len(runs))
+			for i, r := range runs {
+				resp.NextExecutions[i] = r.Format(time.RFC3339)
+			}
 		}
 	}
 

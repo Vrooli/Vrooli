@@ -118,9 +118,10 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 
 	// Create task in agent-manager
 	task := &Task{
-		Prompt:      prompt,
-		WorkingDir:  e.vrooliRoot,
-		Description: fmt.Sprintf("Heartbeat: %s/%s", teamID, agentID),
+		Title:       fmt.Sprintf("Heartbeat: %s/%s", teamID, agentID),
+		Description: prompt,
+		ScopePath:   e.vrooliRoot,
+		ProjectRoot: e.vrooliRoot,
 	}
 
 	createdTask, err := e.agentClient.CreateTask(ctx, task)

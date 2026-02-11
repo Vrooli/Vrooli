@@ -46,7 +46,7 @@ type Scheduler struct {
 // NewScheduler creates a new heartbeat scheduler
 func NewScheduler(executor HeartbeatExecutor, agentClient *AgentManagerClient, configStore HeartbeatConfigStore) *Scheduler {
 	return &Scheduler{
-		cron:        cron.New(cron.WithSeconds()),
+		cron:        cron.New(),
 		scheduled:   make(map[string]*ScheduledHeartbeat),
 		executor:    executor,
 		profileKey:  "prompt-manager-heartbeat",
@@ -117,9 +117,8 @@ func (s *Scheduler) Schedule(teamID, agentID, schedule string) error {
 		delete(s.scheduled, key)
 	}
 
-	// Parse and validate cron expression
-	parser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	_, err := parser.Parse(schedule)
+	// Parse and validate cron expression (standard 5-field: minute hour dom month dow)
+	_, err := cronParser.Parse(schedule)
 	if err != nil {
 		return err
 	}
@@ -182,6 +181,38 @@ func (s *Scheduler) GetNextRun(teamID, agentID string) *time.Time {
 		return &entry.Next
 	}
 	return nil
+}
+
+// cronParser is the shared parser matching the cron instance (standard 5-field).
+var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+
+// GetNextRuns returns up to count future execution times for the given heartbeat,
+// computed by iterating the cron schedule forward from now.
+func (s *Scheduler) GetNextRuns(teamID, agentID string, count int) []time.Time {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	key := makeKey(teamID, agentID)
+	sh, ok := s.scheduled[key]
+	if !ok || count <= 0 {
+		return nil
+	}
+
+	schedule, err := cronParser.Parse(sh.Schedule)
+	if err != nil {
+		return nil
+	}
+
+	runs := make([]time.Time, 0, count)
+	t := time.Now()
+	for i := 0; i < count; i++ {
+		t = schedule.Next(t)
+		if t.IsZero() {
+			break
+		}
+		runs = append(runs, t)
+	}
+	return runs
 }
 
 // IsScheduled checks if a heartbeat is scheduled

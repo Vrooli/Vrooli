@@ -19,7 +19,10 @@ import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
 import { useFurnitureStore, useFurnitureList, useSeatedAgents } from '@/stores/furnitureStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useAgentData } from '@/hooks/useAgentData'
+import { useTeamData } from '@/hooks/useTeamData'
 import { useWorldDefaults } from '@/hooks/useWorldDefaults'
+import { useTeamActivity } from '@/hooks/useTeamActivity'
+import { useTeamGathering } from '@/hooks/useTeamGathering'
 import { AgentProvider } from './AgentProvider'
 import { WorldScene, type AgentWithPosition } from './WorldScene'
 import { WorldControls } from './WorldControls'
@@ -105,13 +108,19 @@ export function WorldCanvas({
 
   // Agent data (must be above useWorldDefaults so agents.length is available)
   const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
+  const { teams } = useTeamData()
 
   // Seed world with default furniture/decorations on first load
   useWorldDefaults(agents.length)
 
+  // Team activity polling and gathering behavior
+  useTeamActivity()
+  useTeamGathering()
+
   // Selection state from centralized Zustand store
   const selectedSkillIds = useSelectionStore((state) => state.selectedSkillIds)
   const setSelectedSkillIds = useSelectionStore((state) => state.setSelectedSkillIds)
+  const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
   // Camera store for agent zoom
   const cameraMode = useCameraStore((state) => state.mode)
@@ -228,6 +237,11 @@ export function WorldCanvas({
   const handleCloseDecorationMenu = useCallback(() => {
     setSelectedDecoration(null)
   }, [])
+
+  // Handle team overlay click - navigate to team editor
+  const handleTeamClick = useCallback((teamId: string) => {
+    setSelectedTeamId(teamId)
+  }, [setSelectedTeamId])
 
   // Handle seating an agent
   const handleSitAgent = useCallback((agentId: string, furnitureId: string, seatIndex: number) => {
@@ -379,6 +393,7 @@ export function WorldCanvas({
                       onAgentClick={handleAgentClick}
                       onFurnitureClick={handleFurnitureClick}
                       onDecorationClick={handleDecorationClick}
+                      onTeamClick={handleTeamClick}
                       onAgentPositionChange={handleAgentPositionChange}
                       isDarkMode={isDarkMode}
                     />
@@ -406,6 +421,7 @@ export function WorldCanvas({
 
       {/* UI Overlays */}
       <WorldControls
+        teamCount={teams.length}
         nodeCount={skills.length}
         selectionCount={selectedSkillIds.length}
         agentCount={agents.length}

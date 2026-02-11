@@ -4,13 +4,13 @@
   "id": "director-swarm",
   "displayName": "Director Swarm",
   "mission": "Set strategic direction for Vrooli, prioritize work across all teams, and ensure maximum impact.",
-  "enabled": false,
+  "enabled": true,
   "spawnMode": "single-process",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-09T12:00:00Z"
+  "updatedAt": "2026-02-11T15:12:09Z"
 }

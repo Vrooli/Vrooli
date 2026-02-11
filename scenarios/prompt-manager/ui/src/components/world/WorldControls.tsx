@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react'
-import { Settings, HelpCircle } from 'lucide-react'
+import { Settings, HelpCircle, Users, Bot, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CameraMode } from '@/stores/cameraStore'
 import { HelpModal } from './HelpModal'
@@ -12,6 +12,7 @@ import { WorldSettingsPopup } from './WorldSettingsPopup'
 import { selectors } from '@/constants/selectors'
 
 interface WorldControlsProps {
+  teamCount: number
   nodeCount: number
   selectionCount: number
   agentCount: number
@@ -20,6 +21,7 @@ interface WorldControlsProps {
 }
 
 export function WorldControls({
+  teamCount,
   nodeCount,
   selectionCount,
   agentCount,
@@ -63,7 +65,11 @@ export function WorldControls({
           className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-md text-xs text-slate-300"
           data-testid={selectors.world.stats}
         >
-          {agentCount} agent{agentCount !== 1 ? 's' : ''} • {nodeCount} skills
+          <span className="inline-flex items-center gap-1">{teamCount} <Users className="h-3.5 w-3.5" /></span>
+          {' • '}
+          <span className="inline-flex items-center gap-1">{agentCount} <Bot className="h-3.5 w-3.5" /></span>
+          {' • '}
+          <span className="inline-flex items-center gap-1">{nodeCount} <FileText className="h-3.5 w-3.5" /></span>
         </div>
         {selectionCount > 0 && (
           <div className="px-3 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-md text-xs text-amber-300">

@@ -28,6 +28,7 @@ import * as orgChartService from '@/services/orgChartService'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import { OrgChartPanel } from './OrgChartPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
+import type { MemberDetailSection } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
 import { MemberPickerModal } from './teamTabs/MembersTab'
 import { TeamInfoTab, TeamFilesTab } from './teamTabs'
@@ -97,6 +98,10 @@ export function TeamEditorPanel({
 
   // Member picker modal state
   const [showMemberPicker, setShowMemberPicker] = useState(false)
+
+  // Navigation request for MemberDetailPanel (set via Info tab heartbeat click).
+  // The nonce ensures repeated clicks always trigger the section switch.
+  const [memberSectionNav, setMemberSectionNav] = useState<{ section: MemberDetailSection; nonce: number } | null>(null)
 
   // Members view mode (graph vs code)
   const [membersViewMode, setMembersViewMode] = useState<MembersViewMode>(() => {
@@ -255,6 +260,16 @@ export function TeamEditorPanel({
       }
     },
     [team, edges, updateEdge, setEdges]
+  )
+
+  // Navigate to a member's heartbeat tab (from Info tab upcoming heartbeats)
+  const handleNavigateToMemberHeartbeat = useCallback(
+    (agentId: string) => {
+      setMemberSectionNav((prev) => ({ section: 'heartbeat', nonce: (prev?.nonce ?? 0) + 1 }))
+      setSelectedMemberId(agentId)
+      setActiveTab('members')
+    },
+    [setSelectedMemberId]
   )
 
   // Handle add member
@@ -495,6 +510,8 @@ export function TeamEditorPanel({
                         appearance={selectedMemberAppearance}
                         manager={selectedMemberManager}
                         directReports={selectedMemberReports}
+                        initialSection={memberSectionNav?.section}
+                        initialSectionNonce={memberSectionNav?.nonce}
                         onUpdateMember={onUpdateMember}
                         onRemoveMember={handleRemoveMember}
                         onClose={() => setSelectedMemberId(null)}
@@ -519,7 +536,7 @@ export function TeamEditorPanel({
             value="info"
             className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
           >
-            <TeamInfoTab team={team} onSetRoles={onSetRoles} onUpdate={onUpdate} />
+            <TeamInfoTab team={team} onSetRoles={onSetRoles} onUpdate={onUpdate} onNavigateToMemberHeartbeat={handleNavigateToMemberHeartbeat} />
           </Tabs.Content>
 
           <Tabs.Content

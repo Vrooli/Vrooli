@@ -24,12 +24,14 @@ interface TeamInfoTabProps {
   team: TeamDetails
   onSetRoles: (roles: TeamRole[]) => Promise<TeamRole[]>
   onUpdate: (updates: UpdateTeamRequest) => Promise<void>
+  /** Called when the user clicks an upcoming heartbeat entry */
+  onNavigateToMemberHeartbeat?: (agentId: string) => void
 }
 
 /**
  * Info display tab component for teams.
  */
-export function TeamInfoTab({ team, onSetRoles, onUpdate }: TeamInfoTabProps) {
+export function TeamInfoTab({ team, onSetRoles, onUpdate, onNavigateToMemberHeartbeat }: TeamInfoTabProps) {
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
@@ -59,22 +61,22 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate }: TeamInfoTabProps) {
   const upcomingHeartbeats = useMemo(() => {
     const membersById = new Map(team.members.map((member) => [member.agentId, member]))
 
-    return heartbeatConfigs
-      .filter((config) => config.enabled && config.nextExecution)
-      .map((config) => {
-        const nextRun = config.nextExecution ? new Date(config.nextExecution) : null
-        return {
-          config,
-          memberName: membersById.get(config.agentId)?.displayName ?? config.agentId,
-          nextRun,
+    // Expand each config's nextExecutions into individual entries so that
+    // a single daily cron can produce multiple upcoming rows.
+    const entries: { config: HeartbeatConfig; memberName: string; nextRun: Date }[] = []
+    for (const config of heartbeatConfigs) {
+      if (!config.enabled) continue
+      const memberName = membersById.get(config.agentId)?.displayName ?? config.agentId
+      const times = config.nextExecutions ?? (config.nextExecution ? [config.nextExecution] : [])
+      for (const iso of times) {
+        const nextRun = new Date(iso)
+        if (!Number.isNaN(nextRun.getTime())) {
+          entries.push({ config, memberName, nextRun })
         }
-      })
-      .filter(
-        (entry): entry is { config: HeartbeatConfig; memberName: string; nextRun: Date } =>
-          !!entry.nextRun && !Number.isNaN(entry.nextRun.getTime())
-      )
-      .sort((a, b) => a.nextRun.getTime() - b.nextRun.getTime())
-      .slice(0, 5)
+      }
+    }
+
+    return entries.sort((a, b) => a.nextRun.getTime() - b.nextRun.getTime()).slice(0, 5)
   }, [heartbeatConfigs, team.members])
 
   const enabledHeartbeatCount = useMemo(() => {
@@ -219,18 +221,26 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate }: TeamInfoTabProps) {
             {upcomingHeartbeats.map((entry) => (
               <li
                 key={`${entry.config.agentId}-${entry.nextRun.toISOString()}`}
-                className="flex items-start justify-between gap-4 px-3 py-2 bg-muted rounded-lg"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{entry.memberName}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    Schedule: {entry.config.schedule}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-foreground">{entry.nextRun.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{formatRelativeTime(entry.nextRun)}</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigateToMemberHeartbeat?.(entry.config.agentId)}
+                  className={cn(
+                    'w-full flex items-start justify-between gap-4 px-3 py-2 bg-muted rounded-lg text-left',
+                    onNavigateToMemberHeartbeat && 'cursor-pointer hover:bg-muted/70 transition-colors'
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{entry.memberName}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      Schedule: {entry.config.schedule}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-foreground">{entry.nextRun.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{formatRelativeTime(entry.nextRun)}</p>
+                  </div>
+                </button>
               </li>
             ))}
           </ul>

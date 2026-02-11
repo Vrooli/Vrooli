@@ -51,6 +51,8 @@ interface FurnitureActions {
   hasAvailableSeats: (furnitureId: string) => boolean
   /** Get furniture by ID from the active scene */
   getFurniture: (id: string) => FurnitureInstance | undefined
+  /** Get seat count for a furniture piece */
+  getSeatCount: (furnitureId: string) => number
   /** Set light mode for light-emitting furniture (e.g. campfire) */
   setLightMode: (id: string, mode: LightMode) => void
   /** Clear the active scene's furniture and seating (sets to `[]`/`{}`). */
@@ -282,6 +284,13 @@ export const useFurnitureStore = create<FurnitureStore>()(
       getFurniture: (id) => {
         const scene = activeScene()
         return (get().scenes[scene] ?? []).find((f) => f.id === id)
+      },
+
+      getSeatCount: (furnitureId) => {
+        const scene = activeScene()
+        const furn = (get().scenes[scene] ?? []).find((f) => f.id === furnitureId)
+        if (!furn) return 0
+        return getSeats(furn.type).length
       },
 
       setLightMode: (id, mode) => {
