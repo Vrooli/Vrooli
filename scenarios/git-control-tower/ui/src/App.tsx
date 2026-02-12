@@ -1334,6 +1334,7 @@ export default function App() {
       }));
       setGroupingRules(normalizeGroupingRules(uiRules));
       setGroupingDefaultsPending(apiRules.length === 0);
+      setGroupingLoadedKey(repoKey);
     } else if (!groupingRulesQuery.isLoading) {
       // API returned no data and isn't loading - check localStorage for migration
       const rulesKey = `gct.grouping.${repoKey}.rules`;
@@ -1370,8 +1371,12 @@ export default function App() {
         setGroupingRules([]);
         setGroupingDefaultsPending(true);
       }
+      setGroupingLoadedKey(repoKey);
     }
-    setGroupingLoadedKey(repoKey);
+    // When groupingRulesQuery is still loading (data=undefined, isLoading=true),
+    // we intentionally do NOT set groupingLoadedKey. This allows the effect to
+    // re-run when the data arrives, preventing a race condition where slow API
+    // responses (e.g. cold proxy cache) would cause grouping rules to be missed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules, groupingRulesQuery.data, groupingRulesQuery.isLoading]);
 

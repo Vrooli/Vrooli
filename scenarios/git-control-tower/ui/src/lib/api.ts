@@ -965,6 +965,7 @@ export async function fetchGroupingRules(repoId?: string): Promise<GroupingRules
   const res = await fetch(url, {
     method: "GET",
     headers: buildRepoHeaders(repoId),
+    cache: "no-store",
   });
   return handleResponse<GroupingRulesConfig>(res);
 }
