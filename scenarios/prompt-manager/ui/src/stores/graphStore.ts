@@ -6,6 +6,10 @@
  * - Filter state (type toggles, health threshold)
  * - Highlighted node IDs (from query results)
  * - Loading/error state
+ *
+ * IMPORTANT: Derived selectors that return new references (arrays, objects)
+ * must be consumed with `useShallow` to prevent infinite re-render loops.
+ * See selectFilteredNodes for details.
  */
 
 import { create } from 'zustand'

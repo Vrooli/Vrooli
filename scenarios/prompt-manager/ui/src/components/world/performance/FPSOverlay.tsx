@@ -7,6 +7,7 @@ import { Html } from '@react-three/drei'
 import { usePerformanceStore } from '@/stores/performanceStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useLODStore } from '@/stores/lodStore'
+import { useShallow } from 'zustand/react/shallow'
 
 interface FPSOverlayProps {
   /** Position in 3D space */
@@ -43,11 +44,11 @@ export function FPSOverlay({
   // Graphics tier
   const tier = useGraphicsStore((state) => state.tier)
 
-  // LOD stats
-  const lodStats = useLODStore((state) => ({
+  // LOD stats — useShallow prevents infinite re-render from the inline object literal
+  const lodStats = useLODStore(useShallow((state) => ({
     objectCount: state.objectCount,
     levelCounts: state.levelCounts,
-  }))
+  })))
 
   if (!showOverlay) return null
 

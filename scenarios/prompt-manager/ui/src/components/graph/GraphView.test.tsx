@@ -1,0 +1,274 @@
+/**
+ * Tests for GraphView component.
+ *
+ * Regression test for React error #185 (Maximum update depth exceeded)
+ * caused by selectFilteredNodes returning unstable references.
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor, act } from '@testing-library/react'
+import type { GraphResponse } from '@/lib/schemas'
+
+// ============================================================================
+// Mocks
+// ============================================================================
+
+// Track render count to detect infinite loops
+let renderCount = 0
+const MAX_RENDERS = 100
+
+// Mock graph data matching the real API shape
+const MOCK_GRAPH_RESPONSE: GraphResponse = {
+  generatedAt: '2026-01-01T00:00:00Z',
+  graph: {
+    nodes: [
+      { id: 'team-1', type: 'team', label: 'Test Team', description: 'A team', status: '', tags: [] },
+      { id: 'agent-1', type: 'agent', label: 'Test Agent', description: 'An agent', status: 'active', tags: ['test'] },
+      { id: 'skill-1', type: 'skill', label: 'Test Skill', description: 'A skill', status: '', tags: [] },
+      { id: 'cli-1', type: 'cli', label: 'Test CLI', description: 'A CLI', status: '', tags: [] },
+    ],
+    edges: [
+      { from: 'team-1', to: 'agent-1', kind: 'membership', sourceFile: '', lineNumber: 0 },
+      { from: 'agent-1', to: 'skill-1', kind: 'bold-listed', sourceFile: 'TOOLS.md', lineNumber: 1 },
+      { from: 'skill-1', to: 'cli-1', kind: 'code-usage', sourceFile: 'skill.md', lineNumber: 5 },
+    ],
+    healthScores: [
+      { nodeId: 'team-1', score: 0.5, factors: { 'outgoing-edges': 0.8 } },
+      { nodeId: 'agent-1', score: 0.7, factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 } },
+      { nodeId: 'skill-1', score: 0.3, factors: { 'incoming-edges': 0.4 } },
+      { nodeId: 'cli-1', score: 0.1, factors: {} },
+    ],
+  },
+}
+
+// Mock the graphService module
+vi.mock('@/services/graphService', () => ({
+  getGraph: vi.fn(),
+  regenerateGraph: vi.fn(),
+  getOrphanedSkills: vi.fn().mockResolvedValue([]),
+  getSkilllessAgents: vi.fn().mockResolvedValue([]),
+  getEmptyTeams: vi.fn().mockResolvedValue([]),
+  getUnaffiliatedAgents: vi.fn().mockResolvedValue([]),
+  getCLIlessSkills: vi.fn().mockResolvedValue([]),
+  getCircularRefs: vi.fn().mockResolvedValue([]),
+  invalidateGraphCache: vi.fn(),
+}))
+
+// Mock @dagrejs/dagre
+vi.mock('@dagrejs/dagre', () => {
+  class MockGraph {
+    private nodes = new Map<string, { width: number; height: number; x: number; y: number }>()
+    setDefaultEdgeLabel(_fn: () => object) {}
+    setGraph(_opts: object) {}
+    setNode(id: string, dims: { width: number; height: number }) {
+      this.nodes.set(id, { ...dims, x: 0, y: 0 })
+    }
+    setEdge(_from: string, _to: string) {}
+    node(id: string) {
+      return this.nodes.get(id) ?? { width: 160, height: 80, x: 100, y: 100 }
+    }
+    getNodes() { return this.nodes }
+  }
+
+  return {
+    default: {
+      graphlib: {
+        Graph: MockGraph,
+      },
+      layout: (g: MockGraph) => {
+        let x = 0, y = 0
+        for (const [, node] of (g as unknown as { getNodes: () => Map<string, { x: number; y: number }> }).getNodes()) {
+          node.x = x
+          node.y = y
+          x += 200
+          if (x > 800) { x = 0; y += 200 }
+        }
+      },
+    },
+  }
+})
+
+// Mock @xyflow/react with render counting
+vi.mock('@xyflow/react', async () => {
+  const React = await import('react')
+
+  const MockReactFlow = React.forwardRef(function MockReactFlow(
+    props: Record<string, unknown>,
+    _ref: unknown,
+  ) {
+    renderCount++
+    if (renderCount > MAX_RENDERS) {
+      throw new Error(`INFINITE LOOP DETECTED: ReactFlow rendered ${renderCount} times`)
+    }
+    const nodes = (props.nodes as Array<{ id: string; data?: { label?: string } }> | undefined) ?? []
+    const edges = (props.edges as Array<{ id: string }> | undefined) ?? []
+    return React.createElement('div', { 'data-testid': 'react-flow' },
+      React.createElement('span', { 'data-testid': 'node-count' }, `${nodes.length} nodes`),
+      React.createElement('span', { 'data-testid': 'edge-count' }, `${edges.length} edges`),
+      nodes.map((n) =>
+        React.createElement('div', { key: n.id, 'data-testid': `node-${n.id}` }, n.data?.label ?? n.id),
+      ),
+    )
+  })
+
+  return {
+    ReactFlow: MockReactFlow,
+    ReactFlowProvider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'react-flow-provider' }, children),
+    Background: () => null,
+    Controls: () => null,
+    MiniMap: () => null,
+    Panel: ({ children }: { children: React.ReactNode }) =>
+      React.createElement('div', null, children),
+    MarkerType: { ArrowClosed: 'arrowclosed' },
+    useReactFlow: () => ({ fitView: vi.fn() }),
+    useNodesState: (initial: unknown[]) => {
+      const [nodes, setNodes] = React.useState(initial)
+      const onNodesChange = React.useCallback(() => {}, [])
+      return [nodes, setNodes, onNodesChange]
+    },
+    useEdgesState: (initial: unknown[]) => {
+      const [edges, setEdges] = React.useState(initial)
+      const onEdgesChange = React.useCallback(() => {}, [])
+      return [edges, setEdges, onEdgesChange]
+    },
+    Position: { Top: 'top', Bottom: 'bottom', Left: 'left', Right: 'right' },
+    Handle: () => null,
+  }
+})
+
+// Must import after mocks
+import { getGraph } from '@/services/graphService'
+import { useGraphStore } from '@/stores/graphStore'
+import { GraphView } from './GraphView'
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+describe('GraphView', () => {
+  beforeEach(() => {
+    renderCount = 0
+    // Reset Zustand store state
+    useGraphStore.setState({
+      graph: null,
+      loading: false,
+      error: null,
+      filters: {
+        showTeams: true,
+        showAgents: true,
+        showSkills: true,
+        showCLIs: true,
+        healthThreshold: 0,
+      },
+      highlightedNodeIds: new Set(),
+    })
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('should render loading state then graph without infinite loop (regression: React #185)', async () => {
+    // This test catches the infinite re-render loop caused by selectFilteredNodes
+    // returning unstable array references. Before the fix, this would crash with
+    // "Maximum update depth exceeded" (React error #185).
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+
+    render(<GraphView />)
+
+    // Should show loading initially
+    expect(screen.getByText('Loading graph...')).toBeInTheDocument()
+
+    // Wait for graph to load
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    // Should show nodes
+    expect(screen.getByTestId('node-count')).toHaveTextContent('4 nodes')
+    expect(screen.getByTestId('edge-count')).toHaveTextContent('3 edges')
+
+    // CRITICAL: Verify no infinite loop — healthy render completes well under limit
+    expect(renderCount).toBeLessThan(20)
+  })
+
+  it('should render empty state when graph has no nodes', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue({
+      generatedAt: '2026-01-01T00:00:00Z',
+      graph: { nodes: [], edges: [], healthScores: [] },
+    })
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByText('No graph data available')).toBeInTheDocument()
+    })
+  })
+
+  it('should render error state on fetch failure', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockRejectedValue(new Error('Network error'))
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load graph')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Network error')).toBeInTheDocument()
+  })
+
+  it('should handle null graph response (validation error)', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(null as unknown as GraphResponse)
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByText('No graph data available')).toBeInTheDocument()
+    })
+  })
+
+  it('should not re-render excessively after data loads', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    // Record render count after initial data load
+    const postLoadRenders = renderCount
+
+    // Wait an additional tick to ensure no further renders
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100))
+    })
+
+    // Should not have many additional renders after data settled
+    const additionalRenders = renderCount - postLoadRenders
+    expect(additionalRenders).toBeLessThan(5)
+  })
+
+  it('should display all node types', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('node-team-1')).toHaveTextContent('Test Team')
+    expect(screen.getByTestId('node-agent-1')).toHaveTextContent('Test Agent')
+    expect(screen.getByTestId('node-skill-1')).toHaveTextContent('Test Skill')
+    expect(screen.getByTestId('node-cli-1')).toHaveTextContent('Test CLI')
+  })
+})

@@ -45,7 +45,7 @@ export interface ShaderInjections {
 /** Whether a WebGL context can be created (false in headless environments without GPU) */
 export const hasWebGL = (() => {
   try {
-    const ctx = createGL(1, 1)
+    const ctx = createGL(1, 1) as unknown
     return ctx !== null
   } catch {
     return false
@@ -73,7 +73,7 @@ export function compileShaderWithWebGL(
   source: string,
   type: 'vertex' | 'fragment'
 ): WebGLCompilationResult {
-  const gl = createGL(1, 1) // 1x1 pixel context is enough for compilation
+  const gl = createGL(1, 1) as ReturnType<typeof createGL> | null // 1x1 pixel context is enough for compilation
   if (!gl) {
     return { success: false, error: 'WebGL context unavailable (headless environment without GPU)' }
   }

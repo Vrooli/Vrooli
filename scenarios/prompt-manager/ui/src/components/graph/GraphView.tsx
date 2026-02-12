@@ -31,6 +31,7 @@ import {
 import dagre from '@dagrejs/dagre'
 import { cn } from '@/lib/utils'
 import { useGraphStore, selectFilteredNodes } from '@/stores/graphStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { GraphFlowNode, type GraphNodeData } from './GraphNode'
 import { GraphToolbar } from './GraphToolbar'
@@ -131,7 +132,10 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const error = useGraphStore((s) => s.error)
   const fetchGraph = useGraphStore((s) => s.fetchGraph)
   const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
-  const filteredNodes = useGraphStore(selectFilteredNodes)
+  // useShallow prevents infinite re-render: selectFilteredNodes returns a new
+  // array reference on every call (.filter()), but useShallow compares elements
+  // by identity so the result is stable when the underlying data hasn't changed.
+  const filteredNodes = useGraphStore(useShallow(selectFilteredNodes))
 
   // Selection store for navigation
   const setSelectedSkillId = useSelectionStore((s) => s.setSelectedSkillId)
