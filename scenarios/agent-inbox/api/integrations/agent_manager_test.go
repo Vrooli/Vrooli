@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -214,7 +215,7 @@ func TestTranslateEvent_Error(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_LogReturnsNil(t *testing.T) {
+func TestTranslateEvent_Log(t *testing.T) {
 	raw := map[string]interface{}{
 		"id":        "evt-8",
 		"eventType": "log",
@@ -227,23 +228,185 @@ func TestTranslateEvent_LogReturnsNil(t *testing.T) {
 	}
 
 	event := TranslateEvent(raw)
-	if event != nil {
-		t.Error("expected nil for log event")
+	if event == nil {
+		t.Fatal("expected non-nil event for log")
+	}
+	if event.Type != "log" {
+		t.Errorf("expected type log, got %s", event.Type)
+	}
+	if event.Role != "system" {
+		t.Errorf("expected role system, got %s", event.Role)
+	}
+	if event.Content != "internal log" {
+		t.Errorf("expected content 'internal log', got %s", event.Content)
+	}
+	if event.RawData == "" {
+		t.Error("expected non-empty raw_data")
+	}
+	// Verify raw_data contains the level field
+	if !strings.Contains(event.RawData, `"level"`) {
+		t.Errorf("expected raw_data to contain level, got %s", event.RawData)
 	}
 }
 
-func TestTranslateEvent_UnknownTypeReturnsNil(t *testing.T) {
+func TestTranslateEvent_UnknownTypePassesThrough(t *testing.T) {
 	raw := map[string]interface{}{
 		"id":        "evt-9",
 		"eventType": "heartbeat",
 		"sequence":  float64(9),
 		"timestamp": "2025-01-15T10:38:00Z",
-		"data":      map[string]interface{}{},
+		"data": map[string]interface{}{
+			"status": "alive",
+		},
 	}
 
 	event := TranslateEvent(raw)
-	if event != nil {
-		t.Error("expected nil for unknown event type")
+	if event == nil {
+		t.Fatal("expected non-nil event for unknown type")
+	}
+	if event.Type != "heartbeat" {
+		t.Errorf("expected type heartbeat, got %s", event.Type)
+	}
+	if event.Role != "system" {
+		t.Errorf("expected role system, got %s", event.Role)
+	}
+	if event.RawData == "" {
+		t.Error("expected non-empty raw_data")
+	}
+}
+
+func TestTranslateEvent_UnknownTypeExtractsMessage(t *testing.T) {
+	raw := map[string]interface{}{
+		"id":        "evt-9b",
+		"eventType": "custom_event",
+		"sequence":  float64(10),
+		"timestamp": "2025-01-15T10:39:00Z",
+		"data": map[string]interface{}{
+			"message": "something happened",
+		},
+	}
+
+	event := TranslateEvent(raw)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.Content != "something happened" {
+		t.Errorf("expected content 'something happened', got %s", event.Content)
+	}
+}
+
+func TestTranslateEvent_UnknownTypeExtractsContent(t *testing.T) {
+	raw := map[string]interface{}{
+		"id":        "evt-9c",
+		"eventType": "custom_event",
+		"sequence":  float64(11),
+		"timestamp": "2025-01-15T10:40:00Z",
+		"data": map[string]interface{}{
+			"content": "some content",
+		},
+	}
+
+	event := TranslateEvent(raw)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.Content != "some content" {
+		t.Errorf("expected content 'some content', got %s", event.Content)
+	}
+}
+
+func TestTranslateEvent_Metric(t *testing.T) {
+	raw := map[string]interface{}{
+		"id":        "evt-20",
+		"eventType": "metric",
+		"sequence":  float64(20),
+		"timestamp": "2025-01-15T11:00:00Z",
+		"data": map[string]interface{}{
+			"name":  "tokens_used",
+			"value": float64(1500),
+		},
+	}
+
+	event := TranslateEvent(raw)
+	if event == nil {
+		t.Fatal("expected non-nil event for metric")
+	}
+	if event.Type != "metric" {
+		t.Errorf("expected type metric, got %s", event.Type)
+	}
+	if event.Role != "system" {
+		t.Errorf("expected role system, got %s", event.Role)
+	}
+	if event.Content != "tokens_used" {
+		t.Errorf("expected content 'tokens_used', got %s", event.Content)
+	}
+	if event.RawData == "" {
+		t.Error("expected non-empty raw_data")
+	}
+	if !strings.Contains(event.RawData, `"value"`) {
+		t.Errorf("expected raw_data to contain value, got %s", event.RawData)
+	}
+}
+
+func TestTranslateEvent_Artifact(t *testing.T) {
+	raw := map[string]interface{}{
+		"id":        "evt-21",
+		"eventType": "artifact",
+		"sequence":  float64(21),
+		"timestamp": "2025-01-15T11:01:00Z",
+		"data": map[string]interface{}{
+			"type": "file",
+			"path": "/tmp/output.txt",
+		},
+	}
+
+	event := TranslateEvent(raw)
+	if event == nil {
+		t.Fatal("expected non-nil event for artifact")
+	}
+	if event.Type != "artifact" {
+		t.Errorf("expected type artifact, got %s", event.Type)
+	}
+	if event.Role != "system" {
+		t.Errorf("expected role system, got %s", event.Role)
+	}
+	if event.Content != "file" {
+		t.Errorf("expected content 'file', got %s", event.Content)
+	}
+	if event.RawData == "" {
+		t.Error("expected non-empty raw_data")
+	}
+	if !strings.Contains(event.RawData, `"path"`) {
+		t.Errorf("expected raw_data to contain path, got %s", event.RawData)
+	}
+}
+
+func TestTranslateEvent_MessageDeleted(t *testing.T) {
+	raw := map[string]interface{}{
+		"id":        "evt-22",
+		"eventType": "message_deleted",
+		"sequence":  float64(22),
+		"timestamp": "2025-01-15T11:02:00Z",
+		"data": map[string]interface{}{
+			"targetEventId": "evt-5",
+		},
+	}
+
+	event := TranslateEvent(raw)
+	if event == nil {
+		t.Fatal("expected non-nil event for message_deleted")
+	}
+	if event.Type != "message_deleted" {
+		t.Errorf("expected type message_deleted, got %s", event.Type)
+	}
+	if event.Role != "system" {
+		t.Errorf("expected role system, got %s", event.Role)
+	}
+	if event.Content != "evt-5" {
+		t.Errorf("expected content 'evt-5', got %s", event.Content)
+	}
+	if event.RawData == "" {
+		t.Error("expected non-empty raw_data")
 	}
 }
 
@@ -277,10 +440,8 @@ func TestTranslateEvent_MissingFields(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Should not panic
+			// Should not panic regardless of missing/nil fields
 			event := TranslateEvent(tc.raw)
-			// Empty/nil eventType defaults to unknown → returns nil,
-			// or "message" with nil data is still safe
 			_ = event
 		})
 	}

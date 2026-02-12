@@ -2,11 +2,15 @@
 
 ## Start of Session
 - Read SOUL.md for identity alignment.
+- Run `prompt-manager graph health --type team` to see which teams need attention.
+- Run `prompt-manager graph empty-teams` to find teams without members.
 - Review the full team inventory and their compositions.
-- Check for cross-team coordination patterns and gaps.
 
 ## Workflow
-1. **Audit teams** — Read all team files (team.json, roles.json, org.json, shared/TEAM.md).
+1. **Audit teams using graph data** — Use graph queries to build a concrete target list before reading files:
+   - `prompt-manager graph empty-teams` → teams with no members
+   - `prompt-manager graph health --type team` → sort by lowest health to find underperformers
+   - `prompt-manager graph node <team-id>` → inspect team membership and connections
 2. **Assess composition** — Right number of members? Right roles? Any gaps?
 3. **Check shared docs** — Is the team playbook clear and actionable?
 4. **Evaluate org structure** — Is the hierarchy effective? Bottlenecks?

@@ -1,5 +1,5 @@
 # Heartbeat: Agent Optimizer
 
 ## Check Items
-- Review agent configurations for completeness.
-- Check for agents with missing or generic files.
+- Run `prompt-manager graph health --type agent` to find low-health agents.
+- Run `prompt-manager graph skillless-agents` to check for agents missing skill references.

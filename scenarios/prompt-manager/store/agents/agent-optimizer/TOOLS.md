@@ -12,6 +12,12 @@
 - Read agent metadata: `store/agents/{id}/agent.json`
 - Review team assignments: `store/relations/team-member/`
 
+## Graph Analysis Commands
+- `prompt-manager graph health --type agent` — Agent health scores (sorted, lowest = most attention needed).
+- `prompt-manager graph skillless-agents [--limit N]` — Agents not referencing any skills.
+- `prompt-manager graph unaffiliated-agents` — Agents not in any team.
+- `prompt-manager graph node <id> [--json]` — Inspect a specific agent's connections and health breakdown.
+
 ## Usage Rules
 - Always consider team context when optimizing an agent.
 - Preserve distinctive personality while improving effectiveness.

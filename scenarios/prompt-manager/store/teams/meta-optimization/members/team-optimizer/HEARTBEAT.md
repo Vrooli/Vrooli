@@ -1,5 +1,5 @@
 # Heartbeat: Team Optimizer
 
 ## Check Items
-- Review team compositions for structural issues.
-- Check cross-team coordination points for friction.
+- Run `prompt-manager graph health --type team` to find low-health teams.
+- Run `prompt-manager graph empty-teams` to check for memberless teams.

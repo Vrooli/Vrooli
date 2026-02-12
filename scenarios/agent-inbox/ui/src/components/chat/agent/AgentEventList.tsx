@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo } from "react";
 import type { AgentEvent } from "../../../lib/api";
 import AgentMessageBubble from "./AgentMessageBubble";
 import AgentToolCallCard from "./AgentToolCallCard";
+import AgentRawEventCard from "./AgentRawEventCard";
 
 interface AgentEventListProps {
   /** List of events to render */
@@ -55,7 +56,7 @@ export function AgentEventList({ events, autoScroll = true }: AgentEventListProp
 
     // Second pass: create grouped items
     const grouped: Array<{
-      type: "message" | "tool" | "status" | "error";
+      type: "message" | "tool" | "status" | "error" | "raw";
       event: AgentEvent;
       result?: AgentEvent;
     }> = [];
@@ -81,6 +82,12 @@ export function AgentEventList({ events, autoScroll = true }: AgentEventListProp
         grouped.push({ type: "status", event });
       } else if (event.type === "error") {
         grouped.push({ type: "error", event });
+      } else if (event.type === "log") {
+        // Skip log events (internal debug info)
+        return;
+      } else {
+        // All other event types: render as generic raw card
+        grouped.push({ type: "raw", event });
       }
     });
 
@@ -125,6 +132,9 @@ export function AgentEventList({ events, autoScroll = true }: AgentEventListProp
                 <div className="text-sm">{item.event.content}</div>
               </div>
             );
+
+          case "raw":
+            return <AgentRawEventCard key={item.event.id || index} event={item.event} />;
 
           default:
             return null;

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-12T14:49:12Z",
+  "generatedAt": "2026-02-12T19:21:44Z",
   "graph": {
     "nodes": [
       {
@@ -2146,49 +2146,56 @@
         "to": "leader-research-analyze-plan",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 12
+        "lineNumber": 27
       },
       {
         "from": "meta-lead",
         "to": "capability-extraction",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 31
+        "lineNumber": 46
       },
       {
         "from": "meta-lead",
         "to": "skill-improvement-suggestions",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 32
+        "lineNumber": 47
       },
       {
         "from": "meta-lead",
         "to": "skill-validation",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 33
+        "lineNumber": 48
       },
       {
         "from": "meta-lead",
         "to": "skill-principles",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 34
+        "lineNumber": 49
       },
       {
         "from": "meta-lead",
         "to": "conversation-friction-analysis",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 35
+        "lineNumber": 50
+      },
+      {
+        "from": "meta-lead",
+        "to": "visited-tracker-tools",
+        "kind": "cli-read",
+        "sourceFile": "AGENTS.md",
+        "lineNumber": 51
       },
       {
         "from": "meta-lead",
         "to": "progress",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 36
+        "lineNumber": 52
       },
       {
         "from": "meta-lead",
@@ -2496,56 +2503,56 @@
         "to": "skill-principles",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 18
+        "lineNumber": 24
       },
       {
         "from": "skill-optimizer",
         "to": "skill-authoring",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 19
+        "lineNumber": 25
       },
       {
         "from": "skill-optimizer",
         "to": "skill-authoring-meta",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 20
+        "lineNumber": 26
       },
       {
         "from": "skill-optimizer",
         "to": "skill-authoring-practice",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 21
+        "lineNumber": 27
       },
       {
         "from": "skill-optimizer",
         "to": "skill-authoring-tools",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 22
+        "lineNumber": 28
       },
       {
         "from": "skill-optimizer",
         "to": "skill-authoring-search",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 23
+        "lineNumber": 29
       },
       {
         "from": "skill-optimizer",
         "to": "skill-validation",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 24
+        "lineNumber": 30
       },
       {
         "from": "skill-optimizer",
         "to": "skill-improvement-suggestions",
         "kind": "cli-read",
         "sourceFile": "AGENTS.md",
-        "lineNumber": 25
+        "lineNumber": 31
       },
       {
         "from": "strategist",
@@ -2633,6 +2640,13 @@
       },
       {
         "from": "meta-optimization",
+        "to": "leader-research-analyze-plan",
+        "kind": "cli-read",
+        "sourceFile": "TEAM.md",
+        "lineNumber": 35
+      },
+      {
+        "from": "meta-optimization",
         "to": "skill-improvement-suggestions",
         "kind": "cli-read",
         "sourceFile": "TEAM.md",
@@ -2658,6 +2672,13 @@
         "kind": "cli-read",
         "sourceFile": "TEAM.md",
         "lineNumber": 39
+      },
+      {
+        "from": "meta-optimization",
+        "to": "visited-tracker-tools",
+        "kind": "cli-read",
+        "sourceFile": "TEAM.md",
+        "lineNumber": 40
       },
       {
         "from": "scenario-debug",
@@ -3239,6 +3260,13 @@
         "kind": "cli-read",
         "sourceFile": "SKILL.md",
         "lineNumber": 15
+      },
+      {
+        "from": "leader-research-analyze-plan",
+        "to": "visited-tracker-tools",
+        "kind": "cli-read",
+        "sourceFile": "SKILL.md",
+        "lineNumber": 16
       },
       {
         "from": "leader-triage-investigate-resolve",
@@ -4763,10 +4791,10 @@
       },
       {
         "nodeId": "leader-research-analyze-plan",
-        "score": 0.5499999999999999,
+        "score": 0.6166666666666667,
         "factors": {
           "code-usage": 0,
-          "incoming-edges": 0.4,
+          "incoming-edges": 0.6,
           "outgoing-edges": 1,
           "recent-activity": 0.5
         }

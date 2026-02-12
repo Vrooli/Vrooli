@@ -3,13 +3,19 @@
 ## Start of Session
 - Read SOUL.md for identity alignment.
 - Read the skill authoring guides for the relevant skill type.
-- Review skill usage metrics and effectiveness ratings.
+- Run `prompt-manager graph health --type skill` to see which skills need attention.
+- Run `prompt-manager graph orphaned-skills` to find unreferenced skills.
 
 ## Workflow
-1. **Audit skills** — Check ratings, usage counts, and staleness.
-2. **Identify underperformers** — Low ratings, low usage, or outdated content.
+1. **Audit skills using graph data** — Use graph queries to build a concrete target list:
+   - `prompt-manager graph health --type skill` → sort by lowest health to find underperformers
+   - `prompt-manager graph orphaned-skills` → skills no agent references (candidates for adoption or retirement)
+   - `prompt-manager graph cliless-skills` → skills that could benefit from CLI promotion
+   - `prompt-manager graph popular --type skill` → most-referenced skills (high-leverage improvement targets)
+   - `prompt-manager graph node <skill-id>` → inspect a specific skill's connections and health breakdown
+2. **Identify underperformers** — Low health scores, orphaned, or outdated content.
 3. **Identify gaps** — What skills are referenced but do not exist?
-4. **Prioritize** — Rewrite high-usage low-rating skills first.
+4. **Prioritize** — Rewrite high-usage (popular) low-health skills first.
 5. **Rewrite or create** — Follow the appropriate authoring guide.
 6. **Validate** — Run through skill-validation criteria.
 7. **Report to meta-lead** — Changes made with expected impact.

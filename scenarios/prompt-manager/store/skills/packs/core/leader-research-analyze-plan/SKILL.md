@@ -13,6 +13,7 @@ Optional reading:
 - `prompt-manager skill read interoperability-steer`
 - `prompt-manager skill read skill-authoring-practice`
 - `prompt-manager skill read systematic-exploration`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 
@@ -30,6 +31,7 @@ Optional reading:
 | Single skill needs improvement suggestions | N/A | N/A | Do not use this pipeline — use `skill-improvement-suggestions` directly |
 | Single conversation needs friction analysis | N/A | N/A | Do not use this pipeline — use `conversation-friction-analysis` directly |
 | Known bug with known fix | N/A | N/A | Do not use this pipeline — use `leader-triage-investigate-resolve` |
+| Graph data shows structural issues (orphans, cycles, skillless agents) | Partially | Partially | **Phase 1: Research** (use graph queries as input) |
 | Specific feature to build | N/A | N/A | Do not use this pipeline — use `leader-explore-plan-implement` |
 
 #### **When NOT to use this pipeline**
@@ -82,7 +84,12 @@ Survey the current state of skills, scenarios, and CLIs in the target area.
 **Leader actions:**
 1. **Classify the input type** using the Input Classification Table (below)
 2. **Load conditional reading** based on input type
-3. **Scope the research area** — which skills, scenarios, and CLIs are relevant?
+3. **Scope the research area** using the relationship graph to identify concrete targets:
+   - Run `prompt-manager graph health --type skill` / `--type agent` / `--type team` to find lowest-health entities in the target area
+   - Run targeted structural queries based on input type: `prompt-manager graph orphaned-skills`, `skillless-agents`, `empty-teams`, `cliless-skills`, `circular-refs`
+   - Run `prompt-manager graph popular --type skill --limit 10` to identify high-leverage targets (widely-used but low-health)
+   - Use `prompt-manager graph node <id>` to inspect specific entities and their connections
+   - Cross-reference graph results with the research direction to select the most relevant entities for investigation
 4. **Delegate skill-level analysis** — for each relevant skill, delegate `skill-improvement-suggestions` analysis
 5. **Delegate codebase exploration** — for scenario CLIs and capabilities in scope, delegate `systematic-exploration`
 6. **If input is a friction report** — extract friction events and their root-cause attributions as research inputs
@@ -99,6 +106,7 @@ Survey the current state of skills, scenarios, and CLIs in the target area.
 | Skill coverage question | `skill-authoring-practice` | Research existing skills in the target domain |
 | Cross-scenario integration issue | `interoperability-steer` | Research scenario boundaries and integration points |
 | Agent capability audit | `capability-extraction` | Audit target agents' AGENTS.md for extractable methodologies; use extraction specs as research input |
+| Graph health/structural data | None | Use graph queries (`health`, `orphaned-skills`, `skillless-agents`, `cliless-skills`, `circular-refs`) to identify low-health and structurally deficient entities; investigate root causes |
 | Generic research direction | None | Broad survey of skills and scenarios in the area |
 
 **Delegation message template (skill analysis):**
@@ -161,7 +169,7 @@ Identify and catalog capability gaps from the research findings.
    - From exploration findings: missing CLI commands, capability holes, integration gaps
    - From friction reports: repeated manual patterns, missing automation, process friction
 2. **Classify each gap** using the Gap Classification Table (below)
-3. **Assess ecosystem impact** for each gap — how many skills/scenarios does this affect?
+3. **Assess ecosystem impact** for each gap — use `prompt-manager graph popular` and `prompt-manager graph node <id>` to quantify how many entities reference the affected node (incoming edge count = breadth score)
 4. **Prioritize gaps** using the priority formula: `priority = (impact × breadth) - implementation_cost`
 5. **Produce the Capability Gap Register** (artifact format below)
 

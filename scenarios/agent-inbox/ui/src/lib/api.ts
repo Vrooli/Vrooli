@@ -2191,7 +2191,9 @@ export interface AgentModeStatus {
 /** Translated event from agent-manager */
 export interface AgentEvent {
   id: string;
-  type: "message" | "tool_call" | "tool_result" | "status" | "error" | "progress";
+  /** Known types: message, tool_call, tool_result, status, error, log, metric, artifact, message_deleted.
+   *  Unknown types from agent-manager are also passed through. */
+  type: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   timestamp: string;
@@ -2205,6 +2207,8 @@ export interface AgentEvent {
   run_status?: AgentRunStatus;
   phase?: string;
   progress?: number;
+  // Raw data for generic display of unrecognized or rich event types
+  raw_data?: string;
 }
 
 /** Response from getting agent events */

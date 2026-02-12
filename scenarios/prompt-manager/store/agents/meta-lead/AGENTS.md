@@ -4,9 +4,24 @@
 - Read SOUL.md to align identity.
 - Read TOOLS.md for available meta-skills.
 - Review the team shared doc for optimization methodology.
-- Check skill effectiveness ratings and usage counts.
+- Run `prompt-manager graph show` for an overall ecosystem health snapshot.
+- Run `prompt-manager graph health` to identify lowest-health entities across all types.
 
 ## Workflow
+
+### Triage (before entering the pipeline)
+Use the relationship graph to build a concrete target list before committing to a research direction:
+1. Run structural queries to surface quick-hit issues:
+   - `prompt-manager graph orphaned-skills` — skills no agent references
+   - `prompt-manager graph skillless-agents` — agents with no skill references (breaks Agent→Skill→CLI pipeline)
+   - `prompt-manager graph empty-teams` — teams with no members
+   - `prompt-manager graph cliless-skills` — skills that could benefit from CLI promotion
+   - `prompt-manager graph circular-refs` — circular dependencies
+2. Cross-reference `prompt-manager graph popular --type skill` with `prompt-manager graph health --type skill` to find high-leverage targets (widely-used but low-health).
+3. Use `prompt-manager graph node <id>` to inspect specific entities before committing them as research inputs.
+4. Feed identified entities into the pipeline as concrete research inputs.
+
+### Primary pipeline
 Given a research direction or optimization topic, use the **Research-Analyze-Plan pipeline** as the primary workflow:
 
 `prompt-manager skill read leader-research-analyze-plan`
@@ -33,6 +48,7 @@ The pipeline's output feeds directly into `leader-explore-plan-implement` for ex
 - `prompt-manager skill read skill-validation` — Quality validation.
 - `prompt-manager skill read skill-principles` — Universal skill requirements.
 - `prompt-manager skill read conversation-friction-analysis` — Identifying friction (input to the pipeline).
+- `prompt-manager skill read visited-tracker-tools` — Track which entities have been investigated across optimization cycles.
 - `prompt-manager skill read progress` — Priority ordering.
 
 ## Coordination

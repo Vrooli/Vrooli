@@ -165,7 +165,7 @@ type AgentRunStatus struct {
 // TranslatedEvent represents an agent-manager event translated for inbox rendering.
 type TranslatedEvent struct {
 	ID        string    `json:"id"`
-	Type      string    `json:"type"` // message, tool_call, tool_result, status, error, progress
+	Type      string    `json:"type"` // message, tool_call, tool_result, status, error, log, metric, artifact, message_deleted, etc.
 	Role      string    `json:"role"` // user, assistant, system, tool
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
@@ -181,6 +181,10 @@ type TranslatedEvent struct {
 	RunStatus string `json:"run_status,omitempty"`
 	Phase     string `json:"phase,omitempty"`
 	Progress  int    `json:"progress,omitempty"`
+
+	// RawData holds the original event data as JSON for event types that
+	// don't have dedicated fields. The UI can display this in a generic card.
+	RawData string `json:"raw_data,omitempty"`
 }
 
 // =============================================================================
@@ -400,12 +404,51 @@ func TranslateEvent(raw map[string]interface{}) *TranslatedEvent {
 		event.Content, _ = data["message"].(string)
 
 	case "log":
-		// Skip log events for now (they're mostly internal)
-		return nil
+		event.Type = "log"
+		event.Role = "system"
+		event.Content, _ = data["message"].(string)
+		dataBytes, _ := json.Marshal(data)
+		event.RawData = string(dataBytes)
+
+	case "metric":
+		event.Type = "metric"
+		event.Role = "system"
+		if name, ok := data["name"].(string); ok {
+			event.Content = name
+		}
+		dataBytes, _ := json.Marshal(data)
+		event.RawData = string(dataBytes)
+
+	case "artifact":
+		event.Type = "artifact"
+		event.Role = "system"
+		if artType, ok := data["type"].(string); ok {
+			event.Content = artType
+		}
+		dataBytes, _ := json.Marshal(data)
+		event.RawData = string(dataBytes)
+
+	case "message_deleted":
+		event.Type = "message_deleted"
+		event.Role = "system"
+		if targetID, ok := data["targetEventId"].(string); ok {
+			event.Content = targetID
+		}
+		dataBytes, _ := json.Marshal(data)
+		event.RawData = string(dataBytes)
 
 	default:
-		// Unknown event type, skip
-		return nil
+		event.Type = eventType
+		event.Role = "system"
+		if data != nil {
+			dataBytes, _ := json.Marshal(data)
+			event.RawData = string(dataBytes)
+		}
+		if msg, ok := data["message"].(string); ok {
+			event.Content = msg
+		} else if content, ok := data["content"].(string); ok {
+			event.Content = content
+		}
 	}
 
 	return event
