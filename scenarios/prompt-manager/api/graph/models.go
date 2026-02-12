@@ -38,11 +38,12 @@ type Node struct {
 
 // Edge represents a directed relationship between two nodes.
 type Edge struct {
-	From       string   `json:"from"`
-	To         string   `json:"to"`
-	Kind       EdgeKind `json:"kind"`
-	SourceFile string   `json:"sourceFile,omitempty"`
-	LineNumber int      `json:"lineNumber,omitempty"`
+	From       string       `json:"from"`
+	To         string       `json:"to"`
+	Kind       EdgeKind     `json:"kind"`
+	Category   CodeCategory `json:"category,omitempty"` // Only set for EdgeCodeUsage edges
+	SourceFile string       `json:"sourceFile,omitempty"`
+	LineNumber int          `json:"lineNumber,omitempty"`
 }
 
 // HealthScore contains computed health metrics for a node.

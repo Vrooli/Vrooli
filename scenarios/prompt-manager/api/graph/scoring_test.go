@@ -74,3 +74,70 @@ func TestScoreAll_NoFunctions(t *testing.T) {
 		t.Errorf("expected 0 score with no functions, got %f", scores[0].Score)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// codeUsageScore 3-level tests
+// ---------------------------------------------------------------------------
+
+func TestCodeUsageScore_VrooliOnly(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{{ID: "skill-a", Type: NodeSkill}},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:vrooli", Kind: EdgeCodeUsage, Category: CodeScenarioCLI},
+		},
+	}
+	score := codeUsageScore("skill-a", g)
+	if score != 1.0 {
+		t.Errorf("expected 1.0 for Vrooli-only, got %f", score)
+	}
+}
+
+func TestCodeUsageScore_HasExternal(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{{ID: "skill-a", Type: NodeSkill}},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:grep", Kind: EdgeCodeUsage, Category: CodeExternalTool},
+		},
+	}
+	score := codeUsageScore("skill-a", g)
+	if score != 0.1 {
+		t.Errorf("expected 0.1 for external tool, got %f", score)
+	}
+}
+
+func TestCodeUsageScore_MixedVrooliAndExternal(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{{ID: "skill-a", Type: NodeSkill}},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:vrooli", Kind: EdgeCodeUsage, Category: CodeScenarioCLI},
+			{From: "skill-a", To: "cli:grep", Kind: EdgeCodeUsage, Category: CodeExternalTool},
+		},
+	}
+	score := codeUsageScore("skill-a", g)
+	if score != 0.1 {
+		t.Errorf("expected 0.1 (external dominates), got %f", score)
+	}
+}
+
+func TestCodeUsageScore_HasScript(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{{ID: "skill-a", Type: NodeSkill}},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:deploy.sh", Kind: EdgeCodeUsage, Category: CodeScript},
+		},
+	}
+	score := codeUsageScore("skill-a", g)
+	if score != 0.1 {
+		t.Errorf("expected 0.1 for script usage, got %f", score)
+	}
+}
+
+func TestCodeUsageScore_NoUsage(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{{ID: "skill-a", Type: NodeSkill}},
+	}
+	score := codeUsageScore("skill-a", g)
+	if score != 0.5 {
+		t.Errorf("expected 0.5 for no usage, got %f", score)
+	}
+}

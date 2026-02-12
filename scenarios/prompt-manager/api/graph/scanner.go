@@ -51,13 +51,19 @@ type skillLister interface {
 	GetWithContent(ctx context.Context, id string) (*store.Skill, string, error)
 }
 
+// codeDetector detects code references in content.
+// The concrete *CLIDetector satisfies this interface.
+type codeDetector interface {
+	Detect(content string) []CodeReference
+}
+
 // Scanner extracts graph edges from agents, teams, and skills.
 type Scanner struct {
 	agentStore    agentLister
 	teamStore     teamLister
 	skillStore    skillLister
 	relationStore store.RelationStore
-	cliDetector   *CLIDetector
+	cliDetector   codeDetector
 }
 
 // NewScanner creates a new graph scanner.
@@ -66,7 +72,7 @@ func NewScanner(
 	teamStore teamLister,
 	skillStore skillLister,
 	relationStore store.RelationStore,
-	cliDetector *CLIDetector,
+	cliDetector codeDetector,
 ) *Scanner {
 	return &Scanner{
 		agentStore:    agentStore,
@@ -154,21 +160,7 @@ func (s *Scanner) scanAgents(ctx context.Context, validIDs map[string]bool) ([]E
 			}
 
 			// Code usage edges
-			if s.cliDetector != nil {
-				codeRefs := s.cliDetector.Detect(content)
-				for _, cr := range codeRefs {
-					if cr.Category == CodeScenarioCLI {
-						cliNode := cliNodeID(cr.Value)
-						edges = append(edges, Edge{
-							From:       agent.ID,
-							To:         cliNode,
-							Kind:       EdgeCodeUsage,
-							SourceFile: f.Path,
-							LineNumber: cr.Line,
-						})
-					}
-				}
-			}
+			edges = append(edges, s.codeUsageEdgesFromContent(agent.ID, f.Path, content)...)
 		}
 	}
 	return edges, nil
@@ -209,21 +201,7 @@ func (s *Scanner) scanTeams(ctx context.Context, validIDs map[string]bool) ([]Ed
 			}
 
 			// Code usage edges
-			if s.cliDetector != nil {
-				codeRefs := s.cliDetector.Detect(content)
-				for _, cr := range codeRefs {
-					if cr.Category == CodeScenarioCLI {
-						cliNode := cliNodeID(cr.Value)
-						edges = append(edges, Edge{
-							From:       team.ID,
-							To:         cliNode,
-							Kind:       EdgeCodeUsage,
-							SourceFile: f.Path,
-							LineNumber: cr.Line,
-						})
-					}
-				}
-			}
+			edges = append(edges, s.codeUsageEdgesFromContent(team.ID, f.Path, content)...)
 		}
 	}
 	return edges, nil
@@ -264,21 +242,52 @@ func (s *Scanner) scanSkills(skills []store.Skill, validIDs map[string]bool) []E
 		}
 
 		// Code usage edges from skill content
-		if s.cliDetector != nil {
-			codeRefs := s.cliDetector.Detect(content)
-			for _, cr := range codeRefs {
-				if cr.Category == CodeScenarioCLI {
-					cliNode := cliNodeID(cr.Value)
-					edges = append(edges, Edge{
-						From:       skill.ID,
-						To:         cliNode,
-						Kind:       EdgeCodeUsage,
-						SourceFile: "SKILL.md",
-						LineNumber: cr.Line,
-					})
-				}
+		edges = append(edges, s.codeUsageEdgesFromContent(skill.ID, "SKILL.md", content)...)
+	}
+	return edges
+}
+
+// codeUsageEdgesFromContent runs the code detector on content and returns
+// edges for CodeScenarioCLI, CodeExternalTool, and CodeScript references.
+// CodeAPICall is intentionally excluded (documentation, not tool invocation).
+// "prompt-manager skill read" commands are skipped — those are Skill→Skill
+// relations handled as EdgeCLIRead by extractRefsFromContent.
+func (s *Scanner) codeUsageEdgesFromContent(sourceID, sourceFile, content string) []Edge {
+	if s.cliDetector == nil {
+		return nil
+	}
+	type dedupeKey struct {
+		from, to string
+		cat      CodeCategory
+	}
+	seen := make(map[dedupeKey]bool)
+	var edges []Edge
+	for _, cr := range s.cliDetector.Detect(content) {
+		switch cr.Category {
+		case CodeScenarioCLI:
+			// Skip "prompt-manager skill read" — handled as EdgeCLIRead
+			if cliReadRE.MatchString(cr.Value) {
+				continue
 			}
+		case CodeExternalTool, CodeScript:
+			// Allow
+		default:
+			continue // CodeAPICall intentionally excluded
 		}
+		to := cliNodeID(cr.Value)
+		key := dedupeKey{sourceID, to, cr.Category}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		edges = append(edges, Edge{
+			From:       sourceID,
+			To:         to,
+			Kind:       EdgeCodeUsage,
+			Category:   cr.Category,
+			SourceFile: sourceFile,
+			LineNumber: cr.Line,
+		})
 	}
 	return edges
 }

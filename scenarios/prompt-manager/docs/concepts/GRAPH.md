@@ -73,7 +73,21 @@ Edges are deduplicated per `(skillID, edgeKind)` pair to prevent duplicates with
 
 [CODE: api/graph/code_detector.go]
 
-The `CLIDetector` scans agent, team, and skill content for CLI tool references (scenario CLIs, external tools, scripts, API calls) and produces `code-usage` edges.
+The `CLIDetector` scans agent, team, and skill content for CLI tool references. It handles piped and chained commands by splitting backtick content on `|`, `||`, `&&`, and `;`, classifying each segment independently:
+
+| Category | When | Example |
+|----------|------|---------|
+| `CodeScenarioCLI` | First word is in the `scenarioCLIs` map (`vrooli`, `prompt-manager`, etc.) | `` `vrooli scenario start foo` `` |
+| `CodeExternalTool` | First word is NOT a known scenario CLI | `` `grep -r pattern .` `` |
+| `CodeScript` | File path with script extension (.sh, .py, .js, .ts, .rb, .pl) | `scripts/deploy.sh` |
+| `CodeAPICall` | Bare HTTP pattern (GET/POST/PUT/DELETE + URL) | `GET https://api.example.com` |
+
+**Edge creation policy:**
+- `CodeScenarioCLI`, `CodeExternalTool`, and `CodeScript` produce `code-usage` edges in the graph.
+- `CodeAPICall` is intentionally excluded — it documents API endpoints, not tool invocations.
+- `prompt-manager skill read` commands are excluded — those are Skill→Skill relations handled as `cli-read` edges.
+
+**Pipe splitting example:** `` `vrooli scenario start foo | grep error` `` produces two references — `CodeScenarioCLI` for `vrooli` and `CodeExternalTool` for `grep`. Both become edges in the graph.
 
 ## Health Scoring
 
@@ -85,7 +99,7 @@ Each node receives a composite health score (0.0–1.0) computed as a weighted a
 |--------|--------|------------------|
 | `outgoing-edges` | 1.0 | Number of edges where node is the source. 5+ edges = 1.0. |
 | `incoming-edges` | 1.0 | Number of edges where node is the target. 5+ references = 1.0. |
-| `code-usage` | 0.5 | Binary: 1.0 if node has any `code-usage` edge, 0.0 otherwise. |
+| `code-usage` | 0.5 | 3-level: 1.0 if only Vrooli CLIs, 0.5 if no tool usage (neutral), 0.1 if any external tool or script usage (penalty). |
 | `recent-activity` | 0.5 | Currently returns 0.5 (neutral). The decay function (`RecentActivityScoreFromTimestamp`) is implemented — it returns 1.0 within 7 days, linearly decaying to 0.0 at 90 days — but isn't wired yet because `Node` doesn't carry timestamps. See [DOC: docs/internal/PROBLEMS.md#graph-recent-activity-scoring]. |
 
 ```
@@ -102,7 +116,8 @@ score = (factor₁ × weight₁ + factor₂ × weight₂ + ...) / Σ weights
 | `SkilllessAgents` | `[]Node` | Agents with no outgoing skill-reference edges |
 | `EmptyTeams` | `[]Node` | Teams with no `membership` edges |
 | `UnaffiliatedAgents` | `[]Node` | Agents not targeted by any `membership` edge |
-| `CLIlessSkills` | `[]Node` | Skills with no `code-usage` edges |
+| `CLIlessSkills` | `[]Node` | Skills with no Vrooli CLI `code-usage` edges (external-only skills still appear) |
+| `ExternalToolSkills` | `[]Node` | Skills with external tool or script `code-usage` edges (need wrapping in Vrooli CLIs) |
 | `Popular(limit)` | `[]Node` | Top N nodes by incoming edge count |
 | `DetectCircularRefs` | `[][]string` | DFS-based cycle detection across skill-to-skill edges |
 
@@ -133,9 +148,9 @@ The frontend renders the graph using React Flow with Dagre hierarchical layout.
 
 | Score Range | Visual |
 |-------------|--------|
-| < 0.3 | Red ring (critical) |
-| 0.3 – 0.6 | Yellow ring (warning) |
-| > 0.6 | No ring (healthy) |
+| < 0.3 | Red fill + border (critical) |
+| 0.3 – 0.6 | Yellow fill + border (warning) |
+| > 0.6 | Green fill + border (healthy) |
 
 **Interactivity:**
 - Click a node to navigate to its editor panel

@@ -295,6 +295,22 @@ type graphScanner interface {
 
 Tests inject a mock scanner returning predetermined edges, so builder tests focus on node collection and health scoring without scanning real files.
 
+### codeDetector Interface
+
+[CODE: api/graph/scanner.go]
+
+The `Scanner` depends on a `codeDetector` interface for code-reference detection rather than the concrete `*CLIDetector`:
+
+```go
+type codeDetector interface {
+    Detect(content string) []CodeReference
+}
+```
+
+`*CLIDetector` satisfies this interface implicitly. Tests can inject a `stubCodeDetector` that returns predetermined `CodeReference` slices, isolating scanner edge-creation logic from regex matching.
+
+**Filtering policy:** `CodeScenarioCLI`, `CodeExternalTool`, and `CodeScript` references produce `code-usage` edges with the `Category` field set on each edge. `CodeAPICall` is intentionally excluded (documentation, not tool invocation). `prompt-manager skill read` commands are excluded since they're Skill→Skill relations handled as `EdgeCLIRead`. This is tested by `TestCodeUsageEdgesFromContent_AllowedCategories`, `TestScanAll_APICallExcluded`, and `TestCodeUsageEdges_SkipsCLIRead`.
+
 ### Index Persistence Seam
 
 `GraphIndexStore` accepts a `storeDir` parameter. Tests point at a temp directory, isolating index file I/O from the real store.

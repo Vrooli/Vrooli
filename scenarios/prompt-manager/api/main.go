@@ -17,6 +17,7 @@ import (
 
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
+	"prompt-manager/graph"
 	"prompt-manager/heartbeat"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
@@ -29,7 +30,6 @@ import (
 	"prompt-manager/testing"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
-	"prompt-manager/graph"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -139,7 +139,7 @@ func main() {
 	skillHandlers.SetAIIndexer(aiSearchService)
 
 	// Graph detection
-	cliDetector := graph.NewCLIDetector(nil) // scenario names auto-discovered at scan time
+	cliDetector := graph.NewCLIDetector([]string{"prompt-manager"})
 	graphScanner := graph.NewScanner(
 		fileStore.Agents().(*store.FileAgentStore),
 		fileStore.Teams().(*store.FileTeamStore),
@@ -152,7 +152,6 @@ func main() {
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.FileSkills(),
 		graphScanner,
-		cliDetector,
 		graph.DefaultScoreFns(),
 	)
 	graphIndex := graph.NewIndexStore(absStoreDir, graphBuilder)

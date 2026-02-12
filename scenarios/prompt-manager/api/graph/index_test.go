@@ -9,21 +9,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Mock for graphBuilder
-// ---------------------------------------------------------------------------
-
-type mockGraphBuilder struct {
-	graph     Graph
-	err       error
-	callCount int
-}
-
-func (m *mockGraphBuilder) Build(_ context.Context) (Graph, error) {
-	m.callCount++
-	return m.graph, m.err
-}
-
-// ---------------------------------------------------------------------------
 // IndexStore tests
 // ---------------------------------------------------------------------------
 

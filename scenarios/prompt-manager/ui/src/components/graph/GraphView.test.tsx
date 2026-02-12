@@ -16,6 +16,9 @@ import type { GraphResponse } from '@/lib/schemas'
 // Track render count to detect infinite loops
 let renderCount = 0
 const MAX_RENDERS = 100
+const mockFitView = vi.fn().mockResolvedValue(true)
+const mockSetViewport = vi.fn().mockResolvedValue(true)
+const mockGetViewport = vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 })
 
 // Mock graph data matching the real API shape
 const MOCK_GRAPH_RESPONSE: GraphResponse = {
@@ -121,7 +124,6 @@ vi.mock('@xyflow/react', async () => {
     Panel: ({ children }: { children: React.ReactNode }) =>
       React.createElement('div', null, children),
     MarkerType: { ArrowClosed: 'arrowclosed' },
-    useReactFlow: () => ({ fitView: vi.fn() }),
     useNodesState: (initial: unknown[]) => {
       const [nodes, setNodes] = React.useState(initial)
       const onNodesChange = React.useCallback(() => {}, [])
@@ -134,6 +136,11 @@ vi.mock('@xyflow/react', async () => {
     },
     Position: { Top: 'top', Bottom: 'bottom', Left: 'left', Right: 'right' },
     Handle: () => null,
+    useReactFlow: () => ({
+      fitView: mockFitView,
+      setViewport: mockSetViewport,
+      getViewport: mockGetViewport,
+    }),
   }
 })
 
@@ -162,6 +169,9 @@ describe('GraphView', () => {
         healthThreshold: 0,
       },
       highlightedNodeIds: new Set(),
+      layoutDirection: 'TB',
+      fitViewRequested: 0,
+      viewport: null,
     })
     vi.clearAllMocks()
   })
@@ -193,6 +203,7 @@ describe('GraphView', () => {
 
     // CRITICAL: Verify no infinite loop — healthy render completes well under limit
     expect(renderCount).toBeLessThan(20)
+    expect(mockFitView).toHaveBeenCalled()
   })
 
   it('should render empty state when graph has no nodes', async () => {
@@ -270,5 +281,19 @@ describe('GraphView', () => {
     expect(screen.getByTestId('node-agent-1')).toHaveTextContent('Test Agent')
     expect(screen.getByTestId('node-skill-1')).toHaveTextContent('Test Skill')
     expect(screen.getByTestId('node-cli-1')).toHaveTextContent('Test CLI')
+  })
+
+  it('should restore saved viewport when available', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+    useGraphStore.setState({ viewport: { x: 120, y: 80, zoom: 0.75 } })
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    expect(mockSetViewport).toHaveBeenCalledWith({ x: 120, y: 80, zoom: 0.75 }, { duration: 0 })
   })
 })

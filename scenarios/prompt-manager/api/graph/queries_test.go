@@ -142,3 +142,94 @@ func TestDetectCircularRefs_WithCycle(t *testing.T) {
 		t.Fatal("expected at least 1 cycle, got 0")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// CLIlessSkills with Category awareness
+// ---------------------------------------------------------------------------
+
+func TestCLIlessSkills_IgnoresExternalEdges(t *testing.T) {
+	// A skill with only external tool edges should still be "CLI-less"
+	// because it doesn't use Vrooli CLIs.
+	g := Graph{
+		Nodes: []Node{
+			{ID: "skill-a", Type: NodeSkill},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:grep", Kind: EdgeCodeUsage, Category: CodeExternalTool},
+		},
+	}
+	skills := CLIlessSkills(g)
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 CLIless skill, got %d", len(skills))
+	}
+	if skills[0].ID != "skill-a" {
+		t.Errorf("expected skill-a, got %s", skills[0].ID)
+	}
+}
+
+func TestCLIlessSkills_ExcludesVrooliSkills(t *testing.T) {
+	// A skill with a Vrooli CLI edge should NOT be "CLI-less".
+	g := Graph{
+		Nodes: []Node{
+			{ID: "skill-a", Type: NodeSkill},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:vrooli", Kind: EdgeCodeUsage, Category: CodeScenarioCLI},
+		},
+	}
+	skills := CLIlessSkills(g)
+	if len(skills) != 0 {
+		t.Fatalf("expected 0 CLIless skills, got %d", len(skills))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ExternalToolSkills
+// ---------------------------------------------------------------------------
+
+func TestExternalToolSkills(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "skill-a", Type: NodeSkill},
+			{ID: "skill-b", Type: NodeSkill},
+			{ID: "skill-c", Type: NodeSkill},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:grep", Kind: EdgeCodeUsage, Category: CodeExternalTool},
+			{From: "skill-b", To: "cli:vrooli", Kind: EdgeCodeUsage, Category: CodeScenarioCLI},
+			{From: "skill-c", To: "cli:deploy.sh", Kind: EdgeCodeUsage, Category: CodeScript},
+		},
+	}
+	skills := ExternalToolSkills(g)
+	if len(skills) != 2 {
+		t.Fatalf("expected 2 external tool skills, got %d", len(skills))
+	}
+	ids := map[string]bool{}
+	for _, s := range skills {
+		ids[s.ID] = true
+	}
+	if !ids["skill-a"] {
+		t.Error("expected skill-a (external tool)")
+	}
+	if !ids["skill-c"] {
+		t.Error("expected skill-c (script)")
+	}
+	if ids["skill-b"] {
+		t.Error("skill-b should not appear (Vrooli CLI only)")
+	}
+}
+
+func TestExternalToolSkills_Empty(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "skill-a", Type: NodeSkill},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:vrooli", Kind: EdgeCodeUsage, Category: CodeScenarioCLI},
+		},
+	}
+	skills := ExternalToolSkills(g)
+	if len(skills) != 0 {
+		t.Fatalf("expected 0 external tool skills, got %d", len(skills))
+	}
+}

@@ -26,24 +26,42 @@ export function GraphHelpContent() {
         </h3>
         <div className="space-y-3">
           <HelpItem
-            icon={<div className="w-4 h-4 rounded-sm bg-blue-500/40 border border-border" />}
+            icon={<div className="w-4 h-4 rounded-sm bg-slate-500/20 border border-slate-300/70" />}
             title="Team"
             description="Rectangular nodes representing teams that organize agents."
           />
           <HelpItem
-            icon={<div className="w-4 h-4 rounded-full bg-emerald-500/40 border border-border" />}
+            icon={<div className="w-4 h-4 rounded-full bg-slate-500/20 border border-slate-300/70" />}
             title="Agent"
             description="Circular nodes representing agents that execute skills."
           />
           <HelpItem
-            icon={<div className="w-4 h-4 rotate-45 rounded-sm bg-violet-500/40 border border-border" />}
+            icon={<div className="w-4 h-4 rotate-45 rounded-sm bg-slate-500/20 border border-slate-300/70" />}
             title="Skill"
             description="Diamond nodes representing skills (markdown files) that define behavior."
           />
           <HelpItem
-            icon={<div className="w-4 h-4 rounded-sm bg-orange-500/40 border border-border" />}
+            icon={<div className="w-4 h-4 clip-hexagon bg-slate-500/20 border border-slate-300/70" />}
             title="CLI"
             description="Hexagonal nodes representing command-line tools linked to skills."
+          />
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-sm font-medium text-indigo-400 mb-3">
+          Health & Edges
+        </h3>
+        <div className="space-y-3">
+          <HelpItem
+            icon={<div className="w-4 h-4 rounded-sm bg-red-500/20 border-2 border-red-400/90" />}
+            title="Health Coloring"
+            description="Node fill and border color indicate health: red (critical), yellow (warning), green (healthy)."
+          />
+          <HelpItem
+            icon={<div className="w-5 border-t-2 border-violet-500 border-dashed mt-2" />}
+            title="Edge Meanings"
+            description="Line style and color encode edge kind. See the legend for the full mapping."
           />
         </div>
       </section>

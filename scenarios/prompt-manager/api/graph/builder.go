@@ -29,12 +29,11 @@ type graphScanner interface {
 
 // Builder assembles the full graph from entity stores and the scanner.
 type Builder struct {
-	agentStore  agentNodeSource
-	teamStore   teamNodeSource
-	skillStore  skillNodeSource
-	scanner     graphScanner
-	scoreFns    []ScoreFn
-	cliDetector *CLIDetector
+	agentStore agentNodeSource
+	teamStore  teamNodeSource
+	skillStore skillNodeSource
+	scanner    graphScanner
+	scoreFns   []ScoreFn
 }
 
 // NewBuilder creates a graph builder.
@@ -43,16 +42,14 @@ func NewBuilder(
 	teamStore teamNodeSource,
 	skillStore skillNodeSource,
 	scanner graphScanner,
-	cliDetector *CLIDetector,
 	scoreFns []ScoreFn,
 ) *Builder {
 	return &Builder{
-		agentStore:  agentStore,
-		teamStore:   teamStore,
-		skillStore:  skillStore,
-		scanner:     scanner,
-		cliDetector: cliDetector,
-		scoreFns:    scoreFns,
+		agentStore: agentStore,
+		teamStore:  teamStore,
+		skillStore: skillStore,
+		scanner:    scanner,
+		scoreFns:   scoreFns,
 	}
 }
 

@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
@@ -9,36 +8,6 @@ import (
 
 	"github.com/gorilla/mux"
 )
-
-// ---------------------------------------------------------------------------
-// Mock for graphIndexProvider
-// ---------------------------------------------------------------------------
-
-type mockGraphIndexProvider struct {
-	idx      *GraphIndex
-	getErr   error
-	regenErr error
-}
-
-func (m *mockGraphIndexProvider) Get(_ context.Context) (*GraphIndex, error) {
-	return m.idx, m.getErr
-}
-
-func (m *mockGraphIndexProvider) Regenerate(_ context.Context) error {
-	return m.regenErr
-}
-
-// helper to create a test index with graph data
-func testIndex(nodes []Node, edges []Edge, scores []HealthScore) *GraphIndex {
-	return &GraphIndex{
-		GeneratedAt: "2025-01-01T00:00:00Z",
-		Graph: Graph{
-			Nodes:        nodes,
-			Edges:        edges,
-			HealthScores: scores,
-		},
-	}
-}
 
 // ---------------------------------------------------------------------------
 // GetGraph tests

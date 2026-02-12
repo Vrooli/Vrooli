@@ -25,6 +25,7 @@ import {
   type Node,
   type Edge,
   type NodeMouseHandler,
+  type OnMove,
 } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import { cn } from '@/lib/utils'
@@ -115,9 +116,10 @@ interface GraphViewInnerProps {
 }
 
 function GraphViewInner({ className }: GraphViewInnerProps) {
-  const { fitView } = useReactFlow()
+  const { fitView, setViewport, getViewport } = useReactFlow()
   const [hoveredNode, setHoveredNode] = useState<{ node: GraphNodeType; healthScore?: HealthScore; x: number; y: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const hasInitializedViewport = useRef(false)
 
   // Store data
   const graph = useGraphStore((s) => s.graph)
@@ -127,6 +129,8 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
   const layoutDirection = useGraphStore((s) => s.layoutDirection)
   const fitViewRequested = useGraphStore((s) => s.fitViewRequested)
+  const savedViewport = useGraphStore((s) => s.viewport)
+  const setSavedViewport = useGraphStore((s) => s.setViewport)
   // useShallow prevents infinite re-render: selectFilteredNodes returns a new
   // array reference on every call (.filter()), but useShallow compares elements
   // by identity so the result is stable when the underlying data hasn't changed.
@@ -147,9 +151,12 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   useEffect(() => {
     if (fitViewRequested !== prevFitView.current) {
       prevFitView.current = fitViewRequested
-      void fitView({ padding: 0.2 })
+      void (async () => {
+        await fitView({ padding: 0.2 })
+        setSavedViewport(getViewport())
+      })()
     }
-  }, [fitViewRequested, fitView])
+  }, [fitViewRequested, fitView, getViewport, setSavedViewport])
 
   // Build node ID set for filtering edges
   const filteredNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes])
@@ -237,6 +244,27 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   useEffect(() => {
     setEdges(layoutedEdges)
   }, [layoutedEdges, setEdges])
+
+  // Restore persisted viewport once after nodes are available.
+  useEffect(() => {
+    if (!graph || nodes.length === 0 || hasInitializedViewport.current) return
+
+    hasInitializedViewport.current = true
+
+    if (savedViewport) {
+      void setViewport(savedViewport, { duration: 0 })
+      return
+    }
+
+    void (async () => {
+      await fitView({ padding: 0.2 })
+      setSavedViewport(getViewport())
+    })()
+  }, [graph, nodes.length, savedViewport, setViewport, fitView, getViewport, setSavedViewport])
+
+  const onMoveEnd = useCallback<OnMove>((_event, viewport) => {
+    setSavedViewport(viewport)
+  }, [setSavedViewport])
 
   // Handle node click -> navigate
   const onNodeClick = useCallback<NodeMouseHandler>((_event, node) => {
@@ -331,9 +359,8 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
         onNodeClick={onNodeClick}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
+        onMoveEnd={onMoveEnd}
         nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}

@@ -16,6 +16,51 @@ import { create } from 'zustand'
 import type { GraphResponse, GraphNode } from '@/lib/schemas'
 import { getGraph, regenerateGraph as regenerateGraphService } from '@/services/graphService'
 
+const GRAPH_VIEWPORT_STORAGE_KEY = 'pm.graphViewport'
+
+export interface GraphViewport {
+  x: number
+  y: number
+  zoom: number
+}
+
+function loadGraphViewport(): GraphViewport | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = localStorage.getItem(GRAPH_VIEWPORT_STORAGE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw)
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      Number.isFinite(parsed.x) &&
+      Number.isFinite(parsed.y) &&
+      Number.isFinite(parsed.zoom)
+    ) {
+      return {
+        x: parsed.x,
+        y: parsed.y,
+        zoom: parsed.zoom,
+      }
+    }
+  } catch {
+    // Ignore malformed localStorage payloads.
+  }
+
+  return null
+}
+
+function saveGraphViewport(viewport: GraphViewport): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(GRAPH_VIEWPORT_STORAGE_KEY, JSON.stringify(viewport))
+  } catch {
+    // Ignore quota errors.
+  }
+}
+
 interface GraphFilters {
   showTeams: boolean
   showAgents: boolean
@@ -32,6 +77,7 @@ interface GraphStore {
   highlightedNodeIds: Set<string>
   layoutDirection: 'TB' | 'LR'
   fitViewRequested: number
+  viewport: GraphViewport | null
 
   fetchGraph: (forceRefresh?: boolean) => Promise<void>
   regenerateGraph: () => Promise<void>
@@ -40,6 +86,7 @@ interface GraphStore {
   clearHighlights: () => void
   setLayoutDirection: (dir: 'TB' | 'LR') => void
   requestFitView: () => void
+  setViewport: (viewport: GraphViewport) => void
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -56,6 +103,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   highlightedNodeIds: new Set(),
   layoutDirection: 'TB',
   fitViewRequested: 0,
+  viewport: loadGraphViewport(),
 
   fetchGraph: async (forceRefresh = false) => {
     if (get().loading) return
@@ -105,6 +153,11 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   requestFitView: () => {
     set((state) => ({ fitViewRequested: state.fitViewRequested + 1 }))
+  },
+
+  setViewport: (viewport) => {
+    set({ viewport })
+    saveGraphViewport(viewport)
   },
 }))
 

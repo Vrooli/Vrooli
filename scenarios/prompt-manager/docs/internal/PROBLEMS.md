@@ -3,7 +3,7 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-02-03
+2026-02-12
 
 ---
 
@@ -179,6 +179,12 @@ _No open crash issues identified. Team editor org chart now guards against self-
 |------|--------|---------|
 | 2025-01-25 | Aligned API with screaming architecture | All domains now have interfaces |
 | 2025-01-25 | Added CLI domains for all API endpoints | Full CLI coverage |
+
+---
+
+## Wiring Gaps
+
+_No open wiring gaps._
 
 ---
 

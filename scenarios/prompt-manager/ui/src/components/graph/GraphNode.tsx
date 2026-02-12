@@ -7,10 +7,10 @@
  * - Diamond: Skill
  * - Hexagon: CLI
  *
- * Color tinted by health score:
- * - Red tint (0-0.3)
- * - Yellow tint (0.3-0.6)
- * - Full color (0.6-1.0)
+ * Health is encoded by both fill and border color:
+ * - Critical (0-0.3): Red
+ * - Warning (0.3-0.6): Yellow
+ * - Healthy (0.6-1.0): Green
  */
 
 import { memo } from 'react'
@@ -27,13 +27,6 @@ export interface GraphNodeData extends Record<string, unknown> {
 
 type GraphNodeProps = NodeProps<Node<GraphNodeData, 'graphNode'>>
 
-const TYPE_COLORS: Record<NodeType, { bg: string; border: string; text: string }> = {
-  team: { bg: 'bg-blue-500/20', border: 'border-blue-500/60', text: 'text-blue-300' },
-  agent: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/60', text: 'text-emerald-300' },
-  skill: { bg: 'bg-violet-500/20', border: 'border-violet-500/60', text: 'text-violet-300' },
-  cli: { bg: 'bg-orange-500/20', border: 'border-orange-500/60', text: 'text-orange-300' },
-}
-
 const TYPE_SHAPES: Record<NodeType, string> = {
   team: 'rounded-lg',        // Rectangle
   agent: 'rounded-full',     // Circle
@@ -41,18 +34,42 @@ const TYPE_SHAPES: Record<NodeType, string> = {
   cli: 'clip-hexagon',       // Hexagon
 }
 
-function getHealthTint(score: number | null): string {
-  if (score === null) return ''
-  if (score < 0.3) return 'ring-2 ring-red-500/50'
-  if (score < 0.6) return 'ring-2 ring-yellow-500/50'
-  return ''
+function getHealthClasses(score: number | null): { background: string; border: string; text: string } {
+  if (score === null) {
+    return {
+      background: 'bg-muted/20',
+      border: 'border-border/70',
+      text: 'text-foreground',
+    }
+  }
+
+  if (score < 0.3) {
+    return {
+      background: 'bg-red-500/20',
+      border: 'border-red-400/90',
+      text: 'text-red-100',
+    }
+  }
+
+  if (score < 0.6) {
+    return {
+      background: 'bg-yellow-500/20',
+      border: 'border-yellow-300/90',
+      text: 'text-yellow-100',
+    }
+  }
+
+  return {
+    background: 'bg-emerald-500/20',
+    border: 'border-emerald-300/80',
+    text: 'text-emerald-100',
+  }
 }
 
 function GraphNodeComponent({ data }: GraphNodeProps) {
   const { label, nodeType, healthScore, isHighlighted } = data
-  const colors = TYPE_COLORS[nodeType]
   const shape = TYPE_SHAPES[nodeType]
-  const healthTint = getHealthTint(healthScore)
+  const health = getHealthClasses(healthScore)
   const isDiamond = nodeType === 'skill'
 
   return (
@@ -66,12 +83,11 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
 
       <div
         className={cn(
-          'px-4 py-2.5 border cursor-pointer transition-all',
+          'px-4 py-2.5 border-2 cursor-pointer transition-all',
           'hover:brightness-110',
-          colors.bg,
-          colors.border,
+          health.background,
+          health.border,
           shape,
-          healthTint,
           isHighlighted && 'ring-2 ring-primary shadow-lg shadow-primary/20',
           isDiamond && 'w-[100px] h-[100px] flex items-center justify-center',
           !isDiamond && 'min-w-[120px] max-w-[180px]',
@@ -80,12 +96,12 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
         <div className={cn(isDiamond && '-rotate-45')}>
           <p className={cn(
             'text-xs font-medium text-center truncate',
-            colors.text,
+            health.text,
           )}>
             {label}
           </p>
           {healthScore !== null && (
-            <p className="text-[10px] text-center text-muted-foreground mt-0.5">
+            <p className="text-[10px] text-center text-foreground/75 mt-0.5">
               {Math.round(healthScore * 100)}%
             </p>
           )}

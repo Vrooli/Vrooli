@@ -9,115 +9,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Mocks for Scanner interface seams
-// ---------------------------------------------------------------------------
-
-type mockAgentLister struct {
-	agents   []store.Agent
-	listErr  error
-	files    map[string][]store.AgentFileEntry // agentID → files
-	contents map[string]string                 // "agentID/path" → content
-	filesErr error
-	readErr  error
-}
-
-func (m *mockAgentLister) List(_ context.Context) ([]store.Agent, error) {
-	return m.agents, m.listErr
-}
-
-func (m *mockAgentLister) ListFiles(_ context.Context, agentID string) ([]store.AgentFileEntry, error) {
-	if m.filesErr != nil {
-		return nil, m.filesErr
-	}
-	return m.files[agentID], nil
-}
-
-func (m *mockAgentLister) ReadFile(_ context.Context, agentID, relPath string) (string, error) {
-	if m.readErr != nil {
-		return "", m.readErr
-	}
-	return m.contents[agentID+"/"+relPath], nil
-}
-
-type mockTeamLister struct {
-	teams    []store.Team
-	listErr  error
-	files    map[string][]store.TeamFileEntry
-	contents map[string]string // "teamID/path" → content
-	filesErr error
-	readErr  error
-}
-
-func (m *mockTeamLister) List(_ context.Context) ([]store.Team, error) {
-	return m.teams, m.listErr
-}
-
-func (m *mockTeamLister) ListSharedFiles(_ context.Context, teamID string) ([]store.TeamFileEntry, error) {
-	if m.filesErr != nil {
-		return nil, m.filesErr
-	}
-	return m.files[teamID], nil
-}
-
-func (m *mockTeamLister) ReadSharedFile(_ context.Context, teamID, relPath string) (string, error) {
-	if m.readErr != nil {
-		return "", m.readErr
-	}
-	return m.contents[teamID+"/"+relPath], nil
-}
-
-type mockSkillLister struct {
-	skills     []store.Skill
-	listErr    error
-	contentMap map[string]string // skillID → SKILL.md content
-	contentErr error
-}
-
-func (m *mockSkillLister) List(_ context.Context) ([]store.Skill, error) {
-	return m.skills, m.listErr
-}
-
-func (m *mockSkillLister) GetWithContent(_ context.Context, id string) (*store.Skill, string, error) {
-	if m.contentErr != nil {
-		return nil, "", m.contentErr
-	}
-	for i := range m.skills {
-		if m.skills[i].ID == id {
-			return &m.skills[i], m.contentMap[id], nil
-		}
-	}
-	return nil, "", errors.New("skill not found")
-}
-
-type mockRelationStore struct {
-	members    map[string][]store.TeamMemberRelation // teamID → members
-	membersErr error
-}
-
-func (m *mockRelationStore) GetTeamMember(_ context.Context, _, _ string) (*store.TeamMemberRelation, error) {
-	return nil, nil
-}
-
-func (m *mockRelationStore) SetTeamMember(_ context.Context, _ *store.TeamMemberRelation) error {
-	return nil
-}
-
-func (m *mockRelationStore) DeleteTeamMember(_ context.Context, _, _ string) error {
-	return nil
-}
-
-func (m *mockRelationStore) ListTeamMembers(_ context.Context, teamID string) ([]store.TeamMemberRelation, error) {
-	if m.membersErr != nil {
-		return nil, m.membersErr
-	}
-	return m.members[teamID], nil
-}
-
-func (m *mockRelationStore) ListAgentTeams(_ context.Context, _ string) ([]store.TeamMemberRelation, error) {
-	return nil, nil
-}
-
-// ---------------------------------------------------------------------------
 // ScanAll tests
 // ---------------------------------------------------------------------------
 
@@ -800,5 +691,302 @@ func TestCLINodeID(t *testing.T) {
 		if got != tt.expect {
 			t.Errorf("cliNodeID(%q) = %q, want %q", tt.cmd, got, tt.expect)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Skill and Team code-usage edge tests
+// ---------------------------------------------------------------------------
+
+func TestScanAll_SkillCodeUsage(t *testing.T) {
+	det := NewCLIDetector([]string{"prompt-manager"})
+	s := NewScanner(
+		&mockAgentLister{},
+		&mockTeamLister{},
+		&mockSkillLister{
+			skills: []store.Skill{{ID: "skill-a"}},
+			contentMap: map[string]string{
+				"skill-a": "Run `vrooli scenario start my-app` to deploy",
+			},
+		},
+		nil, det,
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 edge, got %d: %+v", len(edges), edges)
+	}
+	e := edges[0]
+	if e.From != "skill-a" || e.To != "cli:vrooli" || e.Kind != EdgeCodeUsage {
+		t.Errorf("unexpected edge: %+v", e)
+	}
+	if e.SourceFile != "SKILL.md" {
+		t.Errorf("expected SourceFile SKILL.md, got %s", e.SourceFile)
+	}
+}
+
+func TestScanAll_TeamCodeUsage(t *testing.T) {
+	det := NewCLIDetector([]string{"prompt-manager"})
+	s := NewScanner(
+		&mockAgentLister{},
+		&mockTeamLister{
+			teams: []store.Team{{ID: "team-1"}},
+			files: map[string][]store.TeamFileEntry{
+				"team-1": {{Path: "shared.md"}},
+			},
+			contents: map[string]string{
+				"team-1/shared.md": "Deploy with `vrooli scenario start demo`",
+			},
+		},
+		&mockSkillLister{},
+		nil, det,
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 edge, got %d: %+v", len(edges), edges)
+	}
+	e := edges[0]
+	if e.From != "team-1" || e.To != "cli:vrooli" || e.Kind != EdgeCodeUsage {
+		t.Errorf("unexpected edge: %+v", e)
+	}
+	if e.SourceFile != "shared.md" {
+		t.Errorf("expected SourceFile shared.md, got %s", e.SourceFile)
+	}
+}
+
+func TestScanAll_ScriptEdgesCreated(t *testing.T) {
+	// Script references detected by scriptRefRE produce CodeScript edges.
+	det := NewCLIDetector(nil)
+	s := NewScanner(
+		&mockAgentLister{
+			agents: []store.Agent{{ID: "agent-1"}},
+			files: map[string][]store.AgentFileEntry{
+				"agent-1": {{Path: "SOUL.md"}},
+			},
+			contents: map[string]string{
+				"agent-1/SOUL.md": "Run scripts/deploy.sh",
+			},
+		},
+		&mockTeamLister{},
+		&mockSkillLister{},
+		nil, det,
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 edge, got %d: %+v", len(edges), edges)
+	}
+	if edges[0].Category != CodeScript {
+		t.Errorf("expected category script, got %s", edges[0].Category)
+	}
+}
+
+func TestScanAll_APICallExcluded(t *testing.T) {
+	// Bare HTTP patterns (CodeAPICall) do NOT produce edges — they're
+	// documentation of API endpoints, not tool invocations.
+	det := NewCLIDetector(nil)
+	s := NewScanner(
+		&mockAgentLister{
+			agents: []store.Agent{{ID: "agent-1"}},
+			files: map[string][]store.AgentFileEntry{
+				"agent-1": {{Path: "SOUL.md"}},
+			},
+			contents: map[string]string{
+				"agent-1/SOUL.md": "GET https://api.example.com/data",
+			},
+		},
+		&mockTeamLister{},
+		&mockSkillLister{},
+		nil, det,
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 0 {
+		t.Fatalf("expected 0 edges (API calls excluded), got %d: %+v", len(edges), edges)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// codeUsageEdgesFromContent unit tests
+// ---------------------------------------------------------------------------
+
+func TestCodeUsageEdgesFromContent_NilDetector(t *testing.T) {
+	s := &Scanner{} // cliDetector is nil
+	edges := s.codeUsageEdgesFromContent("src-1", "file.md", "Run `vrooli help`")
+	if len(edges) != 0 {
+		t.Fatalf("expected 0 edges with nil detector, got %d", len(edges))
+	}
+}
+
+func TestCodeUsageEdgesFromContent_AllowedCategories(t *testing.T) {
+	// ScenarioCLI, ExternalTool, and Script produce edges. APICall does not.
+	s := &Scanner{
+		cliDetector: &stubCodeDetector{
+			refs: []CodeReference{
+				{Category: CodeScenarioCLI, Value: "vrooli scenario start x", Line: 1},
+				{Category: CodeAPICall, Value: "GET https://example.com", Line: 2},
+				{Category: CodeScript, Value: "scripts/deploy.sh", Line: 3},
+				{Category: CodeExternalTool, Value: "grep -r pattern", Line: 4},
+			},
+		},
+	}
+	edges := s.codeUsageEdgesFromContent("src-1", "file.md", "irrelevant")
+	if len(edges) != 3 {
+		t.Fatalf("expected 3 edges (CLI + Script + ExternalTool), got %d: %+v", len(edges), edges)
+	}
+	cats := make(map[CodeCategory]bool)
+	for _, e := range edges {
+		cats[e.Category] = true
+	}
+	if !cats[CodeScenarioCLI] {
+		t.Error("missing CodeScenarioCLI edge")
+	}
+	if !cats[CodeScript] {
+		t.Error("missing CodeScript edge")
+	}
+	if !cats[CodeExternalTool] {
+		t.Error("missing CodeExternalTool edge")
+	}
+	if cats[CodeAPICall] {
+		t.Error("CodeAPICall should not produce edges")
+	}
+}
+
+func TestScanAll_MockDetector(t *testing.T) {
+	// Demonstrates the codeDetector interface seam works with a stub.
+	stub := &stubCodeDetector{
+		refs: []CodeReference{
+			{Category: CodeScenarioCLI, Value: "custom-tool deploy", Line: 5},
+		},
+	}
+	s := NewScanner(
+		&mockAgentLister{
+			agents: []store.Agent{{ID: "agent-1"}},
+			files: map[string][]store.AgentFileEntry{
+				"agent-1": {{Path: "SOUL.md"}},
+			},
+			contents: map[string]string{
+				"agent-1/SOUL.md": "some content",
+			},
+		},
+		&mockTeamLister{},
+		&mockSkillLister{},
+		nil, stub,
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 edge from stub detector, got %d", len(edges))
+	}
+	if edges[0].To != "cli:custom-tool" {
+		t.Errorf("expected cli:custom-tool, got %s", edges[0].To)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CLI-read exclusion and category field tests
+// ---------------------------------------------------------------------------
+
+func TestCodeUsageEdges_SkipsCLIRead(t *testing.T) {
+	// "prompt-manager skill read" is a Skill→Skill relation (EdgeCLIRead),
+	// not a code-usage edge. Verify it's excluded.
+	s := &Scanner{
+		cliDetector: &stubCodeDetector{
+			refs: []CodeReference{
+				{Category: CodeScenarioCLI, Value: "prompt-manager skill read my-skill", Line: 1},
+				{Category: CodeScenarioCLI, Value: "prompt-manager skills read a b", Line: 2},
+				{Category: CodeScenarioCLI, Value: "vrooli scenario start x", Line: 3},
+			},
+		},
+	}
+	edges := s.codeUsageEdgesFromContent("skill-a", "SKILL.md", "irrelevant")
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 edge (skill read excluded), got %d: %+v", len(edges), edges)
+	}
+	if edges[0].To != "cli:vrooli" {
+		t.Errorf("expected cli:vrooli, got %s", edges[0].To)
+	}
+}
+
+func TestCodeUsageEdges_CategoryFieldSet(t *testing.T) {
+	// Verify the Category field is populated on emitted edges.
+	s := &Scanner{
+		cliDetector: &stubCodeDetector{
+			refs: []CodeReference{
+				{Category: CodeScenarioCLI, Value: "vrooli help", Line: 1},
+				{Category: CodeExternalTool, Value: "grep pattern", Line: 2},
+				{Category: CodeScript, Value: "deploy.sh", Line: 3},
+			},
+		},
+	}
+	edges := s.codeUsageEdgesFromContent("src-1", "file.md", "irrelevant")
+	if len(edges) != 3 {
+		t.Fatalf("expected 3 edges, got %d: %+v", len(edges), edges)
+	}
+	for _, e := range edges {
+		if e.Category == "" {
+			t.Errorf("edge to %s has empty Category", e.To)
+		}
+		if e.Kind != EdgeCodeUsage {
+			t.Errorf("expected EdgeCodeUsage, got %s", e.Kind)
+		}
+	}
+}
+
+func TestCodeUsageEdges_ExternalToolEdges(t *testing.T) {
+	det := NewCLIDetector([]string{"prompt-manager"})
+	s := NewScanner(
+		&mockAgentLister{
+			agents: []store.Agent{{ID: "agent-1"}},
+			files: map[string][]store.AgentFileEntry{
+				"agent-1": {{Path: "SOUL.md"}},
+			},
+			contents: map[string]string{
+				"agent-1/SOUL.md": "Run `grep -r pattern .` to search",
+			},
+		},
+		&mockTeamLister{},
+		&mockSkillLister{},
+		nil, det,
+	)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 edge, got %d: %+v", len(edges), edges)
+	}
+	if edges[0].Category != CodeExternalTool {
+		t.Errorf("expected category external-tool, got %s", edges[0].Category)
+	}
+	if edges[0].To != "cli:grep" {
+		t.Errorf("expected cli:grep, got %s", edges[0].To)
+	}
+}
+
+func TestCodeUsageEdges_Deduplication(t *testing.T) {
+	// Same tool referenced twice should produce only one edge.
+	s := &Scanner{
+		cliDetector: &stubCodeDetector{
+			refs: []CodeReference{
+				{Category: CodeExternalTool, Value: "grep foo", Line: 1},
+				{Category: CodeExternalTool, Value: "grep bar", Line: 3},
+			},
+		},
+	}
+	edges := s.codeUsageEdgesFromContent("src-1", "file.md", "irrelevant")
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 deduplicated edge, got %d: %+v", len(edges), edges)
 	}
 }

@@ -100,3 +100,150 @@ func TestCLIDetector_VrooliAlwaysIncluded(t *testing.T) {
 		t.Fatalf("expected 1 scenario-cli ref for vrooli, got %d", len(cliRefs))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Pipe splitting and external tool detection
+// ---------------------------------------------------------------------------
+
+func TestCLIDetector_PipedCommand(t *testing.T) {
+	d := NewCLIDetector([]string{"prompt-manager"})
+	content := "Run `vrooli scenario start foo | grep error`"
+	refs := d.Detect(content)
+
+	var cli, ext []CodeReference
+	for _, r := range refs {
+		switch r.Category {
+		case CodeScenarioCLI:
+			cli = append(cli, r)
+		case CodeExternalTool:
+			ext = append(ext, r)
+		}
+	}
+	if len(cli) != 1 {
+		t.Fatalf("expected 1 scenario-cli ref, got %d", len(cli))
+	}
+	if len(ext) != 1 {
+		t.Fatalf("expected 1 external-tool ref, got %d", len(ext))
+	}
+	if ext[0].Value != "grep error" {
+		t.Errorf("expected 'grep error', got %q", ext[0].Value)
+	}
+}
+
+func TestCLIDetector_ChainedCommand(t *testing.T) {
+	d := NewCLIDetector(nil)
+	content := "Run `vrooli help && jq '.version'`"
+	refs := d.Detect(content)
+
+	var cli, ext []CodeReference
+	for _, r := range refs {
+		switch r.Category {
+		case CodeScenarioCLI:
+			cli = append(cli, r)
+		case CodeExternalTool:
+			ext = append(ext, r)
+		}
+	}
+	if len(cli) != 1 {
+		t.Fatalf("expected 1 scenario-cli ref, got %d", len(cli))
+	}
+	if len(ext) != 1 {
+		t.Fatalf("expected 1 external-tool ref, got %d", len(ext))
+	}
+}
+
+func TestCLIDetector_SemicolonChain(t *testing.T) {
+	d := NewCLIDetector(nil)
+	content := "Run `vrooli start; echo done`"
+	refs := d.Detect(content)
+
+	var cli, ext []CodeReference
+	for _, r := range refs {
+		switch r.Category {
+		case CodeScenarioCLI:
+			cli = append(cli, r)
+		case CodeExternalTool:
+			ext = append(ext, r)
+		}
+	}
+	if len(cli) != 1 {
+		t.Fatalf("expected 1 scenario-cli ref, got %d", len(cli))
+	}
+	if len(ext) != 1 {
+		t.Fatalf("expected 1 external-tool ref, got %d", len(ext))
+	}
+}
+
+func TestCLIDetector_ExternalToolOnly(t *testing.T) {
+	d := NewCLIDetector(nil)
+	content := "Run `grep -r pattern .` to search"
+	refs := d.Detect(content)
+
+	var ext []CodeReference
+	for _, r := range refs {
+		if r.Category == CodeExternalTool {
+			ext = append(ext, r)
+		}
+	}
+	if len(ext) != 1 {
+		t.Fatalf("expected 1 external-tool ref, got %d", len(ext))
+	}
+	if ext[0].Value != "grep -r pattern ." {
+		t.Errorf("expected 'grep -r pattern .', got %q", ext[0].Value)
+	}
+}
+
+func TestCLIDetector_SingleWordBacktick(t *testing.T) {
+	d := NewCLIDetector(nil)
+	content := "Use `grep` for searching"
+	refs := d.Detect(content)
+
+	var ext []CodeReference
+	for _, r := range refs {
+		if r.Category == CodeExternalTool {
+			ext = append(ext, r)
+		}
+	}
+	if len(ext) != 1 {
+		t.Fatalf("expected 1 external-tool ref, got %d", len(ext))
+	}
+}
+
+func TestCLIDetector_CurlInBackticks(t *testing.T) {
+	d := NewCLIDetector(nil)
+	content := "Fetch: `curl -X POST https://api.example.com/endpoint`"
+	refs := d.Detect(content)
+
+	// curl in backticks → CodeExternalTool, NOT CodeAPICall
+	var ext []CodeReference
+	for _, r := range refs {
+		if r.Category == CodeExternalTool {
+			ext = append(ext, r)
+		}
+	}
+	if len(ext) != 1 {
+		t.Fatalf("expected 1 external-tool ref for curl, got %d", len(ext))
+	}
+}
+
+func TestCLIDetector_OrPipe(t *testing.T) {
+	d := NewCLIDetector(nil)
+	content := "Run `vrooli start || echo failed`"
+	refs := d.Detect(content)
+
+	var cli, ext []CodeReference
+	for _, r := range refs {
+		switch r.Category {
+		case CodeScenarioCLI:
+			cli = append(cli, r)
+		case CodeExternalTool:
+			ext = append(ext, r)
+		}
+	}
+	if len(cli) != 1 {
+		t.Fatalf("expected 1 scenario-cli ref, got %d", len(cli))
+	}
+	if len(ext) != 1 {
+		t.Fatalf("expected 1 external-tool ref, got %d", len(ext))
+	}
+}

@@ -71,11 +71,13 @@ func UnaffiliatedAgents(g Graph) []Node {
 	return result
 }
 
-// CLIlessSkills returns skills that have no code-usage edges pointing to a CLI node.
+// CLIlessSkills returns skills that have no Vrooli CLI code-usage edges.
+// A skill that only uses external tools (grep, curl, etc.) still appears here
+// because it doesn't use Vrooli-controlled CLIs.
 func CLIlessSkills(g Graph) []Node {
 	hasCLI := make(map[string]bool)
 	for _, e := range g.Edges {
-		if e.Kind == EdgeCodeUsage {
+		if e.Kind == EdgeCodeUsage && e.Category == CodeScenarioCLI {
 			hasCLI[e.From] = true
 		}
 	}
@@ -83,6 +85,25 @@ func CLIlessSkills(g Graph) []Node {
 	var result []Node
 	for _, n := range g.Nodes {
 		if n.Type == NodeSkill && !hasCLI[n.ID] {
+			result = append(result, n)
+		}
+	}
+	return result
+}
+
+// ExternalToolSkills returns skills that have external tool or script code-usage edges.
+// These are skills that need their external tools wrapped in Vrooli CLIs.
+func ExternalToolSkills(g Graph) []Node {
+	hasExternal := make(map[string]bool)
+	for _, e := range g.Edges {
+		if e.Kind == EdgeCodeUsage && (e.Category == CodeExternalTool || e.Category == CodeScript) {
+			hasExternal[e.From] = true
+		}
+	}
+
+	var result []Node
+	for _, n := range g.Nodes {
+		if n.Type == NodeSkill && hasExternal[n.ID] {
 			result = append(result, n)
 		}
 	}

@@ -70,14 +70,31 @@ func incomingEdgesScore(nodeID string, g Graph) float64 {
 	return math.Min(float64(count)/5.0, 1.0)
 }
 
-// codeUsageScore: whether the node has code-usage edges.
+// codeUsageScore rewards Vrooli-only tool use and penalizes external tools.
+//
+//	1.0 — only Vrooli CLI usage (incentivized)
+//	0.5 — no tool usage detected (neutral)
+//	0.1 — has external tool or script usage (penalty)
 func codeUsageScore(nodeID string, g Graph) float64 {
+	hasVrooli := false
+	hasExternal := false
 	for _, e := range g.Edges {
 		if e.From == nodeID && e.Kind == EdgeCodeUsage {
-			return 1.0
+			switch e.Category {
+			case CodeScenarioCLI:
+				hasVrooli = true
+			case CodeExternalTool, CodeScript:
+				hasExternal = true
+			}
 		}
 	}
-	return 0.0
+	if hasExternal {
+		return 0.1
+	}
+	if hasVrooli {
+		return 1.0
+	}
+	return 0.5
 }
 
 // recentActivityScore: based on the node's updatedAt timestamp.

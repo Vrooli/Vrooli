@@ -9,46 +9,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Mocks for Builder interface seams
-// ---------------------------------------------------------------------------
-
-type mockAgentNodeSource struct {
-	agents []store.Agent
-	err    error
-}
-
-func (m *mockAgentNodeSource) List(_ context.Context) ([]store.Agent, error) {
-	return m.agents, m.err
-}
-
-type mockTeamNodeSource struct {
-	teams []store.Team
-	err   error
-}
-
-func (m *mockTeamNodeSource) List(_ context.Context) ([]store.Team, error) {
-	return m.teams, m.err
-}
-
-type mockSkillNodeSource struct {
-	skills []store.Skill
-	err    error
-}
-
-func (m *mockSkillNodeSource) List(_ context.Context) ([]store.Skill, error) {
-	return m.skills, m.err
-}
-
-type mockGraphScanner struct {
-	edges []Edge
-	err   error
-}
-
-func (m *mockGraphScanner) ScanAll(_ context.Context) ([]Edge, error) {
-	return m.edges, m.err
-}
-
-// ---------------------------------------------------------------------------
 // Build tests
 // ---------------------------------------------------------------------------
 
@@ -58,7 +18,7 @@ func TestBuild_Empty(t *testing.T) {
 		&mockTeamNodeSource{},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -80,7 +40,7 @@ func TestBuild_NodesFromTeams(t *testing.T) {
 		}},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -103,7 +63,7 @@ func TestBuild_NodesFromAgents(t *testing.T) {
 		&mockTeamNodeSource{},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -129,7 +89,7 @@ func TestBuild_NodesFromSkills(t *testing.T) {
 			{ID: "skill-1", Name: "Testing", Description: "Test skill", Status: "active", Tags: []string{"qa"}},
 		}},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -152,7 +112,7 @@ func TestBuild_EdgesFromScanner(t *testing.T) {
 		&mockGraphScanner{edges: []Edge{
 			{From: "agent-1", To: "skill-1", Kind: EdgeCLIRead},
 		}},
-		nil, nil,
+		nil,
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -174,7 +134,7 @@ func TestBuild_CLINodesExtracted(t *testing.T) {
 		&mockGraphScanner{edges: []Edge{
 			{From: "agent-1", To: "cli:vrooli", Kind: EdgeCodeUsage},
 		}},
-		nil, nil,
+		nil,
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -209,7 +169,7 @@ func TestBuild_HealthScores(t *testing.T) {
 		&mockTeamNodeSource{},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{},
-		nil, []ScoreFn{scoreFn},
+		[]ScoreFn{scoreFn},
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -229,7 +189,7 @@ func TestBuild_NoScoreFns(t *testing.T) {
 		&mockTeamNodeSource{},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	g, err := b.Build(context.Background())
 	if err != nil {
@@ -246,7 +206,7 @@ func TestBuild_TeamListError(t *testing.T) {
 		&mockTeamNodeSource{err: errors.New("team fail")},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	_, err := b.Build(context.Background())
 	if err == nil || err.Error() != "team fail" {
@@ -260,7 +220,7 @@ func TestBuild_AgentListError(t *testing.T) {
 		&mockTeamNodeSource{},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	_, err := b.Build(context.Background())
 	if err == nil || err.Error() != "agent fail" {
@@ -274,7 +234,7 @@ func TestBuild_SkillListError(t *testing.T) {
 		&mockTeamNodeSource{},
 		&mockSkillNodeSource{err: errors.New("skill fail")},
 		&mockGraphScanner{},
-		nil, nil,
+		nil,
 	)
 	_, err := b.Build(context.Background())
 	if err == nil || err.Error() != "skill fail" {
@@ -288,7 +248,7 @@ func TestBuild_ScannerError(t *testing.T) {
 		&mockTeamNodeSource{},
 		&mockSkillNodeSource{},
 		&mockGraphScanner{err: errors.New("scan fail")},
-		nil, nil,
+		nil,
 	)
 	_, err := b.Build(context.Background())
 	if err == nil || err.Error() != "scan fail" {

@@ -78,22 +78,21 @@ describe('GraphFlowNode', () => {
     expect(screen.queryByText('%')).not.toBeInTheDocument()
   })
 
-  it('should add red ring for critical health (<0.3)', () => {
+  it('should apply red fill/border for critical health (<0.3)', () => {
     const { container } = renderNode({ healthScore: 0.1 })
-    const shape = container.querySelector('.ring-red-500\\/50')
+    const shape = container.querySelector('.bg-red-500\\/20.border-red-400\\/90')
     expect(shape).toBeInTheDocument()
   })
 
-  it('should add yellow ring for warning health (0.3-0.6)', () => {
+  it('should apply yellow fill/border for warning health (0.3-0.6)', () => {
     const { container } = renderNode({ healthScore: 0.45 })
-    const shape = container.querySelector('.ring-yellow-500\\/50')
+    const shape = container.querySelector('.bg-yellow-500\\/20.border-yellow-300\\/90')
     expect(shape).toBeInTheDocument()
   })
 
-  it('should not add health ring for healthy score (>=0.6)', () => {
+  it('should apply green fill/border for healthy score (>=0.6)', () => {
     const { container } = renderNode({ healthScore: 0.8 })
-    expect(container.querySelector('.ring-red-500\\/50')).not.toBeInTheDocument()
-    expect(container.querySelector('.ring-yellow-500\\/50')).not.toBeInTheDocument()
+    expect(container.querySelector('.bg-emerald-500\\/20.border-emerald-300\\/80')).toBeInTheDocument()
   })
 
   it('should show highlight ring when isHighlighted is true', () => {

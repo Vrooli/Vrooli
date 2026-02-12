@@ -16,11 +16,11 @@ var (
 	// Matches backtick-enclosed commands, e.g. `vrooli scenario start foo`
 	backtickRE = regexp.MustCompile("`([^`]+)`")
 
+	// Splits piped/chained commands: |, ||, &&, ;
+	cmdSplitRE = regexp.MustCompile(`\s*(?:\|\||[|;]|&&)\s*`)
+
 	// Matches HTTP patterns: GET/POST/PUT/DELETE https://...
 	httpPatternRE = regexp.MustCompile(`\b(GET|POST|PUT|DELETE|PATCH)\s+(https?://\S+)`)
-
-	// Matches curl commands
-	curlRE = regexp.MustCompile(`\bcurl\s+`)
 
 	// Matches common script extensions: *.sh, *.py, *.js
 	scriptRefRE = regexp.MustCompile(`\b[\w/.-]+\.(sh|py|js|ts|rb|pl)\b`)
@@ -37,6 +37,9 @@ func NewCLIDetector(scenarioNames []string) *CLIDetector {
 }
 
 // Detect scans content for code references and returns all detected references.
+// Backtick commands are split on pipes/chains (|, &&, ;) and each segment is
+// classified independently: scenario CLIs → CodeScenarioCLI, everything else →
+// CodeExternalTool. HTTP patterns and script references are detected separately.
 func (d *CLIDetector) Detect(content string) []CodeReference {
 	var refs []CodeReference
 	lines := strings.Split(content, "\n")
@@ -44,29 +47,37 @@ func (d *CLIDetector) Detect(content string) []CodeReference {
 	for lineIdx, line := range lines {
 		lineNum := lineIdx + 1
 
-		// Check backtick commands for scenario CLIs
+		// Backtick commands: split pipes/chains, classify each segment
 		for _, match := range backtickRE.FindAllStringSubmatch(line, -1) {
 			if len(match) < 2 {
 				continue
 			}
-			cmd := strings.TrimSpace(match[1])
-			firstWord := strings.Fields(cmd)
-			if len(firstWord) == 0 {
-				continue
-			}
-			if d.scenarioCLIs[firstWord[0]] {
-				refs = append(refs, CodeReference{
-					Category: CodeScenarioCLI,
-					Value:    cmd,
-					Line:     lineNum,
-				})
+			segments := cmdSplitRE.Split(strings.TrimSpace(match[1]), -1)
+			for _, seg := range segments {
+				seg = strings.TrimSpace(seg)
+				fields := strings.Fields(seg)
+				if len(fields) == 0 {
+					continue
+				}
+				if d.scenarioCLIs[fields[0]] {
+					refs = append(refs, CodeReference{
+						Category: CodeScenarioCLI,
+						Value:    seg,
+						Line:     lineNum,
+					})
+				} else {
+					refs = append(refs, CodeReference{
+						Category: CodeExternalTool,
+						Value:    seg,
+						Line:     lineNum,
+					})
+				}
 			}
 		}
 
-		// Check for HTTP/API calls
+		// HTTP patterns (bare on line, documents API endpoints)
 		if httpPatternRE.MatchString(line) {
-			matches := httpPatternRE.FindAllStringSubmatch(line, -1)
-			for _, m := range matches {
+			for _, m := range httpPatternRE.FindAllStringSubmatch(line, -1) {
 				refs = append(refs, CodeReference{
 					Category: CodeAPICall,
 					Value:    m[0],
@@ -75,19 +86,9 @@ func (d *CLIDetector) Detect(content string) []CodeReference {
 			}
 		}
 
-		// Check for curl
-		if curlRE.MatchString(line) {
-			refs = append(refs, CodeReference{
-				Category: CodeAPICall,
-				Value:    strings.TrimSpace(line),
-				Line:     lineNum,
-			})
-		}
-
-		// Check for script references
+		// Script references
 		if scriptRefRE.MatchString(line) {
-			matches := scriptRefRE.FindAllString(line, -1)
-			for _, m := range matches {
+			for _, m := range scriptRefRE.FindAllString(line, -1) {
 				refs = append(refs, CodeReference{
 					Category: CodeScript,
 					Value:    m,

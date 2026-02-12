@@ -30,6 +30,18 @@ describe('GraphLegend', () => {
 
     expect(screen.getByText('Node Types')).toBeInTheDocument()
     expect(screen.getByText('Health')).toBeInTheDocument()
+    expect(screen.getByText('Edge Types')).toBeInTheDocument()
+  })
+
+  it('should render edge type labels', () => {
+    render(<GraphLegend />)
+
+    expect(screen.getByText('Membership')).toBeInTheDocument()
+    expect(screen.getByText('CLI Read')).toBeInTheDocument()
+    expect(screen.getByText('Bold-listed Reference')).toBeInTheDocument()
+    expect(screen.getByText('Path Reference')).toBeInTheDocument()
+    expect(screen.getByText('Default Scope')).toBeInTheDocument()
+    expect(screen.getByText('Code Usage')).toBeInTheDocument()
   })
 
   it('should apply custom className', () => {
