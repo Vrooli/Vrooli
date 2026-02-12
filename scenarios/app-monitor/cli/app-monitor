@@ -296,6 +296,65 @@ cmd_restart() {
     fi
 }
 
+cmd_interop() {
+    local app_id="$1"
+
+    log_info "Checking UI interop compliance for: $app_id"
+
+    if ! check_api; then
+        return 1
+    fi
+
+    local response
+    response=$(api_request "GET" "/api/v1/apps/$app_id/diagnostics/interop")
+
+    # Check for error response
+    if echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+        log_error "$(echo "$response" | jq -r '.error')"
+        return 1
+    fi
+
+    local data
+    data=$(echo "$response" | jq '.data // .')
+
+    local has_ui pass_count fail_count skip_count total score
+    has_ui=$(echo "$data" | jq -r '.has_ui // true')
+    pass_count=$(echo "$data" | jq -r '.pass_count // 0')
+    fail_count=$(echo "$data" | jq -r '.fail_count // 0')
+    skip_count=$(echo "$data" | jq -r '.skip_count // 0')
+    total=$(echo "$data" | jq -r '.total_count // 0')
+    score=$(echo "$data" | jq -r '.score // 0')
+
+    # Status
+    if [[ "$has_ui" == "false" ]]; then
+        log_info "No ui/ directory found — interop checks not applicable"
+        return 0
+    fi
+
+    if [[ "$fail_count" -eq 0 ]]; then
+        log_success "Interop compliance: ${score}% (${pass_count}/${total} passed, ${skip_count} skipped)"
+    else
+        log_warning "Interop compliance: ${score}% (${fail_count} failing)"
+    fi
+
+    # Triage — group failures by severity
+    if [[ "$fail_count" -gt 0 ]]; then
+        echo ""
+        echo "Failing checks:"
+        echo "$data" | jq -r '.checks[] | select(.passed == false and .skipped != true) | "  [\(.severity)] \(.name) — \(.message)"'
+    fi
+
+    # Next Steps
+    if [[ "$fail_count" -gt 0 ]]; then
+        echo ""
+        echo "Next steps:"
+        echo "  Read the vrooli-ui-interop skill for implementation guidance:"
+        echo "    prompt-manager skill read vrooli-ui-interop"
+        echo "  View full JSON details:"
+        echo "    app-monitor interop $app_id --json"
+    fi
+}
+
 cmd_help() {
     cat << 'HELP'
 App Monitor CLI - Manage and monitor scenarios
@@ -313,6 +372,7 @@ Commands:
     logs <app_id> [limit]   Show application logs (default: 50)
     metrics <app_id> [hrs]  Show application metrics (default: 24h)
     docker                  Show Docker system information
+    interop <app_id>        Check UI interop compliance (deployment context readiness)
     version                 Show CLI version
     help                    Show this help message
 
@@ -406,6 +466,18 @@ main() {
             ;;
         "docker")
             cmd_docker "$@"
+            ;;
+        "interop")
+            if [[ $# -eq 0 ]]; then
+                log_error "App ID required for interop command"
+                return 1
+            fi
+            if [[ "${2:-}" == "--json" ]]; then
+                if ! check_api; then return 1; fi
+                api_request "GET" "/api/v1/apps/$1/diagnostics/interop"
+            else
+                cmd_interop "$@"
+            fi
             ;;
         "version"|"-v"|"--version")
             echo "app-monitor cli 1.0.0"

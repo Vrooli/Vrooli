@@ -25,7 +25,7 @@ Searched for `agent-manager` in `scenarios/` on 2025-12-18:
 | claude-code | Runner | Supported runner type. adapter needed to invoke Claude Code CLI. |
 | codex | Runner | Supported runner type. Adapter needed for OpenAI Codex API calls. |
 | opencode | Runner | Supported runner type. Adapter needed for open-source code models. |
-| postgres | Required | Stores tasks, runs, events, agent profiles, policies. |
+| SQLite (embedded) | Required | Stores tasks, runs, events, agent profiles, policies. Single-file database, no external service needed. |
 
 ## External References
 

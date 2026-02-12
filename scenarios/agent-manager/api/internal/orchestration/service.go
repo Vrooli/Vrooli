@@ -390,7 +390,7 @@ type Orchestrator struct {
 	// Configuration
 	config OrchestratorConfig
 
-	// Storage label for health reporting (e.g., postgres, sqlite, memory).
+	// Storage label for health reporting (e.g., sqlite).
 	storageLabel string
 
 	// Model registry for runner model catalogs and presets.

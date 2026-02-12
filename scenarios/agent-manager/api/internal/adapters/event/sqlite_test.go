@@ -17,8 +17,7 @@ import (
 	_ "modernc.org/sqlite" // SQLite driver for tests
 )
 
-// setupTestDB creates a fresh SQLite database for testing the PostgresStore.
-// SQLite is used for fast, isolated tests but the PostgresStore works with both.
+// setupTestDB creates a fresh SQLite database for testing the SQLiteStore.
 func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 	t.Helper()
 
@@ -34,7 +33,7 @@ func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 		t.Fatalf("connect sqlite: %v", err)
 	}
 
-	// Create the run_events table (simplified schema for SQLite)
+	// Create the run_events table
 	schema := `
 		CREATE TABLE IF NOT EXISTS run_events (
 			id TEXT PRIMARY KEY,
@@ -65,14 +64,14 @@ func newTestLogger() *logrus.Logger {
 }
 
 // =============================================================================
-// PostgresStore Tests
+// SQLiteStore Tests
 // =============================================================================
 
-func TestPostgresStore_Append(t *testing.T) {
+func TestSQLiteStore_Append(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -115,11 +114,11 @@ func TestPostgresStore_Append(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Append_MultipleEvents(t *testing.T) {
+func TestSQLiteStore_Append_MultipleEvents(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -151,11 +150,11 @@ func TestPostgresStore_Append_MultipleEvents(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Get_WithFilters(t *testing.T) {
+func TestSQLiteStore_Get_WithFilters(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -184,11 +183,11 @@ func TestPostgresStore_Get_WithFilters(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Get_AfterSequence(t *testing.T) {
+func TestSQLiteStore_Get_AfterSequence(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -216,11 +215,11 @@ func TestPostgresStore_Get_AfterSequence(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Get_WithLimit(t *testing.T) {
+func TestSQLiteStore_Get_WithLimit(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -243,11 +242,11 @@ func TestPostgresStore_Get_WithLimit(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Get_WithOffset(t *testing.T) {
+func TestSQLiteStore_Get_WithOffset(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -278,11 +277,11 @@ func TestPostgresStore_Get_WithOffset(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Count(t *testing.T) {
+func TestSQLiteStore_Count(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -313,11 +312,11 @@ func TestPostgresStore_Count(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Delete(t *testing.T) {
+func TestSQLiteStore_Delete(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -345,11 +344,11 @@ func TestPostgresStore_Delete(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Stream(t *testing.T) {
+func TestSQLiteStore_Stream(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	runID := uuid.New()
@@ -380,11 +379,11 @@ func TestPostgresStore_Stream(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_Stream_ExistingEvents(t *testing.T) {
+func TestSQLiteStore_Stream_ExistingEvents(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	runID := uuid.New()
@@ -420,11 +419,11 @@ func TestPostgresStore_Stream_ExistingEvents(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_IsolatesByRunID(t *testing.T) {
+func TestSQLiteStore_IsolatesByRunID(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID1 := uuid.New()
 	runID2 := uuid.New()
@@ -449,11 +448,11 @@ func TestPostgresStore_IsolatesByRunID(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_EventDataRoundTrip(t *testing.T) {
+func TestSQLiteStore_EventDataRoundTrip(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 
@@ -514,14 +513,13 @@ func TestPostgresStore_EventDataRoundTrip(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_SequentialAppend(t *testing.T) {
-	// Note: SQLite doesn't handle concurrent writes well, so this test
+func TestSQLiteStore_SequentialAppend(t *testing.T) {
+	// SQLite doesn't handle concurrent writes well, so this test
 	// uses sequential appends to verify sequence uniqueness.
-	// For PostgreSQL, concurrent appends are fully supported.
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	store := event.NewPostgresStore(db, newTestLogger())
+	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
 

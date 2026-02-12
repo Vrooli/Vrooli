@@ -44,6 +44,7 @@ func (p *DiagnosticsToolProvider) Tools(_ context.Context) []*toolspb.ToolDefini
 		p.checkLocalhostUsageTool(),
 		p.getFallbackDiagnosticsTool(),
 		p.getAppCompletenessTool(),
+		p.checkInteropComplianceTool(),
 	}
 }
 
@@ -250,6 +251,44 @@ func (p *DiagnosticsToolProvider) getFallbackDiagnosticsTool() *toolspb.ToolDefi
 					PollIntervalSeconds:    3,
 					MaxPollDurationSeconds: 120,
 				},
+			},
+		},
+	}
+}
+
+// checkInteropComplianceTool returns the UI interop compliance scanning tool.
+func (p *DiagnosticsToolProvider) checkInteropComplianceTool() *toolspb.ToolDefinition {
+	return &toolspb.ToolDefinition{
+		Name:        "check_interop_compliance",
+		Description: "Check UI interop compliance for an application. Verifies that the scenario's UI correctly adopts @vrooli/api-base and @vrooli/iframe-bridge for reliable behavior across deployment contexts (localhost, tunnel, proxy/iframe).",
+		Category:    "diagnostics",
+		Parameters: &toolspb.ToolParameters{
+			Type: "object",
+			Properties: map[string]*toolspb.ParameterSchema{
+				"app_id": {
+					Type:        "string",
+					Description: "The application identifier (scenario name)",
+				},
+			},
+			Required: []string{"app_id"},
+		},
+		Metadata: &toolspb.ToolMetadata{
+			EnabledByDefault:   true,
+			RequiresApproval:   false,
+			TimeoutSeconds:     60,
+			RateLimitPerMinute: 30,
+			CostEstimate:       "low",
+			LongRunning:        false,
+			Idempotent:         true,
+			ModifiesState:      false,
+			Tags:               []string{"diagnostics", "interop", "compliance"},
+			Examples: []*toolspb.ToolExample{
+				NewToolExample(
+					"Check interop compliance for swarm-manager",
+					map[string]interface{}{
+						"app_id": "swarm-manager",
+					},
+				),
 			},
 		},
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,28 +17,10 @@ import (
 	_ "modernc.org/sqlite" // SQLite driver for tests
 )
 
-// testBackend returns the test database backend from environment.
-// Defaults to "sqlite" for fast, isolated tests.
-func testBackend() string {
-	backend := strings.ToLower(strings.TrimSpace(os.Getenv("AM_TEST_BACKEND")))
-	if backend == "" {
-		backend = strings.ToLower(strings.TrimSpace(os.Getenv("AM_DB_BACKEND")))
-	}
-	if backend == "" {
-		backend = "sqlite"
-	}
-	return backend
-}
-
 // setupTestDB creates a fresh SQLite database for testing.
 // Returns the DB wrapper and a cleanup function.
 func setupTestDB(t *testing.T) (*DB, func()) {
 	t.Helper()
-
-	backend := testBackend()
-	if backend != "sqlite" {
-		t.Skipf("unsupported test backend %q (set AM_TEST_BACKEND=sqlite)", backend)
-	}
 
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "agent-manager-test.db")
@@ -58,9 +39,8 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	log.SetLevel(logrus.PanicLevel) // Suppress logs during tests
 
 	wrapped := &DB{
-		DB:      sqlDB,
-		log:     log,
-		dialect: DialectSQLite,
+		DB:  sqlDB,
+		log: log,
 	}
 	if err := wrapped.initSchema(); err != nil {
 		_ = sqlDB.Close()

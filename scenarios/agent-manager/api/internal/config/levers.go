@@ -234,7 +234,7 @@ type ServerLevers struct {
 
 // StorageLevers control persistence settings.
 type StorageLevers struct {
-	// DatabaseURL is the PostgreSQL connection string.
+	// DatabaseURL is the SQLite database path or connection string.
 	// Required for persistence.
 	DatabaseURL string `json:"databaseUrl"`
 

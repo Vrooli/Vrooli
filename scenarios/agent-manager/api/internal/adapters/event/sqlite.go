@@ -1,10 +1,11 @@
 // Package event provides event storage and streaming implementations.
 //
-// This file contains a PostgreSQL implementation of the event Store interface.
+// This file contains a SQLite implementation of the event Store interface.
 package event
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -17,23 +18,70 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// sqliteTime is a time type that handles SQLite TEXT↔time.Time scanning.
+type sqliteTime time.Time
+
+// Common time formats to try when parsing SQLite timestamp strings.
+var sqliteTimeFormats = []string{
+	time.RFC3339Nano,
+	time.RFC3339,
+	"2006-01-02T15:04:05",
+	"2006-01-02 15:04:05",
+}
+
+func (t *sqliteTime) Scan(src interface{}) error {
+	if src == nil {
+		*t = sqliteTime(time.Time{})
+		return nil
+	}
+	switch v := src.(type) {
+	case time.Time:
+		*t = sqliteTime(v)
+		return nil
+	case string:
+		for _, layout := range sqliteTimeFormats {
+			if parsed, err := time.Parse(layout, v); err == nil {
+				*t = sqliteTime(parsed)
+				return nil
+			}
+		}
+		return fmt.Errorf("sqliteTime: cannot parse %q", v)
+	case []byte:
+		return (*sqliteTime).Scan(t, string(v))
+	default:
+		return fmt.Errorf("sqliteTime: unsupported type %T", src)
+	}
+}
+
+func (t sqliteTime) Value() (driver.Value, error) {
+	tt := time.Time(t)
+	if tt.IsZero() {
+		return nil, nil
+	}
+	return tt.UTC().Format(time.RFC3339Nano), nil
+}
+
+func (t sqliteTime) Time() time.Time {
+	return time.Time(t)
+}
+
 // =============================================================================
-// PostgreSQL Event Store
+// SQLite Event Store
 // =============================================================================
 
-// PostgresStore is a PostgreSQL implementation of the event Store interface.
+// SQLiteStore is a SQLite implementation of the event Store interface.
 // It persists events to the database and maintains in-memory subscribers for
 // real-time streaming.
-type PostgresStore struct {
+type SQLiteStore struct {
 	db          *sqlx.DB
 	log         *logrus.Logger
 	mu          sync.RWMutex
 	subscribers map[uuid.UUID][]chan *domain.RunEvent
 }
 
-// NewPostgresStore creates a new PostgreSQL event store.
-func NewPostgresStore(db *sqlx.DB, log *logrus.Logger) *PostgresStore {
-	return &PostgresStore{
+// NewSQLiteStore creates a new SQLite event store.
+func NewSQLiteStore(db *sqlx.DB, log *logrus.Logger) *SQLiteStore {
+	return &SQLiteStore{
 		db:          db,
 		log:         log,
 		subscribers: make(map[uuid.UUID][]chan *domain.RunEvent),
@@ -42,12 +90,12 @@ func NewPostgresStore(db *sqlx.DB, log *logrus.Logger) *PostgresStore {
 
 // eventRow is the database row representation for run_events.
 type eventRow struct {
-	ID        uuid.UUID `db:"id"`
-	RunID     uuid.UUID `db:"run_id"`
-	Sequence  int64     `db:"sequence"`
-	EventType string    `db:"event_type"`
-	Timestamp time.Time `db:"timestamp"`
-	Data      []byte    `db:"data"`
+	ID        uuid.UUID  `db:"id"`
+	RunID     uuid.UUID  `db:"run_id"`
+	Sequence  int64      `db:"sequence"`
+	EventType string     `db:"event_type"`
+	Timestamp sqliteTime `db:"timestamp"`
+	Data      []byte     `db:"data"`
 }
 
 func (e *eventRow) toDomain() *domain.RunEvent {
@@ -56,7 +104,7 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		RunID:     e.RunID,
 		Sequence:  e.Sequence,
 		EventType: domain.RunEventType(e.EventType),
-		Timestamp: e.Timestamp,
+		Timestamp: e.Timestamp.Time(),
 	}
 
 	// Unmarshal based on event type
@@ -126,8 +174,8 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 const eventColumns = `id, run_id, sequence, event_type, timestamp, data`
 
 // Append adds events to a run's event stream.
-// Events are assigned sequence numbers automatically and persisted to PostgreSQL.
-func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
+// Events are assigned sequence numbers automatically and persisted to SQLite.
+func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
 	if len(events) == 0 {
 		return nil
 	}
@@ -143,7 +191,7 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 
 	// Get the next sequence number
 	var maxSeq int64
-	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = $1`
+	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`
 	if err := tx.GetContext(ctx, &maxSeq, query, runID); err != nil {
 		return dbError("get_max_sequence", err)
 	}
@@ -168,10 +216,10 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 		}
 
 		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data)
-			VALUES ($1, $2, $3, $4, $5, $6)`
+			VALUES (?, ?, ?, ?, ?, ?)`
 
 		if _, err := tx.ExecContext(ctx, insertQuery,
-			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), evt.Timestamp, data); err != nil {
+			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), sqliteTime(evt.Timestamp), data); err != nil {
 			return dbError("insert_event", err)
 		}
 
@@ -191,7 +239,7 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 }
 
 // marshalEventData converts event data to JSON for storage.
-func (s *PostgresStore) marshalEventData(evt *domain.RunEvent) ([]byte, error) {
+func (s *SQLiteStore) marshalEventData(evt *domain.RunEvent) ([]byte, error) {
 	if evt.Data == nil {
 		return []byte("{}"), nil
 	}
@@ -201,7 +249,7 @@ func (s *PostgresStore) marshalEventData(evt *domain.RunEvent) ([]byte, error) {
 }
 
 // notifySubscribers sends events to all subscribers for a run.
-func (s *PostgresStore) notifySubscribers(runID uuid.UUID, events []*domain.RunEvent) {
+func (s *SQLiteStore) notifySubscribers(runID uuid.UUID, events []*domain.RunEvent) {
 	s.mu.RLock()
 	subs := s.subscribers[runID]
 	s.mu.RUnlock()
@@ -218,35 +266,30 @@ func (s *PostgresStore) notifySubscribers(runID uuid.UUID, events []*domain.RunE
 }
 
 // Get retrieves events for a run with optional filtering.
-func (s *PostgresStore) Get(ctx context.Context, runID uuid.UUID, opts GetOptions) ([]*domain.RunEvent, error) {
+func (s *SQLiteStore) Get(ctx context.Context, runID uuid.UUID, opts GetOptions) ([]*domain.RunEvent, error) {
 	// Build the query dynamically based on options
 	var conditions []string
 	var args []interface{}
-	argNum := 1
 
-	conditions = append(conditions, fmt.Sprintf("run_id = $%d", argNum))
+	conditions = append(conditions, "run_id = ?")
 	args = append(args, runID)
-	argNum++
 
 	// AfterSequence filter
-	conditions = append(conditions, fmt.Sprintf("sequence > $%d", argNum))
+	conditions = append(conditions, "sequence > ?")
 	args = append(args, opts.AfterSequence)
-	argNum++
 
 	// Since timestamp filter
 	if opts.Since != nil {
-		conditions = append(conditions, fmt.Sprintf("timestamp > $%d", argNum))
-		args = append(args, *opts.Since)
-		argNum++
+		conditions = append(conditions, "timestamp > ?")
+		args = append(args, sqliteTime(*opts.Since))
 	}
 
 	// EventTypes filter
 	if len(opts.EventTypes) > 0 {
 		placeholders := make([]string, len(opts.EventTypes))
 		for i, t := range opts.EventTypes {
-			placeholders[i] = fmt.Sprintf("$%d", argNum)
+			placeholders[i] = "?"
 			args = append(args, string(t))
-			argNum++
 		}
 		conditions = append(conditions, fmt.Sprintf("event_type IN (%s)", strings.Join(placeholders, ",")))
 	}
@@ -256,14 +299,13 @@ func (s *PostgresStore) Get(ctx context.Context, runID uuid.UUID, opts GetOption
 
 	// Apply limit first (required before OFFSET in standard SQL)
 	if opts.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT $%d", argNum)
+		query += " LIMIT ?"
 		args = append(args, opts.Limit)
-		argNum++
 	}
 
 	// Apply offset (must come after LIMIT)
 	if opts.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET $%d", argNum)
+		query += " OFFSET ?"
 		args = append(args, opts.Offset)
 	}
 
@@ -281,7 +323,7 @@ func (s *PostgresStore) Get(ctx context.Context, runID uuid.UUID, opts GetOption
 
 // Stream returns a channel that receives events in real-time.
 // The channel is closed when the context is cancelled.
-func (s *PostgresStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOptions) (<-chan *domain.RunEvent, error) {
+func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOptions) (<-chan *domain.RunEvent, error) {
 	bufSize := opts.BufferSize
 	if bufSize <= 0 {
 		bufSize = 100
@@ -342,8 +384,8 @@ func (s *PostgresStore) Stream(ctx context.Context, runID uuid.UUID, opts Stream
 }
 
 // Count returns the number of events for a run.
-func (s *PostgresStore) Count(ctx context.Context, runID uuid.UUID) (int64, error) {
-	query := `SELECT COUNT(*) FROM run_events WHERE run_id = $1`
+func (s *SQLiteStore) Count(ctx context.Context, runID uuid.UUID) (int64, error) {
+	query := `SELECT COUNT(*) FROM run_events WHERE run_id = ?`
 	var count int64
 	if err := s.db.GetContext(ctx, &count, query, runID); err != nil {
 		return 0, dbError("count_events", err)
@@ -352,8 +394,8 @@ func (s *PostgresStore) Count(ctx context.Context, runID uuid.UUID) (int64, erro
 }
 
 // Delete removes all events for a run.
-func (s *PostgresStore) Delete(ctx context.Context, runID uuid.UUID) error {
-	query := `DELETE FROM run_events WHERE run_id = $1`
+func (s *SQLiteStore) Delete(ctx context.Context, runID uuid.UUID) error {
+	query := `DELETE FROM run_events WHERE run_id = ?`
 	_, err := s.db.ExecContext(ctx, query, runID)
 	if err != nil {
 		return dbError("delete_events", err)
@@ -371,7 +413,7 @@ func (s *PostgresStore) Delete(ctx context.Context, runID uuid.UUID) error {
 }
 
 // Verify interface compliance
-var _ Store = (*PostgresStore)(nil)
+var _ Store = (*SQLiteStore)(nil)
 
 func dbError(operation string, err error) error {
 	return &domain.DatabaseError{

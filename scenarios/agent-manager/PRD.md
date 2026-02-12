@@ -55,7 +55,7 @@ Preferred stacks:
 - CLI: Go with Cobra/Viper
 
 Preferred storage:
-- PostgreSQL for structured data
+- SQLite (embedded, single-file) for all structured data
 - Append-only event logs for audit trails
 
 Integration strategy:
@@ -70,7 +70,6 @@ Non-goals:
 
 ## 🤝 Dependencies & Launch Plan
 Required resources:
-- PostgreSQL database
 - workspace-sandbox scenario
 - Runner resources (claude-code, codex, opencode)
 

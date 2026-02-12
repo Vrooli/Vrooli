@@ -253,7 +253,7 @@ const modelPricingColumns = `id, canonical_model_name, provider,
 	fetched_at, expires_at, pricing_version, created_at, updated_at`
 
 func (r *pricingRepository) GetPricing(ctx context.Context, canonicalModel, provider string) (*pricing.ModelPricing, error) {
-	query := r.db.Rebind(`SELECT ` + modelPricingColumns + ` FROM model_pricing WHERE canonical_model_name = ? AND provider = ?`)
+	query := `SELECT ` + modelPricingColumns + ` FROM model_pricing WHERE canonical_model_name = ? AND provider = ?`
 	var row modelPricingRow
 	if err := r.db.GetContext(ctx, &row, query, canonicalModel, provider); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -278,7 +278,7 @@ func (r *pricingRepository) GetAllPricing(ctx context.Context) ([]*pricing.Model
 }
 
 func (r *pricingRepository) GetPricingByProvider(ctx context.Context, provider string) ([]*pricing.ModelPricing, error) {
-	query := r.db.Rebind(`SELECT ` + modelPricingColumns + ` FROM model_pricing WHERE provider = ? ORDER BY canonical_model_name`)
+	query := `SELECT ` + modelPricingColumns + ` FROM model_pricing WHERE provider = ? ORDER BY canonical_model_name`
 	var rows []modelPricingRow
 	if err := r.db.SelectContext(ctx, &rows, query, provider); err != nil {
 		return nil, wrapDBError("get_pricing_by_provider", "ModelPricing", provider, err)
@@ -399,9 +399,9 @@ func (r *pricingRepository) BulkUpsertPricing(ctx context.Context, pricingList [
 }
 
 func (r *pricingRepository) GetExpiredPricing(ctx context.Context, before time.Time) ([]*pricing.ModelPricing, error) {
-	query := r.db.Rebind(`SELECT ` + modelPricingColumns + ` FROM model_pricing WHERE expires_at < ?`)
+	query := `SELECT ` + modelPricingColumns + ` FROM model_pricing WHERE expires_at < ?`
 	var rows []modelPricingRow
-	if err := r.db.SelectContext(ctx, &rows, query, before); err != nil {
+	if err := r.db.SelectContext(ctx, &rows, query, SQLiteTime(before)); err != nil {
 		return nil, wrapDBError("get_expired_pricing", "ModelPricing", "", err)
 	}
 	result := make([]*pricing.ModelPricing, len(rows))
@@ -412,7 +412,7 @@ func (r *pricingRepository) GetExpiredPricing(ctx context.Context, before time.T
 }
 
 func (r *pricingRepository) DeletePricing(ctx context.Context, canonicalModel, provider string) error {
-	query := r.db.Rebind(`DELETE FROM model_pricing WHERE canonical_model_name = ? AND provider = ?`)
+	query := `DELETE FROM model_pricing WHERE canonical_model_name = ? AND provider = ?`
 	_, err := r.db.ExecContext(ctx, query, canonicalModel, provider)
 	if err != nil {
 		return wrapDBError("delete_pricing", "ModelPricing", canonicalModel, err)
@@ -425,7 +425,7 @@ func (r *pricingRepository) DeletePricing(ctx context.Context, canonicalModel, p
 const modelAliasColumns = `id, runner_model, runner_type, canonical_model, provider, created_at, updated_at`
 
 func (r *pricingRepository) GetAlias(ctx context.Context, runnerModel, runnerType string) (*pricing.ModelAlias, error) {
-	query := r.db.Rebind(`SELECT ` + modelAliasColumns + ` FROM model_aliases WHERE runner_model = ? AND runner_type = ?`)
+	query := `SELECT ` + modelAliasColumns + ` FROM model_aliases WHERE runner_model = ? AND runner_type = ?`
 	var row modelAliasRow
 	if err := r.db.GetContext(ctx, &row, query, runnerModel, runnerType); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -450,7 +450,7 @@ func (r *pricingRepository) GetAllAliases(ctx context.Context) ([]*pricing.Model
 }
 
 func (r *pricingRepository) ListAliases(ctx context.Context, runnerType string) ([]*pricing.ModelAlias, error) {
-	query := r.db.Rebind(`SELECT ` + modelAliasColumns + ` FROM model_aliases WHERE runner_type = ? ORDER BY runner_model`)
+	query := `SELECT ` + modelAliasColumns + ` FROM model_aliases WHERE runner_type = ? ORDER BY runner_model`
 	var rows []modelAliasRow
 	if err := r.db.SelectContext(ctx, &rows, query, runnerType); err != nil {
 		return nil, wrapDBError("list_aliases", "ModelAlias", runnerType, err)
@@ -486,7 +486,7 @@ func (r *pricingRepository) UpsertAlias(ctx context.Context, a *pricing.ModelAli
 }
 
 func (r *pricingRepository) DeleteAlias(ctx context.Context, runnerModel, runnerType string) error {
-	query := r.db.Rebind(`DELETE FROM model_aliases WHERE runner_model = ? AND runner_type = ?`)
+	query := `DELETE FROM model_aliases WHERE runner_model = ? AND runner_type = ?`
 	_, err := r.db.ExecContext(ctx, query, runnerModel, runnerType)
 	if err != nil {
 		return wrapDBError("delete_alias", "ModelAlias", runnerModel, err)
@@ -499,7 +499,7 @@ func (r *pricingRepository) DeleteAlias(ctx context.Context, runnerModel, runner
 const manualOverrideColumns = `id, canonical_model_name, component, price_usd, note, created_by, created_at, expires_at`
 
 func (r *pricingRepository) GetOverride(ctx context.Context, canonicalModel string, component pricing.PricingComponent) (*pricing.ManualPriceOverride, error) {
-	query := r.db.Rebind(`SELECT ` + manualOverrideColumns + ` FROM manual_price_overrides WHERE canonical_model_name = ? AND component = ?`)
+	query := `SELECT ` + manualOverrideColumns + ` FROM manual_price_overrides WHERE canonical_model_name = ? AND component = ?`
 	var row manualOverrideRow
 	if err := r.db.GetContext(ctx, &row, query, canonicalModel, string(component)); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -511,7 +511,7 @@ func (r *pricingRepository) GetOverride(ctx context.Context, canonicalModel stri
 }
 
 func (r *pricingRepository) GetOverridesForModel(ctx context.Context, canonicalModel string) ([]*pricing.ManualPriceOverride, error) {
-	query := r.db.Rebind(`SELECT ` + manualOverrideColumns + ` FROM manual_price_overrides WHERE canonical_model_name = ? ORDER BY component`)
+	query := `SELECT ` + manualOverrideColumns + ` FROM manual_price_overrides WHERE canonical_model_name = ? ORDER BY component`
 	var rows []manualOverrideRow
 	if err := r.db.SelectContext(ctx, &rows, query, canonicalModel); err != nil {
 		return nil, wrapDBError("get_overrides_for_model", "ManualPriceOverride", canonicalModel, err)
@@ -560,7 +560,7 @@ func (r *pricingRepository) UpsertOverride(ctx context.Context, o *pricing.Manua
 }
 
 func (r *pricingRepository) DeleteOverride(ctx context.Context, canonicalModel string, component pricing.PricingComponent) error {
-	query := r.db.Rebind(`DELETE FROM manual_price_overrides WHERE canonical_model_name = ? AND component = ?`)
+	query := `DELETE FROM manual_price_overrides WHERE canonical_model_name = ? AND component = ?`
 	_, err := r.db.ExecContext(ctx, query, canonicalModel, string(component))
 	if err != nil {
 		return wrapDBError("delete_override", "ManualPriceOverride", canonicalModel, err)
@@ -569,8 +569,8 @@ func (r *pricingRepository) DeleteOverride(ctx context.Context, canonicalModel s
 }
 
 func (r *pricingRepository) CleanupExpiredOverrides(ctx context.Context) (int, error) {
-	now := time.Now()
-	query := r.db.Rebind(`DELETE FROM manual_price_overrides WHERE expires_at IS NOT NULL AND expires_at < ?`)
+	now := SQLiteTime(time.Now())
+	query := `DELETE FROM manual_price_overrides WHERE expires_at IS NOT NULL AND expires_at < ?`
 	result, err := r.db.ExecContext(ctx, query, now)
 	if err != nil {
 		return 0, wrapDBError("cleanup_expired_overrides", "ManualPriceOverride", "", err)
@@ -584,60 +584,30 @@ func (r *pricingRepository) CleanupExpiredOverrides(ctx context.Context) (int, e
 func (r *pricingRepository) GetHistoricalAverages(ctx context.Context, canonicalModel string, since time.Time) (*pricing.HistoricalPricing, error) {
 	// Query run_events for metric events and calculate averages
 	// This needs to join with runs to get the model, then aggregate cost/token data
-	var query string
-	args := []interface{}{canonicalModel, since}
-
-	if r.db.Dialect() == DialectPostgres {
-		query = `
-			SELECT
-				$1 as canonical_model,
-				AVG(CASE WHEN (e.data->>'inputTokens')::int > 0
-					THEN (e.data->>'inputCostUsd')::numeric / (e.data->>'inputTokens')::int
-					ELSE NULL END) as input_token_avg_price,
-				AVG(CASE WHEN (e.data->>'outputTokens')::int > 0
-					THEN (e.data->>'outputCostUsd')::numeric / (e.data->>'outputTokens')::int
-					ELSE NULL END) as output_token_avg_price,
-				AVG(CASE WHEN (e.data->>'cacheReadTokens')::int > 0
-					THEN (e.data->>'cacheReadCostUsd')::numeric / (e.data->>'cacheReadTokens')::int
-					ELSE NULL END) as cache_read_avg_price,
-				AVG(CASE WHEN (e.data->>'cacheCreationTokens')::int > 0
-					THEN (e.data->>'cacheCreationCostUsd')::numeric / (e.data->>'cacheCreationTokens')::int
-					ELSE NULL END) as cache_creation_avg_price,
-				COUNT(*) as sample_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			WHERE e.event_type = 'metric'
-				AND (r.resolved_config->>'model' = $1 OR e.data->>'pricingModel' = $1)
-				AND r.created_at >= $2
-				AND (e.data->>'costSource' = 'runner_reported' OR e.data->>'costSource' = 'provider_usage_api')`
-	} else {
-		query = `
-			SELECT
-				? as canonical_model,
-				AVG(CASE WHEN CAST(json_extract(e.data, '$.inputTokens') AS INTEGER) > 0
-					THEN CAST(json_extract(e.data, '$.inputCostUsd') AS REAL) / CAST(json_extract(e.data, '$.inputTokens') AS INTEGER)
-					ELSE NULL END) as input_token_avg_price,
-				AVG(CASE WHEN CAST(json_extract(e.data, '$.outputTokens') AS INTEGER) > 0
-					THEN CAST(json_extract(e.data, '$.outputCostUsd') AS REAL) / CAST(json_extract(e.data, '$.outputTokens') AS INTEGER)
-					ELSE NULL END) as output_token_avg_price,
-				AVG(CASE WHEN CAST(json_extract(e.data, '$.cacheReadTokens') AS INTEGER) > 0
-					THEN CAST(json_extract(e.data, '$.cacheReadCostUsd') AS REAL) / CAST(json_extract(e.data, '$.cacheReadTokens') AS INTEGER)
-					ELSE NULL END) as cache_read_avg_price,
-				AVG(CASE WHEN CAST(json_extract(e.data, '$.cacheCreationTokens') AS INTEGER) > 0
-					THEN CAST(json_extract(e.data, '$.cacheCreationCostUsd') AS REAL) / CAST(json_extract(e.data, '$.cacheCreationTokens') AS INTEGER)
-					ELSE NULL END) as cache_creation_avg_price,
-				COUNT(*) as sample_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			WHERE e.event_type = 'metric'
-				AND (json_extract(r.resolved_config, '$.model') = ? OR json_extract(e.data, '$.pricingModel') = ?)
-				AND r.created_at >= ?
-				AND (json_extract(e.data, '$.costSource') = 'runner_reported' OR json_extract(e.data, '$.costSource') = 'provider_usage_api')`
-		// SQLite needs the model param three times and since once more
-		args = []interface{}{canonicalModel, canonicalModel, canonicalModel, since}
-	}
-
-	query = r.db.Rebind(query)
+	query := `
+		SELECT
+			? as canonical_model,
+			AVG(CASE WHEN CAST(json_extract(e.data, '$.inputTokens') AS INTEGER) > 0
+				THEN CAST(json_extract(e.data, '$.inputCostUsd') AS REAL) / CAST(json_extract(e.data, '$.inputTokens') AS INTEGER)
+				ELSE NULL END) as input_token_avg_price,
+			AVG(CASE WHEN CAST(json_extract(e.data, '$.outputTokens') AS INTEGER) > 0
+				THEN CAST(json_extract(e.data, '$.outputCostUsd') AS REAL) / CAST(json_extract(e.data, '$.outputTokens') AS INTEGER)
+				ELSE NULL END) as output_token_avg_price,
+			AVG(CASE WHEN CAST(json_extract(e.data, '$.cacheReadTokens') AS INTEGER) > 0
+				THEN CAST(json_extract(e.data, '$.cacheReadCostUsd') AS REAL) / CAST(json_extract(e.data, '$.cacheReadTokens') AS INTEGER)
+				ELSE NULL END) as cache_read_avg_price,
+			AVG(CASE WHEN CAST(json_extract(e.data, '$.cacheCreationTokens') AS INTEGER) > 0
+				THEN CAST(json_extract(e.data, '$.cacheCreationCostUsd') AS REAL) / CAST(json_extract(e.data, '$.cacheCreationTokens') AS INTEGER)
+				ELSE NULL END) as cache_creation_avg_price,
+			COUNT(*) as sample_count
+		FROM run_events e
+		JOIN runs r ON e.run_id = r.id
+		WHERE e.event_type = 'metric'
+			AND (json_extract(r.resolved_config, '$.model') = ? OR json_extract(e.data, '$.pricingModel') = ?)
+			AND r.created_at >= ?
+			AND (json_extract(e.data, '$.costSource') = 'runner_reported' OR json_extract(e.data, '$.costSource') = 'provider_usage_api')`
+	// SQLite needs the model param three times and since once more
+	args := []interface{}{canonicalModel, canonicalModel, canonicalModel, SQLiteTime(since)}
 
 	var result struct {
 		CanonicalModel        string          `db:"canonical_model"`

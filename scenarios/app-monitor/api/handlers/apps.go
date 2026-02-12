@@ -448,6 +448,9 @@ func (h *AppHandler) GetAppCompleteDiagnostics(c *gin.Context) {
 		if c.Query("status") == "false" {
 			opts.IncludeStatus = false
 		}
+		if c.Query("interop") == "false" {
+			opts.IncludeInteropScan = false
+		}
 	}
 
 	diagnostics, err := h.appService.GetCompleteDiagnostics(c.Request.Context(), id, opts)
@@ -556,6 +559,43 @@ func (h *AppHandler) SearchAppDocuments(c *gin.Context) {
 		"success": true,
 		"data":    results,
 	})
+}
+
+// CheckAppInteropCompliance evaluates UI interop compliance for a scenario.
+func (h *AppHandler) CheckAppInteropCompliance(c *gin.Context) {
+	id := c.Param("id")
+
+	result, err := h.appService.CheckInteropCompliance(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
+// GetInteropStandards returns interop violations in scenario-auditor quality format.
+func (h *AppHandler) GetInteropStandards(c *gin.Context) {
+	name := c.Param("name")
+
+	result, err := h.appService.GetInteropStandards(c.Request.Context(), name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // GetAppCompleteness returns completeness score metrics for an application

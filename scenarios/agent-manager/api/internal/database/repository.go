@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Repositories holds all PostgreSQL repository implementations.
+// Repositories holds all repository implementations.
 type Repositories struct {
 	Profiles              repository.ProfileRepository
 	Tasks                 repository.TaskRepository
@@ -50,6 +50,9 @@ func appendLimitOffset(query string, limit, offset int) (string, []interface{}) 
 	if limit > 0 {
 		query += " LIMIT ?"
 		args = append(args, limit)
+	} else if offset > 0 {
+		// SQLite requires LIMIT before OFFSET; use -1 for unlimited
+		query += " LIMIT -1"
 	}
 	if offset > 0 {
 		query += " OFFSET ?"
@@ -217,7 +220,7 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 }
 
 func (r *profileRepository) Get(ctx context.Context, id uuid.UUID) (*domain.AgentProfile, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM agent_profiles WHERE id = ?", profileColumns))
+	query := fmt.Sprintf("SELECT %s FROM agent_profiles WHERE id = ?", profileColumns)
 	var row profileRow
 	if err := r.db.GetContext(ctx, &row, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -229,7 +232,7 @@ func (r *profileRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Agen
 }
 
 func (r *profileRepository) GetByName(ctx context.Context, name string) (*domain.AgentProfile, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM agent_profiles WHERE name = ?", profileColumns))
+	query := fmt.Sprintf("SELECT %s FROM agent_profiles WHERE name = ?", profileColumns)
 	var row profileRow
 	if err := r.db.GetContext(ctx, &row, query, name); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -241,7 +244,7 @@ func (r *profileRepository) GetByName(ctx context.Context, name string) (*domain
 }
 
 func (r *profileRepository) GetByKey(ctx context.Context, key string) (*domain.AgentProfile, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM agent_profiles WHERE profile_key = ?", profileColumns))
+	query := fmt.Sprintf("SELECT %s FROM agent_profiles WHERE profile_key = ?", profileColumns)
 	var row profileRow
 	if err := r.db.GetContext(ctx, &row, query, key); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -255,7 +258,7 @@ func (r *profileRepository) GetByKey(ctx context.Context, key string) (*domain.A
 func (r *profileRepository) List(ctx context.Context, filter repository.ListFilter) ([]*domain.AgentProfile, error) {
 	base := fmt.Sprintf("SELECT %s FROM agent_profiles ORDER BY updated_at DESC", profileColumns)
 	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
-	query := r.db.Rebind(queryWithPaging)
+	query := queryWithPaging
 
 	var rows []profileRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -290,7 +293,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 }
 
 func (r *profileRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := r.db.Rebind(`DELETE FROM agent_profiles WHERE id = ?`)
+	query := `DELETE FROM agent_profiles WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return wrapDBError("delete", "AgentProfile", id.String(), err)
@@ -382,7 +385,7 @@ func (r *taskRepository) Create(ctx context.Context, task *domain.Task) error {
 }
 
 func (r *taskRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Task, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM tasks WHERE id = ?", taskColumns))
+	query := fmt.Sprintf("SELECT %s FROM tasks WHERE id = ?", taskColumns)
 	var row taskRow
 	if err := r.db.GetContext(ctx, &row, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -396,7 +399,7 @@ func (r *taskRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Task, e
 func (r *taskRepository) List(ctx context.Context, filter repository.ListFilter) ([]*domain.Task, error) {
 	base := fmt.Sprintf("SELECT %s FROM tasks ORDER BY updated_at DESC", taskColumns)
 	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
-	query := r.db.Rebind(queryWithPaging)
+	query := queryWithPaging
 
 	var rows []taskRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -414,7 +417,7 @@ func (r *taskRepository) ListByStatus(ctx context.Context, status domain.TaskSta
 	base := fmt.Sprintf("SELECT %s FROM tasks WHERE status = ? ORDER BY updated_at DESC", taskColumns)
 	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
 	args = append([]interface{}{string(status)}, args...)
-	query := r.db.Rebind(queryWithPaging)
+	query := queryWithPaging
 
 	var rows []taskRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -446,7 +449,7 @@ func (r *taskRepository) Update(ctx context.Context, task *domain.Task) error {
 }
 
 func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := r.db.Rebind(`DELETE FROM tasks WHERE id = ?`)
+	query := `DELETE FROM tasks WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return wrapDBError("delete", "Task", id.String(), err)
@@ -595,7 +598,7 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 		applyPrompt = sql.NullString{String: settings.ApplyPromptTemplate, Valid: true}
 	}
 
-	query := r.db.Rebind(`
+	query := `
 		INSERT INTO investigation_settings (id, prompt_template, apply_prompt_template, default_depth, default_context, investigation_tag_allowlist, updated_at)
 		VALUES (1, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
@@ -605,7 +608,7 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 			default_context = EXCLUDED.default_context,
 			investigation_tag_allowlist = EXCLUDED.investigation_tag_allowlist,
 			updated_at = EXCLUDED.updated_at
-	`)
+	`
 
 	_, err = r.db.ExecContext(ctx, query,
 		settings.PromptTemplate,
@@ -613,7 +616,7 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 		string(settings.DefaultDepth),
 		contextJSON,
 		allowlistJSON,
-		time.Now(),
+		time.Now().UTC().Format("2006-01-02 15:04:05.999999999"),
 	)
 	if err != nil {
 		return wrapDBError("update", "InvestigationSettings", "singleton", err)

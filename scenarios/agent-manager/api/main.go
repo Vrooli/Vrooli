@@ -39,8 +39,7 @@ import (
 
 // Config holds runtime configuration
 type Config struct {
-	Port        string
-	UseInMemory bool
+	Port string
 }
 
 // Server wires the HTTP router, database, and orchestration service
@@ -67,21 +66,12 @@ func NewServer() (*Server, error) {
 		FullTimestamp: true,
 	})
 
-	cfg := &Config{
-		UseInMemory: strings.ToLower(os.Getenv("USE_IN_MEMORY")) == "true",
-	}
+	cfg := &Config{}
 
-	var db *database.DB
-	var err error
-
-	// Database connection (optional for in-memory mode)
-	if !cfg.UseInMemory {
-		db, err = database.NewConnection(logger)
-		if err != nil {
-			log.Printf("Failed to connect to database, using in-memory storage: %v", err)
-			cfg.UseInMemory = true
-			db = nil
-		}
+	// Database connection - SQLite is required, failure is fatal
+	db, err := database.NewConnection(logger)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	// Create WebSocket hub for real-time event broadcasting (needed by orchestrator)
@@ -89,7 +79,7 @@ func NewServer() (*Server, error) {
 	go wsHub.Run()
 
 	// Create the orchestrator with appropriate repositories and broadcaster
-	deps := createOrchestrator(db, cfg.UseInMemory, wsHub, logger)
+	deps := createOrchestrator(db, wsHub, logger)
 
 	// Create tool registry for tool discovery protocol
 	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
@@ -146,54 +136,24 @@ type orchestratorDeps struct {
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSocketHub, logger *logrus.Logger) orchestratorDeps {
+func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *logrus.Logger) orchestratorDeps {
 	levers, err := agentconfig.LoadLevers()
 	if err != nil {
 		log.Printf("Warning: failed to load config levers: %v", err)
 	}
 
-	// Create repositories
-	var (
-		profileRepo               repository.ProfileRepository
-		taskRepo                  repository.TaskRepository
-		runRepo                   repository.RunRepository
-		checkpointRepo            repository.CheckpointRepository
-		idempotencyRepo           repository.IdempotencyRepository
-		statsRepo                 repository.StatsRepository
-		investigationSettingsRepo repository.InvestigationSettingsRepository
-	)
-
-	// Create event store - use PostgreSQL when database is available
-	var eventStore event.Store
-	storageLabel := ""
-
-	if useInMemory || db == nil {
-		eventStore = event.NewMemoryStore()
-		// In-memory fallback
-		log.Printf("Using in-memory storage")
-		storageLabel = "memory (fallback)"
-		profileRepo = repository.NewMemoryProfileRepository()
-		taskRepo = repository.NewMemoryTaskRepository()
-		memRunRepo := repository.NewMemoryRunRepository()
-		runRepo = memRunRepo
-		checkpointRepo = repository.NewMemoryCheckpointRepository()
-		idempotencyRepo = repository.NewMemoryIdempotencyRepository()
-		statsRepo = repository.NewMemoryStatsRepositoryWithRepos(memRunRepo, nil)
-		investigationSettingsRepo = repository.NewMemoryInvestigationSettingsRepository()
-	} else {
-		// PostgreSQL persistence
-		log.Printf("Using PostgreSQL persistence")
-		storageLabel = string(db.Dialect())
-		eventStore = event.NewPostgresStore(db.DB, logger)
-		repos := database.NewRepositories(db, logger)
-		profileRepo = repos.Profiles
-		taskRepo = repos.Tasks
-		runRepo = repos.Runs
-		checkpointRepo = repos.Checkpoints
-		idempotencyRepo = repos.Idempotency
-		statsRepo = repos.Stats
-		investigationSettingsRepo = repos.InvestigationSettings
-	}
+	// Create repositories from SQLite database
+	log.Printf("Using SQLite persistence")
+	storageLabel := "sqlite"
+	eventStore := event.NewSQLiteStore(db.DB, logger)
+	repos := database.NewRepositories(db, logger)
+	profileRepo := repos.Profiles
+	taskRepo := repos.Tasks
+	runRepo := repos.Runs
+	checkpointRepo := repos.Checkpoints
+	idempotencyRepo := repos.Idempotency
+	statsRepo := repos.Stats
+	investigationSettingsRepo := repos.InvestigationSettings
 
 	// Create runner registry
 	runnerRegistry := runner.NewRegistry()
@@ -380,17 +340,12 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	statsSvc := orchestration.NewStatsOrchestrator(statsRepo)
 
 	// Create pricing service for model pricing management
-	var pricingRepo pricing.Repository
-	if useInMemory || db == nil {
-		pricingRepo = pricing.NewMemoryRepository()
-	} else {
-		pricingRepo = database.NewPricingRepository(db, logger)
-	}
+	pricingRepo := database.NewPricingRepository(db, logger)
 	openRouterProvider := providers.NewOpenRouterProvider()
 	pricingProviders := []pricing.Provider{openRouterProvider}
 	pricingSvc := pricing.NewService(pricingRepo, pricingProviders, logger)
 
-	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
+	log.Printf("Orchestrator initialized (storage: %s, sandbox: %s)", storageLabel, sandboxURL)
 	return orchestratorDeps{
 		orchestrator:         orch,
 		statsService:         statsSvc,
@@ -406,14 +361,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(corsMiddleware)
 
 	// Health endpoint using api-core/health for standardized response format
-	// DB may be nil in in-memory mode - health.DB handles this gracefully
 	var rawDB *sql.DB
 	if s.db != nil && s.db.DB != nil {
 		rawDB = s.db.DB.DB // Access underlying *sql.DB from sqlx.DB (which is embedded in database.DB)
 	}
 	healthHandler := health.New().
 		Version("1.0.0").
-		Check(health.DB(rawDB), health.Optional). // Optional since in-memory mode is valid
+		Check(health.DB(rawDB), health.Critical).
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	// Detailed health for UI (includes sandbox + runner dependencies).

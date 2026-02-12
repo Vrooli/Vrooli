@@ -11,9 +11,11 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
@@ -73,6 +75,24 @@ func newInPlaceFixtures() *testFixtures {
 	f := newTestFixtures()
 	f.run.RunMode = domain.RunModeInPlace
 	return f
+}
+
+// setupExecutorRepos creates SQLite-backed repos and seeds the parent entities
+// (profile and task) from the given fixtures so that runs can be created with
+// valid foreign keys.
+func setupExecutorRepos(t *testing.T, f *testFixtures) (*database.Repositories, event.Store) {
+	t.Helper()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	if err := repos.Profiles.Create(ctx, f.profile); err != nil {
+		t.Fatalf("seed profile: %v", err)
+	}
+	if err := repos.Tasks.Create(ctx, f.task); err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+	return repos, eventStore
 }
 
 func mustCreateRun(t *testing.T, repo repository.RunRepository, run *domain.Run) {
@@ -234,8 +254,8 @@ func TestDefaultExecutorConfig(t *testing.T) {
 
 func TestNewRunExecutor(t *testing.T) {
 	f := newTestFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -243,10 +263,9 @@ func TestNewRunExecutor(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	sandboxProvider := newMockSandboxProvider()
-	eventStore := event.NewMemoryStore()
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		sandboxProvider,
 		eventStore,
@@ -263,9 +282,8 @@ func TestNewRunExecutor(t *testing.T) {
 
 func TestRunExecutor_WithConfig(t *testing.T) {
 	f := newTestFixtures()
-	runRepo := repository.NewMemoryRunRepository()
+	repos, eventStore := setupExecutorRepos(t, f)
 	registry := runner.NewRegistry()
-	eventStore := event.NewMemoryStore()
 
 	customConfig := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Minute,
@@ -274,7 +292,7 @@ func TestRunExecutor_WithConfig(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -295,8 +313,8 @@ func TestRunExecutor_WithConfig(t *testing.T) {
 
 func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 	f := newTestFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -312,7 +330,6 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	sandboxProvider := newMockSandboxProvider()
-	eventStore := event.NewMemoryStore()
 
 	// Use short timeout for test
 	config := orchestration.ExecutorConfig{
@@ -322,7 +339,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		sandboxProvider,
 		eventStore,
@@ -356,8 +373,8 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 
 func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -370,15 +387,13 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil, // No sandbox provider for in-place
 		eventStore,
@@ -404,8 +419,8 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 
 func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 	f := newTestFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -419,15 +434,13 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 		},
 	}
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		sandboxProvider,
 		eventStore,
@@ -452,7 +465,7 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 	}
 
 	// Verify run was marked failed
-	updatedRun, _ := runRepo.Get(context.Background(), f.run.ID)
+	updatedRun, _ := repos.Runs.Get(context.Background(), f.run.ID)
 	if updatedRun.Status != domain.RunStatusFailed {
 		t.Errorf("expected run status 'failed', got '%s'", updatedRun.Status)
 	}
@@ -460,15 +473,13 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 
 func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 	f := newTestFixtures() // Sandboxed mode requires provider
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	eventStore := event.NewMemoryStore()
 
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
@@ -476,7 +487,7 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil, // No sandbox provider
 		eventStore,
@@ -502,15 +513,13 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 
 func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 	f := newInPlaceFixtures() // Skip sandbox issues
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(false, "resource not installed")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	eventStore := event.NewMemoryStore()
 
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
@@ -518,7 +527,7 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -540,13 +549,11 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 
 func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	// Empty registry - no runners registered
 	registry := runner.NewRegistry()
-
-	eventStore := event.NewMemoryStore()
 
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
@@ -554,7 +561,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -580,8 +587,8 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 
 func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -591,15 +598,13 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -621,8 +626,8 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 
 func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -636,15 +641,13 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -664,7 +667,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 	}
 
 	// Verify run was marked failed
-	updatedRun, _ := runRepo.Get(context.Background(), f.run.ID)
+	updatedRun, _ := repos.Runs.Get(context.Background(), f.run.ID)
 	if updatedRun.Status != domain.RunStatusFailed {
 		t.Errorf("expected run status 'failed', got '%s'", updatedRun.Status)
 	}
@@ -676,8 +679,8 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 
 func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -694,15 +697,13 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           30 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -742,8 +743,8 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 
 func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -760,8 +761,6 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	// Very short timeout
 	config := orchestration.ExecutorConfig{
 		Timeout:           200 * time.Millisecond,
@@ -769,7 +768,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -795,8 +794,8 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 
 func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -806,9 +805,6 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:            5 * time.Second,
 		HeartbeatInterval:  100 * time.Millisecond,
@@ -816,7 +812,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -824,13 +820,13 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
-	).WithConfig(config).WithCheckpointRepository(checkpointRepo)
+	).WithConfig(config).WithCheckpointRepository(repos.Checkpoints)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
 
 	// Verify checkpoint was saved
-	checkpoint, err := checkpointRepo.Get(context.Background(), f.run.ID)
+	checkpoint, err := repos.Checkpoints.Get(context.Background(), f.run.ID)
 	if err != nil {
 		t.Fatalf("failed to get checkpoint: %v", err)
 	}
@@ -848,10 +844,10 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 	checkpoint := domain.NewCheckpoint(f.run.ID, domain.RunPhaseRunnerAcquiring)
 	checkpoint = checkpoint.WithSandbox(sandboxID, workDir)
 
-	runRepo := repository.NewMemoryRunRepository()
 	// Run already has sandbox ID (was created in previous attempt)
 	f.run.SandboxID = &sandboxID
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -880,15 +876,13 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 		},
 	}
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		sandboxProvider,
 		eventStore,
@@ -921,8 +915,8 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 
 func TestRunExecutor_EmitsEvents(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -932,15 +926,13 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -978,8 +970,8 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 
 func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -989,15 +981,13 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -1026,8 +1016,8 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 
 func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -1037,15 +1027,13 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -1059,7 +1047,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	executor.Execute(ctx)
 
 	// Verify run was updated to needs_review (success requires review)
-	updatedRun, _ := runRepo.Get(context.Background(), f.run.ID)
+	updatedRun, _ := repos.Runs.Get(context.Background(), f.run.ID)
 	if updatedRun.Status != domain.RunStatusNeedsReview {
 		t.Errorf("expected run status 'needs_review', got '%s'", updatedRun.Status)
 	}
@@ -1077,8 +1065,8 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 
 func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	f := newInPlaceFixtures()
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -1088,15 +1076,13 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	eventStore := event.NewMemoryStore()
-
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
 		HeartbeatInterval: 100 * time.Millisecond,
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -1110,7 +1096,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	executor.Execute(ctx)
 
 	// Verify approval state was set to pending
-	updatedRun, _ := runRepo.Get(context.Background(), f.run.ID)
+	updatedRun, _ := repos.Runs.Get(context.Background(), f.run.ID)
 	if updatedRun.ApprovalState != domain.ApprovalStatePending {
 		t.Errorf("expected approval state 'pending', got '%s'", updatedRun.ApprovalState)
 	}
@@ -1124,15 +1110,13 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 	f := newInPlaceFixtures()
 	f.task.ProjectRoot = "" // Missing project root
 
-	runRepo := repository.NewMemoryRunRepository()
-	mustCreateRun(t, runRepo, f.run)
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	eventStore := event.NewMemoryStore()
 
 	config := orchestration.ExecutorConfig{
 		Timeout:           5 * time.Second,
@@ -1140,7 +1124,7 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 	}
 
 	executor := orchestration.NewRunExecutor(
-		runRepo,
+		repos.Runs,
 		registry,
 		nil,
 		eventStore,
@@ -1154,7 +1138,7 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 	executor.Execute(ctx)
 
 	// Should fail due to missing project root
-	updatedRun, _ := runRepo.Get(context.Background(), f.run.ID)
+	updatedRun, _ := repos.Runs.Get(context.Background(), f.run.ID)
 	if updatedRun.Status != domain.RunStatusFailed {
 		t.Errorf("expected run status 'failed', got '%s'", updatedRun.Status)
 	}
@@ -1178,10 +1162,13 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 			f := newInPlaceFixtures()
 			f.run.ID = uuid.New() // Unique run ID
 			f.task.ID = uuid.New()
+			f.run.TaskID = f.task.ID
 			f.profile.ID = uuid.New()
+			profileID := f.profile.ID
+			f.run.AgentProfileID = &profileID
 
-			runRepo := repository.NewMemoryRunRepository()
-			mustCreateRun(t, runRepo, f.run)
+			repos, eventStore := setupExecutorRepos(t, f)
+			mustCreateRun(t, repos.Runs, f.run)
 
 			registry := runner.NewRegistry()
 			mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -1192,15 +1179,13 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 			}
 			mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-			eventStore := event.NewMemoryStore()
-
 			config := orchestration.ExecutorConfig{
 				Timeout:           5 * time.Second,
 				HeartbeatInterval: 50 * time.Millisecond,
 			}
 
 			executor := orchestration.NewRunExecutor(
-				runRepo,
+				repos.Runs,
 				registry,
 				nil,
 				eventStore,

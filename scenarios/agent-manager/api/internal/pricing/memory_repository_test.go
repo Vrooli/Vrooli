@@ -32,15 +32,15 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-func pricingKey(canonicalModel, provider string) string {
+func memPricingKey(canonicalModel, provider string) string {
 	return canonicalModel + ":" + provider
 }
 
-func aliasKey(runnerModel, runnerType string) string {
+func memAliasKey(runnerModel, runnerType string) string {
 	return runnerModel + ":" + runnerType
 }
 
-func overrideKey(canonicalModel string, component PricingComponent) string {
+func memOverrideKey(canonicalModel string, component PricingComponent) string {
 	return canonicalModel + ":" + string(component)
 }
 
@@ -50,7 +50,7 @@ func (r *MemoryRepository) GetPricing(ctx context.Context, canonicalModel, provi
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	key := pricingKey(canonicalModel, provider)
+	key := memPricingKey(canonicalModel, provider)
 	if p, ok := r.pricing[key]; ok {
 		return p.Clone(), nil
 	}
@@ -85,7 +85,7 @@ func (r *MemoryRepository) UpsertPricing(ctx context.Context, pricing *ModelPric
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := pricingKey(pricing.CanonicalModelName, pricing.Provider)
+	key := memPricingKey(pricing.CanonicalModelName, pricing.Provider)
 	now := time.Now()
 
 	existing, exists := r.pricing[key]
@@ -128,7 +128,7 @@ func (r *MemoryRepository) DeletePricing(ctx context.Context, canonicalModel, pr
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := pricingKey(canonicalModel, provider)
+	key := memPricingKey(canonicalModel, provider)
 	delete(r.pricing, key)
 	return nil
 }
@@ -139,7 +139,7 @@ func (r *MemoryRepository) GetAlias(ctx context.Context, runnerModel, runnerType
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	key := aliasKey(runnerModel, runnerType)
+	key := memAliasKey(runnerModel, runnerType)
 	if a, ok := r.aliases[key]; ok {
 		clone := *a
 		return &clone, nil
@@ -177,7 +177,7 @@ func (r *MemoryRepository) UpsertAlias(ctx context.Context, alias *ModelAlias) e
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := aliasKey(alias.RunnerModel, alias.RunnerType)
+	key := memAliasKey(alias.RunnerModel, alias.RunnerType)
 	now := time.Now()
 
 	existing, exists := r.aliases[key]
@@ -199,7 +199,7 @@ func (r *MemoryRepository) DeleteAlias(ctx context.Context, runnerModel, runnerT
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := aliasKey(runnerModel, runnerType)
+	key := memAliasKey(runnerModel, runnerType)
 	delete(r.aliases, key)
 	return nil
 }
@@ -210,7 +210,7 @@ func (r *MemoryRepository) GetOverride(ctx context.Context, canonicalModel strin
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	key := overrideKey(canonicalModel, component)
+	key := memOverrideKey(canonicalModel, component)
 	if o, ok := r.overrides[key]; ok {
 		clone := *o
 		return &clone, nil
@@ -248,7 +248,7 @@ func (r *MemoryRepository) UpsertOverride(ctx context.Context, override *ManualP
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := overrideKey(override.CanonicalModelName, override.Component)
+	key := memOverrideKey(override.CanonicalModelName, override.Component)
 	now := time.Now()
 
 	existing, exists := r.overrides[key]
@@ -269,7 +269,7 @@ func (r *MemoryRepository) DeleteOverride(ctx context.Context, canonicalModel st
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := overrideKey(canonicalModel, component)
+	key := memOverrideKey(canonicalModel, component)
 	delete(r.overrides, key)
 	return nil
 }

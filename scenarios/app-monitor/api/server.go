@@ -190,6 +190,7 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.GET("/apps/:id/diagnostics/status", h.app.GetAppScenarioStatus)
 		v1.GET("/apps/:id/diagnostics/health", h.app.CheckAppHealth)
 		v1.GET("/apps/:id/diagnostics/localhost", h.app.CheckAppLocalhostUsage)
+		v1.GET("/apps/:id/diagnostics/interop", h.app.CheckAppInteropCompliance)
 		v1.GET("/apps/:id/completeness", h.app.GetAppCompleteness)
 		v1.GET("/apps/:id/docs", h.app.GetAppDocuments)
 		v1.GET("/apps/:id/docs/*path", h.app.GetAppDocument)
@@ -198,6 +199,9 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.GET("/apps/:id/logs/lifecycle", h.app.GetAppLifecycleLogs)
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)
 		v1.GET("/apps/:id/metrics", h.app.GetAppMetrics)
+
+		// Quality endpoints (scenario-auditor consumption)
+		v1.GET("/quality/scenario/:name/standards", h.app.GetInteropStandards)
 
 		// Log endpoints for scenarios using app name
 		v1.GET("/logs/:appName", h.app.GetAppLogs)

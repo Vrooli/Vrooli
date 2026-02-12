@@ -11,6 +11,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
@@ -21,13 +22,8 @@ import (
 func newTestOrchestrator(t *testing.T) orchestration.Service {
 	t.Helper()
 
-	profileRepo := repository.NewMemoryProfileRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	runRepo := repository.NewMemoryRunRepository()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-	idempotencyRepo := repository.NewMemoryIdempotencyRepository()
-
-	eventStore := event.NewMemoryStore()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	runnerRegistry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -35,9 +31,9 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 	mustRegisterRunner(t, runnerRegistry, mockRunner)
 
 	return orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          30 * time.Minute,
 			MaxConcurrentRuns:       10,
@@ -45,8 +41,8 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
 	)
 }
 
@@ -729,13 +725,8 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Service, repository.RunRepository) {
 	t.Helper()
 
-	profileRepo := repository.NewMemoryProfileRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	runRepo := repository.NewMemoryRunRepository()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-	idempotencyRepo := repository.NewMemoryIdempotencyRepository()
-
-	eventStore := event.NewMemoryStore()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	runnerRegistry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -743,9 +734,9 @@ func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Serv
 	mustRegisterRunner(t, runnerRegistry, mockRunner)
 
 	svc := orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          30 * time.Minute,
 			MaxConcurrentRuns:       maxRuns,
@@ -753,11 +744,11 @@ func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Serv
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
 	)
 
-	return svc, runRepo
+	return svc, repos.Runs
 }
 
 // TestOrchestrator_SlotEnforcement_BlocksAtCapacity verifies that CreateRun
@@ -1026,13 +1017,8 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator) orchestration.Service {
 	t.Helper()
 
-	profileRepo := repository.NewMemoryProfileRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	runRepo := repository.NewMemoryRunRepository()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-	idempotencyRepo := repository.NewMemoryIdempotencyRepository()
-
-	eventStore := event.NewMemoryStore()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	runnerRegistry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -1040,9 +1026,9 @@ func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator)
 	mustRegisterRunner(t, runnerRegistry, mockRunner)
 
 	return orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          30 * time.Minute,
 			MaxConcurrentRuns:       10,
@@ -1050,8 +1036,8 @@ func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator)
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithFlagValidator(fv),
 	)
 }

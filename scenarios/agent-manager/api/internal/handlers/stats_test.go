@@ -3,6 +3,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,77 +17,166 @@ import (
 )
 
 // =============================================================================
+// STUB STATS REPOSITORY (seeded data for handler tests)
+// =============================================================================
+
+// stubStatsRepo implements repository.StatsRepository with canned responses.
+type stubStatsRepo struct {
+	statusCounts    *repository.RunStatusCounts
+	successRate     float64
+	durationStats   *repository.DurationStats
+	costStats       *repository.CostStats
+	runnerBreakdown []*repository.RunnerBreakdown
+	timeSeries      []*repository.TimeSeriesBucket
+}
+
+func (s *stubStatsRepo) GetRunStatusCounts(ctx context.Context, filter repository.StatsFilter) (*repository.RunStatusCounts, error) {
+	if s.statusCounts != nil {
+		return s.statusCounts, nil
+	}
+	return &repository.RunStatusCounts{}, nil
+}
+
+func (s *stubStatsRepo) GetSuccessRate(ctx context.Context, filter repository.StatsFilter) (float64, error) {
+	return s.successRate, nil
+}
+
+func (s *stubStatsRepo) GetDurationStats(ctx context.Context, filter repository.StatsFilter) (*repository.DurationStats, error) {
+	if s.durationStats != nil {
+		return s.durationStats, nil
+	}
+	return &repository.DurationStats{}, nil
+}
+
+func (s *stubStatsRepo) GetCostStats(ctx context.Context, filter repository.StatsFilter) (*repository.CostStats, error) {
+	if s.costStats != nil {
+		return s.costStats, nil
+	}
+	return &repository.CostStats{}, nil
+}
+
+func (s *stubStatsRepo) GetRunnerBreakdown(ctx context.Context, filter repository.StatsFilter) ([]*repository.RunnerBreakdown, error) {
+	if s.runnerBreakdown != nil {
+		return s.runnerBreakdown, nil
+	}
+	return []*repository.RunnerBreakdown{}, nil
+}
+
+func (s *stubStatsRepo) GetProfileBreakdown(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ProfileBreakdown, error) {
+	return []*repository.ProfileBreakdown{}, nil
+}
+
+func (s *stubStatsRepo) GetModelBreakdown(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ModelBreakdown, error) {
+	return []*repository.ModelBreakdown{}, nil
+}
+
+func (s *stubStatsRepo) GetToolUsageStats(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ToolUsageStats, error) {
+	return []*repository.ToolUsageStats{}, nil
+}
+
+func (s *stubStatsRepo) GetModelRunUsage(ctx context.Context, filter repository.StatsFilter, model string, limit int) ([]*repository.ModelRunUsage, error) {
+	return []*repository.ModelRunUsage{}, nil
+}
+
+func (s *stubStatsRepo) GetToolRunUsage(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolRunUsage, error) {
+	return []*repository.ToolRunUsage{}, nil
+}
+
+func (s *stubStatsRepo) GetToolUsageByModel(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolUsageModelBreakdown, error) {
+	return []*repository.ToolUsageModelBreakdown{}, nil
+}
+
+func (s *stubStatsRepo) GetErrorPatterns(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ErrorPattern, error) {
+	return []*repository.ErrorPattern{}, nil
+}
+
+func (s *stubStatsRepo) GetTimeSeries(ctx context.Context, filter repository.StatsFilter, bucketDuration time.Duration) ([]*repository.TimeSeriesBucket, error) {
+	if s.timeSeries != nil {
+		return s.timeSeries, nil
+	}
+	return []*repository.TimeSeriesBucket{}, nil
+}
+
+func (s *stubStatsRepo) GetPopularModels(ctx context.Context, since time.Time, limit int) ([]string, error) {
+	return []string{}, nil
+}
+
+func (s *stubStatsRepo) GetRecentModels(ctx context.Context, limit int) ([]string, error) {
+	return []string{}, nil
+}
+
+// compile-time check
+var _ repository.StatsRepository = (*stubStatsRepo)(nil)
+
+// =============================================================================
 // STATS HANDLER TEST SETUP
 // =============================================================================
 
 // setupStatsTestHandler creates a stats handler with seeded test data.
 func setupStatsTestHandler() (*StatsHandler, *mux.Router) {
-	// Create in-memory stats repository with seeded data
-	statsRepo := repository.NewMemoryStatsRepository()
-
-	// Seed test data
-	successRate := 0.85
-	statsRepo.SeededStatusCounts = &repository.RunStatusCounts{
-		Pending:     2,
-		Running:     3,
-		Complete:    17,
-		Failed:      3,
-		Cancelled:   1,
-		NeedsReview: 1,
-		Total:       27,
-	}
-	statsRepo.SeededSuccessRate = &successRate
-	statsRepo.SeededDurationStats = &repository.DurationStats{
-		AvgMs: 45000,
-		P50Ms: 30000,
-		P95Ms: 120000,
-		P99Ms: 180000,
-		MinMs: 5000,
-		MaxMs: 200000,
-		Count: 20,
-	}
-	statsRepo.SeededCostStats = &repository.CostStats{
-		TotalCostUSD:    12.50,
-		AvgCostUSD:      0.625,
-		InputTokens:     500000,
-		OutputTokens:    100000,
-		CacheReadTokens: 50000,
-		TotalTokens:     650000,
-	}
-	statsRepo.SeededRunnerBreakdown = []*repository.RunnerBreakdown{
-		{
-			RunnerType:    "claude-code",
-			RunCount:      15,
-			SuccessCount:  12,
-			FailedCount:   2,
-			TotalCostUSD:  10.00,
-			AvgDurationMs: 40000,
+	statsRepo := &stubStatsRepo{
+		statusCounts: &repository.RunStatusCounts{
+			Pending:     2,
+			Running:     3,
+			Complete:    17,
+			Failed:      3,
+			Cancelled:   1,
+			NeedsReview: 1,
+			Total:       27,
 		},
-		{
-			RunnerType:    "codex",
-			RunCount:      5,
-			SuccessCount:  4,
-			FailedCount:   1,
-			TotalCostUSD:  2.50,
-			AvgDurationMs: 55000,
+		successRate: 0.85,
+		durationStats: &repository.DurationStats{
+			AvgMs: 45000,
+			P50Ms: 30000,
+			P95Ms: 120000,
+			P99Ms: 180000,
+			MinMs: 5000,
+			MaxMs: 200000,
+			Count: 20,
 		},
-	}
-	statsRepo.SeededTimeSeries = []*repository.TimeSeriesBucket{
-		{
-			Timestamp:     time.Now().Add(-2 * time.Hour).Truncate(time.Hour),
-			RunsStarted:   5,
-			RunsCompleted: 4,
-			RunsFailed:    1,
-			TotalCostUSD:  3.00,
-			AvgDurationMs: 35000,
+		costStats: &repository.CostStats{
+			TotalCostUSD:    12.50,
+			AvgCostUSD:      0.625,
+			InputTokens:     500000,
+			OutputTokens:    100000,
+			CacheReadTokens: 50000,
+			TotalTokens:     650000,
 		},
-		{
-			Timestamp:     time.Now().Add(-1 * time.Hour).Truncate(time.Hour),
-			RunsStarted:   8,
-			RunsCompleted: 7,
-			RunsFailed:    0,
-			TotalCostUSD:  5.50,
-			AvgDurationMs: 42000,
+		runnerBreakdown: []*repository.RunnerBreakdown{
+			{
+				RunnerType:    "claude-code",
+				RunCount:      15,
+				SuccessCount:  12,
+				FailedCount:   2,
+				TotalCostUSD:  10.00,
+				AvgDurationMs: 40000,
+			},
+			{
+				RunnerType:    "codex",
+				RunCount:      5,
+				SuccessCount:  4,
+				FailedCount:   1,
+				TotalCostUSD:  2.50,
+				AvgDurationMs: 55000,
+			},
+		},
+		timeSeries: []*repository.TimeSeriesBucket{
+			{
+				Timestamp:     time.Now().Add(-2 * time.Hour).Truncate(time.Hour),
+				RunsStarted:   5,
+				RunsCompleted: 4,
+				RunsFailed:    1,
+				TotalCostUSD:  3.00,
+				AvgDurationMs: 35000,
+			},
+			{
+				Timestamp:     time.Now().Add(-1 * time.Hour).Truncate(time.Hour),
+				RunsStarted:   8,
+				RunsCompleted: 7,
+				RunsFailed:    0,
+				TotalCostUSD:  5.50,
+				AvgDurationMs: 42000,
+			},
 		},
 	}
 

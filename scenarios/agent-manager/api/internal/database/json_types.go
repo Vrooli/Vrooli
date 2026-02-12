@@ -1,3 +1,4 @@
+// Package database provides SQLite persistence for agent-manager entities.
 package database
 
 import (
@@ -411,7 +412,7 @@ type NullableTime struct {
 	Valid bool
 }
 
-// Common SQLite/PostgreSQL time formats to try when parsing strings
+// Common SQLite time formats to try when parsing strings
 var timeFormats = []string{
 	"2006-01-02 15:04:05.999999999-07:00",
 	"2006-01-02 15:04:05.999999999Z07:00",
@@ -544,9 +545,6 @@ func (n NullableTime) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	// Convert to UTC before formatting to ensure consistent timezone handling.
-	// Without this, local times (e.g., 18:35:40-05:00) would be stored without
-	// timezone info (18:35:40), causing PostgreSQL to interpret them as UTC
-	// and creating a timezone offset bug.
 	return n.Time.UTC().Format("2006-01-02 15:04:05.999999999"), nil
 }
 

@@ -138,7 +138,7 @@ Note: Claude Code often uses one turn for tool use and another for tool results.
 ## Dependencies
 
 **Required**:
-- PostgreSQL - task, run, event storage
+- SQLite - task, run, event, profile, and policy storage (embedded, no external service needed)
 - workspace-sandbox - isolation and diff management
 
 **Runners** (at least one required):
@@ -185,5 +185,8 @@ make lint
 | `API_PORT` | API server port |
 | `UI_PORT` | UI server port |
 | `WS_PORT` | WebSocket port |
-| `DATABASE_URL` | PostgreSQL connection string |
+| `AM_SQLITE_PATH` | Direct path to SQLite database file (highest priority) |
+| `DATABASE_URL` | SQLite path via `file:` protocol (e.g. `file:/path/to/db`) |
+| `SQLITE_DATABASE_PATH` | Directory for SQLite database files |
+| `VROOLI_DATA` | Vrooli data root (default: `~/.vrooli/data/sqlite/databases/`) |
 | `WORKSPACE_SANDBOX_URL` | workspace-sandbox API URL |

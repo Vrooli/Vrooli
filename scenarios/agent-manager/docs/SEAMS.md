@@ -189,9 +189,7 @@ type Collector interface {
 - Runners produce events without knowing how they're stored
 
 **Implementations:**
-- `MemoryStore` - In-memory event storage with streaming support (implemented)
-- PostgreSQL-backed store (planned)
-- Redis-backed store for high-throughput (planned)
+- `SQLiteStore` - SQLite-backed event storage with streaming support (implemented, `adapters/event/sqlite.go`)
 
 ---
 
@@ -253,27 +251,24 @@ type Collector interface {
 **Interfaces:**
 - `ProfileRepository` - AgentProfile CRUD
 - `TaskRepository` - Task CRUD
-- `RunRepository` - Run CRUD with status filtering
+- `RunRepository` - Run CRUD with status filtering and recommendation extraction
 - `EventRepository` - Append-only event log
 - `PolicyRepository` - Policy CRUD with scope matching
 - `LockRepository` - Scope lock management
 - `CheckpointRepository` - Run checkpoint persistence
 - `IdempotencyRepository` - Idempotency key tracking
+- `StatsRepository` - Aggregation queries for analytics (status counts, cost, duration, breakdowns)
+- `InvestigationSettingsRepository` - Investigation settings singleton
 
 **Why it's a seam:**
 - Decouples domain logic from storage technology
-- Enables testing with in-memory repositories
-- Supports different databases (PostgreSQL, SQLite)
+- Enables testing with mock/stub repositories
 - Migration-safe: schema changes don't affect domain code
 
 **Implementations:**
-- `MemoryProfileRepository` - In-memory AgentProfile storage (development/testing)
-- `MemoryTaskRepository` - In-memory Task storage (development/testing)
-- `MemoryRunRepository` - In-memory Run storage (development/testing)
-- `MemoryEventRepository` - In-memory event log (development/testing)
-- `MemoryCheckpointRepository` - In-memory checkpoints (development/testing)
-- `MemoryIdempotencyRepository` - In-memory idempotency keys (development/testing)
-- PostgreSQL implementations (planned)
+- SQLite-backed implementations in `database/` package (`repository.go`, `repository_run.go`, `repository_stats.go`, `repository_pricing.go`, `repository_support.go`)
+- Single embedded SQLite database file at `~/.vrooli/data/sqlite/databases/agent-manager.db`
+- Schema auto-initialized on connection via `database/schema.sql`
 
 ---
 
@@ -534,14 +529,23 @@ api/internal/
 │   │   └── workspace_sandbox.go # WorkspaceSandboxProvider implementation
 │   ├── event/
 │   │   ├── interface.go   # Event store and collector interfaces
-│   │   └── memory.go      # MemoryStore implementation
+│   │   └── sqlite.go      # SQLiteStore implementation
 │   └── artifact/
 │       └── interface.go   # Artifact collector and validation
+├── database/
+│   ├── connection.go      # SQLite connection, DSN resolution, schema init
+│   ├── schema.sql         # Full database schema (idempotent)
+│   ├── repository.go      # Profile, Task, Event, Policy, Lock, Checkpoint, Idempotency repos
+│   ├── repository_run.go  # Run repository (CRUD + recommendation extraction)
+│   ├── repository_stats.go    # Stats aggregation queries (analytics)
+│   ├── repository_pricing.go  # Model pricing and alias repositories
+│   ├── repository_support.go  # Investigation settings repository
+│   ├── json_types.go      # Custom SQL scanner/valuer for JSON columns
+│   └── errors.go          # Database error wrapping
 ├── policy/
 │   └── interface.go       # Policy evaluator interface
 ├── repository/
-│   ├── interface.go       # All repository interfaces
-│   └── memory.go          # In-memory implementations
+│   └── interface.go       # All repository interfaces (no implementations here)
 ├── handlers/
 │   └── handlers.go        # HTTP handlers (thin presentation layer)
 └── config/

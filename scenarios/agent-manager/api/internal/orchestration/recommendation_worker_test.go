@@ -8,8 +8,10 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
+	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
@@ -52,9 +54,49 @@ func (m *mockBroadcaster) getBroadcasts() []*domain.Run {
 	return append([]*domain.Run{}, m.broadcasts...)
 }
 
+// setupWorkerRepos creates SQLite-backed repos for recommendation worker tests.
+// Returns the run repository, event store, and a task ID for seeding runs.
+type workerTestDeps struct {
+	runRepo    repository.RunRepository
+	eventStore event.Store
+	taskID     uuid.UUID
+	db         *database.DB
+}
+
+func setupWorkerRepos(t *testing.T) workerTestDeps {
+	t.Helper()
+	db, dbCleanup := testutil.SetupTestDB(t)
+	t.Cleanup(dbCleanup)
+
+	repos, eventStore, cleanup := testutil.SetupTestReposWithDB(t, db)
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+
+	// Create a task that runs can reference
+	taskID := uuid.New()
+	task := &domain.Task{
+		ID:          taskID,
+		Title:       "Test Task",
+		Description: "Test task for recommendation worker tests",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+
+	return workerTestDeps{
+		runRepo:    repos.Runs,
+		eventStore: eventStore,
+		taskID:     taskID,
+		db:         db,
+	}
+}
+
 func TestRecommendationWorker_StartStop(t *testing.T) {
-	runRepo := repository.NewMemoryRunRepository()
-	eventStore := event.NewMemoryStore()
+	deps := setupWorkerRepos(t)
+	runRepo, eventStore := deps.runRepo, deps.eventStore
 	extractor := recommendation.NewMockExtractor()
 
 	worker := NewRecommendationWorker(runRepo, eventStore, extractor)
@@ -155,8 +197,8 @@ func TestRecommendationWorker_AllowlistFiltering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runRepo := repository.NewMemoryRunRepository()
-			eventStore := event.NewMemoryStore()
+			deps := setupWorkerRepos(t)
+			runRepo, eventStore := deps.runRepo, deps.eventStore
 			extractor := recommendation.NewMockExtractor()
 			allowlist := &mockAllowlistProvider{rules: tt.rules}
 
@@ -186,8 +228,8 @@ func TestRecommendationWorker_AllowlistFiltering(t *testing.T) {
 
 func TestRecommendationWorker_ProcessQueue(t *testing.T) {
 	ctx := context.Background()
-	runRepo := repository.NewMemoryRunRepository()
-	eventStore := event.NewMemoryStore()
+	deps := setupWorkerRepos(t)
+	runRepo, eventStore, taskID := deps.runRepo, deps.eventStore, deps.taskID
 
 	// Create a mock extractor that returns success
 	extractor := &recommendation.MockExtractor{
@@ -225,22 +267,11 @@ func TestRecommendationWorker_ProcessQueue(t *testing.T) {
 		}),
 	)
 
-	// Create a task first
-	taskRepo := repository.NewMemoryTaskRepository()
-	task := &domain.Task{
-		ID:          uuid.New(),
-		Title:       "Test Task",
-		Description: "Test task for recommendation extraction",
-	}
-	if err := taskRepo.Create(ctx, task); err != nil {
-		t.Fatalf("Failed to create task: %v", err)
-	}
-
 	// Create a complete investigation run with pending recommendation status
 	now := time.Now()
 	run := &domain.Run{
 		ID:                     uuid.New(),
-		TaskID:                 task.ID,
+		TaskID:                 taskID,
 		Tag:                    "agent-manager-investigation",
 		Status:                 domain.RunStatusComplete,
 		RecommendationStatus:   domain.RecommendationStatusPending,
@@ -290,8 +321,8 @@ func TestRecommendationWorker_ProcessQueue(t *testing.T) {
 
 func TestRecommendationWorker_RetryOnFailure(t *testing.T) {
 	ctx := context.Background()
-	runRepo := repository.NewMemoryRunRepository()
-	eventStore := event.NewMemoryStore()
+	deps := setupWorkerRepos(t)
+	runRepo, eventStore, taskID := deps.runRepo, deps.eventStore, deps.taskID
 
 	// Create a mock extractor that fails
 	callCount := 0
@@ -320,22 +351,11 @@ func TestRecommendationWorker_RetryOnFailure(t *testing.T) {
 		}),
 	)
 
-	// Create a task first
-	taskRepo := repository.NewMemoryTaskRepository()
-	task := &domain.Task{
-		ID:          uuid.New(),
-		Title:       "Test Task",
-		Description: "Test task for retry testing",
-	}
-	if err := taskRepo.Create(ctx, task); err != nil {
-		t.Fatalf("Failed to create task: %v", err)
-	}
-
 	// Create a complete investigation run
 	now := time.Now()
 	run := &domain.Run{
 		ID:                     uuid.New(),
-		TaskID:                 task.ID,
+		TaskID:                 taskID,
 		Tag:                    "agent-manager-investigation",
 		Status:                 domain.RunStatusComplete,
 		RecommendationStatus:   domain.RecommendationStatusPending,
@@ -385,8 +405,8 @@ func TestRecommendationWorker_RetryOnFailure(t *testing.T) {
 
 func TestRecommendationWorker_SkipsIneligibleRuns(t *testing.T) {
 	ctx := context.Background()
-	runRepo := repository.NewMemoryRunRepository()
-	eventStore := event.NewMemoryStore()
+	deps := setupWorkerRepos(t)
+	runRepo, eventStore, taskID := deps.runRepo, deps.eventStore, deps.taskID
 
 	extractor := &recommendation.MockExtractor{
 		ExtractFunc: func(ctx context.Context, req domain.ExtractionRequest) (*domain.ExtractionResult, error) {
@@ -420,17 +440,12 @@ func TestRecommendationWorker_SkipsIneligibleRuns(t *testing.T) {
 		}),
 	)
 
-	// Create a task
-	taskRepo := repository.NewMemoryTaskRepository()
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
-
 	now := time.Now()
 
 	// Create a run that matches the allowlist
 	matchingRun := &domain.Run{
 		ID:                     uuid.New(),
-		TaskID:                 task.ID,
+		TaskID:                 taskID,
 		Tag:                    "special-investigation",
 		Status:                 domain.RunStatusComplete,
 		RecommendationStatus:   domain.RecommendationStatusPending,
@@ -444,7 +459,7 @@ func TestRecommendationWorker_SkipsIneligibleRuns(t *testing.T) {
 	// Create a run that doesn't match the allowlist
 	nonMatchingRun := &domain.Run{
 		ID:                     uuid.New(),
-		TaskID:                 task.ID,
+		TaskID:                 taskID,
 		Tag:                    "agent-manager-investigation", // Doesn't match "special-investigation"
 		Status:                 domain.RunStatusComplete,
 		RecommendationStatus:   domain.RecommendationStatusPending,
@@ -480,14 +495,19 @@ func TestSettingsAllowlistProvider(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("returns settings allowlist", func(t *testing.T) {
-		settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
+		repos, _, cleanup := testutil.SetupTestRepos(t)
+		t.Cleanup(cleanup)
+
+		settingsRepo := repos.InvestigationSettings
 
 		// Update settings with custom allowlist
 		settings := domain.DefaultInvestigationSettings()
 		settings.InvestigationTagAllowlist = []domain.InvestigationTagRule{
 			{Pattern: "custom-*", IsRegex: false, CaseSensitive: false},
 		}
-		_ = settingsRepo.Update(ctx, settings)
+		if err := settingsRepo.Update(ctx, settings); err != nil {
+			t.Fatalf("Update settings failed: %v", err)
+		}
 
 		provider := NewSettingsAllowlistProvider(settingsRepo)
 		rules := provider.GetAllowlist(ctx)
@@ -495,7 +515,7 @@ func TestSettingsAllowlistProvider(t *testing.T) {
 		if len(rules) != 1 {
 			t.Errorf("len(rules) = %d, want 1", len(rules))
 		}
-		if rules[0].Pattern != "custom-*" {
+		if len(rules) > 0 && rules[0].Pattern != "custom-*" {
 			t.Errorf("rules[0].Pattern = %s, want custom-*", rules[0].Pattern)
 		}
 	})
@@ -513,8 +533,8 @@ func TestSettingsAllowlistProvider(t *testing.T) {
 
 func TestGetAllowlist_FallsBackToDefaults(t *testing.T) {
 	ctx := context.Background()
-	runRepo := repository.NewMemoryRunRepository()
-	eventStore := event.NewMemoryStore()
+	deps := setupWorkerRepos(t)
+	runRepo, eventStore := deps.runRepo, deps.eventStore
 	extractor := recommendation.NewMockExtractor()
 
 	// Worker without allowlist provider
@@ -530,8 +550,8 @@ func TestGetAllowlist_FallsBackToDefaults(t *testing.T) {
 
 func TestRecommendationWorker_RecoverStaleExtractions(t *testing.T) {
 	ctx := context.Background()
-	runRepo := repository.NewMemoryRunRepository()
-	eventStore := event.NewMemoryStore()
+	deps := setupWorkerRepos(t)
+	runRepo, eventStore, taskID := deps.runRepo, deps.eventStore, deps.taskID
 	extractor := recommendation.NewMockExtractor()
 	broadcaster := &mockBroadcaster{}
 
@@ -551,24 +571,20 @@ func TestRecommendationWorker_RecoverStaleExtractions(t *testing.T) {
 		}),
 	)
 
-	// Create a task
-	taskRepo := repository.NewMemoryTaskRepository()
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
-
-	// Create a run stuck in "extracting" status with an old updated_at
-	staleTime := time.Now().Add(-1 * time.Minute) // 1 minute ago (way past stale timeout)
+	// Create a run stuck in "extracting" status
 	staleRun := &domain.Run{
 		ID:                   uuid.New(),
-		TaskID:               task.ID,
+		TaskID:               taskID,
 		Tag:                  "agent-manager-investigation",
 		Status:               domain.RunStatusComplete,
 		RecommendationStatus: domain.RecommendationStatusExtracting, // Stuck in extracting
 		Summary:              &domain.RunSummary{Description: "Test"},
-		CreatedAt:            staleTime,
-		UpdatedAt:            staleTime, // Old update time = stale
 	}
 	_ = runRepo.Create(ctx, staleRun)
+
+	// Backdate updated_at via raw SQL (Create/Update auto-set time.Now())
+	staleTime := time.Now().Add(-1 * time.Minute).UTC().Format(time.RFC3339Nano)
+	_, _ = deps.db.Exec("UPDATE runs SET updated_at = ? WHERE id = ?", staleTime, staleRun.ID)
 
 	// Run recovery
 	recovered := worker.recoverStaleExtractions(ctx)
@@ -595,8 +611,8 @@ func TestRecommendationWorker_RecoverStaleExtractions(t *testing.T) {
 
 func TestRecommendationWorker_DoesNotRecoverRecentExtractions(t *testing.T) {
 	ctx := context.Background()
-	runRepo := repository.NewMemoryRunRepository()
-	eventStore := event.NewMemoryStore()
+	deps := setupWorkerRepos(t)
+	runRepo, eventStore, taskID := deps.runRepo, deps.eventStore, deps.taskID
 	extractor := recommendation.NewMockExtractor()
 
 	worker := NewRecommendationWorker(
@@ -613,16 +629,11 @@ func TestRecommendationWorker_DoesNotRecoverRecentExtractions(t *testing.T) {
 		}),
 	)
 
-	// Create a task
-	taskRepo := repository.NewMemoryTaskRepository()
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
-
 	// Create a run in "extracting" status with a RECENT updated_at
 	now := time.Now()
 	activeRun := &domain.Run{
 		ID:                   uuid.New(),
-		TaskID:               task.ID,
+		TaskID:               taskID,
 		Tag:                  "agent-manager-investigation",
 		Status:               domain.RunStatusComplete,
 		RecommendationStatus: domain.RecommendationStatusExtracting, // Currently extracting

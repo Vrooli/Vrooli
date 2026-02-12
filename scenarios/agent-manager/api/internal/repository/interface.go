@@ -2,8 +2,7 @@
 //
 // This package defines the SEAM for data persistence. All domain entities
 // are persisted through these interfaces, enabling:
-// - Different storage backends (PostgreSQL, SQLite, in-memory)
-// - Easy testing with mock repositories
+// - Easy testing with mock/stub repositories
 // - Database migrations without changing domain logic
 package repository
 

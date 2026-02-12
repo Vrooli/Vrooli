@@ -1,4 +1,4 @@
-// Package database provides PostgreSQL persistence for agent-manager entities.
+// Package database provides SQLite persistence for agent-manager entities.
 package database
 
 import (
@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"agent-manager/internal/domain"
-	"github.com/lib/pq"
 )
 
 func wrapDBError(operation, entityType, entityID string, err error) error {
@@ -28,13 +27,6 @@ func isTransientDBError(err error) bool {
 	}
 	if errors.Is(err, sql.ErrConnDone) {
 		return true
-	}
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
-		switch pqErr.Code.Class() {
-		case "08": // connection exception
-			return true
-		}
 	}
 	return false
 }

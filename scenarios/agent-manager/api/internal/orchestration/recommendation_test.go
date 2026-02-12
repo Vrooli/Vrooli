@@ -5,35 +5,54 @@ import (
 	"testing"
 	"time"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
 
+// setupRecommendationOrch creates a SQLite-backed orchestrator for recommendation tests.
+// Returns the orchestrator, run repository, and a pre-seeded task ID.
+func setupRecommendationOrch(t *testing.T, opts ...Option) (*Orchestrator, uuid.UUID) {
+	t.Helper()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+
+	// Seed a task so runs can reference it
+	taskID := uuid.New()
+	task := &domain.Task{
+		ID:        taskID,
+		Title:     "Test",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+
+	baseOpts := []Option{
+		WithEvents(eventStore),
+		WithInvestigationSettings(repos.InvestigationSettings),
+	}
+	allOpts := append(baseOpts, opts...)
+
+	orch := New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		allOpts...,
+	)
+
+	return orch, taskID
+}
+
 func TestExtractRecommendations_ReturnsCachedResult(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup
-	runRepo := repository.NewMemoryRunRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	profileRepo := repository.NewMemoryProfileRepository()
-	eventStore := event.NewMemoryStore()
-	settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
-
-	orch := New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		WithEvents(eventStore),
-		WithInvestigationSettings(settingsRepo),
-	)
-
-	// Create a task
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
+	orch, taskID := setupRecommendationOrch(t)
 
 	// Create a run with cached recommendation result
 	cachedResult := &domain.ExtractionResult{
@@ -49,7 +68,7 @@ func TestExtractRecommendations_ReturnsCachedResult(t *testing.T) {
 	now := time.Now()
 	run := &domain.Run{
 		ID:                   uuid.New(),
-		TaskID:               task.ID,
+		TaskID:               taskID,
 		Tag:                  "agent-manager-investigation",
 		Status:               domain.RunStatusComplete,
 		RecommendationStatus: domain.RecommendationStatusComplete,
@@ -57,7 +76,7 @@ func TestExtractRecommendations_ReturnsCachedResult(t *testing.T) {
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}
-	_ = runRepo.Create(ctx, run)
+	_ = orch.runs.Create(ctx, run)
 
 	// Extract recommendations - should return cached result
 	result, err := orch.ExtractRecommendations(ctx, run.ID)
@@ -78,40 +97,22 @@ func TestExtractRecommendations_ReturnsCachedResult(t *testing.T) {
 
 func TestExtractRecommendations_QueuesPendingExtraction(t *testing.T) {
 	ctx := context.Background()
-
-	// Setup
-	runRepo := repository.NewMemoryRunRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	profileRepo := repository.NewMemoryProfileRepository()
-	eventStore := event.NewMemoryStore()
-	settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
 	broadcaster := &mockBroadcaster{}
 
-	orch := New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		WithEvents(eventStore),
-		WithInvestigationSettings(settingsRepo),
-		WithBroadcaster(broadcaster),
-	)
-
-	// Create a task
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
+	orch, taskID := setupRecommendationOrch(t, WithBroadcaster(broadcaster))
 
 	// Create a run with no recommendation status (needs extraction)
 	now := time.Now()
 	run := &domain.Run{
 		ID:                   uuid.New(),
-		TaskID:               task.ID,
+		TaskID:               taskID,
 		Tag:                  "agent-manager-investigation",
 		Status:               domain.RunStatusComplete,
 		RecommendationStatus: domain.RecommendationStatusNone, // Not yet extracted
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}
-	_ = runRepo.Create(ctx, run)
+	_ = orch.runs.Create(ctx, run)
 
 	// Extract recommendations - should queue and return pending
 	result, err := orch.ExtractRecommendations(ctx, run.ID)
@@ -128,7 +129,7 @@ func TestExtractRecommendations_QueuesPendingExtraction(t *testing.T) {
 	}
 
 	// Verify run was queued
-	updatedRun, _ := runRepo.Get(ctx, run.ID)
+	updatedRun, _ := orch.runs.Get(ctx, run.ID)
 	if updatedRun.RecommendationStatus != domain.RecommendationStatusPending {
 		t.Errorf("expected status pending, got '%s'", updatedRun.RecommendationStatus)
 	}
@@ -146,37 +147,20 @@ func TestExtractRecommendations_QueuesPendingExtraction(t *testing.T) {
 func TestExtractRecommendations_ReturnsPendingForInProgressExtraction(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup
-	runRepo := repository.NewMemoryRunRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	profileRepo := repository.NewMemoryProfileRepository()
-	eventStore := event.NewMemoryStore()
-	settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
-
-	orch := New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		WithEvents(eventStore),
-		WithInvestigationSettings(settingsRepo),
-	)
-
-	// Create a task
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
+	orch, taskID := setupRecommendationOrch(t)
 
 	// Create a run with extracting status
 	now := time.Now()
 	run := &domain.Run{
 		ID:                   uuid.New(),
-		TaskID:               task.ID,
+		TaskID:               taskID,
 		Tag:                  "agent-manager-investigation",
 		Status:               domain.RunStatusComplete,
 		RecommendationStatus: domain.RecommendationStatusExtracting,
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}
-	_ = runRepo.Create(ctx, run)
+	_ = orch.runs.Create(ctx, run)
 
 	// Extract recommendations - should return pending
 	result, err := orch.ExtractRecommendations(ctx, run.ID)
@@ -195,30 +179,13 @@ func TestExtractRecommendations_ReturnsPendingForInProgressExtraction(t *testing
 func TestExtractRecommendations_ReturnsFailedWithRawText(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup
-	runRepo := repository.NewMemoryRunRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	profileRepo := repository.NewMemoryProfileRepository()
-	eventStore := event.NewMemoryStore()
-	settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
-
-	orch := New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		WithEvents(eventStore),
-		WithInvestigationSettings(settingsRepo),
-	)
-
-	// Create a task
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
+	orch, taskID := setupRecommendationOrch(t)
 
 	// Create a run with failed status
 	now := time.Now()
 	run := &domain.Run{
 		ID:                   uuid.New(),
-		TaskID:               task.ID,
+		TaskID:               taskID,
 		Tag:                  "agent-manager-investigation",
 		Status:               domain.RunStatusComplete,
 		RecommendationStatus: domain.RecommendationStatusFailed,
@@ -227,7 +194,7 @@ func TestExtractRecommendations_ReturnsFailedWithRawText(t *testing.T) {
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}
-	_ = runRepo.Create(ctx, run)
+	_ = orch.runs.Create(ctx, run)
 
 	// Extract recommendations - should return failed with raw text
 	result, err := orch.ExtractRecommendations(ctx, run.ID)
@@ -251,27 +218,9 @@ func TestExtractRecommendations_ReturnsFailedWithRawText(t *testing.T) {
 
 func TestRegenerateRecommendations_ResetsState(t *testing.T) {
 	ctx := context.Background()
-
-	// Setup
-	runRepo := repository.NewMemoryRunRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	profileRepo := repository.NewMemoryProfileRepository()
-	eventStore := event.NewMemoryStore()
-	settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
 	broadcaster := &mockBroadcaster{}
 
-	orch := New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		WithEvents(eventStore),
-		WithInvestigationSettings(settingsRepo),
-		WithBroadcaster(broadcaster),
-	)
-
-	// Create a task
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
+	orch, taskID := setupRecommendationOrch(t, WithBroadcaster(broadcaster))
 
 	// Create a run with existing recommendation result
 	cachedResult := &domain.ExtractionResult{
@@ -282,7 +231,7 @@ func TestRegenerateRecommendations_ResetsState(t *testing.T) {
 	now := time.Now()
 	run := &domain.Run{
 		ID:                     uuid.New(),
-		TaskID:                 task.ID,
+		TaskID:                 taskID,
 		Tag:                    "agent-manager-investigation",
 		Status:                 domain.RunStatusComplete,
 		RecommendationStatus:   domain.RecommendationStatusComplete,
@@ -291,7 +240,7 @@ func TestRegenerateRecommendations_ResetsState(t *testing.T) {
 		CreatedAt:              now,
 		UpdatedAt:              now,
 	}
-	_ = runRepo.Create(ctx, run)
+	_ = orch.runs.Create(ctx, run)
 
 	// Regenerate recommendations
 	err := orch.RegenerateRecommendations(ctx, run.ID)
@@ -300,7 +249,7 @@ func TestRegenerateRecommendations_ResetsState(t *testing.T) {
 	}
 
 	// Verify state was reset
-	updatedRun, _ := runRepo.Get(ctx, run.ID)
+	updatedRun, _ := orch.runs.Get(ctx, run.ID)
 	if updatedRun.RecommendationStatus != domain.RecommendationStatusPending {
 		t.Errorf("expected status pending, got '%s'", updatedRun.RecommendationStatus)
 	}
@@ -324,36 +273,19 @@ func TestRegenerateRecommendations_ResetsState(t *testing.T) {
 func TestExtractRecommendations_RejectsNonInvestigationRun(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup
-	runRepo := repository.NewMemoryRunRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	profileRepo := repository.NewMemoryProfileRepository()
-	eventStore := event.NewMemoryStore()
-	settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
-
-	orch := New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		WithEvents(eventStore),
-		WithInvestigationSettings(settingsRepo),
-	)
-
-	// Create a task
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
+	orch, taskID := setupRecommendationOrch(t)
 
 	// Create a run with a non-investigation tag
 	now := time.Now()
 	run := &domain.Run{
 		ID:        uuid.New(),
-		TaskID:    task.ID,
+		TaskID:    taskID,
 		Tag:       "some-other-task",
 		Status:    domain.RunStatusComplete,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	_ = runRepo.Create(ctx, run)
+	_ = orch.runs.Create(ctx, run)
 
 	// Try to extract recommendations - should fail
 	_, err := orch.ExtractRecommendations(ctx, run.ID)
@@ -365,39 +297,20 @@ func TestExtractRecommendations_RejectsNonInvestigationRun(t *testing.T) {
 func TestExtractRecommendations_RejectsIncompleteRun(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup
-	runRepo := repository.NewMemoryRunRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	profileRepo := repository.NewMemoryProfileRepository()
-	eventStore := event.NewMemoryStore()
-	settingsRepo := repository.NewMemoryInvestigationSettingsRepository()
-
 	extractor := recommendation.NewMockExtractor()
-
-	orch := New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		WithEvents(eventStore),
-		WithInvestigationSettings(settingsRepo),
-		WithRecommendationExtractor(extractor),
-	)
-
-	// Create a task
-	task := &domain.Task{ID: uuid.New(), Title: "Test"}
-	_ = taskRepo.Create(ctx, task)
+	orch, taskID := setupRecommendationOrch(t, WithRecommendationExtractor(extractor))
 
 	// Create a run that is still running
 	now := time.Now()
 	run := &domain.Run{
 		ID:        uuid.New(),
-		TaskID:    task.ID,
+		TaskID:    taskID,
 		Tag:       "agent-manager-investigation",
 		Status:    domain.RunStatusRunning, // Not complete
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	_ = runRepo.Create(ctx, run)
+	_ = orch.runs.Create(ctx, run)
 
 	// Try to extract recommendations - should fail
 	_, err := orch.ExtractRecommendations(ctx, run.ID)

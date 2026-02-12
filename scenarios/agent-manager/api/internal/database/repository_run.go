@@ -190,7 +190,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 }
 
 func (r *runRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM runs WHERE id = ?", runColumns))
+	query := fmt.Sprintf("SELECT %s FROM runs WHERE id = ?", runColumns)
 	var row runRow
 	if err := r.db.GetContext(ctx, &row, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -230,7 +230,7 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 	base := fmt.Sprintf("SELECT %s FROM runs%s ORDER BY created_at DESC", runColumns, whereClause)
 	queryWithPaging, pagingArgs := appendLimitOffset(base, filter.Limit, filter.Offset)
 	args = append(args, pagingArgs...)
-	query := r.db.Rebind(queryWithPaging)
+	query := queryWithPaging
 
 	var rows []runRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -279,7 +279,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 }
 
 func (r *runRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := r.db.Rebind(`DELETE FROM runs WHERE id = ?`)
+	query := `DELETE FROM runs WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return wrapDBError("delete", "Run", id.String(), err)
@@ -288,7 +288,7 @@ func (r *runRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStatus) (int, error) {
-	query := r.db.Rebind(`SELECT COUNT(*) FROM runs WHERE status = ?`)
+	query := `SELECT COUNT(*) FROM runs WHERE status = ?`
 	var count int
 	if err := r.db.GetContext(ctx, &count, query, string(status)); err != nil {
 		return 0, wrapDBError("count_by_status", "Run", string(status), err)
@@ -306,7 +306,7 @@ func (r *runRepository) ListPendingRecommendationExtractions(ctx context.Context
 	// 1. Tag contains 'investigation' but not 'apply' (broad filter, caller filters precisely)
 	// 2. Have recommendation_status = 'pending' OR (status = 'failed' AND attempts < maxRetries)
 	// Ordered by queued_at ascending (oldest first)
-	query := r.db.Rebind(fmt.Sprintf(`
+	query := fmt.Sprintf(`
 		SELECT %s FROM runs
 		WHERE tag LIKE '%%investigation%%'
 		  AND tag NOT LIKE '%%apply'
@@ -316,7 +316,7 @@ func (r *runRepository) ListPendingRecommendationExtractions(ctx context.Context
 		  )
 		ORDER BY recommendation_queued_at ASC NULLS LAST
 		LIMIT ?
-	`, runColumns))
+	`, runColumns)
 
 	args := []interface{}{
 		string(domain.RecommendationStatusPending),
@@ -342,14 +342,14 @@ func (r *runRepository) ListPendingRecommendationExtractions(ctx context.Context
 // Uses optimistic locking via WHERE clause to prevent race conditions.
 func (r *runRepository) ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error) {
 	// Atomic UPDATE: only succeeds if status is still pending or failed
-	query := r.db.Rebind(`
+	query := `
 		UPDATE runs
 		SET recommendation_status = ?, updated_at = ?
 		WHERE id = ?
 		  AND (recommendation_status = ? OR recommendation_status = ?)
-	`)
+	`
 
-	now := time.Now()
+	now := SQLiteTime(time.Now())
 	result, err := r.db.ExecContext(ctx, query,
 		string(domain.RecommendationStatusExtracting),
 		now,
@@ -388,7 +388,7 @@ func (r *runRepository) ListUnextractedInvestigationRuns(ctx context.Context, ta
 		tagPattern = tagPrefix + "%"
 	}
 
-	query := r.db.Rebind(fmt.Sprintf(`
+	query := fmt.Sprintf(`
 		SELECT %s FROM runs
 		WHERE tag LIKE ?
 		  AND tag NOT LIKE '%%apply'
@@ -396,7 +396,7 @@ func (r *runRepository) ListUnextractedInvestigationRuns(ctx context.Context, ta
 		  AND (recommendation_status = '' OR recommendation_status IS NULL OR recommendation_status = ?)
 		ORDER BY created_at DESC
 		LIMIT ?
-	`, runColumns))
+	`, runColumns)
 
 	args := []interface{}{
 		tagPattern,
@@ -423,15 +423,15 @@ func (r *runRepository) ListStaleExtractions(ctx context.Context, staleTimeout t
 	// Query for runs that:
 	// 1. Have recommendation_status = 'extracting'
 	// 2. Were updated more than staleTimeout ago (indicating a stuck worker)
-	cutoff := time.Now().Add(-staleTimeout)
+	cutoff := SQLiteTime(time.Now().Add(-staleTimeout))
 
-	query := r.db.Rebind(fmt.Sprintf(`
+	query := fmt.Sprintf(`
 		SELECT %s FROM runs
 		WHERE recommendation_status = ?
 		  AND updated_at < ?
 		ORDER BY updated_at ASC
 		LIMIT ?
-	`, runColumns))
+	`, runColumns)
 
 	args := []interface{}{
 		string(domain.RecommendationStatusExtracting),
@@ -498,7 +498,7 @@ func (r *eventRepository) Append(ctx context.Context, runID uuid.UUID, events ..
 
 	// Get the next sequence number
 	var maxSeq int64
-	query := r.db.Rebind(`SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`)
+	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`
 	if err := r.db.GetContext(ctx, &maxSeq, query, runID); err != nil {
 		return wrapDBError("get_max_sequence", "RunEvent", runID.String(), err)
 	}
@@ -554,7 +554,7 @@ func (r *eventRepository) Get(ctx context.Context, runID uuid.UUID, afterSequenc
 		queryWithLimit += " LIMIT ?"
 		args = append(args, limit)
 	}
-	query := r.db.Rebind(queryWithLimit)
+	query := queryWithLimit
 
 	var rows []eventRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -588,7 +588,7 @@ func (r *eventRepository) GetByType(ctx context.Context, runID uuid.UUID, types 
 		base += " LIMIT ?"
 		args = append(args, limit)
 	}
-	query := r.db.Rebind(base)
+	query := base
 
 	var rows []eventRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -603,7 +603,7 @@ func (r *eventRepository) GetByType(ctx context.Context, runID uuid.UUID, types 
 }
 
 func (r *eventRepository) Count(ctx context.Context, runID uuid.UUID) (int64, error) {
-	query := r.db.Rebind(`SELECT COUNT(*) FROM run_events WHERE run_id = ?`)
+	query := `SELECT COUNT(*) FROM run_events WHERE run_id = ?`
 	var count int64
 	if err := r.db.GetContext(ctx, &count, query, runID); err != nil {
 		return 0, wrapDBError("count_events", "RunEvent", runID.String(), err)
@@ -612,7 +612,7 @@ func (r *eventRepository) Count(ctx context.Context, runID uuid.UUID) (int64, er
 }
 
 func (r *eventRepository) Delete(ctx context.Context, runID uuid.UUID) error {
-	query := r.db.Rebind(`DELETE FROM run_events WHERE run_id = ?`)
+	query := `DELETE FROM run_events WHERE run_id = ?`
 	_, err := r.db.ExecContext(ctx, query, runID)
 	if err != nil {
 		return wrapDBError("delete_events", "RunEvent", runID.String(), err)

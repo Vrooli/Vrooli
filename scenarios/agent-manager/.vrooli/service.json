@@ -189,12 +189,11 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
+      "sqlite": {
+        "type": "sqlite",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store for tasks, runs, events, agent profiles, policies",
-        "schema": "agent-manager"
+        "description": "Primary storage for tasks, runs, events, profiles, policies"
       },
       "claude-code": {
         "type": "claude-code",
