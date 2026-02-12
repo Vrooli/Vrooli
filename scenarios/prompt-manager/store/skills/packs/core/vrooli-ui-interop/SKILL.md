@@ -55,16 +55,22 @@ This is the central organizing structure. Each interop concern maps to exactly o
 
 ### [A] `ui/package.json` — Dependencies
 
-Both packages must be declared:
+Both packages must be declared. Vrooli scenarios are independent applications
+(not pnpm/yarn workspace members), so dependencies use relative `file:` paths:
 
 ```json
 {
   "dependencies": {
-    "@vrooli/api-base": "workspace:*",
-    "@vrooli/iframe-bridge": "workspace:*"
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   }
 }
 ```
+
+> **Important:** Do NOT use `"workspace:*"` — that syntax requires a unified
+> pnpm/yarn workspace, which Vrooli's architecture does not use. Each scenario
+> is a standalone application that references shared packages via relative
+> file paths.
 
 Audit: `jq '.dependencies["@vrooli/api-base"] // empty' ui/package.json` — must produce output.
 
@@ -94,7 +100,7 @@ Audit: `rg "base:\s*['\"]\./" ui/vite.config.ts` — must match.
 
 ### [C] `ui/server.js` — Scenario Server
 
-Must use `startScenarioServer()`, never a custom Express/http setup:
+Must use `startScenarioServer()` (or `createScenarioServer()` when custom route setup is needed), never a custom Express/http setup:
 
 ```javascript
 import { startScenarioServer } from '@vrooli/api-base/server';
@@ -108,11 +114,30 @@ startScenarioServer({
 });
 ```
 
-Audit: `rg "startScenarioServer" ui/server.js` — must match. `rg "express|createServer|http\.listen" ui/server.js` — must NOT match.
+For scenarios that need custom routes before listening (e.g., embedded scenario proxying), use `createScenarioServer()` with the `setupRoutes` callback:
+
+```javascript
+import { createScenarioServer } from '@vrooli/api-base/server';
+
+const app = createScenarioServer({
+  uiPort: process.env.UI_PORT,
+  apiPort: process.env.API_PORT,
+  distDir: './dist',
+  serviceName: '<scenario-name>',
+  corsOrigins: '*',
+  setupRoutes: (expressApp) => {
+    // Custom routes here
+  },
+});
+
+app.listen(process.env.UI_PORT);
+```
+
+Audit: `rg "startScenarioServer|createScenarioServer" ui/server.js` — must match. `rg "express\(\)|http\.createServer|http\.listen" ui/server.js` — must NOT match.
 
 ### [E] `ui/src/App.tsx` — Proxy-Aware Router Basename
 
-If the scenario uses React Router (BrowserRouter, HashRouter, etc.), the router must receive a proxy-aware basename. The exact code shape:
+If the scenario uses React Router with **BrowserRouter**, the router must receive a proxy-aware basename. HashRouter uses URL hashes (`/#/path`) which are never sent to the server, making it inherently proxy-compatible without a basename — this slot is N/A for HashRouter scenarios. The exact code shape for BrowserRouter:
 
 ```tsx
 import { getProxyInfo } from "@vrooli/api-base";
@@ -208,11 +233,12 @@ export function buildUrl(path: string): string {
 ```
 
 Key rules:
-- `resolveApiBase()` is called in exactly one file
-- All other files import `buildUrl` (or the equivalent helper) from this file
+- `resolveApiBase()` is called in at most 2 production files (ideally 1; a second is acceptable when SSE/streaming connections need a separate base, e.g. `resolveApiBase({ appendSuffix: false })`)
+- All other files import `buildUrl` (or the equivalent helper) from the primary API client file
 - No file anywhere in `ui/src/` should contain hardcoded `localhost:PORT` URLs for API calls
+- Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded from these audits — mock data in tests commonly references localhost URLs
 
-Audit: `rg "resolveApiBase" ui/src/ --files-with-matches` — must return exactly 1 file. `rg "localhost:\d+" ui/src/` — must return 0 matches (excluding comments/docs).
+Audit: `rg "resolveApiBase" ui/src/ --files-with-matches` — must return at most 2 files (excluding test files). `rg "localhost:\d+" ui/src/` — must return 0 matches in production files (excluding comments/docs/tests).
 
 ---
 
@@ -220,7 +246,17 @@ Audit: `rg "resolveApiBase" ui/src/ --files-with-matches` — must return exactl
 
 ### [D] `ui/src/main.tsx` — Bridge Initialization
 
-The iframe bridge must be initialized **before** React mounts, in `main.tsx`. The recommended code shape:
+The iframe bridge must be initialized **before** React mounts, in `main.tsx`.
+
+The `@vrooli/iframe-bridge` package exports `initIframeBridgeChild` from both the root entrypoint and the `./child` subpath. Both imports are equivalent:
+
+```tsx
+// Either of these is valid (index.ts re-exports from iframeBridgeChild.ts):
+import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+```
+
+The recommended code shape:
 
 ```tsx
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
@@ -443,24 +479,44 @@ Every pattern in this skill auto-detects its context and degrades to a no-op whe
 
 ---
 
-## Section 6: Red Flags & Audit Checklist
+## Section 6: Compliance Verification
 
-Commands are written to run from the scenario root (e.g., `scenarios/<name>/`).
+### Automated Checking (Preferred)
 
-| # | Red Flag | Audit Command | Expected |
-|---|---|---|---|
-| 1 | Missing api-base dep | `jq '.dependencies["@vrooli/api-base"]' ui/package.json` | Non-null |
-| 2 | Missing iframe-bridge dep | `jq '.dependencies["@vrooli/iframe-bridge"]' ui/package.json` | Non-null |
-| 3 | Hardcoded localhost in source | `rg 'localhost:\d+' ui/src/ -l` | 0 files |
-| 4 | Missing relative base | `rg "base:\\s*['\"]\\.\\/['\"]" ui/vite.config.ts` | 1 match |
-| 5 | Router without basename | `ast-grep --lang tsx --pattern '<BrowserRouter>' ui/src/` then check for `basename` prop | Has basename or no router |
-| 6 | Custom server | `rg "express\|createServer\|http\\.listen" ui/server.js` | 0 matches |
-| 7 | No bridge init | `rg "initIframeBridgeChild" ui/src/main.tsx` | >= 1 match |
-| 8 | resolveApiBase in multiple files | `rg "resolveApiBase" ui/src/ -l \| wc -l` | Exactly 1 |
-| 9 | Shortcut relay missing | `rg "emitShortcutIntent" ui/src/hooks/` | >= 1 match (if shortcuts exist) |
-| 10 | Scattered app-level keydown | `rg "addEventListener.*keydown" ui/src/ -l` | Only hooks/ and dialog components |
-| 11 | Missing appId in bridge init | `rg "initIframeBridgeChild\\(" ui/src/main.tsx` then check for `appId` param | Has appId |
-| 12 | Missing protective comments | `rg "INTEROP-CRITICAL" ui/vite.config.ts ui/src/main.tsx` | >= 1 match per file |
+Use the app-monitor CLI for automated compliance verification:
+
+```bash
+# Check a single scenario
+app-monitor interop <scenario-name>
+```
+
+These checks are also included in `app-monitor diagnostics <scenario-name>` (the aggregated diagnostics bundle) and registered with scenario-auditor as external rules under the `interop` category.
+
+### Check Reference
+
+The automated scanner verifies 17 compliance checks mapped to slots [A]-[G]:
+
+| # | Check | Slot | Severity | What It Verifies |
+|---|-------|------|----------|------------------|
+| 1 | api-base dep | [A] | critical | `@vrooli/api-base` in ui/package.json |
+| 2 | iframe-bridge dep | [A] | critical | `@vrooli/iframe-bridge` in ui/package.json |
+| 3 | No hardcoded localhost | [F] | high | No `localhost:PORT` in ui/src/ (excludes test files) |
+| 4 | Relative Vite base | [B] | critical | `base: './'` in ui/vite.config.ts |
+| 5 | Router basename | [E] | high | BrowserRouter has proxy-aware basename (or no router) |
+| 6 | Standard server | [C] | medium | Uses `startScenarioServer()`/`createScenarioServer()`, not custom Express |
+| 7 | Bridge init | [D] | critical | `initIframeBridgeChild` in ui/src/main.tsx |
+| 8 | Single API base | [F] | high | `resolveApiBase` in at most 2 production files |
+| 9 | Shortcut relay | [G] | medium | `emitShortcutIntent` in shortcut chain (if shortcuts exist) |
+| 10 | No scattered keydown | [G] | medium | App-level keydown only in hooks/ and dismissible UI components |
+| 11 | Bridge appId | [D] | medium | Bridge init includes `appId` param |
+| 12 | Protective comments | [B],[D] | low | `INTEROP-CRITICAL` markers present |
+| 13 | Iframe guard | [D] | high | Bridge init guarded with `window.parent !== window` or `window.top !== window.self` |
+| 14 | Capture settings enabled | [D] | medium | captureLogs/captureNetwork not disabled in bridge init |
+| 15 | Proxy base preservation | [F] | high | resolveApiBase output not rebuilt with window.location.origin |
+| 16 | Secure UI tunnel | [C] | high | Custom server routes API calls through proxyToApi |
+| 17 | Standard server functions | [C] | medium | Server file uses `startScenarioServer` or `createScenarioServer` from `@vrooli/api-base/server` |
+
+Checks 5, 9, 10, 13, 14, 16, and 17 are conditional — they skip automatically when the feature isn't used (no router, no keyboard shortcuts, no bridge call, no custom server, no server file).
 
 ---
 

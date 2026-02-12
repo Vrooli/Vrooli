@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-11T02:55:04Z",
+  "generatedAt": "2026-02-11T23:57:03Z",
   "references": [
     {
       "skillId": "skill-principles",
@@ -1168,6 +1168,17 @@
       }
     },
     {
+      "skillId": "leader-research-analyze-plan",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "agent",
+        "entityId": "meta-lead",
+        "entityName": "Meta Lead",
+        "filePath": "AGENTS.md",
+        "lineNumber": 12
+      }
+    },
+    {
       "skillId": "skill-improvement-suggestions",
       "refType": "cli-read",
       "source": {
@@ -1175,7 +1186,7 @@
         "entityId": "meta-lead",
         "entityName": "Meta Lead",
         "filePath": "AGENTS.md",
-        "lineNumber": 18
+        "lineNumber": 30
       }
     },
     {
@@ -1186,7 +1197,7 @@
         "entityId": "meta-lead",
         "entityName": "Meta Lead",
         "filePath": "AGENTS.md",
-        "lineNumber": 19
+        "lineNumber": 31
       }
     },
     {
@@ -1197,7 +1208,7 @@
         "entityId": "meta-lead",
         "entityName": "Meta Lead",
         "filePath": "AGENTS.md",
-        "lineNumber": 20
+        "lineNumber": 32
       }
     },
     {
@@ -1208,7 +1219,7 @@
         "entityId": "meta-lead",
         "entityName": "Meta Lead",
         "filePath": "AGENTS.md",
-        "lineNumber": 21
+        "lineNumber": 33
       }
     },
     {
@@ -1219,11 +1230,11 @@
         "entityId": "meta-lead",
         "entityName": "Meta Lead",
         "filePath": "AGENTS.md",
-        "lineNumber": 22
+        "lineNumber": 34
       }
     },
     {
-      "skillId": "skill-improvement-suggestions",
+      "skillId": "leader-research-analyze-plan",
       "refType": "bold-listed",
       "source": {
         "entityType": "agent",
@@ -1234,7 +1245,7 @@
       }
     },
     {
-      "skillId": "skill-validation",
+      "skillId": "skill-improvement-suggestions",
       "refType": "bold-listed",
       "source": {
         "entityType": "agent",
@@ -1245,7 +1256,7 @@
       }
     },
     {
-      "skillId": "skill-principles",
+      "skillId": "skill-validation",
       "refType": "bold-listed",
       "source": {
         "entityType": "agent",
@@ -1256,7 +1267,7 @@
       }
     },
     {
-      "skillId": "conversation-friction-analysis",
+      "skillId": "skill-principles",
       "refType": "bold-listed",
       "source": {
         "entityType": "agent",
@@ -1264,6 +1275,17 @@
         "entityName": "Meta Lead",
         "filePath": "TOOLS.md",
         "lineNumber": 10
+      }
+    },
+    {
+      "skillId": "conversation-friction-analysis",
+      "refType": "bold-listed",
+      "source": {
+        "entityType": "agent",
+        "entityId": "meta-lead",
+        "entityName": "Meta Lead",
+        "filePath": "TOOLS.md",
+        "lineNumber": 11
       }
     },
     {
@@ -2653,6 +2675,83 @@
       }
     },
     {
+      "skillId": "skill-principles",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "leader-research-analyze-plan",
+        "entityName": "Leader: Research-Analyze-Plan Pipeline",
+        "filePath": "SKILL.md",
+        "lineNumber": 6
+      }
+    },
+    {
+      "skillId": "skill-improvement-suggestions",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "leader-research-analyze-plan",
+        "entityName": "Leader: Research-Analyze-Plan Pipeline",
+        "filePath": "SKILL.md",
+        "lineNumber": 7
+      }
+    },
+    {
+      "skillId": "conversation-friction-analysis",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "leader-research-analyze-plan",
+        "entityName": "Leader: Research-Analyze-Plan Pipeline",
+        "filePath": "SKILL.md",
+        "lineNumber": 10
+      }
+    },
+    {
+      "skillId": "cli-steer",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "leader-research-analyze-plan",
+        "entityName": "Leader: Research-Analyze-Plan Pipeline",
+        "filePath": "SKILL.md",
+        "lineNumber": 11
+      }
+    },
+    {
+      "skillId": "interoperability-steer",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "leader-research-analyze-plan",
+        "entityName": "Leader: Research-Analyze-Plan Pipeline",
+        "filePath": "SKILL.md",
+        "lineNumber": 12
+      }
+    },
+    {
+      "skillId": "skill-authoring-practice",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "leader-research-analyze-plan",
+        "entityName": "Leader: Research-Analyze-Plan Pipeline",
+        "filePath": "SKILL.md",
+        "lineNumber": 13
+      }
+    },
+    {
+      "skillId": "systematic-exploration",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "leader-research-analyze-plan",
+        "entityName": "Leader: Research-Analyze-Plan Pipeline",
+        "filePath": "SKILL.md",
+        "lineNumber": 14
+      }
+    },
+    {
       "skillId": "triage-methodology",
       "refType": "cli-read",
       "source": {
@@ -3464,6 +3563,105 @@
         "entityName": "UX Improvement",
         "filePath": "SKILL.md",
         "lineNumber": 26
+      }
+    },
+    {
+      "skillId": "architecture-scope",
+      "refType": "default-scope",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "skill.json",
+        "lineNumber": 0
+      }
+    },
+    {
+      "skillId": "skill-principles",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 15
+      }
+    },
+    {
+      "skillId": "react-coherence",
+      "refType": "cli-read",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 16
+      }
+    },
+    {
+      "skillId": "react-stability",
+      "refType": "bold-listed",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 490
+      }
+    },
+    {
+      "skillId": "react-coherence",
+      "refType": "bold-listed",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 491
+      }
+    },
+    {
+      "skillId": "interoperability-steer",
+      "refType": "bold-listed",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 492
+      }
+    },
+    {
+      "skillId": "platform-scope",
+      "refType": "bold-listed",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 493
+      }
+    },
+    {
+      "skillId": "platform-package-consumption-audit",
+      "refType": "bold-listed",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 494
+      }
+    },
+    {
+      "skillId": "navigation-integrity-audit",
+      "refType": "bold-listed",
+      "source": {
+        "entityType": "skill",
+        "entityId": "vrooli-ui-interop",
+        "entityName": "Vrooli UI Interop",
+        "filePath": "SKILL.md",
+        "lineNumber": 495
       }
     }
   ]

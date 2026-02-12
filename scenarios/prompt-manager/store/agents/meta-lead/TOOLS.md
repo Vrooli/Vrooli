@@ -4,10 +4,12 @@
 `prompt-manager skill read <skill-id>`
 
 ## Primary Skills
-- **skill-improvement-suggestions** — Methodology for improving skills.
+- **leader-research-analyze-plan** — Primary pipeline for ecosystem capability research, gap analysis, and implementation planning.
+- **capability-extraction** — Audit agent files for embedded methodologies that should become reusable skills.
+- **skill-improvement-suggestions** — Individual skill analysis methodology (composed by the pipeline).
 - **skill-validation** — Quality validation criteria.
 - **skill-principles** — Universal skill requirements.
-- **conversation-friction-analysis** — Identifying agent interaction friction.
+- **conversation-friction-analysis** — Identifying agent interaction friction (feeds into the pipeline as research input).
 
 ## Skill Management Commands
 - `prompt-manager skill list` — List all skills with ratings.

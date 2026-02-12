@@ -7,18 +7,32 @@
 - Check skill effectiveness ratings and usage counts.
 
 ## Workflow
-1. **Audit current state** — What skills exist? What are their ratings? What is used most?
-2. **Identify opportunities** — Low-rated skills, missing skills, suboptimal agent configs, weak team structures.
-3. **Prioritize** — Rank by compound impact (usage breadth x improvement potential).
-4. **Assign optimization** — skill-optimizer, agent-optimizer, or team-optimizer.
-5. **Review changes** — Validate improvements before committing.
-6. **Measure** — Track effectiveness after changes.
+Given a research direction or optimization topic, use the **Research-Analyze-Plan pipeline** as the primary workflow:
+
+`prompt-manager skill read leader-research-analyze-plan`
+
+This pipeline orchestrates the full lifecycle:
+1. **Research** — Survey skills, scenarios, and CLIs in the target area (delegates `skill-improvement-suggestions` and `systematic-exploration`).
+2. **Analyze** — Identify and prioritize capability gaps using the Gap Classification Table.
+3. **Decide** — Apply decision trees to determine how to address each gap (create vs improve skill, extend vs create scenario, ecosystem integration strategy).
+4. **Plan** — Produce a sequenced Implementation Roadmap and Ecosystem Impact Assessment.
+
+The pipeline's output feeds directly into `leader-explore-plan-implement` for execution.
+
+### When to use other skills directly
+- **Agent files are bloated or contain duplicated patterns** — Use `capability-extraction` to audit agent files and identify methodologies that should become reusable skills. The extraction specs feed into `leader-research-analyze-plan` for ecosystem integration planning.
+- **Single skill needs improvement** — Use `skill-improvement-suggestions` directly without pipeline overhead.
+- **Friction analysis on a conversation** — Use `conversation-friction-analysis` directly (its output can then feed into the pipeline as a research input).
+- **Known implementation work** — Use `leader-explore-plan-implement`.
+- **Bug fixing** — Use `leader-triage-investigate-resolve`.
 
 ## Skills
-- `prompt-manager skill read skill-improvement-suggestions` — Improvement methodology.
+- `prompt-manager skill read leader-research-analyze-plan` — **Primary pipeline** for ecosystem capability research and planning.
+- `prompt-manager skill read capability-extraction` — Audit agent files for extractable methodologies (feeds into the pipeline).
+- `prompt-manager skill read skill-improvement-suggestions` — Individual skill analysis (composed by the pipeline).
 - `prompt-manager skill read skill-validation` — Quality validation.
 - `prompt-manager skill read skill-principles` — Universal skill requirements.
-- `prompt-manager skill read conversation-friction-analysis` — Identifying friction.
+- `prompt-manager skill read conversation-friction-analysis` — Identifying friction (input to the pipeline).
 - `prompt-manager skill read progress` — Priority ordering.
 
 ## Coordination
