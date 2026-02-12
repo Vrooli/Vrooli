@@ -27,14 +27,15 @@ import (
 //   - What happens when increased/decreased
 //   - Who typically adjusts it (operator, user, agent)
 type Config struct {
-	Server      ServerConfig
-	AI          AIConfig
-	Integration IntegrationConfig
-	Resilience  ResilienceConfig
-	Storage     StorageConfig
-	Templates   TemplatesConfig
-	Skills      SkillsConfig
-	PromptSync  PromptSyncConfig
+	Server       ServerConfig
+	AI           AIConfig
+	Integration  IntegrationConfig
+	Resilience   ResilienceConfig
+	Storage      StorageConfig
+	Templates    TemplatesConfig
+	Skills       SkillsConfig
+	PromptSync   PromptSyncConfig
+	SkillSuggest SkillSuggestConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -297,6 +298,48 @@ type SkillsConfig struct {
 	UserDir string
 }
 
+// SkillSuggestConfig controls AI-powered skill suggestion based on conversation context.
+// Audience: Operators tuning suggestion quality vs latency.
+type SkillSuggestConfig struct {
+	// Enabled controls whether skill suggestions are available.
+	// Set via SKILL_SUGGEST_ENABLED env var.
+	// Default: true
+	Enabled bool
+
+	// Model is the Ollama model for generating search queries.
+	// Set via SKILL_SUGGEST_MODEL env var.
+	// Default: "llama3.1:8b"
+	Model string
+
+	// MaxMessages is the number of recent chat messages to include in context.
+	// Higher = richer context for suggestions, lower = faster processing.
+	// Default: 10
+	MaxMessages int
+
+	// MaxContentLen is the max characters per message in context.
+	// Higher = more context per message, lower = faster processing.
+	// Default: 300
+	MaxContentLen int
+
+	// CacheTTLSeconds is how long to cache suggestion results.
+	// Higher = fewer Ollama/search calls, lower = fresher suggestions.
+	// Default: 60
+	CacheTTLSeconds int
+
+	// MaxSuggestions is the maximum number of skill suggestions to return.
+	// Default: 5
+	MaxSuggestions int
+
+	// QueryCount is the number of search queries to generate from context.
+	// Higher = broader skill coverage, lower = faster response.
+	// Default: 3
+	QueryCount int
+
+	// Timeout is the maximum wait for the full suggest pipeline.
+	// Default: 15s
+	Timeout time.Duration
+}
+
 // PromptSyncConfig controls skill synchronization from prompt-manager.
 // Skills are now sourced from prompt-manager's unified prompt system.
 // Audience: Operators configuring prompt-manager integration.
@@ -399,6 +442,16 @@ func Default() *Config {
 			SyncIntervalSeconds: getEnvInt("PROMPT_SYNC_INTERVAL", 60),
 			SyncTimeout:         30 * time.Second,
 			SkillOverridesPath:  getEnvOrDefault("SKILL_OVERRIDES_PATH", "../config/skills.json"),
+		},
+		SkillSuggest: SkillSuggestConfig{
+			Enabled:         getEnvBool("SKILL_SUGGEST_ENABLED", true),
+			Model:           getEnvOrDefault("SKILL_SUGGEST_MODEL", "llama3.1:8b"),
+			MaxMessages:     getEnvInt("SKILL_SUGGEST_MAX_MESSAGES", 10),
+			MaxContentLen:   getEnvInt("SKILL_SUGGEST_MAX_CONTENT_LEN", 300),
+			CacheTTLSeconds: getEnvInt("SKILL_SUGGEST_CACHE_TTL", 60),
+			MaxSuggestions:  getEnvInt("SKILL_SUGGEST_MAX_SUGGESTIONS", 5),
+			QueryCount:      getEnvInt("SKILL_SUGGEST_QUERY_COUNT", 3),
+			Timeout:         15 * time.Second,
 		},
 	}
 }

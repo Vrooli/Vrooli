@@ -36,6 +36,7 @@ type Handlers struct {
 	Skills          *services.PromptSyncService
 	ToolPersistence *services.ToolPersistence
 	AgentClient     integrations.AgentManagerClientInterface
+	SkillSuggest    *services.SkillSuggestService
 }
 
 // New creates a new Handlers instance with all dependencies.
@@ -161,6 +162,7 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/skills/import", h.ImportSkills).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/export", h.ExportSkills).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/sync", h.SyncSkills).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/suggest", h.SuggestSkills).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.GetSkill).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.UpdateSkill).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.DeleteSkill).Methods("DELETE", "OPTIONS")

@@ -119,6 +119,7 @@ export interface ModeHistoryEntry {
 export interface SuggestionsSettings {
   visible: boolean;
   mergeModel: string; // Model ID for AI merge feature
+  autoSuggestSkills: boolean; // Auto-suggest skills based on conversation context
 }
 
 /** AI merge action options */

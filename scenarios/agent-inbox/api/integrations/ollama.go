@@ -136,6 +136,59 @@ Title:`, conversationSummary)
 	return name, nil
 }
 
+// GenerateText sends a general-purpose text generation request to Ollama.
+// It uses a specified model and max token limit, returning the raw generated text.
+func (c *OllamaClient) GenerateText(ctx context.Context, model, prompt string, maxTokens int) (string, error) {
+	req := OllamaRequest{
+		Model:  model,
+		Prompt: prompt,
+		Stream: false,
+		Options: OllamaOptions{
+			NumPredict:  maxTokens,
+			Temperature: 0.3,
+		},
+	}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/generate", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("Ollama returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var ollamaResp OllamaResponse
+	if err := json.Unmarshal(respBody, &ollamaResp); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return strings.TrimSpace(ollamaResp.Response), nil
+}
+
+// BaseURL returns the configured Ollama base URL.
+func (c *OllamaClient) BaseURL() string {
+	return c.baseURL
+}
+
 // FallbackName returns the configured fallback name for when generation fails.
 // This enables graceful degradation in the calling code.
 func (c *OllamaClient) FallbackName() string {

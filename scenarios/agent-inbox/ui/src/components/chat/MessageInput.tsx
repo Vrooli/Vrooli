@@ -8,6 +8,7 @@ import { WebSearchIndicator } from "./WebSearchIndicator";
 import { ForcedToolIndicator } from "./ForcedToolIndicator";
 import { TemplateIndicator } from "./TemplateIndicator";
 import { SkillIndicator } from "./SkillIndicator";
+import { SuggestedSkills } from "./SuggestedSkills";
 import { TemplateSelector } from "./TemplateSelector";
 import { SkillSelector } from "./SkillSelector";
 import { ToolSelector } from "./ToolSelector";
@@ -20,6 +21,7 @@ import { useAttachments } from "../../hooks/useAttachments";
 import { useTools } from "../../hooks/useTools";
 import { useTemplatesAndSkills } from "../../hooks/useTemplatesAndSkills";
 import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
+import { useAutoSuggestSkills } from "../../hooks/useAutoSuggestSkills";
 import { useModeHistory } from "../../hooks/useModeHistory";
 import { useAIMerge } from "../../hooks/useAIMerge";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
@@ -128,6 +130,7 @@ export function MessageInput({
     visible: suggestionsVisible,
     toggleVisible: toggleSuggestionsVisible,
     mergeModel,
+    autoSuggestSkills: autoSuggestEnabled,
   } = useSuggestionsSettings();
 
   // Mode history for frecency
@@ -185,6 +188,19 @@ export function MessageInput({
     deleteTemplate,
     resetTemplate,
   } = useTemplatesAndSkills();
+
+  // Auto-suggest skills based on input text
+  const {
+    suggestions: suggestedSkills,
+    isLoading: suggestionsLoading,
+    dismiss: dismissSuggestion,
+    dismissAll: dismissAllSuggestions,
+  } = useAutoSuggestSkills({
+    chatId,
+    inputText: message,
+    selectedSkillIds,
+    enabled: autoSuggestEnabled,
+  });
 
   // Only use attachments if enabled
   const effectiveAttachments = enableAttachments ? attachments : [];
@@ -871,6 +887,13 @@ export function MessageInput({
               onAdd={() => setShowSkillSelector(true)}
             />
           )}
+          <SuggestedSkills
+            suggestions={suggestedSkills}
+            isLoading={suggestionsLoading}
+            onAttach={addSkill}
+            onDismiss={dismissSuggestion}
+            onDismissAll={dismissAllSuggestions}
+          />
         </div>
         {loading && (
           <span className="text-xs text-indigo-400 flex items-center gap-1">

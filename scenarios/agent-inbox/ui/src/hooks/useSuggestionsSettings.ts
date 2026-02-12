@@ -11,6 +11,7 @@ const SETTINGS_KEY = "agent-inbox:suggestions-settings";
 const DEFAULT_SETTINGS: SuggestionsSettings = {
   visible: false, // Hidden by default
   mergeModel: "anthropic/claude-3-haiku-20240307", // Default to fast/cheap model
+  autoSuggestSkills: true, // Auto-suggest skills enabled by default
 };
 
 function loadSettings(): SuggestionsSettings {
@@ -27,6 +28,10 @@ function loadSettings(): SuggestionsSettings {
         typeof parsed.mergeModel === "string"
           ? parsed.mergeModel
           : DEFAULT_SETTINGS.mergeModel,
+      autoSuggestSkills:
+        typeof parsed.autoSuggestSkills === "boolean"
+          ? parsed.autoSuggestSkills
+          : DEFAULT_SETTINGS.autoSuggestSkills,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -47,6 +52,8 @@ export interface UseSuggestionsSettingsReturn {
   toggleVisible: () => void;
   mergeModel: string;
   setMergeModel: (modelId: string) => void;
+  autoSuggestSkills: boolean;
+  setAutoSuggestSkills: (enabled: boolean) => void;
 }
 
 export function useSuggestionsSettings(): UseSuggestionsSettingsReturn {
@@ -69,11 +76,17 @@ export function useSuggestionsSettings(): UseSuggestionsSettingsReturn {
     setSettings((prev) => ({ ...prev, mergeModel }));
   }, []);
 
+  const setAutoSuggestSkills = useCallback((autoSuggestSkills: boolean) => {
+    setSettings((prev) => ({ ...prev, autoSuggestSkills }));
+  }, []);
+
   return {
     visible: settings.visible,
     setVisible,
     toggleVisible,
     mergeModel: settings.mergeModel,
     setMergeModel,
+    autoSuggestSkills: settings.autoSuggestSkills,
+    setAutoSuggestSkills,
   };
 }

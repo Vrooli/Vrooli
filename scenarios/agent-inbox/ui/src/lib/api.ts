@@ -2105,6 +2105,59 @@ export async function exportSkills(): Promise<Skill[]> {
   return res.json();
 }
 
+// ============================================================================
+// Skill Suggestion API
+// ============================================================================
+
+export interface SuggestedSkill {
+  id: string;
+  name: string;
+  description: string;
+  tags?: string[];
+  modes?: string[];
+  score: number;
+  scorePercent: number;
+}
+
+export interface SkillSuggestResponse {
+  suggestions: SuggestedSkill[];
+  queryCount: number;
+  method: string;
+}
+
+/**
+ * Fetch AI-powered skill suggestions based on conversation context.
+ * Returns empty suggestions on any error (graceful degradation).
+ */
+export async function fetchSkillSuggestions(params: {
+  inputText?: string;
+  chatId?: string;
+  excludeSkillIds?: string[];
+}): Promise<SkillSuggestResponse> {
+  const url = buildApiUrl("/skills/suggest", { baseUrl: API_BASE });
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inputText: params.inputText,
+        chatId: params.chatId,
+        excludeSkillIds: params.excludeSkillIds,
+      }),
+      signal: params.inputText ? AbortSignal.timeout(20000) : undefined,
+    });
+
+    if (!res.ok) {
+      return { suggestions: [], queryCount: 0, method: "error" };
+    }
+
+    return res.json();
+  } catch {
+    return { suggestions: [], queryCount: 0, method: "error" };
+  }
+}
+
 /**
  * Sync status response from the server.
  */

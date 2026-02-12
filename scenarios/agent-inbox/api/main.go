@@ -341,9 +341,19 @@ func main() {
 	// IMPORTANT: Pass the same toolExecutor AND toolRegistry to handlers so that:
 	// 1. Tools registered by handlers.ToolRegistry are available to asyncTracker for status polling
 	// 2. A single ToolRegistry cache is shared across all completion services
-	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker, toolExecutor, toolRegistry)
+	ollamaClient := integrations.NewOllamaClient()
+	h := handlers.New(repo, ollamaClient, storage, asyncTracker, toolExecutor, toolRegistry)
 	h.Templates = templatesSvc
 	h.Skills = skillsSvc
+
+	// Create skill suggestion service (reuses same OllamaClient and PromptManagerURL)
+	if cfg.SkillSuggest.Enabled {
+		h.SkillSuggest = services.NewSkillSuggestService(
+			ollamaClient,
+			cfg.PromptSync.PromptManagerURL,
+			&cfg.SkillSuggest,
+		)
+	}
 
 	// Wire agent-manager client (may not be available at startup)
 	agentClient, err := integrations.NewAgentManagerClient()
