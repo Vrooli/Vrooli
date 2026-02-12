@@ -48,6 +48,10 @@ interface CameraStore {
   setFreeform: () => void
   cycleCameraMode: (agentId?: string, agentPosition?: [number, number, number]) => void
 
+  // Request-based actions (decoupled from component-local data)
+  zoomToAgentRequested: number
+  requestZoomToAgent: () => void
+
   // History management
   pushHistory: () => void
   popHistory: () => CameraHistoryEntry | null
@@ -71,6 +75,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
   focusedAgentId: null,
   history: [],
   isAnimating: false,
+  zoomToAgentRequested: 0,
 
   setPosition: (position) => set({ position }),
   setTarget: (target) => set({ target }),
@@ -193,6 +198,10 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         state.setFreeform()
       }
     }
+  },
+
+  requestZoomToAgent: () => {
+    set((state) => ({ zoomToAgentRequested: state.zoomToAgentRequested + 1 }))
   },
 
   pushHistory: () => {

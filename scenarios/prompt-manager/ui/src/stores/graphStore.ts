@@ -30,12 +30,16 @@ interface GraphStore {
   error: string | null
   filters: GraphFilters
   highlightedNodeIds: Set<string>
+  layoutDirection: 'TB' | 'LR'
+  fitViewRequested: number
 
   fetchGraph: (forceRefresh?: boolean) => Promise<void>
   regenerateGraph: () => Promise<void>
   setFilter: <K extends keyof GraphFilters>(key: K, value: GraphFilters[K]) => void
   highlightNodes: (ids: string[]) => void
   clearHighlights: () => void
+  setLayoutDirection: (dir: 'TB' | 'LR') => void
+  requestFitView: () => void
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -50,6 +54,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     healthThreshold: 0,
   },
   highlightedNodeIds: new Set(),
+  layoutDirection: 'TB',
+  fitViewRequested: 0,
 
   fetchGraph: async (forceRefresh = false) => {
     if (get().loading) return
@@ -91,6 +97,14 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   clearHighlights: () => {
     set({ highlightedNodeIds: new Set() })
+  },
+
+  setLayoutDirection: (dir) => {
+    set({ layoutDirection: dir })
+  },
+
+  requestFitView: () => {
+    set((state) => ({ fitViewRequested: state.fitViewRequested + 1 }))
   },
 }))
 

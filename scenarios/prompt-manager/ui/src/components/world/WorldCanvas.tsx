@@ -15,7 +15,7 @@ import type { FurnitureInstance } from '@/types/furniture'
 import type { DecorationInstance } from '@/types/decoration'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
-import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
+import { useCameraStore } from '@/stores/cameraStore'
 import { useFurnitureStore, useFurnitureList, useSeatedAgents } from '@/stores/furnitureStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useAgentData } from '@/hooks/useAgentData'
@@ -25,7 +25,6 @@ import { useTeamActivity } from '@/hooks/useTeamActivity'
 import { useTeamGathering } from '@/hooks/useTeamGathering'
 import { AgentProvider } from './AgentProvider'
 import { WorldScene, type AgentWithPosition } from './WorldScene'
-import { WorldControls } from './WorldControls'
 import { DisplayPanel } from './DisplayPanel'
 import { AgentOverlay } from './AgentOverlay'
 import { WorldEditorToolbar, ObjectPalette } from './editor'
@@ -109,7 +108,7 @@ export function WorldCanvas({
 
   // Agent data (must be above useWorldDefaults so agents.length is available)
   const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
-  const { teams } = useTeamData()
+  useTeamData()
 
   // Seed world with default furniture/decorations on first load
   useWorldDefaults(agents.length)
@@ -254,25 +253,18 @@ export function WorldCanvas({
     unseatAgent(agentId)
   }, [unseatAgent])
 
-  // Handle camera mode change from settings popup
-  const handleCameraModeChange = useCallback(
-    (mode: CameraMode, agentId?: string, position?: [number, number, number]) => {
-      if (mode === 'zoomed-agent') {
-        // Find an agent to zoom to
-        const targetAgent = agentId
-          ? agentsWithPositions.find((a) => a.agent.id === agentId)
-          : focusedAgentId
-            ? agentsWithPositions.find((a) => a.agent.id === focusedAgentId)
-            : agentsWithPositions[0]
-
-        if (targetAgent) {
-          zoomToAgent(targetAgent.agent.id, position ?? targetAgent.position)
-        }
-      }
-      // Note: freeform and top-down are handled directly by the settings popup
-    },
-    [zoomToAgent, focusedAgentId, agentsWithPositions]
-  )
+  // Watch for zoom-to-agent requests from the store (triggered by WorldSettingsContent)
+  const zoomToAgentRequested = useCameraStore((state) => state.zoomToAgentRequested)
+  const prevZoomReq = useRef(zoomToAgentRequested)
+  useEffect(() => {
+    if (zoomToAgentRequested !== prevZoomReq.current) {
+      prevZoomReq.current = zoomToAgentRequested
+      const target = focusedAgentId
+        ? agentsWithPositions.find((a) => a.agent.id === focusedAgentId)
+        : agentsWithPositions[0]
+      if (target) zoomToAgent(target.agent.id, target.position)
+    }
+  }, [zoomToAgentRequested, focusedAgentId, agentsWithPositions, zoomToAgent])
 
   // Modal state
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false)
@@ -419,17 +411,6 @@ export function WorldCanvas({
           fontSize: '14px',
         }}
       />
-
-      {/* UI Overlays */}
-      <PanelErrorBoundary panelName="World Controls">
-        <WorldControls
-          teamCount={teams.length}
-          nodeCount={skills.length}
-          selectionCount={selectedSkillIds.length}
-          agentCount={agents.length}
-          onCameraModeChange={handleCameraModeChange}
-        />
-      </PanelErrorBoundary>
 
       {/* World Editor */}
       <PanelErrorBoundary panelName="World Editor" minimal>

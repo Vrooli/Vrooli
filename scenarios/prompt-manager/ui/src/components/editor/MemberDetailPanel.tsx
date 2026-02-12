@@ -16,6 +16,7 @@ import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import * as heartbeatService from '@/services/heartbeatService'
+import { toast } from '@/hooks/use-toast'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
@@ -235,10 +236,12 @@ export function MemberDetailPanel({
   const handleTriggerHeartbeat = useCallback(async () => {
     try {
       await heartbeatService.triggerHeartbeat(team.id, member.agentId)
+      toast({ title: 'Heartbeat triggered', variant: 'success' })
       const updated = await heartbeatService.getHeartbeat(team.id, member.agentId)
       if (updated) setHeartbeatConfig(updated)
     } catch (err) {
       console.error('Failed to trigger heartbeat:', err)
+      toast({ title: 'Failed to trigger heartbeat', variant: 'destructive' })
     }
   }, [team.id, member.agentId])
 

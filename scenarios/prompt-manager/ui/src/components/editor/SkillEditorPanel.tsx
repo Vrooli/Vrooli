@@ -30,7 +30,14 @@ import { FilePathMenu } from './FilePathMenu'
 import { ScopeSelector } from './ScopeSelector'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import { WorldCanvas } from '@/components/world'
+import { WorldSettingsContent } from '@/components/world/WorldSettingsContent'
+import { WorldHelpContent } from '@/components/world/WorldHelpContent'
 import { GraphView } from '@/components/graph/GraphView'
+import { GraphSettingsContent } from '@/components/graph/GraphSettingsContent'
+import { GraphHelpContent } from '@/components/graph/GraphHelpContent'
+import { GraphLegend } from '@/components/graph/GraphLegend'
+import { GraphQueryPanel } from '@/components/graph/GraphQueryPanel'
+import { ViewOverlay } from '../shared/ViewOverlay'
 import { IconSelector } from '../shared/IconSelector'
 import { InlineEditableText } from '../shared/InlineEditableText'
 import { DraftToggle } from '../shared/DraftToggle'
@@ -134,56 +141,38 @@ export function SkillEditorPanel({
 
   // Graph view toggle
   const graphViewActive = useSelectionStore((state) => state.graphViewActive)
-  const setGraphViewActive = useSelectionStore((state) => state.setGraphViewActive)
 
   // Show 3D world or graph view when no skill selected
   if (!currentSkill) {
     return (
-      <div className={cn('h-full flex flex-col', className)}>
-        {/* Segmented control toggle */}
-        <div className="flex-shrink-0 flex items-center justify-center gap-1 p-2 border-b border-border bg-card/50">
-          <button
-            type="button"
-            onClick={() => setGraphViewActive(false)}
-            className={cn(
-              'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-              !graphViewActive
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-            )}
-          >
-            World View
-          </button>
-          <button
-            type="button"
-            onClick={() => setGraphViewActive(true)}
-            className={cn(
-              'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-              graphViewActive
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-            )}
-          >
-            Graph View
-          </button>
-        </div>
-
-        {/* Content area */}
-        <div className="flex-1 overflow-hidden">
-          {graphViewActive ? (
-            <PanelErrorBoundary panelName="Graph View" className="h-full">
-              <GraphView className="h-full" />
-            </PanelErrorBoundary>
-          ) : (
-            <PanelErrorBoundary panelName="3D World" className="h-full">
-              <WorldCanvas
-                skills={allSkills}
-                onSelectSkill={onSelectSkill}
-                onDisplaySkills={onDisplaySkills}
-              />
-            </PanelErrorBoundary>
-          )}
-        </div>
+      <div className={cn('relative h-full', className)}>
+        {graphViewActive ? (
+          <PanelErrorBoundary panelName="Graph View" className="h-full">
+            <GraphView className="h-full" />
+          </PanelErrorBoundary>
+        ) : (
+          <PanelErrorBoundary panelName="3D World" className="h-full">
+            <WorldCanvas
+              skills={allSkills}
+              onSelectSkill={onSelectSkill}
+              onDisplaySkills={onDisplaySkills}
+            />
+          </PanelErrorBoundary>
+        )}
+        <ViewOverlay
+          leftPanelContent={graphViewActive ? (
+            <>
+              <GraphLegend />
+              <PanelErrorBoundary panelName="Graph Queries">
+                <GraphQueryPanel />
+              </PanelErrorBoundary>
+            </>
+          ) : undefined}
+          settingsContent={graphViewActive ? <GraphSettingsContent /> : <WorldSettingsContent />}
+          settingsTitle={graphViewActive ? 'Graph Settings' : 'World Settings'}
+          helpContent={graphViewActive ? <GraphHelpContent /> : <WorldHelpContent />}
+          helpTitle={graphViewActive ? 'Graph Help' : 'Avatar Environment'}
+        />
       </div>
     )
   }

@@ -6,10 +6,9 @@
  * - Custom node shapes by type
  * - Health-based coloring
  * - Click node -> navigate to editor
- * - Toolbar with filters, layout, zoom controls
- * - Query panel for highlighting subsets
- * - Legend
  * - Tooltip on hover
+ *
+ * Toolbar, legend, and query panel are rendered externally via ViewOverlay.
  */
 
 import { useCallback, useMemo, useEffect, useState, useRef } from 'react'
@@ -20,7 +19,6 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
-  Panel,
   MarkerType,
   useReactFlow,
   ReactFlowProvider,
@@ -34,9 +32,6 @@ import { useGraphStore, selectFilteredNodes } from '@/stores/graphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { GraphFlowNode, type GraphNodeData } from './GraphNode'
-import { GraphToolbar } from './GraphToolbar'
-import { GraphQueryPanel } from './GraphQueryPanel'
-import { GraphLegend } from './GraphLegend'
 import { GraphNodeTooltip } from './GraphNodeTooltip'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import type { GraphNode as GraphNodeType, HealthScore } from '@/lib/schemas'
@@ -49,7 +44,6 @@ import '@xyflow/react/dist/style.css'
 
 const NODE_WIDTH = 160
 const NODE_HEIGHT = 80
-type LayoutDirection = 'TB' | 'LR'
 
 // ============================================================================
 // Node Types
@@ -82,7 +76,7 @@ type FlowEdge = Edge
 function getLayoutedElements(
   nodes: FlowNode[],
   edges: FlowEdge[],
-  direction: LayoutDirection = 'TB',
+  direction: 'TB' | 'LR' = 'TB',
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const dagreGraph = new dagre.graphlib.Graph()
   dagreGraph.setDefaultEdgeLabel(() => ({}))
@@ -122,7 +116,6 @@ interface GraphViewInnerProps {
 
 function GraphViewInner({ className }: GraphViewInnerProps) {
   const { fitView } = useReactFlow()
-  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>('TB')
   const [hoveredNode, setHoveredNode] = useState<{ node: GraphNodeType; healthScore?: HealthScore; x: number; y: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -132,6 +125,8 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const error = useGraphStore((s) => s.error)
   const fetchGraph = useGraphStore((s) => s.fetchGraph)
   const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
+  const layoutDirection = useGraphStore((s) => s.layoutDirection)
+  const fitViewRequested = useGraphStore((s) => s.fitViewRequested)
   // useShallow prevents infinite re-render: selectFilteredNodes returns a new
   // array reference on every call (.filter()), but useShallow compares elements
   // by identity so the result is stable when the underlying data hasn't changed.
@@ -146,6 +141,15 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   useEffect(() => {
     void fetchGraph()
   }, [fetchGraph])
+
+  // Watch for fit view requests from the store
+  const prevFitView = useRef(fitViewRequested)
+  useEffect(() => {
+    if (fitViewRequested !== prevFitView.current) {
+      prevFitView.current = fitViewRequested
+      void fitView({ padding: 0.2 })
+    }
+  }, [fitViewRequested, fitView])
 
   // Build node ID set for filtering edges
   const filteredNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes])
@@ -276,14 +280,6 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     setHoveredNode(null)
   }, [])
 
-  const handleToggleLayout = useCallback(() => {
-    setLayoutDirection((d) => (d === 'TB' ? 'LR' : 'TB'))
-  }, [])
-
-  const handleFitView = useCallback(() => {
-    void fitView({ padding: 0.2 })
-  }, [fitView])
-
   // Loading / error states
   if (loading && !graph) {
     return (
@@ -361,25 +357,6 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
           }}
           maskColor="rgba(0, 0, 0, 0.5)"
         />
-
-        {/* Toolbar */}
-        <Panel position="top-right">
-          <PanelErrorBoundary panelName="Graph Toolbar" minimal>
-            <GraphToolbar
-              layoutDirection={layoutDirection}
-              onToggleLayout={handleToggleLayout}
-              onFitView={handleFitView}
-            />
-          </PanelErrorBoundary>
-        </Panel>
-
-        {/* Legend + Query Panel */}
-        <Panel position="top-left" className="flex flex-col gap-2 max-w-xs">
-          <GraphLegend />
-          <PanelErrorBoundary panelName="Graph Queries">
-            <GraphQueryPanel />
-          </PanelErrorBoundary>
-        </Panel>
       </ReactFlow>
 
       {/* Tooltip overlay */}

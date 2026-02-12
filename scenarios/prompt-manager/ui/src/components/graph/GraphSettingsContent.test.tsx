@@ -1,12 +1,12 @@
 /**
- * Tests for GraphToolbar component.
+ * Tests for GraphSettingsContent component.
  * Verifies filter toggles, layout switching, regenerate, and health threshold.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useGraphStore } from '@/stores/graphStore'
-import { GraphToolbar } from './GraphToolbar'
+import { GraphSettingsContent } from './GraphSettingsContent'
 
 // Mock lucide-react icons to simple spans
 vi.mock('lucide-react', () => ({
@@ -19,16 +19,12 @@ vi.mock('lucide-react', () => ({
   Maximize2: (props: Record<string, unknown>) => <span data-testid="icon-maximize" {...props} />,
 }))
 
-describe('GraphToolbar', () => {
-  const defaultProps = {
-    layoutDirection: 'TB' as const,
-    onToggleLayout: vi.fn(),
-    onFitView: vi.fn(),
-  }
-
+describe('GraphSettingsContent', () => {
   beforeEach(() => {
     useGraphStore.setState({
       loading: false,
+      layoutDirection: 'TB',
+      fitViewRequested: 0,
       filters: {
         showTeams: true,
         showAgents: true,
@@ -45,7 +41,7 @@ describe('GraphToolbar', () => {
   })
 
   it('should render all four type filter buttons', () => {
-    render(<GraphToolbar {...defaultProps} />)
+    render(<GraphSettingsContent />)
 
     expect(screen.getByText('Teams')).toBeInTheDocument()
     expect(screen.getByText('Agents')).toBeInTheDocument()
@@ -57,7 +53,7 @@ describe('GraphToolbar', () => {
     const spy = vi.fn()
     useGraphStore.setState({ setFilter: spy } as never)
 
-    render(<GraphToolbar {...defaultProps} />)
+    render(<GraphSettingsContent />)
     fireEvent.click(screen.getByText('Teams'))
 
     expect(spy).toHaveBeenCalledWith('showTeams', false)
@@ -76,42 +72,43 @@ describe('GraphToolbar', () => {
       },
     } as never)
 
-    render(<GraphToolbar {...defaultProps} />)
+    render(<GraphSettingsContent />)
     fireEvent.click(screen.getByText('Teams'))
 
     expect(spy).toHaveBeenCalledWith('showTeams', true)
   })
 
-  it('should show "Vertical" label for TB layout', () => {
-    render(<GraphToolbar {...defaultProps} layoutDirection="TB" />)
+  it('should show layout direction buttons', () => {
+    render(<GraphSettingsContent />)
     expect(screen.getByText('Vertical')).toBeInTheDocument()
-  })
-
-  it('should show "Horizontal" label for LR layout', () => {
-    render(<GraphToolbar {...defaultProps} layoutDirection="LR" />)
     expect(screen.getByText('Horizontal')).toBeInTheDocument()
   })
 
-  it('should call onToggleLayout when layout button is clicked', () => {
-    render(<GraphToolbar {...defaultProps} />)
-    fireEvent.click(screen.getByText('Vertical'))
+  it('should call setLayoutDirection when layout button is clicked', () => {
+    const spy = vi.fn()
+    useGraphStore.setState({ setLayoutDirection: spy } as never)
 
-    expect(defaultProps.onToggleLayout).toHaveBeenCalledOnce()
+    render(<GraphSettingsContent />)
+    fireEvent.click(screen.getByText('Horizontal'))
+
+    expect(spy).toHaveBeenCalledWith('LR')
   })
 
-  it('should call onFitView when fit view button is clicked', () => {
-    render(<GraphToolbar {...defaultProps} />)
-    const fitBtn = screen.getByTitle('Fit to view')
-    fireEvent.click(fitBtn)
+  it('should call requestFitView when fit view button is clicked', () => {
+    const spy = vi.fn()
+    useGraphStore.setState({ requestFitView: spy } as never)
 
-    expect(defaultProps.onFitView).toHaveBeenCalledOnce()
+    render(<GraphSettingsContent />)
+    fireEvent.click(screen.getByTitle('Fit to view'))
+
+    expect(spy).toHaveBeenCalledOnce()
   })
 
   it('should call regenerateGraph when regenerate button is clicked', () => {
     const regen = vi.fn().mockResolvedValue(undefined)
     useGraphStore.setState({ regenerateGraph: regen } as never)
 
-    render(<GraphToolbar {...defaultProps} />)
+    render(<GraphSettingsContent />)
     fireEvent.click(screen.getByTitle('Regenerate graph'))
 
     expect(regen).toHaveBeenCalledOnce()
@@ -120,7 +117,7 @@ describe('GraphToolbar', () => {
   it('should disable regenerate button when loading', () => {
     useGraphStore.setState({ loading: true })
 
-    render(<GraphToolbar {...defaultProps} />)
+    render(<GraphSettingsContent />)
     const btn = screen.getByTitle('Regenerate graph')
 
     expect(btn).toBeDisabled()
@@ -137,7 +134,7 @@ describe('GraphToolbar', () => {
       },
     })
 
-    render(<GraphToolbar {...defaultProps} />)
+    render(<GraphSettingsContent />)
     expect(screen.getByText(/35%/)).toBeInTheDocument()
   })
 
@@ -145,7 +142,7 @@ describe('GraphToolbar', () => {
     const spy = vi.fn()
     useGraphStore.setState({ setFilter: spy } as never)
 
-    render(<GraphToolbar {...defaultProps} />)
+    render(<GraphSettingsContent />)
     const slider = screen.getByRole('slider')
     fireEvent.change(slider, { target: { value: '0.5' } })
 

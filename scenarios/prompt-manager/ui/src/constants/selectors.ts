@@ -69,6 +69,12 @@ const literalSelectors = {
     graphics: 'world-settings-graphics',
     customToggle: 'world-settings-custom-toggle',
   },
+  viewOverlay: {
+    stats: 'view-overlay-stats',
+    viewToggle: 'view-overlay-view-toggle',
+    settingsButton: 'view-overlay-settings-button',
+    helpButton: 'view-overlay-help-button',
+  },
   xrefs: {
     panel: 'xrefs-panel',
     toggle: 'xrefs-toggle',

@@ -42,6 +42,32 @@ vi.mock('@/components/world', () => ({
   ),
 }))
 
+// Mock ViewOverlay and graph/world content components used in empty state
+vi.mock('../shared/ViewOverlay', () => ({
+  ViewOverlay: () => <div data-testid="view-overlay" />,
+}))
+vi.mock('@/components/world/WorldSettingsContent', () => ({
+  WorldSettingsContent: () => <div />,
+}))
+vi.mock('@/components/world/WorldHelpContent', () => ({
+  WorldHelpContent: () => <div />,
+}))
+vi.mock('@/components/graph/GraphView', () => ({
+  GraphView: () => <div data-testid="graph-view" />,
+}))
+vi.mock('@/components/graph/GraphSettingsContent', () => ({
+  GraphSettingsContent: () => <div />,
+}))
+vi.mock('@/components/graph/GraphHelpContent', () => ({
+  GraphHelpContent: () => <div />,
+}))
+vi.mock('@/components/graph/GraphLegend', () => ({
+  GraphLegend: () => <div />,
+}))
+vi.mock('@/components/graph/GraphQueryPanel', () => ({
+  GraphQueryPanel: () => <div />,
+}))
+
 // Helper to create test skill
 function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {

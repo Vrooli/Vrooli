@@ -7,8 +7,8 @@
 // Core components
 export { WorldCanvas } from './WorldCanvas'
 export { WorldScene } from './WorldScene'
-export { WorldControls } from './WorldControls'
-export { WorldSettingsPopup } from './WorldSettingsPopup'
+export { WorldSettingsContent } from './WorldSettingsContent'
+export { WorldHelpContent } from './WorldHelpContent'
 export { EnvironmentControls } from './EnvironmentControls'
 export { DisplayPanel } from './DisplayPanel'
 
