@@ -6,10 +6,11 @@
  * making the agent type truly pluggable.
  */
 
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import type { Group } from 'three'
 import { useAgentComponent } from '../AgentProvider'
+import * as behavior from '@/services/agentBehaviorService'
 import { BackpackAccessory } from '../accessories/BackpackAccessory'
 import { HeadAccessory } from '../accessories/HeadAccessory'
 import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
@@ -107,6 +108,25 @@ export function AgentWithAccessories({
     [colors, agent.appearance]
   )
 
+  // ===== BEHAVIOR SERVICE =====
+  // Register/unregister agent with the behavior system
+  useEffect(() => {
+    behavior.initAgent(agent.id, position)
+    return () => behavior.removeAgent(agent.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on mount/unmount
+  }, [agent.id])
+
+  // Lock/unlock agent when seated by team (external seating)
+  const prevSeatedRef = useRef(isSeated)
+  useEffect(() => {
+    if (isSeated && !prevSeatedRef.current) {
+      behavior.lockAgent(agent.id)
+    } else if (!isSeated && prevSeatedRef.current) {
+      behavior.unlockAgent(agent.id)
+    }
+    prevSeatedRef.current = isSeated
+  }, [isSeated, agent.id])
+
   // ===== LOCOMOTION =====
   // Smoothly interpolate the wrapper group toward the target position.
   // Children use local coordinates [0,0,0] so they move with the group.
@@ -116,15 +136,47 @@ export function AgentWithAccessories({
   // R3F's reconciler doesn't overwrite the in-progress interpolation.
   const locomotionRef = useRef<Group>(null)
   const targetRef = useRef<[number, number, number]>(position)
-  targetRef.current = position // always latest target
+  targetRef.current = position // always latest target (from props - team seating, drag, etc.)
+
+  const { camera } = useThree()
+  const facingCameraRef = useRef(true)
+  const frameCountRef = useRef(0)
+  const initializedRef = useRef(false)
 
   const LOCOMOTION_SPEED = 3 // world units per second
   const ARRIVAL_THRESHOLD = 0.05
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     if (!locomotionRef.current) return
 
+    const agentId = agent.id
+    frameCountRef.current++
+
+    // Set initial facing direction on first frame
+    if (!initializedRef.current) {
+      locomotionRef.current.rotation.y = behavior.getDesiredYaw(agentId)
+      initializedRef.current = true
+    }
+
+    // 1. Report current position to behavior service
     const pos = locomotionRef.current.position
+    behavior.updatePosition(agentId, [pos.x, pos.y, pos.z])
+
+    // 2. Evaluate behavior (staggered per agent, ~every 60 frames)
+    if (behavior.shouldEvaluateThisFrame(agentId, frameCountRef.current)) {
+      behavior.evaluateBehavior(agentId, clock.getElapsedTime(), position)
+    }
+
+    // 3. Tick behavior to get target and yaw
+    const result = behavior.tickAgent(agentId, clock.getElapsedTime())
+    if (result && !isSeated) {
+      // Behavior service wants the agent to move somewhere
+      if (result.targetPosition) {
+        targetRef.current = result.targetPosition
+      }
+    }
+
+    // 4. Locomotion: interpolate toward target
     const [tx, ty, tz] = targetRef.current
     const dx = tx - pos.x
     const dy = ty - pos.y
@@ -133,30 +185,39 @@ export function AgentWithAccessories({
 
     if (dist < ARRIVAL_THRESHOLD) {
       pos.set(tx, ty, tz)
-      // Smoothly reset locomotion group rotation to 0 after arriving
-      if (Math.abs(locomotionRef.current.rotation.y) > 0.01) {
-        locomotionRef.current.rotation.y *= 1 - Math.min(1, 8 * delta)
-      } else {
-        locomotionRef.current.rotation.y = 0
-      }
-      return
-    }
-
-    const step = Math.min(LOCOMOTION_SPEED * delta, dist)
-    const ratio = step / dist
-    pos.x += dx * ratio
-    pos.y += dy * ratio
-    pos.z += dz * ratio
-
-    // Face direction of movement while walking
-    if (dist > ARRIVAL_THRESHOLD * 2) {
-      const targetYaw = Math.atan2(dx, dz)
-      const currentYaw = locomotionRef.current.rotation.y
-      let yawDiff = targetYaw - currentYaw
-      // Normalize to [-PI, PI]
+      // Smoothly lerp rotation toward desired yaw after arriving
+      const desired = behavior.getDesiredYaw(agentId)
+      let yawDiff = desired - locomotionRef.current.rotation.y
       while (yawDiff > Math.PI) yawDiff -= Math.PI * 2
       while (yawDiff < -Math.PI) yawDiff += Math.PI * 2
-      locomotionRef.current.rotation.y += yawDiff * Math.min(1, 5 * delta)
+      if (Math.abs(yawDiff) > 0.01) {
+        locomotionRef.current.rotation.y += yawDiff * Math.min(1, 4 * delta)
+      }
+    } else {
+      const step = Math.min(LOCOMOTION_SPEED * delta, dist)
+      const ratio = step / dist
+      pos.x += dx * ratio
+      pos.y += dy * ratio
+      pos.z += dz * ratio
+
+      // Face direction of movement while walking
+      if (dist > ARRIVAL_THRESHOLD * 2) {
+        const targetYaw = Math.atan2(dx, dz)
+        const currentYaw = locomotionRef.current.rotation.y
+        let yawDiff = targetYaw - currentYaw
+        while (yawDiff > Math.PI) yawDiff -= Math.PI * 2
+        while (yawDiff < -Math.PI) yawDiff += Math.PI * 2
+        locomotionRef.current.rotation.y += yawDiff * Math.min(1, 5 * delta)
+      }
+    }
+
+    // 5. Compute isFacingCamera (every 5 frames, matching LOD cadence)
+    if (frameCountRef.current % 5 === 0) {
+      facingCameraRef.current = behavior.isFacingCamera(
+        locomotionRef.current.rotation.y,
+        [pos.x, pos.y, pos.z],
+        [camera.position.x, camera.position.y, camera.position.z],
+      )
     }
   })
 
@@ -176,10 +237,23 @@ export function AgentWithAccessories({
           selectedNodes={selectedNodes}
           isAnimating={isAnimating}
           onAnimationComplete={onAnimationComplete}
-          onAgentClick={onAgentClick}
+          onAgentClick={() => {
+            // Trigger face-camera on click
+            if (locomotionRef.current) {
+              const pos = locomotionRef.current.position
+              behavior.triggerFaceCamera(
+                agent.id,
+                performance.now() / 1000,
+                [camera.position.x, camera.position.y, camera.position.z],
+                [pos.x, pos.y, pos.z],
+              )
+            }
+            onAgentClick?.()
+          }}
           colors={agentColors}
           isSeated={isSeated}
           seatRotation={seatRotation}
+          isFacingCamera={facingCameraRef.current}
         />
 
         {/* Accessories */}

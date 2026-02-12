@@ -32,6 +32,8 @@ export interface AgentProps {
   isSeated?: boolean
   /** Rotation when seated (radians) */
   seatRotation?: number
+  /** Whether the agent is currently facing the camera (gates cursor tracking) */
+  isFacingCamera?: boolean
 }
 
 /**

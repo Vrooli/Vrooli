@@ -96,6 +96,7 @@ export function SlimeAgent({
   agentId,
   isSeated = false,
   seatRotation = 0,
+  isFacingCamera,
 }: AgentProps) {
   void _isAnimating
 
@@ -342,13 +343,16 @@ export function SlimeAgent({
       }
     }
 
-    if (isSeated) {
-      groupRef.current.rotation.y = seatRotation
-    }
+    // Seat rotation is now handled by the locomotion group in AgentWithAccessories
+    void seatRotation
 
-    // ===== CURSOR TRACKING (high and medium LOD only) =====
+    // ===== CURSOR TRACKING (high and medium LOD only, gated on facing camera) =====
     const cursorPosition = cursorRef.current
-    if ((lodLevel === 'high' || lodLevel === 'medium') && cursorPosition) {
+    const shouldTrack = (lodLevel === 'high' || lodLevel === 'medium')
+      && cursorPosition
+      && isFacingCamera !== false
+
+    if (shouldTrack) {
       const trackingStrength = lodLevel === 'high' ? 0.03 : 0.02
       const dx = cursorPosition.x * trackingStrength
       const dy = cursorPosition.y * trackingStrength * 0.67
@@ -372,6 +376,17 @@ export function SlimeAgent({
       if (lodLevel === 'high') {
         const leanTarget = cursorPosition.x * 0.1
         groupRef.current.rotation.y += (leanTarget - groupRef.current.rotation.y) * 0.05
+      }
+    } else if (isFacingCamera === false) {
+      // Smooth pupil decay toward center when not facing camera
+      const decayRate = 1 - Math.min(1, 3 * delta)
+      if (leftPupilRef.current) {
+        leftPupilRef.current.position.x *= decayRate
+        leftPupilRef.current.position.y *= decayRate
+      }
+      if (rightPupilRef.current) {
+        rightPupilRef.current.position.x *= decayRate
+        rightPupilRef.current.position.y *= decayRate
       }
     }
 

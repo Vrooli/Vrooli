@@ -82,7 +82,6 @@ export function MemberDetailPanel({
     if (initialSection) {
       setActiveSection(initialSection)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- nonce forces re-fire
   }, [initialSection, initialSectionNonce])
   const [responsibilities, setResponsibilities] = useState('')
   const [heartbeatInstructions, setHeartbeatInstructions] = useState('')

@@ -111,7 +111,7 @@ function buildUrlSearch(state: UrlState): string {
     params.set(URL_PARAMS.HL_FILE, state.hlFile)
   }
 
-  if (state.hlLine !== null && state.hlLine !== undefined) {
+  if (state.hlLine !== null) {
     params.set(URL_PARAMS.HL_LINE, String(state.hlLine))
   }
 
