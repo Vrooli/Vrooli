@@ -200,6 +200,9 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)
 		v1.GET("/apps/:id/metrics", h.app.GetAppMetrics)
 
+		// Rules metadata endpoint
+		v1.GET("/rules", h.app.GetRuleDefs)
+
 		// Quality endpoints (scenario-auditor consumption)
 		v1.GET("/quality/scenario/:name/standards", h.app.GetInteropStandards)
 

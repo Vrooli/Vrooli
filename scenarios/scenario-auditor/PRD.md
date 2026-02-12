@@ -1060,7 +1060,6 @@ curl http://localhost:36224/health | jq '{status, readiness}'         # healthy,
 **Recommendations**:
 1. **Enhancement (P2)**: Add test case comment block detection to reduce false positives in scan reports
 2. **Enhancement (P2)**: Implement remaining 6 content_type rules (currently unimplemented stubs)
-3. **Enhancement (P2)**: Fix 3 edge case test failures in iframe_bridge_quality rule
 
 ### 2025-10-05 15:16: CLI Audit Command Fix - Large Result Handling
 **Issue**: CLI `audit` command failed with "argument list too long" when processing large scan results (1368+ violations)
@@ -1123,9 +1122,8 @@ scenario-auditor audit scenario-auditor --standards-only --timeout 120 | jq '.st
   - service_ports: 0/16 → 16/16 tests passing ✅
   - service_health_lifecycle: 0/10 → 10/10 tests passing ✅
 
-**Remaining Unstable Rules (8)**:
+**Remaining Unstable Rules (7)**:
 - 6 content_type_* rules: Unimplemented stubs (text, csv, pdf, xml, html, binary, streaming)
-- 1 iframe_bridge_quality: 7/10 tests passing (3 edge case failures, non-blocking)
 - 1 content_type_xml: Duplicate entry (same as above)
 
 **Validation**:

@@ -6,7 +6,7 @@ import { useScenarioActions } from '@/hooks/useScenarioActions';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import RulesPanel from './RulesPanel';
-import { TOTAL_RULE_COUNT } from './interopRulesData';
+import { useRuleCount } from './useRuleCount';
 import './ActionsDialog.css';
 
 type ActionsDialogProps = {
@@ -36,6 +36,7 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
   const { closeOverlay } = useOverlayRouter();
   const { status, uptimeSeconds, appCount, resourceCount, loading, lastChecked, refresh } = useSystemStatus();
   const { restartAll, stopAll } = useScenarioActions();
+  const ruleCount = useRuleCount();
 
   const isSystemOnline = status ? !OFFLINE_STATES.has(status) : isConnected;
   const uptimeText = uptimeSeconds != null ? formatDuration(uptimeSeconds) : '—';
@@ -102,7 +103,7 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
         >
           <Shield size={15} aria-hidden />
           <span>Rules</span>
-          <span className="actions-dialog__tab-count">{TOTAL_RULE_COUNT}</span>
+          {ruleCount > 0 && <span className="actions-dialog__tab-count">{ruleCount}</span>}
         </button>
       </div>
 

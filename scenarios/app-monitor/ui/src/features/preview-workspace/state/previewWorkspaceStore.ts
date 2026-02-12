@@ -560,7 +560,9 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
     for (let i = 0; i < newPanes.length; i++) {
       const url = fromPortablePreviewUrl(previewURLs[i] ?? null);
       if (typeof url === 'string' && url.trim().length > 0) {
-        paneViewState[newPanes[i]!.id] = {
+        const pane = newPanes[i];
+        if (!pane) continue;
+        paneViewState[pane.id] = {
           ...createDefaultPaneViewState(),
           previewUrl: url,
           previewUrlInput: url,

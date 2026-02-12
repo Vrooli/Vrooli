@@ -532,18 +532,29 @@ func (s *AppService) aggregateWarnings(diag *CompleteDiagnostics) []DiagnosticWa
 
 	// Interop compliance failures
 	if diag.InteropCompliance != nil {
-		for _, check := range diag.InteropCompliance.Checks {
-			if !check.Passed && !check.Skipped {
-				severity := "warn"
-				if check.Severity == "critical" {
-					severity = "error"
+		for _, r := range diag.InteropCompliance.Results {
+			if r.Passed || r.Skipped {
+				continue
+			}
+			if len(r.Violations) > 0 {
+				for _, v := range r.Violations {
+					severity := "warn"
+					if v.Severity == "critical" {
+						severity = "error"
+					}
+					warnings = append(warnings, DiagnosticWarning{
+						Source:   "interop",
+						Severity: severity,
+						Message:  v.Description,
+						FilePath: v.FilePath,
+						Line:     v.Line,
+					})
 				}
+			} else {
 				warnings = append(warnings, DiagnosticWarning{
 					Source:   "interop",
-					Severity: severity,
-					Message:  check.Message,
-					FilePath: check.FilePath,
-					Line:     check.Line,
+					Severity: "warn",
+					Message:  r.Message,
 				})
 			}
 		}

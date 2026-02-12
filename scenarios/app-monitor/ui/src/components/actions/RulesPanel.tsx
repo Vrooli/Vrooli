@@ -1,10 +1,37 @@
-import { Info, CheckCircle, XCircle } from 'lucide-react';
-import { INTEROP_SLOT_GROUPS } from './interopRulesData';
-import type { InteropRuleDef } from './interopRulesData';
+import { useEffect, useState } from 'react';
+import { Info, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import './RulesPanel.css';
 
-function RuleCard({ rule }: { rule: InteropRuleDef }) {
-  const hasExamples = rule.goodExample || rule.badExample;
+interface RuleDef {
+  id: string;
+  name: string;
+  description: string;
+  why: string;
+  category: string;
+  severity: string;
+  slot: string;
+  slot_file: string;
+  tech_stack: string[];
+  recommendation: string;
+  good_example?: string;
+  bad_example?: string;
+  standard?: string;
+  enabled: boolean;
+}
+
+interface RulesApiResponse {
+  success?: boolean;
+  data?: RuleDef[];
+}
+
+interface SlotGroup {
+  slot: string;
+  slotFile: string;
+  rules: RuleDef[];
+}
+
+function RuleCard({ rule }: { rule: RuleDef }) {
+  const hasExamples = rule.good_example || rule.bad_example;
 
   return (
     <div className={`rules-panel__rule rules-panel__rule--${rule.severity}`}>
@@ -15,7 +42,7 @@ function RuleCard({ rule }: { rule: InteropRuleDef }) {
         </span>
       </div>
 
-      <p className="rules-panel__why">{rule.why}</p>
+      <p className="rules-panel__why">{rule.why || rule.description}</p>
 
       <div className="rules-panel__recommendation">
         <Info size={14} aria-hidden />
@@ -24,22 +51,22 @@ function RuleCard({ rule }: { rule: InteropRuleDef }) {
 
       {hasExamples && (
         <div className="rules-panel__examples">
-          {rule.goodExample && (
+          {rule.good_example && (
             <div className="rules-panel__example rules-panel__example--good">
               <span className="rules-panel__example-label">
                 <CheckCircle size={12} aria-hidden />
                 Good
               </span>
-              <pre><code>{rule.goodExample}</code></pre>
+              <pre><code>{rule.good_example}</code></pre>
             </div>
           )}
-          {rule.badExample && (
+          {rule.bad_example && (
             <div className="rules-panel__example rules-panel__example--bad">
               <span className="rules-panel__example-label">
                 <XCircle size={12} aria-hidden />
                 Bad
               </span>
-              <pre><code>{rule.badExample}</code></pre>
+              <pre><code>{rule.bad_example}</code></pre>
             </div>
           )}
         </div>
@@ -48,7 +75,71 @@ function RuleCard({ rule }: { rule: InteropRuleDef }) {
   );
 }
 
+function groupBySlot(rules: RuleDef[]): SlotGroup[] {
+  const groups = new Map<string, SlotGroup>();
+  for (const rule of rules) {
+    const slot = rule.slot || 'Other';
+    const existing = groups.get(slot);
+    if (existing) {
+      existing.rules.push(rule);
+    } else {
+      groups.set(slot, { slot, slotFile: rule.slot_file || '', rules: [rule] });
+    }
+  }
+  // Sort groups by slot label
+  return [...groups.values()].sort((a, b) => a.slot.localeCompare(b.slot));
+}
+
+async function fetchRuleDefs(): Promise<RuleDef[]> {
+  const res = await fetch('/api/v1/rules');
+  if (!res.ok) throw new Error(`Failed to fetch rules: ${res.status}`);
+  const json = (await res.json()) as RulesApiResponse;
+  return json.data ?? [];
+}
+
 export default function RulesPanel() {
+  const [rules, setRules] = useState<RuleDef[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchRuleDefs()
+      .then((data) => {
+        if (!cancelled) {
+          setRules(data);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load rules');
+          setLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="rules-panel rules-panel--loading">
+        <Loader2 className="rules-panel__spinner" size={24} />
+        <span>Loading rules&hellip;</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rules-panel rules-panel--error">
+        <AlertTriangle size={20} />
+        <span>{error}</span>
+      </div>
+    );
+  }
+
+  const slotGroups = groupBySlot(rules);
+
   return (
     <div className="rules-panel">
       <p className="rules-panel__intro">
@@ -57,12 +148,11 @@ export default function RulesPanel() {
         Each rule maps to a specific file slot in the canonical layout.
       </p>
 
-      {INTEROP_SLOT_GROUPS.map((group) => (
+      {slotGroups.map((group) => (
         <section key={group.slot} className="rules-panel__slot-group">
           <h3 className="rules-panel__slot-header">
             <span className="rules-panel__slot-badge">{group.slot}</span>
-            <code className="rules-panel__slot-file">{group.file}</code>
-            <span className="rules-panel__slot-desc">&mdash; {group.description}</span>
+            <code className="rules-panel__slot-file">{group.slotFile}</code>
           </h3>
 
           {group.rules.map((rule) => (

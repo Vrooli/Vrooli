@@ -331,6 +331,7 @@ export const usePreviewNavigation = ({
   }, [
     bridgeState.href,
     clearPendingBridgeNavigationFallback,
+    setStatusMessage,
     transitionNavigationState,
   ]);
   useEffect(() => {

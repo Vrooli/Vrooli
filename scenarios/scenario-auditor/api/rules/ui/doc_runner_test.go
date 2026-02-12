@@ -6,8 +6,12 @@ package ui
 import (
 	"testing"
 
+	rules "scenario-auditor/rules"
 	"scenario-auditor/rules/testkit"
 )
+
+// Violation is a type alias used by doc tests and remaining rule files.
+type Violation = rules.Violation
 
 func runDocTestsViolations(t *testing.T, filename, defaultPath string, fn func([]byte, string) []Violation) {
 	t.Helper()

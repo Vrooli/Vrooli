@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"app-monitor-api/repository"
+	"app-monitor-api/rules"
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
@@ -596,6 +597,15 @@ func (h *AppHandler) GetInteropStandards(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// GetRuleDefs returns all rule metadata for the UI.
+func (h *AppHandler) GetRuleDefs(c *gin.Context) {
+	defs := rules.AllDefs()
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    defs,
+	})
 }
 
 // GetAppCompleteness returns completeness score metrics for an application

@@ -700,13 +700,12 @@ Scan Performance: ~1 second for quick scan, ~19-21 seconds for full audit
 
 ### Known Limitations (Non-Blocking)
 
-**Rule Self-Validation (Improved - 8 unstable, down from 15)**:
-- API reports "8 unstable rules" based on embedded test-case validation
+**Rule Self-Validation (Improved - 7 unstable, down from 15)**:
+- API reports "7 unstable rules" based on embedded test-case validation
 - The "unstable" designation now only applies to:
   - 6 content_type_* rules (text, csv, pdf, xml, html, binary, streaming) - unimplemented stubs with no test cases
-  - 1 iframe_bridge_quality rule - 7/10 tests passing (3 failing edge cases)
 - Core functionality unaffected - scanning, validation, CLI, API, UI all work correctly
-- **Note**: All implemented rules (28/34) now have stable test validation
+- **Note**: Interop rules (iframe bridge, proxy, tunnel) moved to app-monitor external checks
 
 **Test Infrastructure**:
 - Runtime validation uses embedded `<test-case>` blocks in rule documentation

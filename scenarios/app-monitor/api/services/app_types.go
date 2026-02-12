@@ -602,56 +602,6 @@ type LocalhostUsageReport struct {
 }
 
 // =============================================================================
-// UI Interop Compliance Types
-// =============================================================================
-
-// InteropCheckResult represents the result of a single interop compliance check
-type InteropCheckResult struct {
-	CheckID    string `json:"check_id"`
-	Name       string `json:"name"`
-	Passed     bool   `json:"passed"`
-	Severity   string `json:"severity"` // "critical", "high", "medium", "low"
-	Message    string `json:"message"`
-	FilePath   string `json:"file_path,omitempty"`
-	Line       int    `json:"line,omitempty"`
-	Slot       string `json:"slot,omitempty"`    // "[A]"-"[G]" from vrooli-ui-interop skill
-	Skipped    bool   `json:"skipped,omitempty"` // true if check is N/A (e.g., no router)
-	SkipReason string `json:"skip_reason,omitempty"`
-}
-
-// InteropComplianceReport is the full compliance report for a scenario's UI
-type InteropComplianceReport struct {
-	Scenario   string               `json:"scenario"`
-	CheckedAt  time.Time            `json:"checked_at"`
-	Checks     []InteropCheckResult `json:"checks"`
-	PassCount  int                  `json:"pass_count"`
-	FailCount  int                  `json:"fail_count"`
-	SkipCount  int                  `json:"skip_count"`
-	TotalCount int                  `json:"total_count"`
-	Score      int                  `json:"score"`  // 0-100 percentage
-	HasUI      bool                 `json:"has_ui"` // false if scenario has no ui/ dir
-	Warnings   []string             `json:"warnings,omitempty"`
-}
-
-// InteropStandardsResponse is the quality endpoint response format
-// (matches prd-control-tower's convention for scenario-auditor consumption)
-type InteropStandardsResponse struct {
-	EntityName string                      `json:"entity_name"`
-	Violations []InteropStandardsViolation `json:"violations"`
-}
-
-// InteropStandardsViolation represents a single interop violation for the quality endpoint
-type InteropStandardsViolation struct {
-	RuleID         string         `json:"rule_id"`
-	Severity       string         `json:"severity"`
-	Title          string         `json:"title"`
-	Description    string         `json:"description"`
-	FilePath       string         `json:"file_path"`
-	Recommendation string         `json:"recommendation"`
-	Metadata       map[string]any `json:"metadata"`
-}
-
-// =============================================================================
 // Issue Reporting Types
 // =============================================================================
 
