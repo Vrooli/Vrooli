@@ -26,7 +26,7 @@ The system provides a ChatGPT-style bubble interface for conversational AI (powe
 - [ ] OT-P0-006 | Manual renaming | Rename chats manually at any time
 - [ ] OT-P0-007 | Read/unread tracking | Mark conversations as read/unread with visual indicators
 - [ ] OT-P0-008 | Label management | Create, edit, delete, and assign colored labels to organize chats
-- [ ] OT-P0-009 | Chat persistence | Store all conversations in PostgreSQL with full message history
+- [ ] OT-P0-009 | Chat persistence | Store all conversations in SQLite with full message history
 - [x] OT-P0-010 | Tool calling | Support for AI-driven tool calls that dispatch tasks to agent-manager
 
 ### 🟠 P1 – Should have post-launch
@@ -53,7 +53,7 @@ The system provides a ChatGPT-style bubble interface for conversational AI (powe
 **Preferred stacks**:
 - **UI Stack**: React with Vite, TailwindCSS for styling, modern component architecture
 - **API Stack**: Go API server with WebSocket support for streaming responses
-- **Data Storage**: PostgreSQL for chats, messages, labels; conversation history with full-text search indexes
+- **Data Storage**: Embedded SQLite for chats, messages, labels; FTS5 full-text search; zero-config, portable
 - **AI Integration**:
   - OpenRouter API for chat completions (primary chat models)
   - Ollama (local) for auto-naming chats (fast, privacy-preserving)
@@ -63,7 +63,7 @@ The system provides a ChatGPT-style bubble interface for conversational AI (powe
 ## Dependencies & Launch Plan
 
 **Required resources**:
-- PostgreSQL - Store chats, messages, labels, user preferences
+- SQLite - Embedded database for chats, messages, labels, user preferences (zero-config)
 - Ollama - Local LLM for fast, private chat auto-naming
 
 **Required external services**:

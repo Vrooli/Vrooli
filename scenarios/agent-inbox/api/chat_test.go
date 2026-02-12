@@ -63,8 +63,8 @@ func TestCreateChatWithDefaults(t *testing.T) {
 		t.Errorf("Expected default name 'New Chat', got %s", chat.Name)
 	}
 
-	if chat.Model != "claude-3-5-sonnet-20241022" {
-		t.Errorf("Expected default model 'claude-3-5-sonnet-20241022', got %s", chat.Model)
+	if chat.Model != "anthropic/claude-3.5-sonnet" {
+		t.Errorf("Expected default model 'anthropic/claude-3.5-sonnet', got %s", chat.Model)
 	}
 
 	if chat.ViewMode != "bubble" {
@@ -72,12 +72,12 @@ func TestCreateChatWithDefaults(t *testing.T) {
 	}
 }
 
-// [REQ:BUBBLE-001] Test create chat with terminal view mode
-func TestCreateChatWithTerminalView(t *testing.T) {
+// [REQ:BUBBLE-001] Test create chat with compact view mode
+func TestCreateChatWithCompactView(t *testing.T) {
 	ts := setupTestServer(t)
 	defer ts.cleanup(t)
 
-	body := bytes.NewBuffer([]byte(`{"name": "Terminal Chat", "view_mode": "terminal"}`))
+	body := bytes.NewBuffer([]byte(`{"name": "Compact Chat", "view_mode": "compact"}`))
 	req := httptest.NewRequest("POST", "/api/v1/chats", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -92,8 +92,8 @@ func TestCreateChatWithTerminalView(t *testing.T) {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
 
-	if chat.ViewMode != "terminal" {
-		t.Errorf("Expected view_mode 'terminal', got %s", chat.ViewMode)
+	if chat.ViewMode != "compact" {
+		t.Errorf("Expected view_mode 'compact', got %s", chat.ViewMode)
 	}
 }
 

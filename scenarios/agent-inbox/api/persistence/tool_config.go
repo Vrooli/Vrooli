@@ -16,12 +16,6 @@ import (
 
 // SaveToolConfiguration upserts a tool configuration.
 // If chatID is empty, this is a global configuration.
-//
-// NOTE: PostgreSQL treats NULL values as distinct in unique constraints by default.
-// This means ON CONFLICT (chat_id, scenario, tool_name) won't match rows where chat_id IS NULL.
-// We handle this by using different queries for global vs chat-specific configs:
-// - Global (NULL chat_id): Use ON CONFLICT with partial index on (scenario, tool_name) WHERE chat_id IS NULL
-// - Chat-specific: Use regular ON CONFLICT on the composite unique constraint
 func (r *Repository) SaveToolConfiguration(ctx context.Context, cfg *domain.ToolConfiguration) error {
 	now := time.Now()
 
@@ -38,27 +32,27 @@ func (r *Repository) SaveToolConfiguration(ctx context.Context, cfg *domain.Tool
 
 	if cfg.ChatID == "" {
 		// Global configuration - use partial unique index for conflict detection
-		// The partial index idx_tool_configurations_global_unique is defined as:
-		// UNIQUE(scenario, tool_name) WHERE chat_id IS NULL
+		id := newID()
 		query = `
-			INSERT INTO tool_configurations (chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
-			VALUES (NULL, $1, $2, $3, $4, $5, $5)
+			INSERT INTO tool_configurations (id, chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
+			VALUES ($1, NULL, $2, $3, $4, $5, $6, $6)
 			ON CONFLICT (scenario, tool_name) WHERE chat_id IS NULL
-			DO UPDATE SET enabled = $3, approval_override = $4, updated_at = $5
-			RETURNING id, created_at, updated_at`
-		args = []interface{}{cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now}
-	} else {
-		// Chat-specific configuration - use regular unique constraint
-		query = `
-			INSERT INTO tool_configurations (chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $6)
-			ON CONFLICT (chat_id, scenario, tool_name)
 			DO UPDATE SET enabled = $4, approval_override = $5, updated_at = $6
 			RETURNING id, created_at, updated_at`
-		args = []interface{}{cfg.ChatID, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now}
+		args = []interface{}{id, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now}
+	} else {
+		// Chat-specific configuration - use regular unique constraint
+		id := newID()
+		query = `
+			INSERT INTO tool_configurations (id, chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+			ON CONFLICT (chat_id, scenario, tool_name)
+			DO UPDATE SET enabled = $5, approval_override = $6, updated_at = $7
+			RETURNING id, created_at, updated_at`
+		args = []interface{}{id, cfg.ChatID, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now}
 	}
 
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(&cfg.ID, &cfg.CreatedAt, &cfg.UpdatedAt)
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(&cfg.ID, scanTime(&cfg.CreatedAt), scanTime(&cfg.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("failed to save tool configuration: %w", err)
 	}
@@ -89,7 +83,7 @@ func (r *Repository) GetToolConfiguration(ctx context.Context, chatID, scenario,
 
 	err := r.db.QueryRowContext(ctx, query, chatIDValue, scenario, toolName).Scan(
 		&cfg.ID, &nullChatID, &cfg.Scenario, &cfg.ToolName,
-		&cfg.Enabled, &nullApprovalOverride, &cfg.CreatedAt, &cfg.UpdatedAt,
+		&cfg.Enabled, &nullApprovalOverride, scanTime(&cfg.CreatedAt), scanTime(&cfg.UpdatedAt),
 	)
 
 	if err == sql.ErrNoRows {
@@ -125,11 +119,12 @@ func (r *Repository) ListToolConfigurations(ctx context.Context, chatID string) 
 			ORDER BY scenario, tool_name`
 	} else {
 		// Both global and chat-specific configurations
+		// SQLite does not support NULLS FIRST; use CASE expression instead.
 		query = `
 			SELECT id, chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at
 			FROM tool_configurations
 			WHERE chat_id IS NULL OR chat_id = $1
-			ORDER BY scenario, tool_name, chat_id NULLS FIRST`
+			ORDER BY scenario, tool_name, (CASE WHEN chat_id IS NULL THEN 0 ELSE 1 END)`
 		args = append(args, chatID)
 	}
 
@@ -147,7 +142,7 @@ func (r *Repository) ListToolConfigurations(ctx context.Context, chatID string) 
 
 		if err := rows.Scan(
 			&cfg.ID, &nullChatID, &cfg.Scenario, &cfg.ToolName,
-			&cfg.Enabled, &nullApprovalOverride, &cfg.CreatedAt, &cfg.UpdatedAt,
+			&cfg.Enabled, &nullApprovalOverride, scanTime(&cfg.CreatedAt), scanTime(&cfg.UpdatedAt),
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan tool configuration: %w", err)
 		}
@@ -218,7 +213,6 @@ func (r *Repository) GetEffectiveToolEnabled(ctx context.Context, chatID, scenar
 }
 
 // BulkSaveToolConfigurations saves multiple tool configurations in a transaction.
-// Uses separate queries for global vs chat-specific configs to handle PostgreSQL NULL uniqueness.
 func (r *Repository) BulkSaveToolConfigurations(ctx context.Context, configs []*domain.ToolConfiguration) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -228,20 +222,20 @@ func (r *Repository) BulkSaveToolConfigurations(ctx context.Context, configs []*
 
 	// Prepare separate statements for global vs chat-specific configs
 	globalStmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO tool_configurations (chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
-		VALUES (NULL, $1, $2, $3, $4, $5, $5)
+		INSERT INTO tool_configurations (id, chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
+		VALUES ($1, NULL, $2, $3, $4, $5, $6, $6)
 		ON CONFLICT (scenario, tool_name) WHERE chat_id IS NULL
-		DO UPDATE SET enabled = $3, approval_override = $4, updated_at = $5`)
+		DO UPDATE SET enabled = $4, approval_override = $5, updated_at = $6`)
 	if err != nil {
 		return fmt.Errorf("failed to prepare global statement: %w", err)
 	}
 	defer globalStmt.Close()
 
 	chatStmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO tool_configurations (chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $6)
+		INSERT INTO tool_configurations (id, chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
 		ON CONFLICT (chat_id, scenario, tool_name)
-		DO UPDATE SET enabled = $4, approval_override = $5, updated_at = $6`)
+		DO UPDATE SET enabled = $5, approval_override = $6, updated_at = $7`)
 	if err != nil {
 		return fmt.Errorf("failed to prepare chat statement: %w", err)
 	}
@@ -256,14 +250,15 @@ func (r *Repository) BulkSaveToolConfigurations(ctx context.Context, configs []*
 			approvalOverride = string(cfg.ApprovalOverride)
 		}
 
+		id := newID()
 		if cfg.ChatID == "" {
 			// Global configuration
-			if _, err := globalStmt.ExecContext(ctx, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now); err != nil {
+			if _, err := globalStmt.ExecContext(ctx, id, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now); err != nil {
 				return fmt.Errorf("failed to save global tool configuration for %s/%s: %w", cfg.Scenario, cfg.ToolName, err)
 			}
 		} else {
 			// Chat-specific configuration
-			if _, err := chatStmt.ExecContext(ctx, cfg.ChatID, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now); err != nil {
+			if _, err := chatStmt.ExecContext(ctx, id, cfg.ChatID, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now); err != nil {
 				return fmt.Errorf("failed to save chat tool configuration for %s/%s: %w", cfg.Scenario, cfg.ToolName, err)
 			}
 		}
@@ -310,10 +305,11 @@ func (r *Repository) SetToolApprovalOverride(ctx context.Context, chatID, scenar
 	}
 
 	// No existing config, create one with default enabled=true
+	id := newID()
 	_, err = r.db.ExecContext(ctx, `
-		INSERT INTO tool_configurations (chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
-		VALUES ($1, $2, $3, true, $4, $5, $5)`,
-		chatIDValue, scenario, toolName, approvalOverride, now)
+		INSERT INTO tool_configurations (id, chat_id, scenario, tool_name, enabled, approval_override, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, 1, $5, $6, $6)`,
+		id, chatIDValue, scenario, toolName, approvalOverride, now)
 	if err != nil {
 		return fmt.Errorf("failed to create tool configuration with approval override: %w", err)
 	}
@@ -370,13 +366,13 @@ func (r *Repository) GetPendingApprovals(ctx context.Context, chatID string) ([]
 	for rows.Next() {
 		var rec domain.ToolCallRecord
 		var result, errorMessage sql.NullString
-		var completedAt sql.NullTime
+		var completedAt sqliteNullTime
 		var scenarioName, externalRunID sql.NullString
 
 		if err := rows.Scan(
 			&rec.ID, &rec.MessageID, &rec.ChatID, &rec.ToolName,
 			&rec.Arguments, &result, &rec.Status,
-			&scenarioName, &externalRunID, &rec.StartedAt, &completedAt, &errorMessage,
+			&scenarioName, &externalRunID, scanTime(&rec.StartedAt), &completedAt, &errorMessage,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan pending approval: %w", err)
 		}
@@ -413,13 +409,13 @@ func (r *Repository) GetToolCallByID(ctx context.Context, toolCallID string) (*d
 
 	var rec domain.ToolCallRecord
 	var result, errorMessage sql.NullString
-	var completedAt sql.NullTime
+	var completedAt sqliteNullTime
 	var scenarioName, externalRunID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, toolCallID).Scan(
 		&rec.ID, &rec.MessageID, &rec.ChatID, &rec.ToolName,
 		&rec.Arguments, &result, &rec.Status,
-		&scenarioName, &externalRunID, &rec.StartedAt, &completedAt, &errorMessage,
+		&scenarioName, &externalRunID, scanTime(&rec.StartedAt), &completedAt, &errorMessage,
 	)
 
 	if err == sql.ErrNoRows {

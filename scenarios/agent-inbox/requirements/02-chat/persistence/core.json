@@ -1,11 +1,11 @@
 {
   "module": "chat-persistence",
-  "description": "PostgreSQL storage for chats and messages",
+  "description": "SQLite storage for chats and messages",
   "requirements": [
     {
       "id": "PERSIST-001",
       "title": "Store chat metadata",
-      "description": "Save chat ID, name, model, view mode, labels, timestamps to PostgreSQL",
+      "description": "Save chat ID, name, model, view mode, labels, timestamps to SQLite",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
       "status": "complete",
@@ -27,7 +27,7 @@
     {
       "id": "PERSIST-002",
       "title": "Store messages",
-      "description": "Save all messages with role, content, timestamp, token count to PostgreSQL",
+      "description": "Save all messages with role, content, timestamp, token count to SQLite",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
       "status": "complete",

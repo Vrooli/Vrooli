@@ -1,7 +1,7 @@
 // Package persistence provides database operations for the Agent Inbox scenario.
 //
 // This file provides user settings persistence operations.
-// Settings are stored as key-value pairs with JSONB values for flexibility.
+// Settings are stored as key-value pairs with JSON text values for flexibility.
 package persistence
 
 import (
@@ -29,7 +29,7 @@ func (r *Repository) GetUserSetting(ctx context.Context, key string) (string, er
 		return "", fmt.Errorf("failed to get user setting %s: %w", key, err)
 	}
 
-	// Parse JSONB value - it could be a string, bool, number, etc.
+	// Parse JSON value - it could be a string, bool, number, etc.
 	var value interface{}
 	if err := json.Unmarshal(valueJSON, &value); err != nil {
 		return "", fmt.Errorf("failed to parse setting value: %w", err)
@@ -55,19 +55,20 @@ func (r *Repository) GetUserSetting(ctx context.Context, key string) (string, er
 func (r *Repository) SetUserSetting(ctx context.Context, key, value string) error {
 	now := time.Now()
 
-	// Wrap string value in quotes for JSONB
+	// Wrap string value in quotes for JSON
 	valueJSON, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("failed to marshal setting value: %w", err)
 	}
 
+	id := newID()
 	query := `
-		INSERT INTO user_settings (key, value, created_at, updated_at)
-		VALUES ($1, $2, $3, $3)
+		INSERT INTO user_settings (id, key, value, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $4)
 		ON CONFLICT (key)
-		DO UPDATE SET value = $2, updated_at = $3`
+		DO UPDATE SET value = $3, updated_at = $4`
 
-	_, err = r.db.ExecContext(ctx, query, key, valueJSON, now)
+	_, err = r.db.ExecContext(ctx, query, id, key, valueJSON, now)
 	if err != nil {
 		return fmt.Errorf("failed to set user setting %s: %w", key, err)
 	}

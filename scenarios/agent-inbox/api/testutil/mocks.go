@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"agent-inbox/domain"
+	"agent-inbox/integrations"
 	"agent-inbox/services"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
@@ -75,14 +76,14 @@ func (m *MockToolExecutor) LastCall() *MockExecuteCall {
 
 // FakeAsyncTracker provides a controllable async tracker for testing.
 type FakeAsyncTracker struct {
-	mu                  sync.Mutex
-	Operations          map[string]*services.AsyncOperation
-	StatusUpdates       chan services.AsyncStatusUpdate
-	CompletionEvents    chan services.AsyncCompletionEvent
-	StartTrackingCalls  []StartTrackingCall
-	StartTrackingError  error
-	CancelCalls         []string
-	CancelError         error
+	mu                 sync.Mutex
+	Operations         map[string]*services.AsyncOperation
+	StatusUpdates      chan services.AsyncStatusUpdate
+	CompletionEvents   chan services.AsyncCompletionEvent
+	StartTrackingCalls []StartTrackingCall
+	StartTrackingError error
+	CancelCalls        []string
+	CancelError        error
 }
 
 // StartTrackingCall records a call to StartTracking.
@@ -148,11 +149,11 @@ func (f *FakeAsyncTracker) Reset() {
 
 // MockScenarioHandler provides a controllable scenario handler for testing.
 type MockScenarioHandler struct {
-	mu             sync.Mutex
-	HandleCalls    []MockHandleCall
-	HandleResult   *domain.ToolCallRecord
-	HandleError    error
-	HandleFunc     func(ctx context.Context, toolName, args string) (*domain.ToolCallRecord, error)
+	mu           sync.Mutex
+	HandleCalls  []MockHandleCall
+	HandleResult *domain.ToolCallRecord
+	HandleError  error
+	HandleFunc   func(ctx context.Context, toolName, args string) (*domain.ToolCallRecord, error)
 }
 
 // MockHandleCall records a call to Handle.
@@ -263,14 +264,14 @@ type MockToolRegistry struct {
 	ApprovalRequirements map[string]bool
 
 	// Error responses for testing error paths
-	GetToolByNameError        error
-	GetToolsForOpenAIError    error
-	GetToolApprovalError      error
+	GetToolByNameError     error
+	GetToolsForOpenAIError error
+	GetToolApprovalError   error
 
 	// Call tracking
-	GetToolByNameCalls      []string
-	GetToolsForOpenAICalls  []string
-	GetToolApprovalCalls    []GetToolApprovalCall
+	GetToolByNameCalls     []string
+	GetToolsForOpenAICalls []string
+	GetToolApprovalCalls   []GetToolApprovalCall
 }
 
 // GetToolApprovalCall records a call to GetToolApprovalRequired.
@@ -382,4 +383,121 @@ func CreateToolWithMetadata(name, description string, metadata *toolspb.ToolMeta
 		},
 		Metadata: metadata,
 	}
+}
+
+// =============================================================================
+// MockAgentManagerClient
+// =============================================================================
+
+// StartAgentChatCall records a call to StartAgentChat.
+type StartAgentChatCall struct {
+	Message string
+	Config  integrations.AgentChatConfig
+}
+
+// ContinueChatCall records a call to ContinueChat.
+type ContinueChatCall struct {
+	RunID   string
+	Message string
+}
+
+// GetEventsCall records a call to GetEvents.
+type GetEventsCall struct {
+	RunID         string
+	AfterSequence int64
+}
+
+// MockAgentManagerClient provides a controllable agent-manager client for testing.
+type MockAgentManagerClient struct {
+	mu sync.Mutex
+
+	// Configurable return values
+	StartResult  *integrations.AgentChatSession
+	StartError   error
+	ContinueErr  error
+	EventsResult []*integrations.TranslatedEvent
+	EventsError  error
+	StatusResult *integrations.AgentRunStatus
+	StatusError  error
+	StopError    error
+
+	// Call tracking
+	StartCalls    []StartAgentChatCall
+	ContinueCalls []ContinueChatCall
+	EventsCalls   []GetEventsCall
+	StatusCalls   []string // runIDs
+	StopCalls     []string // runIDs
+
+	// Custom func hooks (override default behavior when set)
+	StartFunc    func(ctx context.Context, message string, cfg integrations.AgentChatConfig) (*integrations.AgentChatSession, error)
+	ContinueFunc func(ctx context.Context, runID, message string) error
+	EventsFunc   func(ctx context.Context, runID string, afterSequence int64) ([]*integrations.TranslatedEvent, error)
+	StatusFunc   func(ctx context.Context, runID string) (*integrations.AgentRunStatus, error)
+	StopFunc     func(ctx context.Context, runID string) error
+}
+
+// StartAgentChat implements AgentManagerClientInterface.
+func (m *MockAgentManagerClient) StartAgentChat(ctx context.Context, message string, cfg integrations.AgentChatConfig) (*integrations.AgentChatSession, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StartCalls = append(m.StartCalls, StartAgentChatCall{Message: message, Config: cfg})
+	if m.StartFunc != nil {
+		return m.StartFunc(ctx, message, cfg)
+	}
+	return m.StartResult, m.StartError
+}
+
+// ContinueChat implements AgentManagerClientInterface.
+func (m *MockAgentManagerClient) ContinueChat(ctx context.Context, runID, message string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ContinueCalls = append(m.ContinueCalls, ContinueChatCall{RunID: runID, Message: message})
+	if m.ContinueFunc != nil {
+		return m.ContinueFunc(ctx, runID, message)
+	}
+	return m.ContinueErr
+}
+
+// GetEvents implements AgentManagerClientInterface.
+func (m *MockAgentManagerClient) GetEvents(ctx context.Context, runID string, afterSequence int64) ([]*integrations.TranslatedEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.EventsCalls = append(m.EventsCalls, GetEventsCall{RunID: runID, AfterSequence: afterSequence})
+	if m.EventsFunc != nil {
+		return m.EventsFunc(ctx, runID, afterSequence)
+	}
+	return m.EventsResult, m.EventsError
+}
+
+// GetRunStatus implements AgentManagerClientInterface.
+func (m *MockAgentManagerClient) GetRunStatus(ctx context.Context, runID string) (*integrations.AgentRunStatus, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StatusCalls = append(m.StatusCalls, runID)
+	if m.StatusFunc != nil {
+		return m.StatusFunc(ctx, runID)
+	}
+	return m.StatusResult, m.StatusError
+}
+
+// StopRun implements AgentManagerClientInterface.
+func (m *MockAgentManagerClient) StopRun(ctx context.Context, runID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StopCalls = append(m.StopCalls, runID)
+	if m.StopFunc != nil {
+		return m.StopFunc(ctx, runID)
+	}
+	return m.StopError
+}
+
+// Reset clears all recorded calls and return values.
+func (m *MockAgentManagerClient) Reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StartCalls = nil
+	m.ContinueCalls = nil
+	m.EventsCalls = nil
+	m.StatusCalls = nil
+	m.StopCalls = nil
 }

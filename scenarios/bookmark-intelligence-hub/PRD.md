@@ -58,10 +58,7 @@ The Bookmark Intelligence Hub transforms scattered social media bookmarks into o
 
 **Integration Strategy**:
 1. Prefer shared workflows via Huginn agents (social media scraping patterns)
-2. Use resource CLIs (resource-huginn, resource-browserless, resource-postgres)
 3. Direct platform APIs only when necessary (authenticated bookmark access)
-
-**Resource Dependencies**: postgres (required), huginn (required), browserless (required fallback), qdrant (optional semantic matching), ollama (optional local LLM)
 
 **Non-goals**:
 - Not building a generic social media management tool

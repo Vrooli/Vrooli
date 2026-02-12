@@ -13,6 +13,15 @@ import (
 	"agent-inbox/middleware"
 )
 
+// getAgentClient returns the agent-manager client or writes an error response if unavailable.
+func (h *Handlers) getAgentClient(w http.ResponseWriter, r *http.Request) integrations.AgentManagerClientInterface {
+	if h.AgentClient == nil {
+		h.WriteAppError(w, r, domain.ErrServiceUnavailable("agent-manager"))
+		return nil
+	}
+	return h.AgentClient
+}
+
 // StartAgentModeRequest is the request body for starting agent mode.
 type StartAgentModeRequest struct {
 	Message     string `json:"message"`      // Initial message to send to the agent
@@ -76,10 +85,8 @@ func (h *Handlers) StartAgentMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get agent-manager client
-	agentClient, err := integrations.NewAgentManagerClient()
-	if err != nil {
-		log.Printf("[ERROR] [%s] StartAgentMode NewAgentManagerClient failed: %v", middleware.GetRequestID(r.Context()), err)
-		h.WriteAppError(w, r, domain.ErrServiceUnavailable("agent-manager"))
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
 		return
 	}
 
@@ -163,10 +170,8 @@ func (h *Handlers) SendAgentMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get agent-manager client
-	agentClient, err := integrations.NewAgentManagerClient()
-	if err != nil {
-		log.Printf("[ERROR] [%s] SendAgentMessage NewAgentManagerClient failed: %v", middleware.GetRequestID(r.Context()), err)
-		h.WriteAppError(w, r, domain.ErrServiceUnavailable("agent-manager"))
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
 		return
 	}
 
@@ -230,10 +235,8 @@ func (h *Handlers) GetAgentEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get agent-manager client
-	agentClient, err := integrations.NewAgentManagerClient()
-	if err != nil {
-		log.Printf("[ERROR] [%s] GetAgentEvents NewAgentManagerClient failed: %v", middleware.GetRequestID(r.Context()), err)
-		h.WriteAppError(w, r, domain.ErrServiceUnavailable("agent-manager"))
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
 		return
 	}
 
@@ -278,10 +281,8 @@ func (h *Handlers) StopAgentMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get agent-manager client
-	agentClient, err := integrations.NewAgentManagerClient()
-	if err != nil {
-		log.Printf("[ERROR] [%s] StopAgentMode NewAgentManagerClient failed: %v", middleware.GetRequestID(r.Context()), err)
-		h.WriteAppError(w, r, domain.ErrServiceUnavailable("agent-manager"))
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
 		return
 	}
 
@@ -334,10 +335,8 @@ func (h *Handlers) GetAgentStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get agent-manager client
-	agentClient, err := integrations.NewAgentManagerClient()
-	if err != nil {
-		log.Printf("[ERROR] [%s] GetAgentStatus NewAgentManagerClient failed: %v", middleware.GetRequestID(r.Context()), err)
-		h.WriteAppError(w, r, domain.ErrServiceUnavailable("agent-manager"))
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
 		return
 	}
 
@@ -386,13 +385,10 @@ func (h *Handlers) ClearAgentMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If in agent mode with active run, try to stop it
-	if chatMode == domain.ChatModeAgent && runID != "" {
-		agentClient, err := integrations.NewAgentManagerClient()
-		if err == nil {
-			if err := agentClient.StopRun(r.Context(), runID); err != nil {
-				log.Printf("[WARN] [%s] ClearAgentMode StopRun failed: %v", middleware.GetRequestID(r.Context()), err)
-				// Non-fatal, continue to clear
-			}
+	if chatMode == domain.ChatModeAgent && runID != "" && h.AgentClient != nil {
+		if err := h.AgentClient.StopRun(r.Context(), runID); err != nil {
+			log.Printf("[WARN] [%s] ClearAgentMode StopRun failed: %v", middleware.GetRequestID(r.Context()), err)
+			// Non-fatal, continue to clear
 		}
 	}
 

@@ -11,7 +11,7 @@ requirements/
     labels/           # Label CRUD and assignment (P0-008)
   02-chat/            # Chat conversation functionality
     bubble-view/      # ChatGPT-style interface (P0-002, P0-003, P0-004, P0-010, P1-006)
-    persistence/      # PostgreSQL storage (P0-009, P1-005)
+    persistence/      # SQLite storage (P0-009, P1-005)
   03-naming/          # Chat naming
     auto-naming.json  # Ollama auto-naming and manual rename (P0-005, P0-006)
   05-enhancements/    # Post-launch improvements

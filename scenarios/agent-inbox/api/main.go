@@ -12,7 +12,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"agent-inbox/config"
@@ -24,11 +28,63 @@ import (
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
 )
+
+// =============================================================================
+// SQLite DSN Builder
+// =============================================================================
+
+// sqliteDSN resolves the SQLite database file path and returns a DSN with pragmas.
+func sqliteDSN() (string, error) {
+	// Check scenario-specific env var first
+	if path := strings.TrimSpace(os.Getenv("AI_SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	// Check generic env vars
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	if dsn := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(dsn, "file:") {
+		return dsn, nil
+	}
+
+	// Default path
+	dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
+	if dataRoot == "" {
+		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+	}
+	if dataRoot == "" {
+		home, _ := os.UserHomeDir()
+		if home == "" {
+			home = "."
+		}
+		dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
+	}
+
+	return sqliteFileDSN(filepath.Join(dataRoot, "agent-inbox.db"))
+}
+
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
+}
 
 // =============================================================================
 // Async Repository Adapter
@@ -220,9 +276,17 @@ func main() {
 		return
 	}
 
-	// Connect to database
+	// Build SQLite DSN and connect
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("sqlite configuration failed: %v", err)
+	}
+
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: database.DriverPostgres,
+		Driver:       "sqlite",
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)
@@ -280,6 +344,13 @@ func main() {
 	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker, toolExecutor, toolRegistry)
 	h.Templates = templatesSvc
 	h.Skills = skillsSvc
+
+	// Wire agent-manager client (may not be available at startup)
+	agentClient, err := integrations.NewAgentManagerClient()
+	if err != nil {
+		log.Printf("warning: agent-manager not available: %v", err)
+	}
+	h.AgentClient = agentClient
 
 	// Create upload handlers
 	uploadHandlers := handlers.NewUploadHandlers(storage, storageCfg)

@@ -18,7 +18,7 @@ func (r *Repository) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx,
 // SaveToolCallRecordTx saves a tool call execution record within a transaction.
 // This is the transaction-aware variant of SaveToolCallRecord.
 func (r *Repository) SaveToolCallRecordTx(ctx context.Context, tx *sql.Tx, messageID string, record *domain.ToolCallRecord) error {
-	// Ensure arguments is valid JSON (empty string is not valid JSONB)
+	// Ensure arguments is valid JSON (empty string is not valid JSON)
 	arguments := record.Arguments
 	if arguments == "" {
 		arguments = "{}"
@@ -53,15 +53,16 @@ func (r *Repository) SaveToolResponseMessageTx(ctx context.Context, tx *sql.Tx, 
 		siblingIndex = r.getNextSiblingIndexTx(ctx, tx, parentMessageID)
 	}
 
+	id := newID()
 	var msg domain.Message
 	err := tx.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, tool_call_id, parent_message_id, sibling_index)
-		VALUES ($1, 'tool', $2, $3, $4, $5)
+		INSERT INTO messages (id, chat_id, role, content, tool_call_id, parent_message_id, sibling_index)
+		VALUES ($1, $2, 'tool', $3, $4, $5, $6)
 		RETURNING id, chat_id, role, content, tool_call_id, parent_message_id, sibling_index, created_at
-	`, chatID, result, toolCallID,
+	`, id, chatID, result, toolCallID,
 		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
 		siblingIndex).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &msg.ToolCallID, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &msg.ToolCallID, &sql.NullString{}, &msg.SiblingIndex, scanTime(&msg.CreatedAt),
 	)
 	if err != nil {
 		return nil, err
@@ -74,7 +75,7 @@ func (r *Repository) SaveToolResponseMessageTx(ctx context.Context, tx *sql.Tx, 
 // This is the transaction-aware variant of SetActiveLeaf.
 func (r *Repository) SetActiveLeafTx(ctx context.Context, tx *sql.Tx, chatID, messageID string) error {
 	_, err := tx.ExecContext(ctx, `
-		UPDATE chats SET active_leaf_message_id = $1, updated_at = NOW() WHERE id = $2
+		UPDATE chats SET active_leaf_message_id = $1, updated_at = datetime('now') WHERE id = $2
 	`, sql.NullString{String: messageID, Valid: messageID != ""}, chatID)
 	return err
 }

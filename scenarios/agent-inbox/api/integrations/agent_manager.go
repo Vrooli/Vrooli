@@ -18,6 +18,16 @@ import (
 	"agent-inbox/config"
 )
 
+// AgentManagerClientInterface defines the operations used by agent mode handlers.
+// This interface enables dependency injection for testing.
+type AgentManagerClientInterface interface {
+	StartAgentChat(ctx context.Context, message string, cfg AgentChatConfig) (*AgentChatSession, error)
+	ContinueChat(ctx context.Context, runID, message string) error
+	GetEvents(ctx context.Context, runID string, afterSequence int64) ([]*TranslatedEvent, error)
+	GetRunStatus(ctx context.Context, runID string) (*AgentRunStatus, error)
+	StopRun(ctx context.Context, runID string) error
+}
+
 // AgentManagerClient provides direct REST API access to agent-manager.
 // This client is used for reconciliation during server restart recovery.
 // Tool execution flows through the Tool Execution Protocol (ProtocolHandler) instead.
@@ -155,8 +165,8 @@ type AgentRunStatus struct {
 // TranslatedEvent represents an agent-manager event translated for inbox rendering.
 type TranslatedEvent struct {
 	ID        string    `json:"id"`
-	Type      string    `json:"type"`      // message, tool_call, tool_result, status, error, progress
-	Role      string    `json:"role"`      // user, assistant, system, tool
+	Type      string    `json:"type"` // message, tool_call, tool_result, status, error, progress
+	Role      string    `json:"role"` // user, assistant, system, tool
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
 	Sequence  int64     `json:"sequence"`
@@ -325,7 +335,7 @@ func (c *AgentManagerClient) GetEvents(ctx context.Context, runID string, afterS
 	// Translate events to inbox format
 	events := make([]*TranslatedEvent, 0, len(result.Events))
 	for _, raw := range result.Events {
-		event := translateEvent(raw)
+		event := TranslateEvent(raw)
 		if event != nil {
 			events = append(events, event)
 		}
@@ -334,8 +344,8 @@ func (c *AgentManagerClient) GetEvents(ctx context.Context, runID string, afterS
 	return events, nil
 }
 
-// translateEvent converts an agent-manager event to TranslatedEvent format.
-func translateEvent(raw map[string]interface{}) *TranslatedEvent {
+// TranslateEvent converts an agent-manager event to TranslatedEvent format.
+func TranslateEvent(raw map[string]interface{}) *TranslatedEvent {
 	id, _ := raw["id"].(string)
 	eventType, _ := raw["eventType"].(string)
 	sequence, _ := raw["sequence"].(float64)

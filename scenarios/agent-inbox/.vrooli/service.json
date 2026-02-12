@@ -185,12 +185,11 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
+      "sqlite": {
+        "type": "sqlite",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store",
-        "schema": "agent-inbox"
+        "description": "Embedded relational data store"
       },
       "ollama": {
         "type": "ollama",

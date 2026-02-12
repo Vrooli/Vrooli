@@ -98,12 +98,12 @@ func (r *Repository) GetAsyncOperationByToolCallID(ctx context.Context, toolCall
 	var progress sql.NullInt32
 	var message, phase, errorMsg sql.NullString
 	var result, asyncBehavior sql.NullString
-	var completedAt sql.NullTime
+	var completedAt sqliteNullTime
 
 	err := row.Scan(
 		&op.ToolCallID, &op.ChatID, &op.ToolName, &op.ScenarioName, &op.OperationID,
 		&op.Status, &progress, &message, &phase, &result, &errorMsg, &asyncBehavior,
-		&op.StartedAt, &op.UpdatedAt, &completedAt,
+		scanTime(&op.StartedAt), scanTime(&op.UpdatedAt), &completedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -203,7 +203,7 @@ func (r *Repository) CleanupCompletedAsyncOperations(ctx context.Context, olderT
 // Used during graceful shutdown to mark operations as interrupted.
 func (r *Repository) UpdateAsyncOperationStatus(ctx context.Context, toolCallID, status string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE async_operations SET status = $1, updated_at = NOW() WHERE tool_call_id = $2
+		UPDATE async_operations SET status = $1, updated_at = datetime('now') WHERE tool_call_id = $2
 	`, status, toolCallID)
 	if err != nil {
 		return fmt.Errorf("failed to update async operation status: %w", err)
@@ -252,10 +252,11 @@ func (r *Repository) GetCompletedAsyncOperationsByChatID(ctx context.Context, ch
 
 // CreateCompletionEvent inserts a new completion event record.
 func (r *Repository) CreateCompletionEvent(ctx context.Context, event *AsyncCompletionEventRecord) error {
+	id := newID()
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO async_completion_events (chat_id, tool_call_id, tool_name, status, result, error)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, event.ChatID, event.ToolCallID, event.ToolName, event.Status, event.Result, event.Error)
+		INSERT INTO async_completion_events (id, chat_id, tool_call_id, tool_name, status, result, error)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, id, event.ChatID, event.ToolCallID, event.ToolName, event.Status, event.Result, event.Error)
 	if err != nil {
 		return fmt.Errorf("failed to create completion event: %w", err)
 	}
@@ -282,7 +283,7 @@ func (r *Repository) GetCompletionEventsSince(ctx context.Context, chatID string
 		var result, errorMsg sql.NullString
 
 		if err := rows.Scan(&event.ID, &event.ChatID, &event.ToolCallID, &event.ToolName,
-			&event.Status, &result, &errorMsg, &event.CreatedAt); err != nil {
+			&event.Status, &result, &errorMsg, scanTime(&event.CreatedAt)); err != nil {
 			continue
 		}
 
@@ -324,12 +325,12 @@ func scanAsyncOperations(rows *sql.Rows) ([]*AsyncOperationRecord, error) {
 		var progress sql.NullInt32
 		var message, phase, errorMsg sql.NullString
 		var result, asyncBehavior sql.NullString
-		var completedAt sql.NullTime
+		var completedAt sqliteNullTime
 
 		if err := rows.Scan(
 			&op.ToolCallID, &op.ChatID, &op.ToolName, &op.ScenarioName, &op.OperationID,
 			&op.Status, &progress, &message, &phase, &result, &errorMsg, &asyncBehavior,
-			&op.StartedAt, &op.UpdatedAt, &completedAt,
+			scanTime(&op.StartedAt), scanTime(&op.UpdatedAt), &completedAt,
 		); err != nil {
 			continue
 		}

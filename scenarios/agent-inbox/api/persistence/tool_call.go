@@ -14,7 +14,7 @@ import (
 
 // SaveToolCallRecord saves a tool call execution record.
 func (r *Repository) SaveToolCallRecord(ctx context.Context, messageID string, record *domain.ToolCallRecord) error {
-	// Ensure arguments is valid JSON (empty string is not valid JSONB)
+	// Ensure arguments is valid JSON (empty string is not valid JSON)
 	arguments := record.Arguments
 	if arguments == "" {
 		arguments = "{}"
@@ -54,9 +54,9 @@ func (r *Repository) ListToolCallsForChat(ctx context.Context, chatID string) ([
 	records := make([]domain.ToolCallRecord, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var record domain.ToolCallRecord
-		var completedAt sql.NullTime
+		var completedAt sqliteNullTime
 		var result, scenarioName, externalRunID, errorMessage sql.NullString
-		if err := rows.Scan(&record.ID, &record.MessageID, &record.ChatID, &record.ToolName, &record.Arguments, &result, &record.Status, &scenarioName, &externalRunID, &record.StartedAt, &completedAt, &errorMessage); err != nil {
+		if err := rows.Scan(&record.ID, &record.MessageID, &record.ChatID, &record.ToolName, &record.Arguments, &result, &record.Status, &scenarioName, &externalRunID, scanTime(&record.StartedAt), &completedAt, &errorMessage); err != nil {
 			continue
 		}
 		if result.Valid {
@@ -100,9 +100,9 @@ func (r *Repository) ListOrphanedToolCalls(ctx context.Context) ([]domain.ToolCa
 	records := make([]domain.ToolCallRecord, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var record domain.ToolCallRecord
-		var completedAt sql.NullTime
+		var completedAt sqliteNullTime
 		var result, scenarioName, externalRunID, errorMessage sql.NullString
-		if err := rows.Scan(&record.ID, &record.MessageID, &record.ChatID, &record.ToolName, &record.Arguments, &result, &record.Status, &scenarioName, &externalRunID, &record.StartedAt, &completedAt, &errorMessage); err != nil {
+		if err := rows.Scan(&record.ID, &record.MessageID, &record.ChatID, &record.ToolName, &record.Arguments, &result, &record.Status, &scenarioName, &externalRunID, scanTime(&record.StartedAt), &completedAt, &errorMessage); err != nil {
 			continue
 		}
 		if result.Valid {
@@ -131,7 +131,7 @@ func (r *Repository) ListOrphanedToolCalls(ctx context.Context) ([]domain.ToolCa
 func (r *Repository) UpdateToolCallStatus(ctx context.Context, id, status, errorMessage string) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE tool_calls
-		SET status = $1, error_message = $2, completed_at = NOW()
+		SET status = $1, error_message = $2, completed_at = datetime('now')
 		WHERE id = $3
 	`, status, errorMessage, id)
 	return err

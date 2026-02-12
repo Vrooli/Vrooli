@@ -298,12 +298,16 @@ handleStreamingResponse → parseStreamingChunks → NETWORK FAILURE
 
 ### Simulate Database Failure
 ```bash
-# Stop postgres container
-docker stop agent-inbox-postgres
+# SQLite is embedded, so database failure is rare. To simulate:
+# 1. Make the database file read-only
+chmod 444 ~/.vrooli/data/sqlite/databases/agent-inbox.db
 
-# Verify health endpoint shows unhealthy
+# 2. Verify health endpoint shows unhealthy
 curl http://localhost:PORT/health | jq '.status'
 # Expected: "unhealthy"
+
+# 3. Restore permissions
+chmod 644 ~/.vrooli/data/sqlite/databases/agent-inbox.db
 ```
 
 ### Simulate Ollama Unavailable

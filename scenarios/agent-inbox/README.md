@@ -61,9 +61,10 @@ vrooli scenario start agent-inbox
 
 ## Prerequisites
 
-- PostgreSQL (for chat storage)
 - Ollama (for auto-naming chats)
 - OpenRouter API key (for chat completions)
+
+Data is stored in an embedded SQLite database — no external database setup required.
 
 Set your OpenRouter API key:
 ```bash
@@ -107,7 +108,7 @@ agent-inbox models          # List available models
 | `API_PORT` | Yes | Port for Go API server |
 | `UI_PORT` | Yes | Port for React UI |
 | `OPENROUTER_API_KEY` | Yes | OpenRouter API key |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `AI_SQLITE_PATH` | No | Custom path for SQLite database (default: `~/.vrooli/data/sqlite/databases/agent-inbox.db`) |
 
 ## Development
 
@@ -137,8 +138,8 @@ make dev
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   React UI      │    │    Go API        │    │   PostgreSQL    │
-│   (Inbox)       │◄──►│   REST/SSE       │◄──►│   (Storage)     │
+│   React UI      │    │    Go API        │    │     SQLite      │
+│   (Inbox)       │◄──►│   REST/SSE       │◄──►│   (Embedded)    │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                                │
               ┌────────────────┼────────────────┐
@@ -157,7 +158,7 @@ make dev
 
 ### Flow
 
-1. **User sends message** → Stored in PostgreSQL, forwarded to OpenRouter
+1. **User sends message** → Stored in SQLite, forwarded to OpenRouter
 2. **OpenRouter responds** → Either text content or tool calls (or both)
 3. **If tool_calls** → API executes each tool against target scenario (e.g., agent-manager)
 4. **Tool results** → Stored as "tool" role messages, streamed to UI

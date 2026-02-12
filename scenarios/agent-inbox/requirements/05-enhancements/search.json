@@ -5,13 +5,13 @@
     {
       "id": "SEARCH-001",
       "title": "Full-text search",
-      "description": "Search across all chat messages with PostgreSQL full-text search",
+      "description": "Search across all chat messages with SQLite FTS5 full-text search",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "status": "complete",
       "validation": [
-        "PostgreSQL tsvector indexes on chats.search_vector and messages.search_vector",
-        "Triggers auto-update search vectors on insert/update",
+        "FTS5 virtual tables (chats_fts, messages_fts) with porter tokenizer",
+        "Triggers auto-sync FTS content on insert/update/delete",
         "GET /api/v1/search?q=query endpoint returns ranked results"
       ]
     },

@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"agent-inbox/domain"
 )
@@ -41,7 +42,7 @@ func (r *Repository) GetAttachmentByID(ctx context.Context, id string) (*domain.
 	err := r.db.QueryRowContext(ctx, `
 		SELECT id, message_id, file_name, content_type, file_size, storage_path, width, height, created_at
 		FROM attachments WHERE id = $1
-	`, id).Scan(&att.ID, &messageID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, &att.CreatedAt)
+	`, id).Scan(&att.ID, &messageID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, scanTime(&att.CreatedAt))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -112,7 +113,7 @@ func (r *Repository) GetAttachmentsByMessageID(ctx context.Context, messageID st
 		var msgID sql.NullString
 		var width, height sql.NullInt32
 
-		if err := rows.Scan(&att.ID, &msgID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, &att.CreatedAt); err != nil {
+		if err := rows.Scan(&att.ID, &msgID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, scanTime(&att.CreatedAt)); err != nil {
 			continue
 		}
 		if msgID.Valid {
@@ -164,7 +165,7 @@ func (r *Repository) GetAttachmentsForMessages(ctx context.Context, messageIDs [
 		var msgID sql.NullString
 		var width, height sql.NullInt32
 
-		if err := rows.Scan(&att.ID, &msgID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, &att.CreatedAt); err != nil {
+		if err := rows.Scan(&att.ID, &msgID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, scanTime(&att.CreatedAt)); err != nil {
 			continue
 		}
 		if msgID.Valid {
@@ -195,13 +196,14 @@ func (r *Repository) DeleteAttachment(ctx context.Context, id string) error {
 // GetOrphanedAttachments finds attachments not associated with any message.
 // These may be uploads that were never used (user abandoned the message).
 // Useful for cleanup jobs.
-func (r *Repository) GetOrphanedAttachments(ctx context.Context, olderThan string) ([]domain.Attachment, error) {
+func (r *Repository) GetOrphanedAttachments(ctx context.Context, olderThan time.Duration) ([]domain.Attachment, error) {
+	cutoff := time.Now().Add(-olderThan)
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, message_id, file_name, content_type, file_size, storage_path, width, height, created_at
 		FROM attachments
-		WHERE message_id IS NULL AND created_at < NOW() - $1::interval
+		WHERE message_id IS NULL AND created_at < $1
 		ORDER BY created_at
-	`, olderThan)
+	`, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orphaned attachments: %w", err)
 	}
@@ -213,7 +215,7 @@ func (r *Repository) GetOrphanedAttachments(ctx context.Context, olderThan strin
 		var msgID sql.NullString
 		var width, height sql.NullInt32
 
-		if err := rows.Scan(&att.ID, &msgID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, &att.CreatedAt); err != nil {
+		if err := rows.Scan(&att.ID, &msgID, &att.FileName, &att.ContentType, &att.FileSize, &att.StoragePath, &width, &height, scanTime(&att.CreatedAt)); err != nil {
 			continue
 		}
 		if width.Valid {

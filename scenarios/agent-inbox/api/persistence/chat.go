@@ -18,7 +18,7 @@ import (
 func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]domain.Chat, error) {
 	query := `
 		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
-			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
+			COALESCE(GROUP_CONCAT(cl.label_id), '') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.is_archived = $1
@@ -26,10 +26,10 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 	args := []interface{}{archived}
 
 	if starred {
-		query += " AND c.is_starred = true"
+		query += " AND c.is_starred = 1"
 	}
 
-	query += " GROUP BY c.id ORDER BY c.updated_at DESC"
+	query += " GROUP BY c.id ORDER BY c.is_starred DESC, c.updated_at DESC"
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -40,13 +40,13 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 	chats := make([]domain.Chat, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var c domain.Chat
-		var labelIDs []byte
+		var labelIDs string
 		var chatMode sql.NullString
 		var agentRunID, agentTaskID sql.NullString
-		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &c.ToolsEnabled, &chatMode, &agentRunID, &agentTaskID, &c.CreatedAt, &c.UpdatedAt, &labelIDs); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &c.ToolsEnabled, &chatMode, &agentRunID, &agentTaskID, scanTime(&c.CreatedAt), scanTime(&c.UpdatedAt), &labelIDs); err != nil {
 			continue
 		}
-		c.LabelIDs = parsePostgresArray(string(labelIDs))
+		c.LabelIDs = parseArrayString(labelIDs)
 		if chatMode.Valid {
 			c.ChatMode = chatMode.String
 		} else {
@@ -67,22 +67,22 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 // GetChat retrieves a single chat by ID.
 func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, error) {
 	var chat domain.Chat
-	var labelIDs []byte
+	var labelIDs string
 	var activeLeafMessageID sql.NullString
 	var webSearchEnabled sql.NullBool
 	var activeTemplateID sql.NullString
-	var activeTemplateToolIDs []byte
+	var activeTemplateToolIDs sql.NullString
 	var chatMode sql.NullString
 	var agentRunID, agentTaskID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.active_template_id, COALESCE(c.active_template_tool_ids, '{}'), c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
-			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.active_template_id, COALESCE(c.active_template_tool_ids, '[]'), c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
+			COALESCE(GROUP_CONCAT(cl.label_id), '') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.id = $1
 		GROUP BY c.id
-	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &activeTemplateID, &activeTemplateToolIDs, &chatMode, &agentRunID, &agentTaskID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
+	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &activeTemplateID, &activeTemplateToolIDs, &chatMode, &agentRunID, &agentTaskID, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt), &labelIDs)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -91,7 +91,7 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 		return nil, fmt.Errorf("failed to get chat: %w", err)
 	}
 
-	chat.LabelIDs = parsePostgresArray(string(labelIDs))
+	chat.LabelIDs = parseArrayString(labelIDs)
 	if activeLeafMessageID.Valid {
 		chat.ActiveLeafMessageID = activeLeafMessageID.String
 	}
@@ -101,7 +101,11 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	if activeTemplateID.Valid {
 		chat.ActiveTemplateID = activeTemplateID.String
 	}
-	chat.ActiveTemplateToolIDs = parsePostgresArray(string(activeTemplateToolIDs))
+	if activeTemplateToolIDs.Valid {
+		chat.ActiveTemplateToolIDs = parseArrayString(activeTemplateToolIDs.String)
+	} else {
+		chat.ActiveTemplateToolIDs = []string{}
+	}
 	if chatMode.Valid {
 		chat.ChatMode = chatMode.String
 	} else {
@@ -144,14 +148,18 @@ func (r *Repository) CreateChat(ctx context.Context, name, model, viewMode, chat
 	if chatMode == "" {
 		chatMode = domain.ChatModeLLM
 	}
+	if viewMode == "" {
+		viewMode = domain.ViewModeBubble
+	}
+	id := newID()
 	var chat domain.Chat
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO chats (name, model, view_mode, chat_mode)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO chats (id, name, model, view_mode, chat_mode)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, chat_mode, created_at, updated_at
-	`, name, model, viewMode, chatMode).Scan(
+	`, id, name, model, viewMode, chatMode).Scan(
 		&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode,
-		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.ChatMode, &chat.CreatedAt, &chat.UpdatedAt,
+		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.ChatMode, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat: %w", err)
@@ -186,7 +194,7 @@ func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model 
 		return nil, fmt.Errorf("no fields to update")
 	}
 
-	updates = append(updates, "updated_at = NOW()")
+	updates = append(updates, "updated_at = datetime('now')")
 	args = append(args, chatID)
 
 	query := fmt.Sprintf("UPDATE chats SET %s WHERE id = $%d RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at",
@@ -195,7 +203,7 @@ func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model 
 	var chat domain.Chat
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode,
-		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.CreatedAt, &chat.UpdatedAt,
+		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt),
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -221,7 +229,7 @@ func (r *Repository) DeleteChat(ctx context.Context, chatID string) (bool, error
 
 // DeleteArchivedChats removes all archived chats and returns the count deleted.
 func (r *Repository) DeleteArchivedChats(ctx context.Context) (int64, error) {
-	result, err := r.db.ExecContext(ctx, "DELETE FROM chats WHERE is_archived = true")
+	result, err := r.db.ExecContext(ctx, "DELETE FROM chats WHERE is_archived = 1")
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete archived chats: %w", err)
 	}
@@ -231,7 +239,7 @@ func (r *Repository) DeleteArchivedChats(ctx context.Context) (int64, error) {
 
 // MarkAllChatsRead marks all unread chats as read and returns the count updated.
 func (r *Repository) MarkAllChatsRead(ctx context.Context) (int64, error) {
-	result, err := r.db.ExecContext(ctx, "UPDATE chats SET is_read = true, updated_at = NOW() WHERE is_read = false")
+	result, err := r.db.ExecContext(ctx, "UPDATE chats SET is_read = 1, updated_at = datetime('now') WHERE is_read = 0")
 	if err != nil {
 		return 0, fmt.Errorf("failed to mark all chats as read: %w", err)
 	}
@@ -253,10 +261,10 @@ func (r *Repository) ToggleChatBool(ctx context.Context, chatID, field string, v
 	var err error
 
 	if value != nil {
-		query = fmt.Sprintf("UPDATE chats SET %s = $1, updated_at = NOW() WHERE id = $2 RETURNING %s", field, field)
+		query = fmt.Sprintf("UPDATE chats SET %s = $1, updated_at = datetime('now') WHERE id = $2 RETURNING %s", field, field)
 		err = r.db.QueryRowContext(ctx, query, *value, chatID).Scan(&newValue)
 	} else {
-		query = fmt.Sprintf("UPDATE chats SET %s = NOT %s, updated_at = NOW() WHERE id = $1 RETURNING %s", field, field, field)
+		query = fmt.Sprintf("UPDATE chats SET %s = NOT %s, updated_at = datetime('now') WHERE id = $1 RETURNING %s", field, field, field)
 		err = r.db.QueryRowContext(ctx, query, chatID).Scan(&newValue)
 	}
 
@@ -268,9 +276,9 @@ func (r *Repository) ToggleChatBool(ctx context.Context, chatID, field string, v
 
 // UpdateChatPreview updates the preview text and optionally marks as unread.
 func (r *Repository) UpdateChatPreview(ctx context.Context, chatID, preview string, markUnread bool) error {
-	query := "UPDATE chats SET preview = $1, updated_at = NOW()"
+	query := "UPDATE chats SET preview = $1, updated_at = datetime('now')"
 	if markUnread {
-		query += ", is_read = false"
+		query += ", is_read = 0"
 	}
 	query += " WHERE id = $2"
 	_, err := r.db.ExecContext(ctx, query, preview, chatID)
@@ -293,7 +301,7 @@ func (r *Repository) GetWebSearchEnabled(ctx context.Context, chatID string) (bo
 // SetWebSearchEnabled updates the web search setting for a chat.
 func (r *Repository) SetWebSearchEnabled(ctx context.Context, chatID string, enabled bool) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET web_search_enabled = $1, updated_at = NOW() WHERE id = $2
+		UPDATE chats SET web_search_enabled = $1, updated_at = datetime('now') WHERE id = $2
 	`, enabled, chatID)
 	return err
 }
@@ -303,9 +311,13 @@ func (r *Repository) SetWebSearchEnabled(ctx context.Context, chatID string, ena
 // SetActiveTemplate sets the active template and its suggested tool IDs for a chat.
 // This is used to track which template's tools should remain enabled until used.
 func (r *Repository) SetActiveTemplate(ctx context.Context, chatID, templateID string, toolIDs []string) error {
-	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET active_template_id = $1, active_template_tool_ids = $2, updated_at = NOW() WHERE id = $3
-	`, sql.NullString{String: templateID, Valid: templateID != ""}, toolIDs, chatID)
+	toolIDsJSON, err := json.Marshal(toolIDs)
+	if err != nil {
+		return fmt.Errorf("failed to marshal tool IDs: %w", err)
+	}
+	_, err = r.db.ExecContext(ctx, `
+		UPDATE chats SET active_template_id = $1, active_template_tool_ids = $2, updated_at = datetime('now') WHERE id = $3
+	`, sql.NullString{String: templateID, Valid: templateID != ""}, string(toolIDsJSON), chatID)
 	return err
 }
 
@@ -313,7 +325,7 @@ func (r *Repository) SetActiveTemplate(ctx context.Context, chatID, templateID s
 // Called when a template tool is used or when the user manually deactivates.
 func (r *Repository) ClearActiveTemplate(ctx context.Context, chatID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET active_template_id = NULL, active_template_tool_ids = NULL, updated_at = NOW() WHERE id = $1
+		UPDATE chats SET active_template_id = NULL, active_template_tool_ids = NULL, updated_at = datetime('now') WHERE id = $1
 	`, chatID)
 	return err
 }
@@ -323,7 +335,7 @@ func (r *Repository) ClearActiveTemplate(ctx context.Context, chatID string) err
 // SetAgentMode updates the chat to agent mode and stores the task/run IDs.
 func (r *Repository) SetAgentMode(ctx context.Context, chatID, taskID, runID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET chat_mode = $1, agent_task_id = $2, agent_run_id = $3, updated_at = NOW() WHERE id = $4
+		UPDATE chats SET chat_mode = $1, agent_task_id = $2, agent_run_id = $3, updated_at = datetime('now') WHERE id = $4
 	`, domain.ChatModeAgent, sql.NullString{String: taskID, Valid: taskID != ""}, sql.NullString{String: runID, Valid: runID != ""}, chatID)
 	return err
 }
@@ -332,7 +344,7 @@ func (r *Repository) SetAgentMode(ctx context.Context, chatID, taskID, runID str
 // Used when continuing a chat creates a new run.
 func (r *Repository) UpdateAgentRunID(ctx context.Context, chatID, runID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET agent_run_id = $1, updated_at = NOW() WHERE id = $2
+		UPDATE chats SET agent_run_id = $1, updated_at = datetime('now') WHERE id = $2
 	`, sql.NullString{String: runID, Valid: runID != ""}, chatID)
 	return err
 }
@@ -340,7 +352,7 @@ func (r *Repository) UpdateAgentRunID(ctx context.Context, chatID, runID string)
 // ClearAgentMode resets a chat back to LLM mode.
 func (r *Repository) ClearAgentMode(ctx context.Context, chatID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET chat_mode = $1, agent_task_id = NULL, agent_run_id = NULL, updated_at = NOW() WHERE id = $2
+		UPDATE chats SET chat_mode = $1, agent_task_id = NULL, agent_run_id = NULL, updated_at = datetime('now') WHERE id = $2
 	`, domain.ChatModeLLM, chatID)
 	return err
 }
@@ -372,15 +384,18 @@ func (r *Repository) GetAgentMode(ctx context.Context, chatID string) (chatMode,
 // GetActiveTemplateToolIDs returns the active template's tool IDs for a chat.
 // Used to check if an executed tool matches a template-suggested tool.
 func (r *Repository) GetActiveTemplateToolIDs(ctx context.Context, chatID string) ([]string, error) {
-	var toolIDs []byte
-	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(active_template_tool_ids, '{}') FROM chats WHERE id = $1`, chatID).Scan(&toolIDs)
+	var toolIDs sql.NullString
+	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(active_template_tool_ids, '[]') FROM chats WHERE id = $1`, chatID).Scan(&toolIDs)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return parsePostgresArray(string(toolIDs)), nil
+	if toolIDs.Valid {
+		return parseArrayString(toolIDs.String), nil
+	}
+	return []string{}, nil
 }
 
 // Message Operations
@@ -403,7 +418,7 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 		var model, toolCallID, responseID, finishReason, parentMessageID sql.NullString
 		var siblingIndex sql.NullInt32
 		var toolCallsJSON []byte
-		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, scanTime(&m.CreatedAt)); err != nil {
 			continue
 		}
 		if model.Valid {
@@ -518,18 +533,19 @@ func (r *Repository) CreateMessage(ctx context.Context, chatID, role, content, m
 		webSearchNull = sql.NullBool{Bool: *webSearch, Valid: true}
 	}
 
+	id := newID()
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index, web_search)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO messages (id, chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index, web_search)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index, created_at
-	`, chatID, role, content,
+	`, id, chatID, role, content,
 		sql.NullString{String: model, Valid: model != ""},
 		tokenCount,
 		sql.NullString{String: toolCallID, Valid: toolCallID != ""},
 		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
 		siblingIndex,
 		webSearchNull).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, scanTime(&msg.CreatedAt),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
@@ -561,15 +577,16 @@ func (r *Repository) SaveAssistantMessage(ctx context.Context, chatID, model, co
 		siblingIndex = r.getNextSiblingIndex(ctx, parentMessageID)
 	}
 
+	id := newID()
 	var msg domain.Message
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count, finish_reason, parent_message_id, sibling_index)
-		VALUES ($1, 'assistant', $2, $3, $4, 'stop', $5, $6)
+		INSERT INTO messages (id, chat_id, role, content, model, token_count, finish_reason, parent_message_id, sibling_index)
+		VALUES ($1, $2, 'assistant', $3, $4, $5, 'stop', $6, $7)
 		RETURNING id, chat_id, role, content, model, token_count, finish_reason, parent_message_id, sibling_index, created_at
-	`, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount,
+	`, id, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount,
 		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
 		siblingIndex).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, scanTime(&msg.CreatedAt),
 	)
 	if err != nil {
 		return nil, err
@@ -593,17 +610,18 @@ func (r *Repository) SaveAssistantMessageWithToolCalls(ctx context.Context, chat
 		siblingIndex = r.getNextSiblingIndex(ctx, parentMessageID)
 	}
 
+	id := newID()
 	var msg domain.Message
 	err = r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count, tool_calls, response_id, finish_reason, parent_message_id, sibling_index)
-		VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO messages (id, chat_id, role, content, model, token_count, tool_calls, response_id, finish_reason, parent_message_id, sibling_index)
+		VALUES ($1, $2, 'assistant', $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, chat_id, role, content, model, token_count, finish_reason, parent_message_id, sibling_index, created_at
-	`, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount, toolCallsJSON,
+	`, id, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount, toolCallsJSON,
 		sql.NullString{String: responseID, Valid: responseID != ""},
 		sql.NullString{String: finishReason, Valid: finishReason != ""},
 		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
 		siblingIndex).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, scanTime(&msg.CreatedAt),
 	)
 	if err != nil {
 		return nil, err
@@ -624,15 +642,16 @@ func (r *Repository) SaveToolResponseMessage(ctx context.Context, chatID, toolCa
 		siblingIndex = r.getNextSiblingIndex(ctx, parentMessageID)
 	}
 
+	id := newID()
 	var msg domain.Message
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, tool_call_id, parent_message_id, sibling_index)
-		VALUES ($1, 'tool', $2, $3, $4, $5)
+		INSERT INTO messages (id, chat_id, role, content, tool_call_id, parent_message_id, sibling_index)
+		VALUES ($1, $2, 'tool', $3, $4, $5, $6)
 		RETURNING id, chat_id, role, content, tool_call_id, parent_message_id, sibling_index, created_at
-	`, chatID, result, toolCallID,
+	`, id, chatID, result, toolCallID,
 		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
 		siblingIndex).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &msg.ToolCallID, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &msg.ToolCallID, &sql.NullString{}, &msg.SiblingIndex, scanTime(&msg.CreatedAt),
 	)
 	if err != nil {
 		return nil, err
@@ -653,7 +672,7 @@ func (r *Repository) GetMessageByID(ctx context.Context, messageID string) (*dom
 	err := r.db.QueryRowContext(ctx, `
 		SELECT id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, parent_message_id, sibling_index, created_at
 		FROM messages WHERE id = $1
-	`, messageID).Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, &m.CreatedAt)
+	`, messageID).Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, scanTime(&m.CreatedAt))
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -700,13 +719,12 @@ func (r *Repository) GetMessageSiblings(ctx context.Context, messageID string) (
 	}
 
 	// Query for all siblings (messages with same parent_message_id)
-	var rows *sql.Rows
 	if msg.ParentMessageID == "" {
 		// For root messages (no parent), return just this message
 		return []domain.Message{*msg}, nil
 	}
 
-	rows, err = r.db.QueryContext(ctx, `
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, parent_message_id, sibling_index, created_at
 		FROM messages WHERE parent_message_id = $1 ORDER BY sibling_index ASC
 	`, msg.ParentMessageID)
@@ -721,7 +739,7 @@ func (r *Repository) GetMessageSiblings(ctx context.Context, messageID string) (
 		var model, toolCallID, responseID, finishReason, parentMessageID sql.NullString
 		var siblingIndex sql.NullInt32
 		var toolCallsJSON []byte
-		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, scanTime(&m.CreatedAt)); err != nil {
 			continue
 		}
 		if model.Valid {
@@ -754,7 +772,7 @@ func (r *Repository) GetMessageSiblings(ctx context.Context, messageID string) (
 // SetActiveLeaf updates the active_leaf_message_id for a chat.
 func (r *Repository) SetActiveLeaf(ctx context.Context, chatID, messageID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET active_leaf_message_id = $1, updated_at = NOW() WHERE id = $2
+		UPDATE chats SET active_leaf_message_id = $1, updated_at = datetime('now') WHERE id = $2
 	`, sql.NullString{String: messageID, Valid: messageID != ""}, chatID)
 	return err
 }
@@ -808,14 +826,15 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 	defer func() { _ = tx.Rollback() }()
 
 	// Create the new chat
+	chatID := newID()
 	var newChat domain.Chat
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO chats (name, model, view_mode)
-		VALUES ($1, $2, 'bubble')
+		INSERT INTO chats (id, name, model, view_mode)
+		VALUES ($1, $2, $3, 'bubble')
 		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at
-	`, newName, model).Scan(
+	`, chatID, newName, model).Scan(
 		&newChat.ID, &newChat.Name, &newChat.Preview, &newChat.Model, &newChat.ViewMode,
-		&newChat.IsRead, &newChat.IsArchived, &newChat.IsStarred, &newChat.ToolsEnabled, &newChat.CreatedAt, &newChat.UpdatedAt,
+		&newChat.IsRead, &newChat.IsArchived, &newChat.IsStarred, &newChat.ToolsEnabled, scanTime(&newChat.CreatedAt), scanTime(&newChat.UpdatedAt),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create forked chat: %w", err)
@@ -823,7 +842,6 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 	newChat.LabelIDs = []string{}
 
 	// Get the message ancestry path from the target message back to root
-	// This ensures we only copy messages that are ancestors of the fork point
 	rows, err := tx.QueryContext(ctx, `
 		WITH RECURSIVE message_path AS (
 			-- Start from the target message
@@ -847,8 +865,7 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 		return nil, fmt.Errorf("failed to get message path: %w", err)
 	}
 
-	// Collect all messages first - we must close rows before executing any other queries
-	// on the same transaction connection (pq driver limitation)
+	// Collect all messages first
 	var messagesToCopy []messageForFork
 	for rows.Next() {
 		var msgID string
@@ -870,7 +887,7 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 	var lastContent string
 
 	for _, msg := range messagesToCopy {
-		// Handle NULL tool_calls - empty byte slice should become NULL, not empty string
+		// Handle NULL tool_calls
 		var toolCallsArg interface{}
 		if len(msg.toolCallsJSON) > 0 {
 			toolCallsArg = msg.toolCallsJSON
@@ -878,12 +895,13 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 			toolCallsArg = nil
 		}
 
+		msgID := newID()
 		var newMsgID string
 		err = tx.QueryRowContext(ctx, `
-			INSERT INTO messages (chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, parent_message_id, sibling_index)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0)
+			INSERT INTO messages (id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, parent_message_id, sibling_index)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
 			RETURNING id
-		`, newChat.ID, msg.role, msg.content, msg.model, msg.tokenCount, msg.toolCallID, toolCallsArg, msg.responseID, msg.finishReason,
+		`, msgID, newChat.ID, msg.role, msg.content, msg.model, msg.tokenCount, msg.toolCallID, toolCallsArg, msg.responseID, msg.finishReason,
 			sql.NullString{String: lastMessageID, Valid: lastMessageID != ""}).Scan(&newMsgID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy message: %w", err)
@@ -923,44 +941,44 @@ func (r *Repository) SearchChats(ctx context.Context, query string, limit int) (
 		return []SearchResult{}, nil
 	}
 
-	// Convert user query to tsquery format (prefix matching for partial words)
-	// This handles multi-word queries by adding :* to each word for prefix matching
+	// Convert user query to FTS5 format (prefix matching for partial words)
 	words := strings.Fields(query)
-	var tsQueryParts []string
+	var ftsQueryParts []string
 	for _, word := range words {
-		// Escape special characters and add prefix matching
-		escaped := strings.ReplaceAll(word, "'", "''")
-		tsQueryParts = append(tsQueryParts, escaped+":*")
+		// Escape double quotes for FTS5 and add prefix matching
+		escaped := strings.ReplaceAll(word, "\"", "\"\"")
+		ftsQueryParts = append(ftsQueryParts, "\""+escaped+"\"*")
 	}
-	tsQuery := strings.Join(tsQueryParts, " & ")
+	ftsQuery := strings.Join(ftsQueryParts, " AND ")
 
 	if limit <= 0 {
 		limit = 20
 	}
 
-	// Search chat names and message content with ranking
-	// Chat name matches rank higher than message matches
+	// Search chat names and message content with ranking via FTS5
 	searchSQL := `
 		WITH chat_matches AS (
 			SELECT
 				c.id as chat_id,
 				'' as message_id,
-				ts_headline('english', c.name, to_tsquery('english', $1), 'StartSel=<mark>, StopSel=</mark>, MaxWords=50') as snippet,
-				ts_rank(c.search_vector, to_tsquery('english', $1)) * 2 as rank,
+				snippet(chats_fts, 0, '<mark>', '</mark>', '...', 50) as snippet,
+				rank * -2.0 as rank,
 				'chat_name' as match_type
-			FROM chats c
-			WHERE c.search_vector @@ to_tsquery('english', $1)
+			FROM chats_fts
+			JOIN chats c ON c.rowid = chats_fts.rowid
+			WHERE chats_fts MATCH $1
 		),
 		message_matches AS (
 			SELECT
 				m.chat_id,
 				m.id as message_id,
-				ts_headline('english', m.content, to_tsquery('english', $1), 'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15') as snippet,
-				ts_rank(m.search_vector, to_tsquery('english', $1)) as rank,
+				snippet(messages_fts, 0, '<mark>', '</mark>', '...', 35) as snippet,
+				rank * -1.0 as rank,
 				'message_content' as match_type
-			FROM messages m
-			WHERE m.search_vector @@ to_tsquery('english', $1)
-				AND m.role IN ('user', 'assistant')
+			FROM messages_fts
+			JOIN messages m ON m.rowid = messages_fts.rowid
+			WHERE messages_fts MATCH $1
+			  AND m.role IN ('user', 'assistant')
 		),
 		all_matches AS (
 			SELECT * FROM chat_matches
@@ -968,24 +986,24 @@ func (r *Repository) SearchChats(ctx context.Context, query string, limit int) (
 			SELECT * FROM message_matches
 		),
 		ranked AS (
-			SELECT DISTINCT ON (chat_id, match_type) *
+			SELECT *, ROW_NUMBER() OVER (PARTITION BY chat_id, match_type ORDER BY rank DESC) as rn
 			FROM all_matches
-			ORDER BY chat_id, match_type, rank DESC
 		)
 		SELECT
 			r.chat_id, r.message_id, r.snippet, r.rank, r.match_type,
 			c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.created_at, c.updated_at,
-			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
+			COALESCE(GROUP_CONCAT(cl.label_id), '') as label_ids
 		FROM ranked r
 		JOIN chats c ON c.id = r.chat_id
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
+		WHERE r.rn = 1
 		GROUP BY r.chat_id, r.message_id, r.snippet, r.rank, r.match_type,
 			c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.created_at, c.updated_at
 		ORDER BY r.rank DESC
 		LIMIT $2
 	`
 
-	rows, err := r.db.QueryContext(ctx, searchSQL, tsQuery, limit)
+	rows, err := r.db.QueryContext(ctx, searchSQL, ftsQuery, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search chats: %w", err)
 	}
@@ -993,24 +1011,24 @@ func (r *Repository) SearchChats(ctx context.Context, query string, limit int) (
 
 	results := make([]SearchResult, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
-		var r SearchResult
+		var sr SearchResult
 		var messageID sql.NullString
-		var labelIDs []byte
+		var labelIDs string
 
 		if err := rows.Scan(
-			&r.Chat.ID, &messageID, &r.Snippet, &r.Rank, &r.MatchType,
-			&r.Chat.ID, &r.Chat.Name, &r.Chat.Preview, &r.Chat.Model, &r.Chat.ViewMode,
-			&r.Chat.IsRead, &r.Chat.IsArchived, &r.Chat.IsStarred, &r.Chat.CreatedAt, &r.Chat.UpdatedAt,
+			&sr.Chat.ID, &messageID, &sr.Snippet, &sr.Rank, &sr.MatchType,
+			&sr.Chat.ID, &sr.Chat.Name, &sr.Chat.Preview, &sr.Chat.Model, &sr.Chat.ViewMode,
+			&sr.Chat.IsRead, &sr.Chat.IsArchived, &sr.Chat.IsStarred, scanTime(&sr.Chat.CreatedAt), scanTime(&sr.Chat.UpdatedAt),
 			&labelIDs,
 		); err != nil {
 			continue
 		}
 
 		if messageID.Valid {
-			r.MessageID = messageID.String
+			sr.MessageID = messageID.String
 		}
-		r.Chat.LabelIDs = parsePostgresArray(string(labelIDs))
-		results = append(results, r)
+		sr.Chat.LabelIDs = parseArrayString(labelIDs)
+		results = append(results, sr)
 	}
 
 	return results, nil

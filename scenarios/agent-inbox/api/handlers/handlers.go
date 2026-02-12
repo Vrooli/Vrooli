@@ -35,6 +35,7 @@ type Handlers struct {
 	Templates       *services.TemplatesService
 	Skills          *services.PromptSyncService
 	ToolPersistence *services.ToolPersistence
+	AgentClient     integrations.AgentManagerClientInterface
 }
 
 // New creates a new Handlers instance with all dependencies.

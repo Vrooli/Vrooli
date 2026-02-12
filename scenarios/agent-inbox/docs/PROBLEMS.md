@@ -59,4 +59,6 @@
 
 ## Resolved
 
-(None yet - scenario just initialized)
+### PostgreSQL Dependency Blocking Deployment (Resolved 2026-02-12)
+**Issue:** PostgreSQL required a running external service, blocking standalone desktop apps, mobile apps, and LPBS app store bundling.
+**Resolution:** Greenfield rewrite from PostgreSQL to embedded SQLite. Pure-Go driver (modernc.org/sqlite), FTS5 for search, WAL mode, zero external dependencies. All tests pass with in-memory SQLite.
