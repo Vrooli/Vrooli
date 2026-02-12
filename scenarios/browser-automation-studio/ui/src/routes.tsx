@@ -6,6 +6,7 @@
  */
 import { createBrowserRouter } from 'react-router-dom';
 import { lazy } from 'react';
+import { getProxyInfo } from '@vrooli/api-base';
 
 // Lazy load view components for better initial load performance
 const DashboardViewWrapper = lazy(() =>
@@ -24,6 +25,25 @@ import RootLayout from '@/views/RootLayout';
 // Import error boundary for route-level error handling
 import ErrorBoundary from '@/shared/components/ErrorBoundary';
 import SectionErrorBoundary from '@/shared/components/SectionErrorBoundary';
+
+/**
+ * Compute BrowserRouter basename from proxy context.
+ *
+ * When served through app-monitor at /apps/<name>/proxy/,
+ * React Router needs the proxy path as basename so that
+ * navigate("/page") resolves to /apps/<name>/proxy/page
+ * instead of /page.
+ *
+ * Returns "" outside proxy context (localhost, tunnel).
+ */
+function getRouterBasename(): string {
+  const proxyInfo = getProxyInfo();
+  const proxyPath = proxyInfo?.primary?.path ?? proxyInfo?.basePath;
+  if (proxyPath) {
+    return proxyPath.replace(/\/+$/, '');
+  }
+  return '';
+}
 
 export const router = createBrowserRouter([
   {
@@ -114,6 +134,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
-]);
+], { basename: getRouterBasename() });
 
 export default router;

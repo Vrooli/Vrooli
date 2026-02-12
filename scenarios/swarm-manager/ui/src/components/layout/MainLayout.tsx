@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Lightbulb, Package, Zap, Settings } from "lucide-react";
 import { selectors } from "../../consts/selectors";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { applyTheme, cn, defaultQueryOptions, watchSystemTheme } from "../../lib";
 import { settingsService } from "../../services";
 import { useBacklogStore, useRecommendationsStore, useScenariosStore } from "../../stores";
@@ -48,30 +49,17 @@ export function MainLayout() {
 
   const activeTab = tabs.find(tab => location.pathname.startsWith(tab.path))?.id || "backlog";
 
-  // Keyboard navigation handler for power users
-  // Shortcuts: 1=Backlog, 2=Scenarios, 3=Recommendations, 4=Settings
-  const handleKeyboardNav = useCallback((event: KeyboardEvent) => {
-    // Don't intercept when user is typing in an input, textarea, or contenteditable
-    const target = event.target as HTMLElement;
-    if (
-      target.tagName === "INPUT" ||
-      target.tagName === "TEXTAREA" ||
-      target.isContentEditable
-    ) {
-      return;
-    }
-
-    // Find matching tab by shortcut key
-    const tab = tabs.find(t => t.shortcut === event.key);
+  // Keyboard navigation via centralized shortcut hook (see useKeyboardShortcuts)
+  const handleTabNav = useCallback((key: string) => {
+    const tab = tabs.find(t => t.shortcut === key);
     if (tab) {
       navigate(tab.path);
+      return true;
     }
+    return false;
   }, [navigate]);
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyboardNav);
-    return () => window.removeEventListener("keydown", handleKeyboardNav);
-  }, [handleKeyboardNav]);
+  useKeyboardShortcuts({ onTabNav: handleTabNav });
 
   useEffect(() => {
     void fetchBacklog();

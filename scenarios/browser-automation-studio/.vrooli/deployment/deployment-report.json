@@ -1,7 +1,7 @@
 {
   "scenario": "browser-automation-studio",
   "report_version": 1,
-  "generated_at": "2026-02-03T13:32:01.696967959Z",
+  "generated_at": "2026-02-08T00:59:33.207849922Z",
   "dependencies": [
     {
       "name": "minio",
@@ -271,7 +271,7 @@
   },
   "bundle_manifest": {
     "scenario": "browser-automation-studio",
-    "generated_at": "2026-02-03T13:32:01.696967959Z",
+    "generated_at": "2026-02-08T00:59:33.207849922Z",
     "files": [
       {
         "path": ".vrooli/service.json",

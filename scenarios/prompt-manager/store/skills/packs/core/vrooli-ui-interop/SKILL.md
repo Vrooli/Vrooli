@@ -481,6 +481,17 @@ Every pattern in this skill auto-detects its context and degrades to a no-op whe
 
 ## Section 6: Compliance Verification
 
+### Discovery & Planning (Before Implementation)
+
+List rules by priority to understand what needs to be implemented before writing code:
+
+```bash
+app-monitor rules                                      # All rules by priority
+app-monitor rules --scenario browser-automation-studio  # Filter for scenario
+app-monitor rules --severity critical,high              # Critical + high only
+app-monitor rules --json                                # Raw JSON for tooling
+```
+
 ### Automated Checking (Preferred)
 
 Use the app-monitor CLI for automated compliance verification:
