@@ -8,7 +8,7 @@ import (
 
 // RunAll runs all rules matching the scenario's tech stack and returns results.
 func RunAll(scenarioRoot, scenarioName string) []RuleResult {
-	stack := enrichTechStack(scenarioRoot)
+	stack := EnrichTechStack(scenarioRoot)
 	rules := ForTechStack(stack)
 
 	ctx := CheckContext{
@@ -26,8 +26,8 @@ func RunAll(scenarioRoot, scenarioName string) []RuleResult {
 	return results
 }
 
-// enrichTechStack reads ui/package.json and derives synthetic tech stack signals.
-func enrichTechStack(scenarioRoot string) []string {
+// EnrichTechStack reads ui/package.json and derives synthetic tech stack signals.
+func EnrichTechStack(scenarioRoot string) []string {
 	stack := []string{}
 
 	pkgPath := filepath.Join(scenarioRoot, "ui", "package.json")

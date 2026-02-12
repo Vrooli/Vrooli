@@ -104,6 +104,33 @@ func EmbedFSes() map[string]fs.FS {
 	return out
 }
 
+// severityOrder defines priority for sorting rules by severity.
+var severityOrder = map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+// SortDefsBySeverity sorts rule definitions in-place by severity priority (critical first),
+// with stable ordering by ID within the same severity.
+func SortDefsBySeverity(defs []RuleDef) {
+	sort.SliceStable(defs, func(i, j int) bool {
+		oi := severityOrder[strings.ToLower(defs[i].Severity)]
+		oj := severityOrder[strings.ToLower(defs[j].Severity)]
+		if oi != oj {
+			return oi < oj
+		}
+		return defs[i].ID < defs[j].ID
+	})
+}
+
+// DefsForTechStack returns rule definitions matching the given tech stack, sorted by severity.
+func DefsForTechStack(stack []string) []RuleDef {
+	matched := ForTechStack(stack)
+	defs := make([]RuleDef, len(matched))
+	for i, r := range matched {
+		defs[i] = r.Def
+	}
+	SortDefsBySeverity(defs)
+	return defs
+}
+
 // ForTechStack returns rules whose TechStack matches the scenario's detected stack.
 // A rule matches if any of its required components appear in the stack, or if
 // its TechStack is empty (meaning it always runs).

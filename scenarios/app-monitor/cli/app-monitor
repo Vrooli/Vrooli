@@ -355,6 +355,119 @@ cmd_interop() {
     fi
 }
 
+cmd_rules() {
+    local scenario=""
+    local tech_stack=""
+    local severity=""
+    local json_mode=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario|-s)
+                scenario="$2"
+                shift 2
+                ;;
+            --tech-stack|-t)
+                tech_stack="$2"
+                shift 2
+                ;;
+            --severity)
+                severity="$2"
+                shift 2
+                ;;
+            --json)
+                json_mode=true
+                shift
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    if ! check_api; then
+        return 1
+    fi
+
+    # Build query string
+    local query=""
+    if [[ -n "$scenario" ]]; then
+        query="scenario=${scenario}"
+    fi
+    if [[ -n "$tech_stack" ]]; then
+        query="${query:+${query}&}tech_stack=${tech_stack}"
+    fi
+    if [[ -n "$severity" ]]; then
+        query="${query:+${query}&}severity=${severity}"
+    fi
+
+    local endpoint="/api/v1/rules"
+    if [[ -n "$query" ]]; then
+        endpoint="${endpoint}?${query}"
+    fi
+
+    local response
+    response=$(api_request "GET" "$endpoint")
+
+    if [[ "$json_mode" == true ]]; then
+        echo "$response" | jq .
+        return 0
+    fi
+
+    # Human-readable output
+    local data
+    data=$(echo "$response" | jq '.data // .')
+
+    local scenario_name total_count filtered_count detected_stack
+    scenario_name=$(echo "$data" | jq -r '.scenario_name // empty')
+    total_count=$(echo "$data" | jq -r '.total_count // 0')
+    filtered_count=$(echo "$data" | jq -r '.filtered_count // 0')
+    detected_stack=$(echo "$data" | jq -r '(.tech_stack // []) | join(", ")')
+
+    if [[ -n "$scenario_name" ]]; then
+        log_info "Interop rules for scenario: ${scenario_name}"
+    else
+        log_info "Interop rules"
+    fi
+    if [[ -n "$detected_stack" ]]; then
+        echo -e "  Detected tech stack: ${detected_stack}"
+    fi
+    echo -e "  Showing ${filtered_count} of ${total_count} rules (sorted by priority)"
+    echo ""
+
+    # Group by severity using tab delimiter to avoid pipe conflicts
+    local severities=("critical" "high" "medium" "low")
+    for sev in "${severities[@]}"; do
+        local sev_upper
+        sev_upper=$(echo "$sev" | tr '[:lower:]' '[:upper:]')
+
+        local rules_in_sev
+        rules_in_sev=$(echo "$data" | jq -r --arg sev "$sev" '
+            .rules // [] | map(select(.severity == $sev)) | .[] |
+            "\(.name)\t\(.slot)\t\(.slot_file)\t\(.recommendation)"
+        ')
+
+        if [[ -z "$rules_in_sev" ]]; then
+            continue
+        fi
+
+        echo "=== ${sev_upper} ==="
+        while IFS=$'\t' read -r name slot slot_file recommendation; do
+            echo "  ${name} [${slot}]"
+            if [[ -n "$slot_file" ]]; then
+                echo "  File: ${slot_file}"
+            fi
+            echo "  -> ${recommendation}"
+            echo ""
+        done <<< "$rules_in_sev"
+    done
+
+    echo "Next steps:"
+    echo "  Read the full skill doc for implementation details:"
+    echo "    prompt-manager skill read vrooli-ui-interop"
+}
+
 cmd_help() {
     cat << 'HELP'
 App Monitor CLI - Manage and monitor scenarios
@@ -373,12 +486,19 @@ Commands:
     metrics <app_id> [hrs]  Show application metrics (default: 24h)
     docker                  Show Docker system information
     interop <app_id>        Check UI interop compliance (deployment context readiness)
+    rules [options]         List interop rules by priority (implementation guide)
     version                 Show CLI version
     help                    Show this help message
 
 Environment Variables:
     APP_MONITOR_API_URL     API base URL (default: http://localhost:\$API_PORT)
     API_PORT                API port (required)
+
+Rules Options:
+    --scenario, -s <name>     Filter by scenario (detects tech stack from disk)
+    --tech-stack, -t <list>   Explicit comma-separated tech stack filter
+    --severity <list>         Filter by severity (critical,high,medium,low)
+    --json                    Raw JSON output
 
 Examples:
     app-monitor status
@@ -389,6 +509,9 @@ Examples:
     app-monitor health abc123
     app-monitor logs abc123 100
     app-monitor metrics abc123 12
+    app-monitor rules
+    app-monitor rules --scenario browser-automation-studio
+    app-monitor rules --severity critical,high
     app-monitor version
 
 HELP
@@ -478,6 +601,9 @@ main() {
             else
                 cmd_interop "$@"
             fi
+            ;;
+        "rules")
+            cmd_rules "$@"
             ;;
         "version"|"-v"|"--version")
             echo "app-monitor cli 1.0.0"

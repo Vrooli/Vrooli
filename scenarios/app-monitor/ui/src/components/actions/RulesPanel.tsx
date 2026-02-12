@@ -21,7 +21,13 @@ interface RuleDef {
 
 interface RulesApiResponse {
   success?: boolean;
-  data?: RuleDef[];
+  data?: {
+    rules: RuleDef[];
+    total_count?: number;
+    filtered_count?: number;
+    tech_stack?: string[];
+    scenario_name?: string;
+  };
 }
 
 interface SlotGroup {
@@ -94,7 +100,7 @@ async function fetchRuleDefs(): Promise<RuleDef[]> {
   const res = await fetch('/api/v1/rules');
   if (!res.ok) throw new Error(`Failed to fetch rules: ${res.status}`);
   const json = (await res.json()) as RulesApiResponse;
-  return json.data ?? [];
+  return json.data?.rules ?? [];
 }
 
 export default function RulesPanel() {

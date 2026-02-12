@@ -12,15 +12,23 @@ Severity: high
 Slot: [E]
 SlotFile: ui/src/App.tsx
 TechStack: React
-Recommendation: Add a basename prop to BrowserRouter, e.g.,
-  <BrowserRouter basename={window.__VROOLI_BASE__ || "/"}>
+Recommendation: Add a proxy-aware basename prop to BrowserRouter using
+  getProxyInfo() from @vrooli/api-base to resolve the deployment path.
 Standard: vrooli-ui-interop-v1
 
 GoodExample:
     import { BrowserRouter } from "react-router-dom";
+    import { getProxyInfo } from "@vrooli/api-base";
+
+    function getRouterBasename() {
+      const proxyInfo = getProxyInfo();
+      const proxyPath = proxyInfo?.primary?.path ?? proxyInfo?.basePath;
+      return proxyPath ? proxyPath.replace(/\/+$/, "") : "";
+    }
+
     function App() {
       return (
-        <BrowserRouter basename={window.__VROOLI_BASE__ || "/"}>
+        <BrowserRouter basename={getRouterBasename()}>
           <Routes>...</Routes>
         </BrowserRouter>
       );
@@ -37,13 +45,19 @@ BadExample:
     }
 
 <test-case id="router-has-basename" should-fail="false">
-  <description>BrowserRouter has a basename prop</description>
+  <description>BrowserRouter has a proxy-aware basename prop</description>
   <input>
     [ui/src/App.tsx]
     import { BrowserRouter } from "react-router-dom";
+    import { getProxyInfo } from "@vrooli/api-base";
+    function getRouterBasename() {
+      const proxyInfo = getProxyInfo();
+      const proxyPath = proxyInfo?.primary?.path ?? proxyInfo?.basePath;
+      return proxyPath ? proxyPath.replace(/\/+$/, "") : "";
+    }
     function App() {
       return (
-        <BrowserRouter basename={window.__VROOLI_BASE__ || "/"}>
+        <BrowserRouter basename={getRouterBasename()}>
           <Routes />
         </BrowserRouter>
       );
@@ -224,7 +238,7 @@ func checkRouterBasename(ctx rules.CheckContext) rules.RuleResult {
 				Description:    "basename prop not found on <" + h.alias + "> in " + h.relPath,
 				FilePath:       h.relPath,
 				Line:           h.line,
-				Recommendation: "Add basename={window.__VROOLI_BASE__ || \"/\"} to <" + h.alias + ">",
+				Recommendation: "Add a proxy-aware basename prop using getProxyInfo() from @vrooli/api-base to <" + h.alias + ">",
 			})
 		}
 	}

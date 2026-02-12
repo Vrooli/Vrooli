@@ -24,8 +24,8 @@ var fieldPatterns = []struct {
 }
 
 var (
-	goodExamplePattern = regexp.MustCompile(`(?ms)^GoodExample:\n((?:[ \t]+.+\n?)+)`)
-	badExamplePattern  = regexp.MustCompile(`(?ms)^BadExample:\n((?:[ \t]+.+\n?)+)`)
+	goodExamplePattern = regexp.MustCompile(`(?m)^GoodExample:\n((?:[ \t]+.+\n?)+)`)
+	badExamplePattern  = regexp.MustCompile(`(?m)^BadExample:\n((?:[ \t]+.+\n?)+)`)
 )
 
 // ParseRuleDoc extracts a RuleDef from a Go source file's block comment.

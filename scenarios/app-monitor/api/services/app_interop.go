@@ -153,6 +153,84 @@ func (s *AppService) GetInteropStandards(ctx context.Context, scenarioName strin
 	}, nil
 }
 
+// RulesGuideRequest specifies filters for the rules guide endpoint.
+type RulesGuideRequest struct {
+	Scenario  string
+	TechStack []string
+	Severity  []string
+	Category  string
+}
+
+// RulesGuideResponse is the enriched rules listing with filter metadata.
+type RulesGuideResponse struct {
+	Rules         []rules.RuleDef `json:"rules"`
+	TechStack     []string        `json:"tech_stack,omitempty"`
+	ScenarioName  string          `json:"scenario_name,omitempty"`
+	TotalCount    int             `json:"total_count"`
+	FilteredCount int             `json:"filtered_count"`
+}
+
+// GetRulesGuide returns rule definitions filtered by scenario tech stack, severity, and category.
+func (s *AppService) GetRulesGuide(ctx context.Context, req RulesGuideRequest) (*RulesGuideResponse, error) {
+	stack := req.TechStack
+	scenarioName := ""
+
+	// If a scenario is specified, resolve its tech stack from disk.
+	if req.Scenario != "" {
+		root := s.resolveScenarioRoot(req.Scenario)
+		if root != "" {
+			stack = rules.EnrichTechStack(root)
+			scenarioName = req.Scenario
+		}
+	}
+
+	// Get defs filtered by tech stack (or all defs if no stack).
+	var defs []rules.RuleDef
+	if len(stack) > 0 {
+		defs = rules.DefsForTechStack(stack)
+	} else {
+		defs = rules.AllDefs()
+		rules.SortDefsBySeverity(defs)
+	}
+
+	totalCount := len(defs)
+
+	// Apply severity filter.
+	if len(req.Severity) > 0 {
+		sevSet := map[string]bool{}
+		for _, s := range req.Severity {
+			sevSet[strings.ToLower(strings.TrimSpace(s))] = true
+		}
+		filtered := make([]rules.RuleDef, 0, len(defs))
+		for _, d := range defs {
+			if sevSet[strings.ToLower(d.Severity)] {
+				filtered = append(filtered, d)
+			}
+		}
+		defs = filtered
+	}
+
+	// Apply category filter.
+	if req.Category != "" {
+		cat := strings.ToLower(strings.TrimSpace(req.Category))
+		filtered := make([]rules.RuleDef, 0, len(defs))
+		for _, d := range defs {
+			if strings.ToLower(d.Category) == cat {
+				filtered = append(filtered, d)
+			}
+		}
+		defs = filtered
+	}
+
+	return &RulesGuideResponse{
+		Rules:         defs,
+		TechStack:     stack,
+		ScenarioName:  scenarioName,
+		TotalCount:    totalCount,
+		FilteredCount: len(defs),
+	}, nil
+}
+
 // resolveScenarioRoot resolves the filesystem path for a scenario name.
 func (s *AppService) resolveScenarioRoot(scenarioName string) string {
 	if s.repoRoot == "" {

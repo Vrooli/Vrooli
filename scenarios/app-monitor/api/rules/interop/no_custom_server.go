@@ -1,28 +1,33 @@
 /*
 Rule: No Custom Server
 ID: interop_no_custom_server
-Description: Ensures the scenario UI does not ship a custom server file
-  (e.g. express(), createServer, http.listen) that would conflict
-  with the Vrooli hosting layer.
-Why: Vrooli serves embedded UIs through its own static-file proxy.
-  A custom server in ui/server.* would bind its own port, bypass
-  the proxy, and break iframe embedding. The scenario should rely
-  on the Vrooli hosting stack for serving built assets.
+Description: Ensures the scenario UI does not use a custom server
+  (e.g. express(), http.createServer, http.listen) that bypasses
+  the standard Vrooli server functions. Scenarios should use
+  startScenarioServer() or createScenarioServer() from
+  @vrooli/api-base/server instead.
+Why: Custom servers bypass the Vrooli hosting stack — proxy headers,
+  CORS, static asset serving, and iframe embedding all break. The
+  standard server functions (startScenarioServer, createScenarioServer)
+  handle these automatically. If custom route setup is needed, use
+  createScenarioServer with the setupRoutes callback.
 Category: interop
 Severity: medium
 Slot: [C]
 SlotFile: ui/server.js
 TechStack: *
-Recommendation: Remove the custom server file and let Vrooli serve your
-  built assets. If you need SSR, use a Vite SSR plugin instead
-  of a standalone server.
+Recommendation: Replace the custom server with startScenarioServer() or
+  createScenarioServer() from @vrooli/api-base/server. Use the
+  setupRoutes callback for custom routes.
 Standard: vrooli-ui-interop-v1
 
 GoodExample:
-    // No ui/server.js file at all - Vrooli serves the UI
+    // ui/server.js — uses the standard Vrooli server function
+    import { startScenarioServer } from '@vrooli/api-base/server';
+    startScenarioServer({ uiPort: process.env.UI_PORT, distDir: './dist' });
 
 BadExample:
-    // ui/server.js
+    // ui/server.js — custom Express server bypasses Vrooli hosting
     const express = require('express');
     const app = express();
     app.use(express.static('dist'));
@@ -34,6 +39,31 @@ BadExample:
     [ui/src/main.tsx]
     import React from 'react';
     ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
+  </input>
+</test-case>
+
+<test-case id="standard-server-start" should-fail="false">
+  <description>ui/server.js uses startScenarioServer (no custom patterns)</description>
+  <input>
+    [ui/server.js]
+    import { startScenarioServer } from '@vrooli/api-base/server';
+    startScenarioServer({ uiPort: process.env.UI_PORT, distDir: './dist' });
+  </input>
+</test-case>
+
+<test-case id="standard-server-create" should-fail="false">
+  <description>ui/server.js uses createScenarioServer with setupRoutes</description>
+  <input>
+    [ui/server.js]
+    import { createScenarioServer } from '@vrooli/api-base/server';
+    const app = createScenarioServer({
+      uiPort: process.env.UI_PORT,
+      distDir: './dist',
+      setupRoutes: (expressApp) => {
+        expressApp.get('/custom', (req, res) => res.json({ ok: true }));
+      },
+    });
+    app.listen(process.env.UI_PORT);
   </input>
 </test-case>
 
@@ -51,7 +81,7 @@ BadExample:
 </test-case>
 
 <test-case id="custom-server-create-server" should-fail="true">
-  <description>ui/server.ts uses createServer</description>
+  <description>ui/server.ts uses http.createServer</description>
   <input>
     [ui/server.ts]
     import http from 'http';
@@ -109,7 +139,7 @@ func checkNoCustomServer(ctx rules.CheckContext) rules.RuleResult {
 					FilePath:       relPath,
 					Line:           line,
 					CodeSnippet:    matches,
-					Recommendation: "Remove " + relPath + " and let Vrooli serve your built assets",
+					Recommendation: "Replace custom server code in " + relPath + " with startScenarioServer() or createScenarioServer() from @vrooli/api-base/server",
 				}},
 			}
 		}

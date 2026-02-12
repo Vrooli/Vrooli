@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"app-monitor-api/repository"
-	"app-monitor-api/rules"
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
@@ -599,12 +598,38 @@ func (h *AppHandler) GetInteropStandards(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// GetRuleDefs returns all rule metadata for the UI.
+// GetRuleDefs returns rule metadata, optionally filtered by scenario, tech stack, severity, or category.
 func (h *AppHandler) GetRuleDefs(c *gin.Context) {
-	defs := rules.AllDefs()
+	req := services.RulesGuideRequest{
+		Scenario: c.Query("scenario"),
+		Category: c.Query("category"),
+	}
+
+	if ts := c.Query("tech_stack"); ts != "" {
+		for _, t := range strings.Split(ts, ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				req.TechStack = append(req.TechStack, t)
+			}
+		}
+	}
+
+	if sev := c.Query("severity"); sev != "" {
+		for _, s := range strings.Split(sev, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				req.Severity = append(req.Severity, s)
+			}
+		}
+	}
+
+	result, err := h.appService.GetRulesGuide(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    defs,
+		"data":    result,
 	})
 }
 
