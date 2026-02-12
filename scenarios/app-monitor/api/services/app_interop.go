@@ -48,14 +48,46 @@ var interopCheckDefs = []interopCheckDef{
 // hardcodedLocalhostPattern matches localhost:PORT in source code.
 var hardcodedLocalhostPattern = regexp.MustCompile(`localhost:\d+`)
 
-// Regex patterns for the new checks.
+// Regex patterns for interop compliance checks.
+//
+// These patterns detect code shapes that indicate interop problems or verify
+// that required interop infrastructure is in place. Each pattern is documented
+// with what it matches and why.
 var (
+	// iframeGuardPattern matches the four equivalent forms of "am I in an iframe?" check.
+	// Both window.parent !== window and window.top !== window.self are accepted
+	// because they're semantically equivalent for bridge init guarding.
 	iframeGuardPattern = regexp.MustCompile(`window\.parent\s*(!==|!=|===|==)\s*window|window\s*(!==|!=|===|==)\s*window\.parent|window\.top\s*(!==|!=|===|==)\s*window\.self|window\.self\s*(!==|!=|===|==)\s*window\.top`)
-	captureLogsDisabledPattern    = regexp.MustCompile(`(?s)captureLogs\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
+
+	// captureLogsDisabledPattern detects captureLogs being explicitly disabled in
+	// the bridge init options. Disabling capture breaks the host's ability to
+	// collect console output from embedded scenario UIs.
+	captureLogsDisabledPattern = regexp.MustCompile(`(?s)captureLogs\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
+
+	// captureNetworkDisabledPattern detects captureNetwork being explicitly disabled.
+	// Disabling network capture prevents the host from monitoring API calls made
+	// by embedded scenario UIs, which is needed for debugging.
 	captureNetworkDisabledPattern = regexp.MustCompile(`(?s)captureNetwork\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
-	originVariableRegex           = regexp.MustCompile(`(?m)(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*(?:[a-zA-Z_$][\w$]*\()?\s*window\.location\.origin`)
-	proxyFunctionRegex            = regexp.MustCompile(`(?m)^(?:\s*(?:async\s+)?function\s+proxyToApi\s*\(|\s*(?:const|let|var)\s+proxyToApi\s*=)`)
-	customServerPattern           = regexp.MustCompile(`(?i)(express\(\)|createServer|http\.listen|\.listen\(\d)`)
+
+	// originVariableRegex detects code that captures window.location.origin into
+	// a variable. When this appears in the same file as resolveApiBase(), it
+	// suggests the developer may be rebuilding the API base URL using the browser's
+	// origin — which strips the proxy path prefix and breaks proxy context.
+	originVariableRegex = regexp.MustCompile(`(?m)(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*(?:[a-zA-Z_$][\w$]*\()?\s*window\.location\.origin`)
+
+	// proxyFunctionRegex detects a proxyToApi function definition (declaration or
+	// arrow/const form). Custom servers need this function to route API calls
+	// through the proper tunnel/proxy path.
+	proxyFunctionRegex = regexp.MustCompile(`(?m)^(?:\s*(?:async\s+)?function\s+proxyToApi\s*\(|\s*(?:const|let|var)\s+proxyToApi\s*=)`)
+
+	// customServerPattern detects raw server setup code that bypasses the standard
+	// startScenarioServer()/createScenarioServer() helpers. Note: this intentionally
+	// uses bare "createServer" (not "createScenarioServer") because
+	// "createScenarioServer" does NOT contain "createServer" as a substring
+	// (create-S-cenario-Server vs create-S-erver). The .listen(\d) variant only
+	// catches hardcoded numeric ports — env-var ports like .listen(UI_PORT)
+	// correctly pass since they indicate proper port configuration.
+	customServerPattern = regexp.MustCompile(`(?i)(express\(\)|createServer|http\.listen|\.listen\(\d)`)
 )
 
 // CheckInteropCompliance runs all 16 interop checks for a single app.
@@ -285,6 +317,14 @@ func checkPackageDep(scenarioRoot, depName string, def interopCheckDef) InteropC
 }
 
 // checkHardcodedLocalhost scans ui/src/ for localhost:PORT references.
+//
+// Why this matters: Hardcoded localhost URLs work during local development but
+// break in tunnel and proxy deployment contexts where the UI is served from a
+// different origin. All API calls must go through resolveApiBase() instead.
+//
+// Exclusions: test files (*.test.ts, *.spec.tsx) and test infrastructure
+// directories (__tests__, __mocks__, __fixtures__) are skipped because mock
+// data commonly references localhost URLs.
 func checkHardcodedLocalhost(scenarioRoot string) InteropCheckResult {
 	def := interopCheckDefs[2]
 	result := InteropCheckResult{
@@ -406,6 +446,16 @@ func checkRelativeBase(scenarioRoot string) InteropCheckResult {
 }
 
 // checkRouterBasename checks if BrowserRouter has a basename prop.
+//
+// Why this matters: When a scenario's UI is served through app-monitor's proxy
+// at /apps/<name>/proxy/, React Router's BrowserRouter needs a proxy-aware
+// basename so that navigate("/page") resolves to /apps/<name>/proxy/page
+// instead of /page. Without this, all client-side navigation breaks in the
+// proxy/iframe deployment context.
+//
+// Note: HashRouter uses URL hashes (/#/path) which are never sent to the
+// server, so they work through proxies without a basename. Only BrowserRouter
+// requires this check.
 func checkRouterBasename(scenarioRoot string) InteropCheckResult {
 	def := interopCheckDefs[4]
 	result := InteropCheckResult{
@@ -422,8 +472,15 @@ func checkRouterBasename(scenarioRoot string) InteropCheckResult {
 		return result
 	}
 
+	// Direct usage: <BrowserRouter basename={...}>
 	browserRouterPattern := regexp.MustCompile(`<BrowserRouter`)
 	basenamePattern := regexp.MustCompile(`<BrowserRouter[^>]*basename`)
+
+	// Aliased import detection. Scenarios commonly alias BrowserRouter:
+	//   import { BrowserRouter as Router } from 'react-router-dom';
+	// and then use <Router> or <Router basename={...}>.
+	// Without this, the check silently skips scenarios using aliases.
+	aliasImportPattern := regexp.MustCompile(`import\s*\{[^}]*BrowserRouter\s+as\s+(\w+)[^}]*\}\s*from\s+['"]react-router-dom['"]`)
 
 	hasBrowserRouter := false
 	hasBasename := false
@@ -445,6 +502,7 @@ func checkRouterBasename(scenarioRoot string) InteropCheckResult {
 		}
 		content := string(data)
 
+		// First check for direct <BrowserRouter> usage.
 		if browserRouterPattern.MatchString(content) {
 			hasBrowserRouter = true
 			rel, _ := filepath.Rel(scenarioRoot, path)
@@ -463,6 +521,33 @@ func checkRouterBasename(scenarioRoot string) InteropCheckResult {
 			}
 			return filepath.SkipAll
 		}
+
+		// Check for aliased import: `import { BrowserRouter as Router } from 'react-router-dom'`
+		// then look for <Router basename={...}>.
+		if matches := aliasImportPattern.FindStringSubmatch(content); len(matches) > 1 {
+			alias := matches[1]
+			aliasJSXPattern := regexp.MustCompile(`<` + regexp.QuoteMeta(alias) + `[\s/>]`)
+			if aliasJSXPattern.MatchString(content) {
+				hasBrowserRouter = true
+				rel, _ := filepath.Rel(scenarioRoot, path)
+				routerFile = filepath.ToSlash(rel)
+
+				lines := strings.Split(content, "\n")
+				for i, line := range lines {
+					if aliasJSXPattern.MatchString(line) {
+						routerLine = i + 1
+						break
+					}
+				}
+
+				aliasBasenamePattern := regexp.MustCompile(`<` + regexp.QuoteMeta(alias) + `[^>]*basename`)
+				if aliasBasenamePattern.MatchString(content) {
+					hasBasename = true
+				}
+				return filepath.SkipAll
+			}
+		}
+
 		return nil
 	})
 
@@ -484,7 +569,18 @@ func checkRouterBasename(scenarioRoot string) InteropCheckResult {
 	return result
 }
 
-// checkNoCustomServer verifies no express|createServer|http.listen in ui/server.js.
+// checkNoCustomServer verifies no express|createServer|http.listen in ui/server.*.
+//
+// Why this matters: Custom Express/http servers bypass the proxy-aware routing,
+// CORS, and health-check setup that startScenarioServer() / createScenarioServer()
+// provide. Without the standard server, the UI won't work correctly through the
+// app-monitor proxy or Cloudflare tunnel.
+//
+// The pattern intentionally does NOT match startScenarioServer or
+// createScenarioServer because those are the recommended @vrooli/api-base
+// helpers. It detects raw express(), http.createServer, and .listen(PORT)
+// with a numeric literal (which indicates direct port binding rather than
+// the env-driven approach the standard server uses).
 func checkNoCustomServer(scenarioRoot string) InteropCheckResult {
 	def := interopCheckDefs[5]
 	result := InteropCheckResult{
@@ -494,7 +590,10 @@ func checkNoCustomServer(scenarioRoot string) InteropCheckResult {
 		Slot:     def.Slot,
 	}
 
-	for _, name := range []string{"server.js", "server.ts", "server.mjs"} {
+	// Include .cjs — several Vrooli scenarios use CommonJS server files
+	// (e.g. algorithm-library, calendar, elo-swipe) that would otherwise
+	// be invisible to this check.
+	for _, name := range []string{"server.js", "server.ts", "server.mjs", "server.cjs"} {
 		serverPath := filepath.Join(scenarioRoot, "ui", name)
 		data, err := os.ReadFile(serverPath)
 		if err != nil {
@@ -915,6 +1014,11 @@ func checkProtectiveComments(scenarioRoot string) InteropCheckResult {
 }
 
 // checkIframeGuard verifies bridge init is guarded with window.parent !== window.
+//
+// Why this matters: Without the iframe guard, initIframeBridgeChild() runs even
+// in localhost and tunnel contexts where there's no parent frame. While the
+// bridge itself is designed to be a no-op outside iframes, the guard makes the
+// intent explicit and prevents unnecessary postMessage overhead.
 func checkIframeGuard(scenarioRoot string) InteropCheckResult {
 	def := interopCheckDefs[12]
 	result := InteropCheckResult{
@@ -957,6 +1061,11 @@ func checkIframeGuard(scenarioRoot string) InteropCheckResult {
 }
 
 // checkCaptureEnabled verifies captureLogs and captureNetwork are not disabled in bridge init.
+//
+// Why this matters: The iframe bridge captures console logs and network requests
+// from embedded scenario UIs and relays them to the host (app-monitor). Disabling
+// these captures removes the host's ability to debug embedded scenarios, which is
+// the primary reason the bridge exists.
 func checkCaptureEnabled(scenarioRoot string) InteropCheckResult {
 	def := interopCheckDefs[13]
 	result := InteropCheckResult{
@@ -1005,7 +1114,13 @@ func checkCaptureEnabled(scenarioRoot string) InteropCheckResult {
 }
 
 // checkProxyBasePreservation flags files that rebuild API bases using window.location.origin
-// after calling resolveApiBase, which strips the secure tunnel prefix.
+// after calling resolveApiBase.
+//
+// Why this matters: resolveApiBase() returns a URL that accounts for the proxy
+// path prefix (/apps/<name>/proxy/api/v1). If code then captures
+// window.location.origin and uses it to reconstruct the API URL, the proxy
+// prefix is lost and API calls go to the domain root instead of through the
+// proxy — breaking the proxy/iframe deployment context.
 func checkProxyBasePreservation(scenarioRoot string) InteropCheckResult {
 	def := interopCheckDefs[14]
 	result := InteropCheckResult{
@@ -1078,6 +1193,15 @@ func checkProxyBasePreservation(scenarioRoot string) InteropCheckResult {
 }
 
 // checkSecureTunnel verifies that custom server files route API calls through proxyToApi.
+//
+// Why this matters: When a scenario runs behind a Cloudflare tunnel or
+// app-monitor proxy, direct localhost API calls from the server won't reach
+// the backend. A proxyToApi function centralizes API routing so that tunnel
+// and proxy contexts work correctly.
+//
+// This check only applies when a custom server is detected (express(),
+// createServer, etc.). Standard servers using startScenarioServer() /
+// createScenarioServer() already handle proxying internally.
 func checkSecureTunnel(scenarioRoot string) InteropCheckResult {
 	def := interopCheckDefs[15]
 	result := InteropCheckResult{
@@ -1087,7 +1211,8 @@ func checkSecureTunnel(scenarioRoot string) InteropCheckResult {
 		Slot:     def.Slot,
 	}
 
-	for _, name := range []string{"server.js", "server.ts", "server.mjs"} {
+	// Include .cjs — must match the same file set as checkNoCustomServer.
+	for _, name := range []string{"server.js", "server.ts", "server.mjs", "server.cjs"} {
 		serverPath := filepath.Join(scenarioRoot, "ui", name)
 		data, err := os.ReadFile(serverPath)
 		if err != nil {

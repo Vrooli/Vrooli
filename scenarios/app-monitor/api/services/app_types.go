@@ -94,6 +94,14 @@ var (
 		".vscode":      {},
 		"coverage":     {},
 		"tmp":          {},
+		// Test infrastructure directories. Files inside these (e.g. setup.ts,
+		// helpers.ts) are not named *.test.ts or *.spec.ts, so isTestFile()
+		// alone won't catch them. Scanning them would false-positive on
+		// hardcoded localhost URLs used in test configuration / mock data.
+		"__tests__":     {},
+		"__mocks__":     {},
+		"__fixtures__":  {},
+		"__snapshots__": {},
 	}
 
 	localhostSkipFiles = map[string]struct{}{
@@ -602,12 +610,12 @@ type InteropCheckResult struct {
 	CheckID    string `json:"check_id"`
 	Name       string `json:"name"`
 	Passed     bool   `json:"passed"`
-	Severity   string `json:"severity"`              // "critical", "high", "medium", "low"
+	Severity   string `json:"severity"` // "critical", "high", "medium", "low"
 	Message    string `json:"message"`
 	FilePath   string `json:"file_path,omitempty"`
 	Line       int    `json:"line,omitempty"`
-	Slot       string `json:"slot,omitempty"`         // "[A]"-"[G]" from vrooli-ui-interop skill
-	Skipped    bool   `json:"skipped,omitempty"`      // true if check is N/A (e.g., no router)
+	Slot       string `json:"slot,omitempty"`    // "[A]"-"[G]" from vrooli-ui-interop skill
+	Skipped    bool   `json:"skipped,omitempty"` // true if check is N/A (e.g., no router)
 	SkipReason string `json:"skip_reason,omitempty"`
 }
 
@@ -620,8 +628,8 @@ type InteropComplianceReport struct {
 	FailCount  int                  `json:"fail_count"`
 	SkipCount  int                  `json:"skip_count"`
 	TotalCount int                  `json:"total_count"`
-	Score      int                  `json:"score"`          // 0-100 percentage
-	HasUI      bool                 `json:"has_ui"`         // false if scenario has no ui/ dir
+	Score      int                  `json:"score"`  // 0-100 percentage
+	HasUI      bool                 `json:"has_ui"` // false if scenario has no ui/ dir
 	Warnings   []string             `json:"warnings,omitempty"`
 }
 

@@ -17,10 +17,10 @@ import (
 func writeTestFile(t *testing.T, base string, relPath string, content string) {
 	t.Helper()
 	full := filepath.Join(base, filepath.FromSlash(relPath))
-	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		t.Fatalf("MkdirAll for %s: %v", relPath, err)
 	}
-	if err := os.WriteFile(full, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
 		t.Fatalf("WriteFile for %s: %v", relPath, err)
 	}
 }
@@ -197,6 +197,37 @@ const BASE = "http://localhost:3000/api/v1";
 	}
 }
 
+func TestCheckHardcodedLocalhost_MocksDirIgnored(t *testing.T) {
+	// Files inside __mocks__/ often contain hardcoded localhost URLs for test
+	// doubles. These should be excluded from scanning, just like *.test.ts files.
+	tmp := t.TempDir()
+	writeTestFile(t, tmp, "ui/src/__mocks__/api.ts", `
+const API_BASE = "http://localhost:3000/api/v1";
+export const mockFetch = () => fetch(API_BASE);
+`)
+	writeTestFile(t, tmp, "ui/src/App.tsx", `export default function App() { return null; }`)
+
+	r := checkHardcodedLocalhost(tmp)
+	if !r.Passed {
+		t.Errorf("expected pass when localhost is only in __mocks__/ dir, got fail: %s", r.Message)
+	}
+}
+
+func TestCheckHardcodedLocalhost_TestsDirIgnored(t *testing.T) {
+	// Files inside __tests__/ (e.g. setup.ts, helpers.ts) don't match *.test.ts
+	// but should still be excluded from production code scans.
+	tmp := t.TempDir()
+	writeTestFile(t, tmp, "ui/src/__tests__/setup.ts", `
+export const TEST_API = "http://localhost:8080/api";
+`)
+	writeTestFile(t, tmp, "ui/src/App.tsx", `export default function App() { return null; }`)
+
+	r := checkHardcodedLocalhost(tmp)
+	if !r.Passed {
+		t.Errorf("expected pass when localhost is only in __tests__/ dir, got fail: %s", r.Message)
+	}
+}
+
 func TestCheckHardcodedLocalhost_NoSrcDir(t *testing.T) {
 	tmp := t.TempDir()
 	// no ui/src/ directory
@@ -361,6 +392,50 @@ export default function App() {
 	}
 }
 
+func TestCheckRouterBasename_FailAliased(t *testing.T) {
+	// Scenarios commonly alias BrowserRouter:
+	//   import { BrowserRouter as Router } from 'react-router-dom';
+	// The check must detect this aliased usage and flag the missing basename.
+	tmp := t.TempDir()
+	writeTestFile(t, tmp, "ui/src/App.tsx", `
+import { BrowserRouter as Router } from 'react-router-dom';
+export default function App() {
+  return <Router>
+    <Routes />
+  </Router>;
+}
+`)
+
+	r := checkRouterBasename(tmp)
+	if r.Skipped {
+		t.Error("expected NOT to skip — aliased BrowserRouter should be detected")
+	}
+	if r.Passed {
+		t.Error("expected fail when aliased BrowserRouter has no basename")
+	}
+	if !strings.Contains(r.Message, "missing basename") {
+		t.Errorf("unexpected message: %s", r.Message)
+	}
+}
+
+func TestCheckRouterBasename_PassAliased(t *testing.T) {
+	// Verify aliased BrowserRouter with basename passes correctly.
+	tmp := t.TempDir()
+	writeTestFile(t, tmp, "ui/src/App.tsx", `
+import { BrowserRouter as Router } from 'react-router-dom';
+export default function App() {
+  return <Router basename={getRouterBasename()}>
+    <Routes />
+  </Router>;
+}
+`)
+
+	r := checkRouterBasename(tmp)
+	if !r.Passed {
+		t.Errorf("expected pass for aliased BrowserRouter with basename, got fail: %s", r.Message)
+	}
+}
+
 func TestCheckRouterBasename_Skip_NoSrcDir(t *testing.T) {
 	tmp := t.TempDir()
 	// no ui/src/ directory at all
@@ -430,6 +505,41 @@ server.listen(3000);
 	r := checkNoCustomServer(tmp)
 	if r.Passed {
 		t.Error("expected fail when createServer is found")
+	}
+}
+
+func TestCheckNoCustomServer_Fail_CjsExpress(t *testing.T) {
+	// Several Vrooli scenarios use .cjs server files (CommonJS). The check
+	// must detect custom server code in these files too.
+	tmp := t.TempDir()
+	writeTestFile(t, tmp, "ui/server.cjs", `
+const express = require('express');
+const app = express();
+app.use(express.static('dist'));
+app.listen(3000);
+`)
+
+	r := checkNoCustomServer(tmp)
+	if r.Passed {
+		t.Error("expected fail when express() found in server.cjs")
+	}
+	if !strings.Contains(r.Message, "server.cjs") {
+		t.Errorf("expected message to reference server.cjs, got: %s", r.Message)
+	}
+}
+
+func TestCheckNoCustomServer_Pass_CjsStandard(t *testing.T) {
+	// A .cjs file using createScenarioServer should pass — the standard helper
+	// is the recommended approach even in CommonJS files.
+	tmp := t.TempDir()
+	writeTestFile(t, tmp, "ui/server.cjs", `
+const { createScenarioServer } = require('@vrooli/api-base/server');
+const app = createScenarioServer({ distDir: './dist' });
+`)
+
+	r := checkNoCustomServer(tmp)
+	if !r.Passed {
+		t.Errorf("expected pass for standard createScenarioServer in .cjs, got fail: %s", r.Message)
 	}
 }
 
@@ -1198,7 +1308,7 @@ export default function App() { return null; }
 func TestGetInteropStandards_NoUI(t *testing.T) {
 	parentDir := t.TempDir()
 	scenarioRoot := filepath.Join(parentDir, "scenarios", "no-ui-scenario")
-	if err := os.MkdirAll(scenarioRoot, 0755); err != nil {
+	if err := os.MkdirAll(scenarioRoot, 0o755); err != nil {
 		t.Fatalf("failed to create scenario root: %v", err)
 	}
 	// No ui/ directory
@@ -1510,6 +1620,25 @@ func TestCheckSecureTunnel_Skip_NoServerFile(t *testing.T) {
 	r := checkSecureTunnel(tmp)
 	if !r.Skipped {
 		t.Error("expected skip when no server file exists")
+	}
+}
+
+func TestCheckSecureTunnel_Fail_CjsCustomServer(t *testing.T) {
+	// .cjs server files with custom server code but no proxyToApi should fail.
+	tmp := t.TempDir()
+	writeTestFile(t, tmp, "ui/server.cjs", `
+const express = require('express');
+const app = express();
+app.use(express.static('dist'));
+app.listen(3000);
+`)
+
+	r := checkSecureTunnel(tmp)
+	if r.Passed {
+		t.Error("expected fail when .cjs custom server lacks proxyToApi")
+	}
+	if !strings.Contains(r.Message, "server.cjs") {
+		t.Errorf("expected message to reference server.cjs, got: %s", r.Message)
 	}
 }
 
