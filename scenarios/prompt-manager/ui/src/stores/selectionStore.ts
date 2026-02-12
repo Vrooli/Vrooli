@@ -9,6 +9,16 @@
 
 import { create } from 'zustand'
 
+const VIEW_STORAGE_KEY = 'pm.viewMode'
+
+function loadGraphViewActive(): boolean {
+  try {
+    return localStorage.getItem(VIEW_STORAGE_KEY) === 'graph'
+  } catch {
+    return false
+  }
+}
+
 interface SelectionStore {
   // Single selection for editing (sidebar tree)
   selectedSkillId: string | null
@@ -22,6 +32,9 @@ interface SelectionStore {
   // Team selection for editing
   selectedTeamId: string | null
 
+  // Graph view toggle (when no skill selected)
+  graphViewActive: boolean
+
   // Actions
   setSelectedSkillId: (id: string | null) => void
   toggleSkillSelection: (id: string) => void
@@ -32,6 +45,7 @@ interface SelectionStore {
   clearAllSelection: () => void
   setSelectedAgentId: (id: string | null) => void
   setSelectedTeamId: (id: string | null) => void
+  setGraphViewActive: (v: boolean) => void
 }
 
 export const useSelectionStore = create<SelectionStore>((set, get) => ({
@@ -39,6 +53,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedSkillIds: [],
   selectedAgentId: null,
   selectedTeamId: null,
+  graphViewActive: loadGraphViewActive(),
 
   setSelectedSkillId: (id) => {
     set({
@@ -131,5 +146,12 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedSkillIds: [],
       selectedAgentId: null,
     })
+  },
+
+  setGraphViewActive: (v) => {
+    set({ graphViewActive: v })
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, v ? 'graph' : 'world')
+    } catch { /* ignore quota errors */ }
   },
 }))

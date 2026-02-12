@@ -68,6 +68,21 @@ Agent-maintained document tracking development milestones.
 - [x] Team/member deletion unschedules heartbeats and cleans member data
 - [x] Added regression tests for scheduler, executor, and cleanup flows
 
+### Phase 7: Relationship Graph (2026-02-12)
+- [x] Graph data model (nodes: team/agent/skill/cli; edges: 6 kinds)
+- [x] Scanner with 4 regex patterns for reference extraction from markdown
+- [x] CLI detector for code-usage edge extraction
+- [x] Builder pipeline (collect nodes → scan edges → extract CLI nodes → score)
+- [x] Health scoring with weighted composite factors
+- [x] Analytical queries (orphans, skillless, empty teams, unaffiliated, popular, cycles)
+- [x] Index persistence with lazy generation and mutation-driven invalidation
+- [x] REST API (12 endpoints under `/api/v1/graph`)
+- [x] CLI commands (`graph show|dump|node|regenerate|orphaned-skills|...`)
+- [x] React Flow UI with Dagre layout, custom node shapes, health tinting
+- [x] Query panel, toolbar filters, legend, and tooltip components
+- [x] Zustand store + service layer with 10s client cache
+- [x] Comprehensive test coverage (builder, scanner, scoring, queries, handlers, index)
+
 ---
 
 ## Current Focus

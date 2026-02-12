@@ -29,7 +29,7 @@ import (
 	"prompt-manager/testing"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
-	"prompt-manager/xrefs"
+	"prompt-manager/graph"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -138,18 +138,29 @@ func main() {
 	// Set AI indexer on skill handlers for CRUD hook integration
 	skillHandlers.SetAIIndexer(aiSearchService)
 
-	// Cross-reference detection
-	xrefScanner := xrefs.NewScanner(
+	// Graph detection
+	cliDetector := graph.NewCLIDetector(nil) // scenario names auto-discovered at scan time
+	graphScanner := graph.NewScanner(
 		fileStore.Agents().(*store.FileAgentStore),
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.FileSkills(),
+		fileStore.Relations(),
+		cliDetector,
 	)
-	xrefIndex := xrefs.NewIndexStore(absStoreDir, xrefScanner)
-	xrefHandlers := xrefs.NewHandlers(xrefIndex)
+	graphBuilder := graph.NewBuilder(
+		fileStore.Agents().(*store.FileAgentStore),
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.FileSkills(),
+		graphScanner,
+		cliDetector,
+		graph.DefaultScoreFns(),
+	)
+	graphIndex := graph.NewIndexStore(absStoreDir, graphBuilder)
+	graphHandlers := graph.NewHandlers(graphIndex)
 
-	// Inject xref invalidator into mutation handlers
-	skillHandlers.SetXRefInvalidator(xrefIndex)
-	agentHandlers.SetXRefInvalidator(xrefIndex)
+	// Inject graph invalidator into mutation handlers
+	skillHandlers.SetGraphInvalidator(graphIndex)
+	agentHandlers.SetGraphInvalidator(graphIndex)
 
 	// Log AI search status and trigger startup indexing if available
 	if ollamaURL != "" && qdrantURL != "" {
@@ -219,8 +230,18 @@ func main() {
 	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
 	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
 
-	// Cross-reference routes
-	v1.HandleFunc("/skills/{id}/xrefs", xrefHandlers.GetSkillXRefs).Methods("GET")
+	// Graph routes
+	v1.HandleFunc("/graph", graphHandlers.GetGraph).Methods("GET")
+	v1.HandleFunc("/graph/regenerate", graphHandlers.Regenerate).Methods("POST")
+	v1.HandleFunc("/graph/orphans", graphHandlers.GetOrphans).Methods("GET")
+	v1.HandleFunc("/graph/skillless", graphHandlers.GetSkillless).Methods("GET")
+	v1.HandleFunc("/graph/empty-teams", graphHandlers.GetEmptyTeams).Methods("GET")
+	v1.HandleFunc("/graph/unaffiliated", graphHandlers.GetUnaffiliated).Methods("GET")
+	v1.HandleFunc("/graph/popular", graphHandlers.GetPopular).Methods("GET")
+	v1.HandleFunc("/graph/cycles", graphHandlers.GetCycles).Methods("GET")
+	v1.HandleFunc("/graph/health", graphHandlers.GetHealthScores).Methods("GET")
+	v1.HandleFunc("/graph/nodes/{id}", graphHandlers.GetNode).Methods("GET")
+	v1.HandleFunc("/graph/nodes/{id}/edges", graphHandlers.GetNodeEdges).Methods("GET")
 
 	// Usage tracking routes (part of skills domain)
 	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
@@ -266,7 +287,7 @@ func main() {
 
 	// Team routes
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
-	teamHandlers.SetXRefInvalidator(xrefIndex)
+	teamHandlers.SetGraphInvalidator(graphIndex)
 	// Import routes must come before /teams/{id} to avoid mux treating "import" as an ID
 	v1.HandleFunc("/teams/import/claude-code/available", teamHandlers.ListAvailableCCTeams).Methods("GET")
 	v1.HandleFunc("/teams/import/claude-code", teamHandlers.ImportClaudeCode).Methods("POST")

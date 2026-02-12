@@ -1,15 +1,18 @@
 /**
  * CrossReferencePanel - Collapsible panel showing which agents, teams,
  * and skills reference a given skill.
+ *
+ * Uses the graph API (GET /api/v1/graph/node/{id}) to discover inbound edges
+ * where this skill is the target, and displays them grouped by source entity type.
  */
 
 import { useEffect, useState } from 'react'
 import { ChevronRight, ChevronDown, Bot, Users, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
-import { getSkillXRefs } from '@/services/skillService'
+import { getGraphNode } from '@/services/graphService'
 import { selectors } from '@/constants/selectors'
-import type { Reference } from '@/lib/schemas'
+import type { GraphEdge, Reference } from '@/lib/schemas'
 
 interface CrossReferencePanelProps {
   skillId: string
@@ -28,9 +31,19 @@ const GROUP_CONFIG: Record<EntityType, { label: string; icon: typeof Bot }> = {
 
 const GROUP_ORDER: EntityType[] = ['agent', 'team', 'skill']
 
+/** Represents a resolved cross-reference from the graph API. */
+interface ResolvedRef {
+  entityType: EntityType
+  entityId: string
+  entityName: string
+  filePath: string
+  lineNumber: number
+  edgeKind: string
+}
+
 export function CrossReferencePanel({ skillId, onNavigateToReference, className }: CrossReferencePanelProps) {
   const [expanded, setExpanded] = useState(false)
-  const [references, setReferences] = useState<Reference[]>([])
+  const [refs, setRefs] = useState<ResolvedRef[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
@@ -42,13 +55,39 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
     let cancelled = false
     setLoading(true)
 
-    void getSkillXRefs(skillId).then((result) => {
+    void getGraphNode(skillId).then((result) => {
       if (cancelled) return
       if (result) {
-        setReferences(result.references)
-        setTotal(result.total)
+        // Find edges where this skill is the target (inbound references)
+        const inboundEdges = result.adjacentEdges.filter(
+          (e: GraphEdge) => e.to === skillId
+        )
+
+        // For inbound edges, the 'from' is the entity that references us.
+        const resolved: ResolvedRef[] = []
+        for (const edge of inboundEdges) {
+          // Determine entity type from edge kind
+          let entityType: EntityType = 'skill'
+          if (edge.kind === 'membership') {
+            entityType = 'team'
+          } else if (edge.kind === 'cli-read' || edge.kind === 'bold-listed' || edge.kind === 'code-usage') {
+            entityType = 'agent'
+          }
+
+          resolved.push({
+            entityType,
+            entityId: edge.from,
+            entityName: edge.from, // best we have without a full graph lookup
+            filePath: edge.sourceFile,
+            lineNumber: edge.lineNumber,
+            edgeKind: edge.kind,
+          })
+        }
+
+        setRefs(resolved)
+        setTotal(resolved.length)
       } else {
-        setReferences([])
+        setRefs([])
         setTotal(0)
       }
       setLoading(false)
@@ -59,24 +98,35 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
     }
   }, [skillId])
 
-  const handleClick = (ref: Reference) => {
+  const handleClick = (ref: ResolvedRef) => {
+    // If there's an onNavigateToReference callback, adapt the resolved ref
+    // to the legacy Reference shape for compatibility
     if (onNavigateToReference) {
-      onNavigateToReference(ref)
+      const legacyRef: Reference = {
+        skillId,
+        refType: 'bold-listed',
+        source: {
+          entityType: ref.entityType,
+          entityId: ref.entityId,
+          entityName: ref.entityName,
+          filePath: ref.filePath,
+          lineNumber: ref.lineNumber,
+        },
+      }
+      onNavigateToReference(legacyRef)
       return
     }
-    const { entityType, entityId } = ref.source
-    if (entityType === 'agent') setSelectedAgentId(entityId)
-    else if (entityType === 'team') setSelectedTeamId(entityId)
-    else setSelectedSkillId(entityId)
+    if (ref.entityType === 'agent') setSelectedAgentId(ref.entityId)
+    else if (ref.entityType === 'team') setSelectedTeamId(ref.entityId)
+    else setSelectedSkillId(ref.entityId)
   }
 
   // Group references by entity type
-  const grouped = new Map<EntityType, Reference[]>()
-  for (const ref of references) {
-    const type = ref.source.entityType
-    const list = grouped.get(type) ?? []
+  const grouped = new Map<EntityType, ResolvedRef[]>()
+  for (const ref of refs) {
+    const list = grouped.get(ref.entityType) ?? []
     list.push(ref)
-    grouped.set(type, list)
+    grouped.set(ref.entityType, list)
   }
 
   return (
@@ -103,7 +153,7 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
             <div className="text-xs text-muted-foreground">Loading...</div>
           )}
 
-          {!loading && references.length === 0 && (
+          {!loading && refs.length === 0 && (
             <div className="text-xs text-muted-foreground">No references found</div>
           )}
 
@@ -111,7 +161,7 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
             GROUP_ORDER.filter((type) => grouped.has(type)).map((type) => {
               const config = GROUP_CONFIG[type]
               const Icon = config.icon
-              const refs = grouped.get(type) ?? []
+              const groupRefs = grouped.get(type) ?? []
 
               return (
                 <div key={type}>
@@ -119,19 +169,21 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
                     <Icon className="h-3 w-3" />
                     <span>{config.label}</span>
                   </div>
-                  {refs.map((ref, i) => (
+                  {groupRefs.map((ref, i) => (
                     <button
-                      key={`${ref.source.entityId}-${ref.source.filePath}-${i}`}
+                      key={`${ref.entityId}-${ref.filePath}-${i}`}
                       type="button"
                       onClick={() => handleClick(ref)}
                       className="block w-full text-left pl-4 py-0.5 text-xs text-foreground/80 hover:text-foreground hover:bg-muted/50 rounded transition-colors"
                       data-testid={selectors.xrefs.item}
                     >
-                      <span className="font-medium">{ref.source.entityName}</span>
-                      <span className="text-muted-foreground ml-1.5">
-                        {ref.source.filePath}
-                        {ref.source.lineNumber > 0 && `:${ref.source.lineNumber}`}
-                      </span>
+                      <span className="font-medium">{ref.entityName}</span>
+                      {ref.filePath && (
+                        <span className="text-muted-foreground ml-1.5">
+                          {ref.filePath}
+                          {ref.lineNumber > 0 && `:${ref.lineNumber}`}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

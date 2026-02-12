@@ -1,0 +1,417 @@
+// DOC: docs/concepts/GRAPH.md#reference-detection
+package graph
+
+import (
+	"context"
+	"regexp"
+	"strings"
+
+	"prompt-manager/store"
+)
+
+// Regex patterns for reference extraction (ported from xrefs/scanner.go).
+var (
+	// Matches: prompt-manager skill read <ids> OR prompt-manager skills read <ids>
+	cliReadRE = regexp.MustCompile("prompt-manager\\s+skills?\\s+read\\s+([^\n`]+)")
+
+	// Matches: **kebab-case-id** (bold-listed in markdown)
+	boldListedRE = regexp.MustCompile(`\*\*([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\*\*`)
+
+	// Matches: store/skills/packs/{pack}/{id}/ or /SKILL.md
+	pathRefRE = regexp.MustCompile(`store/skills/packs/[a-z]+/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?:/|/SKILL\.md)`)
+
+	// Validates a kebab-case skill ID.
+	validIDRE = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+)
+
+// extractedRef is an intermediate result from scanning content.
+type extractedRef struct {
+	skillID    string
+	edgeKind   EdgeKind
+	lineNumber int // 1-based
+}
+
+// agentLister provides agent scanning methods.
+type agentLister interface {
+	List(ctx context.Context) ([]store.Agent, error)
+	ListFiles(ctx context.Context, agentID string) ([]store.AgentFileEntry, error)
+	ReadFile(ctx context.Context, agentID, relPath string) (string, error)
+}
+
+// teamLister provides team scanning methods.
+type teamLister interface {
+	List(ctx context.Context) ([]store.Team, error)
+	ListSharedFiles(ctx context.Context, teamID string) ([]store.TeamFileEntry, error)
+	ReadSharedFile(ctx context.Context, teamID, relPath string) (string, error)
+}
+
+// skillLister provides skill scanning methods.
+type skillLister interface {
+	List(ctx context.Context) ([]store.Skill, error)
+	GetWithContent(ctx context.Context, id string) (*store.Skill, string, error)
+}
+
+// Scanner extracts graph edges from agents, teams, and skills.
+type Scanner struct {
+	agentStore    agentLister
+	teamStore     teamLister
+	skillStore    skillLister
+	relationStore store.RelationStore
+	cliDetector   *CLIDetector
+}
+
+// NewScanner creates a new graph scanner.
+func NewScanner(
+	agentStore agentLister,
+	teamStore teamLister,
+	skillStore skillLister,
+	relationStore store.RelationStore,
+	cliDetector *CLIDetector,
+) *Scanner {
+	return &Scanner{
+		agentStore:    agentStore,
+		teamStore:     teamStore,
+		skillStore:    skillStore,
+		relationStore: relationStore,
+		cliDetector:   cliDetector,
+	}
+}
+
+// ScanAll scans all entities and returns all edges found.
+func (s *Scanner) ScanAll(ctx context.Context) ([]Edge, error) {
+	// Build valid skill ID set
+	skills, err := s.skillStore.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	validIDs := make(map[string]bool, len(skills))
+	for _, sk := range skills {
+		validIDs[sk.ID] = true
+	}
+
+	var edges []Edge
+
+	// Scan agents for skill references
+	agentEdges, err := s.scanAgents(ctx, validIDs)
+	if err != nil {
+		return nil, err
+	}
+	edges = append(edges, agentEdges...)
+
+	// Scan teams for skill references
+	teamEdges, err := s.scanTeams(ctx, validIDs)
+	if err != nil {
+		return nil, err
+	}
+	edges = append(edges, teamEdges...)
+
+	// Scan skills for cross-references
+	skillEdges := s.scanSkills(skills, validIDs)
+	edges = append(edges, skillEdges...)
+
+	// Scan team-agent membership from relations
+	memberEdges, err := s.scanMemberships(ctx)
+	if err != nil {
+		return nil, err
+	}
+	edges = append(edges, memberEdges...)
+
+	return edges, nil
+}
+
+// scanAgents scans all agent files for skill references and code usage.
+func (s *Scanner) scanAgents(ctx context.Context, validIDs map[string]bool) ([]Edge, error) {
+	agents, err := s.agentStore.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var edges []Edge
+	for _, agent := range agents {
+		files, err := s.agentStore.ListFiles(ctx, agent.ID)
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			if f.IsDir || !strings.HasSuffix(strings.ToLower(f.Path), ".md") {
+				continue
+			}
+			content, err := s.agentStore.ReadFile(ctx, agent.ID, f.Path)
+			if err != nil {
+				continue
+			}
+
+			// Skill reference edges
+			extracted := extractRefsFromContent(content, validIDs)
+			for _, ext := range extracted {
+				edges = append(edges, Edge{
+					From:       agent.ID,
+					To:         ext.skillID,
+					Kind:       ext.edgeKind,
+					SourceFile: f.Path,
+					LineNumber: ext.lineNumber,
+				})
+			}
+
+			// Code usage edges
+			if s.cliDetector != nil {
+				codeRefs := s.cliDetector.Detect(content)
+				for _, cr := range codeRefs {
+					if cr.Category == CodeScenarioCLI {
+						cliNode := cliNodeID(cr.Value)
+						edges = append(edges, Edge{
+							From:       agent.ID,
+							To:         cliNode,
+							Kind:       EdgeCodeUsage,
+							SourceFile: f.Path,
+							LineNumber: cr.Line,
+						})
+					}
+				}
+			}
+		}
+	}
+	return edges, nil
+}
+
+// scanTeams scans all team shared files for skill references and code usage.
+func (s *Scanner) scanTeams(ctx context.Context, validIDs map[string]bool) ([]Edge, error) {
+	teams, err := s.teamStore.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var edges []Edge
+	for _, team := range teams {
+		files, err := s.teamStore.ListSharedFiles(ctx, team.ID)
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			if f.IsDir || !strings.HasSuffix(strings.ToLower(f.Path), ".md") {
+				continue
+			}
+			content, err := s.teamStore.ReadSharedFile(ctx, team.ID, f.Path)
+			if err != nil {
+				continue
+			}
+
+			// Skill reference edges
+			extracted := extractRefsFromContent(content, validIDs)
+			for _, ext := range extracted {
+				edges = append(edges, Edge{
+					From:       team.ID,
+					To:         ext.skillID,
+					Kind:       ext.edgeKind,
+					SourceFile: f.Path,
+					LineNumber: ext.lineNumber,
+				})
+			}
+
+			// Code usage edges
+			if s.cliDetector != nil {
+				codeRefs := s.cliDetector.Detect(content)
+				for _, cr := range codeRefs {
+					if cr.Category == CodeScenarioCLI {
+						cliNode := cliNodeID(cr.Value)
+						edges = append(edges, Edge{
+							From:       team.ID,
+							To:         cliNode,
+							Kind:       EdgeCodeUsage,
+							SourceFile: f.Path,
+							LineNumber: cr.Line,
+						})
+					}
+				}
+			}
+		}
+	}
+	return edges, nil
+}
+
+// scanSkills scans skill metadata and content for cross-references.
+func (s *Scanner) scanSkills(skills []store.Skill, validIDs map[string]bool) []Edge {
+	var edges []Edge
+	for _, skill := range skills {
+		// Default scope edge
+		if skill.DefaultScope != "" && validIDs[skill.DefaultScope] && skill.DefaultScope != skill.ID {
+			edges = append(edges, Edge{
+				From:       skill.ID,
+				To:         skill.DefaultScope,
+				Kind:       EdgeDefaultScope,
+				SourceFile: "skill.json",
+			})
+		}
+
+		// Scan SKILL.md content for references to other skills
+		_, content, err := s.skillStore.GetWithContent(context.Background(), skill.ID)
+		if err != nil || content == "" {
+			continue
+		}
+		extracted := extractRefsFromContent(content, validIDs)
+		for _, ext := range extracted {
+			// Skip self-references
+			if ext.skillID == skill.ID {
+				continue
+			}
+			edges = append(edges, Edge{
+				From:       skill.ID,
+				To:         ext.skillID,
+				Kind:       ext.edgeKind,
+				SourceFile: "SKILL.md",
+				LineNumber: ext.lineNumber,
+			})
+		}
+
+		// Code usage edges from skill content
+		if s.cliDetector != nil {
+			codeRefs := s.cliDetector.Detect(content)
+			for _, cr := range codeRefs {
+				if cr.Category == CodeScenarioCLI {
+					cliNode := cliNodeID(cr.Value)
+					edges = append(edges, Edge{
+						From:       skill.ID,
+						To:         cliNode,
+						Kind:       EdgeCodeUsage,
+						SourceFile: "SKILL.md",
+						LineNumber: cr.Line,
+					})
+				}
+			}
+		}
+	}
+	return edges
+}
+
+// scanMemberships creates edges for team-agent membership relations.
+func (s *Scanner) scanMemberships(ctx context.Context) ([]Edge, error) {
+	if s.relationStore == nil {
+		return nil, nil
+	}
+
+	teams, err := s.teamStore.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var edges []Edge
+	for _, team := range teams {
+		members, err := s.relationStore.ListTeamMembers(ctx, team.ID)
+		if err != nil {
+			continue
+		}
+		for _, m := range members {
+			edges = append(edges, Edge{
+				From: team.ID,
+				To:   m.AgentID,
+				Kind: EdgeMembership,
+			})
+		}
+	}
+	return edges, nil
+}
+
+// extractRefsFromContent extracts skill references from text content.
+// This is a pure function for testability (ported from xrefs/scanner.go).
+func extractRefsFromContent(content string, validIDs map[string]bool) []extractedRef {
+	lines := strings.Split(content, "\n")
+	type dedupeKey struct {
+		skillID  string
+		edgeKind EdgeKind
+	}
+	seen := make(map[dedupeKey]bool)
+	var results []extractedRef
+
+	for lineIdx, line := range lines {
+		lineNum := lineIdx + 1 // 1-based
+
+		// Pattern 1: CLI read commands
+		for _, match := range cliReadRE.FindAllStringSubmatch(line, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			ids := strings.Fields(strings.TrimSpace(match[1]))
+			for _, id := range ids {
+				if !isValidSkillToken(id) || !validIDs[id] {
+					continue
+				}
+				key := dedupeKey{id, EdgeCLIRead}
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				results = append(results, extractedRef{
+					skillID:    id,
+					edgeKind:   EdgeCLIRead,
+					lineNumber: lineNum,
+				})
+			}
+		}
+
+		// Pattern 2: Bold-listed names
+		for _, match := range boldListedRE.FindAllStringSubmatch(line, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			id := match[1]
+			if !validIDs[id] {
+				continue
+			}
+			key := dedupeKey{id, EdgeBoldListed}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			results = append(results, extractedRef{
+				skillID:    id,
+				edgeKind:   EdgeBoldListed,
+				lineNumber: lineNum,
+			})
+		}
+
+		// Pattern 3: Path references
+		for _, match := range pathRefRE.FindAllStringSubmatch(line, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			id := match[1]
+			if !validIDs[id] {
+				continue
+			}
+			key := dedupeKey{id, EdgePathRef}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			results = append(results, extractedRef{
+				skillID:    id,
+				edgeKind:   EdgePathRef,
+				lineNumber: lineNum,
+			})
+		}
+	}
+
+	return results
+}
+
+// isValidSkillToken checks whether a token looks like a valid skill ID
+// and is not a template/placeholder variable.
+func isValidSkillToken(token string) bool {
+	if !validIDRE.MatchString(token) {
+		return false
+	}
+	if strings.ContainsAny(token, "{}<>") {
+		return false
+	}
+	return true
+}
+
+// cliNodeID derives a node ID for a CLI reference from its command string.
+// It uses the first word (the command name) prefixed with "cli:".
+func cliNodeID(cmd string) string {
+	fields := strings.Fields(cmd)
+	if len(fields) == 0 {
+		return "cli:unknown"
+	}
+	return "cli:" + fields[0]
+}

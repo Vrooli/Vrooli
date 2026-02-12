@@ -158,6 +158,44 @@ describe('PanelErrorBoundary', () => {
     })
   })
 
+  describe('minimal mode', () => {
+    it('should render children when no error occurs', () => {
+      render(
+        <PanelErrorBoundary minimal>
+          <div data-testid="child">Test child</div>
+        </PanelErrorBoundary>
+      )
+
+      expect(screen.getByTestId('child')).toBeInTheDocument()
+    })
+
+    it('should render nothing when child throws', () => {
+      const { container } = render(
+        <PanelErrorBoundary minimal panelName="Tooltip">
+          <ThrowingComponent shouldThrow={true} />
+        </PanelErrorBoundary>
+      )
+
+      // Should not show any error UI or child content
+      expect(screen.queryByTestId('child-content')).not.toBeInTheDocument()
+      expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument()
+      expect(screen.queryByText('Tooltip Error')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Try Again' })).not.toBeInTheDocument()
+      // Container should be empty
+      expect(container.innerHTML).toBe('')
+    })
+
+    it('should still log error to console', () => {
+      render(
+        <PanelErrorBoundary minimal panelName="Toolbar">
+          <ThrowingComponent shouldThrow={true} />
+        </PanelErrorBoundary>
+      )
+
+      expect(console.error).toHaveBeenCalled()
+    })
+  })
+
   describe('className prop', () => {
     it('should apply custom className to error container', () => {
       const { container } = render(

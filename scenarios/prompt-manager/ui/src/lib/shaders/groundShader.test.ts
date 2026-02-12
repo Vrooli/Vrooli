@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import {
   compileShaderWithWebGL,
+  hasWebGL,
   parseGLSL,
   prepareForParsing,
   applyShaderInjections,
@@ -117,7 +118,7 @@ describe('groundShader GLSL validation', () => {
     })
   })
 
-  describe('WebGL shader compilation (real GPU)', () => {
+  describe.skipIf(!hasWebGL)('WebGL shader compilation (real GPU)', () => {
     it('vertex shader compiles with WebGL', () => {
       const { vertex } = extractGroundShaderGLSL()
       const result = compileShaderWithWebGL(vertex, 'vertex')

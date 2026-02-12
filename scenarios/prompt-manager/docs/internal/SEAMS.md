@@ -214,6 +214,93 @@ testable with mock stores.
 JSON parsing, eliminating duplication between the import handler and the interop package.
 Tests cover valid configs, fallback team names, invalid JSON, and empty members.
 
+## Graph Seams
+
+The graph system uses interface-based design for testability at three layers.
+
+### graphBuilder Interface
+
+[CODE: api/graph/index.go]
+
+`GraphIndexStore` depends on the `graphBuilder` interface rather than the concrete `Builder`:
+
+```go
+type graphBuilder interface {
+    Build(ctx context.Context) (Graph, error)
+}
+```
+
+Tests can inject a mock builder that returns a predetermined graph without scanning the filesystem.
+
+### graphIndexProvider Interface
+
+[CODE: api/graph/handlers.go]
+
+HTTP handlers depend on `graphIndexProvider`, not `GraphIndexStore` directly:
+
+```go
+type graphIndexProvider interface {
+    Get(ctx context.Context) (*GraphIndex, error)
+    Regenerate(ctx context.Context) error
+}
+```
+
+Handler tests inject a mock provider returning static graph data, testing HTTP behavior without any filesystem or builder dependencies.
+
+### GraphInvalidator Interface
+
+[CODE: api/graph/models.go]
+
+The `GraphInvalidator` interface is injected into skill and agent handlers:
+
+```go
+type GraphInvalidator interface {
+    Invalidate()
+}
+```
+
+CRUD handlers call `Invalidate()` after mutations. Tests verify invalidation calls without touching the index store.
+
+### Builder Source Interfaces
+
+[CODE: api/graph/builder.go]
+
+The `Builder` depends on three narrow interfaces for node collection:
+
+```go
+type agentNodeSource interface {
+    List(ctx context.Context) ([]store.Agent, error)
+}
+type teamNodeSource interface {
+    List(ctx context.Context) ([]store.Team, error)
+}
+type skillNodeSource interface {
+    List(ctx context.Context) ([]store.Skill, error)
+}
+```
+
+Tests inject stubs returning predetermined node lists, isolating the build pipeline from filesystem stores.
+
+### graphScanner Interface
+
+[CODE: api/graph/builder.go]
+
+The `Builder` depends on `graphScanner` for edge extraction:
+
+```go
+type graphScanner interface {
+    ScanAll(ctx context.Context) ([]Edge, error)
+}
+```
+
+Tests inject a mock scanner returning predetermined edges, so builder tests focus on node collection and health scoring without scanning real files.
+
+### Index Persistence Seam
+
+`GraphIndexStore` accepts a `storeDir` parameter. Tests point at a temp directory, isolating index file I/O from the real store.
+
+---
+
 ## World Scale Config
 
 The world-scale system uses a simple file-based config (`store/world-scale.json`) with

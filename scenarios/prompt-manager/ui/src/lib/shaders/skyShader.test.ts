@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   compileShaderWithWebGL,
+  hasWebGL,
   parseGLSL,
   prepareForParsing,
   findMissingUniforms,
@@ -21,7 +22,7 @@ import {
 } from './glsl/sky.glsl'
 
 describe('skyShader GLSL validation', () => {
-  describe('WebGL shader compilation (real GPU)', () => {
+  describe.skipIf(!hasWebGL)('WebGL shader compilation (real GPU)', () => {
     it('vertex shader compiles with WebGL', () => {
       // Use standalone version with Three.js built-ins for WebGL compilation
       const result = compileShaderWithWebGL(SKY_VERTEX_SHADER_STANDALONE, 'vertex')

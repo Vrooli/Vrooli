@@ -35,7 +35,7 @@ import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
-import { useUrlState } from '@/hooks/useUrlState'
+import { useUrlState, type ViewMode } from '@/hooks/useUrlState'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
 import { useRunningAgentStatusSync } from '@/hooks/useRunningAgentStatusSync'
 import { useSelectionStore } from '@/stores/selectionStore'
@@ -120,6 +120,8 @@ export function SkillManagerLayout() {
   const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
   const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
   const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
+  const graphViewActive = useSelectionStore((state) => state.graphViewActive)
+  const setGraphViewActive = useSelectionStore((state) => state.setGraphViewActive)
 
   // Get the current team details for editing
   const { team: currentTeam } = useTeamDetails(selectedTeamId)
@@ -452,6 +454,9 @@ export function SkillManagerLayout() {
     onSettingsOpenChange: useCallback((open: boolean) => {
       setShowSettingsDialog(open)
     }, []),
+    onViewChange: useCallback((view: ViewMode) => {
+      setGraphViewActive(view === 'graph')
+    }, [setGraphViewActive]),
     onHighlightChange: useCallback((hl: HighlightRequest | null) => {
       setHighlightRequest(hl)
     }, []),
@@ -478,6 +483,11 @@ export function SkillManagerLayout() {
   useEffect(() => {
     updateUrl({ settingsOpen: showSettingsDialog })
   }, [showSettingsDialog, updateUrl])
+
+  // Sync URL when view mode changes
+  useEffect(() => {
+    updateUrl({ view: graphViewActive ? 'graph' : 'world' })
+  }, [graphViewActive, updateUrl])
 
   // Auto-expand tree to show selected item
   useEffect(() => {

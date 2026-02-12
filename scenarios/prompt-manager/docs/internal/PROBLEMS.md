@@ -186,6 +186,7 @@ _No open crash issues identified. Team editor org chart now guards against self-
 
 | Item | Reason | Priority |
 |------|--------|----------|
+| Graph `recent-activity` scoring unwired | `RecentActivityScoreFromTimestamp` is implemented in [CODE: api/graph/scoring.go:RecentActivityScoreFromTimestamp] but `Node` lacks a timestamp field to feed it, so `recentActivityScore` returns a neutral 0.5. Wire it when nodes gain `updatedAt` metadata. | Medium |
 | Qdrant integration | Optional feature, not core | Low |
 | CLI shell completion | Nice-to-have | Low |
 | Semantic search | Requires Qdrant | Low |

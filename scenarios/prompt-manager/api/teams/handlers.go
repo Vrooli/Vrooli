@@ -27,8 +27,8 @@ func defaultReadCCConfig(teamName string) ([]byte, error) {
 	return os.ReadFile(configPath)
 }
 
-// XRefInvalidator allows triggering cross-reference index invalidation.
-type XRefInvalidator interface {
+// GraphInvalidator allows triggering graph index invalidation.
+type GraphInvalidator interface {
 	Invalidate()
 }
 
@@ -39,7 +39,7 @@ type Handlers struct {
 	relationStore      store.RelationStore
 	indexStore         store.IndexStore
 	heartbeatScheduler HeartbeatScheduler
-	xrefInvalidator    XRefInvalidator
+	graphInvalidator   GraphInvalidator
 	readCCConfig       func(teamName string) ([]byte, error) // Testing seam for CC config reader
 	listCCTeamDirs     func() ([]AvailableCCTeam, error)     // Testing seam for CC team listing
 }
@@ -74,14 +74,14 @@ func (h *Handlers) SetHeartbeatScheduler(scheduler HeartbeatScheduler) {
 	h.heartbeatScheduler = scheduler
 }
 
-// SetXRefInvalidator sets the cross-reference invalidator.
-func (h *Handlers) SetXRefInvalidator(inv XRefInvalidator) {
-	h.xrefInvalidator = inv
+// SetGraphInvalidator sets the graph invalidator.
+func (h *Handlers) SetGraphInvalidator(inv GraphInvalidator) {
+	h.graphInvalidator = inv
 }
 
-func (h *Handlers) invalidateXRefs() {
-	if h.xrefInvalidator != nil {
-		h.xrefInvalidator.Invalidate()
+func (h *Handlers) invalidateGraph() {
+	if h.graphInvalidator != nil {
+		h.graphInvalidator.Invalidate()
 	}
 }
 
@@ -170,7 +170,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -263,7 +263,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -667,7 +667,7 @@ func (h *Handlers) SetSharedFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -702,7 +702,7 @@ func (h *Handlers) CreateSharedFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.WriteHeader(http.StatusCreated)
 }
@@ -737,7 +737,7 @@ func (h *Handlers) RenameSharedFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -767,7 +767,7 @@ func (h *Handlers) DeleteSharedFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.WriteHeader(http.StatusNoContent)
 }

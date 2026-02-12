@@ -37,6 +37,7 @@ import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { RenderPipeline } from './rendering/RenderPipeline'
 import { EnvironmentSetup } from './rendering/EnvironmentSetup'
 import { MaterialProvider } from './materials/MaterialProvider'
+import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { WorldErrorProvider } from './WorldErrorProvider'
 import { cursorRef } from './cursorRef'
@@ -420,53 +421,65 @@ export function WorldCanvas({
       />
 
       {/* UI Overlays */}
-      <WorldControls
-        teamCount={teams.length}
-        nodeCount={skills.length}
-        selectionCount={selectedSkillIds.length}
-        agentCount={agents.length}
-        onCameraModeChange={handleCameraModeChange}
-      />
+      <PanelErrorBoundary panelName="World Controls">
+        <WorldControls
+          teamCount={teams.length}
+          nodeCount={skills.length}
+          selectionCount={selectedSkillIds.length}
+          agentCount={agents.length}
+          onCameraModeChange={handleCameraModeChange}
+        />
+      </PanelErrorBoundary>
 
       {/* World Editor */}
-      <WorldEditorToolbar className="absolute top-4 left-1/2 -translate-x-1/2" />
-      <ObjectPalette className="absolute top-16 left-4" />
+      <PanelErrorBoundary panelName="World Editor" minimal>
+        <WorldEditorToolbar className="absolute top-4 left-1/2 -translate-x-1/2" />
+        <ObjectPalette className="absolute top-16 left-4" />
+      </PanelErrorBoundary>
 
       {/* Furniture context menu */}
       {selectedFurniture && (
-        <div className="absolute top-16 right-4">
-          <FurnitureContextMenu
-            furniture={selectedFurniture}
-            agents={agents}
-            onClose={handleCloseFurnitureMenu}
-            onSitAgent={handleSitAgent}
-            onUnsitAgent={handleUnsitAgent}
-            seatedAgents={seatedAgentsMap}
-          />
-        </div>
+        <PanelErrorBoundary panelName="Furniture Menu" minimal>
+          <div className="absolute top-16 right-4">
+            <FurnitureContextMenu
+              furniture={selectedFurniture}
+              agents={agents}
+              onClose={handleCloseFurnitureMenu}
+              onSitAgent={handleSitAgent}
+              onUnsitAgent={handleUnsitAgent}
+              seatedAgents={seatedAgentsMap}
+            />
+          </div>
+        </PanelErrorBoundary>
       )}
 
       {/* Seat editor overlay */}
-      <div className="absolute top-16 left-4 z-10">
-        <SeatEditorOverlay />
-      </div>
+      <PanelErrorBoundary panelName="Seat Editor" minimal>
+        <div className="absolute top-16 left-4 z-10">
+          <SeatEditorOverlay />
+        </div>
+      </PanelErrorBoundary>
 
       {/* Decoration context menu */}
       {selectedDecoration && (
-        <div className="absolute top-16 right-4">
-          <DecorationContextMenu
-            decoration={selectedDecoration}
-            onClose={handleCloseDecorationMenu}
-          />
-        </div>
+        <PanelErrorBoundary panelName="Decoration Menu" minimal>
+          <div className="absolute top-16 right-4">
+            <DecorationContextMenu
+              decoration={selectedDecoration}
+              onClose={handleCloseDecorationMenu}
+            />
+          </div>
+        </PanelErrorBoundary>
       )}
 
       {/* Display panel */}
-      <DisplayPanel
-        selectedSkills={selectedSkillObjects}
-        onClear={() => setSelectedSkillIds([])}
-        onDisplay={handleDisplay}
-      />
+      <PanelErrorBoundary panelName="Display Panel">
+        <DisplayPanel
+          selectedSkills={selectedSkillObjects}
+          onClear={() => setSelectedSkillIds([])}
+          onDisplay={handleDisplay}
+        />
+      </PanelErrorBoundary>
 
       {/* Empty state */}
       {skills.length === 0 && (
@@ -496,14 +509,16 @@ export function WorldCanvas({
       )}
 
       {/* Agent overlay - appears when zoomed to agent */}
-      <AgentOverlay
-        agent={focusedAgent}
-        isVisible={cameraMode === 'zoomed-agent'}
-        onClose={handleCloseOverlay}
-        onCustomize={handleCustomize}
-        onDuplicate={() => void handleDuplicate()}
-        onDelete={handleDeleteClick}
-      />
+      <PanelErrorBoundary panelName="Agent Overlay" minimal>
+        <AgentOverlay
+          agent={focusedAgent}
+          isVisible={cameraMode === 'zoomed-agent'}
+          onClose={handleCloseOverlay}
+          onCustomize={handleCustomize}
+          onDuplicate={() => void handleDuplicate()}
+          onDelete={handleDeleteClick}
+        />
+      </PanelErrorBoundary>
 
       {/* Agent customize modal */}
       <AgentCustomizeModal

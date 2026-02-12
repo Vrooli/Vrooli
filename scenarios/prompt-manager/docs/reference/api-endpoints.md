@@ -1141,6 +1141,171 @@ Update the object scale configuration.
 
 ---
 
+## Graph
+
+[CODE: api/graph/handlers.go]
+
+The relationship graph maps connections between teams, agents, skills, and CLI tools. See [Graph Concepts](../concepts/GRAPH.md) for background.
+
+### GET /api/v1/graph
+
+Return the full graph index (nodes, edges, health scores).
+
+**Response:**
+```json
+{
+  "generatedAt": "2026-02-12T10:30:45Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "debugging",
+        "type": "skill",
+        "label": "Debugging",
+        "description": "Systematic debugging approach",
+        "status": "active",
+        "tags": ["debugging"]
+      }
+    ],
+    "edges": [
+      {
+        "from": "alice",
+        "to": "debugging",
+        "kind": "cli-read",
+        "sourceFile": "README.md",
+        "lineNumber": 42
+      }
+    ],
+    "healthScores": [
+      {
+        "nodeId": "debugging",
+        "score": 0.78,
+        "factors": {
+          "outgoing-edges": 0.4,
+          "incoming-edges": 0.8,
+          "code-usage": 1.0,
+          "recent-activity": 0.5
+        }
+      }
+    ]
+  }
+}
+```
+
+**Notes:**
+- Lazily generated on first request; cached at `store/indexes/graph.index.json`
+- Auto-invalidated when skills or agents are created, updated, or deleted
+
+### POST /api/v1/graph/regenerate
+
+Force a full graph rebuild, ignoring cached index.
+
+**Response:** Same shape as `GET /api/v1/graph`.
+
+### GET /api/v1/graph/orphans
+
+Return skills with zero incoming edges (never referenced by any agent or skill).
+
+**Response:** `[]Node`
+
+### GET /api/v1/graph/skillless
+
+Return agents that have no outgoing skill-reference edges.
+
+**Response:** `[]Node`
+
+### GET /api/v1/graph/empty-teams
+
+Return teams with no `membership` edges (no members).
+
+**Response:** `[]Node`
+
+### GET /api/v1/graph/unaffiliated
+
+Return agents not targeted by any `membership` edge (not in any team).
+
+**Response:** `[]Node`
+
+### GET /api/v1/graph/popular
+
+Return the most referenced nodes, ranked by incoming edge count.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | int | 10 | Maximum number of results |
+
+**Response:** `[]Node`
+
+### GET /api/v1/graph/cycles
+
+Detect circular dependencies between skills using DFS.
+
+**Response:** `[][]string` — each inner array is a cycle (list of node IDs).
+
+### GET /api/v1/graph/health
+
+Return health scores for all scored nodes.
+
+**Response:** `[]HealthScore`
+```json
+[
+  {
+    "nodeId": "debugging",
+    "score": 0.78,
+    "factors": {
+      "outgoing-edges": 0.4,
+      "incoming-edges": 0.8,
+      "code-usage": 1.0,
+      "recent-activity": 0.5
+    }
+  }
+]
+```
+
+### GET /api/v1/graph/nodes/{id}
+
+Return a single node with its adjacent edges and health score.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | Node ID |
+
+**Response:**
+```json
+{
+  "node": {
+    "id": "debugging",
+    "type": "skill",
+    "label": "Debugging"
+  },
+  "adjacentEdges": [
+    { "from": "alice", "to": "debugging", "kind": "cli-read" }
+  ],
+  "healthScore": {
+    "nodeId": "debugging",
+    "score": 0.78,
+    "factors": { ... }
+  }
+}
+```
+
+**Errors:**
+- `404` - Node not found
+
+### GET /api/v1/graph/nodes/{id}/edges
+
+Return all edges touching a node (both inbound and outbound).
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | Node ID |
+
+**Response:** `[]Edge`
+
+---
+
 ## Open Graph Metadata
 
 [CODE: api/ogmeta/handlers.go]

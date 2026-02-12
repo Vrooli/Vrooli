@@ -27,6 +27,7 @@ go build -o prompt-manager .
 | `prompt-manager tag` | Manage tags |
 | `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
+| `prompt-manager graph` | Relationship graph analysis |
 | `prompt-manager metadata` | Fetch URL metadata |
 | `prompt-manager status` | Check API health |
 | `prompt-manager configure` | View/update CLI settings |
@@ -523,6 +524,184 @@ Behavior depends on the team's `spawnMode`:
 **Example:**
 ```bash
 prompt-manager team trigger engineering
+```
+
+---
+
+## Graph
+
+[CODE: cli/graph/graph.go]
+
+Inspect the relationship graph between teams, agents, skills, and CLI tools. See [Graph Concepts](../concepts/GRAPH.md) for background.
+
+### prompt-manager graph show
+
+Print a summary of node and edge counts by type.
+
+```bash
+prompt-manager graph show
+# Output:
+# Graph Summary (generated 2026-02-12T10:30:45Z)
+#
+# Nodes:
+#   Teams:  3
+#   Agents: 8
+#   Skills: 25
+#   CLIs:   4
+#   Total:  40
+#
+# Edges:
+#   membership: 8
+#   cli-read: 15
+#   ...
+#   Total: 42
+#
+# Health: 0.65 avg across 40 scored nodes
+```
+
+### prompt-manager graph dump
+
+Print the full graph data.
+
+```bash
+prompt-manager graph dump [--json]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON instead of human-readable |
+
+### prompt-manager graph node
+
+Show details for a single node including adjacent edges and health.
+
+```bash
+prompt-manager graph node <id> [--json]
+```
+
+**Example:**
+```bash
+prompt-manager graph node debugging
+# Output:
+# ID:     debugging
+# Type:   skill
+# Label:  Debugging
+# Health: 0.78
+#   Factors:
+#     outgoing-edges: 0.40
+#     incoming-edges: 0.80
+#
+# Inbound edges (3):
+#   alice -[cli-read]-> (this)
+#   ...
+#
+# Outbound edges (1):
+#   (this) -[code-usage]-> cli:vrooli
+```
+
+### prompt-manager graph regenerate
+
+Force a full graph rebuild.
+
+```bash
+prompt-manager graph regenerate
+```
+
+**Aliases:** `regen`
+
+### prompt-manager graph orphaned-skills
+
+List skills not referenced by any agent or other skill.
+
+```bash
+prompt-manager graph orphaned-skills [--limit N] [--json]
+```
+
+**Aliases:** `orphans`
+
+### prompt-manager graph skillless-agents
+
+List agents that don't reference any skills.
+
+```bash
+prompt-manager graph skillless-agents [--limit N] [--json]
+```
+
+**Aliases:** `skillless`
+
+### prompt-manager graph empty-teams
+
+List teams with no members.
+
+```bash
+prompt-manager graph empty-teams [--json]
+```
+
+### prompt-manager graph unaffiliated-agents
+
+List agents not in any team.
+
+```bash
+prompt-manager graph unaffiliated-agents [--json]
+```
+
+**Aliases:** `unaffiliated`
+
+### prompt-manager graph cliless-skills
+
+List skills that don't reference any CLI tools.
+
+```bash
+prompt-manager graph cliless-skills [--limit N] [--json]
+```
+
+**Aliases:** `cliless`
+
+**Note:** Computed client-side from the full graph (no dedicated API endpoint).
+
+### prompt-manager graph popular
+
+List the most referenced nodes.
+
+```bash
+prompt-manager graph popular [--limit 10] [--type team|agent|skill|cli] [--json]
+```
+
+**Options:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--limit` | 10 | Number of results |
+| `--type` | | Filter by node type (client-side) |
+
+### prompt-manager graph circular-refs
+
+Detect circular dependencies between skills.
+
+```bash
+prompt-manager graph circular-refs [--json]
+```
+
+**Aliases:** `cycles`
+
+### prompt-manager graph health
+
+Show health scores for all nodes or a specific node.
+
+```bash
+prompt-manager graph health [--type team|agent|skill|cli] [--json]
+prompt-manager graph health <node-id> [--json]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--type` | Filter by node type |
+
+**Example:**
+```bash
+prompt-manager graph health --type=skill
+prompt-manager graph health debugging
 ```
 
 ---

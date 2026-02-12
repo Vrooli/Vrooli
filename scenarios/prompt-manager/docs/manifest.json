@@ -45,6 +45,12 @@
           "title": "Heartbeats & Cron Execution",
           "description": "Autonomous scheduled task execution for team members",
           "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/GRAPH.md",
+          "title": "Relationship Graph",
+          "description": "How the dependency graph maps connections between teams, agents, skills, and CLI tools",
+          "audience": ["developers", "users"]
         }
       ]
     },

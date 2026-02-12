@@ -22,10 +22,11 @@ The prompt-manager is built on three interconnected domains:
 | **SOUL System** | [PERSONA-SYSTEM.md](concepts/PERSONA-SYSTEM.md) | Agent personality defined in SOUL.md (+ optional .md files) |
 | **Capability Matching** | [CAPABILITY-MATCHING.md](concepts/CAPABILITY-MATCHING.md) | Skill-to-agent matching based on capabilities |
 
-### Visualization & Storage
+### Visualization & Analysis
 
 | Concept | Document | Description |
 |---------|----------|-------------|
+| **Relationship Graph** | [GRAPH.md](concepts/GRAPH.md) | Dependency graph mapping connections between teams, agents, skills, and CLIs |
 | **3D World** | [3D-WORLD-ARCHITECTURE.md](concepts/3D-WORLD-ARCHITECTURE.md) | React Three Fiber visualization for agents |
 | **Store Migration** | [STORE-MIGRATION.md](concepts/STORE-MIGRATION.md) | Migration from legacy storage to per-entity files |
 
@@ -80,6 +81,7 @@ Development documentation for contributors:
 - **Agent .md files** - Personality and operating guidance (SOUL.md is primary)
 - **Team role grants** - Automatic skill assignment based on team membership
 - **Effective skills computation** - Unified skill set from all sources
+- **Relationship graph** - Visualize dependencies, detect orphans and cycles
 - **3D visualization** - Monitor and coordinate agent swarms
 - **File-based storage** - Human-readable, version-control friendly
 

@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useUrlState, type UseUrlStateOptions } from './useUrlState'
+import { useUrlState, type UseUrlStateOptions, type ViewMode } from './useUrlState'
 
 describe('useUrlState', () => {
   // Store original window properties
@@ -67,7 +67,7 @@ describe('useUrlState', () => {
     Object.defineProperty(window, 'history', { value: originalHistory, configurable: true })
   })
 
-  function createOptions(overrides: Partial<UseUrlStateOptions> = {}): UseUrlStateOptions {
+  function createOptions(overrides: Partial<UseUrlStateOptions> & { onViewChange?: (view: ViewMode) => void } = {}): UseUrlStateOptions {
     return {
       onSkillIdChange: vi.fn(),
       onAgentIdChange: vi.fn(),
@@ -153,6 +153,10 @@ describe('useUrlState', () => {
         agentId: null,
         teamId: null,
         settingsOpen: true,
+        view: null,
+        hlFile: null,
+        hlLine: null,
+        hlText: null,
       })
     })
   })
@@ -384,6 +388,90 @@ describe('useUrlState', () => {
       })
 
       expect(storeCurrentChanges).toHaveBeenCalled()
+    })
+  })
+
+  describe('view mode support', () => {
+    it('should parse view=graph from URL', () => {
+      vi.useFakeTimers()
+      window.location.search = '?view=graph'
+
+      const onViewChange = vi.fn()
+      const options = createOptions({ onViewChange })
+      renderHook(() => useUrlState(options))
+
+      act(() => {
+        vi.runAllTimers()
+      })
+
+      expect(onViewChange).toHaveBeenCalledWith('graph')
+    })
+
+    it('should parse view=world from URL', () => {
+      vi.useFakeTimers()
+      window.location.search = '?view=world'
+
+      const onViewChange = vi.fn()
+      const options = createOptions({ onViewChange })
+      renderHook(() => useUrlState(options))
+
+      act(() => {
+        vi.runAllTimers()
+      })
+
+      expect(onViewChange).toHaveBeenCalledWith('world')
+    })
+
+    it('should ignore invalid view values', () => {
+      window.location.search = '?view=invalid'
+
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      const initialState = result.current.getInitialState()
+      expect(initialState.view).toBeNull()
+    })
+
+    it('should update URL with view param', () => {
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      act(() => {
+        result.current.updateUrl({ view: 'graph' })
+      })
+
+      expect(mockReplaceState).toHaveBeenCalledWith(
+        expect.objectContaining({ view: 'graph' }),
+        '',
+        '/?view=graph'
+      )
+    })
+
+    it('should include view in getInitialState', () => {
+      window.location.search = '?skill=s1&view=graph'
+
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      const state = result.current.getInitialState()
+      expect(state.view).toBe('graph')
+      expect(state.skillId).toBe('s1')
+    })
+
+    it('should call onViewChange on popstate with view', () => {
+      const onViewChange = vi.fn()
+      const options = createOptions({ onViewChange })
+      renderHook(() => useUrlState(options))
+
+      const event = new PopStateEvent('popstate', {
+        state: { skillId: null, agentId: null, teamId: null, settingsOpen: false, view: 'graph' },
+      })
+
+      act(() => {
+        popstateHandler?.(event)
+      })
+
+      expect(onViewChange).toHaveBeenCalledWith('graph')
     })
   })
 })

@@ -25,6 +25,13 @@ interface PanelErrorBoundaryProps {
    * Optional custom className for the error container
    */
   className?: string
+  /**
+   * When true, renders nothing on error instead of the error fallback UI.
+   * Useful for non-critical components (tooltips, toolbars) that should
+   * silently disappear rather than show an error screen.
+   * Errors are still logged to the console.
+   */
+  minimal?: boolean
 }
 
 /**
@@ -117,6 +124,9 @@ export class PanelErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError && this.state.error) {
+      if (this.props.minimal) {
+        return null
+      }
       return this.renderErrorFallback()
     }
 

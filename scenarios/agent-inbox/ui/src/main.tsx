@@ -20,8 +20,19 @@ const queryClient = new QueryClient({
   },
 });
 
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
+// ║                                                              ║
+// ║  Must run BEFORE React mount so that:                        ║
+// ║  1. Storage shimming is in place before any component        ║
+// ║     accesses localStorage/sessionStorage                     ║
+// ║  2. The bridge message channel is ready for host commands    ║
+// ║                                                              ║
+// ║  The window.top check ensures this is a no-op when           ║
+// ║  running outside an iframe (localhost, tunnel).              ║
+// ╚══════════════════════════════════════════════════════════════╝
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  initIframeBridgeChild({ appId: "agent-inbox" });
 }
 
 // NOTE: StrictMode intentionally double-renders components to detect side effects.

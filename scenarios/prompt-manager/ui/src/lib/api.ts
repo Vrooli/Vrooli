@@ -36,7 +36,13 @@ import {
   RatingResponseSchema,
   HealthResponseSchema,
   DisplayResponseSchema,
-  SkillXRefsResponseSchema,
+  GraphResponseSchema,
+  NodeDetailResponseSchema,
+  RegenerateResponseSchema,
+  NodeListResponseSchema,
+  PopularityResponseSchema,
+  CircularRefResponseSchema,
+  GraphHealthResponseSchema,
   AgentSchema,
   AgentArraySchema,
   SoulResponseSchema,
@@ -74,7 +80,14 @@ import {
   type HealthResponse,
   type DisplayResponse,
   type DisplayFormat,
-  type SkillXRefsResponse,
+  type GraphResponse,
+  type NodeDetailResponse,
+  type RegenerateResponse,
+  type NodeListResponse,
+  type PopularityResponse,
+  type CircularRefResponse,
+  type GraphHealthResponse,
+  type NodeHealthResponse,
   type Agent,
   type CreateAgentRequest,
   type UpdateAgentRequest,
@@ -326,14 +339,6 @@ class ApiClient {
     await this.requestVoid(`/skills/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
-  }
-
-  async getSkillXRefs(id: string): Promise<SkillXRefsResponse> {
-    return this.request<SkillXRefsResponse>(
-      `/skills/${encodeURIComponent(id)}/xrefs`,
-      undefined,
-      SkillXRefsResponseSchema
-    )
   }
 
   // Usage tracking
@@ -844,6 +849,103 @@ class ApiClient {
       },
       WorldSeatsConfigSchema
     )
+  }
+
+  // Graph methods - aligned with api/graph/handlers.go
+  async getGraph(): Promise<GraphResponse> {
+    return this.request<GraphResponse>('/graph', undefined, GraphResponseSchema)
+  }
+
+  async getGraphNode(id: string): Promise<NodeDetailResponse> {
+    return this.request<NodeDetailResponse>(
+      `/graph/nodes/${encodeURIComponent(id)}`,
+      undefined,
+      NodeDetailResponseSchema
+    )
+  }
+
+  async regenerateGraph(): Promise<RegenerateResponse> {
+    return this.request<RegenerateResponse>(
+      '/graph/regenerate',
+      { method: 'POST' },
+      RegenerateResponseSchema
+    )
+  }
+
+  async getOrphanedSkills(): Promise<NodeListResponse> {
+    return this.request<NodeListResponse>(
+      '/graph/orphans',
+      undefined,
+      NodeListResponseSchema
+    )
+  }
+
+  async getSkilllessAgents(): Promise<NodeListResponse> {
+    return this.request<NodeListResponse>(
+      '/graph/skillless',
+      undefined,
+      NodeListResponseSchema
+    )
+  }
+
+  async getEmptyTeams(): Promise<NodeListResponse> {
+    return this.request<NodeListResponse>(
+      '/graph/empty-teams',
+      undefined,
+      NodeListResponseSchema
+    )
+  }
+
+  async getUnaffiliatedAgents(): Promise<NodeListResponse> {
+    return this.request<NodeListResponse>(
+      '/graph/unaffiliated',
+      undefined,
+      NodeListResponseSchema
+    )
+  }
+
+  async getCLIlessSkills(): Promise<NodeListResponse> {
+    // No dedicated backend endpoint - compute from full graph client-side.
+    // Fetch the full graph and filter skills that have no code-usage edges.
+    const idx = await this.getGraph()
+    const hasCLI = new Set<string>()
+    for (const e of idx.graph.edges) {
+      if (e.kind === 'code-usage') hasCLI.add(e.from)
+    }
+    return idx.graph.nodes.filter((n) => n.type === 'skill' && !hasCLI.has(n.id))
+  }
+
+  async getPopular(limit?: number): Promise<PopularityResponse> {
+    const params = new URLSearchParams()
+    if (limit) params.set('limit', limit.toString())
+    const qs = params.toString()
+    return this.request<PopularityResponse>(
+      `/graph/popular${qs ? `?${qs}` : ''}`,
+      undefined,
+      PopularityResponseSchema
+    )
+  }
+
+  async getCircularRefs(): Promise<CircularRefResponse> {
+    return this.request<CircularRefResponse>(
+      '/graph/cycles',
+      undefined,
+      CircularRefResponseSchema
+    )
+  }
+
+  async getGraphHealth(): Promise<GraphHealthResponse> {
+    return this.request<GraphHealthResponse>(
+      '/graph/health',
+      undefined,
+      GraphHealthResponseSchema
+    )
+  }
+
+  async getNodeHealth(id: string): Promise<NodeHealthResponse | null> {
+    // No per-node health endpoint - filter from full health scores
+    const scores = await this.getGraphHealth()
+    return scores.find((s) => s.nodeId === id) ?? null
   }
 }
 

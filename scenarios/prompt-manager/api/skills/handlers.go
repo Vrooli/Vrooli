@@ -19,8 +19,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// XRefInvalidator allows triggering cross-reference index invalidation.
-type XRefInvalidator interface {
+// GraphInvalidator allows triggering graph index invalidation.
+type GraphInvalidator interface {
 	Invalidate()
 }
 
@@ -30,7 +30,7 @@ type Handlers struct {
 	store            SkillStore
 	metrics          MetricsService
 	aiIndexer        AISearchIndexer  // Optional: nil if AI search not available
-	xrefInvalidator  XRefInvalidator  // Optional: nil if xrefs not available
+	graphInvalidator GraphInvalidator // Optional: nil if graph not available
 	storeDir         string           // Absolute path to store directory for computing file paths
 }
 
@@ -51,15 +51,15 @@ func (h *Handlers) SetAIIndexer(indexer AISearchIndexer) {
 	h.aiIndexer = indexer
 }
 
-// SetXRefInvalidator sets the cross-reference invalidator.
-func (h *Handlers) SetXRefInvalidator(inv XRefInvalidator) {
-	h.xrefInvalidator = inv
+// SetGraphInvalidator sets the graph invalidator.
+func (h *Handlers) SetGraphInvalidator(inv GraphInvalidator) {
+	h.graphInvalidator = inv
 }
 
-// invalidateXRefs triggers cross-reference index invalidation if available.
-func (h *Handlers) invalidateXRefs() {
-	if h.xrefInvalidator != nil {
-		h.xrefInvalidator.Invalidate()
+// invalidateGraph triggers graph index invalidation if available.
+func (h *Handlers) invalidateGraph() {
+	if h.graphInvalidator != nil {
+		h.graphInvalidator.Invalidate()
 	}
 }
 
@@ -286,7 +286,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger async AI index update
 	h.triggerIndexAsync(req.ID)
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -525,7 +525,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger async AI index update
 	h.triggerIndexAsync(id)
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
@@ -603,7 +603,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger async AI index delete
 	h.triggerDeleteAsync(id)
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -840,7 +840,7 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 		newVersion = versions[len(versions)-1].Version + 1
 	}
 
-	h.invalidateXRefs()
+	h.invalidateGraph()
 
 	response := RevertResponse{
 		SkillID:    id,
