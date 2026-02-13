@@ -9,7 +9,8 @@ import { KeyboardScopeProvider } from '@/hooks/useKeyboardScopes';
 import { logger } from '@/services/logger';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import type { App } from '@/types';
 import {
   Navigate,
   Route,
@@ -20,6 +21,7 @@ import {
 } from 'react-router-dom';
 import './App.css';
 
+// AI_CHECK: APP_MONITOR_RENDER_PERF=1 | LAST: 2026-02-13
 const ResourceDetailView = lazy(() => import('@/components/views/ResourceDetailView'));
 const PreviewWorkspaceView = lazy(() => import('@/features/preview-workspace/components/PreviewWorkspaceView'));
 
@@ -117,18 +119,52 @@ function AppPreviewRedirect() {
 function App() {
   const loadApps = useAppsStore(state => state.loadApps);
   const updateAppInStore = useAppsStore(state => state.updateApp);
+  const updateAppsBatchInStore = useAppsStore(state => state.updateAppsBatch);
   const loadResources = useResourcesStore(state => state.loadResources);
   const [isConnected, setIsConnected] = useState(false);
+  const pendingAppUpdatesRef = useRef<Map<string, Partial<App> & { id?: string }>>(new Map());
+  const flushFrameRef = useRef<number | null>(null);
+
+  const flushPendingAppUpdates = useCallback(() => {
+    flushFrameRef.current = null;
+    const pending = pendingAppUpdatesRef.current;
+    if (pending.size === 0) {
+      return;
+    }
+    const updates = Array.from(pending.values());
+    pending.clear();
+    if (updates.length === 1) {
+      const [single] = updates;
+      if (single) {
+        updateAppInStore(single);
+      }
+      return;
+    }
+    updateAppsBatchInStore(updates);
+  }, [updateAppInStore, updateAppsBatchInStore]);
+
+  const queueAppUpdate = useCallback((update: Partial<App> & { id?: string }) => {
+    const key = update.id ?? update.scenario_name ?? update.name;
+    if (!key || key.trim().length === 0) {
+      updateAppInStore(update);
+      return;
+    }
+    const normalizedKey = key.trim().toLowerCase();
+    const existing = pendingAppUpdatesRef.current.get(normalizedKey);
+    pendingAppUpdatesRef.current.set(normalizedKey, existing ? { ...existing, ...update } : update);
+
+    if (flushFrameRef.current === null) {
+      flushFrameRef.current = window.requestAnimationFrame(flushPendingAppUpdates);
+    }
+  }, [flushPendingAppUpdates, updateAppInStore]);
 
   const { connectionState } = useAppWebSocket({
     onAppUpdate: (update) => {
-      logger.debug('Received app update payload', update);
-      updateAppInStore(update);
+      queueAppUpdate(update);
     },
     onMetricUpdate: () => {
     },
-    onLogEntry: (log) => {
-      logger.debug('Received live log entry', log);
+    onLogEntry: () => {
     },
     onConnection: (connected) => {
       setIsConnected(connected);
@@ -140,13 +176,23 @@ function App() {
   });
 
   useEffect(() => {
-    logger.debug('WebSocket connection state changed', { state: connectionState });
+    logger.info('WebSocket connection state changed', { state: connectionState });
   }, [connectionState]);
 
   useEffect(() => {
     void loadApps();
     void loadResources();
   }, [loadApps, loadResources]);
+
+  useEffect(() => {
+    return () => {
+      if (flushFrameRef.current !== null) {
+        window.cancelAnimationFrame(flushFrameRef.current);
+        flushFrameRef.current = null;
+      }
+      pendingAppUpdatesRef.current.clear();
+    };
+  }, []);
 
   return (
     <ErrorBoundary>

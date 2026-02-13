@@ -4,6 +4,7 @@ import { isAppMonitorScenarioId } from '@/utils/appPreview';
 import { fromPortablePreviewUrl, toPortablePreviewUrl } from '@/utils/previewUrl';
 import { reconcileTrackFractions, resolveWorkspaceLayout } from '../utils/layout';
 
+// AI_CHECK: APP_MONITOR_RENDER_PERF=2 | LAST: 2026-02-13
 export type PreviewWorkspaceInteractionMode = 'browse' | 'arrange';
 export type PreviewWorkspacePinnedColumn = 'left' | 'right';
 export const PREVIEW_WORKSPACE_ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5] as const;
@@ -174,6 +175,34 @@ const createDefaultPaneViewState = (): PreviewWorkspacePaneViewState => ({
   initialPreviewUrl: null,
   isLogsVisible: false,
 });
+
+const areStringArraysEqual = (a: string[], b: string[]): boolean => {
+  if (a === b) {
+    return true;
+  }
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const isPaneViewStateEqual = (
+  previous: PreviewWorkspacePaneViewState,
+  next: PreviewWorkspacePaneViewState,
+): boolean => (
+  previous.previewUrl === next.previewUrl
+  && previous.previewUrlInput === next.previewUrlInput
+  && previous.hasCustomPreviewUrl === next.hasCustomPreviewUrl
+  && previous.historyIndex === next.historyIndex
+  && previous.initialPreviewUrl === next.initialPreviewUrl
+  && previous.isLogsVisible === next.isLogsVisible
+  && areStringArraysEqual(previous.history, next.history)
+);
 
 const normalizePersistedPaneViewState = (value: unknown): PreviewWorkspacePaneViewState => {
   if (!value || typeof value !== 'object') {
@@ -495,6 +524,10 @@ export const usePreviewWorkspaceStore = create<PreviewWorkspaceState>()(persist(
       merged.historyIndex = merged.history.length - 1;
     }
     merged.historyIndex = Math.max(-1, Math.min(merged.history.length - 1, Math.floor(merged.historyIndex)));
+
+    if (isPaneViewStateEqual(previous, merged)) {
+      return state;
+    }
 
     return {
       paneViewState: {

@@ -39,6 +39,7 @@ import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
 import { usePaneMetadata } from './usePaneMetadata';
 import './PreviewPane.css';
 
+// AI_CHECK: APP_MONITOR_RENDER_PERF=1 | LAST: 2026-02-13
 export interface PreviewPaneProps {
   paneId: string;
   appId: string | null;
@@ -85,6 +86,14 @@ export function PreviewPane({
   const paneRef = useRef<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const lastAssignedAppIdentifierRef = useRef<string | null>(null);
+  const setPaneSurfaceRef = useCallback((node: HTMLDivElement | null) => {
+    paneRef.current = node;
+    setPaneSurfaceNode((current) => (current === node ? current : node));
+  }, []);
+  const setPreviewContainerRef = useCallback((node: HTMLDivElement | null) => {
+    previewContainerRef.current = node;
+    setPreviewContainerNode((current) => (current === node ? current : node));
+  }, []);
 
   const activeAppIdentifier = useMemo(() => {
     if (!appId) {
@@ -560,7 +569,7 @@ export function PreviewPane({
     refetchCompleteness,
   } = useAppInsights(
     currentApp?.id ?? resolvedAppIdentifier ?? null,
-    { preload: true },
+    { preload: isDetailsOpen },
   );
   const scenarioActionIdentifier = resolvedAppIdentifier;
   const modalFallbackApp = useMemo(() => {
@@ -583,10 +592,7 @@ export function PreviewPane({
       data-preview-pane-id={paneId}
       onMouseDown={() => onFocus(paneId)}
       aria-label={`Preview pane ${paneId}`}
-      ref={(node) => {
-        paneRef.current = node;
-        setPaneSurfaceNode(node);
-      }}
+      ref={setPaneSurfaceRef}
     >
       <DeviceVisionFilterDefs />
       <AppPreviewToolbar
@@ -682,10 +688,7 @@ export function PreviewPane({
               'preview-pane__iframe-shell',
               useDeviceViewport && 'preview-pane__iframe-shell--emulated',
             )}
-            ref={(node) => {
-              previewContainerRef.current = node;
-              setPreviewContainerNode(node);
-            }}
+            ref={setPreviewContainerRef}
           >
             {useDeviceViewport ? (
               <DeviceEmulationViewport {...deviceViewport}>

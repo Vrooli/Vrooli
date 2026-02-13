@@ -13,13 +13,11 @@ export enum LogLevel {
 
 class Logger {
   private level: LogLevel;
-  private isDevelopment: boolean;
   private logHistory: Array<{ timestamp: Date; level: LogLevel; message: string; data?: unknown }> = [];
   private maxHistorySize = 100;
 
   constructor() {
-    this.isDevelopment = import.meta.env.DEV;
-    this.level = this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
+    this.level = LogLevel.INFO;
     
     // Allow runtime log level configuration
     const configuredLevel = import.meta.env.VITE_LOG_LEVEL as string | undefined;
