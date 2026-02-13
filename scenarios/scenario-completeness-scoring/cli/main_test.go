@@ -150,6 +150,28 @@ func TestScoreCommandRunsStaleCheckViaDispatcher(t *testing.T) {
 	}
 }
 
+func TestScoreCommandAcceptsTrailingJSONFlag(t *testing.T) {
+	format.SetColorEnabled(false)
+	t.Cleanup(func() { format.SetColorEnabled(true) })
+	app := newTestApp(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"scenario":"demo","category":"","score":61,"base_score":61,"validation_penalty":0,"classification":"fair","breakdown":{},"metrics":{},"validation_analysis":{"has_issues":false,"issue_count":0,"issues":[],"total_penalty":0},"recommendations":[],"partial_result":{},"calculated_at":""}`)
+	}))
+	defer server.Close()
+	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"score", "demo", "--json"}); err != nil {
+			t.Fatalf("score command failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, `"scenario": "demo"`) {
+		t.Fatalf("expected JSON output, got %s", output)
+	}
+}
+
 func TestHistoryCommandSendsQuery(t *testing.T) {
 	app := newTestApp(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

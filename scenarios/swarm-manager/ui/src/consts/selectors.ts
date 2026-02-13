@@ -217,6 +217,18 @@ export const literalSelectors = {
     insightsAutoAnalyze: "insights-auto-analyze",
     saveButton: "settings-save",
   },
+  // Execution page selectors
+  execution: {
+    page: "execution-page",
+    tabs: "execution-tabs",
+    search: "execution-search",
+    filter: "execution-filter",
+    empty: "execution-empty",
+    noResults: "execution-no-results",
+    activeSection: "execution-active-section",
+    activeList: "execution-active-list",
+    grid: "execution-grid",
+  },
 } as const;
 
 // =============================================================================

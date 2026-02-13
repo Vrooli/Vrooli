@@ -57,6 +57,18 @@ export {
   findBacklogFileByPath,
 } from "./idea-agent-files";
 
+// Execution Utilities
+export {
+  EXECUTION_TAB_CONFIG,
+  canCancelExecution,
+  canRetryExecution,
+  canStartExecution,
+  isExecutionActive,
+  isExecutionInTab,
+  matchesExecutionFilters,
+} from "./execution-utils";
+export type { ExecutionFilters, ExecutionTabId } from "./execution-utils";
+
 // Query Utilities - React Query configuration
 export { defaultQueryOptions } from "./query-utils";
 export type { DefaultQueryOptions } from "./query-utils";

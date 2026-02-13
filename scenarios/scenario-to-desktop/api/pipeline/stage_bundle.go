@@ -108,9 +108,11 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	outputRoot, desktopPath := resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, framework)
 
 	if input.Config != nil && input.Config.Clean {
+		// Clean outputs without deleting source/config (in "proper" location mode).
+		// In staging/temp mode, removing the whole framework dir is safe.
 		if desktopPath != "" && strings.Contains(desktopPath, filepath.Join("platforms", framework)) {
-			appendInfo(result, "Cleaning desktop output: %s", desktopPath)
-			if err := removeAllRobust(desktopPath); err != nil {
+			appendInfo(result, "Cleaning desktop outputs under: %s", desktopPath)
+			if err := cleanDesktopOutputs(desktopPath, input.Config.LocationMode); err != nil {
 				failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
 				return result
 			}

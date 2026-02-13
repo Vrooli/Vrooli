@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"scenario-completeness-scoring/cli/format"
@@ -40,6 +41,7 @@ func (a *App) cmdScores(args []string) error {
 }
 
 func (a *App) cmdScore(args []string) error {
+	args = normalizeInterspersedFlags(args)
 	fs := flag.NewFlagSet("score", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	verbose := fs.Bool("verbose", false, "Show detailed breakdown")
@@ -77,6 +79,24 @@ func (a *App) cmdScore(args []string) error {
 
 	format.FormatComparisonContext(resp.ValidationAnalysis, resp.Score)
 	return nil
+}
+
+// normalizeInterspersedFlags allows users to pass flags after positional args
+// (e.g. "score scenario --json"), while still using stdlib flag parsing.
+func normalizeInterspersedFlags(args []string) []string {
+	if len(args) < 2 {
+		return args
+	}
+	flags := make([]string, 0, len(args))
+	positionals := make([]string, 0, len(args))
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			flags = append(flags, arg)
+			continue
+		}
+		positionals = append(positionals, arg)
+	}
+	return append(flags, positionals...)
 }
 
 func (a *App) cmdCalculate(args []string) error {

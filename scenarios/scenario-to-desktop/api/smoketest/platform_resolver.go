@@ -109,9 +109,32 @@ func (r *DefaultPlatformResolver) resolveLinuxCommand(artifactPath string) (stri
 		return "", nil, "", fmt.Errorf("failed to set AppImage executable bit: %w", err)
 	}
 
-	args := []string{"--smoke-test"}
-	display := fmt.Sprintf("%s --smoke-test", artifactPath)
-	return artifactPath, args, display, nil
+	// Prefer an extract+run fallback to avoid relying on FUSE. Some environments (containers,
+	// restricted sandboxes) cannot mount AppImages even when the artifact is otherwise valid.
+	//
+	// We try direct execution first to keep the fast path, then fall back to:
+	//   <AppImage> --appimage-extract  (into a temp dir)
+	//   ./squashfs-root/AppRun --smoke-test
+	//
+	// This keeps smoke tests viable without requiring system-level FUSE configuration.
+	script := `set -eu
+APPIMAGE="$1"
+shift
+
+# Fast path (uses FUSE mount when available)
+"$APPIMAGE" "$@" && exit 0
+
+# Fallback path (no FUSE required)
+tmp="$(mktemp -d)"
+cleanup() { rm -rf "$tmp"; }
+trap cleanup EXIT
+
+(cd "$tmp" && "$APPIMAGE" --appimage-extract >/dev/null 2>&1)
+(cd "$tmp/squashfs-root" && ./AppRun "$@")`
+
+	args := []string{"-c", script, "sh", artifactPath, "--smoke-test"}
+	display := fmt.Sprintf("%s --smoke-test (with AppImage extract fallback)", artifactPath)
+	return "sh", args, display, nil
 }
 
 func (r *DefaultPlatformResolver) resolveWindowsCommand(artifactPath string) (string, []string, string, error) {

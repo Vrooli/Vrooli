@@ -10,6 +10,38 @@ import (
 	"time"
 )
 
+// cleanDesktopOutputs removes common build/package output directories under a desktop framework directory
+// (for example: scenarios/<name>/platforms/electron). It intentionally does NOT remove the framework
+// directory itself, since that contains source/config (package.json, src/, etc.).
+//
+// For staging/temp location modes, it is safe to remove the entire framework directory because it is
+// generated under scenario-to-desktop/data/staging.
+func cleanDesktopOutputs(desktopPath string, locationMode string) error {
+	p := strings.TrimSpace(desktopPath)
+	if p == "" {
+		return errors.New("desktopPath is empty")
+	}
+
+	if isStagingLocation(locationMode) {
+		return removeAllRobust(p)
+	}
+
+	// Safe subset: known output dirs produced by the desktop build toolchain.
+	dirs := []string{
+		filepath.Join(p, "bundle"),
+		filepath.Join(p, "dist-electron"),
+		filepath.Join(p, "dist"),
+		filepath.Join(p, "dist-dev"),
+		filepath.Join(p, "dist-dev-electron"),
+	}
+	for _, d := range dirs {
+		if err := removeAllRobust(d); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // removeAllRobust is a defensive os.RemoveAll wrapper.
 //
 // We've observed rare "directory not empty" failures from os.RemoveAll during

@@ -136,7 +136,7 @@ func (s *Server) discoverResources() ([]Component, error) {
 
 	commonResources := []string{
 		"postgres", "redis", "qdrant", "ollama",
-		"browserless", "judge0", "vault", "claude-code",
+		"judge0", "vault", "claude-code",
 		"airbyte", "apache-airflow", "apache-superset", "audiocraft",
 		"autogen-studio", "autogpt", "blender", "btcpay",
 		"cline", "cloudflare-ai-gateway", "cncjs", "codex", "comfyui",
@@ -145,7 +145,7 @@ func (s *Server) discoverResources() ([]Component, error) {
 		"gitea", "grafana", "grocy", "home-assistant", "homepage",
 		"immich", "influxdb", "jellyfin", "kafka", "langflow",
 		"litellm", "lobe-chat", "localai", "mealie", "minio",
-		"mattermost", "mongodb", "mysql", "nginx", "nextcloud",
+		"mattermost", "mongodb", "mysql", "nginx",
 		"open-webui", "penpot", "photoprism", "pihole", "portainer",
 		"prometheus", "rabbitmq", "semaphore", "strapi", "supabase",
 		"syncthing", "tabby", "taskweaver", "traggo", "uptime-kuma",

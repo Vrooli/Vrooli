@@ -62,6 +62,7 @@ func (p *appMonitorInteropProvider) Rules() []rulespkg.Rule {
 		{ID: "interop_capture_enabled", Name: "Capture settings enabled", Description: "Ensure captureLogs and captureNetwork are not disabled in bridge init", Category: "interop", Severity: "medium", Enabled: true, Standard: "ui-interop-bridge"},
 		{ID: "interop_proxy_base_preserved", Name: "Proxy base preservation", Description: "Ensure resolveApiBase output is not rebuilt with window.location.origin", Category: "interop", Severity: "high", Enabled: true, Standard: "ui-interop-api"},
 		{ID: "interop_secure_tunnel", Name: "Secure UI tunnel", Description: "Ensure custom server files route API calls through proxyToApi", Category: "interop", Severity: "high", Enabled: true, Standard: "ui-interop-server"},
+		{ID: "interop_standard_server", Name: "Standard server functions", Description: "Ensure server files use startScenarioServer or createScenarioServer from @vrooli/api-base/server", Category: "interop", Severity: "medium", Enabled: true, Standard: "ui-interop-server"},
 	}
 }
 

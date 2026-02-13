@@ -228,8 +228,8 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 
 	// Clean thin-client outputs here (bundle stage is skipped).
 	if input.Config.Clean && ShouldSkipBundle(input.Config) && resolvedDesktopPath != "" {
-		result.Logs = append(result.Logs, fmt.Sprintf("Cleaning desktop output: %s", resolvedDesktopPath))
-		if err := os.RemoveAll(resolvedDesktopPath); err != nil {
+		result.Logs = append(result.Logs, fmt.Sprintf("Cleaning desktop outputs under: %s", resolvedDesktopPath))
+		if err := cleanDesktopOutputs(resolvedDesktopPath, input.Config.LocationMode); err != nil {
 			failStage(result, s.timeProvider, errors.ErrGenerationFailed(err).WithDetail("output_path", resolvedDesktopPath))
 			return result
 		}

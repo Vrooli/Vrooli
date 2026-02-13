@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   BACKLOG_STATUS_COLORS,
+  EXECUTION_STATUS_COLORS,
+  formatExecutionMode,
+  formatExecutionStatus,
   SCENARIO_STATUS_ICONS,
   SCENARIO_STATUS_COLORS,
   formatBacklogStatus,
 } from "./constants";
-import type { BacklogStatus, ScenarioStatus } from "./domain";
+import type { BacklogStatus, ExecutionMode, ExecutionStatus, ScenarioStatus } from "./domain";
 
 /**
  * Constants module tests.
@@ -36,6 +39,17 @@ describe("Constants - Decision Boundaries", () => {
     "error",
     "unknown",
   ];
+
+  const ALL_EXECUTION_STATUSES: ExecutionStatus[] = [
+    "pending",
+    "scheduled",
+    "running",
+    "completed",
+    "failed",
+    "canceled",
+  ];
+
+  const ALL_EXECUTION_MODES: ExecutionMode[] = ["manual", "scheduled", "yolo"];
 
   describe("BACKLOG_STATUS_COLORS", () => {
     it("has a color mapping for every backlog status", () => {
@@ -132,6 +146,43 @@ describe("Constants - Decision Boundaries", () => {
         const formatted = formatBacklogStatus(status);
         expect(formatted.charAt(0)).toBe(formatted.charAt(0).toUpperCase());
       });
+    });
+  });
+
+  describe("EXECUTION_STATUS_COLORS", () => {
+    it("has a color mapping for every execution status", () => {
+      ALL_EXECUTION_STATUSES.forEach((status) => {
+        expect(EXECUTION_STATUS_COLORS[status]).toBeDefined();
+        expect(typeof EXECUTION_STATUS_COLORS[status]).toBe("string");
+      });
+    });
+
+    it("returns valid Tailwind background classes", () => {
+      Object.values(EXECUTION_STATUS_COLORS).forEach((color) => {
+        expect(color).toMatch(/^bg-/);
+      });
+    });
+  });
+
+  describe("formatExecutionStatus", () => {
+    it("formats all execution statuses without errors", () => {
+      ALL_EXECUTION_STATUSES.forEach((status) => {
+        expect(() => formatExecutionStatus(status)).not.toThrow();
+        expect(typeof formatExecutionStatus(status)).toBe("string");
+      });
+    });
+  });
+
+  describe("formatExecutionMode", () => {
+    it("formats all execution modes without errors", () => {
+      ALL_EXECUTION_MODES.forEach((mode) => {
+        expect(() => formatExecutionMode(mode)).not.toThrow();
+        expect(typeof formatExecutionMode(mode)).toBe("string");
+      });
+    });
+
+    it("formats yolo mode as start now", () => {
+      expect(formatExecutionMode("yolo")).toBe("Start now");
     });
   });
 });

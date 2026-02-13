@@ -7,7 +7,14 @@
 
 import { Circle, CheckCircle, AlertCircle, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
-import type { BacklogKind, BacklogResearchTarget, BacklogStatus, ScenarioStatus } from "./domain";
+import type {
+  BacklogKind,
+  BacklogResearchTarget,
+  BacklogStatus,
+  ExecutionMode,
+  ExecutionStatus,
+  ScenarioStatus,
+} from "./domain";
 
 // ============================================================================
 // Backlog Status Display
@@ -92,3 +99,47 @@ export const SCENARIO_STATUS_COLORS: Record<ScenarioStatus, string> = {
   error: "text-red-400",
   unknown: "text-slate-500",
 };
+
+// ============================================================================
+// Execution Status Display
+// ============================================================================
+
+export const EXECUTION_STATUSES: ExecutionStatus[] = [
+  "pending",
+  "scheduled",
+  "running",
+  "completed",
+  "failed",
+  "canceled",
+];
+
+export const EXECUTION_MODES: ExecutionMode[] = ["manual", "scheduled", "yolo"];
+
+/**
+ * Maps execution status to tailwind background color classes.
+ */
+export const EXECUTION_STATUS_COLORS: Record<ExecutionStatus, string> = {
+  pending: "bg-slate-500",
+  scheduled: "bg-blue-500",
+  running: "bg-cyan-500",
+  completed: "bg-emerald-500",
+  failed: "bg-red-500",
+  canceled: "bg-amber-500",
+};
+
+/**
+ * Formats an execution status for display.
+ */
+export function formatExecutionStatus(status: ExecutionStatus): string {
+  return formatDisplayText(status);
+}
+
+/**
+ * Formats an execution mode for display.
+ */
+export function formatExecutionMode(mode: ExecutionMode): string {
+  if (mode === "yolo") {
+    return "Start now";
+  }
+  return formatDisplayText(mode);
+}

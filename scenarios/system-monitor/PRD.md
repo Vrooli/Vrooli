@@ -91,12 +91,6 @@ required:
     purpose: AI analysis of anomalies (llama3.2:3b)
     integration_pattern: Investigation prompt execution via agent-manager
     access_method: initialization/claude-code/anomaly-check.md
-    
-optional:
-  - resource_name: grafana
-    purpose: Advanced visualization dashboards
-    fallback: Built-in dashboard sufficient
-    access_method: resource-grafana CLI for provisioning
 ```
 
 ### Resource Integration Standards

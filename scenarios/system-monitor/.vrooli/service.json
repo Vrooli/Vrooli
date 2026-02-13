@@ -226,12 +226,6 @@
           }
         ]
       },
-      "node-red": {
-        "type": "node-red",
-        "enabled": true,
-        "required": true,
-        "description": "Metric collection and anomaly detection workflows"
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
@@ -240,21 +234,6 @@
           "llama3.2:3b"
         ],
         "description": "AI analysis for anomaly investigations"
-      },
-      "codex": {
-        "type": "codex",
-        "enabled": true,
-        "required": false,
-        "models": [
-          "codex-mini-latest"
-        ],
-        "description": "Deep system investigations using Codex tooling"
-      },
-      "grafana": {
-        "type": "grafana",
-        "enabled": true,
-        "required": false,
-        "description": "Optional dashboards for advanced visualization"
       }
     },
     "scenarios": {

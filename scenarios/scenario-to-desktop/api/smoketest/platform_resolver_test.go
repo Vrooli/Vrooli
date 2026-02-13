@@ -3,6 +3,7 @@ package smoketest_test
 import (
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"scenario-to-desktop-api/smoketest"
@@ -44,8 +45,6 @@ func TestPlatformResolver_ResolveCommand_Linux(t *testing.T) {
 		name         string
 		artifactPath string
 		setupFS      func(*mocks.MockFileSystem)
-		wantCmd      string
-		wantArgs     []string
 		wantDisplay  string
 		wantErr      bool
 	}{
@@ -58,9 +57,7 @@ func TestPlatformResolver_ResolveCommand_Linux(t *testing.T) {
 					ModeVal: 0o644, // Not executable yet
 				})
 			},
-			wantCmd:     "/path/to/MyApp.AppImage",
-			wantArgs:    []string{"--smoke-test"},
-			wantDisplay: "/path/to/MyApp.AppImage --smoke-test",
+			wantDisplay: "/path/to/MyApp.AppImage --smoke-test (with AppImage extract fallback)",
 			wantErr:     false,
 		},
 		{
@@ -72,9 +69,7 @@ func TestPlatformResolver_ResolveCommand_Linux(t *testing.T) {
 					ModeVal: 0o755, // Already executable
 				})
 			},
-			wantCmd:     "/path/to/MyApp.AppImage",
-			wantArgs:    []string{"--smoke-test"},
-			wantDisplay: "/path/to/MyApp.AppImage --smoke-test",
+			wantDisplay: "/path/to/MyApp.AppImage --smoke-test (with AppImage extract fallback)",
 			wantErr:     false,
 		},
 		{
@@ -113,11 +108,29 @@ func TestPlatformResolver_ResolveCommand_Linux(t *testing.T) {
 				return
 			}
 
-			if cmd != tt.wantCmd {
-				t.Errorf("ResolveCommand() cmd = %q, want %q", cmd, tt.wantCmd)
+			// Linux AppImage smoke test uses a shell wrapper with an extract+run fallback
+			// to avoid requiring FUSE mounts.
+			if cmd != "sh" {
+				t.Errorf("ResolveCommand() cmd = %q, want %q", cmd, "sh")
 			}
-			if len(args) != len(tt.wantArgs) {
-				t.Errorf("ResolveCommand() args = %v, want %v", args, tt.wantArgs)
+			if len(args) < 5 {
+				t.Errorf("ResolveCommand() args too short = %v", args)
+			} else {
+				if args[0] != "-c" {
+					t.Errorf("ResolveCommand() args[0] = %q, want %q", args[0], "-c")
+				}
+				if args[1] == "" || !strings.Contains(args[1], "--appimage-extract") {
+					t.Errorf("ResolveCommand() args[1] missing extract fallback script")
+				}
+				if args[2] != "sh" {
+					t.Errorf("ResolveCommand() args[2] = %q, want %q", args[2], "sh")
+				}
+				if args[3] != tt.artifactPath {
+					t.Errorf("ResolveCommand() args[3] = %q, want %q", args[3], tt.artifactPath)
+				}
+				if args[4] != "--smoke-test" {
+					t.Errorf("ResolveCommand() args[4] = %q, want %q", args[4], "--smoke-test")
+				}
 			}
 			if display != tt.wantDisplay {
 				t.Errorf("ResolveCommand() display = %q, want %q", display, tt.wantDisplay)
@@ -443,14 +456,14 @@ func TestPlatformResolver_ResolveCommand_CrossPlatform(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ResolveCommand() error = %v", err)
 		}
-		if cmd != "/path/to/MyApp.AppImage" {
-			t.Errorf("cmd = %q, want %q", cmd, "/path/to/MyApp.AppImage")
+		if cmd != "sh" {
+			t.Errorf("cmd = %q, want %q", cmd, "sh")
 		}
-		if len(args) != 1 || args[0] != "--smoke-test" {
-			t.Errorf("args = %v, want [--smoke-test]", args)
+		if len(args) < 5 || args[4] != "--smoke-test" {
+			t.Errorf("args = %v, want shell wrapper ending with --smoke-test", args)
 		}
-		if display != "/path/to/MyApp.AppImage --smoke-test" {
-			t.Errorf("display = %q, want %q", display, "/path/to/MyApp.AppImage --smoke-test")
+		if display != "/path/to/MyApp.AppImage --smoke-test (with AppImage extract fallback)" {
+			t.Errorf("display = %q, want %q", display, "/path/to/MyApp.AppImage --smoke-test (with AppImage extract fallback)")
 		}
 
 		// Verify chmod was called to make it executable

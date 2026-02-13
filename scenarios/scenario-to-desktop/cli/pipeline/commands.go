@@ -1432,6 +1432,58 @@ func printPipelineError(status *pipelineStatus, showOutput bool) {
 			}
 		}
 
+		// Build failures: surface decisive excerpt from build output logs.
+		// The API often returns a generic BUILD_FAILED code; the useful detail lives in stage.details.
+		if stageName == "build" && len(stage.Details) > 0 {
+			type buildPlatformResult struct {
+				Status   string   `json:"status,omitempty"`
+				ErrorLog []string `json:"error_log,omitempty"`
+			}
+			type buildDetails struct {
+				PlatformResults map[string]buildPlatformResult `json:"platform_results,omitempty"`
+				BuildLog        []string                       `json:"build_log,omitempty"`
+				ErrorLog        []string                       `json:"error_log,omitempty"`
+			}
+
+			var details buildDetails
+			if err := json.Unmarshal(stage.Details, &details); err == nil {
+				var excerpt string
+				for _, pr := range details.PlatformResults {
+					if pr.Status != "failed" || len(pr.ErrorLog) == 0 {
+						continue
+					}
+					excerpt = pr.ErrorLog[len(pr.ErrorLog)-1]
+					break
+				}
+				if excerpt == "" && len(details.ErrorLog) > 0 {
+					excerpt = details.ErrorLog[len(details.ErrorLog)-1]
+				}
+				if excerpt != "" {
+					excerpt = strings.TrimSpace(excerpt)
+					if len(excerpt) > 1200 {
+						excerpt = excerpt[:1200] + "...(truncated)"
+					}
+					fmt.Printf("\nRoot cause (build output):\n  %s\n", strings.ReplaceAll(excerpt, "\n", "\n  "))
+				}
+
+				// When explicitly requested, also show the last few build log entries for context.
+				if showOutput && len(details.BuildLog) > 0 {
+					fmt.Printf("\n--- Build log (tail) ---\n")
+					start := len(details.BuildLog) - 3
+					if start < 0 {
+						start = 0
+					}
+					for i := start; i < len(details.BuildLog); i++ {
+						entry := strings.TrimSpace(details.BuildLog[i])
+						if len(entry) > 800 {
+							entry = entry[:800] + "...(truncated)"
+						}
+						fmt.Printf("%s\n\n", entry)
+					}
+				}
+			}
+		}
+
 		// Show full stdout/stderr when --show-output is enabled
 		if showOutput && smokeDetails != nil {
 			if smokeDetails.LastStdout != "" {
