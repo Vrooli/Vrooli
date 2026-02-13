@@ -9,10 +9,11 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Globe, Network, Settings, HelpCircle } from 'lucide-react'
+import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { selectors } from '@/constants/selectors'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { StatsBar } from './StatsBar'
 import { FloatingPanel } from './FloatingPanel'
 
@@ -33,17 +34,30 @@ export function ViewOverlay({
 }: ViewOverlayProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [activeMobilePanel, setActiveMobilePanel] = useState<'stats' | 'left' | null>(null)
 
   const graphViewActive = useSelectionStore((s) => s.graphViewActive)
   const setGraphViewActive = useSelectionStore((s) => s.setGraphViewActive)
+  const isMobile = useIsMobile()
+
   const panelAnchorX = useMemo(() => {
     if (typeof window === 'undefined') return 24
     return Math.max(24, window.innerWidth - 680)
   }, [])
 
   useEffect(() => {
+    if (!isMobile && activeMobilePanel !== null) {
+      setActiveMobilePanel(null)
+    }
+  }, [activeMobilePanel, isMobile])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      if (activeMobilePanel) {
+        setActiveMobilePanel(null)
+        return
+      }
       if (isHelpOpen) {
         setIsHelpOpen(false)
         return
@@ -54,18 +68,49 @@ export function ViewOverlay({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isHelpOpen, isSettingsOpen])
+  }, [activeMobilePanel, isHelpOpen, isSettingsOpen])
+
+  const mobilePanelTitle = activeMobilePanel === 'stats' ? 'Stats' : 'Queries'
 
   return (
     <>
       <div className="absolute inset-0 pointer-events-none z-20">
         {/* Top-left: stats + optional left panel content */}
         <div className="absolute top-4 left-4 pointer-events-auto">
-          <StatsBar />
-          {leftPanelContent && (
-            <div className="mt-2 flex flex-col gap-2 max-w-xs">
-              {leftPanelContent}
+          {isMobile ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setActiveMobilePanel(activeMobilePanel === 'stats' ? null : 'stats')}
+                className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
+                title="View stats"
+                data-testid={selectors.viewOverlay.mobileStatsButton}
+              >
+                <BarChart3 className="h-4 w-4" />
+              </Button>
+              {leftPanelContent && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setActiveMobilePanel(activeMobilePanel === 'left' ? null : 'left')}
+                  className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
+                  title="Open queries"
+                  data-testid={selectors.viewOverlay.mobileLeftPanelButton}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              )}
             </div>
+          ) : (
+            <>
+              <StatsBar />
+              {leftPanelContent && (
+                <div className="mt-2 flex flex-col gap-2 max-w-xs">
+                  {leftPanelContent}
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -103,6 +148,36 @@ export function ViewOverlay({
           </Button>
         </div>
       </div>
+
+      {isMobile && activeMobilePanel && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50"
+            onClick={() => setActiveMobilePanel(null)}
+            data-testid={selectors.viewOverlay.mobilePanelBackdrop}
+          />
+          <div
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-border bg-popover text-popover-foreground shadow-2xl"
+            data-testid={selectors.viewOverlay.mobilePanelSheet}
+          >
+            <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-600/80" />
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <p className="text-sm font-medium">{mobilePanelTitle}</p>
+              <button
+                type="button"
+                onClick={() => setActiveMobilePanel(null)}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Close mobile panel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              {activeMobilePanel === 'stats' ? <StatsBar compact /> : leftPanelContent}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Settings panel */}
       <FloatingPanel

@@ -47,10 +47,23 @@ export type EdgeKind = z.infer<typeof EdgeKindSchema>
 export const HealthFactorSchema = z.record(z.string(), z.number())
 export type HealthFactor = z.infer<typeof HealthFactorSchema>
 
+export const HealthMessageSchema = z.object({
+  key: z.string(),
+  severity: z.enum(['info', 'warning', 'critical']),
+  factor: z.string().optional().default(''),
+  summary: z.string(),
+  detail: z.string().optional().default(''),
+  recommendation: z.string().optional().default(''),
+  metricValue: z.number().optional(),
+  target: z.string().optional().default(''),
+})
+export type HealthMessage = z.infer<typeof HealthMessageSchema>
+
 export const HealthScoreSchema = z.object({
   nodeId: z.string(),
   score: z.number(),
   factors: HealthFactorSchema,
+  messages: nullableArray(HealthMessageSchema),
 })
 export type HealthScore = z.infer<typeof HealthScoreSchema>
 
@@ -59,6 +72,10 @@ export const EntityHealthWeightsSchema = z.object({
   incomingEdges: z.number(),
   codeUsage: z.number(),
   recentActivity: z.number(),
+  skillContentLength: z.number(),
+  agentContextLoad: z.number(),
+  teamMemberCountBalance: z.number(),
+  teamRoleCoverage: z.number(),
 })
 export type EntityHealthWeights = z.infer<typeof EntityHealthWeightsSchema>
 

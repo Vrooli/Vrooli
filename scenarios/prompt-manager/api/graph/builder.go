@@ -3,6 +3,7 @@ package graph
 
 import (
 	"context"
+	"strings"
 
 	"prompt-manager/store"
 )
@@ -126,6 +127,9 @@ func (b *Builder) Build(ctx context.Context) (Graph, error) {
 	cliNodes := extractCLINodes(g.Edges, g.Nodes)
 	g.Nodes = append(g.Nodes, cliNodes...)
 
+	// Collect raw metrics for entity-specific health factors.
+	g.NodeMetrics = b.collectNodeMetrics(ctx, g, skills, agents, teams)
+
 	// Compute health scores
 	if len(b.scoreFns) > 0 {
 		if b.healthConfigProvider != nil {
@@ -142,6 +146,98 @@ func (b *Builder) Build(ctx context.Context) (Graph, error) {
 	}
 
 	return g, nil
+}
+
+func (b *Builder) collectNodeMetrics(ctx context.Context, g Graph, skills []store.Skill, agents []store.Agent, teams []store.Team) map[string]NodeMetricSet {
+	metrics := make(map[string]NodeMetricSet, len(g.Nodes))
+	for _, n := range g.Nodes {
+		metrics[n.ID] = NodeMetricSet{}
+	}
+
+	// Team member count from graph membership edges.
+	for _, e := range g.Edges {
+		if e.Kind != EdgeMembership {
+			continue
+		}
+		if _, ok := metrics[e.From]; !ok {
+			metrics[e.From] = NodeMetricSet{}
+		}
+		metrics[e.From][metricTeamMemberCount] += 1
+	}
+
+	// Skill content tokens from SKILL.md.
+	if skillContentStore, ok := b.skillStore.(interface {
+		GetWithContent(ctx context.Context, id string) (*store.Skill, string, error)
+	}); ok {
+		for _, skill := range skills {
+			_, content, err := skillContentStore.GetWithContent(ctx, skill.ID)
+			if err != nil {
+				continue
+			}
+			metrics[skill.ID][metricSkillContentTokens] = float64(countTokens(content))
+		}
+	}
+
+	// Agent context load from markdown files under the agent directory.
+	if agentFilesStore, ok := b.agentStore.(interface {
+		ListFiles(ctx context.Context, agentID string) ([]store.AgentFileEntry, error)
+		ReadFile(ctx context.Context, agentID, relPath string) (string, error)
+	}); ok {
+		for _, agent := range agents {
+			files, err := agentFilesStore.ListFiles(ctx, agent.ID)
+			if err != nil {
+				continue
+			}
+			totalTokens := 0
+			for _, f := range files {
+				if f.IsDir || !strings.HasSuffix(strings.ToLower(f.Path), ".md") {
+					continue
+				}
+				content, err := agentFilesStore.ReadFile(ctx, agent.ID, f.Path)
+				if err != nil {
+					continue
+				}
+				totalTokens += countTokens(content)
+			}
+			metrics[agent.ID][metricAgentContextTokens] = float64(totalTokens)
+		}
+	}
+
+	// Team role metrics from membership records.
+	if teamMembersStore, ok := b.teamStore.(interface {
+		GetMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error)
+	}); ok {
+		for _, team := range teams {
+			members, err := teamMembersStore.GetMembers(ctx, team.ID)
+			if err != nil {
+				continue
+			}
+			distinct := make(map[string]bool)
+			withRole := 0
+			for _, m := range members {
+				if len(m.Roles) > 0 {
+					withRole++
+				}
+				for _, role := range m.Roles {
+					trimmed := strings.TrimSpace(role)
+					if trimmed != "" {
+						distinct[trimmed] = true
+					}
+				}
+			}
+			metrics[team.ID][metricTeamDistinctRoleCount] = float64(len(distinct))
+			metrics[team.ID][metricTeamRoleAssignedMembers] = float64(withRole)
+			if metrics[team.ID][metricTeamMemberCount] <= 0 {
+				metrics[team.ID][metricTeamMemberCount] = float64(len(members))
+			}
+		}
+	}
+
+	return metrics
+}
+
+func countTokens(content string) int {
+	return len(strings.Fields(content))
 }
 
 // extractCLINodes finds CLI node IDs referenced in edges that don't

@@ -107,6 +107,10 @@ Team/Agent/Skill nodes receive a composite health score (0.0–1.0) computed as 
 | `incoming-edges` | 1.0 | Number of edges where node is the target. 5+ references = 1.0. |
 | `code-usage` | 0.5 | 3-level: 1.0 if only Vrooli CLIs, 0.5 if no tool usage (neutral), 0.1 if any external tool or script usage (penalty). |
 | `recent-activity` | 0.5 | Currently returns 0.5 (neutral). The decay function (`RecentActivityScoreFromTimestamp`) is implemented — it returns 1.0 within 7 days, linearly decaying to 0.0 at 90 days — but isn't wired yet because `Node` doesn't carry timestamps. See [DOC: docs/internal/PROBLEMS.md#graph-recent-activity-scoring]. |
+| `skill-content-length` | 0.75 (skill default) | Scores skill token length against a target range (150-1800 tokens). |
+| `agent-context-load` | 0.75 (agent default) | Scores total agent markdown token load (best at <=3500 tokens). |
+| `team-member-count-balance` | 0.75 (team default) | Scores team size against a balanced operating range (3-8 members). |
+| `team-role-coverage` | 0.75 (team default) | Scores role diversity and assignment coverage across team members. |
 
 ```
 score = (factor₁ × weight₁ + factor₂ × weight₂ + ...) / Σ weights
@@ -121,6 +125,7 @@ Weights are configurable per `team`, `agent`, and `skill` in:
 The Graph View `Settings -> Health` tab provides:
 - **Live unsaved preview**: draft slider changes immediately update rendered node health without writing files.
 - **Save + Recompute**: persists to `store/config/graph-health.json` and refreshes graph health from backend.
+- **Actionable diagnostics**: each scored node includes health messages with severity, rationale, and recommendations shown in Graph popovers and CLI output.
 
 ### CLI Health Policy
 

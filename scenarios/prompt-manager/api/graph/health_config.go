@@ -13,10 +13,14 @@ import (
 
 // HealthWeights defines tunable metric weights for a node type.
 type HealthWeights struct {
-	OutgoingEdges  float64 `json:"outgoingEdges"`
-	IncomingEdges  float64 `json:"incomingEdges"`
-	CodeUsage      float64 `json:"codeUsage"`
-	RecentActivity float64 `json:"recentActivity"`
+	OutgoingEdges          float64 `json:"outgoingEdges"`
+	IncomingEdges          float64 `json:"incomingEdges"`
+	CodeUsage              float64 `json:"codeUsage"`
+	RecentActivity         float64 `json:"recentActivity"`
+	SkillContentLength     float64 `json:"skillContentLength"`
+	AgentContextLoad       float64 `json:"agentContextLoad"`
+	TeamMemberCountBalance float64 `json:"teamMemberCountBalance"`
+	TeamRoleCoverage       float64 `json:"teamRoleCoverage"`
 }
 
 // CLIHealthConfig defines CLI-specific health policy levers.
@@ -97,9 +101,28 @@ func DefaultHealthConfig() HealthConfig {
 		RecentActivity: 0.5,
 	}
 	return HealthConfig{
-		Team:  defaultWeights,
-		Agent: defaultWeights,
-		Skill: defaultWeights,
+		Team: HealthWeights{
+			OutgoingEdges:          defaultWeights.OutgoingEdges,
+			IncomingEdges:          defaultWeights.IncomingEdges,
+			CodeUsage:              defaultWeights.CodeUsage,
+			RecentActivity:         defaultWeights.RecentActivity,
+			TeamMemberCountBalance: 0.75,
+			TeamRoleCoverage:       0.75,
+		},
+		Agent: HealthWeights{
+			OutgoingEdges:    defaultWeights.OutgoingEdges,
+			IncomingEdges:    defaultWeights.IncomingEdges,
+			CodeUsage:        defaultWeights.CodeUsage,
+			RecentActivity:   defaultWeights.RecentActivity,
+			AgentContextLoad: 0.75,
+		},
+		Skill: HealthWeights{
+			OutgoingEdges:      defaultWeights.OutgoingEdges,
+			IncomingEdges:      defaultWeights.IncomingEdges,
+			CodeUsage:          defaultWeights.CodeUsage,
+			RecentActivity:     defaultWeights.RecentActivity,
+			SkillContentLength: 0.75,
+		},
 		CLI: CLIHealthConfig{
 			NeutralCommands:       []string{"vrooli"},
 			ExternalToolScore:     0.0,
@@ -149,6 +172,10 @@ func validateWeights(entity string, w HealthWeights) error {
 		{name: "incomingEdges", val: w.IncomingEdges},
 		{name: "codeUsage", val: w.CodeUsage},
 		{name: "recentActivity", val: w.RecentActivity},
+		{name: "skillContentLength", val: w.SkillContentLength},
+		{name: "agentContextLoad", val: w.AgentContextLoad},
+		{name: "teamMemberCountBalance", val: w.TeamMemberCountBalance},
+		{name: "teamRoleCoverage", val: w.TeamRoleCoverage},
 	}
 
 	weightSum := 0.0

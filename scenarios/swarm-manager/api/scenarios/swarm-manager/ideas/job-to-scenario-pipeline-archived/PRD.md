@@ -79,16 +79,6 @@ required:
     integration_pattern: Direct API calls for speed
     access_method: HTTP API at service.ollama.url
     
-  - resource_name: huginn
-    purpose: Automated Upwork job scraping
-    integration_pattern: Huginn agent with webhook to our API
-    access_method: Huginn scenario configuration
-    
-  - resource_name: browserless
-    purpose: Screenshot OCR for manual job entry
-    integration_pattern: Direct API for screenshot processing
-    access_method: resource-browserless CLI
-    
 optional:
   - resource_name: qdrant
     purpose: Semantic search for similar past proposals
@@ -236,7 +226,7 @@ published_events:
     payload: {job_id, proposal_id, price}
     
 consumed_events:
-  - name: huginn.job.scraped
+  - name: job.scraped
     action: Import and queue for research
 ```
 
@@ -431,7 +421,6 @@ structure:
     - cli/job-to-scenario-pipeline
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - initialization/automation/huginn/upwork-scraper.json
     - scenario-test.yaml
     
   required_dirs:
@@ -446,7 +435,7 @@ structure:
     - ui
 
 resources:
-  required: [postgres, ollama, huginn, browserless]
+  required: [postgres, ollama]
   optional: [qdrant, redis]
   health_timeout: 60
 

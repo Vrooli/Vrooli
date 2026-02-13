@@ -130,6 +130,27 @@ function GraphNodeDetails({
                 ))}
               </div>
             )}
+
+            {(healthScore.messages?.length ?? 0) > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-border/70">
+                <p className="text-muted-foreground">Recommendations</p>
+                {(healthScore.messages ?? []).slice(0, 3).map((message) => (
+                  <div key={message.key} className="space-y-0.5">
+                    <p className={cn(
+                      'font-medium',
+                      message.severity === 'critical' && 'text-red-300',
+                      message.severity === 'warning' && 'text-yellow-300',
+                      message.severity === 'info' && 'text-sky-300',
+                    )}>
+                      {message.summary}
+                    </p>
+                    {message.recommendation && (
+                      <p className="text-muted-foreground">{message.recommendation}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-muted-foreground italic">Neutral (not scored)</p>

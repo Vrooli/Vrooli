@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -34,9 +35,21 @@ type edge struct {
 }
 
 type healthScore struct {
-	NodeID  string             `json:"nodeId"`
-	Score   float64            `json:"score"`
-	Factors map[string]float64 `json:"factors"`
+	NodeID   string             `json:"nodeId"`
+	Score    float64            `json:"score"`
+	Factors  map[string]float64 `json:"factors"`
+	Messages []healthMessage    `json:"messages,omitempty"`
+}
+
+type healthMessage struct {
+	Key            string  `json:"key"`
+	Severity       string  `json:"severity"`
+	Factor         string  `json:"factor,omitempty"`
+	Summary        string  `json:"summary"`
+	Detail         string  `json:"detail,omitempty"`
+	Recommendation string  `json:"recommendation,omitempty"`
+	MetricValue    float64 `json:"metricValue,omitempty"`
+	Target         string  `json:"target,omitempty"`
 }
 
 type graph struct {
@@ -310,12 +323,7 @@ func cmdNode(ctx appctx.Context, args []string) error {
 
 	if detail.HealthScore != nil {
 		fmt.Printf("Health: %.2f\n", detail.HealthScore.Score)
-		if len(detail.HealthScore.Factors) > 0 {
-			fmt.Println("  Factors:")
-			for k, v := range detail.HealthScore.Factors {
-				fmt.Printf("    %s: %.2f\n", k, v)
-			}
-		}
+		printHealthDetails(detail.HealthScore, "  ")
 	}
 
 	// Show inbound and outbound edges
@@ -610,7 +618,11 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 
 	fmt.Printf("Health Scores (%d nodes):\n", len(scores))
 	for _, hs := range scores {
-		fmt.Printf("  %-30s %.2f\n", hs.NodeID, hs.Score)
+		topReason := ""
+		if len(hs.Messages) > 0 {
+			topReason = " - " + hs.Messages[0].Summary
+		}
+		fmt.Printf("  %-30s %.2f%s\n", hs.NodeID, hs.Score, topReason)
 	}
 	return nil
 }
@@ -629,12 +641,7 @@ func cmdHealthNode(ctx appctx.Context, id string, jsonOut bool) error {
 			}
 			fmt.Printf("Node:   %s\n", hs.NodeID)
 			fmt.Printf("Score:  %.2f\n", hs.Score)
-			if len(hs.Factors) > 0 {
-				fmt.Println("Factors:")
-				for k, v := range hs.Factors {
-					fmt.Printf("  %-25s %.2f\n", k, v)
-				}
-			}
+			printHealthDetails(&hs, "")
 			return nil
 		}
 	}
@@ -672,4 +679,32 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max-3] + "..."
+}
+
+func printHealthDetails(hs *healthScore, indent string) {
+	if hs == nil {
+		return
+	}
+
+	if len(hs.Factors) > 0 {
+		fmt.Printf("%sFactors:\n", indent)
+		keys := make([]string, 0, len(hs.Factors))
+		for k := range hs.Factors {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Printf("%s  %-25s %.2f\n", indent, k, hs.Factors[k])
+		}
+	}
+
+	if len(hs.Messages) > 0 {
+		fmt.Printf("%sRecommendations:\n", indent)
+		for _, msg := range hs.Messages {
+			fmt.Printf("%s  [%s] %s\n", indent, strings.ToUpper(msg.Severity), msg.Summary)
+			if msg.Recommendation != "" {
+				fmt.Printf("%s    -> %s\n", indent, msg.Recommendation)
+			}
+		}
+	}
 }

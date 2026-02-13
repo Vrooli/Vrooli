@@ -35,6 +35,22 @@ const WEIGHT_FIELDS = [
   { key: 'recentActivity' as const, label: 'Recent activity' },
 ]
 
+const ENTITY_WEIGHT_FIELDS = {
+  team: [
+    ...WEIGHT_FIELDS,
+    { key: 'teamMemberCountBalance' as const, label: 'Member count balance' },
+    { key: 'teamRoleCoverage' as const, label: 'Role coverage' },
+  ],
+  agent: [
+    ...WEIGHT_FIELDS,
+    { key: 'agentContextLoad' as const, label: 'Context load' },
+  ],
+  skill: [
+    ...WEIGHT_FIELDS,
+    { key: 'skillContentLength' as const, label: 'Content length' },
+  ],
+}
+
 function GraphDisplaySettings() {
   const filters = useGraphStore((s) => s.filters)
   const setFilter = useGraphStore((s) => s.setFilter)
@@ -299,7 +315,7 @@ function GraphHealthSettings() {
               <Icon className="h-4 w-4" />
               <span className="text-sm font-medium">{entity.label}</span>
             </div>
-            {WEIGHT_FIELDS.map((field) => (
+            {ENTITY_WEIGHT_FIELDS[entity.key].map((field) => (
               <label key={field.key} className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-slate-300">
                 <span>{field.label}</span>
                 <span className="tabular-nums text-slate-200">{Math.round(weights[field.key] * 100)}%</span>

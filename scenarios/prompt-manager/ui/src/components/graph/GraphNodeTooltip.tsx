@@ -56,6 +56,12 @@ export function GraphNodeTooltip({ node, healthScore, x, y, className }: GraphNo
               ))}
             </div>
           )}
+
+          {(healthScore.messages?.length ?? 0) > 0 && (
+            <div className="border-t border-border pt-1">
+              <p className="text-muted-foreground">{healthScore.messages?.[0]?.summary}</p>
+            </div>
+          )}
         </div>
       )}
 

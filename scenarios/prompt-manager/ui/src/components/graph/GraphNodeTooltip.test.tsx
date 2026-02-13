@@ -18,12 +18,16 @@ const makeNode = (overrides?: Partial<GraphNode>): GraphNode => ({
   ...overrides,
 })
 
-const makeHealth = (overrides?: Partial<HealthScore>): HealthScore => ({
-  nodeId: 'skill-1',
-  score: 0.7,
-  factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 },
-  ...overrides,
-})
+const makeHealth = (overrides: Partial<HealthScore> = {}): HealthScore => {
+  const { messages, ...rest } = overrides
+  return {
+    nodeId: 'skill-1',
+    score: 0.7,
+    factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 },
+    ...rest,
+    messages: messages ?? [],
+  }
+}
 
 describe('GraphNodeTooltip', () => {
   it('should display node label and type', () => {

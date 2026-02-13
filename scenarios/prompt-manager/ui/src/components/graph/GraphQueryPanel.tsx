@@ -129,7 +129,7 @@ export function GraphQueryPanel({ className }: GraphQueryPanelProps) {
   }
 
   return (
-    <div className={cn('p-2 bg-card border border-border rounded-lg space-y-2', className)}>
+    <div className={cn('w-full p-2 bg-card border border-border rounded-lg space-y-2', className)}>
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Search className="h-3 w-3" />
         <span>Queries</span>
@@ -140,7 +140,7 @@ export function GraphQueryPanel({ className }: GraphQueryPanelProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
         {queries.map((query) => (
           <button
             key={query.id}
@@ -169,7 +169,7 @@ export function GraphQueryPanel({ className }: GraphQueryPanelProps) {
 
       <div className="space-y-1">
         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Result display</p>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">
           {[
             { id: 'highlight' as const, label: 'Highlight' },
             { id: 'dim-others' as const, label: 'Dim Others' },

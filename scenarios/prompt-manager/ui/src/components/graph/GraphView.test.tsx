@@ -38,10 +38,10 @@ const MOCK_GRAPH_RESPONSE: GraphResponse = {
       { from: 'skill-1', to: 'cli-1', kind: 'code-usage', category: 'CodeScenarioCLI', sourceFile: 'skill.md', lineNumber: 5 },
     ],
     healthScores: [
-      { nodeId: 'team-1', score: 0.5, factors: { 'outgoing-edges': 0.8 } },
-      { nodeId: 'agent-1', score: 0.7, factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 } },
-      { nodeId: 'skill-1', score: 0.3, factors: { 'incoming-edges': 0.4 } },
-      { nodeId: 'cli-1', score: 0.1, factors: {} },
+      { nodeId: 'team-1', score: 0.5, factors: { 'outgoing-edges': 0.8 }, messages: [] },
+      { nodeId: 'agent-1', score: 0.7, factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 }, messages: [] },
+      { nodeId: 'skill-1', score: 0.3, factors: { 'incoming-edges': 0.4 }, messages: [] },
+      { nodeId: 'cli-1', score: 0.1, factors: {}, messages: [] },
     ],
   },
 }
@@ -57,6 +57,10 @@ vi.mock('@/services/graphService', () => ({
   getCLIlessSkills: vi.fn().mockResolvedValue([]),
   getCircularRefs: vi.fn().mockResolvedValue([]),
   invalidateGraphCache: vi.fn(),
+}))
+
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: vi.fn(() => false),
 }))
 
 // Mock Monaco editor (used by GraphJsonView)
@@ -165,6 +169,7 @@ vi.mock('@xyflow/react', async () => {
 import { getGraph } from '@/services/graphService'
 import { useGraphStore } from '@/stores/graphStore'
 import { GraphView } from './GraphView'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 
 // ============================================================================
 // Tests
@@ -200,6 +205,7 @@ describe('GraphView', () => {
     localStorage.removeItem('pm.graphViewport')
     localStorage.removeItem('pm.graphViewSettings.v1')
     vi.clearAllMocks()
+    vi.mocked(useIsMobile).mockReturnValue(false)
   })
 
   afterEach(() => {
@@ -411,6 +417,20 @@ describe('GraphView', () => {
     expect(flowNodes).toHaveLength(4)
     expect(flowNodes.find((node) => node.id === 'agent-1')?.data?.queryState).toBe('selected')
     expect(flowNodes.find((node) => node.id === 'team-1')?.data?.queryState).toBe('dimmed')
+  })
+
+  it('should keep the mode toggle visible on mobile', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+    vi.mocked(useIsMobile).mockReturnValue(true)
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('graph-mode-toggle')).toBeInTheDocument()
   })
 
   it('should toggle between visual and JSON modes', async () => {

@@ -74,6 +74,10 @@ const literalSelectors = {
     viewToggle: 'view-overlay-view-toggle',
     settingsButton: 'view-overlay-settings-button',
     helpButton: 'view-overlay-help-button',
+    mobileStatsButton: 'view-overlay-mobile-stats-button',
+    mobileLeftPanelButton: 'view-overlay-mobile-left-panel-button',
+    mobilePanelBackdrop: 'view-overlay-mobile-panel-backdrop',
+    mobilePanelSheet: 'view-overlay-mobile-panel-sheet',
   },
   graph: {
     modeToggle: 'graph-mode-toggle',

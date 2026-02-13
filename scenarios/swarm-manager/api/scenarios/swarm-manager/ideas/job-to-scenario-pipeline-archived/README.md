@@ -179,8 +179,6 @@ job-to-scenario-pipeline/
 │   ├── templates/           # Job templates
 │   └── manage.sh            # File management script
 ├── initialization/
-│   ├── automation/
-│   │   └── huginn/         # Huginn agents
 │   └── storage/
 │       └── postgres/       # Database schema
 ├── ui/

@@ -1,14 +1,23 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ViewOverlay } from './ViewOverlay'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 
 vi.mock('./StatsBar', () => ({
   StatsBar: () => <div data-testid="view-overlay-stats" />,
 }))
 
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useIsMobile: vi.fn(() => false),
+}))
+
 describe('ViewOverlay', () => {
-  it('opens settings and help as independent floating panels', () => {
+  beforeEach(() => {
+    vi.mocked(useIsMobile).mockReturnValue(false)
+  })
+
+  it('opens settings and help as independent floating panels on desktop', () => {
     useSelectionStore.setState({ graphViewActive: true })
 
     const { container } = render(
@@ -20,6 +29,8 @@ describe('ViewOverlay', () => {
         helpTitle="Graph Help"
       />,
     )
+
+    expect(screen.getByTestId('view-overlay-stats')).toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('view-overlay-settings-button'))
     expect(screen.getByText('Graph Settings')).toBeInTheDocument()
@@ -34,5 +45,35 @@ describe('ViewOverlay', () => {
 
     // New behavior: no blocking modal backdrop.
     expect(container.querySelector('.bg-black\\/50')).toBeNull()
+    expect(screen.queryByTestId('view-overlay-mobile-stats-button')).not.toBeInTheDocument()
+  })
+
+  it('shows compact mobile controls and opens/closes stats + queries sheets', () => {
+    vi.mocked(useIsMobile).mockReturnValue(true)
+
+    render(
+      <ViewOverlay
+        leftPanelContent={<div>Query Body</div>}
+        settingsContent={<div>Settings Body</div>}
+        helpContent={<div>Help Body</div>}
+      />,
+    )
+
+    expect(screen.getByTestId('view-overlay-mobile-stats-button')).toBeInTheDocument()
+    expect(screen.getByTestId('view-overlay-mobile-left-panel-button')).toBeInTheDocument()
+    expect(screen.queryByTestId('view-overlay-stats')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('view-overlay-mobile-stats-button'))
+    expect(screen.getByTestId('view-overlay-mobile-panel-sheet')).toBeInTheDocument()
+    expect(screen.getByText('Stats')).toBeInTheDocument()
+    expect(screen.getByTestId('view-overlay-stats')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('view-overlay-mobile-panel-backdrop'))
+    expect(screen.queryByTestId('view-overlay-mobile-panel-sheet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('view-overlay-mobile-left-panel-button'))
+    expect(screen.getByTestId('view-overlay-mobile-panel-sheet')).toBeInTheDocument()
+    expect(screen.getByText('Queries')).toBeInTheDocument()
+    expect(screen.getByText('Query Body')).toBeInTheDocument()
   })
 })

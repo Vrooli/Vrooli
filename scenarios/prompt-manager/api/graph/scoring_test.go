@@ -287,3 +287,46 @@ func TestApplyCLIHealthPolicyWithConfig_UsesConfiguredExternalScore(t *testing.T
 		t.Fatalf("expected configured score 0.25, got %f", got[0].Score)
 	}
 }
+
+func TestScoreWithWeights_SkipsMessagesForZeroWeightFactors(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "team-1", Type: NodeTeam},
+			{ID: "skill-1", Type: NodeSkill},
+		},
+		Edges: []Edge{
+			{From: "team-1", To: "skill-1", Kind: EdgeMembership},
+		},
+	}
+	weights := HealthWeights{
+		OutgoingEdges: 1.0,
+		IncomingEdges: 0.0,
+	}
+
+	_, _, messages := scoreWithWeights("team-1", g, weights)
+	for _, msg := range messages {
+		if msg.Factor == "incoming-edges" {
+			t.Fatalf("did not expect incoming-edges recommendation when weight is zero")
+		}
+	}
+}
+
+func TestScoreWithWeights_OrdersMessagesByWeightedImpact(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "team-1", Type: NodeTeam},
+		},
+	}
+	weights := HealthWeights{
+		OutgoingEdges: 2.0,
+		IncomingEdges: 0.2,
+	}
+
+	_, _, messages := scoreWithWeights("team-1", g, weights)
+	if len(messages) < 2 {
+		t.Fatalf("expected at least 2 messages, got %d", len(messages))
+	}
+	if messages[0].Factor != "outgoing-edges" {
+		t.Fatalf("expected highest-impact recommendation first, got %q", messages[0].Factor)
+	}
+}

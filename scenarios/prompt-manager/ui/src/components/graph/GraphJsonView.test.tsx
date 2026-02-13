@@ -44,10 +44,10 @@ const MOCK_GRAPH_RESPONSE: GraphResponse = {
       { from: 'skill-1', to: 'cli-1', kind: 'code-usage', category: 'CodeScenarioCLI', sourceFile: 'skill.md', lineNumber: 5 },
     ],
     healthScores: [
-      { nodeId: 'team-1', score: 0.5, factors: { 'outgoing-edges': 0.8 } },
-      { nodeId: 'agent-1', score: 0.7, factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 } },
-      { nodeId: 'skill-1', score: 0.3, factors: { 'incoming-edges': 0.4 } },
-      { nodeId: 'cli-1', score: 0.1, factors: {} },
+      { nodeId: 'team-1', score: 0.5, factors: { 'outgoing-edges': 0.8 }, messages: [] },
+      { nodeId: 'agent-1', score: 0.7, factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 }, messages: [] },
+      { nodeId: 'skill-1', score: 0.3, factors: { 'incoming-edges': 0.4 }, messages: [] },
+      { nodeId: 'cli-1', score: 0.1, factors: {}, messages: [] },
     ],
   },
 }

@@ -4,8 +4,10 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 )
@@ -23,10 +25,36 @@ type ScenarioHealthProvider interface {
 }
 
 var factorEvaluators = map[string]func(nodeID string, g Graph) float64{
-	"outgoing-edges":  outgoingEdgesScore,
-	"incoming-edges":  incomingEdgesScore,
-	"code-usage":      codeUsageScore,
-	"recent-activity": recentActivityScore,
+	"outgoing-edges":            outgoingEdgesScore,
+	"incoming-edges":            incomingEdgesScore,
+	"code-usage":                codeUsageScore,
+	"recent-activity":           recentActivityScore,
+	"skill-content-length":      skillContentLengthScore,
+	"agent-context-load":        agentContextLoadScore,
+	"team-member-count-balance": teamMemberCountBalanceScore,
+	"team-role-coverage":        teamRoleCoverageScore,
+}
+
+const (
+	severityInfo     = "info"
+	severityWarning  = "warning"
+	severityCritical = "critical"
+
+	metricSkillContentTokens      = "skill-content-tokens"
+	metricAgentContextTokens      = "agent-context-tokens"
+	metricTeamMemberCount         = "team-member-count"
+	metricTeamDistinctRoleCount   = "team-distinct-role-count"
+	metricTeamRoleAssignedMembers = "team-members-with-role-count"
+)
+
+type scoreWithDiagnostics struct {
+	value    float64
+	messages []HealthMessage
+}
+
+type rankedMessage struct {
+	message HealthMessage
+	impact  float64
 }
 
 // ScoreAll computes health scores for all nodes using the provided score functions.
@@ -61,17 +89,22 @@ func ScoreAllWithConfig(g Graph, cfg HealthConfig) []HealthScore {
 		hs := HealthScore{
 			NodeID: n.ID,
 			Factors: map[string]float64{
-				"outgoing-edges":  0,
-				"incoming-edges":  0,
-				"code-usage":      0,
-				"recent-activity": 0,
+				"outgoing-edges":            0,
+				"incoming-edges":            0,
+				"code-usage":                0,
+				"recent-activity":           0,
+				"skill-content-length":      0,
+				"agent-context-load":        0,
+				"team-member-count-balance": 0,
+				"team-role-coverage":        0,
 			},
 		}
-		score, factors := scoreWithWeights(n.ID, g, weights)
+		score, factors, messages := scoreWithWeights(n.ID, g, weights)
 		hs.Score = score
 		for k, v := range factors {
 			hs.Factors[k] = v
 		}
+		hs.Messages = messages
 		scores = append(scores, hs)
 	}
 	return scores
@@ -160,6 +193,18 @@ func ApplyCLIHealthPolicyWithConfig(ctx context.Context, g Graph, scores []Healt
 				Factors: map[string]float64{
 					portabilityFactor: cfg.ExternalToolScore,
 				},
+				Messages: []HealthMessage{
+					{
+						Key:            "cli.external-tool",
+						Severity:       severityWarning,
+						Factor:         portabilityFactor,
+						Summary:        "External CLI detected",
+						Detail:         fmt.Sprintf("Command %q is treated as non-scenario tooling.", command),
+						Recommendation: "Wrap this workflow in a scenario CLI to improve portability.",
+						MetricValue:    cfg.ExternalToolScore,
+						Target:         "Scenario CLI usage",
+					},
+				},
 			}
 			continue
 		}
@@ -181,6 +226,18 @@ func ApplyCLIHealthPolicyWithConfig(ctx context.Context, g Graph, scores []Healt
 			Score:  score,
 			Factors: map[string]float64{
 				scenarioCompletenessFactor: score,
+			},
+			Messages: []HealthMessage{
+				{
+					Key:            "cli.scenario-completeness",
+					Severity:       severityInfo,
+					Factor:         scenarioCompletenessFactor,
+					Summary:        "Scenario CLI health applied",
+					Detail:         fmt.Sprintf("CLI %q uses scenario completeness score.", scenario),
+					Recommendation: "Improve scenario completeness to raise this CLI node score.",
+					MetricValue:    score,
+					Target:         ">= 0.80",
+				},
 			},
 		}
 	}
@@ -259,35 +316,200 @@ func weightsForNodeType(nodeType NodeType, cfg HealthConfig) HealthWeights {
 	}
 }
 
-func scoreWithWeights(nodeID string, g Graph, weights HealthWeights) (float64, map[string]float64) {
+func evaluateFactorWithMessages(factorName, nodeID string, g Graph, value float64) scoreWithDiagnostics {
+	diag := scoreWithDiagnostics{value: value}
+	nodeType := nodeTypeByID(g, nodeID)
+	if nodeType == "" {
+		return diag
+	}
+
+	switch factorName {
+	case "outgoing-edges":
+		if value < 0.2 {
+			diag.messages = append(diag.messages, HealthMessage{
+				Key:            "factor.outgoing-edges.low",
+				Severity:       severityWarning,
+				Factor:         factorName,
+				Summary:        "Low outbound connectivity",
+				Detail:         "This node has very few outgoing references.",
+				Recommendation: "Add explicit links to dependent skills, agents, or tools.",
+				MetricValue:    value,
+				Target:         ">= 0.60",
+			})
+		}
+	case "incoming-edges":
+		if value < 0.2 {
+			diag.messages = append(diag.messages, HealthMessage{
+				Key:            "factor.incoming-edges.low",
+				Severity:       severityWarning,
+				Factor:         factorName,
+				Summary:        "Low inbound discoverability",
+				Detail:         "Few nodes reference this node.",
+				Recommendation: "Cross-reference this node from related teams, agents, or skills.",
+				MetricValue:    value,
+				Target:         ">= 0.60",
+			})
+		}
+	case "code-usage":
+		if value <= 0.1 {
+			diag.messages = append(diag.messages, HealthMessage{
+				Key:            "factor.code-usage.external",
+				Severity:       severityWarning,
+				Factor:         factorName,
+				Summary:        "External tooling dependency",
+				Detail:         "Detected external CLI or script usage.",
+				Recommendation: "Prefer Vrooli scenario CLIs for reproducibility and orchestration.",
+				MetricValue:    value,
+				Target:         "1.00",
+			})
+		}
+	case "skill-content-length":
+		if nodeType == NodeSkill {
+			tokens := metricValue(g, nodeID, metricSkillContentTokens)
+			if value < 0.5 {
+				diag.messages = append(diag.messages, HealthMessage{
+					Key:            "skill.content-length.high",
+					Severity:       severityWarning,
+					Factor:         factorName,
+					Summary:        "Skill content is oversized",
+					Detail:         fmt.Sprintf("Skill content is about %.0f tokens.", tokens),
+					Recommendation: "Split the skill into smaller focused skills and keep task-critical instructions in the primary file.",
+					MetricValue:    tokens,
+					Target:         "150-1800 tokens",
+				})
+			}
+		}
+	case "agent-context-load":
+		if nodeType == NodeAgent {
+			tokens := metricValue(g, nodeID, metricAgentContextTokens)
+			if value < 0.5 {
+				diag.messages = append(diag.messages, HealthMessage{
+					Key:            "agent.context-load.high",
+					Severity:       severityWarning,
+					Factor:         factorName,
+					Summary:        "Agent context load is high",
+					Detail:         fmt.Sprintf("Agent markdown payload is about %.0f tokens.", tokens),
+					Recommendation: "Move reference-heavy content to shared docs and keep per-agent files concise.",
+					MetricValue:    tokens,
+					Target:         "<= 3500 tokens",
+				})
+			}
+		}
+	case "team-member-count-balance":
+		if nodeType == NodeTeam {
+			members := metricValue(g, nodeID, metricTeamMemberCount)
+			if value < 0.5 {
+				diag.messages = append(diag.messages, HealthMessage{
+					Key:            "team.member-count.imbalanced",
+					Severity:       severityWarning,
+					Factor:         factorName,
+					Summary:        "Team size is imbalanced",
+					Detail:         fmt.Sprintf("Team currently has %.0f members.", members),
+					Recommendation: "Aim for a balanced team size where collaboration and specialization are both practical.",
+					MetricValue:    members,
+					Target:         "3-8 members",
+				})
+			}
+		}
+	case "team-role-coverage":
+		if nodeType == NodeTeam {
+			distinctRoles := metricValue(g, nodeID, metricTeamDistinctRoleCount)
+			withRole := metricValue(g, nodeID, metricTeamRoleAssignedMembers)
+			members := math.Max(metricValue(g, nodeID, metricTeamMemberCount), 1)
+			coverage := withRole / members
+			if value < 0.5 {
+				diag.messages = append(diag.messages, HealthMessage{
+					Key:            "team.role-coverage.low",
+					Severity:       severityWarning,
+					Factor:         factorName,
+					Summary:        "Role coverage is weak",
+					Detail:         fmt.Sprintf("Distinct roles: %.0f, members with role assignments: %.0f (%.0f%%).", distinctRoles, withRole, coverage*100),
+					Recommendation: "Define clearer role assignments and ensure each member has explicit role coverage.",
+					MetricValue:    coverage,
+					Target:         ">= 0.80 assignment coverage and >= 2 distinct roles",
+				})
+			}
+		}
+	}
+
+	return diag
+}
+
+func scoreWithWeights(nodeID string, g Graph, weights HealthWeights) (float64, map[string]float64, []HealthMessage) {
 	weightByFactor := map[string]float64{
-		"outgoing-edges":  weights.OutgoingEdges,
-		"incoming-edges":  weights.IncomingEdges,
-		"code-usage":      weights.CodeUsage,
-		"recent-activity": weights.RecentActivity,
+		"outgoing-edges":            weights.OutgoingEdges,
+		"incoming-edges":            weights.IncomingEdges,
+		"code-usage":                weights.CodeUsage,
+		"recent-activity":           weights.RecentActivity,
+		"skill-content-length":      weights.SkillContentLength,
+		"agent-context-load":        weights.AgentContextLoad,
+		"team-member-count-balance": weights.TeamMemberCountBalance,
+		"team-role-coverage":        weights.TeamRoleCoverage,
 	}
 
 	factors := make(map[string]float64, len(weightByFactor))
+	var ranked []rankedMessage
 	var total float64
 	var weightSum float64
-	for factorName, weight := range weightByFactor {
+	factorNames := make([]string, 0, len(weightByFactor))
+	for factorName := range weightByFactor {
+		factorNames = append(factorNames, factorName)
+	}
+	sort.Strings(factorNames)
+	for _, factorName := range factorNames {
+		weight := weightByFactor[factorName]
 		evaluator, ok := factorEvaluators[factorName]
 		if !ok {
 			factors[factorName] = 0
 			continue
 		}
-		value := evaluator(nodeID, g)
-		factors[factorName] = value
+		result := evaluateFactorWithMessages(factorName, nodeID, g, evaluator(nodeID, g))
+		factors[factorName] = result.value
 		if weight <= 0 {
 			continue
 		}
-		total += value * weight
+		if len(result.messages) > 0 {
+			impact := weight * (1 - result.value)
+			for _, msg := range result.messages {
+				ranked = append(ranked, rankedMessage{
+					message: msg,
+					impact:  impact,
+				})
+			}
+		}
+		total += result.value * weight
 		weightSum += weight
 	}
-	if weightSum <= 0 {
-		return 0, factors
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if ranked[i].impact != ranked[j].impact {
+			return ranked[i].impact > ranked[j].impact
+		}
+		left := severityRank(ranked[i].message.Severity)
+		right := severityRank(ranked[j].message.Severity)
+		if left != right {
+			return left > right
+		}
+		return ranked[i].message.Factor < ranked[j].message.Factor
+	})
+	messages := make([]HealthMessage, 0, len(ranked))
+	for _, r := range ranked {
+		messages = append(messages, r.message)
 	}
-	return total / weightSum, factors
+	if weightSum <= 0 {
+		return 0, factors, messages
+	}
+	return total / weightSum, factors, messages
+}
+
+func severityRank(severity string) int {
+	switch severity {
+	case severityCritical:
+		return 3
+	case severityWarning:
+		return 2
+	default:
+		return 1
+	}
 }
 
 func normalizeScenarioScore(score float64) float64 {
@@ -324,6 +546,127 @@ func incomingEdgesScore(nodeID string, g Graph) float64 {
 		}
 	}
 	return math.Min(float64(count)/5.0, 1.0)
+}
+
+func nodeTypeByID(g Graph, nodeID string) NodeType {
+	for _, n := range g.Nodes {
+		if n.ID == nodeID {
+			return n.Type
+		}
+	}
+	return ""
+}
+
+func metricValue(g Graph, nodeID, key string) float64 {
+	if g.NodeMetrics == nil {
+		return 0
+	}
+	nodeMetrics, ok := g.NodeMetrics[nodeID]
+	if !ok {
+		return 0
+	}
+	return nodeMetrics[key]
+}
+
+func skillContentLengthScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeSkill {
+		return 0.5
+	}
+	tokens := metricValue(g, nodeID, metricSkillContentTokens)
+	if tokens <= 0 {
+		return 0.5
+	}
+	// 150-1800 tokens is ideal; penalties ramp up outside this range.
+	if tokens < 150 {
+		return 0.5 + (tokens/150.0)*0.5
+	}
+	if tokens <= 1800 {
+		return 1.0
+	}
+	if tokens >= 4000 {
+		return 0.0
+	}
+	return 1.0 - ((tokens - 1800) / (4000 - 1800))
+}
+
+func agentContextLoadScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeAgent {
+		return 0.5
+	}
+	tokens := metricValue(g, nodeID, metricAgentContextTokens)
+	if tokens <= 0 {
+		return 0.5
+	}
+	// <=3500 tokens is ideal, with decay to 0 at 12000 tokens.
+	if tokens <= 3500 {
+		return 1.0
+	}
+	if tokens >= 12000 {
+		return 0.0
+	}
+	return 1.0 - ((tokens - 3500) / (12000 - 3500))
+}
+
+func teamMemberCountBalanceScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeTeam {
+		return 0.5
+	}
+	members := metricValue(g, nodeID, metricTeamMemberCount)
+	if members <= 0 {
+		return 0.0
+	}
+	switch {
+	case members == 1:
+		return 0.25
+	case members == 2:
+		return 0.60
+	case members >= 3 && members <= 8:
+		return 1.0
+	case members <= 14:
+		return 1.0 - ((members-8)/(14-8))*(1.0-0.4)
+	case members >= 20:
+		return 0.0
+	default:
+		return 0.4 - ((members-14)/(20-14))*(0.4-0.0)
+	}
+}
+
+func teamRoleCoverageScore(nodeID string, g Graph) float64 {
+	if nodeTypeByID(g, nodeID) != NodeTeam {
+		return 0.5
+	}
+	members := metricValue(g, nodeID, metricTeamMemberCount)
+	if members <= 0 {
+		return 0.0
+	}
+	distinctRoles := metricValue(g, nodeID, metricTeamDistinctRoleCount)
+	membersWithRole := metricValue(g, nodeID, metricTeamRoleAssignedMembers)
+
+	var roleVarietyScore float64
+	switch {
+	case distinctRoles <= 0:
+		roleVarietyScore = 0.0
+	case distinctRoles == 1:
+		roleVarietyScore = 0.3
+	case distinctRoles == 2:
+		roleVarietyScore = 0.7
+	case distinctRoles <= 6:
+		roleVarietyScore = 1.0
+	case distinctRoles >= 12:
+		roleVarietyScore = 0.5
+	default:
+		roleVarietyScore = 1.0 - ((distinctRoles-6)/(12-6))*(1.0-0.5)
+	}
+
+	assignCoverage := membersWithRole / members
+	if assignCoverage < 0 {
+		assignCoverage = 0
+	}
+	if assignCoverage > 1 {
+		assignCoverage = 1
+	}
+
+	return (roleVarietyScore * 0.5) + (assignCoverage * 0.5)
 }
 
 // codeUsageScore rewards Vrooli-only tool use and penalizes external tools.

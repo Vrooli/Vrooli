@@ -3,14 +3,49 @@ import type { GraphHealthConfigResponse } from '@/lib/schemas'
 import { getGraphHealthConfig, setGraphHealthConfig } from '@/services/graphService'
 
 const FALLBACK_CONFIG: GraphHealthConfigResponse = {
-  team: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
-  agent: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
-  skill: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
+  team: {
+    outgoingEdges: 1,
+    incomingEdges: 1,
+    codeUsage: 0.5,
+    recentActivity: 0.5,
+    skillContentLength: 0,
+    agentContextLoad: 0,
+    teamMemberCountBalance: 0.75,
+    teamRoleCoverage: 0.75,
+  },
+  agent: {
+    outgoingEdges: 1,
+    incomingEdges: 1,
+    codeUsage: 0.5,
+    recentActivity: 0.5,
+    skillContentLength: 0,
+    agentContextLoad: 0.75,
+    teamMemberCountBalance: 0,
+    teamRoleCoverage: 0,
+  },
+  skill: {
+    outgoingEdges: 1,
+    incomingEdges: 1,
+    codeUsage: 0.5,
+    recentActivity: 0.5,
+    skillContentLength: 0.75,
+    agentContextLoad: 0,
+    teamMemberCountBalance: 0,
+    teamRoleCoverage: 0,
+  },
   cli: { neutralCommands: ['vrooli'], externalToolScore: 0, scenarioFallbackScore: 0 },
 }
 
 type EntityKey = 'team' | 'agent' | 'skill'
-type WeightKey = 'outgoingEdges' | 'incomingEdges' | 'codeUsage' | 'recentActivity'
+type WeightKey =
+  | 'outgoingEdges'
+  | 'incomingEdges'
+  | 'codeUsage'
+  | 'recentActivity'
+  | 'skillContentLength'
+  | 'agentContextLoad'
+  | 'teamMemberCountBalance'
+  | 'teamRoleCoverage'
 
 interface GraphHealthConfigStore {
   config: GraphHealthConfigResponse

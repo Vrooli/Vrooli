@@ -48,19 +48,39 @@ type Edge struct {
 	LineNumber int          `json:"lineNumber,omitempty"`
 }
 
+// HealthMessage explains why a node's health was scored a certain way
+// and suggests concrete follow-up actions.
+type HealthMessage struct {
+	Key            string  `json:"key"`
+	Severity       string  `json:"severity"` // info | warning | critical
+	Factor         string  `json:"factor,omitempty"`
+	Summary        string  `json:"summary"`
+	Detail         string  `json:"detail,omitempty"`
+	Recommendation string  `json:"recommendation,omitempty"`
+	MetricValue    float64 `json:"metricValue,omitempty"`
+	Target         string  `json:"target,omitempty"`
+}
+
 // HealthScore contains computed health metrics for a node.
 type HealthScore struct {
 	NodeID string  `json:"nodeId"`
 	Score  float64 `json:"score"`
 	// Individual factor contributions
 	Factors map[string]float64 `json:"factors"`
+	// Human-readable diagnostics and recommendations.
+	Messages []HealthMessage `json:"messages,omitempty"`
 }
+
+// NodeMetricSet stores per-node raw metrics used by health factor evaluators.
+type NodeMetricSet map[string]float64
 
 // Graph is the complete in-memory graph structure.
 type Graph struct {
 	Nodes        []Node        `json:"nodes"`
 	Edges        []Edge        `json:"edges"`
 	HealthScores []HealthScore `json:"healthScores,omitempty"`
+	// NodeMetrics are internal scoring inputs and are not serialized.
+	NodeMetrics map[string]NodeMetricSet `json:"-"`
 }
 
 // GraphIndex is the persisted graph index.

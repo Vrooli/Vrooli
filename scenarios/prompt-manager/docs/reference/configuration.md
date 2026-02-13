@@ -200,9 +200,36 @@ Schema:
 
 ```json
 {
-  "team": { "outgoingEdges": 1, "incomingEdges": 1, "codeUsage": 0.5, "recentActivity": 0.5 },
-  "agent": { "outgoingEdges": 1, "incomingEdges": 1, "codeUsage": 0.5, "recentActivity": 0.5 },
-  "skill": { "outgoingEdges": 1, "incomingEdges": 1, "codeUsage": 0.5, "recentActivity": 0.5 },
+  "team": {
+    "outgoingEdges": 1,
+    "incomingEdges": 1,
+    "codeUsage": 0.5,
+    "recentActivity": 0.5,
+    "skillContentLength": 0,
+    "agentContextLoad": 0,
+    "teamMemberCountBalance": 0.75,
+    "teamRoleCoverage": 0.75
+  },
+  "agent": {
+    "outgoingEdges": 1,
+    "incomingEdges": 1,
+    "codeUsage": 0.5,
+    "recentActivity": 0.5,
+    "skillContentLength": 0,
+    "agentContextLoad": 0.75,
+    "teamMemberCountBalance": 0,
+    "teamRoleCoverage": 0
+  },
+  "skill": {
+    "outgoingEdges": 1,
+    "incomingEdges": 1,
+    "codeUsage": 0.5,
+    "recentActivity": 0.5,
+    "skillContentLength": 0.75,
+    "agentContextLoad": 0,
+    "teamMemberCountBalance": 0,
+    "teamRoleCoverage": 0
+  },
   "cli": {
     "neutralCommands": ["vrooli"],
     "externalToolScore": 0,
