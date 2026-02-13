@@ -74,6 +74,24 @@ Parsers are intentionally pure, which makes them ideal unit-test targets without
 - `ParseDiffOutput`
 - Branch parsers in `branch_parser.go`
 
+## UI Diff Minimap Seams
+
+**Location**: `ui/src/components/DiffViewer.tsx`
+
+The minimap feature is split into pure and imperative seams:
+
+- Pure seam:
+  - `buildMinimapMarkers(annotatedLines)` maps annotated diff lines to a bounded marker model.
+  - `buildMinimapTextureRows(lines)` maps file content into lightweight structure-texture rows.
+  - `scrollTopFromMinimapPointer(pointerOffsetY, railHeight, scrollHeight, clientHeight)` maps minimap pointer position to target scroll offset.
+- Imperative seam:
+  - `DiffViewer` owns DOM sync between scroll container and minimap viewport.
+  - Pointer/keyboard minimap interaction routes through those pure mapping functions.
+
+Guardrails:
+- Minimap only appears in desktop `source`/`full_diff` modes and only for long files.
+- Existing diff rendering and stage/unstage/discard flows remain unchanged.
+
 ## Verification Checklist
 
 When adding new behavior, verify:
@@ -81,4 +99,3 @@ When adding new behavior, verify:
 - Repo-resolving handlers use `RepoOperation`.
 - Repo registry updates go through `RepoService`/`RepoStore`.
 - Tests can swap in `FakeGitRunner` or `SQLiteRepoStore` (memory DB).
-

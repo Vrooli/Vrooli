@@ -311,7 +311,13 @@ const literalSelectors = {
     empty: "diff-empty",
     noChanges: "diff-no-changes",
     content: "diff-content",
-    raw: "diff-raw"
+    raw: "diff-raw",
+    minimap: "diff-minimap",
+    minimapRail: "diff-minimap-rail",
+    minimapViewport: "diff-minimap-viewport",
+    minimapMarker: "diff-minimap-marker",
+    minimapTexture: "diff-minimap-texture",
+    minimapTextureLine: "diff-minimap-texture-line"
   },
 
   // Toast/notifications

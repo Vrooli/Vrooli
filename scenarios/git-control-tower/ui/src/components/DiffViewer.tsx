@@ -39,6 +39,174 @@ interface DiffViewerProps {
 }
 
 const maxHighlightChars = 200000;
+const minimapMinLines = 80;
+const minimapMaxMarkers = 180;
+
+interface MinimapMarker {
+  topPercent: number;
+  change: Exclude<LineChange, "">;
+}
+
+interface MinimapTextureRow {
+  topPercent: number;
+  widthPercent: number;
+  opacity: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getChangedLineNumber(line: AnnotatedLine, fallbackLine: number): number {
+  if (line.number > 0) return line.number;
+  if (line.old_number && line.old_number > 0) return line.old_number;
+  return fallbackLine;
+}
+
+function markerPriority(change: Exclude<LineChange, "">): number {
+  switch (change) {
+    case "deleted":
+      return 3;
+    case "modified":
+      return 2;
+    case "added":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+export function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMarker[] {
+  const changedLines = annotatedLines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => line.change === "added" || line.change === "deleted" || line.change === "modified");
+
+  if (changedLines.length === 0) return [];
+
+  const maxLineNumber = Math.max(
+    ...annotatedLines.map((line, index) => getChangedLineNumber(line, index + 1)),
+    annotatedLines.length
+  );
+  const bucketCount = Math.min(minimapMaxMarkers, Math.max(maxLineNumber, 1));
+  const buckets = new Map<number, Exclude<LineChange, "">>();
+
+  changedLines.forEach(({ line, index }) => {
+    const change = line.change as Exclude<LineChange, "">;
+    const lineNumber = getChangedLineNumber(line, index + 1);
+    const ratio = maxLineNumber <= 1 ? 0 : (lineNumber - 1) / (maxLineNumber - 1);
+    const bucket = clamp(Math.round(ratio * (bucketCount - 1)), 0, bucketCount - 1);
+    const existing = buckets.get(bucket);
+    if (!existing || markerPriority(change) >= markerPriority(existing)) {
+      buckets.set(bucket, change);
+    }
+  });
+
+  return Array.from(buckets.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([bucket, change]) => ({
+      topPercent: bucketCount <= 1 ? 0 : (bucket / (bucketCount - 1)) * 100,
+      change
+    }));
+}
+
+export function scrollTopFromMinimapPointer(
+  pointerOffsetY: number,
+  railHeight: number,
+  scrollHeight: number,
+  clientHeight: number
+): number {
+  if (railHeight <= 0) return 0;
+  const ratio = clamp(pointerOffsetY / railHeight, 0, 1);
+  const maxScrollable = Math.max(scrollHeight - clientHeight, 0);
+  return ratio * maxScrollable;
+}
+
+function getMinimapMarkerClass(change: Exclude<LineChange, "">): string {
+  switch (change) {
+    case "added":
+      return "bg-emerald-400/80";
+    case "deleted":
+      return "bg-red-400/80";
+    case "modified":
+      return "bg-amber-400/80";
+    default:
+      return "bg-slate-400/80";
+  }
+}
+
+function indentationDepth(line: string): number {
+  let depth = 0;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === " ") {
+      depth += 1;
+    } else if (ch === "\t") {
+      depth += 2;
+    } else {
+      break;
+    }
+  }
+  return depth;
+}
+
+function textureFromLine(rawLine: string): { widthPercent: number; opacity: number } {
+  const line = rawLine.replace(/\s+$/g, "");
+  if (!line.trim()) {
+    return { widthPercent: 18, opacity: 0.2 };
+  }
+
+  const indent = indentationDepth(line);
+  const indentPenalty = Math.min(indent * 1.3, 32);
+  const lengthFactor = Math.min(line.length, 120);
+  const widthPercent = clamp(30 + (lengthFactor / 120) * 68 - indentPenalty, 22, 96);
+
+  const trimmed = line.trim();
+  let opacity = 0.35;
+  if (/^(import|export|class|interface|type|function|const|let|var)\b/.test(trimmed)) {
+    opacity = 0.72;
+  } else if (/^(#|##|###|####)/.test(trimmed)) {
+    opacity = 0.7;
+  } else if (/^(\}|\]|\)|return\b)/.test(trimmed)) {
+    opacity = 0.42;
+  } else if (trimmed.length < 10) {
+    opacity = 0.3;
+  } else if (trimmed.length > 80) {
+    opacity = 0.5;
+  }
+
+  return { widthPercent, opacity };
+}
+
+export function buildMinimapTextureRows(lines: string[], maxRows = 220): MinimapTextureRow[] {
+  if (lines.length === 0) return [];
+
+  const bucketCount = Math.min(maxRows, lines.length);
+  const rows: MinimapTextureRow[] = [];
+  const linesPerBucket = lines.length / bucketCount;
+
+  for (let bucket = 0; bucket < bucketCount; bucket++) {
+    const start = Math.floor(bucket * linesPerBucket);
+    const end = Math.min(lines.length, Math.floor((bucket + 1) * linesPerBucket));
+    const bucketLines = lines.slice(start, Math.max(end, start + 1));
+
+    let widthSum = 0;
+    let opacitySum = 0;
+    bucketLines.forEach((line) => {
+      const metrics = textureFromLine(line);
+      widthSum += metrics.widthPercent;
+      opacitySum += metrics.opacity;
+    });
+
+    const count = Math.max(bucketLines.length, 1);
+    rows.push({
+      topPercent: bucketCount <= 1 ? 0 : (bucket / (bucketCount - 1)) * 100,
+      widthPercent: widthSum / count,
+      opacity: opacitySum / count
+    });
+  }
+
+  return rows;
+}
 
 // Hook to detect horizontal scroll state
 function useScrollHints(ref: React.RefObject<HTMLElement | null>) {
@@ -364,10 +532,16 @@ export function DiffViewer({
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const minimapRailRef = useRef<HTMLDivElement>(null);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [scrollMetrics, setScrollMetrics] = useState({
+    scrollTop: 0,
+    scrollHeight: 1,
+    clientHeight: 1
+  });
 
   const isBinaryDiff = Boolean(
     diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
@@ -446,11 +620,131 @@ export function DiffViewer({
   const hasAnnotatedLines = annotatedLines.length > 0;
   const hasFullContent = diff?.full_content !== undefined;
   const hasHunks = hunks.length > 0;
+  const fullContentLineCount = useMemo(() => {
+    if (!fullContent) return 0;
+    return fullContent.split("\n").length;
+  }, [fullContent]);
   const isPreviewable = selectedFile ? getFileTypeInfo(selectedFile) : null;
   const showMarkdownPreview =
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
   const showImagePreview =
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "image" && isPreviewable.mimeType;
+  const minimapSourceLines = useMemo(() => {
+    if (viewMode === "source") {
+      return fullContent.split("\n");
+    }
+    if (viewMode === "full_diff") {
+      return annotatedLines.map((line) => line.content);
+    }
+    return [] as string[];
+  }, [annotatedLines, fullContent, viewMode]);
+  const minimapLineCount = viewMode === "source" ? fullContentLineCount : viewMode === "full_diff" ? annotatedLines.length : 0;
+  const minimapMarkers = useMemo(
+    () => (viewMode === "full_diff" ? buildMinimapMarkers(annotatedLines) : []),
+    [annotatedLines, viewMode]
+  );
+  const minimapTextureRows = useMemo(
+    () => buildMinimapTextureRows(minimapSourceLines),
+    [minimapSourceLines]
+  );
+  const showMinimap =
+    !isMobile &&
+    selectedFile &&
+    !isLoading &&
+    !isHighlighting &&
+    !error &&
+    minimapLineCount >= minimapMinLines &&
+    ((viewMode === "source" && hasFullContent) || (viewMode === "full_diff" && hasAnnotatedLines));
+  const maxScrollable = Math.max(scrollMetrics.scrollHeight - scrollMetrics.clientHeight, 0);
+  const viewportHeightPercent = clamp(
+    (scrollMetrics.clientHeight / Math.max(scrollMetrics.scrollHeight, 1)) * 100,
+    8,
+    100
+  );
+  const viewportTopPercent = maxScrollable <= 0
+    ? 0
+    : (scrollMetrics.scrollTop / maxScrollable) * Math.max(100 - viewportHeightPercent, 0);
+
+  useEffect(() => {
+    if (!showMinimap) {
+      setScrollMetrics({ scrollTop: 0, scrollHeight: 1, clientHeight: 1 });
+      return;
+    }
+
+    const scroller = scrollContainerRef.current;
+    if (!scroller) return;
+
+    const updateMetrics = () => {
+      setScrollMetrics({
+        scrollTop: scroller.scrollTop,
+        scrollHeight: scroller.scrollHeight,
+        clientHeight: scroller.clientHeight
+      });
+    };
+
+    updateMetrics();
+    scroller.addEventListener("scroll", updateMetrics, { passive: true });
+    window.addEventListener("resize", updateMetrics);
+
+    return () => {
+      scroller.removeEventListener("scroll", updateMetrics);
+      window.removeEventListener("resize", updateMetrics);
+    };
+  }, [showMinimap, selectedFile, viewMode, fullContent, annotatedLines.length]);
+
+  const jumpToMinimapPosition = useCallback((clientY: number) => {
+    const rail = minimapRailRef.current;
+    const scroller = scrollContainerRef.current;
+    if (!rail || !scroller) return;
+
+    const rect = rail.getBoundingClientRect();
+    const pointerOffsetY = clamp(clientY - rect.top, 0, rect.height);
+    const nextScrollTop = scrollTopFromMinimapPointer(
+      pointerOffsetY,
+      rect.height,
+      scroller.scrollHeight,
+      scroller.clientHeight
+    );
+    scroller.scrollTo({ top: nextScrollTop, behavior: "auto" });
+  }, []);
+
+  const handleMinimapPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    jumpToMinimapPosition(event.clientY);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      jumpToMinimapPosition(moveEvent.clientY);
+    };
+
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  }, [jumpToMinimapPosition]);
+
+  const handleMinimapKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const scroller = scrollContainerRef.current;
+    if (!scroller) return;
+
+    if (event.key === "ArrowDown" || event.key === "PageDown") {
+      event.preventDefault();
+      const step = event.key === "PageDown" ? scroller.clientHeight : 80;
+      scroller.scrollTo({ top: scroller.scrollTop + step, behavior: "auto" });
+    } else if (event.key === "ArrowUp" || event.key === "PageUp") {
+      event.preventDefault();
+      const step = event.key === "PageUp" ? scroller.clientHeight : 80;
+      scroller.scrollTo({ top: scroller.scrollTop - step, behavior: "auto" });
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      scroller.scrollTo({ top: 0, behavior: "auto" });
+    } else if (event.key === "End") {
+      event.preventDefault();
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: "auto" });
+    }
+  }, []);
 
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
@@ -698,6 +992,62 @@ export function DiffViewer({
           {/* Mobile spacer to account for fixed action bar */}
           {isMobile && selectedFile && !isLoading && !isHistoryMode && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
+
+        {showMinimap && (
+          <aside
+            className="absolute right-2 top-2 bottom-2 w-10 rounded-md border border-slate-700/70 bg-slate-900/90 shadow-lg"
+            data-testid="diff-minimap"
+          >
+            <div
+              ref={minimapRailRef}
+              className="relative h-full w-full cursor-pointer rounded-md"
+              role="slider"
+              tabIndex={0}
+              aria-label="Diff minimap"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(maxScrollable)}
+              aria-valuenow={Math.round(scrollMetrics.scrollTop)}
+              data-testid="diff-minimap-rail"
+              onPointerDown={handleMinimapPointerDown}
+              onKeyDown={handleMinimapKeyDown}
+            >
+              <div
+                className="absolute inset-0"
+                data-testid="diff-minimap-texture"
+                aria-hidden="true"
+              >
+                {minimapTextureRows.map((row, index) => (
+                  <div
+                    key={`texture-${index}`}
+                    className="absolute right-0 h-[1px] bg-slate-300/90"
+                    style={{
+                      top: `${row.topPercent}%`,
+                      width: `${row.widthPercent}%`,
+                      opacity: row.opacity
+                    }}
+                    data-testid="diff-minimap-texture-line"
+                  />
+                ))}
+              </div>
+              {minimapMarkers.map((marker, index) => (
+                <div
+                  key={`${marker.change}-${index}`}
+                  className={`absolute left-0 right-0 h-[2px] ${getMinimapMarkerClass(marker.change)}`}
+                  style={{ top: `${marker.topPercent}%` }}
+                  data-testid="diff-minimap-marker"
+                />
+              ))}
+              <div
+                className="pointer-events-none absolute left-0 right-0 rounded-sm border border-sky-300/40 bg-sky-400/20"
+                style={{
+                  top: `${viewportTopPercent}%`,
+                  height: `${viewportHeightPercent}%`
+                }}
+                data-testid="diff-minimap-viewport"
+              />
+            </div>
+          </aside>
+        )}
 
         {/* Mobile Action Bar - hidden in history mode */}
         {isMobile && selectedFile && !isLoading && !isHistoryMode && (

@@ -1,5 +1,6 @@
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
+| 2026-02-13 | Codex Agent | Diff minimap implemented | Added desktop minimap to `DiffViewer` for long files in `source` + `full_diff` modes with content-texture structure lines, change markers, click/drag jump, and keyboard scroll controls; introduced pure minimap mapping seams, expanded selector coverage (`diff-minimap*`), added `DiffViewer.test.tsx` coverage for render threshold, jump math behavior, texture rendering, and full-diff change markers. |
 | 2026-02-03 | Codex Agent | Storage switch | Switched audit logging storage to SQLite end-to-end (driver, schema, DSN defaults, schema init), removed Postgres lifecycle dependency, and updated requirements/docs to match. |
 | 2025-12-16 | Generator Agent | Initialization complete | Re-scaffolded from `react-vite` template; legacy scenario moved to `/tmp` |
 | 2025-12-16 | Codex Agent | OT-P0-001 advanced | Implemented structured health checks (db/git/repo) + unit + CLI integration tests; aligned lifecycle test runner with `test-genie` |
