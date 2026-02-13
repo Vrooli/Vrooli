@@ -1,161 +1,262 @@
 {
+  "_metadata": {
+    "description": "Web Console rewrite requirements registry linked to PRD operational targets",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true,
+    "last_updated": "2026-02-13"
+  },
+  "imports": [],
   "requirements": [
     {
       "id": "WC-P0-001",
-      "title": "Session Lifecycle API",
-      "description": "Go API providing session lifecycle endpoints, WebSocket streaming, and transcript persistence.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "priority": "P0",
-      "status": "completed",
+      "category": "workspace-layout",
+      "prd_ref": "OT-P0-001",
+      "title": "Pane-Based Terminal Workspace",
+      "description": "Render concurrent terminal panes with two-column desktop and one-column mobile behavior.",
+      "status": "pending",
       "validation": [
-        "test",
-        "manual"
+        {
+          "type": "test",
+          "ref": "ui/src/modules/workspace/__tests__/pane-layout.test.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Verify responsive breakpoint behavior and simultaneous pane rendering."
+        }
       ]
     },
     {
       "id": "WC-P0-002",
-      "title": "Configurable Default Commands",
-      "description": "Configurable default command (`WEB_CONSOLE_DEFAULT_COMMAND`) plus per-session overrides via API.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "priority": "P0",
-      "status": "completed",
+      "category": "terminal-runtime",
+      "prd_ref": "OT-P0-002",
+      "title": "Production-Grade Web Terminal Fidelity",
+      "description": "Support interactive CLIs with PTY resize, cursor reporting, binary-safe streams, and reconnect-safe input semantics.",
+      "status": "pending",
       "validation": [
-        "test",
-        "manual"
+        {
+          "type": "test",
+          "ref": "api/websocket_additional_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validate binary/text frame handling, resize flow, and cursor reporting behavior."
+        },
+        {
+          "type": "manual",
+          "ref": "README.md",
+          "phase": "e2e",
+          "status": "pending",
+          "notes": "Exercise Claude Code and Codex interactive flows end-to-end."
+        }
       ]
     },
     {
       "id": "WC-P0-003",
-      "title": "Browser UI with Shortcuts",
-      "description": "Browser UI (vanilla JS + xterm.js) with shortcut buttons for Codex, Claude, and `vrooli status` that queue commands until the PTY is ready.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "priority": "P0",
-      "status": "completed",
+      "category": "session-durability",
+      "prd_ref": "OT-P0-003",
+      "title": "Durable Session Continuity",
+      "description": "Default expiration policy is never; reconnect restores active session state and output emitted while disconnected.",
+      "status": "pending",
       "validation": [
-        "test",
-        "manual"
+        {
+          "type": "test",
+          "ref": "api/session_manager_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Confirm never-expire default policy and reconnection continuity semantics."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/modules/session-service/__tests__/stream-handlers.test.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validate transcript hydration and replay after reconnect."
+        }
       ]
     },
     {
       "id": "WC-P0-004",
-      "title": "Iframe Bridge Protocol",
-      "description": "iframe bridge that publishes status/metadata via `postMessage` and responds to transcript/log/screenshot requests.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "priority": "P0",
-      "status": "completed",
+      "category": "networking",
+      "prd_ref": "OT-P0-004",
+      "title": "Proxy-Correct Networking via api-base",
+      "description": "Route all HTTP/WebSocket traffic through shared api-base helpers to preserve parent proxy compatibility.",
+      "status": "pending",
       "validation": [
-        "manual"
+        {
+          "type": "test",
+          "ref": "ui/src/modules/__tests__/api-base-routing.test.js",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Assert resolved API and WebSocket URLs follow proxied embedding constraints."
+        }
       ]
     },
     {
       "id": "WC-P0-005",
-      "title": "Proxy Guard Enforcement",
-      "description": "Proxy guard enforcement that rejects requests lacking authenticated forwarding headers.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-005",
-      "priority": "P0",
-      "status": "completed",
+      "category": "ai-provider",
+      "prd_ref": "OT-P0-005",
+      "title": "AI Input with Provider Fallback",
+      "description": "Generate commands with Ollama primary and OpenRouter fallback under deterministic failover rules.",
+      "status": "pending",
       "validation": [
-        "test"
+        {
+          "type": "test",
+          "ref": "api/ai_provider_fallback_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validate fallback sequencing, timeout handling, and response normalization."
+        }
       ]
     },
     {
       "id": "WC-P0-006",
-      "title": "Security Documentation",
-      "description": "Documentation emphasizing proxy-only deployment and shortcut behavior.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-006",
-      "priority": "P0",
-      "status": "completed",
+      "category": "launcher-shortcuts",
+      "prd_ref": "OT-P0-006",
+      "title": "New Terminal Launcher with Configurable Shortcuts",
+      "description": "Provide launcher options for empty shell and configured shortcuts with required default presets.",
+      "status": "pending",
       "validation": [
-        "manual"
+        {
+          "type": "test",
+          "ref": "ui/src/modules/tab-manager/__tests__/launcher.test.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Verify launcher choice flow and default shortcut entries."
+        }
+      ]
+    },
+    {
+      "id": "WC-P0-007",
+      "category": "mobile-toolbar",
+      "prd_ref": "OT-P0-007",
+      "title": "Mobile Terminal Usability Toolbar",
+      "description": "Expose floating keyboard toolbar with common terminal keys/chords required for mobile-first terminal use.",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/modules/mobile-toolbar/__tests__/toolbar.test.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validate key injection mappings and toolbar modes."
+        }
+      ]
+    },
+    {
+      "id": "WC-P0-008",
+      "category": "drawer-controls",
+      "prd_ref": "OT-P0-008",
+      "title": "Sidebar/Drawer Controls Surface",
+      "description": "Provide drawer with workspace/session status, controls, and diagnostics without disrupting terminal operations.",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/modules/app/__tests__/drawer-controls.test.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Verify drawer state, control actions, and active terminal continuity."
+        }
       ]
     },
     {
       "id": "WC-P1-001",
-      "title": "Concurrent Session Handling",
-      "description": "Concurrent session handling with queueing when capacity is exhausted.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "priority": "P1",
+      "category": "session-policy",
+      "prd_ref": "OT-P1-001",
+      "title": "Session Policy Controls",
+      "description": "Support never/preset/custom expiration controls at workspace or session scope with explicit persistence semantics.",
       "status": "pending",
       "validation": [
-        "test"
+        {
+          "type": "test",
+          "ref": "api/workspace_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validate policy updates, bounds, and persistence behavior."
+        }
       ]
     },
     {
       "id": "WC-P1-002",
-      "title": "Prometheus Metrics",
-      "description": "Prometheus metrics endpoint for session counters and failure modes.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "priority": "P1",
+      "category": "shortcut-config",
+      "prd_ref": "OT-P1-002",
+      "title": "Shortcut Profile Management",
+      "description": "Load shortcut definitions from configuration and parent/workspace context rather than static UI constants.",
       "status": "pending",
       "validation": [
-        "test"
+        {
+          "type": "test",
+          "ref": "ui/src/modules/tab-manager/__tests__/shortcut-profiles.test.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validate profile loading, overrides, and fallback defaults."
+        }
       ]
     },
     {
       "id": "WC-P1-003",
-      "title": "Panic-Stop Endpoint",
-      "description": "Panic-stop endpoint/UI control to terminate runaway commands.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-003",
-      "priority": "P1",
+      "category": "ai-policy",
+      "prd_ref": "OT-P1-003",
+      "title": "AI Provider Policy Controls",
+      "description": "Expose configurable provider priority, timeout windows, and fallback ordering with health visibility.",
       "status": "pending",
       "validation": [
-        "test",
-        "manual"
+        {
+          "type": "test",
+          "ref": "api/ai_provider_policy_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Verify policy parsing and runtime provider selection logic."
+        }
       ]
     },
     {
       "id": "WC-P1-004",
-      "title": "Mobile-First UI",
-      "description": "Mobile-first UI with reconnect/resume flows and quick command access.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "priority": "P1",
-      "status": "completed",
+      "category": "observability",
+      "prd_ref": "OT-P1-004",
+      "title": "Operational Observability Coverage",
+      "description": "Emit metrics and structured events for session lifecycle, reconnects, pane changes, and provider failovers.",
+      "status": "pending",
       "validation": [
-        "manual"
+        {
+          "type": "test",
+          "ref": "api/metrics_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Cover required metrics families and event emission paths."
+        }
       ]
     },
     {
       "id": "WC-P2-001",
-      "title": "Configurable Shortcut Palette",
-      "description": "Configurable shortcut palette provided by parent scenario or service config.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-001",
-      "priority": "P2",
+      "category": "collaboration",
+      "prd_ref": "OT-P2-001",
+      "title": "Collaborative Session Modes",
+      "description": "Introduce optional observer/shared-view terminal collaboration modes for coordinated operations.",
       "status": "pending",
       "validation": [
-        "manual"
+        {
+          "type": "manual",
+          "ref": "PRD.md",
+          "phase": "planning",
+          "status": "pending",
+          "notes": "Design and contract work pending."
+        }
       ]
     },
     {
       "id": "WC-P2-002",
-      "title": "Distributed Transcript Storage",
-      "description": "Redis/Postgres adapters for distributed transcript storage.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-002",
-      "priority": "P2",
+      "category": "workspace-presets",
+      "prd_ref": "OT-P2-002",
+      "title": "Persisted Workspace Presets",
+      "description": "Save and restore named pane/shortcut presets for repeated operations.",
       "status": "pending",
       "validation": [
-        "test"
-      ]
-    },
-    {
-      "id": "WC-P2-003",
-      "title": "Voice Dictation/TTS Integration",
-      "description": "Voice dictation/TTS hooks that leverage shared resources.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "priority": "P2",
-      "status": "pending",
-      "validation": [
-        "manual"
-      ]
-    },
-    {
-      "id": "WC-P2-004",
-      "title": "Parent Callbacks",
-      "description": "Parent callbacks for automated post-session archiving or compliance workflows.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-004",
-      "priority": "P2",
-      "status": "pending",
-      "validation": [
-        "test"
+        {
+          "type": "manual",
+          "ref": "PRD.md",
+          "phase": "planning",
+          "status": "pending",
+          "notes": "Preset model and UX contracts pending."
+        }
       ]
     }
   ]
