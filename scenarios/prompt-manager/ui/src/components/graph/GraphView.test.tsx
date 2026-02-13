@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import type { GraphResponse } from '@/lib/schemas'
 
 // ============================================================================
@@ -19,6 +19,7 @@ const MAX_RENDERS = 100
 const mockFitView = vi.fn().mockResolvedValue(true)
 const mockSetViewport = vi.fn().mockResolvedValue(true)
 const mockGetViewport = vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 })
+let latestReactFlowProps: Record<string, unknown> | null = null
 
 // Mock graph data matching the real API shape
 const MOCK_GRAPH_RESPONSE: GraphResponse = {
@@ -31,9 +32,9 @@ const MOCK_GRAPH_RESPONSE: GraphResponse = {
       { id: 'cli-1', type: 'cli', label: 'Test CLI', description: 'A CLI', status: '', tags: [] },
     ],
     edges: [
-      { from: 'team-1', to: 'agent-1', kind: 'membership', sourceFile: '', lineNumber: 0 },
-      { from: 'agent-1', to: 'skill-1', kind: 'bold-listed', sourceFile: 'TOOLS.md', lineNumber: 1 },
-      { from: 'skill-1', to: 'cli-1', kind: 'code-usage', sourceFile: 'skill.md', lineNumber: 5 },
+      { from: 'team-1', to: 'agent-1', kind: 'membership', category: '', sourceFile: '', lineNumber: 0 },
+      { from: 'agent-1', to: 'skill-1', kind: 'bold-listed', category: '', sourceFile: 'TOOLS.md', lineNumber: 1 },
+      { from: 'skill-1', to: 'cli-1', kind: 'code-usage', category: 'CodeScenarioCLI', sourceFile: 'skill.md', lineNumber: 5 },
     ],
     healthScores: [
       { nodeId: 'team-1', score: 0.5, factors: { 'outgoing-edges': 0.8 } },
@@ -56,6 +57,19 @@ vi.mock('@/services/graphService', () => ({
   getCircularRefs: vi.fn().mockResolvedValue([]),
   invalidateGraphCache: vi.fn(),
 }))
+
+// Mock Monaco editor (used by GraphJsonView)
+vi.mock('@monaco-editor/react', () => {
+  const React = require('react')
+  return {
+    default: React.forwardRef(function MockEditor(
+      props: { value?: string; 'data-testid'?: string },
+      _ref: unknown,
+    ) {
+      return React.createElement('div', { 'data-testid': 'monaco-editor' }, props.value?.slice(0, 100) ?? '')
+    }),
+  }
+})
 
 // Mock @dagrejs/dagre
 vi.mock('@dagrejs/dagre', () => {
@@ -100,6 +114,7 @@ vi.mock('@xyflow/react', async () => {
     _ref: unknown,
   ) {
     renderCount++
+    latestReactFlowProps = props
     if (renderCount > MAX_RENDERS) {
       throw new Error(`INFINITE LOOP DETECTED: ReactFlow rendered ${renderCount} times`)
     }
@@ -140,6 +155,7 @@ vi.mock('@xyflow/react', async () => {
       fitView: mockFitView,
       setViewport: mockSetViewport,
       getViewport: mockGetViewport,
+      flowToScreenPosition: vi.fn().mockReturnValue({ x: 100, y: 100 }),
     }),
   }
 })
@@ -156,6 +172,7 @@ import { GraphView } from './GraphView'
 describe('GraphView', () => {
   beforeEach(() => {
     renderCount = 0
+    latestReactFlowProps = null
     // Reset Zustand store state
     useGraphStore.setState({
       graph: null,
@@ -166,10 +183,14 @@ describe('GraphView', () => {
         showAgents: true,
         showSkills: true,
         showCLIs: true,
+        collapseCLIs: false,
+        showLowSignalEdges: true,
+        autoFitOnChange: true,
         healthThreshold: 0,
       },
       highlightedNodeIds: new Set(),
       layoutDirection: 'TB',
+      layoutMode: 'compact',
       fitViewRequested: 0,
       viewport: null,
     })
@@ -283,6 +304,29 @@ describe('GraphView', () => {
     expect(screen.getByTestId('node-cli-1')).toHaveTextContent('Test CLI')
   })
 
+  it('should mark graph edges as non-interactive', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    const flowEdges = ((latestReactFlowProps?.edges as unknown[]) ?? []) as Array<{
+      selectable?: boolean
+      focusable?: boolean
+      style?: { pointerEvents?: string }
+    }>
+    expect(flowEdges.length).toBeGreaterThan(0)
+    for (const edge of flowEdges) {
+      expect(edge.selectable).toBe(false)
+      expect(edge.focusable).toBe(false)
+      expect(edge.style?.pointerEvents).toBe('none')
+    }
+  })
+
   it('should restore saved viewport when available', async () => {
     const mockGetGraph = vi.mocked(getGraph)
     mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
@@ -295,5 +339,36 @@ describe('GraphView', () => {
     })
 
     expect(mockSetViewport).toHaveBeenCalledWith({ x: 120, y: 80, zoom: 0.75 }, { duration: 0 })
+  })
+
+  it('should toggle between visual and JSON modes', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    // Toggle should be visible with Visual active
+    expect(screen.getByTestId('graph-mode-toggle')).toBeInTheDocument()
+
+    // Click JSON mode
+    fireEvent.click(screen.getByTestId('graph-mode-json'))
+
+    // ReactFlow should be gone, Monaco should appear
+    await waitFor(() => {
+      expect(screen.queryByTestId('react-flow')).not.toBeInTheDocument()
+      expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
+    })
+
+    // Click Visual mode to switch back
+    fireEvent.click(screen.getByTestId('graph-mode-visual'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+      expect(screen.queryByTestId('monaco-editor')).not.toBeInTheDocument()
+    })
   })
 })

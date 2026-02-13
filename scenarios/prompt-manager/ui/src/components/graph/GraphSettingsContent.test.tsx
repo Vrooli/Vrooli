@@ -17,6 +17,8 @@ vi.mock('lucide-react', () => ({
   LayoutGrid: (props: Record<string, unknown>) => <span data-testid="icon-layout" {...props} />,
   RefreshCw: (props: Record<string, unknown>) => <span data-testid="icon-refresh" {...props} />,
   Maximize2: (props: Record<string, unknown>) => <span data-testid="icon-maximize" {...props} />,
+  Link2Off: (props: Record<string, unknown>) => <span data-testid="icon-link2off" {...props} />,
+  FoldVertical: (props: Record<string, unknown>) => <span data-testid="icon-fold-vertical" {...props} />,
 }))
 
 describe('GraphSettingsContent', () => {
@@ -24,12 +26,16 @@ describe('GraphSettingsContent', () => {
     useGraphStore.setState({
       loading: false,
       layoutDirection: 'TB',
+      layoutMode: 'compact',
       fitViewRequested: 0,
       filters: {
         showTeams: true,
         showAgents: true,
         showSkills: true,
         showCLIs: true,
+        collapseCLIs: false,
+        showLowSignalEdges: true,
+        autoFitOnChange: true,
         healthThreshold: 0,
       },
     })
@@ -68,6 +74,9 @@ describe('GraphSettingsContent', () => {
         showAgents: true,
         showSkills: true,
         showCLIs: true,
+        collapseCLIs: false,
+        showLowSignalEdges: true,
+        autoFitOnChange: true,
         healthThreshold: 0,
       },
     } as never)
@@ -80,8 +89,21 @@ describe('GraphSettingsContent', () => {
 
   it('should show layout direction buttons', () => {
     render(<GraphSettingsContent />)
+    expect(screen.getByText('Hier')).toBeInTheDocument()
+    expect(screen.getByText('Compact')).toBeInTheDocument()
+    expect(screen.getByText('Grouped')).toBeInTheDocument()
     expect(screen.getByText('Vertical')).toBeInTheDocument()
     expect(screen.getByText('Horizontal')).toBeInTheDocument()
+  })
+
+  it('should call setLayoutMode when layout mode button is clicked', () => {
+    const spy = vi.fn()
+    useGraphStore.setState({ setLayoutMode: spy } as never)
+
+    render(<GraphSettingsContent />)
+    fireEvent.click(screen.getByText('Grouped'))
+
+    expect(spy).toHaveBeenCalledWith('grouped')
   })
 
   it('should call setLayoutDirection when layout button is clicked', () => {
@@ -130,6 +152,9 @@ describe('GraphSettingsContent', () => {
         showAgents: true,
         showSkills: true,
         showCLIs: true,
+        collapseCLIs: false,
+        showLowSignalEdges: true,
+        autoFitOnChange: true,
         healthThreshold: 0.35,
       },
     })
@@ -147,5 +172,15 @@ describe('GraphSettingsContent', () => {
     fireEvent.change(slider, { target: { value: '0.5' } })
 
     expect(spy).toHaveBeenCalledWith('healthThreshold', 0.5)
+  })
+
+  it('should toggle collapse CLI filter', () => {
+    const spy = vi.fn()
+    useGraphStore.setState({ setFilter: spy } as never)
+
+    render(<GraphSettingsContent />)
+    fireEvent.click(screen.getByText('Collapse CLI Nodes'))
+
+    expect(spy).toHaveBeenCalledWith('collapseCLIs', true)
   })
 })

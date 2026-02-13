@@ -1,7 +1,7 @@
 /**
  * WorldHelpContent - Help body for the 3D avatar environment.
  *
- * Rendered inside OverlayModal by ViewOverlay. Contains no modal chrome.
+ * Rendered inside shared floating panel by ViewOverlay. Contains no panel chrome.
  */
 
 import { User, Eye, Map, MousePointer, Move3D } from 'lucide-react'

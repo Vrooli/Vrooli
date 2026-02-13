@@ -5,16 +5,16 @@
  * - Stats bar (top-left)
  * - Optional left panel content (top-left, below stats)
  * - View toggle, settings, and help buttons (top-right)
- * - Settings and help modals
+ * - Settings and help floating panels
  */
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Globe, Network, Settings, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { selectors } from '@/constants/selectors'
 import { StatsBar } from './StatsBar'
-import { OverlayModal } from './OverlayModal'
+import { FloatingPanel } from './FloatingPanel'
 
 interface ViewOverlayProps {
   leftPanelContent?: ReactNode
@@ -36,6 +36,25 @@ export function ViewOverlay({
 
   const graphViewActive = useSelectionStore((s) => s.graphViewActive)
   const setGraphViewActive = useSelectionStore((s) => s.setGraphViewActive)
+  const panelAnchorX = useMemo(() => {
+    if (typeof window === 'undefined') return 24
+    return Math.max(24, window.innerWidth - 680)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (isHelpOpen) {
+        setIsHelpOpen(false)
+        return
+      }
+      if (isSettingsOpen) {
+        setIsSettingsOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isHelpOpen, isSettingsOpen])
 
   return (
     <>
@@ -85,24 +104,26 @@ export function ViewOverlay({
         </div>
       </div>
 
-      {/* Settings modal */}
-      <OverlayModal
+      {/* Settings panel */}
+      <FloatingPanel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         title={settingsTitle}
-        maxWidth="max-w-md"
+        initialPosition={{ x: panelAnchorX, y: 88 }}
+        className="max-w-md"
       >
         {settingsContent}
-      </OverlayModal>
+      </FloatingPanel>
 
-      {/* Help modal */}
-      <OverlayModal
+      {/* Help panel */}
+      <FloatingPanel
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
         title={helpTitle}
+        initialPosition={{ x: panelAnchorX + 24, y: 128 }}
       >
         {helpContent}
-      </OverlayModal>
+      </FloatingPanel>
     </>
   )
 }

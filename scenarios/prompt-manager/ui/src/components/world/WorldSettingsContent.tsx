@@ -1,7 +1,7 @@
 /**
  * WorldSettingsContent - Settings body for camera, time, scene, and graphics.
  *
- * Rendered inside OverlayModal by ViewOverlay. Contains no modal chrome.
+ * Rendered inside shared floating panel by ViewOverlay. Contains no panel chrome.
  */
 
 import { useCallback, useMemo } from 'react'

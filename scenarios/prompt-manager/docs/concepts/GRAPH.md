@@ -82,6 +82,12 @@ The `CLIDetector` scans agent, team, and skill content for CLI tool references. 
 | `CodeScript` | File path with script extension (.sh, .py, .js, .ts, .rb, .pl) | `scripts/deploy.sh` |
 | `CodeAPICall` | Bare HTTP pattern (GET/POST/PUT/DELETE + URL) | `GET https://api.example.com` |
 
+**Dynamic scenario discovery:** The detector receives all scenario folder names automatically via `discoverScenarioNames()` in `main.go`, which walks the `scenarios/` directory at startup. This ensures every scenario CLI (e.g., `visited-tracker`, `app-monitor`) is correctly classified as `CodeScenarioCLI` without hardcoding.
+
+**Multi-line backtick handling:** Backtick commands are matched on the full content (not per-line), so multi-line spans with `\` continuation are captured. Line numbers are calculated from the byte offset of the opening backtick in the stripped content.
+
+**Code fence stripping:** Triple-backtick fenced blocks (` ``` ... ``` `) are replaced with equivalent newlines before backtick matching, preventing false positives from code examples. The replacement preserves line numbering.
+
 **Edge creation policy:**
 - `CodeScenarioCLI`, `CodeExternalTool`, and `CodeScript` produce `code-usage` edges in the graph.
 - `CodeAPICall` is intentionally excluded — it documents API endpoints, not tool invocations.
@@ -93,7 +99,7 @@ The `CLIDetector` scans agent, team, and skill content for CLI tool references. 
 
 [CODE: api/graph/scoring.go]
 
-Each node receives a composite health score (0.0–1.0) computed as a weighted average of individual factors:
+Team/Agent/Skill nodes receive a composite health score (0.0–1.0) computed as a weighted average of individual factors:
 
 | Factor | Weight | What It Measures |
 |--------|--------|------------------|
@@ -105,6 +111,14 @@ Each node receives a composite health score (0.0–1.0) computed as a weighted a
 ```
 score = (factor₁ × weight₁ + factor₂ × weight₂ + ...) / Σ weights
 ```
+
+### CLI Health Policy
+
+CLI nodes intentionally use a different policy from Team/Agent/Skill health factors:
+
+- `cli:vrooli` → **neutral / unscored** (no health row)
+- Scenario CLIs (for example `cli:prompt-manager`) → score from `scenario-completeness-scoring score <scenario> --json`
+- Non-Vrooli tools/scripts (for example `cli:grep`, `cli:deploy.sh`) → score `0.0` (portability penalty)
 
 ## Analytical Queries
 
@@ -153,9 +167,9 @@ The frontend renders the graph using React Flow with Dagre hierarchical layout.
 | > 0.6 | Green fill + border (healthy) |
 
 **Interactivity:**
-- Click a node to navigate to its editor panel
-- Hover to see health score breakdown in a tooltip
-- Use the toolbar to filter by node type, adjust health threshold, or toggle layout direction
+- Click a node to open a detail popover with health breakdown, connection counts, and a "Go to editor" button
+- The popover tracks the node during pan/zoom and closes on background click or re-clicking the same node
+- Use the toolbar to filter by node type, adjust health threshold, toggle low-signal edges, collapse CLI nodes, and switch layout mode (`hierarchical`, `compact`, `grouped`)
 - Run queries from the query panel to highlight matching nodes
 
 ## Related Documentation

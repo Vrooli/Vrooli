@@ -35,7 +35,6 @@ import { WorldHelpContent } from '@/components/world/WorldHelpContent'
 import { GraphView } from '@/components/graph/GraphView'
 import { GraphSettingsContent } from '@/components/graph/GraphSettingsContent'
 import { GraphHelpContent } from '@/components/graph/GraphHelpContent'
-import { GraphLegend } from '@/components/graph/GraphLegend'
 import { GraphQueryPanel } from '@/components/graph/GraphQueryPanel'
 import { ViewOverlay } from '../shared/ViewOverlay'
 import { IconSelector } from '../shared/IconSelector'
@@ -162,7 +161,6 @@ export function SkillEditorPanel({
         <ViewOverlay
           leftPanelContent={graphViewActive ? (
             <>
-              <GraphLegend />
               <PanelErrorBoundary panelName="Graph Queries">
                 <GraphQueryPanel />
               </PanelErrorBoundary>

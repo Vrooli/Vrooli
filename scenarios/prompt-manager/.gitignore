@@ -7,3 +7,6 @@ prompts/drafts/
 # Keep the empty metadata.json files
 !prompts/local/metadata.json
 !prompts/drafts/metadata.json
+
+# Graph index is a derived artifact — regenerated on API startup
+store/indexes/graph.index.json

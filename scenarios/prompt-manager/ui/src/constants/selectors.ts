@@ -75,6 +75,12 @@ const literalSelectors = {
     settingsButton: 'view-overlay-settings-button',
     helpButton: 'view-overlay-help-button',
   },
+  graph: {
+    modeToggle: 'graph-mode-toggle',
+    modeVisual: 'graph-mode-visual',
+    modeJson: 'graph-mode-json',
+    jsonCopyButton: 'graph-json-copy-button',
+  },
   xrefs: {
     panel: 'xrefs-panel',
     toggle: 'xrefs-toggle',

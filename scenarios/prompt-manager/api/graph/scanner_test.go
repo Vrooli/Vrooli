@@ -694,6 +694,44 @@ func TestCLINodeID(t *testing.T) {
 	}
 }
 
+func TestParseCommandParts(t *testing.T) {
+	tests := []struct {
+		name           string
+		cmd            string
+		wantCommand    string
+		wantSubcommand string
+	}{
+		{
+			name:           "command with subcommand",
+			cmd:            "scenario-completeness-scoring score prompt-manager --json",
+			wantCommand:    "scenario-completeness-scoring",
+			wantSubcommand: "score",
+		},
+		{
+			name:           "command with only flags after",
+			cmd:            "grep --help",
+			wantCommand:    "grep",
+			wantSubcommand: "",
+		},
+		{
+			name:           "empty command",
+			cmd:            "",
+			wantCommand:    "",
+			wantSubcommand: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCommand, gotSubcommand := parseCommandParts(tt.cmd)
+			if gotCommand != tt.wantCommand || gotSubcommand != tt.wantSubcommand {
+				t.Fatalf("parseCommandParts(%q) = (%q,%q), want (%q,%q)",
+					tt.cmd, gotCommand, gotSubcommand, tt.wantCommand, tt.wantSubcommand)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Skill and Team code-usage edge tests
 // ---------------------------------------------------------------------------
@@ -721,6 +759,9 @@ func TestScanAll_SkillCodeUsage(t *testing.T) {
 	e := edges[0]
 	if e.From != "skill-a" || e.To != "cli:vrooli" || e.Kind != EdgeCodeUsage {
 		t.Errorf("unexpected edge: %+v", e)
+	}
+	if e.Command != "vrooli" || e.Subcommand != "scenario" {
+		t.Errorf("expected command metadata (vrooli,scenario), got (%s,%s)", e.Command, e.Subcommand)
 	}
 	if e.SourceFile != "SKILL.md" {
 		t.Errorf("expected SourceFile SKILL.md, got %s", e.SourceFile)
@@ -754,13 +795,16 @@ func TestScanAll_TeamCodeUsage(t *testing.T) {
 	if e.From != "team-1" || e.To != "cli:vrooli" || e.Kind != EdgeCodeUsage {
 		t.Errorf("unexpected edge: %+v", e)
 	}
+	if e.Command != "vrooli" || e.Subcommand != "scenario" {
+		t.Errorf("expected command metadata (vrooli,scenario), got (%s,%s)", e.Command, e.Subcommand)
+	}
 	if e.SourceFile != "shared.md" {
 		t.Errorf("expected SourceFile shared.md, got %s", e.SourceFile)
 	}
 }
 
 func TestScanAll_ScriptEdgesCreated(t *testing.T) {
-	// Script references detected by scriptRefRE produce CodeScript edges.
+	// Shell script references in backticks produce CodeScript edges.
 	det := NewCLIDetector(nil)
 	s := NewScanner(
 		&mockAgentLister{
@@ -769,7 +813,7 @@ func TestScanAll_ScriptEdgesCreated(t *testing.T) {
 				"agent-1": {{Path: "SOUL.md"}},
 			},
 			contents: map[string]string{
-				"agent-1/SOUL.md": "Run scripts/deploy.sh",
+				"agent-1/SOUL.md": "Run `scripts/deploy.sh`",
 			},
 		},
 		&mockTeamLister{},

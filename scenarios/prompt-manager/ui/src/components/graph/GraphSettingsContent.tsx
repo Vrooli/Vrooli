@@ -1,11 +1,11 @@
 /**
  * GraphSettingsContent - Settings body for graph visualization controls.
  *
- * Rendered inside OverlayModal by ViewOverlay. Contains no modal chrome.
- * Adapted from the former GraphToolbar for modal layout.
+ * Rendered inside shared floating panel by ViewOverlay. Contains no panel chrome.
+ * Adapted from the former GraphToolbar for panel layout.
  */
 
-import { Users, Bot, Sparkles, Terminal, LayoutGrid, RefreshCw, Maximize2 } from 'lucide-react'
+import { Users, Bot, Sparkles, Terminal, LayoutGrid, RefreshCw, Maximize2, Link2Off, FoldVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/stores/graphStore'
 
@@ -14,6 +14,8 @@ export function GraphSettingsContent() {
   const setFilter = useGraphStore((s) => s.setFilter)
   const layoutDirection = useGraphStore((s) => s.layoutDirection)
   const setLayoutDirection = useGraphStore((s) => s.setLayoutDirection)
+  const layoutMode = useGraphStore((s) => s.layoutMode)
+  const setLayoutMode = useGraphStore((s) => s.setLayoutMode)
   const regenerateGraph = useGraphStore((s) => s.regenerateGraph)
   const requestFitView = useGraphStore((s) => s.requestFitView)
   const loading = useGraphStore((s) => s.loading)
@@ -67,6 +69,56 @@ export function GraphSettingsContent() {
             className="flex-1 h-1 accent-indigo-500"
           />
         </div>
+
+        <div className="grid grid-cols-1 gap-2 mt-3">
+          <button
+            type="button"
+            onClick={() => setFilter('collapseCLIs', !filters.collapseCLIs)}
+            className={cn(
+              'flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+              filters.collapseCLIs
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
+                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+            )}
+            title={filters.collapseCLIs ? 'Expand individual CLI nodes' : 'Collapse CLI nodes into one cluster'}
+          >
+            <span className="flex items-center gap-2">
+              <FoldVertical className="h-3.5 w-3.5" />
+              Collapse CLI Nodes
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFilter('showLowSignalEdges', !filters.showLowSignalEdges)}
+            className={cn(
+              'flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+              filters.showLowSignalEdges
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
+                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+            )}
+            title={filters.showLowSignalEdges ? 'Hide low-signal edges' : 'Show low-signal edges'}
+          >
+            <span className="flex items-center gap-2">
+              <Link2Off className="h-3.5 w-3.5" />
+              Low-Signal Edges
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFilter('autoFitOnChange', !filters.autoFitOnChange)}
+            className={cn(
+              'flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+              filters.autoFitOnChange
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
+                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+            )}
+            title={filters.autoFitOnChange ? 'Disable auto-fit after changes' : 'Enable auto-fit after changes'}
+          >
+            Auto-fit after changes
+          </button>
+        </div>
       </section>
 
       <div className="border-t border-white/10" />
@@ -74,6 +126,28 @@ export function GraphSettingsContent() {
       {/* Layout section */}
       <section>
         <h3 className="text-sm font-medium text-indigo-400 mb-3">Layout</h3>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {[
+            { id: 'hierarchical' as const, label: 'Hier' },
+            { id: 'compact' as const, label: 'Compact' },
+            { id: 'grouped' as const, label: 'Grouped' },
+          ].map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setLayoutMode(option.id)}
+              className={cn(
+                'px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors',
+                layoutMode === option.id
+                  ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
+                  : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex gap-2 mb-3">
           <button
             type="button"

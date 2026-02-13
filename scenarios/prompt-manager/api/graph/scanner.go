@@ -275,6 +275,7 @@ func (s *Scanner) codeUsageEdgesFromContent(sourceID, sourceFile, content string
 			continue // CodeAPICall intentionally excluded
 		}
 		to := cliNodeID(cr.Value)
+		command, subcommand := parseCommandParts(cr.Value)
 		key := dedupeKey{sourceID, to, cr.Category}
 		if seen[key] {
 			continue
@@ -285,6 +286,8 @@ func (s *Scanner) codeUsageEdgesFromContent(sourceID, sourceFile, content string
 			To:         to,
 			Kind:       EdgeCodeUsage,
 			Category:   cr.Category,
+			Command:    command,
+			Subcommand: subcommand,
 			SourceFile: sourceFile,
 			LineNumber: cr.Line,
 		})
@@ -423,4 +426,20 @@ func cliNodeID(cmd string) string {
 		return "cli:unknown"
 	}
 	return "cli:" + fields[0]
+}
+
+// parseCommandParts returns the command name and first non-flag argument.
+func parseCommandParts(cmd string) (command string, subcommand string) {
+	fields := strings.Fields(cmd)
+	if len(fields) == 0 {
+		return "", ""
+	}
+	command = fields[0]
+	for _, field := range fields[1:] {
+		if strings.HasPrefix(field, "-") {
+			continue
+		}
+		return command, field
+	}
+	return command, ""
 }

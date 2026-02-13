@@ -1,9 +1,23 @@
 package graph
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 )
+
+type fakeScenarioProvider struct {
+	scoreByScenario map[string]float64
+	err             error
+}
+
+func (f *fakeScenarioProvider) ScenarioScore(_ context.Context, scenario string) (float64, error) {
+	if f.err != nil {
+		return 0, f.err
+	}
+	return f.scoreByScenario[scenario], nil
+}
 
 func TestScoreAll_Basic(t *testing.T) {
 	g := Graph{
@@ -139,5 +153,79 @@ func TestCodeUsageScore_NoUsage(t *testing.T) {
 	score := codeUsageScore("skill-a", g)
 	if score != 0.5 {
 		t.Errorf("expected 0.5 for no usage, got %f", score)
+	}
+}
+
+func TestApplyCLIHealthPolicy_VrooliNeutral(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "cli:vrooli", Type: NodeCLI},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:vrooli", Kind: EdgeCodeUsage, Category: CodeScenarioCLI, Command: "vrooli"},
+		},
+	}
+	base := []HealthScore{{NodeID: "cli:vrooli", Score: 0.8, Factors: map[string]float64{"x": 0.8}}}
+	got := ApplyCLIHealthPolicy(context.Background(), g, base, &fakeScenarioProvider{scoreByScenario: map[string]float64{}})
+	if len(got) != 0 {
+		t.Fatalf("expected no health score for vrooli CLI, got %+v", got)
+	}
+}
+
+func TestApplyCLIHealthPolicy_ExternalToolZero(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "cli:grep", Type: NodeCLI},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:grep", Kind: EdgeCodeUsage, Category: CodeExternalTool, Command: "grep"},
+		},
+	}
+	got := ApplyCLIHealthPolicy(context.Background(), g, nil, &fakeScenarioProvider{scoreByScenario: map[string]float64{}})
+	if len(got) != 1 {
+		t.Fatalf("expected one score, got %d", len(got))
+	}
+	if got[0].Score != 0.0 {
+		t.Fatalf("expected score 0 for external tool, got %f", got[0].Score)
+	}
+}
+
+func TestApplyCLIHealthPolicy_ScenarioCLIUsesScenarioScore(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "cli:prompt-manager", Type: NodeCLI},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:prompt-manager", Kind: EdgeCodeUsage, Category: CodeScenarioCLI, Command: "prompt-manager"},
+		},
+	}
+	got := ApplyCLIHealthPolicy(context.Background(), g, nil, &fakeScenarioProvider{
+		scoreByScenario: map[string]float64{"prompt-manager": 73},
+	})
+	if len(got) != 1 {
+		t.Fatalf("expected one score, got %d", len(got))
+	}
+	if got[0].Score != 0.73 {
+		t.Fatalf("expected normalized scenario score 0.73, got %f", got[0].Score)
+	}
+}
+
+func TestApplyCLIHealthPolicy_ScenarioCLIProviderErrorFallsBackZero(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "cli:prompt-manager", Type: NodeCLI},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:prompt-manager", Kind: EdgeCodeUsage, Category: CodeScenarioCLI, Command: "prompt-manager"},
+		},
+	}
+	got := ApplyCLIHealthPolicy(context.Background(), g, nil, &fakeScenarioProvider{
+		err: errors.New("boom"),
+	})
+	if len(got) != 1 {
+		t.Fatalf("expected one score, got %d", len(got))
+	}
+	if got[0].Score != 0 {
+		t.Fatalf("expected fallback score 0, got %f", got[0].Score)
 	}
 }

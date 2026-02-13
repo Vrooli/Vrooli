@@ -68,6 +68,9 @@ export const GraphEdgeSchema = z.object({
   from: z.string(),
   to: z.string(),
   kind: EdgeKindSchema,
+  category: z.string().optional().default(''),
+  command: z.string().optional(),
+  subcommand: z.string().optional(),
   sourceFile: z.string().optional().default(''),
   lineNumber: z.number().optional().default(0),
 })

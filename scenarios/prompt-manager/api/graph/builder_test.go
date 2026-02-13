@@ -183,6 +183,38 @@ func TestBuild_HealthScores(t *testing.T) {
 	}
 }
 
+func TestBuild_HealthScores_CLIOverridesApplied(t *testing.T) {
+	b := NewBuilder(
+		&mockAgentNodeSource{agents: []store.Agent{{ID: "agent-1"}}},
+		&mockTeamNodeSource{},
+		&mockSkillNodeSource{},
+		&mockGraphScanner{edges: []Edge{
+			{From: "agent-1", To: "cli:grep", Kind: EdgeCodeUsage, Category: CodeExternalTool, Command: "grep"},
+		}},
+		DefaultScoreFns(),
+	)
+	b.SetScenarioHealthProvider(&fakeScenarioProvider{scoreByScenario: map[string]float64{}})
+
+	g, err := b.Build(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var grepScore *HealthScore
+	for i := range g.HealthScores {
+		if g.HealthScores[i].NodeID == "cli:grep" {
+			grepScore = &g.HealthScores[i]
+			break
+		}
+	}
+	if grepScore == nil {
+		t.Fatalf("expected score for cli:grep, got %+v", g.HealthScores)
+	}
+	if grepScore.Score != 0 {
+		t.Fatalf("expected cli:grep score 0, got %f", grepScore.Score)
+	}
+}
+
 func TestBuild_NoScoreFns(t *testing.T) {
 	b := NewBuilder(
 		&mockAgentNodeSource{agents: []store.Agent{{ID: "agent-1"}}},

@@ -164,6 +164,32 @@ _No open crash issues identified. Team editor org chart now guards against self-
 
 ---
 
+### Incomplete scenario registration in CLIDetector (Fixed)
+
+**Root Cause**
+- `NewCLIDetector([]string{"prompt-manager"})` only registered `vrooli` and `prompt-manager` as known CLIs. Scenario CLIs like `visited-tracker`, `app-monitor`, etc. were classified as `CodeExternalTool` instead of `CodeScenarioCLI`.
+
+**Fix**
+- Added `discoverScenarioNames()` in `main.go` that reads all scenario directory names at startup and passes them to `NewCLIDetector`. All 86+ scenario CLIs are now correctly classified.
+
+**Prevention**
+- Scenario names are discovered dynamically from the filesystem — no hardcoding required when scenarios are added or removed.
+
+---
+
+### Multi-line backtick commands missed by CLIDetector (Fixed)
+
+**Root Cause**
+- `Detect()` processed backtick patterns per-line, so multi-line backtick spans (with `\` continuation) were never matched.
+
+**Fix**
+- Backtick matching now runs on full content (after stripping code fences). Code fences are replaced with equivalent newlines to preserve line numbering.
+
+**Prevention**
+- Tests: `TestCLIDetector_MultiLineBacktick`, `TestCLIDetector_CodeFenceStripped`, `TestCLIDetector_CodeFencePreservesLineNumbers`.
+
+---
+
 ## UX Issues
 
 | Area | Issue | Impact | Recommendation |

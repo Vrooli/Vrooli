@@ -31,18 +31,21 @@ function loadGraphViewport(): GraphViewport | null {
     const raw = localStorage.getItem(GRAPH_VIEWPORT_STORAGE_KEY)
     if (!raw) return null
 
-    const parsed = JSON.parse(raw)
+    const parsed: unknown = JSON.parse(raw) as unknown
     if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      Number.isFinite(parsed.x) &&
-      Number.isFinite(parsed.y) &&
-      Number.isFinite(parsed.zoom)
+      typeof parsed !== 'object' ||
+      parsed === null
+    ) return null
+    const record = parsed as Record<string, unknown>
+    if (
+      Number.isFinite(record.x) &&
+      Number.isFinite(record.y) &&
+      Number.isFinite(record.zoom)
     ) {
       return {
-        x: parsed.x,
-        y: parsed.y,
-        zoom: parsed.zoom,
+        x: record.x as number,
+        y: record.y as number,
+        zoom: record.zoom as number,
       }
     }
   } catch {
@@ -66,8 +69,13 @@ interface GraphFilters {
   showAgents: boolean
   showSkills: boolean
   showCLIs: boolean
+  collapseCLIs: boolean
+  showLowSignalEdges: boolean
+  autoFitOnChange: boolean
   healthThreshold: number
 }
+
+export type GraphLayoutMode = 'hierarchical' | 'compact' | 'grouped'
 
 interface GraphStore {
   graph: GraphResponse | null
@@ -76,6 +84,7 @@ interface GraphStore {
   filters: GraphFilters
   highlightedNodeIds: Set<string>
   layoutDirection: 'TB' | 'LR'
+  layoutMode: GraphLayoutMode
   fitViewRequested: number
   viewport: GraphViewport | null
 
@@ -85,6 +94,7 @@ interface GraphStore {
   highlightNodes: (ids: string[]) => void
   clearHighlights: () => void
   setLayoutDirection: (dir: 'TB' | 'LR') => void
+  setLayoutMode: (mode: GraphLayoutMode) => void
   requestFitView: () => void
   setViewport: (viewport: GraphViewport) => void
 }
@@ -98,10 +108,14 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     showAgents: true,
     showSkills: true,
     showCLIs: true,
+    collapseCLIs: false,
+    showLowSignalEdges: true,
+    autoFitOnChange: true,
     healthThreshold: 0,
   },
   highlightedNodeIds: new Set(),
   layoutDirection: 'TB',
+  layoutMode: 'compact',
   fitViewRequested: 0,
   viewport: loadGraphViewport(),
 
@@ -149,6 +163,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
   setLayoutDirection: (dir) => {
     set({ layoutDirection: dir })
+  },
+
+  setLayoutMode: (mode) => {
+    set({ layoutMode: mode })
   },
 
   requestFitView: () => {

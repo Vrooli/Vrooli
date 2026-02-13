@@ -29,11 +29,12 @@ type graphScanner interface {
 
 // Builder assembles the full graph from entity stores and the scanner.
 type Builder struct {
-	agentStore agentNodeSource
-	teamStore  teamNodeSource
-	skillStore skillNodeSource
-	scanner    graphScanner
-	scoreFns   []ScoreFn
+	agentStore             agentNodeSource
+	teamStore              teamNodeSource
+	skillStore             skillNodeSource
+	scanner                graphScanner
+	scoreFns               []ScoreFn
+	scenarioHealthProvider ScenarioHealthProvider
 }
 
 // NewBuilder creates a graph builder.
@@ -51,6 +52,11 @@ func NewBuilder(
 		scanner:    scanner,
 		scoreFns:   scoreFns,
 	}
+}
+
+// SetScenarioHealthProvider configures scenario-level health lookup for CLI nodes.
+func (b *Builder) SetScenarioHealthProvider(provider ScenarioHealthProvider) {
+	b.scenarioHealthProvider = provider
 }
 
 // Build constructs the complete graph.
@@ -117,6 +123,7 @@ func (b *Builder) Build(ctx context.Context) (Graph, error) {
 	// Compute health scores
 	if len(b.scoreFns) > 0 {
 		g.HealthScores = ScoreAll(g, b.scoreFns)
+		g.HealthScores = ApplyCLIHealthPolicy(ctx, g, g.HealthScores, b.scenarioHealthProvider)
 	}
 
 	return g, nil

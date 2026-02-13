@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"prompt-manager/agents"
@@ -40,6 +41,25 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
+
+// discoverScenarioNames returns the names of all scenario directories.
+// storeDir is expected to be an absolute path like ".../scenarios/prompt-manager/store";
+// we walk up to the "scenarios/" parent and list its subdirectories.
+func discoverScenarioNames(storeDir string) []string {
+	scenariosDir := filepath.Join(storeDir, "..", "..")
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		log.Printf("Warning: could not read scenarios dir %s: %v", scenariosDir, err)
+		return nil
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+			names = append(names, e.Name())
+		}
+	}
+	return names
+}
 
 func main() {
 	// Preflight checks
@@ -139,7 +159,8 @@ func main() {
 	skillHandlers.SetAIIndexer(aiSearchService)
 
 	// Graph detection
-	cliDetector := graph.NewCLIDetector([]string{"prompt-manager"})
+	scenarioNames := discoverScenarioNames(absStoreDir)
+	cliDetector := graph.NewCLIDetector(scenarioNames)
 	graphScanner := graph.NewScanner(
 		fileStore.Agents().(*store.FileAgentStore),
 		fileStore.Teams().(*store.FileTeamStore),
@@ -154,7 +175,16 @@ func main() {
 		graphScanner,
 		graph.DefaultScoreFns(),
 	)
+	graphBuilder.SetScenarioHealthProvider(graph.NewScenarioCompletenessCLIProvider(15 * time.Second))
 	graphIndex := graph.NewIndexStore(absStoreDir, graphBuilder)
+	// Always regenerate on startup so the index reflects the current detection code.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := graphIndex.Regenerate(ctx); err != nil {
+			log.Printf("graph: startup rebuild failed: %v", err)
+		}
+	}()
 	graphHandlers := graph.NewHandlers(graphIndex)
 
 	// Inject graph invalidator into mutation handlers
