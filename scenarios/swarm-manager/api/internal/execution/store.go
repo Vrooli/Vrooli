@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/storage"
 )
 
@@ -21,7 +22,7 @@ type FileStore struct {
 // NewStore creates a store at the provided path.
 func NewStore(path string) *FileStore {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join("scenarios", "swarm-manager", ".vrooli", "execution-runs.json")
+		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "execution-runs.json")
 	}
 	return &FileStore{path: path}
 }

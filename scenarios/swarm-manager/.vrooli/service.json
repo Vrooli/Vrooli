@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "swarm-manager",
     "displayName": "Swarm Manager",
-    "description": "Central command center for managing scenario ecosystem with idea backlogs, lifecycle control, and intelligent recommendations",
+    "description": "Central command center for managing scenario ecosystem with backlog-driven execution control and lifecycle orchestration",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",

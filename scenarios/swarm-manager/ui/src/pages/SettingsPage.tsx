@@ -19,8 +19,9 @@ import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
 import { selectors } from "../consts/selectors";
 import { applyTheme, defaultQueryOptions } from "../lib";
-import { settingsService } from "../services";
+import { executionPolicyService, settingsService } from "../services";
 import type { Settings } from "../types";
+import type { ExecutionPolicy } from "../types";
 
 type NavigationContextValue = React.ContextType<typeof UNSAFE_NavigationContext>;
 type NavigationBlockerTransaction = { retry: () => void };
@@ -77,8 +78,14 @@ export function SettingsPage() {
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,
   });
+  const { data: executionPolicy, isLoading: isPolicyLoading, error: policyError, refetch: refetchPolicy } = useQuery<ExecutionPolicy, Error>({
+    queryKey: ["execution-policy"],
+    queryFn: () => executionPolicyService.get(),
+    ...defaultQueryOptions,
+  });
 
   const [form, setForm] = useState<Settings | null>(null);
+  const [policyForm, setPolicyForm] = useState<ExecutionPolicy | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
   const settingsRef = useRef<Settings | null>(null);
   const formRef = useRef<Settings | null>(null);
@@ -89,6 +96,11 @@ export function SettingsPage() {
       setForm(settings);
     }
   }, [settings]);
+  useEffect(() => {
+    if (executionPolicy) {
+      setPolicyForm(executionPolicy);
+    }
+  }, [executionPolicy]);
 
   const updateMutation = useMutation({
     mutationFn: settingsService.update,
@@ -99,11 +111,24 @@ export function SettingsPage() {
       setTimeout(() => setSavedMessage(""), 3000);
     },
   });
+  const updatePolicyMutation = useMutation({
+    mutationFn: executionPolicyService.update,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["execution-policy"], updated);
+      setPolicyForm(updated);
+      setSavedMessage("Settings saved.");
+      setTimeout(() => setSavedMessage(""), 3000);
+    },
+  });
 
   const isDirty = useMemo(() => {
     if (!settings || !form) return false;
     return JSON.stringify(settings) !== JSON.stringify(form);
   }, [settings, form]);
+  const isPolicyDirty = useMemo(() => {
+    if (!executionPolicy || !policyForm) return false;
+    return JSON.stringify(executionPolicy) !== JSON.stringify(policyForm);
+  }, [executionPolicy, policyForm]);
 
   useEffect(() => {
     settingsRef.current = settings ?? null;
@@ -118,19 +143,19 @@ export function SettingsPage() {
   }, [isDirty]);
 
   useNavigationBlocker(
-    isDirty,
+    isDirty || isPolicyDirty,
     "You have unsaved settings changes. Leave without saving?"
   );
 
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty && !isPolicyDirty) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
+  }, [isDirty, isPolicyDirty]);
 
   useEffect(() => {
     return () => {
@@ -149,7 +174,7 @@ export function SettingsPage() {
     applyTheme(theme);
   };
 
-  if (isLoading) {
+  if (isLoading || isPolicyLoading) {
     return (
       <div className="space-y-6" data-testid={selectors.settings.page}>
         <Card padding="lg" centered>
@@ -159,15 +184,22 @@ export function SettingsPage() {
     );
   }
 
-  if (error) {
+  if (error || policyError) {
     return (
       <div className="space-y-6" data-testid={selectors.settings.page}>
-        <ErrorState error={error} title="Unable to load settings" onRetry={() => refetch()} />
+        <ErrorState
+          error={(error ?? policyError) as Error}
+          title="Unable to load settings"
+          onRetry={() => {
+            void refetch();
+            void refetchPolicy();
+          }}
+        />
       </div>
     );
   }
 
-  if (!form) return null;
+  if (!form || !policyForm) return null;
 
   return (
     <div className="space-y-6" data-testid={selectors.settings.page}>
@@ -252,20 +284,61 @@ export function SettingsPage() {
         </div>
       </Card>
 
+      <Card>
+        <h3 className="text-lg font-medium text-slate-200">Execution Defaults</h3>
+        <p className="mt-1 text-sm text-slate-400">Default mode/delay used when queue requests omit explicit values.</p>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Default Mode</label>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {(["manual", "scheduled", "yolo"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  className={`rounded-lg border py-2 text-sm font-medium ${policyForm.defaultMode === mode ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
+                  onClick={() => setPolicyForm({ ...policyForm, defaultMode: mode })}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Default Schedule Delay (seconds)</label>
+            <Input
+              type="number"
+              min={0}
+              className="mt-1"
+              value={policyForm.defaultDelaySeconds}
+              onChange={(e) =>
+                setPolicyForm({
+                  ...policyForm,
+                  defaultDelaySeconds: Math.max(0, Number(e.target.value || 0)),
+                })
+              }
+            />
+          </div>
+        </div>
+      </Card>
+
       <div className="flex justify-end">
         <Button
-          onClick={() => updateMutation.mutate(form)}
-          disabled={!isDirty || updateMutation.isPending}
+          onClick={() => {
+            updateMutation.mutate(form);
+            if (isPolicyDirty) {
+              updatePolicyMutation.mutate(policyForm);
+            }
+          }}
+          disabled={(!isDirty && !isPolicyDirty) || updateMutation.isPending || updatePolicyMutation.isPending}
           data-testid={selectors.settings.saveButton}
           className="flex items-center gap-2"
         >
-          {updateMutation.isPending ? "Saving..." : "Save Settings"}
+          {updateMutation.isPending || updatePolicyMutation.isPending ? "Saving..." : "Save Settings"}
         </Button>
       </div>
 
-      {updateMutation.isError && (
+      {(updateMutation.isError || updatePolicyMutation.isError) && (
         <ErrorState
-          error={updateMutation.error as Error}
+          error={(updateMutation.error ?? updatePolicyMutation.error) as Error}
           title="Failed to save settings"
         />
       )}

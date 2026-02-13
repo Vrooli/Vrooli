@@ -70,7 +70,7 @@ export function WelcomeHint({ "data-testid": testId }: WelcomeHintProps) {
             </div>
             <div className="flex items-center gap-2 text-slate-300">
               <Zap className="h-3.5 w-3.5 text-cyan-400" />
-              <span><strong className="text-slate-300">Recommendations</strong> - Auto-suggestions</span>
+              <span><strong className="text-slate-300">Execution</strong> - Pending, running, completed, failed runs</span>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded bg-slate-800/50 px-2.5 py-1.5 text-xs text-slate-300 w-fit">

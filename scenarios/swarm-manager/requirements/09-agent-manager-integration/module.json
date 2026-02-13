@@ -68,9 +68,9 @@
           "type": "test"
         },
         {
-          "notes": "Recommendation start workflow spawns agent runs",
+          "notes": "Execution queue workflow spawns agent runs",
           "phase": "unit",
-          "ref": "api/internal/recommendations/start_test.go::TestHandler_StartRecommendationSuccess",
+          "ref": "api/internal/execution/service_test.go::TestQueueAndStartManualExecution",
           "status": "passing",
           "type": "test"
         },

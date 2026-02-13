@@ -39,6 +39,8 @@
 //	swarm-manager settings update <json> # Update settings
 //	swarm-manager execution list      # List execution runs
 //	swarm-manager execution get <execution-id> # Get execution details
+//	swarm-manager execution policy get # Show execution defaults
+//	swarm-manager execution policy update --mode manual|scheduled|yolo [--delay-seconds N]
 //	swarm-manager queue list          # List local queue items
 //	swarm-manager queue create <kind> [payload-json] # Enqueue item
 //	swarm-manager queue delete <id>   # Remove item from queue
@@ -167,6 +169,8 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			{Name: "execution list", NeedsAPI: true, Description: "List execution runs", Run: a.cmdExecutionList},
 			{Name: "execution get", NeedsAPI: true, Description: "Get execution details (args: <execution-id>)", Run: a.cmdExecutionGet},
+			{Name: "execution policy get", NeedsAPI: true, Description: "Get execution policy defaults", Run: a.cmdExecutionPolicyGet},
+			{Name: "execution policy update", NeedsAPI: true, Description: "Update execution policy defaults (flags: --mode --delay-seconds)", Run: a.cmdExecutionPolicyUpdate},
 			{Name: "execution start", NeedsAPI: true, Description: "Start an execution (args: <execution-id>)", Run: a.cmdExecutionStart},
 			{Name: "execution cancel", NeedsAPI: true, Description: "Cancel an execution (args: <execution-id>)", Run: a.cmdExecutionCancel},
 			{Name: "execution retry", NeedsAPI: true, Description: "Retry a failed execution (args: <execution-id>)", Run: a.cmdExecutionRetry},
@@ -376,6 +380,17 @@ type ExecutionItemResponse struct {
 	Execution ExecutionRecord `json:"execution"`
 }
 
+// ExecutionPolicy stores default execution behavior.
+type ExecutionPolicy struct {
+	DefaultMode         string `json:"default_mode"`
+	DefaultDelaySeconds int64  `json:"default_delay_seconds"`
+}
+
+// ExecutionPolicyResponse wraps policy payloads.
+type ExecutionPolicyResponse struct {
+	Policy ExecutionPolicy `json:"policy"`
+}
+
 // cmdBacklogList lists backlog items.
 // [REQ:REQ-P0-003] CLI backlog list command
 func (a *App) cmdBacklogList(args []string) error {
@@ -544,7 +559,7 @@ func (a *App) cmdBacklogDelete(args []string) error {
 // cmdBacklogQueue queues a backlog item for processing.
 func (a *App) cmdBacklogQueue(args []string) error {
 	fs := flag.NewFlagSet("backlog queue", flag.ContinueOnError)
-	mode := fs.String("mode", "yolo", "Execution mode: manual|scheduled|yolo")
+	mode := fs.String("mode", "", "Execution mode override: manual|scheduled|yolo (default uses execution policy)")
 	delaySeconds := fs.Int64("delay-seconds", 0, "Schedule delay in seconds (scheduled mode)")
 	operation := fs.String("operation", "generator", "Operation hint: generator|improver")
 	startedBy := fs.String("started-by", "swarm-manager", "Started-by attribution label")
@@ -557,7 +572,7 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	kind := fs.Arg(0)
 	name := fs.Arg(1)
 	modeValue := strings.ToLower(strings.TrimSpace(*mode))
-	if modeValue != "manual" && modeValue != "scheduled" && modeValue != "yolo" {
+	if modeValue != "" && modeValue != "manual" && modeValue != "scheduled" && modeValue != "yolo" {
 		return fmt.Errorf("invalid mode %q (expected manual, scheduled, or yolo)", modeValue)
 	}
 	operationValue := strings.ToLower(strings.TrimSpace(*operation))
@@ -1035,6 +1050,55 @@ func (a *App) cmdExecutionGet(args []string) error {
 		return err
 	}
 	cliutil.PrintJSON(body)
+	return nil
+}
+
+func (a *App) cmdExecutionPolicyGet(_ []string) error {
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/execution/policy"), nil)
+	if err != nil {
+		return err
+	}
+	var response ExecutionPolicyResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	fmt.Printf("Default mode: %s\n", response.Policy.DefaultMode)
+	fmt.Printf("Default delay seconds: %d\n", response.Policy.DefaultDelaySeconds)
+	return nil
+}
+
+func (a *App) cmdExecutionPolicyUpdate(args []string) error {
+	fs := flag.NewFlagSet("execution policy update", flag.ContinueOnError)
+	mode := fs.String("mode", "", "Default mode: manual|scheduled|yolo")
+	delay := fs.Int64("delay-seconds", 300, "Default delay seconds for scheduled mode")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	modeValue := strings.ToLower(strings.TrimSpace(*mode))
+	if modeValue != "manual" && modeValue != "scheduled" && modeValue != "yolo" {
+		return fmt.Errorf("mode is required and must be manual, scheduled, or yolo")
+	}
+	if *delay < 0 {
+		return fmt.Errorf("delay-seconds must be >= 0")
+	}
+	payload, err := json.Marshal(map[string]any{
+		"default_mode":          modeValue,
+		"default_delay_seconds": *delay,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
+	}
+	body, err := a.core.APIClient.Request("PUT", a.resolveV1Endpoint("/execution/policy"), nil, json.RawMessage(payload))
+	if err != nil {
+		return err
+	}
+	var response ExecutionPolicyResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	fmt.Printf("Updated execution policy:\n")
+	fmt.Printf("  Default mode: %s\n", response.Policy.DefaultMode)
+	fmt.Printf("  Default delay seconds: %d\n", response.Policy.DefaultDelaySeconds)
 	return nil
 }
 

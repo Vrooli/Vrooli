@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
   agentManagerStatus: "/agent-manager/status",
   settings: "/settings",
   execution: "/execution",
+  executionPolicy: "/execution/policy",
   executionById: (executionId: string) => `/execution/${executionId}`,
   executionStart: (executionId: string) => `/execution/${executionId}/start`,
   executionCancel: (executionId: string) => `/execution/${executionId}/cancel`,

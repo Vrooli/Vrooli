@@ -1,26 +1,26 @@
 {
-  "description": "View pending recommendations, approve or reject",
+  "description": "View and govern execution runs (pending/running/completed/failed)",
   "module_id": "MOD-P1-012",
   "prd_ref": "OT-P1-002",
   "priority": "P1",
   "requirements": [
     {
       "category": "api",
-      "description": "Implement API endpoints for listing, approving, and rejecting recommendations",
+      "description": "Implement API endpoints for listing, starting, canceling, and retrying execution runs",
       "id": "REQ-P1-002-API",
       "prd_ref": "OT-P1-002",
       "status": "draft",
-      "title": "Recommendation Management API",
+      "title": "Execution Operations API",
       "validation": [
         {
-          "notes": "Test recommendation listing endpoint",
+          "notes": "Test execution listing endpoint",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify approval/rejection actions",
+          "notes": "Verify start/cancel/retry actions",
           "phase": "unit",
           "ref": "",
           "status": "pending",
@@ -40,21 +40,21 @@
       "dependencies": [
         "REQ-P1-002-API"
       ],
-      "description": "Create management page UI for viewing pending recommendations with approve/reject controls",
+      "description": "Create operations page UI for viewing run states with start/cancel/retry controls",
       "id": "REQ-P1-002-UI",
       "prd_ref": "OT-P1-002",
       "status": "draft",
-      "title": "Recommendation Management Interface",
+      "title": "Execution Operations Interface",
       "validation": [
         {
-          "notes": "End-to-end recommendation workflow",
+          "notes": "End-to-end execution workflow",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Users can effectively manage recommendations",
+          "notes": "Users can effectively govern execution runs",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -63,5 +63,5 @@
       ]
     }
   ],
-  "title": "Recommendation management page"
+  "title": "Execution operations page"
 }

@@ -52,6 +52,12 @@ type CreateRequest struct {
 	Operation    string `json:"operation,omitempty"`
 }
 
+// Policy controls default execution behavior when callers do not provide mode/delay.
+type Policy struct {
+	DefaultMode         Mode  `json:"default_mode"`
+	DefaultDelaySeconds int64 `json:"default_delay_seconds"`
+}
+
 // ListFilters defines list query filters.
 type ListFilters struct {
 	Status      string

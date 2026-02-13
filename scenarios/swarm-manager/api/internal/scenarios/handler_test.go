@@ -484,23 +484,6 @@ func TestUpdateMetadata_InvalidJSON(t *testing.T) {
 	testutil.AssertStatusBadRequest(t, rec)
 }
 
-func TestUpdateMetadata_RejectsDeprecatedRecommendationsField(t *testing.T) {
-	root, sources := setupTestScenarios(t)
-
-	handler := newTestHandler(root, sources)
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
-
-	body := `{"recommendations_enabled": false}`
-	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
-}
-
 // TestUpdateMetadata_PartialUpdate tests that partial updates work.
 // [REQ:REQ-P0-007] Test partial metadata update
 func TestUpdateMetadata_PartialUpdate(t *testing.T) {

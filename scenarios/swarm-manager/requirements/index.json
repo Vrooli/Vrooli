@@ -92,13 +92,13 @@
       "id": "MOD-P1-011",
       "path": "11-recommendation-engine",
       "priority": "P1",
-      "title": "Recommendation engine (3-state)"
+      "title": "Execution control policy"
     },
     {
       "id": "MOD-P1-012",
       "path": "12-recommendation-management-page",
       "priority": "P1",
-      "title": "Recommendation management page"
+      "title": "Execution operations page"
     },
     {
       "id": "MOD-P1-013",

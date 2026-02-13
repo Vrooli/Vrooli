@@ -66,6 +66,8 @@
 //
 //	GET    /api/v1/execution                            - List execution runs
 //	POST   /api/v1/execution                            - Create execution run
+//	GET    /api/v1/execution/policy                     - Get execution policy defaults
+//	PUT    /api/v1/execution/policy                     - Update execution policy defaults
 //	GET    /api/v1/execution/{execution_id}             - Get execution run
 //	POST   /api/v1/execution/{execution_id}/start       - Start run
 //	POST   /api/v1/execution/{execution_id}/cancel      - Cancel run
@@ -79,6 +81,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -91,6 +94,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
@@ -124,6 +128,8 @@ func NewServer() *Server {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
+	scenarioRoot := pathutil.ResolveScenarioRoot("swarm-manager")
+	scenariosDir := filepath.Dir(scenarioRoot)
 
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	// Uses api-core/health for standardized response format
@@ -137,16 +143,16 @@ func (s *Server) setupRoutes() {
 
 	// Backlog endpoints
 	// [REQ:REQ-P0-002] Backlog management
-	backlogHandler := backlog.NewHandlerWithClients("", s.agentSvc)
+	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc)
 	backlogHandler.RegisterRoutes(s.router)
 
 	// Scenarios catalog endpoints
 	// [REQ:REQ-P0-006] Scenario catalog with priority, search, and filter
-	scenariosHandler := scenarios.NewHandler("")
+	scenariosHandler := scenarios.NewHandler(scenariosDir)
 	scenariosHandler.RegisterRoutes(s.router)
 
 	// Settings persistence endpoints
-	settingsHandler := settings.NewHandler("")
+	settingsHandler := settings.NewHandler(filepath.Join(scenarioRoot, ".vrooli", "settings.json"))
 	settingsHandler.RegisterRoutes(s.router)
 
 	// Agent-manager status endpoint
@@ -154,13 +160,14 @@ func (s *Server) setupRoutes() {
 	agentManagerHandler.RegisterRoutes(s.router)
 
 	// Local queue endpoints (filesystem-backed)
-	queueHandler := queue.NewHandler("")
+	queueHandler := queue.NewHandler(filepath.Join(scenarioRoot, ".vrooli", "queue.json"))
 	queueHandler.RegisterRoutes(s.router)
 
 	// Execution control endpoints
 	s.executionHandler = execution.NewHandler(execution.ServiceConfig{
-		RootDir:      "",
-		StorePath:    "",
+		RootDir:      scenarioRoot,
+		StorePath:    filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
+		PolicyPath:   filepath.Join(scenarioRoot, ".vrooli", "execution-policy.json"),
 		AgentService: s.agentSvc,
 	})
 	s.executionHandler.RegisterRoutes(s.router)

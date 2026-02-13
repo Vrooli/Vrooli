@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/storage"
 )
 
@@ -50,7 +51,7 @@ type Store struct {
 // NewStore creates a queue store. If path is empty, uses the scenario default.
 func NewStore(path string) *Store {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join("scenarios", "swarm-manager", ".vrooli", "queue.json")
+		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "queue.json")
 	}
 	return &Store{path: path}
 }

@@ -29,6 +29,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/pathutil"
 )
 
 // BacklogStatus represents the lifecycle state of a backlog item.
@@ -95,7 +96,7 @@ type Handler struct {
 // If rootDir is empty, it defaults to the scenario root directory.
 func NewHandler(rootDir string) *Handler {
 	if rootDir == "" {
-		rootDir = filepath.Join("scenarios", "swarm-manager")
+		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
 	}
 	return &Handler{
 		rootDir:      rootDir,
@@ -904,6 +905,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	executionService := execution.NewService(execution.ServiceConfig{
 		RootDir:      h.rootDir,
 		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+		PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
 		AgentService: h.agentService,
 	})
 	record, err := executionService.QueueBacklog(r.Context(), execution.CreateRequest{

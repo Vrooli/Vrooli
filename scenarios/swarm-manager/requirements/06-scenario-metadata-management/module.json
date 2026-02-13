@@ -1,12 +1,12 @@
 {
-  "description": "Greenfield/brownfield toggle, enable/disable from recommendations",
+  "description": "Greenfield/brownfield toggle",
   "module_id": "MOD-P0-006",
   "prd_ref": "OT-P0-006",
   "priority": "P0",
   "requirements": [
     {
       "category": "api",
-      "description": "Implement API endpoint for updating scenario metadata including greenfield toggle and recommendations enabled flag",
+      "description": "Implement API endpoint for updating scenario metadata including greenfield toggle",
       "id": "REQ-P0-007-API",
       "prd_ref": "OT-P0-006",
       "status": "implemented",
@@ -53,20 +53,13 @@
           "ref": "api/internal/scenarios/handler_test.go::TestUpdateMetadata_PersistsToDisk",
           "status": "passing",
           "type": "test"
-        },
-        {
-          "notes": "Test recommendations enabled default",
-          "phase": "unit",
-          "ref": "api/internal/scenarios/handler_test.go::TestScenario_RecommendationsEnabledDefault",
-          "status": "passing",
-          "type": "test"
         }
       ]
     },
     {
       "category": "ui",
       "dependencies": ["REQ-P0-007-API"],
-      "description": "Implement UI controls for toggling greenfield/brownfield mode and enabling/disabling recommendations per scenario",
+      "description": "Implement UI controls for toggling greenfield/brownfield mode per scenario",
       "id": "REQ-P0-007-UI",
       "prd_ref": "OT-P0-006",
       "status": "implemented",
@@ -97,13 +90,6 @@
           "notes": "Scenario details page tests toggle interactions",
           "phase": "unit",
           "ref": "ui/src/pages/ScenarioDetailsPage.test.tsx::handles greenfield toggle",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Scenario details page tests recommendations toggle",
-          "phase": "unit",
-          "ref": "ui/src/pages/ScenarioDetailsPage.test.tsx::handles recommendations toggle",
           "status": "passing",
           "type": "test"
         }

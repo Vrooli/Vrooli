@@ -14,6 +14,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/storage"
 )
 
@@ -36,6 +37,7 @@ type runStopper interface {
 type ServiceConfig struct {
 	RootDir      string
 	StorePath    string
+	PolicyPath   string
 	AgentService agentSpawner
 }
 
@@ -43,6 +45,7 @@ type ServiceConfig struct {
 type Service struct {
 	rootDir      string
 	store        Store
+	policyStore  *PolicyStore
 	agentService agentSpawner
 	inspector    runInspector
 	stopper      runStopper
@@ -53,12 +56,13 @@ type Service struct {
 func NewService(cfg ServiceConfig) *Service {
 	rootDir := strings.TrimSpace(cfg.RootDir)
 	if rootDir == "" {
-		rootDir = filepath.Join("scenarios", "swarm-manager")
+		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
 	}
 
 	service := &Service{
 		rootDir:      rootDir,
 		store:        NewStore(cfg.StorePath),
+		policyStore:  newPolicyStore(cfg.PolicyPath),
 		agentService: cfg.AgentService,
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
@@ -75,6 +79,11 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	policy, err := s.policyStore.Load()
+	if err != nil {
+		return Record{}, err
+	}
+
 	if strings.TrimSpace(req.BacklogKind) == "" {
 		return Record{}, fmt.Errorf("backlog_kind is required")
 	}
@@ -82,6 +91,9 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return Record{}, fmt.Errorf("backlog_name is required")
 	}
 	mode := normalizeMode(req.Mode)
+	if mode == "" {
+		mode = policy.DefaultMode
+	}
 	if mode == "" {
 		return Record{}, fmt.Errorf("mode must be manual, scheduled, or yolo")
 	}
@@ -118,7 +130,11 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		record.Operation = "generator"
 	}
 
-	scheduledAt, status := plannedSchedule(mode, req.DelaySeconds)
+	delaySeconds := req.DelaySeconds
+	if mode == ModeScheduled && delaySeconds <= 0 {
+		delaySeconds = policy.DefaultDelaySeconds
+	}
+	scheduledAt, status := plannedSchedule(mode, delaySeconds)
 	record.Status = status
 	record.ScheduledAt = scheduledAt
 
@@ -135,6 +151,24 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return s.startLocked(ctx, record.ExecutionID)
 	}
 	return record, nil
+}
+
+// Policy returns current execution policy.
+func (s *Service) Policy(_ context.Context) (Policy, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.policyStore.Load()
+}
+
+// UpdatePolicy persists execution policy.
+func (s *Service) UpdatePolicy(_ context.Context, policy Policy) (Policy, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	normalized := normalizePolicy(policy)
+	if err := s.policyStore.Save(normalized); err != nil {
+		return Policy{}, err
+	}
+	return normalized, nil
 }
 
 // Start starts a pending/scheduled/failed execution now.

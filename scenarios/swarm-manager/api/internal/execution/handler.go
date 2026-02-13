@@ -27,6 +27,8 @@ func NewHandler(cfg ServiceConfig) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/execution", h.Create).Methods("POST")
+	r.HandleFunc("/api/v1/execution/policy", h.GetPolicy).Methods("GET")
+	r.HandleFunc("/api/v1/execution/policy", h.UpdatePolicy).Methods("PUT")
 	r.HandleFunc("/api/v1/execution/{execution_id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
@@ -178,5 +180,40 @@ func (h *Handler) mapMutationError(w http.ResponseWriter, prefix string, err err
 		httputil.ServiceUnavailable(w, prefix, "agent-manager is not available")
 	default:
 		httputil.InternalError(w, prefix, "execution operation failed")
+	}
+}
+
+func (h *Handler) GetPolicy(w http.ResponseWriter, r *http.Request) {
+	policy, err := h.service.Policy(r.Context())
+	if err != nil {
+		httputil.InternalError(w, "[execution] policy get", "failed to load execution policy")
+		return
+	}
+	if err := httputil.JSON(w, map[string]any{"policy": policy}); err != nil {
+		httputil.InternalError(w, "[execution] policy get", "failed to encode response")
+	}
+}
+
+func (h *Handler) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
+	var req Policy
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.BadRequest(w, "[execution] policy update", "invalid request body")
+		return
+	}
+	if normalizeMode(req.DefaultMode) == "" {
+		httputil.BadRequest(w, "[execution] policy update", "default_mode must be manual, scheduled, or yolo")
+		return
+	}
+	if req.DefaultDelaySeconds < 0 {
+		httputil.BadRequest(w, "[execution] policy update", "default_delay_seconds must be >= 0")
+		return
+	}
+	policy, err := h.service.UpdatePolicy(r.Context(), req)
+	if err != nil {
+		httputil.InternalError(w, "[execution] policy update", "failed to persist execution policy")
+		return
+	}
+	if err := httputil.JSON(w, map[string]any{"policy": policy}); err != nil {
+		httputil.InternalError(w, "[execution] policy update", "failed to encode response")
 	}
 }

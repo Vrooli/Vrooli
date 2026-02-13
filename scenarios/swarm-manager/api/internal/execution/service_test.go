@@ -71,6 +71,51 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	}
 }
 
+func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "policy-idea", map[string]any{
+		"name":        "policy-idea",
+		"title":       "Policy Idea",
+		"description": "desc",
+		"status":      "backlog",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	agent := &stubAgentService{}
+	service := NewService(ServiceConfig{
+		RootDir:      root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PolicyPath:   filepath.Join(root, ".vrooli", "execution-policy.json"),
+		AgentService: agent,
+	})
+	_, err := service.UpdatePolicy(context.Background(), Policy{
+		DefaultMode:         ModeScheduled,
+		DefaultDelaySeconds: 600,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePolicy error: %v", err)
+	}
+
+	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind: "idea",
+		BacklogName: "policy-idea",
+		Mode:        "",
+	})
+	if err != nil {
+		t.Fatalf("QueueBacklog error: %v", err)
+	}
+	if record.Mode != ModeScheduled {
+		t.Fatalf("expected scheduled mode from policy, got %s", record.Mode)
+	}
+	if record.Status != StatusScheduled {
+		t.Fatalf("expected scheduled status, got %s", record.Status)
+	}
+	if record.ScheduledAt == "" {
+		t.Fatalf("expected scheduled_at to be populated")
+	}
+}
+
 func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[string]any) {
 	t.Helper()
 	kindDir := "ideas"

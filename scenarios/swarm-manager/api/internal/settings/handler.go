@@ -18,6 +18,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/storage"
 )
 
@@ -49,7 +50,7 @@ var (
 // NewStore creates a settings store. If path is empty, uses the scenario default.
 func NewStore(path string) *Store {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join("scenarios", "swarm-manager", ".vrooli", "settings.json")
+		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "settings.json")
 	}
 	return &Store{path: path}
 }
@@ -154,10 +155,6 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hasDeprecatedRecommendationFields(&req) {
-		httputil.BadRequest(w, "[settings] update", "recommendation settings are no longer supported")
-		return
-	}
 	if isEmptyUpdateSettingsRequest(&req) {
 		httputil.BadRequest(w, "[settings] update", "no settings provided")
 		return
@@ -241,13 +238,6 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		patch.InsightsAutoAnalyze = req.InsightsAutoAnalyze
 	}
 	return patch
-}
-
-func hasDeprecatedRecommendationFields(req *apipb.UpdateSettingsRequest) bool {
-	if req == nil {
-		return false
-	}
-	return req.RecommendationMode != nil || req.RecommendationSources != nil || req.RecommendationAutoSync != nil
 }
 
 func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {

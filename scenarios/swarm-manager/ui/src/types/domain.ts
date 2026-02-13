@@ -157,7 +157,7 @@ export type ScenarioStatus = "running" | "stopped" | "error" | "unknown";
  * A scenario represents a deployed application in the Vrooli ecosystem.
  * [REQ:REQ-P0-007] Includes metadata for greenfield toggle
  */
-export type Scenario = Omit<ProtoMessage<ProtoScenario>, "status" | "recommendationsEnabled"> & {
+export type Scenario = Omit<ProtoMessage<ProtoScenario>, "status"> & {
   /** Current runtime state */
   status: ScenarioStatus;
 };
@@ -233,7 +233,7 @@ export type ThemePreference = "dark" | "light" | "system";
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "recommendationMode" | "recommendationSources" | "recommendationAutoSync"
+  "theme"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -268,4 +268,9 @@ export interface ExecutionRecord {
   operation?: "generator" | "improver";
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ExecutionPolicy {
+  defaultMode: ExecutionMode;
+  defaultDelaySeconds: number;
 }

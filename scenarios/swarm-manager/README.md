@@ -118,6 +118,8 @@ swarm-manager scenarios delete <name> [--archive]
 
 swarm-manager execution list [--status ... --mode ... --started-by ...]
 swarm-manager execution get <execution-id>
+swarm-manager execution policy get
+swarm-manager execution policy update --mode manual|scheduled|yolo [--delay-seconds N]
 swarm-manager execution start <execution-id>
 swarm-manager execution cancel <execution-id>
 swarm-manager execution retry <execution-id>

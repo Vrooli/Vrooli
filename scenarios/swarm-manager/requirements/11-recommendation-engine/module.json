@@ -1,16 +1,16 @@
 {
-  "description": "Off/suggestions/yolo modes with configurable data sources",
+  "description": "Execution default policy (manual/scheduled/yolo) with configurable delay",
   "module_id": "MOD-P1-011",
   "prd_ref": "OT-P1-001",
   "priority": "P1",
   "requirements": [
     {
       "category": "api",
-      "description": "Implement three-state recommendation engine backend (Off/suggestions/yolo) with core logic and data source integration",
+      "description": "Implement execution policy backend with default mode and default delay persistence",
       "id": "REQ-P1-001-ENGINE",
       "prd_ref": "OT-P1-001",
       "status": "draft",
-      "title": "Recommendation Engine Core",
+      "title": "Execution Policy Core",
       "validation": [
         {
           "notes": "Test mode switching logic",
@@ -20,14 +20,14 @@
           "type": "test"
         },
         {
-          "notes": "Validate recommendation generation",
+          "notes": "Validate policy-driven queue defaults",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Mode changes apply within 100ms",
+          "notes": "Policy changes apply to subsequent queue requests",
           "phase": "performance",
           "ref": "",
           "status": "pending",
@@ -40,21 +40,21 @@
       "dependencies": [
         "REQ-P1-001-ENGINE"
       ],
-      "description": "Implement configurable data sources for recommendation engine (PROBLEMS.md, completeness scores, test results, etc.)",
+      "description": "Implement configurable policy controls for mode and scheduled delay",
       "id": "REQ-P1-001-CONFIG",
       "prd_ref": "OT-P1-001",
       "status": "draft",
-      "title": "Recommendation Data Source Configuration",
+      "title": "Execution Policy Configuration",
       "validation": [
         {
-          "notes": "Verify data source configuration persistence",
+          "notes": "Verify execution policy persistence",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Users can control recommendation behavior",
+          "notes": "Users can control execution default behavior",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -63,5 +63,5 @@
       ]
     }
   ],
-  "title": "Recommendation engine (3-state)"
+  "title": "Execution control policy"
 }

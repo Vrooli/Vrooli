@@ -511,10 +511,6 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	if req.IsGreenfield != nil {
 		metadata.IsGreenfield = *req.IsGreenfield
 	}
-	if req.RecommendationsEnabled != nil {
-		httputil.BadRequest(w, "[scenarios] update", "recommendationsEnabled is no longer supported")
-		return
-	}
 
 	// Save updated metadata
 	if err := h.saveMetadata(source.Path, metadata); err != nil {

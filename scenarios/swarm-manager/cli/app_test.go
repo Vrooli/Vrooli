@@ -272,6 +272,37 @@ func TestCmdBacklogQueueValidation(t *testing.T) {
 	if !strings.Contains(err.Error(), "invalid operation") {
 		t.Errorf("Error should contain 'invalid operation', got: %v", err)
 	}
+
+	err = app.cmdBacklogQueue([]string{"--mode", "invalid", "idea", "item-name"})
+	if err == nil {
+		t.Error("cmdBacklogQueue with invalid mode should return error")
+	}
+	if !strings.Contains(err.Error(), "invalid mode") {
+		t.Errorf("Error should contain 'invalid mode', got: %v", err)
+	}
+}
+
+func TestCmdExecutionPolicyUpdateValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdExecutionPolicyUpdate([]string{"--delay-seconds", "30"})
+	if err == nil {
+		t.Error("cmdExecutionPolicyUpdate without mode should return error")
+	}
+	if !strings.Contains(err.Error(), "mode is required") {
+		t.Errorf("Error should contain 'mode is required', got: %v", err)
+	}
+
+	err = app.cmdExecutionPolicyUpdate([]string{"--mode", "manual", "--delay-seconds", "-1"})
+	if err == nil {
+		t.Error("cmdExecutionPolicyUpdate with negative delay should return error")
+	}
+	if !strings.Contains(err.Error(), "delay-seconds must be >= 0") {
+		t.Errorf("Error should contain delay validation message, got: %v", err)
+	}
 }
 
 func TestCmdBacklogResearchValidation(t *testing.T) {

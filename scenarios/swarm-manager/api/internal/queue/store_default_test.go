@@ -3,11 +3,13 @@ package queue
 import (
 	"path/filepath"
 	"testing"
+
+	"swarm-manager/internal/pathutil"
 )
 
 func TestNewStore_DefaultPath(t *testing.T) {
 	store := NewStore("")
-	expected := filepath.Join("scenarios", "swarm-manager", ".vrooli", "queue.json")
+	expected := filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "queue.json")
 	if store.path != expected {
 		t.Fatalf("expected store path %q, got %q", expected, store.path)
 	}

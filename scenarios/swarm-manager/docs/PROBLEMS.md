@@ -9,7 +9,7 @@ No known open issues at this time. Use this file to track new defects or risks.
 The PRD contains extra sections in the Appendix that are not part of the standard template:
 - "Idea Backlog File Structure" - useful documentation, intentionally kept
 - "spec.json Schema" - useful documentation, intentionally kept
-- "Recommendation Engine Data Sources" - useful documentation, intentionally kept
+- "Execution Controls and Policy Defaults" - useful documentation, intentionally kept
 
 These provide valuable domain context and should remain unless PRD template rules change.
 
@@ -50,7 +50,7 @@ These provide valuable domain context and should remain unless PRD template rule
 
 | ID | Component | Resolution |
 |----|-----------|------------|
-| IC-001 | ui/pages/RecommendationsPage | Added docblock explaining placeholder status, future behavior, and PRD targets |
+| IC-001 | ui/pages/ExecutionPage | Added docblock explaining execution control behavior and run governance |
 | IC-002 | ui/pages/SettingsPage | Added docblock explaining placeholder status, persistence gap, and future behavior |
 | IC-003 | api/main.go | Added package-level docs explaining purpose, current minimal status, and planned endpoints |
 | IC-004 | cli/app.go | Added package-level docs, renamed apiPath→resolveV1Endpoint with docblock |
@@ -63,7 +63,7 @@ These provide valuable domain context and should remain unless PRD template rule
 | CA-001 | docs/internal/SEAMS.md | Added comprehensive Change Axes section documenting 8 primary axes with cost analysis |
 | CA-002 | docs/internal/SEAMS.md | Added Stable vs Volatile areas classification for clear boundaries |
 | CA-003 | docs/internal/SEAMS.md | Added Extension Points table for common modification patterns |
-| CA-004 | docs/internal/SEAMS.md | Added recommendations for P1 integrations and YOLO mode implementation |
+| CA-004 | docs/internal/SEAMS.md | Added guidance for P1 integrations and YOLO-mode safeguards |
 
 **Note**: This phase was documentation-focused. The architecture was already well-structured for evolution (previous phases 1-7 established clean seams, config centralization, and type localization). The main deliverable is documenting these patterns for future maintainers.
 
@@ -91,7 +91,7 @@ These provide valuable domain context and should remain unless PRD template rule
 
 | ID | Component | Resolution |
 |----|-----------|------------|
-| TD-001 | cli/ | CLI binary present after setup; command surface expanded to cover scenarios/recommendations/settings/queue |
-| TD-003 | api/ | Business endpoints implemented across ideas/scenarios/settings/recommendations/queue |
+| TD-001 | cli/ | CLI binary present after setup; command surface expanded to cover scenarios/execution/settings/queue |
+| TD-003 | api/ | Business endpoints implemented across backlog/scenarios/settings/execution/queue |
 | TD-004 | api/ | Filesystem-first persistence confirmed; no database schema needed |
 | TD-005 | integrations/ | Agent-manager + ecosystem-manager clients use api-core discovery |
