@@ -8,6 +8,7 @@
 ## Deliverables
 - Coverage reports with risk-weighted gap analysis.
 - Prioritized test recommendations.
+- Execution-ready backlog proposals for test gaps requiring follow-up.
 
 ## Coordination Points
 - Receive scope from qa-lead.

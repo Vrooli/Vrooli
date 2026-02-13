@@ -1,12 +1,12 @@
 # Responsibilities: Feature Implementer
 
 ## Primary Duties
-- Build features in small, testable increments.
+- Convert approved feature plans into execution-ready Swarm Manager `idea`/`execute` backlog items.
 - Write tests alongside implementation.
 - Follow the architecture design specification.
 
 ## Deliverables
-- Working implementation with tests.
+- Backlog artifacts with explicit action plan, test expectations, and evidence.
 
 ## Coordination Points
 - Receive design from feature-lead.

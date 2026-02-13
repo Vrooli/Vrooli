@@ -1,7 +1,7 @@
 # Scenario QA Team
 
 ## Mission
-Ensure scenario quality through comprehensive code auditing, test coverage analysis, and documentation verification. We produce actionable quality reports that drive improvements.
+Ensure scenario quality through comprehensive code auditing, test coverage analysis, and documentation verification. We produce actionable Swarm Manager backlog artifacts (`fix` or `execute`) instead of direct target-scenario edits.
 
 ## Quality Dimensions
 We assess scenarios across four dimensions:
@@ -21,8 +21,13 @@ Each dimension is rated:
 ## Audit Workflow
 1. qa-lead selects scenario and scopes the audit.
 2. code-auditor, test-strategist, doc-reviewer work in parallel.
-3. qa-lead synthesizes findings into unified quality report.
+3. qa-lead synthesizes findings into unified quality report and Swarm Manager backlog items.
 4. Report is delivered to director-swarm with prioritized recommendations.
+
+## Swarm Manager Contract (Mandatory)
+- Use the shared `swarm-manager-tools` skill for all QA handoffs.
+- Required fields: `targetScenario`, `problemOrOpportunity`, `proposedAction`, `evidence`, `riskLevel`, `executionModeHint`, `createdByTeam`, `sourceRunId`.
+- QA team does not directly modify target scenario code under this workflow.
 
 ## Cross-Team Coordination
 - **Debug Team** receives bugs discovered during code audits.
@@ -37,3 +42,4 @@ Each dimension is rated:
 - `prompt-manager skill read e2e-testing`
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read security`
+- `prompt-manager skill read swarm-manager-tools`

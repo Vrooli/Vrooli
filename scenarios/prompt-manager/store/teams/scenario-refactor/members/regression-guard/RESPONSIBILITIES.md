@@ -7,6 +7,7 @@
 
 ## Deliverables
 - Pass/fail verdicts with evidence after each step.
+- Verification evidence included in Swarm Manager backlog artifacts.
 
 ## Coordination Points
 - Monitor refactor-engineer changes.

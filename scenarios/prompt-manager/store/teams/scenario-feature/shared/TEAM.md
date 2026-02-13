@@ -1,23 +1,27 @@
 # Scenario Feature Team
 
 ## Mission
-Design and implement new features for Vrooli scenarios from requirements through verified, documented, tested implementation.
+Design feature proposals from requirements through execution-ready plans, authored as Swarm Manager backlog artifacts instead of direct scenario code edits.
 
 ## Feature Development Lifecycle
 1. **Requirements** — Clarify the problem, user, and acceptance criteria.
 2. **Design** — Architecture, API contracts, data models, UX flows.
-3. **Implementation** — Build in small, testable increments.
+3. **Backlog Authoring** — Create `idea` or `execute` backlog artifacts in Swarm Manager.
 4. **Review** — Verify quality, tests, docs, and acceptance criteria.
-5. **Done** — Feature meets all criteria, tests pass, docs updated.
+5. **Done** — Artifact is execution-ready with complete evidence and risk notes.
 
 ## Definition of Done
 A feature is done when:
 - [ ] All acceptance criteria are met.
-- [ ] Tests cover critical behaviors and edge cases.
-- [ ] Documentation is updated (DOC: comments, docs/ files).
-- [ ] Code review approved by feature-reviewer.
-- [ ] Full test suite passes.
-- [ ] No new warnings or linting errors.
+- [ ] Backlog item exists in Swarm Manager (`idea` or `execute`) with execution-ready detail.
+- [ ] Evidence and risk are documented.
+- [ ] Team provenance fields are populated.
+- [ ] No direct target-scenario code edits were made.
+
+## Swarm Manager Contract (Mandatory)
+- Use the shared `swarm-manager-tools` skill for all handoffs.
+- Required fields: `targetScenario`, `problemOrOpportunity`, `proposedAction`, `evidence`, `riskLevel`, `executionModeHint`, `createdByTeam`, `sourceRunId`.
+- Feature team members do not directly modify target scenario code under this workflow.
 
 ## Scope Management
 - feature-lead explicitly defines in/out scope for every feature.
@@ -37,3 +41,4 @@ A feature is done when:
 - `prompt-manager skill read api-steer`
 - `prompt-manager skill read storage-steer`
 - `prompt-manager skill read react-stability`
+- `prompt-manager skill read swarm-manager-tools`

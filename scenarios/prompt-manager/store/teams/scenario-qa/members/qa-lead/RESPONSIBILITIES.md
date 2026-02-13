@@ -5,6 +5,7 @@
 - Assign audit scopes to team members.
 - Synthesize findings into unified quality reports.
 - Prioritize issues by severity and impact.
+- Ensure findings become Swarm Manager `fix`/`execute` backlog items with full evidence.
 
 ## Deliverables
 - Quality reports with dimensional scoring (A-F).

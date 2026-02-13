@@ -3,10 +3,11 @@
 ## Primary Duties
 - Clarify requirements and define acceptance criteria.
 - Manage scope and make trade-off decisions.
-- Coordinate design, implementation, and review.
+- Coordinate design, backlog authoring, and review.
+- Ensure outputs become Swarm Manager `idea`/`execute` items, not direct target-scenario code edits.
 
 ## Deliverables
-- Feature specifications with acceptance criteria.
+- Feature specifications with acceptance criteria and execution-ready backlog payloads.
 - Status reports to director-swarm.
 
 ## Coordination Points

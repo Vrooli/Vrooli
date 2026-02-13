@@ -8,6 +8,7 @@
 ## Deliverables
 - Structured findings with severity ratings.
 - Security assessment with specific vulnerabilities.
+- Evidence bundles suitable for Swarm Manager backlog fields.
 
 ## Coordination Points
 - Receive audit scope from qa-lead.

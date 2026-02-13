@@ -6,7 +6,7 @@
 - Present design options with trade-off analysis.
 
 ## Deliverables
-- Design documents with API shapes and data schemas.
+- Design documents with API shapes/data schemas and backlog-ready proposed actions.
 
 ## Coordination Points
 - Receive requirements from feature-lead.

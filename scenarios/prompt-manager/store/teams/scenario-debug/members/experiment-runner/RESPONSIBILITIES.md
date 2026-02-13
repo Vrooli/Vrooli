@@ -4,6 +4,7 @@
 - Design minimal experiments to confirm or reject hypotheses.
 - Execute experiments with precise documentation.
 - Report clear conclusions: confirmed, rejected, or inconclusive.
+- Provide evidence payloads consumable by a Swarm Manager `fix` backlog item.
 
 ## Deliverables
 - Experiment reports with setup, prediction, observation, conclusion.

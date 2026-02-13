@@ -7,6 +7,7 @@
 
 ## Deliverables
 - Ranked complexity findings with refactoring sketches.
+- Evidence and proposed actions suitable for Swarm Manager backlog items.
 
 ## Coordination Points
 - Receive scope from refactor-lead.

@@ -1,7 +1,7 @@
 # Responsibilities: Feature Reviewer
 
 ## Primary Duties
-- Verify implementations meet acceptance criteria.
+- Verify backlog proposals meet acceptance criteria and are execution-ready.
 - Check code quality, test coverage, and documentation.
 - Identify edge cases and potential issues.
 

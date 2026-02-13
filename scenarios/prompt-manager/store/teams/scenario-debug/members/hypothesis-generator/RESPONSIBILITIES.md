@@ -8,6 +8,7 @@
 ## Deliverables
 - Structured hypothesis documents following the team template.
 - Ranked hypothesis lists with test plans for each.
+- Structured evidence suitable for Swarm Manager backlog fields.
 
 ## Coordination Points
 - Receive bug symptoms from debug-lead.

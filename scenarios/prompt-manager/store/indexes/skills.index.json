@@ -617,6 +617,18 @@
       "status": "active"
     },
     {
+      "id": "swarm-manager-tools",
+      "pack": "core",
+      "name": "Swarm Manager Tools",
+      "modes": [
+        "tools"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
       "id": "temporal-flow-audit",
       "pack": "core",
       "name": "Temporal Flow Audit",
