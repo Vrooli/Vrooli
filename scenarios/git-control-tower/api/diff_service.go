@@ -314,6 +314,12 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 		AnnotatedLines: annotatedLines,
 		Mode:           ViewModeSource,
 		Timestamp:      time.Now().UTC(),
+		ContentHash: func() string {
+			if binaryKind != binaryNone {
+				return ""
+			}
+			return hashContentBytes([]byte(content))
+		}(),
 	}, nil
 }
 
@@ -355,6 +361,7 @@ func getCommitDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir 
 			parsed.FullContent = base64.StdEncoding.EncodeToString(content)
 		} else {
 			parsed.FullContent = string(content)
+			parsed.ContentHash = hashContentBytes(content)
 			parsed.AnnotatedLines = buildAnnotatedLines(parsed.FullContent, parsed.Hunks)
 		}
 	}
@@ -420,6 +427,12 @@ func getUntrackedContent(ctx context.Context, deps DiffDeps, req DiffRequest, re
 		AnnotatedLines: annotatedLines,
 		Mode:           mode,
 		Timestamp:      time.Now().UTC(),
+		ContentHash: func() string {
+			if binaryKind != binaryNone {
+				return ""
+			}
+			return hashContentBytes(content)
+		}(),
 	}, nil
 }
 
@@ -466,6 +479,7 @@ func getTrackedDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir
 			parsed.FullContent = base64.StdEncoding.EncodeToString(content)
 		} else {
 			parsed.FullContent = string(content)
+			parsed.ContentHash = hashContentBytes(content)
 			parsed.AnnotatedLines = buildAnnotatedLines(parsed.FullContent, parsed.Hunks)
 		}
 	}

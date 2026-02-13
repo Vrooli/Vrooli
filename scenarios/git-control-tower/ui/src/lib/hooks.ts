@@ -23,6 +23,7 @@ import {
   fetchRelatedFiles,
   fetchDirectoryContents,
   deletePath,
+  saveFileContent,
   searchContent,
   fetchCredentials,
   saveCredential,
@@ -64,6 +65,8 @@ import {
   type RelatedFilesResponse,
   type DirListResponse,
   type DeletePathRequest,
+  type SaveFileContentRequest,
+  type SaveFileContentResponse,
   type ContentSearchRequest,
   type ContentSearchResponse,
   type CredentialsListResponse,
@@ -265,6 +268,20 @@ export function usePush(repoId?: string | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+    }
+  });
+}
+
+export function useSaveFileContent(repoId?: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<SaveFileContentResponse, Error, SaveFileContentRequest>({
+    mutationFn: (request: SaveFileContentRequest) => saveFileContent(request, repoId ?? undefined),
+    onSuccess: (_result, request) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+      queryClient.invalidateQueries({
+        queryKey: ["repo", "diff", repoId ?? "default", request.path]
+      });
     }
   });
 }

@@ -247,6 +247,7 @@ export interface DiffResponse {
   stats: DiffStats;
   raw?: string;
   full_content?: string;
+  content_hash?: string;
   annotated_lines?: AnnotatedLine[];
   mode?: ViewMode;
   timestamp: string;
@@ -943,6 +944,39 @@ export interface DeletePathResponse {
   timestamp: string;
 }
 
+export interface SaveFileContentRequest {
+  path: string;
+  content: string;
+  expected_hash?: string;
+}
+
+export interface SaveFileContentResponse {
+  success: boolean;
+  path: string;
+  content_hash: string;
+  bytes_written: number;
+  timestamp: string;
+}
+
+export interface SaveFileContentConflictResponse {
+  error: string;
+  path: string;
+  current_hash: string;
+  timestamp: string;
+}
+
+export class FileContentConflictError extends Error {
+  readonly path: string;
+  readonly currentHash: string;
+
+  constructor(message: string, path: string, currentHash: string) {
+    super(message);
+    this.name = "FileContentConflictError";
+    this.path = path;
+    this.currentHash = currentHash;
+  }
+}
+
 export async function deletePath(
   request: DeletePathRequest,
   repoId?: string
@@ -954,6 +988,29 @@ export async function deletePath(
     body: JSON.stringify(request)
   });
   return handleResponse<DeletePathResponse>(res);
+}
+
+export async function saveFileContent(
+  request: SaveFileContentRequest,
+  repoId?: string
+): Promise<SaveFileContentResponse> {
+  const url = buildApiUrl("/repo/files/content", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request)
+  });
+
+  if (res.status === 409) {
+    const payload = (await res.json()) as SaveFileContentConflictResponse;
+    throw new FileContentConflictError(
+      payload.error || "File changed on disk",
+      payload.path,
+      payload.current_hash
+    );
+  }
+
+  return handleResponse<SaveFileContentResponse>(res);
 }
 
 // ============================================================================

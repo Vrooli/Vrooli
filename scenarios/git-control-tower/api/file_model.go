@@ -50,38 +50,38 @@ const MaxFileTreeTimeout = 30000
 // LanguageFromExtension returns a language name based on file extension
 func LanguageFromExtension(path string) string {
 	extMap := map[string]string{
-		".go":    "go",
-		".ts":    "typescript",
-		".tsx":   "typescript",
-		".js":    "javascript",
-		".jsx":   "javascript",
-		".py":    "python",
-		".rb":    "ruby",
-		".rs":    "rust",
-		".java":  "java",
-		".kt":    "kotlin",
-		".c":     "c",
-		".cpp":   "cpp",
-		".h":     "c",
-		".hpp":   "cpp",
-		".cs":    "csharp",
-		".swift": "swift",
-		".php":   "php",
-		".sh":    "shell",
-		".bash":  "shell",
-		".zsh":   "shell",
-		".json":  "json",
-		".yaml":  "yaml",
-		".yml":   "yaml",
-		".toml":  "toml",
-		".xml":   "xml",
-		".html":  "html",
-		".css":   "css",
-		".scss":  "scss",
-		".less":  "less",
-		".md":    "markdown",
-		".sql":   "sql",
-		".vue":   "vue",
+		".go":     "go",
+		".ts":     "typescript",
+		".tsx":    "typescript",
+		".js":     "javascript",
+		".jsx":    "javascript",
+		".py":     "python",
+		".rb":     "ruby",
+		".rs":     "rust",
+		".java":   "java",
+		".kt":     "kotlin",
+		".c":      "c",
+		".cpp":    "cpp",
+		".h":      "c",
+		".hpp":    "cpp",
+		".cs":     "csharp",
+		".swift":  "swift",
+		".php":    "php",
+		".sh":     "shell",
+		".bash":   "shell",
+		".zsh":    "shell",
+		".json":   "json",
+		".yaml":   "yaml",
+		".yml":    "yaml",
+		".toml":   "toml",
+		".xml":    "xml",
+		".html":   "html",
+		".css":    "css",
+		".scss":   "scss",
+		".less":   "less",
+		".md":     "markdown",
+		".sql":    "sql",
+		".vue":    "vue",
 		".svelte": "svelte",
 	}
 
@@ -156,4 +156,29 @@ type DeletePathResponse struct {
 	IsDir     bool      `json:"is_dir"`
 	Error     string    `json:"error,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+// SaveFileContentRequest updates a text file's content.
+type SaveFileContentRequest struct {
+	Path         string `json:"path"`                    // Relative path to file
+	Content      string `json:"content"`                 // New UTF-8 text content
+	ExpectedHash string `json:"expected_hash,omitempty"` // Optional optimistic-concurrency hash
+}
+
+// SaveFileContentResponse contains the result of a file save operation.
+type SaveFileContentResponse struct {
+	Success      bool      `json:"success"`
+	Path         string    `json:"path"`
+	ContentHash  string    `json:"content_hash"`
+	BytesWritten int       `json:"bytes_written"`
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+// SaveFileContentConflictResponse is returned with HTTP 409 when the on-disk
+// file changed since the caller's expected hash.
+type SaveFileContentConflictResponse struct {
+	Error       string    `json:"error"`
+	Path        string    `json:"path"`
+	CurrentHash string    `json:"current_hash"`
+	Timestamp   time.Time `json:"timestamp"`
 }

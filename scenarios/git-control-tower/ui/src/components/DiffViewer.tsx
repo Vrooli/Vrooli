@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2 } from "lucide-react";
+import Editor from "@monaco-editor/react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -8,7 +9,15 @@ import { ViewModeSelector } from "./ViewModeSelector";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { ImagePreview } from "./ImagePreview";
 import { useIsMobile } from "../hooks";
-import type { DiffResponse, DiffHunk, ViewMode, AnnotatedLine, LineChange } from "../lib/api";
+import {
+  FileContentConflictError,
+  type DiffResponse,
+  type DiffHunk,
+  type SaveFileContentResponse,
+  type ViewMode,
+  type AnnotatedLine,
+  type LineChange
+} from "../lib/api";
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
 import { getFileTypeInfo } from "../lib/fileTypes";
 
@@ -36,6 +45,8 @@ interface DiffViewerProps {
   onShowRelatedFiles?: (path: string) => void;
   // Read-only mode (viewing any file from search)
   isReadOnly?: boolean;
+  onSaveFileContent?: (path: string, content: string, expectedHash?: string) => Promise<SaveFileContentResponse>;
+  isSavingFile?: boolean;
 }
 
 const maxHighlightChars = 200000;
@@ -175,6 +186,14 @@ function textureFromLine(rawLine: string): { widthPercent: number; opacity: numb
   }
 
   return { widthPercent, opacity };
+}
+
+function getMonacoLanguage(filePath?: string): string {
+  if (!filePath) return "plaintext";
+  const detected = getLanguageFromPath(filePath);
+  if (!detected) return "plaintext";
+  if (detected === "objective-c") return "objective-c";
+  return detected;
 }
 
 export function buildMinimapTextureRows(lines: string[], maxRows = 220): MinimapTextureRow[] {
@@ -528,7 +547,9 @@ export function DiffViewer({
   isHistoryMode = false,
   commitHash,
   onShowRelatedFiles,
-  isReadOnly = false
+  isReadOnly = false,
+  onSaveFileContent,
+  isSavingFile = false
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -537,6 +558,11 @@ export function DiffViewer({
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftContent, setDraftContent] = useState("");
+  const [expectedHash, setExpectedHash] = useState<string | undefined>();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [conflictHash, setConflictHash] = useState<string | null>(null);
   const [scrollMetrics, setScrollMetrics] = useState({
     scrollTop: 0,
     scrollHeight: 1,
@@ -625,6 +651,18 @@ export function DiffViewer({
     return fullContent.split("\n").length;
   }, [fullContent]);
   const isPreviewable = selectedFile ? getFileTypeInfo(selectedFile) : null;
+  const canEditMode = viewMode === "source" || viewMode === "full_diff";
+  const canEditTextFile =
+    isPreviewable?.category === "code" || isPreviewable?.category === "markdown";
+  const canEdit =
+    Boolean(selectedFile) &&
+    !isHistoryMode &&
+    canEditMode &&
+    hasFullContent &&
+    canEditTextFile &&
+    Boolean(onSaveFileContent);
+  const isDirty = isEditing && draftContent !== fullContent;
+  const monacoLanguage = getMonacoLanguage(selectedFile);
   const showMarkdownPreview =
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
   const showImagePreview =
@@ -653,8 +691,58 @@ export function DiffViewer({
     !isLoading &&
     !isHighlighting &&
     !error &&
+    !isEditing &&
     minimapLineCount >= minimapMinLines &&
     ((viewMode === "source" && hasFullContent) || (viewMode === "full_diff" && hasAnnotatedLines));
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftContent(fullContent);
+      setExpectedHash(diff?.content_hash);
+    }
+  }, [diff?.content_hash, fullContent, isEditing]);
+
+  useEffect(() => {
+    setIsEditing(false);
+    setSaveError(null);
+    setConflictHash(null);
+  }, [selectedFile, viewMode, isHistoryMode]);
+
+  const handleStartEditing = useCallback(() => {
+    if (!canEdit) return;
+    setDraftContent(fullContent);
+    setExpectedHash(diff?.content_hash);
+    setSaveError(null);
+    setConflictHash(null);
+    setIsEditing(true);
+  }, [canEdit, diff?.content_hash, fullContent]);
+
+  const handleCancelEditing = useCallback(() => {
+    setDraftContent(fullContent);
+    setExpectedHash(diff?.content_hash);
+    setSaveError(null);
+    setConflictHash(null);
+    setIsEditing(false);
+  }, [diff?.content_hash, fullContent]);
+
+  const handleSaveContent = useCallback(async () => {
+    if (!selectedFile || !onSaveFileContent) return;
+    try {
+      const result = await onSaveFileContent(selectedFile, draftContent, expectedHash);
+      setExpectedHash(result.content_hash);
+      setSaveError(null);
+      setConflictHash(null);
+      setIsEditing(false);
+    } catch (err) {
+      if (err instanceof FileContentConflictError) {
+        setConflictHash(err.currentHash);
+        setExpectedHash(err.currentHash);
+        setSaveError("File changed on disk. Review latest content and save again.");
+        return;
+      }
+      setSaveError(err instanceof Error ? err.message : "Failed to save file");
+    }
+  }, [draftContent, expectedHash, onSaveFileContent, selectedFile]);
   const maxScrollable = Math.max(scrollMetrics.scrollHeight - scrollMetrics.clientHeight, 0);
   const viewportHeightPercent = clamp(
     (scrollMetrics.clientHeight / Math.max(scrollMetrics.scrollHeight, 1)) * 100,
@@ -815,6 +903,44 @@ export function DiffViewer({
               hasDiff={!isReadOnly && diff?.has_diff}
             />
           )}
+          {selectedFile && !isLoading && !error && canEdit && !isEditing && (
+            <Button
+              variant="outline"
+              size={isMobile ? "sm" : "sm"}
+              onClick={handleStartEditing}
+              className={isMobile ? "h-9 px-3" : "h-7 px-2"}
+              data-testid="start-editing-button"
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1" />
+              Edit
+            </Button>
+          )}
+          {selectedFile && !isLoading && !error && isEditing && (
+            <>
+              <Button
+                variant="outline"
+                size={isMobile ? "sm" : "sm"}
+                onClick={handleCancelEditing}
+                className={isMobile ? "h-9 px-3" : "h-7 px-2"}
+                disabled={isSavingFile}
+                data-testid="cancel-editing-button"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                size={isMobile ? "sm" : "sm"}
+                onClick={handleSaveContent}
+                className={isMobile ? "h-9 px-3 bg-emerald-600 hover:bg-emerald-700" : "h-7 px-2 bg-emerald-600 hover:bg-emerald-700"}
+                disabled={isSavingFile || !isDirty}
+                data-testid="save-file-button"
+              >
+                {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                Save
+              </Button>
+            </>
+          )}
 
           {/* Mobile: show badge in header right */}
           {selectedFile && isMobile && (
@@ -885,6 +1011,15 @@ export function DiffViewer({
             </div>
           )}
 
+          {saveError && !isLoading && (
+            <div className="mx-3 mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200" data-testid="save-error">
+              <p>{saveError}</p>
+              {conflictHash && (
+                <p className="mt-1 font-mono text-[11px] text-amber-300">Current hash: {conflictHash}</p>
+              )}
+            </div>
+          )}
+
           {/* Empty State - No file selected */}
           {!selectedFile && !isLoading && !error && (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4" data-testid="diff-empty">
@@ -907,8 +1042,30 @@ export function DiffViewer({
             </div>
           )}
 
+          {/* Monaco edit mode */}
+          {selectedFile && !isLoading && !error && isEditing && canEditMode && hasFullContent && (
+            <div className="h-full min-h-[360px] border-y border-slate-800" data-testid="monaco-editor-container">
+              <Editor
+                height="100%"
+                defaultLanguage={monacoLanguage}
+                language={monacoLanguage}
+                value={draftContent}
+                onChange={(value) => setDraftContent(value ?? "")}
+                theme="vs-dark"
+                options={{
+                  automaticLayout: true,
+                  minimap: { enabled: true },
+                  scrollBeyondLastLine: false,
+                  wordWrap: "off",
+                  fontSize: 13,
+                  lineNumbersMinChars: 4
+                }}
+              />
+            </div>
+          )}
+
           {/* Source mode - just the file content */}
-          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "source" && hasFullContent && (
+          {selectedFile && !isLoading && !isHighlighting && !error && !isEditing && viewMode === "source" && hasFullContent && (
             <SourceView
               content={fullContent}
               highlightedLines={highlightedLines}
@@ -916,7 +1073,7 @@ export function DiffViewer({
           )}
 
           {/* Full + Diff mode - full file with change annotations */}
-          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "full_diff" && hasAnnotatedLines && (
+          {selectedFile && !isLoading && !isHighlighting && !error && !isEditing && viewMode === "full_diff" && hasAnnotatedLines && (
             <FullFileView
               annotatedLines={annotatedLines}
               highlightedLines={highlightedLines}
@@ -990,7 +1147,7 @@ export function DiffViewer({
           )}
 
           {/* Mobile spacer to account for fixed action bar */}
-          {isMobile && selectedFile && !isLoading && !isHistoryMode && <div className="h-16" aria-hidden="true" />}
+          {isMobile && selectedFile && !isLoading && !isHistoryMode && !isEditing && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
 
         {showMinimap && (
@@ -1050,7 +1207,7 @@ export function DiffViewer({
         )}
 
         {/* Mobile Action Bar - hidden in history mode */}
-        {isMobile && selectedFile && !isLoading && !isHistoryMode && (
+        {isMobile && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -142,6 +143,64 @@ func (s *Server) handleDeletePath(w http.ResponseWriter, r *http.Request) {
 		hctx.Resp.UnprocessableEntity(result)
 		return
 	}
+	hctx.Resp.OK(result)
+}
+
+// handleSaveFileContent handles PUT /api/v1/repo/files/content
+// Saves text content to an existing file with optimistic concurrency support.
+func (s *Server) handleSaveFileContent(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	var req SaveFileContentRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.Path) == "" {
+		hctx.Resp.BadRequest("path is required")
+		return
+	}
+
+	result, err := SaveFileContent(hctx.Ctx, FileContentDeps{
+		FS:      OSFileIO{},
+		RepoDir: hctx.RepoDir,
+	}, req)
+	if err != nil {
+		var tooLarge *FileTooLargeError
+		if errors.As(err, &tooLarge) {
+			hctx.Resp.PayloadTooLarge(tooLarge.Error())
+			return
+		}
+		var unsupported *UnsupportedBinaryError
+		if errors.As(err, &unsupported) {
+			hctx.Resp.UnsupportedMediaType(unsupported.Error())
+			return
+		}
+		var conflict *FileContentConflictError
+		if errors.As(err, &conflict) {
+			hctx.Resp.JSON(http.StatusConflict, SaveFileContentConflictResponse{
+				Error:       conflict.Error(),
+				Path:        conflict.Path,
+				CurrentHash: conflict.CurrentHash,
+				Timestamp:   time.Now().UTC(),
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "invalid path") {
+			hctx.Resp.BadRequest(err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "file not found") || strings.Contains(err.Error(), "directory") {
+			hctx.Resp.NotFound(err.Error())
+			return
+		}
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
 	hctx.Resp.OK(result)
 }
 

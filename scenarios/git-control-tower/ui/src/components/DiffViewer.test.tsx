@@ -1,8 +1,10 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DiffViewer } from "./DiffViewer";
 import type { DiffResponse, LineChange, ViewMode } from "../lib/api";
+import { FileContentConflictError } from "../lib/api";
 
 vi.mock("../lib/highlighter", () => ({
   highlightCode: vi.fn(async (content: string) =>
@@ -12,6 +14,19 @@ vi.mock("../lib/highlighter", () => ({
     }))
   ),
   getLanguageFromPath: vi.fn(() => "typescript")
+}));
+
+vi.mock("@monaco-editor/react", () => ({
+  default: (props: {
+    value?: string;
+    onChange?: (value?: string) => void;
+  }) => (
+    <textarea
+      data-testid="monaco-editor"
+      value={props.value ?? ""}
+      onChange={(event) => props.onChange?.(event.target.value)}
+    />
+  )
 }));
 
 function buildDiffResponse(overrides: Partial<DiffResponse> = {}): DiffResponse {
@@ -28,7 +43,11 @@ function buildDiffResponse(overrides: Partial<DiffResponse> = {}): DiffResponse 
   };
 }
 
-function renderViewer(diff: DiffResponse, viewMode: ViewMode = "source") {
+function renderViewer(
+  diff: DiffResponse,
+  viewMode: ViewMode = "source",
+  overrides: Partial<ComponentProps<typeof DiffViewer>> = {}
+) {
   return render(
     <DiffViewer
       diff={diff}
@@ -41,6 +60,7 @@ function renderViewer(diff: DiffResponse, viewMode: ViewMode = "source") {
       viewMode={viewMode}
       onViewModeChange={() => {}}
       isReadOnly={false}
+      {...overrides}
     />
   );
 }
@@ -135,5 +155,56 @@ describe("DiffViewer minimap", () => {
     expect(screen.getByTestId("diff-minimap-viewport")).toBeInTheDocument();
     expect(screen.getAllByTestId("diff-minimap-texture-line").length).toBeGreaterThan(20);
     expect(screen.getAllByTestId("diff-minimap-marker").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("allows editing and saving in source mode", async () => {
+    const onSaveFileContent = vi.fn(async () => ({
+      success: true,
+      path: "src/main.ts",
+      content_hash: "new-hash",
+      bytes_written: 14,
+      timestamp: "2026-02-13T00:00:00Z"
+    }));
+    renderViewer(
+      buildDiffResponse({
+        full_content: "const a = 1;\n",
+        content_hash: "old-hash"
+      }),
+      "source",
+      { onSaveFileContent }
+    );
+
+    fireEvent.click(screen.getByTestId("start-editing-button"));
+    const editor = screen.getByTestId("monaco-editor");
+    fireEvent.change(editor, { target: { value: "const a = 2;\n" } });
+    fireEvent.click(screen.getByTestId("save-file-button"));
+
+    await waitFor(() => {
+      expect(onSaveFileContent).toHaveBeenCalledWith("src/main.ts", "const a = 2;\n", "old-hash");
+    });
+  });
+
+  it("shows conflict message when save encounters hash conflict", async () => {
+    const onSaveFileContent = vi.fn(async () => {
+      throw new FileContentConflictError("conflict", "src/main.ts", "server-hash");
+    });
+    renderViewer(
+      buildDiffResponse({
+        full_content: "const a = 1;\n",
+        content_hash: "old-hash"
+      }),
+      "source",
+      { onSaveFileContent }
+    );
+
+    fireEvent.click(screen.getByTestId("start-editing-button"));
+    const editor = screen.getByTestId("monaco-editor");
+    fireEvent.change(editor, { target: { value: "const a = 3;\n" } });
+    fireEvent.click(screen.getByTestId("save-file-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("save-error")).toHaveTextContent("File changed on disk");
+      expect(screen.getByTestId("save-error")).toHaveTextContent("server-hash");
+    });
   });
 });

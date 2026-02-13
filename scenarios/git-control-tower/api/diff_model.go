@@ -26,10 +26,10 @@ const (
 
 // AnnotatedLine represents a single line with its change status
 type AnnotatedLine struct {
-	Number     int        `json:"number"`               // Line number in current file (0 for deleted lines)
-	Content    string     `json:"content"`              // The line content
-	Change     LineChange `json:"change,omitempty"`     // Type of change
-	OldNumber  int        `json:"old_number,omitempty"` // Line number in old file (for deleted lines)
+	Number    int        `json:"number"`               // Line number in current file (0 for deleted lines)
+	Content   string     `json:"content"`              // The line content
+	Change    LineChange `json:"change,omitempty"`     // Type of change
+	OldNumber int        `json:"old_number,omitempty"` // Line number in old file (for deleted lines)
 }
 
 // DiffRequest specifies what diff to retrieve
@@ -55,6 +55,7 @@ type DiffResponse struct {
 	Stats          DiffStats       `json:"stats"`
 	Raw            string          `json:"raw,omitempty"`
 	FullContent    string          `json:"full_content,omitempty"`
+	ContentHash    string          `json:"content_hash,omitempty"`
 	AnnotatedLines []AnnotatedLine `json:"annotated_lines,omitempty"` // Full file with line-level change info
 	Mode           ViewMode        `json:"mode,omitempty"`            // The view mode used
 	Timestamp      time.Time       `json:"timestamp"`

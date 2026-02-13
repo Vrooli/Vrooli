@@ -49,6 +49,7 @@ import {
   useIgnoreFile,
   usePush,
   usePull,
+  useSaveFileContent,
   useBranches,
   useCreateBranch,
   useSwitchBranch,
@@ -358,6 +359,7 @@ export default function App() {
   const ignoreMutation = useIgnoreFile(repoId);
   const pushMutation = usePush(repoId);
   const pullMutation = usePull(repoId);
+  const saveFileContentMutation = useSaveFileContent(repoId);
   const approvedPreviewMutation = useApprovedChangesPreview(repoId);
   const branchesQuery = useBranches(repoId);
   const createBranchMutation = useCreateBranch(repoId);
@@ -1078,6 +1080,17 @@ export default function App() {
   const handlePull = useCallback(() => {
     pullMutation.mutate({});
   }, [pullMutation]);
+
+  const handleSaveFileContent = useCallback(
+    async (path: string, content: string, expectedHash?: string) => {
+      return saveFileContentMutation.mutateAsync({
+        path,
+        content,
+        expected_hash: expectedHash
+      });
+    },
+    [saveFileContentMutation]
+  );
 
   const handleLoadMoreHistory = useCallback(() => {
     setHistoryLimit((prev) => Math.min(historyMaxLimit, prev + 50));
@@ -1905,6 +1918,8 @@ export default function App() {
               commitHash={viewingCommit?.hash}
               onShowRelatedFiles={handleShowRelatedFiles}
               isReadOnly={isViewingAnyFile}
+              onSaveFileContent={handleSaveFileContent}
+              isSavingFile={saveFileContentMutation.isPending}
             />
           </div>
         );
@@ -2099,6 +2114,8 @@ export default function App() {
               setMobileActivePanel("changes");
             }}
             isReadOnly={isViewingAnyFile}
+            onSaveFileContent={handleSaveFileContent}
+            isSavingFile={saveFileContentMutation.isPending}
           />
         );
       case "commit":

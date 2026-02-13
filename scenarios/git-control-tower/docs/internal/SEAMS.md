@@ -92,6 +92,29 @@ Guardrails:
 - Minimap only appears in desktop `source`/`full_diff` modes and only for long files.
 - Existing diff rendering and stage/unstage/discard flows remain unchanged.
 
+## File Content Editing Seam
+
+**Locations**:
+- `api/file_content_service.go`
+- `api/files_handler.go` (`PUT /api/v1/repo/files/content`)
+- `ui/src/components/DiffViewer.tsx`
+
+The editing flow is split across a strict backend seam and a UI seam:
+
+- Backend seam:
+  - `SaveFileContent` enforces path sanitization (`cleanFilePath`), text-only constraints, size limits, and optimistic concurrency via `expected_hash`.
+  - Writes are atomic via `storage.WriteFileAtomic`.
+  - Conflicts surface as `FileContentConflictError` (HTTP 409 with current hash).
+- UI seam:
+  - `DiffViewer` enables edit/save only in `source` and `full_diff` modes for text files.
+  - Monaco (`@monaco-editor/react`) is the single editor surface.
+  - Save conflicts are handled explicitly and shown to users with the latest hash.
+
+Guardrails:
+- Editing is disabled in history mode (`viewingCommit`).
+- Binary/unsupported files remain read-only.
+- Stage/unstage/discard semantics are unchanged; save does not auto-stage.
+
 ## Verification Checklist
 
 When adding new behavior, verify:
