@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildWorkspaceMinimapRowMarkers,
   reconcileTrackFractions,
   resolveDropIndex,
   resolveWorkspaceLayout,
   resolveWorkspaceLayoutWithMaxColumns,
+  scrollTopFromWorkspaceMinimapPointer,
+  workspaceViewportFromScrollMetrics,
 } from './layout';
 
 describe('resolveWorkspaceLayout', () => {
@@ -85,5 +88,37 @@ describe('resolveDropIndex', () => {
     });
 
     expect(result).toBe(0);
+  });
+});
+
+describe('workspace minimap helpers', () => {
+  it('maps minimap pointer offset to scrollTop', () => {
+    const scrollTop = scrollTopFromWorkspaceMinimapPointer(100, 200, 3000, 500);
+    expect(scrollTop).toBe(1250);
+  });
+
+  it('clamps pointer mapping when rail height is invalid', () => {
+    expect(scrollTopFromWorkspaceMinimapPointer(50, 0, 1000, 400)).toBe(0);
+  });
+
+  it('builds viewport metrics from scroll values', () => {
+    const viewport = workspaceViewportFromScrollMetrics({
+      scrollTop: 600,
+      scrollHeight: 3000,
+      clientHeight: 600,
+    });
+
+    expect(viewport.heightPercent).toBe(20);
+    expect(viewport.maxScrollable).toBe(2400);
+    expect(viewport.topPercent).toBeCloseTo(20, 4);
+  });
+
+  it('builds evenly spaced row markers', () => {
+    const markers = buildWorkspaceMinimapRowMarkers(3);
+    expect(markers).toEqual([
+      { rowIndex: 0, topPercent: 0, heightPercent: 100 / 3 },
+      { rowIndex: 1, topPercent: 100 / 3, heightPercent: 100 / 3 },
+      { rowIndex: 2, topPercent: (2 * 100) / 3, heightPercent: 100 / 3 },
+    ]);
   });
 });

@@ -9,10 +9,13 @@ import {
   usePreviewWorkspaceStore,
 } from '../state/previewWorkspaceStore';
 import {
+  buildWorkspaceMinimapRowMarkers,
   buildGridTrackTemplate,
   reconcileTrackFractions,
   resolveDropIndex,
   resolveWorkspaceLayoutWithMaxColumns,
+  scrollTopFromWorkspaceMinimapPointer,
+  workspaceViewportFromScrollMetrics,
 } from '../utils/layout';
 import { clearWorkspaceIntent, readWorkspaceIntent } from '../utils/navigationIntent';
 import PreviewPane from './PreviewPane';
@@ -24,6 +27,13 @@ const MIN_ROW_PX = 240;
 const PINNED_COLUMN_MIN_FRACTION = 0.32;
 const MOBILE_BREAKPOINT = 960;
 const PIN_ZONE_THRESHOLD = 0.16;
+const MINIMAP_MIN_OVERFLOW_PX = 8;
+
+type WorkspaceScrollMetrics = {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+};
 
 type ActiveResize = {
   axis: 'column' | 'row';
@@ -121,6 +131,7 @@ export default function PreviewWorkspaceView() {
 
   const panes = usePreviewWorkspaceStore((state) => state.panes);
   const interactionMode = usePreviewWorkspaceStore((state) => state.interactionMode);
+  const isWorkspaceMinimapVisible = usePreviewWorkspaceStore((state) => state.isWorkspaceMinimapVisible);
   const focusedPaneId = usePreviewWorkspaceStore((state) => state.focusedPaneId);
   const pinnedPaneId = usePreviewWorkspaceStore((state) => state.pinnedPaneId);
   const pinnedColumn = usePreviewWorkspaceStore((state) => state.pinnedColumn);
@@ -138,9 +149,17 @@ export default function PreviewWorkspaceView() {
   const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
 
   const panesContainerRef = useRef<HTMLDivElement | null>(null);
+  const panesScrollRef = useRef<HTMLDivElement | null>(null);
+  const pinnedScrollColumnRef = useRef<HTMLDivElement | null>(null);
+  const minimapRailRef = useRef<HTMLDivElement | null>(null);
   const lastHandledIntentRef = useRef<string | null>(null);
   const [activeResize, setActiveResize] = useState<ActiveResize | null>(null);
   const [activeArrangeDrag, setActiveArrangeDrag] = useState<ActiveArrangeDrag | null>(null);
+  const [workspaceScrollMetrics, setWorkspaceScrollMetrics] = useState<WorkspaceScrollMetrics>({
+    scrollTop: 0,
+    scrollHeight: 1,
+    clientHeight: 1,
+  });
 
   const maxColumns = mobileLayout ? 1 : 2;
   const layoutDescriptor = useMemo(() => {
@@ -564,6 +583,164 @@ export default function PreviewWorkspaceView() {
   // Without this, fr tracks are forced to share a single-viewport container and panes shrink
   // as rows are added instead of extending the scrollable surface.
   const minimumGridHeightPx = (viewportPaneHeight * layoutDescriptor.rows) + rowSplittersHeight;
+  const minimapRowCount = useMemo(
+    () => (isPinnedLayout ? scrollColumnPanes.length : layoutDescriptor.rows),
+    [isPinnedLayout, layoutDescriptor.rows, scrollColumnPanes.length],
+  );
+  const minimapRowMarkers = useMemo(
+    () => buildWorkspaceMinimapRowMarkers(minimapRowCount),
+    [minimapRowCount],
+  );
+  const minimapViewport = useMemo(() => workspaceViewportFromScrollMetrics({
+    scrollTop: workspaceScrollMetrics.scrollTop,
+    scrollHeight: workspaceScrollMetrics.scrollHeight,
+    clientHeight: workspaceScrollMetrics.clientHeight,
+  }), [workspaceScrollMetrics.clientHeight, workspaceScrollMetrics.scrollHeight, workspaceScrollMetrics.scrollTop]);
+  const hasScrollableOverflow = minimapViewport.maxScrollable > MINIMAP_MIN_OVERFLOW_PX;
+  const showWorkspaceMinimap = isWorkspaceMinimapVisible && hasScrollableOverflow;
+  const activeViewportRowIndex = useMemo(() => {
+    if (minimapRowCount <= 0) {
+      return -1;
+    }
+    const rowHeightPercent = 100 / minimapRowCount;
+    const viewportCenterPercent = minimapViewport.topPercent + (minimapViewport.heightPercent / 2);
+    const clampedCenter = clamp(viewportCenterPercent, 0, 99.9999);
+    return Math.min(minimapRowCount - 1, Math.max(0, Math.floor(clampedCenter / rowHeightPercent)));
+  }, [minimapRowCount, minimapViewport.heightPercent, minimapViewport.topPercent]);
+  const resolveWorkspaceScrollNode = useCallback(() => {
+    const preferredNode = isPinnedLayout ? pinnedScrollColumnRef.current : panesScrollRef.current;
+    if (
+      preferredNode
+      && (preferredNode.scrollHeight - preferredNode.clientHeight) > MINIMAP_MIN_OVERFLOW_PX
+    ) {
+      return preferredNode;
+    }
+
+    if (typeof document !== 'undefined') {
+      const rootScrollNode = document.scrollingElement as HTMLElement | null;
+      if (
+        rootScrollNode
+        && (rootScrollNode.scrollHeight - rootScrollNode.clientHeight) > MINIMAP_MIN_OVERFLOW_PX
+      ) {
+        return rootScrollNode;
+      }
+    }
+
+    return preferredNode;
+  }, [isPinnedLayout]);
+
+  useEffect(() => {
+    const scrollNode = resolveWorkspaceScrollNode();
+    if (!scrollNode || !isWorkspaceMinimapVisible) {
+      setWorkspaceScrollMetrics({
+        scrollTop: 0,
+        scrollHeight: 1,
+        clientHeight: 1,
+      });
+      return;
+    }
+
+    const updateMetrics = () => {
+      const isRootScrollNode = typeof document !== 'undefined' && scrollNode === document.scrollingElement;
+      const nextScrollTop = isRootScrollNode && typeof window !== 'undefined'
+        ? window.scrollY
+        : scrollNode.scrollTop;
+      const nextClientHeight = isRootScrollNode && typeof window !== 'undefined'
+        ? window.innerHeight
+        : scrollNode.clientHeight;
+      setWorkspaceScrollMetrics({
+        scrollTop: nextScrollTop,
+        scrollHeight: Math.max(1, scrollNode.scrollHeight),
+        clientHeight: Math.max(1, nextClientHeight),
+      });
+    };
+
+    updateMetrics();
+    scrollNode.addEventListener('scroll', updateMetrics, { passive: true });
+    window.addEventListener('scroll', updateMetrics, { passive: true, capture: true });
+    window.addEventListener('resize', updateMetrics);
+
+    return () => {
+      scrollNode.removeEventListener('scroll', updateMetrics);
+      window.removeEventListener('scroll', updateMetrics, { capture: true });
+      window.removeEventListener('resize', updateMetrics);
+    };
+  }, [
+    isPinnedLayout,
+    isWorkspaceMinimapVisible,
+    layoutDescriptor.columns,
+    layoutDescriptor.rows,
+    minimumGridHeightPx,
+    panes.length,
+    resolveWorkspaceScrollNode,
+    scrollColumnPanes.length,
+  ]);
+
+  const jumpToWorkspaceMinimapPosition = useCallback((clientY: number) => {
+    const rail = minimapRailRef.current;
+    const scrollNode = resolveWorkspaceScrollNode();
+    if (!rail || !scrollNode) {
+      return;
+    }
+
+    const rect = rail.getBoundingClientRect();
+    const pointerOffsetY = clamp(clientY - rect.top, 0, rect.height);
+    const nextScrollTop = scrollTopFromWorkspaceMinimapPointer(
+      pointerOffsetY,
+      rect.height,
+      scrollNode.scrollHeight,
+      scrollNode.clientHeight,
+    );
+    scrollNode.scrollTo({ top: nextScrollTop, behavior: 'auto' });
+  }, [resolveWorkspaceScrollNode]);
+
+  const handleWorkspaceMinimapPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    jumpToWorkspaceMinimapPosition(event.clientY);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      jumpToWorkspaceMinimapPosition(moveEvent.clientY);
+    };
+
+    const handleUp = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+  }, [jumpToWorkspaceMinimapPosition]);
+
+  const handleWorkspaceMinimapKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const scrollNode = resolveWorkspaceScrollNode();
+    if (!scrollNode) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'PageDown') {
+      event.preventDefault();
+      const step = event.key === 'PageDown' ? scrollNode.clientHeight : 120;
+      scrollNode.scrollTo({ top: scrollNode.scrollTop + step, behavior: 'auto' });
+      return;
+    }
+    if (event.key === 'ArrowUp' || event.key === 'PageUp') {
+      event.preventDefault();
+      const step = event.key === 'PageUp' ? scrollNode.clientHeight : 120;
+      scrollNode.scrollTo({ top: scrollNode.scrollTop - step, behavior: 'auto' });
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      scrollNode.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      scrollNode.scrollTo({ top: scrollNode.scrollHeight, behavior: 'auto' });
+    }
+  }, [resolveWorkspaceScrollNode]);
   const renderPane = (paneId: string, appId: string | null, isBeingDragged: boolean) => (
     <PreviewPane
       paneId={paneId}
@@ -580,7 +757,12 @@ export default function PreviewWorkspaceView() {
   );
 
   return (
-    <div className="preview-workspace">
+    <div
+      className={clsx(
+        'preview-workspace',
+        showWorkspaceMinimap && 'preview-workspace--with-minimap',
+      )}
+    >
       {isPinnedLayout && pinnedPane ? (
         <div
           ref={panesContainerRef}
@@ -599,6 +781,7 @@ export default function PreviewWorkspaceView() {
             <>
               <div
                 className="preview-workspace__scroll-column"
+                ref={pinnedScrollColumnRef}
                 style={{
                   gridTemplateRows: buildGridTrackTemplate(effectivePinnedRowFractions, SPLITTER_SIZE),
                 }}
@@ -646,6 +829,7 @@ export default function PreviewWorkspaceView() {
               </div>
               <div
                 className="preview-workspace__scroll-column"
+                ref={pinnedScrollColumnRef}
                 style={{
                   gridTemplateRows: buildGridTrackTemplate(effectivePinnedRowFractions, SPLITTER_SIZE),
                 }}
@@ -697,7 +881,7 @@ export default function PreviewWorkspaceView() {
           />
         </div>
       ) : (
-        <div className="preview-workspace__panes-scroll">
+        <div className="preview-workspace__panes-scroll" ref={panesScrollRef}>
           <div
             ref={panesContainerRef}
             className={clsx(
@@ -768,6 +952,47 @@ export default function PreviewWorkspaceView() {
             ))}
           </div>
         </div>
+      )}
+      {showWorkspaceMinimap && (
+        <aside className="preview-workspace__minimap" data-testid="workspace-minimap">
+          <div
+            ref={minimapRailRef}
+            className="preview-workspace__minimap-rail"
+            role="slider"
+            tabIndex={0}
+            aria-label="Workspace minimap"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(minimapViewport.maxScrollable)}
+            aria-valuenow={Math.round(workspaceScrollMetrics.scrollTop)}
+            data-testid="workspace-minimap-rail"
+            onPointerDown={handleWorkspaceMinimapPointerDown}
+            onKeyDown={handleWorkspaceMinimapKeyDown}
+          >
+            <div className="preview-workspace__minimap-markers" aria-hidden="true">
+              {minimapRowMarkers.map((marker) => (
+                <div
+                  key={`row-${marker.rowIndex}`}
+                  className={clsx(
+                    'preview-workspace__minimap-marker',
+                    marker.rowIndex === activeViewportRowIndex && 'preview-workspace__minimap-marker--active',
+                  )}
+                  style={{
+                    top: `${marker.topPercent}%`,
+                    height: `${marker.heightPercent}%`,
+                  }}
+                />
+              ))}
+            </div>
+            <div
+              className="preview-workspace__minimap-viewport"
+              data-testid="workspace-minimap-viewport"
+              style={{
+                top: `${minimapViewport.topPercent}%`,
+                height: `${minimapViewport.heightPercent}%`,
+              }}
+            />
+          </div>
+        </aside>
       )}
     </div>
   );

@@ -82,6 +82,10 @@ describe('PreviewWorkspaceView', () => {
     await usePreviewWorkspaceStore.persist.clearStorage();
     await usePreviewWorkspaceStore.persist.rehydrate();
     usePreviewWorkspaceStore.getState().reset();
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1280,
+    });
 
     useAppsStore.setState({
       apps: [buildApp('scenario-a'), buildApp('scenario-b')],
@@ -90,6 +94,189 @@ describe('PreviewWorkspaceView', () => {
       error: null,
       hasInitialized: true,
       lastLoadTimestamp: Date.now(),
+    });
+  });
+
+  it('renders workspace minimap when workspace container is scrollable', async () => {
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const panesScroll = document.querySelector('.preview-workspace__panes-scroll') as HTMLDivElement | null;
+    expect(panesScroll).not.toBeNull();
+    if (!panesScroll) {
+      return;
+    }
+
+    Object.defineProperty(panesScroll, 'scrollHeight', { configurable: true, value: 2600 });
+    Object.defineProperty(panesScroll, 'clientHeight', { configurable: true, value: 800 });
+    Object.defineProperty(panesScroll, 'scrollTop', { configurable: true, writable: true, value: 0 });
+    panesScroll.scrollTo = vi.fn((xOrOptions?: number | ScrollToOptions, y?: number) => {
+      if (typeof xOrOptions === 'number') {
+        panesScroll.scrollTop = typeof y === 'number' ? y : 0;
+        return;
+      }
+      panesScroll.scrollTop = typeof xOrOptions?.top === 'number' ? xOrOptions.top : 0;
+    }) as typeof panesScroll.scrollTo;
+
+    fireEvent(window, new Event('resize'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-minimap')).toBeInTheDocument();
+    });
+  });
+
+  it('does not render workspace minimap when minimap preference is disabled', async () => {
+    usePreviewWorkspaceStore.getState().setWorkspaceMinimapVisible(false);
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const panesScroll = document.querySelector('.preview-workspace__panes-scroll') as HTMLDivElement | null;
+    expect(panesScroll).not.toBeNull();
+    if (!panesScroll) {
+      return;
+    }
+
+    Object.defineProperty(panesScroll, 'scrollHeight', { configurable: true, value: 2600 });
+    Object.defineProperty(panesScroll, 'clientHeight', { configurable: true, value: 800 });
+    fireEvent(window, new Event('resize'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('workspace-minimap')).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders workspace minimap on mobile viewports when workspace is scrollable', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 760,
+    });
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const panesScroll = document.querySelector('.preview-workspace__panes-scroll') as HTMLDivElement | null;
+    expect(panesScroll).not.toBeNull();
+    if (!panesScroll) {
+      return;
+    }
+
+    Object.defineProperty(panesScroll, 'scrollHeight', { configurable: true, value: 2600 });
+    Object.defineProperty(panesScroll, 'clientHeight', { configurable: true, value: 800 });
+    Object.defineProperty(panesScroll, 'scrollTop', { configurable: true, writable: true, value: 0 });
+
+    fireEvent(window, new Event('resize'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-minimap')).toBeInTheDocument();
+    });
+  });
+
+  it('maps workspace minimap pointer + keyboard interactions to scroll', async () => {
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const panesScroll = document.querySelector('.preview-workspace__panes-scroll') as HTMLDivElement | null;
+    expect(panesScroll).not.toBeNull();
+    if (!panesScroll) {
+      return;
+    }
+
+    Object.defineProperty(panesScroll, 'scrollHeight', { configurable: true, value: 3200 });
+    Object.defineProperty(panesScroll, 'clientHeight', { configurable: true, value: 800 });
+    Object.defineProperty(panesScroll, 'scrollTop', { configurable: true, writable: true, value: 0 });
+    const scrollToSpy = vi.fn((xOrOptions?: number | ScrollToOptions, y?: number) => {
+      if (typeof xOrOptions === 'number') {
+        panesScroll.scrollTop = typeof y === 'number' ? y : 0;
+        return;
+      }
+      const top = typeof xOrOptions?.top === 'number' && Number.isFinite(xOrOptions.top)
+        ? xOrOptions.top
+        : panesScroll.scrollTop;
+      panesScroll.scrollTop = top;
+    });
+    panesScroll.scrollTo = scrollToSpy as typeof panesScroll.scrollTo;
+
+    fireEvent(window, new Event('resize'));
+    const minimapRail = await screen.findByTestId('workspace-minimap-rail');
+    vi.spyOn(minimapRail, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 26,
+      height: 200,
+      right: 26,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(minimapRail, { clientY: 100 });
+    expect(scrollToSpy).toHaveBeenCalled();
+    const pointerCall = scrollToSpy.mock.calls[0]?.[0] as ScrollToOptions | undefined;
+    expect(pointerCall).toBeDefined();
+    expect(pointerCall?.behavior).toBe('auto');
+
+    fireEvent.keyDown(minimapRail, { key: 'Home' });
+    expect(scrollToSpy).toHaveBeenLastCalledWith({ top: 0, behavior: 'auto' });
+    fireEvent.keyDown(minimapRail, { key: 'End' });
+    expect(scrollToSpy).toHaveBeenLastCalledWith({ top: 3200, behavior: 'auto' });
+  });
+
+  it('renders minimap markers per row and updates active marker on scroll', async () => {
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+    usePreviewWorkspaceStore.getState().addPane('scenario-b');
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+
+    render(
+      <MemoryRouter initialEntries={['/apps/workspace']}>
+        <Routes>
+          <Route path="/apps/workspace" element={<PreviewWorkspaceView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const panesScroll = document.querySelector('.preview-workspace__panes-scroll') as HTMLDivElement | null;
+    expect(panesScroll).not.toBeNull();
+    if (!panesScroll) {
+      return;
+    }
+
+    Object.defineProperty(panesScroll, 'scrollHeight', { configurable: true, value: 3200 });
+    Object.defineProperty(panesScroll, 'clientHeight', { configurable: true, value: 800 });
+    Object.defineProperty(panesScroll, 'scrollTop', { configurable: true, writable: true, value: 0 });
+
+    fireEvent(window, new Event('resize'));
+    await screen.findByTestId('workspace-minimap');
+
+    const markers = document.querySelectorAll('.preview-workspace__minimap-marker');
+    expect(markers).toHaveLength(2);
+    expect(markers[0]?.className).toContain('preview-workspace__minimap-marker--active');
+
+    panesScroll.scrollTop = 2200;
+    fireEvent.scroll(panesScroll);
+
+    await waitFor(() => {
+      const updatedMarkers = document.querySelectorAll('.preview-workspace__minimap-marker');
+      expect(updatedMarkers[1]?.className).toContain('preview-workspace__minimap-marker--active');
     });
   });
 

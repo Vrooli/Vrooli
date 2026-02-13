@@ -25,6 +25,7 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
   const panes = usePreviewWorkspaceStore(state => state.panes);
   const interactionMode = usePreviewWorkspaceStore(state => state.interactionMode);
   const workspaceZoom = usePreviewWorkspaceStore(state => state.workspaceZoom);
+  const isWorkspaceMinimapVisible = usePreviewWorkspaceStore(state => state.isWorkspaceMinimapVisible);
   const pinnedPaneId = usePreviewWorkspaceStore(state => state.pinnedPaneId);
   const focusedPaneId = usePreviewWorkspaceStore(state => state.focusedPaneId);
   const addPane = usePreviewWorkspaceStore(state => state.addPane);
@@ -32,6 +33,7 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
   const movePaneToIndex = usePreviewWorkspaceStore(state => state.movePaneToIndex);
   const focusPane = usePreviewWorkspaceStore(state => state.focusPane);
   const setWorkspaceZoom = usePreviewWorkspaceStore(state => state.setWorkspaceZoom);
+  const setWorkspaceMinimapVisible = usePreviewWorkspaceStore(state => state.setWorkspaceMinimapVisible);
   const resetWorkspaceZoom = usePreviewWorkspaceStore(state => state.resetWorkspaceZoom);
   const clearPinnedPane = usePreviewWorkspaceStore(state => state.clearPinnedPane);
   const setInteractionMode = usePreviewWorkspaceStore(state => state.setInteractionMode);
@@ -220,6 +222,10 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
     }
   };
 
+  const handleToggleWorkspaceMinimap = () => {
+    setWorkspaceMinimapVisible(!isWorkspaceMinimapVisible);
+  };
+
   const handleSavePreset = async () => {
     const trimmedName = presetName.trim();
     if (!trimmedName) return;
@@ -316,6 +322,21 @@ export default function WorkspaceManagerDialog({ onClose }: WorkspaceManagerDial
           <div>
             <strong>{arrangeButtonLabel}</strong>
             <span>{arrangeButtonHint}</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className={clsx(
+            'workspace-manager__action',
+            isWorkspaceMinimapVisible && 'workspace-manager__action--active',
+          )}
+          onClick={handleToggleWorkspaceMinimap}
+        >
+          <Eye size={18} aria-hidden />
+          <div>
+            <strong>{isWorkspaceMinimapVisible ? 'Hide workspace minimap' : 'Show workspace minimap'}</strong>
+            <span>{isWorkspaceMinimapVisible ? 'Turn off the workspace scroll minimap rail.' : 'Show a pane overview rail for fast workspace scrolling.'}</span>
           </div>
         </button>
 

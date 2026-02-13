@@ -25,6 +25,7 @@ describe('previewWorkspaceStore', () => {
     expect(state.pinnedPaneId).toBeNull();
     expect(state.pinnedColumn).toBeNull();
     expect(state.interactionMode).toBe('browse');
+    expect(state.isWorkspaceMinimapVisible).toBe(true);
     expect(state.columnFractions).toEqual([1]);
     expect(state.rowFractions).toEqual([1]);
   });
@@ -104,6 +105,14 @@ describe('previewWorkspaceStore', () => {
     expect(nextState.panes[0]?.appId).toBe('scenario-b');
   });
 
+  it('toggles workspace minimap visibility', () => {
+    usePreviewWorkspaceStore.getState().setWorkspaceMinimapVisible(false);
+    expect(usePreviewWorkspaceStore.getState().isWorkspaceMinimapVisible).toBe(false);
+
+    usePreviewWorkspaceStore.getState().setWorkspaceMinimapVisible(true);
+    expect(usePreviewWorkspaceStore.getState().isWorkspaceMinimapVisible).toBe(true);
+  });
+
   it('disallows assigning app-monitor to a pane', () => {
     const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
     expect(paneId).toBeTruthy();
@@ -181,6 +190,14 @@ describe('previewWorkspaceStore', () => {
     expect(state.pinnedColumn).toBeNull();
     expect(state.columnFractions).toEqual([1]);
     expect(state.rowFractions).toEqual([1]);
+  });
+
+  it('preserves minimap visibility preference when clearing panes', () => {
+    usePreviewWorkspaceStore.getState().setWorkspaceMinimapVisible(false);
+    usePreviewWorkspaceStore.getState().addPane('scenario-a');
+
+    usePreviewWorkspaceStore.getState().clearAllPanes();
+    expect(usePreviewWorkspaceStore.getState().isWorkspaceMinimapVisible).toBe(false);
   });
 
   it('resets pane-local view state when pane app changes', () => {
@@ -354,6 +371,7 @@ describe('previewWorkspaceStore', () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       state: {
         interactionMode: 'arrange',
+        isWorkspaceMinimapVisible: false,
         panes: [
           { id: 'pane-a', appId: 'scenario-a', createdAt: 1000 },
           { id: 'pane-b', appId: 'scenario-b', createdAt: 2000 },
@@ -380,6 +398,7 @@ describe('previewWorkspaceStore', () => {
 
     const state = usePreviewWorkspaceStore.getState();
     expect(state.interactionMode).toBe('arrange');
+    expect(state.isWorkspaceMinimapVisible).toBe(false);
     expect(state.panes.map((pane) => pane.id)).toEqual(['pane-a', 'pane-b']);
     expect(state.focusedPaneId).toBe('pane-b');
     expect(state.columnFractions).toEqual([0.35, 0.65]);

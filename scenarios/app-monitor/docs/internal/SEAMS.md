@@ -19,6 +19,18 @@
   - `ui/src/hooks/usePreviewReportSession.ts`
 - Workspace state seam:
   - `ui/src/features/preview-workspace/state/previewWorkspaceStore.ts`
+- Workspace minimap seam:
+  - Pure mapping seam:
+    - `ui/src/features/preview-workspace/utils/layout.ts`
+    - `buildWorkspaceMinimapPaneMarkers(...)`
+    - `scrollTopFromWorkspaceMinimapPointer(...)`
+    - `workspaceViewportFromScrollMetrics(...)`
+  - Imperative seam:
+    - `ui/src/features/preview-workspace/components/PreviewWorkspaceView.tsx`
+    - Owns scroll-container binding (`.preview-workspace__panes-scroll` or pinned `.preview-workspace__scroll-column`) and minimap pointer/keyboard interactions.
+  - Preference seam:
+    - `ui/src/features/preview-workspace/state/previewWorkspaceStore.ts`
+    - `isWorkspaceMinimapVisible` is persisted and toggled by workspace controls.
 
 ## Weak Seams To Improve
 - `AppPreviewView` still owns route-specific and feature orchestration in a single large file.

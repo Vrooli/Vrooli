@@ -129,6 +129,16 @@ describe('WorkspaceManagerDialog', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('toggles workspace minimap visibility without closing the dialog', () => {
+    const onClose = vi.fn();
+    render(<WorkspaceManagerDialog onClose={onClose} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /hide workspace minimap/i }));
+
+    expect(usePreviewWorkspaceStore.getState().isWorkspaceMinimapVisible).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('enters workspace fullscreen and closes the dialog', async () => {
     const onClose = vi.fn();
     const exitFullscreen = vi.fn().mockResolvedValue(undefined);
