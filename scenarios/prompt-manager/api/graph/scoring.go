@@ -22,6 +22,13 @@ type ScenarioHealthProvider interface {
 	ScenarioScore(ctx context.Context, scenario string) (float64, error)
 }
 
+var factorEvaluators = map[string]func(nodeID string, g Graph) float64{
+	"outgoing-edges":  outgoingEdgesScore,
+	"incoming-edges":  incomingEdgesScore,
+	"code-usage":      codeUsageScore,
+	"recent-activity": recentActivityScore,
+}
+
 // ScoreAll computes health scores for all nodes using the provided score functions.
 func ScoreAll(g Graph, fns []ScoreFn) []HealthScore {
 	scores := make([]HealthScore, 0, len(g.Nodes))
@@ -46,11 +53,40 @@ func ScoreAll(g Graph, fns []ScoreFn) []HealthScore {
 	return scores
 }
 
+// ScoreAllWithConfig computes health scores for all nodes using per-entity weights.
+func ScoreAllWithConfig(g Graph, cfg HealthConfig) []HealthScore {
+	scores := make([]HealthScore, 0, len(g.Nodes))
+	for _, n := range g.Nodes {
+		weights := weightsForNodeType(n.Type, cfg)
+		hs := HealthScore{
+			NodeID: n.ID,
+			Factors: map[string]float64{
+				"outgoing-edges":  0,
+				"incoming-edges":  0,
+				"code-usage":      0,
+				"recent-activity": 0,
+			},
+		}
+		score, factors := scoreWithWeights(n.ID, g, weights)
+		hs.Score = score
+		for k, v := range factors {
+			hs.Factors[k] = v
+		}
+		scores = append(scores, hs)
+	}
+	return scores
+}
+
 // ApplyCLIHealthPolicy rewrites CLI node health semantics:
 //   - non-vrooli tools: score 0.0 (portability penalty)
 //   - "vrooli": neutral (no score row emitted)
 //   - scenario CLIs: score from ScenarioHealthProvider (if available)
 func ApplyCLIHealthPolicy(ctx context.Context, g Graph, scores []HealthScore, provider ScenarioHealthProvider) []HealthScore {
+	return ApplyCLIHealthPolicyWithConfig(ctx, g, scores, provider, DefaultHealthConfig().CLI)
+}
+
+// ApplyCLIHealthPolicyWithConfig rewrites CLI node health semantics using explicit policy config.
+func ApplyCLIHealthPolicyWithConfig(ctx context.Context, g Graph, scores []HealthScore, provider ScenarioHealthProvider, cfg CLIHealthConfig) []HealthScore {
 	if len(g.Nodes) == 0 {
 		return scores
 	}
@@ -94,6 +130,10 @@ func ApplyCLIHealthPolicy(ctx context.Context, g Graph, scores []HealthScore, pr
 	resolvedScenarioScores := make(map[string]float64)
 	const portabilityFactor = "cli-portability"
 	const scenarioCompletenessFactor = "scenario-completeness"
+	neutralCommands := make(map[string]bool, len(cfg.NeutralCommands))
+	for _, cmd := range cfg.NeutralCommands {
+		neutralCommands[strings.TrimSpace(cmd)] = true
+	}
 
 	for _, n := range g.Nodes {
 		if n.Type != NodeCLI {
@@ -106,8 +146,8 @@ func ApplyCLIHealthPolicy(ctx context.Context, g Graph, scores []HealthScore, pr
 		}
 		command = strings.TrimSpace(command)
 
-		// Neutral: keep vrooli uns cored (no health row).
-		if command == "vrooli" {
+		// Neutral commands are unscored and omitted from graph health rows.
+		if neutralCommands[command] {
 			delete(scoreByNodeID, n.ID)
 			continue
 		}
@@ -116,9 +156,9 @@ func ApplyCLIHealthPolicy(ctx context.Context, g Graph, scores []HealthScore, pr
 		if !usage.isScenarioCLI {
 			scoreByNodeID[n.ID] = HealthScore{
 				NodeID: n.ID,
-				Score:  0.0,
+				Score:  cfg.ExternalToolScore,
 				Factors: map[string]float64{
-					portabilityFactor: 0.0,
+					portabilityFactor: cfg.ExternalToolScore,
 				},
 			}
 			continue
@@ -128,7 +168,7 @@ func ApplyCLIHealthPolicy(ctx context.Context, g Graph, scores []HealthScore, pr
 		scenario := command
 		score, ok := resolvedScenarioScores[scenario]
 		if !ok {
-			score = 0.0
+			score = cfg.ScenarioFallbackScore
 			if provider != nil {
 				if resolved, err := provider.ScenarioScore(ctx, scenario); err == nil {
 					score = normalizeScenarioScore(resolved)
@@ -202,6 +242,52 @@ func DefaultScoreFns() []ScoreFn {
 		{Name: "code-usage", Weight: 0.5, Fn: codeUsageScore},
 		{Name: "recent-activity", Weight: 0.5, Fn: recentActivityScore},
 	}
+}
+
+func weightsForNodeType(nodeType NodeType, cfg HealthConfig) HealthWeights {
+	switch nodeType {
+	case NodeTeam:
+		return cfg.Team
+	case NodeAgent:
+		return cfg.Agent
+	case NodeSkill:
+		return cfg.Skill
+	default:
+		// CLI scores are overridden by ApplyCLIHealthPolicyWithConfig, but
+		// we still compute a baseline for consistency.
+		return cfg.Skill
+	}
+}
+
+func scoreWithWeights(nodeID string, g Graph, weights HealthWeights) (float64, map[string]float64) {
+	weightByFactor := map[string]float64{
+		"outgoing-edges":  weights.OutgoingEdges,
+		"incoming-edges":  weights.IncomingEdges,
+		"code-usage":      weights.CodeUsage,
+		"recent-activity": weights.RecentActivity,
+	}
+
+	factors := make(map[string]float64, len(weightByFactor))
+	var total float64
+	var weightSum float64
+	for factorName, weight := range weightByFactor {
+		evaluator, ok := factorEvaluators[factorName]
+		if !ok {
+			factors[factorName] = 0
+			continue
+		}
+		value := evaluator(nodeID, g)
+		factors[factorName] = value
+		if weight <= 0 {
+			continue
+		}
+		total += value * weight
+		weightSum += weight
+	}
+	if weightSum <= 0 {
+		return 0, factors
+	}
+	return total / weightSum, factors
 }
 
 func normalizeScenarioScore(score float64) float64 {

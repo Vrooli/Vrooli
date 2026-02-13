@@ -22,7 +22,7 @@ export interface GraphNodeData extends Record<string, unknown> {
   label: string
   nodeType: NodeType
   healthScore: number | null
-  isHighlighted: boolean
+  queryState: 'normal' | 'selected' | 'dimmed'
 }
 
 type GraphNodeProps = NodeProps<Node<GraphNodeData, 'graphNode'>>
@@ -67,10 +67,26 @@ function getHealthClasses(score: number | null): { background: string; border: s
 }
 
 function GraphNodeComponent({ data }: GraphNodeProps) {
-  const { label, nodeType, healthScore, isHighlighted } = data
+  const { label, nodeType, healthScore, queryState } = data
   const shape = TYPE_SHAPES[nodeType]
   const health = getHealthClasses(healthScore)
   const isDiamond = nodeType === 'skill'
+  const isQuerySelected = queryState === 'selected'
+  const isQueryDimmed = queryState === 'dimmed'
+
+  const appearance = isQuerySelected
+    ? {
+      background: 'bg-indigo-500/35',
+      border: 'border-indigo-300',
+      text: 'text-indigo-50',
+    }
+    : isQueryDimmed
+      ? {
+        background: 'bg-slate-700/15',
+        border: 'border-slate-500/40',
+        text: 'text-slate-400',
+      }
+      : health
 
   return (
     <div className="relative">
@@ -85,10 +101,11 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
         className={cn(
           'px-4 py-2.5 border-2 cursor-pointer transition-all',
           'hover:brightness-110',
-          health.background,
-          health.border,
+          appearance.background,
+          appearance.border,
           shape,
-          isHighlighted && 'ring-2 ring-primary shadow-lg shadow-primary/20',
+          isQuerySelected && 'shadow-lg shadow-indigo-500/30',
+          isQueryDimmed && 'opacity-45 saturate-50',
           isDiamond && 'w-[100px] h-[100px] flex items-center justify-center',
           !isDiamond && 'min-w-[120px] max-w-[180px]',
         )}
@@ -96,12 +113,12 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
         <div className={cn(isDiamond && '-rotate-45')}>
           <p className={cn(
             'text-xs font-medium text-center truncate',
-            health.text,
+            appearance.text,
           )}>
             {label}
           </p>
           {healthScore !== null && (
-            <p className="text-[10px] text-center text-foreground/75 mt-0.5">
+            <p className={cn('text-[10px] text-center mt-0.5', isQueryDimmed ? 'text-slate-400/80' : 'text-foreground/75')}>
               {Math.round(healthScore * 100)}%
             </p>
           )}

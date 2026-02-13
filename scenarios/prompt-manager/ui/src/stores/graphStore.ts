@@ -13,10 +13,11 @@
  */
 
 import { create } from 'zustand'
-import type { GraphResponse, GraphNode } from '@/lib/schemas'
+import type { GraphResponse, GraphNode, HealthScore } from '@/lib/schemas'
 import { getGraph, regenerateGraph as regenerateGraphService } from '@/services/graphService'
 
 const GRAPH_VIEWPORT_STORAGE_KEY = 'pm.graphViewport'
+const GRAPH_VIEW_SETTINGS_STORAGE_KEY = 'pm.graphViewSettings.v1'
 
 export interface GraphViewport {
   x: number
@@ -76,13 +77,100 @@ interface GraphFilters {
 }
 
 export type GraphLayoutMode = 'hierarchical' | 'compact' | 'grouped'
+export type GraphQueryDisplayMode = 'highlight' | 'dim-others' | 'hide-others'
+
+interface GraphViewSettingsSnapshot {
+  filters: GraphFilters
+  layoutDirection: 'TB' | 'LR'
+  layoutMode: GraphLayoutMode
+  queryDisplayMode: GraphQueryDisplayMode
+}
+
+function getDefaultFilters(): GraphFilters {
+  return {
+    showTeams: true,
+    showAgents: true,
+    showSkills: true,
+    showCLIs: true,
+    collapseCLIs: false,
+    showLowSignalEdges: true,
+    autoFitOnChange: true,
+    healthThreshold: 0,
+  }
+}
+
+function isValidQueryDisplayMode(value: unknown): value is GraphQueryDisplayMode {
+  return value === 'highlight' || value === 'dim-others' || value === 'hide-others'
+}
+
+function loadGraphViewSettings(): GraphViewSettingsSnapshot {
+  const defaults: GraphViewSettingsSnapshot = {
+    filters: getDefaultFilters(),
+    layoutDirection: 'TB',
+    layoutMode: 'compact',
+    queryDisplayMode: 'dim-others',
+  }
+
+  if (typeof window === 'undefined') return defaults
+
+  try {
+    const raw = localStorage.getItem(GRAPH_VIEW_SETTINGS_STORAGE_KEY)
+    if (!raw) return defaults
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return defaults
+    const record = parsed as Record<string, unknown>
+
+    const filtersRaw = (typeof record.filters === 'object' && record.filters !== null)
+      ? (record.filters as Record<string, unknown>)
+      : {}
+    const defaultFilters = getDefaultFilters()
+    const filters: GraphFilters = {
+      showTeams: typeof filtersRaw.showTeams === 'boolean' ? filtersRaw.showTeams : defaultFilters.showTeams,
+      showAgents: typeof filtersRaw.showAgents === 'boolean' ? filtersRaw.showAgents : defaultFilters.showAgents,
+      showSkills: typeof filtersRaw.showSkills === 'boolean' ? filtersRaw.showSkills : defaultFilters.showSkills,
+      showCLIs: typeof filtersRaw.showCLIs === 'boolean' ? filtersRaw.showCLIs : defaultFilters.showCLIs,
+      collapseCLIs: typeof filtersRaw.collapseCLIs === 'boolean' ? filtersRaw.collapseCLIs : defaultFilters.collapseCLIs,
+      showLowSignalEdges: typeof filtersRaw.showLowSignalEdges === 'boolean' ? filtersRaw.showLowSignalEdges : defaultFilters.showLowSignalEdges,
+      autoFitOnChange: typeof filtersRaw.autoFitOnChange === 'boolean' ? filtersRaw.autoFitOnChange : defaultFilters.autoFitOnChange,
+      healthThreshold: Number.isFinite(filtersRaw.healthThreshold) ? Number(filtersRaw.healthThreshold) : defaultFilters.healthThreshold,
+    }
+
+    const layoutDirection = record.layoutDirection === 'LR' ? 'LR' : 'TB'
+    const layoutMode = record.layoutMode === 'hierarchical' || record.layoutMode === 'grouped'
+      ? record.layoutMode
+      : 'compact'
+    const queryDisplayMode = isValidQueryDisplayMode(record.queryDisplayMode)
+      ? record.queryDisplayMode
+      : defaults.queryDisplayMode
+
+    return {
+      filters,
+      layoutDirection,
+      layoutMode,
+      queryDisplayMode,
+    }
+  } catch {
+    return defaults
+  }
+}
+
+function saveGraphViewSettings(settings: GraphViewSettingsSnapshot): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(GRAPH_VIEW_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+  } catch {
+    // Ignore quota errors.
+  }
+}
 
 interface GraphStore {
   graph: GraphResponse | null
+  healthScoreOverride: HealthScore[] | null
   loading: boolean
   error: string | null
   filters: GraphFilters
   highlightedNodeIds: Set<string>
+  queryDisplayMode: GraphQueryDisplayMode
   layoutDirection: 'TB' | 'LR'
   layoutMode: GraphLayoutMode
   fitViewRequested: number
@@ -93,29 +181,22 @@ interface GraphStore {
   setFilter: <K extends keyof GraphFilters>(key: K, value: GraphFilters[K]) => void
   highlightNodes: (ids: string[]) => void
   clearHighlights: () => void
+  setQueryDisplayMode: (mode: GraphQueryDisplayMode) => void
   setLayoutDirection: (dir: 'TB' | 'LR') => void
   setLayoutMode: (mode: GraphLayoutMode) => void
   requestFitView: () => void
   setViewport: (viewport: GraphViewport) => void
+  setHealthScoreOverride: (scores: HealthScore[] | null) => void
+  clearHealthScoreOverride: () => void
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
+  ...loadGraphViewSettings(),
   graph: null,
+  healthScoreOverride: null,
   loading: false,
   error: null,
-  filters: {
-    showTeams: true,
-    showAgents: true,
-    showSkills: true,
-    showCLIs: true,
-    collapseCLIs: false,
-    showLowSignalEdges: true,
-    autoFitOnChange: true,
-    healthThreshold: 0,
-  },
   highlightedNodeIds: new Set(),
-  layoutDirection: 'TB',
-  layoutMode: 'compact',
   fitViewRequested: 0,
   viewport: loadGraphViewport(),
 
@@ -148,9 +229,16 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   setFilter: (key, value) => {
-    set((state) => ({
-      filters: { ...state.filters, [key]: value },
-    }))
+    set((state) => {
+      const filters = { ...state.filters, [key]: value }
+      saveGraphViewSettings({
+        filters,
+        layoutDirection: state.layoutDirection,
+        layoutMode: state.layoutMode,
+        queryDisplayMode: state.queryDisplayMode,
+      })
+      return { filters }
+    })
   },
 
   highlightNodes: (ids) => {
@@ -161,12 +249,40 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({ highlightedNodeIds: new Set() })
   },
 
+  setQueryDisplayMode: (mode) => {
+    set((state) => {
+      saveGraphViewSettings({
+        filters: state.filters,
+        layoutDirection: state.layoutDirection,
+        layoutMode: state.layoutMode,
+        queryDisplayMode: mode,
+      })
+      return { queryDisplayMode: mode }
+    })
+  },
+
   setLayoutDirection: (dir) => {
-    set({ layoutDirection: dir })
+    set((state) => {
+      saveGraphViewSettings({
+        filters: state.filters,
+        layoutDirection: dir,
+        layoutMode: state.layoutMode,
+        queryDisplayMode: state.queryDisplayMode,
+      })
+      return { layoutDirection: dir }
+    })
   },
 
   setLayoutMode: (mode) => {
-    set({ layoutMode: mode })
+    set((state) => {
+      saveGraphViewSettings({
+        filters: state.filters,
+        layoutDirection: state.layoutDirection,
+        layoutMode: mode,
+        queryDisplayMode: state.queryDisplayMode,
+      })
+      return { layoutMode: mode }
+    })
   },
 
   requestFitView: () => {
@@ -177,6 +293,14 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({ viewport })
     saveGraphViewport(viewport)
   },
+
+  setHealthScoreOverride: (scores) => {
+    set({ healthScoreOverride: scores })
+  },
+
+  clearHealthScoreOverride: () => {
+    set({ healthScoreOverride: null })
+  },
 }))
 
 /**
@@ -185,10 +309,11 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 export function selectFilteredNodes(state: GraphStore): GraphNode[] {
   const { graph, filters } = state
   if (!graph) return []
+  const effectiveScores = state.healthScoreOverride ?? graph.graph.healthScores
 
   // Build health map for threshold filtering
   const healthMap = new Map<string, number>()
-  for (const hs of graph.graph.healthScores) {
+  for (const hs of effectiveScores) {
     healthMap.set(hs.nodeId, hs.score)
   }
 
@@ -207,4 +332,9 @@ export function selectFilteredNodes(state: GraphStore): GraphNode[] {
 
     return true
   })
+}
+
+export function selectEffectiveHealthScores(state: GraphStore): HealthScore[] {
+  if (!state.graph) return []
+  return state.healthScoreOverride ?? state.graph.graph.healthScores
 }

@@ -35,6 +35,7 @@ type Builder struct {
 	scanner                graphScanner
 	scoreFns               []ScoreFn
 	scenarioHealthProvider ScenarioHealthProvider
+	healthConfigProvider   HealthConfigProvider
 }
 
 // NewBuilder creates a graph builder.
@@ -57,6 +58,11 @@ func NewBuilder(
 // SetScenarioHealthProvider configures scenario-level health lookup for CLI nodes.
 func (b *Builder) SetScenarioHealthProvider(provider ScenarioHealthProvider) {
 	b.scenarioHealthProvider = provider
+}
+
+// SetHealthConfigProvider configures graph health scoring controls.
+func (b *Builder) SetHealthConfigProvider(provider HealthConfigProvider) {
+	b.healthConfigProvider = provider
 }
 
 // Build constructs the complete graph.
@@ -122,8 +128,17 @@ func (b *Builder) Build(ctx context.Context) (Graph, error) {
 
 	// Compute health scores
 	if len(b.scoreFns) > 0 {
-		g.HealthScores = ScoreAll(g, b.scoreFns)
-		g.HealthScores = ApplyCLIHealthPolicy(ctx, g, g.HealthScores, b.scenarioHealthProvider)
+		if b.healthConfigProvider != nil {
+			cfg, err := b.healthConfigProvider.Get(ctx)
+			if err != nil {
+				return g, err
+			}
+			g.HealthScores = ScoreAllWithConfig(g, cfg)
+			g.HealthScores = ApplyCLIHealthPolicyWithConfig(ctx, g, g.HealthScores, b.scenarioHealthProvider, cfg.CLI)
+		} else {
+			g.HealthScores = ScoreAll(g, b.scoreFns)
+			g.HealthScores = ApplyCLIHealthPolicy(ctx, g, g.HealthScores, b.scenarioHealthProvider)
+		}
 	}
 
 	return g, nil

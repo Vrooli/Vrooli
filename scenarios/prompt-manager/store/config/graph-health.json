@@ -1,0 +1,27 @@
+{
+  "team": {
+    "outgoingEdges": 1,
+    "incomingEdges": 0,
+    "codeUsage": 0.5,
+    "recentActivity": 0.5
+  },
+  "agent": {
+    "outgoingEdges": 1,
+    "incomingEdges": 1,
+    "codeUsage": 0.5,
+    "recentActivity": 0.5
+  },
+  "skill": {
+    "outgoingEdges": 1,
+    "incomingEdges": 1,
+    "codeUsage": 0.5,
+    "recentActivity": 0.5
+  },
+  "cli": {
+    "neutralCommands": [
+      "vrooli"
+    ],
+    "externalToolScore": 0,
+    "scenarioFallbackScore": 0
+  }
+}

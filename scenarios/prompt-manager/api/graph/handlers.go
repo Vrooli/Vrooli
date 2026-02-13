@@ -16,14 +16,24 @@ type graphIndexProvider interface {
 	Regenerate(ctx context.Context) error
 }
 
+type graphHealthConfigStore interface {
+	Get(ctx context.Context) (HealthConfig, error)
+	Put(ctx context.Context, cfg HealthConfig) error
+}
+
 // Handlers provides HTTP handlers for graph operations.
 type Handlers struct {
-	indexStore graphIndexProvider
+	indexStore        graphIndexProvider
+	healthConfigStore graphHealthConfigStore
 }
 
 // NewHandlers creates new graph handlers.
-func NewHandlers(indexStore graphIndexProvider) *Handlers {
-	return &Handlers{indexStore: indexStore}
+func NewHandlers(indexStore graphIndexProvider, configStore ...graphHealthConfigStore) *Handlers {
+	h := &Handlers{indexStore: indexStore}
+	if len(configStore) > 0 {
+		h.healthConfigStore = configStore[0]
+	}
+	return h
 }
 
 // GetGraph handles GET /api/v1/graph - returns the full graph.
@@ -265,4 +275,50 @@ func (h *Handlers) GetHealthScores(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(scores)
+}
+
+// GetHealthConfig handles GET /api/v1/graph/health-config.
+func (h *Handlers) GetHealthConfig(w http.ResponseWriter, r *http.Request) {
+	if h.healthConfigStore == nil {
+		http.Error(w, "graph health config store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	cfg, err := h.healthConfigStore.Get(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cfg)
+}
+
+// PutHealthConfig handles PUT /api/v1/graph/health-config.
+func (h *Handlers) PutHealthConfig(w http.ResponseWriter, r *http.Request) {
+	if h.healthConfigStore == nil {
+		http.Error(w, "graph health config store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var cfg HealthConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := ValidateHealthConfig(cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := h.healthConfigStore.Put(r.Context(), cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := h.indexStore.Regenerate(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cfg)
 }

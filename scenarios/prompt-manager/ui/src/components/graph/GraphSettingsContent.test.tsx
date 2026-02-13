@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useGraphStore } from '@/stores/graphStore'
+import { useGraphHealthConfigStore } from '@/stores/graphHealthConfigStore'
 import { GraphSettingsContent } from './GraphSettingsContent'
 
 // Mock lucide-react icons to simple spans
@@ -19,6 +20,7 @@ vi.mock('lucide-react', () => ({
   Maximize2: (props: Record<string, unknown>) => <span data-testid="icon-maximize" {...props} />,
   Link2Off: (props: Record<string, unknown>) => <span data-testid="icon-link2off" {...props} />,
   FoldVertical: (props: Record<string, unknown>) => <span data-testid="icon-fold-vertical" {...props} />,
+  SlidersHorizontal: (props: Record<string, unknown>) => <span data-testid="icon-sliders" {...props} />,
 }))
 
 describe('GraphSettingsContent', () => {
@@ -39,6 +41,31 @@ describe('GraphSettingsContent', () => {
         healthThreshold: 0,
       },
     })
+    useGraphHealthConfigStore.setState({
+      loaded: true,
+      loading: false,
+      saving: false,
+      dirty: false,
+      error: null,
+      savedConfig: {
+        team: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
+        agent: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
+        skill: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
+        cli: { neutralCommands: ['vrooli'], externalToolScore: 0, scenarioFallbackScore: 0 },
+      },
+      config: {
+        team: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
+        agent: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
+        skill: { outgoingEdges: 1, incomingEdges: 1, codeUsage: 0.5, recentActivity: 0.5 },
+        cli: { neutralCommands: ['vrooli'], externalToolScore: 0, scenarioFallbackScore: 0 },
+      },
+      loadConfig: vi.fn().mockResolvedValue(undefined),
+      saveConfig: vi.fn().mockResolvedValue(true),
+      resetToDefault: vi.fn(),
+      setEntityWeight: vi.fn(),
+      setCLIField: vi.fn(),
+      setNeutralCommandsText: vi.fn(),
+    })
     vi.clearAllMocks()
   })
 
@@ -49,10 +76,30 @@ describe('GraphSettingsContent', () => {
   it('should render all four type filter buttons', () => {
     render(<GraphSettingsContent />)
 
+    expect(screen.getByText('Display')).toBeInTheDocument()
+    expect(screen.getByText('Health')).toBeInTheDocument()
     expect(screen.getByText('Teams')).toBeInTheDocument()
     expect(screen.getByText('Agents')).toBeInTheDocument()
     expect(screen.getByText('Skills')).toBeInTheDocument()
     expect(screen.getByText('CLIs')).toBeInTheDocument()
+  })
+
+  it('should switch to health tab', () => {
+    render(<GraphSettingsContent />)
+    fireEvent.click(screen.getByText('Health'))
+
+    expect(screen.getByText('Entity Scoring Weights')).toBeInTheDocument()
+    expect(screen.getByText('Save + Recompute')).toBeInTheDocument()
+    expect(screen.getByText('No unsaved health changes')).toBeInTheDocument()
+  })
+
+  it('should show unsaved preview banner when health config is dirty', () => {
+    useGraphHealthConfigStore.setState({ dirty: true })
+
+    render(<GraphSettingsContent />)
+    fireEvent.click(screen.getByText('Health'))
+
+    expect(screen.getByText(/Unsaved preview active/)).toBeInTheDocument()
   })
 
   it('should call setFilter when a type toggle is clicked', () => {

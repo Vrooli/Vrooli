@@ -175,6 +175,26 @@ func (m *mockGraphIndexProvider) Regenerate(_ context.Context) error {
 	return m.regenErr
 }
 
+type mockHealthConfigStore struct {
+	cfg     HealthConfig
+	getErr  error
+	putErr  error
+	lastPut *HealthConfig
+}
+
+func (m *mockHealthConfigStore) Get(_ context.Context) (HealthConfig, error) {
+	return m.cfg, m.getErr
+}
+
+func (m *mockHealthConfigStore) Put(_ context.Context, cfg HealthConfig) error {
+	if m.putErr != nil {
+		return m.putErr
+	}
+	cloned := cfg
+	m.lastPut = &cloned
+	return nil
+}
+
 // testIndex creates a GraphIndex with predetermined data for handler tests.
 func testIndex(nodes []Node, edges []Edge, scores []HealthScore) *GraphIndex {
 	return &GraphIndex{

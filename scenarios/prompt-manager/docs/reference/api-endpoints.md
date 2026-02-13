@@ -1262,6 +1262,24 @@ Return health scores for all scored nodes.
 ]
 ```
 
+### GET /api/v1/graph/health-config
+
+Return the active graph health scoring configuration used for weighted scoring and CLI policy.
+
+**Response:** `HealthConfig`
+
+### PUT /api/v1/graph/health-config
+
+Update graph health scoring configuration and immediately regenerate the graph index.
+
+**Request Body:** `HealthConfig`
+
+**Response:** `HealthConfig` (saved configuration)
+
+**Errors:**
+- `400` - Invalid config (e.g., negative weights, all-zero entity weights, invalid CLI policy ranges)
+- `503` - Graph health config store not configured
+
 ### GET /api/v1/graph/nodes/{id}
 
 Return a single node with its adjacent edges and health score.

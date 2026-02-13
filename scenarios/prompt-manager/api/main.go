@@ -175,6 +175,8 @@ func main() {
 		graphScanner,
 		graph.DefaultScoreFns(),
 	)
+	graphHealthConfigStore := graph.NewHealthConfigStore(absStoreDir)
+	graphBuilder.SetHealthConfigProvider(graphHealthConfigStore)
 	graphBuilder.SetScenarioHealthProvider(graph.NewScenarioCompletenessCLIProvider(15 * time.Second))
 	graphIndex := graph.NewIndexStore(absStoreDir, graphBuilder)
 	// Always regenerate on startup so the index reflects the current detection code.
@@ -185,7 +187,7 @@ func main() {
 			log.Printf("graph: startup rebuild failed: %v", err)
 		}
 	}()
-	graphHandlers := graph.NewHandlers(graphIndex)
+	graphHandlers := graph.NewHandlers(graphIndex, graphHealthConfigStore)
 
 	// Inject graph invalidator into mutation handlers
 	skillHandlers.SetGraphInvalidator(graphIndex)
@@ -269,6 +271,8 @@ func main() {
 	v1.HandleFunc("/graph/popular", graphHandlers.GetPopular).Methods("GET")
 	v1.HandleFunc("/graph/cycles", graphHandlers.GetCycles).Methods("GET")
 	v1.HandleFunc("/graph/health", graphHandlers.GetHealthScores).Methods("GET")
+	v1.HandleFunc("/graph/health-config", graphHandlers.GetHealthConfig).Methods("GET")
+	v1.HandleFunc("/graph/health-config", graphHandlers.PutHealthConfig).Methods("PUT")
 	v1.HandleFunc("/graph/nodes/{id}", graphHandlers.GetNode).Methods("GET")
 	v1.HandleFunc("/graph/nodes/{id}/edges", graphHandlers.GetNodeEdges).Methods("GET")
 

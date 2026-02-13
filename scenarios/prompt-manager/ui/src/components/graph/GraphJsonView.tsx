@@ -9,7 +9,7 @@ import { useMemo } from 'react'
 import Editor from '@monaco-editor/react'
 import { Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useGraphStore, selectFilteredNodes } from '@/stores/graphStore'
+import { useGraphStore, selectFilteredNodes, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useCodeCopy } from '@/components/markdown/hooks/useCodeCopy'
 import { selectors } from '@/constants/selectors'
@@ -17,6 +17,7 @@ import { selectors } from '@/constants/selectors'
 export function GraphJsonView() {
   const graph = useGraphStore((s) => s.graph)
   const filteredNodes = useGraphStore(useShallow(selectFilteredNodes))
+  const effectiveHealthScores = useGraphStore(useShallow(selectEffectiveHealthScores))
 
   const filteredJson = useMemo(() => {
     if (!graph) return '{}'
@@ -25,7 +26,7 @@ export function GraphJsonView() {
     const filteredEdges = graph.graph.edges.filter(
       (e) => nodeIds.has(e.from) && nodeIds.has(e.to),
     )
-    const filteredHealthScores = graph.graph.healthScores.filter(
+    const filteredHealthScores = effectiveHealthScores.filter(
       (hs) => nodeIds.has(hs.nodeId),
     )
 
@@ -41,7 +42,7 @@ export function GraphJsonView() {
       null,
       2,
     )
-  }, [graph, filteredNodes])
+  }, [graph, filteredNodes, effectiveHealthScores])
 
   const { copied, copyCode } = useCodeCopy(filteredJson)
 

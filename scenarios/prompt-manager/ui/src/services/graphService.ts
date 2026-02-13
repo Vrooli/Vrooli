@@ -19,6 +19,7 @@ import type {
   CircularRefResponse,
   GraphHealthResponse,
   NodeHealthResponse,
+  GraphHealthConfigResponse,
 } from '@/lib/schemas'
 
 const graphCache = createCacheManager<GraphResponse>(10000)
@@ -136,5 +137,31 @@ export async function getNodeHealth(id: string): Promise<NodeHealthResponse | nu
     return await api.getNodeHealth(id)
   } catch {
     return null
+  }
+}
+
+export async function getGraphHealthConfig(): Promise<GraphHealthConfigResponse | null> {
+  try {
+    return await api.getGraphHealthConfig()
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn('[graphService] Invalid API response for health config:', error.message)
+      return null
+    }
+    throw error
+  }
+}
+
+export async function setGraphHealthConfig(
+  config: GraphHealthConfigResponse,
+): Promise<GraphHealthConfigResponse | null> {
+  try {
+    return await api.setGraphHealthConfig(config)
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn('[graphService] Invalid API response for set health config:', error.message)
+      return null
+    }
+    throw error
   }
 }

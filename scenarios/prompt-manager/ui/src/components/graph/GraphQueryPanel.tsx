@@ -34,6 +34,9 @@ export function GraphQueryPanel({ className }: GraphQueryPanelProps) {
   const highlightNodes = useGraphStore((s) => s.highlightNodes)
   const clearHighlights = useGraphStore((s) => s.clearHighlights)
   const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
+  const queryDisplayMode = useGraphStore((s) => s.queryDisplayMode)
+  const setQueryDisplayMode = useGraphStore((s) => s.setQueryDisplayMode)
+
   const [activeQuery, setActiveQuery] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [resultCount, setResultCount] = useState<number | null>(null)
@@ -126,7 +129,7 @@ export function GraphQueryPanel({ className }: GraphQueryPanelProps) {
   }
 
   return (
-    <div className={cn('p-2 bg-card border border-border rounded-lg space-y-1.5', className)}>
+    <div className={cn('p-2 bg-card border border-border rounded-lg space-y-2', className)}>
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Search className="h-3 w-3" />
         <span>Queries</span>
@@ -162,6 +165,31 @@ export function GraphQueryPanel({ className }: GraphQueryPanelProps) {
             {query.label}
           </button>
         ))}
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Result display</p>
+        <div className="grid grid-cols-3 gap-1">
+          {[
+            { id: 'highlight' as const, label: 'Highlight' },
+            { id: 'dim-others' as const, label: 'Dim Others' },
+            { id: 'hide-others' as const, label: 'Hide Others' },
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              onClick={() => setQueryDisplayMode(mode.id)}
+              className={cn(
+                'px-2 py-1 text-[10px] font-medium rounded border transition-colors',
+                queryDisplayMode === mode.id
+                  ? 'bg-indigo-500/30 border-indigo-400/60 text-indigo-200'
+                  : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {highlightedNodeIds.size > 0 && (

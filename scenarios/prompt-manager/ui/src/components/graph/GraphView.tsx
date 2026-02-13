@@ -30,9 +30,10 @@ import {
 import dagre from '@dagrejs/dagre'
 import { Network, Braces } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useGraphStore, selectFilteredNodes, type GraphLayoutMode } from '@/stores/graphStore'
+import { useGraphStore, selectFilteredNodes, selectEffectiveHealthScores, type GraphLayoutMode } from '@/stores/graphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { GraphFlowNode, type GraphNodeData } from './GraphNode'
 import { GraphNodePopover } from './GraphNodePopover'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
@@ -53,6 +54,9 @@ const CLI_CLUSTER_ID = '__pm_cli_cluster__'
 const LOW_SIGNAL_EDGE_KINDS = new Set(['bold-listed', 'path-ref'])
 const HEAVY_EDGE_COUNT_THRESHOLD = 300
 const MINIMAP_NODE_THRESHOLD = 120
+const POPOVER_WIDTH = 280
+const POPOVER_HEIGHT_ESTIMATE = 360
+const POPOVER_MARGIN = 8
 
 // ============================================================================
 // Node Types
@@ -123,7 +127,7 @@ function getGroupedLayout(nodes: FlowNode[], edges: FlowEdge[], direction: 'TB' 
   const byLane = new Map<GraphNodeData['nodeType'], FlowNode[]>()
   for (const lane of laneOrder) byLane.set(lane, [])
   for (const node of nodes) {
-    const lane = node.data?.nodeType ?? 'skill'
+    const lane = node.data.nodeType
     const list = byLane.get(lane) ?? []
     list.push(node)
     byLane.set(lane, list)
@@ -174,6 +178,20 @@ function getLayoutedElements(
   return runDagreLayout(nodes, edges, direction, mode)
 }
 
+function clampPopoverPosition(anchorX: number, anchorY: number): { left: number; top: number } {
+  if (typeof window === 'undefined') {
+    return { left: anchorX, top: anchorY }
+  }
+
+  const maxLeft = Math.max(POPOVER_MARGIN, window.innerWidth - POPOVER_WIDTH - POPOVER_MARGIN)
+  const maxTop = Math.max(POPOVER_MARGIN, window.innerHeight - POPOVER_HEIGHT_ESTIMATE - POPOVER_MARGIN)
+
+  return {
+    left: Math.min(Math.max(anchorX, POPOVER_MARGIN), maxLeft),
+    top: Math.min(Math.max(anchorY, POPOVER_MARGIN), maxTop),
+  }
+}
+
 // ============================================================================
 // Inner Component (needs ReactFlowProvider context)
 // ============================================================================
@@ -187,17 +205,14 @@ interface SelectedNodeState {
   node: GraphNodeType
   healthScore?: HealthScore
   edges: GraphEdgeType[]
-  screenX: number
-  screenY: number
 }
 
 function GraphViewInner({ className }: GraphViewInnerProps) {
+  const isMobile = useIsMobile()
   const { fitView, setViewport, getViewport, flowToScreenPosition } = useReactFlow()
   const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual')
   const [selectedNode, setSelectedNode] = useState<SelectedNodeState | null>(null)
   const selectedNodeRef = useRef<SelectedNodeState | null>(null)
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
   const hasInitializedViewport = useRef(false)
 
   // Store data
@@ -206,16 +221,19 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const error = useGraphStore((s) => s.error)
   const fetchGraph = useGraphStore((s) => s.fetchGraph)
   const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
+  const queryDisplayMode = useGraphStore((s) => s.queryDisplayMode)
   const filters = useGraphStore((s) => s.filters)
   const layoutDirection = useGraphStore((s) => s.layoutDirection)
   const layoutMode = useGraphStore((s) => s.layoutMode)
   const fitViewRequested = useGraphStore((s) => s.fitViewRequested)
   const savedViewport = useGraphStore((s) => s.viewport)
   const setSavedViewport = useGraphStore((s) => s.setViewport)
+
   // useShallow prevents infinite re-render: selectFilteredNodes returns a new
   // array reference on every call (.filter()), but useShallow compares elements
   // by identity so the result is stable when the underlying data hasn't changed.
   const filteredNodes = useGraphStore(useShallow(selectFilteredNodes))
+  const effectiveHealthScores = useGraphStore(useShallow(selectEffectiveHealthScores))
 
   // Selection store for navigation
   const setSelectedSkillId = useSelectionStore((s) => s.setSelectedSkillId)
@@ -311,45 +329,91 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     }
   }, [graph, filteredNodes, filters.collapseCLIs, filters.showLowSignalEdges])
 
+  const querySelectedNodeIds = useMemo(() => {
+    if (highlightedNodeIds.size === 0) return new Set<string>()
+
+    const selected = new Set<string>()
+    let hasSelectedCLI = false
+
+    for (const id of highlightedNodeIds) {
+      if (id.startsWith('cli:')) {
+        hasSelectedCLI = true
+        continue
+      }
+      selected.add(id)
+    }
+
+    if (filters.collapseCLIs && hasSelectedCLI) {
+      selected.add(CLI_CLUSTER_ID)
+    }
+
+    return selected
+  }, [highlightedNodeIds, filters.collapseCLIs])
+
+  const hasQuerySelection = querySelectedNodeIds.size > 0
+  const hideNonSelected = hasQuerySelection && queryDisplayMode === 'hide-others'
+  const dimNonSelected = hasQuerySelection && queryDisplayMode === 'dim-others'
+
+  const nodesAfterQueryMode = useMemo(() => {
+    if (!hideNonSelected) return viewModel.nodes
+    return viewModel.nodes.filter((node) => querySelectedNodeIds.has(node.id))
+  }, [viewModel.nodes, hideNonSelected, querySelectedNodeIds])
+
+  const nodeIdsAfterQueryMode = useMemo(() => new Set(nodesAfterQueryMode.map((node) => node.id)), [nodesAfterQueryMode])
+
+  const edgesAfterQueryMode = useMemo(() => {
+    if (!hideNonSelected) {
+      return viewModel.edges.filter((edge) => nodeIdsAfterQueryMode.has(edge.from) && nodeIdsAfterQueryMode.has(edge.to))
+    }
+
+    return viewModel.edges.filter((edge) => querySelectedNodeIds.has(edge.from) && querySelectedNodeIds.has(edge.to))
+  }, [viewModel.edges, nodeIdsAfterQueryMode, hideNonSelected, querySelectedNodeIds])
+
   // Build node ID set for filtering edges
-  const renderedNodeIds = useMemo(() => new Set(viewModel.nodes.map((n) => n.id)), [viewModel.nodes])
+  const renderedNodeIds = useMemo(() => new Set(nodesAfterQueryMode.map((n) => n.id)), [nodesAfterQueryMode])
 
   // Build health score map from graph data
   const healthMap = useMemo(() => {
     const map = new Map<string, number>()
-    if (graph) {
-      for (const hs of graph.graph.healthScores) {
-        map.set(hs.nodeId, hs.score)
-      }
+    for (const hs of effectiveHealthScores) {
+      map.set(hs.nodeId, hs.score)
     }
     return map
-  }, [graph])
+  }, [effectiveHealthScores])
 
   // Build flow nodes
   const flowNodes = useMemo((): FlowNode[] => {
-    return viewModel.nodes.map((node): FlowNode => ({
-      id: node.id,
-      type: 'graphNode',
-      position: { x: 0, y: 0 },
-      data: {
-        label: node.label,
-        nodeType: node.type,
-        healthScore: healthMap.get(node.id) ?? null,
-        isHighlighted: node.id === CLI_CLUSTER_ID
-          ? Array.from(highlightedNodeIds).some((id) => id.startsWith('cli:'))
-          : highlightedNodeIds.has(node.id),
-      },
-    }))
-  }, [viewModel.nodes, highlightedNodeIds, healthMap])
+    return nodesAfterQueryMode.map((node): FlowNode => {
+      const isQuerySelected = querySelectedNodeIds.has(node.id)
+      const queryState: GraphNodeData['queryState'] = hasQuerySelection
+        ? (isQuerySelected ? 'selected' : (dimNonSelected ? 'dimmed' : 'normal'))
+        : 'normal'
+
+      return {
+        id: node.id,
+        type: 'graphNode',
+        position: { x: 0, y: 0 },
+        data: {
+          label: node.label,
+          nodeType: node.type,
+          healthScore: healthMap.get(node.id) ?? null,
+          queryState,
+        },
+      }
+    })
+  }, [nodesAfterQueryMode, querySelectedNodeIds, hasQuerySelection, dimNonSelected, healthMap])
 
   // Build flow edges (only between visible nodes)
-  const useLightweightEdges = viewModel.edges.length > HEAVY_EDGE_COUNT_THRESHOLD
+  const useLightweightEdges = edgesAfterQueryMode.length > HEAVY_EDGE_COUNT_THRESHOLD
   const flowEdges = useMemo((): FlowEdge[] => {
-    return viewModel.edges
+    return edgesAfterQueryMode
       .filter((e) => renderedNodeIds.has(e.from) && renderedNodeIds.has(e.to))
       .map((edge, i): FlowEdge => {
         const defaultStyle: { stroke: string; strokeDasharray?: string } = { stroke: 'hsl(var(--muted-foreground))' }
         const edgeStyle = EDGE_STYLES[edge.kind] ?? defaultStyle
+        const isConnectedToSelection = querySelectedNodeIds.has(edge.from) || querySelectedNodeIds.has(edge.to)
+        const edgeOpacity = dimNonSelected && !isConnectedToSelection ? 0.15 : 1
+
         return {
           id: `e-${edge.from}-${edge.to}-${edge.kind}-${i}`,
           source: edge.from,
@@ -369,11 +433,12 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
             stroke: edgeStyle.stroke,
             strokeWidth: 1.5,
             strokeDasharray: edgeStyle.strokeDasharray,
+            opacity: edgeOpacity,
             pointerEvents: 'none',
           },
         }
       })
-  }, [viewModel.edges, renderedNodeIds, useLightweightEdges])
+  }, [edgesAfterQueryMode, renderedNodeIds, useLightweightEdges, dimNonSelected, querySelectedNodeIds])
 
   // Apply layout
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(
@@ -401,6 +466,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
       layoutDirection,
       filters.collapseCLIs ? 'collapse' : 'expand',
       filters.showLowSignalEdges ? 'low-on' : 'low-off',
+      queryDisplayMode,
       flowNodes.length,
       flowEdges.length,
       highlighted,
@@ -410,6 +476,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     layoutDirection,
     filters.collapseCLIs,
     filters.showLowSignalEdges,
+    queryDisplayMode,
     flowNodes.length,
     flowEdges.length,
     highlightedNodeIds,
@@ -459,13 +526,11 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   // Build health score map for popover
   const healthScoreMap = useMemo(() => {
     const map = new Map<string, HealthScore>()
-    if (graph) {
-      for (const hs of graph.graph.healthScores) {
-        map.set(hs.nodeId, hs)
-      }
+    for (const hs of effectiveHealthScores) {
+      map.set(hs.nodeId, hs)
     }
     return map
-  }, [graph])
+  }, [effectiveHealthScores])
 
   // Build adjacency map for edge lookup
   const adjacentEdgesMap = useMemo(() => {
@@ -485,6 +550,26 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     return map
   }, [graph])
 
+  // Keep selected node data in sync when graph data updates.
+  useEffect(() => {
+    if (!selectedNodeRef.current) return
+    const nextNode = nodeMap.get(selectedNodeRef.current.nodeId)
+    if (!nextNode) {
+      selectedNodeRef.current = null
+      setSelectedNode(null)
+      return
+    }
+
+    const nextState: SelectedNodeState = {
+      nodeId: selectedNodeRef.current.nodeId,
+      node: nextNode,
+      healthScore: healthScoreMap.get(selectedNodeRef.current.nodeId),
+      edges: adjacentEdgesMap.get(selectedNodeRef.current.nodeId) ?? [],
+    }
+    selectedNodeRef.current = nextState
+    setSelectedNode(nextState)
+  }, [nodeMap, healthScoreMap, adjacentEdgesMap])
+
   // Handle node click -> toggle popover
   const onNodeClick = useCallback<NodeMouseHandler>((_event, node) => {
     const graphNode = nodeMap.get(node.id)
@@ -497,18 +582,15 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
       return
     }
 
-    const screenPos = flowToScreenPosition(node.position)
     const state: SelectedNodeState = {
       nodeId: node.id,
       node: graphNode,
       healthScore: healthScoreMap.get(node.id),
       edges: adjacentEdgesMap.get(node.id) ?? [],
-      screenX: screenPos.x + NODE_WIDTH,
-      screenY: screenPos.y,
     }
     selectedNodeRef.current = state
     setSelectedNode(state)
-  }, [nodeMap, healthScoreMap, adjacentEdgesMap, flowToScreenPosition])
+  }, [nodeMap, healthScoreMap, adjacentEdgesMap])
 
   // Close popover on pane click
   const onPaneClick = useCallback(() => {
@@ -527,22 +609,19 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     setSelectedNode(null)
   }, [selectedNode, setSelectedSkillId, setSelectedAgentId, setSelectedTeamId])
 
-  // Update popover screen position during pan/zoom
-  const onMove = useCallback<OnMove>((_event, _viewport) => {
-    const sel = selectedNodeRef.current
-    if (!sel) return
+  // Ensure selected node remains tracked while panning/zooming.
+  const onMove = useCallback<OnMove>(() => {
+    if (!selectedNodeRef.current) return
+    setSelectedNode((current) => (current ? { ...current } : current))
+  }, [])
 
-    // Find the current flow node to get its position
-    const flowNode = nodes.find((n) => n.id === sel.nodeId)
-    if (!flowNode) return
-
+  const desktopPopoverPosition = useMemo(() => {
+    if (!selectedNode || isMobile) return null
+    const flowNode = nodes.find((n) => n.id === selectedNode.nodeId)
+    if (!flowNode) return null
     const screenPos = flowToScreenPosition(flowNode.position)
-    const el = popoverRef.current
-    if (el) {
-      el.style.left = `${screenPos.x + NODE_WIDTH + 16}px`
-      el.style.top = `${screenPos.y - 8}px`
-    }
-  }, [nodes, flowToScreenPosition])
+    return clampPopoverPosition(screenPos.x + NODE_WIDTH + 16, screenPos.y - 8)
+  }, [selectedNode, isMobile, nodes, flowToScreenPosition])
 
   // Loading / error states
   if (loading && !graph) {
@@ -586,7 +665,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   }
 
   return (
-    <div ref={containerRef} className={cn('h-full relative', className)}>
+    <div className={cn('h-full relative', className)}>
       {/* Visual / JSON mode toggle */}
       <div
         data-testid={selectors.graph.modeToggle}
@@ -668,17 +747,16 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
           {/* Click-anchored node detail popover */}
           {selectedNode && (
             <PanelErrorBoundary panelName="Graph Popover" minimal>
-              <div ref={popoverRef}>
-                <GraphNodePopover
-                  node={selectedNode.node}
-                  healthScore={selectedNode.healthScore}
-                  edges={selectedNode.edges}
-                  screenX={selectedNode.screenX}
-                  screenY={selectedNode.screenY}
-                  onClose={onPaneClick}
-                  onNavigate={navigateToEditor}
-                />
-              </div>
+              <GraphNodePopover
+                node={selectedNode.node}
+                healthScore={selectedNode.healthScore}
+                edges={selectedNode.edges}
+                screenX={desktopPopoverPosition?.left ?? 0}
+                screenY={desktopPopoverPosition?.top ?? 0}
+                onClose={onPaneClick}
+                onNavigate={navigateToEditor}
+                variant={isMobile ? 'mobile' : 'desktop'}
+              />
             </PanelErrorBoundary>
           )}
         </>

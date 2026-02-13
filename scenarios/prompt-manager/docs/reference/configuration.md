@@ -188,6 +188,35 @@ Located at `initialization/configuration/app-config.json`:
 }
 ```
 
+## Graph Health Configuration
+
+Graph health scoring controls are persisted in:
+
+`store/config/graph-health.json`
+
+This file is git-tracked and can be tuned directly or through the Graph View `Health` settings tab.
+
+Schema:
+
+```json
+{
+  "team": { "outgoingEdges": 1, "incomingEdges": 1, "codeUsage": 0.5, "recentActivity": 0.5 },
+  "agent": { "outgoingEdges": 1, "incomingEdges": 1, "codeUsage": 0.5, "recentActivity": 0.5 },
+  "skill": { "outgoingEdges": 1, "incomingEdges": 1, "codeUsage": 0.5, "recentActivity": 0.5 },
+  "cli": {
+    "neutralCommands": ["vrooli"],
+    "externalToolScore": 0,
+    "scenarioFallbackScore": 0
+  }
+}
+```
+
+After changing values, regenerate the graph to recompute health:
+
+```bash
+prompt-manager graph regenerate
+```
+
 ## Campaign Templates
 
 Located at `initialization/configuration/campaign-templates.json`:

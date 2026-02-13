@@ -54,6 +54,29 @@ export const HealthScoreSchema = z.object({
 })
 export type HealthScore = z.infer<typeof HealthScoreSchema>
 
+export const EntityHealthWeightsSchema = z.object({
+  outgoingEdges: z.number(),
+  incomingEdges: z.number(),
+  codeUsage: z.number(),
+  recentActivity: z.number(),
+})
+export type EntityHealthWeights = z.infer<typeof EntityHealthWeightsSchema>
+
+export const CLIHealthConfigSchema = z.object({
+  neutralCommands: z.array(z.string()),
+  externalToolScore: z.number(),
+  scenarioFallbackScore: z.number(),
+})
+export type CLIHealthConfig = z.infer<typeof CLIHealthConfigSchema>
+
+export const GraphHealthConfigSchema = z.object({
+  team: EntityHealthWeightsSchema,
+  agent: EntityHealthWeightsSchema,
+  skill: EntityHealthWeightsSchema,
+  cli: CLIHealthConfigSchema,
+})
+export type GraphHealthConfig = z.infer<typeof GraphHealthConfigSchema>
+
 export const GraphNodeSchema = z.object({
   id: z.string(),
   type: NodeTypeSchema,
@@ -141,3 +164,6 @@ export type GraphHealthResponse = z.infer<typeof GraphHealthResponseSchema>
 
 export const NodeHealthResponseSchema = HealthScoreSchema
 export type NodeHealthResponse = z.infer<typeof NodeHealthResponseSchema>
+
+export const GraphHealthConfigResponseSchema = GraphHealthConfigSchema
+export type GraphHealthConfigResponse = z.infer<typeof GraphHealthConfigResponseSchema>

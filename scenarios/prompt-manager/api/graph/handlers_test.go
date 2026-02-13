@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -548,5 +549,76 @@ func TestGetHealthScores_Empty(t *testing.T) {
 	}
 	if len(scores) != 0 {
 		t.Errorf("expected 0 scores, got %d", len(scores))
+	}
+}
+
+func TestGetHealthConfig_Success(t *testing.T) {
+	cfg := DefaultHealthConfig()
+	h := NewHandlers(
+		&mockGraphIndexProvider{idx: testIndex(nil, nil, nil)},
+		&mockHealthConfigStore{cfg: cfg},
+	)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1/graph/health-config", nil)
+	h.GetHealthConfig(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+
+	var got HealthConfig
+	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode error: %v", err)
+	}
+	if got.Team.OutgoingEdges != cfg.Team.OutgoingEdges {
+		t.Fatalf("expected team outgoing %f, got %f", cfg.Team.OutgoingEdges, got.Team.OutgoingEdges)
+	}
+}
+
+func TestPutHealthConfig_Success(t *testing.T) {
+	idx := &mockGraphIndexProvider{idx: testIndex(nil, nil, nil)}
+	cfgStore := &mockHealthConfigStore{cfg: DefaultHealthConfig()}
+	h := NewHandlers(idx, cfgStore)
+
+	body := `{
+		"team":{"outgoingEdges":0.9,"incomingEdges":1,"codeUsage":0.5,"recentActivity":0.5},
+		"agent":{"outgoingEdges":1,"incomingEdges":1,"codeUsage":0.5,"recentActivity":0.5},
+		"skill":{"outgoingEdges":1,"incomingEdges":1,"codeUsage":0.5,"recentActivity":0.5},
+		"cli":{"neutralCommands":["vrooli"],"externalToolScore":0,"scenarioFallbackScore":0}
+	}`
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("PUT", "/api/v1/graph/health-config", strings.NewReader(body))
+	h.PutHealthConfig(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d (%s)", rr.Code, rr.Body.String())
+	}
+	if cfgStore.lastPut == nil {
+		t.Fatalf("expected config to be saved")
+	}
+	if cfgStore.lastPut.Team.OutgoingEdges != 0.9 {
+		t.Fatalf("expected updated outgoingEdges, got %f", cfgStore.lastPut.Team.OutgoingEdges)
+	}
+}
+
+func TestPutHealthConfig_ValidationError(t *testing.T) {
+	h := NewHandlers(
+		&mockGraphIndexProvider{idx: testIndex(nil, nil, nil)},
+		&mockHealthConfigStore{cfg: DefaultHealthConfig()},
+	)
+
+	body := `{
+		"team":{"outgoingEdges":0,"incomingEdges":0,"codeUsage":0,"recentActivity":0},
+		"agent":{"outgoingEdges":1,"incomingEdges":1,"codeUsage":0.5,"recentActivity":0.5},
+		"skill":{"outgoingEdges":1,"incomingEdges":1,"codeUsage":0.5,"recentActivity":0.5},
+		"cli":{"neutralCommands":["vrooli"],"externalToolScore":0,"scenarioFallbackScore":0}
+	}`
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("PUT", "/api/v1/graph/health-config", strings.NewReader(body))
+	h.PutHealthConfig(rr, req)
+
+	if rr.Code != 400 {
+		t.Fatalf("expected 400, got %d", rr.Code)
 	}
 }

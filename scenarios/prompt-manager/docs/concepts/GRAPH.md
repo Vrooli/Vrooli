@@ -112,6 +112,16 @@ Team/Agent/Skill nodes receive a composite health score (0.0–1.0) computed as 
 score = (factor₁ × weight₁ + factor₂ × weight₂ + ...) / Σ weights
 ```
 
+### Configurable Weights (Per Entity Type)
+
+Weights are configurable per `team`, `agent`, and `skill` in:
+
+`store/config/graph-health.json`
+
+The Graph View `Settings -> Health` tab provides:
+- **Live unsaved preview**: draft slider changes immediately update rendered node health without writing files.
+- **Save + Recompute**: persists to `store/config/graph-health.json` and refreshes graph health from backend.
+
 ### CLI Health Policy
 
 CLI nodes intentionally use a different policy from Team/Agent/Skill health factors:
@@ -119,6 +129,11 @@ CLI nodes intentionally use a different policy from Team/Agent/Skill health fact
 - `cli:vrooli` → **neutral / unscored** (no health row)
 - Scenario CLIs (for example `cli:prompt-manager`) → score from `scenario-completeness-scoring score <scenario> --json`
 - Non-Vrooli tools/scripts (for example `cli:grep`, `cli:deploy.sh`) → score `0.0` (portability penalty)
+
+CLI policy levers are also stored in `store/config/graph-health.json`:
+- `neutralCommands`
+- `externalToolScore`
+- `scenarioFallbackScore`
 
 ## Analytical Queries
 

@@ -229,3 +229,61 @@ func TestApplyCLIHealthPolicy_ScenarioCLIProviderErrorFallsBackZero(t *testing.T
 		t.Fatalf("expected fallback score 0, got %f", got[0].Score)
 	}
 }
+
+func TestScoreAllWithConfig_UsesEntityWeights(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "team-1", Type: NodeTeam},
+			{ID: "team-2", Type: NodeTeam},
+		},
+		Edges: []Edge{
+			{From: "team-1", To: "x", Kind: EdgeMembership},
+		},
+	}
+	cfg := DefaultHealthConfig()
+	cfg.Team = HealthWeights{
+		OutgoingEdges:  2.0,
+		IncomingEdges:  0,
+		CodeUsage:      0,
+		RecentActivity: 0,
+	}
+
+	scores := ScoreAllWithConfig(g, cfg)
+	if len(scores) != 2 {
+		t.Fatalf("expected 2 scores, got %d", len(scores))
+	}
+
+	var score1, score2 float64
+	for _, hs := range scores {
+		if hs.NodeID == "team-1" {
+			score1 = hs.Score
+		}
+		if hs.NodeID == "team-2" {
+			score2 = hs.Score
+		}
+	}
+	if score1 <= score2 {
+		t.Fatalf("expected team-1 score > team-2 score, got %f <= %f", score1, score2)
+	}
+}
+
+func TestApplyCLIHealthPolicyWithConfig_UsesConfiguredExternalScore(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "cli:grep", Type: NodeCLI},
+		},
+		Edges: []Edge{
+			{From: "skill-a", To: "cli:grep", Kind: EdgeCodeUsage, Category: CodeExternalTool, Command: "grep"},
+		},
+	}
+	cfg := DefaultHealthConfig().CLI
+	cfg.ExternalToolScore = 0.25
+
+	got := ApplyCLIHealthPolicyWithConfig(context.Background(), g, nil, nil, cfg)
+	if len(got) != 1 {
+		t.Fatalf("expected one score, got %d", len(got))
+	}
+	if got[0].Score != 0.25 {
+		t.Fatalf("expected configured score 0.25, got %f", got[0].Score)
+	}
+}

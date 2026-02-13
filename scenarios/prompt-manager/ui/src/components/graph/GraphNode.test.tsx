@@ -1,6 +1,6 @@
 /**
  * Tests for GraphNode (GraphFlowNode) component.
- * Verifies shape variants, health tinting, highlight ring, and label rendering.
+ * Verifies shape variants, health tinting, query styles, and label rendering.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -20,7 +20,7 @@ function makeProps(data: Partial<GraphNodeData> = {}): { data: GraphNodeData } {
       label: 'Test Node',
       nodeType: 'agent',
       healthScore: null,
-      isHighlighted: false,
+      queryState: 'normal',
       ...data,
     },
   }
@@ -95,16 +95,15 @@ describe('GraphFlowNode', () => {
     expect(container.querySelector('.bg-emerald-500\\/20.border-emerald-300\\/80')).toBeInTheDocument()
   })
 
-  it('should show highlight ring when isHighlighted is true', () => {
-    const { container } = renderNode({ isHighlighted: true })
-    const shape = container.querySelector('.ring-primary')
-    expect(shape).toBeInTheDocument()
+  it('should use selected query styling when queryState is selected', () => {
+    const { container } = renderNode({ queryState: 'selected' })
+    expect(container.querySelector('.bg-indigo-500\\/35.border-indigo-300')).toBeInTheDocument()
   })
 
-  it('should not show highlight ring when isHighlighted is false', () => {
-    const { container } = renderNode({ isHighlighted: false })
-    const shape = container.querySelector('.ring-primary')
-    expect(shape).not.toBeInTheDocument()
+  it('should use dimmed query styling when queryState is dimmed', () => {
+    const { container } = renderNode({ queryState: 'dimmed' })
+    expect(container.querySelector('.bg-slate-700\\/15.border-slate-500\\/40')).toBeInTheDocument()
+    expect(container.querySelector('.opacity-45')).toBeInTheDocument()
   })
 
   it('should counter-rotate label inside diamond (skill)', () => {

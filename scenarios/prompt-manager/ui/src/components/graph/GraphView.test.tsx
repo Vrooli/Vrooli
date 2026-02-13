@@ -19,6 +19,7 @@ const MAX_RENDERS = 100
 const mockFitView = vi.fn().mockResolvedValue(true)
 const mockSetViewport = vi.fn().mockResolvedValue(true)
 const mockGetViewport = vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 })
+const mockFlowToScreenPosition = vi.fn().mockReturnValue({ x: 100, y: 100 })
 let latestReactFlowProps: Record<string, unknown> | null = null
 
 // Mock graph data matching the real API shape
@@ -155,7 +156,7 @@ vi.mock('@xyflow/react', async () => {
       fitView: mockFitView,
       setViewport: mockSetViewport,
       getViewport: mockGetViewport,
-      flowToScreenPosition: vi.fn().mockReturnValue({ x: 100, y: 100 }),
+      flowToScreenPosition: mockFlowToScreenPosition,
     }),
   }
 })
@@ -173,6 +174,7 @@ describe('GraphView', () => {
   beforeEach(() => {
     renderCount = 0
     latestReactFlowProps = null
+    mockFlowToScreenPosition.mockReturnValue({ x: 100, y: 100 })
     // Reset Zustand store state
     useGraphStore.setState({
       graph: null,
@@ -189,11 +191,14 @@ describe('GraphView', () => {
         healthThreshold: 0,
       },
       highlightedNodeIds: new Set(),
+      queryDisplayMode: 'dim-others',
       layoutDirection: 'TB',
       layoutMode: 'compact',
       fitViewRequested: 0,
       viewport: null,
     })
+    localStorage.removeItem('pm.graphViewport')
+    localStorage.removeItem('pm.graphViewSettings.v1')
     vi.clearAllMocks()
   })
 
@@ -314,7 +319,8 @@ describe('GraphView', () => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
     })
 
-    const flowEdges = ((latestReactFlowProps?.edges as unknown[]) ?? []) as Array<{
+    const flowProps = latestReactFlowProps as Record<string, unknown>
+    const flowEdges = (flowProps.edges as unknown[]) as Array<{
       selectable?: boolean
       focusable?: boolean
       style?: { pointerEvents?: string }
@@ -339,6 +345,72 @@ describe('GraphView', () => {
     })
 
     expect(mockSetViewport).toHaveBeenCalledWith({ x: 120, y: 80, zoom: 0.75 }, { duration: 0 })
+  })
+
+  it('should clamp desktop popover position to viewport bounds', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+    mockFlowToScreenPosition.mockReturnValue({ x: 2000, y: -500 })
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    const flowProps = latestReactFlowProps as Record<string, unknown>
+    const onNodeClick = flowProps.onNodeClick as (event: unknown, node: { id: string; position: { x: number; y: number } }) => void
+
+    act(() => {
+      onNodeClick({}, { id: 'agent-1', position: { x: 0, y: 0 } })
+    })
+
+    const popover = await screen.findByTestId('graph-node-popover-desktop')
+    expect(popover).toHaveStyle({ left: '736px', top: '8px' })
+  })
+
+  it('should hide non-selected query results when hide-others mode is active', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+
+    useGraphStore.setState({
+      highlightedNodeIds: new Set(['agent-1']),
+      queryDisplayMode: 'hide-others',
+    })
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('node-count')).toHaveTextContent('1 nodes')
+    const flowProps = latestReactFlowProps as Record<string, unknown>
+    const flowNodes = (flowProps.nodes as unknown[]) as Array<{ data?: { queryState?: string } }>
+    expect(flowNodes).toHaveLength(1)
+    expect(flowNodes[0]?.data?.queryState).toBe('selected')
+  })
+
+  it('should dim non-selected nodes when dim-others mode is active', async () => {
+    const mockGetGraph = vi.mocked(getGraph)
+    mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+
+    useGraphStore.setState({
+      highlightedNodeIds: new Set(['agent-1']),
+      queryDisplayMode: 'dim-others',
+    })
+
+    render(<GraphView />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+    })
+
+    const flowProps = latestReactFlowProps as Record<string, unknown>
+    const flowNodes = (flowProps.nodes as unknown[]) as Array<{ id: string; data?: { queryState?: string } }>
+    expect(flowNodes).toHaveLength(4)
+    expect(flowNodes.find((node) => node.id === 'agent-1')?.data?.queryState).toBe('selected')
+    expect(flowNodes.find((node) => node.id === 'team-1')?.data?.queryState).toBe('dimmed')
   })
 
   it('should toggle between visual and JSON modes', async () => {

@@ -43,6 +43,7 @@ import {
   PopularityResponseSchema,
   CircularRefResponseSchema,
   GraphHealthResponseSchema,
+  GraphHealthConfigResponseSchema,
   AgentSchema,
   AgentArraySchema,
   SoulResponseSchema,
@@ -88,6 +89,7 @@ import {
   type CircularRefResponse,
   type GraphHealthResponse,
   type NodeHealthResponse,
+  type GraphHealthConfigResponse,
   type Agent,
   type CreateAgentRequest,
   type UpdateAgentRequest,
@@ -939,6 +941,25 @@ class ApiClient {
       '/graph/health',
       undefined,
       GraphHealthResponseSchema
+    )
+  }
+
+  async getGraphHealthConfig(): Promise<GraphHealthConfigResponse> {
+    return this.request<GraphHealthConfigResponse>(
+      '/graph/health-config',
+      undefined,
+      GraphHealthConfigResponseSchema
+    )
+  }
+
+  async setGraphHealthConfig(config: GraphHealthConfigResponse): Promise<GraphHealthConfigResponse> {
+    return this.request<GraphHealthConfigResponse>(
+      '/graph/health-config',
+      {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      },
+      GraphHealthConfigResponseSchema
     )
   }
 

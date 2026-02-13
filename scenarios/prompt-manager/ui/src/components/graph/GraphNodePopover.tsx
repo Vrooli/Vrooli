@@ -35,17 +35,24 @@ interface GraphNodePopoverProps {
   screenY: number
   onClose: () => void
   onNavigate: () => void
+  variant?: 'desktop' | 'mobile'
 }
 
-export function GraphNodePopover({
+function GraphNodeDetails({
   node,
   healthScore,
   edges,
-  screenX,
-  screenY,
   onClose,
   onNavigate,
-}: GraphNodePopoverProps) {
+  variant,
+}: {
+  node: GraphNode
+  healthScore?: HealthScore | null
+  edges: GraphEdge[]
+  onClose: () => void
+  onNavigate: () => void
+  variant: 'desktop' | 'mobile'
+}) {
   const badge = TYPE_BADGES[node.type] ?? { label: node.type, className: 'bg-muted text-muted-foreground border-border' }
 
   // Group edges by kind with counts
@@ -61,11 +68,9 @@ export function GraphNodePopover({
   }
 
   return (
-    <div
-      className="fixed z-[100] w-[280px] bg-popover border border-border rounded-lg shadow-xl text-popover-foreground text-xs"
-      style={{ left: screenX + 16, top: screenY - 8 }}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <>
+      {variant === 'mobile' && <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-slate-600/80" />}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-2 px-3 pt-3 pb-2">
         <div className="min-w-0">
@@ -164,6 +169,57 @@ export function GraphNodePopover({
           </button>
         </div>
       )}
+    </>
+  )
+}
+
+export function GraphNodePopover({
+  node,
+  healthScore,
+  edges,
+  screenX,
+  screenY,
+  onClose,
+  onNavigate,
+  variant = 'desktop',
+}: GraphNodePopoverProps) {
+  if (variant === 'mobile') {
+    return (
+      <>
+        <div data-testid="graph-node-popover-backdrop" className="fixed inset-0 z-[100] bg-black/50 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200" onClick={onClose} />
+        <div
+          data-testid="graph-node-popover-mobile"
+          className="fixed inset-x-0 bottom-0 z-[101] max-h-[80vh] overflow-y-auto rounded-t-2xl border border-border bg-popover text-popover-foreground text-xs shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-bottom-6 motion-safe:fade-in-0 motion-safe:duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GraphNodeDetails
+            node={node}
+            healthScore={healthScore}
+            edges={edges}
+            onClose={onClose}
+            onNavigate={onNavigate}
+            variant={variant}
+          />
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <div
+      data-testid="graph-node-popover-desktop"
+      className="fixed z-[100] w-[280px] bg-popover border border-border rounded-lg shadow-xl text-popover-foreground text-xs motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-150"
+      style={{ left: screenX, top: screenY }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <GraphNodeDetails
+        node={node}
+        healthScore={healthScore}
+        edges={edges}
+        onClose={onClose}
+        onNavigate={onNavigate}
+        variant={variant}
+      />
     </div>
   )
 }
