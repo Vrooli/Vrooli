@@ -1,7 +1,7 @@
 // Package scenarios provides HTTP handlers for scenario catalog management.
 //
 // Scenarios are sourced from the Vrooli CLI (vrooli scenario list), then enriched
-// with local metadata (priority, greenfield toggle, recommendations enablement).
+// with local metadata (priority, greenfield toggle).
 // This handler provides read and update access to the scenario catalog with optional
 // filtering, search, and metadata management.
 //
@@ -98,24 +98,22 @@ func normalizePreserveFilesRequest(req *apipb.PreserveFilesRequest) {
 
 // Scenario represents a deployed application in the Vrooli ecosystem.
 // [REQ:REQ-P0-006] Scenario data structure for catalog listing
-// [REQ:REQ-P0-007] Includes metadata for greenfield toggle and recommendations
+// [REQ:REQ-P0-007] Includes metadata for greenfield toggle
 type Scenario struct {
-	Name                   string         `json:"name"`
-	DisplayName            string         `json:"displayName"`
-	Description            string         `json:"description"`
-	Status                 ScenarioStatus `json:"status"`
-	Priority               int            `json:"priority"`
-	CompletenessScore      *int           `json:"completenessScore,omitempty"`
-	IsGreenfield           bool           `json:"isGreenfield"`
-	Tags                   []string       `json:"tags"`
-	RecommendationsEnabled bool           `json:"recommendationsEnabled"`
+	Name              string         `json:"name"`
+	DisplayName       string         `json:"displayName"`
+	Description       string         `json:"description"`
+	Status            ScenarioStatus `json:"status"`
+	Priority          int            `json:"priority"`
+	CompletenessScore *int           `json:"completenessScore,omitempty"`
+	IsGreenfield      bool           `json:"isGreenfield"`
+	Tags              []string       `json:"tags"`
 }
 
 // ScenarioMetadata stores editable scenario settings in a local JSON file.
 // [REQ:REQ-P0-007] Persistent metadata for scenario management
 type ScenarioMetadata struct {
-	IsGreenfield           bool `json:"isGreenfield"`
-	RecommendationsEnabled bool `json:"recommendationsEnabled"`
+	IsGreenfield bool `json:"isGreenfield"`
 }
 
 // Handler provides HTTP handlers for scenario operations.
@@ -172,7 +170,7 @@ func NewHandlerWithDeps(scenariosDir string, source Source, lifecycle Lifecycle,
 	}
 }
 
-// LoadAll exposes scenario listing for non-HTTP consumers (recommendations engine).
+// LoadAll exposes scenario listing for non-HTTP consumers.
 // This keeps data access centralized in the scenarios package.
 func (h *Handler) LoadAll() ([]Scenario, error) {
 	return h.loadAllScenarios(context.Background())
@@ -190,15 +188,14 @@ func scenarioToProto(s Scenario) *domainpb.Scenario {
 		completeness = &value
 	}
 	return &domainpb.Scenario{
-		Name:                   s.Name,
-		DisplayName:            s.DisplayName,
-		Description:            s.Description,
-		Status:                 string(s.Status),
-		Priority:               int32(s.Priority),
-		CompletenessScore:      completeness,
-		IsGreenfield:           s.IsGreenfield,
-		Tags:                   s.Tags,
-		RecommendationsEnabled: s.RecommendationsEnabled,
+		Name:              s.Name,
+		DisplayName:       s.DisplayName,
+		Description:       s.Description,
+		Status:            string(s.Status),
+		Priority:          int32(s.Priority),
+		CompletenessScore: completeness,
+		IsGreenfield:      s.IsGreenfield,
+		Tags:              s.Tags,
 	}
 }
 
@@ -477,7 +474,6 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 //
 // This endpoint allows toggling:
 //   - isGreenfield: Whether the scenario is treated as a new project
-//   - recommendationsEnabled: Whether the recommendation engine can suggest improvements
 //
 // Metadata is stored in .vrooli/metadata.json within the scenario directory.
 func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
@@ -516,7 +512,8 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 		metadata.IsGreenfield = *req.IsGreenfield
 	}
 	if req.RecommendationsEnabled != nil {
-		metadata.RecommendationsEnabled = *req.RecommendationsEnabled
+		httputil.BadRequest(w, "[scenarios] update", "recommendationsEnabled is no longer supported")
+		return
 	}
 
 	// Save updated metadata
@@ -533,7 +530,7 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	applyCompletenessScore(&scenario, h.getCompletenessScores(r.Context()))
 
-	log.Printf("[scenarios] updated: %q (isGreenfield=%v, recommendationsEnabled=%v)", name, scenario.IsGreenfield, scenario.RecommendationsEnabled)
+	log.Printf("[scenarios] updated: %q (isGreenfield=%v)", name, scenario.IsGreenfield)
 	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[scenarios] update", "failed to encode response")
@@ -621,8 +618,7 @@ func (h *Handler) loadMetadata(scenarioPath string) (ScenarioMetadata, bool, err
 		if os.IsNotExist(err) {
 			// Return defaults if no metadata file exists
 			return ScenarioMetadata{
-				IsGreenfield:           false,
-				RecommendationsEnabled: true, // Enabled by default
+				IsGreenfield: false,
 			}, false, nil
 		}
 		return ScenarioMetadata{}, false, err
@@ -655,7 +651,7 @@ func (h *Handler) saveMetadata(scenarioPath string, metadata ScenarioMetadata) e
 }
 
 // loadScenarioFromSource maps CLI metadata into a Scenario enriched with local data.
-// [REQ:REQ-P0-007] Includes metadata for greenfield and recommendations settings
+// [REQ:REQ-P0-007] Includes metadata for greenfield settings
 func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error) {
 	name := strings.TrimSpace(source.Name)
 	if name == "" {
@@ -695,8 +691,7 @@ func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error
 	if err != nil {
 		log.Printf("[scenarios] metadata: failed to load for %q: %v", name, err)
 		metadata = ScenarioMetadata{
-			IsGreenfield:           false,
-			RecommendationsEnabled: true,
+			IsGreenfield: false,
 		}
 		metaExists = false
 	}
@@ -708,14 +703,13 @@ func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error
 	}
 
 	return Scenario{
-		Name:                   name,
-		DisplayName:            displayName,
-		Description:            description,
-		Status:                 status,
-		Priority:               priority,
-		IsGreenfield:           isGreenfield,
-		RecommendationsEnabled: metadata.RecommendationsEnabled,
-		Tags:                   tags,
+		Name:         name,
+		DisplayName:  displayName,
+		Description:  description,
+		Status:       status,
+		Priority:     priority,
+		IsGreenfield: isGreenfield,
+		Tags:         tags,
 	}, nil
 }
 
@@ -909,7 +903,7 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 // [REQ:REQ-P0-008] Archive functionality for scenario preservation
 // Returns the idea name and list of preserved files.
 func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, preserveFiles *apipb.PreserveFilesRequest) (string, []string, error) {
-	ideaRoot, err := deriveBacklogIdeasRoot(scenarioPath)
+	ideaRoot, err := h.deriveBacklogIdeasRoot(scenarioPath)
 	if err != nil {
 		return "", nil, err
 	}
@@ -923,17 +917,35 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 		return "", nil, err
 	}
 
+	// Copy preserved files before writing spec so we can include exact provenance.
+	preservedFiles := []string{}
+	if preserveFiles != nil {
+		preserved, err := copyPreservedFiles(scenarioPath, ideaDir, preserveFiles)
+		if err != nil {
+			log.Printf("[scenarios] archive: warning: failed to copy some preserved files: %v", err)
+			// Continue with what we have, don't fail the entire archive
+		}
+		preservedFiles = preserved
+	}
+
 	// Create spec.json with scenario metadata
 	now := time.Now().UTC().Format(time.RFC3339)
 	spec := map[string]interface{}{
-		"name":        ideaName,
-		"title":       "[Archived] " + scenario.DisplayName,
-		"description": scenario.Description,
-		"status":      "archived",
-		"priority":    scenario.Priority,
-		"tags":        append(scenario.Tags, "archived", "from-scenario"),
-		"created":     now,
-		"updated":     now,
+		"name":                   ideaName,
+		"title":                  "[Archived] " + scenario.DisplayName,
+		"description":            scenario.Description,
+		"status":                 "archived",
+		"priority":               scenario.Priority,
+		"tags":                   append(scenario.Tags, "archived", "from-scenario"),
+		"created":                now,
+		"updated":                now,
+		"sourceScenarioName":     scenario.Name,
+		"sourceScenarioPath":     filepath.Clean(scenarioPath),
+		"archivedAt":             now,
+		"archivedBy":             archiveActor(),
+		"archiveReason":          "scenario deleted with archive=true",
+		"preservedFiles":         preservedFiles,
+		"preservePresetOrCustom": preservePresetOrCustom(preserveFiles),
 	}
 
 	data, err := json.MarshalIndent(spec, "", "  ")
@@ -944,17 +956,6 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 	specPath := filepath.Join(ideaDir, "spec.json")
 	if err := os.WriteFile(specPath, data, 0o644); err != nil {
 		return "", nil, err
-	}
-
-	// Copy preserved files if specified
-	var preservedFiles []string
-	if preserveFiles != nil {
-		preserved, err := copyPreservedFiles(scenarioPath, ideaDir, preserveFiles)
-		if err != nil {
-			log.Printf("[scenarios] archive: warning: failed to copy some preserved files: %v", err)
-			// Continue with what we have, don't fail the entire archive
-		}
-		preservedFiles = preserved
 	}
 
 	return ideaName, preservedFiles, nil
@@ -980,10 +981,15 @@ func copyPreservedFiles(scenarioPath, ideaDir string, preserveFiles *apipb.Prese
 	// Deduplicate patterns
 	seen := make(map[string]bool)
 	uniquePatterns := make([]string, 0, len(patterns))
-	for _, p := range patterns {
-		if !seen[p] {
-			seen[p] = true
-			uniquePatterns = append(uniquePatterns, p)
+	for _, pattern := range patterns {
+		normalized, err := normalizeArchiveRelativePath(pattern)
+		if err != nil {
+			log.Printf("[scenarios] archive: warning: skipping invalid preserve path %q: %v", pattern, err)
+			continue
+		}
+		if !seen[normalized] {
+			seen[normalized] = true
+			uniquePatterns = append(uniquePatterns, normalized)
 		}
 	}
 
@@ -1029,14 +1035,19 @@ func copyPreservedFiles(scenarioPath, ideaDir string, preserveFiles *apipb.Prese
 
 // resolveGlobPattern expands a glob pattern relative to a base directory.
 func resolveGlobPattern(baseDir, pattern string) ([]string, error) {
+	normalizedPattern, err := normalizeArchiveRelativePath(pattern)
+	if err != nil {
+		return nil, err
+	}
+
 	// Handle exact file matches first
-	exactPath := filepath.Join(baseDir, pattern)
+	exactPath := filepath.Join(baseDir, normalizedPattern)
 	if info, err := os.Stat(exactPath); err == nil && !info.IsDir() {
-		return []string{pattern}, nil
+		return []string{normalizedPattern}, nil
 	}
 
 	// Use doublestar for ** glob support
-	fullPattern := filepath.Join(baseDir, pattern)
+	fullPattern := filepath.Join(baseDir, normalizedPattern)
 	matches, err := doublestar.FilepathGlob(fullPattern)
 	if err != nil {
 		return nil, err
@@ -1053,10 +1064,32 @@ func resolveGlobPattern(baseDir, pattern string) ([]string, error) {
 		if err != nil {
 			continue
 		}
-		result = append(result, relPath)
+		normalizedRelPath, err := normalizeArchiveRelativePath(relPath)
+		if err != nil {
+			continue
+		}
+		result = append(result, normalizedRelPath)
 	}
 
 	return result, nil
+}
+
+func normalizeArchiveRelativePath(path string) (string, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", errors.New("path is required")
+	}
+	normalized := filepath.Clean(filepath.FromSlash(trimmed))
+	if normalized == "." {
+		return "", errors.New("path must reference a file")
+	}
+	if filepath.IsAbs(normalized) {
+		return "", errors.New("path must be relative")
+	}
+	if normalized == ".." || strings.HasPrefix(normalized, ".."+string(filepath.Separator)) {
+		return "", errors.New("path traversal is not allowed")
+	}
+	return normalized, nil
 }
 
 // copyFile copies a file from src to dst, creating parent directories as needed.
@@ -1131,11 +1164,38 @@ func applyCompletenessScore(scenario *Scenario, scores map[string]int) {
 	scenario.CompletenessScore = &score
 }
 
-func deriveBacklogIdeasRoot(scenarioPath string) (string, error) {
-	// Use the same relative path that the backlog handler uses.
-	// The backlog handler defaults to "scenarios/swarm-manager" as rootDir,
-	// so we return the ideas subdirectory relative to the API working directory.
-	return filepath.Join("scenarios", "swarm-manager", "ideas"), nil
+func (h *Handler) deriveBacklogIdeasRoot(scenarioPath string) (string, error) {
+	trimmedScenarioPath := strings.TrimSpace(scenarioPath)
+	if trimmedScenarioPath != "" {
+		return filepath.Join(filepath.Dir(trimmedScenarioPath), "swarm-manager", "ideas"), nil
+	}
+
+	baseDir := strings.TrimSpace(h.scenariosDir)
+	if baseDir == "" {
+		baseDir = "scenarios"
+	}
+	return filepath.Join(baseDir, "swarm-manager", "ideas"), nil
+}
+
+func preservePresetOrCustom(preserveFiles *apipb.PreserveFilesRequest) string {
+	if preserveFiles == nil {
+		return "none"
+	}
+	if len(preserveFiles.Paths) > 0 {
+		return "custom"
+	}
+	if preserveFiles.Preset != nil && strings.TrimSpace(*preserveFiles.Preset) != "" {
+		return "preset:" + strings.ToLower(strings.TrimSpace(*preserveFiles.Preset))
+	}
+	return "none"
+}
+
+func archiveActor() string {
+	actor := strings.TrimSpace(os.Getenv("USER"))
+	if actor == "" {
+		return "swarm-manager-api"
+	}
+	return actor
 }
 
 // hasAnyTag checks if the scenario has any of the filter tags.

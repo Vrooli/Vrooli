@@ -110,7 +110,7 @@ func TestBacklogCommandsRegistered(t *testing.T) {
 	}
 }
 
-// Test scenario and recommendation commands are registered.
+// Test scenario/settings/queue commands are registered.
 func TestScenarioCommandsRegistered(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -123,8 +123,6 @@ func TestScenarioCommandsRegistered(t *testing.T) {
 	}{
 		{"scenarios list no-api", []string{"scenarios", "list"}},
 		{"scenarios get no-args", []string{"scenarios", "get"}},
-		{"recommendations list no-api", []string{"recommendations", "list"}},
-		{"recommendations update no-args", []string{"recommendations", "update"}},
 		{"settings get no-api", []string{"settings", "get"}},
 		{"queue list no-api", []string{"queue", "list"}},
 	}
@@ -267,7 +265,7 @@ func TestCmdBacklogQueueValidation(t *testing.T) {
 		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 
-	err = app.cmdBacklogQueue([]string{"idea", "item-name", "invalid"})
+	err = app.cmdBacklogQueue([]string{"--operation", "invalid", "idea", "item-name"})
 	if err == nil {
 		t.Error("cmdBacklogQueue with invalid operation should return error")
 	}
@@ -369,29 +367,6 @@ func TestCmdScenariosGetValidation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "usage") {
 		t.Errorf("Error should contain 'usage', got: %v", err)
-	}
-}
-
-func TestCmdRecommendationsUpdateValidation(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() returned error: %v", err)
-	}
-
-	err = app.cmdRecommendationsUpdate([]string{})
-	if err == nil {
-		t.Error("cmdRecommendationsUpdate with no args should return error")
-	}
-	if !strings.Contains(err.Error(), "usage") {
-		t.Errorf("Error should contain 'usage', got: %v", err)
-	}
-
-	err = app.cmdRecommendationsUpdate([]string{"rec-1", "bad"})
-	if err == nil {
-		t.Error("cmdRecommendationsUpdate with invalid status should return error")
-	}
-	if !strings.Contains(err.Error(), "invalid status") {
-		t.Errorf("Error should contain 'invalid status', got: %v", err)
 	}
 }
 

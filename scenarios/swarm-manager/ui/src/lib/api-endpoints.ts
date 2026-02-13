@@ -27,11 +27,13 @@ export const API_ENDPOINTS = {
   scenarioStart: (name: string) => `/scenarios/${name}/start`,
   scenarioStop: (name: string) => `/scenarios/${name}/stop`,
   scenarioRestart: (name: string) => `/scenarios/${name}/restart`,
-  recommendations: "/recommendations",
-  recommendationsRefresh: "/recommendations/refresh",
-  recommendationsStart: (id: string) => `/recommendations/${id}/start`,
   agentManagerStatus: "/agent-manager/status",
   settings: "/settings",
+  execution: "/execution",
+  executionById: (executionId: string) => `/execution/${executionId}`,
+  executionStart: (executionId: string) => `/execution/${executionId}/start`,
+  executionCancel: (executionId: string) => `/execution/${executionId}/cancel`,
+  executionRetry: (executionId: string) => `/execution/${executionId}/retry`,
   health: "/health",
 } as const;
 

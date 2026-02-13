@@ -24,25 +24,9 @@ describe("MainLayout", () => {
     vi.clearAllMocks();
     vi.mocked(settingsService.get).mockResolvedValue({
       theme: "dark",
-      recommendationMode: "off",
       customFocus: "",
       insightsEnabled: false,
       insightsAutoAnalyze: false,
-      recommendationSources: {
-        problems: true,
-        completeness: true,
-        tests: true,
-        coverage: true,
-        customFocus: true,
-        scenarioNotes: true,
-      },
-      recommendationAutoSync: {
-        enabled: false,
-        interval: "1h",
-        lastRefresh: "",
-        nextRefresh: "",
-        refreshScope: "manual",
-      },
     });
   });
 
@@ -66,7 +50,7 @@ describe("MainLayout", () => {
     // Check all tabs exist
     expect(screen.getByTestId("tab-backlog")).toBeInTheDocument();
     expect(screen.getByTestId("tab-scenarios")).toBeInTheDocument();
-    expect(screen.getByTestId("tab-recommendations")).toBeInTheDocument();
+    expect(screen.getByTestId("tab-execution")).toBeInTheDocument();
     expect(screen.getByTestId("tab-settings")).toBeInTheDocument();
   });
 
@@ -79,7 +63,7 @@ describe("MainLayout", () => {
     // Check all mobile tabs exist
     expect(screen.getByTestId("mobile-tab-backlog")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-scenarios")).toBeInTheDocument();
-    expect(screen.getByTestId("mobile-tab-recommendations")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-tab-execution")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-settings")).toBeInTheDocument();
   });
 

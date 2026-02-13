@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -219,6 +220,53 @@ func (c *HTTPClient) CreateRun(ctx context.Context, req *apipb.CreateRunRequest)
 		return nil, fmt.Errorf("%w: missing run id", ErrRequestFailed)
 	}
 	return result.Run, nil
+}
+
+// GetRun retrieves a run by ID.
+func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(trimmed), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
+	}
+
+	var result apipb.GetRunResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	if result.Run == nil || strings.TrimSpace(result.Run.Id) == "" {
+		return nil, fmt.Errorf("%w: missing run id", ErrRequestFailed)
+	}
+	return result.Run, nil
+}
+
+// StopRun stops a running run by ID.
+func (c *HTTPClient) StopRun(ctx context.Context, runID string) error {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs/"+url.PathEscape(trimmed)+"/stop", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
+	}
+
+	return nil
 }
 
 type createTaskRequest struct {

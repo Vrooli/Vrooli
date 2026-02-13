@@ -144,6 +144,7 @@ export function BacklogDetailsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showAgentDialog, setShowAgentDialog] = useState(false);
+  const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
   const [previewResetKey, setPreviewResetKey] = useState(0);
 
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
@@ -262,9 +263,13 @@ export function BacklogDetailsPage() {
   }, [queryClient, backlogKind, name]);
 
   const queueMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: ({ mode, delaySeconds }: { mode: "manual" | "scheduled" | "yolo"; delaySeconds?: number }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.queue(backlogKind, name);
+      return backlogService.queue(backlogKind, name, {
+        mode,
+        delaySeconds,
+        startedBy: "swarm-manager-ui",
+      });
     },
     onSuccess: (result) => {
       if (!backlogKind || !name) return;
@@ -545,7 +550,8 @@ export function BacklogDetailsPage() {
 
   const HeaderIcon = backlogKind === "research" ? Search : backlogKind === "fix" ? Wrench : Play;
   const agentLabel = item?.kind === "idea" ? "Idea Agent" : item?.kind === "research" ? "Research Agent" : "Research";
-  const queueLabel = item?.kind === "fix" ? "Apply Fix" : item?.kind === "execute" ? "Execute" : "Queue for Processing";
+  const queueLabel = item?.kind === "fix" ? "Apply Fix" : item?.kind === "execute" ? "Execute" : "Queue";
+  const scheduleDelayValue = Number.isFinite(scheduleDelaySeconds) && scheduleDelaySeconds >= 0 ? scheduleDelaySeconds : 0;
   const filesButton = (
     <Button
       variant="outline"
@@ -727,20 +733,44 @@ export function BacklogDetailsPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 {canQueue && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => queueMutation.mutate()}
-                    disabled={queueMutation.isPending}
-                    data-testid={selectors.backlogDetails.queueButton}
-                  >
-                    {queueMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <HeaderIcon className="mr-2 h-4 w-4" />
-                    )}
-                    {queueMutation.isPending ? "Queueing..." : queueLabel}
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => queueMutation.mutate({ mode: "manual" })}
+                      disabled={queueMutation.isPending}
+                      data-testid={selectors.backlogDetails.queueButton}
+                    >
+                      {queueMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HeaderIcon className="mr-2 h-4 w-4" />}
+                      Queue
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => queueMutation.mutate({ mode: "yolo" })}
+                      disabled={queueMutation.isPending}
+                    >
+                      {queueMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                      Start Now
+                    </Button>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={scheduleDelayValue}
+                      onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
+                      className="h-9 w-24"
+                      aria-label="Schedule delay seconds"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => queueMutation.mutate({ mode: "scheduled", delaySeconds: scheduleDelayValue })}
+                      disabled={queueMutation.isPending}
+                    >
+                      Schedule
+                    </Button>
+                  </>
                 )}
                 {canConvert && convertTarget && (
                   <Button
@@ -990,23 +1020,57 @@ export function BacklogDetailsPage() {
           >
             <div className="space-y-2">
               {canQueue && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    setShowActionsSheet(false);
-                    queueMutation.mutate();
-                  }}
-                  disabled={queueMutation.isPending}
-                >
-                  {queueMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setShowActionsSheet(false);
+                      queueMutation.mutate({ mode: "manual" });
+                    }}
+                    disabled={queueMutation.isPending}
+                  >
                     <HeaderIcon className="mr-2 h-4 w-4" />
-                  )}
-                  {queueMutation.isPending ? "Queueing..." : queueLabel}
-                </Button>
+                    Queue
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setShowActionsSheet(false);
+                      queueMutation.mutate({ mode: "yolo" });
+                    }}
+                    disabled={queueMutation.isPending}
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Now
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={scheduleDelayValue}
+                      onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
+                      className="h-9 flex-1"
+                      aria-label="Schedule delay seconds"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => {
+                        setShowActionsSheet(false);
+                        queueMutation.mutate({ mode: "scheduled", delaySeconds: scheduleDelayValue });
+                      }}
+                      disabled={queueMutation.isPending}
+                    >
+                      Schedule
+                    </Button>
+                  </div>
+                </div>
               )}
               {canConvert && convertTarget && (
                 <Button

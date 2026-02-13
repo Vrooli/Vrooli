@@ -15,12 +15,7 @@ import type {
   BacklogFile as ProtoBacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
 import type { Scenario as ProtoScenario } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
-import type { Recommendation as ProtoRecommendation } from "@vrooli/proto-types/swarm-manager/v1/domain/recommendation_pb";
-import type {
-  Settings as ProtoSettings,
-  RecommendationSources as ProtoRecommendationSources,
-  RecommendationAutoSync as ProtoRecommendationAutoSync,
-} from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
+import type { Settings as ProtoSettings } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type {
   ScenarioFile as ProtoScenarioFile,
   PreserveFilesRequest as ProtoPreserveFilesRequest,
@@ -160,16 +155,16 @@ export type ScenarioStatus = "running" | "stopped" | "error" | "unknown";
 
 /**
  * A scenario represents a deployed application in the Vrooli ecosystem.
- * [REQ:REQ-P0-007] Includes metadata for greenfield toggle and recommendations
+ * [REQ:REQ-P0-007] Includes metadata for greenfield toggle
  */
-export type Scenario = Omit<ProtoMessage<ProtoScenario>, "status"> & {
+export type Scenario = Omit<ProtoMessage<ProtoScenario>, "status" | "recommendationsEnabled"> & {
   /** Current runtime state */
   status: ScenarioStatus;
 };
 
 /**
  * Request to update scenario metadata
- * [REQ:REQ-P0-007] Update metadata for greenfield and recommendations
+ * [REQ:REQ-P0-007] Update metadata for greenfield
  */
 export type UpdateScenarioMetadataRequest = ProtoMessage<ProtoUpdateScenarioMetadataRequest>;
 
@@ -219,21 +214,6 @@ export type DeleteScenarioRequest = Omit<ProtoMessage<ProtoDeleteScenarioRequest
  */
 export type DeleteScenarioResponse = ProtoMessage<ProtoDeleteScenarioResponse>;
 
-// ============================================================================
-// Recommendations Domain
-// ============================================================================
-
-/**
- * Valid states for a recommendation
- */
-export type RecommendationStatus = ProtoMessage<ProtoRecommendation>["status"];
-
-/**
- * A recommendation is a system-generated suggestion for improvement.
- */
-export type Recommendation = ProtoMessage<ProtoRecommendation>;
-
-// ============================================================================
 // Agent Manager Domain
 // ============================================================================
 
@@ -249,38 +229,43 @@ export type AgentManagerStatus = ProtoMessage<ProtoAgentManagerStatusResponse>;
 export type ThemePreference = "dark" | "light" | "system";
 
 /**
- * Recommendation engine operating mode
- */
-export type RecommendationMode = "off" | "suggestions" | "yolo";
-
-/**
- * Recommendation data sources configuration
- */
-export type RecommendationSources = ProtoMessage<ProtoRecommendationSources>;
-
-/**
- * Recommendation auto-sync configuration
- */
-export type RecommendationAutoSync = ProtoMessage<ProtoRecommendationAutoSync>;
-
-/**
  * User preferences and configuration
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "recommendationSources" | "recommendationAutoSync" | "recommendationMode" | "theme"
+  "theme" | "recommendationMode" | "recommendationSources" | "recommendationAutoSync"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
-  /** Recommendation engine operating mode */
-  recommendationMode: RecommendationMode;
-  /** Recommendation data sources */
-  recommendationSources: RecommendationSources;
-  /** Auto-sync for recommendation refresh */
-  recommendationAutoSync: RecommendationAutoSync;
 };
 
 /**
  * Research agent spawn response
  */
 export type ResearchResponse = ProtoMessage<ProtoBacklogResearchResponse>;
+
+// ============================================================================
+// Execution Domain
+// ============================================================================
+
+export type ExecutionStatus = "pending" | "scheduled" | "running" | "completed" | "failed" | "canceled";
+
+export type ExecutionMode = "manual" | "scheduled" | "yolo";
+
+export interface ExecutionRecord {
+  executionId: string;
+  backlogKind: BacklogKind;
+  backlogName: string;
+  taskId?: string;
+  runId?: string;
+  status: ExecutionStatus;
+  mode: ExecutionMode;
+  scheduledAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  failureReason?: string;
+  startedBy?: string;
+  operation?: "generator" | "improver";
+  createdAt: string;
+  updatedAt: string;
+}

@@ -26,7 +26,7 @@ import { BacklogPage } from "./pages/BacklogPage";
 import { BacklogDetailsPage } from "./pages/BacklogDetailsPage";
 import { ScenariosPage } from "./pages/ScenariosPage";
 import { ScenarioDetailsPage } from "./pages/ScenarioDetailsPage";
-import { RecommendationsPage } from "./pages/RecommendationsPage";
+import { ExecutionPage } from "./pages/ExecutionPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
@@ -103,10 +103,10 @@ export default function App() {
               }
             />
             <Route
-              path="recommendations"
+              path="execution"
               element={
-                <PageErrorBoundary pageName="Recommendations">
-                  <RecommendationsPage />
+                <PageErrorBoundary pageName="Execution">
+                  <ExecutionPage />
                 </PageErrorBoundary>
               }
             />

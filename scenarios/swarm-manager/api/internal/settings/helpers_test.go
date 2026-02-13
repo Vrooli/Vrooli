@@ -13,35 +13,12 @@ func TestNewStore_DefaultPath(t *testing.T) {
 	}
 }
 
-func TestNormalizeRecommendationSources(t *testing.T) {
-	if normalizeRecommendationSources(RecommendationSources{}) != DefaultRecommendationSources() {
-		t.Fatalf("expected empty sources to default")
+func TestOptionalString(t *testing.T) {
+	if optionalString("   ") != nil {
+		t.Fatal("expected empty optional string to return nil")
 	}
-
-	custom := RecommendationSources{Problems: false, Completeness: true, Tests: false, Coverage: true, CustomFocus: false, ScenarioNotes: true}
-	if normalizeRecommendationSources(custom) != custom {
-		t.Fatalf("expected non-empty sources to remain unchanged")
+	result := optionalString(" value ")
+	if result == nil || *result != "value" {
+		t.Fatalf("expected trimmed value, got %v", result)
 	}
-}
-
-func TestApplyRecommendationSources(t *testing.T) {
-	current := RecommendationSources{Problems: true, Completeness: true, Tests: true, Coverage: true, CustomFocus: true, ScenarioNotes: true}
-	patch := &RecommendationSourcesPatch{
-		Problems:      boolPtr(false),
-		Completeness:  boolPtr(false),
-		Tests:         boolPtr(false),
-		Coverage:      boolPtr(false),
-		CustomFocus:   boolPtr(false),
-		ScenarioNotes: boolPtr(false),
-	}
-
-	applyRecommendationSources(&current, patch)
-
-	if current != (RecommendationSources{}) {
-		t.Fatalf("expected all fields false, got %+v", current)
-	}
-}
-
-func boolPtr(v bool) *bool {
-	return &v
 }

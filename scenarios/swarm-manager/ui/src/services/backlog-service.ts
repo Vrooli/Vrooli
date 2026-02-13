@@ -20,7 +20,6 @@
 
 import {
   CreateBacklogItemRequestSchema,
-  QueueBacklogItemRequestSchema,
   UpdateBacklogItemRequestSchema,
   ConvertBacklogItemRequestSchema,
   BacklogResearchRequestSchema,
@@ -79,7 +78,16 @@ export interface IBacklogService {
     content: string,
     contentType?: string
   ): Promise<BacklogFile>;
-  queue(kind: BacklogKind, name: string, operation?: "generator" | "improver"): Promise<QueueResponse>;
+  queue(
+    kind: BacklogKind,
+    name: string,
+    options?: {
+      operation?: "generator" | "improver";
+      mode?: "manual" | "scheduled" | "yolo";
+      delaySeconds?: number;
+      startedBy?: string;
+    }
+  ): Promise<QueueResponse>;
   research(
     kind: BacklogKind,
     name: string,
@@ -204,10 +212,21 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
     async queue(
       kind: BacklogKind,
       name: string,
-      operation: "generator" | "improver" = "generator"
+      options?: {
+        operation?: "generator" | "improver";
+        mode?: "manual" | "scheduled" | "yolo";
+        delaySeconds?: number;
+        startedBy?: string;
+      }
     ): Promise<QueueResponse> {
-      const message = buildMessage(QueueBacklogItemRequestSchema, { operation });
-      const payload = toProtoJson(QueueBacklogItemRequestSchema, message);
+      const operation = options?.operation ?? "generator";
+      const mode = options?.mode ?? "yolo";
+      const payload = {
+        operation,
+        mode,
+        delay_seconds: options?.delaySeconds ?? 0,
+        started_by: options?.startedBy,
+      };
       const data = await apiClient.post<unknown>(API_ENDPOINTS.backlogQueue(kind, name), payload);
       const parsed = parseProtoResponse(queueBacklogResponseSchema, data, "backlog queue");
       const item = requireProtoField(parsed.item, "backlog queue");

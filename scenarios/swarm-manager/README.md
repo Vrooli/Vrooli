@@ -1,14 +1,14 @@
 # Swarm Manager
 
-Central command center for managing the Vrooli scenario ecosystem - orchestrating backlog work, scenario lifecycle, autonomous recommendations, and self-improvement insights.
+Central command center for managing the Vrooli scenario ecosystem - orchestrating backlog work, scenario lifecycle, and execution control.
 
 ## Purpose
 
 Swarm Manager is the primary interface for humans and agents to:
 - **Manage Backlog**: Create, organize, and queue research, ideas, fixes, and execution tasks
 - **Control Scenarios**: View, configure, and manage the lifecycle of all scenarios
-- **Configure Recommendations**: Set up autonomous improvement recommendations (off/suggestions/yolo)
-- **Track Progress**: Monitor scenario health, completeness, and test results
+- **Control Execution**: Run backlog items in manual, scheduled, or YOLO mode
+- **Track Progress**: Monitor scenario health and execution runs
 
 ## Architecture
 
@@ -51,8 +51,8 @@ make stop
 
 1. **Backlog** - Tabbed backlog for research, ideas, fixes, and execution
 2. **Scenarios** - Grid of scenario cards with search/filter, click for lifecycle controls
-3. **Recommendations** - Pending recommendations + engine mode controls
-4. **Settings** - Theme, engine configs, integration status
+3. **Execution** - Pending/scheduled, running, completed, and failed runs
+4. **Settings** - Theme, focus, and insights configuration
 
 ## Backlog Structure
 
@@ -81,7 +81,7 @@ execute/
 ## Dependencies
 
 ### Required Resources
-- **None** - Filesystem persistence is used for backlog, settings, queue, and recommendations. Scenario inventory is sourced from the Vrooli CLI.
+- **None** - Filesystem persistence is used for backlog, settings, queue, and execution runs. Scenario inventory is sourced from the Vrooli CLI.
 
 ### Required Scenarios
 - **agent-manager** - Spawning agents for automated work
@@ -107,7 +107,7 @@ swarm-manager backlog get <kind> <name>
 swarm-manager backlog create '<json>'
 swarm-manager backlog update <kind> <name> '<json>'
 swarm-manager backlog delete <kind> <name>
-swarm-manager backlog queue <kind> <name> [operation]
+swarm-manager backlog queue <kind> <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver]
 swarm-manager backlog research <kind> <name> '<json>'
 swarm-manager backlog convert <kind> <name> '<json>'
 
@@ -116,10 +116,11 @@ swarm-manager scenarios get <name>
 swarm-manager scenarios update <name> '<json>'
 swarm-manager scenarios delete <name> [--archive]
 
-swarm-manager recommendations list [--status ... --scenario ... --type ...]
-swarm-manager recommendations refresh
-swarm-manager recommendations create '<json>'
-swarm-manager recommendations update <id> <status>
+swarm-manager execution list [--status ... --mode ... --started-by ...]
+swarm-manager execution get <execution-id>
+swarm-manager execution start <execution-id>
+swarm-manager execution cancel <execution-id>
+swarm-manager execution retry <execution-id>
 
 swarm-manager settings get
 swarm-manager settings update '<json>'
@@ -133,7 +134,7 @@ swarm-manager queue delete <id>
 
 - All agent work via `agent-manager` API (never direct agent calls)
 - All scenario operations via `ecosystem-manager` API
-- Recommendation engine queries dependent scenario APIs for data sources
+- Execution run orchestration via `agent-manager` APIs
 
 ## Documentation
 

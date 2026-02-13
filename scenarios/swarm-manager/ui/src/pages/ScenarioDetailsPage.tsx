@@ -3,7 +3,7 @@
  *
  * Displays detailed information about a single scenario including:
  * - Scenario metadata (name, description, status, priority, tags)
- * - Editable metadata toggles (greenfield, recommendations enabled)
+ * - Editable metadata toggle (greenfield)
  * - Deletion with confirmation dialog and archive option
  * - Navigation back to the scenarios list
  *
@@ -154,7 +154,6 @@ export function ScenarioDetailsPage() {
 
   // Local state for optimistic UI updates
   const [localGreenfield, setLocalGreenfield] = useState<boolean | null>(null);
-  const [localRecommendations, setLocalRecommendations] = useState<boolean | null>(null);
 
   // Delete dialog state
   // [REQ:REQ-P0-008] Delete confirmation dialog state
@@ -199,14 +198,13 @@ export function ScenarioDetailsPage() {
   useEffect(() => {
     if (scenario) {
       setLocalGreenfield(scenario.isGreenfield);
-      setLocalRecommendations(scenario.recommendationsEnabled);
     }
   }, [scenario]);
 
   // Update metadata mutation
   // [REQ:REQ-P0-007] PATCH endpoint for toggling metadata
   const updateMutation = useMutation({
-    mutationFn: (updates: { isGreenfield?: boolean; recommendationsEnabled?: boolean }) => {
+    mutationFn: (updates: { isGreenfield?: boolean }) => {
       if (!name) throw new Error("Name is required");
       return scenariosService.updateMetadata(name, updates);
     },
@@ -219,7 +217,6 @@ export function ScenarioDetailsPage() {
       // Revert local state on error
       if (scenario) {
         setLocalGreenfield(scenario.isGreenfield);
-        setLocalRecommendations(scenario.recommendationsEnabled);
       }
     },
   });
@@ -246,12 +243,6 @@ export function ScenarioDetailsPage() {
     const newValue = !localGreenfield;
     setLocalGreenfield(newValue);
     updateMutation.mutate({ isGreenfield: newValue });
-  };
-
-  const handleRecommendationsToggle = () => {
-    const newValue = !localRecommendations;
-    setLocalRecommendations(newValue);
-    updateMutation.mutate({ recommendationsEnabled: newValue });
   };
 
   // Delete mutation
@@ -558,31 +549,6 @@ export function ScenarioDetailsPage() {
                 </Button>
               </div>
 
-              {/* Recommendations toggle */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-slate-700/30">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-200">Recommendations</span>
-                    {localRecommendations ? (
-                      <CheckCircle2 className="h-4 w-4 text-cyan-400" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-slate-500" />
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Allow the recommendation engine to suggest improvements for this scenario
-                  </p>
-                </div>
-                <Button
-                  variant={localRecommendations ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleRecommendationsToggle}
-                  disabled={updateMutation.isPending}
-                  data-testid={selectors.scenarioDetails.recommendationsToggle}
-                >
-                  {localRecommendations ? "Enabled" : "Disabled"}
-                </Button>
-              </div>
             </div>
 
             {/* Error feedback */}

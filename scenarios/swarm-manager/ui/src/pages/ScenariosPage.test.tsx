@@ -60,7 +60,6 @@ const mockScenarios: Scenario[] = [
     completenessScore: 85,
     isGreenfield: false,
     tags: ["api", "backend", "go"],
-    recommendationsEnabled: true,
   },
   {
     name: "ui-dashboard",
@@ -71,7 +70,6 @@ const mockScenarios: Scenario[] = [
     completenessScore: 65,
     isGreenfield: false,
     tags: ["ui", "frontend", "react"],
-    recommendationsEnabled: true,
   },
   {
     name: "data-pipeline",
@@ -81,7 +79,6 @@ const mockScenarios: Scenario[] = [
     priority: 3,
     isGreenfield: true,
     tags: ["data", "etl"],
-    recommendationsEnabled: false,
   },
 ];
 

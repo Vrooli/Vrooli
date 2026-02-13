@@ -2,7 +2,6 @@ package settings
 
 import (
 	"bytes"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,18 +24,6 @@ func TestStore_SaveInvalidTheme(t *testing.T) {
 	}
 }
 
-func TestStore_SaveInvalidRecommendationMode(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "settings.json")
-	store := NewStore(path)
-
-	invalid := DefaultSettings()
-	invalid.RecommendationMode = "auto"
-
-	if err := store.Save(invalid); err == nil {
-		t.Fatalf("expected error for invalid recommendation mode")
-	}
-}
-
 func TestStore_LoadEmptyFileDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
@@ -51,23 +38,6 @@ func TestStore_LoadEmptyFileDefaults(t *testing.T) {
 
 	if settings.Theme != "dark" {
 		t.Fatalf("expected default theme dark, got %s", settings.Theme)
-	}
-}
-
-func TestStore_LoadLegacyMissingAutoSync(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "settings.json")
-	legacy := []byte(`{"theme":"dark","recommendationMode":"suggestions","recommendationSources":{"tests":true}}`)
-	if err := os.WriteFile(path, legacy, 0o644); err != nil {
-		t.Fatalf("write legacy file: %v", err)
-	}
-
-	store := NewStore(path)
-	settings, err := store.Load()
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-	if settings.RecommendationAutoSync.Interval == "" {
-		t.Fatalf("expected auto sync defaults to be applied")
 	}
 }
 
@@ -98,23 +68,12 @@ func TestHandler_UpdateRejectsInvalidTheme(t *testing.T) {
 	}
 }
 
-func TestHandler_UpdateAutoSyncAndSources(t *testing.T) {
+func TestHandler_UpdateSuccess(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	handler := &Handler{store: NewStore(path)}
 
-	payload := map[string]any{
-		"recommendationAutoSync": map[string]any{
-			"enabled":      true,
-			"interval":     " 30m ",
-			"refreshScope": " scheduled ",
-		},
-		"recommendationSources": map[string]any{
-			"coverage": false,
-		},
-	}
-	body, _ := json.Marshal(payload)
-
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewReader(body))
+	payload := []byte(`{"theme":"light","customFocus":"  reliability  ","insightsEnabled":true,"insightsAutoAnalyze":true}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewReader(payload))
 	rec := httptest.NewRecorder()
 	handler.Update(rec, req)
 
@@ -124,16 +83,16 @@ func TestHandler_UpdateAutoSyncAndSources(t *testing.T) {
 
 	response := testutil.DecodeProtoJSON(t, rec, &apipb.SettingsResponse{})
 	settings := response.GetSettings()
-	if !settings.GetRecommendationAutoSync().GetEnabled() {
-		t.Fatalf("expected auto sync enabled")
+	if settings.GetTheme() != "light" {
+		t.Fatalf("expected theme light, got %q", settings.GetTheme())
 	}
-	if settings.GetRecommendationAutoSync().GetInterval() != "30m" {
-		t.Fatalf("expected interval trimmed to 30m, got %q", settings.GetRecommendationAutoSync().GetInterval())
+	if settings.GetCustomFocus() != "reliability" {
+		t.Fatalf("expected customFocus trimmed to reliability, got %q", settings.GetCustomFocus())
 	}
-	if settings.GetRecommendationAutoSync().GetRefreshScope() != "scheduled" {
-		t.Fatalf("expected refresh scope trimmed to scheduled, got %q", settings.GetRecommendationAutoSync().GetRefreshScope())
+	if !settings.GetInsightsEnabled() {
+		t.Fatalf("expected insightsEnabled true")
 	}
-	if settings.GetRecommendationSources().GetCoverage() != false {
-		t.Fatalf("expected coverage disabled")
+	if !settings.GetInsightsAutoAnalyze() {
+		t.Fatalf("expected insightsAutoAnalyze true")
 	}
 }

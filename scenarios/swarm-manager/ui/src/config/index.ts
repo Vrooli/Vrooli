@@ -141,60 +141,6 @@ export const displayLimitsConfig = {
 } as const;
 
 // ============================================================================
-// Recommendation Engine Configuration
-// ============================================================================
-
-/**
- * Controls the behavior of the recommendation engine.
- *
- * These settings determine how aggressively the system suggests improvements
- * and how much autonomy it has.
- */
-export const recommendationConfig = {
-  /**
-   * Minimum completeness score before recommendations are generated.
-   *
-   * Impact: Lower values generate recommendations for all scenarios.
-   * Higher values focus recommendations on more mature scenarios.
-   *
-   * Default: 0 (recommend for all scenarios)
-   * Range: 0-100
-   */
-  minimumCompletenessThreshold: 0,
-
-  /**
-   * Maximum number of active recommendations per scenario.
-   *
-   * Impact: Prevents recommendation overload on struggling scenarios.
-   *
-   * Default: 5
-   * Range: 1-20
-   */
-  maxActiveRecommendationsPerScenario: 5,
-
-  /**
-   * YOLO mode safety delay in milliseconds.
-   *
-   * Impact: Even in YOLO mode, wait this long before auto-approving
-   * to allow human intervention.
-   *
-   * Default: 5000ms (5 seconds)
-   * Range: 1000-60000ms
-   */
-  yoloModeDelayMs: 5000,
-
-  /**
-   * Recommendation priority levels that auto-execute in YOLO mode.
-   *
-   * Impact: Restricts YOLO auto-approval to lower-risk recommendations.
-   * Priority 1 = highest priority, Priority 5 = lowest priority
-   *
-   * Default: [3, 4, 5] (only lower-priority recommendations auto-execute)
-   */
-  yoloModeAllowedPriorities: [3, 4, 5] as readonly number[],
-} as const;
-
-// ============================================================================
 // Insights Engine Configuration
 // ============================================================================
 
@@ -343,7 +289,6 @@ export const apiConfig = {
 export const config = {
   dataFetching: dataFetchingConfig,
   displayLimits: displayLimitsConfig,
-  recommendation: recommendationConfig,
   insights: insightsConfig,
   uiBehavior: uiBehaviorConfig,
   api: apiConfig,
@@ -355,7 +300,6 @@ export const config = {
 
 export type DataFetchingConfig = typeof dataFetchingConfig;
 export type DisplayLimitsConfig = typeof displayLimitsConfig;
-export type RecommendationConfig = typeof recommendationConfig;
 export type InsightsConfig = typeof insightsConfig;
 export type UIBehaviorConfig = typeof uiBehaviorConfig;
 export type ApiConfig = typeof apiConfig;

@@ -1,5 +1,7 @@
 # React Coherence Audit - 2026-02-05
 
+> Note (2026-02-13): Any mention of recommendations in this audit is historical context from pre-greenfield iterations.
+
 ## State Management
 
 **Current Pattern**: React Query for server state + Zustand stores for shared state.

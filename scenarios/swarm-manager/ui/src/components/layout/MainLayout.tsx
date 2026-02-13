@@ -6,7 +6,7 @@ import { selectors } from "../../consts/selectors";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { applyTheme, cn, defaultQueryOptions, watchSystemTheme } from "../../lib";
 import { settingsService } from "../../services";
-import { useBacklogStore, useRecommendationsStore, useScenariosStore } from "../../stores";
+import { useBacklogStore, useScenariosStore } from "../../stores";
 
 interface TabConfig {
   id: string;
@@ -22,7 +22,7 @@ interface TabConfig {
 const tabs: TabConfig[] = [
   { id: "backlog", label: "Backlog", icon: Lightbulb, path: "/backlog", testId: selectors.tabs.backlog, mobileTestId: selectors.mobileTabs.backlog, shortcut: "1" },
   { id: "scenarios", label: "Scenarios", icon: Package, path: "/scenarios", testId: selectors.tabs.scenarios, mobileTestId: selectors.mobileTabs.scenarios, shortcut: "2" },
-  { id: "recommendations", label: "Recommendations", icon: Zap, path: "/recommendations", testId: selectors.tabs.recommendations, mobileTestId: selectors.mobileTabs.recommendations, shortcut: "3" },
+  { id: "execution", label: "Execution", icon: Zap, path: "/execution", testId: selectors.tabs.execution, mobileTestId: selectors.mobileTabs.execution, shortcut: "3" },
   { id: "settings", label: "Settings", icon: Settings, path: "/settings", testId: selectors.tabs.settings, mobileTestId: selectors.mobileTabs.settings, shortcut: "4" },
 ];
 
@@ -39,7 +39,6 @@ export function MainLayout() {
   const navigate = useNavigate();
   const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const fetchScenarios = useScenariosStore((state) => state.fetchScenarios);
-  const fetchRecommendations = useRecommendationsStore((state) => state.fetchRecommendations);
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -64,8 +63,7 @@ export function MainLayout() {
   useEffect(() => {
     void fetchBacklog();
     void fetchScenarios();
-    void fetchRecommendations();
-  }, [fetchBacklog, fetchScenarios, fetchRecommendations]);
+  }, [fetchBacklog, fetchScenarios]);
 
   useEffect(() => {
     const theme = settings?.theme ?? "dark";

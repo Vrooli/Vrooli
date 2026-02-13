@@ -1,5 +1,7 @@
 # Temporal Flows Documentation
 
+> Note (2026-02-13): Recommendation-mode timing references in this document are historical. Execution control timing now centers on backlog execution modes (`manual`, `scheduled`, `yolo`).
+
 This document captures how the Swarm Manager handles time-based behavior—async operations, retry logic, initialization sequences, and state transitions. Understanding these flows is critical for debugging timing-related issues and making changes safely.
 
 ## Code References

@@ -101,13 +101,12 @@ export function createScenariosService(
     },
 
     /**
-     * Updates scenario metadata (greenfield toggle, recommendations enable/disable)
+     * Updates scenario metadata (greenfield toggle)
      * [REQ:REQ-P0-007] PATCH endpoint for scenario metadata management
      */
     async updateMetadata(name: string, request: UpdateScenarioMetadataRequest): Promise<Scenario> {
       const message = buildMessage(UpdateScenarioMetadataRequestSchema, {
         isGreenfield: request.isGreenfield,
-        recommendationsEnabled: request.recommendationsEnabled,
       });
       const payload = toProtoJson(UpdateScenarioMetadataRequestSchema, message);
       const data = await apiClient.patch<unknown>(API_ENDPOINTS.scenarioByName(name), payload);

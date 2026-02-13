@@ -13,12 +13,7 @@ import type {
   BacklogItem,
   BacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
-import type { Recommendation } from "@vrooli/proto-types/swarm-manager/v1/domain/recommendation_pb";
-import type {
-  RecommendationSources,
-  RecommendationAutoSync,
-  Settings,
-} from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
+import type { Settings } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type { Scenario } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
 import {
   BacklogItemResponseSchema,
@@ -29,10 +24,6 @@ import {
   BacklogResearchResponseSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import { AgentManagerStatusResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/agent_manager_pb";
-import {
-  ListRecommendationsResponseSchema,
-  RecommendationResponseSchema,
-} from "@vrooli/proto-types/swarm-manager/v1/api/recommendations_pb";
 import { SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import {
   ListScenariosResponseSchema,
@@ -47,10 +38,6 @@ import type { ScenarioFile } from "@vrooli/proto-types/swarm-manager/v1/api/scen
 import type {
   BacklogItem as BacklogItemDomain,
   BacklogFile as BacklogFileDomain,
-  Recommendation as RecommendationDomain,
-  RecommendationAutoSync as RecommendationAutoSyncDomain,
-  RecommendationSources as RecommendationSourcesDomain,
-  RecommendationMode,
   Scenario as ScenarioDomain,
   ScenarioFile as ScenarioFileDomain,
   DeleteScenarioResponse as DeleteScenarioDomain,
@@ -90,21 +77,6 @@ const backlogKindSet = new Set<string>(BACKLOG_KINDS);
 const backlogResearchTargetSet = new Set<string>(BACKLOG_RESEARCH_TARGETS);
 const scenarioStatusSet = new Set<string>(SCENARIO_STATUSES);
 const fileTypeSet = new Set<string>(["file", "directory"]);
-const DEFAULT_RECOMMENDATION_SOURCES: RecommendationSourcesDomain = {
-  problems: true,
-  completeness: true,
-  tests: true,
-  coverage: true,
-  customFocus: true,
-  scenarioNotes: true,
-};
-const DEFAULT_RECOMMENDATION_AUTOSYNC: RecommendationAutoSyncDomain = {
-  enabled: false,
-  interval: "1h",
-  lastRefresh: "",
-  nextRefresh: "",
-  refreshScope: "manual",
-};
 
 function isBacklogStatus(value: unknown): value is BacklogItemDomain["status"] {
   return typeof value === "string" && backlogStatusSet.has(value);
@@ -132,14 +104,6 @@ function isThemePreference(value: unknown): value is ThemePreference {
 
 function normalizeThemePreference(value?: string): ThemePreference {
   return isThemePreference(value) ? value : "dark";
-}
-
-function isRecommendationMode(value: unknown): value is RecommendationMode {
-  return value === "off" || value === "suggestions" || value === "yolo";
-}
-
-function normalizeRecommendationMode(value?: string): RecommendationMode {
-  return isRecommendationMode(value) ? value : "off";
 }
 
 function toFiniteNumber(value: number | bigint | undefined): number | undefined {
@@ -269,14 +233,6 @@ export const scenarioFilesResponseSchema = createProtoSchema(
   ScenarioFilesResponseSchema,
   "scenario files"
 );
-export const listRecommendationsResponseSchema = createProtoSchema(
-  ListRecommendationsResponseSchema,
-  "recommendations list"
-);
-export const recommendationResponseSchema = createProtoSchema(
-  RecommendationResponseSchema,
-  "recommendation"
-);
 export const settingsResponseSchema = createProtoSchema(
   SettingsResponseSchema,
   "settings"
@@ -329,7 +285,6 @@ export function mapProtoScenario(protoScenario: Scenario): ScenarioDomain {
         : undefined,
     isGreenfield: protoScenario.isGreenfield ?? false,
     tags: protoScenario.tags ?? [],
-    recommendationsEnabled: protoScenario.recommendationsEnabled ?? true,
   };
 }
 
@@ -358,63 +313,11 @@ export function mapDeleteScenarioResponse(
   };
 }
 
-export function mapProtoRecommendation(
-  protoRecommendation: Recommendation
-): RecommendationDomain {
-  return {
-    id: protoRecommendation.id ?? "",
-    scenarioName: protoRecommendation.scenarioName ?? "",
-    type: protoRecommendation.type ?? "",
-    description: protoRecommendation.description ?? "",
-    status: protoRecommendation.status ?? "",
-    priority: protoRecommendation.priority ?? 0,
-    created: protoRecommendation.created ?? "",
-    ...(protoRecommendation.source ? { source: protoRecommendation.source } : {}),
-    ...(protoRecommendation.taskId ? { taskId: protoRecommendation.taskId } : {}),
-    ...(protoRecommendation.runId ? { runId: protoRecommendation.runId } : {}),
-    ...(protoRecommendation.startedAt ? { startedAt: protoRecommendation.startedAt } : {}),
-    ...(protoRecommendation.startedBy ? { startedBy: protoRecommendation.startedBy } : {}),
-    ...(protoRecommendation.autoApproved !== undefined
-      ? { autoApproved: protoRecommendation.autoApproved }
-      : {}),
-  };
-}
-
 export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
-  const sources = mapProtoRecommendationSources(protoSettings.recommendationSources);
-  const autoSync = mapProtoRecommendationAutoSync(protoSettings.recommendationAutoSync);
   return {
     theme: normalizeThemePreference(protoSettings.theme),
-    recommendationMode: normalizeRecommendationMode(protoSettings.recommendationMode),
     customFocus: protoSettings.customFocus ?? "",
     insightsEnabled: protoSettings.insightsEnabled ?? false,
     insightsAutoAnalyze: protoSettings.insightsAutoAnalyze ?? false,
-    recommendationSources: sources,
-    recommendationAutoSync: autoSync,
-  };
-}
-
-function mapProtoRecommendationSources(
-  protoSources?: RecommendationSources
-): RecommendationSourcesDomain {
-  return {
-    problems: protoSources?.problems ?? DEFAULT_RECOMMENDATION_SOURCES.problems,
-    completeness: protoSources?.completeness ?? DEFAULT_RECOMMENDATION_SOURCES.completeness,
-    tests: protoSources?.tests ?? DEFAULT_RECOMMENDATION_SOURCES.tests,
-    coverage: protoSources?.coverage ?? DEFAULT_RECOMMENDATION_SOURCES.coverage,
-    customFocus: protoSources?.customFocus ?? DEFAULT_RECOMMENDATION_SOURCES.customFocus,
-    scenarioNotes: protoSources?.scenarioNotes ?? DEFAULT_RECOMMENDATION_SOURCES.scenarioNotes,
-  };
-}
-
-function mapProtoRecommendationAutoSync(
-  protoAutoSync?: RecommendationAutoSync
-): RecommendationAutoSyncDomain {
-  return {
-    enabled: protoAutoSync?.enabled ?? DEFAULT_RECOMMENDATION_AUTOSYNC.enabled,
-    interval: protoAutoSync?.interval ?? DEFAULT_RECOMMENDATION_AUTOSYNC.interval,
-    lastRefresh: protoAutoSync?.lastRefresh ?? DEFAULT_RECOMMENDATION_AUTOSYNC.lastRefresh,
-    nextRefresh: protoAutoSync?.nextRefresh ?? DEFAULT_RECOMMENDATION_AUTOSYNC.nextRefresh,
-    refreshScope: protoAutoSync?.refreshScope ?? DEFAULT_RECOMMENDATION_AUTOSYNC.refreshScope,
   };
 }

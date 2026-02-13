@@ -26,7 +26,6 @@ type Service interface {
 
 	SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error)
 	SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
-	SpawnRecommendation(ctx context.Context, req RecommendationSpawnRequest) (RunResult, error)
 }
 
 // AgentService implements the Service interface.
@@ -166,7 +165,7 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 	return &domainpb.AgentProfile{
 		Name:                 s.profileName,
 		ProfileKey:           s.profileKey,
-		Description:          "Agent profile for swarm-manager research and recommendations",
+		Description:          "Agent profile for swarm-manager research and execution",
 		RunnerType:           cfg.RunnerType,
 		Model:                cfg.Model,
 		ModelPreset:          cfg.ModelPreset,
@@ -222,24 +221,22 @@ type BacklogSpawnRequest struct {
 	Purpose     string
 }
 
-// RecommendationSpawnRequest describes a request to spawn a recommendation agent.
-type RecommendationSpawnRequest struct {
-	RecommendationID string
-	Scenario         string
-	Type             string
-	Description      string
-	Prompt           string
-	ScopePath        string
-	ProjectRoot      string
-	CreatedBy        string
-}
-
 // RunResult returns agent-manager identifiers.
 type RunResult struct {
 	TaskID    string
 	RunID     string
 	BaseURL   string
 	CreatedAt string
+}
+
+// RunState captures externally visible lifecycle state for a run.
+type RunState struct {
+	RunID      string
+	TaskID     string
+	Status     string
+	StartedAt  string
+	FinishedAt string
+	ErrorMsg   string
 }
 
 // SpawnResearch creates a research task/run in agent-manager.
@@ -282,76 +279,6 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 	}
 
 	tag := buildResearchTag(req.IdeaName)
-	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: s.defaultProfileRef(),
-		Tag:        &tag,
-		Force:      true,
-	}
-	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
-		runReq.Prompt = &prompt
-	}
-
-	run, err := s.client.CreateRun(ctx, runReq)
-	if err != nil {
-		return RunResult{}, err
-	}
-
-	baseURL, _ := s.ResolveURL(ctx)
-
-	return RunResult{
-		TaskID:    createdTask.Id,
-		RunID:     run.Id,
-		BaseURL:   baseURL,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-	}, nil
-}
-
-// SpawnRecommendation creates a recommendation task/run in agent-manager.
-func (s *AgentService) SpawnRecommendation(ctx context.Context, req RecommendationSpawnRequest) (RunResult, error) {
-	if !s.enabled {
-		return RunResult{}, ErrNotAvailable
-	}
-
-	title := strings.TrimSpace(req.Scenario)
-	if title == "" {
-		title = "Recommendation"
-	} else {
-		title = "Recommendation: " + title
-	}
-	if req.Type != "" {
-		title = fmt.Sprintf("%s (%s)", title, strings.TrimSpace(req.Type))
-	}
-
-	scopePath := strings.TrimSpace(req.ScopePath)
-	if scopePath == "" {
-		scopePath = "."
-	}
-
-	projectRoot := strings.TrimSpace(req.ProjectRoot)
-	if projectRoot == "" {
-		projectRoot = "."
-	}
-
-	createdBy := strings.TrimSpace(req.CreatedBy)
-	if createdBy == "" {
-		createdBy = "swarm-manager"
-	}
-
-	task := &domainpb.Task{
-		Title:       title,
-		Description: strings.TrimSpace(req.Description),
-		ScopePath:   scopePath,
-		ProjectRoot: projectRoot,
-		CreatedBy:   createdBy,
-	}
-
-	createdTask, err := s.client.CreateTask(ctx, task)
-	if err != nil {
-		return RunResult{}, err
-	}
-
-	tag := buildRecommendationTag(req.RecommendationID)
 	runReq := &apipb.CreateRunRequest{
 		TaskId:     createdTask.Id,
 		ProfileRef: s.defaultProfileRef(),
@@ -442,6 +369,40 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	}, nil
 }
 
+// GetRunState resolves run state from agent-manager.
+func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState, error) {
+	if !s.enabled {
+		return RunState{}, ErrNotAvailable
+	}
+
+	run, err := s.client.GetRun(ctx, runID)
+	if err != nil {
+		return RunState{}, err
+	}
+
+	state := RunState{
+		RunID:    strings.TrimSpace(run.Id),
+		TaskID:   strings.TrimSpace(run.TaskId),
+		Status:   normalizeRunStatus(run.Status),
+		ErrorMsg: strings.TrimSpace(run.ErrorMsg),
+	}
+	if run.StartedAt != nil {
+		state.StartedAt = run.StartedAt.AsTime().UTC().Format(time.RFC3339)
+	}
+	if run.EndedAt != nil {
+		state.FinishedAt = run.EndedAt.AsTime().UTC().Format(time.RFC3339)
+	}
+	return state, nil
+}
+
+// StopRun requests cancellation of an in-flight run.
+func (s *AgentService) StopRun(ctx context.Context, runID string) error {
+	if !s.enabled {
+		return ErrNotAvailable
+	}
+	return s.client.StopRun(ctx, runID)
+}
+
 func buildResearchTag(ideaName string) string {
 	ideaName = strings.TrimSpace(ideaName)
 	if ideaName == "" {
@@ -507,10 +468,23 @@ func capitalizeLabel(value string) string {
 	return string(runes)
 }
 
-func buildRecommendationTag(recID string) string {
-	recID = strings.TrimSpace(recID)
-	if recID == "" {
-		return "swarm-manager:rec"
+func normalizeRunStatus(status domainpb.RunStatus) string {
+	switch status {
+	case domainpb.RunStatus_RUN_STATUS_PENDING:
+		return "pending"
+	case domainpb.RunStatus_RUN_STATUS_STARTING:
+		return "starting"
+	case domainpb.RunStatus_RUN_STATUS_RUNNING:
+		return "running"
+	case domainpb.RunStatus_RUN_STATUS_NEEDS_REVIEW:
+		return "needs_review"
+	case domainpb.RunStatus_RUN_STATUS_COMPLETE:
+		return "complete"
+	case domainpb.RunStatus_RUN_STATUS_FAILED:
+		return "failed"
+	case domainpb.RunStatus_RUN_STATUS_CANCELLED:
+		return "cancelled"
+	default:
+		return "unspecified"
 	}
-	return fmt.Sprintf("swarm-manager:rec:%s", recID)
 }

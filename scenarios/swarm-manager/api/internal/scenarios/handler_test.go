@@ -13,15 +13,14 @@ import (
 )
 
 type scenarioPayload struct {
-	Name                   string   `json:"name"`
-	DisplayName            string   `json:"display_name"`
-	Description            string   `json:"description"`
-	Status                 string   `json:"status"`
-	Priority               int      `json:"priority"`
-	CompletenessScore      *int     `json:"completeness_score,omitempty"`
-	IsGreenfield           bool     `json:"is_greenfield"`
-	Tags                   []string `json:"tags"`
-	RecommendationsEnabled bool     `json:"recommendations_enabled"`
+	Name              string   `json:"name"`
+	DisplayName       string   `json:"display_name"`
+	Description       string   `json:"description"`
+	Status            string   `json:"status"`
+	Priority          int      `json:"priority"`
+	CompletenessScore *int     `json:"completeness_score,omitempty"`
+	IsGreenfield      bool     `json:"is_greenfield"`
+	Tags              []string `json:"tags"`
 }
 
 type listScenariosResponse struct {
@@ -404,8 +403,8 @@ func TestUpdateMetadata_Success(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
-	// Update recommendations to false
-	body := `{"recommendations_enabled": false}`
+	// Update greenfield flag
+	body := `{"is_greenfield": true}`
 	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -416,8 +415,8 @@ func TestUpdateMetadata_Success(t *testing.T) {
 
 	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
 	scenario := resp.Scenario
-	if scenario.RecommendationsEnabled {
-		t.Error("expected recommendationsEnabled to be false")
+	if !scenario.IsGreenfield {
+		t.Error("expected isGreenfield to be true")
 	}
 }
 
@@ -456,7 +455,7 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
-	body := `{"recommendations_enabled": false}`
+	body := `{"is_greenfield": true}`
 	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/nonexistent", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -485,6 +484,23 @@ func TestUpdateMetadata_InvalidJSON(t *testing.T) {
 	testutil.AssertStatusBadRequest(t, rec)
 }
 
+func TestUpdateMetadata_RejectsDeprecatedRecommendationsField(t *testing.T) {
+	root, sources := setupTestScenarios(t)
+
+	handler := newTestHandler(root, sources)
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
+
+	body := `{"recommendations_enabled": false}`
+	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	testutil.AssertStatusBadRequest(t, rec)
+}
+
 // TestUpdateMetadata_PartialUpdate tests that partial updates work.
 // [REQ:REQ-P0-007] Test partial metadata update
 func TestUpdateMetadata_PartialUpdate(t *testing.T) {
@@ -494,8 +510,8 @@ func TestUpdateMetadata_PartialUpdate(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
-	// First update only recommendationsEnabled
-	body1 := `{"recommendations_enabled": false}`
+	// First update to greenfield false
+	body1 := `{"is_greenfield": false}`
 	req1 := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body1))
 	req1.Header.Set("Content-Type", "application/json")
 	rec1 := httptest.NewRecorder()
@@ -511,12 +527,9 @@ func TestUpdateMetadata_PartialUpdate(t *testing.T) {
 	resp2 := testutil.DecodeJSON[scenarioResponse](t, rec2)
 	scenario := resp2.Scenario
 
-	// Both updates should be preserved
+	// Final update should be reflected
 	if !scenario.IsGreenfield {
 		t.Error("expected isGreenfield to be true")
-	}
-	if scenario.RecommendationsEnabled {
-		t.Error("expected recommendationsEnabled to stay false from first update")
 	}
 }
 
@@ -530,7 +543,7 @@ func TestUpdateMetadata_PersistsToDisk(t *testing.T) {
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
 	// Update metadata
-	body := `{"recommendations_enabled": false, "is_greenfield": true}`
+	body := `{"is_greenfield": true}`
 	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -543,17 +556,14 @@ func TestUpdateMetadata_PersistsToDisk(t *testing.T) {
 	testutil.AssertFileExists(t, metaPath)
 
 	metadata := testutil.ReadJSONFile[ScenarioMetadata](t, metaPath)
-	if metadata.RecommendationsEnabled {
-		t.Error("expected recommendationsEnabled false in file")
-	}
 	if !metadata.IsGreenfield {
 		t.Error("expected isGreenfield true in file")
 	}
 }
 
-// TestScenario_RecommendationsEnabledDefault tests default recommendations value.
-// [REQ:REQ-P0-007] Test default recommendationsEnabled value
-func TestScenario_RecommendationsEnabledDefault(t *testing.T) {
+// TestScenario_GreenfieldDefault tests default greenfield derivation.
+// [REQ:REQ-P0-007] Test default metadata behavior
+func TestScenario_GreenfieldDefault(t *testing.T) {
 	root, sources := setupTestScenarios(t)
 
 	handler := newTestHandler(root, sources)
@@ -568,9 +578,9 @@ func TestScenario_RecommendationsEnabledDefault(t *testing.T) {
 	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
 	scenario := resp.Scenario
 
-	// Default should be true (recommendations enabled)
-	if !scenario.RecommendationsEnabled {
-		t.Error("expected recommendationsEnabled to default to true")
+	// PRD exists for scenario-1, so greenfield should default false.
+	if scenario.IsGreenfield {
+		t.Error("expected isGreenfield to default to false when PRD exists")
 	}
 }
 
@@ -657,7 +667,36 @@ func TestDelete_WithArchive(t *testing.T) {
 
 	// Verify idea was created (relative path depends on handler implementation)
 	ideaPath := filepath.Join(ideasDir, "test-scenario-1-archived")
-	testutil.AssertFileExists(t, filepath.Join(ideaPath, "spec.json"))
+	specPath := filepath.Join(ideaPath, "spec.json")
+	testutil.AssertFileExists(t, specPath)
+
+	spec := testutil.ReadJSONFile[map[string]any](t, specPath)
+	if spec["sourceScenarioName"] != "test-scenario-1" {
+		t.Fatalf("expected sourceScenarioName test-scenario-1, got %v", spec["sourceScenarioName"])
+	}
+	expectedSourcePath := filepath.Join(root, "scenarios", "test-scenario-1")
+	if spec["sourceScenarioPath"] != expectedSourcePath {
+		t.Fatalf("expected sourceScenarioPath %q, got %v", expectedSourcePath, spec["sourceScenarioPath"])
+	}
+	if spec["archiveReason"] != "scenario deleted with archive=true" {
+		t.Fatalf("expected archiveReason to be populated, got %v", spec["archiveReason"])
+	}
+	if spec["archivedAt"] == "" {
+		t.Fatal("expected archivedAt to be populated")
+	}
+	if spec["archivedBy"] == "" {
+		t.Fatal("expected archivedBy to be populated")
+	}
+	if spec["preservePresetOrCustom"] != "none" {
+		t.Fatalf("expected preservePresetOrCustom to be none, got %v", spec["preservePresetOrCustom"])
+	}
+	preserved, ok := spec["preservedFiles"].([]any)
+	if !ok {
+		t.Fatalf("expected preservedFiles to be an array, got %T", spec["preservedFiles"])
+	}
+	if len(preserved) != 0 {
+		t.Fatalf("expected preservedFiles to be empty, got %v", preserved)
+	}
 }
 
 // TestDelete_Idempotent tests that delete is idempotent (second delete returns 404).
@@ -733,4 +772,38 @@ func TestCopyPreservedFiles_PresetSkipsIgnoredDirs(t *testing.T) {
 	testutil.AssertFileExists(t, filepath.Join(ideaPath, "PRD.md"))
 	testutil.AssertFileExists(t, filepath.Join(ideaPath, "docs", "guide.md"))
 	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "node_modules", "somepkg", "README.md"))
+}
+
+func TestCopyPreservedFiles_RejectsPathTraversal(t *testing.T) {
+	root := t.TempDir()
+	scenarioPath := filepath.Join(root, "scenario")
+	ideaPath := filepath.Join(root, "idea")
+
+	testutil.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
+	testutil.WriteFile(t, filepath.Join(root, "outside.md"), "outside")
+
+	preserved, err := copyPreservedFiles(scenarioPath, ideaPath, &apipb.PreserveFilesRequest{
+		Paths: []string{"../outside.md", "PRD.md"},
+	})
+	if err != nil {
+		t.Fatalf("copyPreservedFiles returned error: %v", err)
+	}
+
+	if len(preserved) != 1 || preserved[0] != "PRD.md" {
+		t.Fatalf("expected only PRD.md to be preserved, got %v", preserved)
+	}
+
+	testutil.AssertFileExists(t, filepath.Join(ideaPath, "PRD.md"))
+	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "outside.md"))
+}
+
+func TestResolveGlobPattern_RejectsUnsafePattern(t *testing.T) {
+	root := t.TempDir()
+
+	if _, err := resolveGlobPattern(root, "../*.md"); err == nil {
+		t.Fatal("expected traversal pattern to be rejected")
+	}
+	if _, err := resolveGlobPattern(root, "/tmp/*.md"); err == nil {
+		t.Fatal("expected absolute pattern to be rejected")
+	}
 }

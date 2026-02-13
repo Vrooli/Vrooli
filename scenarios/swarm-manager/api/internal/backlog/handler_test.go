@@ -394,6 +394,84 @@ func TestQueue_SpawnsAgent(t *testing.T) {
 	}
 }
 
+func TestQueue_ManualMode_DoesNotSpawnImmediately(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:        "queue-manual-test",
+		Title:       "Queue Manual Test",
+		Description: "",
+		Status:      StatusBacklog,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator"}`)
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-manual-test/queue", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "queue-manual-test"})
+	w := httptest.NewRecorder()
+
+	h.Queue(w, req)
+	testutil.AssertStatus(t, w, http.StatusAccepted)
+
+	resp := testutil.DecodeJSON[backlogQueueResponse](t, w)
+	if resp.Item.Status != StatusQueued {
+		t.Errorf("expected queued status, got %s", resp.Item.Status)
+	}
+	if resp.TaskID != "" || resp.RunID != "" {
+		t.Errorf("expected no run metadata for manual mode, got task=%q run=%q", resp.TaskID, resp.RunID)
+	}
+	if agent.lastReq != nil {
+		t.Errorf("expected no agent spawn in manual mode")
+	}
+}
+
+func TestQueue_ScheduledMode_DoesNotSpawnImmediately(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:        "queue-scheduled-test",
+		Title:       "Queue Scheduled Test",
+		Description: "",
+		Status:      StatusBacklog,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	reqBody := bytes.NewBufferString(`{"mode":"scheduled","delay_seconds":60}`)
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-scheduled-test/queue", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "queue-scheduled-test"})
+	w := httptest.NewRecorder()
+
+	h.Queue(w, req)
+	testutil.AssertStatus(t, w, http.StatusAccepted)
+
+	resp := testutil.DecodeJSON[backlogQueueResponse](t, w)
+	if resp.Item.Status != StatusQueued {
+		t.Errorf("expected queued status, got %s", resp.Item.Status)
+	}
+	if resp.TaskID != "" || resp.RunID != "" {
+		t.Errorf("expected no run metadata for scheduled mode, got task=%q run=%q", resp.TaskID, resp.RunID)
+	}
+	if agent.lastReq != nil {
+		t.Errorf("expected no agent spawn in scheduled mode")
+	}
+}
+
 func TestResearch_SpawnsAgent(t *testing.T) {
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
@@ -474,8 +552,5 @@ func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.Back
 	return m.result, m.err
 }
 func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
-	return agentmanager.RunResult{}, nil
-}
-func (m *mockAgentService) SpawnRecommendation(_ context.Context, _ agentmanager.RecommendationSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }

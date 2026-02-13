@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 )
 
@@ -183,16 +185,35 @@ func normalizeResearchTarget(raw string) (string, error) {
 	}
 }
 
-func validateQueueBacklogItemRequest(req *apipb.QueueBacklogItemRequest) string {
-	if req.Operation == nil || strings.TrimSpace(*req.Operation) == "" {
+type queueBacklogRequest struct {
+	Operation    string `json:"operation,omitempty"`
+	Mode         string `json:"mode,omitempty"`
+	DelaySeconds int64  `json:"delay_seconds,omitempty"`
+	StartedBy    string `json:"started_by,omitempty"`
+}
+
+func validateQueueBacklogItemRequest(req *queueBacklogRequest) string {
+	if strings.TrimSpace(req.Operation) == "" {
 		return ""
 	}
-	switch *req.Operation {
+	switch req.Operation {
 	case "generator", "improver":
-		return ""
 	default:
 		return "operation must be 'generator' or 'improver'"
 	}
+
+	if strings.TrimSpace(req.Mode) == "" {
+		return ""
+	}
+	switch req.Mode {
+	case "manual", "scheduled", "yolo":
+	default:
+		return "mode must be 'manual', 'scheduled', or 'yolo'"
+	}
+	if req.DelaySeconds < 0 {
+		return "delay_seconds must be >= 0"
+	}
+	return ""
 }
 
 func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
@@ -849,22 +870,17 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req apipb.QueueBacklogItemRequest
-	if r.Body != nil && r.ContentLength > 0 {
-		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+	var req queueBacklogRequest
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
 			httputil.BadRequest(w, "[backlog] queue", "invalid request body")
 			return
 		}
-		if req.Operation != nil {
-			normalized := strings.ToLower(strings.TrimSpace(*req.Operation))
-			if normalized == "" {
-				req.Operation = nil
-			} else {
-				req.Operation = &normalized
-			}
-		}
-		if !httputil.ValidateProtoRequest(w, "[backlog] queue", "invalid request body", &req) {
-			return
+		req.Operation = strings.ToLower(strings.TrimSpace(req.Operation))
+		req.Mode = strings.ToLower(strings.TrimSpace(req.Mode))
+		req.StartedBy = strings.TrimSpace(req.StartedBy)
+		if req.StartedBy == "" {
+			req.StartedBy = "swarm-manager"
 		}
 		if validationErr := validateQueueBacklogItemRequest(&req); validationErr != "" {
 			httputil.BadRequest(w, "[backlog] queue", validationErr)
@@ -872,8 +888,12 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	operation := "generator"
-	if req.Operation != nil && *req.Operation != "" {
-		operation = *req.Operation
+	if req.Operation != "" {
+		operation = req.Operation
+	}
+	mode := execution.ModeYOLO
+	if req.Mode != "" {
+		mode = execution.Mode(req.Mode)
 	}
 
 	if kind == KindResearch {
@@ -881,33 +901,51 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runResult, err := h.spawnProcessingAgent(r.Context(), item, operation)
+	executionService := execution.NewService(execution.ServiceConfig{
+		RootDir:      h.rootDir,
+		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+		AgentService: h.agentService,
+	})
+	record, err := executionService.QueueBacklog(r.Context(), execution.CreateRequest{
+		BacklogKind:  string(kind),
+		BacklogName:  name,
+		Mode:         mode,
+		DelaySeconds: req.DelaySeconds,
+		StartedBy:    req.StartedBy,
+		Operation:    operation,
+	})
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
 			httputil.ServiceUnavailable(w, "[backlog] queue", "agent-manager is not available")
 			return
 		}
-		httputil.InternalError(w, "[backlog] queue", "failed to spawn processing agent")
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "[backlog] queue", "backlog item not found")
+			return
+		}
+		if strings.Contains(err.Error(), "cannot be queued") {
+			httputil.BadRequest(w, "[backlog] queue", err.Error())
+			return
+		}
+		httputil.InternalError(w, "[backlog] queue", "failed to queue execution")
 		return
 	}
 
-	oldStatus := item.Status
-	item.Status = StatusQueued
-	item.Updated = time.Now().UTC().Format(time.RFC3339)
-	if err := h.saveItem(item); err != nil {
-		log.Printf("[backlog] queue: failed to update status for %q: %v", name, err)
-		httputil.InternalError(w, "", "failed to update backlog item status")
+	item, err = h.loadItem(kind, name)
+	if err != nil {
+		log.Printf("[backlog] queue: failed to reload %q after queue: %v", name, err)
+		httputil.InternalError(w, "[backlog] queue", "failed to load updated backlog item")
 		return
 	}
 
-	log.Printf("[backlog] queued: %q (kind=%s, status=%s→%s, taskId=%s)", name, kind, oldStatus, StatusQueued, runResult.TaskID)
+	log.Printf("[backlog] queued: %q (kind=%s, status=%s, taskId=%s, executionId=%s)", name, kind, item.Status, record.TaskID, record.ExecutionID)
 
 	resp := &apipb.QueueBacklogItemResponse{
 		Item:    backlogToProto(item),
-		TaskId:  runResult.TaskID,
-		RunId:   runResult.RunID,
-		BaseUrl: runResult.BaseURL,
-		Created: runResult.CreatedAt,
+		TaskId:  record.TaskID,
+		RunId:   record.RunID,
+		BaseUrl: "",
+		Created: record.CreatedAt,
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
 		httputil.InternalError(w, "[backlog] queue", "failed to encode response")

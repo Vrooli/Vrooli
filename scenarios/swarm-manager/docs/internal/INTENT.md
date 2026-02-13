@@ -13,10 +13,8 @@ It provides a unified interface for:
    initial capture to ready-for-processing
 2. **Scenario Catalog** - View and manage all deployed scenarios with status,
    priority, and completeness information
-3. **Recommendations** - Surface system-generated improvement suggestions with
-   approve/reject workflows
-4. **Settings** - Configure system behavior including recommendation engine and
-   insights features
+3. **Execution Control** - Track and govern backlog execution runs (manual, scheduled, yolo)
+4. **Settings** - Configure system behavior including theme/focus/insights
 
 ## Design Philosophy
 
@@ -65,7 +63,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 | Module | Responsibility | NOT Responsible For | Code Reference |
 |--------|---------------|---------------------|----------------|
-| `main.go` | Server setup, routes, filesystem persistence for backlog/settings/queue/recommendations; CLI-sourced scenario inventory | Business logic (delegated) | [CODE: api/main.go] |
+| `main.go` | Server setup, routes, filesystem persistence for backlog/settings/queue/execution; CLI-sourced scenario inventory | Business logic (delegated) | [CODE: api/main.go] |
 | Health handler | Readiness/liveness checks | Domain operations | [CODE: api/main.go:69] |
 
 ### CLI Components
@@ -134,10 +132,10 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 |-----------|--------|-------|
 | UI - Backlog Page | Wired | List + create dialog + details + queue/research/convert |
 | UI - Scenarios Page | Wired | List, filters, metadata updates, delete |
-| UI - Recommendations Page | Wired | List + refresh + update status + empty states |
+| UI - Execution Page | Wired | Pending/scheduled, running, completed, failed run operations |
 | UI - Settings Page | Wired | Settings persistence via API |
-| API | Active | Backlog/scenarios/settings/recommendations/queue + health |
-| CLI | Wired | Backlog + scenarios + recommendations + settings + queue |
+| API | Active | Backlog/scenarios/settings/execution/queue + health |
+| CLI | Wired | Backlog + scenarios + execution + settings + queue |
 
 For detailed progress, see `docs/PROGRESS.md`.
 

@@ -80,14 +80,14 @@ export const literalSelectors = {
   tabs: {
     backlog: "tab-backlog",
     scenarios: "tab-scenarios",
-    recommendations: "tab-recommendations",
+    execution: "tab-execution",
     settings: "tab-settings",
   },
   // Mobile tab selectors
   mobileTabs: {
     backlog: "mobile-tab-backlog",
     scenarios: "mobile-tab-scenarios",
-    recommendations: "mobile-tab-recommendations",
+    execution: "mobile-tab-execution",
     settings: "mobile-tab-settings",
   },
   // Backlog page selectors
@@ -190,7 +190,6 @@ export const literalSelectors = {
     restartButton: "scenario-details-restart",
     actionError: "scenario-details-action-error",
     greenfieldToggle: "scenario-greenfield-toggle",
-    recommendationsToggle: "scenario-recommendations-toggle",
     saveButton: "scenario-details-save",
     priority: "scenario-details-priority",
     tags: "scenario-details-tags",
@@ -205,15 +204,6 @@ export const literalSelectors = {
     // Iteration 5 additions
     cliHint: "scenario-details-cli-hint",
   },
-  // Recommendations page selectors
-  recommendations: {
-    page: "recommendations-page",
-    filter: "recommendations-filter",
-    empty: "recommendations-empty",
-    list: "recommendations-list",
-    // Experience architecture additions (Phase 29)
-    settingsLink: "recommendations-settings-link",
-  },
   // Settings page selectors
   settings: {
     page: "settings-page",
@@ -221,17 +211,11 @@ export const literalSelectors = {
     themeDark: "theme-dark",
     themeLight: "theme-light",
     themeSystem: "theme-system",
-    recommendationSettings: "recommendation-settings",
-    recModeOff: "rec-mode-off",
-    recModeSuggestions: "rec-mode-suggestions",
-    recModeYolo: "rec-mode-yolo",
     customFocus: "custom-focus",
     insightsSettings: "insights-settings",
     insightsEnabled: "insights-enabled",
     insightsAutoAnalyze: "insights-auto-analyze",
     saveButton: "settings-save",
-    // Experience architecture additions (Phase 29)
-    recModeHint: "rec-mode-hint",
   },
 } as const;
 
@@ -290,13 +274,6 @@ export const dynamicSelectorDefinitions = {
       params: { name: { type: "string" } },
     }),
   },
-  recommendations: {
-    cardByName: defineDynamicSelector({
-      description: "Recommendation card filtered by name",
-      testIdPattern: "recommendation-card-${name}",
-      params: { name: { type: "string" } },
-    }),
-  },
 } as const;
 
 // =============================================================================
@@ -321,10 +298,6 @@ export const dynamicSelectors = {
     actionRestart: (params: { name: string }) =>
       formatTemplate("scenario-action-restart-${name}", params, "scenarios.actionRestart"),
   },
-  recommendations: {
-    cardByName: (params: { name: string }) =>
-      formatTemplate("recommendation-card-${name}", params, "recommendations.cardByName"),
-  },
 } as const;
 
 // =============================================================================
@@ -348,10 +321,6 @@ export const selectors = {
   scenarios: {
     ...literalSelectors.scenarios,
     ...dynamicSelectors.scenarios,
-  },
-  recommendations: {
-    ...literalSelectors.recommendations,
-    ...dynamicSelectors.recommendations,
   },
 } as const;
 

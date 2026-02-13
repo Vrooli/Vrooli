@@ -1,13 +1,27 @@
 package settings
 
-import "testing"
+import (
+	"testing"
 
-func TestNormalizeAutoSyncDefaults(t *testing.T) {
-	sync := normalizeAutoSync(RecommendationAutoSync{})
-	if sync.Interval != "1h" {
-		t.Fatalf("expected default interval 1h, got %q", sync.Interval)
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+)
+
+func TestNormalizeSettingsDefaultsThemeAndFocus(t *testing.T) {
+	normalized := normalizeSettings(Settings{Theme: "", CustomFocus: "  focus  "})
+	if normalized.Theme != "dark" {
+		t.Fatalf("expected default theme dark, got %q", normalized.Theme)
 	}
-	if sync.RefreshScope != "manual" {
-		t.Fatalf("expected default refresh scope manual, got %q", sync.RefreshScope)
+	if normalized.CustomFocus != "focus" {
+		t.Fatalf("expected trimmed customFocus, got %q", normalized.CustomFocus)
+	}
+}
+
+func TestHasDeprecatedRecommendationFields(t *testing.T) {
+	mode := "yolo"
+	req := &apipb.UpdateSettingsRequest{
+		RecommendationMode: &mode,
+	}
+	if !hasDeprecatedRecommendationFields(req) {
+		t.Fatalf("expected deprecated recommendation fields to be detected")
 	}
 }

@@ -10,11 +10,11 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
-func TestHandler_UpdateRejectsInvalidRecommendationMode(t *testing.T) {
+func TestHandler_UpdateRejectsDeprecatedRecommendationFields(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	handler := &Handler{store: NewStore(path)}
 
-	payload := []byte(`{"recommendationMode":"auto"}`)
+	payload := []byte(`{"recommendationMode":"off"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewBuffer(payload))
 	rec := httptest.NewRecorder()
 	handler.Update(rec, req)

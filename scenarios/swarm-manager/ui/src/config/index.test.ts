@@ -3,7 +3,6 @@ import {
   config,
   dataFetchingConfig,
   displayLimitsConfig,
-  recommendationConfig,
   insightsConfig,
   uiBehaviorConfig,
   apiConfig,
@@ -65,32 +64,6 @@ describe("Configuration", () => {
     });
   });
 
-  describe("recommendationConfig", () => {
-    it("has valid minimum completeness threshold", () => {
-      expect(recommendationConfig.minimumCompletenessThreshold).toBeGreaterThanOrEqual(0);
-      expect(recommendationConfig.minimumCompletenessThreshold).toBeLessThanOrEqual(100);
-    });
-
-    it("has valid max active recommendations", () => {
-      expect(recommendationConfig.maxActiveRecommendationsPerScenario).toBeGreaterThanOrEqual(1);
-      expect(recommendationConfig.maxActiveRecommendationsPerScenario).toBeLessThanOrEqual(20);
-    });
-
-    it("has valid YOLO mode delay", () => {
-      expect(recommendationConfig.yoloModeDelayMs).toBeGreaterThanOrEqual(1000);
-      expect(recommendationConfig.yoloModeDelayMs).toBeLessThanOrEqual(60000);
-    });
-
-    it("has valid YOLO mode allowed priorities", () => {
-      expect(Array.isArray(recommendationConfig.yoloModeAllowedPriorities)).toBe(true);
-      expect(recommendationConfig.yoloModeAllowedPriorities.length).toBeGreaterThan(0);
-      recommendationConfig.yoloModeAllowedPriorities.forEach((priority) => {
-        expect(priority).toBeGreaterThanOrEqual(1);
-        expect(priority).toBeLessThanOrEqual(5);
-      });
-    });
-  });
-
   describe("insightsConfig", () => {
     it("has valid minimum completed scenarios", () => {
       expect(insightsConfig.minimumCompletedScenarios).toBeGreaterThanOrEqual(1);
@@ -141,7 +114,6 @@ describe("Configuration", () => {
     it("includes all configuration sections", () => {
       expect(config.dataFetching).toBe(dataFetchingConfig);
       expect(config.displayLimits).toBe(displayLimitsConfig);
-      expect(config.recommendation).toBe(recommendationConfig);
       expect(config.insights).toBe(insightsConfig);
       expect(config.uiBehavior).toBe(uiBehaviorConfig);
       expect(config.api).toBe(apiConfig);

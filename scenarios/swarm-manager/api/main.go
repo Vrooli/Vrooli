@@ -7,9 +7,9 @@
 //
 // This API serves as the backend for the Swarm Manager UI, providing endpoints
 // for managing the scenario ecosystem: backlog, scenario lifecycle, and
-// recommendations.
+// execution control.
 //
-// # Current Status: Backlog/Scenarios/Settings/Recommendations Implemented (File-Based)
+// # Current Status: Backlog/Scenarios/Settings/Execution Implemented (File-Based)
 //
 // The API provides:
 //   - Health check endpoints at / and /api/v1/health
@@ -17,7 +17,7 @@
 //   - Backlog queue + research endpoints at /api/v1/backlog/{kind}/{name}/queue and /api/v1/backlog/{kind}/{name}/research
 //   - Scenario catalog endpoints at /api/v1/scenarios
 //   - Settings persistence at /api/v1/settings
-//   - Recommendations engine at /api/v1/recommendations
+//   - Execution control at /api/v1/execution
 //   - Agent-manager status at /api/v1/agent-manager/status
 //
 // # Architecture
@@ -52,14 +52,6 @@
 //	GET    /api/v1/settings       - Fetch settings
 //	PUT    /api/v1/settings       - Update settings (partial)
 //
-// # Recommendations Endpoints (P1)
-//
-//	GET    /api/v1/recommendations          - List recommendations
-//	POST   /api/v1/recommendations          - Create manual recommendation
-//	POST   /api/v1/recommendations/refresh  - Refresh via engine
-//	PATCH  /api/v1/recommendations/{id}     - Update recommendation status
-//	POST   /api/v1/recommendations/{id}/start - Spawn agent run for recommendation
-//
 // # Agent-manager Endpoints
 //
 //	GET /api/v1/agent-manager/status - Agent-manager availability and profile status
@@ -69,6 +61,15 @@
 //	GET    /api/v1/queue          - List queue items
 //	POST   /api/v1/queue          - Enqueue item
 //	DELETE /api/v1/queue/{id}     - Remove item (idempotent)
+//
+// # Execution Endpoints (Core)
+//
+//	GET    /api/v1/execution                            - List execution runs
+//	POST   /api/v1/execution                            - Create execution run
+//	GET    /api/v1/execution/{execution_id}             - Get execution run
+//	POST   /api/v1/execution/{execution_id}/start       - Start run
+//	POST   /api/v1/execution/{execution_id}/cancel      - Cancel run
+//	POST   /api/v1/execution/{execution_id}/retry       - Retry failed run
 //
 // Related PRD targets: OT-P0-002, OT-P0-005, OT-P0-006
 package main
@@ -89,15 +90,17 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/execution"
 	"swarm-manager/internal/queue"
-	"swarm-manager/internal/recommendations"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 )
 
 type Server struct {
-	router   *mux.Router
-	agentSvc *agentmanager.AgentService
+	router            *mux.Router
+	agentSvc          *agentmanager.AgentService
+	executionHandler  *execution.Handler
+	executionStopChan chan struct{}
 }
 
 // NewServer initializes routes. Database connection is optional.
@@ -111,8 +114,9 @@ func NewServer() *Server {
 	})
 
 	srv := &Server{
-		router:   mux.NewRouter(),
-		agentSvc: agentSvc,
+		router:            mux.NewRouter(),
+		agentSvc:          agentSvc,
+		executionStopChan: make(chan struct{}),
 	}
 	srv.setupRoutes()
 	return srv
@@ -145,15 +149,6 @@ func (s *Server) setupRoutes() {
 	settingsHandler := settings.NewHandler("")
 	settingsHandler.RegisterRoutes(s.router)
 
-	// Recommendations endpoints (filesystem-backed engine)
-	recommendationsHandler := recommendations.NewHandlerWithServices(
-		recommendations.NewStore(""),
-		recommendations.NewEngine(""),
-		settings.NewStore(""),
-		s.agentSvc,
-	)
-	recommendationsHandler.RegisterRoutes(s.router)
-
 	// Agent-manager status endpoint
 	agentManagerHandler := agentmanager.NewHandler(s.agentSvc)
 	agentManagerHandler.RegisterRoutes(s.router)
@@ -161,6 +156,14 @@ func (s *Server) setupRoutes() {
 	// Local queue endpoints (filesystem-backed)
 	queueHandler := queue.NewHandler("")
 	queueHandler.RegisterRoutes(s.router)
+
+	// Execution control endpoints
+	s.executionHandler = execution.NewHandler(execution.ServiceConfig{
+		RootDir:      "",
+		StorePath:    "",
+		AgentService: s.agentSvc,
+	})
+	s.executionHandler.RegisterRoutes(s.router)
 }
 
 // Handler returns the HTTP handler with recovery middleware
@@ -187,6 +190,9 @@ func main() {
 
 	log.Printf("Running in filesystem-only mode")
 	srv := NewServer()
+	if srv.executionHandler != nil {
+		go srv.executionHandler.StartScheduler(srv.executionStopChan)
+	}
 
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -202,6 +208,7 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+	close(srv.executionStopChan)
 }
 
 func getEnvDefault(key, fallback string) string {

@@ -10,10 +10,10 @@
 // for operators and automation scripts. It communicates with the API server
 // and provides human-readable output.
 //
-// # Current Status: Full API Surface Wired
+// # Current Status: Backlog/Scenarios/Settings/Queue Surface Wired
 //
-// The CLI provides thin wrappers for backlog, scenarios, recommendations,
-// settings, and queue endpoints, plus health checks.
+// The CLI provides thin wrappers for backlog, scenarios, settings, and queue
+// endpoints, plus health checks.
 //
 // # Usage
 //
@@ -35,12 +35,10 @@
 //	swarm-manager scenarios get <name> # Get scenario details
 //	swarm-manager scenarios update <name> <json> # Update scenario metadata
 //	swarm-manager scenarios delete <name> [--archive] # Delete or archive scenario
-//	swarm-manager recommendations list # List recommendations
-//	swarm-manager recommendations refresh # Regenerate recommendations
-//	swarm-manager recommendations create <json> # Create manual recommendation
-//	swarm-manager recommendations update <id> <status> # Update recommendation status
 //	swarm-manager settings get        # Fetch settings
 //	swarm-manager settings update <json> # Update settings
+//	swarm-manager execution list      # List execution runs
+//	swarm-manager execution get <execution-id> # Get execution details
 //	swarm-manager queue list          # List local queue items
 //	swarm-manager queue create <kind> [payload-json] # Enqueue item
 //	swarm-manager queue delete <id>   # Remove item from queue
@@ -131,7 +129,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "backlog create", NeedsAPI: true, Description: "Create a backlog item (args: <json>)", Run: a.cmdBacklogCreate},
 			{Name: "backlog update", NeedsAPI: true, Description: "Update a backlog item (args: <kind> <name> <json>)", Run: a.cmdBacklogUpdate},
 			{Name: "backlog delete", NeedsAPI: true, Description: "Delete a backlog item (args: <kind> <name>)", Run: a.cmdBacklogDelete},
-			{Name: "backlog queue", NeedsAPI: true, Description: "Queue a backlog item (args: <kind> <name> [operation])", Run: a.cmdBacklogQueue},
+			{Name: "backlog queue", NeedsAPI: true, Description: "Queue a backlog item (args: <kind> <name> [--mode ... --delay-seconds ...])", Run: a.cmdBacklogQueue},
 			{Name: "backlog research", NeedsAPI: true, Description: "Spawn research agent for a backlog item (args: <kind> <name> [json])", Run: a.cmdBacklogResearch},
 			{Name: "backlog convert", NeedsAPI: true, Description: "Convert a backlog item (args: <kind> <name> <target-kind> [target-name])", Run: a.cmdBacklogConvert},
 		},
@@ -144,16 +142,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "scenarios get", NeedsAPI: true, Description: "Get scenario details (args: <name>)", Run: a.cmdScenariosGet},
 			{Name: "scenarios update", NeedsAPI: true, Description: "Update scenario metadata (args: <name> <json>)", Run: a.cmdScenariosUpdate},
 			{Name: "scenarios delete", NeedsAPI: true, Description: "Delete a scenario (args: <name> [--archive])", Run: a.cmdScenariosDelete},
-		},
-	}
-
-	recommendations := cliapp.CommandGroup{
-		Title: "Recommendations",
-		Commands: []cliapp.Command{
-			{Name: "recommendations list", NeedsAPI: true, Description: "List recommendations", Run: a.cmdRecommendationsList},
-			{Name: "recommendations refresh", NeedsAPI: true, Description: "Refresh recommendations", Run: a.cmdRecommendationsRefresh},
-			{Name: "recommendations create", NeedsAPI: true, Description: "Create a manual recommendation (args: <json>)", Run: a.cmdRecommendationsCreate},
-			{Name: "recommendations update", NeedsAPI: true, Description: "Update recommendation status (args: <id> <status>)", Run: a.cmdRecommendationsUpdate},
 		},
 	}
 
@@ -174,6 +162,17 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	execution := cliapp.CommandGroup{
+		Title: "Execution",
+		Commands: []cliapp.Command{
+			{Name: "execution list", NeedsAPI: true, Description: "List execution runs", Run: a.cmdExecutionList},
+			{Name: "execution get", NeedsAPI: true, Description: "Get execution details (args: <execution-id>)", Run: a.cmdExecutionGet},
+			{Name: "execution start", NeedsAPI: true, Description: "Start an execution (args: <execution-id>)", Run: a.cmdExecutionStart},
+			{Name: "execution cancel", NeedsAPI: true, Description: "Cancel an execution (args: <execution-id>)", Run: a.cmdExecutionCancel},
+			{Name: "execution retry", NeedsAPI: true, Description: "Retry a failed execution (args: <execution-id>)", Run: a.cmdExecutionRetry},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -181,7 +180,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, backlog, scenarios, recommendations, settings, queue, config}
+	return []cliapp.CommandGroup{health, backlog, scenarios, settings, queue, execution, config}
 }
 
 // resolveV1Endpoint converts a relative endpoint path to the full API v1 path.
@@ -308,15 +307,14 @@ type ResearchResponse struct {
 
 // Scenario represents a scenario entry in the catalog.
 type Scenario struct {
-	Name                   string   `json:"name"`
-	DisplayName            string   `json:"display_name"`
-	Description            string   `json:"description"`
-	Status                 string   `json:"status"`
-	Priority               int      `json:"priority"`
-	CompletenessScore      *int     `json:"completeness_score,omitempty"`
-	IsGreenfield           bool     `json:"is_greenfield"`
-	Tags                   []string `json:"tags"`
-	RecommendationsEnabled bool     `json:"recommendations_enabled"`
+	Name              string   `json:"name"`
+	DisplayName       string   `json:"display_name"`
+	Description       string   `json:"description"`
+	Status            string   `json:"status"`
+	Priority          int      `json:"priority"`
+	CompletenessScore *int     `json:"completeness_score,omitempty"`
+	IsGreenfield      bool     `json:"is_greenfield"`
+	Tags              []string `json:"tags"`
 }
 
 // ScenarioResponse wraps scenario responses.
@@ -336,28 +334,6 @@ type DeleteScenarioResponse struct {
 	Message  string `json:"message"`
 }
 
-// Recommendation represents a recommendation item.
-type Recommendation struct {
-	ID          string `json:"id"`
-	Scenario    string `json:"scenario_name"`
-	Type        string `json:"type"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
-	Priority    int    `json:"priority"`
-	Created     string `json:"created"`
-	Source      string `json:"source,omitempty"`
-}
-
-// RecommendationResponse wraps recommendation responses.
-type RecommendationResponse struct {
-	Recommendation Recommendation `json:"recommendation"`
-}
-
-// ListRecommendationsResponse wraps recommendation list responses.
-type ListRecommendationsResponse struct {
-	Recommendations []Recommendation `json:"recommendations"`
-}
-
 // QueueItem represents a local queue entry.
 type QueueItem struct {
 	ID      string          `json:"id"`
@@ -369,6 +345,35 @@ type QueueItem struct {
 // QueueListResponse wraps queue list responses.
 type QueueListResponse struct {
 	Items []QueueItem `json:"items"`
+}
+
+// ExecutionRecord represents an execution-control record.
+type ExecutionRecord struct {
+	ExecutionID   string `json:"execution_id"`
+	BacklogKind   string `json:"backlog_kind"`
+	BacklogName   string `json:"backlog_name"`
+	TaskID        string `json:"task_id"`
+	RunID         string `json:"run_id"`
+	Status        string `json:"status"`
+	Mode          string `json:"mode"`
+	ScheduledAt   string `json:"scheduled_at"`
+	StartedAt     string `json:"started_at"`
+	FinishedAt    string `json:"finished_at"`
+	FailureReason string `json:"failure_reason"`
+	StartedBy     string `json:"started_by"`
+	Operation     string `json:"operation"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
+// ExecutionListResponse wraps execution list response payloads.
+type ExecutionListResponse struct {
+	Items []ExecutionRecord `json:"items"`
+}
+
+// ExecutionItemResponse wraps a single execution response.
+type ExecutionItemResponse struct {
+	Execution ExecutionRecord `json:"execution"`
 }
 
 // cmdBacklogList lists backlog items.
@@ -538,22 +543,41 @@ func (a *App) cmdBacklogDelete(args []string) error {
 
 // cmdBacklogQueue queues a backlog item for processing.
 func (a *App) cmdBacklogQueue(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: backlog queue <kind> <name> [operation]\n\nOperation: generator|improver")
+	fs := flag.NewFlagSet("backlog queue", flag.ContinueOnError)
+	mode := fs.String("mode", "yolo", "Execution mode: manual|scheduled|yolo")
+	delaySeconds := fs.Int64("delay-seconds", 0, "Schedule delay in seconds (scheduled mode)")
+	operation := fs.String("operation", "generator", "Operation hint: generator|improver")
+	startedBy := fs.String("started-by", "swarm-manager", "Started-by attribution label")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	kind := args[0]
-	name := args[1]
-	var payload json.RawMessage
-	if len(args) > 2 {
-		operation := strings.TrimSpace(args[2])
-		if operation != "generator" && operation != "improver" {
-			return fmt.Errorf("invalid operation %q (expected generator or improver)", operation)
-		}
-		body := fmt.Sprintf(`{"operation":"%s"}`, operation)
-		payload = json.RawMessage(body)
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: backlog queue <kind> <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME]")
+	}
+	kind := fs.Arg(0)
+	name := fs.Arg(1)
+	modeValue := strings.ToLower(strings.TrimSpace(*mode))
+	if modeValue != "manual" && modeValue != "scheduled" && modeValue != "yolo" {
+		return fmt.Errorf("invalid mode %q (expected manual, scheduled, or yolo)", modeValue)
+	}
+	operationValue := strings.ToLower(strings.TrimSpace(*operation))
+	if operationValue != "generator" && operationValue != "improver" {
+		return fmt.Errorf("invalid operation %q (expected generator or improver)", operationValue)
+	}
+	if *delaySeconds < 0 {
+		return fmt.Errorf("delay-seconds must be >= 0")
+	}
+	payload, err := json.Marshal(map[string]any{
+		"operation":     operationValue,
+		"mode":          modeValue,
+		"delay_seconds": *delaySeconds,
+		"started_by":    strings.TrimSpace(*startedBy),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/backlog/"+kind+"/"+name+"/queue"), nil, payload)
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/backlog/"+kind+"/"+name+"/queue"), nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}
@@ -567,6 +591,13 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	fmt.Printf("  Kind: %s\n", response.Item.Kind)
 	fmt.Printf("  Status: %s\n", response.Item.Status)
 	fmt.Printf("  Task ID: %s\n", response.TaskID)
+	if response.RunID != "" {
+		fmt.Printf("  Run ID: %s\n", response.RunID)
+	}
+	fmt.Printf("  Mode: %s\n", modeValue)
+	if modeValue == "scheduled" {
+		fmt.Printf("  Delay Seconds: %d\n", *delaySeconds)
+	}
 	return nil
 }
 
@@ -738,7 +769,6 @@ func (a *App) cmdScenariosGet(args []string) error {
 		fmt.Printf("Completeness: %d\n", *scenario.CompletenessScore)
 	}
 	fmt.Printf("Greenfield: %v\n", scenario.IsGreenfield)
-	fmt.Printf("Recommendations Enabled: %v\n", scenario.RecommendationsEnabled)
 	if len(scenario.Tags) > 0 {
 		fmt.Printf("Tags: %s\n", strings.Join(scenario.Tags, ", "))
 	}
@@ -771,7 +801,6 @@ func (a *App) cmdScenariosUpdate(args []string) error {
 
 	fmt.Printf("Updated scenario: %s\n", scenario.Name)
 	fmt.Printf("  Greenfield: %v\n", scenario.IsGreenfield)
-	fmt.Printf("  Recommendations Enabled: %v\n", scenario.RecommendationsEnabled)
 	return nil
 }
 
@@ -803,135 +832,6 @@ func (a *App) cmdScenariosDelete(args []string) error {
 	}
 
 	fmt.Println(response.Message)
-	return nil
-}
-
-// cmdRecommendationsList lists recommendations with optional filters.
-func (a *App) cmdRecommendationsList(args []string) error {
-	fs := flag.NewFlagSet("recommendations list", flag.ContinueOnError)
-	status := fs.String("status", "", "Filter by status (pending|approved|rejected)")
-	scenario := fs.String("scenario", "", "Filter by scenario name")
-	recType := fs.String("type", "", "Filter by type (test|feature|refactor|docs)")
-	refresh := fs.Bool("refresh", false, "Force refresh before listing")
-	jsonOut := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if strings.TrimSpace(*status) != "" {
-		query.Set("status", strings.TrimSpace(*status))
-	}
-	if strings.TrimSpace(*scenario) != "" {
-		query.Set("scenario", strings.TrimSpace(*scenario))
-	}
-	if strings.TrimSpace(*recType) != "" {
-		query.Set("type", strings.TrimSpace(*recType))
-	}
-	if *refresh {
-		query.Set("refresh", "true")
-	}
-
-	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/recommendations"), query)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOut {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	var response ListRecommendationsResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if len(response.Recommendations) == 0 {
-		fmt.Println("No recommendations found.")
-		return nil
-	}
-
-	fmt.Printf("Found %d recommendation(s):\n\n", len(response.Recommendations))
-	for _, rec := range response.Recommendations {
-		fmt.Printf("  %s (%s, %s)\n", rec.ID, rec.Status, rec.Type)
-		fmt.Printf("    Scenario: %s\n", rec.Scenario)
-		fmt.Printf("    Priority: %d\n", rec.Priority)
-		fmt.Printf("    Description: %s\n", rec.Description)
-		fmt.Println()
-	}
-	return nil
-}
-
-// cmdRecommendationsRefresh regenerates recommendations.
-func (a *App) cmdRecommendationsRefresh(_ []string) error {
-	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/recommendations/refresh"), nil, nil)
-	if err != nil {
-		return err
-	}
-
-	var response ListRecommendationsResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	fmt.Printf("Refreshed recommendations (%d total).\n", len(response.Recommendations))
-	return nil
-}
-
-// cmdRecommendationsCreate creates a manual recommendation.
-func (a *App) cmdRecommendationsCreate(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: recommendations create <json>")
-	}
-	jsonStr := strings.Join(args, " ")
-	var req map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &req); err != nil {
-		return fmt.Errorf("invalid JSON: %w", err)
-	}
-
-	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/recommendations"), nil, json.RawMessage(jsonStr))
-	if err != nil {
-		return err
-	}
-
-	var response RecommendationResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-	rec := response.Recommendation
-
-	fmt.Printf("Created recommendation: %s\n", rec.ID)
-	fmt.Printf("  Scenario: %s\n", rec.Scenario)
-	fmt.Printf("  Status: %s\n", rec.Status)
-	return nil
-}
-
-// cmdRecommendationsUpdate updates recommendation status.
-func (a *App) cmdRecommendationsUpdate(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: recommendations update <id> <status>")
-	}
-	id := args[0]
-	status := strings.TrimSpace(args[1])
-	if status != "pending" && status != "approved" && status != "rejected" {
-		return fmt.Errorf("invalid status %q (expected pending|approved|rejected)", status)
-	}
-
-	payload := fmt.Sprintf(`{"status":"%s"}`, status)
-	body, err := a.core.APIClient.Request("PATCH", a.resolveV1Endpoint("/recommendations/"+id), nil, json.RawMessage(payload))
-	if err != nil {
-		return err
-	}
-
-	var response RecommendationResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-	rec := response.Recommendation
-
-	fmt.Printf("Updated recommendation: %s\n", rec.ID)
-	fmt.Printf("  Status: %s\n", rec.Status)
 	return nil
 }
 
@@ -1046,5 +946,130 @@ func (a *App) cmdQueueDelete(args []string) error {
 	}
 
 	fmt.Printf("Deleted queue item: %s\n", id)
+	return nil
+}
+
+// cmdExecutionList lists execution records with optional filters.
+func (a *App) cmdExecutionList(args []string) error {
+	fs := flag.NewFlagSet("execution list", flag.ContinueOnError)
+	status := fs.String("status", "", "Filter by status")
+	mode := fs.String("mode", "", "Filter by mode")
+	backlogKind := fs.String("backlog-kind", "", "Filter by backlog kind")
+	backlogName := fs.String("backlog-name", "", "Filter by backlog name")
+	startedBy := fs.String("started-by", "", "Filter by started_by/source team")
+	createdFrom := fs.String("created-from", "", "Filter by created_at lower bound (RFC3339)")
+	createdTo := fs.String("created-to", "", "Filter by created_at upper bound (RFC3339)")
+	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if strings.TrimSpace(*status) != "" {
+		query.Set("status", strings.TrimSpace(*status))
+	}
+	if strings.TrimSpace(*mode) != "" {
+		query.Set("mode", strings.TrimSpace(*mode))
+	}
+	if strings.TrimSpace(*backlogKind) != "" {
+		query.Set("backlog_kind", strings.TrimSpace(*backlogKind))
+	}
+	if strings.TrimSpace(*backlogName) != "" {
+		query.Set("backlog_name", strings.TrimSpace(*backlogName))
+	}
+	if strings.TrimSpace(*startedBy) != "" {
+		query.Set("started_by", strings.TrimSpace(*startedBy))
+	}
+	if strings.TrimSpace(*createdFrom) != "" {
+		query.Set("created_from", strings.TrimSpace(*createdFrom))
+	}
+	if strings.TrimSpace(*createdTo) != "" {
+		query.Set("created_to", strings.TrimSpace(*createdTo))
+	}
+
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/execution"), query)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var response ExecutionListResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	if len(response.Items) == 0 {
+		fmt.Println("No execution runs found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d execution run(s):\n\n", len(response.Items))
+	for _, item := range response.Items {
+		fmt.Printf("  %s (%s)\n", item.ExecutionID, item.Status)
+		fmt.Printf("    Backlog: %s/%s\n", item.BacklogKind, item.BacklogName)
+		fmt.Printf("    Mode: %s\n", item.Mode)
+		if item.RunID != "" {
+			fmt.Printf("    Run ID: %s\n", item.RunID)
+		}
+		if item.TaskID != "" {
+			fmt.Printf("    Task ID: %s\n", item.TaskID)
+		}
+		if item.FailureReason != "" {
+			fmt.Printf("    Failure: %s\n", item.FailureReason)
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
+// cmdExecutionGet fetches one execution record.
+func (a *App) cmdExecutionGet(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: execution get <execution-id>")
+	}
+	executionID := strings.TrimSpace(args[0])
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/execution/"+executionID), nil)
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// cmdExecutionStart starts an execution now.
+func (a *App) cmdExecutionStart(args []string) error {
+	return a.runExecutionMutation(args, "start")
+}
+
+// cmdExecutionCancel cancels an execution.
+func (a *App) cmdExecutionCancel(args []string) error {
+	return a.runExecutionMutation(args, "cancel")
+}
+
+// cmdExecutionRetry retries a failed execution.
+func (a *App) cmdExecutionRetry(args []string) error {
+	return a.runExecutionMutation(args, "retry")
+}
+
+func (a *App) runExecutionMutation(args []string, action string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: execution %s <execution-id>", action)
+	}
+	executionID := strings.TrimSpace(args[0])
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/execution/"+executionID+"/"+action), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var response ExecutionItemResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Execution %s: %s\n", action, response.Execution.ExecutionID)
+	fmt.Printf("  Status: %s\n", response.Execution.Status)
+	fmt.Printf("  Backlog: %s/%s\n", response.Execution.BacklogKind, response.Execution.BacklogName)
 	return nil
 }

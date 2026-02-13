@@ -26,6 +26,7 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { FloatingActionButton } from "../components/ui/floating-action-button";
+import { Input } from "../components/ui/input";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
 import { Select } from "../components/ui/select";
@@ -109,6 +110,7 @@ export function BacklogPage() {
   const [statusFilter, setStatusFilter] = useState<BacklogStatus | "">("");
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
   const error = useBacklogStore((state) => state.error);
@@ -126,8 +128,30 @@ export function BacklogPage() {
       setShowCreate(false);
     },
   });
+  const queueMutation = useMutation({
+    mutationFn: ({
+      kind,
+      name,
+      mode,
+      delaySeconds,
+    }: {
+      kind: BacklogKind;
+      name: string;
+      mode: "manual" | "scheduled" | "yolo";
+      delaySeconds?: number;
+    }) =>
+      backlogService.queue(kind, name, {
+        mode,
+        delaySeconds,
+        startedBy: "swarm-manager-ui",
+      }),
+    onSuccess: () => {
+      void fetchBacklog({ force: true });
+    },
+  });
 
   const createError = createMutation.isError ? "Failed to create backlog item. Please try again." : null;
+  const queueError = queueMutation.isError ? "Failed to queue backlog item." : null;
 
   const kindItems = useMemo(
     () => items.filter((item) => item.kind === activeKind),
@@ -167,6 +191,9 @@ export function BacklogPage() {
   }, [kindItems]);
 
   const activeTab = BACKLOG_KIND_TABS.find((tab) => tab.kind === activeKind) ?? BACKLOG_KIND_TABS[0];
+  const scheduleDelayValue = Number.isFinite(scheduleDelaySeconds) && scheduleDelaySeconds >= 0 ? scheduleDelaySeconds : 0;
+  const isQueueable = (item: { kind: BacklogKind; status: BacklogStatus }) =>
+    item.kind !== "research" && ["backlog", "researching", "ready"].includes(item.status);
   if (!activeTab) {
     return (
       <div className="space-y-6" data-testid={selectors.backlog.page}>
@@ -279,13 +306,24 @@ export function BacklogPage() {
             </div>
 
             {kindItems.length > 0 && (
-              <div className="flex items-center gap-3 text-sm text-slate-400" data-testid={selectors.backlog.summaryStats}>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400" data-testid={selectors.backlog.summaryStats}>
                 <span>{stats.total} item{stats.total !== 1 ? "s" : ""}</span>
                 {stats.ready > 0 && (
                   <span className="text-cyan-400" data-testid={selectors.backlog.readyCount}>
                     {stats.ready} ready to queue
                   </span>
                 )}
+                <label className="flex items-center gap-2 text-xs text-slate-500">
+                  Schedule delay (s)
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={scheduleDelayValue}
+                    onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
+                    className="h-8 w-24"
+                  />
+                </label>
               </div>
             )}
           </div>
@@ -305,6 +343,11 @@ export function BacklogPage() {
             <X className="h-4 w-4" />
           </button>
         </div>
+      )}
+      {queueError && (
+        <Card className="border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          {queueError}
+        </Card>
       )}
 
       <div className="space-y-4">
@@ -439,6 +482,50 @@ export function BacklogPage() {
                     <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
                   </div>
+                  {isQueueable(item) && (
+                    <div className="mt-3 flex flex-wrap gap-2" onClick={(event) => event.preventDefault()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={queueMutation.isPending}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          queueMutation.mutate({ kind: item.kind, name: item.name, mode: "manual" });
+                        }}
+                      >
+                        Queue
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={queueMutation.isPending}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          queueMutation.mutate({ kind: item.kind, name: item.name, mode: "yolo" });
+                        }}
+                      >
+                        Start Now
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={queueMutation.isPending}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          queueMutation.mutate({
+                            kind: item.kind,
+                            name: item.name,
+                            mode: "scheduled",
+                            delaySeconds: scheduleDelayValue,
+                          });
+                        }}
+                      >
+                        Schedule
+                      </Button>
+                    </div>
+                  )}
                 </ResponsiveListItem>
               ))}
             </ResponsiveList>

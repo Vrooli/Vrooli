@@ -1,5 +1,7 @@
 # Architecture Seams & Internal Design
 
+> Note (2026-02-13): Portions of this document describe historical recommendation-surface architecture. Current greenfield runtime uses execution control (`/execution`) and no recommendation subsystem.
+
 ## Overview
 
 This document captures the architecture seams (integration points, boundaries) and internal implementation details for Swarm Manager. It serves as a living record of design decisions and drift from the documented mental model.

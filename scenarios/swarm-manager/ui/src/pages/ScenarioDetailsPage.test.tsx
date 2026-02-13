@@ -60,7 +60,6 @@ describe("ScenarioDetailsPage", () => {
     priority: 2,
     tags: ["api", "backend"],
     isGreenfield: false,
-    recommendationsEnabled: true,
     completenessScore: 75,
   };
 
@@ -265,16 +264,6 @@ describe("ScenarioDetailsPage", () => {
       expect(screen.getByText("Greenfield Mode")).toBeInTheDocument();
     });
 
-    it("shows recommendations toggle", async () => {
-      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId("scenario-recommendations-toggle")).toBeInTheDocument();
-      });
-      expect(screen.getByText("Recommendations")).toBeInTheDocument();
-    });
-
     it("displays correct initial state for greenfield toggle", async () => {
       vi.mocked(scenariosService.get).mockResolvedValue({
         ...mockScenario,
@@ -288,18 +277,6 @@ describe("ScenarioDetailsPage", () => {
       });
     });
 
-    it("displays correct initial state for recommendations toggle", async () => {
-      vi.mocked(scenariosService.get).mockResolvedValue({
-        ...mockScenario,
-        recommendationsEnabled: true,
-      });
-      renderPage();
-
-      await waitFor(() => {
-        const toggle = screen.getByTestId("scenario-recommendations-toggle");
-        expect(toggle).toHaveTextContent("Enabled");
-      });
-    });
   });
 
   // [REQ:REQ-P0-007f] Test toggle interactions
@@ -325,31 +302,6 @@ describe("ScenarioDetailsPage", () => {
         expect(scenariosService.updateMetadata).toHaveBeenCalledWith(
           "test-scenario",
           { isGreenfield: true }
-        );
-      });
-    });
-
-    it("calls updateMetadata when recommendations toggle is clicked", async () => {
-      vi.mocked(scenariosService.get).mockResolvedValue({
-        ...mockScenario,
-        recommendationsEnabled: true,
-      });
-      vi.mocked(scenariosService.updateMetadata).mockResolvedValue({
-        ...mockScenario,
-        recommendationsEnabled: false,
-      });
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId("scenario-recommendations-toggle")).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId("scenario-recommendations-toggle"));
-
-      await waitFor(() => {
-        expect(scenariosService.updateMetadata).toHaveBeenCalledWith(
-          "test-scenario",
-          { recommendationsEnabled: false }
         );
       });
     });

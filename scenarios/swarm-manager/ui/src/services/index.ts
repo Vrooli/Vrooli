@@ -22,10 +22,10 @@ export type { IScenariosService } from "./scenarios-service";
 export { settingsService, createSettingsService } from "./settings-service";
 export type { ISettingsService } from "./settings-service";
 
-// Recommendations
-export { recommendationsService, createRecommendationsService } from "./recommendations-service";
-export type { IRecommendationsService } from "./recommendations-service";
-
 // Agent Manager
 export { agentManagerService, createAgentManagerService } from "./agent-manager-service";
 export type { IAgentManagerService } from "./agent-manager-service";
+
+// Execution
+export { executionService, createExecutionService } from "./execution-service";
+export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";

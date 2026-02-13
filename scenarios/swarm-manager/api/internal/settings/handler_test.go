@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -26,28 +25,8 @@ func TestStore_LoadDefaults(t *testing.T) {
 	if settings.Theme != "dark" {
 		t.Errorf("expected default theme dark, got %s", settings.Theme)
 	}
-	if !settings.RecommendationSources.Problems {
-		t.Errorf("expected default recommendationSources.problems true")
-	}
-}
-
-func TestStore_LoadLegacyMissingSources(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "settings.json")
-
-	legacy := []byte(`{"theme":"dark","recommendationMode":"suggestions"}`)
-	if err := os.WriteFile(path, legacy, 0o644); err != nil {
-		t.Fatalf("write legacy file: %v", err)
-	}
-
-	store := NewStore(path)
-	settings, err := store.Load()
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-
-	if settings.RecommendationSources == (RecommendationSources{}) {
-		t.Errorf("expected recommendationSources defaults to be applied")
+	if settings.CustomFocus != "" {
+		t.Errorf("expected default customFocus empty, got %q", settings.CustomFocus)
 	}
 }
 
@@ -59,10 +38,8 @@ func TestHandler_UpdatePartial(t *testing.T) {
 	router := httptest.NewRecorder()
 
 	payload := map[string]any{
-		"theme": "light",
-		"recommendationSources": map[string]any{
-			"tests": false,
-		},
+		"theme":           "light",
+		"insightsEnabled": true,
 	}
 	body, _ := json.Marshal(payload)
 
@@ -78,7 +55,7 @@ func TestHandler_UpdatePartial(t *testing.T) {
 	if settings.GetTheme() != "light" {
 		t.Errorf("expected theme light, got %s", settings.GetTheme())
 	}
-	if settings.GetRecommendationSources().GetTests() != false {
-		t.Errorf("expected recommendationSources.tests false")
+	if !settings.GetInsightsEnabled() {
+		t.Errorf("expected insightsEnabled true")
 	}
 }
