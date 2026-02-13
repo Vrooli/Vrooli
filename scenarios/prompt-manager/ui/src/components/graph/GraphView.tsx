@@ -51,6 +51,8 @@ const NODE_WIDTH = 160
 const NODE_HEIGHT = 80
 const CLI_CLUSTER_ID = '__pm_cli_cluster__'
 const LOW_SIGNAL_EDGE_KINDS = new Set(['bold-listed', 'path-ref'])
+const HEAVY_EDGE_COUNT_THRESHOLD = 300
+const MINIMAP_NODE_THRESHOLD = 120
 
 // ============================================================================
 // Node Types
@@ -79,21 +81,6 @@ const EDGE_STYLES: Record<string, { stroke: string; strokeDasharray?: string }> 
 
 type FlowNode = Node<GraphNodeData, 'graphNode'>
 type FlowEdge = Edge
-
-function getBounds(nodes: FlowNode[]): { width: number; height: number } {
-  if (nodes.length === 0) return { width: 0, height: 0 }
-  let minX = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-  for (const node of nodes) {
-    minX = Math.min(minX, node.position.x)
-    maxX = Math.max(maxX, node.position.x + NODE_WIDTH)
-    minY = Math.min(minY, node.position.y)
-    maxY = Math.max(maxY, node.position.y + NODE_HEIGHT)
-  }
-  return { width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) }
-}
 
 function runDagreLayout(
   nodes: FlowNode[],
@@ -142,23 +129,25 @@ function getGroupedLayout(nodes: FlowNode[], edges: FlowEdge[], direction: 'TB' 
     byLane.set(lane, list)
   }
 
-  const laneGap = 260
   const cellX = NODE_WIDTH + 60
   const cellY = NODE_HEIGHT + 60
+  const laneGap = 120
   const layoutedNodes: FlowNode[] = []
+  let laneOffset = 0
 
   for (let laneIndex = 0; laneIndex < laneOrder.length; laneIndex++) {
     const lane = laneOrder[laneIndex] ?? 'skill'
     const laneNodes = byLane.get(lane) ?? []
     if (laneNodes.length === 0) continue
     const columns = Math.max(1, Math.ceil(Math.sqrt(laneNodes.length)))
+    const rows = Math.max(1, Math.ceil(laneNodes.length / columns))
     for (let i = 0; i < laneNodes.length; i++) {
       const laneNode = laneNodes[i]
       if (!laneNode) continue
       const col = i % columns
       const row = Math.floor(i / columns)
       const x = col * cellX
-      const y = laneIndex * laneGap + row * cellY
+      const y = laneOffset + row * cellY
       layoutedNodes.push({
         ...laneNode,
         position: direction === 'TB'
@@ -166,6 +155,7 @@ function getGroupedLayout(nodes: FlowNode[], edges: FlowEdge[], direction: 'TB' 
           : { x: y, y: x },
       })
     }
+    laneOffset += rows * cellY + laneGap
   }
   return { nodes: layoutedNodes, edges }
 }
@@ -180,22 +170,8 @@ function getLayoutedElements(
     return getGroupedLayout(nodes, edges, direction)
   }
 
-  const primary = runDagreLayout(nodes, edges, direction, mode)
-  const primaryBounds = getBounds(primary.nodes)
-  const primaryRatio = primaryBounds.width / primaryBounds.height
-  const tooElongated = primaryRatio > 3 || primaryRatio < 1 / 3
-  if (!tooElongated) {
-    return primary
-  }
-
-  const alternateDirection = direction === 'TB' ? 'LR' : 'TB'
-  const alternate = runDagreLayout(nodes, edges, alternateDirection, mode)
-  const alternateBounds = getBounds(alternate.nodes)
-  const alternateRatio = alternateBounds.width / alternateBounds.height
-
-  const primaryDistance = Math.abs(Math.log(primaryRatio))
-  const alternateDistance = Math.abs(Math.log(alternateRatio))
-  return alternateDistance < primaryDistance ? alternate : primary
+  // Respect explicit user direction selection (TB/LR) without auto-flipping.
+  return runDagreLayout(nodes, edges, direction, mode)
 }
 
 // ============================================================================
@@ -367,6 +343,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   }, [viewModel.nodes, highlightedNodeIds, healthMap])
 
   // Build flow edges (only between visible nodes)
+  const useLightweightEdges = viewModel.edges.length > HEAVY_EDGE_COUNT_THRESHOLD
   const flowEdges = useMemo((): FlowEdge[] => {
     return viewModel.edges
       .filter((e) => renderedNodeIds.has(e.from) && renderedNodeIds.has(e.to))
@@ -377,11 +354,11 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
           id: `e-${edge.from}-${edge.to}-${edge.kind}-${i}`,
           source: edge.from,
           target: edge.to,
-          type: 'smoothstep',
+          type: useLightweightEdges ? 'straight' : 'smoothstep',
           selectable: false,
           focusable: false,
           reconnectable: false,
-          animated: edge.kind === 'default-scope',
+          animated: false,
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 16,
@@ -396,7 +373,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
           },
         }
       })
-  }, [viewModel.edges, renderedNodeIds])
+  }, [viewModel.edges, renderedNodeIds, useLightweightEdges])
 
   // Apply layout
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(
@@ -406,6 +383,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(layoutedNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(layoutedEdges)
+  const showMiniMap = nodes.length <= MINIMAP_NODE_THRESHOLD
 
   // Update when layout/data changes
   useEffect(() => {
@@ -656,6 +634,10 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
             onMove={onMove}
             onMoveEnd={onMoveEnd}
             nodeTypes={nodeTypes}
+            onlyRenderVisibleElements
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
             minZoom={0.1}
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
@@ -666,19 +648,21 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
               className="!bg-card !border-border !rounded-lg overflow-hidden"
               showInteractive={false}
             />
-            <MiniMap
-              className="!bg-card !border-border !rounded-lg"
-              nodeColor={(node) => {
-                const data = node.data as unknown as GraphNodeData
-                switch (data.nodeType) {
-                  case 'team': return '#3b82f6'
-                  case 'agent': return '#10b981'
-                  case 'skill': return '#8b5cf6'
-                  default: return '#f97316'
-                }
-              }}
-              maskColor="rgba(0, 0, 0, 0.5)"
-            />
+            {showMiniMap && (
+              <MiniMap
+                className="!bg-card !border-border !rounded-lg"
+                nodeColor={(node) => {
+                  const data = node.data as unknown as GraphNodeData
+                  switch (data.nodeType) {
+                    case 'team': return '#3b82f6'
+                    case 'agent': return '#10b981'
+                    case 'skill': return '#8b5cf6'
+                    default: return '#f97316'
+                  }
+                }}
+                maskColor="rgba(0, 0, 0, 0.5)"
+              />
+            )}
           </ReactFlow>
 
           {/* Click-anchored node detail popover */}

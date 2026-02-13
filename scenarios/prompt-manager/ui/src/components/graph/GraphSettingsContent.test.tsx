@@ -113,7 +113,7 @@ describe('GraphSettingsContent', () => {
     render(<GraphSettingsContent />)
     fireEvent.click(screen.getByText('Horizontal'))
 
-    expect(spy).toHaveBeenCalledWith('LR')
+    expect(spy).toHaveBeenCalledWith('TB')
   })
 
   it('should call requestFitView when fit view button is clicked', () => {

@@ -151,10 +151,10 @@ export function GraphSettingsContent() {
         <div className="flex gap-2 mb-3">
           <button
             type="button"
-            onClick={() => setLayoutDirection('TB')}
+            onClick={() => setLayoutDirection('LR')}
             className={cn(
               'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-all',
-              layoutDirection === 'TB'
+              layoutDirection === 'LR'
                 ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
                 : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
             )}
@@ -164,10 +164,10 @@ export function GraphSettingsContent() {
           </button>
           <button
             type="button"
-            onClick={() => setLayoutDirection('LR')}
+            onClick={() => setLayoutDirection('TB')}
             className={cn(
               'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-all',
-              layoutDirection === 'LR'
+              layoutDirection === 'TB'
                 ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
                 : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
             )}
