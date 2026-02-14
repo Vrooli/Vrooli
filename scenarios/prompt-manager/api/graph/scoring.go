@@ -58,7 +58,34 @@ type rankedMessage struct {
 }
 
 // ScoreAll computes health scores for all nodes using the provided score functions.
+// Edge counts are pre-computed in O(E) to avoid quadratic per-node scanning.
 func ScoreAll(g Graph, fns []ScoreFn) []HealthScore {
+	ec := buildEdgeCounts(g)
+	// Build optimized versions of the edge-based score functions.
+	type scoreFnOptimized struct {
+		Name   string
+		Weight float64
+		Fn     func(nodeID string) float64
+	}
+	optimized := make([]scoreFnOptimized, len(fns))
+	for i, fn := range fns {
+		fn := fn // capture
+		switch fn.Name {
+		case "outgoing-edges":
+			optimized[i] = scoreFnOptimized{fn.Name, fn.Weight, func(nodeID string) float64 {
+				return math.Min(float64(ec.outgoing[nodeID])/5.0, 1.0)
+			}}
+		case "incoming-edges":
+			optimized[i] = scoreFnOptimized{fn.Name, fn.Weight, func(nodeID string) float64 {
+				return math.Min(float64(ec.incoming[nodeID])/5.0, 1.0)
+			}}
+		default:
+			optimized[i] = scoreFnOptimized{fn.Name, fn.Weight, func(nodeID string) float64 {
+				return fn.Fn(nodeID, g)
+			}}
+		}
+	}
+
 	scores := make([]HealthScore, 0, len(g.Nodes))
 	for _, n := range g.Nodes {
 		hs := HealthScore{
@@ -67,8 +94,8 @@ func ScoreAll(g Graph, fns []ScoreFn) []HealthScore {
 		}
 		var total float64
 		var weightSum float64
-		for _, fn := range fns {
-			val := fn.Fn(n.ID, g)
+		for _, fn := range optimized {
+			val := fn.Fn(n.ID)
 			hs.Factors[fn.Name] = val
 			total += val * fn.Weight
 			weightSum += fn.Weight
@@ -82,7 +109,9 @@ func ScoreAll(g Graph, fns []ScoreFn) []HealthScore {
 }
 
 // ScoreAllWithConfig computes health scores for all nodes using per-entity weights.
+// Edge counts are pre-computed in O(E) to avoid quadratic per-node scanning.
 func ScoreAllWithConfig(g Graph, cfg HealthConfig) []HealthScore {
+	ec := buildEdgeCounts(g)
 	scores := make([]HealthScore, 0, len(g.Nodes))
 	for _, n := range g.Nodes {
 		weights := weightsForNodeType(n.Type, cfg)
@@ -99,7 +128,7 @@ func ScoreAllWithConfig(g Graph, cfg HealthConfig) []HealthScore {
 				"team-role-coverage":        0,
 			},
 		}
-		score, factors, messages := scoreWithWeights(n.ID, g, weights)
+		score, factors, messages := scoreWithWeightsEC(n.ID, g, weights, ec)
 		hs.Score = score
 		for k, v := range factors {
 			hs.Factors[k] = v
@@ -435,6 +464,86 @@ func evaluateFactorWithMessages(factorName, nodeID string, g Graph, value float6
 	return diag
 }
 
+// factorEvaluatorsEC are O(1) versions of edge-based evaluators that use
+// pre-computed edge counts instead of scanning all edges per node.
+var factorEvaluatorsEC = map[string]func(nodeID string, g Graph, ec edgeCounts) float64{
+	"outgoing-edges": func(nodeID string, _ Graph, ec edgeCounts) float64 {
+		return math.Min(float64(ec.outgoing[nodeID])/5.0, 1.0)
+	},
+	"incoming-edges": func(nodeID string, _ Graph, ec edgeCounts) float64 {
+		return math.Min(float64(ec.incoming[nodeID])/5.0, 1.0)
+	},
+}
+
+// scoreWithWeightsEC is the optimized variant that uses pre-computed edge counts.
+func scoreWithWeightsEC(nodeID string, g Graph, weights HealthWeights, ec edgeCounts) (float64, map[string]float64, []HealthMessage) {
+	weightByFactor := map[string]float64{
+		"outgoing-edges":            weights.OutgoingEdges,
+		"incoming-edges":            weights.IncomingEdges,
+		"code-usage":                weights.CodeUsage,
+		"recent-activity":           weights.RecentActivity,
+		"skill-content-length":      weights.SkillContentLength,
+		"agent-context-load":        weights.AgentContextLoad,
+		"team-member-count-balance": weights.TeamMemberCountBalance,
+		"team-role-coverage":        weights.TeamRoleCoverage,
+	}
+
+	factors := make(map[string]float64, len(weightByFactor))
+	var ranked []rankedMessage
+	var total float64
+	var weightSum float64
+	factorNames := make([]string, 0, len(weightByFactor))
+	for factorName := range weightByFactor {
+		factorNames = append(factorNames, factorName)
+	}
+	sort.Strings(factorNames)
+	for _, factorName := range factorNames {
+		weight := weightByFactor[factorName]
+		// Use O(1) edge-count evaluator when available, else fall back to O(E) scan.
+		var val float64
+		if ecEval, ok := factorEvaluatorsEC[factorName]; ok {
+			val = ecEval(nodeID, g, ec)
+		} else if evaluator, ok := factorEvaluators[factorName]; ok {
+			val = evaluator(nodeID, g)
+		}
+		result := evaluateFactorWithMessages(factorName, nodeID, g, val)
+		factors[factorName] = result.value
+		if weight <= 0 {
+			continue
+		}
+		if len(result.messages) > 0 {
+			impact := weight * (1 - result.value)
+			for _, msg := range result.messages {
+				ranked = append(ranked, rankedMessage{
+					message: msg,
+					impact:  impact,
+				})
+			}
+		}
+		total += result.value * weight
+		weightSum += weight
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if ranked[i].impact != ranked[j].impact {
+			return ranked[i].impact > ranked[j].impact
+		}
+		left := severityRank(ranked[i].message.Severity)
+		right := severityRank(ranked[j].message.Severity)
+		if left != right {
+			return left > right
+		}
+		return ranked[i].message.Factor < ranked[j].message.Factor
+	})
+	messages := make([]HealthMessage, 0, len(ranked))
+	for _, r := range ranked {
+		messages = append(messages, r.message)
+	}
+	if weightSum <= 0 {
+		return 0, factors, messages
+	}
+	return total / weightSum, factors, messages
+}
+
 func scoreWithWeights(nodeID string, g Graph, weights HealthWeights) (float64, map[string]float64, []HealthMessage) {
 	weightByFactor := map[string]float64{
 		"outgoing-edges":            weights.OutgoingEdges,
@@ -523,6 +632,25 @@ func normalizeScenarioScore(score float64) float64 {
 		return 1.0
 	}
 	return score
+}
+
+// edgeCounts pre-computes outgoing and incoming edge counts for all nodes
+// in O(E) time, avoiding O(N*E) per-node scans.
+type edgeCounts struct {
+	outgoing map[string]int
+	incoming map[string]int
+}
+
+func buildEdgeCounts(g Graph) edgeCounts {
+	ec := edgeCounts{
+		outgoing: make(map[string]int, len(g.Nodes)),
+		incoming: make(map[string]int, len(g.Nodes)),
+	}
+	for _, e := range g.Edges {
+		ec.outgoing[e.From]++
+		ec.incoming[e.To]++
+	}
+	return ec
 }
 
 // outgoingEdgesScore: higher is better, capped at 1.0.

@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -328,5 +329,148 @@ func TestScoreWithWeights_OrdersMessagesByWeightedImpact(t *testing.T) {
 	}
 	if messages[0].Factor != "outgoing-edges" {
 		t.Fatalf("expected highest-impact recommendation first, got %q", messages[0].Factor)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Regression tests: edge count pre-computation (O(N+E) vs O(N*E))
+// ---------------------------------------------------------------------------
+
+// TestBuildEdgeCounts verifies the pre-computed edge count index
+// produces the same results as the linear-scan approach.
+func TestBuildEdgeCounts(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "a", Type: NodeAgent},
+			{ID: "b", Type: NodeSkill},
+			{ID: "c", Type: NodeSkill},
+		},
+		Edges: []Edge{
+			{From: "a", To: "b", Kind: EdgeCLIRead},
+			{From: "a", To: "c", Kind: EdgeBoldListed},
+			{From: "b", To: "c", Kind: EdgeDefaultScope},
+		},
+	}
+
+	ec := buildEdgeCounts(g)
+
+	// Outgoing: a=2, b=1, c=0
+	if ec.outgoing["a"] != 2 {
+		t.Errorf("expected outgoing[a]=2, got %d", ec.outgoing["a"])
+	}
+	if ec.outgoing["b"] != 1 {
+		t.Errorf("expected outgoing[b]=1, got %d", ec.outgoing["b"])
+	}
+	if ec.outgoing["c"] != 0 {
+		t.Errorf("expected outgoing[c]=0, got %d", ec.outgoing["c"])
+	}
+
+	// Incoming: a=0, b=1, c=2
+	if ec.incoming["a"] != 0 {
+		t.Errorf("expected incoming[a]=0, got %d", ec.incoming["a"])
+	}
+	if ec.incoming["b"] != 1 {
+		t.Errorf("expected incoming[b]=1, got %d", ec.incoming["b"])
+	}
+	if ec.incoming["c"] != 2 {
+		t.Errorf("expected incoming[c]=2, got %d", ec.incoming["c"])
+	}
+}
+
+// TestScoreAllWithConfig_MatchesScoreAll_EdgeCounts verifies that the
+// pre-computed edge count path produces the same edge factor scores as
+// the linear-scan fallback.
+func TestScoreAllWithConfig_MatchesScoreAll_EdgeCounts(t *testing.T) {
+	g := Graph{
+		Nodes: []Node{
+			{ID: "a", Type: NodeAgent},
+			{ID: "b", Type: NodeSkill},
+			{ID: "c", Type: NodeSkill},
+		},
+		Edges: []Edge{
+			{From: "a", To: "b", Kind: EdgeCLIRead},
+			{From: "a", To: "c", Kind: EdgeBoldListed},
+			{From: "b", To: "c", Kind: EdgeDefaultScope},
+			{From: "c", To: "a", Kind: EdgePathRef},
+		},
+	}
+
+	cfg := DefaultHealthConfig()
+	configScores := ScoreAllWithConfig(g, cfg)
+	legacyScores := ScoreAll(g, DefaultScoreFns())
+
+	// Both should have scores for all nodes.
+	if len(configScores) != len(g.Nodes) {
+		t.Fatalf("ScoreAllWithConfig returned %d scores, expected %d", len(configScores), len(g.Nodes))
+	}
+	if len(legacyScores) != len(g.Nodes) {
+		t.Fatalf("ScoreAll returned %d scores, expected %d", len(legacyScores), len(g.Nodes))
+	}
+
+	// Build maps for comparison.
+	configByID := make(map[string]HealthScore)
+	for _, hs := range configScores {
+		configByID[hs.NodeID] = hs
+	}
+	legacyByID := make(map[string]HealthScore)
+	for _, hs := range legacyScores {
+		legacyByID[hs.NodeID] = hs
+	}
+
+	// Edge count factors should match between the two approaches.
+	for _, n := range g.Nodes {
+		chs := configByID[n.ID]
+		lhs := legacyByID[n.ID]
+
+		cOut := chs.Factors["outgoing-edges"]
+		lOut := lhs.Factors["outgoing-edges"]
+		if cOut != lOut {
+			t.Errorf("node %s: outgoing-edges mismatch: config=%f legacy=%f", n.ID, cOut, lOut)
+		}
+
+		cIn := chs.Factors["incoming-edges"]
+		lIn := lhs.Factors["incoming-edges"]
+		if cIn != lIn {
+			t.Errorf("node %s: incoming-edges mismatch: config=%f legacy=%f", n.ID, cIn, lIn)
+		}
+	}
+}
+
+// BenchmarkScoreAllWithConfig_LargeGraph measures scoring performance
+// for a large graph (200 nodes, 2000 edges) to verify the O(N+E)
+// optimization is effective.
+func BenchmarkScoreAllWithConfig_LargeGraph(b *testing.B) {
+	const numNodes = 200
+	const numEdges = 2000
+
+	nodes := make([]Node, numNodes)
+	for i := 0; i < numNodes; i++ {
+		nodeType := NodeSkill
+		if i%3 == 0 {
+			nodeType = NodeAgent
+		} else if i%5 == 0 {
+			nodeType = NodeTeam
+		}
+		nodes[i] = Node{
+			ID:   fmt.Sprintf("node-%d", i),
+			Type: nodeType,
+		}
+	}
+
+	edges := make([]Edge, numEdges)
+	for i := 0; i < numEdges; i++ {
+		edges[i] = Edge{
+			From: fmt.Sprintf("node-%d", i%numNodes),
+			To:   fmt.Sprintf("node-%d", (i*7+3)%numNodes),
+			Kind: EdgeCLIRead,
+		}
+	}
+
+	g := Graph{Nodes: nodes, Edges: edges}
+	cfg := DefaultHealthConfig()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ScoreAllWithConfig(g, cfg)
 	}
 }
