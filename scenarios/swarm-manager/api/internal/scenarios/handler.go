@@ -5,6 +5,10 @@
 // This handler provides read and update access to the scenario catalog with optional
 // filtering, search, and metadata management.
 //
+// DOC: docs/concepts/ARCHITECTURE.md#key-flows
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/SEAMS.md
+//
 // Related PRD targets: OT-P0-005, OT-P0-006
 package scenarios
 

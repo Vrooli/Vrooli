@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/INTEROP_AUDIT.md
+
 const defaultCompletenessTimeout = 30 * time.Second
 
 // CompletenessSource provides completeness scores for scenarios.

@@ -128,4 +128,4 @@ swarm-manager execution list
 1. Run `swarm-manager configure`
 2. Or set `SWARM_MANAGER_API_BASE`
 
-For known issues, see [PROBLEMS.md](PROBLEMS.md).
+For known issues, see [internal/PROBLEMS.md](internal/PROBLEMS.md).

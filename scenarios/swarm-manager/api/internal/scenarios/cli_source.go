@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// DOC: docs/concepts/ARCHITECTURE.md#integration-strategy
+// DOC: docs/internal/INTEROP_AUDIT.md
+
 const defaultCLITimeout = 20 * time.Second
 
 // ScenarioSource describes scenario data sourced from the Vrooli CLI.

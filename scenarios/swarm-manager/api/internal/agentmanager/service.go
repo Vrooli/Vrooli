@@ -2,6 +2,10 @@
 //
 // This service hides HTTP/proto details from handlers and owns profile setup,
 // tagging, and spawn orchestration for Swarm Manager.
+//
+// DOC: docs/concepts/ARCHITECTURE.md#design-principles
+// DOC: docs/internal/SEAMS.md
+// DOC: docs/internal/INTENT.md#what-not-to-modify-here
 package agentmanager
 
 import (

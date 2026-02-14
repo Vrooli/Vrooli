@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "Swarm Manager Documentation",
   "description": "Documentation for backlog-first scenario governance and execution control",
   "defaultDocument": "QUICKSTART.md",
@@ -29,7 +29,20 @@
           "audience": ["developers", "operators"]
         },
         {
-          "path": "RESEARCH.md",
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Core terminology and lifecycle vocabulary",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "compass",
+      "documents": [
+        {
+          "path": "guides/research-notes.md",
           "title": "Research Notes",
           "description": "Rationale and scenario relationship mapping",
           "audience": ["developers", "operators"]
@@ -46,25 +59,12 @@
           "title": "Configuration",
           "description": "Tunable levers and environment variables",
           "audience": ["developers", "operators"]
-        }
-      ]
-    },
-    {
-      "id": "operations",
-      "title": "Operations",
-      "icon": "activity",
-      "documents": [
-        {
-          "path": "PROGRESS.md",
-          "title": "Progress Log",
-          "description": "Development history and implementation milestones",
-          "audience": ["developers"]
         },
         {
-          "path": "PROBLEMS.md",
-          "title": "Problems & Known Issues",
-          "description": "Known issues, deferred work, and historical debt notes",
-          "audience": ["developers"]
+          "path": "reference/operational-targets.md",
+          "title": "Operational Target Coverage",
+          "description": "Traceability map from PRD targets to docs and code",
+          "audience": ["developers", "operators"]
         }
       ]
     },
@@ -87,6 +87,24 @@
           "internal": true
         },
         {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Development history and implementation milestones",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Problems",
+          "description": "Known issues, deferred work, and technical debt",
+          "internal": true
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Documented assumptions that guide behavior",
+          "internal": true
+        },
+        {
           "path": "internal/INVARIANTS.md",
           "title": "Invariants",
           "description": "Contracts that must hold across flows",
@@ -96,6 +114,12 @@
           "path": "internal/ERROR-SEMANTICS.md",
           "title": "Error Semantics",
           "description": "Error classes and recovery paths",
+          "internal": true
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "description": "Current controls, risks, and mitigations",
           "internal": true
         },
         {
@@ -111,7 +135,7 @@
           "internal": true
         },
         {
-          "path": "internal/COHERENCE_NOTES.md",
+          "path": "internal/COHERENCE-NOTES.md",
           "title": "Coherence Notes",
           "description": "React coherence audit history",
           "internal": true
@@ -139,18 +163,12 @@
           "title": "Agent Manager Plan (Superseded)",
           "description": "Legacy recommendation-era integration plan",
           "internal": true
-        },
-        {
-          "path": "internal/PROBLEMS.md",
-          "title": "Internal Problems",
-          "description": "Internal technical debt register",
-          "internal": true
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "reference", "operations"],
+    "primary": ["getting-started", "concepts", "guides", "reference"],
     "secondary": ["internal"]
   }
 }

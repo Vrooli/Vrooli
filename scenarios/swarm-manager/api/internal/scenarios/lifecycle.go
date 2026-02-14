@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// DOC: docs/concepts/ARCHITECTURE.md#key-flows
+// DOC: docs/internal/SEAMS.md
+
 const (
 	defaultStartTimeout   = 60 * time.Second
 	defaultStopTimeout    = 20 * time.Second

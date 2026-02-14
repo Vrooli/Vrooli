@@ -1,4 +1,7 @@
 // Package idgen provides small, shared ID generation utilities.
+//
+// DOC: docs/internal/INVARIANTS.md
+// DOC: docs/internal/SEAMS.md
 package idgen
 
 import (

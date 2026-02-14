@@ -8,6 +8,9 @@ import (
 	"swarm-manager/internal/httputil"
 )
 
+// DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
+// DOC: docs/internal/SEAMS.md
+
 // Handler exposes agent-manager status endpoints.
 type Handler struct {
 	service Service

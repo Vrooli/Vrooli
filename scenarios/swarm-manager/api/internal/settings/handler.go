@@ -2,6 +2,10 @@
 //
 // Settings are stored at scenarios/swarm-manager/.vrooli/settings.json by default.
 // This keeps the scenario fully local and git-trackable without DB dependencies.
+//
+// DOC: docs/reference/configuration.md
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
 package settings
 
 import (

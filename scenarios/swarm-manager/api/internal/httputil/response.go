@@ -13,6 +13,10 @@
 // Related files:
 //   - api/internal/backlog/handler.go - uses these utilities for backlog operations
 //   - api/internal/scenarios/handler.go - uses these utilities for scenario operations
+//
+// DOC: docs/internal/ERROR-SEMANTICS.md
+// DOC: docs/internal/SECURITY-POSTURE.md
+// DOC: docs/internal/SEAMS.md
 package httputil
 
 import (

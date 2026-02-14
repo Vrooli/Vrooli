@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// DOC: docs/internal/SECURITY-POSTURE.md
+// DOC: docs/internal/SEAMS.md
+
 // ResolveScenarioRoot resolves the absolute scenario root path.
 // Priority:
 // 1) SCENARIO_ROOT (if set and absolute/relative resolvable)

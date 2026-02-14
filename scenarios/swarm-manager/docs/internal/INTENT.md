@@ -137,7 +137,7 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 | API | Active | Backlog/scenarios/settings/execution/queue + health |
 | CLI | Wired | Backlog + scenarios + execution + settings + queue |
 
-For detailed progress, see `docs/PROGRESS.md`.
+For detailed progress, see `docs/internal/PROGRESS.md`.
 
 ## Change Log
 

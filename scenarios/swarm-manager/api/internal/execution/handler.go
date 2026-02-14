@@ -13,6 +13,10 @@ import (
 	"swarm-manager/internal/httputil"
 )
 
+// DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/TEMPORAL-FLOWS.md
+
 // Handler exposes execution-control endpoints.
 type Handler struct {
 	service *Service

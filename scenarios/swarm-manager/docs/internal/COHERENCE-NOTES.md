@@ -135,7 +135,7 @@ src/
 ### Created
 - `ui/src/components/ui/input.tsx` - Input component with CVA variants
 - `ui/src/components/ui/search-bar.tsx` - Reusable search bar pattern
-- `ui/docs/internal/COHERENCE_NOTES.md` - This document
+- `docs/internal/COHERENCE-NOTES.md` - This document
 
 ### Modified
 - `ui/src/pages/IdeasPage.tsx` - Now uses SearchBar

@@ -1,4 +1,8 @@
 // Package backlog provides HTTP handlers for backlog management.
+//
+// DOC: docs/concepts/ARCHITECTURE.md#key-flows
+// DOC: docs/guides/research-notes.md
+// DOC: docs/internal/SEAMS.md
 package backlog
 
 import (

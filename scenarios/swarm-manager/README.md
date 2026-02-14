@@ -22,7 +22,7 @@ swarm-manager/
 ├── fix/           # Git-tracked backlog (fix)
 ├── execute/       # Git-tracked backlog (execute)
 ├── requirements/  # Requirement tracking modules
-└── docs/          # PROGRESS.md, PROBLEMS.md, RESEARCH.md
+└── docs/          # Quick start, concepts/reference, and internal docs
 ```
 
 ## Quick Start
@@ -141,7 +141,7 @@ swarm-manager queue delete <id>
 ## Documentation
 
 - [PRD.md](./PRD.md) - Product requirements and operational targets
-- [docs/PROGRESS.md](./docs/PROGRESS.md) - Development progress log
-- [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred backlog items
-- [docs/RESEARCH.md](./docs/RESEARCH.md) - Research notes and uniqueness analysis
+- [docs/internal/PROGRESS.md](./docs/internal/PROGRESS.md) - Development progress log
+- [docs/internal/PROBLEMS.md](./docs/internal/PROBLEMS.md) - Known issues and deferred backlog items
+- [docs/guides/research-notes.md](./docs/guides/research-notes.md) - Research notes and uniqueness analysis
 - [requirements/README.md](./requirements/README.md) - Requirement tracking modules

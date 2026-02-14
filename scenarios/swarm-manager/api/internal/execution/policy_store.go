@@ -8,6 +8,10 @@ import (
 	"swarm-manager/internal/storage"
 )
 
+// DOC: docs/reference/configuration.md
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/TEMPORAL-FLOWS.md
+
 // PolicyStore persists execution policy.
 type PolicyStore struct {
 	path string

@@ -4,6 +4,28 @@ This document tracks known issues, technical debt, and stability concerns for th
 
 ---
 
+## Open Issues
+
+No known open issues at this time.
+
+## Deferred Work
+
+### P2 Targets (Future)
+
+- OT-P2-001: Advanced cost formulas for priority calculations
+- OT-P2-002: Pattern recognition integration
+- OT-P2-003: Analytics dashboard with usage metrics
+- OT-P2-004: Batch operations on backlog and scenarios
+- OT-P2-005: Webhook support for external integrations
+
+### Deferred Design Decisions
+
+- Multi-user authentication (current model is local single-operator)
+- Complex workflow builders (queue/execution governance remains the preferred path)
+- Kanban-style UI (current interface remains list + details + execution controls)
+
+---
+
 ## Stability Issues
 
 ### TypeScript `noUncheckedIndexedAccess` Violations

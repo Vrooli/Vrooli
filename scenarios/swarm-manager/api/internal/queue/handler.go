@@ -1,6 +1,10 @@
 // Package queue provides a filesystem-backed queue for local operations.
 //
 // Queue items are stored at scenarios/swarm-manager/.vrooli/queue.json by default.
+//
+// DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
+// DOC: docs/internal/SEAMS.md
+// DOC: docs/internal/INVARIANTS.md
 package queue
 
 import (

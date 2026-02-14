@@ -4,6 +4,10 @@
 // scenarios/swarm-manager/{ideas|research|fix|execute}/. This handler provides
 // CRUD operations, file access, agent spawning, and conversion between backlog kinds.
 //
+// DOC: docs/concepts/ARCHITECTURE.md#key-flows
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/INVARIANTS.md
+//
 // Related PRD targets: OT-P0-001, OT-P0-002
 package backlog
 

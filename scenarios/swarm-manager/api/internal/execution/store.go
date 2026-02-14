@@ -8,6 +8,10 @@ import (
 	"swarm-manager/internal/storage"
 )
 
+// DOC: docs/concepts/ARCHITECTURE.md#logical-architecture
+// DOC: docs/internal/SEAMS.md
+// DOC: docs/internal/INVARIANTS.md
+
 // Store persists execution records.
 type Store interface {
 	Load() ([]Record, error)

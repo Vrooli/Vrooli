@@ -1,4 +1,7 @@
 // Package httputil provides helpers for proto JSON encoding/decoding.
+//
+// DOC: docs/internal/ERROR-SEMANTICS.md
+// DOC: docs/internal/SEAMS.md
 package httputil
 
 import (

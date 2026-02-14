@@ -2,6 +2,10 @@ package execution
 
 import "time"
 
+// DOC: docs/concepts/ARCHITECTURE.md#domain-concepts
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/INVARIANTS.md
+
 // Status represents an execution lifecycle state.
 type Status string
 

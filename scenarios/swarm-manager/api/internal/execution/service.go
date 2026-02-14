@@ -20,6 +20,10 @@ import (
 
 var errNotFound = errors.New("execution not found")
 
+// DOC: docs/concepts/ARCHITECTURE.md#key-flows
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/TEMPORAL-FLOWS.md
+
 type agentSpawner interface {
 	IsEnabled() bool
 	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)

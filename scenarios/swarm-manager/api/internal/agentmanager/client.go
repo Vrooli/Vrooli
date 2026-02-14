@@ -1,4 +1,8 @@
 // Package agentmanager provides a small HTTP client for agent-manager integration.
+//
+// DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
+// DOC: docs/internal/SEAMS.md
+// DOC: docs/internal/INTEROP_AUDIT.md
 package agentmanager
 
 import (
