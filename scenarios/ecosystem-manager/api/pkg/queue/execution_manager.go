@@ -1029,6 +1029,7 @@ func (em *ExecutionManager) loadExecutionHistory(taskID string) ([]ExecutionHist
 // Helper methods for clean outputs
 
 //nolint:unused // Reserved for future output normalization pipeline.
+//nolint:unused // Reserved for future artifact persistence rework.
 func (em *ExecutionManager) saveCleanOutputs(taskID, executionID, execDir, prompt, combinedOutput, finalMessage, transcriptFile, lastMessageFile string) (string, string, string) {
 	makeRel := func(filename string) string {
 		return filepath.Join(taskID, "executions", executionID, filename)
@@ -1137,6 +1138,7 @@ func (em *ExecutionManager) writeFallbackTranscript(path, prompt, finalMessage, 
 	return nil
 }
 
+//nolint:unused // Called from saveCleanOutputs (reserved for future use).
 func fileExistsAndNotEmpty(path string) bool {
 	if strings.TrimSpace(path) == "" {
 		return false
@@ -1151,6 +1153,7 @@ func fileExistsAndNotEmpty(path string) bool {
 	return info.Size() > 0
 }
 
+//nolint:unused // Called from ensureValidClaudeConfig (reserved for future use).
 func isValidClaudeConfig(data []byte) bool {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 {

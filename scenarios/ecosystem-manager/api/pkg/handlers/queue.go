@@ -209,10 +209,9 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var outcome *tasks.TransitionOutcome
 	if h.coord != nil {
 		var err error
-		task, outcome, err = h.coord.ApplyTransition(tasks.TransitionRequest{
+		_, _, err = h.coord.ApplyTransition(tasks.TransitionRequest{
 			TaskID:   request.TaskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
@@ -229,8 +228,7 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 	} else {
 		// Fallback to direct lifecycle if coordinator unavailable (should not happen in normal flow).
 		lc := tasks.Lifecycle{Store: h.storage}
-		var err error
-		outcome, err = lc.ApplyTransition(tasks.TransitionRequest{
+		outcome, err := lc.ApplyTransition(tasks.TransitionRequest{
 			TaskID:   request.TaskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{

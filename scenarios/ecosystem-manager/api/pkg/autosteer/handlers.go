@@ -49,7 +49,7 @@ func writeError(w http.ResponseWriter, statusCode int, message string) {
 		Message: message,
 		Code:    statusCode,
 	}); err != nil {
-		// Response already has headers; best-effort logging only.
+		_ = err // Response already has headers; best-effort only.
 	}
 }
 
@@ -58,7 +58,7 @@ func writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// Response already has headers; best-effort logging only.
+		_ = err // Response already has headers; best-effort only.
 	}
 }
 

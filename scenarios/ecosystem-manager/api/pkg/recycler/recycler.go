@@ -317,7 +317,7 @@ func (r *Recycler) handleWork(taskID string) {
 
 	// Use lifecycle/coordinator to perform the recycle move.
 	if r.coordinator != nil {
-		outcomeTask, _, err := r.coordinator.ApplyTransition(tasks.TransitionRequest{
+		_, _, err := r.coordinator.ApplyTransition(tasks.TransitionRequest{
 			TaskID:   taskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
@@ -331,7 +331,6 @@ func (r *Recycler) handleWork(taskID string) {
 			r.handleProcessingError(taskID, err)
 			return
 		}
-		task = outcomeTask
 		r.resetFailures(taskID)
 		r.wakeProcessor(taskID)
 		return
