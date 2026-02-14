@@ -532,9 +532,9 @@ resources::validate_port() {
         local category=""
         case "$resource" in
             ollama|whisper) category="AI" ;;
-            node-red|comfyui) category="automation" ;;
+            comfyui) category="automation" ;;
             minio) category="storage" ;;
-            browserless|claude-code|huginn) category="agents" ;;
+            claude-code) category="agents" ;;
         esac
         
         log::info "💡 Port conflict detected but continuing setup"

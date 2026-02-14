@@ -350,24 +350,34 @@ func (c *APICheck) executeStart(ctx context.Context, start time.Time) checks.Act
 			outputBuilder.WriteString(fmt.Sprintf("Starting API binary: %s\n", apiBinary))
 			// Start binary in background with setsid to detach from parent process group
 			// This prevents Go's exec.CommandContext from killing the API when context is cancelled
-			startOutput, err := c.executor.CombinedOutput(ctx, "bash", "-c",
-				fmt.Sprintf("cd %s && setsid %s > /tmp/vrooli-api.log 2>&1 &",
+			err := c.executor.Run(ctx, "bash", "-lc",
+				fmt.Sprintf("cd %s && setsid %s > /tmp/vrooli-api.log 2>&1 < /dev/null &",
 					filepath.Join(vrooliRoot, "api"), apiBinary))
-			outputBuilder.Write(startOutput)
 			if err != nil {
-				outputBuilder.WriteString(fmt.Sprintf("Warning: start command returned error: %v\n", err))
+				outputBuilder.WriteString(fmt.Sprintf("Start command failed: %v\n", err))
+				result.Duration = time.Since(start)
+				result.Success = false
+				result.Error = err.Error()
+				result.Message = "Failed to start Vrooli API process"
+				result.Output = outputBuilder.String()
+				return result
 			}
 		} else {
 			outputBuilder.WriteString(fmt.Sprintf("Starting API via: %s\n", startScript))
 			// Start script in background with setsid to detach from parent process group
 			// This prevents Go's exec.CommandContext from killing the API when context is cancelled
 			// Set VROOLI_API_PORT to ensure correct port
-			startOutput, err := c.executor.CombinedOutput(ctx, "bash", "-c",
-				fmt.Sprintf("cd %s && VROOLI_API_PORT=%s setsid bash api/start.sh > /tmp/vrooli-api.log 2>&1 &",
+			err := c.executor.Run(ctx, "bash", "-lc",
+				fmt.Sprintf("cd %s && VROOLI_API_PORT=%s setsid bash api/start.sh > /tmp/vrooli-api.log 2>&1 < /dev/null &",
 					vrooliRoot, port))
-			outputBuilder.Write(startOutput)
 			if err != nil {
-				outputBuilder.WriteString(fmt.Sprintf("Warning: start command returned error: %v\n", err))
+				outputBuilder.WriteString(fmt.Sprintf("Start command failed: %v\n", err))
+				result.Duration = time.Since(start)
+				result.Success = false
+				result.Error = err.Error()
+				result.Message = "Failed to start Vrooli API process"
+				result.Output = outputBuilder.String()
+				return result
 			}
 		}
 

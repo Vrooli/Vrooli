@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -78,6 +79,9 @@ func TestGetScenarioStatus(t *testing.T) {
 						t.Errorf("Expected status 'stopped' for nonexistent scenario, got %v", status)
 					}
 				}
+				if _, exists := data["health_status"]; !exists {
+					t.Error("Expected health_status field in scenario status response")
+				}
 			}
 		}
 	})
@@ -93,6 +97,11 @@ func TestGetScenarioStatus(t *testing.T) {
 		response := assertJSONResponse(t, w, http.StatusOK, nil)
 		if response != nil {
 			t.Logf("Empty scenario name handled: %v", response)
+			if data, ok := response["data"].(map[string]interface{}); ok {
+				if _, exists := data["health_status"]; !exists {
+					t.Error("Expected health_status field in scenario status response")
+				}
+			}
 		}
 	})
 }

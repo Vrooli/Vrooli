@@ -186,37 +186,6 @@ func normalizeResearchTarget(raw string) (string, error) {
 	}
 }
 
-type queueBacklogRequest struct {
-	Operation    string `json:"operation,omitempty"`
-	Mode         string `json:"mode,omitempty"`
-	DelaySeconds int64  `json:"delay_seconds,omitempty"`
-	StartedBy    string `json:"started_by,omitempty"`
-}
-
-func validateQueueBacklogItemRequest(req *queueBacklogRequest) string {
-	if strings.TrimSpace(req.Operation) == "" {
-		return ""
-	}
-	switch req.Operation {
-	case "generator", "improver":
-	default:
-		return "operation must be 'generator' or 'improver'"
-	}
-
-	if strings.TrimSpace(req.Mode) == "" {
-		return ""
-	}
-	switch req.Mode {
-	case "manual", "scheduled", "yolo":
-	default:
-		return "mode must be 'manual', 'scheduled', or 'yolo'"
-	}
-	if req.DelaySeconds < 0 {
-		return "delay_seconds must be >= 0"
-	}
-	return ""
-}
-
 func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	result := &domainpb.BacklogItem{
 		Name:        item.Name,
@@ -725,6 +694,32 @@ func (h *Handler) loadItemFromPath(kind BacklogKind, specPath string) (BacklogIt
 	if item.ResearchTarget != "" && item.Kind != KindResearch {
 		item.ResearchTarget = ""
 	}
+	// Normalize status to valid proto values. On-disk data may contain
+	// legacy values (e.g. "done") that are not in the proto enum.
+	if !validateBacklogStatus(string(item.Status)) {
+		switch string(item.Status) {
+		case "done", "complete", "finished":
+			item.Status = StatusCompleted
+		default:
+			item.Status = StatusBacklog
+		}
+	}
+	// Backfill missing created timestamp from updated or file mtime.
+	if strings.TrimSpace(item.Created) == "" {
+		if strings.TrimSpace(item.Updated) != "" {
+			item.Created = item.Updated
+		} else if info, statErr := os.Stat(specPath); statErr == nil {
+			item.Created = info.ModTime().UTC().Format(time.RFC3339)
+		} else {
+			item.Created = time.Now().UTC().Format(time.RFC3339)
+		}
+	}
+	// Ensure priority is within valid range (1-10).
+	if item.Priority < 1 {
+		item.Priority = 5
+	} else if item.Priority > 10 {
+		item.Priority = 10
+	}
 	return item, nil
 }
 
@@ -871,30 +866,30 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req queueBacklogRequest
+	var pbReq apipb.QueueBacklogItemRequest
 	if r.Body != nil {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
-			httputil.BadRequest(w, "[backlog] queue", "invalid request body")
-			return
+		if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
+			// Tolerate empty bodies (all fields optional).
+			if !errors.Is(err, io.EOF) && r.ContentLength != 0 {
+				httputil.BadRequest(w, "[backlog] queue", "invalid request body")
+				return
+			}
 		}
-		req.Operation = strings.ToLower(strings.TrimSpace(req.Operation))
-		req.Mode = strings.ToLower(strings.TrimSpace(req.Mode))
-		req.StartedBy = strings.TrimSpace(req.StartedBy)
-		if req.StartedBy == "" {
-			req.StartedBy = "swarm-manager"
-		}
-		if validationErr := validateQueueBacklogItemRequest(&req); validationErr != "" {
-			httputil.BadRequest(w, "[backlog] queue", validationErr)
+		if !httputil.ValidateProtoRequest(w, "[backlog] queue", "invalid queue request", &pbReq) {
 			return
 		}
 	}
 	operation := "generator"
-	if req.Operation != "" {
-		operation = req.Operation
+	if pbReq.GetOperation() != "" {
+		operation = strings.ToLower(strings.TrimSpace(pbReq.GetOperation()))
 	}
 	mode := execution.ModeYOLO
-	if req.Mode != "" {
-		mode = execution.Mode(req.Mode)
+	if pbReq.GetMode() != "" {
+		mode = execution.Mode(strings.ToLower(strings.TrimSpace(pbReq.GetMode())))
+	}
+	startedBy := strings.TrimSpace(pbReq.GetStartedBy())
+	if startedBy == "" {
+		startedBy = "swarm-manager"
 	}
 
 	if kind == KindResearch {
@@ -912,8 +907,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		BacklogKind:  string(kind),
 		BacklogName:  name,
 		Mode:         mode,
-		DelaySeconds: req.DelaySeconds,
-		StartedBy:    req.StartedBy,
+		DelaySeconds: pbReq.GetDelaySeconds(),
+		StartedBy:    startedBy,
 		Operation:    operation,
 	})
 	if err != nil {

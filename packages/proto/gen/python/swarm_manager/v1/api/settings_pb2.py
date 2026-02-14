@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from swarm_manager.v1.domain import settings_pb2 as swarm__manager_dot_v1_dot_domain_dot_settings__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n\x10SettingsResponse\x12\x36\n\x08settings\x18\x01 \x01(\x0b\x32\x1a.swarm_manager.v1.SettingsR\x08settings\"\xcf\x02\n\x1aRecommendationSourcesPatch\x12\x1f\n\x08problems\x18\x01 \x01(\x08H\x00R\x08problems\x88\x01\x01\x12\'\n\x0c\x63ompleteness\x18\x02 \x01(\x08H\x01R\x0c\x63ompleteness\x88\x01\x01\x12\x19\n\x05tests\x18\x03 \x01(\x08H\x02R\x05tests\x88\x01\x01\x12\x1f\n\x08\x63overage\x18\x04 \x01(\x08H\x03R\x08\x63overage\x88\x01\x01\x12&\n\x0c\x63ustom_focus\x18\x05 \x01(\x08H\x04R\x0b\x63ustomFocus\x88\x01\x01\x12*\n\x0escenario_notes\x18\x06 \x01(\x08H\x05R\rscenarioNotes\x88\x01\x01\x42\x0b\n\t_problemsB\x0f\n\r_completenessB\x08\n\x06_testsB\x0b\n\t_coverageB\x0f\n\r_custom_focusB\x11\n\x0f_scenario_notes\"\xa4\x02\n\x1bRecommendationAutoSyncPatch\x12\x1d\n\x07\x65nabled\x18\x01 \x01(\x08H\x00R\x07\x65nabled\x88\x01\x01\x12\x1f\n\x08interval\x18\x02 \x01(\tH\x01R\x08interval\x88\x01\x01\x12&\n\x0clast_refresh\x18\x03 \x01(\tH\x02R\x0blastRefresh\x88\x01\x01\x12&\n\x0cnext_refresh\x18\x04 \x01(\tH\x03R\x0bnextRefresh\x88\x01\x01\x12(\n\rrefresh_scope\x18\x05 \x01(\tH\x04R\x0crefreshScope\x88\x01\x01\x42\n\n\x08_enabledB\x0b\n\t_intervalB\x0f\n\r_last_refreshB\x0f\n\r_next_refreshB\x10\n\x0e_refresh_scope\"\xaa\x05\n\x15UpdateSettingsRequest\x12\x37\n\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04\x64\x61rkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12U\n\x13recommendation_mode\x18\x02 \x01(\tB\x1f\xbaH\x1cr\x1aR\x00R\x03offR\x0bsuggestionsR\x04yoloH\x01R\x12recommendationMode\x88\x01\x01\x12&\n\x0c\x63ustom_focus\x18\x03 \x01(\tH\x02R\x0b\x63ustomFocus\x88\x01\x01\x12.\n\x10insights_enabled\x18\x04 \x01(\x08H\x03R\x0finsightsEnabled\x88\x01\x01\x12\x37\n\x15insights_auto_analyze\x18\x05 \x01(\x08H\x04R\x13insightsAutoAnalyze\x88\x01\x01\x12h\n\x16recommendation_sources\x18\x06 \x01(\x0b\x32,.swarm_manager.v1.RecommendationSourcesPatchH\x05R\x15recommendationSources\x88\x01\x01\x12l\n\x18recommendation_auto_sync\x18\x07 \x01(\x0b\x32-.swarm_manager.v1.RecommendationAutoSyncPatchH\x06R\x16recommendationAutoSync\x88\x01\x01\x42\x08\n\x06_themeB\x16\n\x14_recommendation_modeB\x0f\n\r_custom_focusB\x13\n\x11_insights_enabledB\x18\n\x16_insights_auto_analyzeB\x19\n\x17_recommendation_sourcesB\x1b\n\x19_recommendation_auto_syncBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n\x10SettingsResponse\x12\x36\n\x08settings\x18\x01 \x01(\x0b\x32\x1a.swarm_manager.v1.SettingsR\x08settings\"\xab\x02\n\x15UpdateSettingsRequest\x12\x37\n\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04\x64\x61rkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12&\n\x0c\x63ustom_focus\x18\x02 \x01(\tH\x01R\x0b\x63ustomFocus\x88\x01\x01\x12.\n\x10insights_enabled\x18\x03 \x01(\x08H\x02R\x0finsightsEnabled\x88\x01\x01\x12\x37\n\x15insights_auto_analyze\x18\x04 \x01(\x08H\x03R\x13insightsAutoAnalyze\x88\x01\x01\x42\x08\n\x06_themeB\x0f\n\r_custom_focusB\x13\n\x11_insights_enabledB\x18\n\x16_insights_auto_analyzeBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,14 +36,8 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api'
   _globals['_UPDATESETTINGSREQUEST'].fields_by_name['theme']._loaded_options = None
   _globals['_UPDATESETTINGSREQUEST'].fields_by_name['theme']._serialized_options = b'\272H\031r\027R\000R\004darkR\005lightR\006system'
-  _globals['_UPDATESETTINGSREQUEST'].fields_by_name['recommendation_mode']._loaded_options = None
-  _globals['_UPDATESETTINGSREQUEST'].fields_by_name['recommendation_mode']._serialized_options = b'\272H\034r\032R\000R\003offR\013suggestionsR\004yolo'
   _globals['_SETTINGSRESPONSE']._serialized_start=126
   _globals['_SETTINGSRESPONSE']._serialized_end=200
-  _globals['_RECOMMENDATIONSOURCESPATCH']._serialized_start=203
-  _globals['_RECOMMENDATIONSOURCESPATCH']._serialized_end=538
-  _globals['_RECOMMENDATIONAUTOSYNCPATCH']._serialized_start=541
-  _globals['_RECOMMENDATIONAUTOSYNCPATCH']._serialized_end=833
-  _globals['_UPDATESETTINGSREQUEST']._serialized_start=836
-  _globals['_UPDATESETTINGSREQUEST']._serialized_end=1518
+  _globals['_UPDATESETTINGSREQUEST']._serialized_start=203
+  _globals['_UPDATESETTINGSREQUEST']._serialized_end=502
 # @@protoc_insertion_point(module_scope)

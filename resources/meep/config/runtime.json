@@ -1,7 +1,14 @@
 {
   "startup_order": 550,
-  "dependencies": ["minio", "postgres"],
-  "optional_dependencies": ["questdb", "qdrant", "elmer-fem", "openems"],
+  "dependencies": [
+    "minio",
+    "postgres"
+  ],
+  "optional_dependencies": [
+    "questdb",
+    "qdrant",
+    "elmer-fem"
+  ],
   "startup_timeout": 60,
   "startup_time_estimate": "30-60s",
   "recovery_attempts": 3,

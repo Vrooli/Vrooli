@@ -121,14 +121,6 @@ datacube query product='lst' time='2020/2024' | \
   vrooli scenario climate-analyzer process
 ```
 
-### Agricultural Intelligence
-```python
-# Monitor crop health with NDVI
-datacube query product='sentinel2' | \
-  calculate-ndvi | \
-  vrooli resource farmos import
-```
-
 ### Urban Planning
 ```python
 # Track urban expansion

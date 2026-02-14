@@ -5,6 +5,7 @@ package checks
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,10 @@ const (
 
 	// MaxParallelHealActions limits concurrent heal action execution
 	MaxParallelHealActions = 3
+
+	// DefaultAutoHealActionTimeout bounds a single auto-heal action execution.
+	// This prevents one stuck action from blocking the entire tick for too long.
+	DefaultAutoHealActionTimeout = 90 * time.Second
 )
 
 // HealTracker tracks the healing state for a single check
@@ -447,8 +452,8 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 
 	// Phase 1: Collect and filter candidates
 	for _, result := range results {
-		// Only auto-heal critical checks
-		if result.Status != StatusCritical {
+		// Auto-heal trigger is per-check policy (critical or warning+critical).
+		if !r.shouldTriggerAutoHeal(result) {
 			continue
 		}
 
@@ -489,20 +494,13 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		// Get available recovery actions
 		actions := healable.RecoveryActions(&result)
 
-		// Find the first available, non-dangerous action
-		var selectedAction *RecoveryAction
-		for _, action := range actions {
-			if action.Available && !action.Dangerous {
-				selectedAction = &action
-				break
-			}
-		}
+		selectedAction := selectAutoHealAction(result.CheckID, actions)
 
 		if selectedAction == nil {
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:   result.CheckID,
 				Attempted: false,
-				Reason:    "no safe recovery action available",
+				Reason:    "no auto-heal recovery action available",
 			})
 			continue
 		}
@@ -538,84 +536,128 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		candidates = candidates[:MaxAutoHealActionsPerTick]
 	}
 
-	// Phase 4: Execute heal actions in parallel with worker pool
+	// Phase 4: Execute heal actions with per-action timeout.
+	// We intentionally avoid waiting on a global worker group here; a single stuck
+	// action must not block all future ticks behind a permanent tick_in_progress lock.
 	if len(candidates) == 0 {
 		return autoHealResults
 	}
 
-	type healResult struct {
-		checkID      string
-		actionResult ActionResult
-		success      bool
-	}
-
-	resultsChan := make(chan healResult, len(candidates))
-	semaphore := make(chan struct{}, MaxParallelHealActions)
-
-	var wg sync.WaitGroup
 	for _, c := range candidates {
-		wg.Add(1)
-		go func(candidate healCandidate) {
-			defer wg.Done()
-
-			// Acquire semaphore slot
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
-			// Check context before executing
-			select {
-			case <-ctx.Done():
-				resultsChan <- healResult{
-					checkID: candidate.result.CheckID,
-					actionResult: ActionResult{
-						ActionID:  candidate.selectedAction.ID,
-						CheckID:   candidate.result.CheckID,
-						Timestamp: time.Now(),
-						Success:   false,
-						Error:     "context cancelled",
-						Message:   "Heal action cancelled due to timeout",
-					},
-					success: false,
-				}
-				return
-			default:
+		// Check context before executing
+		select {
+		case <-ctx.Done():
+			actionResult := ActionResult{
+				ActionID:  c.selectedAction.ID,
+				CheckID:   c.result.CheckID,
+				Timestamp: time.Now(),
+				Success:   false,
+				Error:     "context cancelled",
+				Message:   "Heal action cancelled due to timeout",
 			}
+			r.updateHealTracker(c.result.CheckID, false)
+			updatedTracker := r.getOrCreateHealTracker(c.result.CheckID)
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:             c.result.CheckID,
+				Attempted:           true,
+				ActionResult:        actionResult,
+				CooldownRemaining:   updatedTracker.CooldownRemaining(),
+				ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
+			})
+			continue
+		default:
+		}
 
-			// Execute the recovery action
-			actionResult := candidate.healable.ExecuteAction(ctx, candidate.selectedAction.ID)
+		actionCtx, cancel := context.WithTimeout(ctx, DefaultAutoHealActionTimeout)
+		actionResult := r.executeAutoHealActionWithTimeout(actionCtx, c)
+		cancel()
 
-			resultsChan <- healResult{
-				checkID:      candidate.result.CheckID,
-				actionResult: actionResult,
-				success:      actionResult.Success,
-			}
-		}(c)
-	}
-
-	// Close results channel when all goroutines complete
-	go func() {
-		wg.Wait()
-		close(resultsChan)
-	}()
-
-	// Collect results
-	for hr := range resultsChan {
 		// Update heal tracker based on result
-		r.updateHealTracker(hr.checkID, hr.success)
+		r.updateHealTracker(c.result.CheckID, actionResult.Success)
 
 		// Get updated tracker for result
-		updatedTracker := r.getOrCreateHealTracker(hr.checkID)
+		updatedTracker := r.getOrCreateHealTracker(c.result.CheckID)
 
 		autoHealResults = append(autoHealResults, AutoHealResult{
-			CheckID:             hr.checkID,
+			CheckID:             c.result.CheckID,
 			Attempted:           true,
-			ActionResult:        hr.actionResult,
+			ActionResult:        actionResult,
 			CooldownRemaining:   updatedTracker.CooldownRemaining(),
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 		})
 	}
 
 	return autoHealResults
+}
+
+func (r *Registry) executeAutoHealActionWithTimeout(ctx context.Context, candidate healCandidate) ActionResult {
+	resultCh := make(chan ActionResult, 1)
+	go func() {
+		resultCh <- candidate.healable.ExecuteAction(ctx, candidate.selectedAction.ID)
+	}()
+
+	select {
+	case result := <-resultCh:
+		return result
+	case <-ctx.Done():
+		reason := "action timed out"
+		if ctx.Err() == context.Canceled {
+			reason = "action cancelled"
+		}
+		return ActionResult{
+			ActionID:  candidate.selectedAction.ID,
+			CheckID:   candidate.result.CheckID,
+			Timestamp: time.Now(),
+			Success:   false,
+			Error:     reason,
+			Message:   "Auto-heal action did not complete before timeout",
+			Duration:  DefaultAutoHealActionTimeout,
+		}
+	}
+}
+
+func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
+	if result.Details != nil {
+		if eligible, ok := result.Details["autoHealEligible"].(bool); ok && !eligible {
+			return false
+		}
+	}
+
+	// Safety default: only critical triggers unless explicitly widened.
+	policy := "critical"
+	if r.config != nil {
+		if configured := r.config.GetAutoHealOn(result.CheckID); configured != "" {
+			policy = configured
+		}
+	}
+
+	switch policy {
+	case "warning+critical":
+		return result.Status == StatusWarning || result.Status == StatusCritical
+	default:
+		return result.Status == StatusCritical
+	}
+}
+
+func selectAutoHealAction(checkID string, actions []RecoveryAction) *RecoveryAction {
+	// Controlled dangerous action policy for scenarios:
+	// allow "restart" auto-execution for scenario checks only.
+	if strings.HasPrefix(checkID, "scenario-") {
+		for _, action := range actions {
+			if action.Available && action.ID == "restart" {
+				return &action
+			}
+		}
+	}
+
+	// Default policy: first available safe action.
+	for _, action := range actions {
+		if action.Available && !action.Dangerous {
+			return &action
+		}
+	}
+
+	return nil
 }
 
 // getOrCreateHealTracker returns the heal tracker for a check, creating one if needed

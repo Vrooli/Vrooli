@@ -2,14 +2,14 @@ package execution
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/httputil"
 )
 
@@ -64,7 +64,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httputil.InternalError(w, "[execution] list", "failed to list executions")
 		return
 	}
-	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
+	protoItems := make([]*domainpb.ExecutionRecord, len(items))
+	for i, item := range items {
+		protoItems[i] = recordToProto(item)
+	}
+	resp := &apipb.ListExecutionResponse{Items: protoItems}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[execution] list", "failed to encode response")
 	}
 }
@@ -84,19 +89,31 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		httputil.InternalError(w, "[execution] get", "failed to fetch execution")
 		return
 	}
-	if err := httputil.JSON(w, map[string]any{"execution": record}); err != nil {
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] get", "failed to encode response")
 	}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var req CreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var pbReq apipb.CreateExecutionRequest
+	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.BadRequest(w, "[execution] create", "invalid request body")
 		return
 	}
-	if req.Mode == "" {
-		req.Mode = ModeYOLO
+	if !httputil.ValidateProtoRequest(w, "[execution] create", "invalid execution request", &pbReq) {
+		return
+	}
+	mode := Mode(pbReq.Mode)
+	if mode == "" {
+		mode = ModeYOLO
+	}
+	req := CreateRequest{
+		BacklogKind:  pbReq.BacklogKind,
+		BacklogName:  pbReq.BacklogName,
+		Mode:         mode,
+		DelaySeconds: pbReq.GetDelaySeconds(),
+		StartedBy:    pbReq.GetStartedBy(),
+		Operation:    pbReq.GetOperation(),
 	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
@@ -108,14 +125,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			httputil.ServiceUnavailable(w, "[execution] create", "agent-manager is not available")
 			return
 		}
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, errNotFound) {
 			httputil.NotFound(w, "[execution] create", "backlog item not found")
 			return
 		}
 		httputil.InternalError(w, "[execution] create", "failed to create execution")
 		return
 	}
-	if err := httputil.JSONWithStatus(w, http.StatusAccepted, map[string]any{"execution": record}); err != nil {
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] create", "failed to encode response")
 	}
 }
@@ -131,7 +148,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		h.mapMutationError(w, "[execution] start", err)
 		return
 	}
-	if err := httputil.JSON(w, map[string]any{"execution": record}); err != nil {
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] start", "failed to encode response")
 	}
 }
@@ -147,7 +164,7 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		h.mapMutationError(w, "[execution] cancel", err)
 		return
 	}
-	if err := httputil.JSON(w, map[string]any{"execution": record}); err != nil {
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] cancel", "failed to encode response")
 	}
 }
@@ -163,7 +180,7 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 		h.mapMutationError(w, "[execution] retry", err)
 		return
 	}
-	if err := httputil.JSON(w, map[string]any{"execution": record}); err != nil {
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] retry", "failed to encode response")
 	}
 }
@@ -189,31 +206,80 @@ func (h *Handler) GetPolicy(w http.ResponseWriter, r *http.Request) {
 		httputil.InternalError(w, "[execution] policy get", "failed to load execution policy")
 		return
 	}
-	if err := httputil.JSON(w, map[string]any{"policy": policy}); err != nil {
+	resp := &apipb.ExecutionPolicyResponse{Policy: policyToProto(policy)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[execution] policy get", "failed to encode response")
 	}
 }
 
 func (h *Handler) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
-	var req Policy
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var pbPolicy domainpb.ExecutionPolicy
+	if err := httputil.DecodeProtoJSON(r, &pbPolicy); err != nil {
 		httputil.BadRequest(w, "[execution] policy update", "invalid request body")
 		return
 	}
-	if normalizeMode(req.DefaultMode) == "" {
-		httputil.BadRequest(w, "[execution] policy update", "default_mode must be manual, scheduled, or yolo")
+	if !httputil.ValidateProtoRequest(w, "[execution] policy update", "default_mode must be manual, scheduled, or yolo", &pbPolicy) {
 		return
 	}
-	if req.DefaultDelaySeconds < 0 {
-		httputil.BadRequest(w, "[execution] policy update", "default_delay_seconds must be >= 0")
-		return
+	req := Policy{
+		DefaultMode:         Mode(pbPolicy.DefaultMode),
+		DefaultDelaySeconds: pbPolicy.DefaultDelaySeconds,
 	}
 	policy, err := h.service.UpdatePolicy(r.Context(), req)
 	if err != nil {
 		httputil.InternalError(w, "[execution] policy update", "failed to persist execution policy")
 		return
 	}
-	if err := httputil.JSON(w, map[string]any{"policy": policy}); err != nil {
+	resp := &apipb.ExecutionPolicyResponse{Policy: policyToProto(policy)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
 		httputil.InternalError(w, "[execution] policy update", "failed to encode response")
+	}
+}
+
+func executionResponse(record Record) *apipb.ExecutionResponse {
+	return &apipb.ExecutionResponse{Execution: recordToProto(record)}
+}
+
+func recordToProto(r Record) *domainpb.ExecutionRecord {
+	pb := &domainpb.ExecutionRecord{
+		ExecutionId: r.ExecutionID,
+		BacklogKind: r.BacklogKind,
+		BacklogName: r.BacklogName,
+		Status:      string(r.Status),
+		Mode:        string(r.Mode),
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
+	}
+	if r.TaskID != "" {
+		pb.TaskId = &r.TaskID
+	}
+	if r.RunID != "" {
+		pb.RunId = &r.RunID
+	}
+	if r.ScheduledAt != "" {
+		pb.ScheduledAt = &r.ScheduledAt
+	}
+	if r.StartedAt != "" {
+		pb.StartedAt = &r.StartedAt
+	}
+	if r.FinishedAt != "" {
+		pb.FinishedAt = &r.FinishedAt
+	}
+	if r.FailureReason != "" {
+		pb.FailureReason = &r.FailureReason
+	}
+	if r.StartedBy != "" {
+		pb.StartedBy = &r.StartedBy
+	}
+	if r.Operation != "" {
+		pb.Operation = &r.Operation
+	}
+	return pb
+}
+
+func policyToProto(p Policy) *domainpb.ExecutionPolicy {
+	return &domainpb.ExecutionPolicy{
+		DefaultMode:         string(p.DefaultMode),
+		DefaultDelaySeconds: p.DefaultDelaySeconds,
 	}
 }

@@ -274,17 +274,17 @@
         "required": true,
         "description": "Centralized agent orchestration for task execution"
       },
-      "scenario-completeness-scoring": {
-        "type": "scenario",
-        "enabled": true,
-        "required": false,
-        "description": "Provides completeness scoring API for autosteer metrics"
-      },
       "prompt-manager": {
         "type": "scenario",
         "enabled": true,
         "required": false,
         "description": "Provides steering prompts for Auto Steer functionality (optional - graceful degradation)"
+      },
+      "visited-tracker": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Tracks visited resources/scenarios for campaign management (optional - proxied via API)"
       }
     }
   }

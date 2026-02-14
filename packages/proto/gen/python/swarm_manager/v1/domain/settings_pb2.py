@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xd3\x01\n\x15RecommendationSources\x12\x1a\n\x08problems\x18\x01 \x01(\x08R\x08problems\x12\"\n\x0c\x63ompleteness\x18\x02 \x01(\x08R\x0c\x63ompleteness\x12\x14\n\x05tests\x18\x03 \x01(\x08R\x05tests\x12\x1a\n\x08\x63overage\x18\x04 \x01(\x08R\x08\x63overage\x12!\n\x0c\x63ustom_focus\x18\x05 \x01(\x08R\x0b\x63ustomFocus\x12%\n\x0escenario_notes\x18\x06 \x01(\x08R\rscenarioNotes\"\xb9\x01\n\x16RecommendationAutoSync\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12\x1a\n\x08interval\x18\x02 \x01(\tR\x08interval\x12!\n\x0clast_refresh\x18\x03 \x01(\tR\x0blastRefresh\x12!\n\x0cnext_refresh\x18\x04 \x01(\tR\x0bnextRefresh\x12#\n\rrefresh_scope\x18\x05 \x01(\tR\x0crefreshScope\"\xe8\x03\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05theme\x12N\n\x13recommendation_mode\x18\x02 \x01(\tB\x1d\xbaH\x1ar\x18R\x03offR\x0bsuggestionsR\x04yoloR\x12recommendationMode\x12&\n\x0c\x63ustom_focus\x18\x03 \x01(\tH\x00R\x0b\x63ustomFocus\x88\x01\x01\x12)\n\x10insights_enabled\x18\x04 \x01(\x08R\x0finsightsEnabled\x12\x32\n\x15insights_auto_analyze\x18\x05 \x01(\x08R\x13insightsAutoAnalyze\x12^\n\x16recommendation_sources\x18\x06 \x01(\x0b\x32\'.swarm_manager.v1.RecommendationSourcesR\x15recommendationSources\x12\x62\n\x18recommendation_auto_sync\x18\x07 \x01(\x0b\x32(.swarm_manager.v1.RecommendationAutoSyncR\x16recommendationAutoSyncB\x0f\n\r_custom_focusBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xd4\x01\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05theme\x12&\n\x0c\x63ustom_focus\x18\x02 \x01(\tH\x00R\x0b\x63ustomFocus\x88\x01\x01\x12)\n\x10insights_enabled\x18\x03 \x01(\x08R\x0finsightsEnabled\x12\x32\n\x15insights_auto_analyze\x18\x04 \x01(\x08R\x13insightsAutoAnalyzeB\x0f\n\r_custom_focusBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,12 +35,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain'
   _globals['_SETTINGS'].fields_by_name['theme']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['theme']._serialized_options = b'\272H\027r\025R\004darkR\005lightR\006system'
-  _globals['_SETTINGS'].fields_by_name['recommendation_mode']._loaded_options = None
-  _globals['_SETTINGS'].fields_by_name['recommendation_mode']._serialized_options = b'\272H\032r\030R\003offR\013suggestionsR\004yolo'
-  _globals['_RECOMMENDATIONSOURCES']._serialized_start=90
-  _globals['_RECOMMENDATIONSOURCES']._serialized_end=301
-  _globals['_RECOMMENDATIONAUTOSYNC']._serialized_start=304
-  _globals['_RECOMMENDATIONAUTOSYNC']._serialized_end=489
-  _globals['_SETTINGS']._serialized_start=492
-  _globals['_SETTINGS']._serialized_end=980
+  _globals['_SETTINGS']._serialized_start=90
+  _globals['_SETTINGS']._serialized_end=302
 # @@protoc_insertion_point(module_scope)

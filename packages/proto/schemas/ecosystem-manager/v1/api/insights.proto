@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+import "ecosystem-manager/v1/domain/insights.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api;api";
+
+// =============================================================================
+// INSIGHTS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports insights
+// @stability beta
+//
+// HTTP API contracts for Ecosystem Manager insight operations.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// InsightGenerateRequest defines the payload for generating an insight report.
+message InsightGenerateRequest {
+  // Maximum number of executions to analyze.
+  optional int32 limit = 1 [(buf.validate.field).int32.gte = 1];
+
+  // Status filter (comma-separated, e.g. "failed,timeout").
+  optional string status_filter = 2;
+
+  // Custom prompt override.
+  optional string custom_prompt = 3;
+}
+
+// InsightReportResponse wraps a single insight report with API metadata.
+message InsightReportResponse {
+  // The insight report.
+  InsightReport report = 1;
+
+  // Task ID the report belongs to.
+  string task_id = 2;
+
+  // RFC3339 timestamp of generation.
+  // @format rfc3339
+  string generated_at = 3;
+}
+
+// InsightReportListResponse returns a list of insight reports.
+message InsightReportListResponse {
+  // Task ID the reports belong to.
+  string task_id = 1;
+
+  // Insight reports.
+  repeated InsightReport reports = 2;
+
+  // Number of reports.
+  int32 count = 3;
+}
+
+// InsightPromptPreviewResponse returns a preview of the insight prompt.
+message InsightPromptPreviewResponse {
+  // Task ID.
+  string task_id = 1;
+
+  // Generated prompt text.
+  string prompt = 2;
+
+  // Limit applied.
+  int32 limit = 3;
+
+  // Status filter applied.
+  string status_filter = 4;
+
+  // Number of executions included.
+  int32 executions = 5;
+}
+
+// SuggestionStatusUpdateRequest defines the payload for updating suggestion status.
+message SuggestionStatusUpdateRequest {
+  // New status.
+  // @constraint one of: pending, applied, rejected, superseded
+  string status = 1 [(buf.validate.field).string = { in: ["pending", "applied", "rejected", "superseded"] }];
+}
+
+// SuggestionStatusUpdateResponse returns the result of updating suggestion status.
+message SuggestionStatusUpdateResponse {
+  // Whether the update succeeded.
+  bool success = 1;
+
+  // Descriptive message.
+  string message = 2;
+
+  // Task ID.
+  string task_id = 3;
+
+  // Report ID.
+  string report_id = 4;
+
+  // Suggestion ID.
+  string suggestion_id = 5;
+
+  // New status.
+  string status = 6;
+}
+
+// SuggestionApplyRequest defines the payload for applying a suggestion.
+message SuggestionApplyRequest {
+  // Whether to perform a dry run.
+  bool dry_run = 1;
+}
+
+// SuggestionApplyResponse returns the result of applying a suggestion.
+message SuggestionApplyResponse {
+  // Whether the apply succeeded.
+  bool success = 1;
+
+  // Descriptive message.
+  string message = 2;
+
+  // Files that were changed.
+  repeated string files_changed = 3;
+
+  // Backup path (if applicable).
+  string backup_path = 4;
+
+  // Whether this was a dry run.
+  bool dry_run = 5;
+
+  // Error message (if failed).
+  string error = 6;
+}
+
+// SystemInsightsResponse returns system-wide insights data.
+message SystemInsightsResponse {
+  // Reports in the time window.
+  repeated InsightReport reports = 1;
+
+  // Total reports count.
+  int32 total_reports = 2;
+
+  // Unique tasks analyzed.
+  int32 unique_tasks = 3;
+
+  // Total executions analyzed.
+  int32 total_executions = 4;
+
+  // Pattern counts by type.
+  map<string, int32> patterns_by_type = 5;
+
+  // Suggestion counts by type.
+  map<string, int32> suggestions_by_type = 6;
+}
+
+// SystemInsightReportResponse wraps a system insight report.
+message SystemInsightReportResponse {
+  // Descriptive message.
+  string message = 1;
+
+  // Report identifier.
+  string report_id = 2;
+
+  // The system insight report.
+  SystemInsightReport report = 3;
+}

@@ -12,11 +12,11 @@ import (
 
 // mockHTTPDoer is a mock implementation of HTTPDoer for testing.
 type mockHTTPDoer struct {
-	postFunc func(url, contentType string, body *strings.Reader) (*http.Response, error)
+	doFunc func(req *http.Request) (*http.Response, error)
 }
 
-func (m *mockHTTPDoer) Post(url, contentType string, body *strings.Reader) (*http.Response, error) {
-	return m.postFunc(url, contentType, body)
+func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
+	return m.doFunc(req)
 }
 
 // makeResponse creates an http.Response with the given status and body.
@@ -100,7 +100,7 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockHTTP := &mockHTTPDoer{
-				postFunc: func(url, contentType string, body *strings.Reader) (*http.Response, error) {
+				doFunc: func(req *http.Request) (*http.Response, error) {
 					if tt.httpError != nil {
 						return nil, tt.httpError
 					}
@@ -190,7 +190,7 @@ func TestMapPriorityToString_Boundaries(t *testing.T) {
 // TestHTTPClient_CreateTask_ResponseDecodeError tests response decode error path
 func TestHTTPClient_CreateTask_ResponseDecodeError(t *testing.T) {
 	mockHTTP := &mockHTTPDoer{
-		postFunc: func(url, contentType string, body *strings.Reader) (*http.Response, error) {
+		doFunc: func(req *http.Request) (*http.Response, error) {
 			// Return success but with invalid JSON body
 			return &http.Response{
 				StatusCode: http.StatusCreated,
@@ -225,10 +225,10 @@ func TestHTTPClient_CreateTask_RequestConstruction(t *testing.T) {
 	var capturedBody string
 
 	mockHTTP := &mockHTTPDoer{
-		postFunc: func(url, contentType string, body *strings.Reader) (*http.Response, error) {
-			capturedURL = url
-			capturedContentType = contentType
-			bodyBytes, _ := io.ReadAll(body)
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			capturedURL = req.URL.String()
+			capturedContentType = req.Header.Get("Content-Type")
+			bodyBytes, _ := io.ReadAll(req.Body)
 			capturedBody = string(bodyBytes)
 			return makeResponse(http.StatusCreated, Task{ID: "test-id"}), nil
 		},
@@ -275,6 +275,42 @@ func TestHTTPClient_CreateTask_RequestConstruction(t *testing.T) {
 	}
 	if !strings.Contains(capturedBody, `"type":"scenario"`) {
 		t.Errorf("body missing type: %s", capturedBody)
+	}
+}
+
+// TestHTTPClient_CreateTask_ContextPropagation verifies context is passed to HTTP request
+func TestHTTPClient_CreateTask_ContextPropagation(t *testing.T) {
+	type ctxKey string
+	key := ctxKey("test-key")
+	ctx := context.WithValue(context.Background(), key, "test-value")
+
+	var capturedCtx context.Context
+	mockHTTP := &mockHTTPDoer{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			capturedCtx = req.Context()
+			return makeResponse(http.StatusCreated, Task{ID: "ctx-test"}), nil
+		},
+	}
+
+	client := NewHTTPClientWithResolver(
+		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+		mockHTTP,
+	)
+
+	_, err := client.CreateTask(ctx, CreateTaskRequest{
+		Title:     "Context Test",
+		Operation: "generator",
+		Priority:  5,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if capturedCtx == nil {
+		t.Fatal("expected context to be propagated to HTTP request")
+	}
+	if capturedCtx.Value(key) != "test-value" {
+		t.Error("context value not propagated to HTTP request")
 	}
 }
 

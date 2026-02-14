@@ -60,20 +60,19 @@ type PromptLoaderConfig struct {
 }
 
 // DefaultPromptLoaderConfig returns a default configuration.
+// Note: URL resolution is now per-request (in syncAll/resolvePromptManagerURL),
+// so PromptManagerURL here is only used as a startup hint for the initial sync check.
 func DefaultPromptLoaderConfig() *PromptLoaderConfig {
 	// Check for explicit override first (useful for testing)
 	url := os.Getenv("PROMPT_MANAGER_URL")
 	if url == "" {
-		// Use api-core discovery to resolve prompt-manager URL
-		resolver := discovery.NewResolver(discovery.ResolverConfig{})
+		// Attempt initial discovery — if it fails, syncAll will re-resolve per-request
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		resolvedURL, err := resolver.ResolveScenarioURLDefault(ctx, "prompt-manager")
+		resolvedURL, err := discovery.ResolveScenarioURLDefault(ctx, "prompt-manager")
 		if err != nil {
-			// Discovery failed - will try again on first sync
-			log.Printf("Auto Steer: prompt-manager discovery failed: %v", err)
-			url = "" // Empty URL signals unavailable
+			log.Printf("Auto Steer: prompt-manager discovery failed at startup: %v", err)
 		} else {
 			url = resolvedURL
 		}
@@ -156,9 +155,28 @@ func (l *PromptLoader) IsAvailable() bool {
 	return l.available
 }
 
+// resolvePromptManagerURL returns the prompt-manager base URL, re-resolving via
+// discovery each time (matching the agent-manager per-request pattern) unless
+// PROMPT_MANAGER_URL is explicitly set.
+func (l *PromptLoader) resolvePromptManagerURL() (string, error) {
+	// Honour explicit env-var override (useful for testing)
+	if envURL := os.Getenv("PROMPT_MANAGER_URL"); envURL != "" {
+		return envURL, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return discovery.ResolveScenarioURLDefault(ctx, "prompt-manager")
+}
+
 // syncAll fetches all skill prompts from prompt-manager.
 func (l *PromptLoader) syncAll() error {
-	url := fmt.Sprintf("%s/api/v1/skills/sync", l.cfg.PromptManagerURL)
+	baseURL, err := l.resolvePromptManagerURL()
+	if err != nil {
+		return fmt.Errorf("failed to resolve prompt-manager URL: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/skills/sync", baseURL)
 
 	resp, err := l.client.Get(url)
 	if err != nil {
@@ -242,18 +260,12 @@ func (l *PromptLoader) loadPrompt(mode SteerMode) (phasePromptData, bool) {
 		l.lastAttempt = time.Now()
 		l.mu.Unlock()
 
-		// Try to re-resolve URL if empty
-		if l.cfg.PromptManagerURL == "" {
-			l.cfg = DefaultPromptLoaderConfig()
-		}
-
-		if l.cfg.PromptManagerURL != "" {
-			if err := l.syncAll(); err == nil {
-				l.mu.Lock()
-				l.available = true
-				l.mu.Unlock()
-				log.Printf("Auto Steer: prompt-manager recovered")
-			}
+		// syncAll re-resolves via discovery per-request, no need to check cached URL
+		if err := l.syncAll(); err == nil {
+			l.mu.Lock()
+			l.available = true
+			l.mu.Unlock()
+			log.Printf("Auto Steer: prompt-manager recovered")
 		}
 	} else if available {
 		// Normal refresh attempt
@@ -375,7 +387,12 @@ func (l *PromptLoader) ReadSkillsWithScope(skillIDs []string, withScope bool, sc
 		return "", fmt.Errorf("prompt-manager unavailable")
 	}
 
-	url := fmt.Sprintf("%s/api/v1/skills/read", l.cfg.PromptManagerURL)
+	baseURL, err := l.resolvePromptManagerURL()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve prompt-manager URL: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/skills/read", baseURL)
 
 	req := ReadRequest{
 		Identifiers: skillIDs,

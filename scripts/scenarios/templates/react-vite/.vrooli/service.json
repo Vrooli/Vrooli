@@ -117,7 +117,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         },
         {

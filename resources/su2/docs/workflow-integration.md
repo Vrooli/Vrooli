@@ -23,23 +23,6 @@ vrooli resource su2 content add aircraft.su2 mesh
 vrooli resource su2 content execute aircraft.su2 cruise_config.cfg
 ```
 
-### OpenRocket → SU2 Workflow
-OpenRocket designs can be analyzed in SU2 for detailed aerodynamic analysis.
-
-```bash
-# 1. Export rocket geometry from OpenRocket
-resource-openrocket export --format geometry --file rocket.xml
-
-# 2. Convert to CFD mesh (future integration)
-# This requires a geometry-to-mesh converter
-
-# 3. Analyze in SU2
-vrooli resource su2 content execute rocket.su2 ascent_config.cfg
-
-# 4. Feed results back to trajectory analysis
-vrooli resource su2 integrate questdb rocket_sim_001
-```
-
 ### FreeCAD → SU2 Workflow
 FreeCAD provides parametric CAD modeling for precise geometry definition.
 
@@ -124,20 +107,6 @@ vrooli resource su2 content execute airfoil.su2 direct.cfg
 ```
 
 ## Visualization Workflows
-
-### Real-Time Monitoring
-Stream live simulation data to dashboards.
-
-```bash
-# 1. Setup telemetry
-vrooli resource su2 visualize openmct
-
-# 2. Start simulation with streaming
-vrooli resource su2 visualize stream sim_001 &
-vrooli resource su2 content execute naca0012.su2 config.cfg
-
-# 3. View live data at http://localhost:8080/openmct
-```
 
 ### Post-Processing Visualization
 Generate visualizations for analysis.

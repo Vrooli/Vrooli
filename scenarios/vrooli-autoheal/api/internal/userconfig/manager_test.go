@@ -122,6 +122,20 @@ func TestManagerValidation(t *testing.T) {
 			valid: true,
 		},
 		{
+			name: "invalid autoHealOn",
+			config: Config{
+				Version: "1.0",
+				Global:  DefaultGlobal(),
+				UI:      DefaultUI(),
+				Checks: map[string]Check{
+					"scenario-app-monitor": {
+						Settings: &CheckSettings{AutoHealOn: "invalid"},
+					},
+				},
+			},
+			valid: false,
+		},
+		{
 			name: "invalid version",
 			config: Config{
 				Version: "2.0",
@@ -168,6 +182,36 @@ func TestManagerValidation(t *testing.T) {
 				t.Errorf("expected valid=%v, got %v. Errors: %v", tc.valid, result.Valid, result.Errors)
 			}
 		})
+	}
+}
+
+func TestManagerGetAutoHealOn(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	mgr := NewManager(configPath, schemaPath)
+	mgr.Load()
+
+	if got := mgr.GetAutoHealOn("scenario-app-monitor"); got != "critical" {
+		t.Fatalf("default autoHealOn = %q, want critical", got)
+	}
+
+	cfg := mgr.Get()
+	if cfg.Checks == nil {
+		cfg.Checks = make(map[string]Check)
+	}
+	cfg.Checks["scenario-app-monitor"] = Check{
+		Settings: &CheckSettings{
+			AutoHealOn: "warning+critical",
+		},
+	}
+	if err := mgr.Update(cfg); err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	if got := mgr.GetAutoHealOn("scenario-app-monitor"); got != "warning+critical" {
+		t.Fatalf("configured autoHealOn = %q, want warning+critical", got)
 	}
 }
 

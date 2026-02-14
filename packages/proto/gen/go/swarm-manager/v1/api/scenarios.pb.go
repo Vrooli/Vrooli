@@ -117,11 +117,9 @@ func (x *ScenarioResponse) GetScenario() *domain.Scenario {
 type UpdateScenarioMetadataRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional greenfield toggle.
-	IsGreenfield *bool `protobuf:"varint,1,opt,name=is_greenfield,json=isGreenfield,proto3,oneof" json:"is_greenfield,omitempty"`
-	// Optional recommendations toggle.
-	RecommendationsEnabled *bool `protobuf:"varint,2,opt,name=recommendations_enabled,json=recommendationsEnabled,proto3,oneof" json:"recommendations_enabled,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	IsGreenfield  *bool `protobuf:"varint,1,opt,name=is_greenfield,json=isGreenfield,proto3,oneof" json:"is_greenfield,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateScenarioMetadataRequest) Reset() {
@@ -157,13 +155,6 @@ func (*UpdateScenarioMetadataRequest) Descriptor() ([]byte, []int) {
 func (x *UpdateScenarioMetadataRequest) GetIsGreenfield() bool {
 	if x != nil && x.IsGreenfield != nil {
 		return *x.IsGreenfield
-	}
-	return false
-}
-
-func (x *UpdateScenarioMetadataRequest) GetRecommendationsEnabled() bool {
-	if x != nil && x.RecommendationsEnabled != nil {
-		return *x.RecommendationsEnabled
 	}
 	return false
 }
@@ -487,12 +478,10 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\x15ListScenariosResponse\x128\n" +
 	"\tscenarios\x18\x01 \x03(\v2\x1a.swarm_manager.v1.ScenarioR\tscenarios\"J\n" +
 	"\x10ScenarioResponse\x126\n" +
-	"\bscenario\x18\x01 \x01(\v2\x1a.swarm_manager.v1.ScenarioR\bscenario\"\xb5\x01\n" +
+	"\bscenario\x18\x01 \x01(\v2\x1a.swarm_manager.v1.ScenarioR\bscenario\"[\n" +
 	"\x1dUpdateScenarioMetadataRequest\x12(\n" +
-	"\ris_greenfield\x18\x01 \x01(\bH\x00R\fisGreenfield\x88\x01\x01\x12<\n" +
-	"\x17recommendations_enabled\x18\x02 \x01(\bH\x01R\x16recommendationsEnabled\x88\x01\x01B\x10\n" +
-	"\x0e_is_greenfieldB\x1a\n" +
-	"\x18_recommendations_enabled\"\x92\x01\n" +
+	"\ris_greenfield\x18\x01 \x01(\bH\x00R\fisGreenfield\x88\x01\x01B\x10\n" +
+	"\x0e_is_greenfield\"\x92\x01\n" +
 	"\x14PreserveFilesRequest\x12\x14\n" +
 	"\x05paths\x18\x01 \x03(\tR\x05paths\x12Y\n" +
 	"\x06preset\x18\x02 \x01(\tB<\xbaH9r7R\x00R\rdocumentationR\frequirementsR\bplanningR\fall-planningH\x00R\x06preset\x88\x01\x01B\t\n" +

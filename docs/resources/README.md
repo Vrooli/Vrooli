@@ -335,28 +335,6 @@ curl http://localhost:1880/flows | jq .
 ```
 📖 **Details**: [resources/automation/node-red/README.md](../../resources/node-red/README.md)
 
-## Huginn - Agent-based Event Processing
-**Intelligent web monitoring and data aggregation**
-
-**Use Cases**:
-- Website change monitoring
-- Data scraping and aggregation
-- Intelligent alerts and notifications
-- RSS/feed processing
-
-**When to Use**: Web monitoring, content tracking, intelligent data collection  
-**Alternative**: Node-RED for real-time processing, n8n for API-based workflows
-
-**Quick Example**:
-```bash
-# Access Huginn interface
-open http://localhost:4111
-
-# Create monitoring agent via API
-curl -X POST http://localhost:4111/agents -d @agent_config.json
-```
-📖 **Details**: [resources/automation/huginn/README.md](../../resources/huginn/README.md)
-
 ---
 
 # 🤖 Agent Resources

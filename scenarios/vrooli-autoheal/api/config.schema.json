@@ -180,6 +180,12 @@
               "maximum": 1000,
               "default": 100,
               "description": "Number of log lines to capture on failure"
+            },
+            "autoHealOn": {
+              "type": "string",
+              "enum": ["critical", "warning+critical"],
+              "default": "critical",
+              "description": "Health states that trigger auto-heal execution for this check"
             }
           },
           "additionalProperties": false

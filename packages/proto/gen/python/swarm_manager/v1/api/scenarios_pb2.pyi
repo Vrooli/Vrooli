@@ -21,12 +21,10 @@ class ScenarioResponse(_message.Message):
     def __init__(self, scenario: _Optional[_Union[_scenario_pb2.Scenario, _Mapping]] = ...) -> None: ...
 
 class UpdateScenarioMetadataRequest(_message.Message):
-    __slots__ = ("is_greenfield", "recommendations_enabled")
+    __slots__ = ("is_greenfield",)
     IS_GREENFIELD_FIELD_NUMBER: _ClassVar[int]
-    RECOMMENDATIONS_ENABLED_FIELD_NUMBER: _ClassVar[int]
     is_greenfield: bool
-    recommendations_enabled: bool
-    def __init__(self, is_greenfield: _Optional[bool] = ..., recommendations_enabled: _Optional[bool] = ...) -> None: ...
+    def __init__(self, is_greenfield: _Optional[bool] = ...) -> None: ...
 
 class PreserveFilesRequest(_message.Message):
     __slots__ = ("paths", "preset")

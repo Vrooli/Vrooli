@@ -101,12 +101,14 @@ type mockConfigProvider struct {
 	mu             sync.Mutex
 	enabledChecks  map[string]bool
 	autoHealChecks map[string]bool
+	autoHealOn     map[string]string
 }
 
 func newMockConfigProvider() *mockConfigProvider {
 	return &mockConfigProvider{
 		enabledChecks:  make(map[string]bool),
 		autoHealChecks: make(map[string]bool),
+		autoHealOn:     make(map[string]string),
 	}
 }
 
@@ -121,6 +123,15 @@ func (m *mockConfigProvider) IsAutoHealEnabled(checkID string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.autoHealChecks[checkID]
+}
+
+func (m *mockConfigProvider) GetAutoHealOn(checkID string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if v, ok := m.autoHealOn[checkID]; ok && v != "" {
+		return v
+	}
+	return "critical"
 }
 
 func (m *mockConfigProvider) EnableAutoHeal(checkID string) {
@@ -574,8 +585,8 @@ func TestFullStack_DangerousActionsNotAutoExecuted(t *testing.T) {
 		t.Error("dangerous actions should NOT be auto-executed")
 	}
 
-	if healResult.Reason != "no safe recovery action available" {
-		t.Errorf("expected 'no safe recovery action available', got %q", healResult.Reason)
+	if healResult.Reason != "no auto-heal recovery action available" {
+		t.Errorf("expected 'no auto-heal recovery action available', got %q", healResult.Reason)
 	}
 
 	// Verify no actions were actually executed

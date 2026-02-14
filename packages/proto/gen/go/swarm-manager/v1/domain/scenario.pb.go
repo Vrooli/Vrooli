@@ -41,11 +41,9 @@ type Scenario struct {
 	// Whether this scenario is greenfield.
 	IsGreenfield bool `protobuf:"varint,7,opt,name=is_greenfield,json=isGreenfield,proto3" json:"is_greenfield,omitempty"`
 	// Categorization tags.
-	Tags []string `protobuf:"bytes,8,rep,name=tags,proto3" json:"tags,omitempty"`
-	// Whether recommendations are enabled.
-	RecommendationsEnabled bool `protobuf:"varint,9,opt,name=recommendations_enabled,json=recommendationsEnabled,proto3" json:"recommendations_enabled,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	Tags          []string `protobuf:"bytes,8,rep,name=tags,proto3" json:"tags,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Scenario) Reset() {
@@ -134,22 +132,13 @@ func (x *Scenario) GetTags() []string {
 	return nil
 }
 
-func (x *Scenario) GetRecommendationsEnabled() bool {
-	if x != nil {
-		return x.RecommendationsEnabled
-	}
-	return false
-}
-
 // ScenarioMetadata stores editable metadata for a scenario.
 type ScenarioMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether this scenario is greenfield.
-	IsGreenfield bool `protobuf:"varint,1,opt,name=is_greenfield,json=isGreenfield,proto3" json:"is_greenfield,omitempty"`
-	// Whether recommendations are enabled.
-	RecommendationsEnabled bool `protobuf:"varint,2,opt,name=recommendations_enabled,json=recommendationsEnabled,proto3" json:"recommendations_enabled,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	IsGreenfield  bool `protobuf:"varint,1,opt,name=is_greenfield,json=isGreenfield,proto3" json:"is_greenfield,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ScenarioMetadata) Reset() {
@@ -189,18 +178,11 @@ func (x *ScenarioMetadata) GetIsGreenfield() bool {
 	return false
 }
 
-func (x *ScenarioMetadata) GetRecommendationsEnabled() bool {
-	if x != nil {
-		return x.RecommendationsEnabled
-	}
-	return false
-}
-
 var File_swarm_manager_v1_domain_scenario_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/scenario.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xaf\x03\n" +
+	"&swarm-manager/v1/domain/scenario.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf6\x02\n" +
 	"\bScenario\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdisplayName\x12 \n" +
@@ -210,12 +192,10 @@ const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"(\x01R\bpriority\x12=\n" +
 	"\x12completeness_score\x18\x06 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\x11completenessScore\x88\x01\x01\x12#\n" +
 	"\ris_greenfield\x18\a \x01(\bR\fisGreenfield\x12\x1c\n" +
-	"\x04tags\x18\b \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x127\n" +
-	"\x17recommendations_enabled\x18\t \x01(\bR\x16recommendationsEnabledB\x15\n" +
-	"\x13_completeness_score\"p\n" +
+	"\x04tags\x18\b \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tagsB\x15\n" +
+	"\x13_completeness_score\"7\n" +
 	"\x10ScenarioMetadata\x12#\n" +
-	"\ris_greenfield\x18\x01 \x01(\bR\fisGreenfield\x127\n" +
-	"\x17recommendations_enabled\x18\x02 \x01(\bR\x16recommendationsEnabledBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\ris_greenfield\x18\x01 \x01(\bR\fisGreenfieldBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_scenario_proto_rawDescOnce sync.Once

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 type mockHTTPDoer struct {
@@ -21,146 +23,6 @@ func makeResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
 		Body:       io.NopCloser(strings.NewReader(body)),
-	}
-}
-
-func TestHTTPClient_CreateResearchRun_Success(t *testing.T) {
-	resolver := func(_ context.Context) (string, error) {
-		return "http://localhost:12345", nil
-	}
-
-	mockHTTP := &mockHTTPDoer{
-		doFunc: func(req *http.Request) (*http.Response, error) {
-			switch req.URL.Path {
-			case "/api/v1/tasks":
-				return makeResponse(http.StatusCreated, `{"task":{"id":"task-123"}}`), nil
-			case "/api/v1/runs":
-				return makeResponse(http.StatusCreated, `{"run":{"id":"run-456"}}`), nil
-			default:
-				return makeResponse(http.StatusNotFound, `{}`), nil
-			}
-		},
-	}
-
-	client := NewHTTPClientWithResolver(resolver, mockHTTP)
-
-	resp, err := client.CreateResearchRun(context.Background(), ResearchRequest{
-		Title:       "Research Idea",
-		Description: "Test",
-		ScopePath:   "/tmp",
-		ProjectRoot: ".",
-		Prompt:      "Focus on feasibility",
-		Tag:         "swarm-manager:test",
-		CreatedBy:   "swarm-manager",
-	})
-	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
-	}
-
-	if resp.TaskID != "task-123" {
-		t.Errorf("TaskID = %q, want %q", resp.TaskID, "task-123")
-	}
-	if resp.RunID != "run-456" {
-		t.Errorf("RunID = %q, want %q", resp.RunID, "run-456")
-	}
-	if resp.BaseURL != "http://localhost:12345" {
-		t.Errorf("BaseURL = %q, want %q", resp.BaseURL, "http://localhost:12345")
-	}
-	if resp.CreatedAt == "" {
-		t.Error("CreatedAt should not be empty")
-	}
-}
-
-func TestHTTPClient_CreateResearchRun_ResolverError(t *testing.T) {
-	resolver := func(_ context.Context) (string, error) {
-		return "", ErrNotAvailable
-	}
-
-	client := NewHTTPClientWithResolver(resolver, &mockHTTPDoer{
-		doFunc: func(req *http.Request) (*http.Response, error) {
-			return makeResponse(http.StatusOK, `{}`), nil
-		},
-	})
-
-	_, err := client.CreateResearchRun(context.Background(), ResearchRequest{
-		Title:     "Research",
-		ScopePath: "/tmp",
-	})
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(err, ErrNotAvailable) {
-		t.Fatalf("expected ErrNotAvailable, got %v", err)
-	}
-}
-
-func TestHTTPClient_CreateResearchRun_RequestError(t *testing.T) {
-	resolver := func(_ context.Context) (string, error) {
-		return "http://localhost:12345", nil
-	}
-
-	client := NewHTTPClientWithResolver(resolver, &mockHTTPDoer{
-		doFunc: func(req *http.Request) (*http.Response, error) {
-			return nil, errors.New("connection refused")
-		},
-	})
-
-	_, err := client.CreateResearchRun(context.Background(), ResearchRequest{
-		Title:     "Research",
-		ScopePath: "/tmp",
-	})
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(err, ErrNotAvailable) {
-		t.Fatalf("expected ErrNotAvailable, got %v", err)
-	}
-}
-
-func TestHTTPClient_CreateTaskErrors(t *testing.T) {
-	client := NewHTTPClientWithResolver(func(_ context.Context) (string, error) {
-		return "http://localhost:12345", nil
-	}, &mockHTTPDoer{})
-
-	client.httpClient = &mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-		return makeResponse(http.StatusInternalServerError, `{}`), nil
-	}}
-	if _, err := client.createTask(context.Background(), "http://localhost:12345", ResearchRequest{Title: "t", ScopePath: "/tmp"}); err == nil {
-		t.Fatalf("expected error for non-2xx status")
-	}
-
-	client.httpClient = &mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-		return makeResponse(http.StatusOK, `{"task":{}}`), nil
-	}}
-	if _, err := client.createTask(context.Background(), "http://localhost:12345", ResearchRequest{Title: "t", ScopePath: "/tmp"}); err == nil {
-		t.Fatalf("expected error for missing task id")
-	}
-
-	client.httpClient = &mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-		return makeResponse(http.StatusOK, `invalid`), nil
-	}}
-	if _, err := client.createTask(context.Background(), "http://localhost:12345", ResearchRequest{Title: "t", ScopePath: "/tmp"}); err == nil {
-		t.Fatalf("expected error for invalid JSON")
-	}
-}
-
-func TestHTTPClient_CreateRunErrors(t *testing.T) {
-	client := NewHTTPClientWithResolver(func(_ context.Context) (string, error) {
-		return "http://localhost:12345", nil
-	}, &mockHTTPDoer{})
-
-	client.httpClient = &mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-		return makeResponse(http.StatusInternalServerError, `{}`), nil
-	}}
-	if _, err := client.createRun(context.Background(), "http://localhost:12345", "task-1", ResearchRequest{Prompt: "p"}); err == nil {
-		t.Fatalf("expected error for non-2xx status")
-	}
-
-	client.httpClient = &mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-		return makeResponse(http.StatusOK, `{"run":{}}`), nil
-	}}
-	if _, err := client.createRun(context.Background(), "http://localhost:12345", "task-1", ResearchRequest{}); err == nil {
-		t.Fatalf("expected error for missing run id")
 	}
 }
 
@@ -187,94 +49,148 @@ func TestNewHTTPClientWithResolver_Defaults(t *testing.T) {
 	}
 }
 
-func TestHTTPClient_CreateRunRequestFields(t *testing.T) {
-	t.Run("omits empty prompt and tag", func(t *testing.T) {
-		var body string
-		client := NewHTTPClientWithResolver(func(_ context.Context) (string, error) {
-			return "http://localhost:12345", nil
-		}, &mockHTTPDoer{
-			doFunc: func(req *http.Request) (*http.Response, error) {
-				bytes, _ := io.ReadAll(req.Body)
-				body = string(bytes)
-				return makeResponse(http.StatusOK, `{"run":{"id":"run-1"}}`), nil
-			},
-		})
-
-		if _, err := client.createRun(context.Background(), "http://localhost:12345", "task-1", ResearchRequest{}); err != nil {
+func TestHTTPClient_Health(t *testing.T) {
+	t.Run("healthy", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path != "/health" {
+					return makeResponse(http.StatusNotFound, ""), nil
+				}
+				return makeResponse(http.StatusOK, `{}`), nil
+			}},
+		)
+		ok, err := client.Health(context.Background())
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-
-		if !strings.Contains(body, `"task_id":"task-1"`) {
-			t.Fatalf("expected task_id in body, got %s", body)
-		}
-		if strings.Contains(body, "prompt") || strings.Contains(body, "tag") {
-			t.Fatalf("expected prompt/tag omitted, got %s", body)
+		if !ok {
+			t.Error("expected healthy")
 		}
 	})
 
-	t.Run("includes prompt and tag", func(t *testing.T) {
-		var body string
-		client := NewHTTPClientWithResolver(func(_ context.Context) (string, error) {
-			return "http://localhost:12345", nil
-		}, &mockHTTPDoer{
-			doFunc: func(req *http.Request) (*http.Response, error) {
-				bytes, _ := io.ReadAll(req.Body)
-				body = string(bytes)
-				return makeResponse(http.StatusOK, `{"run":{"id":"run-2"}}`), nil
-			},
-		})
-
-		if _, err := client.createRun(context.Background(), "http://localhost:12345", "task-2", ResearchRequest{
-			Prompt: "focus",
-			Tag:    "demo",
-		}); err != nil {
+	t.Run("unhealthy", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+				return makeResponse(http.StatusServiceUnavailable, ""), nil
+			}},
+		)
+		ok, err := client.Health(context.Background())
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+		if ok {
+			t.Error("expected unhealthy")
+		}
+	})
 
-		if !strings.Contains(body, `"prompt":"focus"`) || !strings.Contains(body, `"tag":"demo"`) {
-			t.Fatalf("expected prompt and tag in body, got %s", body)
+	t.Run("resolver error", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "", ErrNotAvailable },
+			&mockHTTPDoer{},
+		)
+		_, err := client.Health(context.Background())
+		if !errors.Is(err, ErrNotAvailable) {
+			t.Fatalf("expected ErrNotAvailable, got %v", err)
 		}
 	})
 }
 
-func TestHTTPClient_CreateTaskRequestFields(t *testing.T) {
-	var body string
-	client := NewHTTPClientWithResolver(func(_ context.Context) (string, error) {
-		return "http://localhost:12345", nil
-	}, &mockHTTPDoer{
-		doFunc: func(req *http.Request) (*http.Response, error) {
-			bytes, _ := io.ReadAll(req.Body)
-			body = string(bytes)
-			return makeResponse(http.StatusOK, `{"task":{"id":"task-1"}}`), nil
-		},
+func TestHTTPClient_CreateTask_Proto(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		var capturedBody string
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+				bodyBytes, _ := io.ReadAll(req.Body)
+				capturedBody = string(bodyBytes)
+				return makeResponse(http.StatusCreated, `{"task":{"id":"task-proto-1","title":"test"}}`), nil
+			}},
+		)
+
+		task, err := client.CreateTask(context.Background(), buildTestTask("Test Proto Task"))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if task.Id != "task-proto-1" {
+			t.Errorf("got task ID %q, want %q", task.Id, "task-proto-1")
+		}
+		if capturedBody == "" {
+			t.Fatal("expected non-empty request body")
+		}
 	})
 
-	_, err := client.createTask(context.Background(), "http://localhost:12345", ResearchRequest{
-		Title:       "  Title  ",
-		Description: "  Desc  ",
-		ScopePath:   " /tmp ",
-		ProjectRoot: " . ",
-		CreatedBy:   " swarm ",
+	t.Run("server error", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+				return makeResponse(http.StatusInternalServerError, `{}`), nil
+			}},
+		)
+		_, err := client.CreateTask(context.Background(), buildTestTask("fail"))
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !errors.Is(err, ErrRequestFailed) {
+			t.Errorf("expected ErrRequestFailed, got %v", err)
+		}
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+}
 
-	if !strings.Contains(body, `"title":"Title"`) {
-		t.Fatalf("expected trimmed title, got %s", body)
-	}
-	if !strings.Contains(body, `"description":"Desc"`) {
-		t.Fatalf("expected trimmed description, got %s", body)
-	}
-	if !strings.Contains(body, `"scope_path":"/tmp"`) {
-		t.Fatalf("expected trimmed scope path, got %s", body)
-	}
-	if !strings.Contains(body, `"project_root":"."`) {
-		t.Fatalf("expected trimmed project root, got %s", body)
-	}
-	if !strings.Contains(body, `"created_by":"swarm"`) {
-		t.Fatalf("expected trimmed created_by, got %s", body)
-	}
+func TestHTTPClient_GetRun(t *testing.T) {
+	t.Run("empty id", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{},
+		)
+		_, err := client.GetRun(context.Background(), "")
+		if err == nil {
+			t.Fatal("expected error for empty run ID")
+		}
+	})
+
+	t.Run("success", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+				return makeResponse(http.StatusOK, `{"run":{"id":"run-1","taskId":"task-1","status":"RUN_STATUS_RUNNING"}}`), nil
+			}},
+		)
+		run, err := client.GetRun(context.Background(), "run-1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if run.Id != "run-1" {
+			t.Errorf("got run ID %q, want %q", run.Id, "run-1")
+		}
+	})
+}
+
+func TestHTTPClient_StopRun(t *testing.T) {
+	t.Run("empty id", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{},
+		)
+		err := client.StopRun(context.Background(), "  ")
+		if err == nil {
+			t.Fatal("expected error for empty run ID")
+		}
+	})
+
+	t.Run("success", func(t *testing.T) {
+		client := NewHTTPClientWithResolver(
+			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+				return makeResponse(http.StatusOK, `{}`), nil
+			}},
+		)
+		err := client.StopRun(context.Background(), "run-1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 }
 
 func TestResolveAgentManagerBaseURL(t *testing.T) {
@@ -284,5 +200,12 @@ func TestResolveAgentManagerBaseURL(t *testing.T) {
 	}
 	if !strings.HasPrefix(url, "http") {
 		t.Fatalf("expected base URL to be http(s), got %q", url)
+	}
+}
+
+// buildTestTask creates a proto Task for testing.
+func buildTestTask(title string) *domainpb.Task {
+	return &domainpb.Task{
+		Title: title,
 	}
 }

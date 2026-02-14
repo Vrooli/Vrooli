@@ -4,8 +4,15 @@
   "version": "1.0.0",
   "category": "earth-systems",
   "startup_order": 700,
-  "dependencies": ["postgres", "redis"],
-  "optional_dependencies": ["minio", "qdrant", "n8n"],
+  "dependencies": [
+    "postgres",
+    "redis"
+  ],
+  "optional_dependencies": [
+    "minio",
+    "qdrant",
+    "n8n"
+  ],
   "startup_timeout": 60,
   "startup_time_estimate": "30-60s",
   "shutdown_timeout": 30,
@@ -60,14 +67,6 @@
     "qdrant": {
       "enabled": false,
       "description": "Vector embeddings for scene similarity"
-    },
-    "n8n": {
-      "enabled": false,
-      "description": "Workflow automation for ingestion"
-    },
-    "farmos": {
-      "enabled": false,
-      "description": "Agricultural monitoring integration"
     },
     "questdb": {
       "enabled": false,

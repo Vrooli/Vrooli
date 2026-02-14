@@ -9,26 +9,12 @@ import { file_buf_validate_validate } from "../../../buf/validate/validate_pb.js
  * Describes the file swarm-manager/v1/domain/settings.proto.
  */
 export const file_swarm_manager_v1_domain_settings = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSKOAQoVUmVjb21tZW5kYXRpb25Tb3VyY2VzEhAKCHByb2JsZW1zGAEgASgIEhQKDGNvbXBsZXRlbmVzcxgCIAEoCBINCgV0ZXN0cxgDIAEoCBIQCghjb3ZlcmFnZRgEIAEoCBIUCgxjdXN0b21fZm9jdXMYBSABKAgSFgoOc2NlbmFyaW9fbm90ZXMYBiABKAgifgoWUmVjb21tZW5kYXRpb25BdXRvU3luYxIPCgdlbmFibGVkGAEgASgIEhAKCGludGVydmFsGAIgASgJEhQKDGxhc3RfcmVmcmVzaBgDIAEoCRIUCgxuZXh0X3JlZnJlc2gYBCABKAkSFQoNcmVmcmVzaF9zY29wZRgFIAEoCSLrAgoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEjoKE3JlY29tbWVuZGF0aW9uX21vZGUYAiABKAlCHbpIGnIYUgNvZmZSC3N1Z2dlc3Rpb25zUgR5b2xvEhkKDGN1c3RvbV9mb2N1cxgDIAEoCUgAiAEBEhgKEGluc2lnaHRzX2VuYWJsZWQYBCABKAgSHQoVaW5zaWdodHNfYXV0b19hbmFseXplGAUgASgIEkcKFnJlY29tbWVuZGF0aW9uX3NvdXJjZXMYBiABKAsyJy5zd2FybV9tYW5hZ2VyLnYxLlJlY29tbWVuZGF0aW9uU291cmNlcxJKChhyZWNvbW1lbmRhdGlvbl9hdXRvX3N5bmMYByABKAsyKC5zd2FybV9tYW5hZ2VyLnYxLlJlY29tbWVuZGF0aW9uQXV0b1N5bmNCDwoNX2N1c3RvbV9mb2N1c0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
-
-/**
- * Describes the message swarm_manager.v1.RecommendationSources.
- * Use `create(RecommendationSourcesSchema)` to create a new message.
- */
-export const RecommendationSourcesSchema = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_settings, 0);
-
-/**
- * Describes the message swarm_manager.v1.RecommendationAutoSync.
- * Use `create(RecommendationAutoSyncSchema)` to create a new message.
- */
-export const RecommendationAutoSyncSchema = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_settings, 1);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSKaAQoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEhkKDGN1c3RvbV9mb2N1cxgCIAEoCUgAiAEBEhgKEGluc2lnaHRzX2VuYWJsZWQYAyABKAgSHQoVaW5zaWdodHNfYXV0b19hbmFseXplGAQgASgIQg8KDV9jdXN0b21fZm9jdXNCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * Describes the message swarm_manager.v1.Settings.
  * Use `create(SettingsSchema)` to create a new message.
  */
 export const SettingsSchema = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_settings, 2);
+  messageDesc(file_swarm_manager_v1_domain_settings, 0);
 

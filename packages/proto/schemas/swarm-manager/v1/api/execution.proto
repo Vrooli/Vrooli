@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/execution.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+message ListExecutionResponse {
+  repeated ExecutionRecord items = 1;
+}
+
+message ExecutionResponse {
+  ExecutionRecord execution = 1;
+}
+
+message ExecutionPolicyResponse {
+  ExecutionPolicy policy = 1;
+}
+
+message CreateExecutionRequest {
+  string backlog_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string backlog_name = 2 [(buf.validate.field).string.min_len = 1];
+  string mode = 3 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
+  optional int64 delay_seconds = 4 [(buf.validate.field).int64.gte = 0];
+  optional string started_by = 5;
+  optional string operation = 6;
+}

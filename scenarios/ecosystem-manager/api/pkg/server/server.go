@@ -130,9 +130,9 @@ func (a *Application) Run(ctx context.Context) error {
 	router := a.setupRoutes()
 
 	log.Printf("✅ Ecosystem Manager API starting on port %s", a.port)
-	log.Printf("🔗 WebSocket endpoint: ws://localhost:%s/ws", a.port)
-	log.Printf("🏥 Health check: http://localhost:%s/health", a.port)
-	log.Printf("📋 Queue status: http://localhost:%s/api/queue/status", a.port)
+	log.Printf("🔗 WebSocket endpoint: ws://0.0.0.0:%s/ws", a.port)
+	log.Printf("🏥 Health check: http://0.0.0.0:%s/health", a.port)
+	log.Printf("📋 Queue status: http://0.0.0.0:%s/api/queue/status", a.port)
 	systemlog.Info(fmt.Sprintf("HTTP server listening on port %s", a.port))
 
 	server := &http.Server{

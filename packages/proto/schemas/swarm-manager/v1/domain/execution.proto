@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// ExecutionRecord captures one backlog execution lifecycle entry.
+message ExecutionRecord {
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1];
+  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research"] }];
+  string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
+  optional string task_id = 4;
+  optional string run_id = 5;
+  string status = 6 [(buf.validate.field).string = { in: ["pending", "scheduled", "running", "completed", "failed", "canceled"] }];
+  string mode = 7 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
+  optional string scheduled_at = 8;
+  optional string started_at = 9;
+  optional string finished_at = 10;
+  optional string failure_reason = 11;
+  optional string started_by = 12;
+  optional string operation = 13;
+  string created_at = 14 [(buf.validate.field).string.min_len = 1];
+  string updated_at = 15 [(buf.validate.field).string.min_len = 1];
+}
+
+// ExecutionPolicy controls default mode and delay.
+message ExecutionPolicy {
+  string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
+  int64 default_delay_seconds = 2 [(buf.validate.field).int64.gte = 0];
+}

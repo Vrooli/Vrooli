@@ -67,10 +67,16 @@ class BacklogFileResponse(_message.Message):
     def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ...) -> None: ...
 
 class QueueBacklogItemRequest(_message.Message):
-    __slots__ = ("operation",)
+    __slots__ = ("operation", "mode", "delay_seconds", "started_by")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    DELAY_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    STARTED_BY_FIELD_NUMBER: _ClassVar[int]
     operation: str
-    def __init__(self, operation: _Optional[str] = ...) -> None: ...
+    mode: str
+    delay_seconds: int
+    started_by: str
+    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., delay_seconds: _Optional[int] = ..., started_by: _Optional[str] = ...) -> None: ...
 
 class QueueBacklogItemResponse(_message.Message):
     __slots__ = ("item", "task_id", "run_id", "base_url", "created")

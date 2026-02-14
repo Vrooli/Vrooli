@@ -1,9 +1,12 @@
 /**
  * API Client for Ecosystem Manager
- * Centralized HTTP communication with type safety
+ * Centralized HTTP communication with type safety.
+ *
+ * Uses proto-contracts for response validation and type mapping
+ * at the API boundary.
  */
 
-import { resolveWithConfig } from "@vrooli/api-base";
+import { resolveApiBase } from "@vrooli/api-base";
 import type {
   Task,
   TaskFilters,
@@ -41,425 +44,20 @@ import type {
   GenerateInsightOptions,
   ApplySuggestionResult,
 } from '../types/api';
+import {
+  parseTaskResponse,
+  parseExecutionResponse,
+  parseSettingsResponse,
+  parseQueueStatusResponse,
+  parseRunningProcessResponse,
+  parseResourceResponse,
+  parseScenarioResponse,
+  parseActiveTargetResponse,
+  mapUiSettingsToProtoJson,
+} from './proto-contracts';
 
-// Default settings fallback (matches legacy API defaults)
-const DEFAULT_SETTINGS: Settings = {
-  processor: {
-    concurrent_slots: 1,
-    cooldown_seconds: 30,
-    active: false,
-  },
-  agent: {
-    max_turns: 60,
-    allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
-    skip_permissions: true,
-    task_timeout_minutes: 30,
-    idle_timeout_cap_minutes: 30,
-    runner_type: 'claude-code',
-  },
-  display: {
-    theme: 'dark',
-    condensed_mode: false,
-  },
-  recycler: {
-    enabled_for: 'off',
-    recycle_interval: 60,
-    max_retries: 3,
-    retry_delay_seconds: 2,
-    model_provider: 'ollama',
-    model_name: 'llama3.1:8b',
-    completion_threshold: 3,
-    failure_threshold: 5,
-  },
-};
-
-type ApiSettingsPayload = {
-  theme?: string;
-  slots?: number;
-  refresh_interval?: number; // legacy
-  cooldown_seconds?: number;
-  active?: boolean;
-  max_turns?: number;
-  allowed_tools?: string;
-  skip_permissions?: boolean;
-  task_timeout?: number;
-  idle_timeout_cap?: number;
-  runner_type?: string;
-  runnerType?: string;
-  condensed_mode?: boolean;
-  recycler?: {
-    enabled_for?: string;
-    interval_seconds?: number;
-    max_retries?: number;
-    retry_delay_seconds?: number;
-    model_provider?: string;
-    model_name?: string;
-    completion_threshold?: number;
-    failure_threshold?: number;
-  };
-};
-
-const isTheme = (value: unknown): value is Settings['display']['theme'] =>
-  value === 'light' || value === 'dark' || value === 'auto';
-
-const isEnabledFor = (value: unknown): value is Settings['recycler']['enabled_for'] =>
-  value === 'off' || value === 'resources' || value === 'scenarios' || value === 'both';
-
-const isModelProvider = (value: unknown): value is Settings['recycler']['model_provider'] =>
-  value === 'ollama' || value === 'openrouter';
-
-const isRunnerType = (value: unknown): value is Settings['agent']['runner_type'] =>
-  value === 'claude-code' || value === 'codex' || value === 'opencode';
-
-function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings | { settings?: ApiSettingsPayload }): Settings {
-  // Handle nested response from GET /api/settings (has "settings" wrapper)
-  const source = (raw as any)?.settings ?? raw ?? {};
-  const recycler = (source as ApiSettingsPayload)?.recycler ?? {};
-  const theme = (source as ApiSettingsPayload)?.theme;
-  const condensed = (source as ApiSettingsPayload)?.condensed_mode;
-  const cooldown =
-    (source as ApiSettingsPayload)?.cooldown_seconds ??
-    (source as ApiSettingsPayload)?.refresh_interval ??
-    DEFAULT_SETTINGS.processor.cooldown_seconds;
-
-  const runnerTypeRaw =
-    (source as ApiSettingsPayload)?.runner_type ?? (source as ApiSettingsPayload)?.runnerType;
-
-  return {
-    processor: {
-      concurrent_slots:
-        (source as ApiSettingsPayload)?.slots ?? DEFAULT_SETTINGS.processor.concurrent_slots,
-      cooldown_seconds: cooldown,
-      active: (source as ApiSettingsPayload)?.active ?? DEFAULT_SETTINGS.processor.active,
-    },
-    agent: {
-      max_turns: (source as ApiSettingsPayload)?.max_turns ?? DEFAULT_SETTINGS.agent.max_turns,
-      allowed_tools:
-        (source as ApiSettingsPayload)?.allowed_tools ?? DEFAULT_SETTINGS.agent.allowed_tools,
-      skip_permissions:
-        (source as ApiSettingsPayload)?.skip_permissions ?? DEFAULT_SETTINGS.agent.skip_permissions,
-      task_timeout_minutes:
-        (source as ApiSettingsPayload)?.task_timeout ?? DEFAULT_SETTINGS.agent.task_timeout_minutes,
-      idle_timeout_cap_minutes:
-        (source as ApiSettingsPayload)?.idle_timeout_cap ??
-        DEFAULT_SETTINGS.agent.idle_timeout_cap_minutes,
-      runner_type: isRunnerType(runnerTypeRaw)
-        ? runnerTypeRaw
-        : DEFAULT_SETTINGS.agent.runner_type,
-    },
-    display: {
-      theme: isTheme(theme) ? theme : DEFAULT_SETTINGS.display.theme,
-      condensed_mode: condensed ?? DEFAULT_SETTINGS.display.condensed_mode,
-    },
-    recycler: {
-      enabled_for: isEnabledFor(recycler?.enabled_for)
-        ? recycler.enabled_for
-        : DEFAULT_SETTINGS.recycler.enabled_for,
-      recycle_interval:
-        recycler?.interval_seconds ??
-        // Allow already-converted value to pass through for safety
-        (recycler as unknown as Settings['recycler'])?.recycle_interval ??
-        DEFAULT_SETTINGS.recycler.recycle_interval,
-      max_retries:
-        typeof recycler?.max_retries === 'number'
-          ? recycler.max_retries
-          : (recycler as any)?.max_retries ??
-            (recycler as unknown as Settings['recycler'])?.max_retries ??
-            DEFAULT_SETTINGS.recycler.max_retries,
-      retry_delay_seconds:
-        typeof recycler?.retry_delay_seconds === 'number'
-          ? recycler.retry_delay_seconds
-          : (recycler as any)?.retry_delay_seconds ??
-            (recycler as unknown as Settings['recycler'])?.retry_delay_seconds ??
-            DEFAULT_SETTINGS.recycler.retry_delay_seconds,
-      model_provider: isModelProvider(recycler?.model_provider)
-        ? recycler.model_provider
-        : DEFAULT_SETTINGS.recycler.model_provider,
-      model_name: recycler?.model_name ?? DEFAULT_SETTINGS.recycler.model_name,
-      completion_threshold:
-        recycler?.completion_threshold ?? DEFAULT_SETTINGS.recycler.completion_threshold,
-      failure_threshold:
-        recycler?.failure_threshold ?? DEFAULT_SETTINGS.recycler.failure_threshold,
-    },
-  };
-}
-
-// Normalize legacy target fields (string/array) into a consistent array
-const normalizeTaskTargets = (task: any): Task => {
-  const rawTargets = Array.isArray(task.target)
-    ? task.target
-    : Array.isArray(task.targets)
-      ? task.targets
-      : task.target
-        ? [task.target]
-        : [];
-
-  const currentProcess = task.current_process || task.process || task.running_process;
-  const normalizedProcess = currentProcess
-    ? normalizeRunningProcess({
-        ...currentProcess,
-        task_id: currentProcess.task_id ?? task.id ?? task.task_id,
-        task_title: currentProcess.task_title ?? task.title,
-      })
-    : undefined;
-  const completionCount =
-    typeof task.completion_count === 'number'
-      ? task.completion_count
-      : typeof task.completionCount === 'number'
-        ? task.completionCount
-        : 0;
-  const lastCompletedAt = task.last_completed_at ?? task.lastCompletedAt ?? '';
-  const cooldownUntil = task.cooldown_until ?? task.cooldownUntil ?? '';
-  const autoSteerMode =
-    task.auto_steer_mode ??
-    task.autoSteerMode ??
-    task.AutoSteerMode;
-  const autoRequeue =
-    typeof task.auto_requeue === 'boolean'
-      ? task.auto_requeue
-      : typeof task.processor_auto_requeue === 'boolean'
-        ? task.processor_auto_requeue
-        : true;
-
-  // Normalize steering_queue field (snake_case or camelCase)
-  const steeringQueue = Array.isArray(task.steering_queue)
-    ? task.steering_queue
-    : Array.isArray(task.steeringQueue)
-      ? task.steeringQueue
-      : Array.isArray(task.SteeringQueue)
-        ? task.SteeringQueue
-        : undefined;
-
-  return {
-    ...task,
-    target: rawTargets.filter(Boolean),
-    current_process: normalizedProcess,
-    completion_count: completionCount,
-    last_completed_at: lastCompletedAt,
-    cooldown_until: cooldownUntil,
-    // Backend uses processor_auto_requeue; UI expects auto_requeue
-    auto_requeue: autoRequeue,
-    auto_steer_mode: autoSteerMode,
-    steering_queue: steeringQueue,
-  };
-};
-
-const normalizeExecution = (raw: any): ExecutionHistory => {
-  const id =
-    raw?.id ??
-    raw?.execution_id ??
-    raw?.executionId ??
-    raw?.executionID ??
-    raw?.ExecutionID ??
-    raw?.task_execution_id ??
-    raw?.taskExecutionId ??
-    raw?.taskExecutionID ??
-    raw?.start_time ??
-    '';
-
-  const startTime =
-    raw?.start_time ??
-    raw?.startTime ??
-    raw?.StartTime ??
-    '';
-
-  const endTime =
-    raw?.end_time ??
-    raw?.endTime ??
-    raw?.EndTime ??
-    undefined;
-
-  const duration =
-    raw?.duration ??
-    raw?.Duration ??
-    raw?.execution_time ??
-    raw?.ExecutionTime ??
-    undefined;
-
-  const timeoutAllowed =
-    raw?.timeout_allowed ??
-    raw?.TimeoutAllowed ??
-    raw?.timeout ??
-    raw?.Timeout ??
-    undefined;
-
-  const exitReason = raw?.exit_reason ?? raw?.exitReason ?? raw?.ExitReason ?? undefined;
-  const rateLimited = raw?.rate_limited ?? raw?.RateLimited ?? exitReason === 'rate_limited';
-  const success = raw?.success ?? raw?.Success;
-  const rawStatus = typeof raw?.status === 'string' ? raw.status.toLowerCase() : raw?.status;
-
-  const status: ExecutionHistory['status'] =
-    rawStatus === 'rate_limited' || rateLimited
-      ? 'rate_limited'
-      : rawStatus === 'completed' || success === true
-        ? 'completed'
-        : rawStatus === 'failed' || success === false || raw?.failed
-          ? 'failed'
-          : 'running';
-
-  return {
-    id: String(id),
-    task_id: raw?.task_id ?? raw?.taskId ?? raw?.TaskID ?? raw?.task ?? '',
-    task_title: raw?.task_title ?? raw?.taskTitle ?? raw?.TaskTitle,
-    task_type: raw?.task_type ?? raw?.taskType ?? raw?.TaskType,
-    task_operation: raw?.task_operation ?? raw?.taskOperation ?? raw?.TaskOperation,
-    agent_tag: raw?.agent_tag ?? raw?.agentTag ?? raw?.AgentTag,
-    process_id: raw?.process_id ?? raw?.processId ?? raw?.ProcessID,
-    start_time: startTime,
-    end_time: endTime,
-    duration,
-    status,
-    exit_code: raw?.exit_code ?? raw?.exitCode ?? raw?.ExitCode,
-    exit_reason: exitReason,
-    prompt_size: raw?.prompt_size ?? raw?.PromptSize,
-    prompt_path: raw?.prompt_path ?? raw?.PromptPath ?? raw?.promptPath,
-    output_path: raw?.output_path ?? raw?.OutputPath ?? raw?.outputPath,
-    clean_output_path: raw?.clean_output_path ?? raw?.CleanOutputPath ?? raw?.cleanOutputPath,
-    last_message_path: raw?.last_message_path ?? raw?.LastMessagePath ?? raw?.lastMessagePath,
-    transcript_path: raw?.transcript_path ?? raw?.TranscriptPath ?? raw?.transcriptPath,
-    auto_steer_profile_id: raw?.auto_steer_profile_id ?? raw?.autoSteerProfileId ?? raw?.AutoSteerProfileID,
-    auto_steer_iteration: raw?.auto_steer_iteration ?? raw?.autoSteerIteration ?? raw?.AutoSteerIteration,
-    steer_mode: raw?.steer_mode ?? raw?.steerMode ?? raw?.SteerMode,
-    steer_phase_index: raw?.steer_phase_index ?? raw?.steerPhaseIndex ?? raw?.SteerPhaseIndex,
-    steer_phase_iteration: raw?.steer_phase_iteration ?? raw?.steerPhaseIteration ?? raw?.SteerPhaseIteration,
-    steering_source: raw?.steering_source ?? raw?.steeringSource ?? raw?.SteeringSource,
-    timeout_allowed: timeoutAllowed,
-    rate_limited: rateLimited,
-    retry_after: raw?.retry_after ?? raw?.RetryAfter,
-    success,
-    metadata: raw?.metadata,
-  };
-};
-
-const normalizeQueueStatus = (raw: any): QueueStatus => {
-  const rateInfo = raw?.rate_limit_info || {};
-  const running = Boolean(
-    raw?.processor_active ??
-    raw?.processor_running ??
-    raw?.active ??
-    raw?.settings_active
-  );
-
-  const slotsUsed =
-    raw?.slots_used ??
-    raw?.executing_count ??
-    raw?.running_count ??
-    0;
-
-  const maxConcurrent =
-    raw?.max_slots ??
-    raw?.max_concurrent ??
-    raw?.maxConcurrent ??
-    0;
-
-  const availableSlots =
-    raw?.available_slots ??
-    raw?.availableSlots ??
-    maxConcurrent - slotsUsed;
-
-  const pendingCount = raw?.pending_count ?? 0;
-  const readyInProgress = raw?.ready_in_progress ?? 0;
-
-  return {
-    active: running,
-    slots_used: Number(slotsUsed) || 0,
-    max_concurrent: Number(maxConcurrent) || 0,
-    tasks_remaining: Number(pendingCount + readyInProgress) || 0,
-    cooldown_seconds:
-      raw?.cooldown_seconds ??
-      raw?.refresh_interval ??
-      0,
-    rate_limited: Boolean(rateInfo.paused ?? raw?.rate_limited ?? false),
-    rate_limit_retry_after:
-      rateInfo.remaining_secs ??
-      raw?.rate_limit_retry_after ??
-      0,
-    rate_limit_pause_until:
-      rateInfo.pause_until ??
-      raw?.rate_limit_pause_until,
-    available_slots: Number(availableSlots) || 0,
-  };
-};
-
-function normalizeRunningProcess(raw: any): RunningProcess {
-  const processId =
-    raw?.process_id ??
-    raw?.ProcessID ??
-    raw?.processId ??
-    raw?.pid ??
-    raw?.id ??
-    '';
-
-  const taskId =
-    raw?.task_id ??
-    raw?.TaskID ??
-    raw?.taskId ??
-    raw?.id ??
-    '';
-
-  const startTime =
-    raw?.start_time ??
-    raw?.StartTime ??
-    raw?.startTime ??
-    '';
-
-  const elapsed =
-    raw?.elapsed_seconds ??
-    raw?.duration_seconds ??
-    raw?.DurationSeconds ??
-    0;
-
-  return {
-    task_id: taskId,
-    task_title: raw?.task_title ?? raw?.taskTitle ?? '',
-    process_id: String(processId),
-    agent_id: raw?.agent_id ?? raw?.AgentID ?? raw?.agentTag ?? '',
-    process_type: raw?.process_type ?? raw?.processType ?? raw?.ProcessType ?? 'task',
-    start_time: startTime,
-    elapsed_seconds: Number(elapsed) || 0,
-  };
-};
-
-function mapUiSettingsToApi(settings: Settings): ApiSettingsPayload {
-  return {
-    // Flat structure matching backend Settings struct
-    theme: settings.display.theme,
-    condensed_mode: settings.display.condensed_mode,
-    slots: settings.processor.concurrent_slots,
-    cooldown_seconds: settings.processor.cooldown_seconds,
-    refresh_interval: settings.processor.cooldown_seconds, // legacy compatibility
-    active: settings.processor.active,
-    max_turns: settings.agent.max_turns,
-    allowed_tools: settings.agent.allowed_tools,
-    skip_permissions: settings.agent.skip_permissions,
-    task_timeout: settings.agent.task_timeout_minutes,
-    idle_timeout_cap: settings.agent.idle_timeout_cap_minutes,
-    runner_type: settings.agent.runner_type,
-    recycler: {
-      enabled_for: settings.recycler.enabled_for,
-      interval_seconds: settings.recycler.recycle_interval,
-      max_retries: settings.recycler.max_retries,
-      retry_delay_seconds: settings.recycler.retry_delay_seconds,
-      model_provider: settings.recycler.model_provider,
-      model_name: settings.recycler.model_name,
-      completion_threshold: settings.recycler.completion_threshold,
-      failure_threshold: settings.recycler.failure_threshold,
-    },
-  };
-}
-
-// API base resolution (async, uses /config endpoint)
-let apiBasePromise: Promise<string> | null = null;
-
-function getApiBase(): Promise<string> {
-  if (!apiBasePromise) {
-    apiBasePromise = resolveWithConfig({
-      appendSuffix: false,
-      configEndpoint: '/config'
-    });
-  }
-  return apiBasePromise;
-}
+// API base resolution (synchronous, matches standard pattern used by all other scenarios)
+const API_BASE = resolveApiBase({ appendSuffix: false });
 
 export class ApiError extends Error {
   status: number;
@@ -474,21 +72,11 @@ export class ApiError extends Error {
 }
 
 class ApiClient {
-  private apiBase: string | null = null;
-
-  async ensureApiBase(): Promise<string> {
-    if (!this.apiBase) {
-      this.apiBase = await getApiBase();
-    }
-    return this.apiBase;
-  }
-
   /**
    * Generic fetch wrapper with error handling
    */
   private async fetchJSON<T>(url: string, options: RequestInit = {}): Promise<T> {
-    const baseUrl = await this.ensureApiBase();
-    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
 
     const response = await fetch(fullUrl, {
       headers: {
@@ -529,10 +117,10 @@ class ApiClient {
     const queryString = params.toString();
     const url = `/api/tasks${queryString ? '?' + queryString : ''}`;
 
-    const response = await this.fetchJSON<{ tasks: Task[]; count: number }>(url);
+    const response = await this.fetchJSON<{ tasks: unknown[]; count: number }>(url);
     const tasks = response.tasks || [];
     return tasks.map(task => {
-      const normalized = normalizeTaskTargets(task);
+      const normalized = parseTaskResponse(task);
       // Trust the directory we fetched (query status) over stale file metadata
       if (filters.status) {
         normalized.status = filters.status as TaskStatus;
@@ -542,8 +130,8 @@ class ApiClient {
   }
 
   async getTask(taskId: string): Promise<Task> {
-    const task = await this.fetchJSON<Task>(`/api/tasks/${taskId}`);
-    return normalizeTaskTargets(task);
+    const raw = await this.fetchJSON<unknown>(`/api/tasks/${taskId}`);
+    return parseTaskResponse(raw);
   }
 
   async createTask(taskData: CreateTaskInput): Promise<Task> {
@@ -562,11 +150,11 @@ class ApiClient {
 
     delete (payload as any).auto_requeue;
 
-    const task = await this.fetchJSON<Task>(`/api/tasks`, {
+    const raw = await this.fetchJSON<unknown>(`/api/tasks`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return normalizeTaskTargets(task);
+    return parseTaskResponse(raw);
   }
 
   async updateTask(taskId: string, updates: UpdateTaskInput): Promise<Task> {
@@ -582,13 +170,13 @@ class ApiClient {
 
     delete (payload as any).auto_requeue;
 
-    const response = await this.fetchJSON<Task | { task?: Task }>(`/api/tasks/${taskId}`, {
+    const response = await this.fetchJSON<Record<string, unknown>>(`/api/tasks/${taskId}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
 
-    const task = (response as any)?.task ?? response;
-    return normalizeTaskTargets(task as Task);
+    const raw = (response as any)?.task ?? response;
+    return parseTaskResponse(raw);
   }
 
   async updateTaskStatus(
@@ -596,11 +184,11 @@ class ApiClient {
     status: TaskStatus,
     additionalData: Record<string, unknown> = {}
   ): Promise<Task> {
-    const task = await this.fetchJSON<Task>(`/api/tasks/${taskId}/status`, {
+    const raw = await this.fetchJSON<unknown>(`/api/tasks/${taskId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status, ...additionalData }),
     });
-    return normalizeTaskTargets(task);
+    return parseTaskResponse(raw);
   }
 
   async setQueuePosition(
@@ -663,33 +251,20 @@ class ApiClient {
     if (type) params.append('type', type);
     if (operation) params.append('operation', operation);
 
-    const response = await this.fetchJSON<
-      Array<ActiveTarget | { target?: string; task_id?: string; status?: string; title?: string }>
-    >(`/api/tasks/active-targets?${params.toString()}`);
+    const response = await this.fetchJSON<unknown[]>(
+      `/api/tasks/active-targets?${params.toString()}`
+    );
 
     return (Array.isArray(response) ? response : [])
-      .map(entry => {
-        if (!entry) return null;
-        const target = (entry as any).target ?? '';
-        const taskId = (entry as any).task_id ?? '';
-        const status = (entry as any).status ?? '';
-        return target && taskId && status
-          ? {
-              target,
-              task_id: taskId,
-              status: status as TaskStatus,
-              title: (entry as any).title ?? undefined,
-            }
-          : null;
-      })
-      .filter(Boolean) as ActiveTarget[];
+      .map(parseActiveTargetResponse)
+      .filter((entry): entry is ActiveTarget => entry !== null);
   }
 
   // ==================== Queue Management ====================
 
   async getQueueStatus(): Promise<QueueStatus> {
-    const status = await this.fetchJSON<Record<string, unknown>>(`/api/queue/status`);
-    return normalizeQueueStatus(status);
+    const raw = await this.fetchJSON<unknown>(`/api/queue/status`);
+    return parseQueueStatusResponse(raw);
   }
 
   async triggerQueueProcessing(): Promise<void> {
@@ -717,9 +292,9 @@ class ApiClient {
   }
 
   async getRunningProcesses(): Promise<RunningProcess[]> {
-    const response = await this.fetchJSON<{ processes: RunningProcess[]; count: number }>(`/api/processes/running`);
+    const response = await this.fetchJSON<{ processes: unknown[]; count: number }>(`/api/processes/running`);
     const processes = response.processes || [];
-    return processes.map(normalizeRunningProcess);
+    return processes.map(parseRunningProcessResponse);
   }
 
   async terminateProcess(taskId: string): Promise<void> {
@@ -732,24 +307,24 @@ class ApiClient {
   // ==================== Settings Management ====================
 
   async getSettings(): Promise<Settings> {
-    const response = await this.fetchJSON<ApiSettingsPayload>(`/api/settings`);
-    return mapApiSettingsToUi(response);
+    const raw = await this.fetchJSON<unknown>(`/api/settings`);
+    return parseSettingsResponse(raw);
   }
 
   async updateSettings(settings: Settings): Promise<Settings> {
-    const payload = mapUiSettingsToApi(settings);
-    const response = await this.fetchJSON<ApiSettingsPayload>(`/api/settings`, {
+    const payload = mapUiSettingsToProtoJson(settings);
+    const raw = await this.fetchJSON<unknown>(`/api/settings`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    return mapApiSettingsToUi(response);
+    return parseSettingsResponse(raw);
   }
 
   async resetSettings(): Promise<Settings> {
-    const response = await this.fetchJSON<ApiSettingsPayload>(`/api/settings/reset`, {
+    const raw = await this.fetchJSON<unknown>(`/api/settings/reset`, {
       method: 'POST',
     });
-    return mapApiSettingsToUi(response);
+    return parseSettingsResponse(raw);
   }
 
   async getRecyclerModels(provider: string): Promise<string[]> {
@@ -760,41 +335,17 @@ class ApiClient {
   // ==================== Discovery ====================
 
   async getResources(): Promise<Resource[]> {
-    const raw = await this.fetchJSON<any>(`/api/resources`);
-    const list: any[] = Array.isArray(raw) ? raw : Array.isArray((raw as any)?.resources) ? (raw as any).resources : [];
-    return (list || []).map((item) => {
-      const name = (item.name ?? item.Name ?? '').toString();
-      const display = (item.display_name ?? item.DisplayName ?? '').toString();
-      return {
-        name,
-        display_name: display || name,
-        description: item.description ?? item.Description,
-        path: item.path ?? item.Path,
-        port: item.port ?? item.Port,
-        category: item.category ?? item.Category,
-        version: item.version ?? item.Version,
-        healthy: item.healthy ?? item.Healthy,
-        status: item.status ?? item.Status,
-      } as Resource;
-    });
+    const raw = await this.fetchJSON<unknown>(`/api/resources`);
+    const wrapper = raw as Record<string, unknown> | unknown[];
+    const list: unknown[] = Array.isArray(wrapper) ? wrapper : Array.isArray((wrapper as Record<string, unknown>)?.resources) ? (wrapper as Record<string, unknown>).resources as unknown[] : [];
+    return list.map(parseResourceResponse);
   }
 
   async getScenarios(): Promise<Scenario[]> {
-    const raw = await this.fetchJSON<any>(`/api/scenarios`);
-    const list: any[] = Array.isArray(raw) ? raw : Array.isArray((raw as any)?.scenarios) ? (raw as any).scenarios : [];
-    return (list || []).map((item) => {
-      const name = (item.name ?? item.Name ?? '').toString();
-      const display = (item.display_name ?? item.DisplayName ?? '').toString();
-      return {
-        name,
-        display_name: display || name,
-        status: item.status ?? item.Status,
-        description: item.description ?? item.Description,
-        path: item.path ?? item.Path,
-        category: item.category ?? item.Category,
-        version: item.version ?? item.Version,
-      } as Scenario;
-    });
+    const raw = await this.fetchJSON<unknown>(`/api/scenarios`);
+    const wrapper = raw as Record<string, unknown> | unknown[];
+    const list: unknown[] = Array.isArray(wrapper) ? wrapper : Array.isArray((wrapper as Record<string, unknown>)?.scenarios) ? (wrapper as Record<string, unknown>).scenarios as unknown[] : [];
+    return list.map(parseScenarioResponse);
   }
 
   async getResourceStatus(resourceName: string): Promise<Resource> {
@@ -834,35 +385,31 @@ class ApiClient {
   // ==================== Execution History ====================
 
   async getAllExecutionHistory(): Promise<ExecutionHistory[]> {
-    const response = await this.fetchJSON<ExecutionHistory[] | { executions?: ExecutionHistory[] }>(
+    const response = await this.fetchJSON<unknown[] | { executions?: unknown[] }>(
       `/api/executions`,
     );
 
-    if (Array.isArray(response)) {
-      return response.map(normalizeExecution);
-    }
+    const list = Array.isArray(response)
+      ? response
+      : Array.isArray((response as any)?.executions)
+        ? (response as any).executions
+        : [];
 
-    if (response && Array.isArray((response as any).executions)) {
-      return (response as any).executions.map(normalizeExecution) as ExecutionHistory[];
-    }
-
-    return [];
+    return list.map(parseExecutionResponse);
   }
 
   async getExecutionHistory(taskId: string): Promise<ExecutionHistory[]> {
-    const response = await this.fetchJSON<ExecutionHistory[] | { executions?: ExecutionHistory[] }>(
+    const response = await this.fetchJSON<unknown[] | { executions?: unknown[] }>(
       `/api/tasks/${taskId}/executions`,
     );
 
-    if (Array.isArray(response)) {
-      return response.map(normalizeExecution);
-    }
+    const list = Array.isArray(response)
+      ? response
+      : Array.isArray((response as any)?.executions)
+        ? (response as any).executions
+        : [];
 
-    if (response && Array.isArray((response as any).executions)) {
-      return (response as any).executions.map(normalizeExecution) as ExecutionHistory[];
-    }
-
-    return [];
+    return list.map(parseExecutionResponse);
   }
 
   async getExecutionPrompt(taskId: string, executionId: string): Promise<ExecutionPrompt> {
@@ -1132,11 +679,11 @@ class ApiClient {
     );
   }
 
-  async getSystemInsights(sinceDays: number = 7): Promise<any> {
+  async getSystemInsights(sinceDays: number = 7): Promise<SystemInsightReport> {
     const params = new URLSearchParams();
     params.append('since_days', sinceDays.toString());
 
-    return this.fetchJSON<any>(
+    return this.fetchJSON<SystemInsightReport>(
       `/api/insights/system?${params.toString()}`
     );
   }

@@ -22,199 +22,24 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// RecommendationSources controls which inputs are used to generate recommendations.
-type RecommendationSources struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Problems      bool                   `protobuf:"varint,1,opt,name=problems,proto3" json:"problems,omitempty"`
-	Completeness  bool                   `protobuf:"varint,2,opt,name=completeness,proto3" json:"completeness,omitempty"`
-	Tests         bool                   `protobuf:"varint,3,opt,name=tests,proto3" json:"tests,omitempty"`
-	Coverage      bool                   `protobuf:"varint,4,opt,name=coverage,proto3" json:"coverage,omitempty"`
-	CustomFocus   bool                   `protobuf:"varint,5,opt,name=custom_focus,json=customFocus,proto3" json:"custom_focus,omitempty"`
-	ScenarioNotes bool                   `protobuf:"varint,6,opt,name=scenario_notes,json=scenarioNotes,proto3" json:"scenario_notes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RecommendationSources) Reset() {
-	*x = RecommendationSources{}
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecommendationSources) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecommendationSources) ProtoMessage() {}
-
-func (x *RecommendationSources) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecommendationSources.ProtoReflect.Descriptor instead.
-func (*RecommendationSources) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *RecommendationSources) GetProblems() bool {
-	if x != nil {
-		return x.Problems
-	}
-	return false
-}
-
-func (x *RecommendationSources) GetCompleteness() bool {
-	if x != nil {
-		return x.Completeness
-	}
-	return false
-}
-
-func (x *RecommendationSources) GetTests() bool {
-	if x != nil {
-		return x.Tests
-	}
-	return false
-}
-
-func (x *RecommendationSources) GetCoverage() bool {
-	if x != nil {
-		return x.Coverage
-	}
-	return false
-}
-
-func (x *RecommendationSources) GetCustomFocus() bool {
-	if x != nil {
-		return x.CustomFocus
-	}
-	return false
-}
-
-func (x *RecommendationSources) GetScenarioNotes() bool {
-	if x != nil {
-		return x.ScenarioNotes
-	}
-	return false
-}
-
-// RecommendationAutoSync controls automatic refresh behavior.
-type RecommendationAutoSync struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether auto-sync is enabled.
-	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	// Refresh interval (e.g. "15m", "1h").
-	Interval string `protobuf:"bytes,2,opt,name=interval,proto3" json:"interval,omitempty"`
-	// RFC3339 timestamp of last refresh.
-	// @format rfc3339
-	LastRefresh string `protobuf:"bytes,3,opt,name=last_refresh,json=lastRefresh,proto3" json:"last_refresh,omitempty"`
-	// RFC3339 timestamp of next refresh.
-	// @format rfc3339
-	NextRefresh string `protobuf:"bytes,4,opt,name=next_refresh,json=nextRefresh,proto3" json:"next_refresh,omitempty"`
-	// Refresh scope ("manual" | "scheduled").
-	RefreshScope  string `protobuf:"bytes,5,opt,name=refresh_scope,json=refreshScope,proto3" json:"refresh_scope,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RecommendationAutoSync) Reset() {
-	*x = RecommendationAutoSync{}
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecommendationAutoSync) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecommendationAutoSync) ProtoMessage() {}
-
-func (x *RecommendationAutoSync) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecommendationAutoSync.ProtoReflect.Descriptor instead.
-func (*RecommendationAutoSync) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *RecommendationAutoSync) GetEnabled() bool {
-	if x != nil {
-		return x.Enabled
-	}
-	return false
-}
-
-func (x *RecommendationAutoSync) GetInterval() string {
-	if x != nil {
-		return x.Interval
-	}
-	return ""
-}
-
-func (x *RecommendationAutoSync) GetLastRefresh() string {
-	if x != nil {
-		return x.LastRefresh
-	}
-	return ""
-}
-
-func (x *RecommendationAutoSync) GetNextRefresh() string {
-	if x != nil {
-		return x.NextRefresh
-	}
-	return ""
-}
-
-func (x *RecommendationAutoSync) GetRefreshScope() string {
-	if x != nil {
-		return x.RefreshScope
-	}
-	return ""
-}
-
 // Settings captures persisted configuration for Swarm Manager.
 type Settings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UI theme preference.
 	Theme string `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
-	// Recommendation engine mode.
-	RecommendationMode string `protobuf:"bytes,2,opt,name=recommendation_mode,json=recommendationMode,proto3" json:"recommendation_mode,omitempty"`
-	// Optional custom focus for recommendations.
-	CustomFocus *string `protobuf:"bytes,3,opt,name=custom_focus,json=customFocus,proto3,oneof" json:"custom_focus,omitempty"`
+	// Optional custom focus for operators.
+	CustomFocus *string `protobuf:"bytes,2,opt,name=custom_focus,json=customFocus,proto3,oneof" json:"custom_focus,omitempty"`
 	// Whether insights engine is enabled.
-	InsightsEnabled bool `protobuf:"varint,4,opt,name=insights_enabled,json=insightsEnabled,proto3" json:"insights_enabled,omitempty"`
+	InsightsEnabled bool `protobuf:"varint,3,opt,name=insights_enabled,json=insightsEnabled,proto3" json:"insights_enabled,omitempty"`
 	// Auto-analyze on scenario changes.
-	InsightsAutoAnalyze bool `protobuf:"varint,5,opt,name=insights_auto_analyze,json=insightsAutoAnalyze,proto3" json:"insights_auto_analyze,omitempty"`
-	// Recommendation data sources.
-	RecommendationSources *RecommendationSources `protobuf:"bytes,6,opt,name=recommendation_sources,json=recommendationSources,proto3" json:"recommendation_sources,omitempty"`
-	// Auto-sync configuration.
-	RecommendationAutoSync *RecommendationAutoSync `protobuf:"bytes,7,opt,name=recommendation_auto_sync,json=recommendationAutoSync,proto3" json:"recommendation_auto_sync,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	InsightsAutoAnalyze bool `protobuf:"varint,4,opt,name=insights_auto_analyze,json=insightsAutoAnalyze,proto3" json:"insights_auto_analyze,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
 	*x = Settings{}
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -226,7 +51,7 @@ func (x *Settings) String() string {
 func (*Settings) ProtoMessage() {}
 
 func (x *Settings) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_settings_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -239,19 +64,12 @@ func (x *Settings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Settings.ProtoReflect.Descriptor instead.
 func (*Settings) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_domain_settings_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Settings) GetTheme() string {
 	if x != nil {
 		return x.Theme
-	}
-	return ""
-}
-
-func (x *Settings) GetRecommendationMode() string {
-	if x != nil {
-		return x.RecommendationMode
 	}
 	return ""
 }
@@ -277,46 +95,16 @@ func (x *Settings) GetInsightsAutoAnalyze() bool {
 	return false
 }
 
-func (x *Settings) GetRecommendationSources() *RecommendationSources {
-	if x != nil {
-		return x.RecommendationSources
-	}
-	return nil
-}
-
-func (x *Settings) GetRecommendationAutoSync() *RecommendationAutoSync {
-	if x != nil {
-		return x.RecommendationAutoSync
-	}
-	return nil
-}
-
 var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd3\x01\n" +
-	"\x15RecommendationSources\x12\x1a\n" +
-	"\bproblems\x18\x01 \x01(\bR\bproblems\x12\"\n" +
-	"\fcompleteness\x18\x02 \x01(\bR\fcompleteness\x12\x14\n" +
-	"\x05tests\x18\x03 \x01(\bR\x05tests\x12\x1a\n" +
-	"\bcoverage\x18\x04 \x01(\bR\bcoverage\x12!\n" +
-	"\fcustom_focus\x18\x05 \x01(\bR\vcustomFocus\x12%\n" +
-	"\x0escenario_notes\x18\x06 \x01(\bR\rscenarioNotes\"\xb9\x01\n" +
-	"\x16RecommendationAutoSync\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1a\n" +
-	"\binterval\x18\x02 \x01(\tR\binterval\x12!\n" +
-	"\flast_refresh\x18\x03 \x01(\tR\vlastRefresh\x12!\n" +
-	"\fnext_refresh\x18\x04 \x01(\tR\vnextRefresh\x12#\n" +
-	"\rrefresh_scope\x18\x05 \x01(\tR\frefreshScope\"\xe8\x03\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd4\x01\n" +
 	"\bSettings\x120\n" +
-	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x12N\n" +
-	"\x13recommendation_mode\x18\x02 \x01(\tB\x1d\xbaH\x1ar\x18R\x03offR\vsuggestionsR\x04yoloR\x12recommendationMode\x12&\n" +
-	"\fcustom_focus\x18\x03 \x01(\tH\x00R\vcustomFocus\x88\x01\x01\x12)\n" +
-	"\x10insights_enabled\x18\x04 \x01(\bR\x0finsightsEnabled\x122\n" +
-	"\x15insights_auto_analyze\x18\x05 \x01(\bR\x13insightsAutoAnalyze\x12^\n" +
-	"\x16recommendation_sources\x18\x06 \x01(\v2'.swarm_manager.v1.RecommendationSourcesR\x15recommendationSources\x12b\n" +
-	"\x18recommendation_auto_sync\x18\a \x01(\v2(.swarm_manager.v1.RecommendationAutoSyncR\x16recommendationAutoSyncB\x0f\n" +
+	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x12&\n" +
+	"\fcustom_focus\x18\x02 \x01(\tH\x00R\vcustomFocus\x88\x01\x01\x12)\n" +
+	"\x10insights_enabled\x18\x03 \x01(\bR\x0finsightsEnabled\x122\n" +
+	"\x15insights_auto_analyze\x18\x04 \x01(\bR\x13insightsAutoAnalyzeB\x0f\n" +
 	"\r_custom_focusBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
@@ -331,20 +119,16 @@ func file_swarm_manager_v1_domain_settings_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_settings_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_swarm_manager_v1_domain_settings_proto_goTypes = []any{
-	(*RecommendationSources)(nil),  // 0: swarm_manager.v1.RecommendationSources
-	(*RecommendationAutoSync)(nil), // 1: swarm_manager.v1.RecommendationAutoSync
-	(*Settings)(nil),               // 2: swarm_manager.v1.Settings
+	(*Settings)(nil), // 0: swarm_manager.v1.Settings
 }
 var file_swarm_manager_v1_domain_settings_proto_depIdxs = []int32{
-	0, // 0: swarm_manager.v1.Settings.recommendation_sources:type_name -> swarm_manager.v1.RecommendationSources
-	1, // 1: swarm_manager.v1.Settings.recommendation_auto_sync:type_name -> swarm_manager.v1.RecommendationAutoSync
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // [0:0] is the sub-list for method output_type
+	0, // [0:0] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_settings_proto_init() }
@@ -352,14 +136,14 @@ func file_swarm_manager_v1_domain_settings_proto_init() {
 	if File_swarm_manager_v1_domain_settings_proto != nil {
 		return
 	}
-	file_swarm_manager_v1_domain_settings_proto_msgTypes[2].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_settings_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_settings_proto_rawDesc), len(file_swarm_manager_v1_domain_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

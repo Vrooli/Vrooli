@@ -126,6 +126,9 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 		Enabled:         defaults.Enabled,
 		AutoHeal:        defaults.AutoHeal,
 		IntervalSeconds: defaults.IntervalSeconds,
+		Settings: CheckSettings{
+			AutoHealOn: "critical",
+		},
 	}
 
 	// Copy default thresholds if present
@@ -148,7 +151,21 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 			m.mergeThresholds(&result.Thresholds, check.Thresholds)
 		}
 		if check.Settings != nil {
-			result.Settings = *check.Settings
+			if check.Settings.TunnelTestURL != "" {
+				result.Settings.TunnelTestURL = check.Settings.TunnelTestURL
+			}
+			if check.Settings.CleanPortsBeforeRestart != nil {
+				result.Settings.CleanPortsBeforeRestart = check.Settings.CleanPortsBeforeRestart
+			}
+			if check.Settings.CaptureLogsOnFailure != nil {
+				result.Settings.CaptureLogsOnFailure = check.Settings.CaptureLogsOnFailure
+			}
+			if check.Settings.LogLinesToCapture != nil {
+				result.Settings.LogLinesToCapture = check.Settings.LogLinesToCapture
+			}
+			if check.Settings.AutoHealOn != "" {
+				result.Settings.AutoHealOn = check.Settings.AutoHealOn
+			}
 		}
 	}
 
@@ -173,6 +190,16 @@ func (m *Manager) IsCheckEnabled(checkID string) bool {
 func (m *Manager) IsAutoHealEnabled(checkID string) bool {
 	cfg := m.GetCheck(checkID)
 	return cfg.Enabled && cfg.AutoHeal
+}
+
+// GetAutoHealOn returns the status threshold that triggers auto-heal.
+// Valid values: "critical", "warning+critical".
+func (m *Manager) GetAutoHealOn(checkID string) string {
+	cfg := m.GetCheck(checkID)
+	if cfg.Settings.AutoHealOn == "" {
+		return "critical"
+	}
+	return cfg.Settings.AutoHealOn
 }
 
 // GetGlobal returns the global configuration
@@ -423,6 +450,14 @@ func (m *Manager) Validate(config *Config) ValidationResult {
 						Message: "must be between 0 and 100",
 					})
 				}
+			}
+		}
+		if check.Settings != nil && check.Settings.AutoHealOn != "" {
+			if check.Settings.AutoHealOn != "critical" && check.Settings.AutoHealOn != "warning+critical" {
+				errors = append(errors, ValidationError{
+					Path:    fmt.Sprintf("checks.%s.settings.autoHealOn", checkID),
+					Message: "must be 'critical' or 'warning+critical'",
+				})
 			}
 		}
 	}

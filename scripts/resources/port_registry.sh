@@ -93,11 +93,9 @@ declare -g -A RESOURCE_PORTS=(
     ["simpy"]="9510"           # SimPy discrete-event simulation framework (existing)
     ["gridlabd"]="9511"        # GridLAB-D power distribution system simulator
     ["mesa"]="9512"            # Mesa agent-based modeling framework for complex adaptive systems
-    ["openrocket"]="9513"      # OpenRocket model rocket design and flight simulation
     ["su2"]="9514"             # SU2 aerospace CFD and optimization platform
     
     # Collaboration Services (80xx range)
-    ["nextcloud"]="8086"       # Self-hosted file sync, share, and collaboration platform
     ["wikijs"]="3010"          # Wiki.js documentation platform with Git backend
     
     # Transportation Services (80xx range)
@@ -109,48 +107,19 @@ declare -g -A RESOURCE_PORTS=(
     ["open-data-cube-db"]="5450" # Open Data Cube PostGIS database
     ["open-data-cube-ows"]="8851" # Open Data Cube OGC Web Services (WMS/WCS)
     
-    # Data Integration Services (80xx range)
-    ["airbyte"]="8002"         # Airbyte ELT platform webapp (moved from 8000)
-    ["airbyte-server"]="8003"  # Airbyte API server (moved from 8001)
-    
     # Messaging & Streaming Services (290xx range)
     ["kafka"]="29092"          # Apache Kafka broker port
     ["kafka-controller"]="29093" # Kafka KRaft controller port
     ["kafka-external"]="29094" # Kafka external access port
     ["kafka-jmx"]="29099"      # Kafka JMX monitoring port
     
-    # Agricultural Management Services (80xx range)
-    ["farmos"]="8004"          # farmOS agricultural management platform
-    ["airbyte-temporal"]="8006" # Airbyte workflow orchestration
-    
     # IoT Services (80xx range)
     ["eclipse-ditto"]="8089"   # Eclipse Ditto Digital Twin Platform for IoT
-    
-    # Energy Management Services (80xx range)
-    ["openems"]="8294"         # OpenEMS HTTP API and Web UI
-    ["openems-jsonrpc"]="8295" # OpenEMS JSON-RPC WebSocket
-    ["openems-backend"]="8296" # OpenEMS Backend API
-    ["openems-modbus"]="502"   # OpenEMS Modbus TCP (standard port)
-    
-    # Healthcare Services (80xx range)
-    ["openmrs"]="8005"         # OpenMRS web interface
-    ["openmrs-api"]="8006"     # OpenMRS REST API
-    ["openmrs-fhir"]="8007"    # OpenMRS FHIR API
-    ["openemr"]="8010"         # OpenEMR web interface
-    ["openemr-api"]="8011"     # OpenEMR REST API
-    ["openemr-fhir"]="8012"    # OpenEMR FHIR R4 API
     
     # Interactive Computing Services (80xx range)
     ["jupyterhub"]="8000"      # JupyterHub multi-user notebook server
     ["jupyterhub-api"]="8001"  # JupyterHub API endpoint
     ["jupyterhub-proxy"]="8081" # JupyterHub proxy API
-    
-    # Monitoring Services (90xx range)
-    ["prometheus"]="9090"       # Prometheus metrics database
-    ["grafana"]="3030"         # Grafana visualization (non-standard port to avoid conflicts)
-    ["alertmanager"]="9093"    # Prometheus Alertmanager
-    ["node-exporter"]="9100"   # Node metrics exporter
-    ["openmct"]="8099"         # NASA Open MCT mission control telemetry visualization
     
     # Analytics Services (80xx range)  
     ["apache-superset"]="8088"        # Apache Superset analytics platform

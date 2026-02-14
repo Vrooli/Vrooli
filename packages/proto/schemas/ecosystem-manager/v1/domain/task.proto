@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain;domain";
+
+// =============================================================================
+// TASK DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain task
+// @imports common (via string constraints)
+// @stability beta
+//
+// Core task model for the Ecosystem Manager. Maps from
+// pkg/tasks/types.go:TaskItem and related types.
+//
+// USAGE CONTEXTS:
+//   - API responses for task CRUD endpoints
+//   - UI data models (task list and details)
+//
+// =============================================================================
+
+// Task represents a unified task in the ecosystem.
+message Task {
+  // Unique task identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable task title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Task type.
+  // @constraint one of: resource, scenario
+  string type = 3 [(buf.validate.field).string = { in: ["resource", "scenario"] }];
+
+  // Task operation.
+  // @constraint one of: generator, improver
+  string operation = 4 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+
+  // Primary target name (legacy single-target field).
+  string target = 5;
+
+  // Multi-target list (canonical representation).
+  repeated string targets = 6;
+
+  // Task category grouping.
+  string category = 7;
+
+  // Priority level.
+  // @constraint one of: critical, high, medium, low
+  string priority = 8 [(buf.validate.field).string = { in: ["critical", "high", "medium", "low"] }];
+
+  // Effort estimate description.
+  string effort_estimate = 9;
+
+  // Urgency indicator.
+  string urgency = 10;
+
+  // Task IDs this task depends on.
+  repeated string dependencies = 11;
+
+  // Task IDs this task blocks.
+  repeated string blocks = 12;
+
+  // Related scenario names.
+  repeated string related_scenarios = 13;
+
+  // Related resource names.
+  repeated string related_resources = 14;
+
+  // Lifecycle status.
+  // @constraint one of: pending, in-progress, completed, failed, completed-finalized, failed-blocked, archived
+  string status = 15 [(buf.validate.field).string = { in: [
+    "pending",
+    "in-progress",
+    "completed",
+    "failed",
+    "completed-finalized",
+    "failed-blocked",
+    "archived"
+  ] }];
+
+  // Current execution phase description.
+  string current_phase = 16;
+
+  // RFC3339 timestamp when task execution started.
+  // @format rfc3339
+  string started_at = 17;
+
+  // RFC3339 timestamp when task completed.
+  // @format rfc3339
+  string completed_at = 18;
+
+  // RFC3339 timestamp until which the task is in cooldown.
+  // @format rfc3339
+  string cooldown_until = 19;
+
+  // Number of times this task has been completed.
+  int32 completion_count = 20;
+
+  // RFC3339 timestamp of last completion.
+  // @format rfc3339
+  string last_completed_at = 21;
+
+  // Criteria for validating task completion.
+  repeated string validation_criteria = 22;
+
+  // Creator identifier.
+  string created_by = 23;
+
+  // RFC3339 timestamp of creation.
+  // @format rfc3339
+  string created_at = 24;
+
+  // RFC3339 timestamp of last update.
+  // @format rfc3339
+  string updated_at = 25;
+
+  // Categorization tags.
+  repeated string tags = 26;
+
+  // Free-form notes.
+  string notes = 27;
+
+  // Arbitrary results from task execution.
+  google.protobuf.Struct results = 28;
+
+  // Consecutive completion claims counter (float for partial claims).
+  double consecutive_completion_claims = 29;
+
+  // Consecutive failure count.
+  int32 consecutive_failures = 30;
+
+  // Whether the processor should auto-requeue after completion.
+  bool processor_auto_requeue = 31;
+
+  // Manual steering mode when Auto Steer profile is not set.
+  // @constraint built-in: progress, ux, refactor, test, explore, polish, performance, security (plus custom)
+  string steer_mode = 32;
+
+  // Auto Steer profile ID to use.
+  string auto_steer_profile_id = 33;
+
+  // Ordered list of modes for queue steering.
+  repeated string steering_queue = 34;
+}
+
+// ProcessInfo contains information about a running agent process.
+message ProcessInfo {
+  // Task ID the process is executing.
+  string task_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Claude Code agent identifier.
+  string agent_tag = 2;
+
+  // Run identifier.
+  string run_id = 3;
+
+  // RFC3339 timestamp when the process started.
+  // @format rfc3339
+  string started_at = 4;
+
+  // Whether the process has exceeded its timeout.
+  bool is_timed_out = 5;
+}
+
+// ActiveTarget represents a target currently being worked on.
+message ActiveTarget {
+  // Target name.
+  string target = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Task ID working on this target.
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Current task status.
+  string status = 3;
+
+  // Task title (for display).
+  string title = 4;
+}

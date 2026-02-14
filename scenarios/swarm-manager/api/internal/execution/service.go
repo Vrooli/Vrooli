@@ -523,14 +523,16 @@ func matchesFilters(record Record, filters ListFilters) bool {
 }
 
 type backlogItem struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Status      string   `json:"status"`
-	Priority    int      `json:"priority"`
-	Tags        []string `json:"tags"`
-	Kind        string   `json:"kind"`
-	Updated     string   `json:"updated"`
+	Name           string   `json:"name"`
+	Title          string   `json:"title"`
+	Description    string   `json:"description"`
+	Status         string   `json:"status"`
+	Priority       int      `json:"priority"`
+	Tags           []string `json:"tags"`
+	Created        string   `json:"created"`
+	Updated        string   `json:"updated"`
+	Kind           string   `json:"kind"`
+	ResearchTarget string   `json:"research_target,omitempty"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {

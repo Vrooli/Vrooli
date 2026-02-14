@@ -137,7 +137,7 @@ func (s *Server) discoverResources() ([]Component, error) {
 	commonResources := []string{
 		"postgres", "redis", "qdrant", "ollama",
 		"judge0", "vault", "claude-code",
-		"airbyte", "apache-airflow", "apache-superset", "audiocraft",
+		"audiocraft",
 		"autogen-studio", "autogpt", "blender", "btcpay",
 		"cline", "cloudflare-ai-gateway", "cncjs", "codex", "comfyui",
 		"dify", "docker-mailserver", "dozzle", "duckdns",

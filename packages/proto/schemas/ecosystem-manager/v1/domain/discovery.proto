@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain;domain";
+
+// =============================================================================
+// DISCOVERY DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain discovery
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// System discovery types for resources, scenarios, operations, and categories.
+// Maps from pkg/tasks/types.go:ResourceInfo, ScenarioInfo.
+//
+// USAGE CONTEXTS:
+//   - API responses for discovery endpoints
+//   - UI resource/scenario selectors
+//
+// =============================================================================
+
+// Resource represents a discovered local resource.
+message Resource {
+  // Resource name (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable display name.
+  string display_name = 2;
+
+  // Filesystem path.
+  string path = 3;
+
+  // Listening port (0 if not applicable).
+  int32 port = 4;
+
+  // Resource category.
+  string category = 5;
+
+  // Resource description.
+  string description = 6;
+
+  // Whether the resource is healthy.
+  bool healthy = 7;
+
+  // Version string.
+  string version = 8;
+
+  // Status indicator (e.g., "[UNREGISTERED]", "[MISSING]").
+  string status = 9;
+}
+
+// Scenario represents a discovered scenario.
+message Scenario {
+  // Scenario name (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable display name.
+  string display_name = 2;
+
+  // Filesystem path.
+  string path = 3;
+
+  // Scenario category.
+  string category = 4;
+
+  // Scenario description.
+  string description = 5;
+
+  // Version string.
+  string version = 6;
+
+  // Runtime status (e.g., "available", "running").
+  string status = 7;
+}
+
+// Operation represents a task operation type.
+message Operation {
+  // Operation name (e.g., "generator", "improver").
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Operation description.
+  string description = 2;
+}
+
+// Category represents a task category grouping.
+message Category {
+  // Category name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Category description.
+  string description = 2;
+
+  // Number of tasks in this category.
+  int32 count = 3;
+}

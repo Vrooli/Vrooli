@@ -23,6 +23,7 @@ import {
   UpdateBacklogItemRequestSchema,
   ConvertBacklogItemRequestSchema,
   BacklogResearchRequestSchema,
+  QueueBacklogItemRequestSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import {
   backlogResearchResponseSchema,
@@ -219,15 +220,16 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         startedBy?: string;
       }
     ): Promise<QueueResponse> {
-      const operation = options?.operation ?? "generator";
-      const mode = options?.mode ?? "yolo";
-      const payload = {
-        operation,
-        mode,
-        delay_seconds: options?.delaySeconds ?? 0,
-        started_by: options?.startedBy,
-      };
-      const data = await apiClient.post<unknown>(API_ENDPOINTS.backlogQueue(kind, name), payload);
+      const msg = buildMessage(QueueBacklogItemRequestSchema, {
+        operation: options?.operation ?? "generator",
+        mode: options?.mode ?? "yolo",
+        ...(options?.delaySeconds !== undefined ? { delaySeconds: BigInt(options.delaySeconds) } : {}),
+        ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
+      });
+      const data = await apiClient.post<unknown>(
+        API_ENDPOINTS.backlogQueue(kind, name),
+        toProtoJson(QueueBacklogItemRequestSchema, msg),
+      );
       const parsed = parseProtoResponse(queueBacklogResponseSchema, data, "backlog queue");
       const item = requireProtoField(parsed.item, "backlog queue");
       return {

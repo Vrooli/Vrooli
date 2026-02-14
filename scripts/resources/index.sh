@@ -25,14 +25,14 @@ source "${var_REPOSITORY_FILE}"
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper unstructured-io"
-    ["automation"]="comfyui node-red huginn"
+    ["automation"]="comfyui"
     ["storage"]="minio vault qdrant questdb postgres redis"
-    ["agents"]="browserless claude-code agent-s2"
+    ["agents"]="claude-code"
     ["search"]="searxng"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper unstructured-io comfyui node-red huginn minio vault qdrant questdb postgres redis browserless claude-code agent-s2 searxng"
+ALL_RESOURCES="ollama whisper unstructured-io comfyui minio vault qdrant questdb postgres redis claude-code searxng"
 
 #######################################
 # Parse command line arguments

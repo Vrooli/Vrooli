@@ -55,18 +55,12 @@ message Scenario {
 
   // Categorization tags.
   repeated string tags = 8 [(buf.validate.field).repeated = { unique: true }];
-
-  // Whether recommendations are enabled.
-  bool recommendations_enabled = 9;
 }
 
 // ScenarioMetadata stores editable metadata for a scenario.
 message ScenarioMetadata {
   // Whether this scenario is greenfield.
   bool is_greenfield = 1;
-
-  // Whether recommendations are enabled.
-  bool recommendations_enabled = 2;
 }
 
 // UpdateScenarioMetadataRequest is defined in the API layer.

@@ -399,7 +399,13 @@ func (x *BacklogFileResponse) GetFile() *domain.BacklogFile {
 type QueueBacklogItemRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional operation hint for idea processing.
-	Operation     *string `protobuf:"bytes,1,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
+	Operation *string `protobuf:"bytes,1,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
+	// Execution mode override (defaults to policy default).
+	Mode *string `protobuf:"bytes,2,opt,name=mode,proto3,oneof" json:"mode,omitempty"`
+	// Delay in seconds before scheduled start (mode=scheduled).
+	DelaySeconds *int64 `protobuf:"varint,3,opt,name=delay_seconds,json=delaySeconds,proto3,oneof" json:"delay_seconds,omitempty"`
+	// Human or agent identifier that initiated the queue action.
+	StartedBy     *string `protobuf:"bytes,4,opt,name=started_by,json=startedBy,proto3,oneof" json:"started_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -437,6 +443,27 @@ func (*QueueBacklogItemRequest) Descriptor() ([]byte, []int) {
 func (x *QueueBacklogItemRequest) GetOperation() string {
 	if x != nil && x.Operation != nil {
 		return *x.Operation
+	}
+	return ""
+}
+
+func (x *QueueBacklogItemRequest) GetMode() string {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return ""
+}
+
+func (x *QueueBacklogItemRequest) GetDelaySeconds() int64 {
+	if x != nil && x.DelaySeconds != nil {
+		return *x.DelaySeconds
+	}
+	return 0
+}
+
+func (x *QueueBacklogItemRequest) GetStartedBy() string {
+	if x != nil && x.StartedBy != nil {
+		return *x.StartedBy
 	}
 	return ""
 }
@@ -757,11 +784,18 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x14BacklogFilesResponse\x123\n" +
 	"\x05files\x18\x01 \x03(\v2\x1d.swarm_manager.v1.BacklogFileR\x05files\"H\n" +
 	"\x13BacklogFileResponse\x121\n" +
-	"\x04file\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogFileR\x04file\"f\n" +
+	"\x04file\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogFileR\x04file\"\xa0\x02\n" +
 	"\x17QueueBacklogItemRequest\x12=\n" +
-	"\toperation\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\bimproverH\x00R\toperation\x88\x01\x01B\f\n" +
+	"\toperation\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\bimproverH\x00R\toperation\x88\x01\x01\x127\n" +
+	"\x04mode\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloH\x01R\x04mode\x88\x01\x01\x121\n" +
+	"\rdelay_seconds\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x02R\fdelaySeconds\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"_operation\"\xd6\x01\n" +
+	"started_by\x18\x04 \x01(\tH\x03R\tstartedBy\x88\x01\x01B\f\n" +
+	"\n" +
+	"_operationB\a\n" +
+	"\x05_modeB\x10\n" +
+	"\x0e_delay_secondsB\r\n" +
+	"\v_started_by\"\xd6\x01\n" +
 	"\x18QueueBacklogItemResponse\x121\n" +
 	"\x04item\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogItemR\x04item\x12 \n" +
 	"\atask_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n" +

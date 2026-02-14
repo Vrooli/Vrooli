@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Editor from "@monaco-editor/react";
+import type * as Monaco from "monaco-editor";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -52,6 +53,7 @@ interface DiffViewerProps {
 const maxHighlightChars = 200000;
 const minimapMinLines = 80;
 const minimapMaxMarkers = 180;
+const monacoThemeName = "git-control-tower-dark";
 
 interface MinimapMarker {
   topPercent: number;
@@ -192,8 +194,46 @@ function getMonacoLanguage(filePath?: string): string {
   if (!filePath) return "plaintext";
   const detected = getLanguageFromPath(filePath);
   if (!detected) return "plaintext";
-  if (detected === "objective-c") return "objective-c";
-  return detected;
+  const languageMap: Record<string, string> = {
+    jsx: "javascript",
+    tsx: "typescript",
+    bash: "shell",
+    sh: "shell",
+    zsh: "shell",
+    fish: "shell",
+    "objective-c": "cpp",
+    markdown: "markdown",
+    jsonc: "json",
+    yml: "yaml"
+  };
+  return languageMap[detected] ?? detected;
+}
+
+function defineMonacoTheme(monaco: typeof Monaco): void {
+  monaco.editor.defineTheme(monacoThemeName, {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#020617",
+      "editor.foreground": "#d4d4d4",
+      "editorLineNumber.foreground": "#444d56",
+      "editorLineNumber.activeForeground": "#e1e4e8",
+      "editorCursor.foreground": "#c8e1ff",
+      "editor.selectionBackground": "#3392FF44",
+      "editor.selectionHighlightBackground": "#17E5E633",
+      "editor.lineHighlightBackground": "#2b303655",
+      "editorLineNumber.background": "#020617",
+      "editorGutter.background": "#020617",
+      "editorWhitespace.foreground": "#444d56",
+      "editorIndentGuide.background1": "#2f363d",
+      "editorIndentGuide.activeBackground1": "#444d56",
+      "scrollbarSlider.background": "#6a737d33",
+      "scrollbarSlider.hoverBackground": "#6a737d44",
+      "scrollbarSlider.activeBackground": "#6a737d88",
+      "editorOverviewRuler.border": "#1b1f23"
+    }
+  });
 }
 
 export function buildMinimapTextureRows(lines: string[], maxRows = 220): MinimapTextureRow[] {
@@ -563,6 +603,9 @@ export function DiffViewer({
   const [expectedHash, setExpectedHash] = useState<string | undefined>();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflictHash, setConflictHash] = useState<string | null>(null);
+  const monacoEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
+  const monacoDecorationIdsRef = useRef<string[]>([]);
   const [scrollMetrics, setScrollMetrics] = useState({
     scrollTop: 0,
     scrollHeight: 1,
@@ -743,6 +786,65 @@ export function DiffViewer({
       setSaveError(err instanceof Error ? err.message : "Failed to save file");
     }
   }, [draftContent, expectedHash, onSaveFileContent, selectedFile]);
+  const handleMonacoBeforeMount = useCallback((monaco: typeof Monaco) => {
+    monacoRef.current = monaco;
+    defineMonacoTheme(monaco);
+  }, []);
+  const handleMonacoMount = useCallback((editor: Monaco.editor.IStandaloneCodeEditor) => {
+    monacoEditorRef.current = editor;
+  }, []);
+
+  useEffect(() => {
+    const editor = monacoEditorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+
+    const hasEditableFullDiff = isEditing && viewMode === "full_diff" && hasAnnotatedLines;
+    if (!hasEditableFullDiff) {
+      if (monacoDecorationIdsRef.current.length > 0) {
+        monacoDecorationIdsRef.current = editor.deltaDecorations(monacoDecorationIdsRef.current, []);
+      }
+      return;
+    }
+
+    const lineDecorations = annotatedLines
+      .filter(
+        (line) =>
+          line.number > 0 &&
+          (line.change === "added" || line.change === "modified")
+      )
+      .map((line) => {
+        const isAdded = line.change === "added";
+        return {
+          range: new monaco.Range(line.number, 1, line.number, 1),
+          options: {
+            isWholeLine: true,
+            className: isAdded ? "monaco-diff-line-added" : "monaco-diff-line-modified",
+            linesDecorationsClassName: isAdded
+              ? "monaco-diff-line-gutter-added"
+              : "monaco-diff-line-gutter-modified",
+            overviewRuler: {
+              color: isAdded ? "#34d399aa" : "#fbbf24aa",
+              position: monaco.editor.OverviewRulerLane.Left
+            }
+          }
+        };
+      });
+
+    monacoDecorationIdsRef.current = editor.deltaDecorations(
+      monacoDecorationIdsRef.current,
+      lineDecorations
+    );
+  }, [annotatedLines, hasAnnotatedLines, isEditing, viewMode]);
+
+  useEffect(() => {
+    return () => {
+      const editor = monacoEditorRef.current;
+      if (!editor || monacoDecorationIdsRef.current.length === 0) return;
+      editor.deltaDecorations(monacoDecorationIdsRef.current, []);
+      monacoDecorationIdsRef.current = [];
+    };
+  }, []);
   const maxScrollable = Math.max(scrollMetrics.scrollHeight - scrollMetrics.clientHeight, 0);
   const viewportHeightPercent = clamp(
     (scrollMetrics.clientHeight / Math.max(scrollMetrics.scrollHeight, 1)) * 100,
@@ -1044,21 +1146,27 @@ export function DiffViewer({
 
           {/* Monaco edit mode */}
           {selectedFile && !isLoading && !error && isEditing && canEditMode && hasFullContent && (
-            <div className="h-full min-h-[360px] border-y border-slate-800" data-testid="monaco-editor-container">
+            <div className="monaco-diff-editor h-full min-h-[360px] border-y border-slate-800 bg-slate-950" data-testid="monaco-editor-container">
               <Editor
                 height="100%"
                 defaultLanguage={monacoLanguage}
                 language={monacoLanguage}
                 value={draftContent}
                 onChange={(value) => setDraftContent(value ?? "")}
-                theme="vs-dark"
+                beforeMount={handleMonacoBeforeMount}
+                onMount={handleMonacoMount}
+                theme={monacoThemeName}
                 options={{
                   automaticLayout: true,
-                  minimap: { enabled: true },
+                  minimap: { enabled: false },
                   scrollBeyondLastLine: false,
                   wordWrap: "off",
-                  fontSize: 13,
-                  lineNumbersMinChars: 4
+                  fontSize: 12,
+                  lineHeight: 20,
+                  lineNumbersMinChars: 3,
+                  fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
+                  padding: { top: 2, bottom: 2 },
+                  renderLineHighlight: "line"
                 }}
               />
             </div>

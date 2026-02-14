@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Scenario(_message.Message):
-    __slots__ = ("name", "display_name", "description", "status", "priority", "completeness_score", "is_greenfield", "tags", "recommendations_enabled")
+    __slots__ = ("name", "display_name", "description", "status", "priority", "completeness_score", "is_greenfield", "tags")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -17,7 +17,6 @@ class Scenario(_message.Message):
     COMPLETENESS_SCORE_FIELD_NUMBER: _ClassVar[int]
     IS_GREENFIELD_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
-    RECOMMENDATIONS_ENABLED_FIELD_NUMBER: _ClassVar[int]
     name: str
     display_name: str
     description: str
@@ -26,13 +25,10 @@ class Scenario(_message.Message):
     completeness_score: int
     is_greenfield: bool
     tags: _containers.RepeatedScalarFieldContainer[str]
-    recommendations_enabled: bool
-    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., completeness_score: _Optional[int] = ..., is_greenfield: _Optional[bool] = ..., tags: _Optional[_Iterable[str]] = ..., recommendations_enabled: _Optional[bool] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., completeness_score: _Optional[int] = ..., is_greenfield: _Optional[bool] = ..., tags: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ScenarioMetadata(_message.Message):
-    __slots__ = ("is_greenfield", "recommendations_enabled")
+    __slots__ = ("is_greenfield",)
     IS_GREENFIELD_FIELD_NUMBER: _ClassVar[int]
-    RECOMMENDATIONS_ENABLED_FIELD_NUMBER: _ClassVar[int]
     is_greenfield: bool
-    recommendations_enabled: bool
-    def __init__(self, is_greenfield: _Optional[bool] = ..., recommendations_enabled: _Optional[bool] = ...) -> None: ...
+    def __init__(self, is_greenfield: _Optional[bool] = ...) -> None: ...

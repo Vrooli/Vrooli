@@ -35,6 +35,14 @@ import {
   type DeleteScenarioResponse,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type { ScenarioFile } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
+import {
+  ListExecutionResponseSchema,
+  ExecutionResponseSchema,
+  ExecutionPolicyResponseSchema,
+  CreateExecutionRequestSchema,
+} from "@vrooli/proto-types/swarm-manager/v1/api/execution_pb";
+import type { ExecutionRecord as ProtoExecutionRecord } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
+import type { ExecutionPolicy as ProtoExecutionPolicy } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
 import type {
   BacklogItem as BacklogItemDomain,
   BacklogFile as BacklogFileDomain,
@@ -43,12 +51,18 @@ import type {
   DeleteScenarioResponse as DeleteScenarioDomain,
   Settings as SettingsDomain,
   ThemePreference,
+  ExecutionRecord as ExecutionRecordDomain,
+  ExecutionPolicy as ExecutionPolicyDomain,
+  ExecutionStatus,
+  ExecutionMode,
 } from "../types";
 import {
   BACKLOG_KINDS,
   BACKLOG_RESEARCH_TARGETS,
   BACKLOG_STATUSES,
   SCENARIO_STATUSES,
+  EXECUTION_STATUSES,
+  EXECUTION_MODES,
 } from "../types";
 
 const validator = createValidator();
@@ -77,6 +91,8 @@ const backlogKindSet = new Set<string>(BACKLOG_KINDS);
 const backlogResearchTargetSet = new Set<string>(BACKLOG_RESEARCH_TARGETS);
 const scenarioStatusSet = new Set<string>(SCENARIO_STATUSES);
 const fileTypeSet = new Set<string>(["file", "directory"]);
+const executionStatusSet = new Set<string>(EXECUTION_STATUSES);
+const executionModeSet = new Set<string>(EXECUTION_MODES);
 
 function isBacklogStatus(value: unknown): value is BacklogItemDomain["status"] {
   return typeof value === "string" && backlogStatusSet.has(value);
@@ -96,6 +112,14 @@ function isScenarioStatus(value: unknown): value is ScenarioDomain["status"] {
 
 function isFileType(value: unknown): value is BacklogFileDomain["type"] {
   return typeof value === "string" && fileTypeSet.has(value);
+}
+
+function isExecutionStatus(value: unknown): value is ExecutionStatus {
+  return typeof value === "string" && executionStatusSet.has(value);
+}
+
+function isExecutionMode(value: unknown): value is ExecutionMode {
+  return typeof value === "string" && executionModeSet.has(value);
 }
 
 function isThemePreference(value: unknown): value is ThemePreference {
@@ -319,5 +343,51 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     customFocus: protoSettings.customFocus ?? "",
     insightsEnabled: protoSettings.insightsEnabled ?? false,
     insightsAutoAnalyze: protoSettings.insightsAutoAnalyze ?? false,
+  };
+}
+
+export const listExecutionResponseSchema = createProtoSchema(
+  ListExecutionResponseSchema,
+  "execution list"
+);
+export const executionResponseSchema = createProtoSchema(
+  ExecutionResponseSchema,
+  "execution"
+);
+export const executionPolicyResponseSchema = createProtoSchema(
+  ExecutionPolicyResponseSchema,
+  "execution policy"
+);
+
+export { CreateExecutionRequestSchema };
+
+export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionRecordDomain {
+  const status = isExecutionStatus(proto.status) ? proto.status : "pending";
+  const mode = isExecutionMode(proto.mode) ? proto.mode : "manual";
+  return {
+    executionId: proto.executionId ?? "",
+    backlogKind: proto.backlogKind as ExecutionRecordDomain["backlogKind"],
+    backlogName: proto.backlogName ?? "",
+    taskId: proto.taskId,
+    runId: proto.runId,
+    status,
+    mode,
+    scheduledAt: proto.scheduledAt,
+    startedAt: proto.startedAt,
+    finishedAt: proto.finishedAt,
+    failureReason: proto.failureReason,
+    startedBy: proto.startedBy,
+    operation: proto.operation as ExecutionRecordDomain["operation"],
+    createdAt: proto.createdAt ?? "",
+    updatedAt: proto.updatedAt ?? "",
+  };
+}
+
+export function mapProtoExecutionPolicy(proto: ProtoExecutionPolicy): ExecutionPolicyDomain {
+  const mode = isExecutionMode(proto.defaultMode) ? proto.defaultMode : "manual";
+  const delaySeconds = toFiniteNumber(proto.defaultDelaySeconds);
+  return {
+    defaultMode: mode,
+    defaultDelaySeconds: delaySeconds ?? 0,
   };
 }

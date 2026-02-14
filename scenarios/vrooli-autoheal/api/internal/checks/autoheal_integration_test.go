@@ -14,12 +14,14 @@ import (
 type testConfigProvider struct {
 	enabledChecks   map[string]bool
 	autoHealEnabled map[string]bool
+	autoHealOn      map[string]string
 }
 
 func newTestConfigProvider() *testConfigProvider {
 	return &testConfigProvider{
 		enabledChecks:   make(map[string]bool),
 		autoHealEnabled: make(map[string]bool),
+		autoHealOn:      make(map[string]string),
 	}
 }
 
@@ -31,6 +33,13 @@ func (c *testConfigProvider) IsCheckEnabled(checkID string) bool {
 func (c *testConfigProvider) IsAutoHealEnabled(checkID string) bool {
 	enabled, exists := c.autoHealEnabled[checkID]
 	return exists && enabled
+}
+
+func (c *testConfigProvider) GetAutoHealOn(checkID string) string {
+	if v, ok := c.autoHealOn[checkID]; ok && v != "" {
+		return v
+	}
+	return "critical"
 }
 
 func (c *testConfigProvider) enableAutoHeal(checkID string) {

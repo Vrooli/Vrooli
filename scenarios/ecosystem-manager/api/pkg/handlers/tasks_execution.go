@@ -12,6 +12,8 @@ import (
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain"
 )
 
 // GetTaskLogsHandler retrieves real-time logs for a task execution
@@ -61,10 +63,14 @@ func (h *TaskHandlers) GetExecutionHistoryHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	writeJSON(w, map[string]any{
-		"task_id":    taskID,
-		"executions": history,
-		"count":      len(history),
+	protos := make([]*domain.ExecutionRecord, len(history))
+	for i := range history {
+		protos[i] = executionHistoryToProto(history[i])
+	}
+
+	writeJSON(w, &apipb.ExecutionHistoryListResponse{
+		Executions: protos,
+		Count:      int32(len(history)),
 	}, http.StatusOK)
 }
 
@@ -79,9 +85,14 @@ func (h *TaskHandlers) GetAllExecutionHistoryHandler(w http.ResponseWriter, r *h
 		return
 	}
 
-	writeJSON(w, map[string]any{
-		"executions": history,
-		"count":      len(history),
+	protos := make([]*domain.ExecutionRecord, len(history))
+	for i := range history {
+		protos[i] = executionHistoryToProto(history[i])
+	}
+
+	writeJSON(w, &apipb.ExecutionHistoryListResponse{
+		Executions: protos,
+		Count:      int32(len(history)),
 	}, http.StatusOK)
 }
 
@@ -111,12 +122,10 @@ func (h *TaskHandlers) GetExecutionPromptHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	writeJSON(w, map[string]any{
-		"task_id":      taskID,
-		"execution_id": executionID,
-		"prompt":       string(content),
-		"content":      string(content),
-		"size":         len(content),
+	writeJSON(w, &apipb.ExecutionPromptResponse{
+		Prompt:  string(content),
+		Content: string(content),
+		Size:    int32(len(content)),
 	}, http.StatusOK)
 }
 
@@ -136,13 +145,10 @@ func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.
 	outputPath := h.processor.GetExecutionFilePath(taskID, executionID, "output.log")
 
 	if content, err := os.ReadFile(cleanPath); err == nil {
-		writeJSON(w, map[string]any{
-			"task_id":      taskID,
-			"execution_id": executionID,
-			"output":       string(content),
-			"content":      string(content),
-			"size":         len(content),
-			"source":       "clean_output",
+		writeJSON(w, &apipb.ExecutionOutputResponse{
+			Output:  string(content),
+			Content: string(content),
+			Size:    int32(len(content)),
 		}, http.StatusOK)
 		return
 	}
@@ -162,13 +168,10 @@ func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.
 
 	sanitized := stripLogPrefixes(string(content))
 
-	writeJSON(w, map[string]any{
-		"task_id":      taskID,
-		"execution_id": executionID,
-		"output":       sanitized,
-		"content":      sanitized,
-		"size":         len(sanitized),
-		"source":       "output_log",
+	writeJSON(w, &apipb.ExecutionOutputResponse{
+		Output:  sanitized,
+		Content: sanitized,
+		Size:    int32(len(sanitized)),
 	}, http.StatusOK)
 }
 

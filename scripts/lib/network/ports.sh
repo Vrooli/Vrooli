@@ -724,54 +724,22 @@ ports::get_scenario_environment() {
         is_running=true
     fi
     
-    # Phase 1: Process Check and Port Discovery
-    if [[ "$is_running" == "true" ]]; then
-        # Scenario is running - discover actual ports in use
-        local discovered_ports
-        discovered_ports=$(_discover_scenario_ports "$scenario_name" "$service_json_path")
-        
-        if [[ "$discovered_ports" != "{}" ]]; then
-            # Use discovered ports as environment variables
-            env_vars="$discovered_ports"
-            
-            # Also populate allocated_ports for API compatibility
-            # Extract port numbers only for allocated_ports
-            allocated_ports="{}"
-            while IFS= read -r entry; do
-                [[ -z "$entry" ]] && continue
-                local key value
-                key=$(echo "$entry" | jq -r '.key')
-                value=$(echo "$entry" | jq -r '.value')
-                
-                # Simplify key for allocated_ports (remove _PORT suffix)
-                local port_name
-                port_name=$(echo "$key" | sed 's/_PORT$//' | tr '[:upper:]' '[:lower:]')
-                allocated_ports=$(echo "$allocated_ports" | jq --arg key "$port_name" --argjson value "$value" '. + {($key): $value}')
-            done < <(echo "$discovered_ports" | jq -c 'to_entries[]' 2>/dev/null)
-            
-            message="Discovered ports for running scenario"
-        else
-            # Scenario running but no ports discovered - treat as fresh allocation
-            is_running=false
-            message="Running scenario has no discoverable ports, allocating fresh"
-        fi
+    # Always allocate ports - the allocation function handles reusing existing locks
+    # for the same scenario, so this is safe even when processes are already running.
+    # This is more reliable than port discovery which can return incomplete results
+    # (e.g., only API_PORT if UI hasn't started yet).
+    local allocation_result
+    allocation_result=$(ports::allocate_scenario "$scenario_name" "$service_json_path")
+
+    if [[ $(echo "$allocation_result" | jq -r '.success') != "true" ]]; then
+        # Pass through allocation error
+        echo "$allocation_result"
+        return 1
     fi
-    
-    # Phase 2: Fresh Allocation (if needed)
-    if [[ "$is_running" == "false" ]]; then
-        local allocation_result
-        allocation_result=$(ports::allocate_scenario "$scenario_name" "$service_json_path")
-        
-        if [[ $(echo "$allocation_result" | jq -r '.success') != "true" ]]; then
-            # Pass through allocation error
-            echo "$allocation_result"
-            return 1
-        fi
-        
-        env_vars=$(echo "$allocation_result" | jq -r '.env_vars // {}')
-        allocated_ports=$(echo "$allocation_result" | jq -r '.allocated_ports // {}')
-        message="Created fresh port allocation"
-    fi
+
+    env_vars=$(echo "$allocation_result" | jq -r '.env_vars // {}')
+    allocated_ports=$(echo "$allocation_result" | jq -r '.allocated_ports // {}')
+    message="Allocated ports for scenario"
     
     # Phase 3: Resource Environment Loading (THE KEY ENHANCEMENT!)
     local resource_env

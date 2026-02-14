@@ -497,9 +497,11 @@ func (m *mockHealableCheck) Category() Category         { return CategoryInfrast
 func (m *mockHealableCheck) Run(ctx context.Context) Result {
 	return m.result
 }
+
 func (m *mockHealableCheck) RecoveryActions(lastResult *Result) []RecoveryAction {
 	return m.actions
 }
+
 func (m *mockHealableCheck) ExecuteAction(ctx context.Context, actionID string) ActionResult {
 	m.executedActions = append(m.executedActions, actionID)
 	m.executeResult.ActionID = actionID
@@ -511,6 +513,7 @@ func (m *mockHealableCheck) ExecuteAction(ctx context.Context, actionID string) 
 type mockConfigProvider struct {
 	enabledChecks  map[string]bool
 	autoHealChecks map[string]bool
+	autoHealOn     map[string]string
 }
 
 func (m *mockConfigProvider) IsCheckEnabled(checkID string) bool {
@@ -526,6 +529,16 @@ func (m *mockConfigProvider) IsAutoHealEnabled(checkID string) bool {
 		return false
 	}
 	return m.autoHealChecks[checkID]
+}
+
+func (m *mockConfigProvider) GetAutoHealOn(checkID string) string {
+	if m.autoHealOn == nil {
+		return "critical"
+	}
+	if v, ok := m.autoHealOn[checkID]; ok && v != "" {
+		return v
+	}
+	return "critical"
 }
 
 // TestIsHealable verifies check healability detection
@@ -657,6 +670,48 @@ func TestRunAutoHeal_SkipsNonCriticalChecks(t *testing.T) {
 	}
 }
 
+func TestRunAutoHeal_SkipsIneligibleResultEvenWhenPolicyMatches(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+
+	healableCheck := &mockHealableCheck{
+		id: "scenario-app-monitor",
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-app-monitor": true,
+		},
+		autoHealOn: map[string]string{
+			"scenario-app-monitor": "warning+critical",
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{
+			CheckID: "scenario-app-monitor",
+			Status:  StatusWarning,
+			Details: map[string]interface{}{
+				"autoHealEligible": false,
+				"fallback":         "direct-health-check",
+			},
+		},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 0 {
+		t.Fatalf("expected no auto-heal attempts for ineligible result, got %d", len(autoHealResults))
+	}
+	if len(healableCheck.executedActions) != 0 {
+		t.Fatalf("expected no actions executed, got %v", healableCheck.executedActions)
+	}
+}
+
 // TestRunAutoHeal_SkipsDisabledAutoHeal verifies auto-heal respects config
 // [REQ:CONFIG-CHECK-001]
 func TestRunAutoHeal_SkipsDisabledAutoHeal(t *testing.T) {
@@ -732,7 +787,7 @@ func TestRunAutoHeal_SkipsDangerousActions(t *testing.T) {
 	if autoHealResults[0].Attempted {
 		t.Error("expected auto-heal to not be attempted with only dangerous/unavailable actions")
 	}
-	if autoHealResults[0].Reason != "no safe recovery action available" {
+	if autoHealResults[0].Reason != "no auto-heal recovery action available" {
 		t.Errorf("unexpected reason: %s", autoHealResults[0].Reason)
 	}
 }
@@ -811,6 +866,86 @@ func TestRunAutoHeal_SelectsFirstSafeAction(t *testing.T) {
 
 	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "first-safe" {
 		t.Errorf("expected 'first-safe' to be selected, got %v", healableCheck.executedActions)
+	}
+}
+
+// TestRunAutoHeal_ScenarioCriticalAllowsRestart verifies controlled dangerous restart
+// is allowed for scenario checks.
+func TestRunAutoHeal_ScenarioCriticalAllowsRestart(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+
+	healableCheck := &mockHealableCheck{
+		id:     "scenario-app-monitor",
+		result: Result{CheckID: "scenario-app-monitor", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "logs", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: true, Message: "Restarted"},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-app-monitor": true,
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{CheckID: "scenario-app-monitor", Status: StatusCritical},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(autoHealResults))
+	}
+	if !autoHealResults[0].Attempted {
+		t.Fatal("expected auto-heal to be attempted")
+	}
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "restart" {
+		t.Errorf("expected restart to be executed, got %v", healableCheck.executedActions)
+	}
+}
+
+// TestRunAutoHeal_WarningPolicyCanTrigger verifies warning+critical policy.
+func TestRunAutoHeal_WarningPolicyCanTrigger(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+
+	healableCheck := &mockHealableCheck{
+		id:     "scenario-app-monitor",
+		result: Result{CheckID: "scenario-app-monitor", Status: StatusWarning},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "logs", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: true, Message: "Restarted"},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-app-monitor": true,
+		},
+		autoHealOn: map[string]string{
+			"scenario-app-monitor": "warning+critical",
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{CheckID: "scenario-app-monitor", Status: StatusWarning},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(autoHealResults))
+	}
+	if !autoHealResults[0].Attempted {
+		t.Fatal("expected auto-heal to be attempted for warning+critical policy")
+	}
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "restart" {
+		t.Errorf("expected restart to be executed, got %v", healableCheck.executedActions)
 	}
 }
 

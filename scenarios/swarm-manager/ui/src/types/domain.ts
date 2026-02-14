@@ -25,6 +25,10 @@ import type {
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type { AgentManagerStatusResponse as ProtoAgentManagerStatusResponse } from "@vrooli/proto-types/swarm-manager/v1/api/agent_manager_pb";
 import type { BacklogResearchResponse as ProtoBacklogResearchResponse } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+import type {
+  ExecutionRecord as ProtoExecutionRecord,
+  ExecutionPolicy as ProtoExecutionPolicy,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
 
 type ProtoMessage<T extends Message> = Omit<T, "$typeName" | "$unknown">;
 
@@ -252,25 +256,13 @@ export type ExecutionStatus = "pending" | "scheduled" | "running" | "completed" 
 
 export type ExecutionMode = "manual" | "scheduled" | "yolo";
 
-export interface ExecutionRecord {
-  executionId: string;
-  backlogKind: BacklogKind;
-  backlogName: string;
-  taskId?: string;
-  runId?: string;
+export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" | "mode" | "operation"> & {
   status: ExecutionStatus;
   mode: ExecutionMode;
-  scheduledAt?: string;
-  startedAt?: string;
-  finishedAt?: string;
-  failureReason?: string;
-  startedBy?: string;
   operation?: "generator" | "improver";
-  createdAt: string;
-  updatedAt: string;
-}
+};
 
-export interface ExecutionPolicy {
+export type ExecutionPolicy = Omit<ProtoMessage<ProtoExecutionPolicy>, "defaultDelaySeconds"> & {
   defaultMode: ExecutionMode;
   defaultDelaySeconds: number;
-}
+};

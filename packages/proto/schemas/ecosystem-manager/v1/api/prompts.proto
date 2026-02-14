@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+import "ecosystem-manager/v1/domain/prompt.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api;api";
+
+// =============================================================================
+// PROMPTS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports prompt
+// @stability beta
+//
+// HTTP API contracts for Ecosystem Manager prompt file operations.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// ListPromptFilesResponse returns all prompt files.
+message ListPromptFilesResponse {
+  // Prompt file metadata.
+  repeated PromptFileInfo files = 1;
+}
+
+// PromptFileResponse wraps a single prompt file with content.
+message PromptFileResponse {
+  // The prompt file.
+  PromptFile file = 1;
+}
+
+// CreatePromptFileRequest defines the payload for creating a new prompt file.
+message CreatePromptFileRequest {
+  // File path relative to prompts directory.
+  string path = 1 [(buf.validate.field).string.min_len = 1];
+
+  // File content.
+  string content = 2;
+}
+
+// UpdatePromptFileRequest defines the payload for updating a prompt file.
+message UpdatePromptFileRequest {
+  // Updated content.
+  string content = 1;
+}
+
+// PromptPreviewRequest defines the payload for previewing an assembled prompt.
+message PromptPreviewRequest {
+  // Task type.
+  string type = 1 [(buf.validate.field).string = { in: ["resource", "scenario"] }];
+
+  // Task operation.
+  string operation = 2 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+
+  // Target name.
+  string target = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Optional steering mode.
+  optional string steer_mode = 4;
+}
+
+// PromptPreviewResponse returns the assembled prompt preview.
+message PromptPreviewResponse {
+  // Assembled prompt text.
+  string prompt = 1;
+
+  // Prompt size in bytes.
+  int32 size = 2;
+
+  // Sections included in the prompt.
+  repeated string sections = 3;
+}

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -72,21 +73,14 @@ type BaseURLResolver func(ctx context.Context) (string, error)
 
 // HTTPDoer is the interface for HTTP operations (allows mocking http.Client).
 type HTTPDoer interface {
-	Post(url, contentType string, body *strings.Reader) (*http.Response, error)
-}
-
-// defaultHTTPDoer wraps http.DefaultClient to implement HTTPDoer.
-type defaultHTTPDoer struct{}
-
-func (d *defaultHTTPDoer) Post(url, contentType string, body *strings.Reader) (*http.Response, error) {
-	return http.Post(url, contentType, body)
+	Do(req *http.Request) (*http.Response, error)
 }
 
 // NewHTTPClient creates a new ecosystem-manager HTTP client.
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
 		baseURLResolver: resolveEcosystemBaseURL,
-		httpClient:      &defaultHTTPDoer{},
+		httpClient:      &http.Client{Timeout: 20 * time.Second},
 	}
 }
 
@@ -97,7 +91,7 @@ func NewHTTPClientWithResolver(resolver BaseURLResolver, httpClient HTTPDoer) *H
 		resolver = resolveEcosystemBaseURL
 	}
 	if httpClient == nil {
-		httpClient = &defaultHTTPDoer{}
+		httpClient = &http.Client{Timeout: 20 * time.Second}
 	}
 	return &HTTPClient{
 		baseURLResolver: resolver,
@@ -134,7 +128,13 @@ func (c *HTTPClient) CreateTask(ctx context.Context, req CreateTaskRequest) (str
 
 	// POST to ecosystem-manager
 	url := strings.TrimRight(baseURL, "/") + "/api/tasks"
-	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(string(taskJSON)))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(taskJSON)))
+	if err != nil {
+		return "", fmt.Errorf("failed to build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrNotAvailable, err)
 	}

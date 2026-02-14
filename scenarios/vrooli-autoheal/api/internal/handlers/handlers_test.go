@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -697,6 +698,33 @@ func TestTick_WithoutForce(t *testing.T) {
 	}
 }
 
+func TestTick_ResetsStaleTickLock(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	// Simulate a stale in-progress tick older than the safety threshold.
+	h.tickLock.Lock()
+	h.tickRunning = true
+	h.tickStarted = time.Now().Add(-7 * time.Minute)
+	h.tickLock.Unlock()
+
+	req := httptest.NewRequest("POST", "/api/v1/tick", nil)
+	w := httptest.NewRecorder()
+	h.Tick(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Tick() status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp["success"] != true {
+		t.Errorf("success = %v, want true", resp["success"])
+	}
+}
+
 func TestNew(t *testing.T) {
 	// Test the production New constructor compiles and works
 	caps := &platform.Capabilities{Platform: platform.Linux}
@@ -1363,6 +1391,7 @@ func (c *mockHealableCheckCritical) ExecuteAction(ctx context.Context, actionID 
 type mockConfigProvider struct {
 	enabledChecks  map[string]bool
 	autoHealChecks map[string]bool
+	autoHealOn     map[string]string
 }
 
 func (m *mockConfigProvider) IsCheckEnabled(checkID string) bool {
@@ -1377,6 +1406,15 @@ func (m *mockConfigProvider) IsAutoHealEnabled(checkID string) bool {
 		return enabled
 	}
 	return false // Default disabled
+}
+
+func (m *mockConfigProvider) GetAutoHealOn(checkID string) string {
+	if m.autoHealOn != nil {
+		if v, ok := m.autoHealOn[checkID]; ok && v != "" {
+			return v
+		}
+	}
+	return "critical"
 }
 
 func setupTestHandlersWithAutoHeal(store StoreInterface) (*Handlers, *mockHealableCheckCritical) {

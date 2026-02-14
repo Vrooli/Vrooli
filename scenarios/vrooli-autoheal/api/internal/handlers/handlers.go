@@ -46,6 +46,7 @@ type Handlers struct {
 	// tickLock prevents concurrent tick executions
 	tickLock    sync.Mutex
 	tickRunning bool
+	tickStarted time.Time
 }
 
 // New creates a new Handlers instance
@@ -124,8 +125,19 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 // Uses a lock to prevent concurrent executions - if a tick is already running,
 // returns immediately with a 409 Conflict status.
 func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
+	const maxTickRuntime = 6 * time.Minute
+
 	// Try to acquire the tick lock
 	h.tickLock.Lock()
+	if h.tickRunning {
+		// Safety valve: if a tick appears stuck far beyond normal runtime,
+		// reset the lock to restore service availability.
+		if !h.tickStarted.IsZero() && time.Since(h.tickStarted) > maxTickRuntime {
+			apierrors.LogInfo("tick", "resetting stale tick lock", "age", time.Since(h.tickStarted).String())
+			h.tickRunning = false
+			h.tickStarted = time.Time{}
+		}
+	}
 	if h.tickRunning {
 		h.tickLock.Unlock()
 		w.Header().Set("Content-Type", "application/json")
@@ -138,12 +150,14 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.tickRunning = true
+	h.tickStarted = time.Now()
 	h.tickLock.Unlock()
 
 	// Ensure we release the lock when done
 	defer func() {
 		h.tickLock.Lock()
 		h.tickRunning = false
+		h.tickStarted = time.Time{}
 		h.tickLock.Unlock()
 	}()
 

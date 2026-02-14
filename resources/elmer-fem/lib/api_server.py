@@ -301,7 +301,7 @@ def link_cosimulation():
     """Link with other simulation tools for co-simulation"""
     data = request.json
     case_id = data.get('case_id')
-    target_system = data.get('target', 'openems')  # openems, simpy, gridlab-d
+    target_system = data.get('target', 'simpy')  # simpy, gridlab-d
     coupling_type = data.get('coupling', 'loose')  # loose, tight
     
     # Setup co-simulation interface

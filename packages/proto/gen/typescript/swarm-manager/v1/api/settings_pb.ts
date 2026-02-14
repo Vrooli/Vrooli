@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/settings.proto.
  */
 export const file_swarm_manager_v1_api_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJAChBTZXR0aW5nc1Jlc3BvbnNlEiwKCHNldHRpbmdzGAEgASgLMhouc3dhcm1fbWFuYWdlci52MS5TZXR0aW5ncyKKAgoaUmVjb21tZW5kYXRpb25Tb3VyY2VzUGF0Y2gSFQoIcHJvYmxlbXMYASABKAhIAIgBARIZCgxjb21wbGV0ZW5lc3MYAiABKAhIAYgBARISCgV0ZXN0cxgDIAEoCEgCiAEBEhUKCGNvdmVyYWdlGAQgASgISAOIAQESGQoMY3VzdG9tX2ZvY3VzGAUgASgISASIAQESGwoOc2NlbmFyaW9fbm90ZXMYBiABKAhIBYgBAUILCglfcHJvYmxlbXNCDwoNX2NvbXBsZXRlbmVzc0IICgZfdGVzdHNCCwoJX2NvdmVyYWdlQg8KDV9jdXN0b21fZm9jdXNCEQoPX3NjZW5hcmlvX25vdGVzIukBChtSZWNvbW1lbmRhdGlvbkF1dG9TeW5jUGF0Y2gSFAoHZW5hYmxlZBgBIAEoCEgAiAEBEhUKCGludGVydmFsGAIgASgJSAGIAQESGQoMbGFzdF9yZWZyZXNoGAMgASgJSAKIAQESGQoMbmV4dF9yZWZyZXNoGAQgASgJSAOIAQESGgoNcmVmcmVzaF9zY29wZRgFIAEoCUgEiAEBQgoKCF9lbmFibGVkQgsKCV9pbnRlcnZhbEIPCg1fbGFzdF9yZWZyZXNoQg8KDV9uZXh0X3JlZnJlc2hCEAoOX3JlZnJlc2hfc2NvcGUirQQKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIwCgV0aGVtZRgBIAEoCUIcukgZchdSAFIEZGFya1IFbGlnaHRSBnN5c3RlbUgAiAEBEkEKE3JlY29tbWVuZGF0aW9uX21vZGUYAiABKAlCH7pIHHIaUgBSA29mZlILc3VnZ2VzdGlvbnNSBHlvbG9IAYgBARIZCgxjdXN0b21fZm9jdXMYAyABKAlIAogBARIdChBpbnNpZ2h0c19lbmFibGVkGAQgASgISAOIAQESIgoVaW5zaWdodHNfYXV0b19hbmFseXplGAUgASgISASIAQESUQoWcmVjb21tZW5kYXRpb25fc291cmNlcxgGIAEoCzIsLnN3YXJtX21hbmFnZXIudjEuUmVjb21tZW5kYXRpb25Tb3VyY2VzUGF0Y2hIBYgBARJUChhyZWNvbW1lbmRhdGlvbl9hdXRvX3N5bmMYByABKAsyLS5zd2FybV9tYW5hZ2VyLnYxLlJlY29tbWVuZGF0aW9uQXV0b1N5bmNQYXRjaEgGiAEBQggKBl90aGVtZUIWChRfcmVjb21tZW5kYXRpb25fbW9kZUIPCg1fY3VzdG9tX2ZvY3VzQhMKEV9pbnNpZ2h0c19lbmFibGVkQhgKFl9pbnNpZ2h0c19hdXRvX2FuYWx5emVCGQoXX3JlY29tbWVuZGF0aW9uX3NvdXJjZXNCGwoZX3JlY29tbWVuZGF0aW9uX2F1dG9fc3luY0JJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
+  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJAChBTZXR0aW5nc1Jlc3BvbnNlEiwKCHNldHRpbmdzGAEgASgLMhouc3dhcm1fbWFuYWdlci52MS5TZXR0aW5ncyLxAQoVVXBkYXRlU2V0dGluZ3NSZXF1ZXN0EjAKBXRoZW1lGAEgASgJQhy6SBlyF1IAUgRkYXJrUgVsaWdodFIGc3lzdGVtSACIAQESGQoMY3VzdG9tX2ZvY3VzGAIgASgJSAGIAQESHQoQaW5zaWdodHNfZW5hYmxlZBgDIAEoCEgCiAEBEiIKFWluc2lnaHRzX2F1dG9fYW5hbHl6ZRgEIAEoCEgDiAEBQggKBl90aGVtZUIPCg1fY3VzdG9tX2ZvY3VzQhMKEV9pbnNpZ2h0c19lbmFibGVkQhgKFl9pbnNpZ2h0c19hdXRvX2FuYWx5emVCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
 
 /**
  * SettingsResponse returns current settings.
@@ -35,89 +35,6 @@ export const SettingsResponseSchema: GenMessage<SettingsResponse> = /*@__PURE__*
   messageDesc(file_swarm_manager_v1_api_settings, 0);
 
 /**
- * RecommendationSourcesPatch allows partial updates of recommendation sources.
- *
- * @generated from message swarm_manager.v1.RecommendationSourcesPatch
- */
-export type RecommendationSourcesPatch = Message<"swarm_manager.v1.RecommendationSourcesPatch"> & {
-  /**
-   * @generated from field: optional bool problems = 1;
-   */
-  problems?: boolean;
-
-  /**
-   * @generated from field: optional bool completeness = 2;
-   */
-  completeness?: boolean;
-
-  /**
-   * @generated from field: optional bool tests = 3;
-   */
-  tests?: boolean;
-
-  /**
-   * @generated from field: optional bool coverage = 4;
-   */
-  coverage?: boolean;
-
-  /**
-   * @generated from field: optional bool custom_focus = 5;
-   */
-  customFocus?: boolean;
-
-  /**
-   * @generated from field: optional bool scenario_notes = 6;
-   */
-  scenarioNotes?: boolean;
-};
-
-/**
- * Describes the message swarm_manager.v1.RecommendationSourcesPatch.
- * Use `create(RecommendationSourcesPatchSchema)` to create a new message.
- */
-export const RecommendationSourcesPatchSchema: GenMessage<RecommendationSourcesPatch> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_settings, 1);
-
-/**
- * RecommendationAutoSyncPatch allows partial updates of auto sync settings.
- *
- * @generated from message swarm_manager.v1.RecommendationAutoSyncPatch
- */
-export type RecommendationAutoSyncPatch = Message<"swarm_manager.v1.RecommendationAutoSyncPatch"> & {
-  /**
-   * @generated from field: optional bool enabled = 1;
-   */
-  enabled?: boolean;
-
-  /**
-   * @generated from field: optional string interval = 2;
-   */
-  interval?: string;
-
-  /**
-   * @generated from field: optional string last_refresh = 3;
-   */
-  lastRefresh?: string;
-
-  /**
-   * @generated from field: optional string next_refresh = 4;
-   */
-  nextRefresh?: string;
-
-  /**
-   * @generated from field: optional string refresh_scope = 5;
-   */
-  refreshScope?: string;
-};
-
-/**
- * Describes the message swarm_manager.v1.RecommendationAutoSyncPatch.
- * Use `create(RecommendationAutoSyncPatchSchema)` to create a new message.
- */
-export const RecommendationAutoSyncPatchSchema: GenMessage<RecommendationAutoSyncPatch> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_settings, 2);
-
-/**
  * UpdateSettingsRequest applies partial settings updates.
  *
  * @generated from message swarm_manager.v1.UpdateSettingsRequest
@@ -131,46 +48,25 @@ export type UpdateSettingsRequest = Message<"swarm_manager.v1.UpdateSettingsRequ
   theme?: string;
 
   /**
-   * Optional recommendation mode override.
-   *
-   * @generated from field: optional string recommendation_mode = 2;
-   */
-  recommendationMode?: string;
-
-  /**
    * Optional custom focus override.
    *
-   * @generated from field: optional string custom_focus = 3;
+   * @generated from field: optional string custom_focus = 2;
    */
   customFocus?: string;
 
   /**
    * Optional insights enabled override.
    *
-   * @generated from field: optional bool insights_enabled = 4;
+   * @generated from field: optional bool insights_enabled = 3;
    */
   insightsEnabled?: boolean;
 
   /**
    * Optional insights auto-analyze override.
    *
-   * @generated from field: optional bool insights_auto_analyze = 5;
+   * @generated from field: optional bool insights_auto_analyze = 4;
    */
   insightsAutoAnalyze?: boolean;
-
-  /**
-   * Optional recommendation sources patch.
-   *
-   * @generated from field: optional swarm_manager.v1.RecommendationSourcesPatch recommendation_sources = 6;
-   */
-  recommendationSources?: RecommendationSourcesPatch;
-
-  /**
-   * Optional recommendation auto-sync patch.
-   *
-   * @generated from field: optional swarm_manager.v1.RecommendationAutoSyncPatch recommendation_auto_sync = 7;
-   */
-  recommendationAutoSync?: RecommendationAutoSyncPatch;
 };
 
 /**
@@ -178,5 +74,5 @@ export type UpdateSettingsRequest = Message<"swarm_manager.v1.UpdateSettingsRequ
  * Use `create(UpdateSettingsRequestSchema)` to create a new message.
  */
 export const UpdateSettingsRequestSchema: GenMessage<UpdateSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_settings, 3);
+  messageDesc(file_swarm_manager_v1_api_settings, 1);
 

@@ -38,9 +38,6 @@ message ScenarioResponse {
 message UpdateScenarioMetadataRequest {
   // Optional greenfield toggle.
   optional bool is_greenfield = 1;
-
-  // Optional recommendations toggle.
-  optional bool recommendations_enabled = 2;
 }
 
 // PreserveFilesRequest specifies which files to preserve when archiving a scenario.

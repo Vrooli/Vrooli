@@ -4,6 +4,7 @@ package vrooli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -27,6 +28,15 @@ type ScenarioCheck struct {
 	interval     int
 	critical     bool // determines if stopped/failed → critical or warning
 	executor     checks.CommandExecutor
+	directHealth func(context.Context) (bool, string)
+}
+
+type scenarioStatusJSON struct {
+	Success      bool `json:"success"`
+	ScenarioData struct {
+		Status       string `json:"status"`
+		HealthStatus string `json:"health_status"`
+	} `json:"scenario_data"`
 }
 
 // ScenarioCheckOption configures a ScenarioCheck.
@@ -36,6 +46,13 @@ type ScenarioCheckOption func(*ScenarioCheck)
 func WithScenarioExecutor(executor checks.CommandExecutor) ScenarioCheckOption {
 	return func(c *ScenarioCheck) {
 		c.executor = executor
+	}
+}
+
+// WithScenarioDirectHealthChecker sets direct scenario health checker (for testing).
+func WithScenarioDirectHealthChecker(checker func(context.Context) (bool, string)) ScenarioCheckOption {
+	return func(c *ScenarioCheck) {
+		c.directHealth = checker
 	}
 }
 
@@ -84,26 +101,119 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	// Run vrooli scenario status using injected executor
-	output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "status", c.scenarioName)
+	// Run structured status command (never parse human-readable output).
+	output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "status", c.scenarioName, "--json")
+	outputText := string(output)
 
-	result.Details["output"] = string(output)
+	result.Details["output"] = outputText
 	result.Details["critical"] = c.critical
 
 	if err != nil {
-		// Command execution failed - use criticality to determine severity
+		if shouldFallbackToDirectHealthCheck(outputText, err) {
+			healthFn := c.directHealth
+			if healthFn == nil {
+				healthFn = c.checkScenarioHealthDirect
+			}
+			isHealthy, detail := healthFn(ctx)
+			result.Details["fallback"] = "direct-health-check"
+			result.Details["healthSource"] = "fallback-direct-health-check"
+			if detail != "" {
+				result.Details["directHealthDetail"] = detail
+			}
+			if isHealthy {
+				// Degraded confidence: process-level checks can confirm liveness, but not full
+				// orchestration-layer health semantics while Vrooli API is unavailable.
+				result.Status = checks.StatusWarning
+				result.Message = c.scenarioName + " scenario appears running, but orchestration API is unavailable"
+				result.Details["healthConfidence"] = "degraded"
+				// Prevent auto-heal from taking scenario restart actions based on fallback-only evidence.
+				result.Details["autoHealEligible"] = false
+				return result
+			}
+
+			result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
+			result.Message = c.scenarioName + " scenario appears stopped (Vrooli API unavailable and direct check failed)"
+			result.Details["healthConfidence"] = "low"
+			result.Details["autoHealEligible"] = true
+			result.Details["error"] = err.Error()
+			return result
+		}
+
+		// Command execution failed - use criticality to determine severity.
 		result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
 		result.Message = c.scenarioName + " scenario check failed"
 		result.Details["error"] = err.Error()
 		return result
 	}
 
-	// Use centralized CLI output classifier
-	cliStatus := ClassifyCLIOutput(string(output))
-	result.Status = CLIStatusToCheckStatus(cliStatus, c.critical)
-	result.Message = CLIStatusDescription(cliStatus, c.scenarioName+" scenario")
+	parsed, parseErr := parseScenarioStatusJSON(output)
+	if parseErr != nil {
+		result.Status = checks.StatusWarning
+		result.Message = c.scenarioName + " scenario status parse failed"
+		result.Details["error"] = parseErr.Error()
+		return result
+	}
+
+	scenarioStatus := strings.ToLower(parsed.ScenarioData.Status)
+	healthStatus := strings.ToLower(parsed.ScenarioData.HealthStatus)
+	result.Details["scenarioStatus"] = scenarioStatus
+	result.Details["healthStatus"] = healthStatus
+
+	if !parsed.Success {
+		result.Status = CLIStatusToCheckStatus(CLIStatusUnclear, c.critical)
+		result.Message = c.scenarioName + " scenario status check was not successful"
+		return result
+	}
+
+	if scenarioStatus != "running" {
+		result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
+		result.Message = c.scenarioName + " scenario is stopped"
+		return result
+	}
+
+	switch healthStatus {
+	case "healthy":
+		result.Status = checks.StatusOK
+		result.Message = c.scenarioName + " scenario is healthy"
+	case "degraded":
+		result.Status = checks.StatusWarning
+		result.Message = c.scenarioName + " scenario is degraded"
+	case "unhealthy":
+		result.Status = checks.StatusCritical
+		result.Message = c.scenarioName + " scenario is unhealthy"
+	case "running":
+		result.Status = checks.StatusOK
+		result.Message = c.scenarioName + " scenario is running"
+	default:
+		result.Status = checks.StatusWarning
+		result.Message = c.scenarioName + " scenario health is unknown"
+	}
 
 	return result
+}
+
+func parseScenarioStatusJSON(output []byte) (*scenarioStatusJSON, error) {
+	var parsed scenarioStatusJSON
+	if err := json.Unmarshal(output, &parsed); err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func shouldFallbackToDirectHealthCheck(output string, err error) bool {
+	lowerOutput := strings.ToLower(output)
+	if strings.Contains(lowerOutput, "vrooli api is not accessible") ||
+		strings.Contains(lowerOutput, "api may not be running") {
+		return true
+	}
+
+	if err == nil {
+		return false
+	}
+
+	lowerErr := strings.ToLower(err.Error())
+	return strings.Contains(lowerErr, "connection refused") ||
+		strings.Contains(lowerErr, "api is not accessible")
 }
 
 // RecoveryActions returns available recovery actions for this scenario check
@@ -114,11 +224,23 @@ func (c *ScenarioCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 	isRunning := false
 	isStopped := false
 	if lastResult != nil {
-		// Primary: use check status (most reliable)
-		if lastResult.Status == checks.StatusOK {
-			isRunning = true
-		} else if lastResult.Status == checks.StatusCritical {
-			isStopped = true
+		// Primary: use structured scenario status when available.
+		if scenarioStatus, ok := lastResult.Details["scenarioStatus"].(string); ok && scenarioStatus != "" {
+			switch strings.ToLower(scenarioStatus) {
+			case "running":
+				isRunning = true
+				isStopped = false
+			case "stopped":
+				isStopped = true
+				isRunning = false
+			}
+		} else {
+			// Fallback: infer from check status.
+			if lastResult.Status == checks.StatusOK {
+				isRunning = true
+			} else if lastResult.Status == checks.StatusCritical {
+				isStopped = true
+			}
 		}
 
 		// Secondary: parse output for more specific state info
