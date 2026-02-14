@@ -8,7 +8,7 @@ import { AsyncStatusBar } from "./AsyncStatusBar";
 import { AsyncOperationDrawer } from "./AsyncOperationDrawer";
 import { ModeSelector, type ChatMode } from "./ModeSelector";
 import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
-import { AgentEventList } from "./agent/AgentEventList";
+import { AgentEventList, type AgentMetric } from "./agent/AgentEventList";
 import { AgentStatusIndicator } from "./agent/AgentStatusIndicator";
 import type { AsyncResultReference } from "./AsyncResultChip";
 import type { ChatWithMessages, Model, Label, Message, AgentChatConfig } from "../../lib/api";
@@ -142,6 +142,7 @@ export function ChatView({
   const [showAgentStartModal, setShowAgentStartModal] = useState(false);
   const [pendingAgentMessage, setPendingAgentMessage] = useState<string>("");
   const [agentError, setAgentError] = useState<{ message: string; recovery?: string } | null>(null);
+  const [queuedMessage, setQueuedMessage] = useState<MessagePayload | null>(null);
 
   // Sync chatMode with server state when chat data loads or changes.
   // Without this, chatMode stays "llm" because useState initializer runs once
@@ -178,6 +179,33 @@ export function ChatView({
     enabled: isAgentActive,
     onStatusChange: handleAgentStatusChange
   });
+
+  // Whether the agent is actively processing (blocks sending but not typing)
+  const agentBusy = isAgentActive && !!agentStatus?.status
+    && ["pending", "starting", "running"].includes(agentStatus.status);
+
+  // Aggregate metric events for display in the status header
+  const agentMetrics = useMemo((): AgentMetric[] => {
+    if (!agentEvents || agentEvents.length === 0) return [];
+    const metrics: AgentMetric[] = [];
+    for (const ev of agentEvents) {
+      if (ev.type !== "metric" || !ev.raw_data) continue;
+      try {
+        const parsed = JSON.parse(ev.raw_data) as Record<string, unknown>;
+        if (parsed.name && typeof parsed.value === "number") {
+          metrics.push({
+            name: parsed.name as string,
+            value: parsed.value,
+            unit: (parsed.unit as string) || "",
+            tags: parsed.tags as Record<string, string> | undefined,
+          });
+        }
+      } catch {
+        // Skip unparseable metric events
+      }
+    }
+    return metrics;
+  }, [agentEvents]);
 
   // Handle mode change
   const handleModeChange = useCallback((newMode: ChatMode) => {
@@ -240,6 +268,15 @@ export function ChatView({
     }
   }, [chatData?.chat?.id, isAgentActive, refreshAgentEvents]);
 
+  // Auto-send queued message when agent finishes
+  useEffect(() => {
+    if (!agentBusy && queuedMessage) {
+      const payload = queuedMessage;
+      setQueuedMessage(null);
+      handleSendAgentMessage(payload.content);
+    }
+  }, [agentBusy, queuedMessage, handleSendAgentMessage]);
+
   // Handle stopping agent
   const handleStopAgent = useCallback(async () => {
     if (!chatData?.chat?.id) return;
@@ -259,11 +296,16 @@ export function ChatView({
   // Handle sending message - route to agent or LLM based on mode
   const handleSendMessage = useCallback((payload: MessagePayload) => {
     if (chatMode === "agent") {
-      handleSendAgentMessage(payload.content);
+      if (agentBusy) {
+        // Queue the message to auto-send when the agent finishes
+        setQueuedMessage(payload);
+      } else {
+        handleSendAgentMessage(payload.content);
+      }
     } else {
       onSendMessage(payload);
     }
-  }, [chatMode, handleSendAgentMessage, onSendMessage]);
+  }, [chatMode, agentBusy, handleSendAgentMessage, onSendMessage]);
 
   // Handle opening the drawer for a specific operation or history view
   const handleOpenDrawer = useCallback((operation?: AsyncStatusUpdate) => {
@@ -365,6 +407,7 @@ export function ChatView({
           chat={chatData.chat}
           models={models}
           labels={labels}
+          chatMode={chatMode}
           onUpdateChat={onUpdateChat}
           onToggleRead={onToggleRead}
           onToggleStar={onToggleStar}
@@ -401,6 +444,7 @@ export function ChatView({
           phase={agentStatus.phase}
           progress={agentStatus.progress_percent}
           errorMsg={agentStatus.error_msg}
+          metrics={agentMetrics}
           onStop={handleStopAgent}
         />
       )}
@@ -464,10 +508,23 @@ export function ChatView({
       )}
 
       <div className="border-t border-white/10 bg-slate-950/50">
+        {queuedMessage && (
+          <div className="flex items-center justify-between px-4 py-2 bg-blue-500/10 border-b border-blue-500/20">
+            <span className="text-xs text-blue-300">
+              Message queued — will send when agent finishes
+            </span>
+            <button
+              onClick={() => setQueuedMessage(null)}
+              className="text-xs text-blue-400 hover:text-blue-200"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
         <ErrorBoundary name="MessageInput">
           <MessageInput
             onSend={handleSendMessage}
-            isLoading={isGenerating || isStartingAgent || (isAgentActive && !!agentStatus?.status && ["pending", "starting", "running"].includes(agentStatus.status))}
+            isLoading={isGenerating || isStartingAgent}
             currentModel={models.find((m) => m.id === chatData.chat.model) || null}
             chatId={chatData.chat.id}
             chatWebSearchDefault={chatData.chat.web_search_enabled || false}

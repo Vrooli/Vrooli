@@ -173,12 +173,14 @@ export function useActiveTemplate(
       if (!chatId) throw new Error("Chat ID required to activate template");
       await activateMutation.mutateAsync({ templateId, toolIds });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mutateAsync identity changes but mutation object is stable
     [chatId, activateMutation.mutateAsync]
   );
 
   const deactivate = useCallback(async () => {
     if (!chatId) throw new Error("Chat ID required to deactivate template");
     await deactivateMutation.mutateAsync();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, deactivateMutation.mutateAsync]);
 
   const isUpdating = activateMutation.isPending || deactivateMutation.isPending;

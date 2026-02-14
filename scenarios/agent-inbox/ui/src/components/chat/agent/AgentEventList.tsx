@@ -3,19 +3,32 @@ import type { AgentEvent } from "../../../lib/api";
 import AgentMessageBubble from "./AgentMessageBubble";
 import AgentToolCallCard from "./AgentToolCallCard";
 import AgentRawEventCard from "./AgentRawEventCard";
+import { getToolComponent } from "./tools";
+
+/** Parsed metric from raw_data JSON. */
+export interface AgentMetric {
+  name: string;
+  value: number;
+  unit: string;
+  tags?: Record<string, string>;
+}
 
 interface AgentEventListProps {
   /** List of events to render */
   events: AgentEvent[];
   /** Whether to auto-scroll to bottom on new events */
   autoScroll?: boolean;
+  /** Runner type for tool-specific rendering (e.g. "claude_code", "codex") */
+  runnerType?: string;
 }
 
 /**
  * Renders a list of agent events as chat messages and tool calls.
- * Groups tool_call and tool_result events together for better UX.
+ * Groups tool_call and tool_result events together using tool_call_id
+ * for reliable correlation, with a name+proximity fallback for events
+ * that lack the ID.
  */
-export function AgentEventList({ events, autoScroll = true }: AgentEventListProps) {
+export function AgentEventList({ events, autoScroll = true, runnerType }: AgentEventListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevEventCountRef = useRef(events.length);
 
@@ -32,22 +45,32 @@ export function AgentEventList({ events, autoScroll = true }: AgentEventListProp
 
   // Group tool calls with their results
   const groupedEvents = useMemo(() => {
-    const toolResults = new Map<string, AgentEvent>();
+    // Build a map of tool_call_id → tool_result event for reliable matching
+    const resultsByCallId = new Map<string, AgentEvent>();
+    // Fallback: match by tool name + proximity for events without tool_call_id
+    const resultsByNameFallback = new Map<string, AgentEvent>();
 
-    // First pass: collect tool results by tool name + close proximity
-    // (Simple heuristic - match by tool name and within 5 events)
+    // First pass: index tool results
     events.forEach((event, index) => {
-      if (event.type === "tool_result" && event.tool_name) {
-        // Find the most recent unmatched tool_call with same name
+      if (event.type !== "tool_result") return;
+
+      // Prefer tool_call_id-based matching
+      if (event.tool_call_id) {
+        resultsByCallId.set(event.tool_call_id, event);
+        return;
+      }
+
+      // Fallback: match by tool name + proximity (within 10 events)
+      if (event.tool_name) {
         for (let i = index - 1; i >= Math.max(0, index - 10); i--) {
           const prevEvent = events[i];
           if (prevEvent === undefined) continue;
           if (
             prevEvent.type === "tool_call" &&
             prevEvent.tool_name === event.tool_name &&
-            !toolResults.has(prevEvent.id)
+            !resultsByNameFallback.has(prevEvent.id)
           ) {
-            toolResults.set(prevEvent.id, event);
+            resultsByNameFallback.set(prevEvent.id, event);
             break;
           }
         }
@@ -67,7 +90,9 @@ export function AgentEventList({ events, autoScroll = true }: AgentEventListProp
       if (event.type === "message") {
         grouped.push({ type: "message", event });
       } else if (event.type === "tool_call") {
-        const result = toolResults.get(event.id);
+        // Try tool_call_id first, then fallback map
+        const result = (event.tool_call_id && resultsByCallId.get(event.tool_call_id))
+          || resultsByNameFallback.get(event.id);
         if (result) {
           renderedResultIds.add(result.id);
         }
@@ -76,14 +101,15 @@ export function AgentEventList({ events, autoScroll = true }: AgentEventListProp
         // Skip if already rendered with a tool_call
         if (!renderedResultIds.has(event.id)) {
           // Orphan result - render as standalone
-          grouped.push({ type: "tool", event: event, result: event });
+          grouped.push({ type: "tool", event, result: event });
         }
       } else if (event.type === "status") {
+        // Status events are shown in the header, skip inline
         grouped.push({ type: "status", event });
       } else if (event.type === "error") {
         grouped.push({ type: "error", event });
-      } else if (event.type === "log") {
-        // Skip log events (internal debug info)
+      } else if (event.type === "log" || event.type === "metric") {
+        // Skip log events (internal debug info) and metric events (shown in header)
         return;
       } else {
         // All other event types: render as generic raw card
@@ -109,14 +135,16 @@ export function AgentEventList({ events, autoScroll = true }: AgentEventListProp
           case "message":
             return <AgentMessageBubble key={item.event.id || index} event={item.event} />;
 
-          case "tool":
+          case "tool": {
+            const ToolComponent = getToolComponent(item.event.tool_name, runnerType);
             return (
-              <AgentToolCallCard
+              <ToolComponent
                 key={item.event.id || index}
                 event={item.event}
                 result={item.result}
               />
             );
+          }
 
           case "status":
             // Status events are typically shown in the header, skip inline

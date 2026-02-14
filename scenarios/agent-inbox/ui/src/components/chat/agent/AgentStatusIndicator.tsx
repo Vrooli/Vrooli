@@ -1,6 +1,7 @@
-import { Bot, Loader2, CheckCircle2, XCircle, AlertCircle, StopCircle, Copy, Check } from "lucide-react";
+import { Bot, Loader2, CheckCircle2, XCircle, AlertCircle, StopCircle, Copy, Check, Zap } from "lucide-react";
 import { useState, useCallback } from "react";
 import type { AgentRunStatus } from "../../../lib/api";
+import type { AgentMetric } from "./AgentEventList";
 
 interface AgentStatusIndicatorProps {
   /** Current run status */
@@ -11,6 +12,8 @@ interface AgentStatusIndicatorProps {
   progress?: number;
   /** Error message if failed */
   errorMsg?: string;
+  /** Aggregated metrics from metric events */
+  metrics?: AgentMetric[];
   /** Callback to stop the run */
   onStop?: () => void;
 }
@@ -66,13 +69,15 @@ const STATUS_CONFIG: Record<AgentRunStatus, {
 };
 
 /**
- * Displays the current status of an agent run with progress indicator.
+ * Displays the current status of an agent run with progress indicator
+ * and aggregated metrics (tokens, cost, API calls).
  */
 export function AgentStatusIndicator({
   status,
   phase,
   progress = 0,
   errorMsg,
+  metrics,
   onStop
 }: AgentStatusIndicatorProps) {
   const [copied, setCopied] = useState(false);
@@ -101,6 +106,9 @@ export function AgentStatusIndicator({
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   const isRunning = status === "running" || status === "starting" || status === "pending";
 
+  // Aggregate metrics for display
+  const metricChips = aggregateMetrics(metrics);
+
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-zinc-800/50 border-b border-zinc-700">
       {/* Status icon and label */}
@@ -125,6 +133,22 @@ export function AgentStatusIndicator({
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Aggregated metrics */}
+      {metricChips.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Zap className="h-3 w-3 text-zinc-500" />
+          {metricChips.map((chip) => (
+            <span
+              key={chip.label}
+              className="px-1.5 py-0.5 text-xs rounded bg-zinc-700/50 text-zinc-400"
+              title={chip.tooltip}
+            >
+              {chip.label}
+            </span>
+          ))}
         </div>
       )}
 
@@ -168,6 +192,52 @@ export function AgentStatusIndicator({
       )}
     </div>
   );
+}
+
+interface MetricChip {
+  label: string;
+  tooltip: string;
+}
+
+/** Aggregate raw metric events into displayable chips. */
+function aggregateMetrics(metrics?: AgentMetric[]): MetricChip[] {
+  if (!metrics || metrics.length === 0) return [];
+
+  const chips: MetricChip[] = [];
+  const totals = new Map<string, { value: number; unit: string }>();
+
+  for (const m of metrics) {
+    const existing = totals.get(m.name);
+    if (existing) {
+      existing.value += m.value;
+    } else {
+      totals.set(m.name, { value: m.value, unit: m.unit });
+    }
+  }
+
+  for (const [name, { value, unit }] of totals) {
+    const formatted = formatMetricValue(value, unit);
+    chips.push({
+      label: `${formatted} ${unit || name}`,
+      tooltip: `${name}: ${value} ${unit}`,
+    });
+  }
+
+  return chips;
+}
+
+function formatMetricValue(value: number, unit: string): string {
+  if (unit === "tokens" || unit === "bytes") {
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  }
+  if (unit === "ms") {
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}s`;
+  }
+  if (unit === "usd" || unit === "USD" || unit === "$") {
+    return `$${value.toFixed(4)}`;
+  }
+  return value % 1 === 0 ? String(value) : value.toFixed(2);
 }
 
 export default AgentStatusIndicator;

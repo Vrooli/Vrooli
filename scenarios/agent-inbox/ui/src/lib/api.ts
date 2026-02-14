@@ -7,6 +7,25 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 const ORIGIN_BASE = resolveApiBase({ appendSuffix: false });
 
 /**
+ * Type-safe wrapper around Response.json().
+ * Casts the untyped Promise<any> from fetch to the expected type,
+ * eliminating @typescript-eslint/no-unsafe-return warnings at each call-site.
+ */
+function jsonResponse<T>(res: Response): Promise<T> {
+  return res.json() as Promise<T>;
+}
+
+/** Shape of error bodies returned by the API (used in error-handling blocks). */
+interface ApiErrorBody {
+  error?: {
+    message?: string;
+    code?: string;
+    recovery?: string;
+    details?: { user_message?: string };
+  };
+}
+
+/**
  * Resolve an attachment URL to work in proxy contexts.
  * The API returns paths like "/api/v1/uploads/..." which need to be
  * resolved relative to the current origin/proxy base.
@@ -293,7 +312,7 @@ export async function fetchChats(options?: { archived?: boolean; starred?: boole
     throw new Error(`Failed to fetch chats: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Chat[]>(res);
 }
 
 export async function fetchChat(id: string): Promise<ChatWithMessages> {
@@ -307,7 +326,7 @@ export async function fetchChat(id: string): Promise<ChatWithMessages> {
     throw new Error(`Failed to fetch chat: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<ChatWithMessages>(res);
 }
 
 export async function createChat(data?: { name?: string; model?: string; view_mode?: string; chat_mode?: "llm" | "agent" }): Promise<Chat> {
@@ -322,7 +341,7 @@ export async function createChat(data?: { name?: string; model?: string; view_mo
     throw new Error(`Failed to create chat: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Chat>(res);
 }
 
 export async function updateChat(id: string, data: { name?: string; model?: string; tools_enabled?: boolean }): Promise<Chat> {
@@ -337,7 +356,7 @@ export async function updateChat(id: string, data: { name?: string; model?: stri
     throw new Error(`Failed to update chat: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Chat>(res);
 }
 
 export async function deleteChat(id: string): Promise<void> {
@@ -363,7 +382,7 @@ export async function deleteAllChats(): Promise<{ deleted: number }> {
     throw new Error(`Failed to delete all chats: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ deleted: number }>(res);
 }
 
 export async function deleteArchivedChats(): Promise<{ deleted: number }> {
@@ -377,7 +396,7 @@ export async function deleteArchivedChats(): Promise<{ deleted: number }> {
     throw new Error(`Failed to delete archived chats: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ deleted: number }>(res);
 }
 
 export async function markAllChatsAsRead(): Promise<{ updated: number }> {
@@ -391,7 +410,7 @@ export async function markAllChatsAsRead(): Promise<{ updated: number }> {
     throw new Error(`Failed to mark all chats as read: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ updated: number }>(res);
 }
 
 // Active Template (template-to-tool linking)
@@ -414,7 +433,7 @@ export async function setActiveTemplate(
     throw new Error(`Failed to set active template: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Chat>(res);
 }
 
 // Bulk Operations
@@ -446,7 +465,7 @@ export async function bulkOperateChats(
     throw new Error(`Bulk operation failed: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<BulkOperationResult>(res);
 }
 
 // Fork conversation
@@ -462,7 +481,7 @@ export async function forkChat(chatId: string, messageId: string): Promise<Chat>
     throw new Error(`Failed to fork chat: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Chat>(res);
 }
 
 export interface AddMessageData {
@@ -486,7 +505,7 @@ export async function addMessage(chatId: string, data: AddMessageData): Promise<
     throw new Error(`Failed to add message: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Message>(res);
 }
 
 // Message branching (ChatGPT-style regeneration)
@@ -527,7 +546,7 @@ export async function regenerateMessage(
     }
     await processSSEStream(reader, options);
   } else {
-    return res.json();
+    return jsonResponse<Message>(res);
   }
 }
 
@@ -560,7 +579,7 @@ export async function editMessage(
     throw new Error(`Failed to edit message: ${errorText}`);
   }
 
-  return res.json();
+  return jsonResponse<Message>(res);
 }
 
 /**
@@ -578,7 +597,7 @@ export async function selectBranch(chatId: string, messageId: string): Promise<{
     throw new Error(`Failed to select branch: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ active_leaf_message_id: string }>(res);
 }
 
 /**
@@ -596,7 +615,7 @@ export async function getMessageSiblings(chatId: string, messageId: string): Pro
     throw new Error(`Failed to get message siblings: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Message[]>(res);
 }
 
 export async function toggleRead(chatId: string, value?: boolean): Promise<{ is_read: boolean }> {
@@ -611,7 +630,7 @@ export async function toggleRead(chatId: string, value?: boolean): Promise<{ is_
     throw new Error(`Failed to toggle read: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ is_read: boolean }>(res);
 }
 
 export async function toggleArchive(chatId: string, value?: boolean): Promise<{ is_archived: boolean }> {
@@ -626,7 +645,7 @@ export async function toggleArchive(chatId: string, value?: boolean): Promise<{ 
     throw new Error(`Failed to toggle archive: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ is_archived: boolean }>(res);
 }
 
 export async function toggleStar(chatId: string, value?: boolean): Promise<{ is_starred: boolean }> {
@@ -641,7 +660,7 @@ export async function toggleStar(chatId: string, value?: boolean): Promise<{ is_
     throw new Error(`Failed to toggle star: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ is_starred: boolean }>(res);
 }
 
 // Labels
@@ -656,7 +675,7 @@ export async function fetchLabels(): Promise<Label[]> {
     throw new Error(`Failed to fetch labels: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Label[]>(res);
 }
 
 export async function createLabel(data: { name: string; color?: string }): Promise<Label> {
@@ -671,7 +690,7 @@ export async function createLabel(data: { name: string; color?: string }): Promi
     throw new Error(`Failed to create label: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Label>(res);
 }
 
 export async function deleteLabel(id: string): Promise<void> {
@@ -733,7 +752,7 @@ export async function searchChats(query: string, limit?: number): Promise<Search
     throw new Error(`Failed to search chats: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<SearchResult[]>(res);
 }
 
 // Auto-naming
@@ -748,7 +767,7 @@ export async function autoNameChat(chatId: string): Promise<Chat> {
     throw new Error(`Failed to auto-name chat: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Chat>(res);
 }
 
 // Models
@@ -788,7 +807,7 @@ export async function fetchModels(): Promise<Model[]> {
     throw new Error(`Failed to fetch models: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Model[]>(res);
 }
 
 // Tools
@@ -812,7 +831,7 @@ export async function fetchTools(): Promise<ToolDefinition[]> {
     throw new Error(`Failed to fetch tools: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<ToolDefinition[]>(res);
 }
 
 export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord[]> {
@@ -826,7 +845,7 @@ export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord
     throw new Error(`Failed to fetch tool calls: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<ToolCallRecord[]>(res);
 }
 
 // =============================================================================
@@ -929,7 +948,7 @@ async function processSSEStream(
       if (sseEvent.data === "[DONE]") return;
 
       try {
-        const parsed = JSON.parse(sseEvent.data);
+        const parsed: unknown = JSON.parse(sseEvent.data);
         if (!isStreamingEvent(parsed)) {
           console.warn("[SSE] Unexpected event shape:", JSON.stringify(parsed).slice(0, 200));
           return;
@@ -1037,7 +1056,7 @@ export async function completeChat(
     }
     await processSSEStream(reader, options);
   } else {
-    return res.json();
+    return jsonResponse<Message>(res);
   }
 }
 
@@ -1102,7 +1121,7 @@ export async function fetchUsageStats(options?: { start?: string; end?: string }
     throw new Error(`Failed to fetch usage stats: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<UsageStats>(res);
 }
 
 export async function fetchChatUsageStats(chatId: string): Promise<UsageStats> {
@@ -1117,7 +1136,7 @@ export async function fetchChatUsageStats(chatId: string): Promise<UsageStats> {
     throw new Error(`Failed to fetch chat usage stats: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<UsageStats>(res);
 }
 
 export async function fetchUsageRecords(options?: { chatId?: string; limit?: number; offset?: number }): Promise<UsageRecord[]> {
@@ -1139,7 +1158,7 @@ export async function fetchUsageRecords(options?: { chatId?: string; limit?: num
     throw new Error(`Failed to fetch usage records: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<UsageRecord[]>(res);
 }
 
 // Export formats
@@ -1264,7 +1283,7 @@ export async function fetchToolSet(chatId?: string): Promise<ToolSet> {
     throw new Error(`Failed to fetch tool set: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<ToolSet>(res);
 }
 
 /**
@@ -1282,7 +1301,7 @@ export async function fetchScenarioStatuses(): Promise<ScenarioStatus[]> {
     throw new Error(`Failed to fetch scenario statuses: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<ScenarioStatus[]>(res);
 }
 
 /**
@@ -1352,7 +1371,7 @@ export async function fetchScenarioInfo(name: string): Promise<ScenarioInfo | nu
     throw new Error(`Failed to fetch scenario info: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<ScenarioInfo>(res);
 }
 
 /**
@@ -1372,7 +1391,7 @@ export async function syncTools(): Promise<DiscoveryResult> {
     throw new Error(`Tool discovery failed: ${errorText}`);
   }
 
-  return res.json();
+  return jsonResponse<DiscoveryResult>(res);
 }
 
 // -----------------------------------------------------------------------------
@@ -1423,7 +1442,7 @@ export async function executeToolManually(
     throw new Error(`Failed to execute tool: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<ManualToolExecuteResponse>(res);
 }
 
 // -----------------------------------------------------------------------------
@@ -1445,7 +1464,7 @@ export async function getYoloMode(): Promise<boolean> {
     throw new Error(`Failed to get YOLO mode: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data = await jsonResponse<{ enabled: boolean }>(res);
   return data.enabled;
 }
 
@@ -1538,7 +1557,7 @@ export async function getPendingApprovals(chatId: string): Promise<PendingApprov
     throw new Error(`Failed to get pending approvals: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data = await jsonResponse<{ pending_approvals: PendingApproval[] }>(res);
   return data.pending_approvals;
 }
 
@@ -1560,7 +1579,7 @@ export async function approveToolCall(toolCallId: string, chatId: string): Promi
     throw new Error(`Failed to approve tool call: ${errorText}`);
   }
 
-  return res.json();
+  return jsonResponse<ApprovalResult>(res);
 }
 
 /**
@@ -1623,7 +1642,7 @@ export async function uploadAttachment(file: File): Promise<UploadResponse> {
     throw new Error(`Failed to upload file: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<UploadResponse>(res);
 }
 
 // -----------------------------------------------------------------------------
@@ -1646,7 +1665,7 @@ export async function getWebSearchEnabled(chatId: string): Promise<boolean> {
     throw new Error(`Failed to get web search setting: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data = await jsonResponse<{ enabled: boolean }>(res);
   return data.enabled;
 }
 
@@ -1703,7 +1722,7 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewData | n
     throw new Error(`Failed to fetch link preview: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<LinkPreviewData>(res);
 }
 
 // -----------------------------------------------------------------------------
@@ -1764,7 +1783,7 @@ export async function fetchTemplates(): Promise<TemplateListResponse> {
     throw new Error(`Failed to fetch templates: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<TemplateListResponse>(res);
 }
 
 /**
@@ -1783,7 +1802,7 @@ export async function fetchTemplate(id: string): Promise<TemplateResponse> {
     throw new Error(`Failed to fetch template: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<TemplateResponse>(res);
 }
 
 export type CreateTemplateInput = Omit<Template, "id">;
@@ -1805,7 +1824,7 @@ export async function createTemplate(template: CreateTemplateInput): Promise<Tem
     throw new Error(`Failed to create template: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<TemplateResponse>(res);
 }
 
 export type UpdateTemplateInput = Partial<Omit<Template, "id">>;
@@ -1829,7 +1848,7 @@ export async function updateTemplate(id: string, updates: UpdateTemplateInput): 
     throw new Error(`Failed to update template: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<TemplateResponse>(res);
 }
 
 /**
@@ -1866,7 +1885,7 @@ export async function resetTemplate(id: string): Promise<TemplateResponse> {
     throw new Error(`Failed to reset template: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<TemplateResponse>(res);
 }
 
 /**
@@ -1888,7 +1907,7 @@ export async function updateDefaultTemplate(id: string, updates: UpdateTemplateI
     throw new Error(`Failed to update default template: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<TemplateResponse>(res);
 }
 
 /**
@@ -1908,7 +1927,7 @@ export async function importTemplates(templates: Template[]): Promise<{ imported
     throw new Error(`Failed to import templates: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ imported: number }>(res);
 }
 
 /**
@@ -1926,7 +1945,7 @@ export async function exportTemplates(): Promise<Template[]> {
     throw new Error(`Failed to export templates: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Template[]>(res);
 }
 
 // ============================================================================
@@ -1960,7 +1979,7 @@ export async function fetchSkills(): Promise<SkillListResponse> {
     throw new Error(`Failed to fetch skills: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<SkillListResponse>(res);
 }
 
 /**
@@ -1979,7 +1998,7 @@ export async function fetchSkill(id: string): Promise<SkillResponse> {
     throw new Error(`Failed to fetch skill: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<SkillResponse>(res);
 }
 
 export type CreateSkillInput = Omit<Skill, "id">;
@@ -2001,7 +2020,7 @@ export async function createSkill(skill: CreateSkillInput): Promise<SkillRespons
     throw new Error(`Failed to create skill: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<SkillResponse>(res);
 }
 
 export type UpdateSkillInput = Partial<Omit<Skill, "id">>;
@@ -2024,7 +2043,7 @@ export async function updateSkill(id: string, updates: UpdateSkillInput): Promis
     throw new Error(`Failed to update skill: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<SkillResponse>(res);
 }
 
 /**
@@ -2062,7 +2081,7 @@ export async function importSkills(skills: Skill[]): Promise<{ imported: number 
     throw new Error(`Failed to import skills: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<{ imported: number }>(res);
 }
 
 /**
@@ -2080,7 +2099,7 @@ export async function exportSkills(): Promise<Skill[]> {
     throw new Error(`Failed to export skills: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<Skill[]>(res);
 }
 
 // ============================================================================
@@ -2130,7 +2149,7 @@ export async function fetchSkillSuggestions(params: {
       return { suggestions: [], queryCount: 0, method: "error" };
     }
 
-    return res.json();
+    return jsonResponse<SkillSuggestResponse>(res);
   } catch {
     return { suggestions: [], queryCount: 0, method: "error" };
   }
@@ -2163,7 +2182,7 @@ export async function syncSkills(): Promise<SyncStatus> {
     throw new Error(`Failed to sync skills: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<SyncStatus>(res);
 }
 
 // =============================================================================
@@ -2250,6 +2269,8 @@ export interface AgentEvent {
   sequence: number;
   // Tool fields
   tool_name?: string;
+  /** Correlation ID linking a tool_call event to its tool_result event. */
+  tool_call_id?: string;
   tool_input?: string;
   tool_output?: string;
   tool_success?: boolean;
@@ -2284,13 +2305,13 @@ export async function startAgentMode(
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
     const detail = body?.error?.details?.user_message;
     const message = detail || body?.error?.message || `Failed to start agent mode: ${res.status}`;
     throw new AgentModeError(message, body?.error?.code, body?.error?.recovery);
   }
 
-  return res.json();
+  return jsonResponse<AgentModeResponse>(res);
 }
 
 /**
@@ -2310,13 +2331,13 @@ export async function sendAgentMessage(
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
     const detail = body?.error?.details?.user_message;
     const msg = detail || body?.error?.message || `Failed to send agent message: ${res.status}`;
     throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
   }
 
-  return res.json();
+  return jsonResponse<{ success: boolean; run_id: string }>(res);
 }
 
 /**
@@ -2341,7 +2362,7 @@ export async function getAgentEvents(
     throw new Error(`Failed to get agent events: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<AgentEventsResponse>(res);
 }
 
 /**
@@ -2359,7 +2380,7 @@ export async function getAgentStatus(chatId: string): Promise<AgentModeStatus> {
     throw new Error(`Failed to get agent status: ${res.status}`);
   }
 
-  return res.json();
+  return jsonResponse<AgentModeStatus>(res);
 }
 
 /**
@@ -2376,13 +2397,13 @@ export async function stopAgentMode(
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
     const detail = body?.error?.details?.user_message;
     const msg = detail || body?.error?.message || `Failed to stop agent: ${res.status}`;
     throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
   }
 
-  return res.json();
+  return jsonResponse<{ success: boolean; run_id: string }>(res);
 }
 
 /**
@@ -2400,11 +2421,11 @@ export async function clearAgentMode(
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
     const detail = body?.error?.details?.user_message;
     const msg = detail || body?.error?.message || `Failed to clear agent mode: ${res.status}`;
     throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
   }
 
-  return res.json();
+  return jsonResponse<{ success: boolean; chat_mode: "llm" }>(res);
 }

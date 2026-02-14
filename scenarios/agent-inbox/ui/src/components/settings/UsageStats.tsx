@@ -39,7 +39,7 @@ export function UsageStats({ isOpen, onClose }: UsageStatsProps) {
 
     fetchUsageStats()
       .then(setStats)
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, [isOpen]);
 

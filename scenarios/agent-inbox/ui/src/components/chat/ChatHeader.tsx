@@ -28,6 +28,8 @@ interface ChatHeaderProps {
   chat: Chat;
   models: Model[];
   labels: Label[];
+  /** Current chat mode — model selector is hidden in agent mode. */
+  chatMode?: "llm" | "agent";
   onUpdateChat: (data: { name?: string; model?: string }) => void;
   onToggleRead: () => void;
   onToggleStar: () => void;
@@ -41,6 +43,7 @@ export function ChatHeader({
   chat,
   models,
   labels,
+  chatMode,
   onUpdateChat,
   onToggleRead,
   onToggleStar,
@@ -105,19 +108,21 @@ export function ChatHeader({
               </Tooltip>
             </div>
 
-            {/* Model Selector, Tools & Mode */}
-            <div className="flex items-center gap-3 mt-1.5">
-              <ModelSelector
-                models={models}
-                selectedModel={chat.model}
-                onSelectModel={(modelId) => onUpdateChat({ model: modelId })}
-                compact
-              />
+            {/* Model Selector, Tools & Mode — hidden in agent mode */}
+            {chatMode !== "agent" && (
+              <div className="flex items-center gap-3 mt-1.5">
+                <ModelSelector
+                  models={models}
+                  selectedModel={chat.model}
+                  onSelectModel={(modelId) => onUpdateChat({ model: modelId })}
+                  compact
+                />
 
-              <span className="text-xs text-slate-600">•</span>
+                <span className="text-xs text-slate-600">•</span>
 
-              <ChatToolsSelector chatId={chat.id} toolsEnabled={chat.tools_enabled} />
-            </div>
+                <ChatToolsSelector chatId={chat.id} toolsEnabled={chat.tools_enabled} />
+              </div>
+            )}
 
             {/* Labels */}
             {assignedLabels.length > 0 && (

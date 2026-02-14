@@ -185,9 +185,7 @@ func (s *SkillSuggestService) generateSearchQueries(ctx context.Context, summary
 	if len(summary) < 100 {
 		// Extract just the meaningful part for short inputs
 		query := summary
-		if strings.HasPrefix(query, "Current input: ") {
-			query = strings.TrimPrefix(query, "Current input: ")
-		}
+		query = strings.TrimPrefix(query, "Current input: ")
 		return []string{query}, "direct"
 	}
 
@@ -342,15 +340,7 @@ func (s *SkillSuggestService) mergeResults(allResults []pmSearchResult, excludeI
 	// Convert to slice and sort by score descending
 	suggestions := make([]SuggestedSkill, 0, len(bestByID))
 	for _, r := range bestByID {
-		suggestions = append(suggestions, SuggestedSkill{
-			ID:           r.ID,
-			Name:         r.Name,
-			Description:  r.Description,
-			Tags:         r.Tags,
-			Modes:        r.Modes,
-			Score:        r.Score,
-			ScorePercent: r.ScorePercent,
-		})
+		suggestions = append(suggestions, SuggestedSkill(r))
 	}
 
 	sort.Slice(suggestions, func(i, j int) bool {

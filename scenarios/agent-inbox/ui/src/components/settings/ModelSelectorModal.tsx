@@ -41,9 +41,9 @@ function getRecentModelIds(): string[] {
   try {
     const stored = localStorage.getItem(RECENT_MODELS_KEY);
     if (!stored) return [];
-    const parsed = JSON.parse(stored);
+    const parsed: unknown = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((id): id is string => typeof id === "string");
+    return (parsed as unknown[]).filter((id): id is string => typeof id === "string");
   } catch {
     return [];
   }

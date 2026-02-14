@@ -70,6 +70,10 @@ interface MessageInputProps {
   activeTemplateId?: string | null;
   /** Callback to deactivate the active template */
   onTemplateDeactivate?: () => void;
+  /** Block sending without disabling the textarea (e.g. agent is busy) */
+  disableSend?: boolean;
+  /** Tooltip reason when disableSend is true */
+  disableSendReason?: string;
 }
 
 export function MessageInput({
@@ -91,6 +95,8 @@ export function MessageInput({
   onTemplateActivated,
   activeTemplateId,
   onTemplateDeactivate,
+  disableSend,
+  disableSendReason,
 }: MessageInputProps) {
   // Support both isLoading and deprecated isGenerating
   const loading = isLoading ?? isGenerating ?? false;
@@ -203,7 +209,10 @@ export function MessageInput({
   });
 
   // Only use attachments if enabled
-  const effectiveAttachments = enableAttachments ? attachments : [];
+  const effectiveAttachments = useMemo(
+    () => (enableAttachments ? attachments : []),
+    [enableAttachments, attachments]
+  );
 
   // Model capabilities (only relevant when attachments are enabled)
   const modelSupportsImages = enableAttachments && supportsImages(currentModel);
@@ -412,6 +421,7 @@ export function MessageInput({
         onCancelEdit();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSlashCommandSelect is defined after this hook; the inline call at line 399 captures it via closure and both are stable across renders
     [handleSubmit, isEditMode, onCancelEdit, slashPopupOpen, filteredSlashCommands, slashSelectedIndex]
   );
 
@@ -647,7 +657,7 @@ export function MessageInput({
   const finalContent = activeTemplate ? getFilledTemplateContent() : message;
   const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
   const canSend = (() => {
-    if (!hasContent || loading) return false;
+    if (!hasContent || loading || disableSend) return false;
     if (activeTemplate && !isTemplateValid()) return false;
     if (enableAttachments) {
       if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
@@ -660,6 +670,8 @@ export function MessageInput({
   let sendTooltip = isEditMode ? "Save edit (Enter)" : "Send message (Enter)";
   if (loading) {
     sendTooltip = "AI is responding...";
+  } else if (disableSend) {
+    sendTooltip = disableSendReason || "Sending is temporarily disabled";
   } else if (activeTemplate && !isTemplateValid()) {
     const missing = getTemplateMissingFields();
     sendTooltip = `Fill required fields: ${missing.join(", ")}`;

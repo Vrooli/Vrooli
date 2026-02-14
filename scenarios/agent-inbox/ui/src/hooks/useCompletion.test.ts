@@ -64,6 +64,7 @@ describe("useCompletion", () => {
       // Content accumulates during streaming
       expect(api.completeChat).toHaveBeenCalledWith("chat-123", expect.objectContaining({
         stream: true,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         onEvent: expect.any(Function),
       }));
     });

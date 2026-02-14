@@ -72,7 +72,7 @@ func NewProtocolHandler(cfg ProtocolHandlerConfig) *ProtocolHandler {
 	}
 
 	// Initialize resilience from config or defaults
-	retryCfg := resilience.DefaultRetryConfig()
+	var retryCfg resilience.RetryConfig
 	if cfg.RetryCfg != nil {
 		retryCfg = *cfg.RetryCfg
 	} else {

@@ -39,7 +39,7 @@ export function ScenarioViewer({ scenarioName, path, onBack }: ScenarioViewerPro
       try {
         const response = await fetch(`/embedded/${scenarioName}/target`);
         if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
+          const data = await response.json().catch(() => ({})) as { detail?: string };
           setErrorMessage(data.detail || "Scenario is not available");
           setLoadState("error");
           return;
@@ -76,7 +76,7 @@ export function ScenarioViewer({ scenarioName, path, onBack }: ScenarioViewerPro
     try {
       const response = await fetch(`/embedded/${scenarioName}/target`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as { url?: string };
         window.open(data.url, "_blank");
       }
     } catch {

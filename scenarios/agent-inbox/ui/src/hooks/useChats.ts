@@ -325,6 +325,7 @@ export function useChats(options: UseChatsOptions = {}) {
       }
     },
     // CRITICAL: Use completion.runCompletion, not the whole completion object (see sendMessageAndComplete)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedChatId, isEditing, completion.runCompletion, cacheManager]
   );
 
@@ -388,6 +389,7 @@ export function useChats(options: UseChatsOptions = {}) {
     // While useCompletion's return is memoized, its values change when state changes (e.g., isGenerating).
     // Using the whole object would cause sendMessageAndComplete to be recreated whenever any
     // completion state changes, cascading through all callbacks that depend on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [queryClient, completion.runCompletion]
   );
 
@@ -495,6 +497,7 @@ export function useChats(options: UseChatsOptions = {}) {
       }
     },
     // CRITICAL: Use completion.approveTool, not the whole completion object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedChatId, completion.approveTool, cacheManager]
   );
 
@@ -506,6 +509,7 @@ export function useChats(options: UseChatsOptions = {}) {
       await cacheManager.invalidateChat(selectedChatId);
     },
     // CRITICAL: Use completion.rejectTool, not the whole completion object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedChatId, completion.rejectTool, cacheManager]
   );
 
@@ -514,34 +518,42 @@ export function useChats(options: UseChatsOptions = {}) {
   // and would cause cascading re-renders without memoization.
   const createChatAction = useCallback(
     (params?: Parameters<typeof createChat>[0]) => createChatMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mutation.mutate identity changes but mutation object is stable
     [createChatMutation.mutate]
   );
   const deleteChatAction = useCallback(
     (chatId: string) => deleteChatMutation.mutate(chatId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [deleteChatMutation.mutate]
   );
   const updateChatAction = useCallback(
     (params: Parameters<typeof updateChatMutation.mutate>[0]) => updateChatMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [updateChatMutation.mutate]
   );
   const toggleReadAction = useCallback(
     (params: Parameters<typeof toggleReadMutation.mutate>[0]) => toggleReadMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [toggleReadMutation.mutate]
   );
   const toggleArchiveAction = useCallback(
     (params: Parameters<typeof toggleArchiveMutation.mutate>[0]) => toggleArchiveMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [toggleArchiveMutation.mutate]
   );
   const toggleStarAction = useCallback(
     (params: Parameters<typeof toggleStarMutation.mutate>[0]) => toggleStarMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [toggleStarMutation.mutate]
   );
   const autoNameChatAction = useCallback(
     (chatId: string) => autoNameChatMutation.mutate(chatId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [autoNameChatMutation.mutate]
   );
   const bulkOperateAction = useCallback(
     (params: Parameters<typeof bulkOperateMutation.mutate>[0]) => bulkOperateMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [bulkOperateMutation.mutate]
   );
 

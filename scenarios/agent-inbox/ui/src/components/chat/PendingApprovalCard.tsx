@@ -32,7 +32,7 @@ export function PendingApprovalCard({
   const formatArguments = (args: unknown): string => {
     if (typeof args === "string") {
       try {
-        const parsed = JSON.parse(args);
+        const parsed: unknown = JSON.parse(args);
         return JSON.stringify(parsed, null, 2);
       } catch {
         return args;

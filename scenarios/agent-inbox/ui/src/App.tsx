@@ -281,6 +281,7 @@ function AppContent() {
         activeTemplate.deactivate();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Depend on .deactivate specifically, NOT the whole activeTemplate object (see comment above)
   }, [activeTemplate.deactivate, selectedChatId, chatData?.chat?.id]);
 
   // Handle template activation (when user selects a template with suggested tools)
@@ -295,6 +296,7 @@ function AppContent() {
       // Then activate the template at the chat level
       await activeTemplate.activate(templateId, toolIds);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Depend on .activate specifically, NOT the whole activeTemplate object (see comment above)
     [selectedChatId, enableToolsByIds, activeTemplate.activate]
   );
 
@@ -314,7 +316,7 @@ function AppContent() {
       setSidebarOpen(false);
       setChatListOpen(false);
     }
-  }, [selectedChatId]);
+  }, [selectedChatId, setChatListOpen]);
 
   // Calculate unread counts for sidebar badges
   // Memoized to prevent creating new object on every render
@@ -337,7 +339,7 @@ function AppContent() {
         setChatListOpen(false);
       }
     },
-    [selectChat]
+    [selectChat, setChatListOpen]
   );
 
   const handleNewChat = useCallback(() => {
@@ -404,7 +406,7 @@ function AppContent() {
 
   const handleBackToList = useCallback(() => {
     setChatListOpen(true);
-  }, []);
+  }, [setChatListOpen]);
 
   const handleOpenSettings = useCallback(() => {
     setShowSettings(true);

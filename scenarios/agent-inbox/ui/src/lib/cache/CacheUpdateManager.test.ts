@@ -20,7 +20,7 @@ describe("CacheUpdateManager", () => {
       setQueryData: vi.fn((key, updater) => {
         setQueryDataCalls.push({ key: key as unknown[], updater });
       }),
-      invalidateQueries: vi.fn(async (filters) => {
+      invalidateQueries: vi.fn(async (filters: { queryKey?: unknown[] }) => {
         invalidateQueriesCalls.push(filters);
       }),
     };

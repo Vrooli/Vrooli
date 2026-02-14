@@ -18,7 +18,7 @@ function loadSettings(): SuggestionsSettings {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (!stored) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(stored);
+    const parsed = JSON.parse(stored) as Record<string, unknown>;
     return {
       visible:
         typeof parsed.visible === "boolean"

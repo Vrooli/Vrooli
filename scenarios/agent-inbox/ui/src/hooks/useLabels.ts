@@ -87,18 +87,22 @@ export function useLabels() {
   // through useChats to all consuming components.
   const createLabelAction = useCallback(
     (data: Parameters<typeof createLabel>[0]) => createLabelMutation.mutate(data),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [createLabelMutation.mutate]
   );
   const deleteLabelAction = useCallback(
     (labelId: string) => deleteLabelMutation.mutate(labelId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [deleteLabelMutation.mutate]
   );
   const assignLabelAction = useCallback(
     (params: { chatId: string; labelId: string }) => assignLabelMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [assignLabelMutation.mutate]
   );
   const removeLabelAction = useCallback(
     (params: { chatId: string; labelId: string }) => removeLabelMutation.mutate(params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [removeLabelMutation.mutate]
   );
 

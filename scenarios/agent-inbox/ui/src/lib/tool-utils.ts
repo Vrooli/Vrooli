@@ -66,7 +66,7 @@ export function parseToolInput(argsJson: string | undefined | null): ParsedToolI
   }
 
   try {
-    const parsed = JSON.parse(argsJson);
+    const parsed: unknown = JSON.parse(argsJson);
 
     if (typeof parsed !== "object" || parsed === null) {
       return {
@@ -119,7 +119,7 @@ export function formatToolResult(result: unknown): string {
   if (typeof result === "string") {
     // Try to parse and re-stringify for formatting
     try {
-      const parsed = JSON.parse(result);
+      const parsed: unknown = JSON.parse(result);
       return JSON.stringify(parsed, null, 2);
     } catch {
       return result;

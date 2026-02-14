@@ -193,18 +193,6 @@ func (c *AgentManagerClient) doWithRetry(ctx context.Context, method, path strin
 	return resp, err
 }
 
-// isConnectionError returns true for errors that indicate the service may have
-// moved to a different address (connection refused, timeout, DNS errors).
-func isConnectionError(err error) bool {
-	if err == nil {
-		return false
-	}
-	s := err.Error()
-	return strings.Contains(s, "connection refused") ||
-		strings.Contains(s, "no such host") ||
-		strings.Contains(s, "dial tcp")
-}
-
 // =============================================================================
 // Proto Status Helpers
 // =============================================================================
@@ -406,8 +394,9 @@ type TranslatedEvent struct {
 
 	// Tool fields (for tool_call and tool_result types)
 	ToolName    string `json:"tool_name,omitempty"`
-	ToolInput   string `json:"tool_input,omitempty"`  // JSON string of tool input
-	ToolOutput  string `json:"tool_output,omitempty"` // Tool result output
+	ToolCallID  string `json:"tool_call_id,omitempty"` // Correlation ID linking tool_call ↔ tool_result
+	ToolInput   string `json:"tool_input,omitempty"`   // JSON string of tool input
+	ToolOutput  string `json:"tool_output,omitempty"`  // Tool result output
 	ToolSuccess bool   `json:"tool_success,omitempty"`
 
 	// Status fields (for status type)
@@ -601,6 +590,7 @@ func TranslateProtoEvent(ev *domainpb.RunEvent) *TranslatedEvent {
 		tc := d.ToolCall
 		event.Role = "assistant"
 		event.ToolName = tc.GetToolName()
+		event.ToolCallID = tc.GetToolCallId()
 		if input := tc.GetInput(); input != nil {
 			inputBytes, _ := json.Marshal(input.AsMap())
 			event.ToolInput = string(inputBytes)
@@ -610,6 +600,7 @@ func TranslateProtoEvent(ev *domainpb.RunEvent) *TranslatedEvent {
 		tr := d.ToolResult
 		event.Role = "tool"
 		event.ToolName = tr.GetToolName()
+		event.ToolCallID = tr.GetToolCallId()
 		event.ToolOutput = tr.GetOutput()
 		event.ToolSuccess = tr.GetSuccess()
 		if errMsg := tr.GetError(); errMsg != "" {

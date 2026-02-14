@@ -37,7 +37,7 @@ export function useAgentSettings() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed = JSON.parse(stored) as Partial<AgentModeSettings>;
         setSettingsState({ ...DEFAULT_SETTINGS, ...parsed });
       }
     } catch (e) {

@@ -197,7 +197,7 @@ export function useAsyncStatus(
     // Handle 'status' events
     eventSource.addEventListener("status", (event) => {
       try {
-        const raw = JSON.parse(event.data);
+        const raw: unknown = JSON.parse(event.data as string) as unknown;
         if (!isAsyncStatusUpdate(raw)) {
           console.warn("[useAsyncStatus] Unexpected status update shape");
           return;
@@ -229,7 +229,7 @@ export function useAsyncStatus(
         );
 
         if (!response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { error?: string };
           throw new Error(data.error || "Failed to cancel operation");
         }
 
@@ -262,11 +262,11 @@ export function useAsyncStatus(
         );
 
         if (!response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { error?: string };
           throw new Error(data.error || "Failed to refresh operation");
         }
 
-        const raw = await response.json();
+        const raw: unknown = (await response.json()) as unknown;
         if (!isAsyncStatusUpdate(raw)) {
           throw new Error("Unexpected response shape from refresh");
         }
@@ -302,11 +302,11 @@ export function useAsyncStatus(
         );
 
         if (!response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { error?: string };
           throw new Error(data.error || "Failed to fetch history");
         }
 
-        const raw = await response.json();
+        const raw: unknown = (await response.json()) as unknown;
         if (!isAsyncHistoryResponse(raw)) {
           throw new Error("Unexpected response shape from history");
         }

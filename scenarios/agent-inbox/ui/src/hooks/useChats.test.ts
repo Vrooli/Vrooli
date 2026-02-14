@@ -544,7 +544,9 @@ describe("useChats", () => {
         "msg-1",
         expect.objectContaining({
           stream: true,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           onChunk: expect.any(Function),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           onEvent: expect.any(Function),
         })
       );

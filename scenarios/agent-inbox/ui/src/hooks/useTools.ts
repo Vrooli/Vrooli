@@ -323,6 +323,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     async (scenario: string, toolName: string, enabled: boolean) => {
       await toggleMutation.mutateAsync({ scenario, toolName, enabled });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [toggleMutation.mutateAsync]
   );
 
@@ -330,6 +331,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     async (scenario: string, toolName: string, override: ApprovalOverride) => {
       await approvalMutation.mutateAsync({ scenario, toolName, override });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [approvalMutation.mutateAsync]
   );
 
@@ -337,11 +339,13 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     async (scenario: string, toolName: string) => {
       await resetMutation.mutateAsync({ scenario, toolName });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [resetMutation.mutateAsync]
   );
 
   const syncDiscoveredTools = useCallback(async () => {
     return await syncMutation.mutateAsync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncMutation.mutateAsync]);
 
   const refetchTools = useCallback(() => {
@@ -375,6 +379,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [toolsByScenario, toggleMutation.mutateAsync]
   );
 

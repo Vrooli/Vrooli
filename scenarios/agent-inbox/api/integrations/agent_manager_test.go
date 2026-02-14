@@ -530,6 +530,59 @@ func TestTranslateProtoEvent_LargeSequence(t *testing.T) {
 	}
 }
 
+func TestTranslateProtoEvent_ToolCallID(t *testing.T) {
+	input, _ := structpb.NewStruct(map[string]interface{}{"command": "ls"})
+	ev := &domainpb.RunEvent{
+		Id:        "evt-tc-id",
+		Sequence:  50,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL,
+		Timestamp: timestamppb.New(time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_ToolCall{
+			ToolCall: &domainpb.ToolCallEventData{
+				ToolName:   "Bash",
+				Input:      input,
+				ToolCallId: "call_abc123",
+			},
+		},
+	}
+
+	event := TranslateProtoEvent(ev)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.ToolCallID != "call_abc123" {
+		t.Errorf("expected ToolCallID call_abc123, got %s", event.ToolCallID)
+	}
+}
+
+func TestTranslateProtoEvent_ToolResultCallID(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-tr-id",
+		Sequence:  51,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT,
+		Timestamp: timestamppb.New(time.Date(2025, 6, 1, 12, 0, 1, 0, time.UTC)),
+		Data: &domainpb.RunEvent_ToolResult{
+			ToolResult: &domainpb.ToolResultEventData{
+				ToolName:   "Bash",
+				ToolCallId: "call_abc123",
+				Output:     "done",
+				Success:    true,
+			},
+		},
+	}
+
+	event := TranslateProtoEvent(ev)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.ToolCallID != "call_abc123" {
+		t.Errorf("expected ToolCallID call_abc123, got %s", event.ToolCallID)
+	}
+	if event.ToolOutput != "done" {
+		t.Errorf("expected output 'done', got %s", event.ToolOutput)
+	}
+}
+
 // =============================================================================
 // ProtoRunStatusToLocal tests
 // =============================================================================

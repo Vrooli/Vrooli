@@ -216,6 +216,7 @@ function MessageListInner({
   // interact with browser reflow and cause React reconciliation issues.
   // Uses stable primitive dependencies instead of array references to prevent
   // unnecessary effect runs.
+  const hasStreamingContent = Boolean(streamingContent);
   useEffect(() => {
     if (!scrollToMessageId) {
       // Clear any pending scroll
@@ -232,7 +233,7 @@ function MessageListInner({
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [messages.length, Boolean(streamingContent), activeToolCalls.length, scrollToMessageId]);
+  }, [messages.length, hasStreamingContent, activeToolCalls.length, scrollToMessageId]);
 
   const isCompact = viewMode === "compact";
 
@@ -1036,7 +1037,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
                 ? message.content
                 : (message.content ? JSON.stringify(message.content, null, 2) : "");
               try {
-                const parsed = JSON.parse(content);
+                const parsed: unknown = JSON.parse(content);
                 return JSON.stringify(parsed, null, 2);
               } catch {
                 return content;
@@ -1078,7 +1079,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
     const formatToolContent = (content: unknown): string => {
       if (typeof content === "string") {
         try {
-          const parsed = JSON.parse(content);
+          const parsed: unknown = JSON.parse(content);
           return JSON.stringify(parsed, null, 2);
         } catch {
           return content;

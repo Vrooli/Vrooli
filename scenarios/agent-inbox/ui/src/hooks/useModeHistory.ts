@@ -14,14 +14,15 @@ function loadHistory(): ModeHistoryEntry[] {
   try {
     const stored = localStorage.getItem(HISTORY_KEY);
     if (!stored) return [];
-    const parsed = JSON.parse(stored);
+    const parsed: unknown = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
+    return (parsed as unknown[]).filter(
       (entry): entry is ModeHistoryEntry =>
         typeof entry === "object" &&
-        typeof entry.path === "string" &&
-        typeof entry.count === "number" &&
-        typeof entry.lastUsed === "string"
+        entry !== null &&
+        typeof (entry as Record<string, unknown>).path === "string" &&
+        typeof (entry as Record<string, unknown>).count === "number" &&
+        typeof (entry as Record<string, unknown>).lastUsed === "string"
     );
   } catch {
     return [];
