@@ -41,8 +41,8 @@ type OpenRouterMessage struct {
 // GeneratedImage represents an AI-generated image in an OpenRouter response.
 // Images are returned as base64 data URLs in PNG format.
 type GeneratedImage struct {
-	Type     string              `json:"type"`      // "image_url"
-	ImageURL *GeneratedImageURL  `json:"image_url"` // Contains the base64 data URL
+	Type     string             `json:"type"`      // "image_url"
+	ImageURL *GeneratedImageURL `json:"image_url"` // Contains the base64 data URL
 }
 
 // GeneratedImageURL contains the URL for a generated image.
@@ -276,12 +276,19 @@ func (c *OpenRouterClient) ParseNonStreamingResponse(body io.Reader) (*OpenRoute
 }
 
 // ConvertMessages converts domain messages to OpenRouter format.
+// Messages with missing or invalid "role" fields are skipped.
 func ConvertMessages(messages []map[string]interface{}) []OpenRouterMessage {
-	result := make([]OpenRouterMessage, len(messages))
-	for i, m := range messages {
+	result := make([]OpenRouterMessage, 0, len(messages))
+	for _, m := range messages {
+		role, ok := m["role"].(string)
+		if !ok {
+			continue
+		}
 		msg := OpenRouterMessage{
-			Role:    m["role"].(string),
-			Content: m["content"].(string),
+			Role: role,
+		}
+		if content, ok := m["content"].(string); ok {
+			msg.Content = content
 		}
 		if tcid, ok := m["tool_call_id"].(string); ok {
 			msg.ToolCallID = tcid
@@ -289,7 +296,7 @@ func ConvertMessages(messages []map[string]interface{}) []OpenRouterMessage {
 		if tcs, ok := m["tool_calls"].([]domain.ToolCall); ok {
 			msg.ToolCalls = tcs
 		}
-		result[i] = msg
+		result = append(result, msg)
 	}
 	return result
 }

@@ -19,9 +19,9 @@ import { UsageStats } from "./components/settings/UsageStats";
 import { TemplateEditorModal } from "./components/chat/TemplateEditorModal";
 import { ScenarioViewer, useScenarioViewerRoute } from "./components/scenarios/ScenarioViewer";
 import { Button } from "./components/ui/button";
-import { ToastProvider } from "./components/ui/toast";
+import { ToastProvider, useToast } from "./components/ui/toast";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
-import { deleteArchivedChats, markAllChatsAsRead, startAgentMode, createChat as createChatAPI } from "./lib/api";
+import { deleteArchivedChats, markAllChatsAsRead, startAgentMode, deleteChat as deleteChatAPI, AgentModeError, createChat as createChatAPI } from "./lib/api";
 import type { AgentStartConfig } from "./components/chat/AgentStartModal";
 import type { MessagePayload } from "./components/chat/MessageInput";
 import { getDefaultModel } from "./components/settings/Settings";
@@ -100,6 +100,7 @@ function AppContent() {
   const [isClearingArchived, setIsClearingArchived] = useState(false);
   const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
   const queryClient = useQueryClient();
+  const { addToast } = useToast();
   const isMobile = useIsMobile();
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Focused chat index for j/k navigation (separate from selected chat)
@@ -361,11 +362,12 @@ function AppContent() {
       const hasContent = payload.content.trim();
       if (!hasContent) return;
 
+      let chatId: string | undefined;
       try {
         // Create chat in agent mode with default model
         const defaultModel = getDefaultModel();
         const newChat = await createChatAPI({ model: defaultModel, chat_mode: "agent" });
-        const chatId = newChat.id;
+        chatId = newChat.id;
 
         // Select the new chat
         selectChat(chatId);
@@ -384,9 +386,20 @@ function AppContent() {
         queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
       } catch (error) {
         console.error("Failed to create agent chat:", error);
+        // Clean up the partially-created chat so the user isn't left with a broken empty chat
+        if (chatId) {
+          try { await deleteChatAPI(chatId); } catch { /* best effort */ }
+          selectChat("");
+          queryClient.invalidateQueries({ queryKey: ["chats"] });
+        }
+        // Surface the error to the user
+        const msg = error instanceof AgentModeError
+          ? error.message
+          : error instanceof Error ? error.message : "Failed to start agent chat";
+        addToast(msg, "error", 8000);
       }
     },
-    [selectChat, queryClient]
+    [selectChat, queryClient, addToast]
   );
 
   const handleBackToList = useCallback(() => {

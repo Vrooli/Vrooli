@@ -1,24 +1,36 @@
 package integrations
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestTranslateEvent_MessageUser(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-1",
-		"eventType": "message",
-		"sequence":  float64(1),
-		"timestamp": "2025-01-15T10:30:00Z",
-		"data": map[string]interface{}{
-			"role":    "user",
-			"content": "Hello agent",
+// =============================================================================
+// Proto-based TranslateProtoEvent tests
+// =============================================================================
+
+func TestTranslateProtoEvent_MessageUser(t *testing.T) {
+	ts := timestamppb.New(time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC))
+	ev := &domainpb.RunEvent{
+		Id:        "evt-1",
+		Sequence:  1,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+		Timestamp: ts,
+		Data: &domainpb.RunEvent_Message{
+			Message: &domainpb.MessageEventData{
+				Role:    "user",
+				Content: "Hello agent",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -37,25 +49,27 @@ func TestTranslateEvent_MessageUser(t *testing.T) {
 	if event.Sequence != 1 {
 		t.Errorf("expected sequence 1, got %d", event.Sequence)
 	}
-	expectedTime, _ := time.Parse(time.RFC3339, "2025-01-15T10:30:00Z")
+	expectedTime := time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)
 	if !event.Timestamp.Equal(expectedTime) {
 		t.Errorf("expected timestamp %v, got %v", expectedTime, event.Timestamp)
 	}
 }
 
-func TestTranslateEvent_MessageAssistant(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-2",
-		"eventType": "message",
-		"sequence":  float64(2),
-		"timestamp": "2025-01-15T10:31:00Z",
-		"data": map[string]interface{}{
-			"role":    "assistant",
-			"content": "I'll help you with that",
+func TestTranslateProtoEvent_MessageAssistant(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-2",
+		Sequence:  2,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 31, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Message{
+			Message: &domainpb.MessageEventData{
+				Role:    "assistant",
+				Content: "I'll help you with that",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -67,19 +81,22 @@ func TestTranslateEvent_MessageAssistant(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_ToolCall(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-3",
-		"eventType": "tool_call",
-		"sequence":  float64(3),
-		"timestamp": "2025-01-15T10:32:00Z",
-		"data": map[string]interface{}{
-			"toolName": "read_file",
-			"input":    map[string]interface{}{"path": "/tmp/test.txt"},
+func TestTranslateProtoEvent_ToolCall(t *testing.T) {
+	input, _ := structpb.NewStruct(map[string]interface{}{"path": "/tmp/test.txt"})
+	ev := &domainpb.RunEvent{
+		Id:        "evt-3",
+		Sequence:  3,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 32, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_ToolCall{
+			ToolCall: &domainpb.ToolCallEventData{
+				ToolName: "read_file",
+				Input:    input,
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -92,29 +109,60 @@ func TestTranslateEvent_ToolCall(t *testing.T) {
 	if event.ToolName != "read_file" {
 		t.Errorf("expected toolName read_file, got %s", event.ToolName)
 	}
-	// Input should be JSON-serialized
 	if event.ToolInput == "" {
 		t.Error("expected non-empty tool input")
 	}
-	if event.ToolInput != `{"path":"/tmp/test.txt"}` {
+	// Parse and verify input contains expected data
+	var parsedInput map[string]interface{}
+	if err := json.Unmarshal([]byte(event.ToolInput), &parsedInput); err != nil {
+		t.Fatalf("failed to parse tool input JSON: %v", err)
+	}
+	if parsedInput["path"] != "/tmp/test.txt" {
 		t.Errorf("unexpected tool input: %s", event.ToolInput)
 	}
 }
 
-func TestTranslateEvent_ToolResultSuccess(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-4",
-		"eventType": "tool_result",
-		"sequence":  float64(4),
-		"timestamp": "2025-01-15T10:33:00Z",
-		"data": map[string]interface{}{
-			"toolName": "read_file",
-			"output":   "file contents here",
-			"success":  true,
+func TestTranslateProtoEvent_ToolCallNoInput(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-14",
+		Sequence:  1,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_ToolCall{
+			ToolCall: &domainpb.ToolCallEventData{
+				ToolName: "list_files",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.ToolName != "list_files" {
+		t.Errorf("expected toolName list_files, got %s", event.ToolName)
+	}
+	if event.ToolInput != "" {
+		t.Errorf("expected empty tool input, got %s", event.ToolInput)
+	}
+}
+
+func TestTranslateProtoEvent_ToolResultSuccess(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-4",
+		Sequence:  4,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 33, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_ToolResult{
+			ToolResult: &domainpb.ToolResultEventData{
+				ToolName: "read_file",
+				Output:   "file contents here",
+				Success:  true,
+			},
+		},
+	}
+
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -132,21 +180,23 @@ func TestTranslateEvent_ToolResultSuccess(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_ToolResultError(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-5",
-		"eventType": "tool_result",
-		"sequence":  float64(5),
-		"timestamp": "2025-01-15T10:34:00Z",
-		"data": map[string]interface{}{
-			"toolName": "read_file",
-			"output":   "original output",
-			"success":  true,
-			"error":    "permission denied",
+func TestTranslateProtoEvent_ToolResultError(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-5",
+		Sequence:  5,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 34, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_ToolResult{
+			ToolResult: &domainpb.ToolResultEventData{
+				ToolName: "read_file",
+				Output:   "original output",
+				Success:  true,
+				Error:    "permission denied",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -159,19 +209,49 @@ func TestTranslateEvent_ToolResultError(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_Status(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-6",
-		"eventType": "status",
-		"sequence":  float64(6),
-		"timestamp": "2025-01-15T10:35:00Z",
-		"data": map[string]interface{}{
-			"newStatus": "running",
-			"reason":    "Agent started processing",
+func TestTranslateProtoEvent_ToolResultEmptyError(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-15",
+		Sequence:  1,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_ToolResult{
+			ToolResult: &domainpb.ToolResultEventData{
+				ToolName: "read_file",
+				Output:   "file content",
+				Success:  true,
+				Error:    "", // Empty error string should NOT override
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.ToolOutput != "file content" {
+		t.Errorf("expected output 'file content', got %s", event.ToolOutput)
+	}
+	if !event.ToolSuccess {
+		t.Error("expected tool_success to remain true for empty error")
+	}
+}
+
+func TestTranslateProtoEvent_Status(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-6",
+		Sequence:  6,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_STATUS,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 35, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Status{
+			Status: &domainpb.StatusEventData{
+				NewStatus: "running",
+				Reason:    "Agent started processing",
+			},
+		},
+	}
+
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -189,18 +269,45 @@ func TestTranslateEvent_Status(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_Error(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-7",
-		"eventType": "error",
-		"sequence":  float64(7),
-		"timestamp": "2025-01-15T10:36:00Z",
-		"data": map[string]interface{}{
-			"message": "something went wrong",
+func TestTranslateProtoEvent_StatusNoReason(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-16",
+		Sequence:  1,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_STATUS,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Status{
+			Status: &domainpb.StatusEventData{
+				NewStatus: "complete",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.RunStatus != "complete" {
+		t.Errorf("expected run_status complete, got %s", event.RunStatus)
+	}
+	if event.Content != "" {
+		t.Errorf("expected empty content when no reason, got %s", event.Content)
+	}
+}
+
+func TestTranslateProtoEvent_Error(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-7",
+		Sequence:  7,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_ERROR,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 36, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Error{
+			Error: &domainpb.ErrorEventData{
+				Message: "something went wrong",
+			},
+		},
+	}
+
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -215,19 +322,21 @@ func TestTranslateEvent_Error(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_Log(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-8",
-		"eventType": "log",
-		"sequence":  float64(8),
-		"timestamp": "2025-01-15T10:37:00Z",
-		"data": map[string]interface{}{
-			"level":   "debug",
-			"message": "internal log",
+func TestTranslateProtoEvent_Log(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-8",
+		Sequence:  8,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_LOG,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 37, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Log{
+			Log: &domainpb.LogEventData{
+				Level:   "debug",
+				Message: "internal log",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event for log")
 	}
@@ -243,91 +352,26 @@ func TestTranslateEvent_Log(t *testing.T) {
 	if event.RawData == "" {
 		t.Error("expected non-empty raw_data")
 	}
-	// Verify raw_data contains the level field
 	if !strings.Contains(event.RawData, `"level"`) {
 		t.Errorf("expected raw_data to contain level, got %s", event.RawData)
 	}
 }
 
-func TestTranslateEvent_UnknownTypePassesThrough(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-9",
-		"eventType": "heartbeat",
-		"sequence":  float64(9),
-		"timestamp": "2025-01-15T10:38:00Z",
-		"data": map[string]interface{}{
-			"status": "alive",
+func TestTranslateProtoEvent_Metric(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-20",
+		Sequence:  20,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_METRIC,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 11, 0, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Metric{
+			Metric: &domainpb.MetricEventData{
+				Name:  "tokens_used",
+				Value: 1500,
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
-	if event == nil {
-		t.Fatal("expected non-nil event for unknown type")
-	}
-	if event.Type != "heartbeat" {
-		t.Errorf("expected type heartbeat, got %s", event.Type)
-	}
-	if event.Role != "system" {
-		t.Errorf("expected role system, got %s", event.Role)
-	}
-	if event.RawData == "" {
-		t.Error("expected non-empty raw_data")
-	}
-}
-
-func TestTranslateEvent_UnknownTypeExtractsMessage(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-9b",
-		"eventType": "custom_event",
-		"sequence":  float64(10),
-		"timestamp": "2025-01-15T10:39:00Z",
-		"data": map[string]interface{}{
-			"message": "something happened",
-		},
-	}
-
-	event := TranslateEvent(raw)
-	if event == nil {
-		t.Fatal("expected non-nil event")
-	}
-	if event.Content != "something happened" {
-		t.Errorf("expected content 'something happened', got %s", event.Content)
-	}
-}
-
-func TestTranslateEvent_UnknownTypeExtractsContent(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-9c",
-		"eventType": "custom_event",
-		"sequence":  float64(11),
-		"timestamp": "2025-01-15T10:40:00Z",
-		"data": map[string]interface{}{
-			"content": "some content",
-		},
-	}
-
-	event := TranslateEvent(raw)
-	if event == nil {
-		t.Fatal("expected non-nil event")
-	}
-	if event.Content != "some content" {
-		t.Errorf("expected content 'some content', got %s", event.Content)
-	}
-}
-
-func TestTranslateEvent_Metric(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-20",
-		"eventType": "metric",
-		"sequence":  float64(20),
-		"timestamp": "2025-01-15T11:00:00Z",
-		"data": map[string]interface{}{
-			"name":  "tokens_used",
-			"value": float64(1500),
-		},
-	}
-
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event for metric")
 	}
@@ -348,19 +392,21 @@ func TestTranslateEvent_Metric(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_Artifact(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-21",
-		"eventType": "artifact",
-		"sequence":  float64(21),
-		"timestamp": "2025-01-15T11:01:00Z",
-		"data": map[string]interface{}{
-			"type": "file",
-			"path": "/tmp/output.txt",
+func TestTranslateProtoEvent_Artifact(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-21",
+		Sequence:  21,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_ARTIFACT,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 11, 1, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Artifact{
+			Artifact: &domainpb.ArtifactEventData{
+				Type: "file",
+				Path: "/tmp/output.txt",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event for artifact")
 	}
@@ -381,18 +427,20 @@ func TestTranslateEvent_Artifact(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_MessageDeleted(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-22",
-		"eventType": "message_deleted",
-		"sequence":  float64(22),
-		"timestamp": "2025-01-15T11:02:00Z",
-		"data": map[string]interface{}{
-			"targetEventId": "evt-5",
+func TestTranslateProtoEvent_MessageDeleted(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-22",
+		Sequence:  22,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 11, 2, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_MessageDeleted{
+			MessageDeleted: &domainpb.MessageDeletedEventData{
+				TargetEventId: "evt-5",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event for message_deleted")
 	}
@@ -410,77 +458,70 @@ func TestTranslateEvent_MessageDeleted(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_MissingFields(t *testing.T) {
-	tests := []struct {
-		name string
-		raw  map[string]interface{}
-	}{
-		{
-			name: "empty map",
-			raw:  map[string]interface{}{},
-		},
-		{
-			name: "no data field",
-			raw: map[string]interface{}{
-				"id":        "evt-10",
-				"eventType": "message",
-				"sequence":  float64(10),
-			},
-		},
-		{
-			name: "nil data",
-			raw: map[string]interface{}{
-				"id":        "evt-11",
-				"eventType": "message",
-				"sequence":  float64(11),
-				"data":      nil,
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// Should not panic regardless of missing/nil fields
-			event := TranslateEvent(tc.raw)
-			_ = event
-		})
+func TestTranslateProtoEvent_Nil(t *testing.T) {
+	event := TranslateProtoEvent(nil)
+	if event != nil {
+		t.Error("expected nil event for nil input")
 	}
 }
 
-func TestTranslateEvent_EmptyTimestamp(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-12",
-		"eventType": "message",
-		"sequence":  float64(1),
-		"timestamp": "",
-		"data": map[string]interface{}{
-			"role":    "user",
-			"content": "test",
+func TestTranslateProtoEvent_NoDataField(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-30",
+		Sequence:  30,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)),
+		// Data is nil — no oneof variant set
+	}
+
+	// Should not panic
+	event := TranslateProtoEvent(ev)
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.Role != "system" {
+		t.Errorf("expected default role system for nil data, got %s", event.Role)
+	}
+}
+
+func TestTranslateProtoEvent_NoTimestamp(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-31",
+		Sequence:  1,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+		// Timestamp is nil
+		Data: &domainpb.RunEvent_Message{
+			Message: &domainpb.MessageEventData{
+				Role:    "user",
+				Content: "test",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
 	if !event.Timestamp.IsZero() {
-		t.Errorf("expected zero timestamp for empty string, got %v", event.Timestamp)
+		t.Errorf("expected zero timestamp for nil proto timestamp, got %v", event.Timestamp)
 	}
 }
 
-func TestTranslateEvent_SequenceConversion(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-13",
-		"eventType": "message",
-		"sequence":  float64(9999999),
-		"timestamp": "2025-01-15T10:30:00Z",
-		"data": map[string]interface{}{
-			"role":    "user",
-			"content": "test",
+func TestTranslateProtoEvent_LargeSequence(t *testing.T) {
+	ev := &domainpb.RunEvent{
+		Id:        "evt-32",
+		Sequence:  9999999,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+		Timestamp: timestamppb.New(time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)),
+		Data: &domainpb.RunEvent_Message{
+			Message: &domainpb.MessageEventData{
+				Role:    "user",
+				Content: "test",
+			},
 		},
 	}
 
-	event := TranslateEvent(raw)
+	event := TranslateProtoEvent(ev)
 	if event == nil {
 		t.Fatal("expected non-nil event")
 	}
@@ -489,76 +530,38 @@ func TestTranslateEvent_SequenceConversion(t *testing.T) {
 	}
 }
 
-func TestTranslateEvent_ToolCallNoInput(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-14",
-		"eventType": "tool_call",
-		"sequence":  float64(1),
-		"timestamp": "2025-01-15T10:30:00Z",
-		"data": map[string]interface{}{
-			"toolName": "list_files",
-		},
+// =============================================================================
+// ProtoRunStatusToLocal tests
+// =============================================================================
+
+func TestProtoRunStatusToLocal(t *testing.T) {
+	tests := []struct {
+		proto    domainpb.RunStatus
+		expected RunStatus
+	}{
+		{domainpb.RunStatus_RUN_STATUS_PENDING, RunStatusPending},
+		{domainpb.RunStatus_RUN_STATUS_STARTING, RunStatusStarting},
+		{domainpb.RunStatus_RUN_STATUS_RUNNING, RunStatusRunning},
+		{domainpb.RunStatus_RUN_STATUS_NEEDS_REVIEW, RunStatusNeedsReview},
+		{domainpb.RunStatus_RUN_STATUS_COMPLETE, RunStatusComplete},
+		{domainpb.RunStatus_RUN_STATUS_FAILED, RunStatusFailed},
+		{domainpb.RunStatus_RUN_STATUS_CANCELLED, RunStatusCancelled},
 	}
 
-	event := TranslateEvent(raw)
-	if event == nil {
-		t.Fatal("expected non-nil event")
-	}
-	if event.ToolName != "list_files" {
-		t.Errorf("expected toolName list_files, got %s", event.ToolName)
-	}
-	// No input field → ToolInput stays empty
-	if event.ToolInput != "" {
-		t.Errorf("expected empty tool input, got %s", event.ToolInput)
+	for _, tc := range tests {
+		t.Run(string(tc.expected), func(t *testing.T) {
+			got := ProtoRunStatusToLocal(tc.proto)
+			if got != tc.expected {
+				t.Errorf("ProtoRunStatusToLocal(%v) = %q, want %q", tc.proto, got, tc.expected)
+			}
+		})
 	}
 }
 
-func TestTranslateEvent_ToolResultEmptyError(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-15",
-		"eventType": "tool_result",
-		"sequence":  float64(1),
-		"timestamp": "2025-01-15T10:30:00Z",
-		"data": map[string]interface{}{
-			"toolName": "read_file",
-			"output":   "file content",
-			"success":  true,
-			"error":    "", // Empty error string should NOT override
-		},
-	}
-
-	event := TranslateEvent(raw)
-	if event == nil {
-		t.Fatal("expected non-nil event")
-	}
-	// Empty error string should not override output
-	if event.ToolOutput != "file content" {
-		t.Errorf("expected output 'file content', got %s", event.ToolOutput)
-	}
-	if !event.ToolSuccess {
-		t.Error("expected tool_success to remain true for empty error")
-	}
-}
-
-func TestTranslateEvent_StatusNoReason(t *testing.T) {
-	raw := map[string]interface{}{
-		"id":        "evt-16",
-		"eventType": "status",
-		"sequence":  float64(1),
-		"timestamp": "2025-01-15T10:30:00Z",
-		"data": map[string]interface{}{
-			"newStatus": "complete",
-		},
-	}
-
-	event := TranslateEvent(raw)
-	if event == nil {
-		t.Fatal("expected non-nil event")
-	}
-	if event.RunStatus != "complete" {
-		t.Errorf("expected run_status complete, got %s", event.RunStatus)
-	}
-	if event.Content != "" {
-		t.Errorf("expected empty content when no reason, got %s", event.Content)
+func TestProtoRunStatusToLocal_Unspecified(t *testing.T) {
+	got := ProtoRunStatusToLocal(domainpb.RunStatus_RUN_STATUS_UNSPECIFIED)
+	// Should return the enum string representation for unknown values
+	if got == "" {
+		t.Error("expected non-empty status for unspecified")
 	}
 }

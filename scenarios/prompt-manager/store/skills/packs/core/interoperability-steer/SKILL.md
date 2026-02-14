@@ -1,713 +1,489 @@
 ## Steer focus: Interoperability Steer
 
-Prioritize **hardening type-safe, proto-first contracts** in `scenarios/{{TARGET}}/` for UI↔API and API↔API boundaries. This skill steers toward contracts that are impossible to misuse, eliminating stringly-typed drift and unsafe type coercion in the target scenario.
+Prioritize **hardening end-to-end interoperability** — both UI↔API within `scenarios/{{TARGET}}/` and API↔API across scenario boundaries — across contracts, serialization, discovery, dependency declarations, and runtime recovery.
 
-Your goal is to ensure the target scenario **communicates reliably** with shared protos, using proper serialization options, runtime validation at boundaries, and no unsafe type assertions.
+Your goal is to ensure the target scenario communicates reliably — its own UI with its API, and its API with other scenarios — under normal operation and failure conditions (restart, port drift, partial availability), while preserving proto-first type safety.
 
-Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's interoperability posture.
+Do **not** break functionality, regress tests, or introduce unrelated features. All changes must maintain or improve the scenario's interoperability posture.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 Optional reading:
-- `prompt-manager skills read api-steer`
+- `prompt-manager skill read api-steer`
+- `prompt-manager skill read cli-steer`
 
 ---
 
 ### 0. Why This Skill Exists
 
-Inter-scenario communication is the connective tissue of Vrooli. When `{{TARGET}}`'s boundaries are weak—using ad-hoc JSON shapes, unsafe type casts, or ignored schemas—the system becomes fragile in ways that are invisible until runtime:
+Inter-scenario communication is the connective tissue of Vrooli. When `{{TARGET}}` has weak boundaries, the system becomes fragile in ways that often appear only at runtime:
 
-- **Silent data loss:** Fields renamed or removed without notice
-- **Type drift:** UI expects `camelCase`, API sends `snake_case`, parsers silently drop data
-- **Unsafe casts:** `as SomeType` hides missing fields until production crashes
-- **Validation gaps:** Rules exist in proto but aren't enforced at boundaries
-- **Documentation rot:** Types in code diverge from stated contracts
+- **Silent data loss:** fields renamed/removed without synchronized consumers.
+- **Type drift:** mixed casing or payload shapes silently dropped by parsers.
+- **Unsafe casts:** `as SomeType` hides invalid payloads until production failures.
+- **Validation gaps:** schemas exist but are not enforced at boundaries.
+- **Addressing drift:** hardcoded or stale URLs/ports after scenario restarts.
+- **Status drift:** `complete` vs `completed`, top-level `status` vs `run.status`.
+- **Lifecycle drift:** code depends on another scenario that service manifest does not declare.
+- **Operational ambiguity:** no clear fail-fast vs graceful-degrade policy.
+- **UI casing mismatch:** UI expects `camelCase`, API sends `snake_case`; parsers silently drop fields without `useProtoNames`.
+- **UI type divergence:** hand-written TypeScript interfaces drift from proto definitions, hiding missing/renamed fields until runtime.
 
-**Proto-first contracts solve this** by making the schema the single source of truth. When adopted correctly, generated types flow through every layer—eliminating hand-written interfaces, enforcing validation rules, and catching breaking changes before they ship.
-
-But "using protos" alone isn't enough. This skill ensures protos are:
-- **Properly structured** (layer architecture, domain alignment, explicit enums)
-- **Correctly generated** (regeneration workflow, verification)
-- **Safely consumed** (no unsafe casts, proper serialization options)
-- **Runtime validated** (protovalidate at boundaries)
+Proto-first contracts are necessary but not sufficient. This skill ensures interoperability is robust across **schema + serialization + UI consumption + discovery + lifecycle + runtime behavior**.
 
 ---
 
 ### 1. Scope Boundaries
 
 **In scope**
-- Proto schema design: structure, naming, layer architecture, validation annotations
-- Proto generation workflow: when to regenerate, verification, breaking change detection
-- Type-safe consumption: parsing, serialization, casing compatibility
-- Runtime validation: protovalidate usage, boundary enforcement
-- Inter-scenario contracts: how scenarios communicate via shared proto types
-- UI↔API communication: JSON handling, normalization patterns
-- Anti-patterns and enforcement: what NOT to do and how to detect violations
+- Proto schema structure, naming, validation annotations.
+- Proto generation and breakage detection workflow.
+- Type-safe contract consumption (`fromJson`, `toJsonString`, `protojson`).
+- UI↔API contract safety: generated type usage, casing options, and validation in frontend code.
+- Runtime boundary validation (protovalidate).
+- Inter-scenario URL resolution and addressing patterns.
+- Dependency declaration parity in `.vrooli/service.json`.
+- Envelope/status normalization rules for cross-scenario calls.
+- Runtime resilience rules (retry, re-resolve, fail-fast/degrade).
+- Interoperability audit workflow and completion gates.
 
 **Out of scope**
-- API surface design (endpoints, routing, error models) → see `api-steer`
-- Domain modeling and business logic → see domain architecture skills
-- gRPC vs REST transport decisions → implementation choice, not interoperability
-- Language-specific codegen configuration (buf.yaml details) → operational docs
+- API product design decisions (resource model, endpoint UX) -> `api-steer`.
+- Domain/business logic implementation.
+- gRPC vs REST preference debates.
+- Language-specific build tooling internals beyond interoperability impact.
 
 ---
 
-### 2. The Proto Contract Hierarchy
+### 2. Interop Contract Stack (Convergence Pattern)
 
-Proto contracts exist at multiple levels. Understanding this hierarchy prevents confusion about what to change and where.
+Treat interoperability as a layered contract. Reliability requires all layers.
 
 ```
-                    PROTO CONTRACT HIERARCHY
+INTEROP CONTRACT STACK
 ┌─────────────────────────────────────────────────────────┐
-│  packages/proto/schemas/                                │
-│  ──────────────────────                                 │
-│  SOURCE OF TRUTH                                        │
-│  • .proto files define the canonical schema             │
-│  • Changes here flow to all consumers                   │
-│  • Breaking changes require deprecation cycle           │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼ make generate
-┌─────────────────────────────────────────────────────────┐
-│  packages/proto/gen/{go,typescript,python}/             │
-│  ──────────────────────────────────────────             │
-│  GENERATED ARTIFACTS                                    │
-│  • Never edit directly—always regenerate                │
-│  • Committed to repo (enables offline builds)           │
-│  • Must stay in sync with schemas                       │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼ import
-┌─────────────────────────────────────────────────────────┐
-│  Scenario code (UI, API, CLI)                           │
-│  ───────────────────────────                            │
-│  CONSUMERS                                              │
-│  • Import from generated packages                       │
-│  • Use fromJson/toJson with proper options              │
-│  • Never define parallel types—use proto types          │
+│ L5 Runtime Recovery                                    │
+│ Retry/backoff, re-resolution, degrade/fail-fast policy │
+├─────────────────────────────────────────────────────────┤
+│ L4 Lifecycle Dependency Contract                       │
+│ .vrooli/service.json dependencies.scenarios parity     │
+├─────────────────────────────────────────────────────────┤
+│ L3 Discovery & Addressing                              │
+│ api-core/discovery, no hardcoded scenario ports/URLs   │
+├─────────────────────────────────────────────────────────┤
+│ L2 Envelope & Status Semantics                         │
+│ run.status path, terminal values, error/result fields  │
+├─────────────────────────────────────────────────────────┤
+│ L1 Serialization Contract                              │
+│ useProtoNames, casing, protojson/fromJson/toJsonString │
+├─────────────────────────────────────────────────────────┤
+│ L0 Schema Contract                                     │
+│ packages/proto/schemas + protovalidate constraints     │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Steer:** Changes flow downward only. Never modify generated code. Never define hand-written types that duplicate proto types.
+Applicability:
+- L0–L2 apply to ALL boundaries (UI↔API and API↔API).
+- L3–L4 apply to inter-scenario boundaries.
+- L5 applies to both: inter-scenario (retry/re-resolve) and UI↔API (error states, loading, retry UX).
+
+**Steer:** "Using protos" only addresses L0-L1. Most production interop failures — whether UI↔API or API↔API — happen at L2-L5.
 
 ---
 
-### 3. Proto Schema Design Principles
-
-#### 3.1 Layer Architecture
-
-**The core principle:** Proto files are organized into layers where **higher layers may import from lower layers, but never the reverse**. This prevents circular dependencies and creates a clear, one-way dependency flow.
-
-Think of it like building construction:
-- Foundation (Layer 0) supports everything but depends on nothing
-- Each floor above can use everything below it
-- The roof (Layer 5) sits on top, using all layers beneath
-
-**Why this matters:**
-```
-WITHOUT layers:
-  execution.proto imports workflow.proto
-  workflow.proto imports execution.proto  ← CIRCULAR! Won't compile
-
-WITH layers:
-  Layer 4 (execution) can import Layer 2 (workflow) ✓
-  Layer 2 (workflow) cannot import Layer 4 (execution) ✓
-  Shared concepts live in lower layers where all can access them
-```
-
-**Layer definitions (concept, not folder names):**
-
-| Layer | Purpose | What belongs here |
-|-------|---------|-------------------|
-| 0 | Foundational primitives | Enums, basic types, shared constants |
-| 1 | Domain concepts | Domain models independent of execution |
-| 2 | Definitions/templates | Workflow definitions, action schemas |
-| 3 | Historical/audit data | Logs, recordings, timeline entries |
-| 4 | Runtime state | Execution state, live session data |
-| 5 | API surface | Service definitions, top-level aggregates |
-
-**Folder names are scenario-specific.** For example, browser-automation-studio uses `base/`, `domain/`, `actions/`, `timeline/`, `execution/`, `api/`. Another scenario might use `models/`, `events/`, `services/`. The *concept* of layered imports is universal; the folder structure is not.
-
-Each proto file declares its layer in the header: `@layer 2`. This makes the dependency rules explicit and verifiable.
-
-**Convergence Pattern: Layer Placement Decision**
+### 3. Proto Contract Hierarchy
 
 ```
-Where should this new type live?
-│
-├─ Is it a fundamental primitive (enum, geometry, status)?
-│   └─ YES → Layer 0
-│
-├─ Is it a domain concept independent of execution?
-│   └─ YES → Layer 1
-│
-├─ Is it a definition or template (workflows, actions)?
-│   └─ YES → Layer 2
-│
-├─ Is it history/audit/recording data?
-│   └─ YES → Layer 3
-│
-├─ Is it runtime execution state?
-│   └─ YES → Layer 4
-│
-└─ Is it a service API or top-level aggregate?
-    └─ YES → Layer 5
+packages/proto/schemas/      <- source of truth
+          |
+          v make generate
+packages/proto/gen/          <- generated artifacts (committed)
+          |
+          v import
+scenarios/{{TARGET}}/        <- consumers (UI/API/CLI)
 ```
 
-#### 3.2 Use Enums Over Strings for Well-Defined States
-
-**Steer:** When a field has a finite, known set of values, use an enum instead of a string.
-
-| Scenario | Use Enum | Use String |
-|----------|----------|------------|
-| Status with known states (pending/running/completed) | ✅ | |
-| Type discriminator (action_type, node_type) | ✅ | |
-| User-provided free text (name, description) | | ✅ |
-| Dynamic/extensible values (plugin names) | | ✅ |
-
-**Enum Requirements:**
-- First value MUST be `ENUM_NAME_UNSPECIFIED = 0`
-- All values prefixed with enum name: `EXECUTION_STATUS_RUNNING`
-- Document valid state transitions for lifecycle enums
-
-```protobuf
-// GOOD - explicit states, type-safe
-enum ExecutionStatus {
-  EXECUTION_STATUS_UNSPECIFIED = 0;
-  EXECUTION_STATUS_PENDING = 1;
-  EXECUTION_STATUS_RUNNING = 2;
-  EXECUTION_STATUS_COMPLETED = 3;
-}
-
-// BAD - string allows typos, no exhaustiveness checking
-string status = 1;  // "pending" | "running" | "completed" ???
-```
-
-#### 3.3 Use Optional for Semantic Distinction
-
-Use `optional` when distinguishing "unset" from default value matters:
-
-```protobuf
-// GOOD - can distinguish "use default timeout" vs "zero timeout"
-optional int32 timeout_ms = 1;
-
-// BAD - zero and unset are indistinguishable
-int32 timeout_ms = 1;
-```
-
-#### 3.4 Typed Metadata Over Raw Struct
-
-**Steer:** Prefer explicit typed fields over `google.protobuf.Struct` or `map<string, string>`.
-
-```protobuf
-// GOOD - type-safe, documented, validated
-message PlanMetadata {
-  bool is_featured = 1;
-  string badge_text = 2;
-  optional string promo_code = 3;
-}
-
-message PricingPlan {
-  PlanMetadata metadata_typed = 10;
-
-  // DEPRECATED - kept for migration only
-  map<string, string> metadata = 5 [deprecated = true];
-}
-
-// BAD - no type safety, validation impossible
-map<string, google.protobuf.Value> metadata = 1;
-```
-
-Use `common.v1.JsonValue` when truly dynamic JSON is needed, but prefer typed fields when structure is known.
-
-#### 3.5 Protovalidate Annotations
-
-Add validation rules directly in proto schemas using protovalidate:
-
-```protobuf
-import "buf/validate/validate.proto";
-
-message CreateProfileRequest {
-  // Profile identifier.
-  // @format uuid
-  string profile_id = 1 [(buf.validate.field).string.uuid = true];
-
-  // Profile name.
-  string name = 2 [(buf.validate.field).string = {
-    min_len: 1
-    max_len: 100
-  }];
-
-  // Priority level.
-  optional int32 priority = 3 [(buf.validate.field).int32 = {
-    gte: 1
-    lte: 10
-  }];
-}
-```
-
-**Common validation patterns:**
-- `string.uuid = true` — UUID format
-- `string.min_len` / `string.max_len` — length bounds
-- `int32.gte` / `int32.lte` — numeric bounds
-- `repeated.min_items` / `repeated.max_items` — array size
-- `message.required = true` — non-null nested message
+Rules:
+- Never edit `gen/` directly.
+- Never maintain parallel hand-written types when generated types exist.
+- Flow changes downward from schema to generated code to consumers.
 
 ---
 
-### 4. Proto Generation Workflow
+### 4. Proto Schema Design Principles
 
-#### 4.1 Vrooli's Monorepo Context
+#### 4.1 Layer Architecture
 
-Unlike typical proto setups where schemas live in a shared repo and consumers pull from it, Vrooli keeps everything in one monorepo:
+Higher conceptual layers may import from lower layers, never the reverse.
 
+| Layer | Purpose | Examples |
+|---|---|---|
+| 0 | primitives | shared enums/basic types |
+| 1 | domain concepts | business models |
+| 2 | definitions/templates | workflows/action schemas |
+| 3 | historical/audit | logs, recordings |
+| 4 | runtime state | active execution/session state |
+| 5 | API surface | service contracts/top-level aggregates |
+
+Decision flow:
 ```
-packages/proto/
-├── schemas/          ← Source .proto files
-└── gen/              ← Generated Go, TypeScript, Python (also in repo)
-
-scenarios/
-├── agent-manager/    ← Consumes generated types
-├── browser-automation-studio/
-└── ...
+Primitive? -> L0
+Domain model independent of execution? -> L1
+Template/definition? -> L2
+History/audit? -> L3
+Live runtime state? -> L4
+Service/API aggregate? -> L5
 ```
 
-**What this means:**
-- Proto schemas and all consumers live together
-- Generated code is checked into the repo (enables offline builds, ensures consistency)
-- Changes to schemas require regeneration before consumers see the updates
-- No external dependencies or version coordination—just keep `gen/` in sync with `schemas/`
+#### 4.2 Prefer Enums for Finite State
 
-#### 4.2 When to Regenerate
+- First enum value: `*_UNSPECIFIED = 0`.
+- Avoid string status fields for finite state machines.
+- Document valid transitions for lifecycle enums.
 
-**ALWAYS regenerate after:**
-- Adding, modifying, or removing any `.proto` file
-- Changing field numbers, types, or names
-- Adding or modifying validation annotations
-- Changing enum values
+#### 4.3 Use Optional for Semantic Presence
 
-**Regeneration command:**
+Use `optional` when "unset" must be distinguished from default value.
+
+#### 4.4 Prefer Typed Metadata
+
+Prefer typed message fields to raw `Struct`/map escape hatches when structure is known.
+
+#### 4.5 Protovalidate in Schemas
+
+Add constraints in proto definitions for boundary-enforceable validation.
+
+---
+
+### 5. Proto Generation Workflow
+
+After any schema change:
 ```bash
-cd packages/proto && make generate
-```
-
-This regenerates all language outputs (Go, TypeScript, Python) from the current schemas.
-
-#### 4.3 Verification Steps
-
-After regenerating, run these checks to catch problems early:
-
-```bash
-# 1. Lint proto files for style/syntax issues
+cd packages/proto
+make generate
 make lint
-
-# 2. Check for breaking changes against master
 make breaking
-
-# 3. Verify generated code matches schemas
 make check
 ```
 
-**Convergence Pattern: Proto Change Workflow**
-
-```
-Edit .proto file(s)
-│
-├─ make generate
-│   └─ Regenerates Go, TypeScript, Python from schemas
-│
-├─ make lint
-│   └─ Catches syntax errors, bad imports, style issues
-│
-├─ make breaking
-│   └─ Flags breaking changes (removed fields, type changes)
-│   └─ If breaking: reconsider approach or update all consumers
-│
-└─ make check
-    └─ Verifies gen/ matches schemas/ (nothing out of sync)
-```
-
-**After this workflow:** Both `schemas/` and `gen/` reflect your changes, and all scenario code that imports from `@vrooli/proto-types` or the Go packages sees the updated types immediately.
-
-#### 4.4 Breaking Change Handling
-
-| Change Type | Breaking? | Safe Alternative |
-|-------------|-----------|------------------|
-| Add optional field | No | — |
-| Add enum value | No | — |
-| Remove field | YES | Deprecate first, then reserve |
-| Rename field | YES | Add new field, deprecate old |
-| Change field type | YES | Add new field with new type |
-| Change enum value number | YES | Never reuse numbers |
-| Change field number | YES | Never change numbers |
-
-**Steer:** Unless explicitly stated that the scenario is greenfield, prefer additive changes. Breaking changes require a deprecation cycle with migration window.
+Breaking-change guidance:
+- Prefer additive changes.
+- Deprecate before removal.
+- Never reuse field numbers.
+- Never renumber enums/fields.
 
 ---
 
-### 5. Type-Safe Consumption Patterns
+### 6. Type-Safe Consumption Patterns
 
-#### 5.1 The Golden Rule: Never Bypass Generated Types
+#### 6.1 Golden Rule
 
-```typescript
-// ✅ GOOD - Use generated schema with proper options
-import { fromJson, toJsonString } from '@bufbuild/protobuf';
-import { ExecutionSchema } from '@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb';
+Do not bypass generated types using `as SomeType`/`any` where schemas are available. This applies equally to UI components consuming API responses and to backend code calling other scenarios.
 
-const execution = fromJson(ExecutionSchema, apiPayload, {
-  jsonOptions: { useProtoNames: true },
-  ignoreUnknownFields: true,
-});
+#### 6.2 JSON Casing Compatibility
 
-// ❌ BAD - Unsafe cast bypasses all type checking
-const execution = apiPayload as Execution;
+Use explicit options for casing compatibility:
+- TypeScript: `jsonOptions: { useProtoNames: true }`
+- Go: `protojson.MarshalOptions{UseProtoNames: true}` and `UnmarshalOptions{DiscardUnknown: true}` as appropriate.
 
-// ❌ BAD - Hand-written interface duplicates proto type
-interface Execution {
-  executionId: string;
-  status: string;
-}
-```
-
-#### 5.2 JSON Casing Compatibility
-
-Vrooli APIs use `snake_case` JSON. Generated proto types use `camelCase` property names. **Always use `useProtoNames: true`** for serialization/deserialization:
-
-```typescript
-// Parsing API response (snake_case JSON → proto type)
-const execution = fromJson(ExecutionSchema, apiResponse, {
-  jsonOptions: { useProtoNames: true },  // Handles snake_case input
-  ignoreUnknownFields: true,             // Tolerates API evolution
-});
-
-// Sending to API (proto type → snake_case JSON)
-const json = toJsonString(ExecutionSchema, execution, {
-  jsonOptions: { useProtoNames: true },  // Outputs snake_case
-});
-```
-
-**Go equivalent:**
-```go
-// Parsing
-var execution Execution
-opts := protojson.UnmarshalOptions{DiscardUnknown: true}
-if err := opts.Unmarshal(data, &execution); err != nil {
-    // handle error
-}
-
-// Serializing
-opts := protojson.MarshalOptions{UseProtoNames: true}
-data, err := opts.Marshal(&execution)
-```
-
-#### 5.3 Convergence Pattern: Type Consumption Decision Tree
+#### 6.3 Type Consumption Decision Tree
 
 ```
-How should I consume this proto type?
-│
-├─ Receiving data from API/WebSocket?
-│   └─ fromJson(Schema, data, { jsonOptions: { useProtoNames: true } })
-│
-├─ Sending data to API?
-│   └─ toJsonString(Schema, obj, { jsonOptions: { useProtoNames: true } })
-│
-├─ Need to check if optional field is set?
-│   └─ Check with hasXxx() method or truthy check + presence
-│
-├─ Need to work with the type in UI components?
-│   └─ Use the proto type directly, or create thin wrapper via create()
-│
-└─ Need to define component props?
-    └─ Import and use the generated type, never duplicate
+Incoming API/WS payload? -> schema parse (fromJson/protojson)
+Outgoing payload? -> schema serialization (toJsonString/protojson)
+Optional field presence check needed? -> explicit presence logic
+UI receiving API response? -> schema parse (fromJson with useProtoNames)
+UI sending to API? -> schema serialization (toJsonString with useProtoNames)
+UI props/types? -> import generated types directly, never hand-written interfaces
 ```
 
-#### 5.4 Handling Optional Fields
+#### 6.4 Optional Field Handling
 
-Proto3 optional fields require explicit presence checks:
+Do not collapse optional numeric fields with truthy fallbacks when `0` is valid.
 
-```typescript
-// ✅ GOOD - Check presence before using
-if (execution.timeoutMs !== undefined) {
-  const timeout = execution.timeoutMs;
-}
+---
 
-// ❌ BAD - Assumes undefined means zero
-const timeout = execution.timeoutMs || 30000;  // Wrong if 0 is valid
+### 7. Runtime Validation at Boundaries
+
+Validate at boundaries, trust internals.
+
+| Boundary | Validation |
+|---|---|
+| API ingress | required |
+| Inter-scenario ingress/egress | required |
+| UI submit | required |
+| Internal service-to-service (same scenario) | context-dependent |
+
+Use protovalidate where external or cross-scenario payloads enter.
+
+---
+
+### 8. Inter-Scenario Adapter Convergence Pattern
+
+Use a scannable structure to reduce drift.
+
+| Slot | Canonical Path | Responsibility | Marker |
+|---|---|---|---|
+| [A] | `scenarios/{{TARGET}}/.vrooli/service.json` | scenario dependency declarations | `dependencies.scenarios` |
+| [B] | `scenarios/{{TARGET}}/api/integrations/` | outbound scenario clients | per-dependency adapter files |
+| [C] | `scenarios/{{TARGET}}/api/integrations/contracts/` | envelope/status normalization | centralized extractors/constants |
+| [D] | `scenarios/{{TARGET}}/api/integrations/discovery.go` (or equivalent) | URL resolution | `discovery.ResolveScenarioURLDefault` |
+| [E] | `scenarios/{{TARGET}}/api/integrations/policy.go` | retry/degrade policy | explicit required/optional behavior |
+| [F] | `scenarios/{{TARGET}}/api/integrations/*_test.go` | contract and recovery tests | envelope/status/restart tests |
+| [G] | `scenarios/{{TARGET}}/ui/src/api/` (or equivalent) | UI↔API contract types and fetch wrappers | generated type imports, fromJson/toJsonString usage |
+
+Flexibility:
+- Existing equivalent layout is acceptable.
+- Keep one canonical location per concern.
+
+---
+
+### 9. Discovery and Addressing Rules
+
+1. Resolve scenario URLs via `api-core/discovery`.
+2. Do not hardcode `localhost:<port>` for scenario-to-scenario calls in production paths.
+3. Do not rely on one-time startup URL capture for long-lived clients.
+4. Re-resolve URL on connection/refused/transport failures (bounded attempts).
+5. Every outbound call must have explicit timeout.
+6. Manual fallback logic must remain deterministic and documented.
+
+---
+
+### 10. Dependency Declaration Parity Rules
+
+1. If code calls scenario `X`, declare `X` in:
+   `scenarios/{{TARGET}}/.vrooli/service.json` -> `dependencies.scenarios.X`.
+2. Required dependency:
+`required: true`
+fail fast with actionable error when unavailable.
+3. Optional dependency:
+`required: false`
+graceful degradation with explicit logs/status.
+4. Code and manifest disagreement is an interop defect.
+
+---
+
+### 11. Envelope and Status Normalization Rules
+
+1. Parse actual response envelope shape (for example `run.status` vs top-level `status`).
+2. Maintain centralized mapping of terminal/pending/failure statuses per dependency.
+3. Normalize known variants (`complete`, `completed`, enum strings) to canonical local states.
+4. Keep parser/status constants out of handlers/UI; place them in adapter contract layer.
+5. Add regression tests for:
+- envelope path extraction.
+- terminal-status classification.
+- error field extraction.
+
+---
+
+### 12. Runtime Recovery Policy
+
+For each dependency adapter, define:
+
+- dependency criticality (`required`/`optional`)
+- timeout budget
+- retry/backoff policy (bounded)
+- re-resolution trigger
+- terminal fallback behavior
+
+Decision flow:
 ```
-
-**Go pattern:**
-```go
-if execution.TimeoutMs != nil {
-    timeout := *execution.TimeoutMs
-}
+Call fails
+├─ transport/discovery failure -> re-resolve + bounded retry
+├─ 5xx/transient -> bounded retry
+├─ 4xx/schema/validation -> no blind retry; surface contract mismatch
+└─ retries exhausted
+   ├─ required -> fail fast, explicit operator signal
+   └─ optional -> degrade gracefully, explicit telemetry/logs
 ```
 
 ---
 
-### 6. Runtime Validation at Boundaries
+### 13. Anti-Patterns to Detect and Eliminate
 
-#### 6.1 The Boundary Rule
-
-**Steer:** Validate at system boundaries, trust internally.
-
-| Boundary | Validate? | Example |
-|----------|-----------|---------|
-| API ingress (external input) | ✅ Always | Incoming HTTP/gRPC requests |
-| Inter-scenario calls | ✅ Recommended | Calls between scenarios |
-| Internal service calls | Usually not | Within same scenario |
-| UI before submit | ✅ Always | User input validation |
-| UI after API response | Parsing validates | fromJson catches malformed |
-
-#### 6.2 Protovalidate Runtime Enforcement
-
-**TypeScript:**
-```typescript
-import { createValidator } from '@bufbuild/protovalidate';
-import { CreateProfileRequestSchema } from '@vrooli/proto-types/agent-manager/v1/api/service_pb';
-
-const validator = createValidator();
-const request = fromJson(CreateProfileRequestSchema, body, opts);
-
-const result = validator.validate(CreateProfileRequestSchema, request);
-if (!result.valid) {
-  throw new ValidationError(result.violations);
-}
-```
-
-**Go:**
-```go
-import "github.com/bufbuild/protovalidate-go"
-
-validator, _ := protovalidate.New()
-if err := validator.Validate(request); err != nil {
-    // Handle validation errors
-}
-```
-
-#### 6.3 Layered Validation Strategy
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  UI Layer                                               │
-│  • Zod/form validation for immediate feedback           │
-│  • Mirrors proto constraints for UX                     │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  API Boundary                                           │
-│  • fromJson parsing (catches malformed JSON)            │
-│  • Protovalidate (enforces schema constraints)          │
-│  • Auth/authz middleware                                │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  Domain Layer                                           │
-│  • Business rule validation                             │
-│  • Cross-field invariants                               │
-│  • State machine guards                                 │
-└─────────────────────────────────────────────────────────┘
-```
+- Unsafe type assertions near external payloads.
+- Hand-written duplicate contract types where generated types exist.
+- Missing serialization options causing casing drift.
+- Stringly status comparisons scattered across files.
+- Hardcoded scenario ports/URLs in integration code.
+- Startup-only client wiring with no reconnect strategy.
+- Undeclared runtime scenario dependencies.
+- Silent degrade behavior with no observable signal.
+- Hand-written TypeScript interfaces duplicating proto message shapes in UI code.
+- UI fetch/axios calls parsing responses without `fromJson` + `useProtoNames`.
+- UI form submissions sending raw objects instead of proto-serialized payloads.
 
 ---
 
-### 7. Anti-Patterns to Detect and Eliminate
+### 14. Interoperability Audit
 
-#### 7.1 Unsafe Type Assertions
+Before changes, assess `{{TARGET}}` posture.
 
-```typescript
-// ❌ ANTI-PATTERN: as-cast bypasses type safety
-const execution = response.data as Execution;
-
-// ❌ ANTI-PATTERN: any cast defeats the purpose
-const execution: any = response.data;
-execution.status;  // No type checking
-
-// ✅ CORRECT: Use fromJson with schema
-const execution = fromJson(ExecutionSchema, response.data, opts);
-```
-
-**Detection:** Search for `as Execution`, `as I[A-Z]`, `: any`, `as any` near API consumption.
-
-#### 7.2 Hand-Written Duplicate Types
-
-```typescript
-// ❌ ANTI-PATTERN: Duplicating proto type
-interface Execution {
-  executionId: string;
-  status: ExecutionStatus;
-  entries: TimelineEntry[];
-}
-
-// ✅ CORRECT: Import from generated package
-import type { Execution } from '@vrooli/proto-types/.../execution_pb';
-```
-
-**Detection:** Search for `interface.*{` in files that also import from `proto-types`.
-
-#### 7.3 Ignoring Serialization Options
-
-```typescript
-// ❌ ANTI-PATTERN: Missing useProtoNames (casing mismatch)
-const execution = fromJson(ExecutionSchema, data);
-
-// ❌ ANTI-PATTERN: Parsing raw JSON without schema
-const execution = JSON.parse(response.body);
-
-// ✅ CORRECT: Proper options
-const execution = fromJson(ExecutionSchema, data, {
-  jsonOptions: { useProtoNames: true },
-});
-```
-
-**Detection:** Search for `fromJson\(.*\)` without `useProtoNames`.
-
-#### 7.4 Stringly-Typed Status Fields
-
-```typescript
-// ❌ ANTI-PATTERN: String comparison for status
-if (execution.status === 'completed') { ... }
-
-// ✅ CORRECT: Use generated enum
-import { ExecutionStatus } from '@vrooli/proto-types/.../shared_pb';
-if (execution.status === ExecutionStatus.COMPLETED) { ... }
-```
-
-#### 7.5 Skipping Validation at Boundaries
-
-```typescript
-// ❌ ANTI-PATTERN: Trust external input without validation
-app.post('/api/profiles', (req, res) => {
-  createProfile(req.body);  // What if body is malformed?
-});
-
-// ✅ CORRECT: Validate at boundary
-app.post('/api/profiles', (req, res) => {
-  const request = fromJson(CreateProfileRequestSchema, req.body, opts);
-  const validation = validator.validate(request);
-  if (!validation.valid) {
-    return res.status(400).json(formatViolations(validation.violations));
-  }
-  createProfile(request);
-});
-```
-
----
-
-### 8. Interoperability Audit
-
-Before making changes, assess `{{TARGET}}`'s current interoperability posture.
-
-#### 8.1 Audit Commands
+#### 14.1 Audit Commands
 
 ```bash
-# Find proto type imports in target scenario
-rg "from '@vrooli/proto-types" --type ts -l scenarios/{{TARGET}}/
+# Proto usage and unsafe casts
+rg "from '@vrooli/proto-types|@vrooli/proto-types|fromJson|toJsonString|protojson|protovalidate" scenarios/{{TARGET}}/
+rg "as [A-Z][a-zA-Z]+|as any|: any" scenarios/{{TARGET}}/ --glob '!**/*_test.*'
 
-# Find unsafe type assertions near API calls
-rg "as [A-Z][a-zA-Z]+\b" --type ts -C 2 scenarios/{{TARGET}}/ | rg -i "fetch|response|axios|api"
+# Discovery/addressing and hardcoded ports
+rg "ResolveScenarioURLDefault|ResolveScenarioURL|scenario port|localhost:[0-9]+" scenarios/{{TARGET}}/api --glob '!**/*_test.go'
 
-# Find hand-written interfaces that might duplicate protos
-rg "interface\s+[A-Z][a-zA-Z]+\s*\{" --type ts scenarios/{{TARGET}}/
+# Envelope/status parsing hotspots
+rg "status|run\\.status|completed|complete|needs_review|failed|cancelled" scenarios/{{TARGET}}/api --glob '!**/*_test.go'
 
-# Find fromJson without useProtoNames
-rg "fromJson\([^)]+\)" --type ts scenarios/{{TARGET}}/ | rg -v "useProtoNames"
+# Startup-only client capture risk
+rg "New.*Client\\(|baseURL\\s*=|PromptManagerURL|AgentManagerURL" scenarios/{{TARGET}}/api --glob '!**/*_test.go'
 
-# Find string comparisons that should use enums
-rg "=== ['\"]" --type ts scenarios/{{TARGET}}/ | rg -i "status|state|type|mode"
+# Dependency declarations
+jq '.dependencies.scenarios // {}' scenarios/{{TARGET}}/.vrooli/service.json
 
-# Check if proto generation is in sync
+# UI: hand-written interfaces that may duplicate proto types
+rg "interface\s+[A-Z][a-zA-Z]+\s*\{" scenarios/{{TARGET}}/ui/src --type ts
+
+# UI: unsafe casts near API consumption
+rg "as [A-Z][a-zA-Z]+|as any|: any" scenarios/{{TARGET}}/ui/src --type ts --glob '!**/*.test.*'
+
+# UI: fromJson/fetch usage without useProtoNames
+rg "fromJson|fetch|axios|useQuery|useMutation" scenarios/{{TARGET}}/ui/src --type ts
+
+# Proto generation sync
 cd packages/proto && make check
 ```
 
-#### 8.2 Red Flags Checklist
+#### 14.2 Red Flags Checklist
 
-- [ ] Files with `as SomeType` near fetch/axios/API calls
-- [ ] Interfaces that duplicate proto message shapes
-- [ ] `fromJson` calls missing `useProtoNames: true`
-- [ ] String literals compared to status/type fields
-- [ ] No protovalidate usage at API boundaries
-- [ ] Proto gen/ directory out of sync with schemas/
-- [ ] Schema files missing `@layer`, `@stability` annotations
+- [ ] hardcoded scenario `localhost:port` usage.
+- [ ] no discovery usage for outbound scenario calls.
+- [ ] URL/client captured once at startup and never refreshed.
+- [ ] missing `dependencies.scenarios` declaration for actual outbound call target.
+- [ ] envelope mismatch in parser logic.
+- [ ] terminal status mismatch or drift.
+- [ ] missing required/optional behavior definition.
+- [ ] missing recovery tests for restart/re-resolution.
+- [ ] unsafe casts bypassing schema validation.
+- [ ] hand-written UI interfaces duplicating proto message shapes.
+- [ ] UI parsing API responses without `fromJson` + `useProtoNames`.
+- [ ] UI sending payloads without proto serialization.
 
-#### 8.3 Document Findings
+#### 14.3 Findings Template
 
-Record audit results in `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`:
+Write findings to:
+`scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`
 
 ```markdown
 # {{TARGET}} Interoperability Audit
 
 ## Last Updated
-[Date]
+YYYY-MM-DD
 
-## Proto Adoption Status
-- [ ] All API request/response types use generated protos
-- [ ] All UI↔API communication uses fromJson/toJsonString
-- [ ] Protovalidate enforced at API ingress
-- [ ] No unsafe type assertions
+## Dependency Inventory
+| Dependency | Declared | Used in Code | Required/Optional | Status |
+|---|---|---|---|---|
 
-## Issues Found
-1. [File:line] - Issue description
-2. ...
+## Contract Findings
+1. [file:line] ...
+
+## UI↔API Findings
+1. [file:line] ...
+
+## Discovery/Lifecycle Findings
+1. [file:line] ...
 
 ## Priority Fixes
-1. [Highest impact] - Why
+1. ...
 2. ...
+
+## Proper/Complete Gates
+- [ ] Contract safety
+- [ ] Discovery/addressing safety
+- [ ] Dependency parity
+- [ ] Envelope/status normalization
+- [ ] UI↔API contract safety (generated types, casing, validation)
+- [ ] Runtime recovery tests
 ```
 
 ---
 
-### 9. Memory Management with Visited Tracker
+### 15. Proper/Complete Criteria
 
-Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `interoperability`.
+A scenario's interop setup is considered proper/complete when:
 
----
-
-### 10. Documentation and Memory Loop
-
-#### 10.1 At Session Start
-
-Read existing interoperability documentation:
-- `packages/proto/README.md` — Usage patterns
-- `packages/proto/STYLE_GUIDE.md` — Schema conventions
-- `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md` — Prior audit findings for this scenario (if exists)
-
-#### 10.2 At Session End
-
-Update `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`:
-- The code is the source of truth. Verify existing claims against actual code before extending.
-- Correct any inaccuracies discovered
-- Add new anti-pattern instances found
-- Update priority fixes based on work completed
-- Note areas not yet audited
-- Create the `docs/internal/` directory if needed
+1. No critical/high interoperability defects remain.
+2. UI code consumes API responses via generated types with proper serialization options (no hand-written duplicates, no unsafe casts).
+3. Outbound scenario dependencies are declared and aligned with runtime behavior.
+4. No hardcoded scenario ports/URLs in production integration paths.
+5. Envelope parsing and status normalization are centralized and tested.
+6. URL re-resolution and bounded retry behavior are implemented.
+7. Required dependencies fail fast with actionable diagnostics.
+8. Optional dependencies degrade gracefully with explicit observability.
+9. Interop audit document reflects verified current state.
 
 ---
 
-### 11. Output Expectations
+### 16. Troubleshooting & Edge Cases
+
+| Symptom | Likely Cause | First Check | Fix |
+|---|---|---|---|
+| connection refused on old port | stale captured URL | adapter init + URL lifecycle | re-resolve on failure/per-request |
+| invalid JSON request body | payload not proto-compatible | compare payload with schema | use generated types/protojson-compatible structure |
+| async run never reaches terminal | status vocabulary drift | terminal mapping constants | normalize status variants centrally |
+| successful run marked cancelled/unknown | envelope parsing mismatch | parser path (`status` vs `run.status`) | parse canonical path in adapter |
+| works only if dependency starts first | startup-only client wiring | startup logs + nil client path | lazy init/retry/recover strategy |
+| feature silently no-ops | optional dependency degrade not surfaced | logs/health/status route | add explicit degrade telemetry and user-visible state |
+| UI shows stale/missing fields after API change | hand-written UI interface not updated | search for duplicated interfaces in `ui/src` | replace with generated proto type imports |
+| API returns data but UI renders blank/wrong values | casing mismatch (snake_case vs camelCase) | check `fromJson` options in UI fetch layer | add `useProtoNames: true` to all `fromJson` calls |
+
+---
+
+### 17. Memory Management with Visited Tracker
+
+Use the `visited-tracker-tools` skill with:
+- LOCATION: `scenarios/{{TARGET}}`
+- TAG: `interoperability`
+
+---
+
+### 18. Documentation and Memory Loop
+
+At session start, read:
+- `packages/proto/README.md`
+- `packages/proto/STYLE_GUIDE.md`
+- `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md` (if present)
+
+At session end, update:
+- `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`
+- verify old claims against current code.
+- record remaining risks and un-audited areas.
+
+---
+
+### 19. Output Expectations
 
 You may update in `scenarios/{{TARGET}}/`:
-- Add or modify proto schemas following layer architecture
-- Add protovalidate annotations for boundary enforcement
-- Refactor consuming code to use proper fromJson/toJsonString patterns
-- Add type imports from generated packages
-- Remove unsafe type assertions and hand-written duplicate types
+- proto schemas and generated-type consumers.
+- integration adapters/discovery/policy layers.
+- `.vrooli/service.json` dependency declarations.
+- UI fetch/API consumption layers to use generated types and proper serialization.
+- interop-specific tests and audit docs.
 
 You must:
-- Keep `{{TARGET}}` fully functional and non-regressed
-- Run `make generate` after any proto schema changes
-- Run `make lint` and `make breaking` after regenerating
-- Use `useProtoNames: true` for all JSON serialization/deserialization
-- Validate at system boundaries (API ingress, inter-scenario calls)
-- Document breaking changes and migration paths
+- keep `{{TARGET}}` functional and non-regressed.
+- preserve/add contract safety at boundaries.
+- use discovery for scenario URL resolution.
+- ensure dependency declaration parity.
+- centralize envelope/status normalization.
+- add tests for envelope/status/recovery seams.
+- ensure UI code uses generated proto types with `useProtoNames` at API boundaries.
+- document migration paths for breaking changes.
 
 You must NOT:
-- Use `as SomeType` to bypass generated type checking
-- Define hand-written interfaces that duplicate proto types
-- Edit files in `gen/` directly
-- Skip protovalidate at API boundaries where external input enters
-- Reuse reserved field numbers or enum values
+- hardcode scenario API ports/URLs.
+- scatter inter-scenario parsing logic across handlers.
+- bypass generated types with unsafe casts.
+- leave undeclared runtime scenario dependencies.
+- define hand-written UI interfaces that duplicate generated proto types.
+- make superficial refactors without interoperability impact.
 
-**Avoid superficial changes that rename variables or restructure code without materially improving interoperability.**
+**Avoid superficial changes that rename/restructure code without materially improving interoperability reliability.**

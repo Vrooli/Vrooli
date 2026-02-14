@@ -12,7 +12,7 @@ import { AgentEventList } from "./agent/AgentEventList";
 import { AgentStatusIndicator } from "./agent/AgentStatusIndicator";
 import type { AsyncResultReference } from "./AsyncResultChip";
 import type { ChatWithMessages, Model, Label, Message, AgentChatConfig } from "../../lib/api";
-import { startAgentMode, sendAgentMessage, stopAgentMode } from "../../lib/api";
+import { startAgentMode, sendAgentMessage, stopAgentMode, AgentModeError } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import type { ViewMode } from "../settings/Settings";
@@ -141,10 +141,20 @@ export function ChatView({
   const [isStartingAgent, setIsStartingAgent] = useState(false);
   const [showAgentStartModal, setShowAgentStartModal] = useState(false);
   const [pendingAgentMessage, setPendingAgentMessage] = useState<string>("");
-  const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentError, setAgentError] = useState<{ message: string; recovery?: string } | null>(null);
 
   // Check if agent is currently active
   const isAgentActive = chatData?.chat?.chat_mode === "agent" && !!chatData?.chat?.agent_run_id;
+
+  // Stable callback for agent status changes.
+  // Must be wrapped in useCallback to avoid creating a new function reference
+  // on every render, which would destabilize useAgentWebSocket's polling loop.
+  const handleAgentStatusChange = useCallback((newStatus: import("../../lib/api").AgentModeStatus) => {
+    // Refresh chat when agent completes or fails
+    if (["complete", "failed", "cancelled"].includes(newStatus.status || "")) {
+      onRefreshChat?.();
+    }
+  }, [onRefreshChat]);
 
   // Agent WebSocket for real-time events
   const {
@@ -157,12 +167,7 @@ export function ChatView({
     chatId: chatData?.chat?.id || null,
     runId: chatData?.chat?.agent_run_id || null,
     enabled: isAgentActive,
-    onStatusChange: (newStatus) => {
-      // Refresh chat when agent completes or fails
-      if (["complete", "failed", "cancelled"].includes(newStatus.status || "")) {
-        onRefreshChat?.();
-      }
-    }
+    onStatusChange: handleAgentStatusChange
   });
 
   // Handle mode change
@@ -191,7 +196,11 @@ export function ChatView({
       setPendingAgentMessage("");
       onRefreshChat?.();
     } catch (e) {
-      setAgentError(e instanceof Error ? e.message : "Failed to start agent");
+      if (e instanceof AgentModeError) {
+        setAgentError({ message: e.message, recovery: e.recovery });
+      } else {
+        setAgentError({ message: e instanceof Error ? e.message : "Failed to start agent" });
+      }
     } finally {
       setIsStartingAgent(false);
     }
@@ -214,7 +223,11 @@ export function ChatView({
       await sendAgentMessage(chatData.chat.id, message);
       refreshAgentEvents();
     } catch (e) {
-      setAgentError(e instanceof Error ? e.message : "Failed to send message");
+      if (e instanceof AgentModeError) {
+        setAgentError({ message: e.message, recovery: e.recovery });
+      } else {
+        setAgentError({ message: e instanceof Error ? e.message : "Failed to send message" });
+      }
     }
   }, [chatData?.chat?.id, isAgentActive, refreshAgentEvents]);
 
@@ -226,7 +239,11 @@ export function ChatView({
       await stopAgentMode(chatData.chat.id);
       onRefreshChat?.();
     } catch (e) {
-      setAgentError(e instanceof Error ? e.message : "Failed to stop agent");
+      if (e instanceof AgentModeError) {
+        setAgentError({ message: e.message, recovery: e.recovery });
+      } else {
+        setAgentError({ message: e instanceof Error ? e.message : "Failed to stop agent" });
+      }
     }
   }, [chatData?.chat?.id, onRefreshChat]);
 
@@ -358,7 +375,10 @@ export function ChatView({
           isAgentActive={isAgentActive}
         />
         {agentError && (
-          <span className="text-xs text-red-400">{agentError}</span>
+          <span className="text-xs text-red-400">
+            {agentError.message}
+            {agentError.recovery && <span className="text-zinc-400 ml-1">— {agentError.recovery}</span>}
+          </span>
         )}
         {agentWsError && isAgentActive && (
           <span className="text-xs text-yellow-400">Connection issue: {agentWsError}</span>

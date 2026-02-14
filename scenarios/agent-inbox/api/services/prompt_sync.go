@@ -4,6 +4,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,8 +15,10 @@ import (
 	"time"
 
 	"agent-inbox/config"
+	"agent-inbox/resilience"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // Skill represents a knowledge module that provides methodology and expertise.
@@ -96,13 +99,27 @@ type PromptSyncService struct {
 	lastSyncHash string
 	overrides    map[string]SkillOverride
 	stopChan     chan struct{}
+	retryCfg     resilience.RetryConfig
+	cb           *resilience.CircuitBreaker
 }
 
 // NewPromptSyncService creates a new prompt sync service.
 func NewPromptSyncService(cfg *config.PromptSyncConfig, skillsCfg *config.SkillsConfig) *PromptSyncService {
+	appCfg := config.Default()
+	retryCfg := resilience.RetryConfig{
+		MaxAttempts: appCfg.Resilience.RetryAttempts,
+		BaseDelay:   appCfg.Resilience.RetryBaseDelay,
+		MaxDelay:    appCfg.Resilience.RetryMaxDelay,
+		Jitter:      0.1,
+	}
+	cb := resilience.NewCircuitBreaker(resilience.CircuitBreakerConfig{
+		FailureThreshold: appCfg.Resilience.CircuitBreakerThreshold,
+		Cooldown:         appCfg.Resilience.CircuitBreakerCooldown,
+	})
+
 	svc := &PromptSyncService{
-		cfg:         cfg,
-		skillsCfg:   skillsCfg,
+		cfg:       cfg,
+		skillsCfg: skillsCfg,
 		client: &http.Client{
 			Timeout: cfg.SyncTimeout,
 		},
@@ -110,6 +127,8 @@ func NewPromptSyncService(cfg *config.PromptSyncConfig, skillsCfg *config.Skills
 		localSkills: make(map[string]*SkillResponse),
 		overrides:   make(map[string]SkillOverride),
 		stopChan:    make(chan struct{}),
+		retryCfg:    retryCfg,
+		cb:          cb,
 	}
 
 	// Load overrides from config file
@@ -159,14 +178,17 @@ func (s *PromptSyncService) backgroundSync() {
 }
 
 // Sync fetches prompts from prompt-manager and updates the local cache.
+// On connection failure, re-resolves the prompt-manager URL via discovery
+// to handle port drift after prompt-manager restarts.
 func (s *PromptSyncService) Sync() error {
 	if s.cfg.PromptManagerURL == "" {
-		return fmt.Errorf("prompt-manager URL not available")
+		s.reResolveURL()
+		if s.cfg.PromptManagerURL == "" {
+			return fmt.Errorf("prompt-manager URL not available")
+		}
 	}
 
-	url := fmt.Sprintf("%s/api/v1/skills/sync?tag=skill", s.cfg.PromptManagerURL)
-
-	resp, err := s.client.Get(url)
+	resp, err := s.doHTTPWithRetry("GET", "/api/v1/skills/sync?tag=skill", nil)
 	if err != nil {
 		return fmt.Errorf("failed to fetch prompts: %w", err)
 	}
@@ -263,6 +285,90 @@ func (s *PromptSyncService) loadOverrides() {
 	}
 
 	log.Printf("Loaded %d skill overrides", len(s.overrides))
+}
+
+// reResolveURL attempts to re-discover the prompt-manager URL via api-core discovery.
+// Returns true if a new URL was found, false otherwise.
+func (s *PromptSyncService) reResolveURL() bool {
+	// Check env var override first
+	if url := os.Getenv("PROMPT_MANAGER_URL"); url != "" {
+		s.cfg.PromptManagerURL = url
+		return true
+	}
+
+	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	url, err := resolver.ResolveScenarioURLDefault(ctx, "prompt-manager")
+	if err != nil {
+		log.Printf("Prompt sync: re-resolution failed: %v", err)
+		return false
+	}
+
+	if url != "" && url != s.cfg.PromptManagerURL {
+		log.Printf("Prompt sync: re-resolved prompt-manager URL to %s", url)
+		s.cfg.PromptManagerURL = url
+		return true
+	}
+	return false
+}
+
+// doHTTPWithRetry performs an HTTP request with retry, circuit breaker, and URL re-resolution.
+// On retry attempts > 1, it re-resolves the prompt-manager URL.
+// 4xx responses are marked as permanent (non-retryable) errors.
+func (s *PromptSyncService) doHTTPWithRetry(method, path string, body []byte) (*http.Response, error) {
+	var resp *http.Response
+	ctx := context.Background()
+
+	err := resilience.Retry(ctx, s.retryCfg, func(ctx context.Context, attempt int) error {
+		if attempt > 1 {
+			s.reResolveURL()
+		}
+
+		if s.cfg.PromptManagerURL == "" {
+			return fmt.Errorf("prompt-manager URL not available")
+		}
+
+		var reqBody io.Reader
+		if body != nil {
+			reqBody = bytes.NewReader(body)
+		}
+
+		req, err := http.NewRequest(method, s.cfg.PromptManagerURL+path, reqBody)
+		if err != nil {
+			return resilience.Permanent(err)
+		}
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+
+		doReq := func(ctx context.Context) error {
+			var doErr error
+			resp, doErr = s.client.Do(req)
+			return doErr
+		}
+
+		if s.cb != nil {
+			err = s.cb.Execute(ctx, doReq)
+		} else {
+			err = doReq(ctx)
+		}
+		if err != nil {
+			return err
+		}
+
+		// Mark 4xx as permanent
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			respBody, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return resilience.Permanent(fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody)))
+		}
+
+		return nil
+	})
+
+	return resp, err
 }
 
 // ListSkills returns all skills from prompt-manager.
@@ -405,8 +511,14 @@ func (s *PromptSyncService) UpdateSkill(id string, updates *Skill) (*SkillRespon
 
 // UpdateSkillInPromptManager sends skill updates to prompt-manager.
 func (s *PromptSyncService) UpdateSkillInPromptManager(id string, updates *Skill) (*SkillResponse, error) {
-	if !s.cfg.Enabled || s.cfg.PromptManagerURL == "" {
-		return nil, fmt.Errorf("prompt-manager sync is not enabled or URL not configured")
+	if !s.cfg.Enabled {
+		return nil, fmt.Errorf("prompt-manager sync is not enabled")
+	}
+	if s.cfg.PromptManagerURL == "" {
+		s.reResolveURL()
+		if s.cfg.PromptManagerURL == "" {
+			return nil, fmt.Errorf("prompt-manager URL not available")
+		}
 	}
 
 	// Build the update payload
@@ -436,14 +548,8 @@ func (s *PromptSyncService) UpdateSkillInPromptManager(id string, updates *Skill
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/v1/skills/%s", s.cfg.PromptManagerURL, id)
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.client.Do(req)
+	path := fmt.Sprintf("/api/v1/skills/%s", id)
+	resp, err := s.doHTTPWithRetry(http.MethodPut, path, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update skill in prompt-manager: %w", err)
 	}
@@ -502,17 +608,18 @@ func (s *PromptSyncService) DeleteSkill(id string) error {
 
 // DeleteSkillInPromptManager deletes a skill from prompt-manager.
 func (s *PromptSyncService) DeleteSkillInPromptManager(id string) error {
-	if !s.cfg.Enabled || s.cfg.PromptManagerURL == "" {
-		return fmt.Errorf("prompt-manager sync is not enabled or URL not configured")
+	if !s.cfg.Enabled {
+		return fmt.Errorf("prompt-manager sync is not enabled")
+	}
+	if s.cfg.PromptManagerURL == "" {
+		s.reResolveURL()
+		if s.cfg.PromptManagerURL == "" {
+			return fmt.Errorf("prompt-manager URL not available")
+		}
 	}
 
-	url := fmt.Sprintf("%s/api/v1/skills/%s", s.cfg.PromptManagerURL, id)
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := s.client.Do(req)
+	path := fmt.Sprintf("/api/v1/skills/%s", id)
+	resp, err := s.doHTTPWithRetry(http.MethodDelete, path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to delete skill from prompt-manager: %w", err)
 	}
@@ -530,7 +637,6 @@ func (s *PromptSyncService) DeleteSkillInPromptManager(id string) error {
 
 	return nil
 }
-
 
 // ImportSkills imports multiple local skills.
 func (s *PromptSyncService) ImportSkills(skills []Skill) (int, error) {
@@ -566,12 +672,12 @@ func (s *PromptSyncService) EnsureDirectories() error {
 
 // RecordUsage records usage of a skill by calling prompt-manager.
 func (s *PromptSyncService) RecordUsage(id string) error {
-	if !s.cfg.Enabled {
+	if !s.cfg.Enabled || s.cfg.PromptManagerURL == "" {
 		return nil
 	}
 
-	url := fmt.Sprintf("%s/api/v1/skills/%s/use", s.cfg.PromptManagerURL, id)
-	resp, err := s.client.Post(url, "application/json", nil)
+	path := fmt.Sprintf("/api/v1/skills/%s/use", id)
+	resp, err := s.doHTTPWithRetry("POST", path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to record usage: %w", err)
 	}
@@ -659,8 +765,14 @@ type CreateSkillRequest struct {
 
 // CreateSkillInPromptManager creates a skill in prompt-manager and optionally stores a local override.
 func (s *PromptSyncService) CreateSkillInPromptManager(req *CreateSkillRequest) (*SkillResponse, error) {
-	if !s.cfg.Enabled || s.cfg.PromptManagerURL == "" {
-		return nil, fmt.Errorf("prompt-manager sync is not enabled or URL not configured")
+	if !s.cfg.Enabled {
+		return nil, fmt.Errorf("prompt-manager sync is not enabled")
+	}
+	if s.cfg.PromptManagerURL == "" {
+		s.reResolveURL()
+		if s.cfg.PromptManagerURL == "" {
+			return nil, fmt.Errorf("prompt-manager URL not available")
+		}
 	}
 
 	// Prepare the request body for prompt-manager
@@ -691,8 +803,7 @@ func (s *PromptSyncService) CreateSkillInPromptManager(req *CreateSkillRequest) 
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/v1/skills", s.cfg.PromptManagerURL)
-	resp, err := s.client.Post(url, "application/json", io.NopCloser(bytes.NewReader(body)))
+	resp, err := s.doHTTPWithRetry("POST", "/api/v1/skills", body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create skill in prompt-manager: %w", err)
 	}
@@ -772,7 +883,7 @@ func (s *PromptSyncService) SaveOverride(skillID, icon, targetToolID string) err
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(s.cfg.SkillOverridesPath, updatedData, 0644); err != nil {
+	if err := os.WriteFile(s.cfg.SkillOverridesPath, updatedData, 0o644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -781,4 +892,3 @@ func (s *PromptSyncService) SaveOverride(skillID, icon, targetToolID string) err
 
 	return nil
 }
-

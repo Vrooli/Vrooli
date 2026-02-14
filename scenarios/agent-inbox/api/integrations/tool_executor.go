@@ -87,12 +87,17 @@ func (e *ToolExecutor) UnregisterHandler(scenario string) {
 //   - scenarioName: The name of the scenario (e.g., "scenario-to-cloud")
 //   - baseURL: The base URL of the scenario's API (e.g., "http://localhost:8080")
 //   - toolNames: List of tool names that this scenario provides
-func (e *ToolExecutor) RegisterProtocolHandler(scenarioName, baseURL string, toolNames []string) {
-	handler := NewProtocolHandler(ProtocolHandlerConfig{
+//   - urlResolver: Optional URLResolver for re-resolving URL on connection failure
+func (e *ToolExecutor) RegisterProtocolHandler(scenarioName, baseURL string, toolNames []string, urlResolver ...URLResolver) {
+	cfg := ProtocolHandlerConfig{
 		ScenarioName: scenarioName,
 		BaseURL:      baseURL,
 		ToolNames:    toolNames,
-	})
+	}
+	if len(urlResolver) > 0 {
+		cfg.URLResolver = urlResolver[0]
+	}
+	handler := NewProtocolHandler(cfg)
 	e.RegisterHandler(handler)
 }
 
@@ -233,4 +238,3 @@ type UnknownToolError struct {
 func (e *UnknownToolError) Error() string {
 	return fmt.Sprintf("unknown tool: %s", e.ToolName)
 }
-

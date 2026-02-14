@@ -1,4 +1,5 @@
-import { Bot, Loader2, CheckCircle2, XCircle, AlertCircle, StopCircle } from "lucide-react";
+import { Bot, Loader2, CheckCircle2, XCircle, AlertCircle, StopCircle, Copy, Check } from "lucide-react";
+import { useState, useCallback } from "react";
 import type { AgentRunStatus } from "../../../lib/api";
 
 interface AgentStatusIndicatorProps {
@@ -74,6 +75,27 @@ export function AgentStatusIndicator({
   errorMsg,
   onStop
 }: AgentStatusIndicatorProps) {
+  const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    if (!errorMsg) return;
+    try {
+      await navigator.clipboard.writeText(errorMsg);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback: select the text
+      const el = document.querySelector("[data-agent-error]");
+      if (el) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+      }
+    }
+  }, [errorMsg]);
+
   if (!status) return null;
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -108,9 +130,23 @@ export function AgentStatusIndicator({
 
       {/* Error message */}
       {errorMsg && status === "failed" && (
-        <span className="text-xs text-red-400 truncate max-w-xs" title={errorMsg}>
-          {errorMsg}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <span
+            data-agent-error
+            className={`text-xs text-red-400 select-text cursor-text ${expanded ? "whitespace-pre-wrap break-all" : "truncate"}`}
+            onClick={() => setExpanded(!expanded)}
+            title={expanded ? undefined : errorMsg}
+          >
+            {errorMsg}
+          </span>
+          <button
+            onClick={handleCopy}
+            className="flex-shrink-0 p-0.5 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+            title="Copy error message"
+          >
+            {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+          </button>
+        </div>
       )}
 
       {/* Spacer */}

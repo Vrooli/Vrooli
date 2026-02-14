@@ -22,15 +22,24 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"agent-inbox/config"
+	"agent-inbox/resilience"
 )
 
 // ProtocolHandler implements ScenarioHandler for any protocol-compliant scenario.
 // It forwards tool execution requests to the scenario's /api/v1/tools/execute endpoint.
+//
+// URL Resolution: The handler resolves the scenario URL lazily via URLResolver
+// and re-resolves on connection failures to handle port drift after restarts.
 type ProtocolHandler struct {
 	scenarioName string
-	baseURL      string
+	baseURL      string      // Cached URL; re-resolved on connection failure
+	urlResolver  URLResolver // Optional; if nil, baseURL is treated as static
 	httpClient   HTTPClient
 	toolNames    map[string]bool // Set of tool names this handler supports
+	retryCfg     resilience.RetryConfig
+	cb           *resilience.CircuitBreaker
 }
 
 // ProtocolHandlerConfig contains configuration for creating a ProtocolHandler.
@@ -40,6 +49,9 @@ type ProtocolHandlerConfig struct {
 	ToolNames    []string
 	HTTPClient   HTTPClient
 	Timeout      time.Duration
+	URLResolver  URLResolver // Optional; enables re-resolution on connection failure
+	RetryCfg     *resilience.RetryConfig
+	CB           *resilience.CircuitBreaker
 }
 
 // NewProtocolHandler creates a new ProtocolHandler.
@@ -59,11 +71,37 @@ func NewProtocolHandler(cfg ProtocolHandlerConfig) *ProtocolHandler {
 		toolNames[name] = true
 	}
 
+	// Initialize resilience from config or defaults
+	retryCfg := resilience.DefaultRetryConfig()
+	if cfg.RetryCfg != nil {
+		retryCfg = *cfg.RetryCfg
+	} else {
+		appCfg := config.Default()
+		retryCfg = resilience.RetryConfig{
+			MaxAttempts: appCfg.Resilience.RetryAttempts,
+			BaseDelay:   appCfg.Resilience.RetryBaseDelay,
+			MaxDelay:    appCfg.Resilience.RetryMaxDelay,
+			Jitter:      0.1,
+		}
+	}
+
+	cb := cfg.CB
+	if cb == nil {
+		appCfg := config.Default()
+		cb = resilience.NewCircuitBreaker(resilience.CircuitBreakerConfig{
+			FailureThreshold: appCfg.Resilience.CircuitBreakerThreshold,
+			Cooldown:         appCfg.Resilience.CircuitBreakerCooldown,
+		})
+	}
+
 	return &ProtocolHandler{
 		scenarioName: cfg.ScenarioName,
 		baseURL:      cfg.BaseURL,
+		urlResolver:  cfg.URLResolver,
 		httpClient:   httpClient,
 		toolNames:    toolNames,
+		retryCfg:     retryCfg,
+		cb:           cb,
 	}
 }
 
@@ -78,6 +116,7 @@ func (h *ProtocolHandler) CanHandle(toolName string) bool {
 }
 
 // Execute runs the tool by forwarding to the scenario's execute endpoint.
+// On connection failure, re-resolves the scenario URL via URLResolver and retries once.
 func (h *ProtocolHandler) Execute(ctx context.Context, toolName string, args map[string]interface{}) (interface{}, error) {
 	// Build request payload
 	payload := map[string]interface{}{
@@ -90,32 +129,61 @@ func (h *ProtocolHandler) Execute(ctx context.Context, toolName string, args map
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Create HTTP request
-	url := h.baseURL + "/api/v1/tools/execute"
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payloadJSON))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
+	var respBody []byte
 
-	// Execute request
-	resp, err := h.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("HTTP request failed: %w", err)
-	}
-	defer resp.Body.Close()
+	retryErr := resilience.Retry(ctx, h.retryCfg, func(ctx context.Context, attempt int) error {
+		// Re-resolve URL on retries
+		if attempt > 1 && h.urlResolver != nil {
+			if newURL, reErr := h.urlResolver.ResolveScenarioURL(ctx, h.scenarioName); reErr == nil {
+				h.baseURL = newURL
+			}
+		}
 
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		executeURL := h.baseURL + "/api/v1/tools/execute"
+		req, reqErr := http.NewRequestWithContext(ctx, "POST", executeURL, bytes.NewReader(payloadJSON))
+		if reqErr != nil {
+			return resilience.Permanent(reqErr)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+
+		doReq := func(ctx context.Context) error {
+			resp, doErr := h.httpClient.Do(req)
+			if doErr != nil {
+				return doErr
+			}
+			defer resp.Body.Close()
+
+			var readErr error
+			respBody, readErr = io.ReadAll(resp.Body)
+			if readErr != nil {
+				return fmt.Errorf("failed to read response: %w", readErr)
+			}
+
+			// Mark 4xx as permanent
+			if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+				return resilience.Permanent(fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody)))
+			}
+			if resp.StatusCode >= 500 {
+				return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+			}
+			return nil
+		}
+
+		if h.cb != nil {
+			return h.cb.Execute(ctx, doReq)
+		}
+		return doReq(ctx)
+	})
+
+	if retryErr != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", retryErr)
 	}
 
 	// Parse response
 	var result ExecutionProtocolResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w (body: %s)", err, string(body))
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w (body: %s)", err, string(respBody))
 	}
 
 	// Handle error responses

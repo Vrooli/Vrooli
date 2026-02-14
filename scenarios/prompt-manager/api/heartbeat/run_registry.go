@@ -164,9 +164,7 @@ func (r *RunRegistry) Recover(ctx context.Context, client *AgentManagerClient) {
 		if run == nil {
 			continue
 		}
-		switch run.Status {
-		case "RUN_STATUS_COMPLETE", "RUN_STATUS_FAILED", "RUN_STATUS_CANCELLED",
-			"complete", "failed", "cancelled":
+		if IsTerminalStatus(run.Status) {
 			continue
 		}
 

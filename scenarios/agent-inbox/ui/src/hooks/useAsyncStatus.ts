@@ -21,6 +21,17 @@ import { resolveApiBase } from "@vrooli/api-base";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 
+function isAsyncStatusUpdate(v: unknown): v is AsyncStatusUpdate {
+  return typeof v === 'object' && v !== null
+    && typeof (v as Record<string, unknown>).tool_call_id === 'string'
+    && typeof (v as Record<string, unknown>).is_terminal === 'boolean';
+}
+
+function isAsyncHistoryResponse(v: unknown): v is AsyncHistoryResponse {
+  return typeof v === 'object' && v !== null
+    && Array.isArray((v as Record<string, unknown>).operations);
+}
+
 /** Status update received via SSE */
 export interface AsyncStatusUpdate {
   tool_call_id: string;
@@ -145,9 +156,14 @@ export function useAsyncStatus(
             if (!response.ok) {
               throw new Error("Failed to fetch history");
             }
-            return response.json() as Promise<AsyncHistoryResponse>;
+            return response.json();
           })
-          .then((data) => {
+          .then((raw: unknown) => {
+            if (!isAsyncHistoryResponse(raw)) {
+              console.warn("[useAsyncStatus] Unexpected history response shape");
+              return;
+            }
+            const data = raw;
             // Merge history into operations map
             // Don't overwrite active operations that came in via SSE
             setOperations((prev) => {
@@ -181,7 +197,12 @@ export function useAsyncStatus(
     // Handle 'status' events
     eventSource.addEventListener("status", (event) => {
       try {
-        const update = JSON.parse(event.data) as AsyncStatusUpdate;
+        const raw = JSON.parse(event.data);
+        if (!isAsyncStatusUpdate(raw)) {
+          console.warn("[useAsyncStatus] Unexpected status update shape");
+          return;
+        }
+        const update = raw;
         handleStatusUpdateRef.current?.(update);
       } catch (err) {
         console.error("[useAsyncStatus] Failed to parse status event:", err);
@@ -245,7 +266,11 @@ export function useAsyncStatus(
           throw new Error(data.error || "Failed to refresh operation");
         }
 
-        const update = await response.json() as AsyncStatusUpdate;
+        const raw = await response.json();
+        if (!isAsyncStatusUpdate(raw)) {
+          throw new Error("Unexpected response shape from refresh");
+        }
+        const update = raw;
 
         // Update local state with the refreshed data
         setOperations((prev) => {
@@ -281,7 +306,11 @@ export function useAsyncStatus(
           throw new Error(data.error || "Failed to fetch history");
         }
 
-        const data = await response.json() as AsyncHistoryResponse;
+        const raw = await response.json();
+        if (!isAsyncHistoryResponse(raw)) {
+          throw new Error("Unexpected response shape from history");
+        }
+        const data = raw;
         return {
           operations: data.operations || [],
           total: data.total,

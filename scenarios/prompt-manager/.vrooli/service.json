@@ -180,6 +180,12 @@
     }
   },
   "dependencies": {
+    "scenarios": {
+      "agent-manager": {
+        "required": false,
+        "description": "Executes heartbeat runs via task/run API. Heartbeat system degrades when unavailable."
+      }
+    },
     "resources": {
       "postgres": {
         "type": "postgres",

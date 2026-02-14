@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"agent-inbox/domain"
@@ -16,7 +17,7 @@ import (
 // getAgentClient returns the agent-manager client or writes an error response if unavailable.
 func (h *Handlers) getAgentClient(w http.ResponseWriter, r *http.Request) integrations.AgentManagerClientInterface {
 	if h.AgentClient == nil {
-		h.WriteAppError(w, r, domain.ErrServiceUnavailable("agent-manager"))
+		h.WriteAppError(w, r, domain.ErrAgentManagerUnavailable())
 		return nil
 	}
 	return h.AgentClient
@@ -65,6 +66,20 @@ func (h *Handlers) StartAgentMode(w http.ResponseWriter, r *http.Request) {
 		h.WriteAppError(w, r, domain.ErrInvalidInput("project_path is required"))
 		return
 	}
+	// Validate that the project path exists and is accessible
+	if info, err := os.Stat(req.ProjectPath); err != nil {
+		if os.IsNotExist(err) {
+			h.WriteAppError(w, r, domain.ErrInvalidInput("project_path does not exist: "+req.ProjectPath))
+		} else if os.IsPermission(err) {
+			h.WriteAppError(w, r, domain.ErrInvalidInput("project_path is not accessible (permission denied): "+req.ProjectPath))
+		} else {
+			h.WriteAppError(w, r, domain.ErrInvalidInput("project_path is not valid: "+err.Error()))
+		}
+		return
+	} else if !info.IsDir() {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("project_path is not a directory: "+req.ProjectPath))
+		return
+	}
 
 	// Verify chat exists
 	chat, err := h.Repo.GetChat(r.Context(), chatID)
@@ -80,7 +95,7 @@ func (h *Handlers) StartAgentMode(w http.ResponseWriter, r *http.Request) {
 
 	// Check if already in agent mode
 	if chat.ChatMode == domain.ChatModeAgent && chat.AgentRunID != "" {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("chat is already in agent mode"))
+		h.WriteAppError(w, r, domain.ErrAgentAlreadyActive(chatID))
 		return
 	}
 
@@ -160,12 +175,12 @@ func (h *Handlers) SendAgentMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if chatMode != domain.ChatModeAgent {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("chat is not in agent mode"))
+		h.WriteAppError(w, r, domain.ErrAgentNotInMode(chatID))
 		return
 	}
 
 	if runID == "" {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("no active agent run"))
+		h.WriteAppError(w, r, domain.ErrAgentNoActiveRun(chatID))
 		return
 	}
 
@@ -225,12 +240,12 @@ func (h *Handlers) GetAgentEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if chatMode != domain.ChatModeAgent {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("chat is not in agent mode"))
+		h.WriteAppError(w, r, domain.ErrAgentNotInMode(chatID))
 		return
 	}
 
 	if runID == "" {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("no active agent run"))
+		h.WriteAppError(w, r, domain.ErrAgentNoActiveRun(chatID))
 		return
 	}
 
@@ -271,12 +286,12 @@ func (h *Handlers) StopAgentMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if chatMode != domain.ChatModeAgent {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("chat is not in agent mode"))
+		h.WriteAppError(w, r, domain.ErrAgentNotInMode(chatID))
 		return
 	}
 
 	if runID == "" {
-		h.WriteAppError(w, r, domain.ErrInvalidInput("no active agent run"))
+		h.WriteAppError(w, r, domain.ErrAgentNoActiveRun(chatID))
 		return
 	}
 

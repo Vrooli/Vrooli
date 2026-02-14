@@ -219,8 +219,9 @@ func (r *ToolRegistry) registerHandlers(ctx context.Context, manifests map[strin
 			toolNames = append(toolNames, tool.Name)
 		}
 
-		// Register the protocol handler
-		r.toolExecutor.RegisterProtocolHandler(scenarioName, baseURL, toolNames)
+		// Register the protocol handler with URL resolver for re-resolution on failure
+		resolver := &defaultURLResolver{}
+		r.toolExecutor.RegisterProtocolHandler(scenarioName, baseURL, toolNames, resolver)
 		log.Printf("Registered protocol handler for %s with %d tools", scenarioName, len(toolNames))
 	}
 }

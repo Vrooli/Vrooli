@@ -26,27 +26,28 @@ func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 	}
 }
 
-// ProfileRef identifies a profile by key and optional defaults
+// ProfileRef identifies a profile by key and optional defaults.
 type ProfileRef struct {
-	ProfileKey string        `json:"profileKey"`
+	ProfileKey string        `json:"profile_key"`
 	Defaults   *AgentProfile `json:"defaults,omitempty"`
 }
 
-// AgentProfile defines the configuration for running an agent
+// AgentProfile defines the configuration for running an agent.
+// JSON tags use snake_case to match agent-manager's protojson schema.
 type AgentProfile struct {
 	Name                 string        `json:"name"`
-	ProfileKey           string        `json:"profileKey"`
+	ProfileKey           string        `json:"profile_key"`
 	Description          string        `json:"description,omitempty"`
-	RunnerType           string        `json:"runnerType"`
+	RunnerType           string        `json:"runner_type"`
 	Model                string        `json:"model,omitempty"`
-	ModelPreset          string        `json:"modelPreset,omitempty"`
-	MaxTurns             int32         `json:"maxTurns,omitempty"`
+	ModelPreset          string        `json:"model_preset,omitempty"`
+	MaxTurns             int32         `json:"max_turns,omitempty"`
 	Timeout              time.Duration `json:"timeout,omitempty"`
-	AllowedTools         []string      `json:"allowedTools,omitempty"`
-	SkipPermissionPrompt bool          `json:"skipPermissionPrompt,omitempty"`
-	RequiresSandbox      bool          `json:"requiresSandbox,omitempty"`
-	RequiresApproval     bool          `json:"requiresApproval,omitempty"`
-	CreatedBy            string        `json:"createdBy,omitempty"`
+	AllowedTools         []string      `json:"allowed_tools,omitempty"`
+	SkipPermissionPrompt bool          `json:"skip_permission_prompt,omitempty"`
+	RequiresSandbox      bool          `json:"requires_sandbox,omitempty"`
+	RequiresApproval     bool          `json:"requires_approval,omitempty"`
+	CreatedBy            string        `json:"created_by,omitempty"`
 }
 
 // Task represents a task for agent execution.
@@ -70,23 +71,25 @@ type CreateTaskResponse struct {
 	Task *Task `json:"task"`
 }
 
-// CreateRunRequest is the request for creating a run
+// CreateRunRequest is the request for creating a run.
+// JSON tags use snake_case to match agent-manager's protojson schema.
 type CreateRunRequest struct {
-	TaskID     string      `json:"taskId"`
-	ProfileRef *ProfileRef `json:"profileRef,omitempty"`
+	TaskID     string      `json:"task_id"`
+	ProfileRef *ProfileRef `json:"profile_ref,omitempty"`
 	Tag        *string     `json:"tag,omitempty"`
-	RunMode    string      `json:"runMode,omitempty"`
+	RunMode    string      `json:"run_mode,omitempty"`
 }
 
-// Run represents an agent run
+// Run represents an agent run.
+// JSON tags use snake_case to match agent-manager's protojson UseProtoNames output.
 type Run struct {
 	ID        string `json:"id"`
-	TaskID    string `json:"taskId"`
-	ProfileID string `json:"agentProfileId,omitempty"`
+	TaskID    string `json:"task_id"`
+	ProfileID string `json:"agent_profile_id,omitempty"`
 	Status    string `json:"status"`
-	StartedAt string `json:"startedAt,omitempty"`
-	EndedAt   string `json:"endedAt,omitempty"`
-	Error     string `json:"error,omitempty"`
+	StartedAt string `json:"started_at,omitempty"`
+	EndedAt   string `json:"ended_at,omitempty"`
+	Error     string `json:"error_msg,omitempty"`
 }
 
 // CreateRunResponse is the response from creating a run
@@ -99,11 +102,11 @@ type GetRunResponse struct {
 	Run *Run `json:"run"`
 }
 
-// EnsureProfileRequest requests a profile by key
+// EnsureProfileRequest requests a profile by key.
 type EnsureProfileRequest struct {
-	ProfileKey     string        `json:"profileKey"`
+	ProfileKey     string        `json:"profile_key"`
 	Defaults       *AgentProfile `json:"defaults,omitempty"`
-	UpdateExisting bool          `json:"updateExisting,omitempty"`
+	UpdateExisting bool          `json:"update_existing,omitempty"`
 }
 
 // EnsureProfileResponse is the response from ensure profile
@@ -115,7 +118,7 @@ type EnsureProfileResponse struct {
 
 // Health checks the agent-manager service health
 func (c *AgentManagerClient) Health(ctx context.Context) (bool, error) {
-	resp, err := c.doRequest(ctx, "GET", "/health", nil)
+	resp, err := c.doRequestWithRetry(ctx, "GET", "/health", nil)
 	if err != nil {
 		return false, err
 	}
@@ -131,7 +134,7 @@ func (c *AgentManagerClient) EnsureProfile(ctx context.Context, req *EnsureProfi
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/ensure", body)
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/profiles/ensure", body)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +159,7 @@ func (c *AgentManagerClient) CreateTask(ctx context.Context, task *Task) (*Task,
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/tasks", body)
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/tasks", body)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +183,7 @@ func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunReques
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs", body)
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/runs", body)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +202,7 @@ func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunReques
 
 // GetRun retrieves a run by ID
 func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*Run, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/%s", runID), nil)
+	resp, err := c.doRequestWithRetry(ctx, "GET", fmt.Sprintf("/api/v1/runs/%s", runID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -237,10 +240,7 @@ func (c *AgentManagerClient) WaitForRun(ctx context.Context, runID string, pollI
 				return nil, fmt.Errorf("run %s not found", runID)
 			}
 
-			// Check if terminal state
-			switch run.Status {
-			case "RUN_STATUS_COMPLETE", "RUN_STATUS_FAILED", "RUN_STATUS_CANCELLED",
-				"complete", "failed", "cancelled":
+			if IsTerminalStatus(run.Status) {
 				return run, nil
 			}
 		}
@@ -259,6 +259,48 @@ func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) error {
 		return c.parseError(resp)
 	}
 	return nil
+}
+
+// isRetryable returns true for transport errors and 5xx status codes.
+func isRetryable(resp *http.Response, err error) bool {
+	if err != nil {
+		return true // connection refused, timeout, DNS, etc.
+	}
+	return resp.StatusCode >= 500
+}
+
+// doRequestWithRetry wraps doRequest with bounded retry for transient failures.
+// Max 3 attempts with backoff: 500ms, 1s, 2s. Only retries transport errors
+// and 5xx responses. The URL is re-resolved on each attempt.
+func (c *AgentManagerClient) doRequestWithRetry(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
+	backoff := []time.Duration{500 * time.Millisecond, 1 * time.Second, 2 * time.Second}
+	var lastErr error
+
+	for attempt := 0; attempt <= len(backoff); attempt++ {
+		resp, err := c.doRequest(ctx, method, path, body)
+		if !isRetryable(resp, err) {
+			return resp, err
+		}
+
+		// Close body from failed attempt to avoid leaking connections
+		if resp != nil {
+			resp.Body.Close()
+		}
+		lastErr = err
+		if lastErr == nil {
+			lastErr = fmt.Errorf("agent-manager returned %d", resp.StatusCode)
+		}
+
+		// Don't sleep after the last attempt
+		if attempt < len(backoff) {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff[attempt]):
+			}
+		}
+	}
+	return nil, fmt.Errorf("agent-manager unreachable after %d attempts: %w", len(backoff)+1, lastErr)
 }
 
 // doRequest performs an HTTP request to agent-manager

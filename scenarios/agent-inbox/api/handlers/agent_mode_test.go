@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"agent-inbox/domain"
@@ -119,6 +121,18 @@ func decodeBody(t *testing.T, w *httptest.ResponseRecorder, target interface{}) 
 	}
 }
 
+// assertErrorCode verifies that the response body contains the expected error code.
+func assertErrorCode(t *testing.T, w *httptest.ResponseRecorder, expectedCode string) {
+	t.Helper()
+	var resp APIErrorResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode error response: %v\nbody: %s", err, w.Body.String())
+	}
+	if resp.Error.Code != expectedCode {
+		t.Errorf("expected error code %s, got %s", expectedCode, resp.Error.Code)
+	}
+}
+
 // =============================================================================
 // Validation Tests (no DB required)
 // =============================================================================
@@ -175,6 +189,45 @@ func TestStartAgentMode_MissingProjectPath(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestStartAgentMode_NonexistentProjectPath(t *testing.T) {
+	h := &Handlers{}
+	body := bytes.NewBufferString(`{"message": "hello", "project_path": "/nonexistent/path/xyz"}`)
+	req := httptest.NewRequest("POST", "/api/v1/chats/550e8400-e29b-41d4-a716-446655440000/agent-mode/start", body)
+	req = mux.SetURLVars(req, map[string]string{"id": "550e8400-e29b-41d4-a716-446655440000"})
+	w := httptest.NewRecorder()
+
+	h.StartAgentMode(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte("does not exist")) {
+		t.Errorf("expected 'does not exist' in response, got: %s", w.Body.String())
+	}
+}
+
+func TestStartAgentMode_FileNotDirectory(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "file.txt")
+	if err := os.WriteFile(tmpFile, []byte("test"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	h := &Handlers{}
+	body := bytes.NewBufferString(`{"message": "hello", "project_path": "` + tmpFile + `"}`)
+	req := httptest.NewRequest("POST", "/api/v1/chats/550e8400-e29b-41d4-a716-446655440000/agent-mode/start", body)
+	req = mux.SetURLVars(req, map[string]string{"id": "550e8400-e29b-41d4-a716-446655440000"})
+	w := httptest.NewRecorder()
+
+	h.StartAgentMode(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte("not a directory")) {
+		t.Errorf("expected 'not a directory' in response, got: %s", w.Body.String())
 	}
 }
 
@@ -264,6 +317,7 @@ func TestClearAgentMode_InvalidUUID(t *testing.T) {
 func TestStartAgentMode_Success(t *testing.T) {
 	env := setupAgentModeTest(t)
 	chatID := env.createChat(t)
+	projectDir := t.TempDir()
 
 	env.mockAgent.StartResult = &integrations.AgentChatSession{
 		TaskID:    "task-123",
@@ -273,7 +327,7 @@ func TestStartAgentMode_Success(t *testing.T) {
 
 	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/start", map[string]interface{}{
 		"message":      "Fix the bug",
-		"project_path": "/tmp/project",
+		"project_path": projectDir,
 		"runner_type":  "claude-code",
 	})
 
@@ -305,8 +359,8 @@ func TestStartAgentMode_Success(t *testing.T) {
 	if call.Message != "Fix the bug" {
 		t.Errorf("expected message 'Fix the bug', got %s", call.Message)
 	}
-	if call.Config.ProjectPath != "/tmp/project" {
-		t.Errorf("expected project_path /tmp/project, got %s", call.Config.ProjectPath)
+	if call.Config.ProjectPath != projectDir {
+		t.Errorf("expected project_path %s, got %s", projectDir, call.Config.ProjectPath)
 	}
 
 	// Verify chat is now in agent mode in DB
@@ -372,9 +426,10 @@ func TestStartAgentMode_AlreadyInAgentMode(t *testing.T) {
 		"project_path": "/tmp",
 	})
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d: %s", w.Code, w.Body.String())
 	}
+	assertErrorCode(t, w, "V014")
 }
 
 func TestStartAgentMode_AgentManagerFails(t *testing.T) {
@@ -874,6 +929,7 @@ func TestGetAgentClient_Nil(t *testing.T) {
 	if w.Code != http.StatusBadGateway {
 		t.Errorf("expected 502, got %d", w.Code)
 	}
+	assertErrorCode(t, w, "D008")
 }
 
 func TestGetAgentClient_Set(t *testing.T) {
@@ -889,5 +945,116 @@ func TestGetAgentClient_Set(t *testing.T) {
 	}
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200 (default), got %d", w.Code)
+	}
+}
+
+// =============================================================================
+// Agent Error Code Regression Tests
+// =============================================================================
+
+func TestAgentErrorCodes_NotInAgentMode(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChat(t)
+	// Chat is in LLM mode (default), not agent mode
+
+	tests := []struct {
+		name   string
+		method string
+		url    string
+	}{
+		{"SendMessage", "POST", "/api/v1/chats/" + chatID + "/agent-mode/message"},
+		{"GetEvents", "GET", "/api/v1/chats/" + chatID + "/agent-mode/events"},
+		{"Stop", "POST", "/api/v1/chats/" + chatID + "/agent-mode/stop"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w *httptest.ResponseRecorder
+			if tt.method == "POST" {
+				w = env.doRequest(tt.method, tt.url, map[string]interface{}{"message": "hello"})
+			} else {
+				w = env.doRequest(tt.method, tt.url, nil)
+			}
+
+			if w.Code != http.StatusBadRequest {
+				t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+			}
+			assertErrorCode(t, w, "V012")
+		})
+	}
+}
+
+func TestAgentErrorCodes_NoActiveRun(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChat(t)
+	// Set agent mode with task ID but empty run ID
+	env.setAgentMode(t, chatID, "task-1", "")
+
+	tests := []struct {
+		name   string
+		method string
+		url    string
+	}{
+		{"SendMessage", "POST", "/api/v1/chats/" + chatID + "/agent-mode/message"},
+		{"GetEvents", "GET", "/api/v1/chats/" + chatID + "/agent-mode/events"},
+		{"Stop", "POST", "/api/v1/chats/" + chatID + "/agent-mode/stop"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w *httptest.ResponseRecorder
+			if tt.method == "POST" {
+				w = env.doRequest(tt.method, tt.url, map[string]interface{}{"message": "hello"})
+			} else {
+				w = env.doRequest(tt.method, tt.url, nil)
+			}
+
+			if w.Code != http.StatusBadRequest {
+				t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+			}
+			assertErrorCode(t, w, "V013")
+		})
+	}
+}
+
+func TestAgentErrorCodes_AlreadyActive(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChat(t)
+	env.setAgentMode(t, chatID, "task-1", "run-1")
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/start", map[string]interface{}{
+		"message":      "hello",
+		"project_path": "/tmp",
+	})
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+	assertErrorCode(t, w, "V014")
+}
+
+func TestAgentErrorCodes_ManagerUnavailable(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChat(t)
+	env.handler.AgentClient = nil
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/start", map[string]interface{}{
+		"message":      "hello",
+		"project_path": "/tmp",
+	})
+
+	if w.Code != http.StatusBadGateway {
+		t.Errorf("expected 502, got %d: %s", w.Code, w.Body.String())
+	}
+	assertErrorCode(t, w, "D008")
+
+	// Verify user_message is in details
+	var resp APIErrorResponse
+	decodeBody(t, w, &resp)
+	if resp.Error.Details == nil {
+		t.Fatal("expected details in error response")
+	}
+	if _, ok := resp.Error.Details["user_message"]; !ok {
+		t.Error("expected user_message in error details")
 	}
 }

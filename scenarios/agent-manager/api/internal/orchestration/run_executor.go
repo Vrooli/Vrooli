@@ -943,6 +943,19 @@ func (e *RunExecutor) handleFailure(ctx context.Context) {
 		e.run.ExitCode = &e.result.ExitCode
 	}
 
+	// Emit error event so clients polling events see the failure reason
+	if e.run.ErrorMsg != "" {
+		if e.execErr != nil {
+			if domainErr, ok := e.execErr.(domain.DomainError); ok {
+				e.emitFailureEvent(ctx, domainErr)
+			} else {
+				e.emitGenericFailureEvent(ctx, e.execErr)
+			}
+		} else if e.result != nil && e.result.ErrorMessage != "" {
+			e.emitGenericFailureEvent(ctx, errors.New(e.result.ErrorMessage))
+		}
+	}
+
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "run failed")
 }
 

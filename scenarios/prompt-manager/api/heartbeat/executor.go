@@ -223,7 +223,7 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	} else {
 		status := store.HeartbeatStatusCompleted
 		errMsg := ""
-		if run.Status == "RUN_STATUS_FAILED" || run.Status == "failed" {
+		if IsFailedStatus(run.Status) {
 			status = store.HeartbeatStatusFailed
 			errMsg = run.Error
 		}

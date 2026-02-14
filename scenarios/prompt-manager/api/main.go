@@ -132,9 +132,6 @@ func main() {
 
 	// AI Search service (graceful degradation when unavailable)
 	qdrantURL := os.Getenv("QDRANT_URL")
-	if qdrantURL == "" {
-		qdrantURL = "http://localhost:6333"
-	}
 	qdrantAPIKey := os.Getenv("QDRANT_API_KEY")
 
 	aiSearchCollection := os.Getenv("AI_SEARCH_COLLECTION")

@@ -853,6 +853,18 @@ export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord
  * @see useCompletion - React hook for managing streaming state
  * @see docs/SEAMS.md - Full protocol specification
  */
+const STREAMING_EVENT_TYPES = new Set([
+  "content", "image_generated", "tool_call_start", "tool_call_result",
+  "tool_calls_complete", "tool_pending_approval", "awaiting_approvals",
+  "error", "warning", "progress",
+]);
+
+function isStreamingEvent(v: unknown): v is StreamingEvent {
+  return typeof v === 'object' && v !== null
+    && typeof (v as Record<string, unknown>).type === 'string'
+    && STREAMING_EVENT_TYPES.has((v as Record<string, unknown>).type as string);
+}
+
 export interface StreamingEvent {
   /** Event type discriminator */
   type: "content" | "image_generated" | "tool_call_start" | "tool_call_result" | "tool_calls_complete" | "tool_pending_approval" | "awaiting_approvals" | "error" | "warning" | "progress";
@@ -917,7 +929,11 @@ async function processSSEStream(
       if (sseEvent.data === "[DONE]") return;
 
       try {
-        const parsed = JSON.parse(sseEvent.data) as StreamingEvent;
+        const parsed = JSON.parse(sseEvent.data);
+        if (!isStreamingEvent(parsed)) {
+          console.warn("[SSE] Unexpected event shape:", JSON.stringify(parsed).slice(0, 200));
+          return;
+        }
 
         // Legacy callback for content chunks
         if (parsed.content && options?.onChunk) {
@@ -1130,57 +1146,19 @@ export async function fetchUsageRecords(options?: { chatId?: string; limit?: num
 export type ExportFormat = "markdown" | "json" | "txt";
 
 // -----------------------------------------------------------------------------
-// Tool Discovery Protocol Types
+// Tool Discovery Protocol Types (proto-derived, see proto-contracts.ts)
 // -----------------------------------------------------------------------------
 
-export interface ScenarioInfo {
-  name: string;
-  version: string;
-  description: string;
-  base_url?: string;
-}
+export type {
+  ScenarioInfo,
+  ToolParameters,
+  ParameterSchema,
+  ToolMetadata,
+  ToolCategory,
+  DiscoveredTool,
+} from "./proto-contracts";
 
-export interface ToolParameters {
-  type: string;
-  properties: Record<string, ParameterSchema>;
-  required?: string[];
-}
-
-export interface ParameterSchema {
-  type: string;
-  description?: string;
-  enum?: string[];
-  default?: unknown;
-  items?: ParameterSchema;
-  properties?: Record<string, ParameterSchema>;
-  format?: string;
-}
-
-export interface ToolMetadata {
-  enabled_by_default: boolean;
-  requires_approval: boolean;
-  timeout_seconds?: number;
-  rate_limit_per_minute?: number;
-  cost_estimate?: string;
-  tags?: string[];
-  long_running?: boolean;
-  idempotent?: boolean;
-}
-
-export interface ToolCategory {
-  id: string;
-  name: string;
-  description?: string;
-  icon?: string;
-}
-
-export interface DiscoveredTool {
-  name: string;
-  description: string;
-  category?: string;
-  parameters: ToolParameters;
-  metadata: ToolMetadata;
-}
+import type { ScenarioInfo, ToolCategory, DiscoveredTool } from "./proto-contracts";
 
 export type ToolConfigurationScope = "global" | "chat" | "";
 
@@ -2192,6 +2170,25 @@ export async function syncSkills(): Promise<SyncStatus> {
 // Agent Mode Types & API
 // =============================================================================
 
+/**
+ * Structured error for agent mode operations.
+ * Carries the machine-readable error code and recovery hint from the API,
+ * enabling the UI to show targeted recovery guidance.
+ */
+export class AgentModeError extends Error {
+  /** Machine-readable error code (e.g., "D008", "V012") */
+  code?: string;
+  /** Suggested recovery action (e.g., "check_dependency", "correct_input") */
+  recovery?: string;
+
+  constructor(message: string, code?: string, recovery?: string) {
+    super(message);
+    this.name = "AgentModeError";
+    this.code = code;
+    this.recovery = recovery;
+  }
+}
+
 /** Runner types available for agent mode */
 export type RunnerType = "claude-code" | "codex" | "opencode";
 
@@ -2287,8 +2284,10 @@ export async function startAgentMode(
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(error.user_message || error.message || `Failed to start agent mode: ${res.status}`);
+    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const detail = body?.error?.details?.user_message;
+    const message = detail || body?.error?.message || `Failed to start agent mode: ${res.status}`;
+    throw new AgentModeError(message, body?.error?.code, body?.error?.recovery);
   }
 
   return res.json();
@@ -2311,8 +2310,10 @@ export async function sendAgentMessage(
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(error.user_message || error.message || `Failed to send agent message: ${res.status}`);
+    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const detail = body?.error?.details?.user_message;
+    const msg = detail || body?.error?.message || `Failed to send agent message: ${res.status}`;
+    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
   }
 
   return res.json();
@@ -2375,8 +2376,10 @@ export async function stopAgentMode(
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(error.user_message || error.message || `Failed to stop agent: ${res.status}`);
+    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const detail = body?.error?.details?.user_message;
+    const msg = detail || body?.error?.message || `Failed to stop agent: ${res.status}`;
+    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
   }
 
   return res.json();
@@ -2397,8 +2400,10 @@ export async function clearAgentMode(
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(error.user_message || error.message || `Failed to clear agent mode: ${res.status}`);
+    const body = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    const detail = body?.error?.details?.user_message;
+    const msg = detail || body?.error?.message || `Failed to clear agent mode: ${res.status}`;
+    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
   }
 
   return res.json();

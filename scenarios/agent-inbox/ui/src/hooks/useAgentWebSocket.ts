@@ -37,6 +37,12 @@ interface UseAgentWebSocketResult {
  *
  * Uses polling to fetch events from the agent-manager via the inbox API.
  * In the future, this could be upgraded to WebSocket for true real-time updates.
+ *
+ * IMPORTANT: onEvent and onStatusChange are stored in refs to prevent
+ * dependency instability. Without refs, inline callbacks from the parent
+ * component create new references each render, cascading through
+ * fetchEvents → fetchStatus → refresh → polling useEffect, causing the
+ * effect to reset events and re-fetch on every render (infinite loop).
  */
 export function useAgentWebSocket({
   chatId,
@@ -54,6 +60,13 @@ export function useAgentWebSocket({
   // Track the last sequence number we've seen
   const lastSequenceRef = useRef<number>(0);
   const isMountedRef = useRef(true);
+
+  // Store callbacks in refs to keep useCallback deps stable.
+  // This prevents the infinite re-render loop described above.
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
+  const onStatusChangeRef = useRef(onStatusChange);
+  onStatusChangeRef.current = onStatusChange;
 
   // Fetch events since last sequence
   const fetchEvents = useCallback(async () => {
@@ -76,10 +89,10 @@ export function useAgentWebSocket({
 
           // Call onEvent for each new event
           newEvents.forEach(event => {
-            onEvent?.(event);
+            onEventRef.current?.(event);
           });
 
-          return [...prev, ...newEvents];
+          return newEvents.length > 0 ? [...prev, ...newEvents] : prev;
         });
       }
 
@@ -90,7 +103,7 @@ export function useAgentWebSocket({
       setError(e instanceof Error ? e.message : "Failed to fetch events");
       setIsConnected(false);
     }
-  }, [chatId, enabled, onEvent]);
+  }, [chatId, enabled]);
 
   // Fetch status
   const fetchStatus = useCallback(async () => {
@@ -104,7 +117,7 @@ export function useAgentWebSocket({
       setStatus(prev => {
         // Check if status changed
         if (prev?.status !== newStatus.status) {
-          onStatusChange?.(newStatus);
+          onStatusChangeRef.current?.(newStatus);
         }
         return newStatus;
       });
@@ -112,7 +125,7 @@ export function useAgentWebSocket({
       // Status errors are less critical, just log
       console.error("Failed to fetch agent status:", e);
     }
-  }, [chatId, enabled, onStatusChange]);
+  }, [chatId, enabled]);
 
   // Combined refresh
   const refresh = useCallback(async () => {

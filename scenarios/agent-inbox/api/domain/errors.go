@@ -47,17 +47,20 @@ type ErrorCode string
 
 // Validation errors (V prefix)
 const (
-	ErrCodeInvalidInput      ErrorCode = "V001"
-	ErrCodeMissingField      ErrorCode = "V002"
-	ErrCodeInvalidUUID       ErrorCode = "V003"
-	ErrCodeInvalidRole       ErrorCode = "V004"
-	ErrCodeInvalidViewMode   ErrorCode = "V005"
-	ErrCodeEmptyContent      ErrorCode = "V006"
-	ErrCodeMissingToolCallID ErrorCode = "V007"
-	ErrCodeInvalidJSON       ErrorCode = "V008"
-	ErrCodeNoFieldsToUpdate  ErrorCode = "V009"
-	ErrCodeInvalidColor      ErrorCode = "V010"
-	ErrCodeNoMessagesInChat  ErrorCode = "V011"
+	ErrCodeInvalidInput       ErrorCode = "V001"
+	ErrCodeMissingField       ErrorCode = "V002"
+	ErrCodeInvalidUUID        ErrorCode = "V003"
+	ErrCodeInvalidRole        ErrorCode = "V004"
+	ErrCodeInvalidViewMode    ErrorCode = "V005"
+	ErrCodeEmptyContent       ErrorCode = "V006"
+	ErrCodeMissingToolCallID  ErrorCode = "V007"
+	ErrCodeInvalidJSON        ErrorCode = "V008"
+	ErrCodeNoFieldsToUpdate   ErrorCode = "V009"
+	ErrCodeInvalidColor       ErrorCode = "V010"
+	ErrCodeNoMessagesInChat   ErrorCode = "V011"
+	ErrCodeAgentNotInMode     ErrorCode = "V012" // Chat is not in agent mode
+	ErrCodeAgentNoActiveRun   ErrorCode = "V013" // No active agent run
+	ErrCodeAgentAlreadyActive ErrorCode = "V014" // Chat already in agent mode
 )
 
 // Not found errors (N prefix)
@@ -70,13 +73,16 @@ const (
 
 // Dependency errors (D prefix)
 const (
-	ErrCodeDatabaseUnavailable   ErrorCode = "D001"
-	ErrCodeDatabaseQueryFailed   ErrorCode = "D002"
-	ErrCodeOpenRouterUnavailable ErrorCode = "D003"
-	ErrCodeOpenRouterError       ErrorCode = "D004"
-	ErrCodeOllamaUnavailable     ErrorCode = "D005"
-	ErrCodeAgentManagerError     ErrorCode = "D006"
-	ErrCodeToolExecutionFailed   ErrorCode = "D007"
+	ErrCodeDatabaseUnavailable     ErrorCode = "D001"
+	ErrCodeDatabaseQueryFailed     ErrorCode = "D002"
+	ErrCodeOpenRouterUnavailable   ErrorCode = "D003"
+	ErrCodeOpenRouterError         ErrorCode = "D004"
+	ErrCodeOllamaUnavailable       ErrorCode = "D005"
+	ErrCodeAgentManagerError       ErrorCode = "D006"
+	ErrCodeToolExecutionFailed     ErrorCode = "D007"
+	ErrCodeAgentManagerUnavailable ErrorCode = "D008" // Agent-manager service not reachable
+	ErrCodeAgentRunNotFound        ErrorCode = "D009" // Run ID not found in agent-manager
+	ErrCodeAgentProtoParseFailed   ErrorCode = "D010" // Proto response parse failure
 )
 
 // Configuration errors (C prefix)
@@ -408,4 +414,56 @@ func ErrAsyncAlreadyCompleted(toolCallID string, status string) *AppError {
 	return NewError(ErrCodeAsyncAlreadyCompleted, CategoryConflict,
 		"async operation has already completed", ActionNone).
 		WithDetail("tool_call_id", toolCallID).WithDetail("status", status)
+}
+
+// Agent mode error constructors
+//
+// These provide specific, recovery-distinct errors for agent mode operations.
+// Each maps to a unique code so the UI can show targeted recovery guidance.
+
+// ErrAgentNotInMode creates a validation error when the chat is not in agent mode.
+func ErrAgentNotInMode(chatID string) *AppError {
+	return NewError(ErrCodeAgentNotInMode, CategoryValidation,
+		"chat is not in agent mode", ActionCorrectInput).
+		WithDetail("chat_id", chatID).
+		WithDetail("user_message", "This chat is in LLM mode. Switch to agent mode to use this feature.")
+}
+
+// ErrAgentNoActiveRun creates a validation error when there is no active agent run.
+func ErrAgentNoActiveRun(chatID string) *AppError {
+	return NewError(ErrCodeAgentNoActiveRun, CategoryValidation,
+		"no active agent run", ActionCorrectInput).
+		WithDetail("chat_id", chatID).
+		WithDetail("user_message", "No agent is currently running. Start a new agent session first.")
+}
+
+// ErrAgentAlreadyActive creates a conflict error when agent mode is already active.
+func ErrAgentAlreadyActive(chatID string) *AppError {
+	return NewError(ErrCodeAgentAlreadyActive, CategoryConflict,
+		"chat already has an active agent run", ActionCorrectInput).
+		WithDetail("chat_id", chatID).
+		WithDetail("user_message", "An agent is already running in this chat. Stop it first or send a follow-up message.")
+}
+
+// ErrAgentManagerUnavailable creates a dependency error when agent-manager is not reachable.
+func ErrAgentManagerUnavailable() *AppError {
+	return NewError(ErrCodeAgentManagerUnavailable, CategoryDependency,
+		"agent-manager service is not available", ActionCheckDependency).
+		WithDetail("service", "agent-manager").
+		WithDetail("user_message", "The agent-manager service is not running. Please start it with: vrooli scenario start agent-manager")
+}
+
+// ErrAgentRunNotFound creates a dependency error when a run ID is not found in agent-manager.
+func ErrAgentRunNotFound(runID string) *AppError {
+	return NewError(ErrCodeAgentRunNotFound, CategoryDependency,
+		"agent run not found in agent-manager", ActionCorrectInput).
+		WithDetail("run_id", runID).
+		WithDetail("user_message", "The agent run could not be found. It may have expired. Try starting a new agent session.")
+}
+
+// ErrAgentProtoParseFailed creates a dependency error when proto response parsing fails.
+func ErrAgentProtoParseFailed(operation string, err error) *AppError {
+	return NewError(ErrCodeAgentProtoParseFailed, CategoryDependency,
+		fmt.Sprintf("failed to parse agent-manager response for %s", operation), ActionEscalate).
+		WithCause(err).WithDetail("operation", operation)
 }
