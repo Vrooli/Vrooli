@@ -1,6 +1,8 @@
 # Temporal Flows Documentation
 
-> Note (2026-02-13): Recommendation-mode timing references in this document are historical. Execution control timing now centers on backlog execution modes (`manual`, `scheduled`, `yolo`).
+> Current State (2026-02-14): Timing behavior centers on API request handling, React Query refresh policy, and execution mode scheduling (`manual`, `scheduled`, `yolo`).
+>
+> Historical note: Any recommendation-era timing references are preserved only as legacy context.
 
 This document captures how the Swarm Manager handles time-based behavior—async operations, retry logic, initialization sequences, and state transitions. Understanding these flows is critical for debugging timing-related issues and making changes safely.
 
@@ -265,7 +267,7 @@ The `api-core/server` package handles:
 | `cacheTimeMs` | 300,000 | `config/index.ts:dataFetchingConfig` |
 | `searchDebounceMs` | 300 | `config/index.ts:uiBehaviorConfig` |
 | `toastDurationMs` | 5,000 | `config/index.ts:uiBehaviorConfig` |
-| `yoloModeDelayMs` | 5,000 | `config/index.ts:recommendationConfig` |
+| `defaultDelaySeconds` | API-managed policy | `.vrooli/execution-policy.json` via execution policy endpoints |
 
 ### Adjusting Timing Behavior
 
@@ -289,7 +291,7 @@ All timing values are centralized in `ui/src/config/index.ts`. To modify:
 | Error recovery | ✅ Categorized | Clear paths per error type |
 | Teardown | ✅ Handled | React Query + Go graceful shutdown |
 
-### Recommendations for Future Work
+### Future Work
 
 1. **Add request cancellation test** - Verify unmount cancels in-flight requests
 2. **Document retry delay cap** - Consider adding explicit max delay (e.g., 30s)

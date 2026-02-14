@@ -1,6 +1,8 @@
 # React Coherence Audit - 2026-02-05
 
-> Note (2026-02-13): Any mention of recommendations in this audit is historical context from pre-greenfield iterations.
+> Current State (2026-02-14): Active UI pages are Backlog, Scenarios, Execution, and Settings.
+>
+> Historical note: Earlier sections retain Ideas/Recommendations naming from pre-greenfield iterations. Treat those references as archived context, not current architecture.
 
 ## State Management
 
@@ -58,7 +60,7 @@ This document tracks the coherence audit findings and improvements for the swarm
 **Recommendation**: When implementing settings persistence or global notifications, create stores under `src/stores/` following the pattern:
 ```
 src/stores/
-├── settingsStore.ts   # Theme, recommendation mode preferences
+├── settingsStore.ts   # Theme and execution-governance preferences
 ├── toastStore.ts      # Global notification state
 └── index.ts           # Re-exports
 ```

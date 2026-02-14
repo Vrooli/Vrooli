@@ -1,109 +1,156 @@
 {
-  "$schema": "../../../.vrooli/schemas/docs-manifest.schema.json",
-  "version": "1.0.0",
-  "scenario": "swarm-manager",
-  "generated_at": "2026-01-29T00:30:00-05:00",
+  "version": "1.1.0",
+  "title": "Swarm Manager Documentation",
+  "description": "Documentation for backlog-first scenario governance and execution control",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Run swarm-manager and understand the backlog-execution model",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Mental model, boundaries, and backlog-to-execution flow",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "RESEARCH.md",
+          "title": "Research Notes",
+          "description": "Rationale and scenario relationship mapping",
+          "audience": ["developers", "operators"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Tunable levers and environment variables",
+          "audience": ["developers", "operators"]
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "activity",
+      "documents": [
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and implementation milestones",
+          "audience": ["developers"]
+        },
+        {
+          "path": "PROBLEMS.md",
+          "title": "Problems & Known Issues",
+          "description": "Known issues, deferred work, and historical debt notes",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/INTENT.md",
+          "title": "Intent",
+          "description": "Scenario purpose and modification guidance",
+          "internal": true
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Boundaries, adapters, and architecture seams",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Contracts that must hold across flows",
+          "internal": true
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "Error classes and recovery paths",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Async timing and state transitions",
+          "internal": true
+        },
+        {
+          "path": "internal/INTEROP_AUDIT.md",
+          "title": "Interop Audit",
+          "description": "Proto and integration contract audit",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE_NOTES.md",
+          "title": "Coherence Notes",
+          "description": "React coherence audit history",
+          "internal": true
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "description": "UX flow/friction audit history",
+          "internal": true
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "title": "Utils Unification Notes",
+          "description": "Utility consolidation notes",
+          "internal": true
+        },
+        {
+          "path": "internal/GREENFIELD_EXECUTION_CONTROL_PLAN.md",
+          "title": "Greenfield Execution Plan",
+          "description": "Backlog-first execution-control migration plan",
+          "internal": true
+        },
+        {
+          "path": "internal/AGENT_MANAGER_PLAN.md",
+          "title": "Agent Manager Plan (Superseded)",
+          "description": "Legacy recommendation-era integration plan",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Internal Problems",
+          "description": "Internal technical debt register",
+          "internal": true
+        }
+      ]
+    }
+  ],
   "navigation": {
-    "title": "Swarm Manager Documentation",
-    "items": [
-      {
-        "title": "Overview",
-        "path": "../README.md"
-      },
-      {
-        "title": "Quick Start",
-        "path": "QUICKSTART.md",
-        "description": "Get running in 5 minutes"
-      },
-      {
-        "title": "Product Requirements",
-        "path": "../PRD.md"
-      },
-      {
-        "title": "Concepts",
-        "children": [
-          {
-            "title": "Architecture",
-            "path": "concepts/ARCHITECTURE.md",
-            "description": "Mental model, domain concepts, logical layers, and physical structure"
-          }
-        ]
-      },
-      {
-        "title": "Reference",
-        "children": [
-          {
-            "title": "Configuration",
-            "path": "reference/configuration.md",
-            "description": "Tunable levers and environment variables"
-          }
-        ]
-      },
-      {
-        "title": "Internal",
-        "visibility": "developers-only",
-        "children": [
-          {
-            "title": "Architecture Seams",
-            "path": "internal/SEAMS.md",
-            "description": "Integration points, boundaries, technical debt register"
-          },
-          {
-            "title": "Error Semantics",
-            "path": "internal/ERROR-SEMANTICS.md",
-            "description": "Error categories, recovery paths, graceful degradation"
-          },
-          {
-            "title": "Intent",
-            "path": "internal/INTENT.md",
-            "description": "Scenario purpose, design philosophy, modification guide"
-          },
-          {
-            "title": "Temporal Flows",
-            "path": "internal/TEMPORAL-FLOWS.md",
-            "description": "Async operations, retry logic, timing patterns, state transitions"
-          },
-          {
-            "title": "System Invariants",
-            "path": "internal/INVARIANTS.md",
-            "description": "Idempotency guarantees, replay safety, critical system invariants"
-          }
-        ]
-      },
-      {
-        "title": "Operations",
-        "children": [
-          {
-            "title": "Progress Log",
-            "path": "PROGRESS.md",
-            "description": "Development progress history"
-          },
-          {
-            "title": "Problems & Issues",
-            "path": "PROBLEMS.md",
-            "description": "Known issues, deferred work, blockers"
-          },
-          {
-            "title": "Research Notes",
-            "path": "RESEARCH.md",
-            "description": "Research findings and references"
-          }
-        ]
-      },
-      {
-        "title": "Requirements",
-        "path": "../requirements/README.md",
-        "description": "Requirement modules linked to PRD targets"
-      }
-    ]
-  },
-  "health": {
-    "last_audit": "2026-01-29",
-    "mental_model_documented": true,
-    "architecture_documented": true,
-    "seams_documented": true,
-    "code_doc_references": 12,
-    "orphaned_docs": 0,
-    "broken_references": 0
+    "primary": ["getting-started", "concepts", "reference", "operations"],
+    "secondary": ["internal"]
   }
 }

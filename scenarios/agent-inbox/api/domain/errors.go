@@ -61,6 +61,7 @@ const (
 	ErrCodeAgentNotInMode     ErrorCode = "V012" // Chat is not in agent mode
 	ErrCodeAgentNoActiveRun   ErrorCode = "V013" // No active agent run
 	ErrCodeAgentAlreadyActive ErrorCode = "V014" // Chat already in agent mode
+	ErrCodeAgentRunBusy       ErrorCode = "V015" // Agent run is still in progress
 )
 
 // Not found errors (N prefix)
@@ -443,6 +444,14 @@ func ErrAgentAlreadyActive(chatID string) *AppError {
 		"chat already has an active agent run", ActionCorrectInput).
 		WithDetail("chat_id", chatID).
 		WithDetail("user_message", "An agent is already running in this chat. Stop it first or send a follow-up message.")
+}
+
+// ErrAgentRunBusy creates a conflict error when attempting to send a message while the agent run is still active.
+func ErrAgentRunBusy(chatID string) *AppError {
+	return NewError(ErrCodeAgentRunBusy, CategoryConflict,
+		"agent run is still in progress", ActionRetryWithBackoff).
+		WithDetail("chat_id", chatID).
+		WithDetail("user_message", "The agent is still working. Please wait for it to finish before sending another message.")
 }
 
 // ErrAgentManagerUnavailable creates a dependency error when agent-manager is not reachable.

@@ -17,8 +17,16 @@ export function EmptyState({ onStartChat, onStartAgentChat, isCreating, models }
   // Use the first model as default for capability checking
   const defaultModel = models[0] ?? null;
 
-  // Mode selection state
-  const [selectedMode, setSelectedMode] = useState<ChatMode>("llm");
+  // Mode selection state — persisted to localStorage
+  const CHAT_MODE_KEY = "agent-inbox:chat-mode";
+  const [selectedMode, setSelectedModeState] = useState<ChatMode>(() => {
+    const stored = localStorage.getItem(CHAT_MODE_KEY);
+    return stored === "agent" ? "agent" : "llm";
+  });
+  const setSelectedMode = (mode: ChatMode) => {
+    setSelectedModeState(mode);
+    localStorage.setItem(CHAT_MODE_KEY, mode);
+  };
   const [showAgentConfig, setShowAgentConfig] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<MessagePayload | null>(null);
 

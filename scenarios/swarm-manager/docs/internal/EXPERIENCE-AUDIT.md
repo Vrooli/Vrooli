@@ -1,15 +1,17 @@
 # Experience Architecture Audit
 
-> **Purpose**: Document user personas, flows, friction points, and UX improvement recommendations for Swarm Manager.
+> **Purpose**: Document user personas, flows, and UX friction points for Swarm Manager.
 >
 > **Last Updated**: 2026-01-28 (Phase 29 - Experience Architecture Audit)
+>
+> **Current State (2026-02-14)**: Runtime navigation is Backlog, Scenarios, Execution, Settings. References to Ideas/Recommendations in this file are historical naming from earlier iterations.
 
 ## Scenario Purpose Statement
 
-**Swarm Manager helps Vrooli operators manage their scenario ecosystem** so that they can:
+**Swarm Manager helps Vrooli operators manage scenario change execution** so that they can:
 - Track and prioritize ideas in a backlog
 - Monitor and configure existing scenarios
-- (Future) Receive and act on system recommendations
+- Govern pending/running/completed execution runs
 
 The product is a **command center for scenario lifecycle management**, bridging the gap between "ideas you want to build" and "scenarios that are running."
 

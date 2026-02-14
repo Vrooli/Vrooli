@@ -1,5 +1,7 @@
 # Progress Log
 
+> Note (2026-02-14): Entries below are historical development logs. Earlier entries use legacy naming (`ideas`, `recommendations`) from pre-greenfield iterations.
+
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
 | 2026-01-28 | Generator Agent | Initialization complete | Scenario scaffold from react-vite template |

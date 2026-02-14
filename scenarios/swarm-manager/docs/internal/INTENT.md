@@ -6,7 +6,7 @@ for, and when should it change?"
 
 ## Purpose
 
-Swarm Manager is the **central command center** for the Vrooli scenario ecosystem.
+Swarm Manager is the **central command center** for scenario change governance in the Vrooli ecosystem.
 It provides a unified interface for:
 
 1. **Backlog Management** - Track research, ideas, fixes, and execution tasks from
@@ -14,15 +14,15 @@ It provides a unified interface for:
 2. **Scenario Catalog** - View and manage all deployed scenarios with status,
    priority, and completeness information
 3. **Execution Control** - Track and govern backlog execution runs (manual, scheduled, yolo)
-4. **Settings** - Configure system behavior including theme/focus/insights
+4. **Settings** - Configure theme/focus/insights behavior
 
 ## Design Philosophy
 
 ### Single Source of Truth
 
-Swarm Manager does NOT implement business logic directly. Instead, it:
+Swarm Manager does NOT implement implementation logic directly. Instead, it:
 - Delegates agent work to `agent-manager`
-- Delegates scenario operations to `ecosystem-manager`
+- Uses Vrooli lifecycle commands for scenario start/stop/restart/delete operations
 - Integrates with other scenarios for specialized features (test-genie, etc.)
 
 This design prevents duplication and ensures all scenario operations go through
@@ -42,7 +42,7 @@ with a `spec.json` file and optional context files. This design:
 The scenario provides three ways to interact:
 
 1. **UI (React)** - Visual management for operators and developers
-2. **API (Go/Gin)** - Programmatic access for automation and integrations
+2. **API (Go/Gorilla Mux)** - Programmatic access for automation and integrations
 3. **CLI (Go/Cobra)** - Terminal access for scripts and quick checks
 
 All three surfaces share the same domain logic and provide consistent behavior.
@@ -121,7 +121,7 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 | Need | Where to Go Instead |
 |------|---------------------|
 | Spawn agents | Use `agent-manager` scenario |
-| Initialize scenarios | Use `ecosystem-manager` scenario |
+| Perform scenario lifecycle actions | Use Vrooli lifecycle commands through Swarm Manager API/CLI |
 | Run tests | Use `test-genie` scenario |
 | Track issues | Use `app-issue-tracker` scenario |
 | Scan PROBLEMS.md | Use `knowledge-observatory` scenario |

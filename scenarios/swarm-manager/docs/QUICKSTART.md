@@ -2,10 +2,19 @@
 
 Get Swarm Manager running in 5 minutes.
 
+## What Swarm Manager Is (Current Model)
+
+Swarm Manager is the execution control plane for scenario changes:
+- Prompt Manager teams do research/recommendations and write backlog items (`idea`, `research`, `fix`, `execute`).
+- Swarm Manager stores and governs backlog state.
+- Agent runs are managed from the **Execution** surface (pending, running, completed, failed).
+
+Swarm Manager does not run a recommendation engine.
+
 ## Prerequisites
 
-- Node.js 18+ (for UI development)
-- Go 1.21+ (for API/CLI development)
+- Node.js 18+ (UI development)
+- Go 1.21+ (API/CLI development)
 - Vrooli CLI installed (`vrooli` command available)
 
 ## Start the Scenario
@@ -22,8 +31,8 @@ make start
 ```
 
 This starts:
-- **API** at `http://localhost:15000` (port from service.json)
-- **UI** at `http://localhost:35000` (port from service.json)
+- API at `http://localhost:15000`
+- UI at `http://localhost:35000`
 
 ## Verify It's Working
 
@@ -46,12 +55,13 @@ Expected output:
 
 ## Access the UI
 
-Open http://localhost:35000 in your browser. You'll see:
+Open `http://localhost:35000`.
 
-1. **Backlog** tab - Manage research, ideas, fixes, and execution tasks
-2. **Scenarios** tab - View scenario catalog and status
-3. **Recommendations** tab - Review system suggestions
-4. **Settings** tab - Configure behavior
+You should see:
+1. **Backlog** tab - Create/manage `idea`, `research`, `fix`, `execute` items
+2. **Scenarios** tab - Inspect scenario catalog and manage scenario lifecycle
+3. **Execution** tab - Monitor and control execution runs
+4. **Settings** tab - Theme, focus, and insights controls
 
 ## Common Commands
 
@@ -71,14 +81,14 @@ make setup
 
 ## Development Mode
 
-For active development with hot reload:
+Use lifecycle-managed commands from the scenario root:
 
 ```bash
-# Terminal 1: API (auto-rebuilds on changes)
-cd api && go run .
+# Start managed services
+make start
 
-# Terminal 2: UI (hot module replacement)
-cd ui && npm run dev
+# Watch logs while developing
+make logs
 ```
 
 ## CLI Usage
@@ -89,30 +99,33 @@ swarm-manager status
 
 # Configure API URL (if not auto-detected)
 swarm-manager configure
+
+# List execution runs
+swarm-manager execution list
 ```
 
 ## Next Steps
 
-- Read [Architecture](concepts/ARCHITECTURE.md) for the mental model
-- Check [Configuration](reference/configuration.md) for tunable settings
-- Review [PRD.md](../PRD.md) for product requirements
+- Read [Architecture](concepts/ARCHITECTURE.md)
+- Check [Configuration](reference/configuration.md)
+- Review [PRD](../PRD.md)
 
 ## Troubleshooting
 
 ### API won't start
 
 1. Check logs: `make logs`
-2. Verify port 15000 is available: `lsof -i :15000`
+2. Verify port is open: `lsof -i :15000`
 
 ### UI shows connection errors
 
-1. Verify API is running: `curl http://localhost:15000/health`
+1. Verify API is running: `curl http://localhost:15000/api/v1/health`
 2. Check browser console for CORS errors
-3. Ensure `VITE_API_BASE_URL` is set correctly
+3. Ensure `VITE_API_BASE_URL` is correct
 
 ### CLI can't find API
 
-1. Run `swarm-manager configure` to set the API URL
-2. Or set `SWARM_MANAGER_API_BASE` environment variable
+1. Run `swarm-manager configure`
+2. Or set `SWARM_MANAGER_API_BASE`
 
-For more help, see [docs/PROBLEMS.md](PROBLEMS.md) for known issues.
+For known issues, see [PROBLEMS.md](PROBLEMS.md).

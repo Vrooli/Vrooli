@@ -1,0 +1,10 @@
+{
+  "name": "test-validate",
+  "title": "Test Validate",
+  "description": "Strengthen agent-manager test coverage, starting with the untested domain error taxonomy",
+  "status": "done",
+  "priority": 5,
+  "tags": ["testing", "agent-manager"],
+  "kind": "idea",
+  "updated": "2026-02-13T23:59:00Z"
+}

@@ -467,10 +467,32 @@ func TestStartAgentMode_AgentClientNil(t *testing.T) {
 // SendAgentMessage Handler Tests (DB required)
 // =============================================================================
 
+func TestSendAgentMessage_RunStillActive(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChat(t)
+	env.setAgentMode(t, chatID, "task-1", "run-1")
+	env.mockAgent.StatusResult = &integrations.AgentRunStatus{Status: "running"}
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/message", map[string]interface{}{
+		"message": "follow up",
+	})
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+	assertErrorCode(t, w, string(domain.ErrCodeAgentRunBusy))
+
+	// Verify ContinueChat was NOT called
+	if len(env.mockAgent.ContinueCalls) != 0 {
+		t.Errorf("expected 0 ContinueChat calls, got %d", len(env.mockAgent.ContinueCalls))
+	}
+}
+
 func TestSendAgentMessage_Success(t *testing.T) {
 	env := setupAgentModeTest(t)
 	chatID := env.createChat(t)
 	env.setAgentMode(t, chatID, "task-1", "run-1")
+	env.mockAgent.StatusResult = &integrations.AgentRunStatus{Status: "complete"}
 
 	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/message", map[string]interface{}{
 		"message": "Please continue",

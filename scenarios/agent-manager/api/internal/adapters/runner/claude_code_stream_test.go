@@ -239,6 +239,18 @@ func TestClaudeCodeRunner_ParseStreamEvent_ResultSuccess(t *testing.T) {
 	if costData.OutputTokens != 40 {
 		t.Errorf("expected outputTokens=40, got %d", costData.OutputTokens)
 	}
+
+	// Verify gotResult flag is set after parsing a "result" event
+	state := runner.streamStateFor(runID)
+	if state == nil {
+		t.Fatal("expected stream state, got nil")
+	}
+	if !state.gotResult {
+		t.Error("expected gotResult=true after parsing result event")
+	}
+	if state.resultIsError {
+		t.Error("expected resultIsError=false for successful result")
+	}
 }
 
 func TestClaudeCodeRunner_ParseStreamEvent_ResultError_RateLimit(t *testing.T) {

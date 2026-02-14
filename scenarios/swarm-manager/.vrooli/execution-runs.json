@@ -1,0 +1,16 @@
+[
+  {
+    "execution_id": "f60902c9ccab4d63",
+    "backlog_kind": "idea",
+    "backlog_name": "test-validate",
+    "task_id": "c9cc31c1-b485-4e52-8364-971c8eb78838",
+    "run_id": "29c31d1b-5ec0-4b3c-ab4f-14a9d60f5462",
+    "status": "running",
+    "mode": "yolo",
+    "started_at": "2026-02-13T23:36:13Z",
+    "started_by": "swarm-manager",
+    "operation": "generator",
+    "created_at": "2026-02-13T23:36:13Z",
+    "updated_at": "2026-02-13T23:36:13Z"
+  }
+]

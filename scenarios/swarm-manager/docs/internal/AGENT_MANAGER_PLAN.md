@@ -1,5 +1,9 @@
 # Agent-Manager Integration Plan (Swarm Manager)
 
+> Superseded (2026-02-14): This plan reflects a pre-greenfield design that included recommendation workflows.
+>
+> Current implementation direction is documented in `docs/internal/GREENFIELD_EXECUTION_CONTROL_PLAN.md` and centers on backlog + execution control without a Swarm Manager recommendation subsystem.
+
 ## Purpose
 
 Provide a concrete, implementation-ready plan to upgrade swarm-manager’s agent-manager
@@ -252,4 +256,3 @@ without HTTP.
 - Keep JSON formats backward compatible.
 - All agent spawning MUST route through agent-manager.
 - Maintain filesystem-only persistence.
-

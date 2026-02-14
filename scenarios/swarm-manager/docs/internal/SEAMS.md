@@ -1,6 +1,8 @@
 # Architecture Seams & Internal Design
 
-> Note (2026-02-13): Portions of this document describe historical recommendation-surface architecture. Current greenfield runtime uses execution control (`/execution`) and no recommendation subsystem.
+> Current State (2026-02-14): Swarm Manager runtime is backlog + scenarios + execution + settings. Recommendation generation is owned by Prompt Manager teams and should not be implemented in Swarm Manager.
+>
+> Historical note: Some lower sections preserve pre-greenfield recommendation-era references for audit history only.
 
 ## Overview
 
@@ -8,22 +10,22 @@ This document captures the architecture seams (integration points, boundaries) a
 
 ## Current Architecture State
 
-### Alignment Assessment (2026-01-28)
+### Alignment Assessment (2026-02-14)
 
 | Aspect | Documented | Actual | Gap |
 |--------|------------|--------|-----|
-| API endpoints | /backlog, /scenarios, /recommendations, /settings | /backlog, /scenarios, /recommendations, /settings, /queue, /health | Resolved |
-| Persistence | Filesystem (ideas/, research/, fix/, execute/, .vrooli/settings.json, .vrooli/queue.json) | Backlog/scenarios/settings/queue/recommendations implemented | Resolved |
+| API endpoints | /backlog, /scenarios, /execution, /settings | /backlog, /scenarios, /execution, /settings, /queue, /agent-manager/status, /health | Resolved |
+| Persistence | Filesystem (ideas/, research/, fix/, execute/, .vrooli/settings.json, .vrooli/queue.json, .vrooli/execution-*.json) | Backlog/scenarios/settings/queue/execution implemented | Resolved |
 | Selector registry | All UI selectors defined | ✅ Fully populated | Resolved |
-| UI pages | 4 pages with full functionality | Backlog/Scenarios/Recommendations/Settings fully wired | Resolved |
+| UI pages | 4 pages with full functionality | Backlog/Scenarios/Execution/Settings fully wired | Resolved |
 | Integration clients | agent-manager, ecosystem-manager | Discovery-based agent-manager + ecosystem-manager clients | ✅ Resolved |
 | Domain types | Shared across UI | ✅ Centralized in types/ module | Resolved |
 
 ### Logical vs Physical Gaps
 
 1. **API Layer Gap** (RESOLVED)
-   - Expected: Domain-organized handlers (backlog/, scenarios/, recommendations/, settings/)
-   - Actual: Backlog, scenarios, settings, queue, and recommendations handlers implemented
+   - Expected: Domain-organized handlers (backlog/, scenarios/, execution/, settings/)
+   - Actual: Backlog, scenarios, settings, queue, execution, and agent-manager status handlers implemented
    - Impact: Backlog UI now fully functional across kinds
 
 2. ~~**Selector Registry Gap**~~ (RESOLVED)
@@ -32,8 +34,8 @@ This document captures the architecture seams (integration points, boundaries) a
    - Status: Fully populated in Phase 1 (Architecture Alignment)
 
 3. **Business Logic Gap** (RESOLVED)
-   - Expected: Service layer for backlog CRUD, scenario operations, settings/recommendations
-   - Actual: Backlog, scenarios, settings, and recommendations services implemented
+   - Expected: Service layer for backlog CRUD, scenario operations, settings/execution
+   - Actual: Backlog, scenarios, settings, execution, and execution-policy services implemented
    - Impact: UI now reads/writes all core domains
 
 ## Seam Definitions

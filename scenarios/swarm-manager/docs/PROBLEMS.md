@@ -1,5 +1,7 @@
 # Problems & Known Issues
 
+> Note (2026-02-14): Some historical entries below use legacy `ideas`/`recommendations` terminology from earlier iterations.
+
 ## Open Issues
 
 No known open issues at this time. Use this file to track new defects or risks.

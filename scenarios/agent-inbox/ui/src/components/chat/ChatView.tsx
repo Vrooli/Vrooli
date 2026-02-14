@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ChatHeader } from "./ChatHeader";
@@ -142,6 +142,15 @@ export function ChatView({
   const [showAgentStartModal, setShowAgentStartModal] = useState(false);
   const [pendingAgentMessage, setPendingAgentMessage] = useState<string>("");
   const [agentError, setAgentError] = useState<{ message: string; recovery?: string } | null>(null);
+
+  // Sync chatMode with server state when chat data loads or changes.
+  // Without this, chatMode stays "llm" because useState initializer runs once
+  // when chatData is still null (loading), and never updates when it arrives.
+  useEffect(() => {
+    if (chatData?.chat?.chat_mode) {
+      setChatMode(chatData.chat.chat_mode as ChatMode);
+    }
+  }, [chatData?.chat?.chat_mode]);
 
   // Check if agent is currently active
   const isAgentActive = chatData?.chat?.chat_mode === "agent" && !!chatData?.chat?.agent_run_id;
@@ -458,7 +467,7 @@ export function ChatView({
         <ErrorBoundary name="MessageInput">
           <MessageInput
             onSend={handleSendMessage}
-            isLoading={isGenerating || isStartingAgent}
+            isLoading={isGenerating || isStartingAgent || (isAgentActive && !!agentStatus?.status && ["pending", "starting", "running"].includes(agentStatus.status))}
             currentModel={models.find((m) => m.id === chatData.chat.model) || null}
             chatId={chatData.chat.id}
             chatWebSearchDefault={chatData.chat.web_search_enabled || false}

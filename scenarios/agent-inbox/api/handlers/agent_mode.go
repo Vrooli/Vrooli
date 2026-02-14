@@ -190,6 +190,20 @@ func (h *Handlers) SendAgentMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check run status before attempting continuation — the run must be completed
+	// (session ID is only available after completion)
+	runStatus, err := agentClient.GetRunStatus(r.Context(), runID)
+	if err != nil {
+		log.Printf("[WARN] [%s] SendAgentMessage GetRunStatus failed: %v", middleware.GetRequestID(r.Context()), err)
+		// Fall through — let ContinueChat handle the error with its own validation
+	} else if runStatus != nil && runStatus.Status != "" {
+		switch runStatus.Status {
+		case "pending", "starting", "running":
+			h.WriteAppError(w, r, domain.ErrAgentRunBusy(chatID))
+			return
+		}
+	}
+
 	// Continue the run
 	if err := agentClient.ContinueChat(r.Context(), runID, req.Message); err != nil {
 		log.Printf("[ERROR] [%s] SendAgentMessage ContinueChat failed: %v", middleware.GetRequestID(r.Context()), err)

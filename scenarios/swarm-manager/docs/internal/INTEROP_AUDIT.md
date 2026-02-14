@@ -1,5 +1,7 @@
 # swarm-manager Interoperability Audit
 
+> Current State (2026-02-14): Active runtime interop is backlog/scenarios/settings/execution with agent-manager and optional ecosystem-manager. Any recommendation-endpoint references are historical context.
+
 ## Last Updated
 2026-02-13
 

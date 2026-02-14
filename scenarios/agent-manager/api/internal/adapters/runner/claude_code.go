@@ -249,6 +249,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
 
+	streamState := r.streamStateFor(req.RunID)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -285,6 +286,13 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 				_ = req.EventSink.Emit(event)
 			}
 		}
+
+		// The "result" event is the last meaningful event Claude Code emits.
+		// Break immediately so we don't block waiting for the bash wrapper's
+		// stdout pipe to close (wrapper cleanup can take 5-10s).
+		if streamState.gotResult {
+			break
+		}
 	}
 
 	// Check if scanner exited due to an error (vs clean EOF)
@@ -300,10 +308,15 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Wait for command to complete with timeout
-	// The bash wrapper script may hang after Claude exits (cleanup handlers, tee, etc.)
-	// so we wait with a timeout and kill the process group if it doesn't exit cleanly
-	const wrapperCleanupTimeout = 30 * time.Second
+	// Wait for command to complete with timeout.
+	// The bash wrapper script runs cleanup after Claude exits (agent unregistration,
+	// metrics, exit-trap child reaping with a 5s deadline). When we already received
+	// the "result" event from the stream, we have all output data and only need to
+	// reap the process — use a short timeout so the run status updates promptly.
+	cleanupTimeout := 30 * time.Second
+	if streamState != nil && streamState.gotResult {
+		cleanupTimeout = 2 * time.Second
+	}
 
 	waitDone := make(chan error, 1)
 	go func() {
@@ -313,16 +326,17 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	select {
 	case err = <-waitDone:
 		// Normal completion - wrapper script exited cleanly
-	case <-time.After(wrapperCleanupTimeout):
-		// Wrapper script is stuck - kill the entire process group
+	case <-time.After(cleanupTimeout):
+		// Wrapper script hasn't exited — kill the process group and continue.
 		if cmd.Process != nil {
-			// Kill the process group (negative PID kills the group)
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
-		// Wait for the killed process to be reaped
 		err = <-waitDone
-		// Log that we had to force kill
-		if req.EventSink != nil {
+		if streamState != nil && streamState.gotResult {
+			// We already have all data from the stream; the wrapper was just
+			// doing post-execution housekeeping. Treat this as success.
+			err = nil
+		} else if req.EventSink != nil {
 			_ = req.EventSink.Emit(domain.NewLogEvent(
 				req.RunID,
 				"warn",
@@ -550,6 +564,7 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
 
+	contStreamState := r.streamStateFor(req.RunID)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -581,10 +596,20 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 				_ = req.EventSink.Emit(event)
 			}
 		}
+
+		// Break immediately after the final "result" event to avoid blocking
+		// on the bash wrapper's cleanup (same optimization as Execute).
+		if contStreamState.gotResult {
+			break
+		}
 	}
 
-	// Wait for command to complete with timeout
-	const wrapperCleanupTimeout = 30 * time.Second
+	// Wait for command to complete with timeout.
+	// Use a short timeout when we already have the result event.
+	contCleanupTimeout := 30 * time.Second
+	if contStreamState.gotResult {
+		contCleanupTimeout = 2 * time.Second
+	}
 	waitDone := make(chan error, 1)
 	go func() {
 		waitDone <- cmd.Wait()
@@ -593,11 +618,14 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	select {
 	case err = <-waitDone:
 		// Normal completion
-	case <-time.After(wrapperCleanupTimeout):
+	case <-time.After(contCleanupTimeout):
 		if cmd.Process != nil {
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
 		err = <-waitDone
+		if contStreamState.gotResult {
+			err = nil // We have all data; wrapper was just doing housekeeping
+		}
 	case <-ctx.Done():
 		if cmd.Process != nil {
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
@@ -790,6 +818,8 @@ type claudeStreamState struct {
 	toolUsePayload strings.Builder
 	lastAssistant  string
 	sessionID      string // Captured from stream for conversation continuation
+	gotResult      bool   // True when the final "result" event has been received
+	resultIsError  bool   // True if the result event indicated an error
 }
 
 // ClaudeMessage represents a message in the Claude stream.
@@ -1186,6 +1216,11 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		}
 
 	case "result":
+		// Mark that we received the final result event — this means Claude Code
+		// has finished and we have all the data we need from the stream.
+		state.gotResult = true
+		state.resultIsError = streamEvent.IsError
+
 		var events []*domain.RunEvent
 		var resultStr string
 		if streamEvent.Result != nil {
