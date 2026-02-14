@@ -801,7 +801,7 @@ func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*do
 			_ = json.Unmarshal(streamEvent.Tool.Input, &input)
 		}
 		if len(input) > 0 {
-			events = append(events, domain.NewToolCallEvent(runID, toolName, input))
+			events = append(events, domain.NewToolCallEvent(runID, toolName, "", input))
 		}
 		if streamEvent.Tool.Output != "" {
 			events = append(events, domain.NewToolResultEvent(runID, toolName, "", streamEvent.Tool.Output, nil))
@@ -874,14 +874,14 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 				})
 			}
 			input["files"] = files
-			return []*domain.RunEvent{domain.NewToolCallEvent(runID, "file_change", input)}
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, "file_change", "", input)}
 		}
 	case "tool_call":
 		var input map[string]interface{}
 		if item.Input != nil {
 			_ = json.Unmarshal(item.Input, &input)
 		}
-		return []*domain.RunEvent{domain.NewToolCallEvent(runID, item.Name, input)}
+		return []*domain.RunEvent{domain.NewToolCallEvent(runID, item.Name, "", input)}
 	case "tool_result":
 		var input map[string]interface{}
 		if item.Input != nil {
@@ -889,7 +889,7 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 		}
 		events := []*domain.RunEvent{}
 		if len(input) > 0 {
-			events = append(events, domain.NewToolCallEvent(runID, item.Name, input))
+			events = append(events, domain.NewToolCallEvent(runID, item.Name, "", input))
 		}
 		events = append(events, domain.NewToolResultEvent(
 			runID,
@@ -921,7 +921,7 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 				"status":      item.Status,
 				"runner_tool": "command_execution",
 			}
-			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}
 		}
 	}
 
@@ -1315,7 +1315,7 @@ func (r *CodexRunner) parseCodexStreamEventsInternal(runID uuid.UUID, streamEven
 			_ = json.Unmarshal(streamEvent.Tool.Input, &input)
 		}
 		if len(input) > 0 {
-			events = append(events, domain.NewToolCallEvent(runID, toolName, input))
+			events = append(events, domain.NewToolCallEvent(runID, toolName, "", input))
 		}
 		if streamEvent.Tool.Output != "" {
 			events = append(events, domain.NewToolResultEvent(runID, toolName, "", streamEvent.Tool.Output, nil))

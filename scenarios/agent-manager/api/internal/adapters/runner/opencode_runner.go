@@ -842,7 +842,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 
 			// Check if this is a completed tool call (OpenCode sometimes bundles result in same event)
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
-				events := []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}
+				events := []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}
 				output := streamEvent.Part.State.Output
 				if output == "" {
 					output = streamEvent.Part.Output
@@ -856,7 +856,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 				return events, nil
 			}
 
-			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}, nil
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}, nil
 		}
 
 	case "tool_result", "tool-result":
@@ -878,7 +878,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			var errMsg error
 			events := []*domain.RunEvent{}
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
-				events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+				events = append(events, domain.NewToolCallEvent(runID, toolName, "", streamEvent.Part.State.Input))
 			}
 			if streamEvent.Part.IsError {
 				errMsg = fmt.Errorf("%s", output)
@@ -974,7 +974,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
 				events := []*domain.RunEvent{}
 				if streamEvent.Part.State.Input != nil {
-					events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+					events = append(events, domain.NewToolCallEvent(runID, toolName, "", streamEvent.Part.State.Input))
 				}
 				output := streamEvent.Part.State.Output
 				if output == "" {
@@ -996,7 +996,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			} else if streamEvent.Part.Input != nil {
 				_ = json.Unmarshal(streamEvent.Part.Input, &input)
 			}
-			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}, nil
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}, nil
 		case "tool-result", "tool_result":
 			toolName := streamEvent.Part.Tool
 			if toolName == "" {
@@ -1013,7 +1013,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			}
 			events := []*domain.RunEvent{}
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
-				events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+				events = append(events, domain.NewToolCallEvent(runID, toolName, "", streamEvent.Part.State.Input))
 			}
 			events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg))
 			return events, nil

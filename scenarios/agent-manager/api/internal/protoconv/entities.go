@@ -549,8 +549,9 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 		}
 		event.Data = &pb.RunEvent_ToolCall{
 			ToolCall: &pb.ToolCallEventData{
-				ToolName: data.ToolName,
-				Input:    input,
+				ToolName:   data.ToolName,
+				ToolCallId: data.ToolCallID,
+				Input:      input,
 			},
 		}
 	case *domain.ToolResultEventData:

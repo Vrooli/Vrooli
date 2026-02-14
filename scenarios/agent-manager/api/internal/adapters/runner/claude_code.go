@@ -1032,7 +1032,7 @@ func (r *ClaudeCodeRunner) toolCallFromState(runID uuid.UUID, state *claudeStrea
 			input = map[string]interface{}{"raw": raw}
 		}
 	}
-	return domain.NewToolCallEvent(runID, state.toolUseName, input)
+	return domain.NewToolCallEvent(runID, state.toolUseName, state.toolUseID, input)
 }
 
 // parseStreamEvents parses a single line from Claude's stream-json output.
@@ -1100,7 +1100,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 				if tool.Input != nil {
 					_ = json.Unmarshal(tool.Input, &input)
 				}
-				events = append(events, domain.NewToolCallEvent(runID, tool.Name, input))
+				events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
 			}
 		}
 		return events, nil
@@ -1127,7 +1127,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 					if tool.Input != nil {
 						_ = json.Unmarshal(tool.Input, &input)
 					}
-					events = append(events, domain.NewToolCallEvent(runID, tool.Name, input))
+					events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
 				}
 			}
 			if len(events) > 0 {
@@ -1176,6 +1176,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			return []*domain.RunEvent{domain.NewToolCallEvent(
 				runID,
 				streamEvent.ToolUse.Name,
+				streamEvent.ToolUse.ID,
 				input,
 			)}, nil
 		}

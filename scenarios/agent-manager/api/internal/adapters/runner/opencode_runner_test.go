@@ -366,7 +366,7 @@ func TestOpenCodeRunner_UpdateMetrics(t *testing.T) {
 	}
 
 	// Test tool call event updates
-	toolEvent := domain.NewToolCallEvent(runID, "bash", map[string]interface{}{"cmd": "ls"})
+	toolEvent := domain.NewToolCallEvent(runID, "bash", "", map[string]interface{}{"cmd": "ls"})
 	runner.updateMetrics(toolEvent, metrics, &lastAssistant)
 	if metrics.ToolCallCount != 1 {
 		t.Errorf("expected 1 tool call, got %d", metrics.ToolCallCount)

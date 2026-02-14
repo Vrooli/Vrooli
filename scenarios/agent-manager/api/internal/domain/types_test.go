@@ -348,7 +348,7 @@ func TestNewToolCallEvent(t *testing.T) {
 		"path":  "/home/user/file.txt",
 		"limit": 100,
 	}
-	event := NewToolCallEvent(runID, "Read", input)
+	event := NewToolCallEvent(runID, "Read", "toolu_test123", input)
 
 	if event.EventType != EventTypeToolCall {
 		t.Errorf("EventType = %s, want %s", event.EventType, EventTypeToolCall)
@@ -363,6 +363,22 @@ func TestNewToolCallEvent(t *testing.T) {
 	}
 	if data.Input["path"] != "/home/user/file.txt" {
 		t.Errorf("Input[path] = %v, want /home/user/file.txt", data.Input["path"])
+	}
+	if data.ToolCallID != "toolu_test123" {
+		t.Errorf("ToolCallID = %s, want toolu_test123", data.ToolCallID)
+	}
+}
+
+func TestNewToolCallEvent_EmptyToolCallID(t *testing.T) {
+	runID := uuid.New()
+	event := NewToolCallEvent(runID, "Bash", "", map[string]interface{}{"command": "ls"})
+
+	data, ok := event.Data.(*ToolCallEventData)
+	if !ok {
+		t.Fatalf("Data type = %T, want *ToolCallEventData", event.Data)
+	}
+	if data.ToolCallID != "" {
+		t.Errorf("ToolCallID = %s, want empty string", data.ToolCallID)
 	}
 }
 

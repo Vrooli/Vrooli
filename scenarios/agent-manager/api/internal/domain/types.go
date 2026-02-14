@@ -507,7 +507,7 @@ func DefaultRunConfig() *RunConfig {
 //
 // Usage:
 //   event := NewLogEvent(runID, "info", "Starting execution")
-//   event := NewToolCallEvent(runID, "Read", map[string]interface{}{"path": "/foo"})
+//   event := NewToolCallEvent(runID, "Read", "toolu_123", map[string]interface{}{"path": "/foo"})
 //
 // The Data field contains a type-specific payload that can be type-asserted:
 //   if log, ok := event.Data.(*LogEventData); ok { ... }
@@ -628,21 +628,23 @@ func NewMessageDeletedEvent(runID uuid.UUID, targetEventID string) *RunEvent {
 
 // ToolCallEventData contains data for tool invocation events.
 type ToolCallEventData struct {
-	ToolName string                 `json:"toolName"` // Name of the tool being called
-	Input    map[string]interface{} `json:"input"`    // Tool input parameters
+	ToolName   string                 `json:"toolName"`             // Name of the tool being called
+	ToolCallID string                 `json:"toolCallId,omitempty"` // Correlation ID linking to the tool_result
+	Input      map[string]interface{} `json:"input"`                // Tool input parameters
 }
 
 func (d *ToolCallEventData) EventType() RunEventType { return EventTypeToolCall }
 func (d *ToolCallEventData) isEventPayload()         {}
 
 // NewToolCallEvent creates a new tool call event.
-func NewToolCallEvent(runID uuid.UUID, toolName string, input map[string]interface{}) *RunEvent {
+// toolCallID is the correlation ID (e.g. "toolu_01GXZ...") that links this call to its result.
+func NewToolCallEvent(runID uuid.UUID, toolName, toolCallID string, input map[string]interface{}) *RunEvent {
 	return &RunEvent{
 		ID:        uuid.New(),
 		RunID:     runID,
 		EventType: EventTypeToolCall,
 		Timestamp: time.Now(),
-		Data:      &ToolCallEventData{ToolName: toolName, Input: input},
+		Data:      &ToolCallEventData{ToolName: toolName, ToolCallID: toolCallID, Input: input},
 	}
 }
 
@@ -942,9 +944,10 @@ type RunEventData struct {
 	Role    string `json:"role,omitempty"`
 	Content string `json:"content,omitempty"`
 
-	// For tool_call events
-	ToolName  string                 `json:"toolName,omitempty"`
-	ToolInput map[string]interface{} `json:"toolInput,omitempty"`
+	// For tool_call and tool_result events
+	ToolName   string                 `json:"toolName,omitempty"`
+	ToolCallID string                 `json:"toolCallId,omitempty"` // Correlation ID (shared by tool_call and tool_result)
+	ToolInput  map[string]interface{} `json:"toolInput,omitempty"`
 
 	// For tool_result events
 	ToolOutput string `json:"toolOutput,omitempty"`
@@ -1006,13 +1009,13 @@ func (d RunEventData) ToTypedPayload() EventPayload {
 	case EventTypeMessage:
 		return &MessageEventData{Role: d.Role, Content: d.Content}
 	case EventTypeToolCall:
-		return &ToolCallEventData{ToolName: d.ToolName, Input: d.ToolInput}
+		return &ToolCallEventData{ToolName: d.ToolName, ToolCallID: d.ToolCallID, Input: d.ToolInput}
 	case EventTypeToolResult:
 		var err string
 		if d.ToolError != "" {
 			err = d.ToolError
 		}
-		return &ToolResultEventData{ToolName: d.ToolName, Output: d.ToolOutput, Error: err, Success: err == ""}
+		return &ToolResultEventData{ToolName: d.ToolName, ToolCallID: d.ToolCallID, Output: d.ToolOutput, Error: err, Success: err == ""}
 	case EventTypeStatus:
 		return &StatusEventData{OldStatus: d.OldStatus, NewStatus: d.NewStatus}
 	case EventTypeMetric:

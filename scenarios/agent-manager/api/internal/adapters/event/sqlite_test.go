@@ -471,7 +471,7 @@ func TestSQLiteStore_EventDataRoundTrip(t *testing.T) {
 		},
 		{
 			name:  "tool call event",
-			event: domain.NewToolCallEvent(runID, "write_file", map[string]interface{}{"path": "/test.txt", "content": "hello"}),
+			event: domain.NewToolCallEvent(runID, "write_file", "", map[string]interface{}{"path": "/test.txt", "content": "hello"}),
 		},
 		{
 			name:  "status event",

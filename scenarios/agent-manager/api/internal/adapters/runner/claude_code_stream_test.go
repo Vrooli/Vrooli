@@ -639,7 +639,7 @@ func TestClaudeCodeRunner_UpdateMetrics_ToolCallEvent(t *testing.T) {
 	metrics := ExecutionMetrics{}
 	var lastAssistant string
 
-	event := domain.NewToolCallEvent(runID, "Write", map[string]interface{}{"path": "/tmp/test"})
+	event := domain.NewToolCallEvent(runID, "Write", "toolu_test", map[string]interface{}{"path": "/tmp/test"})
 	runner.updateMetrics(event, &metrics, &lastAssistant)
 
 	if metrics.ToolCallCount != 1 {

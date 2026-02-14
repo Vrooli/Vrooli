@@ -436,8 +436,9 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 			Timestamp: now,
 			Sequence:  1,
 			Data: &domain.ToolCallEventData{
-				ToolName: "Read",
-				Input:    map[string]interface{}{"path": "README.md"},
+				ToolName:   "Read",
+				ToolCallID: "toolu_test_read",
+				Input:      map[string]interface{}{"path": "README.md"},
 			},
 		}
 		proto := RunEventToProto(event)
@@ -447,6 +448,9 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 		}
 		if payload.ToolName != "Read" {
 			t.Errorf("ToolName: expected Read, got %s", payload.ToolName)
+		}
+		if payload.ToolCallId != "toolu_test_read" {
+			t.Errorf("ToolCallId: expected toolu_test_read, got %s", payload.ToolCallId)
 		}
 		if payload.Input == nil || payload.Input.AsMap()["path"] != "README.md" {
 			t.Errorf("Input: expected path README.md, got %#v", payload.Input)
