@@ -26,6 +26,7 @@ type Handlers struct {
 	executor      *Executor
 	runRegistry   *RunRegistry
 	agentClient   *AgentManagerClient
+	teamExecStore *TeamExecutionStore
 }
 
 // NewHandlers creates new heartbeat handlers
@@ -37,6 +38,7 @@ func NewHandlers(
 	executor *Executor,
 	runRegistry *RunRegistry,
 	agentClient *AgentManagerClient,
+	teamExecStore *TeamExecutionStore,
 ) *Handlers {
 	return &Handlers{
 		teamStore:     teamStore,
@@ -46,6 +48,7 @@ func NewHandlers(
 		executor:      executor,
 		runRegistry:   runRegistry,
 		agentClient:   agentClient,
+		teamExecStore: teamExecStore,
 	}
 }
 
@@ -402,6 +405,36 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Route through team execution store for serialized execution
+	if h.teamExecStore != nil {
+		// Resolve profile key from heartbeat config
+		profileKey := "prompt-manager-heartbeat"
+		config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+		if err == nil && config != nil && config.ProfileKey != "" {
+			profileKey = config.ProfileKey
+		}
+
+		enqueueResult, err := h.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
+		if err != nil {
+			if IsMemberAlreadyQueued(err) {
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
+			if IsTeamDisabled(err) {
+				http.Error(w, "Team is disabled; enable the team to run heartbeats", http.StatusConflict)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(enqueueResult)
+		return
+	}
+
+	// Fallback: direct execution
 	result, err := h.executor.TriggerManual(ctx, teamID, agentID)
 	if err != nil {
 		if IsTeamDisabled(err) {
@@ -838,6 +871,34 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Route through team execution store if available
+		if h.teamExecStore != nil {
+			profileKey := "prompt-manager-heartbeat"
+			config, cfgErr := h.teamStore.GetHeartbeatConfig(ctx, teamID, leadAgentID)
+			if cfgErr == nil && config != nil && config.ProfileKey != "" {
+				profileKey = config.ProfileKey
+			}
+
+			enqueueResult, enqErr := h.teamExecStore.Enqueue(ctx, teamID, leadAgentID, profileKey)
+			if enqErr != nil {
+				if IsMemberAlreadyQueued(enqErr) {
+					http.Error(w, enqErr.Error(), http.StatusConflict)
+					return
+				}
+				http.Error(w, enqErr.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(TriggerTeamResponse{
+				TeamID:    teamID,
+				SpawnMode: "single-process",
+				Triggers:  []TriggerHeartbeatResponse{{TeamID: teamID, AgentID: leadAgentID, Status: enqueueResult.Status}},
+			})
+			return
+		}
+
 		result, err := h.executor.TriggerManual(ctx, teamID, leadAgentID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -869,6 +930,30 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Route through team execution store if available
+		if h.teamExecStore != nil {
+			profileKey := "prompt-manager-heartbeat"
+			if config.ProfileKey != "" {
+				profileKey = config.ProfileKey
+			}
+
+			enqueueResult, enqErr := h.teamExecStore.Enqueue(ctx, teamID, m.AgentID, profileKey)
+			if enqErr != nil {
+				if IsMemberAlreadyQueued(enqErr) {
+					log.Printf("Warning: Skipped heartbeat for %s/%s: already queued", teamID, m.AgentID)
+					continue
+				}
+				log.Printf("Warning: Failed to enqueue heartbeat for %s/%s: %v", teamID, m.AgentID, enqErr)
+				continue
+			}
+			triggers = append(triggers, TriggerHeartbeatResponse{
+				TeamID:  teamID,
+				AgentID: m.AgentID,
+				Status:  enqueueResult.Status,
+			})
+			continue
+		}
+
 		result, err := h.executor.TriggerManual(ctx, teamID, m.AgentID)
 		if err != nil {
 			log.Printf("Warning: Failed to trigger heartbeat for %s/%s: %v", teamID, m.AgentID, err)
@@ -889,6 +974,76 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 		TeamID:    teamID,
 		SpawnMode: "multi-process",
 		Triggers:  triggers,
+	})
+}
+
+// GetTeamExecutionStatus handles GET /teams/{id}/execution-status - returns team execution queue state.
+func (h *Handlers) GetTeamExecutionStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+
+	// Verify team exists
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+
+	if h.teamExecStore == nil {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(TeamExecutionStatus{
+			TeamID: teamID,
+			State:  "idle",
+			Queue:  []string{},
+		})
+		return
+	}
+
+	status := h.teamExecStore.Status(teamID)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status)
+}
+
+// GetMemberContext handles GET /teams/{id}/members/{agentId}/context
+func (h *Handlers) GetMemberContext(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	agentID := vars["agentId"]
+
+	if h.executor == nil {
+		http.Error(w, "Executor not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "required") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	prompt, err := h.executor.BuildContext(ctx, teamID, agentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(MemberContextResponse{
+		TeamID:  teamID,
+		AgentID: agentID,
+		Prompt:  prompt,
 	})
 }
 

@@ -160,6 +160,48 @@ Member cleanup is centralized in the team handlers:
   `store/teams/{team-id}/members/{agent-id}/` via the file store when available.
   Tests can assert scheduler calls while keeping file I/O isolated to temporary directories.
 
+## Team Execution Seams
+
+The team execution system introduces two seams for serialized per-team heartbeat execution:
+
+### TeamExecutionManager Interface
+
+[CODE: api/heartbeat/team_execution.go]
+
+```go
+type TeamExecutionManager interface {
+    Enqueue(ctx context.Context, teamID, agentID, profileKey string) (*EnqueueResult, error)
+    Status(teamID string) TeamExecutionStatus
+}
+```
+
+The `Scheduler` and `Handlers` depend on this interface rather than the concrete `TeamExecutionStore`.
+Tests can inject a mock implementation that tracks enqueue calls and returns predetermined results
+without requiring a real executor or queue.
+
+### Queue Persistence
+
+[CODE: api/heartbeat/team_execution.go, api/heartbeat/team_execution_store.go]
+
+Queue state is persisted to `{storeDir}/team-queue-{teamID}.json` following the same pattern as
+`RunRegistry` (`run_registry.go`). The `TeamExecutionStore` accepts a `persistDir` parameter, so
+tests point at `t.TempDir()` to isolate queue file I/O.
+
+**Testing Impact:**
+- Unit tests mock `TeamExecutionManager` to verify handler/scheduler behavior without real queue state
+- Integration tests use `t.TempDir()` for persistence and verify recover-after-restart scenarios
+- The `captureExecutor` pattern from `scheduler_test.go` is reused for queue dequeue tests
+
+### Executor Completion Callback
+
+[CODE: api/heartbeat/executor.go]
+
+The `Executor` has an `OnComplete func(teamID, agentID string)` field that the `TeamExecutionStore`
+sets during initialization. When `waitForCompletion()` finishes, it calls `OnComplete` to trigger
+queue dequeue. Tests can set this callback to verify completion notification behavior.
+
+---
+
 ## Interop Seams
 
 The `interop` package provides a tool-agnostic conversion layer for bidirectional team

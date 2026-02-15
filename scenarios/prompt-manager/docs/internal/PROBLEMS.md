@@ -3,7 +3,7 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-02-12
+2026-02-15
 
 ---
 
@@ -35,6 +35,7 @@ _No significant debt identified._
 | Package | Coverage | Gaps |
 |---------|----------|------|
 | skills/ | Good | handlers_test.go, query_test.go exist |
+| heartbeat/ | Good | scheduler, executor, handlers, prompt builder, team execution queue, member context all covered |
 | tags/ | None | Needs handler tests |
 | agents/ | None | Needs handler tests |
 | teams/ | Partial | Heartbeat cleanup + handler coverage exists; expand org chart + messaging tests |

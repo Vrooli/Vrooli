@@ -366,10 +366,13 @@ func main() {
 		vrooliRoot,
 		runRegistry,
 	)
+	teamExecStore := heartbeat.NewTeamExecutionStore(heartbeatExecutor, absStoreDir)
+	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
 	heartbeatScheduler := heartbeat.NewScheduler(
 		heartbeatExecutor,
 		agentManagerClient,
 		fileStore.Teams().(*store.FileTeamStore),
+		teamExecStore,
 	)
 	heartbeatHandlers := heartbeat.NewHandlers(
 		fileStore.Teams().(*store.FileTeamStore),
@@ -379,11 +382,13 @@ func main() {
 		heartbeatExecutor,
 		runRegistry,
 		agentManagerClient,
+		teamExecStore,
 	)
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
 	runRegistry.Recover(context.Background(), agentManagerClient)
+	teamExecStore.Recover(context.Background())
 
 	// Start scheduler (doesn't auto-start heartbeats - they must be explicitly enabled)
 	go func() {
@@ -419,6 +424,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.DeleteHeartbeat).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/trigger", heartbeatHandlers.TriggerHeartbeat).Methods("POST")
 	v1.HandleFunc("/teams/{id}/trigger", heartbeatHandlers.TriggerTeam).Methods("POST")
+	v1.HandleFunc("/teams/{id}/execution-status", heartbeatHandlers.GetTeamExecutionStatus).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs", heartbeatHandlers.ListLogs).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs/{logId}", heartbeatHandlers.GetLog).Methods("GET")
 
@@ -427,6 +433,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.SetResponsibilities).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.GetHeartbeatInstructions).Methods("GET")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/context", heartbeatHandlers.GetMemberContext).Methods("GET")
 
 	// World scale routes
 	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")

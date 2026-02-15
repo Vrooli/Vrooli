@@ -165,7 +165,7 @@ POST /teams/{teamId}/heartbeats/{agentId}/trigger
 
 **Errors:**
 - `404 Not Found` - Team, member, or heartbeat config not found
-- `409 Conflict` - Team is disabled (turn the team on to run heartbeats)
+- `409 Conflict` - Team is disabled, or member is already queued/running
 
 ---
 
@@ -201,6 +201,55 @@ POST /teams/{teamId}/trigger
 - `400 Bad Request` - No team lead found (single-process mode)
 - `404 Not Found` - Team not found
 - `409 Conflict` - Team is disabled
+- `503 Service Unavailable` - Executor not configured
+
+---
+
+### Get Team Execution Status
+
+Get the current execution queue status for a team.
+
+```
+GET /teams/{teamId}/execution-status
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "state": "active",
+  "running": "agent-1",
+  "queue": ["agent-2"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `state` | string | `"idle"` or `"active"` |
+| `running` | string? | Agent ID currently executing, null if idle |
+| `queue` | string[] | Agent IDs waiting to execute (FIFO order) |
+
+---
+
+### Get Member Context
+
+Get the full context prompt for a team member (excludes HEARTBEAT.md task instructions). Used by single-process spawn mode for teammate bootstrapping.
+
+```
+GET /teams/{teamId}/members/{agentId}/context
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "prompt": "# Agent Files (Markdown)\n\n## SOUL.md\n\n..."
+}
+```
+
+**Errors:**
+- `404 Not Found` - Team or member not found
 - `503 Service Unavailable` - Executor not configured
 
 ---

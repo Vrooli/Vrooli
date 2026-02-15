@@ -91,11 +91,11 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 │ 3. Team Relationships                           │
 │    Reporting lines + coordination commands       │
 ├─────────────────────────────────────────────────┤
-│ 4. Team Inbox                                   │
-│    Pending messages from other team members      │
+│ 4. Coordination Skill Reference                 │
+│    Spawn-mode-specific guidance (multi/single)  │
 ├─────────────────────────────────────────────────┤
-│ 5. Skill references (embedded in markdown)      │
-│    - Links to skills via prompt-manager skill read │
+│ 5. Team Inbox                                   │
+│    Pending messages from other team members      │
 ├─────────────────────────────────────────────────┤
 │ 6. HEARTBEAT.md (from team members/)            │
 │    The specific task to execute now             │
@@ -105,12 +105,10 @@ When a heartbeat executes, the prompt is built from multiple sources in order:
 This layered approach means:
 - **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
 - **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
-- **Team Relationships**: "Who I report to + who I direct" (coordination rules)
+- **Team Relationships**: "Who I report to + who I direct" (coordination rules + CLI commands for messaging)
+- **Coordination Skill**: Mode-specific guidance (see [Coordination Skills](SWARM-MODEL.md#coordination-skills))
 - **Team Inbox**: "Pending messages to act on or reply to"
-- **Skills**: "Tools I have available" (linked in markdown within agent/team files)
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
-
-The Team Relationships section also includes CLI commands for sending and managing inbox messages between team members.
 
 ## Prompt Pipeline UI
 
@@ -166,7 +164,19 @@ See [CODE: api/heartbeat/client.go] for the client implementation.
 4. **Logging**: All executions are logged for audit
 5. **Manual Override**: Heartbeats can be manually triggered for testing
 
+## Team Execution Model
+
+Heartbeat execution is serialized at the team level. Rather than firing all member heartbeats simultaneously, the system uses a bounded FIFO queue per team:
+
+- **One at a time**: Only one member executes per team at any given moment
+- **Queued execution**: Additional triggers are queued and executed in order
+- **Dedup protection**: A member cannot be queued twice; duplicate triggers return 409
+- **Crash recovery**: Queue state is persisted to disk and recovered on restart
+
+This prevents resource contention and ensures predictable execution ordering. For full details on the queue lifecycle, state transitions, and persistence model, see [Team Execution Model](TEAM-EXECUTION.md).
+
 ## Related Documentation
 
+- [Team Execution Model](TEAM-EXECUTION.md) - Serialized execution and bounded queue
 - [API Reference: Heartbeat Endpoints](../reference/heartbeat-api.md)
 - [CLI Reference: Heartbeat Commands](../reference/heartbeat-cli.md)

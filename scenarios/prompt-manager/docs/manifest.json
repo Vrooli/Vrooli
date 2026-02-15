@@ -51,6 +51,30 @@
           "title": "Relationship Graph",
           "description": "How the dependency graph maps connections between teams, agents, skills, and CLI tools",
           "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/TEAM-EXECUTION.md",
+          "title": "Team Execution Model",
+          "description": "Serialized heartbeat execution per team with bounded FIFO queue",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/PERSONA-SYSTEM.md",
+          "title": "Persona System",
+          "description": "Agent SOUL.md personality and behavioral guidance configuration",
+          "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/CAPABILITY-MATCHING.md",
+          "title": "Capability Matching",
+          "description": "How skills are matched to agents based on capability declarations",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/RELATIONS.md",
+          "title": "Relations",
+          "description": "Team-member relation system and normalization patterns",
+          "audience": ["developers"]
         }
       ]
     },
@@ -126,6 +150,18 @@
           "path": "internal/PROGRESS.md",
           "title": "Progress",
           "description": "Development history, milestones, and architecture decisions",
+          "internal": true
+        },
+        {
+          "path": "internal/INTEROP_AUDIT.md",
+          "title": "Interop Audit",
+          "description": "Agent-manager integration audit and interop layer analysis",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "Test organization, coverage status, and testing patterns",
           "internal": true
         }
       ]

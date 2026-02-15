@@ -1090,8 +1090,10 @@ Trigger heartbeats for an entire team. Behavior depends on `spawnMode`:
 **Errors:**
 - `400` - No team lead found (single-process mode)
 - `404` - Team not found
-- `409` - Team is disabled
+- `409` - Team is disabled or member already queued/running
 - `503` - Executor not configured
+
+> **See also:** [Heartbeat API Reference](heartbeat-api.md) for the full heartbeat lifecycle including execution status (`GET /teams/{id}/execution-status`), member context (`GET /teams/{id}/members/{agentId}/context`), and heartbeat CRUD endpoints.
 
 ---
 

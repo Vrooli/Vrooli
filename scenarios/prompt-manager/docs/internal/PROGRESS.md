@@ -3,7 +3,7 @@
 Agent-maintained document tracking development milestones.
 
 ## Last Updated
-2026-02-03
+2026-02-15
 
 ---
 
@@ -82,6 +82,20 @@ Agent-maintained document tracking development milestones.
 - [x] Query panel, toolbar filters, legend, and tooltip components
 - [x] Zustand store + service layer with 10s client cache
 - [x] Comprehensive test coverage (builder, scanner, scoring, queries, handlers, index)
+
+### Phase 8: Team Execution Model & Coordination Skills (2026-02-15)
+- [x] Team-level execution context with bounded FIFO queue
+- [x] One member runs at a time per team; additional triggers queued
+- [x] Dedup protection: 409 Conflict when member already queued/running
+- [x] Queue persistence to disk with crash recovery
+- [x] Scheduler routes heartbeats through TeamExecutionStore
+- [x] GET /teams/{id}/execution-status endpoint
+- [x] Two coordination skills: `team-coordination-multi-process` and `team-coordination-single-process`
+- [x] PromptBuilder injects coordination skill reference based on team spawnMode
+- [x] Member context endpoint: GET /teams/{id}/members/{agentId}/context (excludes HEARTBEAT.md)
+- [x] CLI command: `prompt-manager team member-context <team-id> <agent-id>`
+- [x] Comprehensive test coverage for queue behavior, scheduler integration, prompt builder, and handlers
+- [x] Documentation: TEAM-EXECUTION.md concept doc, heartbeat-api.md and heartbeat-cli.md reference updates
 
 ---
 

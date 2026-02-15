@@ -155,16 +155,21 @@ Get or set RESPONSIBILITIES.md for a team member.
 
 ```bash
 # Get
-prompt-manager team responsibilities <team-id> <agent-id>
+prompt-manager team responsibilities <team-id> <agent-id> [--json]
 
-# Set (reads from stdin)
-prompt-manager team responsibilities <team-id> <agent-id> --set
+# Set from string
+prompt-manager team responsibilities <team-id> <agent-id> --set='content'
+
+# Set from file
+prompt-manager team responsibilities <team-id> <agent-id> --file=path
 ```
 
 **Options:**
 | Flag | Description |
 |------|-------------|
-| `--set` | Set content from stdin |
+| `--set` | Set content from a string value |
+| `--file` | Set content from a file path |
+| `--json` | Output as JSON |
 
 **Examples:**
 ```bash
@@ -172,21 +177,15 @@ prompt-manager team responsibilities <team-id> <agent-id> --set
 prompt-manager team responsibilities my-team agent-1
 # Output: (content of RESPONSIBILITIES.md)
 
-# Set responsibilities from stdin
-cat responsibilities.md | prompt-manager team responsibilities my-team agent-1 --set
-# Output: RESPONSIBILITIES.md updated for my-team/agent-1
+# Set from inline content
+prompt-manager team responsibilities my-team agent-1 --set='# Responsibilities
 
-# Set using heredoc
-prompt-manager team responsibilities my-team agent-1 --set << 'EOF'
-# Agent Responsibilities
-
-## Primary Duties
 - Monitor system health
-- Report anomalies
+- Report anomalies'
 
-## Secondary Duties
-- Assist with debugging
-EOF
+# Set from file
+prompt-manager team responsibilities my-team agent-1 --file=responsibilities.md
+# Output: Updated RESPONSIBILITIES.md for my-team/agent-1 (142 bytes)
 ```
 
 ---
@@ -197,16 +196,21 @@ Get or set HEARTBEAT.md for a team member.
 
 ```bash
 # Get
-prompt-manager team heartbeat-instructions <team-id> <agent-id>
+prompt-manager team heartbeat-instructions <team-id> <agent-id> [--json]
 
-# Set (reads from stdin)
-prompt-manager team heartbeat-instructions <team-id> <agent-id> --set
+# Set from string
+prompt-manager team heartbeat-instructions <team-id> <agent-id> --set='content'
+
+# Set from file
+prompt-manager team heartbeat-instructions <team-id> <agent-id> --file=path
 ```
 
 **Options:**
 | Flag | Description |
 |------|-------------|
-| `--set` | Set content from stdin |
+| `--set` | Set content from a string value |
+| `--file` | Set content from a file path |
+| `--json` | Output as JSON |
 
 **Examples:**
 ```bash
@@ -214,15 +218,16 @@ prompt-manager team heartbeat-instructions <team-id> <agent-id> --set
 prompt-manager team heartbeat-instructions my-team agent-1
 # Output: (content of HEARTBEAT.md)
 
-# Set heartbeat instructions
-prompt-manager team heartbeat-instructions my-team agent-1 --set << 'EOF'
-# Heartbeat Task
+# Set from inline content
+prompt-manager team heartbeat-instructions my-team agent-1 --set='# Heartbeat Task
 
 On each heartbeat:
 1. Check pending issues
 2. Review recent commits
-3. Update status report
-EOF
+3. Update status report'
+
+# Set from file
+prompt-manager team heartbeat-instructions my-team agent-1 --file=heartbeat-task.md
 ```
 
 ---
@@ -235,16 +240,21 @@ Get or set SOUL.md for an agent.
 
 ```bash
 # Get
-prompt-manager agent soul <agent-id>
+prompt-manager agent soul <agent-id> [--json]
 
-# Set (reads from stdin)
-prompt-manager agent soul <agent-id> --set
+# Set from string
+prompt-manager agent soul <agent-id> --set='content'
+
+# Set from file
+prompt-manager agent soul <agent-id> --file=path
 ```
 
 **Options:**
 | Flag | Description |
 |------|-------------|
-| `--set` | Set content from stdin |
+| `--set` | Set content from a string value |
+| `--file` | Set content from a file path |
+| `--json` | Output as JSON |
 
 **Examples:**
 ```bash
@@ -252,15 +262,48 @@ prompt-manager agent soul <agent-id> --set
 prompt-manager agent soul agent-1
 # Output: (content of SOUL.md)
 
-# Set soul
-prompt-manager agent soul agent-1 --set << 'EOF'
-# Agent Personality
+# Set from inline content
+prompt-manager agent soul agent-1 --set='# Agent Personality
 
 I am a meticulous and thorough assistant who values:
 - Clarity in communication
 - Systematic problem-solving
-- Continuous improvement
-EOF
+- Continuous improvement'
+
+# Set from file
+prompt-manager agent soul agent-1 --file=soul.md
+```
+
+---
+
+## Member Context
+
+### prompt-manager team member-context
+
+Get the full context prompt for a team member. This includes agent files, responsibilities, relationships, and inbox but excludes HEARTBEAT.md task instructions. Used by single-process spawn mode for teammate context bootstrapping.
+
+```bash
+prompt-manager team member-context <team-id> <agent-id> [--json]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON (includes teamId and agentId fields) |
+
+**Examples:**
+```bash
+# Get context as plain text (useful for piping)
+prompt-manager team member-context my-team agent-1
+
+# Get context as JSON
+prompt-manager team member-context my-team agent-1 --json
+# Output:
+# {
+#   "teamId": "my-team",
+#   "agentId": "agent-1",
+#   "prompt": "# Agent Files (Markdown)\n\n..."
+# }
 ```
 
 ---
@@ -277,29 +320,16 @@ prompt-manager agent create "Monitor Bot"
 prompt-manager team add-member ops-team monitor-bot
 
 # 3. Set agent soul
-prompt-manager agent soul monitor-bot --set << 'EOF'
-# Monitor Bot
-
-I am vigilant and detail-oriented. I catch issues before they become problems.
-EOF
+prompt-manager agent soul monitor-bot --file=soul.md
+# Or inline: prompt-manager agent soul monitor-bot --set='# Monitor Bot ...'
 
 # 4. Set responsibilities for this team
-prompt-manager team responsibilities ops-team monitor-bot --set << 'EOF'
-# Responsibilities
-
-- Monitor system health
-- Alert on anomalies
-- Generate daily reports
-EOF
+prompt-manager team responsibilities ops-team monitor-bot --file=responsibilities.md
+# Or inline: prompt-manager team responsibilities ops-team monitor-bot --set='...'
 
 # 5. Set heartbeat instructions
-prompt-manager team heartbeat-instructions ops-team monitor-bot --set << 'EOF'
-# Heartbeat Task
-
-1. Check all system metrics
-2. Compare against baselines
-3. Report any deviations
-EOF
+prompt-manager team heartbeat-instructions ops-team monitor-bot --file=heartbeat-task.md
+# Or inline: prompt-manager team heartbeat-instructions ops-team monitor-bot --set='...'
 
 # 6. Enable heartbeat
 prompt-manager team heartbeat-enable ops-team monitor-bot --schedule="0 */6 * * *"

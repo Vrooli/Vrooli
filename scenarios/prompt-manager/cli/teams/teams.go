@@ -205,6 +205,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdExportCC(ctx, subArgs)
 	case "trigger":
 		return cmdTriggerTeam(ctx, subArgs)
+	case "member-context":
+		return cmdMemberContext(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -247,6 +249,9 @@ Heartbeat Commands:
 Member Document Commands:
   responsibilities <team-id> <agent-id>       Get/set RESPONSIBILITIES.md
   heartbeat-instructions <team-id> <agent-id> Get/set HEARTBEAT.md
+
+Context Commands:
+  member-context <team-id> <agent-id>         Get full member context prompt
 
 Claude Code Interop Commands:
   import-cc <team-name>                       Import a Claude Code team
@@ -1463,5 +1468,41 @@ func cmdTriggerTeam(ctx appctx.Context, args []string) error {
 	for _, t := range resp.Triggers {
 		fmt.Printf("  - %s: run=%s status=%s\n", t.AgentID, t.RunID, t.Status)
 	}
+	return nil
+}
+
+// MemberContextResponse is the response from the member context endpoint.
+type MemberContextResponse struct {
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	Prompt  string `json:"prompt"`
+}
+
+func cmdMemberContext(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("member-context", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team member-context <team-id> <agent-id> [--json]")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	var resp MemberContextResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/members/%s/context", teamID, agentID), &resp); err != nil {
+		return fmt.Errorf("failed to get member context: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	// Default: print prompt text directly (most useful for piping)
+	fmt.Print(resp.Prompt)
 	return nil
 }

@@ -30,6 +30,7 @@ type Executor struct {
 	vrooliRoot    string
 	promptBuilder *PromptBuilder
 	runRegistry   *RunRegistry
+	OnComplete    func(teamID, agentID string)
 }
 
 // NewExecutor creates a new heartbeat executor
@@ -169,6 +170,14 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	return result, nil
 }
 
+// BuildContext constructs team/agent context for external consumption.
+func (e *Executor) BuildContext(ctx context.Context, teamID, agentID string) (string, error) {
+	if e.promptBuilder == nil {
+		return "", fmt.Errorf("prompt builder is not configured")
+	}
+	return e.promptBuilder.BuildContext(ctx, PromptBuildRequest{TeamID: teamID, AgentID: agentID})
+}
+
 // BuildPrompt constructs the full prompt for heartbeat execution.
 func (e *Executor) BuildPrompt(ctx context.Context, teamID, agentID string) (string, error) {
 	if e.promptBuilder == nil {
@@ -254,6 +263,10 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	}
 
 	_ = e.teamStore.SetHeartbeatConfig(cfgCtx, teamID, agentID, config)
+
+	if e.OnComplete != nil {
+		e.OnComplete(teamID, agentID)
+	}
 }
 
 // updateConfigFailed updates config with failed status

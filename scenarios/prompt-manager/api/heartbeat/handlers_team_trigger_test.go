@@ -20,7 +20,7 @@ func setupTeamTriggerTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 	return handlers, teamStore, agentStore, relationStore
 }
 
@@ -134,7 +134,7 @@ func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 	// No executor
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, nil)
 
 	if err := teamStore.Create(context.Background(), &store.Team{
 		ID: "team-1", DisplayName: "Team", Enabled: true,
@@ -150,6 +150,65 @@ func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+	ctx := context.Background()
+
+	if err := teamStore.Create(ctx, &store.Team{
+		ID:          "team-q",
+		DisplayName: "Queue Team",
+		Enabled:     true,
+		SpawnMode:   "single-process",
+	}); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	for _, id := range []string{"lead", "dev-1"} {
+		if err := agentStore.Create(ctx, &store.Agent{ID: id, DisplayName: id}); err != nil {
+			t.Fatalf("create agent %s: %v", id, err)
+		}
+		if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+			TeamID: "team-q", AgentID: id, Status: store.MemberStatusActive,
+		}); err != nil {
+			t.Fatalf("set member %s: %v", id, err)
+		}
+	}
+	if err := teamStore.SetOrgChart(ctx, "team-q", &store.OrgChart{
+		TeamID: "team-q",
+		Edges:  []store.OrgEdge{{ManagerAgentID: "lead", ReportAgentID: "dev-1"}},
+	}); err != nil {
+		t.Fatalf("set org chart: %v", err)
+	}
+
+	exec := &captureExecutor{}
+	teamExecStore := NewTeamExecutionStore(exec, t.TempDir())
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
+
+	// First team trigger should succeed
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-q/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-q"})
+	w := httptest.NewRecorder()
+	handlers.TriggerTeam(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("first trigger: expected 202, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Second trigger should return 409 (lead already queued/running)
+	req2 := httptest.NewRequest(http.MethodPost, "/teams/team-q/trigger", nil)
+	req2 = mux.SetURLVars(req2, map[string]string{"id": "team-q"})
+	w2 := httptest.NewRecorder()
+	handlers.TriggerTeam(w2, req2)
+
+	if w2.Code != http.StatusConflict {
+		t.Fatalf("second trigger: expected 409, got %d: %s", w2.Code, w2.Body.String())
 	}
 }
 

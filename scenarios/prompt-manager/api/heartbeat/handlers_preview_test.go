@@ -32,7 +32,7 @@ func TestPreviewPromptHandler(t *testing.T) {
 	}
 
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	reqBody, _ := json.Marshal(PromptPreviewRequest{AgentID: agent.ID})
 	req := httptest.NewRequest(http.MethodPost, "/prompt-preview", bytes.NewReader(reqBody))

@@ -33,25 +33,27 @@ type ScheduledHeartbeat struct {
 
 // Scheduler manages cron-based heartbeat execution
 type Scheduler struct {
-	mu          sync.RWMutex
-	cron        *cron.Cron
-	scheduled   map[string]*ScheduledHeartbeat // key: teamID/agentID
-	executor    HeartbeatExecutor
-	running     bool
-	profileKey  string
-	agentClient *AgentManagerClient
-	configStore HeartbeatConfigStore
+	mu            sync.RWMutex
+	cron          *cron.Cron
+	scheduled     map[string]*ScheduledHeartbeat // key: teamID/agentID
+	executor      HeartbeatExecutor
+	running       bool
+	profileKey    string
+	agentClient   *AgentManagerClient
+	configStore   HeartbeatConfigStore
+	teamExecStore *TeamExecutionStore
 }
 
 // NewScheduler creates a new heartbeat scheduler
-func NewScheduler(executor HeartbeatExecutor, agentClient *AgentManagerClient, configStore HeartbeatConfigStore) *Scheduler {
+func NewScheduler(executor HeartbeatExecutor, agentClient *AgentManagerClient, configStore HeartbeatConfigStore, teamExecStore *TeamExecutionStore) *Scheduler {
 	return &Scheduler{
-		cron:        cron.New(),
-		scheduled:   make(map[string]*ScheduledHeartbeat),
-		executor:    executor,
-		profileKey:  "prompt-manager-heartbeat",
-		agentClient: agentClient,
-		configStore: configStore,
+		cron:          cron.New(),
+		scheduled:     make(map[string]*ScheduledHeartbeat),
+		executor:      executor,
+		profileKey:    "prompt-manager-heartbeat",
+		agentClient:   agentClient,
+		configStore:   configStore,
+		teamExecStore: teamExecStore,
 	}
 }
 
@@ -249,6 +251,23 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 		}
 	}
 
+	// Route through team execution store for serialized execution
+	if s.teamExecStore != nil {
+		result, err := s.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
+		if err != nil {
+			if IsMemberAlreadyQueued(err) {
+				log.Printf("Heartbeat skipped for %s/%s: already queued or running", teamID, agentID)
+				return
+			}
+			log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)
+			return
+		}
+		log.Printf("Heartbeat enqueued for %s/%s: status=%s, position=%d",
+			teamID, agentID, result.Status, result.Position)
+		return
+	}
+
+	// Fallback: direct execution (no team execution store)
 	result, err := s.executor.Execute(ctx, teamID, agentID, profileKey)
 	if err != nil {
 		log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)

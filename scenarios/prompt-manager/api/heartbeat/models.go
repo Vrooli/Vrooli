@@ -122,6 +122,13 @@ type TriggerTeamResponse struct {
 	Triggers  []TriggerHeartbeatResponse `json:"triggers"`
 }
 
+// MemberContextResponse is the response for the member context endpoint.
+type MemberContextResponse struct {
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	Prompt  string `json:"prompt"`
+}
+
 // PromptPreviewRequest is the request body for previewing a built prompt.
 type PromptPreviewRequest struct {
 	AgentID string `json:"agentId"`

@@ -33,6 +33,18 @@ func NewPromptBuilder(teamStore *store.FileTeamStore, agentStore *store.FileAgen
 
 // Build constructs a prompt from agent files, team responsibilities, relationships, inbox, and heartbeat instructions.
 func (b *PromptBuilder) Build(ctx context.Context, req PromptBuildRequest) (string, error) {
+	return b.buildSections(ctx, req, true)
+}
+
+// BuildContext constructs a prompt with all context sections but omits HEARTBEAT.md.
+// Used by the member-context endpoint for single-process spawn mode bootstrapping.
+func (b *PromptBuilder) BuildContext(ctx context.Context, req PromptBuildRequest) (string, error) {
+	return b.buildSections(ctx, req, false)
+}
+
+// buildSections is the shared implementation. When includeHeartbeat is false,
+// the HEARTBEAT.md section is omitted.
+func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildRequest, includeHeartbeat bool) (string, error) {
 	agentID := strings.TrimSpace(req.AgentID)
 	if agentID == "" {
 		return "", fmt.Errorf("agentId is required")
@@ -99,18 +111,25 @@ func (b *PromptBuilder) Build(ctx context.Context, req PromptBuildRequest) (stri
 			parts = append(parts, section)
 		}
 
+		// 3.5 Coordination skill reference
+		if coordSection := b.buildCoordinationSkillSection(ctx, teamID); coordSection != "" {
+			parts = append(parts, coordSection)
+		}
+
 		// 4. Team inbox messages
 		if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
 			parts = append(parts, section)
 		}
 
-		// 5. HEARTBEAT.md (the specific task)
-		heartbeatInstructions, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
-		if err == nil && heartbeatInstructions != "" {
-			parts = append(parts, "# Heartbeat Task (HEARTBEAT.md)\n\n"+heartbeatInstructions)
-		} else {
-			// No heartbeat instructions - use default task
-			parts = append(parts, "# Heartbeat Task\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work.")
+		// 5. HEARTBEAT.md (the specific task) - only when includeHeartbeat is true
+		if includeHeartbeat {
+			heartbeatInstructions, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
+			if err == nil && heartbeatInstructions != "" {
+				parts = append(parts, "# Heartbeat Task (HEARTBEAT.md)\n\n"+heartbeatInstructions)
+			} else {
+				// No heartbeat instructions - use default task
+				parts = append(parts, "# Heartbeat Task\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work.")
+			}
 		}
 	}
 
@@ -174,6 +193,19 @@ func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) [
 	})
 
 	return append(ordered, remaining...)
+}
+
+func (b *PromptBuilder) buildCoordinationSkillSection(ctx context.Context, teamID string) string {
+	team, err := b.teamStore.Get(ctx, teamID)
+	if err != nil {
+		return ""
+	}
+
+	skillID := "team-coordination-multi-process"
+	if team.SpawnMode == "single-process" {
+		skillID = "team-coordination-single-process"
+	}
+	return fmt.Sprintf("# Team Coordination\n\nFor team coordination guidance, run:\n```\nprompt-manager skill read %s\n```\n", skillID)
 }
 
 func (b *PromptBuilder) buildRelationshipSection(ctx context.Context, teamID, agentID string) string {
@@ -297,9 +329,10 @@ func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, vrooliR
 
 	// Generate spawn prompt
 	spawnCtx := interop.SpawnContext{
-		WorkingDir: vrooliRoot,
-		VrooliRoot: vrooliRoot,
-		TeamID:     teamID,
+		WorkingDir:    vrooliRoot,
+		VrooliRoot:    vrooliRoot,
+		TeamID:        teamID,
+		AdditionalCtx: b.buildCoordinationSkillSection(ctx, teamID),
 	}
 
 	prompt, err := converter.FormatSpawnPrompt(ccConfig, spawnCtx)
