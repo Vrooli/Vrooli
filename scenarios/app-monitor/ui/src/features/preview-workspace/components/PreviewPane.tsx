@@ -75,6 +75,11 @@ export function PreviewPane({
   const [isLogsVisible, setIsLogsVisible] = useState(() => paneViewState?.isLogsVisible ?? false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isFullView, setIsFullView] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(() => (
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(max-width: 640px)').matches
+      : false
+  ));
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [iframeLoadedAt, setIframeLoadedAt] = useState<number | null>(null);
   const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
@@ -269,6 +274,21 @@ export function PreviewPane({
       document.body.classList.remove('preview-pane-fullscreen-active');
     };
   }, [isFullView]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsSmallScreen(event.matches);
+    };
+    setIsSmallScreen(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   useKeyboardScope({
     id: `preview-pane-full-view-escape-${paneId}`,
@@ -524,7 +544,7 @@ export function PreviewPane({
 
   const paneActions = (
     <>
-      {isArrangeMode && (
+      {isArrangeMode && !isFullView && !isSmallScreen && (
         <button
           type="button"
           className={clsx('preview-toolbar__icon-btn', 'preview-toolbar__icon-btn--secondary')}
@@ -535,7 +555,7 @@ export function PreviewPane({
           <GripVertical size={18} aria-hidden />
         </button>
       )}
-      {canRemove && (
+      {canRemove && !isFullView && (
         <button
           type="button"
           className={clsx('preview-toolbar__icon-btn', 'preview-toolbar__icon-btn--danger')}
@@ -648,11 +668,11 @@ export function PreviewPane({
         isInspecting={inspectState.active}
         onToggleInspect={inspector.handleToggleInspectMode}
         menuPortalContainer={paneSurfaceNode}
-        canOpenTabsOverlay={false}
+        canOpenTabsOverlay={isFullView}
         previewInteractionSignal={previewReloadToken}
         issueCaptureCount={stagedCaptureCount}
         showDetailsButton={true}
-        showLifecycleMenu={true}
+        showLifecycleMenu={!isSmallScreen}
         showDevMenu={true}
         rightInlineActions={paneActions}
         buildUrlSuggestionSections={buildUrlSuggestionSections}

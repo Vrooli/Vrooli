@@ -155,6 +155,10 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
     onSelectUrlSuggestion?: (value: string) => void;
     onToggleApp: () => void;
     onOpenInNewTab: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+    onToggleFullView: () => void;
+    isFullView: boolean;
+    canOpenTabsOverlay: boolean;
+    showLifecycleMenu?: boolean;
     hasCurrentApp: boolean;
     isAppRunning: boolean;
     appStatusLabel: string;
@@ -198,10 +202,16 @@ vi.mock('@/components/AppPreviewToolbar', () => ({
       <button type="button" aria-label="open in new tab" onClick={props.onOpenInNewTab}>
         Open in New Tab
       </button>
+      <button type="button" aria-label="toggle full view" onClick={props.onToggleFullView}>
+        Toggle Full View
+      </button>
       <span data-testid="toolbar-has-current-app">{String(props.hasCurrentApp)}</span>
       <span data-testid="toolbar-is-running">{String(props.isAppRunning)}</span>
       <span data-testid="toolbar-status-label">{props.appStatusLabel}</span>
       <span data-testid="toolbar-url-status-title">{props.urlStatusTitle}</span>
+      <span data-testid="toolbar-is-full-view">{String(props.isFullView)}</span>
+      <span data-testid="toolbar-can-open-tabs-overlay">{String(props.canOpenTabsOverlay)}</span>
+      <span data-testid="toolbar-show-lifecycle-menu">{String(props.showLifecycleMenu ?? true)}</span>
       {props.rightInlineActions}
       <span>{props.areLogsVisible ? 'logs-visible' : 'logs-hidden'}</span>
     </div>
@@ -236,6 +246,8 @@ const renderPane = (options?: {
   paneId?: string;
   onFocus?: (paneId: string) => void;
   onRemove?: (paneId: string) => void;
+  isArrangeMode?: boolean;
+  canRemove?: boolean;
 }) => {
   const app = options?.app ?? createApp();
   const paneId = options?.paneId ?? usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
@@ -246,9 +258,9 @@ const renderPane = (options?: {
         appId={options?.appId ?? app.id}
         apps={[app]}
         isFocused={true}
-        isArrangeMode={false}
+        isArrangeMode={options?.isArrangeMode ?? false}
         isBeingDragged={false}
-        canRemove={true}
+        canRemove={options?.canRemove ?? true}
         onFocus={options?.onFocus ?? vi.fn()}
         onRemove={options?.onRemove ?? vi.fn()}
         onArrangeDragStart={vi.fn()}
@@ -259,8 +271,24 @@ const renderPane = (options?: {
 
 describe('PreviewPane', () => {
   const storageKey = 'app-monitor:preview-workspace-v1';
+  const setMatchMedia = (isSmallScreen: boolean) => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('max-width: 640px') ? isSmallScreen : false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  };
 
   beforeEach(async () => {
+    setMatchMedia(false);
     openOverlayMock.mockReset();
     getAppMock.mockReset();
     controlAppMock.mockReset();
@@ -283,6 +311,49 @@ describe('PreviewPane', () => {
     expect(container.querySelector('.preview-toolbar')).not.toBeNull();
     await user.click(screen.getByRole('button', { name: /remove pane/i }));
     expect(onRemove).toHaveBeenCalledWith(paneId);
+  });
+
+  it('enables tabs overlay control only while pane full view is active', async () => {
+    const user = userEvent.setup();
+    renderPane();
+
+    expect(screen.getByTestId('toolbar-can-open-tabs-overlay')).toHaveTextContent('false');
+    await user.click(screen.getByRole('button', { name: /toggle full view/i }));
+    expect(screen.getByTestId('toolbar-is-full-view')).toHaveTextContent('true');
+    expect(screen.getByTestId('toolbar-can-open-tabs-overlay')).toHaveTextContent('true');
+  });
+
+  it('hides drag and remove pane actions while pane full view is active', async () => {
+    const user = userEvent.setup();
+    renderPane({ isArrangeMode: true, canRemove: true });
+
+    expect(screen.getByRole('button', { name: /drag pane/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /remove pane/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /toggle full view/i }));
+
+    expect(screen.queryByRole('button', { name: /drag pane/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /remove pane/i })).not.toBeInTheDocument();
+  });
+
+  it('toggles pane fullscreen body class with full view state', async () => {
+    const user = userEvent.setup();
+    renderPane();
+
+    expect(document.body.classList.contains('preview-pane-fullscreen-active')).toBe(false);
+    await user.click(screen.getByRole('button', { name: /toggle full view/i }));
+    expect(document.body.classList.contains('preview-pane-fullscreen-active')).toBe(true);
+    await user.click(screen.getByRole('button', { name: /toggle full view/i }));
+    expect(document.body.classList.contains('preview-pane-fullscreen-active')).toBe(false);
+  });
+
+  it('hides drag action and lifecycle button on small screens', () => {
+    setMatchMedia(true);
+    renderPane({ isArrangeMode: true, canRemove: true });
+
+    expect(screen.queryByRole('button', { name: /drag pane/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /remove pane/i })).toBeInTheDocument();
+    expect(screen.getByTestId('toolbar-show-lifecycle-menu')).toHaveTextContent('false');
   });
 
   it('persists and restores pane-local logs visibility', async () => {

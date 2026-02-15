@@ -77,6 +77,14 @@
   font-weight: 600;
 }
 
+body.preview-pane-fullscreen-active .shell__bottom-nav {
+  display: none;
+}
+
+body.preview-pane-fullscreen-active .shell__content {
+  padding-bottom: 0;
+}
+
 
 .shell__dialog {
   background: rgba(16, 16, 28, 0.94);

@@ -1,12 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AppPreviewToolbar from './AppPreviewToolbar';
+
+const { openOverlayMock } = vi.hoisted(() => ({
+  openOverlayMock: vi.fn(),
+}));
 
 vi.mock('@/hooks/useOverlayRouter', () => ({
   useOverlayRouter: () => ({
     overlay: null,
-    openOverlay: vi.fn(),
+    openOverlay: openOverlayMock,
     closeOverlay: vi.fn(),
   }),
 }));
@@ -27,6 +31,27 @@ vi.mock('@/hooks/useDraggablePosition', () => ({
 }));
 
 describe('AppPreviewToolbar', () => {
+  const setMatchMedia = (isSmallScreen: boolean) => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('max-width: 640px') ? isSmallScreen : false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  };
+
+  beforeEach(() => {
+    openOverlayMock.mockReset();
+    setMatchMedia(false);
+  });
+
   const buildSingleSuggestionSection = (suggestion: string) => () => ([
     {
       id: 'recent-urls',
@@ -441,5 +466,115 @@ describe('AppPreviewToolbar', () => {
     expect(screen.getByText('Running scenarios')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /workspace-manager/i }));
     expect(onSelectUrlSuggestion).toHaveBeenCalledWith('http://localhost:3000/apps/workspace-manager/proxy/');
+  });
+
+  it('keeps URL input visible and uses compact navigation on small screens', () => {
+    setMatchMedia(true);
+
+    render(
+      <AppPreviewToolbar
+        canGoBack={false}
+        canGoForward={false}
+        onGoBack={vi.fn()}
+        onGoForward={vi.fn()}
+        onRefresh={vi.fn()}
+        isRefreshing={false}
+        onOpenDetails={vi.fn()}
+        previewUrlInput="http://localhost:4310"
+        onPreviewUrlInputChange={vi.fn()}
+        onPreviewUrlInputBlur={vi.fn()}
+        onPreviewUrlInputKeyDown={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        openPreviewTarget="http://localhost:4310"
+        urlStatusClass="running"
+        urlStatusTitle="running"
+        hasDetailsWarning={false}
+        hasCurrentApp={true}
+        isAppRunning={true}
+        pendingAction={null}
+        actionInProgress={false}
+        toggleActionLabel="Stop"
+        onToggleApp={vi.fn()}
+        restartActionLabel="Restart"
+        onRestartApp={vi.fn()}
+        onToggleLogs={vi.fn()}
+        areLogsVisible={false}
+        onReportIssue={vi.fn()}
+        appStatusLabel="Running"
+        isFullView={false}
+        onToggleFullView={vi.fn()}
+        isDeviceEmulationActive={false}
+        onToggleDeviceEmulation={vi.fn()}
+        canInspect={false}
+        isInspecting={false}
+        onToggleInspect={vi.fn()}
+        menuPortalContainer={null}
+        canOpenTabsOverlay={true}
+        previewInteractionSignal={0}
+        issueCaptureCount={0}
+        showDetailsButton={true}
+        showLifecycleMenu={true}
+        showDevMenu={false}
+      />,
+    );
+
+    expect(screen.getByLabelText('Preview URL')).toBeInTheDocument();
+    expect(screen.getByLabelText('Navigation actions')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Go back$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Lifecycle actions/i)).not.toBeInTheDocument();
+  });
+
+  it('opens tab switcher from fullscreen toolbar button when enabled', () => {
+    render(
+      <AppPreviewToolbar
+        canGoBack={false}
+        canGoForward={false}
+        onGoBack={vi.fn()}
+        onGoForward={vi.fn()}
+        onRefresh={vi.fn()}
+        isRefreshing={false}
+        onOpenDetails={vi.fn()}
+        previewUrlInput=""
+        onPreviewUrlInputChange={vi.fn()}
+        onPreviewUrlInputBlur={vi.fn()}
+        onPreviewUrlInputKeyDown={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        openPreviewTarget={null}
+        urlStatusClass="running"
+        urlStatusTitle="running"
+        hasDetailsWarning={false}
+        hasCurrentApp={true}
+        isAppRunning={true}
+        pendingAction={null}
+        actionInProgress={false}
+        toggleActionLabel="Stop"
+        onToggleApp={vi.fn()}
+        restartActionLabel="Restart"
+        onRestartApp={vi.fn()}
+        onToggleLogs={vi.fn()}
+        areLogsVisible={false}
+        onReportIssue={vi.fn()}
+        appStatusLabel="Running"
+        isFullView={true}
+        onToggleFullView={vi.fn()}
+        isDeviceEmulationActive={false}
+        onToggleDeviceEmulation={vi.fn()}
+        canInspect={false}
+        isInspecting={false}
+        onToggleInspect={vi.fn()}
+        menuPortalContainer={null}
+        canOpenTabsOverlay={true}
+        previewInteractionSignal={0}
+        issueCaptureCount={0}
+        showDetailsButton={false}
+        showLifecycleMenu={false}
+        showDevMenu={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Open tabs switcher'));
+    expect(openOverlayMock).toHaveBeenCalledWith('tabs', {
+      params: { segment: 'apps' },
+    });
   });
 });

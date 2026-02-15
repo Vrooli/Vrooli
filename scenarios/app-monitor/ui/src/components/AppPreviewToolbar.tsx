@@ -186,6 +186,13 @@ const AppPreviewToolbar = ({
     }
     return null;
   }, [canInspect, hasCurrentApp]);
+  const [isSmallScreen, setIsSmallScreen] = useState(() => (
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(max-width: 640px)').matches
+      : false
+  ));
+  const shouldUseCompactNavigation = isFullView || isSmallScreen;
+  const shouldShowLifecycleMenu = showLifecycleMenu && !isSmallScreen;
 
   const isBrowser = typeof document !== 'undefined';
   const portalHost = isBrowser ? (menuPortalContainer ?? document.body) : null;
@@ -218,6 +225,21 @@ const AppPreviewToolbar = ({
     }
     return formatPreviewUrlForDisplay(previewUrlInput);
   }, [isUrlInputEditing, previewUrlInput]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsSmallScreen(event.matches);
+    };
+    setIsSmallScreen(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
   const urlSuggestionsPopover = useAnchoredPopover({
     isOpen: isUrlSuggestionsOpen && hasUrlSuggestionsContent,
     anchorRef: urlWrapperRef,
@@ -489,7 +511,7 @@ const AppPreviewToolbar = ({
       onClickCapture={floatingToolbar.handleClickCapture}
     >
       <div className="preview-toolbar__group preview-toolbar__group--left">
-        {isFullView ? (
+        {shouldUseCompactNavigation ? (
           <>
             <div
               className={clsx('preview-toolbar__menu', navMenu.isOpen && 'preview-toolbar__menu--open')}
@@ -503,7 +525,6 @@ const AppPreviewToolbar = ({
                 )}
                 ref={navMenu.buttonRef}
                 onClick={handleToggleNavMenu}
-                disabled={!canGoBack && !canGoForward}
                 aria-haspopup="menu"
                 aria-expanded={navMenu.isOpen}
                 aria-label="Navigation actions"
@@ -782,7 +803,7 @@ const AppPreviewToolbar = ({
         </AnchoredPopover>
       </div>
       <div className="preview-toolbar__group preview-toolbar__group--right">
-        {showLifecycleMenu && (
+        {shouldShowLifecycleMenu && (
           <div
             className={clsx('preview-toolbar__menu', lifecycleMenu.isOpen && 'preview-toolbar__menu--open')}
             ref={lifecycleMenu.menuRef}

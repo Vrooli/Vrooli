@@ -515,12 +515,32 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 400px) {
+@media (max-width: 640px) {
+  .preview-toolbar {
+    gap: 0.45rem;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .preview-toolbar__group--left,
+  .preview-toolbar__group--right {
+    gap: 0.35rem;
+  }
+
   .preview-toolbar__title {
-    display: none;
+    min-width: 0;
   }
 
   .preview-toolbar__details-btn--mobile {
-    display: inline-flex;
+    display: none;
+  }
+}
+
+@media (max-width: 400px) {
+  .preview-toolbar__title {
+    display: flex;
+  }
+
+  .preview-toolbar__details-btn--mobile {
+    display: none;
   }
 }

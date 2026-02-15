@@ -31,6 +31,14 @@
   - Preference seam:
     - `ui/src/features/preview-workspace/state/previewWorkspaceStore.ts`
     - `isWorkspaceMinimapVisible` is persisted and toggled by workspace controls.
+- Pane fullscreen visibility seam:
+  - `ui/src/features/preview-workspace/components/PreviewPane.tsx`
+  - `ui/src/components/Shell.css`
+  - Pane full view sets `body.preview-pane-fullscreen-active`; shell bottom navigation visibility now keys off that body-level contract so pane fullscreen can hide workspace-level bottom actions without coupling shell logic to pane internals.
+- Preview toolbar compact/mobile seam:
+  - `ui/src/components/AppPreviewToolbar.tsx`
+  - `ui/src/components/AppPreviewToolbar.css`
+  - Toolbar now owns compact-nav mode switching (`isFullView || max-width: 640px`) and small-screen suppression of lifecycle actions while preserving URL input visibility.
 
 ## Weak Seams To Improve
 - `AppPreviewView` still owns route-specific and feature orchestration in a single large file.
