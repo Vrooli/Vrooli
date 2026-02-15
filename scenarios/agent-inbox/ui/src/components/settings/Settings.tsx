@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Moon,
   Sun,
@@ -19,10 +19,13 @@ import {
   Archive,
   Loader2,
   Bot,
+  ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import { Dropdown, DropdownItem } from "../ui/dropdown";
+import { Input } from "../ui/input";
 import { ModelSelector } from "./ModelSelector";
 import { ToolConfiguration } from "./ToolConfiguration";
 import { TemplatesSettingsTab } from "./TemplatesSettingsTab";
@@ -30,6 +33,7 @@ import { SkillsSettingsTab } from "./SkillsSettingsTab";
 import { SkillEditorModal } from "./SkillEditorModal";
 import { AgentModeSettings } from "./AgentModeSettings";
 import { ManualToolDialog } from "../tools/ManualToolDialog";
+import { SettingsSection, SettingsSwitchRow, SettingsNumberField } from "./SettingsControls";
 import { useTools } from "../../hooks/useTools";
 import { useYoloMode } from "../../hooks/useSettings";
 import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
@@ -59,6 +63,25 @@ export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
 
 // Default view mode
 export const DEFAULT_VIEW_MODE: ViewMode = "bubble";
+
+interface SettingsTabDef {
+  value: SettingsTab;
+  label: string;
+  icon: LucideIcon;
+}
+
+const SETTINGS_TABS: SettingsTabDef[] = [
+  { value: "general", label: "General", icon: Settings2 },
+  { value: "ai", label: "AI", icon: Cpu },
+  { value: "agent", label: "Agent", icon: Bot },
+  { value: "tools", label: "Tools", icon: Wrench },
+  { value: "templates", label: "Templates", icon: Lightbulb },
+  { value: "suggestions", label: "Suggestions", icon: Lightbulb },
+  { value: "skills", label: "Skills", icon: BookOpen },
+  { value: "data", label: "Data", icon: Database },
+];
+const FALLBACK_TAB: SettingsTabDef = { value: "general", label: "General", icon: Settings2 };
+
 
 // Get/set default model from localStorage
 export function getDefaultModel(): string {
@@ -109,6 +132,31 @@ interface SettingsProps {
   initialTab?: SettingsTab;
 }
 
+interface ChoiceButtonProps {
+  label: string;
+  icon: React.ReactNode;
+  selected: boolean;
+  onClick: () => void;
+  testId?: string;
+}
+
+function ChoiceButton({ label, icon, selected, onClick, testId }: ChoiceButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
+        selected
+          ? "bg-indigo-500/20 border-indigo-500 text-white"
+          : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
+      }`}
+      data-testid={testId}
+    >
+      {icon}
+      <span className="text-sm">{label}</span>
+    </button>
+  );
+}
+
 export function Settings({
   open,
   onClose,
@@ -145,7 +193,7 @@ export function Settings({
     isLoading: isLoadingYoloMode,
     isUpdating: isUpdatingYoloMode,
     setYoloMode,
-  } = useYoloMode(open && activeTab === "ai");
+  } = useYoloMode(open && activeTab === "tools");
 
   // Tool configuration (global defaults)
   const {
@@ -160,7 +208,7 @@ export function Settings({
     toggleTool,
     setApproval,
     syncDiscoveredTools,
-  } = useTools({ enabled: open && (activeTab === "ai" || activeTab === "tools") });
+  } = useTools({ enabled: open && activeTab === "tools" });
 
   // Suggestions settings
   const {
@@ -259,36 +307,32 @@ export function Settings({
 
   const handleEditSkill = useCallback((skill: SkillWithSource | null) => {
     if (skill === null) {
-      // Create new skill
       setIsCreatingSkill(true);
       setEditingSkill(null);
-    } else {
-      // Edit existing skill
-      setIsCreatingSkill(false);
-      setEditingSkill(skill);
+      return;
     }
+    setIsCreatingSkill(false);
+    setEditingSkill(skill);
   }, []);
 
   const handleSaveSkill = useCallback(async (
     skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">
   ) => {
     if (isCreatingSkill) {
-      // Create new skill
       await createSkillFromAPI(skillData);
     } else if (editingSkill) {
-      // Update existing skill - goes directly to prompt-manager
       await updateSkillFromAPI(editingSkill.id, skillData);
     }
-    // Refresh skills list
+
     const updated = await getAllSkills();
     setSkills(updated);
     setEditingSkill(null);
     setIsCreatingSkill(false);
   }, [isCreatingSkill, editingSkill]);
 
-  const handleYoloModeToggle = useCallback(() => {
-    setYoloMode(!yoloMode);
-  }, [yoloMode, setYoloMode]);
+  const handleYoloModeToggle = useCallback((checked: boolean) => {
+    setYoloMode(checked);
+  }, [setYoloMode]);
 
   const handleSetApproval = useCallback((scenario: string, toolName: string, override: ApprovalOverride) => {
     setApproval(scenario, toolName, override);
@@ -367,136 +411,61 @@ export function Settings({
     await onMarkAllAsRead();
   }, [onMarkAllAsRead]);
 
-  return (
-    <>
-    <Dialog open={open} onClose={onClose} className="max-w-2xl" disableEscape={isCreatingSkill || editingSkill !== null}>
-      <DialogHeader onClose={onClose}>Settings</DialogHeader>
-      <DialogBody className="space-y-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="general">
-              <span className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4" />
-                General
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="ai">
-              <span className="flex items-center gap-2">
-                <Cpu className="h-4 w-4" />
-                AI
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="agent">
-              <span className="flex items-center gap-2">
-                <Bot className="h-4 w-4" />
-                Agent
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="tools">
-              <span className="flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                Tools
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="templates">
-              <span className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                Templates
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="suggestions">
-              <span className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                Suggestions
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="skills">
-              <span className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                Skills
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="data">
-              <span className="flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Data
-              </span>
-            </TabsTrigger>
-          </TabsList>
+  const activeTabDef = useMemo(
+    () => SETTINGS_TABS.find((tab) => tab.value === activeTab) ?? FALLBACK_TAB,
+    [activeTab]
+  );
 
-          {/* General Tab */}
-          <TabsContent value="general" className="space-y-6">
-            {/* Appearance Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Appearance</h3>
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "general":
+        return (
+          <div className="space-y-6">
+            <SettingsSection title="Appearance">
               <div className="flex gap-2">
-                <button
+                <ChoiceButton
+                  label="Dark"
+                  icon={<Moon className="h-4 w-4" />}
+                  selected={theme === "dark"}
                   onClick={() => handleThemeChange("dark")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    theme === "dark"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="theme-dark-button"
-                >
-                  <Moon className="h-4 w-4" />
-                  <span className="text-sm">Dark</span>
-                </button>
-                <button
+                  testId="theme-dark-button"
+                />
+                <ChoiceButton
+                  label="Light"
+                  icon={<Sun className="h-4 w-4" />}
+                  selected={theme === "light"}
                   onClick={() => handleThemeChange("light")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    theme === "light"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="theme-light-button"
-                >
-                  <Sun className="h-4 w-4" />
-                  <span className="text-sm">Light</span>
-                </button>
+                  testId="theme-light-button"
+                />
               </div>
-            </section>
+            </SettingsSection>
 
-            {/* Chat View Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Chat View</h3>
-              <p className="text-xs text-slate-500 mb-3">
-                Choose how messages are displayed in conversations
-              </p>
+            <SettingsSection
+              title="Chat View"
+              description="Choose how messages are displayed in conversations"
+            >
               <div className="flex gap-2">
-                <button
+                <ChoiceButton
+                  label="Bubble"
+                  icon={<MessageCircle className="h-4 w-4" />}
+                  selected={viewMode === "bubble"}
                   onClick={() => onViewModeChange("bubble")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    viewMode === "bubble"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="view-mode-bubble-button"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span className="text-sm">Bubble</span>
-                </button>
-                <button
+                  testId="view-mode-bubble-button"
+                />
+                <ChoiceButton
+                  label="Compact"
+                  icon={<AlignLeft className="h-4 w-4" />}
+                  selected={viewMode === "compact"}
                   onClick={() => onViewModeChange("compact")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    viewMode === "compact"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="view-mode-compact-button"
-                >
-                  <AlignLeft className="h-4 w-4" />
-                  <span className="text-sm">Compact</span>
-                </button>
+                  testId="view-mode-compact-button"
+                />
               </div>
               <p className="text-xs text-slate-600 mt-2">
                 Compact mode uses full width, ideal for code-heavy conversations
               </p>
-            </section>
+            </SettingsSection>
 
-            {/* Keyboard Shortcuts Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Keyboard</h3>
+            <SettingsSection title="Keyboard">
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -509,58 +478,46 @@ export function Settings({
                 <Keyboard className="h-4 w-4" />
                 View Keyboard Shortcuts
               </Button>
-            </section>
-          </TabsContent>
+            </SettingsSection>
+          </div>
+        );
 
-          {/* AI Tab */}
-          <TabsContent value="ai" className="space-y-6">
-            {/* Default Model Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Default Model</h3>
-              <p className="text-xs text-slate-500 mb-3">
-                New chats will use this model by default
-              </p>
-              <ModelSelector
-                models={models}
-                selectedModel={defaultModel}
-                onSelectModel={handleDefaultModelChange}
-              />
-            </section>
-
-          </TabsContent>
-
-          {/* Agent Tab */}
-          <TabsContent value="agent" className="space-y-6">
-            <AgentModeSettings
-              settings={agentSettings}
-              onSettingsChange={setAgentSettings}
-              onReset={resetAgentSettings}
+      case "ai":
+        return (
+          <SettingsSection
+            title="Default Model"
+            description="New chats will use this model by default"
+          >
+            <ModelSelector
+              models={models}
+              selectedModel={defaultModel}
+              onSelectModel={handleDefaultModelChange}
             />
-          </TabsContent>
+          </SettingsSection>
+        );
 
-          {/* Tools Tab */}
-          <TabsContent value="tools" className="space-y-4">
-            {/* YOLO Mode Section */}
-            <section className="p-3 rounded-lg border border-white/10 bg-white/5">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium text-slate-300">YOLO Mode</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Execute all tools without asking for approval
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={yoloMode}
-                    onChange={handleYoloModeToggle}
-                    disabled={isLoadingYoloMode || isUpdatingYoloMode}
-                    className="sr-only peer"
-                    data-testid="yolo-mode-toggle"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500" />
-                </label>
-              </div>
+      case "agent":
+        return (
+          <AgentModeSettings
+            settings={agentSettings}
+            onSettingsChange={setAgentSettings}
+            onReset={resetAgentSettings}
+          />
+        );
+
+      case "tools":
+        return (
+          <div className="space-y-4">
+            <SettingsSection title="YOLO Mode">
+              <SettingsSwitchRow
+                title="Execute Without Approval"
+                description="Execute all tools without asking for approval"
+                checked={yoloMode}
+                onCheckedChange={handleYoloModeToggle}
+                disabled={isLoadingYoloMode || isUpdatingYoloMode}
+                tone="yellow"
+                testId="yolo-mode-toggle"
+              />
               {yoloMode && (
                 <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                   <p className="text-xs text-yellow-400 flex items-center gap-2">
@@ -569,7 +526,7 @@ export function Settings({
                   </p>
                 </div>
               )}
-            </section>
+            </SettingsSection>
 
             <ToolConfiguration
               toolsByScenario={toolsByScenario}
@@ -587,48 +544,38 @@ export function Settings({
               enabledCount={enabledTools.length}
               totalCount={toolSet?.tools.length ?? 0}
             />
-          </TabsContent>
+          </div>
+        );
 
-          {/* Templates Tab */}
-          <TabsContent value="templates" className="space-y-6">
-            <TemplatesSettingsTab
-              templates={templates}
-              onEditTemplate={handleEditTemplate}
-              onDeleteTemplate={handleDeleteTemplate}
-              onResetTemplate={handleResetTemplate}
-              modeHistory={modeHistory}
-              onClearHistory={clearModeHistory}
-              isLoading={isLoadingTemplates}
-            />
-          </TabsContent>
+      case "templates":
+        return (
+          <TemplatesSettingsTab
+            templates={templates}
+            onEditTemplate={handleEditTemplate}
+            onDeleteTemplate={handleDeleteTemplate}
+            onResetTemplate={handleResetTemplate}
+            modeHistory={modeHistory}
+            onClearHistory={clearModeHistory}
+            isLoading={isLoadingTemplates}
+          />
+        );
 
-          {/* Suggestions Tab */}
-          <TabsContent value="suggestions" className="space-y-6">
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Suggestions Panel</h3>
-              <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
-                <div>
-                  <p className="text-sm text-white">Show Suggestions</p>
-                  <p className="text-xs text-slate-500">Display template suggestions above message input</p>
-                </div>
-                <button
-                  onClick={() => setSuggestionsVisible(!suggestionsVisible)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    suggestionsVisible ? "bg-indigo-600" : "bg-slate-600"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                      suggestionsVisible ? "translate-x-5" : ""
-                    }`}
-                  />
-                </button>
-              </div>
-            </section>
+      case "suggestions":
+        return (
+          <div className="space-y-6">
+            <SettingsSection title="Suggestions Panel">
+              <SettingsSwitchRow
+                title="Show Suggestions"
+                description="Display template suggestions above message input"
+                checked={suggestionsVisible}
+                onCheckedChange={setSuggestionsVisible}
+              />
+            </SettingsSection>
 
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">AI Merge Model</h3>
-              <p className="text-xs text-slate-500 mb-3">Model used when merging your message with a template</p>
+            <SettingsSection
+              title="AI Merge Model"
+              description="Model used when merging your message with a template"
+            >
               <ModelSelector
                 models={models}
                 selectedModel={mergeModel}
@@ -636,96 +583,72 @@ export function Settings({
                 label="Merge model"
                 compact
               />
-            </section>
+            </SettingsSection>
 
-            <section className="space-y-3">
-              <h3 className="text-sm font-medium text-slate-300">Auto Skill Suggestion</h3>
+            <SettingsSection title="Auto Skill Suggestion">
               {autoSuggestError && (
-                <p className="text-xs text-amber-400">Could not load persisted settings: {autoSuggestError}</p>
+                <p className="text-xs text-amber-400 mb-3">
+                  Could not load persisted settings: {autoSuggestError}
+                </p>
               )}
               {suggestionsSaveError && (
-                <p className="text-xs text-red-400">{suggestionsSaveError}</p>
+                <p className="text-xs text-red-400 mb-3">{suggestionsSaveError}</p>
               )}
 
-              <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
-                <div>
-                  <p className="text-sm text-white">Enable Auto Suggest</p>
-                  <p className="text-xs text-slate-500">Suggest relevant skills while typing</p>
-                </div>
-                <button
-                  disabled={autoSuggestLoading}
-                  onClick={() => setSuggestionsDraft((prev) => ({ ...prev, enabled: !prev.enabled }))}
-                  className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
-                    suggestionsDraft.enabled ? "bg-indigo-600" : "bg-slate-600"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                      suggestionsDraft.enabled ? "translate-x-5" : ""
-                    }`}
-                  />
-                </button>
-              </div>
+              <SettingsSwitchRow
+                title="Enable Auto Suggest"
+                description="Suggest relevant skills while typing"
+                checked={suggestionsDraft.enabled}
+                onCheckedChange={(checked) => setSuggestionsDraft((prev) => ({ ...prev, enabled: checked }))}
+                disabled={autoSuggestLoading}
+              />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="text-xs text-slate-400">
-                  Debounce (ms)
-                  <input
-                    type="number"
-                    min={100}
-                    max={10000}
-                    value={suggestionsDraft.debounceMs}
-                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, debounceMs: Number(e.target.value) || 0 }))}
-                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-                  />
-                </label>
-                <label className="text-xs text-slate-400">
-                  Throttle (ms)
-                  <input
-                    type="number"
-                    min={1000}
-                    max={120000}
-                    value={suggestionsDraft.throttleMs}
-                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, throttleMs: Number(e.target.value) || 0 }))}
-                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-                  />
-                </label>
-                <label className="text-xs text-slate-400">
-                  Min input length
-                  <input
-                    type="number"
-                    min={1}
-                    max={200}
-                    value={suggestionsDraft.minInputLength}
-                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, minInputLength: Number(e.target.value) || 0 }))}
-                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-                  />
-                </label>
-                <label className="text-xs text-slate-400">
-                  Min score (%)
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={suggestionsDraft.minScorePercent}
-                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, minScorePercent: Number(e.target.value) || 0 }))}
-                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-                  />
-                </label>
-                <label className="text-xs text-slate-400 sm:col-span-2">
-                  Max suggestions
-                  <input
-                    type="number"
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                <SettingsNumberField
+                  label="Debounce (ms)"
+                  value={suggestionsDraft.debounceMs}
+                  min={100}
+                  max={10000}
+                  disabled={autoSuggestLoading}
+                  onChange={(next) => setSuggestionsDraft((prev) => ({ ...prev, debounceMs: next }))}
+                />
+                <SettingsNumberField
+                  label="Throttle (ms)"
+                  value={suggestionsDraft.throttleMs}
+                  min={1000}
+                  max={120000}
+                  disabled={autoSuggestLoading}
+                  onChange={(next) => setSuggestionsDraft((prev) => ({ ...prev, throttleMs: next }))}
+                />
+                <SettingsNumberField
+                  label="Min input length"
+                  value={suggestionsDraft.minInputLength}
+                  min={1}
+                  max={200}
+                  disabled={autoSuggestLoading}
+                  onChange={(next) => setSuggestionsDraft((prev) => ({ ...prev, minInputLength: next }))}
+                />
+                <SettingsNumberField
+                  label="Min score (%)"
+                  value={suggestionsDraft.minScorePercent}
+                  min={0}
+                  max={100}
+                  disabled={autoSuggestLoading}
+                  onChange={(next) => setSuggestionsDraft((prev) => ({ ...prev, minScorePercent: next }))}
+                />
+                <div className="sm:col-span-2">
+                  <SettingsNumberField
+                    label="Max suggestions"
+                    value={suggestionsDraft.maxSuggestions}
                     min={1}
                     max={20}
-                    value={suggestionsDraft.maxSuggestions}
-                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, maxSuggestions: Number(e.target.value) || 0 }))}
-                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                    disabled={autoSuggestLoading}
+                    onChange={(next) => setSuggestionsDraft((prev) => ({ ...prev, maxSuggestions: next }))}
                   />
-                </label>
+                </div>
               </div>
 
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end mt-4">
                 <Button
                   variant="secondary"
                   onClick={handleSaveSuggestions}
@@ -740,31 +663,29 @@ export function Settings({
                   ) : "Save suggestions settings"}
                 </Button>
               </div>
-            </section>
-          </TabsContent>
+            </SettingsSection>
+          </div>
+        );
 
+      case "skills":
+        return (
+          <SkillsSettingsTab
+            skills={skills}
+            onEditSkill={handleEditSkill}
+            onDeleteSkill={handleDeleteSkill}
+            isLoading={isLoadingSkills}
+            onSyncSkills={handleSyncSkills}
+            isSyncing={isSyncingSkills}
+          />
+        );
 
-
-          {/* Skills Tab */}
-          <TabsContent value="skills" className="space-y-6">
-            <SkillsSettingsTab
-              skills={skills}
-              onEditSkill={handleEditSkill}
-              onDeleteSkill={handleDeleteSkill}
-              isLoading={isLoadingSkills}
-              onSyncSkills={handleSyncSkills}
-              isSyncing={isSyncingSkills}
-            />
-          </TabsContent>
-
-          {/* Data Tab */}
-          <TabsContent value="data" className="space-y-6">
-            {/* Usage Statistics Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Usage Statistics</h3>
-              <p className="text-xs text-slate-500 mb-3">
-                View token usage, costs, and activity across your chats
-              </p>
+      case "data":
+        return (
+          <div className="space-y-6">
+            <SettingsSection
+              title="Usage Statistics"
+              description="View token usage, costs, and activity across your chats"
+            >
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -777,12 +698,10 @@ export function Settings({
                 <BarChart3 className="h-4 w-4" />
                 View Usage Statistics
               </Button>
-            </section>
+            </SettingsSection>
 
-            {/* Mark All as Read */}
             {onMarkAllAsRead && (
-              <section>
-                <h3 className="text-sm font-medium text-slate-300 mb-3">Quick Actions</h3>
+              <SettingsSection title="Quick Actions">
                 <Button
                   variant="secondary"
                   onClick={handleMarkAllAsRead}
@@ -797,13 +716,11 @@ export function Settings({
                   )}
                   Mark All as Read
                 </Button>
-              </section>
+              </SettingsSection>
             )}
 
-            {/* Clear Archived Chats */}
             {onClearArchived && (
-              <section>
-                <h3 className="text-sm font-medium text-slate-300 mb-3">Archived Chats</h3>
+              <SettingsSection title="Archived Chats">
                 <div className="p-4 rounded-lg border border-white/10 bg-white/5">
                   {!showClearArchivedConfirm ? (
                     <div className="flex items-center justify-between gap-4">
@@ -855,10 +772,9 @@ export function Settings({
                     </div>
                   )}
                 </div>
-              </section>
+              </SettingsSection>
             )}
 
-            {/* Danger Zone */}
             <section>
               <h3 className="text-sm font-medium text-red-400 mb-3 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -887,13 +803,13 @@ export function Settings({
                     <p className="text-sm text-slate-300">
                       Type <span className="font-mono text-red-400">delete all</span> to confirm:
                     </p>
-                    <input
+                    <Input
                       type="text"
                       value={deleteConfirmText}
                       onChange={(e) => setDeleteConfirmText(e.target.value)}
                       placeholder="delete all"
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
                       autoFocus
+                      className="focus:ring-red-500/50"
                       data-testid="delete-confirm-input"
                     />
                     <div className="flex gap-2">
@@ -920,45 +836,116 @@ export function Settings({
                 )}
               </div>
             </section>
-          </TabsContent>
-        </Tabs>
+          </div>
+        );
 
-        {/* Manual tool execution dialog (standalone, no chat context) */}
-        {selectedToolForRun && (
-          <ManualToolDialog
-            open={!!selectedToolForRun}
-            onClose={() => setSelectedToolForRun(null)}
-            tool={selectedToolForRun}
-          />
-        )}
+      default:
+        return null;
+    }
+  };
 
-      </DialogBody>
-    </Dialog>
+  return (
+    <>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        className="max-w-5xl"
+        disableEscape={isCreatingSkill || editingSkill !== null}
+      >
+        <DialogHeader onClose={onClose}>Settings</DialogHeader>
+        <DialogBody className="space-y-4">
+          <div className="lg:hidden">
+            <Dropdown
+              className="w-full"
+              trigger={(
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-slate-200"
+                  data-testid="settings-mobile-tab-selector"
+                >
+                  <span className="flex items-center gap-2">
+                    <activeTabDef.icon className="h-4 w-4" />
+                    {activeTabDef.label}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                </button>
+              )}
+            >
+              {SETTINGS_TABS.map((tab) => (
+                <DropdownItem
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value)}
+                  className={tab.value === activeTab ? "bg-white/10 text-white" : ""}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </DropdownItem>
+              ))}
+            </Dropdown>
+          </div>
 
-    {/* Skill editor modal - rendered outside Dialog to avoid overflow clipping and z-index issues */}
-    <SkillEditorModal
-      open={isCreatingSkill || editingSkill !== null}
-      onClose={() => {
-        setEditingSkill(null);
-        setIsCreatingSkill(false);
-      }}
-      skill={editingSkill ?? undefined}
-      onSave={handleSaveSkill}
-      // Multi-item mode props for sidebar navigation
-      allSkills={skills}
-      onSelectSkill={(skill) => {
-        setEditingSkill(skill);
-        setIsCreatingSkill(false);
-      }}
-      onSaveAll={async (updates) => {
-        // Import batch save function
-        const { updateSkills } = await import("../../data/skills");
-        await updateSkills(updates);
-        // Refresh skills list
-        const updated = await getAllSkills();
-        setSkills(updated);
-      }}
-    />
-  </>
+          <div className="flex gap-4 min-h-[540px]">
+            <nav className="hidden lg:flex w-52 shrink-0 flex-col gap-1 rounded-lg border border-white/10 bg-white/5 p-2">
+              {SETTINGS_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = tab.value === activeTab;
+
+                return (
+                  <button
+                    key={tab.value}
+                    onClick={() => setActiveTab(tab.value)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                      isActive
+                        ? "bg-indigo-500/20 text-white"
+                        : "text-slate-400 hover:text-white hover:bg-white/5"
+                    }`}
+                    data-testid={`settings-nav-${tab.value}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-slate-900/40 p-4">
+              {renderTabContent()}
+            </div>
+          </div>
+
+          {/* Manual tool execution dialog (standalone, no chat context) */}
+          {selectedToolForRun && (
+            <ManualToolDialog
+              open={!!selectedToolForRun}
+              onClose={() => setSelectedToolForRun(null)}
+              tool={selectedToolForRun}
+            />
+          )}
+        </DialogBody>
+      </Dialog>
+
+      {/* Skill editor modal - rendered outside Dialog to avoid overflow clipping and z-index issues */}
+      <SkillEditorModal
+        open={isCreatingSkill || editingSkill !== null}
+        onClose={() => {
+          setEditingSkill(null);
+          setIsCreatingSkill(false);
+        }}
+        skill={editingSkill ?? undefined}
+        onSave={handleSaveSkill}
+        // Multi-item mode props for sidebar navigation
+        allSkills={skills}
+        onSelectSkill={(skill) => {
+          setEditingSkill(skill);
+          setIsCreatingSkill(false);
+        }}
+        onSaveAll={async (updates) => {
+          const { updateSkills } = await import("../../data/skills");
+          await updateSkills(updates);
+          const updated = await getAllSkills();
+          setSkills(updated);
+        }}
+      />
+    </>
   );
 }

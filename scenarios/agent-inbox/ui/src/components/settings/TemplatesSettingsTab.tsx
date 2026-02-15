@@ -19,6 +19,8 @@ import {
   Construction,
 } from "lucide-react";
 import type { ModeHistoryEntry, TemplateWithSource } from "@/lib/types/templates";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 interface TemplatesSettingsTabProps {
   templates: TemplateWithSource[];
@@ -69,9 +71,9 @@ export function TemplatesSettingsTab({
   // Filter templates
   const filteredTemplates = templates.filter((t) => {
     const matchesSearch =
-      !searchQuery ||
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.description.toLowerCase().includes(searchQuery.toLowerCase());
+      !searchQuery
+      || t.name.toLowerCase().includes(searchQuery.toLowerCase())
+      || t.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
@@ -192,25 +194,22 @@ export function TemplatesSettingsTab({
             )}
           </h3>
           {modeHistory.length > 0 && (
-            <button
-              onClick={onClearHistory}
-              className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors"
-            >
+            <Button variant="ghost" size="sm" onClick={onClearHistory} className="gap-1 text-xs">
               <RotateCcw className="h-3 w-3" />
               Clear history
-            </button>
+            </Button>
           )}
         </div>
 
         {/* Search */}
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <input
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search templates..."
-            className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="pl-9"
           />
         </div>
 

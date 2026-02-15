@@ -20,6 +20,7 @@ import { useState, useRef, useEffect } from "react";
 import { Wrench, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
+import { Switch } from "../ui/switch";
 import { ToolConfiguration } from "../settings/ToolConfiguration";
 import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { useTools } from "../../hooks/useTools";
@@ -167,17 +168,13 @@ export function ChatToolsSelector({ chatId, toolsEnabled = true }: ChatToolsSele
                 <span className="text-sm font-medium text-white">Enable Tools</span>
                 <p className="text-xs text-slate-500">Allow AI to use tools in this chat</p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={toolsEnabled}
-                  onChange={(e) => handleMasterToggle(e.target.checked)}
-                  disabled={isTogglingMaster}
-                  className="sr-only peer"
-                  data-testid="tools-master-toggle"
-                />
-                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500 peer-disabled:opacity-50" />
-              </label>
+              <Switch
+                checked={toolsEnabled}
+                onCheckedChange={(checked) => { void handleMasterToggle(checked); }}
+                disabled={isTogglingMaster}
+                data-testid="tools-master-toggle"
+                aria-label="Enable tools for this chat"
+              />
             </div>
           </div>
 

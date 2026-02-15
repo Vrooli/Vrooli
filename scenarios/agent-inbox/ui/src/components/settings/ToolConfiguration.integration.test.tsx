@@ -357,7 +357,7 @@ describe("ToolConfiguration - State After Props Update", () => {
   });
 });
 
-describe("ToolConfiguration - Checkbox Element Behavior", () => {
+describe("ToolConfiguration - Switch Element Behavior", () => {
   const mockCategories: ToolCategory[] = [];
   const mockScenarioStatuses: ScenarioStatus[] = [
     {
@@ -368,7 +368,7 @@ describe("ToolConfiguration - Checkbox Element Behavior", () => {
     },
   ];
 
-  it("checkbox should have correct checked state based on enabled prop", () => {
+  it("switch should have correct checked state based on enabled prop", () => {
     const tools = [
       createMockTool("test-scenario", "tool1", true),
       createMockTool("test-scenario", "tool2", false),
@@ -383,14 +383,14 @@ describe("ToolConfiguration - Checkbox Element Behavior", () => {
       />
     );
 
-    const toggle1 = screen.getByTestId("tool-toggle-test-scenario-tool1") as HTMLInputElement;
-    const toggle2 = screen.getByTestId("tool-toggle-test-scenario-tool2") as HTMLInputElement;
+    const toggle1 = screen.getByTestId("tool-toggle-test-scenario-tool1");
+    const toggle2 = screen.getByTestId("tool-toggle-test-scenario-tool2");
 
-    expect(toggle1.checked).toBe(true);
-    expect(toggle2.checked).toBe(false);
+    expect(toggle1).toHaveAttribute("aria-checked", "true");
+    expect(toggle2).toHaveAttribute("aria-checked", "false");
   });
 
-  it("clicking checkbox should pass opposite of current checked state", () => {
+  it("clicking switch should pass opposite of current checked state", () => {
     const onToggleTool = vi.fn();
     const tools = [
       createMockTool("test-scenario", "tool1", true),

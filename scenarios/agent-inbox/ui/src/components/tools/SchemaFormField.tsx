@@ -8,6 +8,8 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { ParameterSchema } from "../../lib/api";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Switch } from "../ui/switch";
 
 export interface SchemaFormFieldProps {
   /** Field name (used for label and key) */
@@ -40,22 +42,18 @@ export function SchemaFormField({
 }: SchemaFormFieldProps) {
   const { type, description, enum: enumValues, format } = schema;
 
-  // Base label styling
   const labelClass = "block text-sm font-medium text-slate-300 mb-1";
   const inputClass =
     "w-full bg-white/5 border border-white/10 rounded-md px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50";
 
-  // For nested objects/arrays, add indentation
   const containerStyle = depth > 0 ? { marginLeft: `${depth * 16}px` } : {};
 
-  // Format the label from camelCase/snake_case
   const formatLabel = (s: string) =>
     s
       .replace(/_/g, " ")
       .replace(/([a-z])([A-Z])/g, "$1 $2")
       .replace(/^./, (c) => c.toUpperCase());
 
-  // Handle enum (dropdown)
   if (enumValues && enumValues.length > 0) {
     return (
       <div className="mb-4" style={containerStyle}>
@@ -63,9 +61,7 @@ export function SchemaFormField({
           {formatLabel(name)}
           {required && <span className="text-red-400 ml-1">*</span>}
         </label>
-        {description && (
-          <p className="text-xs text-slate-500 mb-2">{description}</p>
-        )}
+        {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
         <select
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
@@ -84,35 +80,28 @@ export function SchemaFormField({
     );
   }
 
-  // Handle boolean (checkbox/toggle)
   if (type === "boolean") {
     return (
       <div className="mb-4 flex items-start gap-3" style={containerStyle}>
-        <label className="relative inline-flex items-center cursor-pointer mt-1">
-          <input
-            type="checkbox"
-            checked={(value as boolean) ?? false}
-            onChange={(e) => onChange(e.target.checked)}
-            disabled={disabled}
-            className="sr-only peer"
-            data-testid={`field-${name}`}
-          />
-          <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500" />
-        </label>
+        <Switch
+          checked={(value as boolean) ?? false}
+          onCheckedChange={(checked) => onChange(checked)}
+          disabled={disabled}
+          className="mt-1"
+          data-testid={`field-${name}`}
+          aria-label={formatLabel(name)}
+        />
         <div>
           <span className="text-sm font-medium text-slate-300">
             {formatLabel(name)}
             {required && <span className="text-red-400 ml-1">*</span>}
           </span>
-          {description && (
-            <p className="text-xs text-slate-500 mt-0.5">{description}</p>
-          )}
+          {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
         </div>
       </div>
     );
   }
 
-  // Handle number/integer
   if (type === "number" || type === "integer") {
     return (
       <div className="mb-4" style={containerStyle}>
@@ -120,31 +109,24 @@ export function SchemaFormField({
           {formatLabel(name)}
           {required && <span className="text-red-400 ml-1">*</span>}
         </label>
-        {description && (
-          <p className="text-xs text-slate-500 mb-2">{description}</p>
-        )}
-        <input
+        {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
+        <Input
           type="number"
           value={(value as number) ?? ""}
           onChange={(e) => {
-            const num = type === "integer"
-              ? parseInt(e.target.value, 10)
-              : parseFloat(e.target.value);
+            const num = type === "integer" ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
             onChange(isNaN(num) ? undefined : num);
           }}
           disabled={disabled}
           step={type === "integer" ? 1 : "any"}
-          className={inputClass}
           data-testid={`field-${name}`}
         />
       </div>
     );
   }
 
-  // Handle array
   if (type === "array" && schema.items) {
     const arrayValue = (value as unknown[]) ?? [];
-    // Capture items so TypeScript tracks the narrowing in nested closures
     const itemSchema = schema.items;
 
     const addItem = () => {
@@ -170,9 +152,7 @@ export function SchemaFormField({
           {formatLabel(name)}
           {required && <span className="text-red-400 ml-1">*</span>}
         </label>
-        {description && (
-          <p className="text-xs text-slate-500 mb-2">{description}</p>
-        )}
+        {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
         <div className="space-y-2 pl-4 border-l border-white/10">
           {arrayValue.map((item, index) => (
             <div key={index} className="flex items-start gap-2">
@@ -197,13 +177,7 @@ export function SchemaFormField({
               </Button>
             </div>
           ))}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={addItem}
-            disabled={disabled}
-            className="mt-2"
-          >
+          <Button variant="secondary" size="sm" onClick={addItem} disabled={disabled} className="mt-2">
             <Plus className="h-4 w-4 mr-1" />
             Add Item
           </Button>
@@ -212,7 +186,6 @@ export function SchemaFormField({
     );
   }
 
-  // Handle object
   if (type === "object" && schema.properties) {
     const objectValue = (value as Record<string, unknown>) ?? {};
     const schemaProperties = schema.properties ?? {};
@@ -227,9 +200,7 @@ export function SchemaFormField({
           {formatLabel(name)}
           {required && <span className="text-red-400 ml-1">*</span>}
         </label>
-        {description && (
-          <p className="text-xs text-slate-500 mb-2">{description}</p>
-        )}
+        {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
         <div className="space-y-2 pl-4 border-l border-white/10">
           {Object.entries(schemaProperties).map(([propName, propSchema]) => (
             <SchemaFormField
@@ -247,10 +218,10 @@ export function SchemaFormField({
     );
   }
 
-  // Handle string (default) - check for special formats
   const isUrl = format === "uri" || format === "url";
   const isEmail = format === "email";
-  const isMultiline = description?.toLowerCase().includes("multiline") ||
+  const isMultiline =
+    description?.toLowerCase().includes("multiline") ||
     name.toLowerCase().includes("content") ||
     name.toLowerCase().includes("description") ||
     name.toLowerCase().includes("body");
@@ -262,9 +233,7 @@ export function SchemaFormField({
           {formatLabel(name)}
           {required && <span className="text-red-400 ml-1">*</span>}
         </label>
-        {description && (
-          <p className="text-xs text-slate-500 mb-2">{description}</p>
-        )}
+        {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
         <textarea
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
@@ -278,22 +247,18 @@ export function SchemaFormField({
     );
   }
 
-  // Standard string input
   return (
     <div className="mb-4" style={containerStyle}>
       <label className={labelClass}>
         {formatLabel(name)}
         {required && <span className="text-red-400 ml-1">*</span>}
       </label>
-      {description && (
-        <p className="text-xs text-slate-500 mb-2">{description}</p>
-      )}
-      <input
+      {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
+      <Input
         type={isUrl ? "url" : isEmail ? "email" : "text"}
         value={(value as string) ?? ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={inputClass}
         placeholder={`Enter ${formatLabel(name).toLowerCase()}...`}
         data-testid={`field-${name}`}
       />

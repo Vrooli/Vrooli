@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
+import { Switch } from "../ui/switch";
 import type { EffectiveTool, ScenarioStatus, ToolCategory, ApprovalOverride } from "../../lib/api";
 
 type SortOrder = "a-z" | "z-a" | "most-enabled" | "fewest-enabled";
@@ -403,27 +404,16 @@ export function ToolConfiguration({
 
               {/* Toggle all switch */}
               <Tooltip content={allEnabled ? "Disable all tools in this scenario" : "Enable all tools in this scenario"}>
-                <button
-                  type="button"
-                  onClick={() => handleToggleScenario(scenario, !allEnabled)}
+                <Switch
+                  checked={allEnabled}
+                  onCheckedChange={(checked) => {
+                    void handleToggleScenario(scenario, checked);
+                  }}
                   disabled={isUpdating || batchOperationInProgress.current}
-                  className={`relative inline-flex items-center shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 ${
-                    isUpdating ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-                  } ${
-                    allEnabled
-                      ? "bg-indigo-500"
-                      : someEnabled
-                        ? "bg-indigo-500/50"
-                        : "bg-slate-700"
-                  }`}
+                  className={!allEnabled && someEnabled ? "!bg-indigo-500/50" : undefined}
                   data-testid={`scenario-toggle-all-${scenario}`}
-                >
-                  <span
-                    className={`absolute top-[2px] left-[2px] bg-white rounded-full h-4 w-4 transition-transform ${
-                      allEnabled ? "translate-x-full" : ""
-                    }`}
-                  />
-                </button>
+                  aria-label={`${scenario} toggle all tools`}
+                />
               </Tooltip>
             </div>
 
@@ -447,17 +437,16 @@ export function ToolConfiguration({
                       data-testid={`tool-item-${scenario}-${tool.name}`}
                     >
                       {/* Toggle switch */}
-                      <label className="relative inline-flex items-center cursor-pointer mt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={enabled}
-                          onChange={(e) => onToggleTool(scenario, tool.name, e.target.checked)}
-                          disabled={isUpdating}
-                          className="sr-only peer"
-                          data-testid={`tool-toggle-${scenario}-${tool.name}`}
-                        />
-                        <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500" />
-                      </label>
+                      <Switch
+                        checked={enabled}
+                        onCheckedChange={(checked) => {
+                          void onToggleTool(scenario, tool.name, checked);
+                        }}
+                        disabled={isUpdating}
+                        className="mt-0.5"
+                        data-testid={`tool-toggle-${scenario}-${tool.name}`}
+                        aria-label={`${scenario} ${tool.name} toggle`}
+                      />
 
                       {/* Tool info */}
                       <div className="flex-1 min-w-0">
