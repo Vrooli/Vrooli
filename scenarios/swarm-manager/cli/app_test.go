@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -532,5 +534,56 @@ func TestHealthResponseWithError(t *testing.T) {
 	}
 	if !strings.Contains(jsonStr, "Service degraded") {
 		t.Error("JSON should contain message field")
+	}
+}
+
+func TestParseJSONArg_FromFile(t *testing.T) {
+	tempDir := t.TempDir()
+	payloadPath := filepath.Join(tempDir, "payload.json")
+	if err := os.WriteFile(payloadPath, []byte(`{"name":"from-file","title":"From File","kind":"idea"}`), 0o644); err != nil {
+		t.Fatalf("write payload file: %v", err)
+	}
+
+	raw, err := parseJSONArg([]string{"@" + payloadPath})
+	if err != nil {
+		t.Fatalf("parseJSONArg returned error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("failed to decode parsed payload: %v", err)
+	}
+	if parsed["name"] != "from-file" {
+		t.Fatalf("name mismatch: got %v", parsed["name"])
+	}
+}
+
+func TestCmdBacklogFilesValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdBacklogFiles([]string{})
+	if err == nil {
+		t.Fatal("cmdBacklogFiles with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Fatalf("expected usage error, got: %v", err)
+	}
+}
+
+func TestScenarioLifecycleValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdScenariosStart([]string{})
+	if err == nil {
+		t.Fatal("cmdScenariosStart with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Fatalf("expected usage error, got: %v", err)
 	}
 }
