@@ -10,6 +10,7 @@
 
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useResolvedTheme } from '@/hooks/use-theme'
 import { Check, Copy } from 'lucide-react'
 import { detectLanguage, normalizeLanguage } from './languageDetection'
 
@@ -37,7 +38,7 @@ async function getHighlighter(): Promise<ShikiHighlighter> {
         themes: string[]
         langs: string[]
       }) => Promise<ShikiHighlighter>)({
-        themes: ['github-dark'],
+        themes: ['github-dark', 'github-light'],
         langs: [
           'typescript',
           'javascript',
@@ -96,6 +97,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
   editor,
 }: NodeViewProps) {
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
+  const resolvedTheme = useResolvedTheme()
 
   // Track editor focus state using React's useSyncExternalStore for reliable updates
   const isEditorFocused = useSyncExternalStore(
@@ -144,7 +146,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
 
         const html = highlighter.codeToHtml(code, {
           lang: langToUse,
-          theme: 'github-dark',
+          theme: resolvedTheme === 'dark' ? 'github-dark' : 'github-light',
         })
 
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -161,7 +163,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
     return () => {
       cancelled = true
     }
-  }, [code, normalizedLang])
+  }, [code, normalizedLang, resolvedTheme])
 
   // Handle language selection
   const handleLanguageChange = useCallback(
@@ -194,15 +196,15 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
   return (
     <NodeViewWrapper className="relative group rounded-lg overflow-hidden my-3 not-prose">
       {/* Header with language selector and copy button */}
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-900 border-b border-slate-700">
+      <div className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
         <select
           value={language || normalizedLang}
           onChange={handleLanguageChange}
-          className="text-xs text-slate-400 font-mono bg-transparent border-none outline-none cursor-pointer hover:text-slate-200 transition-colors"
+          className="text-xs text-muted-foreground font-mono bg-transparent border-none outline-none cursor-pointer hover:text-foreground transition-colors"
           contentEditable={false}
         >
           {availableLanguages.map((lang) => (
-            <option key={lang} value={lang} className="bg-slate-800">
+            <option key={lang} value={lang} className="bg-muted">
               {lang || 'auto'}
             </option>
           ))}
@@ -210,7 +212,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
         <button
           type="button"
           onClick={() => void copyCode()}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           contentEditable={false}
         >
           {copied ? (
@@ -228,10 +230,10 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
       </div>
 
       {/* Code content - layered approach for smooth transitions */}
-      <div className="bg-slate-800 overflow-x-auto relative flex">
+      <div className="bg-muted/30 overflow-x-auto relative flex">
         {/* Line numbers gutter */}
         <div
-          className="flex-shrink-0 py-4 pl-3 pr-2 text-sm font-mono text-slate-500 select-none border-r border-slate-700/50 text-right"
+          className="flex-shrink-0 py-4 pl-3 pr-2 text-sm font-mono text-muted-foreground select-none border-r border-border/50 text-right"
           contentEditable={false}
           aria-hidden="true"
         >
@@ -260,7 +262,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
           >
             <NodeViewContent
               as="pre"
-              className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto !bg-transparent !m-0 leading-relaxed"
+              className="p-4 text-sm text-foreground font-mono whitespace-pre overflow-x-auto !bg-transparent !m-0 leading-relaxed"
             />
           </div>
         </div>

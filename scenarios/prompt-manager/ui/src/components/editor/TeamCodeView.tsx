@@ -13,6 +13,7 @@ import Editor, { type OnMount, type OnChange } from '@monaco-editor/react'
 import YAML from 'yaml'
 import { Network } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useResolvedTheme } from '@/hooks/use-theme'
 import type { TeamDetails } from '@/types/team'
 import type { OrgEdge } from '@/types/orgChart'
 
@@ -166,6 +167,7 @@ export function TeamCodeView({
   className,
 }: TeamCodeViewProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
+  const resolvedTheme = useResolvedTheme()
 
   // Convert team to YAML string
   const yamlContent = useMemo(() => {
@@ -220,10 +222,10 @@ export function TeamCodeView({
   return (
     <div className={cn('h-full flex flex-col', className)}>
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
-        <span className="text-xs text-slate-400 font-medium">team.yaml</span>
+      <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-card/95 border-b border-border">
+        <span className="text-xs text-muted-foreground font-medium">team.yaml</span>
         {readOnly && (
-          <span className="text-xs text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
+          <span className="text-xs text-muted-foreground/70 bg-muted px-1.5 py-0.5 rounded">
             Read-only
           </span>
         )}
@@ -233,8 +235,8 @@ export function TeamCodeView({
             onClick={onSwitchToGraph}
             className={cn(
               'ml-auto flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md',
-              'bg-slate-800 text-slate-200 border border-slate-700',
-              'hover:bg-slate-700 transition-colors'
+              'bg-muted text-foreground border border-border',
+              'hover:bg-muted/80 transition-colors'
             )}
             title="Switch to graph view"
           >
@@ -252,7 +254,7 @@ export function TeamCodeView({
           value={yamlContent}
           onChange={handleChange}
           onMount={handleEditorMount}
-          theme="vs-dark"
+          theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light'}
           options={{
             readOnly,
             minimap: { enabled: false },

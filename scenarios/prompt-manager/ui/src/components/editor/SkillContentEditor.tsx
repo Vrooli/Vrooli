@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/markdown'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useResolvedTheme } from '@/hooks/use-theme'
 import { selectors } from '@/constants/selectors'
 import { TipTapEditor } from './TipTapEditor'
 import {
@@ -55,7 +56,7 @@ export function EditorToggle({
   const baseClasses = cn(
     'flex items-center justify-center h-8 w-8 rounded-md transition-colors',
     variant === 'dark'
-      ? 'text-slate-300 hover:text-white hover:bg-white/10'
+      ? 'text-muted-foreground hover:text-foreground hover:bg-muted'
       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
   )
 
@@ -92,10 +93,10 @@ export function ViewToggle({
   const baseClasses = cn(
     'flex items-center justify-center h-8 w-8 rounded-md transition-colors',
     variant === 'dark'
-      ? 'text-slate-300 hover:text-white hover:bg-white/10'
+      ? 'text-muted-foreground hover:text-foreground hover:bg-muted'
       : 'text-muted-foreground hover:text-foreground hover:bg-muted',
     isPreview &&
-      (variant === 'dark' ? 'bg-white/10 text-white' : 'bg-primary/20 text-primary')
+      (variant === 'dark' ? 'bg-muted text-foreground' : 'bg-primary/20 text-primary')
   )
 
   return (
@@ -161,11 +162,11 @@ export function EditorActionButtons({
 
   const baseClass =
     variant === 'dark'
-      ? 'text-slate-200 hover:text-white hover:bg-white/10'
+      ? 'text-foreground hover:text-foreground hover:bg-muted'
       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
   const disabledClass =
     variant === 'dark'
-      ? 'text-slate-500 cursor-not-allowed'
+      ? 'text-muted-foreground/50 cursor-not-allowed'
       : 'text-muted-foreground/50 cursor-not-allowed'
   const actionButtonClass = (enabled: boolean) =>
     cn('h-8 w-8 flex items-center justify-center rounded-md transition-colors',
@@ -201,7 +202,7 @@ export function EditorActionButtons({
       {(onUndo || onRedo) && (
         <div
           className={cn('w-px h-6',
-            variant === 'dark' ? 'bg-[#3c3c3c]' : 'bg-border'
+            variant === 'dark' ? 'bg-border' : 'bg-border'
           )}
         />
       )}
@@ -215,7 +216,7 @@ export function EditorActionButtons({
             canSaveBtn
               ? 'bg-primary text-primary-foreground hover:bg-primary/90'
               : variant === 'dark'
-                ? 'bg-white/5 text-slate-500 cursor-not-allowed'
+                ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
           title={isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}
@@ -235,7 +236,7 @@ export function EditorActionButtons({
             canToggleDiff
               ? isDiffMode
                 ? variant === 'dark'
-                  ? 'bg-white/10 text-white'
+                  ? 'bg-muted text-foreground'
                   : 'bg-primary/20 text-primary'
                 : baseClass
               : disabledClass
@@ -277,7 +278,7 @@ export function EditorActionButtons({
             canSaveAll
               ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
               : variant === 'dark'
-                ? 'bg-white/5 text-slate-500 cursor-not-allowed'
+                ? 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
           title={`Save all ${dirtyCount} pending changes (Ctrl+Shift+S)`}
@@ -338,6 +339,7 @@ export function SkillContentEditor({
   const [editorReady, setEditorReady] = useState(false)
   const monaco = useMonaco()
   const isMobile = useIsMobile()
+  const resolvedTheme = useResolvedTheme()
   const {
     width: splitWidth,
     isResizing: isSplitResizing,
@@ -598,11 +600,7 @@ export function SkillContentEditor({
     </div>
   )
 
-  const headerVariant: 'light' | 'dark' = isDiffMode
-    ? 'dark'
-    : editorType === 'code'
-      ? 'dark'
-      : 'light'
+  const headerVariant: 'light' | 'dark' = resolvedTheme === 'dark' ? 'dark' : 'light'
   const editorActionState: EditorActionState = {
     isDirty,
     dirtyCount,
@@ -623,7 +621,7 @@ export function SkillContentEditor({
     <div
       className={cn(
         'flex-shrink-0 flex items-center gap-2 px-3 py-1.5 border-b',
-        variant === 'dark' ? 'bg-[#1e1e1e] border-[#3c3c3c]' : 'bg-card border-border'
+        'bg-card/95 border-border'
       )}
     >
       <EditorActionButtons {...editorActionState} variant={variant} />
@@ -631,7 +629,7 @@ export function SkillContentEditor({
         <div
           className={cn(
             'flex items-center gap-2',
-            variant === 'dark' ? 'text-slate-200' : 'text-muted-foreground'
+            variant === 'dark' ? 'text-foreground' : 'text-muted-foreground'
           )}
         >
           {headerLeft}
@@ -642,7 +640,7 @@ export function SkillContentEditor({
           <div
             className={cn(
               'flex items-center gap-2',
-              variant === 'dark' ? 'text-slate-200' : 'text-muted-foreground'
+              variant === 'dark' ? 'text-foreground' : 'text-muted-foreground'
             )}
           >
             {headerRight}
@@ -655,7 +653,7 @@ export function SkillContentEditor({
             className={cn(
               'flex items-center justify-center h-8 w-8 rounded-md transition-colors',
               variant === 'dark'
-                ? 'text-slate-300 hover:text-white hover:bg-white/10'
+                ? 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             )}
             title="Expand editor"
@@ -735,14 +733,14 @@ export function SkillContentEditor({
       >
         {isDiffMode && originalValue !== null && originalValue !== undefined ? (
           <div className="flex flex-col h-full">
-            {renderHeader('dark')}
+            {renderHeader(headerVariant)}
             <div className="flex-1">
               <DiffEditor
                 height="100%"
                 language="markdown"
                 original={originalValue}
                 modified={value}
-                theme="vs-dark"
+                theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light'}
                 options={{
                   readOnly: true,
                   originalEditable: false,
@@ -778,7 +776,7 @@ export function SkillContentEditor({
           </div>
         ) : viewMode === 'preview' && isSplitCollapsed ? (
           <div ref={splitContainerRef} className="flex flex-col h-full">
-            {renderHeader('light')}
+            {renderHeader(headerVariant)}
             {previewPane}
           </div>
         ) : viewMode === 'preview' ? (
@@ -789,7 +787,7 @@ export function SkillContentEditor({
             <div className="flex-shrink-0 flex flex-col h-full" style={{ width: splitWidth }}>
               {editorType === 'code' ? (
                 <div className="flex flex-col h-full">
-                  {renderHeader('dark')}
+                  {renderHeader(headerVariant)}
                   <div className="flex-1">
                     <Editor
                       height="100%"
@@ -797,8 +795,8 @@ export function SkillContentEditor({
                       value={value}
                       onChange={handleMonacoChange}
                       onMount={handleEditorMount}
-                      theme="vs-dark"
-                      loading={<div className="flex-1 flex items-center justify-center h-full bg-[#1e1e1e]"><div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" /></div>}
+                      theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light'}
+                      loading={<div className="flex-1 flex items-center justify-center h-full bg-card"><div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" /></div>}
                       options={{
                         minimap: { enabled: false },
                         wordWrap: 'on',
@@ -854,7 +852,7 @@ export function SkillContentEditor({
           </div>
         ) : editorType === 'code' ? (
           <div className="flex flex-col h-full">
-            {renderHeader('dark')}
+            {renderHeader(headerVariant)}
             <div className="flex-1">
               <Editor
                 height="100%"
@@ -862,8 +860,8 @@ export function SkillContentEditor({
                 value={value}
                 onChange={handleMonacoChange}
                 onMount={handleEditorMount}
-                theme="vs-dark"
-                loading={<div className="flex-1 flex items-center justify-center h-full bg-[#1e1e1e]"><div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" /></div>}
+                theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light'}
+                loading={<div className="flex-1 flex items-center justify-center h-full bg-card"><div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" /></div>}
                 options={{
                   minimap: { enabled: false },
                   wordWrap: 'on',

@@ -8,7 +8,7 @@
  * - Toolbar with Add Member, auto-layout, zoom controls
  */
 
-import { useCallback, useMemo, useEffect, useState } from 'react'
+import { useCallback, useMemo, useEffect, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -26,6 +26,7 @@ import {
 import dagre from '@dagrejs/dagre'
 import { UserPlus, LayoutGrid, Users, Info, Trash2, Code } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { OrgChartNode } from './OrgChartNode'
 import type { TeamDetails } from '@/types/team'
 import type { Agent, AgentAppearance } from '@/types/agent'
@@ -124,6 +125,20 @@ export function OrgChartPanel({
 }: OrgChartPanelProps) {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(LAYOUT_DIRECTION)
+  const [showReportingHelp, setShowReportingHelp] = useState(false)
+  const reportingHelpRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobile()
+
+  useEffect(() => {
+    if (!showReportingHelp) return
+    const handleClick = (e: MouseEvent) => {
+      if (reportingHelpRef.current && !reportingHelpRef.current.contains(e.target as Node)) {
+        setShowReportingHelp(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showReportingHelp])
 
   // Build agent appearance map
   const agentAppearances = useMemo(() => {
@@ -392,16 +407,42 @@ export function OrgChartPanel({
 
         {/* Legend + Selected Edge Panel */}
         <Panel position="top-left" className="flex flex-col gap-2 max-w-xs">
-          <div className="flex items-start gap-2 p-2 rounded-lg bg-card border border-border">
-            <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-xs font-medium">Reporting Lines</p>
-              <p className="text-xs text-muted-foreground">
-                Drag from a manager to a report to set relationships. Each member can report to one
-                manager. Click an edge to remove it.
-              </p>
+          {isMobile ? (
+            <div ref={reportingHelpRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowReportingHelp(!showReportingHelp)}
+                className={cn(
+                  'p-2 rounded-lg bg-card border border-border transition-colors',
+                  showReportingHelp ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                )}
+                title="Reporting lines help"
+                aria-label="Reporting lines help"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+              {showReportingHelp && (
+                <div className="absolute top-full left-0 mt-1 p-2 rounded-lg bg-card border border-border shadow-lg z-10 w-56">
+                  <p className="text-xs font-medium mb-1">Reporting Lines</p>
+                  <p className="text-xs text-muted-foreground">
+                    Drag from a manager to a report to set relationships. Each member can report to one
+                    manager. Click an edge to remove it.
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="flex items-start gap-2 p-2 rounded-lg bg-card border border-border">
+              <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-xs font-medium">Reporting Lines</p>
+                <p className="text-xs text-muted-foreground">
+                  Drag from a manager to a report to set relationships. Each member can report to one
+                  manager. Click an edge to remove it.
+                </p>
+              </div>
+            </div>
+          )}
           {selectedEdge && (
             <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-card border border-border">
               <div className="min-w-0">
@@ -437,9 +478,10 @@ export function OrgChartPanel({
                 'hover:bg-muted transition-colors'
               )}
               title="Switch to code view"
+              aria-label="Code View"
             >
               <Code className="h-3.5 w-3.5" />
-              Code View
+              {!isMobile && <span>Code View</span>}
             </button>
           )}
           <button
@@ -451,9 +493,10 @@ export function OrgChartPanel({
               'hover:bg-muted transition-colors'
             )}
             title={`Switch layout direction (${layoutDirection === 'TB' ? 'vertical' : 'horizontal'})`}
+            aria-label="Toggle layout direction"
           >
             <LayoutGrid className="h-3.5 w-3.5" />
-            {layoutDirection === 'TB' ? 'Layout: Vertical' : 'Layout: Horizontal'}
+            {!isMobile && <span>{layoutDirection === 'TB' ? 'Layout: Vertical' : 'Layout: Horizontal'}</span>}
           </button>
           <button
             type="button"
@@ -462,9 +505,11 @@ export function OrgChartPanel({
               'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg',
               'bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
             )}
+            title="Add member"
+            aria-label="Add Member"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            Add Member
+            {!isMobile && <span>Add Member</span>}
           </button>
         </Panel>
       </ReactFlow>

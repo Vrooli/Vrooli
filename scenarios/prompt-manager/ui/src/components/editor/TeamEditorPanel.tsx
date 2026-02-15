@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2 } from 'lucide-react'
+import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -126,12 +126,13 @@ export function TeamEditorPanel({
   const reset = useTeamEditorStore((state) => state.reset)
 
   // Split panel for members tab
-  const { width, isResizing, containerRef, handleResizeStart } = useResizableSplitPanel({
+  const { width, isResizing, isCollapsed, containerRef, handleResizeStart, expand, collapse } = useResizableSplitPanel({
     defaultWidth: 400,
     minWidth: 280,
     maxWidthRatio: 0.6,
     anchor: 'right',
     storageKey: 'pm.teamEditorSplitWidth',
+    snapCloseThreshold: 200,
   })
 
   // Load org chart edges when team changes
@@ -457,7 +458,7 @@ export function TeamEditorPanel({
               {membersViewMode === 'graph' ? (
                 <div
                   ref={containerRef}
-                  className={cn('h-full flex', isResizing && 'select-none')}
+                  className={cn('h-full flex relative', isResizing && 'select-none')}
                 >
                   {/* Left panel: Org Chart */}
                   {!showDetailOnly && (
@@ -476,8 +477,21 @@ export function TeamEditorPanel({
                   </div>
                 )}
 
+                  {/* Expand button when panel is collapsed */}
+                  {isCollapsed && selectedMember && !showDetailOnly && (
+                    <button
+                      type="button"
+                      onClick={expand}
+                      className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm"
+                      title="Show member details"
+                      aria-label="Show member details"
+                    >
+                      <PanelRightOpen className="h-4 w-4" />
+                    </button>
+                  )}
+
                   {/* Resize handle + Right panel: Member detail (conditional) */}
-                  {selectedMember && !showDetailOnly && (
+                  {selectedMember && !showDetailOnly && !isCollapsed && (
                     <>
                       {/* Resize handle */}
                       <div
@@ -496,7 +510,7 @@ export function TeamEditorPanel({
                   )}
 
                   {/* Right panel: Member detail */}
-                  {selectedMember && (
+                  {selectedMember && !isCollapsed && (
                     <div
                       style={{ width: detailPanelWidth }}
                       className={cn(
@@ -515,6 +529,7 @@ export function TeamEditorPanel({
                         onUpdateMember={onUpdateMember}
                         onRemoveMember={handleRemoveMember}
                         onClose={() => setSelectedMemberId(null)}
+                        onCollapse={collapse}
                         className="h-full"
                       />
                     </div>

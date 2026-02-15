@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, ChevronDown } from 'lucide-react'
+import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, ChevronDown, PanelRightClose } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
@@ -41,6 +41,7 @@ interface MemberDetailPanelProps {
   onUpdateMember: (agentId: string, request: UpdateMemberRequest) => Promise<TeamMember>
   onRemoveMember: (agentId: string) => Promise<void>
   onClose: () => void
+  onCollapse?: () => void
   className?: string
 }
 
@@ -69,6 +70,7 @@ export function MemberDetailPanel({
   onUpdateMember,
   onRemoveMember,
   onClose,
+  onCollapse,
   className,
 }: MemberDetailPanelProps) {
   // Running agent state from shared store
@@ -291,6 +293,18 @@ export function MemberDetailPanel({
               <option value="pending">Pending</option>
             </select>
           </div>
+
+          {onCollapse && (
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 ml-auto"
+              title="Collapse panel"
+              aria-label="Collapse panel"
+            >
+              <PanelRightClose className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
