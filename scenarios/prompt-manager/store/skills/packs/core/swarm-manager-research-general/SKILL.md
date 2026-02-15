@@ -6,10 +6,9 @@ Conduct thorough research for execute tasks, research-kind items, or other gener
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` containing item metadata
+See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+
 - Research target: {{RESEARCH_TARGET}} (if specified)
-- Any user-added context files in the folder
 
 ## Output Requirements
 

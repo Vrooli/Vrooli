@@ -9,7 +9,7 @@ import { CodeBlock } from "../../../markdown/components/CodeBlock";
  * Collapsed: Shows the task description and subagent type.
  * Expanded: Shows the full prompt and output.
  */
-export function AgentTaskCard({ event, result }: ToolCardProps) {
+export function AgentTaskCard({ event, result, viewMode }: ToolCardProps) {
   const parsed = parseToolInput(event.tool_input);
 
   const description = (parsed?.description as string) || "(no description)";
@@ -28,6 +28,7 @@ export function AgentTaskCard({ event, result }: ToolCardProps) {
       summary={summary}
       timestamp={event.timestamp}
       result={result}
+      compact={viewMode === "compact"}
     >
       {/* Full prompt */}
       {prompt && (

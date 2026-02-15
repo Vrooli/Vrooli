@@ -346,6 +346,8 @@ func main() {
 	h.Templates = templatesSvc
 	h.Skills = skillsSvc
 
+	h.SuggestionsSettings = services.NewSuggestionsSettingsService("../config/suggestions.json")
+
 	// Create skill suggestion service (reuses same OllamaClient and PromptManagerURL)
 	if cfg.SkillSuggest.Enabled {
 		h.SkillSuggest = services.NewSkillSuggestService(

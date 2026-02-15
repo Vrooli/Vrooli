@@ -1,0 +1,10 @@
+{
+  "autoSuggest": {
+    "enabled": true,
+    "debounceMs": 900,
+    "throttleMs": 10000,
+    "minInputLength": 10,
+    "minScorePercent": 35,
+    "maxSuggestions": 5
+  }
+}

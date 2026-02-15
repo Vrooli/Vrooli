@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Menu, X, ChevronLeft, Star } from "lucide-react";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
@@ -10,10 +10,9 @@ import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar } from "./components/layout/Sidebar";
-import { ChatView } from "./components/chat/ChatView";
 import { EmptyState } from "./components/chat/EmptyState";
 import { LabelManager } from "./components/labels/LabelManager";
-import { Settings, getViewMode, setViewMode, type ViewMode } from "./components/settings/Settings";
+import { Settings, getViewMode, setViewMode, type ViewMode, type SettingsTab } from "./components/settings/Settings";
 import { KeyboardShortcuts } from "./components/settings/KeyboardShortcuts";
 import { UsageStats } from "./components/settings/UsageStats";
 import { TemplateEditorModal } from "./components/chat/TemplateEditorModal";
@@ -28,6 +27,11 @@ import { getDefaultModel } from "./components/settings/Settings";
 import type { TemplateWithSource } from "./lib/types/templates";
 
 // Sidebar collapsed state persistence (desktop)
+const LazyChatView = lazy(async () => {
+  const module = await import("./components/chat/ChatView");
+  return { default: module.ChatView };
+});
+
 const SIDEBAR_COLLAPSED_KEY = "agent-inbox:sidebar-collapsed";
 
 function getSidebarCollapsed(): boolean {
@@ -83,6 +87,7 @@ function useIsMobile(breakpoint = 1024): boolean {
 function AppContent() {
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("general");
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showUsageStats, setShowUsageStats] = useState(false);
   const [settingsEditingTemplate, setSettingsEditingTemplate] = useState<TemplateWithSource | null>(null);
@@ -408,9 +413,14 @@ function AppContent() {
     setChatListOpen(true);
   }, [setChatListOpen]);
 
-  const handleOpenSettings = useCallback(() => {
+  const handleOpenSettings = useCallback((tab: SettingsTab = "general") => {
+    setSettingsInitialTab(tab);
     setShowSettings(true);
   }, []);
+
+  const handleOpenAgentSettings = useCallback(() => {
+    handleOpenSettings("agent");
+  }, [handleOpenSettings]);
 
   const handleShowKeyboardShortcuts = useCallback(() => {
     setShowKeyboardShortcuts(true);
@@ -475,7 +485,11 @@ function AppContent() {
 
   const handleDeselectChat = useCallback(() => {
     selectChat("");
-  }, [selectChat]);
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+      setChatListOpen(false);
+    }
+  }, [selectChat, setChatListOpen]);
 
   // CRITICAL: Memoize ALL callback props passed to ChatView to prevent
   // creating new function references on every render. New references cause
@@ -882,7 +896,12 @@ function AppContent() {
         <ErrorBoundary name="ChatContent">
           {/* Guard: Only render ChatView when chatData matches selectedChatId to prevent stale data issues */}
           {selectedChatId ? (
-            <ChatView
+            <Suspense fallback={(
+              <div className="flex-1 flex items-center justify-center bg-slate-950">
+                <span className="text-sm text-slate-400">Loading chat...</span>
+              </div>
+            )}>
+              <LazyChatView
               key={selectedChatId}
               chatData={chatData?.chat?.id === selectedChatId ? chatData : null}
               models={models}
@@ -926,11 +945,14 @@ function AppContent() {
               activeTemplateId={activeTemplate.activeTemplateId}
               onTemplateDeactivate={activeTemplate.deactivate}
               onRefreshChat={handleRefreshChat}
+              onOpenAgentSettings={handleOpenAgentSettings}
             />
+            </Suspense>
           ) : (
             <EmptyState
               onStartChat={createChatWithMessage}
               onStartAgentChat={handleStartAgentChat}
+              onOpenAgentSettings={handleOpenAgentSettings}
               isCreating={isCreatingChat}
               models={models}
             />
@@ -953,6 +975,7 @@ function AppContent() {
       <ErrorBoundary name="Settings">
         <Settings
           open={showSettings}
+          initialTab={settingsInitialTab}
           onClose={() => setShowSettings(false)}
           onDeleteAllChats={deleteAllChats}
           isDeletingAll={isDeletingAllChats}

@@ -1,18 +1,13 @@
 /**
  * Hook for auto-suggesting skills based on user input and conversation context.
- *
- * Trigger model:
- * - Primary trigger: inputText changes (debounced 2s after last keystroke)
- * - Guards: typing debounce (2s), in-flight suppression, throttle (30s unless text changed >20%)
- * - Returns [] when disabled, no inputText, or on error
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { fetchSkillSuggestions, type SuggestedSkill } from "@/lib/api";
 
-const DEBOUNCE_MS = 2000;
-const THROTTLE_MS = 30000;
-const MIN_INPUT_LENGTH = 10;
+const DEFAULT_DEBOUNCE_MS = 900;
+const DEFAULT_THROTTLE_MS = 10000;
+const DEFAULT_MIN_INPUT_LENGTH = 10;
 const TEXT_CHANGE_THRESHOLD = 0.2; // 20% change required to bypass throttle
 
 interface UseAutoSuggestSkillsOptions {
@@ -20,11 +15,17 @@ interface UseAutoSuggestSkillsOptions {
   inputText: string;
   selectedSkillIds: string[];
   enabled: boolean;
+  debounceMs?: number;
+  throttleMs?: number;
+  minInputLength?: number;
+  minScorePercent?: number;
+  maxSuggestions?: number;
 }
 
 interface UseAutoSuggestSkillsReturn {
   suggestions: SuggestedSkill[];
   isLoading: boolean;
+  didSearch: boolean;
   dismiss: (skillId: string) => void;
   dismissAll: () => void;
 }
@@ -43,9 +44,15 @@ export function useAutoSuggestSkills({
   inputText,
   selectedSkillIds,
   enabled,
+  debounceMs = DEFAULT_DEBOUNCE_MS,
+  throttleMs = DEFAULT_THROTTLE_MS,
+  minInputLength = DEFAULT_MIN_INPUT_LENGTH,
+  minScorePercent = 0,
+  maxSuggestions = 5,
 }: UseAutoSuggestSkillsOptions): UseAutoSuggestSkillsReturn {
   const [suggestions, setSuggestions] = useState<SuggestedSkill[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [didSearch, setDidSearch] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   // Refs for debounce/throttle/in-flight state
@@ -56,11 +63,15 @@ export function useAutoSuggestSkills({
   const abortControllerRef = useRef<AbortController>();
   const prevChatIdRef = useRef(chatId);
 
-  // Reset dismissed IDs when chat changes
+  const normalizedMinScore = Math.max(0, Math.min(100, minScorePercent));
+  const normalizedMaxSuggestions = Math.max(1, Math.min(20, maxSuggestions));
+
+  // Reset state when chat changes
   useEffect(() => {
     if (prevChatIdRef.current !== chatId) {
       setDismissedIds(new Set());
       setSuggestions([]);
+      setDidSearch(false);
       prevChatIdRef.current = chatId;
     }
   }, [chatId]);
@@ -73,7 +84,9 @@ export function useAutoSuggestSkills({
     }
 
     // Guard: disabled or too short
-    if (!enabled || inputText.length < MIN_INPUT_LENGTH) {
+    if (!enabled || inputText.trim().length < minInputLength) {
+      setSuggestions([]);
+      setDidSearch(false);
       return;
     }
 
@@ -85,8 +98,8 @@ export function useAutoSuggestSkills({
       const now = Date.now();
       const timeSinceLastFetch = now - lastFetchTimeRef.current;
       if (
-        timeSinceLastFetch < THROTTLE_MS &&
-        !textChangedSignificantly(lastFetchTextRef.current, inputText)
+        timeSinceLastFetch < throttleMs
+        && !textChangedSignificantly(lastFetchTextRef.current, inputText)
       ) {
         return;
       }
@@ -110,10 +123,15 @@ export function useAutoSuggestSkills({
         inputText,
         chatId,
         excludeSkillIds: excludeIds.length > 0 ? excludeIds : undefined,
+        signal: controller.signal,
       })
         .then((resp) => {
           if (!controller.signal.aborted) {
-            setSuggestions(resp.suggestions);
+            const filtered = resp.suggestions
+              .filter((skill) => skill.scorePercent >= normalizedMinScore)
+              .slice(0, normalizedMaxSuggestions);
+            setSuggestions(filtered);
+            setDidSearch(true);
             lastFetchTimeRef.current = Date.now();
             lastFetchTextRef.current = inputText;
           }
@@ -122,6 +140,7 @@ export function useAutoSuggestSkills({
           // Graceful degradation - just clear suggestions on error
           if (!controller.signal.aborted) {
             setSuggestions([]);
+            setDidSearch(true);
           }
         })
         .finally(() => {
@@ -130,14 +149,25 @@ export function useAutoSuggestSkills({
             setIsLoading(false);
           }
         });
-    }, DEBOUNCE_MS);
+    }, debounceMs);
 
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [inputText, chatId, selectedSkillIds, dismissedIds, enabled]);
+  }, [
+    inputText,
+    chatId,
+    selectedSkillIds,
+    dismissedIds,
+    enabled,
+    debounceMs,
+    throttleMs,
+    minInputLength,
+    normalizedMinScore,
+    normalizedMaxSuggestions,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -167,8 +197,8 @@ export function useAutoSuggestSkills({
 
   // Return empty when disabled
   if (!enabled) {
-    return { suggestions: [], isLoading: false, dismiss, dismissAll };
+    return { suggestions: [], isLoading: false, didSearch: false, dismiss, dismissAll };
   }
 
-  return { suggestions, isLoading, dismiss, dismissAll };
+  return { suggestions, isLoading, didSearch, dismiss, dismissAll };
 }

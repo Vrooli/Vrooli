@@ -72,6 +72,22 @@ describe("AgentEventList", () => {
     expect(screen.getByText("Waiting for agent response...")).toBeInTheDocument();
   });
 
+  it("applies compact spacing when compact view mode is selected", () => {
+    const events: AgentEvent[] = [
+      makeEvent({
+        id: "msg-compact",
+        type: "message",
+        role: "assistant",
+        content: "compact",
+        sequence: 1,
+      }),
+    ];
+
+    render(<AgentEventList events={events} viewMode="compact" />);
+
+    expect(screen.getByTestId("agent-event-list")).toHaveClass("space-y-2");
+  });
+
   describe("tool_call + tool_result grouping by tool_call_id", () => {
     it("groups tool_call and tool_result by tool_call_id", () => {
       const events: AgentEvent[] = [

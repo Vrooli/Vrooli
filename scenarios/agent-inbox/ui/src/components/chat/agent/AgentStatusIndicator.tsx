@@ -16,6 +16,8 @@ interface AgentStatusIndicatorProps {
   metrics?: AgentMetric[];
   /** Callback to stop the run */
   onStop?: () => void;
+  /** Render as inline metadata inside an existing row */
+  inline?: boolean;
 }
 
 const STATUS_CONFIG: Record<AgentRunStatus, {
@@ -78,7 +80,8 @@ export function AgentStatusIndicator({
   progress = 0,
   errorMsg,
   metrics,
-  onStop
+  onStop,
+  inline = false,
 }: AgentStatusIndicatorProps) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -110,11 +113,16 @@ export function AgentStatusIndicator({
   const metricChips = aggregateMetrics(metrics);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-zinc-800/50 border-b border-zinc-700">
+    <div
+      className={inline
+        ? "min-w-0 flex-1 flex items-center gap-3"
+        : "flex items-center gap-3 px-4 py-2 bg-zinc-800/50 border-b border-zinc-700"
+      }
+    >
       {/* Status icon and label */}
       <div className={`flex items-center gap-2 ${config.color}`}>
         {config.icon}
-        <span className="text-sm font-medium">{config.label}</span>
+        <span className={inline ? "text-xs font-medium" : "text-sm font-medium"}>{config.label}</span>
       </div>
 
       {/* Phase */}
@@ -126,7 +134,7 @@ export function AgentStatusIndicator({
 
       {/* Progress bar */}
       {config.showProgress && progress > 0 && (
-        <div className="flex-1 max-w-xs">
+        <div className={inline ? "flex-1 max-w-[10rem]" : "flex-1 max-w-xs"}>
           <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-500 transition-all duration-300"
@@ -138,8 +146,8 @@ export function AgentStatusIndicator({
 
       {/* Aggregated metrics */}
       {metricChips.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Zap className="h-3 w-3 text-zinc-500" />
+        <div className="flex items-center gap-2 min-w-0">
+          <Zap className="h-3 w-3 text-zinc-500 flex-shrink-0" />
           {metricChips.map((chip) => (
             <span
               key={chip.label}

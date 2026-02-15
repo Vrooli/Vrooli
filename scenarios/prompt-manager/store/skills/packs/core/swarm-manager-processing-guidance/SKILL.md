@@ -4,6 +4,8 @@
 
 This document provides shared guidance for all processing operations (process-idea, process-fix, process-execute). Agents should read this file before executing any processing task.
 
+**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — canonical reference for folder structure, artifact schemas, reading order, and decision hierarchy.
+
 ## Core Principles
 
 ### 1. Folder is Source of Truth
@@ -12,26 +14,25 @@ The backlog item folder at `{{ITEM_FOLDER}}` contains everything you need:
 
 ```
 item-folder/
-├── spec.json           # Item metadata (kind, title, description, status)
+├── spec.json              # Item metadata (kind, title, description, status)
 ├── clarify/
-│   └── questions.json  # Clarifying Q&A (if clarify workflow ran)
+│   └── questions.json     # Clarifying Q&A (if clarify workflow ran)
 ├── suggest/
-│   └── suggestions.json # Suggestions with accept/reject (if suggest ran)
+│   └── suggestions.json   # Suggestions with accept/reject (if suggest ran)
 ├── enhance/
-│   └── summary.md      # Refined plan (if enhance ran)
+│   └── summary.md         # Refined plan (if enhance ran)
 ├── research/
-│   └── summary.md      # Research findings (if deep research ran)
-└── [user files]        # Any additional context added by user
+│   └── summary.md         # Research findings (if deep research ran)
+├── archive/
+│   └── ...                # Superseded artifacts from previous runs
+└── [user files]           # Any additional context added by user
 ```
 
 **Always read what exists before acting.**
 
 ### 2. Respect Decisions
 
-- **Answered questions** in `clarify/questions.json` are definitive - implement as answered
-- **Accepted suggestions** in `suggest/suggestions.json` must be incorporated
-- **Rejected suggestions** must NOT be implemented
-- **Enhanced description** in `enhance/summary.md` supersedes original description
+See `swarm-manager-backlog-tools` for the full reading order and decision hierarchy.
 
 ### 3. Leave Clear Evidence
 

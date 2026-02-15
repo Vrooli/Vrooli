@@ -9,11 +9,18 @@ import type { Model } from "../../lib/api";
 interface EmptyStateProps {
   onStartChat: (payload: MessagePayload) => void;
   onStartAgentChat: (payload: MessagePayload, config: AgentStartConfig) => void;
+  onOpenAgentSettings?: () => void;
   isCreating: boolean;
   models: Model[];
 }
 
-export function EmptyState({ onStartChat, onStartAgentChat, isCreating, models }: EmptyStateProps) {
+export function EmptyState({
+  onStartChat,
+  onStartAgentChat,
+  onOpenAgentSettings,
+  isCreating,
+  models,
+}: EmptyStateProps) {
   // Use the first model as default for capability checking
   const defaultModel = models[0] ?? null;
 
@@ -95,6 +102,7 @@ export function EmptyState({ onStartChat, onStartAgentChat, isCreating, models }
               mode={selectedMode}
               onModeChange={setSelectedMode}
               disabled={isCreating}
+              onOpenAgentSettings={onOpenAgentSettings}
             />
             {selectedMode === "agent" && !agentSettings.defaultProjectPath && (
               <span className="text-xs text-amber-400">
@@ -134,8 +142,8 @@ export function EmptyState({ onStartChat, onStartAgentChat, isCreating, models }
 
         {/* Quick tips - Hidden on mobile for cleaner experience */}
         <div className="hidden sm:block mt-8 p-4 bg-white/5 rounded-xl border border-white/10">
-          <h4 className="text-sm font-medium text-white mb-2">Quick Tips</h4>
-          <ul className="text-xs text-slate-500 space-y-1 text-left">
+          <h3 className="text-sm font-medium text-white mb-2">Quick Tips</h3>
+          <ul className="text-xs text-slate-400 space-y-1 text-left">
             <li>Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">Ctrl+N</kbd> to create a new chat anytime</li>
             <li>Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">?</kbd> to view all keyboard shortcuts</li>
             <li>Star important conversations to find them easily later</li>
@@ -169,8 +177,8 @@ function FeatureCard({
       <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-3">
         {icon}
       </div>
-      <h4 className="text-sm font-medium text-white mb-1">{title}</h4>
-      <p className="text-xs text-slate-500">{description}</p>
+      <h3 className="text-sm font-medium text-white mb-1">{title}</h3>
+      <p className="text-xs text-slate-400">{description}</p>
     </div>
   );
 }

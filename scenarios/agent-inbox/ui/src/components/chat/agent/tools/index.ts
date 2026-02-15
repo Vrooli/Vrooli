@@ -30,6 +30,7 @@ import AgentToolCallCard from "../AgentToolCallCard";
 export interface ToolCardProps {
   event: AgentEvent;
   result?: AgentEvent;
+  viewMode?: "bubble" | "compact";
 }
 
 type ToolCardComponent = ComponentType<ToolCardProps>;

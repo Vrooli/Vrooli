@@ -1,18 +1,13 @@
 import { Wrench } from "lucide-react";
-import type { AgentEvent } from "../../../lib/api";
+import type { ToolCardProps } from "./tools";
 import { ToolCardShell } from "./tools/ToolCardShell";
 import { CodeBlock } from "../../markdown/components/CodeBlock";
-
-interface AgentToolCallCardProps {
-  event: AgentEvent;
-  result?: AgentEvent; // Corresponding tool_result event if available
-}
 
 /**
  * Generic fallback for tool call events that don't have a dedicated component.
  * Renders collapsible input/output using CodeBlock for syntax highlighting.
  */
-export function AgentToolCallCard({ event, result }: AgentToolCallCardProps) {
+export function AgentToolCallCard({ event, result, viewMode }: ToolCardProps) {
   const toolName = event.tool_name || "Unknown Tool";
 
   // Format input for display
@@ -32,6 +27,7 @@ export function AgentToolCallCard({ event, result }: AgentToolCallCardProps) {
       toolName={toolName}
       timestamp={event.timestamp}
       result={result}
+      compact={viewMode === "compact"}
     >
       {/* Input */}
       {displayInput && (

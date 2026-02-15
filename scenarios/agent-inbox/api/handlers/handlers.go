@@ -25,18 +25,19 @@ import (
 // Handlers provides HTTP handlers with access to all dependencies.
 // This struct enables dependency injection for testing.
 type Handlers struct {
-	Repo            *persistence.Repository
-	OllamaClient    *integrations.OllamaClient
-	ToolRegistry    *services.ToolRegistry
-	ModelRegistry   *services.ModelRegistry
-	Storage         services.StorageService
-	ToolExecutor    *integrations.ToolExecutor
-	AsyncTracker    *services.AsyncTrackerService
-	Templates       *services.TemplatesService
-	Skills          *services.PromptSyncService
-	ToolPersistence *services.ToolPersistence
-	AgentClient     integrations.AgentManagerClientInterface
-	SkillSuggest    *services.SkillSuggestService
+	Repo                *persistence.Repository
+	OllamaClient        *integrations.OllamaClient
+	ToolRegistry        *services.ToolRegistry
+	ModelRegistry       *services.ModelRegistry
+	Storage             services.StorageService
+	ToolExecutor        *integrations.ToolExecutor
+	AsyncTracker        *services.AsyncTrackerService
+	Templates           *services.TemplatesService
+	Skills              *services.PromptSyncService
+	ToolPersistence     *services.ToolPersistence
+	AgentClient         integrations.AgentManagerClientInterface
+	SkillSuggest        *services.SkillSuggestService
+	SuggestionsSettings *services.SuggestionsSettingsService
 }
 
 // New creates a new Handlers instance with all dependencies.
@@ -136,6 +137,8 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	// Settings
 	r.HandleFunc("/api/v1/settings/yolo-mode", h.GetYoloMode).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/settings/yolo-mode", h.SetYoloMode).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/settings/suggestions", h.GetSuggestionsSettings).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/settings/suggestions", h.SetSuggestionsSettings).Methods("POST", "OPTIONS")
 
 	// Usage tracking
 	r.HandleFunc("/api/v1/usage", h.GetUsageStats).Methods("GET", "OPTIONS")

@@ -10,7 +10,7 @@ import { CodeBlock } from "../../../markdown/components/CodeBlock";
  * Expanded: Shows the full command via CodeBlock with bash syntax highlighting,
  *           and the output (if result available).
  */
-export function AgentBashCard({ event, result }: ToolCardProps) {
+export function AgentBashCard({ event, result, viewMode }: ToolCardProps) {
   const parsed = parseToolInput(event.tool_input);
   const description = parsed?.description as string | undefined;
   const command = parsed?.command as string | undefined;
@@ -23,6 +23,7 @@ export function AgentBashCard({ event, result }: ToolCardProps) {
       summary={description || command || "(no command)"}
       timestamp={event.timestamp}
       result={result}
+      compact={viewMode === "compact"}
     >
       {/* Command */}
       {command && (

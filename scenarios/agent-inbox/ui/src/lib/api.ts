@@ -1486,6 +1486,59 @@ export async function setYoloMode(enabled: boolean): Promise<void> {
   }
 }
 
+export interface SuggestionsAutoSuggestConfig {
+  enabled: boolean;
+  debounceMs: number;
+  throttleMs: number;
+  minInputLength: number;
+  minScorePercent: number;
+  maxSuggestions: number;
+}
+
+export interface SuggestionsSettingsResponse {
+  autoSuggest: SuggestionsAutoSuggestConfig;
+}
+
+/**
+ * Get server-backed suggestions settings.
+ */
+export async function getSuggestionsSettings(): Promise<SuggestionsSettingsResponse> {
+  const url = buildApiUrl("/settings/suggestions", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get suggestions settings: ${res.status}`);
+  }
+
+  return jsonResponse<SuggestionsSettingsResponse>(res);
+}
+
+/**
+ * Update server-backed suggestions settings.
+ */
+export async function setSuggestionsSettings(
+  settings: SuggestionsSettingsResponse
+): Promise<SuggestionsSettingsResponse> {
+  const url = buildApiUrl("/settings/suggestions", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings)
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(body || `Failed to set suggestions settings: ${res.status}`);
+  }
+
+  return jsonResponse<SuggestionsSettingsResponse>(res);
+}
+
 /**
  * Set the approval override for a tool.
  * @param scenario - Scenario name
@@ -2130,6 +2183,7 @@ export async function fetchSkillSuggestions(params: {
   inputText?: string;
   chatId?: string;
   excludeSkillIds?: string[];
+  signal?: AbortSignal;
 }): Promise<SkillSuggestResponse> {
   const url = buildApiUrl("/skills/suggest", { baseUrl: API_BASE });
 
@@ -2142,7 +2196,7 @@ export async function fetchSkillSuggestions(params: {
         chatId: params.chatId,
         excludeSkillIds: params.excludeSkillIds,
       }),
-      signal: params.inputText ? AbortSignal.timeout(20000) : undefined,
+      signal: params.signal ?? (params.inputText ? AbortSignal.timeout(20000) : undefined),
     });
 
     if (!res.ok) {

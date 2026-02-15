@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo } from "react";
 import type { AgentEvent } from "../../../lib/api";
+import type { ViewMode } from "../../settings/Settings";
 import AgentMessageBubble from "./AgentMessageBubble";
-import AgentToolCallCard from "./AgentToolCallCard";
 import AgentRawEventCard from "./AgentRawEventCard";
 import { getToolComponent } from "./tools";
 
@@ -20,6 +20,8 @@ interface AgentEventListProps {
   autoScroll?: boolean;
   /** Runner type for tool-specific rendering (e.g. "claude_code", "codex") */
   runnerType?: string;
+  /** Message rendering style (bubble or compact) */
+  viewMode?: ViewMode;
 }
 
 /**
@@ -28,9 +30,15 @@ interface AgentEventListProps {
  * for reliable correlation, with a name+proximity fallback for events
  * that lack the ID.
  */
-export function AgentEventList({ events, autoScroll = true, runnerType }: AgentEventListProps) {
+export function AgentEventList({
+  events,
+  autoScroll = true,
+  runnerType,
+  viewMode = "bubble",
+}: AgentEventListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevEventCountRef = useRef(events.length);
+  const isCompact = viewMode === "compact";
 
   // Auto-scroll to bottom when new events arrive
   useEffect(() => {
@@ -129,11 +137,21 @@ export function AgentEventList({ events, autoScroll = true, runnerType }: AgentE
   }
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div
+      ref={containerRef}
+      className={`flex-1 overflow-y-auto ${isCompact ? "p-3 space-y-2" : "p-4 space-y-4"}`}
+      data-testid="agent-event-list"
+    >
       {groupedEvents.map((item, index) => {
         switch (item.type) {
           case "message":
-            return <AgentMessageBubble key={item.event.id || index} event={item.event} />;
+            return (
+              <AgentMessageBubble
+                key={item.event.id || index}
+                event={item.event}
+                viewMode={viewMode}
+              />
+            );
 
           case "tool": {
             const ToolComponent = getToolComponent(item.event.tool_name, runnerType);
@@ -142,6 +160,7 @@ export function AgentEventList({ events, autoScroll = true, runnerType }: AgentE
                 key={item.event.id || index}
                 event={item.event}
                 result={item.result}
+                viewMode={viewMode}
               />
             );
           }
@@ -154,7 +173,10 @@ export function AgentEventList({ events, autoScroll = true, runnerType }: AgentE
             return (
               <div
                 key={item.event.id || index}
-                className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300"
+                className={isCompact
+                  ? "px-2 py-1 rounded border border-red-500/25 bg-red-500/5 text-red-300"
+                  : "p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300"
+                }
               >
                 <div className="text-sm font-medium">Error</div>
                 <div className="text-sm">{item.event.content}</div>
@@ -162,7 +184,13 @@ export function AgentEventList({ events, autoScroll = true, runnerType }: AgentE
             );
 
           case "raw":
-            return <AgentRawEventCard key={item.event.id || index} event={item.event} />;
+            return (
+              <AgentRawEventCard
+                key={item.event.id || index}
+                event={item.event}
+                viewMode={viewMode}
+              />
+            );
 
           default:
             return null;

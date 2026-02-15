@@ -6,11 +6,10 @@ Synthesize clarifications and accepted suggestions into a refined, actionable pl
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` containing item metadata
+See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+
 - `clarify/questions.json` with answers (required)
 - `suggest/suggestions.json` with decisions (required)
-- Any user-added context files
 
 ## Output Requirements
 

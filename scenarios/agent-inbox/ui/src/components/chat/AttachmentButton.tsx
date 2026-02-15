@@ -243,6 +243,7 @@ export function AttachmentButton({
           disabled={disabled}
           className="h-9 w-9 text-slate-400 hover:text-white hover:bg-white/10"
           data-testid="attachment-button"
+          aria-label="Add attachment or tools"
         >
           <Plus className="h-5 w-5" />
         </Button>

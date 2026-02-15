@@ -5,6 +5,8 @@
  * [+] button opens popover for adding tags
  * Autocomplete from existing tags in codebase
  *
+ * On mobile: shows compact view (first tag + "+k") that opens a full-screen management modal.
+ *
  * Note: This component now accepts tags as string[] (not comma-separated).
  */
 
@@ -12,6 +14,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { X, Plus, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useIsMobile } from '@/hooks/useMediaQuery'
+import { TagManagementModal } from './TagManagementModal'
 
 interface TagChipsEditorProps {
   /** Tags array */
@@ -37,7 +41,9 @@ export function TagChipsEditor({
   isLoading,
   className,
 }: TagChipsEditorProps) {
+  const isMobile = useIsMobile()
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -118,6 +124,52 @@ export function TagChipsEditor({
       </div>
     )
   }
+
+  // Mobile: compact display with modal
+  if (isMobile) {
+    const firstTag = tags[0]
+    const remainingCount = tags.length - 1
+
+    return (
+      <>
+        <button
+          type="button"
+          className={cn('relative text-left', className)}
+          onClick={() => !disabled && setIsModalOpen(true)}
+          disabled={disabled}
+        >
+          <div className="flex items-center gap-1">
+            <Tag className="h-3 w-3 text-muted-foreground mr-0.5" />
+            {firstTag ? (
+              <>
+                <span className="inline-flex items-center px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full whitespace-nowrap">
+                  {firstTag}
+                </span>
+                {remainingCount > 0 && (
+                  <span className="text-xs text-muted-foreground font-medium">
+                    +{remainingCount}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">{placeholder}</span>
+            )}
+          </div>
+        </button>
+
+        {isModalOpen && (
+          <TagManagementModal
+            tags={tags}
+            onChange={onChange}
+            availableTags={availableTags}
+            onClose={() => setIsModalOpen(false)}
+          />
+        )}
+      </>
+    )
+  }
+
+  // Desktop: full inline editing
 
   // Filter suggestions based on input and exclude already-selected tags
   const lower = inputValue.toLowerCase()

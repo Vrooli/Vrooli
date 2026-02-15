@@ -6,10 +6,7 @@ Carry out a general execution task that doesn't fit the idea or fix categories. 
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` - item metadata (task description, requirements)
-- `research/summary.md` - research findings (if deep research was done)
-- Any user-added context or reference files
+See `swarm-manager-backlog-tools` for folder structure, artifact schemas, and reading order.
 
 ## Output Requirements
 

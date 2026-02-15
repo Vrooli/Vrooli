@@ -14,7 +14,7 @@
 
 import { useCallback, useRef, useState, useEffect, useMemo, type ReactNode } from 'react'
 import Editor, { DiffEditor, useMonaco, type OnMount, type OnChange } from '@monaco-editor/react'
-import { AlertTriangle, Code, Diff, Eye, Files, Redo2, RotateCcw, Save, Type, Undo2, X } from 'lucide-react'
+import { AlertTriangle, Code, Diff, Eye, Files, PanelLeftOpen, Redo2, RotateCcw, Save, Type, Undo2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/markdown'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
@@ -341,8 +341,10 @@ export function SkillContentEditor({
   const {
     width: splitWidth,
     isResizing: isSplitResizing,
+    isCollapsed: isSplitCollapsed,
     containerRef: splitContainerRef,
     handleResizeStart: handleSplitResizeStart,
+    expand: expandSplit,
   } = useResizableSplitPanel()
 
   // Initialize editor type from localStorage
@@ -578,7 +580,11 @@ export function SkillContentEditor({
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode)
-  }, [])
+    // Auto-expand editor when leaving preview mode
+    if (mode === 'edit' && isSplitCollapsed) {
+      expandSplit()
+    }
+  }, [isSplitCollapsed, expandSplit])
 
   const handleToggleDiff = useCallback(() => {
     setIsDiffMode((prev) => !prev)
@@ -641,6 +647,22 @@ export function SkillContentEditor({
           >
             {headerRight}
           </div>
+        )}
+        {isSplitCollapsed && viewMode === 'preview' && !isMobile && (
+          <button
+            type="button"
+            onClick={expandSplit}
+            className={cn(
+              'flex items-center justify-center h-8 w-8 rounded-md transition-colors',
+              variant === 'dark'
+                ? 'text-slate-300 hover:text-white hover:bg-white/10'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            )}
+            title="Expand editor"
+            aria-label="Expand editor"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
         )}
         <EditorToggle
           editorType={editorType}
@@ -752,6 +774,11 @@ export function SkillContentEditor({
         ) : viewMode === 'preview' && isMobile ? (
           <div className="flex flex-col h-full">
             {renderHeader(headerVariant)}
+            {previewPane}
+          </div>
+        ) : viewMode === 'preview' && isSplitCollapsed ? (
+          <div ref={splitContainerRef} className="flex flex-col h-full">
+            {renderHeader('light')}
             {previewPane}
           </div>
         ) : viewMode === 'preview' ? (

@@ -1,16 +1,13 @@
 /**
  * SuggestedSkills - Renders AI-suggested skill chips in the message input footer.
- *
- * Uses teal/cyan color scheme to distinguish from attached (amber) skill pills.
- * Each chip shows the skill name with a score badge, and supports click-to-attach
- * and dismiss actions.
  */
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Loader2, Sparkles, X, Info } from "lucide-react";
 import type { SuggestedSkill } from "@/lib/api";
 
 interface SuggestedSkillsProps {
   suggestions: SuggestedSkill[];
   isLoading: boolean;
+  didSearch: boolean;
   onAttach: (skillId: string) => void;
   onDismiss: (skillId: string) => void;
   onDismissAll: () => void;
@@ -19,11 +16,12 @@ interface SuggestedSkillsProps {
 export function SuggestedSkills({
   suggestions,
   isLoading,
+  didSearch,
   onAttach,
   onDismiss,
   onDismissAll,
 }: SuggestedSkillsProps) {
-  if (suggestions.length === 0 && !isLoading) {
+  if (suggestions.length === 0 && !isLoading && !didSearch) {
     return null;
   }
 
@@ -35,6 +33,14 @@ export function SuggestedSkills({
           <span>Finding skills...</span>
         </div>
       )}
+
+      {!isLoading && didSearch && suggestions.length === 0 && (
+        <div className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-slate-400/80">
+          <Info className="h-3 w-3" />
+          <span>No matching skills found for this input.</span>
+        </div>
+      )}
+
       {suggestions.length > 0 && (
         <>
           <Sparkles className="h-3 w-3 text-teal-400/60 shrink-0" />

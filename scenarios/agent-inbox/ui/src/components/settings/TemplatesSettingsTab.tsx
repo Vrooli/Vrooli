@@ -1,5 +1,5 @@
 /**
- * Settings tab for managing templates and Suggestions preferences.
+ * Settings tab for managing templates.
  *
  * Updated to work with file-based template storage:
  * - All templates are now editable (including defaults)
@@ -9,7 +9,6 @@
 
 import { useState, useCallback } from "react";
 import {
-  Lightbulb,
   Pencil,
   Trash2,
   RotateCcw,
@@ -20,21 +19,14 @@ import {
   Construction,
 } from "lucide-react";
 import type { ModeHistoryEntry, TemplateWithSource } from "@/lib/types/templates";
-import { ModelSelector } from "./ModelSelector";
-import type { Model } from "@/lib/api";
 
 interface TemplatesSettingsTabProps {
-  suggestionsVisible: boolean;
-  onToggleSuggestions: (visible: boolean) => void;
-  mergeModel: string;
-  onMergeModelChange: (modelId: string) => void;
   templates: TemplateWithSource[];
   onEditTemplate: (template: TemplateWithSource) => void;
   onDeleteTemplate: (templateId: string) => Promise<void>;
   onResetTemplate: (templateId: string) => Promise<void>;
   modeHistory: ModeHistoryEntry[];
   onClearHistory: () => void;
-  models: Model[];
   isLoading?: boolean;
 }
 
@@ -62,17 +54,12 @@ function getSourceBadge(source: TemplateWithSource["source"]) {
 }
 
 export function TemplatesSettingsTab({
-  suggestionsVisible,
-  onToggleSuggestions,
-  mergeModel,
-  onMergeModelChange,
   templates,
   onEditTemplate,
   onDeleteTemplate,
   onResetTemplate,
   modeHistory,
   onClearHistory,
-  models,
   isLoading,
 }: TemplatesSettingsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,56 +182,6 @@ export function TemplatesSettingsTab({
 
   return (
     <div className="space-y-6">
-      {/* Suggestions Visibility */}
-      <section>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
-          Suggestions Panel
-        </h3>
-        <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
-          <div className="flex items-center gap-3">
-            <Lightbulb className="h-5 w-5 text-indigo-400" />
-            <div>
-              <p className="text-sm text-white">Show Suggestions</p>
-              <p className="text-xs text-slate-500">
-                Display template suggestions above message input
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => onToggleSuggestions(!suggestionsVisible)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${
-              suggestionsVisible ? "bg-indigo-600" : "bg-slate-600"
-            }`}
-          >
-            <span
-              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                suggestionsVisible ? "translate-x-5" : ""
-              }`}
-            />
-          </button>
-        </div>
-        <p className="text-xs text-slate-500 mt-2">
-          You can also toggle with <kbd className="px-1 bg-slate-700 rounded">/suggestions</kbd>
-        </p>
-      </section>
-
-      {/* AI Merge Model */}
-      <section>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
-          AI Merge Model
-        </h3>
-        <p className="text-xs text-slate-500 mb-3">
-          Model used when merging your message with a template
-        </p>
-        <ModelSelector
-          models={models}
-          selectedModel={mergeModel}
-          onSelectModel={onMergeModelChange}
-          label="Merge model"
-          compact
-        />
-      </section>
-
       {/* Templates List */}
       <section>
         <div className="flex items-center justify-between mb-3">

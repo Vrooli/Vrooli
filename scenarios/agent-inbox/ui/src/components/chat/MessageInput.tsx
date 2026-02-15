@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Send, Loader2, Check, X, Sparkles } from "lucide-react";
+import { Send, Loader2, Check, X, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { AttachmentButton, type ForcedTool } from "./AttachmentButton";
@@ -28,6 +28,22 @@ import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapa
 import { getTemplateById } from "@/data/templates";
 import type { Model, Message } from "../../lib/api";
 import type { SkillPayload, SlashCommand, Template, MergeAction } from "@/lib/types/templates";
+
+const MESSAGE_INPUT_SUGGESTIONS_EXPANDED_KEY = "agent-inbox:message-input-suggestions-expanded";
+
+function getSuggestionsExpandedDefault(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return localStorage.getItem(MESSAGE_INPUT_SUGGESTIONS_EXPANDED_KEY) === "true";
+}
+
+function setSuggestionsExpandedStorage(expanded: boolean): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(MESSAGE_INPUT_SUGGESTIONS_EXPANDED_KEY, String(expanded));
+  }
+}
 
 export interface MessagePayload {
   content: string;
@@ -136,8 +152,14 @@ export function MessageInput({
     visible: suggestionsVisible,
     toggleVisible: toggleSuggestionsVisible,
     mergeModel,
-    autoSuggestSkills: autoSuggestEnabled,
+    autoSuggest,
   } = useSuggestionsSettings();
+  const [suggestionsExpanded, setSuggestionsExpandedState] = useState(getSuggestionsExpandedDefault);
+
+  const setSuggestionsExpanded = useCallback((expanded: boolean) => {
+    setSuggestionsExpandedState(expanded);
+    setSuggestionsExpandedStorage(expanded);
+  }, []);
 
   // Mode history for frecency
   const { history: modeHistory, recordUsage: recordModeUsage } = useModeHistory();
@@ -199,13 +221,19 @@ export function MessageInput({
   const {
     suggestions: suggestedSkills,
     isLoading: suggestionsLoading,
+    didSearch: suggestionsDidSearch,
     dismiss: dismissSuggestion,
     dismissAll: dismissAllSuggestions,
   } = useAutoSuggestSkills({
     chatId,
     inputText: message,
     selectedSkillIds,
-    enabled: autoSuggestEnabled,
+    enabled: autoSuggest.enabled,
+    debounceMs: autoSuggest.debounceMs,
+    throttleMs: autoSuggest.throttleMs,
+    minInputLength: autoSuggest.minInputLength,
+    minScorePercent: autoSuggest.minScorePercent,
+    maxSuggestions: autoSuggest.maxSuggestions,
   });
 
   // Only use attachments if enabled
@@ -701,27 +729,51 @@ export function MessageInput({
           </button>
         </div>
       )}
-
       {/* Suggestions panel */}
       {suggestionsVisible && !isEditMode && (
-        <Suggestions
-          templates={templates}
-          currentModePath={currentModePath}
-          modeHistory={modeHistory}
-          onSelectTemplate={handleTemplateSelect}
-          onNavigateToMode={navigateToMode}
-          onNavigateBack={navigateBack}
-          onResetPath={resetModePath}
-          onEditTemplate={handleOpenTemplateEditor}
-          onDeleteTemplate={handleDeleteTemplateFromSuggestions}
-          onResetTemplate={handleResetTemplateFromSuggestions}
-          onCreateTemplate={(modes) => {
-            setDefaultEditorModes(modes);
-            setEditingTemplate(undefined);
-            setShowTemplateEditor(true);
-          }}
-          onRecordModeUsage={recordModeUsage}
-        />
+        <div className="mb-2 rounded-xl border border-white/10 bg-slate-900/50 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setSuggestionsExpanded(!suggestionsExpanded)}
+            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors"
+            data-testid="suggestions-toggle"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-indigo-400" />
+              <span className="text-sm text-slate-200">Suggestions</span>
+              <span className="text-xs text-slate-500">{templates.length}</span>
+            </div>
+            {suggestionsExpanded ? (
+              <ChevronUp className="h-4 w-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            )}
+          </button>
+
+          {suggestionsExpanded && (
+            <div className="px-2 pb-2">
+              <Suggestions
+                embedded
+                templates={templates}
+                currentModePath={currentModePath}
+                modeHistory={modeHistory}
+                onSelectTemplate={handleTemplateSelect}
+                onNavigateToMode={navigateToMode}
+                onNavigateBack={navigateBack}
+                onResetPath={resetModePath}
+                onEditTemplate={handleOpenTemplateEditor}
+                onDeleteTemplate={handleDeleteTemplateFromSuggestions}
+                onResetTemplate={handleResetTemplateFromSuggestions}
+                onCreateTemplate={(modes) => {
+                  setDefaultEditorModes(modes);
+                  setEditingTemplate(undefined);
+                  setShowTemplateEditor(true);
+                }}
+                onRecordModeUsage={recordModeUsage}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Attachment preview area */}
@@ -828,6 +880,7 @@ export function MessageInput({
             size="icon"
             className={`h-10 w-10 shrink-0 ${isEditMode ? "bg-amber-600 hover:bg-amber-500" : ""}`}
             data-testid={isEditMode ? "save-edit-button" : "send-message-button"}
+            aria-label={isEditMode ? "Save edit" : "Send message"}
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -843,7 +896,7 @@ export function MessageInput({
       {/* Footer with keyboard hint and web search indicator */}
       <div className="flex items-center justify-between mt-2 px-1">
         <div className="flex items-center gap-3">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-slate-400">
             {isEditMode ? (
               <>
                 Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
@@ -902,6 +955,7 @@ export function MessageInput({
           <SuggestedSkills
             suggestions={suggestedSkills}
             isLoading={suggestionsLoading}
+            didSearch={suggestionsDidSearch}
             onAttach={addSkill}
             onDismiss={dismissSuggestion}
             onDismissAll={dismissAllSuggestions}

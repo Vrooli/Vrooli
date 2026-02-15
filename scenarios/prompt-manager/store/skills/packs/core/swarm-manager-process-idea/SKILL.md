@@ -6,12 +6,7 @@ Create or improve a Vrooli scenario based on a fully-refined idea. Transform the
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` - item metadata
-- `enhance/summary.md` - refined plan (if enhance workflow completed)
-- `clarify/questions.json` - answered questions
-- `suggest/suggestions.json` - accepted/rejected suggestions
-- `research/summary.md` - feasibility research (if completed)
+See `swarm-manager-backlog-tools` for folder structure, artifact schemas, and reading order.
 
 ## Output Requirements
 
@@ -150,16 +145,6 @@ func main() {
   "resources": ["postgres", "redis"]
 }
 ```
-
-### Respecting Decisions
-
-**From clarifications:**
-- Q: "What auth method?" A: "OAuth" → Implement OAuth
-- Q: "Database?" A: "PostgreSQL" → Use postgres resource
-
-**From suggestions:**
-- Accepted: "Add rate limiting" → Implement rate limiting
-- Rejected: "Add admin panel" → Do NOT implement admin panel
 
 ### Quality Standards
 

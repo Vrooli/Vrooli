@@ -6,10 +6,7 @@ Perform root cause analysis for a bug or issue, identify all affected components
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` containing item metadata (including error details, reproduction steps)
-- Any user-added context files (logs, screenshots, stack traces)
-- Access to the Vrooli codebase for investigation
+See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
 
 ## Output Requirements
 

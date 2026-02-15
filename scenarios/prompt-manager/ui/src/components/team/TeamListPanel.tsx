@@ -2,7 +2,7 @@
  * TeamListPanel - Panel for listing and managing teams.
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Users, Trash2, Download, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTeamData } from '@/hooks/useTeamData'
@@ -13,6 +13,8 @@ import { CCTeamImportModal } from './CCTeamImportModal'
 interface TeamListPanelProps {
   selectedTeamId: string | null
   onSelectTeam: (id: string) => void
+  /** Filter teams by display name */
+  searchQuery?: string
   className?: string
 }
 
@@ -37,9 +39,16 @@ function downloadJson(data: unknown, filename: string) {
 export function TeamListPanel({
   selectedTeamId,
   onSelectTeam,
+  searchQuery,
   className,
 }: TeamListPanelProps) {
   const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
+
+  const filteredTeams = useMemo(() => {
+    if (!searchQuery) return teams
+    const lower = searchQuery.toLowerCase()
+    return teams.filter((t) => t.displayName.toLowerCase().includes(lower))
+  }, [teams, searchQuery])
   const [importModalOpen, setImportModalOpen] = useState(false)
 
   const handleCreateTeam = async () => {
@@ -105,8 +114,13 @@ export function TeamListPanel({
               Create your first team
             </button>
           </div>
+        ) : filteredTeams.length === 0 ? (
+          <div className="px-3 py-8 text-center">
+            <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-60" />
+            <p className="text-xs text-muted-foreground">No matching teams</p>
+          </div>
         ) : (
-          teams.map((team) => (
+          filteredTeams.map((team) => (
             <button
               key={team.id}
               type="button"

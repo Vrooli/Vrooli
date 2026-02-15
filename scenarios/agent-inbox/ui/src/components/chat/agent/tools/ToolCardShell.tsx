@@ -19,6 +19,8 @@ interface ToolCardShellProps {
   children?: ReactNode;
   /** Whether the card starts expanded */
   defaultExpanded?: boolean;
+  /** Message rendering style */
+  compact?: boolean;
 }
 
 /**
@@ -34,19 +36,19 @@ export function ToolCardShell({
   result,
   children,
   defaultExpanded = false,
+  compact = false,
 }: ToolCardShellProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const hasExpandableContent = !!children;
 
   return (
-    <div className="my-2 rounded-lg border border-zinc-700 overflow-hidden">
+    <div className={`rounded-lg border overflow-hidden ${compact ? "my-1 border-zinc-800/60" : "my-2 border-zinc-700/70"}`}>
       {/* Header */}
       <button
         onClick={() => hasExpandableContent && setIsExpanded(!isExpanded)}
         className={`
-          w-full flex items-center gap-3 px-4 py-3
-          bg-zinc-800/50 hover:bg-zinc-800
-          transition-colors text-left
+          w-full flex items-center gap-3 text-left transition-colors
+          ${compact ? "px-3 py-2 bg-zinc-900/35 hover:bg-zinc-900/50" : "px-4 py-3 bg-zinc-800/45 hover:bg-zinc-800/65"}
           ${!hasExpandableContent ? "cursor-default" : ""}
         `}
       >
@@ -73,22 +75,22 @@ export function ToolCardShell({
           {summary && (
             <div className="text-sm text-zinc-300 truncate mt-0.5">{summary}</div>
           )}
-          <div className="text-xs text-zinc-500 mt-0.5">
+          <div className="text-xs text-zinc-600 mt-0.5">
             {new Date(timestamp).toLocaleTimeString()}
           </div>
         </div>
         {hasExpandableContent && (
           isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" />
+            <ChevronDown className="h-4 w-4 text-zinc-500 flex-shrink-0" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-zinc-400 flex-shrink-0" />
+            <ChevronRight className="h-4 w-4 text-zinc-500 flex-shrink-0" />
           )
         )}
       </button>
 
       {/* Expanded content with bounded height */}
       {isExpanded && children && (
-        <div className="border-t border-zinc-700 max-h-[32rem] overflow-y-auto">
+        <div className={`border-t border-zinc-800/70 max-h-[32rem] overflow-y-auto ${compact ? "p-3" : ""}`}>
           {children}
         </div>
       )}

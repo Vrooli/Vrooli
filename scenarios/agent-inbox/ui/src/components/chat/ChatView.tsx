@@ -81,6 +81,8 @@ interface ChatViewProps {
   // Agent mode
   /** Callback to refresh chat data after agent mode changes */
   onRefreshChat?: () => void;
+  /** Open settings focused on agent tab */
+  onOpenAgentSettings?: () => void;
 }
 
 // Stable empty array for async references
@@ -129,6 +131,7 @@ export function ChatView({
   activeTemplateId,
   onTemplateDeactivate,
   onRefreshChat,
+  onOpenAgentSettings,
 }: ChatViewProps) {
   // Async operations drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -418,13 +421,14 @@ export function ChatView({
         />
       </ErrorBoundary>
 
-      {/* Mode selector and agent status bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-800">
+      {/* Mode selector and agent status */}
+      <div className="flex items-center flex-wrap gap-2 px-4 py-2 border-b border-zinc-800">
         <ModeSelector
           mode={chatMode}
           onModeChange={handleModeChange}
           disabled={isStartingAgent}
           isAgentActive={isAgentActive}
+          onOpenAgentSettings={onOpenAgentSettings}
         />
         {agentError && (
           <span className="text-xs text-red-400">
@@ -435,19 +439,18 @@ export function ChatView({
         {agentWsError && isAgentActive && (
           <span className="text-xs text-yellow-400">Connection issue: {agentWsError}</span>
         )}
+        {isAgentActive && agentStatus && (
+          <AgentStatusIndicator
+            status={agentStatus.status}
+            phase={agentStatus.phase}
+            progress={agentStatus.progress_percent}
+            errorMsg={agentStatus.error_msg}
+            metrics={agentMetrics}
+            onStop={handleStopAgent}
+            inline
+          />
+        )}
       </div>
-
-      {/* Agent status indicator when active */}
-      {isAgentActive && agentStatus && (
-        <AgentStatusIndicator
-          status={agentStatus.status}
-          phase={agentStatus.phase}
-          progress={agentStatus.progress_percent}
-          errorMsg={agentStatus.error_msg}
-          metrics={agentMetrics}
-          onStop={handleStopAgent}
-        />
-      )}
 
       {/* Async Status Bar - compact view of active/recent operations (only in LLM mode) */}
       {!isAgentActive && (activeAsyncOperations.length > 0 || completedAsyncOperations.length > 0) && (
@@ -480,7 +483,7 @@ export function ChatView({
       {/* Main content: Agent events or normal message list */}
       {isAgentActive ? (
         <ErrorBoundary name="AgentEventList">
-          <AgentEventList events={agentEvents} autoScroll={true} />
+          <AgentEventList events={agentEvents} autoScroll={true} viewMode={viewMode} />
         </ErrorBoundary>
       ) : (
         <ErrorBoundary name="MessageList">

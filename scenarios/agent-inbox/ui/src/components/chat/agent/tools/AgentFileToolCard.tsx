@@ -49,7 +49,7 @@ const DEFAULT_CONFIG = {
  * Expanded: Shows file content or search results via CodeBlock,
  *           with language detection from the file extension.
  */
-export function AgentFileToolCard({ event, result }: ToolCardProps) {
+export function AgentFileToolCard({ event, result, viewMode }: ToolCardProps) {
   const toolName = event.tool_name || "File";
   const config = FILE_TOOL_CONFIG[toolName] || DEFAULT_CONFIG;
   const parsed = parseToolInput(event.tool_input);
@@ -69,6 +69,7 @@ export function AgentFileToolCard({ event, result }: ToolCardProps) {
       summary={summary}
       timestamp={event.timestamp}
       result={result}
+      compact={viewMode === "compact"}
     >
       {/* Input details */}
       {parsed && (

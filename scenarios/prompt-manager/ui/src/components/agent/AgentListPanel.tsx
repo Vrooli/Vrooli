@@ -2,6 +2,7 @@
  * AgentListPanel - Panel for listing and managing agents.
  */
 
+import { useMemo } from 'react'
 import { Plus, User, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAgentData } from '@/hooks/useAgentData'
@@ -12,6 +13,8 @@ import { selectors } from '@/constants/selectors'
 interface AgentListPanelProps {
   selectedAgentId: string | null
   onSelectAgent: (id: string) => void
+  /** Filter agents by display name */
+  searchQuery?: string
   className?: string
 }
 
@@ -21,9 +24,16 @@ interface AgentListPanelProps {
 export function AgentListPanel({
   selectedAgentId,
   onSelectAgent,
+  searchQuery,
   className,
 }: AgentListPanelProps) {
   const { agents, isLoading, isError, createAgent, deleteAgent } = useAgentData()
+
+  const filteredAgents = useMemo(() => {
+    if (!searchQuery) return agents
+    const lower = searchQuery.toLowerCase()
+    return agents.filter((a) => a.displayName.toLowerCase().includes(lower))
+  }, [agents, searchQuery])
 
   const handleCreateAgent = async () => {
     const name = `Agent ${agents.length + 1}`
@@ -78,8 +88,13 @@ export function AgentListPanel({
               Create your first agent
             </button>
           </div>
+        ) : filteredAgents.length === 0 ? (
+          <div className="px-3 py-8 text-center">
+            <User className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-60" />
+            <p className="text-xs text-muted-foreground">No matching agents</p>
+          </div>
         ) : (
-          agents.map((agent) => (
+          filteredAgents.map((agent) => (
             <button
               key={agent.id}
               type="button"

@@ -1363,6 +1363,10 @@ export function SkillManagerLayout() {
                   setSelectedAgentId(id)
                   setIsMobileSidebarOpen(false)
                 }}
+                onSelectTeamFromMenu={(id) => {
+                  setSelectedTeamId(id)
+                  setIsMobileSidebarOpen(false)
+                }}
                 onSaveSkill={handleSaveSkillById}
                 onDiscardSkill={handleDiscardSkillById}
                 onSaveAgent={handleSaveAgentById}

@@ -24,6 +24,8 @@ import {
   FolderOpen,
   GripVertical,
   ListChecks,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   RefreshCw,
@@ -41,6 +43,7 @@ import type { HighlightRequest } from '@/lib/highlight'
 import type { ContentSearchMatch } from '@/lib/schemas'
 import { createHighlightMatch } from '@/lib/highlight'
 import * as agentService from '@/services/agentService'
+import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { AppearanceTab } from './AppearanceTab'
 import { EditorActionButtons, SkillContentEditor } from '../SkillContentEditor'
 import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
@@ -177,6 +180,22 @@ export function FilesTab({
   onHighlightHandled,
 }: FilesTabProps) {
   void _updateFields
+
+  const {
+    width: filesSidebarWidth,
+    isResizing: isFilesSidebarResizing,
+    isCollapsed: isFilesSidebarCollapsed,
+    containerRef: filesContainerRef,
+    handleResizeStart: handleFilesSidebarResizeStart,
+    expand: expandFilesSidebar,
+    collapse: collapseFilesSidebar,
+  } = useResizableSplitPanel({
+    defaultWidth: 256,
+    minWidth: 180,
+    maxWidthRatio: 0.5,
+    snapCloseThreshold: 120,
+    storageKey: 'pm.agentFilesSidebarWidth',
+  })
 
   const [files, setFiles] = useState<AgentFileEntry[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
@@ -833,64 +852,95 @@ export function FilesTab({
 
   return (
     <>
-      <div className="h-full flex min-h-0">
-        <div className="w-64 border-r border-border flex flex-col min-h-0">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent Files</span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => void refreshFiles()}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                title="Refresh"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleStartAdd}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                title="Add file"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStartRename()}
-                className={cn(
-                  'p-1 rounded text-muted-foreground hover:text-foreground',
-                  !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-                )}
-                disabled={!selectedPath || isReservedSelected}
-                title="Rename file"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete()}
-                className={cn(
-                  'p-1 rounded text-muted-foreground hover:text-foreground',
-                  !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-                )}
-                disabled={!selectedPath || isReservedSelected}
-                title="Delete file"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
+      <div ref={filesContainerRef} className={cn('h-full flex min-h-0', isFilesSidebarResizing && 'select-none')}>
+        {isFilesSidebarCollapsed ? (
+          <div className="flex-shrink-0 w-10 border-r border-border flex flex-col items-center py-2">
+            <button
+              type="button"
+              onClick={expandFilesSidebar}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+              title="Expand file list"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
           </div>
-
-          <div className="flex-1 overflow-y-auto px-2 py-2">
-            {files.length === 0 ? (
-              <div className="text-xs text-muted-foreground px-2 py-4">
-                No files yet. Create a file to get started.
+        ) : (
+          <>
+            <div className="flex-shrink-0 border-r border-border flex flex-col min-h-0" style={{ width: filesSidebarWidth }}>
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent Files</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={collapseFilesSidebar}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                    title="Collapse"
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void refreshFiles()}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                    title="Refresh"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartAdd}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                    title="Add file"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStartRename()}
+                    className={cn(
+                      'p-1 rounded text-muted-foreground hover:text-foreground',
+                      !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
+                    )}
+                    disabled={!selectedPath || isReservedSelected}
+                    title="Rename file"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete()}
+                    className={cn(
+                      'p-1 rounded text-muted-foreground hover:text-foreground',
+                      !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
+                    )}
+                    disabled={!selectedPath || isReservedSelected}
+                    title="Delete file"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            ) : (
-              renderNode(tree)
-            )}
-          </div>
-        </div>
+
+              <div className="flex-1 overflow-y-auto px-2 py-2">
+                {files.length === 0 ? (
+                  <div className="text-xs text-muted-foreground px-2 py-4">
+                    No files yet. Create a file to get started.
+                  </div>
+                ) : (
+                  renderNode(tree)
+                )}
+              </div>
+            </div>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              onMouseDown={handleFilesSidebarResizeStart}
+              className="relative flex-shrink-0 w-3 cursor-col-resize group"
+            >
+              <div className="absolute left-1 top-0 h-full w-0.5 bg-border group-hover:bg-primary/50 transition-colors" />
+            </div>
+          </>
+        )}
 
         <div className="flex-1 min-w-0 flex flex-col">
           {!selectedPath && (

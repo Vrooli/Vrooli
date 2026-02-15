@@ -41,6 +41,24 @@ import { useSelectionStore } from '@/stores/selectionStore'
 const CONTENT_SNIPPET_LENGTH = 120
 const CONTENT_SEARCH_MIN_CHARS = 2
 
+/**
+ * Per-tab search feature availability.
+ * Flip booleans to enable features as entity types reach search parity with Skills.
+ */
+const TAB_SEARCH_FEATURES = {
+  skills:  { contentSearch: true, aiSearch: true, tagFilter: true, folderFilter: true },
+  agents:  { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
+  teams:   { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
+} as const
+
+type SearchableTab = keyof typeof TAB_SEARCH_FEATURES
+
+const TAB_SEARCH_PLACEHOLDERS: Record<SearchableTab, string> = {
+  skills: 'Search skills... (Ctrl+K)',
+  agents: 'Search agents...',
+  teams: 'Search teams...',
+}
+
 interface ContentMatchGroup {
   file: string
   skillId: string
@@ -253,6 +271,8 @@ interface SkillTreeSidebarProps {
   onSelectSkillFromMenu?: (skillId: string) => void
   /** Callback to select/open an agent from unsaved menu */
   onSelectAgentFromMenu?: (agentId: string) => void
+  /** Callback to select/open a team from sidebar (wraps selection + sidebar close on mobile) */
+  onSelectTeamFromMenu?: (teamId: string) => void
   /** Callback to save a specific skill */
   onSaveSkill?: (skillId: string) => Promise<void>
   /** Callback to discard changes for a specific skill */
@@ -331,6 +351,7 @@ export function SkillTreeSidebar({
   onActiveTabChange,
   onSelectSkillFromMenu,
   onSelectAgentFromMenu,
+  onSelectTeamFromMenu,
   onSaveSkill,
   onDiscardSkill,
   onSaveAgent,
@@ -360,6 +381,23 @@ export function SkillTreeSidebar({
 
   // Active tab state
   const [activeTab, setActiveTab] = useState(initialActiveTab)
+
+  // Search state for agents/teams tabs (skills search is managed by parent)
+  const [agentSearchQuery, setAgentSearchQuery] = useState('')
+  const [teamSearchQuery, setTeamSearchQuery] = useState('')
+
+  // Unified search query for the current tab
+  const currentSearchQuery = activeTab === 'skills' ? searchQuery
+    : activeTab === 'agents' ? agentSearchQuery
+    : teamSearchQuery
+
+  const handleCurrentSearchChange = useCallback((query: string) => {
+    if (activeTab === 'skills') onSearchChange(query)
+    else if (activeTab === 'agents') setAgentSearchQuery(query)
+    else setTeamSearchQuery(query)
+  }, [activeTab, onSearchChange])
+
+  const tabFeatures = TAB_SEARCH_FEATURES[activeTab as SearchableTab]
 
   // Notify parent when tab changes (for persistence)
   const handleTabChange = useCallback((tab: string) => {
@@ -714,74 +752,29 @@ export function SkillTreeSidebar({
         onValueChange={handleTabChange}
         className="flex flex-col flex-1 min-h-0"
       >
-        {/* Tab triggers */}
-        <Tabs.List className="flex-shrink-0 flex border-b border-border">
-          <Tabs.Trigger
-            value="skills"
-            className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
-              'border-b-2 border-transparent',
-              'text-muted-foreground hover:text-foreground',
-              'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
-            )}
-            data-testid={selectors.sidebar.tabSkills}
-          >
-            <Search className="h-3.5 w-3.5" />
-            Skills
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="agents"
-            className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
-              'border-b-2 border-transparent',
-              'text-muted-foreground hover:text-foreground',
-              'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
-            )}
-            data-testid={selectors.sidebar.tabAgents}
-          >
-            <User className="h-3.5 w-3.5" />
-            Agents
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="teams"
-            className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
-              'border-b-2 border-transparent',
-              'text-muted-foreground hover:text-foreground',
-              'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
-            )}
-          >
-            <Users className="h-3.5 w-3.5" />
-            Teams
-          </Tabs.Trigger>
-        </Tabs.List>
+        {/* Search -- above tabs, visible for all entity types */}
+        <div className="flex-shrink-0 px-3 py-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={currentSearchQuery}
+              onChange={(e) => handleCurrentSearchChange(e.target.value)}
+              onKeyDown={activeTab === 'skills' ? handleSearchInputKeyDown : undefined}
+              placeholder={TAB_SEARCH_PLACEHOLDERS[activeTab as SearchableTab] ?? 'Search...'}
+              className={cn(
+                'w-full pl-8 pr-3 py-1.5 text-xs',
+                'bg-muted border border-border rounded-md',
+                'text-foreground placeholder:text-muted-foreground',
+                'focus:outline-none focus:ring-2 focus:ring-primary'
+              )}
+              data-testid={selectors.sidebar.searchInput}
+            />
+          </div>
 
-        {/* Skills Tab */}
-        <Tabs.Content value="skills" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          {/* Search */}
-          <div className="flex-shrink-0 px-3 py-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                onKeyDown={handleSearchInputKeyDown}
-                placeholder={searchMode === 'content' ? 'Search content... (Ctrl+K)' : 'Search skills... (Ctrl+K)'}
-                className={cn(
-                  'w-full pl-8 pr-3 py-1.5 text-xs',
-                  'bg-muted border border-border rounded-md',
-                  'text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary'
-                )}
-                data-testid={selectors.sidebar.searchInput}
-              />
-            </div>
-
+          {/* Skills-only: search mode + AI search */}
+          {tabFeatures?.contentSearch && (
             <div className="flex items-center justify-between mt-2 gap-2">
               <div className="flex items-center gap-1">
                 <button
@@ -809,77 +802,82 @@ export function SkillTreeSidebar({
                   Content
                 </button>
               </div>
+              {tabFeatures?.aiSearch && (
+                <button
+                  type="button"
+                  onClick={handleAISearch}
+                  disabled={!aiSearchAvailable}
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
+                    aiSearchAvailable
+                      ? 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                      : 'text-muted-foreground/60 border-border/60 cursor-not-allowed'
+                  )}
+                  title={aiSearchAvailable ? 'Open AI search' : 'AI search unavailable'}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  AI
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Skills-only: content search options */}
+          {tabFeatures?.contentSearch && searchMode === 'content' && (
+            <div className="flex items-center gap-1 mt-2">
               <button
                 type="button"
-                onClick={handleAISearch}
-                disabled={!aiSearchAvailable}
+                onClick={() => onContentSearchOptionsChange({
+                  ...contentSearchOptions,
+                  caseSensitive: !contentSearchOptions.caseSensitive,
+                })}
                 className={cn(
-                  'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
-                  aiSearchAvailable
-                    ? 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-                    : 'text-muted-foreground/60 border-border/60 cursor-not-allowed'
+                  'px-1.5 py-1 text-[10px] rounded border transition-colors',
+                  contentSearchOptions.caseSensitive
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
                 )}
-                title={aiSearchAvailable ? 'Open AI search' : 'AI search unavailable'}
+                title="Case sensitive"
               >
-                <Sparkles className="h-3 w-3" />
-                AI
+                Aa
+              </button>
+              <button
+                type="button"
+                onClick={() => onContentSearchOptionsChange({
+                  ...contentSearchOptions,
+                  wholeWord: !contentSearchOptions.wholeWord,
+                })}
+                className={cn(
+                  'px-1.5 py-1 text-[10px] rounded border transition-colors',
+                  contentSearchOptions.wholeWord
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                )}
+                title="Whole word"
+              >
+                W
+              </button>
+              <button
+                type="button"
+                onClick={() => onContentSearchOptionsChange({
+                  ...contentSearchOptions,
+                  regex: !contentSearchOptions.regex,
+                })}
+                className={cn(
+                  'px-1.5 py-1 text-[10px] rounded border transition-colors',
+                  contentSearchOptions.regex
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                )}
+                title="Regex"
+              >
+                .*
               </button>
             </div>
+          )}
 
-            {searchMode === 'content' && (
-              <div className="flex items-center gap-1 mt-2">
-                <button
-                  type="button"
-                  onClick={() => onContentSearchOptionsChange({
-                    ...contentSearchOptions,
-                    caseSensitive: !contentSearchOptions.caseSensitive,
-                  })}
-                  className={cn(
-                    'px-1.5 py-1 text-[10px] rounded border transition-colors',
-                    contentSearchOptions.caseSensitive
-                      ? 'bg-primary/10 text-primary border-primary/40'
-                      : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-                  )}
-                  title="Case sensitive"
-                >
-                  Aa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onContentSearchOptionsChange({
-                    ...contentSearchOptions,
-                    wholeWord: !contentSearchOptions.wholeWord,
-                  })}
-                  className={cn(
-                    'px-1.5 py-1 text-[10px] rounded border transition-colors',
-                    contentSearchOptions.wholeWord
-                      ? 'bg-primary/10 text-primary border-primary/40'
-                      : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-                  )}
-                  title="Whole word"
-                >
-                  W
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onContentSearchOptionsChange({
-                    ...contentSearchOptions,
-                    regex: !contentSearchOptions.regex,
-                  })}
-                  className={cn(
-                    'px-1.5 py-1 text-[10px] rounded border transition-colors',
-                    contentSearchOptions.regex
-                      ? 'bg-primary/10 text-primary border-primary/40'
-                      : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-                  )}
-                  title="Regex"
-                >
-                  .*
-                </button>
-              </div>
-            )}
-
-            {/* Filters row: Tag filter + Folder filter + Controls */}
+          {/* Skills-only: tag + folder filters */}
+          {tabFeatures?.tagFilter && (
             <div className="flex items-center justify-between mt-2 gap-2" ref={tagFilterRef}>
               <div className="relative flex-1 min-w-0">
                 <TagFilterChips
@@ -934,26 +932,74 @@ export function SkillTreeSidebar({
                 </div>
               )}
             </div>
+          )}
 
-            {/* Folder filter row */}
-            {availableFolders.length > 1 && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground flex-shrink-0">Storage:</span>
-                <FolderFilterChips
-                  selectedFolders={selectedFolders}
-                  availableFolders={availableFolders}
-                  onToggleFolder={(folder) => {
-                    if (selectedFolders.includes(folder)) {
-                      onSelectedFoldersChange(selectedFolders.filter((f) => f !== folder))
-                    } else {
-                      onSelectedFoldersChange([...selectedFolders, folder])
-                    }
-                  }}
-                />
-              </div>
+          {/* Skills-only: folder filter */}
+          {tabFeatures?.folderFilter && availableFolders.length > 1 && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] text-muted-foreground flex-shrink-0">Storage:</span>
+              <FolderFilterChips
+                selectedFolders={selectedFolders}
+                availableFolders={availableFolders}
+                onToggleFolder={(folder) => {
+                  if (selectedFolders.includes(folder)) {
+                    onSelectedFoldersChange(selectedFolders.filter((f) => f !== folder))
+                  } else {
+                    onSelectedFoldersChange([...selectedFolders, folder])
+                  }
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Tab triggers */}
+        <Tabs.List className="flex-shrink-0 flex border-b border-border">
+          <Tabs.Trigger
+            value="skills"
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'border-b-2 border-transparent',
+              'text-muted-foreground hover:text-foreground',
+              'data-[state=active]:text-foreground data-[state=active]:border-primary',
+              'transition-colors'
             )}
-          </div>
+            data-testid={selectors.sidebar.tabSkills}
+          >
+            <Search className="h-3.5 w-3.5" />
+            Skills
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="agents"
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'border-b-2 border-transparent',
+              'text-muted-foreground hover:text-foreground',
+              'data-[state=active]:text-foreground data-[state=active]:border-primary',
+              'transition-colors'
+            )}
+            data-testid={selectors.sidebar.tabAgents}
+          >
+            <User className="h-3.5 w-3.5" />
+            Agents
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="teams"
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'border-b-2 border-transparent',
+              'text-muted-foreground hover:text-foreground',
+              'data-[state=active]:text-foreground data-[state=active]:border-primary',
+              'transition-colors'
+            )}
+          >
+            <Users className="h-3.5 w-3.5" />
+            Teams
+          </Tabs.Trigger>
+        </Tabs.List>
 
+        {/* Skills Tab */}
+        <Tabs.Content value="skills" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
           {/* Tree */}
           <div className="flex-1 overflow-y-auto py-1">
             {searchMode === 'content' ? (
@@ -1153,7 +1199,8 @@ export function SkillTreeSidebar({
         <Tabs.Content value="agents" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
           <AgentListPanel
             selectedAgentId={selectedAgentId}
-            onSelectAgent={setSelectedAgentId}
+            onSelectAgent={onSelectAgentFromMenu ?? setSelectedAgentId}
+            searchQuery={agentSearchQuery}
             className="flex-1"
           />
         </Tabs.Content>
@@ -1162,7 +1209,8 @@ export function SkillTreeSidebar({
         <Tabs.Content value="teams" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
           <TeamListPanel
             selectedTeamId={selectedTeamId}
-            onSelectTeam={setSelectedTeamId}
+            onSelectTeam={onSelectTeamFromMenu ?? setSelectedTeamId}
+            searchQuery={teamSearchQuery}
             className="flex-1"
           />
         </Tabs.Content>

@@ -9,7 +9,7 @@ import { CodeBlock } from "../../../markdown/components/CodeBlock";
  * Collapsed: Shows the URL (WebFetch) or query (WebSearch) prominently.
  * Expanded: Shows fetched content or search results via CodeBlock.
  */
-export function AgentWebFetchCard({ event, result }: ToolCardProps) {
+export function AgentWebFetchCard({ event, result, viewMode }: ToolCardProps) {
   const toolName = event.tool_name || "WebFetch";
   const isSearch = toolName === "WebSearch";
   const parsed = parseToolInput(event.tool_input);
@@ -33,6 +33,7 @@ export function AgentWebFetchCard({ event, result }: ToolCardProps) {
       summary={summary}
       timestamp={event.timestamp}
       result={result}
+      compact={viewMode === "compact"}
     >
       {/* URL as clickable link (WebFetch) */}
       {url && (

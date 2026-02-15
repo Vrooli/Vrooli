@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, MessageSquare, ChevronDown } from "lucide-react";
+import { Bot, MessageSquare, ChevronDown, Settings } from "lucide-react";
 
 export type ChatMode = "llm" | "agent";
 
@@ -12,6 +12,8 @@ interface ModeSelectorProps {
   disabled?: boolean;
   /** Whether the chat is currently in agent mode (prevents switching) */
   isAgentActive?: boolean;
+  /** Open settings focused on agent tab */
+  onOpenAgentSettings?: () => void;
 }
 
 // Define mode options as a tuple to ensure at least one element
@@ -40,7 +42,8 @@ export function ModeSelector({
   mode,
   onModeChange,
   disabled = false,
-  isAgentActive = false
+  isAgentActive = false,
+  onOpenAgentSettings,
 }: ModeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,10 +61,10 @@ export function ModeSelector({
   }, []);
 
   // Always returns a valid mode since we have a fallback
-  const currentMode = MODES.find(m => m.value === mode) ?? DEFAULT_MODE;
+  const currentMode = MODES.find((m) => m.value === mode) ?? DEFAULT_MODE;
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative flex items-center gap-1">
       <button
         type="button"
         onClick={() => !disabled && !isAgentActive && setIsOpen(!isOpen)}
@@ -82,34 +85,67 @@ export function ModeSelector({
         {!isAgentActive && <ChevronDown className="h-3 w-3 opacity-50" />}
       </button>
 
+      {mode === "agent" && onOpenAgentSettings && (
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(false);
+            onOpenAgentSettings();
+          }}
+          className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+          title="Open Agent settings"
+          aria-label="Open Agent settings"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </button>
+      )}
+
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-1 w-56 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg z-50">
+        <div className="absolute bottom-full left-0 mb-1 w-64 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg z-50">
           <div className="p-1">
-            {MODES.map(option => (
-              <button
+            {MODES.map((option) => (
+              <div
                 key={option.value}
-                type="button"
-                onClick={() => {
-                  onModeChange(option.value);
-                  setIsOpen(false);
-                }}
                 className={`
-                  w-full flex items-start gap-3 px-3 py-2 rounded-md text-left
-                  transition-colors duration-150
-                  ${mode === option.value
-                    ? "bg-zinc-700 text-white"
-                    : "text-zinc-300 hover:bg-zinc-700/50"
-                  }
+                  flex items-center gap-1 rounded-md
+                  ${mode === option.value ? "bg-zinc-700" : "hover:bg-zinc-700/50"}
                 `}
               >
-                <div className={`mt-0.5 ${mode === option.value ? "text-blue-400" : "text-zinc-400"}`}>
-                  {option.icon}
-                </div>
-                <div>
-                  <div className="font-medium">{option.label}</div>
-                  <div className="text-xs text-zinc-400">{option.description}</div>
-                </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onModeChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className="flex-1 flex items-start gap-3 px-3 py-2 text-left transition-colors duration-150"
+                >
+                  <div className={`mt-0.5 ${mode === option.value ? "text-blue-400" : "text-zinc-400"}`}>
+                    {option.icon}
+                  </div>
+                  <div>
+                    <div className={`font-medium ${mode === option.value ? "text-white" : "text-zinc-300"}`}>
+                      {option.label}
+                    </div>
+                    <div className="text-xs text-zinc-400">{option.description}</div>
+                  </div>
+                </button>
+
+                {option.value === "agent" && onOpenAgentSettings && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsOpen(false);
+                      onOpenAgentSettings();
+                    }}
+                    className="mr-1 p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-600/60 transition-colors"
+                    title="Open Agent settings"
+                    aria-label="Open Agent settings"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
           {mode === "agent" && (

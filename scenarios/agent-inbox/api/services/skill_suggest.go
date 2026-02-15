@@ -121,14 +121,36 @@ func (s *SkillSuggestService) SuggestSkills(ctx context.Context, repo *persisten
 	}
 
 	// Search prompt-manager for each query
+	// Fast path: if the first query is already high-confidence, skip extra network calls.
 	var allResults []pmSearchResult
-	for _, query := range queries {
-		results, err := s.searchPromptManager(ctx, query, s.cfg.MaxSuggestions)
-		if err != nil {
-			log.Printf("skill suggest: search failed for query %q: %v", query, err)
-			continue
+	firstResults, err := s.searchPromptManager(ctx, queries[0], s.cfg.MaxSuggestions)
+	if err != nil {
+		log.Printf("skill suggest: search failed for query %q: %v", queries[0], err)
+	} else {
+		allResults = append(allResults, firstResults...)
+	}
+
+	if len(queries) > 1 && !hasHighConfidenceResults(firstResults, minInt(3, s.cfg.MaxSuggestions), 0.85) {
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+
+		for _, query := range queries[1:] {
+			query := query
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				results, err := s.searchPromptManager(ctx, query, s.cfg.MaxSuggestions)
+				if err != nil {
+					log.Printf("skill suggest: search failed for query %q: %v", query, err)
+					return
+				}
+				mu.Lock()
+				allResults = append(allResults, results...)
+				mu.Unlock()
+			}()
 		}
-		allResults = append(allResults, results...)
+
+		wg.Wait()
 	}
 
 	// Merge, deduplicate, and rank
@@ -144,6 +166,31 @@ func (s *SkillSuggestService) SuggestSkills(ctx context.Context, repo *persisten
 	s.setCached(cacheKey, resp)
 
 	return resp, nil
+}
+
+func minInt(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func hasHighConfidenceResults(results []pmSearchResult, minCount int, threshold float64) bool {
+	if minCount <= 0 {
+		return false
+	}
+
+	count := 0
+	for _, result := range results {
+		if result.Score >= threshold || result.ScorePercent >= int(threshold*100) {
+			count++
+			if count >= minCount {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // buildContextSummary constructs a text summary from the request.

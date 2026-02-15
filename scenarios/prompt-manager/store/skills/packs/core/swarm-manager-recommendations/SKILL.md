@@ -1,5 +1,7 @@
 ## Swarm Manager Recommendations
 
+**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — canonical reference for folder structure, artifact schemas, and interaction patterns.
+
 Use `swarm-manager` as the single control plane for scenario-change intent.
 This skill is mandatory for teams that produce recommendations/findings for execution.
 

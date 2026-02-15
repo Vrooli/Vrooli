@@ -6,10 +6,7 @@ Apply a well-researched fix to the codebase, following the remediation plan from
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` - item metadata (including bug description, reproduction steps)
-- `research/summary.md` - root cause analysis and fix plan (required)
-- Any supporting research files (stack traces, code analysis)
+See `swarm-manager-backlog-tools` for folder structure, artifact schemas, and reading order.
 
 ## Output Requirements
 

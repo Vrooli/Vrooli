@@ -77,6 +77,8 @@ const MODE_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   };
 
 interface SuggestionsProps {
+  embedded?: boolean;
+
   templates: TemplateWithSource[];
   currentModePath: string[];
   modeHistory: ModeHistoryEntry[];
@@ -111,6 +113,7 @@ export function Suggestions({
   onResetTemplate,
   onCreateTemplate,
   onRecordModeUsage,
+  embedded = false,
 }: SuggestionsProps) {
   // Get items at current level
   const { submodes, levelTemplates } = useMemo(() => {
@@ -208,8 +211,12 @@ export function Suggestions({
 
   const isAtRoot = currentModePath.length === 0;
 
+  const containerClass = embedded
+    ? "rounded-lg border border-white/10 bg-slate-800/40 overflow-hidden"
+    : "mb-3 rounded-xl border border-white/10 bg-slate-800/50 overflow-hidden";
+
   return (
-    <div className="mb-3 rounded-xl border border-white/10 bg-slate-800/50 overflow-hidden">
+    <div className={containerClass}>
       {/* Header with breadcrumb */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-slate-800/30">
         <div className="flex items-center gap-2 text-sm">
@@ -229,7 +236,7 @@ export function Suggestions({
                 isAtRoot ? "text-white font-medium" : ""
               }`}
             >
-              Suggestions
+              {embedded ? "All" : "Suggestions"}
             </button>
             {currentModePath.map((mode, index) => (
               <span key={index} className="flex items-center gap-1">

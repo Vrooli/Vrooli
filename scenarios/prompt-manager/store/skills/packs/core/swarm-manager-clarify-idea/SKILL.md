@@ -6,41 +6,13 @@ Generate targeted clarifying questions to reduce ambiguity, uncover hidden requi
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` containing item metadata
-- Any user-added context files in the folder
+See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+
 - Existing `clarify/questions.json` if present (preserve existing Q&A)
 
 ## Output Requirements
 
-**Primary output**: `clarify/questions.json`
-
-Schema:
-```json
-{
-  "questions": [{
-    "id": "q1",
-    "question": "What authentication method should be used?",
-    "category": "technical",
-    "importance": "critical",
-    "options": ["OAuth 2.0", "JWT tokens", "Session-based"],
-    "answer": ""
-  }],
-  "generated_at": "2024-01-15T10:30:00Z",
-  "max_questions": 10
-}
-```
-
-### Field Definitions
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique identifier (q1, q2, ...) |
-| `question` | Yes | Clear, specific question ending with ? |
-| `category` | Yes | One of: users, technical, scope, constraints, integration |
-| `importance` | Yes | One of: critical, important, nice-to-have |
-| `options` | No | Suggested answers (2-4 options, include "Other" if open-ended) |
-| `answer` | Yes | Empty string (filled by user later) |
+**Primary output**: `clarify/questions.json` (see `swarm-manager-backlog-tools` for full schema)
 
 ### Categories
 

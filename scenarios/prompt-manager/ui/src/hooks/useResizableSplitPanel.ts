@@ -6,6 +6,7 @@
  * - Mouse drag handlers for resize
  * - Min/max constraints with ResizeObserver clamping
  * - Cursor feedback during drag
+ * - Snap-close: drag below a threshold to collapse the panel to zero width
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -13,6 +14,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 const DEFAULT_WIDTH = 560
 const MIN_WIDTH = 320
 const MAX_WIDTH_RATIO = 0.75 // Maximum 75% of container width
+const SNAP_CLOSE_THRESHOLD = 200 // Snap to collapsed when released below this width
 
 interface UseResizableSplitPanelOptions {
   /** Default width if not stored in localStorage */
@@ -25,6 +27,8 @@ interface UseResizableSplitPanelOptions {
   anchor?: 'left' | 'right'
   /** localStorage key for persistence */
   storageKey?: string
+  /** Width threshold below which panel snaps to collapsed (0). Set to 0 to disable snap-close. */
+  snapCloseThreshold?: number
 }
 
 interface UseResizableSplitPanelResult {
@@ -32,10 +36,16 @@ interface UseResizableSplitPanelResult {
   width: number
   /** Whether currently resizing */
   isResizing: boolean
+  /** Whether the panel is snapped closed (width === 0) */
+  isCollapsed: boolean
   /** Ref to attach to the container element for ResizeObserver */
   containerRef: React.RefObject<HTMLDivElement>
   /** Mouse down handler for the resize handle */
   handleResizeStart: (e: React.MouseEvent) => void
+  /** Expand panel to its previous width (or defaultWidth) */
+  expand: () => void
+  /** Collapse panel to zero width */
+  collapse: () => void
 }
 
 export function useResizableSplitPanel(
@@ -47,10 +57,12 @@ export function useResizableSplitPanel(
     maxWidthRatio = MAX_WIDTH_RATIO,
     anchor = 'left',
     storageKey = 'pm.editorSplitWidth',
+    snapCloseThreshold = SNAP_CLOSE_THRESHOLD,
   } = options
 
   const containerRef = useRef<HTMLDivElement>(null)
   const resizeRef = useRef<{ startX: number; startWidth: number; maxWidth: number } | null>(null)
+  const prevWidthRef = useRef<number>(defaultWidth)
 
   // Initialize width from localStorage
   const [width, setWidth] = useState(() => {
@@ -58,7 +70,9 @@ export function useResizableSplitPanel(
     const stored = localStorage.getItem(storageKey)
     if (stored) {
       const parsed = Number(stored)
-      if (Number.isFinite(parsed) && parsed >= minWidth) {
+      // Accept 0 (collapsed) or any value >= minWidth
+      if (Number.isFinite(parsed) && (parsed === 0 || parsed >= minWidth)) {
+        if (parsed > 0) prevWidthRef.current = parsed
         return parsed
       }
     }
@@ -84,6 +98,8 @@ export function useResizableSplitPanel(
       const maxWidth = Math.floor(containerWidth * maxWidthRatio)
 
       setWidth((prev) => {
+        // Don't clamp when collapsed
+        if (prev === 0) return 0
         if (prev > maxWidth) return Math.max(minWidth, maxWidth)
         if (prev < minWidth) return minWidth
         return prev
@@ -106,14 +122,34 @@ export function useResizableSplitPanel(
 
       const delta = e.clientX - resizeRef.current.startX
       const direction = anchor === 'right' ? -1 : 1
-      const newWidth = resizeRef.current.startWidth + delta * direction
-      const clampedWidth = Math.max(minWidth, Math.min(resizeRef.current.maxWidth, newWidth))
+      const rawWidth = resizeRef.current.startWidth + delta * direction
+
+      // When snap-close is enabled, allow dragging below minWidth (down to 0) for visual feedback
+      const clampedWidth = snapCloseThreshold > 0
+        ? Math.max(0, Math.min(resizeRef.current.maxWidth, rawWidth))
+        : Math.max(minWidth, Math.min(resizeRef.current.maxWidth, rawWidth))
       setWidth(clampedWidth)
     }
 
     const handleMouseUp = () => {
       setIsResizing(false)
-      resizeRef.current = null
+
+      // Snap-close: if released below threshold, collapse; otherwise clamp to minWidth
+      if (snapCloseThreshold > 0) {
+        setWidth((prev) => {
+          if (prev < snapCloseThreshold && prev < minWidth) {
+            // Store the width we started dragging from for expand restoration
+            prevWidthRef.current = resizeRef.current?.startWidth ?? defaultWidth
+            resizeRef.current = null
+            return 0
+          }
+          resizeRef.current = null
+          return prev < minWidth ? minWidth : prev
+        })
+      } else {
+        resizeRef.current = null
+      }
+
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
@@ -129,7 +165,7 @@ export function useResizableSplitPanel(
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [anchor, isResizing, minWidth])
+  }, [anchor, isResizing, minWidth, snapCloseThreshold, defaultWidth])
 
   // Handler to start resizing
   const handleResizeStart = useCallback(
@@ -150,10 +186,25 @@ export function useResizableSplitPanel(
     [width, maxWidthRatio]
   )
 
+  const expand = useCallback(() => {
+    const restored = prevWidthRef.current > 0 ? prevWidthRef.current : defaultWidth
+    setWidth(restored)
+  }, [defaultWidth])
+
+  const collapse = useCallback(() => {
+    if (width > 0) {
+      prevWidthRef.current = width
+    }
+    setWidth(0)
+  }, [width])
+
   return {
     width,
     isResizing,
+    isCollapsed: width === 0,
     containerRef,
     handleResizeStart,
+    expand,
+    collapse,
   }
 }

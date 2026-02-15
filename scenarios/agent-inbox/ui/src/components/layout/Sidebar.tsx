@@ -399,6 +399,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                 onClick={onToggleCollapsed}
                 className="hidden lg:flex p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
                 data-testid="collapse-sidebar-button"
+                aria-label="Collapse sidebar"
               >
                 <PanelLeftClose className="h-4 w-4" />
               </button>
@@ -420,6 +421,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                     : "text-slate-500 hover:text-white hover:bg-white/10"
                 }`}
                 data-testid="toggle-selection-mode"
+                aria-label="Toggle selection mode"
               >
                 <CheckSquare className="h-4 w-4" />
               </button>
@@ -448,7 +450,8 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                 disabled={isCreatingChat || selectionMode}
                 className="px-2"
                 data-testid="new-chat-dropdown"
-              >
+                  aria-label="Choose chat type"
+                >
                 <ChevronDown className="h-4 w-4" />
               </Button>
             )}
@@ -757,7 +760,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
       {labels.length > 0 && (
         <div className="px-3 py-2 border-t border-white/10 shrink-0">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wide shrink-0">Labels:</span>
+            <span className="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">Labels:</span>
             {labels.slice(0, 4).map((label) => (
               <Badge
                 key={label.id}
@@ -771,7 +774,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
             {labels.length > 4 && (
               <button
                 onClick={onManageLabels}
-                className="text-[10px] text-slate-500 hover:text-white shrink-0"
+                className="text-[10px] text-slate-400 hover:text-white shrink-0"
               >
                 +{labels.length - 4}
               </button>
@@ -799,6 +802,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
               onClick={onShowKeyboardShortcuts}
               className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
               data-testid="sidebar-shortcuts-button"
+              aria-label="Open keyboard shortcuts"
             >
               <Keyboard className="h-4 w-4" />
             </button>
@@ -808,6 +812,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
               onClick={onOpenSettings}
               className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
               data-testid="sidebar-settings-button"
+              aria-label="Open settings"
             >
               <Settings className="h-4 w-4" />
             </button>
@@ -1014,7 +1019,7 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
               {chat.is_starred && (
                 <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
               )}
-              <span className="text-[10px] text-slate-500">{formatTime(chat.updated_at)}</span>
+              <span className="text-[10px] text-slate-400">{formatTime(chat.updated_at)}</span>
             </div>
           </div>
 
@@ -1032,7 +1037,7 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
               />
             </div>
           ) : (
-            <p className="text-xs text-slate-500 truncate mt-0.5">
+            <p className="text-xs text-slate-400 truncate mt-0.5">
               {chat.preview || "No messages yet"}
             </p>
           )}
@@ -1046,7 +1051,7 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
                 </Badge>
               ))}
               {labels.length > 2 && (
-                <span className="text-[9px] text-slate-500">+{labels.length - 2}</span>
+                <span className="text-[9px] text-slate-400">+{labels.length - 2}</span>
               )}
             </div>
           )}

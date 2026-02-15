@@ -52,7 +52,7 @@ import type { TemplateWithSource, SkillWithSource, Skill } from "../../lib/types
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "agent" | "tools" | "templates" | "skills" | "data";
+export type SettingsTab = "general" | "ai" | "agent" | "tools" | "templates" | "suggestions" | "skills" | "data";
 
 // Default model used when none is set
 export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
@@ -106,6 +106,7 @@ interface SettingsProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void;
+  initialTab?: SettingsTab;
 }
 
 export function Settings({
@@ -123,8 +124,9 @@ export function Settings({
   viewMode,
   onViewModeChange,
   onEditTemplate,
+  initialTab,
 }: SettingsProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab ?? "general");
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem("theme") as Theme) || "dark";
@@ -160,12 +162,16 @@ export function Settings({
     syncDiscoveredTools,
   } = useTools({ enabled: open && (activeTab === "ai" || activeTab === "tools") });
 
-  // Suggestions and templates settings
+  // Suggestions settings
   const {
     visible: suggestionsVisible,
     setVisible: setSuggestionsVisible,
     mergeModel,
     setMergeModel,
+    autoSuggest,
+    autoSuggestLoading,
+    autoSuggestError,
+    updateAutoSuggest,
   } = useSuggestionsSettings();
 
   const { history: modeHistory, clearHistory: clearModeHistory } = useModeHistory();
@@ -188,6 +194,10 @@ export function Settings({
   const [editingSkill, setEditingSkill] = useState<SkillWithSource | null>(null);
   const [isCreatingSkill, setIsCreatingSkill] = useState(false);
 
+  const [suggestionsDraft, setSuggestionsDraft] = useState(autoSuggest);
+  const [isSavingSuggestions, setIsSavingSuggestions] = useState(false);
+  const [suggestionsSaveError, setSuggestionsSaveError] = useState<string | null>(null);
+
   // Refresh templates when switching to templates tab
   useEffect(() => {
     if (activeTab === "templates") {
@@ -207,6 +217,10 @@ export function Settings({
         .finally(() => setIsLoadingSkills(false));
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    setSuggestionsDraft(autoSuggest);
+  }, [autoSuggest]);
 
   const handleDeleteTemplate = useCallback(async (templateId: string) => {
     await deleteTemplateFromAPI(templateId);
@@ -283,6 +297,25 @@ export function Settings({
   const handleRunTool = useCallback((tool: EffectiveTool) => {
     setSelectedToolForRun(tool);
   }, []);
+
+  const handleSaveSuggestions = useCallback(async () => {
+    setIsSavingSuggestions(true);
+    setSuggestionsSaveError(null);
+    try {
+      await updateAutoSuggest(suggestionsDraft);
+    } catch (error) {
+      setSuggestionsSaveError(error instanceof Error ? error.message : "Failed to save suggestions settings");
+    } finally {
+      setIsSavingSuggestions(false);
+    }
+  }, [suggestionsDraft, updateAutoSuggest]);
+
+  // Keep tab selection in sync with open intent from caller
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab ?? "general");
+    }
+  }, [open, initialTab]);
 
   // Apply theme class to document
   useEffect(() => {
@@ -369,6 +402,12 @@ export function Settings({
               <span className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4" />
                 Templates
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="suggestions">
+              <span className="flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                Suggestions
               </span>
             </TabsTrigger>
             <TabsTrigger value="skills">
@@ -553,20 +592,158 @@ export function Settings({
           {/* Templates Tab */}
           <TabsContent value="templates" className="space-y-6">
             <TemplatesSettingsTab
-              suggestionsVisible={suggestionsVisible}
-              onToggleSuggestions={setSuggestionsVisible}
-              mergeModel={mergeModel}
-              onMergeModelChange={setMergeModel}
               templates={templates}
               onEditTemplate={handleEditTemplate}
               onDeleteTemplate={handleDeleteTemplate}
               onResetTemplate={handleResetTemplate}
               modeHistory={modeHistory}
               onClearHistory={clearModeHistory}
-              models={models}
               isLoading={isLoadingTemplates}
             />
           </TabsContent>
+
+          {/* Suggestions Tab */}
+          <TabsContent value="suggestions" className="space-y-6">
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Suggestions Panel</h3>
+              <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
+                <div>
+                  <p className="text-sm text-white">Show Suggestions</p>
+                  <p className="text-xs text-slate-500">Display template suggestions above message input</p>
+                </div>
+                <button
+                  onClick={() => setSuggestionsVisible(!suggestionsVisible)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    suggestionsVisible ? "bg-indigo-600" : "bg-slate-600"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      suggestionsVisible ? "translate-x-5" : ""
+                    }`}
+                  />
+                </button>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">AI Merge Model</h3>
+              <p className="text-xs text-slate-500 mb-3">Model used when merging your message with a template</p>
+              <ModelSelector
+                models={models}
+                selectedModel={mergeModel}
+                onSelectModel={setMergeModel}
+                label="Merge model"
+                compact
+              />
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-sm font-medium text-slate-300">Auto Skill Suggestion</h3>
+              {autoSuggestError && (
+                <p className="text-xs text-amber-400">Could not load persisted settings: {autoSuggestError}</p>
+              )}
+              {suggestionsSaveError && (
+                <p className="text-xs text-red-400">{suggestionsSaveError}</p>
+              )}
+
+              <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
+                <div>
+                  <p className="text-sm text-white">Enable Auto Suggest</p>
+                  <p className="text-xs text-slate-500">Suggest relevant skills while typing</p>
+                </div>
+                <button
+                  disabled={autoSuggestLoading}
+                  onClick={() => setSuggestionsDraft((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
+                    suggestionsDraft.enabled ? "bg-indigo-600" : "bg-slate-600"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      suggestionsDraft.enabled ? "translate-x-5" : ""
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="text-xs text-slate-400">
+                  Debounce (ms)
+                  <input
+                    type="number"
+                    min={100}
+                    max={10000}
+                    value={suggestionsDraft.debounceMs}
+                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, debounceMs: Number(e.target.value) || 0 }))}
+                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                  />
+                </label>
+                <label className="text-xs text-slate-400">
+                  Throttle (ms)
+                  <input
+                    type="number"
+                    min={1000}
+                    max={120000}
+                    value={suggestionsDraft.throttleMs}
+                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, throttleMs: Number(e.target.value) || 0 }))}
+                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                  />
+                </label>
+                <label className="text-xs text-slate-400">
+                  Min input length
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={suggestionsDraft.minInputLength}
+                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, minInputLength: Number(e.target.value) || 0 }))}
+                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                  />
+                </label>
+                <label className="text-xs text-slate-400">
+                  Min score (%)
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={suggestionsDraft.minScorePercent}
+                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, minScorePercent: Number(e.target.value) || 0 }))}
+                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                  />
+                </label>
+                <label className="text-xs text-slate-400 sm:col-span-2">
+                  Max suggestions
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={suggestionsDraft.maxSuggestions}
+                    onChange={(e) => setSuggestionsDraft((prev) => ({ ...prev, maxSuggestions: Number(e.target.value) || 0 }))}
+                    className="mt-1 w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={handleSaveSuggestions}
+                  disabled={isSavingSuggestions || autoSuggestLoading}
+                  data-testid="save-suggestions-settings-button"
+                >
+                  {isSavingSuggestions ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : "Save suggestions settings"}
+                </Button>
+              </div>
+            </section>
+          </TabsContent>
+
+
 
           {/* Skills Tab */}
           <TabsContent value="skills" className="space-y-6">

@@ -6,10 +6,7 @@ Thoroughly research an idea's feasibility, dependencies, implementation approach
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` containing item metadata
-- Any user-added context files in the folder
-- Existing Vrooli scenarios and resources for integration analysis
+See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
 
 ## Output Requirements
 

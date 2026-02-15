@@ -6,6 +6,7 @@
   "description": "Propose thoughtful improvements, alternative approaches, and enhancements for backlog items.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "idea-agent", "workflow"],
+  "defaultScope": "swarm-manager-backlog-tools",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

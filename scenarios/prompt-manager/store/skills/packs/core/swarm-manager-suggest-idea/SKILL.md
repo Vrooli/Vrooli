@@ -6,44 +6,13 @@ Propose thoughtful improvements, alternative approaches, and enhancements that c
 
 ## Input Context
 
-- Item folder at `{{ITEM_FOLDER}}`
-- `spec.json` containing item metadata
-- `clarify/questions.json` if present (review answers for context)
-- Any user-added context files
+See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+
 - Existing `suggest/suggestions.json` if present (preserve existing)
 
 ## Output Requirements
 
-**Primary output**: `suggest/suggestions.json`
-
-Schema:
-```json
-{
-  "suggestions": [{
-    "id": "s1",
-    "suggestion": "Use WebSocket instead of polling for real-time updates",
-    "details": "WebSocket would reduce latency from seconds to milliseconds and decrease server load by eliminating polling overhead...",
-    "category": "architecture",
-    "impact": "high",
-    "status": "pending",
-    "rejection_reason": ""
-  }],
-  "generated_at": "2024-01-15T10:30:00Z",
-  "max_suggestions": 7
-}
-```
-
-### Field Definitions
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique identifier (s1, s2, ...) |
-| `suggestion` | Yes | One-line summary of the improvement |
-| `details` | Yes | Full explanation with rationale (2-4 sentences) |
-| `category` | Yes | One of: architecture, ux, scope, risk, opportunity |
-| `impact` | Yes | One of: high, medium, low |
-| `status` | Yes | Always "pending" for new suggestions |
-| `rejection_reason` | Yes | Empty string (filled by user if rejected) |
+**Primary output**: `suggest/suggestions.json` (see `swarm-manager-backlog-tools` for full schema)
 
 ### Categories
 
