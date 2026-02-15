@@ -19,7 +19,7 @@ Default execution behavior for new queue actions (`manual`, `scheduled`, `yolo`)
 Delete operation that preserves selected scenario artifacts by creating an archived backlog item.
 
 ## Prompt Manager Team Output
-Findings, plans, and recommendations produced by prompt-manager teams and persisted as backlog artifacts.
+Findings, plans, and recommendations produced by prompt-manager agent teams (Debug, Feature, QA, Refactor) and deposited into swarm-manager as backlog items. Swarm Manager serves as the staging layer where operators review and refine these plans before approving them for execution. Teams write backlog items via the `swarm-manager-recommendations` skill in prompt-manager.
 
 ## Governance Modes
 - `manual`: operator explicitly starts work.

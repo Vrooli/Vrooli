@@ -18,7 +18,7 @@ Improve scenario code quality plans, reduce complexity, and modernize patterns w
 5. If any test fails, the step is reverted immediately.
 
 ## Swarm Manager Contract (Mandatory)
-- Use the shared `swarm-manager-tools` skill for all refactor handoffs.
+- Use the shared `swarm-manager-recommendations` skill for all refactor handoffs.
 - Required fields: `targetScenario`, `problemOrOpportunity`, `proposedAction`, `evidence`, `riskLevel`, `executionModeHint`, `createdByTeam`, `sourceRunId`.
 - Refactor team does not directly modify target scenario code under this workflow.
 
@@ -40,4 +40,4 @@ Improve scenario code quality plans, reduce complexity, and modernize patterns w
 - `prompt-manager skill read utils-unification`
 - `prompt-manager skill read concept-vocabulary-unification`
 - `prompt-manager skill read domain-compression`
-- `prompt-manager skill read swarm-manager-tools`
+- `prompt-manager skill read swarm-manager-recommendations`

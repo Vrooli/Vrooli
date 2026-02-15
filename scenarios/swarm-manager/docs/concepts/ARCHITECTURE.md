@@ -2,32 +2,37 @@
 
 ## Mental Model
 
-Swarm Manager is the control plane where backlog work is governed and executed.
+Swarm Manager is the **staging and review layer** for agent-generated plans. Its primary role is to receive work proposals from prompt-manager agent teams, let operators review and refine them, and then control when and how they execute.
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                            SWARM MANAGER                                 │
-│      "Backlog governance and execution control for scenario change"      │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  Prompt Manager Teams                                                    │
-│  (Debug / Feature / QA / Refactor)                                       │
-│          │                                                               │
-│          ▼                                                               │
-│  ┌────────────────┐     ┌─────────────────┐     ┌────────────────────┐   │
-│  │    BACKLOG     │ ──▶ │    EXECUTION    │ ──▶ │  SCENARIO CHANGES   │   │
-│  │ idea/research/ │     │ pending/running │     │ via agent-manager    │   │
-│  │ fix/execute    │     │ completed/failed│     │ + scenario lifecycle │   │
-│  └────────────────┘     └─────────────────┘     └────────────────────┘   │
-│          │                                                               │
-│          ▼                                                               │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │                 External Integrations                              │   │
-│  │  agent-manager | ecosystem-manager | vrooli CLI                    │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
+prompt-manager                         swarm-manager
+┌────────────────────────┐             ┌──────────────────────────────────┐
+│  Agent Teams           │             │  STAGING / REVIEW / EXECUTION    │
+│  ┌──────────────────┐  │             │                                  │
+│  │ Debug Team       │──┼── fix ─────▶│  ┌──────────┐                    │
+│  │ Feature Team     │──┼── idea ────▶│  │ BACKLOG  │  Operator reviews  │
+│  │ QA Team          │──┼── fix ─────▶│  │ items    │  plans, uses Idea  │
+│  │ Refactor Team    │──┼── execute ─▶│  └────┬─────┘  Agent to refine   │
+│  └──────────────────┘  │             │       │                           │
+│                        │             │       ▼                           │
+│  Skills define how     │             │  ┌──────────┐                    │
+│  teams analyze and     │             │  │  IDEA    │  clarify → suggest │
+│  produce findings      │             │  │  AGENT   │  → enhance         │
+│                        │             │  └────┬─────┘                    │
+└────────────────────────┘             │       │                           │
+                                       │       ▼                           │
+                                       │  ┌──────────────┐                │
+                                       │  │  EXECUTION   │  manual /      │
+                                       │  │  CONTROL     │  scheduled /   │
+                                       │  └──────┬───────┘  yolo          │
+                                       │         │                         │
+                                       │         ▼                         │
+                                       │  Generator / Improver agents      │
+                                       │  build or iterate the scenario    │
+                                       └──────────────────────────────────┘
 ```
+
+**Why this matters:** Agent teams in prompt-manager do analysis and produce plans, but they do not execute directly. Instead, they deposit their findings as backlog items into swarm-manager. This gives the operator a single place to review all agent-generated plans, refine them with the Idea Agent (clarify/suggest/enhance), and control execution — effectively a "pull request review" for agent work.
 
 Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 
@@ -45,6 +50,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
    ```
    Team finding -> Backlog item (idea/fix/execute/research) -> optional clarify/suggest/enhance -> queue
    ```
+   For idea items, the **Idea Agent** provides a 3-phase refinement workflow (clarify questions, suggest improvements, enhance into spec). See [DOC: docs/guides/idea-agent-workflow.md] for the full pipeline, schemas, and visual flow.
 
 2. **Archive scenario into backlog context**
    ```
@@ -75,7 +81,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 │ Backlog + scenarios + execution + settings orchestration     │
 ├─────────────────────────────────────────────────────────────┤
 │ INTEGRATION LAYER                                            │
-│ agent-manager + ecosystem-manager + Vrooli CLI adapters      │
+│ agent-manager + prompt-manager + ecosystem-manager + CLI     │
 ├─────────────────────────────────────────────────────────────┤
 │ PERSISTENCE LAYER                                            │
 │ Filesystem: backlog folders + .vrooli/*.json state           │
@@ -89,7 +95,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | Presentation | Functional | 4 primary tabs wired (`backlog`, `scenarios`, `execution`, `settings`) |
 | API Gateway | Implemented | Health, backlog, scenarios, settings, queue, execution, agent-manager status |
 | Domain Logic | Implemented | CRUD, archive, queue, research, execution scheduling and run control |
-| Integration | Implemented | Discovery-based clients and CLI-backed scenario operations |
+| Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/settings/queue JSON persisted on disk |
 
 ## Physical Structure

@@ -3,6 +3,7 @@ package scenarios
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -679,6 +680,67 @@ func TestDelete_WithArchive(t *testing.T) {
 	}
 	if len(preserved) != 0 {
 		t.Fatalf("expected preservedFiles to be empty, got %v", preserved)
+	}
+}
+
+func TestDelete_ProtectedScenarioRejected(t *testing.T) {
+	root := t.TempDir()
+	scenariosDir := filepath.Join(root, "scenarios")
+	swarmManagerPath := filepath.Join(scenariosDir, "swarm-manager")
+	testutil.WriteJSONFile(t, filepath.Join(swarmManagerPath, ".vrooli", "service.json"), map[string]any{
+		"profile": map[string]any{
+			"name":        "Swarm Manager",
+			"description": "Control plane",
+			"tags":        []string{"control-plane"},
+		},
+	})
+
+	handler := newTestHandler(root, []ScenarioSource{
+		{
+			Name:        "swarm-manager",
+			Description: "Control plane",
+			Path:        swarmManagerPath,
+			Status:      "running",
+			Tags:        []string{"control-plane"},
+		},
+	})
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
+
+	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/swarm-manager?archive=true", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	testutil.AssertStatusBadRequest(t, rec)
+	testutil.AssertFileExists(t, swarmManagerPath)
+	testutil.AssertFileNotExists(t, filepath.Join(swarmManagerPath, "ideas", "swarm-manager-archived", "spec.json"))
+}
+
+func TestDelete_WithArchive_DoesNotOverwriteExistingArchiveTarget(t *testing.T) {
+	root, sources := setupTestScenarios(t)
+
+	ideasDir := filepath.Join(root, "scenarios", "swarm-manager", "ideas")
+	existingArchiveDir := filepath.Join(ideasDir, "test-scenario-1-archived")
+	testutil.MakeDir(t, existingArchiveDir)
+	testutil.WriteJSONFile(t, filepath.Join(existingArchiveDir, "spec.json"), map[string]any{
+		"name":  "test-scenario-1-archived",
+		"title": "Existing archive",
+	})
+
+	handler := newTestHandler(root, sources)
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
+
+	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1?archive=true", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	testutil.AssertStatus(t, rec, http.StatusConflict)
+	testutil.AssertFileExists(t, filepath.Join(root, "scenarios", "test-scenario-1"))
+
+	spec := testutil.ReadJSONFile[map[string]any](t, filepath.Join(existingArchiveDir, "spec.json"))
+	if spec["title"] != "Existing archive" {
+		t.Fatalf("expected existing archive content to remain unchanged, got %#v", spec["title"])
 	}
 }
 

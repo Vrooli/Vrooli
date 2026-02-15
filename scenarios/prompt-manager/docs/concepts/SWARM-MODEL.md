@@ -211,7 +211,7 @@ Team: Review Squad
 
 ## Swarm Manager Integration: The Staging Layer
 
-Teams do not execute their plans directly. Instead, they deposit findings into [swarm-manager](../../../swarm-manager/) as backlog items using the `swarm-manager-tools` skill. This creates a **staging and review layer** between agent analysis and scenario execution.
+Teams do not execute their plans directly. Instead, they deposit findings into [swarm-manager](../../../swarm-manager/) as backlog items using the `swarm-manager-recommendations` skill. This creates a **staging and review layer** between agent analysis and scenario execution.
 
 ```
 prompt-manager (teams analyze)          swarm-manager (staging/review)
@@ -232,7 +232,7 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 - Execution governance (manual/scheduled/yolo) controls when approved work runs
 - Plans are git-tracked, human-readable, and editable before committing to execution
 
-**Team-to-backlog mapping** (defined in the `swarm-manager-tools` skill):
+**Team-to-backlog mapping** (defined in the `swarm-manager-recommendations` skill):
 
 | Team | Backlog Kind | Purpose |
 |------|-------------|---------|
@@ -241,7 +241,7 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 | QA Team | `fix` or `execute` | Quality issues and test improvements |
 | Refactor Team | `execute` or `fix` | Structural improvements |
 
-See [swarm-manager-tools SKILL.md](../../../store/skills/packs/core/swarm-manager-tools/SKILL.md) for the full team-to-backlog contract.
+See [swarm-manager-recommendations SKILL.md](../../../store/skills/packs/core/swarm-manager-recommendations/SKILL.md) for the full team-to-backlog contract.
 
 ## Key Benefits
 

@@ -1,3 +1,4 @@
+// DOC: docs/guides/idea-agent-workflow.md#phase-2-suggest
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "../ui/button";

@@ -19,7 +19,7 @@ A feature is done when:
 - [ ] No direct target-scenario code edits were made.
 
 ## Swarm Manager Contract (Mandatory)
-- Use the shared `swarm-manager-tools` skill for all handoffs.
+- Use the shared `swarm-manager-recommendations` skill for all handoffs.
 - Required fields: `targetScenario`, `problemOrOpportunity`, `proposedAction`, `evidence`, `riskLevel`, `executionModeHint`, `createdByTeam`, `sourceRunId`.
 - Feature team members do not directly modify target scenario code under this workflow.
 
@@ -41,4 +41,4 @@ A feature is done when:
 - `prompt-manager skill read api-steer`
 - `prompt-manager skill read storage-steer`
 - `prompt-manager skill read react-stability`
-- `prompt-manager skill read swarm-manager-tools`
+- `prompt-manager skill read swarm-manager-recommendations`

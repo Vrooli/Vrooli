@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/testutil"
 )
 
@@ -56,7 +57,7 @@ func setupTestHandlerWithAgent(t *testing.T, agent agentmanager.Service) (*Handl
 	for _, dir := range backlogKindDirs {
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
-	return NewHandlerWithClients(rootDir, agent), rootDir
+	return NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"}), rootDir
 }
 
 // createTestItem creates a test backlog item in the specified kind directory.
@@ -551,6 +552,7 @@ func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.Back
 	m.lastReq = &req
 	return m.result, m.err
 }
+
 func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }

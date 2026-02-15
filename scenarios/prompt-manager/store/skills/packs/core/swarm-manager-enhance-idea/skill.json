@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-enhance-idea",
+  "name": "Swarm Manager Enhance Idea",
+  "description": "Synthesize clarifications and accepted suggestions into a refined, actionable plan ready for processing.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "idea-agent", "workflow"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-14T06:00:00Z",
+  "updatedAt": "2026-02-14T06:00:00Z"
+}

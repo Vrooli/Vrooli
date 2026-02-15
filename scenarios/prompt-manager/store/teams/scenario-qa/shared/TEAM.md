@@ -25,7 +25,7 @@ Each dimension is rated:
 4. Report is delivered to director-swarm with prioritized recommendations.
 
 ## Swarm Manager Contract (Mandatory)
-- Use the shared `swarm-manager-tools` skill for all QA handoffs.
+- Use the shared `swarm-manager-recommendations` skill for all QA handoffs.
 - Required fields: `targetScenario`, `problemOrOpportunity`, `proposedAction`, `evidence`, `riskLevel`, `executionModeHint`, `createdByTeam`, `sourceRunId`.
 - QA team does not directly modify target scenario code under this workflow.
 
@@ -42,4 +42,4 @@ Each dimension is rated:
 - `prompt-manager skill read e2e-testing`
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read security`
-- `prompt-manager skill read swarm-manager-tools`
+- `prompt-manager skill read swarm-manager-recommendations`

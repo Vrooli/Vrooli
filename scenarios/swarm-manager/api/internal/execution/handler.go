@@ -121,7 +121,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot be queued") || strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "mode must") {
+		if strings.Contains(err.Error(), "cannot be queued") ||
+			strings.Contains(err.Error(), "required") ||
+			strings.Contains(err.Error(), "mode must") ||
+			strings.Contains(err.Error(), "delay_seconds") {
 			httputil.BadRequest(w, "[execution] create", err.Error())
 			return
 		}
@@ -231,6 +234,10 @@ func (h *Handler) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 	policy, err := h.service.UpdatePolicy(r.Context(), req)
 	if err != nil {
+		if strings.Contains(err.Error(), "default_mode") || strings.Contains(err.Error(), "default_delay_seconds") {
+			httputil.BadRequest(w, "[execution] policy update", err.Error())
+			return
+		}
 		httputil.InternalError(w, "[execution] policy update", "failed to persist execution policy")
 		return
 	}

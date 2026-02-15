@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/storage"
 )
 
@@ -43,6 +45,7 @@ type ServiceConfig struct {
 	StorePath    string
 	PolicyPath   string
 	AgentService agentSpawner
+	PromptClient promptmanager.Client
 }
 
 // Service owns execution lifecycle logic.
@@ -51,6 +54,7 @@ type Service struct {
 	store        Store
 	policyStore  *PolicyStore
 	agentService agentSpawner
+	promptClient promptmanager.Client
 	inspector    runInspector
 	stopper      runStopper
 	mu           sync.Mutex
@@ -63,11 +67,16 @@ func NewService(cfg ServiceConfig) *Service {
 		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
 	}
 
+	pc := cfg.PromptClient
+	if pc == nil {
+		pc = promptmanager.NewHTTPClient()
+	}
 	service := &Service{
 		rootDir:      rootDir,
 		store:        NewStore(cfg.StorePath),
 		policyStore:  newPolicyStore(cfg.PolicyPath),
 		agentService: cfg.AgentService,
+		promptClient: pc,
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
 		service.inspector = inspector
@@ -100,6 +109,9 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	}
 	if mode == "" {
 		return Record{}, fmt.Errorf("mode must be manual, scheduled, or yolo")
+	}
+	if err := validateModeDelayInputs(mode, req.DelaySeconds); err != nil {
+		return Record{}, err
 	}
 
 	item, err := s.loadBacklogItem(req.BacklogKind, req.BacklogName)
@@ -135,8 +147,11 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	}
 
 	delaySeconds := req.DelaySeconds
-	if mode == ModeScheduled && delaySeconds <= 0 {
+	if mode == ModeScheduled && delaySeconds == 0 {
 		delaySeconds = policy.DefaultDelaySeconds
+	}
+	if mode == ModeScheduled && delaySeconds <= 0 {
+		return Record{}, fmt.Errorf("scheduled mode requires delay_seconds > 0 (or policy default > 0)")
 	}
 	scheduledAt, status := plannedSchedule(mode, delaySeconds)
 	record.Status = status
@@ -168,6 +183,9 @@ func (s *Service) Policy(_ context.Context) (Policy, error) {
 func (s *Service) UpdatePolicy(_ context.Context, policy Policy) (Policy, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := validatePolicyInputs(policy); err != nil {
+		return Policy{}, err
+	}
 	normalized := normalizePolicy(policy)
 	if err := s.policyStore.Save(normalized); err != nil {
 		return Policy{}, err
@@ -204,12 +222,18 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, err
 	}
 
+	prompt, promptErr := s.fetchProcessingPrompt(ctx, item, record.Operation)
+	if promptErr != nil {
+		log.Printf("[execution] prompt fetch failed: %v", promptErr)
+		prompt = "Use the backlog item folder as context and complete the requested work."
+	}
+
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
 		Kind:        item.Kind,
 		Name:        item.Name,
 		Title:       buildProcessingTitle(item),
-		Description: buildProcessingDescription(item),
-		Prompt:      buildProcessingPrompt(item, record.Operation),
+		Description: prompt,
+		Prompt:      prompt,
 		ScopePath:   s.itemDir(item.Kind, item.Name),
 		ProjectRoot: ".",
 		CreatedBy:   record.StartedBy,
@@ -455,6 +479,30 @@ func normalizeOperation(operation string) string {
 	}
 }
 
+func validateModeDelayInputs(mode Mode, delaySeconds int64) error {
+	if delaySeconds < 0 {
+		return fmt.Errorf("delay_seconds must be >= 0")
+	}
+	if mode != ModeScheduled && delaySeconds > 0 {
+		return fmt.Errorf("delay_seconds is only supported for scheduled mode")
+	}
+	return nil
+}
+
+func validatePolicyInputs(policy Policy) error {
+	mode := normalizeMode(policy.DefaultMode)
+	if mode == "" {
+		return fmt.Errorf("default_mode must be manual, scheduled, or yolo")
+	}
+	if policy.DefaultDelaySeconds < 0 {
+		return fmt.Errorf("default_delay_seconds must be >= 0")
+	}
+	if mode == ModeScheduled && policy.DefaultDelaySeconds <= 0 {
+		return fmt.Errorf("scheduled default_mode requires default_delay_seconds > 0")
+	}
+	return nil
+}
+
 func plannedSchedule(mode Mode, delaySeconds int64) (string, Status) {
 	switch mode {
 	case ModeScheduled:
@@ -609,40 +657,39 @@ func buildProcessingTitle(item backlogItem) string {
 	}
 }
 
-func buildProcessingDescription(item backlogItem) string {
-	var builder strings.Builder
-	builder.WriteString("Process backlog item using the folder as full context.\\n\\n")
-	builder.WriteString("Kind: ")
-	builder.WriteString(item.Kind)
-	builder.WriteString("\\n")
-	builder.WriteString("Title: ")
-	builder.WriteString(item.Title)
-	builder.WriteString("\\n")
-	builder.WriteString("Description: ")
-	if strings.TrimSpace(item.Description) == "" {
-		builder.WriteString("No description provided.\\n")
-	} else {
-		builder.WriteString(item.Description)
-		builder.WriteString("\\n")
-	}
-	return builder.String()
+// processingSkillIDs maps backlog kind to prompt-manager skill IDs.
+var processingSkillIDs = map[string]string{
+	"idea":     "swarm-manager-process-idea",
+	"fix":      "swarm-manager-process-fix",
+	"execute":  "swarm-manager-process-execute",
+	"research": "swarm-manager-process-execute",
 }
 
-func buildProcessingPrompt(item backlogItem, operation string) string {
-	var builder strings.Builder
-	builder.WriteString("You are processing a Swarm Manager backlog item.\\n")
-	builder.WriteString("Use the backlog folder as the authoritative context and leave a concise completion summary in notes.md or summary.md.\\n")
-	switch item.Kind {
-	case "idea":
-		builder.WriteString("Create or improve the scenario described by this idea.\\n")
-	case "fix":
-		builder.WriteString("Apply the fix described in the backlog item.\\n")
-	case "execute":
-		builder.WriteString("Carry out the execution task described in the backlog item.\\n")
+// fetchProcessingPrompt loads a processing prompt from prompt-manager.
+func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, operation string) (string, error) {
+	skillID := processingSkillIDs[item.Kind]
+	if skillID == "" {
+		skillID = "swarm-manager-process-execute"
 	}
+
+	vars := map[string]string{
+		"ITEM_NAME":        item.Name,
+		"ITEM_TITLE":       item.Title,
+		"ITEM_DESCRIPTION": item.Description,
+		"ITEM_KIND":        item.Kind,
+		"ITEM_STATUS":      item.Status,
+		"ITEM_PRIORITY":    fmt.Sprintf("%d", item.Priority),
+		"ITEM_TAGS":        strings.Join(item.Tags, ", "),
+		"ITEM_FOLDER":      s.itemDir(item.Kind, item.Name),
+	}
+
+	prompt, err := s.promptClient.ReadSkill(ctx, skillID, vars, true)
+	if err != nil {
+		return "", err
+	}
+
 	if strings.TrimSpace(operation) == "improver" {
-		builder.WriteString("Operation hint: improver (focus on improving an existing scenario).\\n")
+		prompt = prompt + "\n\nOperation hint: improver (focus on improving an existing scenario).\n"
 	}
-	builder.WriteString(buildProcessingDescription(item))
-	return builder.String()
+	return prompt, nil
 }

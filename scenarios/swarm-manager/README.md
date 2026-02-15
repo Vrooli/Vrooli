@@ -4,11 +4,15 @@ Central command center for managing the Vrooli scenario ecosystem - orchestratin
 
 ## Purpose
 
-Swarm Manager is the primary interface for humans and agents to:
-- **Manage Backlog**: Create, organize, and queue research, ideas, fixes, and execution tasks
-- **Control Scenarios**: View, configure, and manage the lifecycle of all scenarios
-- **Control Execution**: Run backlog items in manual, scheduled, or YOLO mode
+Swarm Manager is the **staging and review layer** between agent teams and scenario execution. Agent teams in [prompt-manager](../prompt-manager/) analyze codebases and produce plans (fixes, ideas, refactors), but instead of executing directly, they deposit those plans as backlog items here. This gives operators a single place to:
+
+- **Review** all agent-generated plans before anything executes
+- **Refine** plans using the built-in Idea Agent (clarify → suggest → enhance)
+- **Control Execution**: Run approved work in manual, scheduled, or YOLO mode
+- **Manage Scenarios**: View, configure, and manage the lifecycle of all scenarios
 - **Track Progress**: Monitor scenario health and execution runs
+
+Think of it as a **pull request review for agent work** — agents propose, you review and refine, then approve for execution.
 
 ## Architecture
 

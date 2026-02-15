@@ -617,9 +617,9 @@
       "status": "active"
     },
     {
-      "id": "swarm-manager-tools",
+      "id": "swarm-manager-recommendations",
       "pack": "core",
-      "name": "Swarm Manager Tools",
+      "name": "Swarm Manager Recommendations",
       "modes": [
         "tools"
       ],

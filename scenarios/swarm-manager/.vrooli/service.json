@@ -223,9 +223,9 @@
         "description": "Test execution and reporting (P1)"
       },
       "prompt-manager": {
-        "enabled": false,
-        "required": false,
-        "description": "Prompt template management (P1)"
+        "enabled": true,
+        "required": true,
+        "description": "Skill prompt templates for backlog research and processing"
       }
     }
   }

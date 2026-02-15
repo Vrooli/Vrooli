@@ -1,0 +1,15 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-research-fix",
+  "name": "Swarm Manager Research Fix",
+  "description": "Perform root cause analysis for bugs, map affected components, assess regression risk, and document safe remediation approaches.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "research"],
+  "defaultScope": "swarm-manager-processing-guidance",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-14T06:00:00Z",
+  "updatedAt": "2026-02-14T06:00:00Z"
+}

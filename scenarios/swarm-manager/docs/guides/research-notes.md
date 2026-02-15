@@ -4,18 +4,24 @@
 
 ### What Makes Swarm Manager Unique
 
-Swarm Manager fills a specific role in Vrooli:
+Swarm Manager fills a specific role in Vrooli as the **staging layer** between agent intelligence and scenario execution:
 
-1. **Execution Governance for Scenario Change**
-   - Swarm Manager is the control plane for deciding when backlog work executes.
+1. **Staging for Agent Team Plans**
+   - Agent teams in prompt-manager (Debug, Feature, QA, Refactor) produce plans and deposit them as backlog items. Swarm Manager is where operators review those plans before anything executes — effectively a "pull request review" for agent work.
 
-2. **Backlog Artifact Persistence**
+2. **Idea Agent Refinement**
+   - The built-in Idea Agent (clarify → suggest → enhance) lets operators iterate on agent-generated plans, asking clarifying questions, reviewing suggestions, and producing refined specs before committing to execution.
+
+3. **Execution Governance for Scenario Change**
+   - Swarm Manager is the control plane for deciding when and how approved backlog work executes (manual, scheduled, or yolo).
+
+4. **Backlog Artifact Persistence**
    - Findings from Prompt Manager teams are preserved as git-tracked backlog items with editable supporting files.
 
-3. **Archive-and-Rebuild Workflow**
+5. **Archive-and-Rebuild Workflow**
    - Existing scenarios can be archived into backlog context, iterated on, then reimplemented through controlled execution.
 
-4. **Operator + Agent Team Interop**
+6. **Operator + Agent Team Interop**
    - Human operators and autonomous teams use the same backlog and execution surfaces.
 
 ## Relationship to Other Scenarios
@@ -53,6 +59,6 @@ Execution modes (`manual`, `scheduled`, `yolo`) balance speed and risk:
 
 ## References
 
-- [prompt-manager skill: swarm-manager-tools](../../prompt-manager/store/skills/packs/core/swarm-manager-tools/SKILL.md)
+- [prompt-manager skill: swarm-manager-recommendations](../../prompt-manager/store/skills/packs/core/swarm-manager-recommendations/SKILL.md)
 - [agent-manager PRD](../../agent-manager/PRD.md)
 - [ecosystem-manager PRD](../../ecosystem-manager/PRD.md)

@@ -45,6 +45,8 @@ const (
 )
 
 var errScenarioNameRequired = errors.New("scenario name is required")
+var errProtectedScenarioDelete = errors.New("cannot delete swarm-manager scenario")
+var errArchiveTargetExists = errors.New("archive target already exists")
 
 // archivePresets defines named file patterns for archive preservation.
 var archivePresets = map[string][]string{
@@ -734,6 +736,7 @@ func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
+	trimmedName := strings.TrimSpace(name)
 
 	source, found, err := h.findScenarioSource(r.Context(), name)
 	if err != nil {
@@ -747,6 +750,10 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	scenarioPath := strings.TrimSpace(source.Path)
 	if scenarioPath == "" {
 		httputil.InternalError(w, "[scenarios] delete", "scenario path missing from CLI output")
+		return
+	}
+	if strings.EqualFold(trimmedName, "swarm-manager") {
+		httputil.BadRequest(w, "[scenarios] delete", errProtectedScenarioDelete.Error())
 		return
 	}
 	if _, err := os.Stat(scenarioPath); err != nil {
@@ -787,21 +794,35 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	var backlogIdeaName string
 	var preservedFiles []string
+	var archivedIdeaPath string
 
 	// If archiving, create a backlog idea entry first
 	if archive {
-		ideaName, preserved, err := h.archiveToBacklogIdea(scenario, scenarioPath, preserveFiles)
+		ideaName, ideaPath, preserved, err := h.archiveToBacklogIdea(scenario, scenarioPath, preserveFiles)
 		if err != nil {
+			if errors.Is(err, errArchiveTargetExists) {
+				httputil.Conflict(w, "[scenarios] delete", err.Error())
+				return
+			}
 			httputil.InternalError(w, "[scenarios] delete", "failed to archive scenario")
 			return
 		}
 		backlogIdeaName = ideaName
+		archivedIdeaPath = ideaPath
 		preservedFiles = preserved
 		log.Printf("[scenarios] archived: %q to backlog (idea=%s, preserved=%d files)", name, ideaName, len(preserved))
 	}
 
 	// Delete the scenario directory
 	if err := os.RemoveAll(scenarioPath); err != nil {
+		if archivedIdeaPath != "" {
+			if rollbackErr := os.RemoveAll(archivedIdeaPath); rollbackErr != nil {
+				log.Printf("[scenarios] delete: archive rollback failed for %q at %q: %v", name, archivedIdeaPath, rollbackErr)
+				httputil.InternalError(w, "[scenarios] delete", "failed to delete scenario directory; archive rollback failed")
+				return
+			}
+			log.Printf("[scenarios] delete: rolled back archive for %q due to deletion failure", name)
+		}
 		httputil.InternalError(w, "[scenarios] delete", "failed to delete scenario directory")
 		return
 	}
@@ -902,25 +923,38 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 // archiveToBacklogIdea creates a backlog idea entry from a scenario's metadata.
 // [REQ:REQ-P0-008] Archive functionality for scenario preservation
 // Returns the idea name and list of preserved files.
-func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, preserveFiles *apipb.PreserveFilesRequest) (string, []string, error) {
+func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, preserveFiles *apipb.PreserveFilesRequest) (string, string, []string, error) {
 	ideaRoot, err := h.deriveBacklogIdeasRoot(scenarioPath)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	// Create backlog idea directory structure
+	// Stage archive content outside the target scenario directory first.
 	ideaName := scenario.Name + "-archived"
 	ideaDir := filepath.Join(ideaRoot, ideaName)
+	if _, err := os.Stat(ideaDir); err == nil {
+		return "", "", nil, fmt.Errorf("%w: %s", errArchiveTargetExists, ideaName)
+	}
+	stagingRoot := filepath.Join(filepath.Dir(strings.TrimSpace(scenarioPath)), ".swarm-manager-archive-staging")
+	if err := os.MkdirAll(stagingRoot, 0o755); err != nil {
+		return "", "", nil, err
+	}
+	stagingDir, err := os.MkdirTemp(stagingRoot, ideaName+"-")
+	if err != nil {
+		return "", "", nil, err
+	}
+	defer func() {
+		_ = os.RemoveAll(stagingDir)
+	}()
 
-	// Ensure parent directory exists
-	if err := os.MkdirAll(ideaDir, 0o755); err != nil {
-		return "", nil, err
+	if err := os.MkdirAll(stagingDir, 0o755); err != nil {
+		return "", "", nil, err
 	}
 
 	// Copy preserved files before writing spec so we can include exact provenance.
 	preservedFiles := []string{}
 	if preserveFiles != nil {
-		preserved, err := copyPreservedFiles(scenarioPath, ideaDir, preserveFiles)
+		preserved, err := copyPreservedFiles(scenarioPath, stagingDir, preserveFiles)
 		if err != nil {
 			log.Printf("[scenarios] archive: warning: failed to copy some preserved files: %v", err)
 			// Continue with what we have, don't fail the entire archive
@@ -950,15 +984,25 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 
 	data, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	specPath := filepath.Join(ideaDir, "spec.json")
+	specPath := filepath.Join(stagingDir, "spec.json")
 	if err := os.WriteFile(specPath, data, 0o644); err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	return ideaName, preservedFiles, nil
+	if err := os.MkdirAll(ideaRoot, 0o755); err != nil {
+		return "", "", nil, err
+	}
+	if err := os.Rename(stagingDir, ideaDir); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return "", "", nil, fmt.Errorf("%w: %s", errArchiveTargetExists, ideaName)
+		}
+		return "", "", nil, err
+	}
+
+	return ideaName, ideaDir, preservedFiles, nil
 }
 
 // copyPreservedFiles copies files matching the specified patterns from scenario to idea directory.
@@ -1167,6 +1211,9 @@ func applyCompletenessScore(scenario *Scenario, scores map[string]int) {
 func (h *Handler) deriveBacklogIdeasRoot(scenarioPath string) (string, error) {
 	trimmedScenarioPath := strings.TrimSpace(scenarioPath)
 	if trimmedScenarioPath != "" {
+		if strings.EqualFold(filepath.Base(trimmedScenarioPath), "swarm-manager") {
+			return "", errProtectedScenarioDelete
+		}
 		return filepath.Join(filepath.Dir(trimmedScenarioPath), "swarm-manager", "ideas"), nil
 	}
 

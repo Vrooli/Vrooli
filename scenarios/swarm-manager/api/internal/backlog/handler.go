@@ -34,6 +34,7 @@ import (
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/promptmanager"
 )
 
 // BacklogStatus represents the lifecycle state of a backlog item.
@@ -93,7 +94,28 @@ type BacklogFile struct {
 type Handler struct {
 	rootDir      string
 	agentService agentmanager.Service
-	promptLoader *PromptLoader
+	promptClient promptmanager.Client
+}
+
+// researchSkillIDs maps (ResearchMode, BacklogKind) to prompt-manager skill IDs.
+var researchSkillIDs = map[ResearchMode]map[BacklogKind]string{
+	ResearchModeClarify: {KindIdea: "swarm-manager-clarify-idea"},
+	ResearchModeSuggest: {KindIdea: "swarm-manager-suggest-idea"},
+	ResearchModeEnhance: {KindIdea: "swarm-manager-enhance-idea"},
+	ResearchModeResearch: {
+		KindIdea:     "swarm-manager-research-idea",
+		KindFix:      "swarm-manager-research-fix",
+		KindExecute:  "swarm-manager-research-general",
+		KindResearch: "swarm-manager-research-general",
+	},
+}
+
+// processingSkillIDs maps BacklogKind to prompt-manager skill IDs.
+var processingSkillIDs = map[BacklogKind]string{
+	KindIdea:     "swarm-manager-process-idea",
+	KindFix:      "swarm-manager-process-fix",
+	KindExecute:  "swarm-manager-process-execute",
+	KindResearch: "swarm-manager-process-execute",
 }
 
 // NewHandler creates a new backlog handler.
@@ -105,14 +127,23 @@ func NewHandler(rootDir string) *Handler {
 	return &Handler{
 		rootDir:      rootDir,
 		agentService: nil, // Uses default discovery-backed service
-		promptLoader: NewPromptLoader(rootDir),
+		promptClient: promptmanager.NewHTTPClient(),
 	}
 }
 
-// NewHandlerWithClients creates a new backlog handler with a custom agent service.
-func NewHandlerWithClients(rootDir string, agentService agentmanager.Service) *Handler {
-	h := NewHandler(rootDir)
-	h.agentService = agentService
+// NewHandlerWithClients creates a new backlog handler with custom dependencies.
+func NewHandlerWithClients(rootDir string, agentService agentmanager.Service, promptClient promptmanager.Client) *Handler {
+	if rootDir == "" {
+		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
+	}
+	h := &Handler{
+		rootDir:      rootDir,
+		agentService: agentService,
+		promptClient: promptClient,
+	}
+	if h.promptClient == nil {
+		h.promptClient = promptmanager.NewHTTPClient()
+	}
 	return h
 }
 
@@ -1016,7 +1047,11 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		service = h.agentService
 	}
 
-	prompt := h.buildResearchPromptFromLoader(item, mode)
+	prompt, promptErr := h.fetchResearchPrompt(r.Context(), item, mode)
+	if promptErr != nil {
+		log.Printf("[backlog] research: prompt fetch failed: %v", promptErr)
+		prompt = "Use the backlog item folder as context and perform the requested research."
+	}
 	if strings.TrimSpace(readOptionalString(req.Prompt)) != "" {
 		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(readOptionalString(req.Prompt))
 	}
@@ -1025,7 +1060,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		Kind:        string(kind),
 		Name:        item.Name,
 		Title:       buildResearchTitle(item, mode),
-		Description: buildResearchDescription(item, mode),
+		Description: prompt,
 		Prompt:      prompt,
 		ScopePath:   scopePath,
 		ProjectRoot: projectRoot,
@@ -1150,8 +1185,9 @@ func (h *Handler) spawnProcessingAgent(ctx context.Context, item BacklogItem, op
 	}
 
 	scopePath := h.itemDir(item.Kind, item.Name)
-	prompt := h.buildProcessingPromptFromLoader(item, operation)
-	if prompt == "" {
+	prompt, promptErr := h.fetchProcessingPrompt(ctx, item, operation)
+	if promptErr != nil {
+		log.Printf("[backlog] process: prompt fetch failed: %v", promptErr)
 		prompt = "Use the backlog item folder as context and complete the requested work."
 	}
 
@@ -1159,7 +1195,7 @@ func (h *Handler) spawnProcessingAgent(ctx context.Context, item BacklogItem, op
 		Kind:        string(item.Kind),
 		Name:        item.Name,
 		Title:       buildProcessingTitle(item, operation),
-		Description: buildProcessingDescription(item, operation),
+		Description: prompt,
 		Prompt:      prompt,
 		ScopePath:   scopePath,
 		ProjectRoot: ".",
@@ -1257,95 +1293,57 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 	}
 }
 
-func buildResearchDescription(item BacklogItem, mode ResearchMode) string {
-	var builder strings.Builder
-	builder.WriteString("Research context for backlog item.\n\n")
-	builder.WriteString("Kind: ")
-	builder.WriteString(string(item.Kind))
-	builder.WriteString("\n")
-	builder.WriteString("Title: ")
-	builder.WriteString(item.Title)
-	builder.WriteString("\n")
-	builder.WriteString("Description: ")
-	if strings.TrimSpace(item.Description) == "" {
-		builder.WriteString("No description provided.\n")
-	} else {
-		builder.WriteString(item.Description)
-		builder.WriteString("\n")
+// researchSkillID returns the prompt-manager skill ID for a research mode and item kind.
+func researchSkillID(mode ResearchMode, kind BacklogKind) string {
+	if kindMap, ok := researchSkillIDs[mode]; ok {
+		if id, ok := kindMap[kind]; ok {
+			return id
+		}
+		// Workflow skills (clarify/suggest/enhance) only have KindIdea.
+		// For other kinds in workflow modes, fall back to idea.
+		if id, ok := kindMap[KindIdea]; ok {
+			return id
+		}
 	}
-	builder.WriteString("Status: ")
-	builder.WriteString(string(item.Status))
-	builder.WriteString("\n")
-	builder.WriteString("Priority: ")
-	builder.WriteString(fmt.Sprintf("%d", item.Priority))
-	builder.WriteString("\n")
-	if len(item.Tags) > 0 {
-		builder.WriteString("Tags: ")
-		builder.WriteString(strings.Join(item.Tags, ", "))
-		builder.WriteString("\n")
-	}
-	if item.Kind == KindResearch && strings.TrimSpace(item.ResearchTarget) != "" {
-		builder.WriteString("Research target: ")
-		builder.WriteString(item.ResearchTarget)
-		builder.WriteString("\n")
-	}
-
-	switch mode {
-	case ResearchModeClarify:
-		builder.WriteString("\nGoal: generate the most important clarifying questions about scope, requirements, constraints, and implementation details.\n")
-		builder.WriteString("Write results to clarify/questions.json with schema:\n")
-		builder.WriteString("{\"questions\":[{\"id\":\"q1\",\"question\":\"...\",\"answer\":\"\"}]}\n")
-		builder.WriteString("Preserve existing questions and answers; append new questions if needed.\n")
-	case ResearchModeSuggest:
-		builder.WriteString("\nGoal: propose improvements or alternative approaches for this idea.\n")
-		builder.WriteString("Write results to suggest/suggestions.json with schema:\n")
-		builder.WriteString("{\"suggestions\":[{\"id\":\"s1\",\"suggestion\":\"...\",\"details\":\"...\",\"status\":\"pending\"}]}\n")
-		builder.WriteString("Preserve existing suggestions and decisions; append new suggestions if needed.\n")
-	case ResearchModeEnhance:
-		builder.WriteString("\nGoal: produce a refined plan based on clarifications and accepted suggestions.\n")
-		builder.WriteString("Read clarify/questions.json and suggest/suggestions.json if present. Apply accepted suggestions, ignore rejected ones.\n")
-		builder.WriteString("Write the enhancement summary to enhance/summary.md and update spec.json if necessary.\n")
-	default:
-		builder.WriteString("\nProvide a concise research summary, risks, and recommended next actions.\n")
-		builder.WriteString("Write a summary to research/summary.md and add supporting files as needed.\n")
-	}
-
-	return builder.String()
+	return "swarm-manager-research-general"
 }
 
-func buildResearchPrompt(item BacklogItem, mode ResearchMode) string {
-	var builder strings.Builder
-	builder.WriteString("You are supporting a Swarm Manager backlog item. Use the backlog folder as the authoritative context.\n")
-	builder.WriteString("Read spec.json and any files already present in the folder.\n")
-	builder.WriteString("Do not delete existing user content unless explicitly requested.\n")
-	builder.WriteString(buildResearchDescription(item, mode))
-	return builder.String()
+// fetchResearchPrompt loads a research prompt from prompt-manager.
+func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mode ResearchMode) (string, error) {
+	skillID := researchSkillID(mode, item.Kind)
+	withScope := mode == ResearchModeResearch
+	return h.promptClient.ReadSkill(ctx, skillID, buildVariableMap(item, h.itemDir(item.Kind, item.Name)), withScope)
 }
 
-// buildResearchPromptFromLoader loads a research prompt from external files and applies template substitution.
-// Falls back to the inline buildResearchPrompt if loading fails.
-func (h *Handler) buildResearchPromptFromLoader(item BacklogItem, mode ResearchMode) string {
-	// Determine the category and prompt name based on mode
-	var category PromptCategory
-	var promptName string
-
-	switch mode {
-	case ResearchModeClarify, ResearchModeSuggest, ResearchModeEnhance:
-		category = PromptCategoryWorkflow
-		promptName = ResearchPromptName(mode, item.Kind)
-	default:
-		category = PromptCategoryResearch
-		promptName = ResearchPromptName(mode, item.Kind)
+// fetchProcessingPrompt loads a processing prompt from prompt-manager.
+func (h *Handler) fetchProcessingPrompt(ctx context.Context, item BacklogItem, operation string) (string, error) {
+	skillID := processingSkillIDs[item.Kind]
+	if skillID == "" {
+		skillID = "swarm-manager-process-execute"
 	}
-
-	template, err := h.promptLoader.Load(category, promptName)
+	prompt, err := h.promptClient.ReadSkill(ctx, skillID, buildVariableMap(item, h.itemDir(item.Kind, item.Name)), true)
 	if err != nil {
-		// Fall back to inline prompt
-		return buildResearchPrompt(item, mode)
+		return "", err
 	}
+	if strings.TrimSpace(operation) == "improver" {
+		prompt = prompt + "\n\nOperation hint: improver (focus on improving an existing scenario).\n"
+	}
+	return prompt, nil
+}
 
-	itemFolder := h.itemDir(item.Kind, item.Name)
-	return h.promptLoader.Build(template, item, itemFolder)
+// buildVariableMap creates the template variable map for prompt-manager skill rendering.
+func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
+	return map[string]string{
+		"ITEM_NAME":        item.Name,
+		"ITEM_TITLE":       item.Title,
+		"ITEM_DESCRIPTION": item.Description,
+		"ITEM_KIND":        string(item.Kind),
+		"ITEM_STATUS":      string(item.Status),
+		"ITEM_PRIORITY":    fmt.Sprintf("%d", item.Priority),
+		"ITEM_TAGS":        strings.Join(item.Tags, ", "),
+		"ITEM_FOLDER":      itemFolder,
+		"RESEARCH_TARGET":  item.ResearchTarget,
+	}
 }
 
 func buildProcessingTitle(item BacklogItem, operation string) string {
@@ -1367,74 +1365,6 @@ func buildProcessingTitle(item BacklogItem, operation string) string {
 		}
 		return "Generate scenario: " + label
 	}
-}
-
-func buildProcessingDescription(item BacklogItem, operation string) string {
-	var builder strings.Builder
-	builder.WriteString("Process backlog item using the folder as full context.\n\n")
-	builder.WriteString("Kind: ")
-	builder.WriteString(string(item.Kind))
-	builder.WriteString("\n")
-	builder.WriteString("Title: ")
-	builder.WriteString(item.Title)
-	builder.WriteString("\n")
-	builder.WriteString("Description: ")
-	if strings.TrimSpace(item.Description) == "" {
-		builder.WriteString("No description provided.\n")
-	} else {
-		builder.WriteString(item.Description)
-		builder.WriteString("\n")
-	}
-	if item.Kind == KindIdea {
-		builder.WriteString("\nUse the idea folder as the complete context: spec.json, clarify/questions.json, suggest/suggestions.json, enhance/summary.md, and any user-added files.\n")
-		builder.WriteString("Respect answers and accepted suggestions when generating or improving a scenario.\n")
-	}
-	if item.Kind == KindFix || item.Kind == KindExecute {
-		builder.WriteString("\nReview research/summary.md and any supporting files before acting.\n")
-	}
-	return builder.String()
-}
-
-func buildProcessingPrompt(item BacklogItem, operation string) string {
-	var builder strings.Builder
-	builder.WriteString("You are processing a Swarm Manager backlog item.\n")
-	builder.WriteString("Use the backlog folder as the authoritative context and leave a concise completion summary in notes.md or summary.md.\n")
-	switch item.Kind {
-	case KindIdea:
-		builder.WriteString("Create or improve the scenario described by this idea.\n")
-		builder.WriteString("If the idea targets an existing scenario, improve it; otherwise create a new scenario in scenarios/.\n")
-	case KindFix:
-		builder.WriteString("Apply the fix described in the backlog item.\n")
-	case KindExecute:
-		builder.WriteString("Carry out the execution task described in the backlog item.\n")
-	}
-	if strings.TrimSpace(operation) == "improver" {
-		builder.WriteString("Operation hint: improver (focus on improving an existing scenario).\n")
-	}
-	builder.WriteString(buildProcessingDescription(item, operation))
-	return builder.String()
-}
-
-// buildProcessingPromptFromLoader loads a processing prompt from external files and applies template substitution.
-// Falls back to the inline buildProcessingPrompt if loading fails.
-func (h *Handler) buildProcessingPromptFromLoader(item BacklogItem, operation string) string {
-	promptName := ProcessingPromptName(item.Kind)
-
-	template, err := h.promptLoader.Load(PromptCategoryProcessing, promptName)
-	if err != nil {
-		// Fall back to inline prompt
-		return buildProcessingPrompt(item, operation)
-	}
-
-	itemFolder := h.itemDir(item.Kind, item.Name)
-	prompt := h.promptLoader.Build(template, item, itemFolder)
-
-	// Append operation hint if this is an improver operation
-	if strings.TrimSpace(operation) == "improver" {
-		prompt = prompt + "\n\nOperation hint: improver (focus on improving an existing scenario).\n"
-	}
-
-	return prompt
 }
 
 func getContentType(ext string) string {

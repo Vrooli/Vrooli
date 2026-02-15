@@ -1,3 +1,5 @@
+// DOC: docs/guides/idea-agent-workflow.md
+// DOC: prompts/README.md#output-schemas
 import type {
   IdeaClarificationQuestion,
   IdeaSuggestion,

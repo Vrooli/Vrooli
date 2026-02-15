@@ -1,0 +1,15 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-research-general",
+  "name": "Swarm Manager Research General",
+  "description": "Conduct thorough research for execute tasks, research-kind items, or general investigations with actionable findings.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "research"],
+  "defaultScope": "swarm-manager-processing-guidance",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-14T06:00:00Z",
+  "updatedAt": "2026-02-14T06:00:00Z"
+}

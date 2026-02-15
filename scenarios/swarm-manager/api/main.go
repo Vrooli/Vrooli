@@ -143,7 +143,7 @@ func (s *Server) setupRoutes() {
 
 	// Backlog endpoints
 	// [REQ:REQ-P0-002] Backlog management
-	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc)
+	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc, nil)
 	backlogHandler.RegisterRoutes(s.router)
 
 	// Scenarios catalog endpoints

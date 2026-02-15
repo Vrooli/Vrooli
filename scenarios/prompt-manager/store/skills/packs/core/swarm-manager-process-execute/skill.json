@@ -1,0 +1,15 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-process-execute",
+  "name": "Swarm Manager Process Execute",
+  "description": "Carry out general execution tasks including operations, maintenance, refactoring, and documentation.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "processing"],
+  "defaultScope": "swarm-manager-processing-guidance",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-14T06:00:00Z",
+  "updatedAt": "2026-02-14T06:00:00Z"
+}

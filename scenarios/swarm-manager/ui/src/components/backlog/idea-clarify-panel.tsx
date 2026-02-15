@@ -1,3 +1,4 @@
+// DOC: docs/guides/idea-agent-workflow.md#phase-1-clarify
 import { useEffect, useMemo, useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import { Button } from "../ui/button";

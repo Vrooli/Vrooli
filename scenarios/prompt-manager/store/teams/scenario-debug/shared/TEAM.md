@@ -25,7 +25,7 @@ Read the full methodology: `prompt-manager skill read scientific-debugging`
 2. Submit work intent through `swarm-manager` backlog artifacts (`fix` by default for this team).
 3. Include provenance fields: `targetScenario`, `problemOrOpportunity`, `proposedAction`, `evidence`, `riskLevel`, `executionModeHint`, `createdByTeam`, `sourceRunId`.
 4. Do not implement direct code changes in target scenarios unless explicitly authorized outside this workflow.
-5. Use the shared `swarm-manager-tools` skill before backlog authoring.
+5. Use the shared `swarm-manager-recommendations` skill before backlog authoring.
 
 ## Cross-Team Coordination
 - **QA Team** may refer bugs discovered during audits.

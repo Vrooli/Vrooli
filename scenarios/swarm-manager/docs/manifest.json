@@ -42,6 +42,12 @@
       "icon": "compass",
       "documents": [
         {
+          "path": "guides/idea-agent-workflow.md",
+          "title": "Idea Agent Workflow",
+          "description": "3-phase AI refinement pipeline: clarify, suggest, enhance",
+          "audience": ["developers", "operators"]
+        },
+        {
           "path": "guides/research-notes.md",
           "title": "Research Notes",
           "description": "Rationale and scenario relationship mapping",

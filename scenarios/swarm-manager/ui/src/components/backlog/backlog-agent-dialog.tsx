@@ -1,3 +1,5 @@
+// DOC: docs/guides/idea-agent-workflow.md
+// DOC: docs/concepts/ARCHITECTURE.md#key-flows
 import { useEffect, useMemo, useState } from "react";
 import { X, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";

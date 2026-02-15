@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/promptmanager"
 )
 
 type stubAgentService struct {
@@ -37,6 +38,7 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 		RootDir:      root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -116,6 +118,82 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 	}
 }
 
+func TestQueueBacklog_RejectsDelayForNonScheduledModes(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "delay-manual", map[string]any{
+		"name":        "delay-manual",
+		"title":       "Delay Manual",
+		"description": "desc",
+		"status":      "backlog",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	service := NewService(ServiceConfig{
+		RootDir:   root,
+		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+	})
+
+	_, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind:  "idea",
+		BacklogName:  "delay-manual",
+		Mode:         ModeManual,
+		DelaySeconds: 10,
+	})
+	if err == nil {
+		t.Fatal("expected error when delay_seconds is provided for manual mode")
+	}
+}
+
+func TestQueueBacklog_RejectsScheduledModeWithoutEffectiveDelay(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "scheduled-no-delay", map[string]any{
+		"name":        "scheduled-no-delay",
+		"title":       "Scheduled No Delay",
+		"description": "desc",
+		"status":      "backlog",
+		"priority":    3,
+		"tags":        []string{},
+	})
+	testPolicyPath := filepath.Join(root, ".vrooli", "execution-policy.json")
+	mustWritePolicy(t, testPolicyPath, map[string]any{
+		"default_mode":          "scheduled",
+		"default_delay_seconds": 0,
+	})
+
+	service := NewService(ServiceConfig{
+		RootDir:    root,
+		StorePath:  filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PolicyPath: testPolicyPath,
+	})
+
+	_, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind: "idea",
+		BacklogName: "scheduled-no-delay",
+		Mode:        ModeScheduled,
+	})
+	if err == nil {
+		t.Fatal("expected error for scheduled mode without effective delay")
+	}
+}
+
+func TestUpdatePolicy_RejectsInvalidScheduledDefaults(t *testing.T) {
+	root := t.TempDir()
+	service := NewService(ServiceConfig{
+		RootDir:    root,
+		StorePath:  filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PolicyPath: filepath.Join(root, ".vrooli", "execution-policy.json"),
+	})
+
+	_, err := service.UpdatePolicy(context.Background(), Policy{
+		DefaultMode:         ModeScheduled,
+		DefaultDelaySeconds: 0,
+	})
+	if err == nil {
+		t.Fatal("expected error when scheduled default mode has non-positive delay")
+	}
+}
+
 func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[string]any) {
 	t.Helper()
 	kindDir := "ideas"
@@ -151,4 +229,18 @@ func mustLoadBacklogItem(t *testing.T, path string) map[string]any {
 		t.Fatalf("unmarshal %s: %v", path, err)
 	}
 	return value
+}
+
+func mustWritePolicy(t *testing.T, path string, payload map[string]any) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir policy dir: %v", err)
+	}
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal policy payload: %v", err)
+	}
+	if err := os.WriteFile(path, bytes, 0o644); err != nil {
+		t.Fatalf("write policy file: %v", err)
+	}
 }
