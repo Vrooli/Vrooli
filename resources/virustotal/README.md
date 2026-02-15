@@ -516,7 +516,6 @@ curl -H "x-apikey: $VIRUSTOTAL_API_KEY" \
 ## Integration with Other Resources
 
 Works well with:
-- `owasp-zap`: Comprehensive web application security testing
 - `vault`: Secure API key storage
 - `postgres`: Historical threat data storage
 - `redis`: Enhanced result caching

@@ -114,8 +114,6 @@ ultralytics-yolo/
 
 ## Related Resources
 - **segment-anything**: Complementary segmentation capabilities
-- **deepstack**: Alternative detection models
-- **vocr**: OCR for text extraction from detections
 - **browserless**: Screenshot capture for UI validation
 - **comfyui**: Generate synthetic training data
 

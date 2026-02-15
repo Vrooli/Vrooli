@@ -16,7 +16,6 @@ declare -g -A RESOURCE_PORTS=(
     ["whisper"]="8090"         # Speech-to-text service (keeping original port)
     ["unstructured-io"]="11450" # Document processing and extraction
     ["nsfw-detector"]="11451"  # NSFW content detection and moderation AI
-    ["deepstack"]="11453"      # DeepStack computer vision AI (object detection, face recognition)
     ["segment-anything"]="11454"  # Segment Anything Model (SAM2/HQ-SAM) foundation segmentation service
     ["ultralytics-yolo"]="11455"  # Ultralytics YOLOv8 vision intelligence suite (detection, segmentation, tracking)
     ["gazebo"]="11456"         # Gazebo robotics simulation platform (3D physics, sensors, robot modeling)
@@ -28,9 +27,6 @@ declare -g -A RESOURCE_PORTS=(
     
     # Automation Services (56xx range)
     ["comfyui"]="8188"         # AI-powered image generation workflows
-    ["node-red"]="1880"        # Flow-based automation (Node-RED default port)
-    ["temporal"]="7233"        # Temporal workflow orchestration (frontend)
-    ["temporal-grpc"]="7234"   # Temporal gRPC service
     
     # Storage Services (9xxx range + vector databases)
     ["minio"]="9000"           # Object storage (S3 compatible)
@@ -54,7 +50,6 @@ declare -g -A RESOURCE_PORTS=(
     ["searxng"]="8280"         # SearXNG metasearch engine
     
     # Security Services (81xx range)
-    ["owasp-zap"]="8180"       # OWASP ZAP security scanner API
     ["wireguard"]="51820"      # WireGuard VPN (UDP port)
     
     # Infrastructure Services (80xx range)
@@ -64,18 +59,13 @@ declare -g -A RESOURCE_PORTS=(
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
     ["llamaindex"]="8091"      # RAG and document processing
-    ["autogen-studio"]="8081"  # Multi-agent conversation framework
-    ["splink"]="8096"          # Probabilistic record linkage and deduplication at scale
     ["sagemath"]="8888"        # Open-source mathematics software system (Jupyter interface)
     ["sagemath-api"]="8889"    # SageMath REST API endpoint
     ["haystack"]="8075"        # End-to-end framework for question answering and search
     ["keycloak"]="8070"        # Enterprise identity and access management
-    ["erpnext"]="8020"         # Complete open-source ERP suite
     ["mifos"]="8030"           # Mifos X digital finance platform (Apache Fineract)
     ["blender"]="8093"         # 3D creation suite with Python API
-    ["vocr"]="9420"            # Vision OCR - Advanced screen recognition and AI-powered image analysis
     ["matrix-synapse"]="8008"  # Matrix Synapse federated communication server
-    ["audiocraft"]="7862"      # Meta's comprehensive audio generation suite (MusicGen + AudioGen + EnCodec)
     ["cncjs"]="8194"           # Web-based CNC controller for Grbl, Marlin, Smoothieware, TinyG
     ["esphome"]="6587"         # ESPHome IoT firmware framework for ESP32/ESP8266 microcontrollers
     ["freecad"]="8195"         # Parametric 3D CAD modeler with Python API for engineering design
@@ -84,7 +74,6 @@ declare -g -A RESOURCE_PORTS=(
     ["octoprint"]="8197"       # Web-based 3D printer management platform with REST API
     ["ggwave"]="8196"          # Air-gapped data transmission via FSK-modulated audio signals
     ["lnbits"]="5001"          # Lightning Network Bitcoin micropayments and wallet system
-    ["strapi"]="1337"          # Strapi v5 headless CMS for structured content management
     
     # Payment Processing Services (230xx range)
     ["btcpay"]="23000"         # BTCPay Server self-hosted cryptocurrency payment processor
@@ -92,14 +81,12 @@ declare -g -A RESOURCE_PORTS=(
     # Simulation Services (95xx range)
     ["simpy"]="9510"           # SimPy discrete-event simulation framework (existing)
     ["gridlabd"]="9511"        # GridLAB-D power distribution system simulator
-    ["mesa"]="9512"            # Mesa agent-based modeling framework for complex adaptive systems
     ["su2"]="9514"             # SU2 aerospace CFD and optimization platform
     
     # Collaboration Services (80xx range)
     ["wikijs"]="3010"          # Wiki.js documentation platform with Git backend
     
     # Transportation Services (80xx range)
-    ["opentripplanner"]="8080" # OpenTripPlanner multimodal routing engine
     ["traccar"]="8082"         # Traccar GPS tracking and fleet management server
     ["geonode"]="8100"         # GeoNode geospatial content management system (Django portal)
     ["geonode-geoserver"]="8101" # GeoNode GeoServer for OGC map services
@@ -120,11 +107,6 @@ declare -g -A RESOURCE_PORTS=(
     ["jupyterhub"]="8000"      # JupyterHub multi-user notebook server
     ["jupyterhub-api"]="8001"  # JupyterHub API endpoint
     ["jupyterhub-proxy"]="8081" # JupyterHub proxy API
-    
-    # Analytics Services (80xx range)  
-    ["apache-superset"]="8088"        # Apache Superset analytics platform
-    ["apache-superset-postgres"]="5436" # Superset metadata database
-    ["apache-superset-redis"]="6381"    # Superset cache and message broker
     
     # Future services can use:
     # - 11xxx for AI services

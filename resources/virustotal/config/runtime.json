@@ -5,7 +5,10 @@
   "category": "security",
   "startup_order": 800,
   "dependencies": [],
-  "optional_dependencies": ["redis", "postgres"],
+  "optional_dependencies": [
+    "redis",
+    "postgres"
+  ],
   "startup_timeout": 60,
   "startup_time_estimate": "10-30s",
   "recovery_attempts": 3,
@@ -31,7 +34,9 @@
     "reputation-checking"
   ],
   "configuration": {
-    "required": ["VIRUSTOTAL_API_KEY"],
+    "required": [
+      "VIRUSTOTAL_API_KEY"
+    ],
     "optional": [
       "VIRUSTOTAL_PORT",
       "VIRUSTOTAL_API_TIER",
@@ -50,7 +55,6 @@
     "scenarios/secure-document-processing",
     "scenarios/threat-analyzer",
     "scenarios/incident-response",
-    "resources/owasp-zap"
   ],
   "monitoring": {
     "metrics_enabled": true,
