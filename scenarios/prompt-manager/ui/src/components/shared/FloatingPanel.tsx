@@ -86,7 +86,7 @@ export function FloatingPanel({
       ref={panelRef}
       className={cn(
         'fixed z-40 w-[92vw] max-w-2xl',
-        'bg-slate-900/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-sm',
+        'bg-card/95 border border-border rounded-xl shadow-2xl backdrop-blur-sm',
         isDragging && 'select-none cursor-grabbing',
         className,
       )}
@@ -96,12 +96,12 @@ export function FloatingPanel({
       aria-labelledby={titleId}
       data-testid={testId}
     >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
         <button
           type="button"
           onMouseDown={handleDragStart}
           className={cn(
-            'p-1 rounded cursor-grab text-slate-400 hover:text-white hover:bg-white/10 transition-colors',
+            'p-1 rounded cursor-grab text-muted-foreground hover:text-foreground hover:bg-muted transition-colors',
             isDragging && 'cursor-grabbing',
           )}
           title="Drag to move"
@@ -109,13 +109,13 @@ export function FloatingPanel({
         >
           <GripVertical className="h-4 w-4" />
         </button>
-        <h2 id={titleId} className="text-sm font-semibold text-white">
+        <h2 id={titleId} className="text-sm font-semibold text-foreground">
           {title}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+          className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Close panel"
         >
           <X className="h-4 w-4" />

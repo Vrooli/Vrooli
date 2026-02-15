@@ -186,19 +186,18 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, onNavigateToMemberHear
           <h3 className="text-sm font-medium text-foreground">Upcoming Heartbeats</h3>
           <span className="text-xs text-muted-foreground">Next 5</span>
         </div>
-        {!team.enabled && (
-          <div className="flex items-start gap-3 p-3 mb-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+        {!team.enabled ? (
+          <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <Clock className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm text-amber-500 font-medium">Team is turned off</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Heartbeats are paused
-                {enabledHeartbeatCount > 0 ? ` (${enabledHeartbeatCount} configured)` : ''}.
+                {enabledHeartbeatCount > 0 ? ` (${enabledHeartbeatCount} configured)` : ''}. Turn the team on to resume.
               </p>
             </div>
           </div>
-        )}
-        {isLoadingHeartbeats ? (
+        ) : isLoadingHeartbeats ? (
           <p className="text-sm text-muted-foreground">Loading heartbeat schedule...</p>
         ) : heartbeatError ? (
           <p className="text-sm text-destructive">{heartbeatError}</p>
@@ -206,13 +205,9 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, onNavigateToMemberHear
           <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
             <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm text-muted-foreground">
-                {team.enabled ? 'No upcoming heartbeats scheduled.' : 'Team is off. Heartbeats are paused.'}
-              </p>
+              <p className="text-sm text-muted-foreground">No upcoming heartbeats scheduled.</p>
               <p className="text-xs text-muted-foreground/70 mt-0.5">
-                {team.enabled
-                  ? 'Enable heartbeats on team members to populate this list.'
-                  : 'Turn the team on to resume scheduled heartbeats.'}
+                Enable heartbeats on team members to populate this list.
               </p>
             </div>
           </div>

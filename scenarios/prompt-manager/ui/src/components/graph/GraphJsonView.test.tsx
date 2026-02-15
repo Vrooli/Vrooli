@@ -12,8 +12,8 @@ import type { GraphResponse } from '@/lib/schemas'
 
 let lastEditorValue = ''
 
-vi.mock('@monaco-editor/react', () => {
-  const React = require('react')
+vi.mock('@monaco-editor/react', async () => {
+  const React = await import('react')
   return {
     default: React.forwardRef(function MockEditor(
       props: { value?: string },
@@ -54,7 +54,12 @@ const MOCK_GRAPH_RESPONSE: GraphResponse = {
 
 // Must import after mocks
 import { useGraphStore } from '@/stores/graphStore'
+import { ThemeProvider } from '@/hooks/use-theme'
 import { GraphJsonView } from './GraphJsonView'
+
+function renderWithTheme(ui: React.ReactElement) {
+  return render(<ThemeProvider>{ui}</ThemeProvider>)
+}
 
 // ============================================================================
 // Tests
@@ -83,7 +88,7 @@ describe('GraphJsonView', () => {
   })
 
   it('should render filtered graph data as JSON', () => {
-    render(<GraphJsonView />)
+    renderWithTheme(<GraphJsonView />)
 
     expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
     expect(screen.getByText('graph.json')).toBeInTheDocument()
@@ -111,7 +116,7 @@ describe('GraphJsonView', () => {
       },
     })
 
-    render(<GraphJsonView />)
+    renderWithTheme(<GraphJsonView />)
 
     const parsed = JSON.parse(lastEditorValue) as GraphResponse
     // Agent node should be gone
@@ -129,7 +134,7 @@ describe('GraphJsonView', () => {
       clipboard: { writeText: writeTextMock },
     })
 
-    render(<GraphJsonView />)
+    renderWithTheme(<GraphJsonView />)
 
     fireEvent.click(screen.getByTestId('graph-json-copy-button'))
 

@@ -26,6 +26,8 @@ export function createHighlightMatch(
   content: string,
   request: HighlightRequest,
 ): ContentSearchMatch | null {
+  if (!request.text) return null
+
   const lines = content.split('\n')
   if (request.line < 1 || request.line > lines.length) return null
 

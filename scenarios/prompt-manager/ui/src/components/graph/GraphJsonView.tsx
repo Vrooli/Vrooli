@@ -12,9 +12,11 @@ import { cn } from '@/lib/utils'
 import { useGraphStore, selectFilteredNodes, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useCodeCopy } from '@/components/markdown/hooks/useCodeCopy'
+import { useResolvedTheme } from '@/hooks/use-theme'
 import { selectors } from '@/constants/selectors'
 
 export function GraphJsonView() {
+  const resolvedTheme = useResolvedTheme()
   const graph = useGraphStore((s) => s.graph)
   const filteredNodes = useGraphStore(useShallow(selectFilteredNodes))
   const effectiveHealthScores = useGraphStore(useShallow(selectEffectiveHealthScores))
@@ -49,9 +51,9 @@ export function GraphJsonView() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
-        <span className="text-xs text-slate-400 font-medium">graph.json</span>
-        <span className="text-xs text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
+      <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-card border-b border-border">
+        <span className="text-xs text-muted-foreground font-medium">graph.json</span>
+        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
           Read-only
         </span>
         <button
@@ -60,8 +62,8 @@ export function GraphJsonView() {
           onClick={copyCode}
           className={cn(
             'ml-auto flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md',
-            'bg-slate-800 text-slate-200 border border-slate-700',
-            'hover:bg-slate-700 transition-colors',
+            'bg-muted text-foreground border border-border',
+            'hover:bg-muted/80 transition-colors',
           )}
           title="Copy JSON to clipboard"
         >
@@ -76,7 +78,7 @@ export function GraphJsonView() {
           height="100%"
           defaultLanguage="json"
           value={filteredJson}
-          theme="vs-dark"
+          theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light'}
           options={{
             readOnly: true,
             minimap: { enabled: true },

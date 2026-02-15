@@ -15,6 +15,11 @@ import { SkillEditorPanel } from './SkillEditorPanel'
 import type { Skill } from '@/types'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 
+// Mock useResolvedTheme (used by SkillContentEditor)
+vi.mock('@/hooks/use-theme', () => ({
+  useResolvedTheme: vi.fn(() => 'dark'),
+}))
+
 // Mock Monaco editor since it requires browser environment
 vi.mock('@monaco-editor/react', () => ({
   default: ({ value }: { value: string }) => (

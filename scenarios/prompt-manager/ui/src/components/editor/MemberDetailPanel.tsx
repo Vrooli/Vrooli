@@ -26,7 +26,7 @@ import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
 // Types
 // ============================================================================
 
-export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat'
+export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'pipeline'
 
 interface MemberDetailPanelProps {
   team: TeamDetails
@@ -42,6 +42,7 @@ interface MemberDetailPanelProps {
   onRemoveMember: (agentId: string) => Promise<void>
   onClose: () => void
   onCollapse?: () => void
+  onNavigateToAgentFiles?: (agentId: string, filePath?: string) => void
   className?: string
 }
 
@@ -71,6 +72,7 @@ export function MemberDetailPanel({
   onRemoveMember,
   onClose,
   onCollapse,
+  onNavigateToAgentFiles,
   className,
 }: MemberDetailPanelProps) {
   // Running agent state from shared store
@@ -352,6 +354,18 @@ export function MemberDetailPanel({
             <span className="absolute top-1 right-2 w-2 h-2 bg-amber-500 rounded-full" />
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection('pipeline')}
+          className={cn(
+            'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+            activeSection === 'pipeline'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Pipeline
+        </button>
       </div>
 
       {/* Content */}
@@ -465,8 +479,6 @@ export function MemberDetailPanel({
               runDuration={runningAgent?.duration}
             />
 
-            {/* Prompt pipeline */}
-            <MemberPromptPipelineSection teamId={team.id} memberId={member.agentId} />
           </div>
         )}
 
@@ -555,6 +567,16 @@ Describe what this agent is responsible for in this team..."
 Describe what this agent should do on each heartbeat..."
             />
           </div>
+        )}
+
+        {/* Pipeline section */}
+        {activeSection === 'pipeline' && (
+          <MemberPromptPipelineSection
+            teamId={team.id}
+            memberId={member.agentId}
+            onNavigateToTab={(tab) => setActiveSection(tab)}
+            onNavigateToAgentFiles={onNavigateToAgentFiles ? (filePath) => onNavigateToAgentFiles(member.agentId, filePath) : undefined}
+          />
         )}
       </div>
 

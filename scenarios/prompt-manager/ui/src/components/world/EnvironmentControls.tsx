@@ -100,12 +100,12 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
 
   return (
     <div
-      className={`flex flex-col gap-2 p-2 bg-slate-800/80 border border-slate-700 rounded-lg ${className ?? ''}`}
+      className={`flex flex-col gap-2 p-2 bg-card/80 border border-border rounded-lg ${className ?? ''}`}
       data-testid={selectors.environment.controls}
     >
       {/* Time Slider Row */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-400 w-12">Time:</span>
+        <span className="text-xs text-muted-foreground w-12">Time:</span>
         <div className="flex-1 flex items-center gap-2">
           <Slider
             value={[timeValue]}
@@ -117,7 +117,7 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
             aria-label="Time of day"
             data-testid={selectors.environment.timeSlider}
           />
-          <span className="text-xs text-slate-300 w-16 text-right font-mono">
+          <span className="text-xs text-foreground w-16 text-right font-mono">
             {timeDisplay}
           </span>
         </div>
@@ -127,7 +127,7 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
           size="sm"
           onClick={handleToggleRealTime}
           className={`h-7 w-7 p-0 ${
-            realTimeMode ? 'bg-indigo-500/30 text-indigo-300' : 'text-slate-400 hover:text-slate-200'
+            realTimeMode ? 'bg-indigo-500/30 text-indigo-300' : 'text-muted-foreground hover:text-foreground'
           }`}
           title={realTimeMode ? 'Real-time mode (synced with system clock)' : 'Manual time control'}
           data-testid={selectors.environment.realTimeToggle}
@@ -139,7 +139,7 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
 
       {/* Scene Type Row */}
       <div className="flex items-center gap-1">
-        <span className="text-xs text-slate-400 w-12">Scene:</span>
+        <span className="text-xs text-muted-foreground w-12">Scene:</span>
         {SCENE_TYPE_CONFIG.map(({ type, icon, label, testId }) => (
           <Button
             key={type}
@@ -149,7 +149,7 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
             className={`h-7 w-7 p-0 ${
               sceneType === type
                 ? 'bg-indigo-500/30 text-indigo-300'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             title={label}
             data-testid={testId}
@@ -166,7 +166,7 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
           size="sm"
           onClick={handleToggleThemeSync}
           className={`h-7 px-2 text-xs ml-1 ${
-            syncWithTheme ? 'text-amber-400' : 'text-slate-500'
+            syncWithTheme ? 'text-amber-400' : 'text-muted-foreground/60'
           }`}
           title={syncWithTheme ? 'Environment synced with app theme' : 'Manual environment control'}
         >

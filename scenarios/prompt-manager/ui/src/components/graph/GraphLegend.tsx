@@ -13,20 +13,20 @@ interface LegendItem {
   shape: string
 }
 
-export const NODE_TYPES: LegendItem[] = [
+const NODE_TYPES: LegendItem[] = [
   { label: 'Team', shape: 'rounded-sm' },
   { label: 'Agent', shape: 'rounded-full' },
   { label: 'Skill', shape: 'rotate-45 rounded-sm' },
   { label: 'CLI', shape: 'clip-hexagon' },
 ]
 
-export const HEALTH_LEVELS = [
+const HEALTH_LEVELS = [
   { label: 'Critical (<30%)', classes: 'bg-red-500/20 border-red-400/90' },
   { label: 'Warning (30-60%)', classes: 'bg-yellow-500/20 border-yellow-300/90' },
   { label: 'Healthy (>60%)', classes: 'bg-emerald-500/20 border-emerald-300/80' },
 ]
 
-export const EDGE_TYPES = [
+const EDGE_TYPES = [
   { label: 'Membership', classes: 'border-muted-foreground' },
   { label: 'CLI Read', classes: 'border-violet-500' },
   { label: 'Bold-listed Reference', classes: 'border-violet-500 border-dashed' },

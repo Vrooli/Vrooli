@@ -63,9 +63,13 @@ vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: vi.fn(() => false),
 }))
 
+vi.mock('@/hooks/use-theme', () => ({
+  useResolvedTheme: vi.fn(() => 'dark'),
+}))
+
 // Mock Monaco editor (used by GraphJsonView)
-vi.mock('@monaco-editor/react', () => {
-  const React = require('react')
+vi.mock('@monaco-editor/react', async () => {
+  const React = await import('react')
   return {
     default: React.forwardRef(function MockEditor(
       props: { value?: string; 'data-testid'?: string },

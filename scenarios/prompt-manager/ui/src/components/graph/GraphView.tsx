@@ -34,6 +34,7 @@ import { useGraphStore, selectFilteredNodes, selectEffectiveHealthScores, type G
 import { useShallow } from 'zustand/react/shallow'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useResolvedTheme } from '@/hooks/use-theme'
 import { GraphFlowNode, type GraphNodeData } from './GraphNode'
 import { GraphNodePopover } from './GraphNodePopover'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
@@ -209,6 +210,7 @@ interface SelectedNodeState {
 
 function GraphViewInner({ className }: GraphViewInnerProps) {
   const isMobile = useIsMobile()
+  const resolvedTheme = useResolvedTheme()
   const { fitView, setViewport, getViewport, flowToScreenPosition } = useReactFlow()
   const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual')
   const [selectedNode, setSelectedNode] = useState<SelectedNodeState | null>(null)
@@ -669,7 +671,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
       {/* Visual / JSON mode toggle */}
       <div
         data-testid={selectors.graph.modeToggle}
-        className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex rounded-lg border border-slate-700 bg-slate-800/90 backdrop-blur-sm overflow-hidden"
+        className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex rounded-lg border border-border bg-card/90 backdrop-blur-sm overflow-hidden"
       >
         <button
           type="button"
@@ -679,7 +681,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
             'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors',
             viewMode === 'visual'
               ? 'bg-indigo-500/30 text-indigo-300'
-              : 'text-slate-400 hover:text-slate-200',
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <Network className="h-3.5 w-3.5" />
@@ -693,7 +695,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
             'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors',
             viewMode === 'json'
               ? 'bg-indigo-500/30 text-indigo-300'
-              : 'text-slate-400 hover:text-slate-200',
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <Braces className="h-3.5 w-3.5" />
@@ -739,7 +741,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
                     default: return '#f97316'
                   }
                 }}
-                maskColor="rgba(0, 0, 0, 0.5)"
+                maskColor={resolvedTheme === 'dark' ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
               />
             )}
           </ReactFlow>

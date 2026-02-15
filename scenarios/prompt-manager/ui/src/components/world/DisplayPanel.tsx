@@ -83,16 +83,16 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className="absolute bottom-4 left-4 right-4 bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-xl overflow-hidden"
+      className="absolute bottom-4 left-4 right-4 bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-xl overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-slate-200">
+            <span className="text-sm font-medium text-foreground">
               {selectedSkills.length} skill{selectedSkills.length !== 1 ? 's' : ''} selected
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               ~{displayResult.totalTokens.toLocaleString()} tokens
             </span>
           </div>
@@ -107,7 +107,7 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
 
         <button
           onClick={onClear}
-          className="p-1 text-slate-400 hover:text-slate-200 transition-colors"
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
           title="Clear selection"
         >
           <X className="h-4 w-4" />
@@ -115,12 +115,12 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
       </div>
 
       {/* Selected skills list */}
-      <div className="px-4 py-2 border-b border-slate-700/50">
+      <div className="px-4 py-2 border-b border-border">
         <div className="flex flex-wrap gap-2">
           {selectedSkills.map((skill) => (
             <span
               key={skill.id}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700/50 text-slate-300 text-xs rounded-md"
+              className="inline-flex items-center gap-1 px-2 py-1 bg-muted text-foreground text-xs rounded-md"
             >
               {skill.name}
             </span>
@@ -131,7 +131,7 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
       {/* Format selection and actions */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">Format:</span>
+          <span className="text-xs text-muted-foreground">Format:</span>
           <div className="flex gap-1">
             {FORMAT_OPTIONS.map((option) => (
               <button
@@ -140,7 +140,7 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
                 className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors ${
                   format === option.value
                     ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    : 'bg-muted text-foreground hover:bg-muted/70'
                 }`}
               >
                 {option.icon}
@@ -153,7 +153,7 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowPreview(!showPreview)}
-            className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Preview
             {showPreview ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
@@ -187,9 +187,9 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="border-t border-slate-700"
+            className="border-t border-border"
           >
-            <pre className="p-4 text-xs font-mono text-slate-300 bg-slate-900/50 max-h-48 overflow-auto whitespace-pre-wrap">
+            <pre className="p-4 text-xs font-mono text-foreground bg-muted/50 max-h-48 overflow-auto whitespace-pre-wrap">
               {preview}
             </pre>
           </motion.div>

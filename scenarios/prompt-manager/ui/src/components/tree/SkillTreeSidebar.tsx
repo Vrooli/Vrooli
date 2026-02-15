@@ -397,7 +397,8 @@ export function SkillTreeSidebar({
     else setTeamSearchQuery(query)
   }, [activeTab, onSearchChange])
 
-  const tabFeatures = TAB_SEARCH_FEATURES[activeTab as SearchableTab]
+  const tabFeatures: { contentSearch: boolean; aiSearch: boolean; tagFilter: boolean; folderFilter: boolean } | undefined =
+    (activeTab in TAB_SEARCH_FEATURES) ? TAB_SEARCH_FEATURES[activeTab as SearchableTab] : undefined
 
   // Notify parent when tab changes (for persistence)
   const handleTabChange = useCallback((tab: string) => {
@@ -762,7 +763,7 @@ export function SkillTreeSidebar({
               value={currentSearchQuery}
               onChange={(e) => handleCurrentSearchChange(e.target.value)}
               onKeyDown={activeTab === 'skills' ? handleSearchInputKeyDown : undefined}
-              placeholder={TAB_SEARCH_PLACEHOLDERS[activeTab as SearchableTab] ?? 'Search...'}
+              placeholder={(activeTab in TAB_SEARCH_PLACEHOLDERS ? TAB_SEARCH_PLACEHOLDERS[activeTab as SearchableTab] : undefined) ?? 'Search...'}
               className={cn(
                 'w-full pl-8 pr-3 py-1.5 text-xs',
                 'bg-muted border border-border rounded-md',
@@ -802,7 +803,7 @@ export function SkillTreeSidebar({
                   Content
                 </button>
               </div>
-              {tabFeatures?.aiSearch && (
+              {tabFeatures.aiSearch && (
                 <button
                   type="button"
                   onClick={handleAISearch}

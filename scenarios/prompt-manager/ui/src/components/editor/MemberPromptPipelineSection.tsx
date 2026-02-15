@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { FileText, RefreshCw, Copy } from 'lucide-react'
+import { RefreshCw, Copy, ExternalLink, Pencil, Link } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import * as agentService from '@/services/agentService'
@@ -7,6 +7,8 @@ import * as agentService from '@/services/agentService'
 interface MemberPromptPipelineSectionProps {
   teamId: string
   memberId: string
+  onNavigateToTab?: (tab: 'responsibilities' | 'heartbeat') => void
+  onNavigateToAgentFiles?: (filePath?: string) => void
 }
 
 type PipelineSectionKey =
@@ -137,11 +139,10 @@ function extractAgentFileBlocks(sectionContent: string): AgentFileBlock[] {
   return blocks
 }
 
-export function MemberPromptPipelineSection({ teamId, memberId }: MemberPromptPipelineSectionProps) {
+export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab, onNavigateToAgentFiles }: MemberPromptPipelineSectionProps) {
   const [promptPreview, setPromptPreview] = useState('')
   const [promptError, setPromptError] = useState<string | null>(null)
   const [isPromptLoading, setIsPromptLoading] = useState(false)
-  const [showPipeline, setShowPipeline] = useState(false)
 
   // DOC: docs/concepts/HEARTBEATS.md#prompt-pipeline-ui
   const loadPromptPreview = useCallback(async () => {
@@ -178,151 +179,172 @@ export function MemberPromptPipelineSection({ teamId, memberId }: MemberPromptPi
     }
   }, [promptPreview])
 
+  // Auto-load prompt preview on mount
   useEffect(() => {
-    if (!showPipeline) return
     if (promptPreview || isPromptLoading) return
     void loadPromptPreview()
-  }, [showPipeline, promptPreview, isPromptLoading, loadPromptPreview])
+  }, [promptPreview, isPromptLoading, loadPromptPreview])
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <label className="text-sm font-medium">Prompt Pipeline</label>
+    <div className="space-y-4">
+      {/* Full prompt preview card */}
+      {promptPreview && !isPromptLoading && !promptError && (
+        <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+          <p className="text-[11px] font-medium text-foreground mb-2">Full prompt preview</p>
+          <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
+            {promptPreview}
+          </pre>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowPipeline((prev) => !prev)}
-          className={cn(
-            'px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors',
-            showPipeline
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          )}
-        >
-          {showPipeline ? 'Hide' : 'Show'}
-        </button>
+      )}
+
+      {/* Toolbar: description + refresh/copy */}
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-xs text-muted-foreground">
+          Preview uses saved agent + team files. Save changes, then refresh to update.
+        </p>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => void loadPromptPreview()}
+            disabled={isPromptLoading}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
+              'text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors',
+              isPromptLoading && 'opacity-50 cursor-not-allowed'
+            )}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCopyPrompt()}
+            disabled={!promptPreview}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
+              'text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors',
+              !promptPreview && 'opacity-50 cursor-not-allowed'
+            )}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy
+          </button>
+        </div>
       </div>
 
-      {showPipeline && (
-        <div className="space-y-4 rounded-lg border border-border bg-muted/40 p-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">
-                Preview uses saved agent + team files. Save changes, then refresh to update.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void loadPromptPreview()}
-                disabled={isPromptLoading}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
-                  'text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors',
-                  isPromptLoading && 'opacity-50 cursor-not-allowed'
-                )}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Refresh
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCopyPrompt()}
-                disabled={!promptPreview}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
-                  'text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors',
-                  !promptPreview && 'opacity-50 cursor-not-allowed'
-                )}
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copy
-              </button>
-            </div>
-          </div>
+      {isPromptLoading ? (
+        <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+          Building prompt preview...
+        </div>
+      ) : promptError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {promptError}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {pipelineSections.map((section, index) => {
+            const agentFiles = section.key === 'agent-files'
+              ? extractAgentFileBlocks(section.content)
+              : []
 
-          {isPromptLoading ? (
-            <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
-              Building prompt preview...
-            </div>
-          ) : promptError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {promptError}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pipelineSections.map((section, index) => {
-                const agentFiles = section.key === 'agent-files'
-                  ? extractAgentFileBlocks(section.content)
-                  : []
-                return (
-                  <div
-                    key={section.key}
-                    className="rounded-lg border border-border bg-background px-3 py-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold text-muted-foreground">
-                          {index + 1}
-                        </span>
-                        <p className="text-xs font-medium text-foreground">{section.title}</p>
-                      </div>
-                      <span
-                        className={cn(
-                          'px-2 py-0.5 text-[11px] rounded-full',
-                          section.missing
-                            ? 'bg-amber-500/10 text-amber-500'
-                            : 'bg-emerald-500/10 text-emerald-500'
-                        )}
-                      >
-                        {section.missing ? 'Not set' : 'Included'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1">{section.description}</p>
-                    {section.note && (
-                      <p className="text-[11px] text-amber-500 mt-2">{section.note}</p>
-                    )}
-                    {section.missing ? (
-                      <p className="text-[11px] text-muted-foreground mt-2">{section.emptyMessage}</p>
-                    ) : section.key === 'agent-files' && agentFiles.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        {agentFiles.map((file) => (
-                          <details
-                            key={file.path}
-                            className="rounded-lg border border-border bg-muted/40 px-3 py-2"
-                          >
-                            <summary className="cursor-pointer text-[11px] font-medium text-foreground">
-                              {file.path}
-                            </summary>
-                            <pre className="mt-2 whitespace-pre-wrap text-[11px] text-muted-foreground">
-                              {file.content || 'Empty file.'}
-                            </pre>
-                          </details>
-                        ))}
-                      </div>
-                    ) : (
-                      <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
-                        {section.content || section.emptyMessage}
-                      </pre>
-                    )}
+            // Determine navigation action for this section
+            const navAction = section.key === 'agent-files' && onNavigateToAgentFiles
+              ? () => onNavigateToAgentFiles()
+              : section.key === 'responsibilities' && onNavigateToTab
+                ? () => onNavigateToTab('responsibilities')
+                : section.key === 'heartbeat-task' && onNavigateToTab
+                  ? () => onNavigateToTab('heartbeat')
+                  : null
+
+            const navLabel = section.key === 'agent-files'
+              ? 'Open in Agent Editor'
+              : section.key === 'responsibilities' || section.key === 'heartbeat-task'
+                ? 'Edit'
+                : null
+
+            return (
+              <div
+                key={section.key}
+                className="rounded-lg border border-border bg-background px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <p className="text-xs font-medium text-foreground">{section.title}</p>
                   </div>
-                )
-              })}
-            </div>
-          )}
-
-          {promptPreview && !isPromptLoading && !promptError && (
-            <details className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-              <summary className="cursor-pointer text-[11px] font-medium text-foreground">
-                Full prompt preview
-              </summary>
-              <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
-                {promptPreview}
-              </pre>
-            </details>
-          )}
+                  <div className="flex items-center gap-2">
+                    {navAction && navLabel && (
+                      <button
+                        type="button"
+                        onClick={navAction}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
+                      >
+                        {section.key === 'agent-files' ? (
+                          <ExternalLink className="h-3 w-3" />
+                        ) : (
+                          <Pencil className="h-3 w-3" />
+                        )}
+                        {navLabel}
+                      </button>
+                    )}
+                    <span
+                      className={cn(
+                        'px-2 py-0.5 text-[11px] rounded-full',
+                        section.missing
+                          ? 'bg-amber-500/10 text-amber-500'
+                          : 'bg-emerald-500/10 text-emerald-500'
+                      )}
+                    >
+                      {section.missing ? 'Not set' : 'Included'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">{section.description}</p>
+                {section.note && (
+                  <p className="text-[11px] text-amber-500 mt-2">{section.note}</p>
+                )}
+                {section.missing ? (
+                  <p className="text-[11px] text-muted-foreground mt-2">{section.emptyMessage}</p>
+                ) : section.key === 'agent-files' && agentFiles.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {agentFiles.map((file) => (
+                      <details
+                        key={file.path}
+                        className="rounded-lg border border-border bg-muted/40 px-3 py-2"
+                      >
+                        <summary className="cursor-pointer text-[11px] font-medium text-foreground flex items-center gap-1.5">
+                          <span className="flex-1">{file.path}</span>
+                          {onNavigateToAgentFiles && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onNavigateToAgentFiles(file.path)
+                              }}
+                              className="p-0.5 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                              title={`Open ${file.path} in Agent Editor`}
+                            >
+                              <Link className="h-3 w-3" />
+                            </button>
+                          )}
+                        </summary>
+                        <pre className="mt-2 whitespace-pre-wrap text-[11px] text-muted-foreground">
+                          {file.content || 'Empty file.'}
+                        </pre>
+                      </details>
+                    ))}
+                  </div>
+                ) : (
+                  <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
+                    {section.content || section.emptyMessage}
+                  </pre>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

@@ -12,6 +12,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { SkillContentEditor } from './SkillContentEditor'
 
+// Mock useResolvedTheme (used by SkillContentEditor)
+vi.mock('@/hooks/use-theme', () => ({
+  useResolvedTheme: vi.fn(() => 'dark'),
+}))
+
 // Mock Monaco Editor with useMonaco hook
 const mockSetModelMarkers = vi.fn()
 const mockMonaco = {

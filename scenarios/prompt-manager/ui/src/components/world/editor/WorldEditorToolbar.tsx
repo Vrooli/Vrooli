@@ -96,7 +96,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
 
   return (
     <>
-      <div className={`flex items-center gap-1 p-1.5 bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-lg shadow-lg ${className ?? ''}`}>
+      <div className={`flex items-center gap-1 p-1.5 bg-card/90 backdrop-blur-sm border border-border rounded-lg shadow-lg ${className ?? ''}`}>
         {/* Edit Mode Toggle */}
         <Button
           variant="ghost"
@@ -105,7 +105,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
           className={`h-8 px-2 gap-1.5 ${
             isEditMode
               ? 'bg-indigo-500/30 text-indigo-300 hover:bg-indigo-500/40'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
           title={isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
         >
@@ -123,7 +123,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
         </Button>
 
         {/* Divider */}
-        {isEditMode && <div className="w-px h-5 bg-slate-600 mx-1" />}
+        {isEditMode && <div className="w-px h-5 bg-border mx-1" />}
 
         {/* Edit Mode Tools */}
         {isEditMode && (
@@ -136,7 +136,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
               className={`h-8 w-8 p-0 ${
                 isPaletteOpen
                   ? 'bg-green-500/30 text-green-300'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               title="Add Objects"
             >
@@ -163,7 +163,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
               className={`h-8 w-8 p-0 ${
                 selectedObject
                   ? 'text-red-400 hover:text-red-300 hover:bg-red-500/20'
-                  : 'text-slate-600'
+                  : 'text-muted-foreground/40'
               }`}
               title="Delete Selected"
             >
@@ -171,7 +171,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
             </Button>
 
             {/* Divider */}
-            <div className="w-px h-5 bg-slate-600 mx-1" />
+            <div className="w-px h-5 bg-border mx-1" />
 
             {/* Undo */}
             <Button
@@ -181,8 +181,8 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
               disabled={actionHistory.length === 0}
               className={`h-8 w-8 p-0 ${
                 actionHistory.length > 0
-                  ? 'text-slate-400 hover:text-slate-200'
-                  : 'text-slate-600'
+                  ? 'text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground/40'
               }`}
               title="Undo"
             >
@@ -197,8 +197,8 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
               disabled={redoStack.length === 0}
               className={`h-8 w-8 p-0 ${
                 redoStack.length > 0
-                  ? 'text-slate-400 hover:text-slate-200'
-                  : 'text-slate-600'
+                  ? 'text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground/40'
               }`}
               title="Redo"
             >
@@ -206,7 +206,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
             </Button>
 
             {/* Divider */}
-            <div className="w-px h-5 bg-slate-600 mx-1" />
+            <div className="w-px h-5 bg-border mx-1" />
 
             {/* Reset dropdown */}
             <div className="relative" ref={resetRef}>
@@ -217,7 +217,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
                 className={`h-8 px-2 gap-1 ${
                   isResetOpen
                     ? 'bg-amber-500/30 text-amber-300'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
                 title="Reset Scene"
               >
@@ -226,9 +226,9 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
               </Button>
 
               {isResetOpen && (
-                <div className="absolute top-full mt-1 right-0 w-44 bg-slate-800 border border-slate-700 rounded-md shadow-xl z-50 py-1">
+                <div className="absolute top-full mt-1 right-0 w-44 bg-card border border-border rounded-md shadow-xl z-50 py-1">
                   <button
-                    className="w-full text-left px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"
+                    className="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-muted"
                     onClick={() => {
                       setIsResetOpen(false)
                       setConfirmAction('clear')
@@ -237,7 +237,7 @@ export function WorldEditorToolbar({ className }: WorldEditorToolbarProps) {
                     Clear Scene
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"
+                    className="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-muted"
                     onClick={() => {
                       setIsResetOpen(false)
                       setConfirmAction('defaults')

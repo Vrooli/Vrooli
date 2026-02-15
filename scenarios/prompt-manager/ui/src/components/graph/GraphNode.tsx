@@ -47,7 +47,7 @@ function getHealthClasses(score: number | null): { background: string; border: s
     return {
       background: 'bg-red-500/20',
       border: 'border-red-400/90',
-      text: 'text-red-100',
+      text: 'text-red-900 dark:text-red-100',
     }
   }
 
@@ -55,14 +55,14 @@ function getHealthClasses(score: number | null): { background: string; border: s
     return {
       background: 'bg-yellow-500/20',
       border: 'border-yellow-300/90',
-      text: 'text-yellow-100',
+      text: 'text-yellow-900 dark:text-yellow-100',
     }
   }
 
   return {
     background: 'bg-emerald-500/20',
     border: 'border-emerald-300/80',
-    text: 'text-emerald-100',
+    text: 'text-emerald-900 dark:text-emerald-100',
   }
 }
 
@@ -78,13 +78,13 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
     ? {
       background: 'bg-indigo-500/35',
       border: 'border-indigo-300',
-      text: 'text-indigo-50',
+      text: 'text-indigo-900 dark:text-indigo-50',
     }
     : isQueryDimmed
       ? {
-        background: 'bg-slate-700/15',
-        border: 'border-slate-500/40',
-        text: 'text-slate-400',
+        background: 'bg-muted/30',
+        border: 'border-border/40',
+        text: 'text-muted-foreground',
       }
       : health
 
@@ -118,7 +118,7 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
             {label}
           </p>
           {healthScore !== null && (
-            <p className={cn('text-[10px] text-center mt-0.5', isQueryDimmed ? 'text-slate-400/80' : 'text-foreground/75')}>
+            <p className={cn('text-[10px] text-center mt-0.5', isQueryDimmed ? 'text-muted-foreground/80' : 'text-foreground/75')}>
               {Math.round(healthScore * 100)}%
             </p>
           )}

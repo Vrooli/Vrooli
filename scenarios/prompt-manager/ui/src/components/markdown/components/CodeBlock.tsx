@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { useCodeCopy } from '../hooks/useCodeCopy'
 import { detectLanguage, normalizeLanguage } from '../utils/languageDetection'
+import { useResolvedTheme } from '@/hooks/use-theme'
 
 interface CodeBlockProps {
   /** The code content */
@@ -12,14 +13,15 @@ interface CodeBlockProps {
   className?: string
 }
 
-// Lazy-loaded shiki highlighter
-let highlighterPromise: Promise<import('shiki').Highlighter> | null = null
+// Lazy-loaded shiki highlighter (keyed by theme)
+const highlighterPromises = new Map<string, Promise<import('shiki').Highlighter>>()
 
-async function getHighlighter() {
-  if (!highlighterPromise) {
-    highlighterPromise = import('shiki').then((shiki) =>
+async function getHighlighter(theme: 'github-dark' | 'github-light') {
+  let promise = highlighterPromises.get(theme)
+  if (!promise) {
+    promise = import('shiki').then((shiki) =>
       shiki.createHighlighter({
-        themes: ['github-dark'],
+        themes: [theme],
         langs: [
           'typescript',
           'javascript',
@@ -45,8 +47,9 @@ async function getHighlighter() {
         ],
       })
     )
+    highlighterPromises.set(theme, promise)
   }
-  return highlighterPromise
+  return promise
 }
 
 /**
@@ -61,6 +64,8 @@ export const CodeBlock = memo(function CodeBlock({
 
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
   const { copied, copyCode } = useCodeCopy(safeCode)
+  const resolvedTheme = useResolvedTheme()
+  const shikiTheme = resolvedTheme === 'dark' ? 'github-dark' : 'github-light'
 
   // Extract language from className if not provided directly
   // react-markdown passes language as className="language-typescript"
@@ -77,7 +82,7 @@ export const CodeBlock = memo(function CodeBlock({
 
     async function highlight() {
       try {
-        const highlighter = await getHighlighter()
+        const highlighter = await getHighlighter(shikiTheme)
         if (cancelled) return
 
         // Check if the language is supported
@@ -86,7 +91,7 @@ export const CodeBlock = memo(function CodeBlock({
 
         const html = highlighter.codeToHtml(safeCode, {
           lang: langToUse,
-          theme: 'github-dark',
+          theme: shikiTheme,
         })
 
         setHighlightedHtml(html)
@@ -101,23 +106,23 @@ export const CodeBlock = memo(function CodeBlock({
     return () => {
       cancelled = true
     }
-  }, [safeCode, normalizedLang])
+  }, [safeCode, normalizedLang, shikiTheme])
 
   return (
     <div className="relative group rounded-lg overflow-hidden my-3">
       {/* Header with language label and copy button */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
-        <span className="text-xs text-slate-400 font-mono">{displayLang}</span>
+      <div className="flex items-center justify-between px-4 py-2 bg-muted border-b border-border">
+        <span className="text-xs text-muted-foreground font-mono">{displayLang}</span>
         <button
           onClick={copyCode}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           aria-label={copied ? 'Copied' : 'Copy code'}
           type="button"
         >
           {copied ? (
             <>
-              <Check className="h-3.5 w-3.5 text-green-400" />
-              <span className="text-green-400">Copied</span>
+              <Check className="h-3.5 w-3.5 text-green-500" />
+              <span className="text-green-500">Copied</span>
             </>
           ) : (
             <>
@@ -129,14 +134,14 @@ export const CodeBlock = memo(function CodeBlock({
       </div>
 
       {/* Code content */}
-      <div className="bg-slate-800 overflow-x-auto">
+      <div className="bg-muted/60 overflow-x-auto">
         {highlightedHtml ? (
           <div
             className="p-4 text-sm [&>pre]:!bg-transparent [&>pre]:!m-0 [&>pre]:!p-0"
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
-          <pre className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto">
+          <pre className="p-4 text-sm text-foreground font-mono whitespace-pre overflow-x-auto">
             {safeCode}
           </pre>
         )}

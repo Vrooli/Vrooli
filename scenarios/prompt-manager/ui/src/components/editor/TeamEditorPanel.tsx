@@ -62,6 +62,8 @@ interface TeamEditorPanelProps {
   onDelete: () => void
   /** Whether a delete operation is in progress */
   isDeleting?: boolean
+  /** Navigate to an agent's files in the Agent Editor */
+  onNavigateToAgentFiles?: (agentId: string, filePath?: string) => void
   /** Cross-reference highlight request */
   highlightRequest?: HighlightRequest | null
   /** Called after highlight is applied (clears URL params) */
@@ -84,6 +86,7 @@ export function TeamEditorPanel({
   onClose,
   onDelete,
   isDeleting = false,
+  onNavigateToAgentFiles,
   highlightRequest,
   onHighlightHandled,
   className,
@@ -530,6 +533,7 @@ export function TeamEditorPanel({
                         onRemoveMember={handleRemoveMember}
                         onClose={() => setSelectedMemberId(null)}
                         onCollapse={collapse}
+                        onNavigateToAgentFiles={onNavigateToAgentFiles}
                         className="h-full"
                       />
                     </div>

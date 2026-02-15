@@ -83,7 +83,7 @@ export function ViewOverlay({
                 variant="outline"
                 size="icon"
                 onClick={() => setActiveMobilePanel(activeMobilePanel === 'stats' ? null : 'stats')}
-                className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
+                className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                 title="View stats"
                 data-testid={selectors.viewOverlay.mobileStatsButton}
               >
@@ -94,7 +94,7 @@ export function ViewOverlay({
                   variant="outline"
                   size="icon"
                   onClick={() => setActiveMobilePanel(activeMobilePanel === 'left' ? null : 'left')}
-                  className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
+                  className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                   title="Open queries"
                   data-testid={selectors.viewOverlay.mobileLeftPanelButton}
                 >
@@ -120,7 +120,7 @@ export function ViewOverlay({
             variant="outline"
             size="icon"
             onClick={() => setGraphViewActive(!graphViewActive)}
-            className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
+            className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={graphViewActive ? 'Switch to World View' : 'Switch to Graph View'}
             data-testid={selectors.viewOverlay.viewToggle}
           >
@@ -130,7 +130,7 @@ export function ViewOverlay({
             variant="outline"
             size="icon"
             onClick={() => setIsSettingsOpen(true)}
-            className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
+            className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={settingsTitle}
             data-testid={selectors.viewOverlay.settingsButton}
           >
@@ -140,7 +140,7 @@ export function ViewOverlay({
             variant="outline"
             size="icon"
             onClick={() => setIsHelpOpen(true)}
-            className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
+            className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={helpTitle}
             data-testid={selectors.viewOverlay.helpButton}
           >
@@ -160,7 +160,7 @@ export function ViewOverlay({
             className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-border bg-popover text-popover-foreground shadow-2xl"
             data-testid={selectors.viewOverlay.mobilePanelSheet}
           >
-            <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-600/80" />
+            <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-border" />
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <p className="text-sm font-medium">{mobilePanelTitle}</p>
               <button

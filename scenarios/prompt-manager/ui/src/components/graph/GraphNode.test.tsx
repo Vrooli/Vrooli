@@ -102,7 +102,7 @@ describe('GraphFlowNode', () => {
 
   it('should use dimmed query styling when queryState is dimmed', () => {
     const { container } = renderNode({ queryState: 'dimmed' })
-    expect(container.querySelector('.bg-slate-700\\/15.border-slate-500\\/40')).toBeInTheDocument()
+    expect(container.querySelector('.bg-muted\\/30.border-border\\/40')).toBeInTheDocument()
     expect(container.querySelector('.opacity-45')).toBeInTheDocument()
   })
 

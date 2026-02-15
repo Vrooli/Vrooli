@@ -21,10 +21,10 @@ const EDGE_KIND_LABELS: Record<EdgeKind, string> = {
 }
 
 const TYPE_BADGES: Record<string, { label: string; className: string }> = {
-  team: { label: 'Team', className: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
-  agent: { label: 'Agent', className: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
-  skill: { label: 'Skill', className: 'bg-violet-500/20 text-violet-300 border-violet-500/40' },
-  cli: { label: 'CLI', className: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
+  team: { label: 'Team', className: 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/40' },
+  agent: { label: 'Agent', className: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40' },
+  skill: { label: 'Skill', className: 'bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500/40' },
+  cli: { label: 'CLI', className: 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/40' },
 }
 
 interface GraphNodePopoverProps {
@@ -69,7 +69,7 @@ function GraphNodeDetails({
 
   return (
     <>
-      {variant === 'mobile' && <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-slate-600/80" />}
+      {variant === 'mobile' && <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-border" />}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-2 px-3 pt-3 pb-2">
@@ -131,10 +131,10 @@ function GraphNodeDetails({
               </div>
             )}
 
-            {(healthScore.messages?.length ?? 0) > 0 && (
+            {healthScore.messages.length > 0 && (
               <div className="space-y-1.5 pt-2 border-t border-border/70">
                 <p className="text-muted-foreground">Recommendations</p>
-                {(healthScore.messages ?? []).slice(0, 3).map((message) => (
+                {healthScore.messages.slice(0, 3).map((message) => (
                   <div key={message.key} className="space-y-0.5">
                     <p className={cn(
                       'font-medium',

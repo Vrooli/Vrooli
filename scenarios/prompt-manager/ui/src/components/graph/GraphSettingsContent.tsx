@@ -72,7 +72,7 @@ function GraphDisplaySettings() {
   return (
     <div className="space-y-6">
       <section>
-        <h3 className="text-sm font-medium text-indigo-400 mb-3">Visibility</h3>
+        <h3 className="text-sm font-medium text-primary mb-3">Visibility</h3>
         <div className="grid grid-cols-2 gap-2 mb-4">
           {toggleButtons.map((btn) => {
             const Icon = btn.icon
@@ -84,8 +84,8 @@ function GraphDisplaySettings() {
                 className={cn(
                   'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors',
                   btn.active
-                    ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-                    : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+                    ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+                    : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
                 )}
                 title={`${btn.active ? 'Hide' : 'Show'} ${btn.label}`}
               >
@@ -97,7 +97,7 @@ function GraphDisplaySettings() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400 whitespace-nowrap">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
             Health &ge; {Math.round(filters.healthThreshold * 100)}%
           </span>
           <input
@@ -118,8 +118,8 @@ function GraphDisplaySettings() {
             className={cn(
               'flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
               filters.collapseCLIs
-                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+                : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
             )}
             title={filters.collapseCLIs ? 'Expand individual CLI nodes' : 'Collapse CLI nodes into one cluster'}
           >
@@ -135,8 +135,8 @@ function GraphDisplaySettings() {
             className={cn(
               'flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
               filters.showLowSignalEdges
-                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+                : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
             )}
             title={filters.showLowSignalEdges ? 'Hide low-signal edges' : 'Show low-signal edges'}
           >
@@ -152,8 +152,8 @@ function GraphDisplaySettings() {
             className={cn(
               'flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
               filters.autoFitOnChange
-                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+                : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
             )}
             title={filters.autoFitOnChange ? 'Disable auto-fit after changes' : 'Enable auto-fit after changes'}
           >
@@ -162,10 +162,10 @@ function GraphDisplaySettings() {
         </div>
       </section>
 
-      <div className="border-t border-white/10" />
+      <div className="border-t border-border" />
 
       <section>
-        <h3 className="text-sm font-medium text-indigo-400 mb-3">Layout</h3>
+        <h3 className="text-sm font-medium text-primary mb-3">Layout</h3>
         <div className="grid grid-cols-3 gap-2 mb-3">
           {[
             { id: 'hierarchical' as const, label: 'Hier' },
@@ -179,8 +179,8 @@ function GraphDisplaySettings() {
               className={cn(
                 'px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors',
                 layoutMode === option.id
-                  ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-                  : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+                  ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+                  : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
               )}
             >
               {option.label}
@@ -195,8 +195,8 @@ function GraphDisplaySettings() {
             className={cn(
               'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-all',
               layoutDirection === 'LR'
-                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+                : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
             )}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -208,8 +208,8 @@ function GraphDisplaySettings() {
             className={cn(
               'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-all',
               layoutDirection === 'TB'
-                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+                ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+                : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
             )}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -223,7 +223,7 @@ function GraphDisplaySettings() {
             onClick={requestFitView}
             className={cn(
               'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg',
-              'bg-slate-800/50 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors',
+              'bg-muted border border-border text-foreground hover:bg-muted/80 transition-colors',
             )}
             title="Fit to view"
           >
@@ -236,7 +236,7 @@ function GraphDisplaySettings() {
             disabled={loading}
             className={cn(
               'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg',
-              'bg-slate-800/50 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors',
+              'bg-muted border border-border text-foreground hover:bg-muted/80 transition-colors',
               loading && 'opacity-50 cursor-not-allowed',
             )}
             title="Regenerate graph"
@@ -293,14 +293,14 @@ function GraphHealthSettings() {
   return (
     <div className="space-y-4">
       <section className="space-y-2">
-        <h3 className="text-sm font-medium text-indigo-400">Entity Scoring Weights</h3>
-        <p className="text-xs text-slate-400">
+        <h3 className="text-sm font-medium text-primary">Entity Scoring Weights</h3>
+        <p className="text-xs text-muted-foreground">
           Tune weighted health factors per entity type. Changes are stored in
           <code className="ml-1">store/config/graph-health.json</code>.
         </p>
         <p className={cn(
           'text-xs',
-          dirty ? 'text-amber-300' : 'text-slate-500',
+          dirty ? 'text-amber-600 dark:text-amber-300' : 'text-muted-foreground',
         )}>
           {dirty ? 'Unsaved preview active (graph is using draft health config)' : 'No unsaved health changes'}
         </p>
@@ -310,15 +310,15 @@ function GraphHealthSettings() {
         const Icon = entity.icon
         const weights = config[entity.key]
         return (
-          <section key={entity.key} className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-slate-200">
+          <section key={entity.key} className="rounded-lg border border-border bg-card/40 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-foreground">
               <Icon className="h-4 w-4" />
               <span className="text-sm font-medium">{entity.label}</span>
             </div>
             {ENTITY_WEIGHT_FIELDS[entity.key].map((field) => (
-              <label key={field.key} className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-slate-300">
+              <label key={field.key} className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-muted-foreground">
                 <span>{field.label}</span>
-                <span className="tabular-nums text-slate-200">{Math.round(weights[field.key] * 100)}%</span>
+                <span className="tabular-nums text-foreground">{Math.round(weights[field.key] * 100)}%</span>
                 <input
                   type="range"
                   min={0}
@@ -334,25 +334,25 @@ function GraphHealthSettings() {
         )
       })}
 
-      <section className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-3 space-y-2">
-        <div className="flex items-center gap-2 text-slate-200">
+      <section className="rounded-lg border border-border bg-card/40 p-3 space-y-2">
+        <div className="flex items-center gap-2 text-foreground">
           <Terminal className="h-4 w-4" />
           <span className="text-sm font-medium">CLI Policy</span>
         </div>
 
-        <label className="block text-xs text-slate-300">
+        <label className="block text-xs text-muted-foreground">
           Neutral Commands (comma-separated)
           <input
             type="text"
             value={neutralCommandText}
             onChange={(e) => setNeutralCommandsText(e.target.value)}
-            className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1"
+            className="mt-1 w-full rounded border border-border bg-card px-2 py-1"
           />
         </label>
 
-        <label className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-slate-300">
+        <label className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-muted-foreground">
           <span>External tool score</span>
-          <span className="tabular-nums text-slate-200">{Math.round(config.cli.externalToolScore * 100)}%</span>
+          <span className="tabular-nums text-foreground">{Math.round(config.cli.externalToolScore * 100)}%</span>
           <input
             type="range"
             min={0}
@@ -364,9 +364,9 @@ function GraphHealthSettings() {
           />
         </label>
 
-        <label className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-slate-300">
+        <label className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs text-muted-foreground">
           <span>Scenario fallback score</span>
-          <span className="tabular-nums text-slate-200">{Math.round(config.cli.scenarioFallbackScore * 100)}%</span>
+          <span className="tabular-nums text-foreground">{Math.round(config.cli.scenarioFallbackScore * 100)}%</span>
           <input
             type="range"
             min={0}
@@ -380,7 +380,7 @@ function GraphHealthSettings() {
       </section>
 
       {error && (
-        <p className="text-xs text-red-300">{error}</p>
+        <p className="text-xs text-red-600 dark:text-red-300">{error}</p>
       )}
 
       <div className="flex gap-2">
@@ -389,7 +389,7 @@ function GraphHealthSettings() {
           onClick={resetToDefault}
           disabled={saving || loading}
           className={cn(
-            'flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/60 text-slate-200',
+            'flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-border bg-muted text-foreground',
             (saving || loading) && 'opacity-60 cursor-not-allowed',
           )}
         >
@@ -400,7 +400,7 @@ function GraphHealthSettings() {
           onClick={() => void onSave()}
           disabled={saving || loading}
           className={cn(
-            'flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-indigo-500/50 bg-indigo-500/30 text-indigo-100',
+            'flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-indigo-500/50 bg-indigo-500/30 text-indigo-700 dark:text-indigo-100',
             (saving || loading) && 'opacity-60 cursor-not-allowed',
           )}
         >
@@ -423,8 +423,8 @@ export function GraphSettingsContent() {
           className={cn(
             'px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
             tab === 'display'
-              ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-              : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+              ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+              : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
           )}
         >
           Display
@@ -435,8 +435,8 @@ export function GraphSettingsContent() {
           className={cn(
             'px-3 py-2 text-xs font-medium rounded-lg border transition-colors flex items-center justify-center gap-2',
             tab === 'health'
-              ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300'
-              : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600',
+              ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-700 dark:text-indigo-300'
+              : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-border/80',
           )}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />

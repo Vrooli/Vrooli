@@ -73,7 +73,7 @@ function scoreAllWithConfig(
                   : true
         )
         if (!hasMetricSignal && baseline.factors[key] !== undefined) {
-          factors[key] = baseline.factors[key] as number
+          factors[key] = baseline.factors[key]
         }
       }
     }
@@ -325,7 +325,7 @@ function buildFactorMessages(
   const ranked: Array<{ message: HealthMessage; impact: number }> = []
 
   const maybePush = (factor: FactorKey, message: HealthMessage) => {
-    const weight = weights[factor] ?? 0
+    const weight = weights[factor]
     if (weight <= 0) return
     ranked.push({
       message,

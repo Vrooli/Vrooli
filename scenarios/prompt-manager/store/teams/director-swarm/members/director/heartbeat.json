@@ -6,12 +6,12 @@
   "enabled": true,
   "schedule": "40 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-02-14T19:40:00Z",
-    "endedAt": "2026-02-14T19:40:00Z",
+    "startedAt": "2026-02-15T19:40:00Z",
+    "endedAt": "2026-02-15T19:40:00Z",
     "status": "failed",
     "error": "creating run: agent-manager error: validation error on defaults: field is required (hint: Provide default profile settings to create a new profile)"
   },
-  "revision": 28,
+  "revision": 30,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-14T19:40:00Z"
+  "updatedAt": "2026-02-15T19:40:00Z"
 }

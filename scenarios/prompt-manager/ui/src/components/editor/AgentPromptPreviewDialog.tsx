@@ -3,9 +3,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Copy, RefreshCw, X, Eye } from 'lucide-react'
+import { Copy, RefreshCw, X, Eye, FileText, Code } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { MarkdownRenderer } from '@/components/markdown/MarkdownRenderer'
 import * as agentService from '@/services/agentService'
 
 interface AgentPromptPreviewDialogProps {
@@ -29,6 +30,7 @@ export function AgentPromptPreviewDialog({
   const [prompt, setPrompt] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'markdown' | 'raw'>('markdown')
 
   const loadPreview = useCallback(async () => {
     if (!agentId) return
@@ -109,7 +111,7 @@ export function AgentPromptPreviewDialog({
         ref={dialogRef}
         className={cn(
           'relative w-full max-w-5xl mx-4 p-6',
-          'bg-slate-900 border border-white/10 rounded-xl shadow-2xl',
+          'bg-card border border-border rounded-xl shadow-2xl',
           'animate-in fade-in-0 zoom-in-95 duration-150',
           'max-h-[85vh] overflow-hidden flex flex-col'
         )}
@@ -122,7 +124,7 @@ export function AgentPromptPreviewDialog({
           onClick={onClose}
           className={cn(
             'absolute top-4 right-4 p-1 rounded',
-            'text-slate-400 hover:text-white hover:bg-white/10 transition-colors'
+            'text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
           )}
           aria-label="Close dialog"
         >
@@ -132,32 +134,60 @@ export function AgentPromptPreviewDialog({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
                 <Eye className="h-4 w-4" />
               </div>
-              <h2 id="prompt-preview-title" className="text-lg font-semibold text-white">
+              <h2 id="prompt-preview-title" className="text-lg font-semibold text-foreground">
                 Prompt Preview
               </h2>
             </div>
-            <p className="text-xs text-slate-400">
-              Agent: <span className="text-slate-200">{agentName}</span>
+            <p className="text-xs text-muted-foreground">
+              Agent: <span className="text-foreground">{agentName}</span>
               {teamId ? (
                 <>
                   {' '}
-                  • Team: <span className="text-slate-200">{teamId}</span>
+                  • Team: <span className="text-foreground">{teamId}</span>
                 </>
               ) : null}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-md border border-border">
+              <button
+                type="button"
+                onClick={() => setViewMode('markdown')}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-l-md transition-colors',
+                  viewMode === 'markdown'
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+                title="Rendered markdown"
+              >
+                <FileText className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('raw')}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-r-md transition-colors',
+                  viewMode === 'raw'
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+                title="Raw text"
+              >
+                <Code className="h-3.5 w-3.5" />
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => void loadPreview()}
               disabled={isLoading}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium',
-                'text-slate-200 hover:bg-white/10 transition-colors',
+                'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
+                'text-foreground hover:bg-muted transition-colors',
                 isLoading && 'opacity-50 cursor-not-allowed'
               )}
             >
@@ -169,8 +199,8 @@ export function AgentPromptPreviewDialog({
               onClick={() => void handleCopy()}
               disabled={!prompt}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium',
-                'text-slate-200 hover:bg-white/10 transition-colors',
+                'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium',
+                'text-foreground hover:bg-muted transition-colors',
                 !prompt && 'opacity-50 cursor-not-allowed'
               )}
             >
@@ -182,32 +212,36 @@ export function AgentPromptPreviewDialog({
 
         <div className="mt-4 space-y-3">
           {hasUnsavedChanges && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90">
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200/90">
               This preview uses the last saved agent.json + markdown files. Save changes to update the
               prompt.
             </div>
           )}
           {!hasUnsavedChanges && (
-            <div className="text-[11px] text-slate-400">
+            <div className="text-[11px] text-muted-foreground">
               Preview uses saved agent.json + markdown files.
             </div>
           )}
         </div>
 
-        <div className="mt-3 flex-1 overflow-hidden">
+        <div className="mt-3 flex-1 min-h-0 overflow-hidden">
           {isLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Building prompt preview...
             </div>
           ) : error ? (
-            <div className="flex h-full items-center justify-center text-sm text-amber-200">
+            <div className="flex h-full items-center justify-center text-sm text-amber-700 dark:text-amber-200">
               {error}
             </div>
           ) : (
-            <div className="h-full overflow-y-auto rounded-lg border border-white/10 bg-slate-950 p-4">
-              <pre className="whitespace-pre-wrap text-xs leading-relaxed text-slate-200">
-                {prompt || 'No prompt content available.'}
-              </pre>
+            <div className="h-full overflow-y-auto rounded-lg border border-border bg-muted/30 p-4">
+              {viewMode === 'markdown' ? (
+                <MarkdownRenderer content={prompt || 'No prompt content available.'} />
+              ) : (
+                <pre className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                  {prompt || 'No prompt content available.'}
+                </pre>
+              )}
             </div>
           )}
         </div>

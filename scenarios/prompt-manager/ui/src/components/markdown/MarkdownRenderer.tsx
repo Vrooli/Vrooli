@@ -47,7 +47,7 @@ class MarkdownErrorBoundary extends Component<
     if (this.state.hasError) {
       // Fallback: render as plain text with preserved whitespace
       return (
-        <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">
+        <pre className="whitespace-pre-wrap text-sm text-muted-foreground font-mono">
           {this.props.content}
         </pre>
       )
@@ -115,16 +115,16 @@ export const MarkdownRenderer = memo(
 
         // Headings with proper styling
         h1: ({ children }: { children?: ReactNode }) => (
-          <h1 className="text-2xl font-bold mt-6 mb-4 text-slate-100">{children}</h1>
+          <h1 className="text-2xl font-bold mt-6 mb-4 text-foreground">{children}</h1>
         ),
         h2: ({ children }: { children?: ReactNode }) => (
-          <h2 className="text-xl font-bold mt-5 mb-3 text-slate-100">{children}</h2>
+          <h2 className="text-xl font-bold mt-5 mb-3 text-foreground">{children}</h2>
         ),
         h3: ({ children }: { children?: ReactNode }) => (
-          <h3 className="text-lg font-semibold mt-4 mb-2 text-slate-100">{children}</h3>
+          <h3 className="text-lg font-semibold mt-4 mb-2 text-foreground">{children}</h3>
         ),
         h4: ({ children }: { children?: ReactNode }) => (
-          <h4 className="text-base font-semibold mt-3 mb-2 text-slate-200">
+          <h4 className="text-base font-semibold mt-3 mb-2 text-foreground">
             {children}
           </h4>
         ),
@@ -147,43 +147,43 @@ export const MarkdownRenderer = memo(
 
         // Blockquotes
         blockquote: ({ children }: { children?: ReactNode }) => (
-          <blockquote className="border-l-4 border-indigo-500 pl-4 my-3 italic text-slate-300">
+          <blockquote className="border-l-4 border-indigo-500 pl-4 my-3 italic text-muted-foreground">
             {children}
           </blockquote>
         ),
 
         // Horizontal rule
-        hr: () => <hr className="my-6 border-slate-600" />,
+        hr: () => <hr className="my-6 border-border" />,
 
         // Tables
         table: ({ children }: { children?: ReactNode }) => (
           <div className="overflow-x-auto my-4">
-            <table className="min-w-full border-collapse border border-slate-600">
+            <table className="min-w-full border-collapse border border-border">
               {children}
             </table>
           </div>
         ),
         thead: ({ children }: { children?: ReactNode }) => (
-          <thead className="bg-slate-700">{children}</thead>
+          <thead className="bg-muted">{children}</thead>
         ),
         th: ({ children }: { children?: ReactNode }) => (
-          <th className="border border-slate-600 px-4 py-2 text-left font-semibold">
+          <th className="border border-border px-4 py-2 text-left font-semibold">
             {children}
           </th>
         ),
         td: ({ children }: { children?: ReactNode }) => (
-          <td className="border border-slate-600 px-4 py-2">{children}</td>
+          <td className="border border-border px-4 py-2">{children}</td>
         ),
 
         // Strong and emphasis
         strong: ({ children }: { children?: ReactNode }) => (
-          <strong className="font-semibold text-slate-100">{children}</strong>
+          <strong className="font-semibold text-foreground">{children}</strong>
         ),
         em: ({ children }: { children?: ReactNode }) => <em className="italic">{children}</em>,
 
         // Strikethrough (GFM)
         del: ({ children }: { children?: ReactNode }) => (
-          <del className="line-through text-slate-400">{children}</del>
+          <del className="line-through text-muted-foreground">{children}</del>
         ),
       }),
       []

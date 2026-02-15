@@ -965,6 +965,17 @@ export function SkillManagerLayout() {
     },
   })
 
+  // Navigate to an agent's files in the Agent Editor
+  const handleNavigateToAgentFiles = useCallback(
+    (agentId: string, filePath?: string) => {
+      setSelectedAgentId(agentId)
+      if (filePath) {
+        setHighlightRequest({ file: filePath, line: 1, text: '' })
+      }
+    },
+    [setSelectedAgentId]
+  )
+
   // Navigate to a running agent's team member view
   const handleNavigateToRunningAgent = useCallback(
     (teamId: string, agentId: string) => {
@@ -1184,6 +1195,7 @@ export function SkillManagerLayout() {
               <TeamEditorPanel
                 team={currentTeam ?? null}
                 allAgents={agents}
+                onNavigateToAgentFiles={handleNavigateToAgentFiles}
                 onUpdate={async (updates) => {
                   if (selectedTeamId) {
                     await updateTeam(selectedTeamId, updates)

@@ -11,6 +11,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { SkillContentEditor } from './SkillContentEditor'
 
+// Mock useResolvedTheme (used by SkillContentEditor)
+vi.mock('@/hooks/use-theme', () => ({
+  useResolvedTheme: vi.fn(() => 'dark'),
+}))
+
 // Only mock Monaco, NOT TipTap - we want to test the real conversion flow
 vi.mock('@monaco-editor/react', () => ({
   default: ({ value }: { value: string }) => (

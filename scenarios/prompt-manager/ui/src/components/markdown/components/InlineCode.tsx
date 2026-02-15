@@ -15,13 +15,13 @@ export function InlineCode({ children }: InlineCodeProps) {
   const { copied, copyCode } = useCodeCopy(textContent)
 
   return (
-    <span className="group inline-flex items-center gap-1.5 rounded-full border border-slate-600/80 bg-slate-700/80 px-2 py-0.5 text-xs font-mono text-slate-200">
+    <span className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-mono text-foreground">
       <code className="leading-relaxed">{children}</code>
       {textContent ? (
         <button
           type="button"
           onClick={copyCode}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-200"
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
           aria-label={copied ? 'Copied' : 'Copy inline code'}
         >
           {copied ? (

@@ -26,7 +26,7 @@ export function StatsBar({ compact = false }: StatsBarProps) {
     <div className={cn('flex items-center', compact ? 'gap-2' : 'gap-3')}>
       <div
         className={cn(
-          'bg-slate-800/80 border border-slate-700 rounded-md text-xs text-slate-300',
+          'bg-card/80 border border-border rounded-md text-xs text-foreground',
           compact ? 'px-2 py-1 text-[11px]' : 'px-3 py-1.5',
         )}
         data-testid={selectors.viewOverlay.stats}
