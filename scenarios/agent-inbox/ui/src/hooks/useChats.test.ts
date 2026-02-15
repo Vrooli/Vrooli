@@ -365,13 +365,11 @@ describe("useChats", () => {
       expect(mockCompletionState.runCompletion).toHaveBeenCalledWith("chat-1", expect.any(Object));
     });
 
-    it("auto-names chat if name is 'New Chat'", async () => {
+    it("does not trigger frontend auto-name during sendMessage", async () => {
       vi.useRealTimers();
 
-      const newChat = { ...mockChat, name: "New Chat" };
-      vi.mocked(api.fetchChats).mockResolvedValue([newChat]);
+      vi.mocked(api.fetchChats).mockResolvedValue([{ ...mockChat, name: "New Chat" }]);
       vi.mocked(api.addMessage).mockResolvedValue(mockMessage);
-      vi.mocked(api.autoNameChat).mockResolvedValue({ ...newChat, name: "Auto Named" });
 
       const { result } = renderHook(
         () => useChats({ initialChatId: "chat-1" }),
@@ -390,7 +388,7 @@ describe("useChats", () => {
         });
       });
 
-      expect(api.autoNameChat).toHaveBeenCalledWith("chat-1");
+      expect(api.autoNameChat).not.toHaveBeenCalled();
     });
 
     it("does not send if content is empty", async () => {

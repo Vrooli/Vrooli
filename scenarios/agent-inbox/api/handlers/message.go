@@ -78,6 +78,11 @@ func (h *Handlers) AddMessage(w http.ResponseWriter, r *http.Request) {
 	preview := domain.TruncatePreview(req.Content)
 	_ = h.Repo.UpdateChatPreview(r.Context(), chatID, preview, req.Role == domain.RoleAssistant) // Ignore error: preview update is best-effort
 
+	// Backend-owned auto-naming: only applies while chat has default name.
+	if req.Role == domain.RoleUser {
+		h.maybeAutoNameChat(r.Context(), chatID)
+	}
+
 	h.JSONResponse(w, msg, http.StatusCreated)
 }
 

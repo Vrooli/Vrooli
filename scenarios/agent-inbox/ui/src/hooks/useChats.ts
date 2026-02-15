@@ -336,7 +336,7 @@ export function useChats(options: UseChatsOptions = {}) {
 
   // Send message and run completion
   const sendMessageAndComplete = useCallback(
-    async (chatId: string, payload: MessagePayload, needsAutoName: boolean) => {
+    async (chatId: string, payload: MessagePayload) => {
       // Add user message with attachments, web search, and skills settings
       const newMessage = await addMessage(chatId, {
         role: "user",
@@ -368,14 +368,6 @@ export function useChats(options: UseChatsOptions = {}) {
           skills: payload.skills,
         });
 
-        // Auto-name if needed (do this before final invalidation)
-        if (needsAutoName) {
-          try {
-            await autoNameChat(chatId);
-          } catch (e) {
-            console.error("Auto-naming failed:", e);
-          }
-        }
       } catch (error) {
         console.error("Chat completion failed:", error);
       } finally {
@@ -390,7 +382,7 @@ export function useChats(options: UseChatsOptions = {}) {
     // Using the whole object would cause sendMessageAndComplete to be recreated whenever any
     // completion state changes, cascading through all callbacks that depend on it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queryClient, completion.runCompletion]
+    [completion.runCompletion]
   );
 
   // Create a new chat and immediately send a message
@@ -410,7 +402,7 @@ export function useChats(options: UseChatsOptions = {}) {
         // Removing this prevents redundant invalidations that cause render storms during
         // the fresh chat transition.
 
-        await sendMessageAndComplete(chatId, payload, true);
+        await sendMessageAndComplete(chatId, payload);
       } catch (error) {
         console.error("Failed to create chat with message:", error);
       }
@@ -424,12 +416,9 @@ export function useChats(options: UseChatsOptions = {}) {
       const hasContent = payload.content.trim() || payload.attachmentIds.length > 0;
       if (!selectedChatId || !hasContent || completion.isGenerating) return;
 
-      const currentChat = chats.find((c) => c.id === selectedChatId);
-      const needsAutoName = currentChat?.name === "New Chat";
-
-      await sendMessageAndComplete(selectedChatId, payload, needsAutoName);
+      await sendMessageAndComplete(selectedChatId, payload);
     },
-    [selectedChatId, completion.isGenerating, chats, sendMessageAndComplete]
+    [selectedChatId, completion.isGenerating, sendMessageAndComplete]
   );
 
   // Select chat and mark as read

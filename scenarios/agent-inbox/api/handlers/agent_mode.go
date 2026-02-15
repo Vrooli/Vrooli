@@ -132,6 +132,8 @@ func (h *Handlers) StartAgentMode(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[WARN] [%s] StartAgentMode CreateMessage failed: %v", middleware.GetRequestID(r.Context()), err)
 		// Non-fatal, continue
+	} else {
+		h.maybeAutoNameChat(r.Context(), chatID)
 	}
 
 	h.JSONResponse(w, AgentModeResponse{
@@ -221,6 +223,8 @@ func (h *Handlers) SendAgentMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[WARN] [%s] SendAgentMessage CreateMessage failed: %v", middleware.GetRequestID(r.Context()), err)
 		// Non-fatal, continue
+	} else {
+		h.maybeAutoNameChat(r.Context(), chatID)
 	}
 
 	h.JSONResponse(w, map[string]interface{}{

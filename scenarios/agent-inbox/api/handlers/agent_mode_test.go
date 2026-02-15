@@ -11,7 +11,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/persistence"
@@ -58,6 +60,7 @@ func setupAgentModeTest(t *testing.T) *agentModeTestEnv {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/chats/{id}/agent-mode/start", h.StartAgentMode).Methods("POST")
 	router.HandleFunc("/api/v1/chats/{id}/agent-mode/message", h.SendAgentMessage).Methods("POST")
+	router.HandleFunc("/api/v1/chats/{id}/messages", h.AddMessage).Methods("POST")
 	router.HandleFunc("/api/v1/chats/{id}/agent-mode/events", h.GetAgentEvents).Methods("GET")
 	router.HandleFunc("/api/v1/chats/{id}/agent-mode/status", h.GetAgentStatus).Methods("GET")
 	router.HandleFunc("/api/v1/chats/{id}/agent-mode/stop", h.StopAgentMode).Methods("POST")
@@ -89,12 +92,38 @@ func (env *agentModeTestEnv) createChat(t *testing.T) string {
 	return chat.ID
 }
 
+func (env *agentModeTestEnv) createChatWithName(t *testing.T, name string) string {
+	t.Helper()
+	chat, err := env.repo.CreateChat(context.Background(), name, "", "", "")
+	if err != nil {
+		t.Fatalf("failed to create test chat: %v", err)
+	}
+	return chat.ID
+}
+
 // setAgentMode puts a chat into agent mode with the given task/run IDs.
 func (env *agentModeTestEnv) setAgentMode(t *testing.T, chatID, taskID, runID string) {
 	t.Helper()
 	if err := env.repo.SetAgentMode(context.Background(), chatID, taskID, runID); err != nil {
 		t.Fatalf("failed to set agent mode: %v", err)
 	}
+}
+
+func configureOllamaNaming(t *testing.T, h *Handlers, generatedName string) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/generate" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"response":"%s","done":true}`, generatedName)))
+	}))
+	t.Cleanup(server.Close)
+
+	namingCfg := config.Default().Integration.Naming
+	namingCfg.Timeout = 500 * time.Millisecond
+	h.OllamaClient = integrations.NewOllamaClientWithConfig(server.URL, namingCfg)
 }
 
 // doRequest makes an HTTP request through the test router.
@@ -314,6 +343,32 @@ func TestClearAgentMode_InvalidUUID(t *testing.T) {
 // StartAgentMode Handler Tests (DB required)
 // =============================================================================
 
+func TestAddMessage_AutoNamesDefaultChat(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChatWithName(t, "New Chat")
+	configureOllamaNaming(t, env.handler, "Repository Scaffolding")
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/messages", map[string]interface{}{
+		"role":    "user",
+		"content": "Please scaffold a starter repository layout",
+	})
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	chat, err := env.repo.GetChat(context.Background(), chatID)
+	if err != nil {
+		t.Fatalf("GetChat failed: %v", err)
+	}
+	if chat == nil {
+		t.Fatal("expected chat to exist")
+	}
+	if chat.Name != "Repository Scaffolding" {
+		t.Fatalf("expected auto-named chat, got %q", chat.Name)
+	}
+}
+
 func TestStartAgentMode_Success(t *testing.T) {
 	env := setupAgentModeTest(t)
 	chatID := env.createChat(t)
@@ -373,6 +428,39 @@ func TestStartAgentMode_Success(t *testing.T) {
 	}
 	if runID != "run-456" {
 		t.Errorf("expected run_id run-456 in DB, got %s", runID)
+	}
+}
+
+func TestStartAgentMode_AutoNamesDefaultChat(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChatWithName(t, "New Chat")
+	projectDir := t.TempDir()
+	configureOllamaNaming(t, env.handler, "Agent Task Planning")
+
+	env.mockAgent.StartResult = &integrations.AgentChatSession{
+		TaskID: "task-auto-1",
+		RunID:  "run-auto-1",
+	}
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/start", map[string]interface{}{
+		"message":      "Build me a release checklist",
+		"project_path": projectDir,
+		"runner_type":  "claude-code",
+	})
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	chat, err := env.repo.GetChat(context.Background(), chatID)
+	if err != nil {
+		t.Fatalf("GetChat failed: %v", err)
+	}
+	if chat == nil {
+		t.Fatal("expected chat to exist")
+	}
+	if chat.Name != "Agent Task Planning" {
+		t.Fatalf("expected auto-named chat, got %q", chat.Name)
 	}
 }
 
@@ -521,6 +609,33 @@ func TestSendAgentMessage_Success(t *testing.T) {
 	}
 	if env.mockAgent.ContinueCalls[0].Message != "Please continue" {
 		t.Errorf("expected message 'Please continue', got %s", env.mockAgent.ContinueCalls[0].Message)
+	}
+}
+
+func TestSendAgentMessage_AutoNamesDefaultChat(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChatWithName(t, "New Chat")
+	env.setAgentMode(t, chatID, "task-1", "run-1")
+	env.mockAgent.StatusResult = &integrations.AgentRunStatus{Status: "complete"}
+	configureOllamaNaming(t, env.handler, "Follow Up Debug Session")
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/message", map[string]interface{}{
+		"message": "Continue with fixing flaky tests",
+	})
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	chat, err := env.repo.GetChat(context.Background(), chatID)
+	if err != nil {
+		t.Fatalf("GetChat failed: %v", err)
+	}
+	if chat == nil {
+		t.Fatal("expected chat to exist")
+	}
+	if chat.Name != "Follow Up Debug Session" {
+		t.Fatalf("expected auto-named chat, got %q", chat.Name)
 	}
 }
 
