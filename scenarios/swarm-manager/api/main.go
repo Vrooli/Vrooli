@@ -130,7 +130,16 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	scenarioRoot := pathutil.ResolveScenarioRoot("swarm-manager")
 	scenariosDir := filepath.Dir(scenarioRoot)
+	s.registerHealthRoutes()
+	s.registerBacklogRoutes(scenarioRoot)
+	s.registerScenarioRoutes(scenariosDir)
+	s.registerSettingsRoutes(scenarioRoot)
+	s.registerAgentManagerRoutes()
+	s.registerQueueRoutes(scenarioRoot)
+	s.registerExecutionRoutes(scenarioRoot)
+}
 
+func (s *Server) registerHealthRoutes() {
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	// Uses api-core/health for standardized response format
 	healthHandler := health.New().Version("1.0.0").
@@ -140,29 +149,41 @@ func (s *Server) setupRoutes() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+}
 
+func (s *Server) registerBacklogRoutes(scenarioRoot string) {
 	// Backlog endpoints
 	// [REQ:REQ-P0-002] Backlog management
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc, nil)
 	backlogHandler.RegisterRoutes(s.router)
+}
 
+func (s *Server) registerScenarioRoutes(scenariosDir string) {
 	// Scenarios catalog endpoints
 	// [REQ:REQ-P0-006] Scenario catalog with priority, search, and filter
 	scenariosHandler := scenarios.NewHandler(scenariosDir)
 	scenariosHandler.RegisterRoutes(s.router)
+}
 
+func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 	// Settings persistence endpoints
 	settingsHandler := settings.NewHandler(filepath.Join(scenarioRoot, ".vrooli", "settings.json"))
 	settingsHandler.RegisterRoutes(s.router)
+}
 
+func (s *Server) registerAgentManagerRoutes() {
 	// Agent-manager status endpoint
 	agentManagerHandler := agentmanager.NewHandler(s.agentSvc)
 	agentManagerHandler.RegisterRoutes(s.router)
+}
 
+func (s *Server) registerQueueRoutes(scenarioRoot string) {
 	// Local queue endpoints (filesystem-backed)
 	queueHandler := queue.NewHandler(filepath.Join(scenarioRoot, ".vrooli", "queue.json"))
 	queueHandler.RegisterRoutes(s.router)
+}
 
+func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 	// Execution control endpoints
 	s.executionHandler = execution.NewHandler(execution.ServiceConfig{
 		RootDir:      scenarioRoot,

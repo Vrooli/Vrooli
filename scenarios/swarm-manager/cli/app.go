@@ -48,7 +48,7 @@ func NewApp() (*App, error) {
 	}
 
 	app := &App{core: core}
-	app.core.SetCommands(app.registerCommands())
+	app.core.SetCommandsWithSubgroups(app.registerCommands(), app.registerSubcommandGroups())
 	return app, nil
 }
 
@@ -60,66 +60,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	health := cliapp.CommandGroup{
 		Title: "Health",
 		Commands: []cliapp.Command{
-			{Name: "status", NeedsAPI: true, Description: "Check API health", Run: a.cmdStatus},
-		},
-	}
-
-	backlog := cliapp.CommandGroup{
-		Title: "Backlog",
-		Commands: []cliapp.Command{
-			{Name: "backlog list", NeedsAPI: true, Description: "List backlog items (args: [kinds])", Run: a.cmdBacklogList},
-			{Name: "backlog get", NeedsAPI: true, Description: "Get a backlog item (args: <kind> <name>)", Run: a.cmdBacklogGet},
-			{Name: "backlog create", NeedsAPI: true, Description: "Create a backlog item (args: <json-or-@file>)", Run: a.cmdBacklogCreate},
-			{Name: "backlog update", NeedsAPI: true, Description: "Update a backlog item (args: <kind> <name> <json-or-@file>)", Run: a.cmdBacklogUpdate},
-			{Name: "backlog delete", NeedsAPI: true, Description: "Delete a backlog item (args: <kind> <name>)", Run: a.cmdBacklogDelete},
-			{Name: "backlog files", NeedsAPI: true, Description: "List backlog item files (args: <kind> <name>)", Run: a.cmdBacklogFiles},
-			{Name: "backlog queue", NeedsAPI: true, Description: "Queue a backlog item (args: <kind> <name> [--mode ... --delay-seconds ...])", Run: a.cmdBacklogQueue},
-			{Name: "backlog research", NeedsAPI: true, Description: "Spawn research agent for a backlog item (args: <kind> <name> [json-or-@file])", Run: a.cmdBacklogResearch},
-			{Name: "backlog convert", NeedsAPI: true, Description: "Convert a backlog item (args: <kind> <name> <target-kind> [target-name])", Run: a.cmdBacklogConvert},
-		},
-	}
-
-	scenarios := cliapp.CommandGroup{
-		Title: "Scenarios",
-		Commands: []cliapp.Command{
-			{Name: "scenarios list", NeedsAPI: true, Description: "List all scenarios", Run: a.cmdScenariosList},
-			{Name: "scenarios get", NeedsAPI: true, Description: "Get scenario details (args: <name>)", Run: a.cmdScenariosGet},
-			{Name: "scenarios update", NeedsAPI: true, Description: "Update scenario metadata (args: <name> <json-or-@file>)", Run: a.cmdScenariosUpdate},
-			{Name: "scenarios delete", NeedsAPI: true, Description: "Delete a scenario (args: <name> [--archive])", Run: a.cmdScenariosDelete},
-			{Name: "scenarios files", NeedsAPI: true, Description: "List scenario files (args: <name>)", Run: a.cmdScenariosFiles},
-			{Name: "scenarios start", NeedsAPI: true, Description: "Start a scenario (args: <name>)", Run: a.cmdScenariosStart},
-			{Name: "scenarios stop", NeedsAPI: true, Description: "Stop a scenario (args: <name>)", Run: a.cmdScenariosStop},
-			{Name: "scenarios restart", NeedsAPI: true, Description: "Restart a scenario (args: <name>)", Run: a.cmdScenariosRestart},
-		},
-	}
-
-	settings := cliapp.CommandGroup{
-		Title: "Settings",
-		Commands: []cliapp.Command{
-			{Name: "settings get", NeedsAPI: true, Description: "Get current settings", Run: a.cmdSettingsGet},
-			{Name: "settings update", NeedsAPI: true, Description: "Update settings (args: <json-or-@file>)", Run: a.cmdSettingsUpdate},
-		},
-	}
-
-	queue := cliapp.CommandGroup{
-		Title: "Queue",
-		Commands: []cliapp.Command{
-			{Name: "queue list", NeedsAPI: true, Description: "List queue items", Run: a.cmdQueueList},
-			{Name: "queue create", NeedsAPI: true, Description: "Create a queue item (args: <kind> [payload-json-or-@file])", Run: a.cmdQueueCreate},
-			{Name: "queue delete", NeedsAPI: true, Description: "Delete a queue item (args: <id>)", Run: a.cmdQueueDelete},
-		},
-	}
-
-	execution := cliapp.CommandGroup{
-		Title: "Execution",
-		Commands: []cliapp.Command{
-			{Name: "execution list", NeedsAPI: true, Description: "List execution runs", Run: a.cmdExecutionList},
-			{Name: "execution get", NeedsAPI: true, Description: "Get execution details (args: <execution-id>)", Run: a.cmdExecutionGet},
-			{Name: "execution policy get", NeedsAPI: true, Description: "Get execution policy defaults", Run: a.cmdExecutionPolicyGet},
-			{Name: "execution policy update", NeedsAPI: true, Description: "Update execution policy defaults (flags: --mode --delay-seconds)", Run: a.cmdExecutionPolicyUpdate},
-			{Name: "execution start", NeedsAPI: true, Description: "Start an execution (args: <execution-id>)", Run: a.cmdExecutionStart},
-			{Name: "execution cancel", NeedsAPI: true, Description: "Cancel an execution (args: <execution-id>)", Run: a.cmdExecutionCancel},
-			{Name: "execution retry", NeedsAPI: true, Description: "Retry a failed execution (args: <execution-id>)", Run: a.cmdExecutionRetry},
+			{Name: "status", Aliases: []string{"health"}, NeedsAPI: true, Description: "Check API health and readiness", Run: a.cmdStatus},
 		},
 	}
 
@@ -130,5 +71,80 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, backlog, scenarios, settings, queue, execution, config}
+	return []cliapp.CommandGroup{health, config}
+}
+
+func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
+	return []cliapp.SubcommandGroup{
+		{
+			Name:        "backlog",
+			Description: "Backlog item management",
+			Subcommands: []cliapp.Command{
+				{Name: "list", NeedsAPI: true, Description: "List backlog items (use backlog get <kind> <name> for full details)", Run: a.cmdBacklogList},
+				{Name: "get", NeedsAPI: true, Description: "Get full backlog item details (args: <kind> <name>)", Run: a.cmdBacklogGet},
+				{Name: "create", NeedsAPI: true, Description: "Create a backlog item (args: <json-or-@file>)", Run: a.cmdBacklogCreate},
+				{Name: "update", NeedsAPI: true, Description: "Update a backlog item (args: <kind> <name> <json-or-@file>)", Run: a.cmdBacklogUpdate},
+				{Name: "delete", NeedsAPI: true, Description: "Delete a backlog item (args: <kind> <name>)", Run: a.cmdBacklogDelete},
+				{Name: "files", NeedsAPI: true, Description: "List backlog item files (args: <kind> <name>)", Run: a.cmdBacklogFiles},
+				{Name: "file", NeedsAPI: true, Description: "Backlog file subcommands (args: <get|upload> ...)", Run: a.cmdBacklogFile},
+				{Name: "file-get", NeedsAPI: true, Description: "Get a file from a backlog item (args: <kind> <name> <path>)", Run: a.cmdBacklogFileGet},
+				{Name: "file-upload", NeedsAPI: true, Description: "Upload a file to a backlog item (args: <kind> <name> <local-file>)", Run: a.cmdBacklogFileUpload},
+				{Name: "queue", NeedsAPI: true, Description: "Queue a backlog item for execution (args: <kind> <name>)", Run: a.cmdBacklogQueue},
+				{Name: "research", NeedsAPI: true, Description: "Spawn research agent (args: <kind> <name> [json-or-@file])", Run: a.cmdBacklogResearch},
+				{Name: "convert", NeedsAPI: true, Description: "Convert backlog item kind (args: <kind> <name> <target-kind> [target-name])", Run: a.cmdBacklogConvert},
+			},
+		},
+		{
+			Name:        "scenarios",
+			Description: "Scenario catalog and lifecycle",
+			Subcommands: []cliapp.Command{
+				{Name: "list", NeedsAPI: true, Description: "List scenarios (use scenarios get <name> for full details)", Run: a.cmdScenariosList},
+				{Name: "get", NeedsAPI: true, Description: "Get scenario details (args: <name>)", Run: a.cmdScenariosGet},
+				{Name: "update", NeedsAPI: true, Description: "Update scenario metadata (args: <name> <json-or-@file>)", Run: a.cmdScenariosUpdate},
+				{Name: "delete", NeedsAPI: true, Description: "Delete a scenario (args: <name> [--archive])", Run: a.cmdScenariosDelete},
+				{Name: "files", NeedsAPI: true, Description: "List scenario files (args: <name>)", Run: a.cmdScenariosFiles},
+				{Name: "start", NeedsAPI: true, Description: "Start a scenario (args: <name>)", Run: a.cmdScenariosStart},
+				{Name: "stop", NeedsAPI: true, Description: "Stop a scenario (args: <name>)", Run: a.cmdScenariosStop},
+				{Name: "restart", NeedsAPI: true, Description: "Restart a scenario (args: <name>)", Run: a.cmdScenariosRestart},
+			},
+		},
+		{
+			Name:        "settings",
+			Description: "Scenario settings",
+			Subcommands: []cliapp.Command{
+				{Name: "get", NeedsAPI: true, Description: "Get current settings", Run: a.cmdSettingsGet},
+				{Name: "update", NeedsAPI: true, Description: "Update settings (args: <json-or-@file>)", Run: a.cmdSettingsUpdate},
+			},
+		},
+		{
+			Name:        "queue",
+			Description: "Execution queue operations",
+			Subcommands: []cliapp.Command{
+				{Name: "list", NeedsAPI: true, Description: "List queue items (use queue delete <id> to remove)", Run: a.cmdQueueList},
+				{Name: "create", NeedsAPI: true, Description: "Create a queue item (args: <kind> [payload-json-or-@file])", Run: a.cmdQueueCreate},
+				{Name: "delete", NeedsAPI: true, Description: "Delete a queue item (args: <id>)", Run: a.cmdQueueDelete},
+			},
+		},
+		{
+			Name:        "execution",
+			Description: "Execution run controls",
+			Subcommands: []cliapp.Command{
+				{Name: "list", NeedsAPI: true, Description: "List execution runs (use execution get <execution-id> for full details)", Run: a.cmdExecutionList},
+				{Name: "get", NeedsAPI: true, Description: "Get execution details (args: <execution-id>)", Run: a.cmdExecutionGet},
+				{Name: "create", NeedsAPI: true, Description: "Create execution from backlog item", Run: a.cmdExecutionCreate},
+				{Name: "policy-get", NeedsAPI: true, Description: "Get execution policy defaults", Run: a.cmdExecutionPolicyGet},
+				{Name: "policy-update", NeedsAPI: true, Description: "Update execution policy defaults (flags: --mode --delay-seconds)", Run: a.cmdExecutionPolicyUpdate},
+				{Name: "start", NeedsAPI: true, Description: "Start an execution (args: <execution-id>)", Run: a.cmdExecutionStart},
+				{Name: "cancel", NeedsAPI: true, Description: "Cancel an execution (args: <execution-id>)", Run: a.cmdExecutionCancel},
+				{Name: "retry", NeedsAPI: true, Description: "Retry a failed execution (args: <execution-id>)", Run: a.cmdExecutionRetry},
+			},
+		},
+		{
+			Name:        "agent-manager",
+			Description: "Agent-manager integration status",
+			Subcommands: []cliapp.Command{
+				{Name: "status", NeedsAPI: true, Description: "Get agent-manager availability and profile status", Run: a.cmdAgentManagerStatus},
+			},
+		},
+	}
 }

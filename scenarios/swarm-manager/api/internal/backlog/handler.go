@@ -110,14 +110,6 @@ var researchSkillIDs = map[ResearchMode]map[BacklogKind]string{
 	},
 }
 
-// processingSkillIDs maps BacklogKind to prompt-manager skill IDs.
-var processingSkillIDs = map[BacklogKind]string{
-	KindIdea:     "swarm-manager-process-idea",
-	KindFix:      "swarm-manager-process-fix",
-	KindExecute:  "swarm-manager-process-execute",
-	KindResearch: "swarm-manager-process-execute",
-}
-
 // NewHandler creates a new backlog handler.
 // If rootDir is empty, it defaults to the scenario root directory.
 func NewHandler(rootDir string) *Handler {
@@ -1177,33 +1169,6 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) spawnProcessingAgent(ctx context.Context, item BacklogItem, operation string) (agentmanager.RunResult, error) {
-	service := h.agentService
-	if service == nil {
-		h.agentService = agentmanager.NewAgentService(agentmanager.DefaultServiceConfig())
-		service = h.agentService
-	}
-
-	scopePath := h.itemDir(item.Kind, item.Name)
-	prompt, promptErr := h.fetchProcessingPrompt(ctx, item, operation)
-	if promptErr != nil {
-		log.Printf("[backlog] process: prompt fetch failed: %v", promptErr)
-		prompt = "Use the backlog item folder as context and complete the requested work."
-	}
-
-	return service.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind:        string(item.Kind),
-		Name:        item.Name,
-		Title:       buildProcessingTitle(item, operation),
-		Description: prompt,
-		Prompt:      prompt,
-		ScopePath:   scopePath,
-		ProjectRoot: ".",
-		CreatedBy:   "swarm-manager",
-		Purpose:     "process",
-	})
-}
-
 // isQueueableStatus checks if an item can be queued from its current status.
 func isQueueableStatus(status BacklogStatus) bool {
 	switch status {
@@ -1311,24 +1276,8 @@ func researchSkillID(mode ResearchMode, kind BacklogKind) string {
 // fetchResearchPrompt loads a research prompt from prompt-manager.
 func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mode ResearchMode) (string, error) {
 	skillID := researchSkillID(mode, item.Kind)
-	withScope := mode == ResearchModeResearch
+	withScope := true
 	return h.promptClient.ReadSkill(ctx, skillID, buildVariableMap(item, h.itemDir(item.Kind, item.Name)), withScope)
-}
-
-// fetchProcessingPrompt loads a processing prompt from prompt-manager.
-func (h *Handler) fetchProcessingPrompt(ctx context.Context, item BacklogItem, operation string) (string, error) {
-	skillID := processingSkillIDs[item.Kind]
-	if skillID == "" {
-		skillID = "swarm-manager-process-execute"
-	}
-	prompt, err := h.promptClient.ReadSkill(ctx, skillID, buildVariableMap(item, h.itemDir(item.Kind, item.Name)), true)
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(operation) == "improver" {
-		prompt = prompt + "\n\nOperation hint: improver (focus on improving an existing scenario).\n"
-	}
-	return prompt, nil
 }
 
 // buildVariableMap creates the template variable map for prompt-manager skill rendering.
@@ -1343,27 +1292,6 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 		"ITEM_TAGS":        strings.Join(item.Tags, ", "),
 		"ITEM_FOLDER":      itemFolder,
 		"RESEARCH_TARGET":  item.ResearchTarget,
-	}
-}
-
-func buildProcessingTitle(item BacklogItem, operation string) string {
-	label := strings.TrimSpace(item.Title)
-	if label == "" {
-		label = strings.TrimSpace(item.Name)
-	}
-	if label == "" {
-		label = "backlog item"
-	}
-	switch item.Kind {
-	case KindFix:
-		return "Apply fix: " + label
-	case KindExecute:
-		return "Execute task: " + label
-	default:
-		if strings.TrimSpace(operation) == "improver" {
-			return "Improve scenario: " + label
-		}
-		return "Generate scenario: " + label
 	}
 }
 

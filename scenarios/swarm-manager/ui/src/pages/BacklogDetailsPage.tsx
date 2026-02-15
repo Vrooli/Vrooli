@@ -550,7 +550,6 @@ export function BacklogDetailsPage() {
 
   const HeaderIcon = backlogKind === "research" ? Search : backlogKind === "fix" ? Wrench : Play;
   const agentLabel = item?.kind === "idea" ? "Idea Agent" : item?.kind === "research" ? "Research Agent" : "Research";
-  const queueLabel = item?.kind === "fix" ? "Apply Fix" : item?.kind === "execute" ? "Execute" : "Queue";
   const scheduleDelayValue = Number.isFinite(scheduleDelaySeconds) && scheduleDelaySeconds >= 0 ? scheduleDelaySeconds : 0;
   const filesButton = (
     <Button

@@ -6,6 +6,7 @@ import {
   EXECUTION_STATUS_COLORS,
   formatExecutionMode,
   formatExecutionStatus,
+  type BacklogKind,
   type ExecutionRecord,
 } from "../../types";
 
@@ -32,6 +33,8 @@ export function ExecutionCard({
   onRetry,
   testId,
 }: ExecutionCardProps) {
+  const backlogKindLabel = BACKLOG_KIND_LABELS[(item.backlogKind as BacklogKind)] ?? item.backlogKind;
+
   return (
     <article className="group block" data-testid={testId}>
       <div className="flex items-start justify-between gap-3">
@@ -49,7 +52,7 @@ export function ExecutionCard({
       </div>
 
       <h3 className="mt-3 font-medium text-slate-100">
-        {BACKLOG_KIND_LABELS[item.backlogKind]}: {item.backlogName}
+        {backlogKindLabel}: {item.backlogName}
       </h3>
       <p className="mt-1 truncate font-mono text-xs text-slate-500" title={item.executionId}>
         {item.executionId}

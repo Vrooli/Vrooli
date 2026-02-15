@@ -44,9 +44,11 @@ const (
 	StatusUnknown ScenarioStatus = "unknown"
 )
 
-var errScenarioNameRequired = errors.New("scenario name is required")
-var errProtectedScenarioDelete = errors.New("cannot delete swarm-manager scenario")
-var errArchiveTargetExists = errors.New("archive target already exists")
+var (
+	errScenarioNameRequired    = errors.New("scenario name is required")
+	errProtectedScenarioDelete = errors.New("cannot delete swarm-manager scenario")
+	errArchiveTargetExists     = errors.New("archive target already exists")
+)
 
 // archivePresets defines named file patterns for archive preservation.
 var archivePresets = map[string][]string{
@@ -951,10 +953,12 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 		return "", "", nil, err
 	}
 
-	// Copy preserved files before writing spec so we can include exact provenance.
+	// Copy preserved files into archive/ subdirectory to separate scenario
+	// artifacts from backlog-specific data (spec.json, clarify/, suggest/, enhance/).
 	preservedFiles := []string{}
 	if preserveFiles != nil {
-		preserved, err := copyPreservedFiles(scenarioPath, stagingDir, preserveFiles)
+		archiveSubdir := filepath.Join(stagingDir, "archive")
+		preserved, err := copyPreservedFiles(scenarioPath, archiveSubdir, preserveFiles)
 		if err != nil {
 			log.Printf("[scenarios] archive: warning: failed to copy some preserved files: %v", err)
 			// Continue with what we have, don't fail the entire archive

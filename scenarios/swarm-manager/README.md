@@ -18,8 +18,8 @@ Think of it as a **pull request review for agent work** — agents propose, you 
 
 ```
 swarm-manager/
-├── api/           # Go API (Gin framework)
-├── cli/           # Go CLI (Cobra)
+├── api/           # Go API (gorilla/mux + api-core)
+├── cli/           # Go CLI (cli-core ScenarioApp)
 ├── ui/            # React + Vite + TypeScript
 ├── ideas/         # Git-tracked backlog (idea)
 ├── research/      # Git-tracked backlog (research)
@@ -111,17 +111,25 @@ swarm-manager backlog get <kind> <name>
 swarm-manager backlog create '<json>'
 swarm-manager backlog update <kind> <name> '<json>'
 swarm-manager backlog delete <kind> <name>
+swarm-manager backlog files <kind> <name>
+swarm-manager backlog file get <kind> <name> <path> [--out local-path]
+swarm-manager backlog file upload <kind> <name> <local-file> [--path backlog/subdir]
 swarm-manager backlog queue <kind> <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver]
 swarm-manager backlog research <kind> <name> '<json>'
-swarm-manager backlog convert <kind> <name> '<json>'
+swarm-manager backlog convert <kind> <name> <target-kind> [target-name]
 
 swarm-manager scenarios list [--search ... --status ... --tags ...]
 swarm-manager scenarios get <name>
 swarm-manager scenarios update <name> '<json>'
 swarm-manager scenarios delete <name> [--archive]
+swarm-manager scenarios files <name>
+swarm-manager scenarios start <name>
+swarm-manager scenarios stop <name>
+swarm-manager scenarios restart <name>
 
 swarm-manager execution list [--status ... --mode ... --started-by ...]
 swarm-manager execution get <execution-id>
+swarm-manager execution create <backlog-kind> <backlog-name> [--mode manual|scheduled|yolo]
 swarm-manager execution policy get
 swarm-manager execution policy update --mode manual|scheduled|yolo [--delay-seconds N]
 swarm-manager execution start <execution-id>
@@ -134,6 +142,8 @@ swarm-manager settings update '<json>'
 swarm-manager queue list
 swarm-manager queue create <kind> '<payload-json>'
 swarm-manager queue delete <id>
+
+swarm-manager agent-manager status
 ```
 
 ## Integration Points

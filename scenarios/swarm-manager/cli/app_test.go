@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,6 +129,8 @@ func TestScenarioCommandsRegistered(t *testing.T) {
 		{"scenarios get no-args", []string{"scenarios", "get"}},
 		{"settings get no-api", []string{"settings", "get"}},
 		{"queue list no-api", []string{"queue", "list"}},
+		{"agent-manager status no-api", []string{"agent-manager", "status"}},
+		{"execution create no-args", []string{"execution", "create"}},
 	}
 
 	for _, tt := range tests {
@@ -373,6 +377,36 @@ func TestCmdBacklogDeleteValidation(t *testing.T) {
 	}
 }
 
+func TestCmdBacklogFileGetValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdBacklogFileGet([]string{})
+	if err == nil {
+		t.Error("cmdBacklogFileGet with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+}
+
+func TestCmdBacklogFileUploadValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdBacklogFileUpload([]string{})
+	if err == nil {
+		t.Error("cmdBacklogFileUpload with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+}
+
 func TestCmdBacklogConvertValidation(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -423,6 +457,29 @@ func TestCmdQueueCreateValidation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid payload JSON") {
 		t.Errorf("Error should contain 'invalid payload JSON', got: %v", err)
+	}
+}
+
+func TestCmdExecutionCreateValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdExecutionCreate([]string{})
+	if err == nil {
+		t.Error("cmdExecutionCreate with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+
+	err = app.cmdExecutionCreate([]string{"--mode", "invalid", "idea", "test"})
+	if err == nil {
+		t.Error("cmdExecutionCreate with invalid mode should return error")
+	}
+	if !strings.Contains(err.Error(), "invalid mode") {
+		t.Errorf("Error should contain 'invalid mode', got: %v", err)
 	}
 }
 
@@ -585,5 +642,52 @@ func TestScenarioLifecycleValidation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "usage") {
 		t.Fatalf("expected usage error, got: %v", err)
+	}
+}
+
+func TestDecodeResponse(t *testing.T) {
+	type payload struct {
+		Name string `json:"name"`
+	}
+
+	decoded, err := decodeResponse[payload]([]byte(`{"name":"ok"}`))
+	if err != nil {
+		t.Fatalf("decodeResponse returned error: %v", err)
+	}
+	if decoded.Name != "ok" {
+		t.Fatalf("unexpected decoded name: %q", decoded.Name)
+	}
+}
+
+func TestRequestMultipartV1IncludesAuthHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/backlog/idea/test/files" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
+			t.Fatalf("unexpected authorization header: %q", got)
+		}
+		if got := r.Header.Get("Content-Type"); got != "text/plain" {
+			t.Fatalf("unexpected content-type header: %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	t.Setenv("SWARM_MANAGER_API_TOKEN", "test-token")
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	body, err := app.requestMultipartV1("POST", "/backlog/idea/test/files", []byte("payload"), "text/plain")
+	if err != nil {
+		t.Fatalf("requestMultipartV1 returned error: %v", err)
+	}
+	if string(body) != `{"ok":true}` {
+		t.Fatalf("unexpected response body: %s", string(body))
 	}
 }

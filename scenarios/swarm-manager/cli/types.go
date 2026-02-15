@@ -58,6 +58,10 @@ type BacklogFilesResponse struct {
 	Files []BacklogFile `json:"files"`
 }
 
+type BacklogFileResponse struct {
+	File BacklogFile `json:"file"`
+}
+
 type QueueBacklogResponse struct {
 	Item    BacklogItem `json:"item"`
 	TaskID  string      `json:"task_id"`
@@ -156,4 +160,11 @@ type ExecutionPolicy struct {
 
 type ExecutionPolicyResponse struct {
 	Policy ExecutionPolicy `json:"policy"`
+}
+
+type AgentManagerStatusResponse struct {
+	Enabled   bool    `json:"enabled"`
+	Available bool    `json:"available"`
+	URL       *string `json:"url,omitempty"`
+	ProfileID *string `json:"profile_id,omitempty"`
 }

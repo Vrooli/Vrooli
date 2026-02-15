@@ -55,11 +55,18 @@ func (a *App) cmdScenariosList(args []string) error {
 	}
 
 	if len(response.Scenarios) == 0 {
-		fmt.Println("No scenarios found.")
+		printSection("Summary")
+		fmt.Println("  No scenarios found.")
+		printCommandListSection("Next Steps", []string{
+			cliCommand("status"),
+			cliCommand("scenarios", "list", "--status", "running"),
+		})
 		return nil
 	}
 
-	fmt.Printf("Found %d scenario(s):\n\n", len(response.Scenarios))
+	printSection("Summary")
+	fmt.Printf("  Found %d scenario(s)\n", len(response.Scenarios))
+	printSection("Results")
 	for _, scenario := range response.Scenarios {
 		display := scenario.DisplayName
 		if display == "" {
@@ -75,47 +82,75 @@ func (a *App) cmdScenariosList(args []string) error {
 		}
 		fmt.Println()
 	}
+	first := response.Scenarios[0]
+	printCommandListSection("Retrieval Hints", []string{
+		cliCommand("scenarios", "get", "<name>"),
+		cliCommand("scenarios", "get", first.Name),
+		cliCommand("scenarios", "files", first.Name),
+	})
 	return nil
 }
 
 func (a *App) cmdScenariosGet(args []string) error {
-	if err := requireArgs(args, 1, "scenarios get <name>"); err != nil {
+	fs := flag.NewFlagSet("scenarios get", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	name := strings.TrimSpace(args[0])
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: scenarios get <name> [--json]")
+	}
+	name := strings.TrimSpace(fs.Arg(0))
 
 	body, err := a.getV1("/scenarios/"+name, nil)
 	if err != nil {
 		return err
 	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
 
-	var response ScenarioResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	response, err := decodeResponse[ScenarioResponse](body)
+	if err != nil {
+		return err
 	}
 	scenario := response.Scenario
 
-	fmt.Printf("Name: %s\n", scenario.Name)
-	fmt.Printf("Display Name: %s\n", scenario.DisplayName)
-	fmt.Printf("Description: %s\n", scenario.Description)
-	fmt.Printf("Status: %s\n", scenario.Status)
-	fmt.Printf("Priority: %d\n", scenario.Priority)
+	printSection("Summary")
+	fmt.Printf("  %s (%s)\n", scenario.Name, scenario.Status)
+
+	printSection("Details")
+	fmt.Printf("  Name: %s\n", scenario.Name)
+	fmt.Printf("  Display Name: %s\n", scenario.DisplayName)
+	fmt.Printf("  Description: %s\n", scenario.Description)
+	fmt.Printf("  Status: %s\n", scenario.Status)
+	fmt.Printf("  Priority: %d\n", scenario.Priority)
 	if scenario.CompletenessScore != nil {
-		fmt.Printf("Completeness: %d\n", *scenario.CompletenessScore)
+		fmt.Printf("  Completeness: %d\n", *scenario.CompletenessScore)
 	}
-	fmt.Printf("Greenfield: %v\n", scenario.IsGreenfield)
+	fmt.Printf("  Greenfield: %v\n", scenario.IsGreenfield)
 	if len(scenario.Tags) > 0 {
-		fmt.Printf("Tags: %s\n", strings.Join(scenario.Tags, ", "))
+		fmt.Printf("  Tags: %s\n", strings.Join(scenario.Tags, ", "))
 	}
+	printCommandListSection("Next Steps", []string{
+		cliCommand("scenarios", "files", scenario.Name),
+		cliCommand("scenarios", "update", scenario.Name, "'{\"is_greenfield\":true}'"),
+		cliCommand("scenarios", "start", scenario.Name),
+	})
 	return nil
 }
 
 func (a *App) cmdScenariosUpdate(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: scenarios update <name> <json-or-@file>\n\nExample:\n  scenarios update my-scenario '{\"is_greenfield\":true}'")
+	fs := flag.NewFlagSet("scenarios update", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	name := strings.TrimSpace(args[0])
-	payload, err := parseJSONArg(args[1:])
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: scenarios update <name> <json-or-@file> [--json]\n\nExample:\n  scenarios update my-scenario '{\"is_greenfield\":true}'")
+	}
+	name := strings.TrimSpace(fs.Arg(0))
+	payload, err := parseJSONArg(fs.Args()[1:])
 	if err != nil {
 		return err
 	}
@@ -129,26 +164,36 @@ func (a *App) cmdScenariosUpdate(args []string) error {
 	if err != nil {
 		return err
 	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
 
-	var response ScenarioResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	response, err := decodeResponse[ScenarioResponse](body)
+	if err != nil {
+		return err
 	}
 	scenario := response.Scenario
 
-	fmt.Printf("Updated scenario: %s\n", scenario.Name)
+	printSection("Result")
+	fmt.Printf("  Updated scenario: %s\n", scenario.Name)
+	printSection("What Changed")
 	fmt.Printf("  Greenfield: %v\n", scenario.IsGreenfield)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("scenarios", "get", scenario.Name),
+		cliCommand("scenarios", "files", scenario.Name),
+	})
 	return nil
 }
 
 func (a *App) cmdScenariosDelete(args []string) error {
 	fs := flag.NewFlagSet("scenarios delete", flag.ContinueOnError)
 	archive := fs.Bool("archive", false, "Archive scenario to backlog (idea) before deletion")
+	jsonOut := cliutil.JSONFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: scenarios delete <name> [--archive]")
+		return fmt.Errorf("usage: scenarios delete <name> [--archive] [--json]")
 	}
 	name := strings.TrimSpace(fs.Arg(0))
 
@@ -161,37 +206,59 @@ func (a *App) cmdScenariosDelete(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	var response DeleteScenarioResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
 	}
 
-	fmt.Println(response.Message)
+	response, err := decodeResponse[DeleteScenarioResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Result")
+	fmt.Printf("  %s\n", response.Message)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("scenarios", "list"),
+		cliCommand("backlog", "list"),
+	})
 	return nil
 }
 
 func (a *App) cmdScenariosFiles(args []string) error {
-	if err := requireArgs(args, 1, "scenarios files <name>"); err != nil {
+	fs := flag.NewFlagSet("scenarios files", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	name := strings.TrimSpace(args[0])
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: scenarios files <name> [--json]")
+	}
+	name := strings.TrimSpace(fs.Arg(0))
 
 	body, err := a.getV1("/scenarios/"+name+"/files", nil)
 	if err != nil {
 		return err
 	}
-
-	var response ScenarioFilesResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-	if len(response.Files) == 0 {
-		fmt.Println("No files found.")
+	if printJSONIfRequested(*jsonOut, body) {
 		return nil
 	}
 
-	fmt.Printf("Files for scenario %s:\n", name)
+	response, err := decodeResponse[ScenarioFilesResponse](body)
+	if err != nil {
+		return err
+	}
+	if len(response.Files) == 0 {
+		printSection("Summary")
+		fmt.Printf("  No files found for scenario %s.\n", name)
+		printCommandListSection("Next Steps", []string{
+			cliCommand("scenarios", "get", name),
+		})
+		return nil
+	}
+
+	printSection("Summary")
+	fmt.Printf("  Found %d file node(s) for scenario %s\n", len(response.Files), name)
+	printSection("Results")
 	printTree(response.Files,
 		func(item ScenarioFile) []ScenarioFile { return item.Children },
 		func(item ScenarioFile) string {
@@ -202,6 +269,10 @@ func (a *App) cmdScenariosFiles(args []string) error {
 		},
 		0,
 	)
+	printCommandListSection("Retrieval Hints", []string{
+		cliCommand("scenarios", "get", name),
+		cliCommand("scenarios", "update", name, "<json-or-@file>"),
+	})
 	return nil
 }
 
@@ -218,20 +289,34 @@ func (a *App) cmdScenariosRestart(args []string) error {
 }
 
 func (a *App) runScenarioLifecycle(args []string, action string) error {
-	if err := requireArgs(args, 1, "scenarios "+action+" <name>"); err != nil {
+	fs := flag.NewFlagSet("scenarios "+action, flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	name := strings.TrimSpace(args[0])
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: scenarios %s <name> [--json]", action)
+	}
+	name := strings.TrimSpace(fs.Arg(0))
 	body, err := a.requestV1("POST", "/scenarios/"+name+"/"+action, nil, nil)
 	if err != nil {
 		return err
 	}
-
-	var response ScenarioResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
 	}
-	fmt.Printf("Scenario %s: %s\n", action, response.Scenario.Name)
+
+	response, err := decodeResponse[ScenarioResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Result")
+	fmt.Printf("  Scenario %s: %s\n", action, response.Scenario.Name)
+	printSection("What Changed")
 	fmt.Printf("  Status: %s\n", response.Scenario.Status)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("scenarios", "get", response.Scenario.Name),
+		cliCommand("scenarios", "list", "--status", response.Scenario.Status),
+	})
 	return nil
 }

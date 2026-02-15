@@ -122,9 +122,12 @@ type EcosystemManagerClient interface {
 ```
 ideas/
 └── {item-name}/
-    ├── spec.json        # Required: metadata
+    ├── spec.json        # Required: metadata (backlog item root)
     ├── notes.md         # Optional: context
-    ├── research/        # Optional: supporting files
+    ├── archive/         # Preserved scenario files (only for archived scenarios)
+    │   ├── PRD.md       #   Files from the original scenario, namespaced
+    │   ├── README.md    #   to avoid collisions with backlog-specific data
+    │   └── docs/
     ├── clarify/         # Agent-generated questions (questions.json)
     │   └── questions.json
     ├── suggest/         # Agent-generated suggestions (suggestions.json)

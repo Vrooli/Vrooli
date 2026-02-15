@@ -1,17 +1,30 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func (a *App) cmdBacklogList(args []string) error {
+	fs := flag.NewFlagSet("backlog list", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
 	query := url.Values{}
-	if len(args) > 0 {
-		kinds := strings.Join(args, ",")
+	if fs.NArg() > 0 {
+		kinds := strings.Join(fs.Args(), ",")
 		if strings.TrimSpace(kinds) != "" {
 			query.Set("kinds", kinds)
 		}
@@ -21,18 +34,31 @@ func (a *App) cmdBacklogList(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	var response ListBacklogResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if len(response.Items) == 0 {
-		fmt.Println("No backlog items found.")
+	if printJSONIfRequested(*jsonOut, body) {
 		return nil
 	}
 
-	fmt.Printf("Found %d backlog item(s):\n\n", len(response.Items))
+	response, err := decodeResponse[ListBacklogResponse](body)
+	if err != nil {
+		return err
+	}
+
+	if len(response.Items) == 0 {
+		printSection("Summary")
+		fmt.Println("  No backlog items found.")
+		printCommandListSection("Next Steps", []string{
+			cliCommand("backlog", "create", "'{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'"),
+		})
+		return nil
+	}
+
+	printSection("Summary")
+	fmt.Printf("  Found %d backlog item(s)\n", len(response.Items))
+	if kinds := strings.TrimSpace(query.Get("kinds")); kinds != "" {
+		fmt.Printf("  Filtered kinds: %s\n", kinds)
+	}
+
+	printSection("Results")
 	for _, item := range response.Items {
 		fmt.Printf("  [%s] %s (priority: %d, status: %s)\n", item.Kind, item.Name, item.Priority, item.Status)
 		fmt.Printf("    Title: %s\n", item.Title)
@@ -44,50 +70,81 @@ func (a *App) cmdBacklogList(args []string) error {
 		}
 		fmt.Println()
 	}
+
+	first := response.Items[0]
+	printCommandListSection("Retrieval Hints", []string{
+		cliCommand("backlog", "get", "<kind>", "<name>"),
+		cliCommand("backlog", "get", first.Kind, first.Name),
+		cliCommand("backlog", "files", first.Kind, first.Name),
+		cliCommand("backlog", "queue", first.Kind, first.Name),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogGet(args []string) error {
-	if err := requireArgs(args, 2, "backlog get <kind> <name>"); err != nil {
+	fs := flag.NewFlagSet("backlog get", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	kind := args[0]
-	name := args[1]
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: backlog get <kind> <name> [--json]")
+	}
+	kind := fs.Arg(0)
+	name := fs.Arg(1)
 
 	body, err := a.getV1("/backlog/"+kind+"/"+name, nil)
 	if err != nil {
 		return err
 	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
 
-	var response BacklogItemResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	response, err := decodeResponse[BacklogItemResponse](body)
+	if err != nil {
+		return err
 	}
 	item := response.Item
 
-	fmt.Printf("Name: %s\n", item.Name)
-	fmt.Printf("Kind: %s\n", item.Kind)
-	fmt.Printf("Title: %s\n", item.Title)
-	fmt.Printf("Description: %s\n", item.Description)
-	fmt.Printf("Status: %s\n", item.Status)
-	fmt.Printf("Priority: %d\n", item.Priority)
+	printSection("Summary")
+	fmt.Printf("  %s/%s (%s)\n", item.Kind, item.Name, item.Status)
+
+	printSection("Details")
+	fmt.Printf("  Name: %s\n", item.Name)
+	fmt.Printf("  Kind: %s\n", item.Kind)
+	fmt.Printf("  Title: %s\n", item.Title)
+	fmt.Printf("  Description: %s\n", item.Description)
+	fmt.Printf("  Status: %s\n", item.Status)
+	fmt.Printf("  Priority: %d\n", item.Priority)
 	if len(item.Tags) > 0 {
-		fmt.Printf("Tags: %s\n", strings.Join(item.Tags, ", "))
+		fmt.Printf("  Tags: %s\n", strings.Join(item.Tags, ", "))
 	}
 	if item.ResearchTarget != "" {
-		fmt.Printf("Research Target: %s\n", item.ResearchTarget)
+		fmt.Printf("  Research Target: %s\n", item.ResearchTarget)
 	}
-	fmt.Printf("Created: %s\n", item.Created)
-	fmt.Printf("Updated: %s\n", item.Updated)
+	fmt.Printf("  Created: %s\n", item.Created)
+	fmt.Printf("  Updated: %s\n", item.Updated)
+
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "files", item.Kind, item.Name),
+		cliCommand("backlog", "update", item.Kind, item.Name, "'{\"status\":\"ready\"}'"),
+		cliCommand("backlog", "queue", item.Kind, item.Name),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogCreate(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: backlog create <json-or-@file>\n\nExample:\n  backlog create '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'")
+	fs := flag.NewFlagSet("backlog create", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: backlog create <json-or-@file> [--json]\n\nExample:\n  backlog create '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'")
 	}
 
-	payload, err := parseJSONArg(args)
+	payload, err := parseJSONArg(fs.Args())
 	if err != nil {
 		return err
 	}
@@ -105,28 +162,42 @@ func (a *App) cmdBacklogCreate(args []string) error {
 	if err != nil {
 		return err
 	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
 
-	var response BacklogItemResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	response, err := decodeResponse[BacklogItemResponse](body)
+	if err != nil {
+		return err
 	}
 	item := response.Item
 
-	fmt.Printf("Created backlog item: %s\n", item.Name)
-	fmt.Printf("  Kind: %s\n", item.Kind)
+	printSection("Result")
+	fmt.Printf("  Created backlog item: %s/%s\n", item.Kind, item.Name)
+	printSection("What Changed")
 	fmt.Printf("  Status: %s\n", item.Status)
 	fmt.Printf("  Priority: %d\n", item.Priority)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "get", item.Kind, item.Name),
+		cliCommand("backlog", "files", item.Kind, item.Name),
+		cliCommand("backlog", "queue", item.Kind, item.Name),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogUpdate(args []string) error {
-	if len(args) < 3 {
-		return fmt.Errorf("usage: backlog update <kind> <name> <json-or-@file>\n\nExample:\n  backlog update idea my-idea '{\"title\":\"Updated Title\",\"status\":\"ready\"}'")
+	fs := flag.NewFlagSet("backlog update", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 3 {
+		return fmt.Errorf("usage: backlog update <kind> <name> <json-or-@file> [--json]\n\nExample:\n  backlog update idea my-idea '{\"title\":\"Updated Title\",\"status\":\"ready\"}'")
 	}
 
-	kind := args[0]
-	name := args[1]
-	payload, err := parseJSONArg(args[2:])
+	kind := fs.Arg(0)
+	name := fs.Arg(1)
+	payload, err := parseJSONArg(fs.Args()[2:])
 	if err != nil {
 		return err
 	}
@@ -140,58 +211,93 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 	if err != nil {
 		return err
 	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
 
-	var response BacklogItemResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	response, err := decodeResponse[BacklogItemResponse](body)
+	if err != nil {
+		return err
 	}
 	item := response.Item
 
-	fmt.Printf("Updated backlog item: %s\n", item.Name)
-	fmt.Printf("  Kind: %s\n", item.Kind)
+	printSection("Result")
+	fmt.Printf("  Updated backlog item: %s/%s\n", item.Kind, item.Name)
+	printSection("What Changed")
 	fmt.Printf("  Status: %s\n", item.Status)
 	fmt.Printf("  Priority: %d\n", item.Priority)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "get", item.Kind, item.Name),
+		cliCommand("backlog", "queue", item.Kind, item.Name),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogDelete(args []string) error {
-	if err := requireArgs(args, 2, "backlog delete <kind> <name>"); err != nil {
+	fs := flag.NewFlagSet("backlog delete", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	kind := args[0]
-	name := args[1]
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: backlog delete <kind> <name> [--json]")
+	}
+	kind := fs.Arg(0)
+	name := fs.Arg(1)
 
-	_, err := a.requestV1("DELETE", "/backlog/"+kind+"/"+name, nil, nil)
+	body, err := a.requestV1("DELETE", "/backlog/"+kind+"/"+name, nil, nil)
 	if err != nil {
 		return err
 	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
 
-	fmt.Printf("Deleted backlog item: %s (%s)\n", name, kind)
+	printSection("Result")
+	fmt.Printf("  Deleted backlog item: %s/%s\n", kind, name)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "list"),
+		cliCommand("backlog", "create", "'{\"name\":\"new-item\",\"title\":\"New Item\",\"kind\":\"idea\"}'"),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogFiles(args []string) error {
-	if err := requireArgs(args, 2, "backlog files <kind> <name>"); err != nil {
+	fs := flag.NewFlagSet("backlog files", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	kind := strings.TrimSpace(args[0])
-	name := strings.TrimSpace(args[1])
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: backlog files <kind> <name> [--json]")
+	}
+	kind := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(fs.Arg(1))
 
 	body, err := a.getV1("/backlog/"+kind+"/"+name+"/files", nil)
 	if err != nil {
 		return err
 	}
-
-	var response BacklogFilesResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-	if len(response.Files) == 0 {
-		fmt.Println("No files found.")
+	if printJSONIfRequested(*jsonOut, body) {
 		return nil
 	}
 
-	fmt.Printf("Files for %s/%s:\n", kind, name)
+	response, err := decodeResponse[BacklogFilesResponse](body)
+	if err != nil {
+		return err
+	}
+	if len(response.Files) == 0 {
+		printSection("Summary")
+		fmt.Printf("  No files found for %s/%s.\n", kind, name)
+		printCommandListSection("Next Steps", []string{
+			cliCommand("backlog", "file-upload", kind, name, "<local-file>"),
+		})
+		return nil
+	}
+
+	printSection("Summary")
+	fmt.Printf("  Found %d file node(s) for %s/%s\n", len(response.Files), kind, name)
+	printSection("Results")
 	printTree(response.Files,
 		func(item BacklogFile) []BacklogFile { return item.Children },
 		func(item BacklogFile) string {
@@ -202,39 +308,36 @@ func (a *App) cmdBacklogFiles(args []string) error {
 		},
 		0,
 	)
+	printCommandListSection("Retrieval Hints", []string{
+		cliCommand("backlog", "file-get", kind, name, "<path>"),
+		cliCommand("backlog", "file-upload", kind, name, "<local-file>", "--path", "docs"),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogQueue(args []string) error {
 	fs := flag.NewFlagSet("backlog queue", flag.ContinueOnError)
-	mode := fs.String("mode", "", "Execution mode override: manual|scheduled|yolo (default uses execution policy)")
-	delaySeconds := fs.Int64("delay-seconds", 0, "Schedule delay in seconds (scheduled mode)")
-	operation := fs.String("operation", "generator", "Operation hint: generator|improver")
-	startedBy := fs.String("started-by", "swarm-manager", "Started-by attribution label")
+	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
+	jsonOut := cliutil.JSONFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: backlog queue <kind> <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME]")
+		return fmt.Errorf("usage: backlog queue <kind> <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]")
 	}
+
+	opts, err := parseExecutionOptions(mode, delaySeconds, operation, startedBy, false)
+	if err != nil {
+		return err
+	}
+
 	kind := fs.Arg(0)
 	name := fs.Arg(1)
-	modeValue := strings.ToLower(strings.TrimSpace(*mode))
-	if modeValue != "" && modeValue != "manual" && modeValue != "scheduled" && modeValue != "yolo" {
-		return fmt.Errorf("invalid mode %q (expected manual, scheduled, or yolo)", modeValue)
-	}
-	operationValue := strings.ToLower(strings.TrimSpace(*operation))
-	if operationValue != "generator" && operationValue != "improver" {
-		return fmt.Errorf("invalid operation %q (expected generator or improver)", operationValue)
-	}
-	if *delaySeconds < 0 {
-		return fmt.Errorf("delay-seconds must be >= 0")
-	}
 	payload, err := json.Marshal(map[string]any{
-		"operation":     operationValue,
-		"mode":          modeValue,
-		"delay_seconds": *delaySeconds,
-		"started_by":    strings.TrimSpace(*startedBy),
+		"operation":     opts.operation,
+		"mode":          opts.mode,
+		"delay_seconds": opts.delaySeconds,
+		"started_by":    opts.startedBy,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
@@ -244,36 +347,49 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	var response QueueBacklogResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
 	}
 
-	fmt.Printf("Queued backlog item: %s\n", response.Item.Name)
-	fmt.Printf("  Kind: %s\n", response.Item.Kind)
+	response, err := decodeResponse[QueueBacklogResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Result")
+	fmt.Printf("  Queued backlog item: %s/%s\n", response.Item.Kind, response.Item.Name)
+	printSection("What Changed")
 	fmt.Printf("  Status: %s\n", response.Item.Status)
 	fmt.Printf("  Task ID: %s\n", response.TaskID)
 	if response.RunID != "" {
 		fmt.Printf("  Run ID: %s\n", response.RunID)
 	}
-	fmt.Printf("  Mode: %s\n", modeValue)
-	if modeValue == "scheduled" {
-		fmt.Printf("  Delay Seconds: %d\n", *delaySeconds)
+	fmt.Printf("  Mode: %s\n", opts.mode)
+	if opts.mode == "scheduled" {
+		fmt.Printf("  Delay Seconds: %d\n", opts.delaySeconds)
 	}
+	printCommandListSection("Next Steps", []string{
+		cliCommand("execution", "list", "--backlog-kind", response.Item.Kind, "--backlog-name", response.Item.Name),
+		cliCommand("execution", "get", "<execution-id>"),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogResearch(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: backlog research <kind> <name> [json-or-@file]\n\nExample:\n  backlog research idea my-idea '{\"prompt\":\"Focus on risks\"}'")
+	fs := flag.NewFlagSet("backlog research", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	kind := args[0]
-	name := args[1]
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: backlog research <kind> <name> [json-or-@file] [--json]\n\nExample:\n  backlog research idea my-idea '{\"prompt\":\"Focus on risks\"}'")
+	}
+	kind := fs.Arg(0)
+	name := fs.Arg(1)
 
 	var payload json.RawMessage
-	if len(args) > 2 {
-		parsed, err := parseJSONArg(args[2:])
+	if fs.NArg() > 2 {
+		parsed, err := parseJSONArg(fs.Args()[2:])
 		if err != nil {
 			return err
 		}
@@ -284,29 +400,43 @@ func (a *App) cmdBacklogResearch(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	var response ResearchResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
 	}
 
-	fmt.Printf("Research started for backlog item: %s\n", name)
+	response, err := decodeResponse[ResearchResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Result")
+	fmt.Printf("  Started research for %s/%s\n", kind, name)
+	printSection("What Changed")
 	fmt.Printf("  Task ID: %s\n", response.TaskID)
 	fmt.Printf("  Run ID: %s\n", response.RunID)
 	fmt.Printf("  Base URL: %s\n", response.BaseURL)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "get", kind, name),
+		cliCommand("execution", "list", "--backlog-kind", kind, "--backlog-name", name),
+	})
 	return nil
 }
 
 func (a *App) cmdBacklogConvert(args []string) error {
-	if len(args) < 3 {
-		return fmt.Errorf("usage: backlog convert <kind> <name> <target-kind> [target-name]")
+	fs := flag.NewFlagSet("backlog convert", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	kind := args[0]
-	name := args[1]
-	targetKind := args[2]
+	if fs.NArg() < 3 {
+		return fmt.Errorf("usage: backlog convert <kind> <name> <target-kind> [target-name] [--json]")
+	}
+	kind := fs.Arg(0)
+	name := fs.Arg(1)
+	targetKind := fs.Arg(2)
 	targetName := ""
-	if len(args) > 3 {
-		targetName = strings.Join(args[3:], " ")
+	if fs.NArg() > 3 {
+		targetName = strings.Join(fs.Args()[3:], " ")
 	}
 
 	payload := map[string]string{
@@ -324,12 +454,144 @@ func (a *App) cmdBacklogConvert(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	var response BacklogItemResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
 	}
 
-	fmt.Printf("Converted backlog item: %s → %s/%s\n", name, response.Item.Kind, response.Item.Name)
+	response, err := decodeResponse[BacklogItemResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Result")
+	fmt.Printf("  Converted backlog item: %s/%s -> %s/%s\n", kind, name, response.Item.Kind, response.Item.Name)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "get", response.Item.Kind, response.Item.Name),
+		cliCommand("backlog", "list", response.Item.Kind),
+	})
+	return nil
+}
+
+func (a *App) cmdBacklogFileGet(args []string) error {
+	fs := flag.NewFlagSet("backlog file get", flag.ContinueOnError)
+	outPath := fs.String("out", "", "Write file content to local path instead of stdout")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 3 {
+		return fmt.Errorf("usage: backlog file get <kind> <name> <path> [--out local-path] [--json]")
+	}
+	kind := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(fs.Arg(1))
+	filePath := strings.TrimSpace(fs.Arg(2))
+	if kind == "" || name == "" || filePath == "" {
+		return fmt.Errorf("kind, name, and path are required")
+	}
+
+	body, err := a.getV1("/backlog/"+kind+"/"+name+"/files/"+filePath, nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	if strings.TrimSpace(*outPath) == "" {
+		fmt.Print(string(body))
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(*outPath), 0o755); err != nil && filepath.Dir(*outPath) != "." {
+		return fmt.Errorf("prepare output directory: %w", err)
+	}
+	if err := os.WriteFile(*outPath, body, 0o644); err != nil {
+		return fmt.Errorf("write output file: %w", err)
+	}
+	printSection("Result")
+	fmt.Printf("  Saved file to %s\n", *outPath)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "files", kind, name),
+	})
+	return nil
+}
+
+func (a *App) cmdBacklogFile(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: backlog file <get|upload> ...")
+	}
+	switch strings.ToLower(strings.TrimSpace(args[0])) {
+	case "get":
+		return a.cmdBacklogFileGet(args[1:])
+	case "upload":
+		return a.cmdBacklogFileUpload(args[1:])
+	default:
+		return fmt.Errorf("unknown backlog file subcommand %q (expected get or upload)", args[0])
+	}
+}
+
+func (a *App) cmdBacklogFileUpload(args []string) error {
+	fs := flag.NewFlagSet("backlog file upload", flag.ContinueOnError)
+	targetPath := fs.String("path", "", "Optional directory path within backlog item")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 3 {
+		return fmt.Errorf("usage: backlog file upload <kind> <name> <local-file> [--path backlog/subdir] [--json]")
+	}
+
+	kind := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(fs.Arg(1))
+	localFile := strings.TrimSpace(fs.Arg(2))
+	if kind == "" || name == "" || localFile == "" {
+		return fmt.Errorf("kind, name, and local-file are required")
+	}
+
+	file, err := os.Open(localFile)
+	if err != nil {
+		return fmt.Errorf("open local file: %w", err)
+	}
+	defer file.Close()
+
+	var formBody bytes.Buffer
+	writer := multipart.NewWriter(&formBody)
+	part, err := writer.CreateFormFile("file", filepath.Base(localFile))
+	if err != nil {
+		return fmt.Errorf("create form file: %w", err)
+	}
+	if _, err := io.Copy(part, file); err != nil {
+		return fmt.Errorf("copy file content: %w", err)
+	}
+	if strings.TrimSpace(*targetPath) != "" {
+		if err := writer.WriteField("path", strings.TrimSpace(*targetPath)); err != nil {
+			return fmt.Errorf("write path field: %w", err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("finalize multipart request: %w", err)
+	}
+
+	respBody, err := a.requestMultipartV1("POST", "/backlog/"+kind+"/"+name+"/files", formBody.Bytes(), writer.FormDataContentType())
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		cliutil.PrintJSON(respBody)
+		return nil
+	}
+
+	parsed, err := decodeResponse[BacklogFileResponse](respBody)
+	if err != nil {
+		return err
+	}
+	printSection("Result")
+	fmt.Printf("  Uploaded file: %s\n", parsed.File.Path)
+	printSection("What Changed")
+	fmt.Printf("  Name: %s\n", parsed.File.Name)
+	fmt.Printf("  Size: %d bytes\n", parsed.File.Size)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "files", kind, name),
+		cliCommand("backlog", "file-get", kind, name, parsed.File.Path),
+	})
 	return nil
 }

@@ -683,6 +683,47 @@ func TestDelete_WithArchive(t *testing.T) {
 	}
 }
 
+// TestDelete_WithArchive_PreservesFilesInArchiveSubdir verifies preserved files
+// are placed under the archive/ subdirectory, separate from backlog metadata.
+func TestDelete_WithArchive_PreservesFilesInArchiveSubdir(t *testing.T) {
+	root, sources := setupTestScenarios(t)
+
+	// Add extra files to scenario-1 for preservation
+	scenario1Path := filepath.Join(root, "scenarios", "test-scenario-1")
+	testutil.WriteFile(t, filepath.Join(scenario1Path, "README.md"), "# Readme")
+	testutil.WriteFile(t, filepath.Join(scenario1Path, "docs", "guide.md"), "guide content")
+
+	ideasDir := filepath.Join(root, "scenarios", "swarm-manager", "ideas")
+	testutil.MakeDir(t, ideasDir)
+
+	handler := newTestHandler(root, sources)
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
+
+	body := `{"preserve_files":{"preset":"documentation"}}`
+	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1?archive=true", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	testutil.AssertStatusOK(t, rec)
+
+	ideaPath := filepath.Join(ideasDir, "test-scenario-1-archived")
+
+	// spec.json lives at the backlog item root (not inside archive/)
+	testutil.AssertFileExists(t, filepath.Join(ideaPath, "spec.json"))
+
+	// Preserved files live under archive/ subdirectory
+	testutil.AssertFileExists(t, filepath.Join(ideaPath, "archive", "PRD.md"))
+	testutil.AssertFileExists(t, filepath.Join(ideaPath, "archive", "README.md"))
+	testutil.AssertFileExists(t, filepath.Join(ideaPath, "archive", "docs", "guide.md"))
+
+	// Preserved files must NOT exist at the backlog item root
+	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "PRD.md"))
+	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "README.md"))
+	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "docs"))
+}
+
 func TestDelete_ProtectedScenarioRejected(t *testing.T) {
 	root := t.TempDir()
 	scenariosDir := filepath.Join(root, "scenarios")
@@ -790,14 +831,14 @@ func TestDeleteResponse_Structure(t *testing.T) {
 func TestCopyPreservedFiles_PresetSkipsIgnoredDirs(t *testing.T) {
 	root := t.TempDir()
 	scenarioPath := filepath.Join(root, "scenario")
-	ideaPath := filepath.Join(root, "idea")
+	archiveDir := filepath.Join(root, "idea", "archive")
 
 	testutil.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
 	testutil.WriteFile(t, filepath.Join(scenarioPath, "docs", "guide.md"), "guide")
 	testutil.WriteFile(t, filepath.Join(scenarioPath, "node_modules", "somepkg", "README.md"), "ignore me")
 
 	preset := "documentation"
-	preserved, err := copyPreservedFiles(scenarioPath, ideaPath, &apipb.PreserveFilesRequest{
+	preserved, err := copyPreservedFiles(scenarioPath, archiveDir, &apipb.PreserveFilesRequest{
 		Preset: &preset,
 	})
 	if err != nil {
@@ -814,20 +855,20 @@ func TestCopyPreservedFiles_PresetSkipsIgnoredDirs(t *testing.T) {
 		}
 	}
 
-	testutil.AssertFileExists(t, filepath.Join(ideaPath, "PRD.md"))
-	testutil.AssertFileExists(t, filepath.Join(ideaPath, "docs", "guide.md"))
-	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "node_modules", "somepkg", "README.md"))
+	testutil.AssertFileExists(t, filepath.Join(archiveDir, "PRD.md"))
+	testutil.AssertFileExists(t, filepath.Join(archiveDir, "docs", "guide.md"))
+	testutil.AssertFileNotExists(t, filepath.Join(archiveDir, "node_modules", "somepkg", "README.md"))
 }
 
 func TestCopyPreservedFiles_RejectsPathTraversal(t *testing.T) {
 	root := t.TempDir()
 	scenarioPath := filepath.Join(root, "scenario")
-	ideaPath := filepath.Join(root, "idea")
+	archiveDir := filepath.Join(root, "idea", "archive")
 
 	testutil.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
 	testutil.WriteFile(t, filepath.Join(root, "outside.md"), "outside")
 
-	preserved, err := copyPreservedFiles(scenarioPath, ideaPath, &apipb.PreserveFilesRequest{
+	preserved, err := copyPreservedFiles(scenarioPath, archiveDir, &apipb.PreserveFilesRequest{
 		Paths: []string{"../outside.md", "PRD.md"},
 	})
 	if err != nil {
@@ -838,8 +879,8 @@ func TestCopyPreservedFiles_RejectsPathTraversal(t *testing.T) {
 		t.Fatalf("expected only PRD.md to be preserved, got %v", preserved)
 	}
 
-	testutil.AssertFileExists(t, filepath.Join(ideaPath, "PRD.md"))
-	testutil.AssertFileNotExists(t, filepath.Join(ideaPath, "outside.md"))
+	testutil.AssertFileExists(t, filepath.Join(archiveDir, "PRD.md"))
+	testutil.AssertFileNotExists(t, filepath.Join(archiveDir, "outside.md"))
 }
 
 func TestResolveGlobPattern_RejectsUnsafePattern(t *testing.T) {
