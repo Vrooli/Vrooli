@@ -19,9 +19,11 @@ interface EventsModalProps {
   agentName?: string
   /** When true, poll for new events every 3s */
   live?: boolean
+  /** Error context from the heartbeat execution (shown when no events exist) */
+  errorMessage?: string
 }
 
-export function EventsModal({ isOpen, onClose, runId, agentName, live }: EventsModalProps) {
+export function EventsModal({ isOpen, onClose, runId, agentName, live, errorMessage }: EventsModalProps) {
   const [events, setEvents] = useState<RunEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -109,7 +111,20 @@ export function EventsModal({ isOpen, onClose, runId, agentName, live }: EventsM
       ) : error ? (
         <p className="text-sm text-destructive py-4">{error}</p>
       ) : events.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4">No events recorded for this run.</p>
+        <div className="py-4 space-y-3">
+          <p className="text-sm text-muted-foreground">No events recorded for this run.</p>
+          {errorMessage && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-red-400 mb-1">Execution Error</p>
+              <p className="text-sm text-red-300 whitespace-pre-wrap">{errorMessage}</p>
+            </div>
+          )}
+          {!errorMessage && !live && (
+            <p className="text-xs text-muted-foreground/70">
+              The run may have failed before producing events. Check the Recent Heartbeats section for error details.
+            </p>
+          )}
+        </div>
       ) : (
         <div
           ref={listRef}

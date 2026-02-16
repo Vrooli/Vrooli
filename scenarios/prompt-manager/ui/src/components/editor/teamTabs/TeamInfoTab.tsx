@@ -44,6 +44,7 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
   const [eventsRunId, setEventsRunId] = useState<string | null>(null)
   const [eventsAgentName, setEventsAgentName] = useState<string | undefined>()
   const [eventsLive, setEventsLive] = useState(false)
+  const [eventsError, setEventsError] = useState<string | undefined>()
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown'
@@ -125,26 +126,36 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
 
   useEffect(() => {
     let isActive = true
+    let isFirstLoad = true
     const loadHeartbeats = async () => {
-      setIsLoadingHeartbeats(true)
-      setHeartbeatError(null)
+      if (isFirstLoad) {
+        setIsLoadingHeartbeats(true)
+        setHeartbeatError(null)
+      }
       try {
         const configs = await heartbeatService.listHeartbeats(team.id)
         if (!isActive) return
         setHeartbeatConfigs(configs)
+        if (isFirstLoad) setHeartbeatError(null)
       } catch (error) {
         if (!isActive) return
-        console.warn('Failed to load heartbeat schedule:', error)
-        setHeartbeatConfigs([])
-        setHeartbeatError('Unable to load heartbeat schedule.')
+        if (isFirstLoad) {
+          console.warn('Failed to load heartbeat schedule:', error)
+          setHeartbeatConfigs([])
+          setHeartbeatError('Unable to load heartbeat schedule.')
+        }
       } finally {
-        if (isActive) setIsLoadingHeartbeats(false)
+        if (isActive && isFirstLoad) setIsLoadingHeartbeats(false)
+        isFirstLoad = false
       }
     }
 
     void loadHeartbeats()
+    // Poll every 10s so Recent Heartbeats / upcoming schedules stay current
+    const interval = setInterval(() => void loadHeartbeats(), 10_000)
     return () => {
       isActive = false
+      clearInterval(interval)
     }
   }, [team.id, team.enabled])
 
@@ -317,6 +328,7 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
                           'inline-block h-2 w-2 rounded-full flex-shrink-0',
                           entry.status === 'completed' && 'bg-emerald-500',
                           entry.status === 'failed' && 'bg-red-500',
+                          entry.status === 'cancelled' && 'bg-slate-400',
                           entry.status === 'running' && 'bg-amber-500 animate-pulse'
                         )}
                       />
@@ -342,6 +354,7 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
                           setEventsRunId(rid)
                           setEventsAgentName(entry.memberName)
                           setEventsLive(entry.status === 'running')
+                          setEventsError(entry.config.lastExecution.error || undefined)
                         }}
                       >
                         <FileText className="h-3.5 w-3.5" />
@@ -349,6 +362,12 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
                     )
                   })()}
                 </div>
+                {/* Inline error message for failed/cancelled runs */}
+                {(entry.status === 'failed' || entry.status === 'cancelled') && entry.config.lastExecution.error && (
+                  <p className="text-xs text-red-400 mt-1 px-3 truncate" title={entry.config.lastExecution.error}>
+                    {entry.config.lastExecution.error}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -380,10 +399,11 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
       {eventsRunId && (
         <EventsModal
           isOpen
-          onClose={() => setEventsRunId(null)}
+          onClose={() => { setEventsRunId(null); setEventsError(undefined) }}
           runId={eventsRunId}
           agentName={eventsAgentName}
           live={eventsLive}
+          errorMessage={eventsError}
         />
       )}
     </div>

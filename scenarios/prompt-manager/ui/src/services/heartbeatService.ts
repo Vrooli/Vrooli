@@ -32,7 +32,7 @@ export interface HeartbeatConfig {
 export interface HeartbeatExecResult {
   startedAt: string
   endedAt?: string
-  status: 'running' | 'completed' | 'failed'
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
   runId?: string
   logPath?: string
   error?: string
@@ -381,6 +381,59 @@ export interface RunEvent {
 }
 
 /**
+ * Map proto event type enums to short names used by the UI.
+ * Agent-manager uses protojson names like "RUN_EVENT_TYPE_MESSAGE".
+ */
+const EVENT_TYPE_MAP: Record<string, RunEvent['eventType']> = {
+  RUN_EVENT_TYPE_MESSAGE: 'message',
+  RUN_EVENT_TYPE_TOOL_CALL: 'tool_call',
+  RUN_EVENT_TYPE_TOOL_RESULT: 'tool_result',
+  RUN_EVENT_TYPE_STATUS: 'status',
+  RUN_EVENT_TYPE_METRIC: 'metric',
+  RUN_EVENT_TYPE_LOG: 'log',
+  RUN_EVENT_TYPE_ERROR: 'error',
+}
+
+/** Agent-manager event shape (snake_case protojson with typed payload fields). */
+interface RawRunEvent {
+  id: string
+  run_id: string
+  sequence?: string | number
+  event_type: string
+  timestamp: string
+  // Payload is one of these, keyed by short type name:
+  message?: Record<string, unknown>
+  tool_call?: Record<string, unknown>
+  tool_result?: Record<string, unknown>
+  status?: Record<string, unknown>
+  metric?: Record<string, unknown>
+  log?: Record<string, unknown>
+  error?: Record<string, unknown>
+  // Fallback for unknown types
+  data?: Record<string, unknown>
+}
+
+/** Normalize a single raw event into the UI-friendly RunEvent shape. */
+function normalizeEvent(raw: RawRunEvent): RunEvent {
+  const shortType = EVENT_TYPE_MAP[raw.event_type] ?? (raw.event_type?.toLowerCase().replace('run_event_type_', '') as RunEvent['eventType'])
+
+  // Extract the typed payload — agent-manager nests it under the short type key
+  const payload: Record<string, unknown> =
+    raw.message ?? raw.tool_call ?? raw.tool_result ??
+    raw.status ?? raw.metric ?? raw.log ?? raw.error ??
+    raw.data ?? {}
+
+  return {
+    id: raw.id,
+    runId: raw.run_id,
+    sequence: typeof raw.sequence === 'string' ? parseInt(raw.sequence, 10) || 0 : (raw.sequence ?? 0),
+    eventType: shortType,
+    timestamp: raw.timestamp,
+    data: payload,
+  }
+}
+
+/**
  * Fetch events for a run, optionally starting after a given sequence number.
  */
 export async function getRunEvents(runId: string, opts?: {
@@ -396,7 +449,11 @@ export async function getRunEvents(runId: string, opts?: {
   }
   const qs = params.toString()
   const endpoint = `/runs/${encodeURIComponent(runId)}/events${qs ? `?${qs}` : ''}`
-  return apiRequest<RunEvent[]>(endpoint)
+
+  // Agent-manager wraps events in {"events": [...]}
+  const raw = await apiRequest<{ events?: RawRunEvent[] } | RawRunEvent[]>(endpoint)
+  const rawEvents = Array.isArray(raw) ? raw : (raw.events ?? [])
+  return rawEvents.map(normalizeEvent)
 }
 
 // ============================================================================

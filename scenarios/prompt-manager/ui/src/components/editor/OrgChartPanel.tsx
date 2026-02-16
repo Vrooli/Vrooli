@@ -211,7 +211,7 @@ export function OrgChartPanel({
       const isRunning = runningAgentMap.has(member.agentId)
 
       // Determine heartbeat status: running agent takes priority, then last execution
-      let heartbeatStatus: 'running' | 'completed' | 'failed' | null = null
+      let heartbeatStatus: 'running' | 'completed' | 'failed' | 'cancelled' | null = null
       if (hbConfig) {
         if (isRunning) {
           heartbeatStatus = 'running'

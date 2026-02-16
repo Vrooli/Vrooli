@@ -28,7 +28,7 @@ export interface OrgChartNodeData extends Record<string, unknown> {
   /** Whether a heartbeat config exists and is enabled */
   heartbeatEnabled?: boolean
   /** Last execution status of the heartbeat (or 'running' if currently active) */
-  heartbeatStatus?: 'running' | 'completed' | 'failed' | null
+  heartbeatStatus?: 'running' | 'completed' | 'failed' | 'cancelled' | null
   /** Callback when node is clicked */
   onSelect: (agentId: string) => void
 }
