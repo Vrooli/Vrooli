@@ -5,6 +5,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
+    // INTEROP-CRITICAL: Keep relative base so proxied deployments resolve assets
+    // under nested /apps/<scenario>/proxy paths.
     base: "./",
     plugins: [react()],
     server: {

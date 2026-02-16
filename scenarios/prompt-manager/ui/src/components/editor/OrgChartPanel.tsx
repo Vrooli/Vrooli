@@ -32,6 +32,10 @@ import type { TeamDetails } from '@/types/team'
 import type { Agent, AgentAppearance } from '@/types/agent'
 import type { OrgEdge, OrgChartNode as OrgChartNodeType, OrgChartFlowEdge, OrgChartNodeData } from '@/types/orgChart'
 
+import * as heartbeatService from '@/services/heartbeatService'
+import type { HeartbeatConfig } from '@/services/heartbeatService'
+import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
+
 import '@xyflow/react/dist/style.css'
 
 // ============================================================================
@@ -129,6 +133,25 @@ export function OrgChartPanel({
   const reportingHelpRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobile()
 
+  // Heartbeat configs keyed by agentId
+  const [heartbeatConfigs, setHeartbeatConfigs] = useState<Map<string, HeartbeatConfig>>(new Map())
+  const runningAgentMap = useRunningAgentsStore((s) => s.agentMap)
+
+  useEffect(() => {
+    let isActive = true
+    heartbeatService.listHeartbeats(team.id).then((configs) => {
+      if (!isActive) return
+      const map = new Map<string, HeartbeatConfig>()
+      for (const cfg of configs) {
+        map.set(cfg.agentId, cfg)
+      }
+      setHeartbeatConfigs(map)
+    }).catch((err: unknown) => {
+      console.warn('Failed to load heartbeat configs for org chart:', err)
+    })
+    return () => { isActive = false }
+  }, [team.id])
+
   useEffect(() => {
     if (!showReportingHelp) return
     const handleClick = (e: MouseEvent) => {
@@ -184,6 +207,19 @@ export function OrgChartPanel({
   const initialNodes = useMemo((): OrgChartNodeType[] => {
     return team.members.map((member): OrgChartNodeType => {
       const managerId = managerByReport.get(member.agentId)
+      const hbConfig = heartbeatConfigs.get(member.agentId)
+      const isRunning = runningAgentMap.has(member.agentId)
+
+      // Determine heartbeat status: running agent takes priority, then last execution
+      let heartbeatStatus: 'running' | 'completed' | 'failed' | null = null
+      if (hbConfig) {
+        if (isRunning) {
+          heartbeatStatus = 'running'
+        } else if (hbConfig.lastExecution) {
+          heartbeatStatus = hbConfig.lastExecution.status
+        }
+      }
+
       return {
         id: member.agentId,
         type: 'orgMember',
@@ -195,6 +231,8 @@ export function OrgChartPanel({
           isSelected: member.agentId === selectedMemberId,
           managerName: managerId ? (memberNames.get(managerId) ?? managerId) : undefined,
           directReportCount: reportsByManager.get(member.agentId)?.length ?? 0,
+          heartbeatEnabled: hbConfig?.enabled,
+          heartbeatStatus,
           onSelect: onSelectMember,
         },
       }
@@ -207,6 +245,8 @@ export function OrgChartPanel({
     managerByReport,
     memberNames,
     reportsByManager,
+    heartbeatConfigs,
+    runningAgentMap,
     onSelectMember,
   ])
 

@@ -191,9 +191,9 @@
     "resources": {
       "sqlite": {
         "type": "sqlite",
-        "enabled": true,
-        "required": true,
-        "description": "Primary storage for tasks, runs, events, profiles, policies"
+        "enabled": false,
+        "required": false,
+        "description": "Uses embedded local SQLite file (no standalone resource daemon required)"
       },
       "claude-code": {
         "type": "claude-code",

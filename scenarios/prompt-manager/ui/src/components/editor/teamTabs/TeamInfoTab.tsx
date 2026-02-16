@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Clock, Hash, Users, Shield, Target, Cpu } from 'lucide-react'
 import type { TeamDetails, TeamRole, UpdateTeamRequest } from '@/types/team'
+import type { Agent } from '@/types/agent'
 import { cn } from '@/lib/utils'
 import { selectors } from '@/constants/selectors'
 import * as heartbeatService from '@/services/heartbeatService'
@@ -24,14 +25,18 @@ interface TeamInfoTabProps {
   team: TeamDetails
   onSetRoles: (roles: TeamRole[]) => Promise<TeamRole[]>
   onUpdate: (updates: UpdateTeamRequest) => Promise<void>
+  /** All agents for resolving appearance colors in role member chips */
+  allAgents?: Agent[]
   /** Called when the user clicks an upcoming heartbeat entry */
   onNavigateToMemberHeartbeat?: (agentId: string) => void
+  /** Called when the user clicks a member chip in the roles section */
+  onNavigateToMember?: (agentId: string) => void
 }
 
 /**
  * Info display tab component for teams.
  */
-export function TeamInfoTab({ team, onSetRoles, onUpdate, onNavigateToMemberHeartbeat }: TeamInfoTabProps) {
+export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateToMemberHeartbeat, onNavigateToMember }: TeamInfoTabProps) {
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
@@ -261,7 +266,7 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, onNavigateToMemberHear
 
       {/* Roles */}
       <section>
-        <RolesTab team={team} onSetRoles={onSetRoles} />
+        <RolesTab team={team} onSetRoles={onSetRoles} allAgents={allAgents} onNavigateToMember={onNavigateToMember} />
       </section>
     </div>
   )

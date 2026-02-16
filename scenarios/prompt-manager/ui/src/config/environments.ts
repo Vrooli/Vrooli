@@ -269,7 +269,7 @@ export function createEnvironmentConfig(
   name: string,
   options: {
     sceneType?: SceneType
-    /** Continuous time value (0-24 hours). Default: 22 (night) */
+    /** Continuous time value (0-24 hours). Default: 8 (morning) */
     timeValue?: number
     customLighting?: Partial<LightingPreset>
     customFog?: FogConfig
@@ -278,7 +278,7 @@ export function createEnvironmentConfig(
     customPlacement?: Partial<PlacementConfig>
   }
 ): EnvironmentConfig {
-  const { sceneType = 'abstract-space', timeValue = TIME_NIGHT } = options
+  const { sceneType = 'outdoor-park', timeValue = TIME_MORNING } = options
 
   const ground = {
     ...GROUND_PRESETS[sceneType],

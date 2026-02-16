@@ -15,6 +15,7 @@
 
 import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
+import { Heart, HeartOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { OrgChartNodeData } from '@/types/orgChart'
 import type { TeamRole } from '@/types/team'
@@ -35,7 +36,7 @@ const statusStyles: Record<string, string> = {
  * OrgChartNode component.
  */
 function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
-  const { member, appearance, teamRoles, isSelected, onSelect, managerName, directReportCount } = data
+  const { member, appearance, teamRoles, isSelected, onSelect, managerName, directReportCount, heartbeatEnabled, heartbeatStatus } = data
 
   // Get roles that this member has
   const memberRoles: TeamRole[] = teamRoles.filter((role) => member.roles.includes(role.id))
@@ -83,6 +84,26 @@ function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
             >
               {member.status}
             </span>
+            {heartbeatEnabled !== undefined && (
+              heartbeatEnabled ? (
+                <span title={heartbeatStatus === 'running' ? 'Heartbeat running' : 'Heartbeat enabled'}>
+                  <Heart
+                    className={cn(
+                      'h-3 w-3 flex-shrink-0',
+                      heartbeatStatus === 'running'
+                        ? 'text-green-400 animate-pulse'
+                        : 'text-primary/50'
+                    )}
+                  />
+                </span>
+              ) : (
+                <span title="Heartbeat disabled">
+                  <HeartOff
+                    className="h-3 w-3 flex-shrink-0 text-muted-foreground/50"
+                  />
+                </span>
+              )
+            )}
           </div>
 
           {/* Role pills */}

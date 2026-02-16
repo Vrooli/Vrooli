@@ -1431,3 +1431,184 @@ func TestRunWithComplexFields(t *testing.T) {
 		t.Errorf("expected 3 allowed tools, got %d", len(got.ResolvedConfig.AllowedTools))
 	}
 }
+
+// ============================================================================
+// Stats Repository Time Scanning Tests
+// ============================================================================
+
+func TestStatsGetTimeSeries_DailyBucketParsesTimestamp(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Stats Task",
+		ScopePath: "/stats",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		Tag:           "stats-time-series",
+		Status:        domain.RunStatusComplete,
+		Phase:         domain.RunPhaseCompleted,
+		ApprovalState: domain.ApprovalStateApproved,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Model:      "claude-sonnet-4-20250514",
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create run: %v", err)
+	}
+
+	now := time.Now()
+	filter := repository.StatsFilter{
+		Window: repository.StatsTimeWindow{
+			Start: now.Add(-24 * time.Hour),
+			End:   now.Add(24 * time.Hour),
+		},
+	}
+
+	buckets, err := repos.Stats.GetTimeSeries(ctx, filter, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("GetTimeSeries: %v", err)
+	}
+	if len(buckets) == 0 {
+		t.Fatal("expected at least one time-series bucket")
+	}
+	if buckets[0].Timestamp.IsZero() {
+		t.Fatal("expected non-zero timestamp in first bucket")
+	}
+}
+
+func TestStatsUsageQueries_ParseCreatedAtTimestamps(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Usage Stats Task",
+		ScopePath: "/stats/usage",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		Tag:           "stats-usage",
+		Status:        domain.RunStatusComplete,
+		Phase:         domain.RunPhaseCompleted,
+		ApprovalState: domain.ApprovalStateApproved,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Model:      "claude-sonnet-4-20250514",
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create run: %v", err)
+	}
+
+	toolCall := domain.NewToolCallEvent(run.ID, "read", "call-1", map[string]interface{}{"path": "README.md"})
+	toolResult := domain.NewToolResultEvent(run.ID, "read", "call-1", "ok", nil)
+	if err := repos.Events.Append(ctx, run.ID, toolCall, toolResult); err != nil {
+		t.Fatalf("Append events: %v", err)
+	}
+
+	now := time.Now()
+	filter := repository.StatsFilter{
+		Window: repository.StatsTimeWindow{
+			Start: now.Add(-24 * time.Hour),
+			End:   now.Add(24 * time.Hour),
+		},
+	}
+
+	modelRuns, err := repos.Stats.GetModelRunUsage(ctx, filter, "claude-sonnet-4-20250514", 10)
+	if err != nil {
+		t.Fatalf("GetModelRunUsage: %v", err)
+	}
+	if len(modelRuns) == 0 {
+		t.Fatal("expected model usage rows")
+	}
+	if modelRuns[0].CreatedAt.IsZero() {
+		t.Fatal("expected model usage created_at to be parsed")
+	}
+
+	toolRuns, err := repos.Stats.GetToolRunUsage(ctx, filter, "read", 10)
+	if err != nil {
+		t.Fatalf("GetToolRunUsage: %v", err)
+	}
+	if len(toolRuns) == 0 {
+		t.Fatal("expected tool usage rows")
+	}
+	if toolRuns[0].CreatedAt.IsZero() {
+		t.Fatal("expected tool usage created_at to be parsed")
+	}
+}
+
+func TestStatsGetErrorPatterns_ParsesLastSeenTimestamp(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Error Stats Task",
+		ScopePath: "/stats/errors",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		Tag:           "stats-errors",
+		Status:        domain.RunStatusFailed,
+		Phase:         domain.RunPhaseCompleted,
+		ApprovalState: domain.ApprovalStateNone,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create run: %v", err)
+	}
+
+	errEvent := domain.NewErrorEvent(run.ID, "TOOL_FAILED", "tool execution failed", true)
+	if err := repos.Events.Append(ctx, run.ID, errEvent); err != nil {
+		t.Fatalf("Append error event: %v", err)
+	}
+
+	now := time.Now()
+	filter := repository.StatsFilter{
+		Window: repository.StatsTimeWindow{
+			Start: now.Add(-24 * time.Hour),
+			End:   now.Add(24 * time.Hour),
+		},
+	}
+
+	patterns, err := repos.Stats.GetErrorPatterns(ctx, filter, 10)
+	if err != nil {
+		t.Fatalf("GetErrorPatterns: %v", err)
+	}
+	if len(patterns) == 0 {
+		t.Fatal("expected error patterns rows")
+	}
+	if patterns[0].LastSeen.IsZero() {
+		t.Fatal("expected non-zero last_seen timestamp")
+	}
+}

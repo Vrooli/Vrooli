@@ -7,24 +7,39 @@
  * - Role name and description editing
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Plus, X, Edit2, Check, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamRole } from '@/types/team'
+import type { Agent } from '@/types/agent'
+import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 
 interface RolesTabProps {
   team: TeamDetails
   onSetRoles: (roles: TeamRole[]) => Promise<TeamRole[]>
+  /** All agents for resolving appearance colors */
+  allAgents?: Agent[]
+  /** Called when user clicks a member chip to navigate to that member */
+  onNavigateToMember?: (agentId: string) => void
 }
 
 /**
  * Roles management tab component.
  */
-export function RolesTab({ team, onSetRoles }: RolesTabProps) {
+export function RolesTab({ team, onSetRoles, allAgents = [], onNavigateToMember }: RolesTabProps) {
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null)
   const [newRole, setNewRole] = useState<{ name: string; description: string } | null>(null)
   const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
+
+  // Map agentId -> appearance for color badges
+  const appearanceMap = useMemo(() => {
+    const map = new Map<string, Agent['appearance']>()
+    for (const agent of allAgents) {
+      if (agent.appearance) map.set(agent.id, agent.appearance)
+    }
+    return map
+  }, [allAgents])
 
   // Start editing a role
   const handleStartEdit = useCallback((role: TeamRole) => {
@@ -188,6 +203,13 @@ export function RolesTab({ team, onSetRoles }: RolesTabProps) {
                         {role.description}
                       </p>
                     )}
+                    {/* Member chips */}
+                    <RoleMemberChips
+                      role={role}
+                      members={team.members}
+                      appearanceMap={appearanceMap}
+                      onNavigateToMember={onNavigateToMember}
+                    />
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
@@ -267,6 +289,54 @@ export function RolesTab({ team, onSetRoles }: RolesTabProps) {
           )}
         </ul>
       )}
+    </div>
+  )
+}
+
+/**
+ * Renders member chips for a single role.
+ */
+function RoleMemberChips({
+  role,
+  members,
+  appearanceMap,
+  onNavigateToMember,
+}: {
+  role: TeamRole
+  members: TeamDetails['members']
+  appearanceMap: Map<string, Agent['appearance']>
+  onNavigateToMember?: (agentId: string) => void
+}) {
+  const roleMembers = useMemo(
+    () => members.filter((m) => m.roles.includes(role.id)),
+    [members, role.id]
+  )
+
+  if (roleMembers.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground/60 mt-1.5 italic">(no members)</p>
+    )
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
+      {roleMembers.map((member) => (
+        <button
+          key={member.agentId}
+          type="button"
+          onClick={() => onNavigateToMember?.(member.agentId)}
+          className={cn(
+            'flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full',
+            'bg-background border border-border',
+            onNavigateToMember
+              ? 'cursor-pointer hover:bg-muted hover:border-foreground/20 transition-colors'
+              : 'cursor-default'
+          )}
+        >
+          <AgentColorBadge appearance={appearanceMap.get(member.agentId)} size="xs" />
+          <span className="truncate max-w-[120px]">{member.displayName}</span>
+        </button>
+      ))}
     </div>
   )
 }

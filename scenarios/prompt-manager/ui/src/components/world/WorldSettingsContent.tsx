@@ -40,8 +40,8 @@ const CAMERA_MODES: { mode: CameraMode; icon: React.ReactNode; label: string }[]
 ]
 
 const SCENE_TYPES: { type: SceneType; icon: React.ReactNode; label: string }[] = [
-  { type: 'abstract-space', icon: <Sparkles className="h-4 w-4" />, label: 'Space' },
   { type: 'outdoor-park', icon: <Trees className="h-4 w-4" />, label: 'Park' },
+  { type: 'abstract-space', icon: <Sparkles className="h-4 w-4" />, label: 'Space' },
   { type: 'indoor-office', icon: <Building2 className="h-4 w-4" />, label: 'Office' },
 ]
 

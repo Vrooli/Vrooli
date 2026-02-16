@@ -34,6 +34,7 @@ export type EditorType = 'code' | 'wysiwyg'
 export type ViewMode = 'edit' | 'preview'
 
 const STORAGE_KEY = 'pm.editorType'
+const VIEW_MODE_STORAGE_KEY = 'pm.editorViewMode'
 
 interface EditorToggleProps {
   editorType: EditorType
@@ -355,7 +356,11 @@ export function SkillContentEditor({
     const stored = localStorage.getItem(STORAGE_KEY)
     return stored === 'wysiwyg' ? 'wysiwyg' : 'code'
   })
-  const [viewMode, setViewMode] = useState<ViewMode>('edit')
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'edit'
+    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
+    return stored === 'preview' ? 'preview' : 'edit'
+  })
   const [isDiffMode, setIsDiffMode] = useState(false)
 
   // State for markdown validation - issues persist across mode switches
@@ -372,6 +377,13 @@ export function SkillContentEditor({
       localStorage.setItem(STORAGE_KEY, editorType)
     }
   }, [editorType])
+
+  // Persist view mode preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode)
+    }
+  }, [viewMode])
 
   useEffect(() => {
     if (!isDirty) {

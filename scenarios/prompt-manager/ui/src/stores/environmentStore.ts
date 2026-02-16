@@ -64,62 +64,20 @@ interface EnvironmentActions {
 
 type EnvironmentStore = EnvironmentState & EnvironmentActions
 
-/** Default environment configuration (10 PM = night) */
-const DEFAULT_ENVIRONMENT: EnvironmentConfig = {
-  id: 'default',
-  name: 'Default Environment',
-  type: 'abstract-space',
-  timeValue: 22,
-  lighting: {
-    ambient: { color: '#404040', intensity: 0.4 },
-    directional: [
-      {
-        position: [10, 10, 5],
-        color: '#ffffff',
-        intensity: 1,
-        castShadow: true,
-      },
-    ],
-    point: [
-      { position: [-10, 5, -10], color: '#6366f1', intensity: 0.5 },
-      { position: [10, -5, 10], color: '#22d3ee', intensity: 0.3 },
-    ],
-  },
-  fog: { color: '#0f172a', near: 10, far: 50 },
-  skybox: { type: 'solid', source: '#0f172a' },
-  ground: {
-    visible: true,
-    type: 'grid',
-    size: 30,
-    divisions: 30,
-    position: 0,
-    material: {
-      type: 'solid',
-      color: '#1e293b',
-    },
-  },
-  boundary: {
-    visible: true,
-    shape: 'square',
-    size: 60,
-    position: 0.01,
-    color: '#94a3b8',
-    opacity: 0.4,
-  },
-  placement: {
-    snapToGrid: true,
-    snapSize: 1,
-    clampToBoundary: true,
-  },
-}
+/** Default environment configuration (10 AM = morning park) */
+const DEFAULT_ENVIRONMENT: EnvironmentConfig = createEnvironmentConfig(
+  'default',
+  'Default Environment',
+  { sceneType: 'outdoor-park', timeValue: 10 }
+)
 
 const initialState: EnvironmentState = {
   current: DEFAULT_ENVIRONMENT,
-  dreiPreset: 'night',
+  dreiPreset: 'studio',
   isTransitioning: false,
   transitionProgress: 0,
   previous: null,
-  timeValue: 22, // Default to 10 PM (night)
+  timeValue: 10, // Default to 10 AM (morning)
   realTimeMode: false,
   syncWithTheme: true,
 }

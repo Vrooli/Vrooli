@@ -8,6 +8,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,6 +22,100 @@ type statsRepository struct {
 }
 
 var _ repository.StatsRepository = (*statsRepository)(nil)
+
+type modelRunUsageRow struct {
+	RunID        uuid.UUID  `db:"run_id"`
+	TaskID       uuid.UUID  `db:"task_id"`
+	TaskTitle    string     `db:"task_title"`
+	ProfileID    *uuid.UUID `db:"profile_id"`
+	ProfileName  string     `db:"profile_name"`
+	Status       string     `db:"status"`
+	CreatedAt    SQLiteTime `db:"created_at"`
+	TotalCostUSD float64    `db:"total_cost_usd"`
+	TotalTokens  int64      `db:"total_tokens"`
+}
+
+func (r modelRunUsageRow) toRepository() *repository.ModelRunUsage {
+	return &repository.ModelRunUsage{
+		RunID:        r.RunID,
+		TaskID:       r.TaskID,
+		TaskTitle:    r.TaskTitle,
+		ProfileID:    r.ProfileID,
+		ProfileName:  r.ProfileName,
+		Status:       r.Status,
+		CreatedAt:    r.CreatedAt.Time(),
+		TotalCostUSD: r.TotalCostUSD,
+		TotalTokens:  r.TotalTokens,
+	}
+}
+
+type toolRunUsageRow struct {
+	RunID        uuid.UUID  `db:"run_id"`
+	TaskID       uuid.UUID  `db:"task_id"`
+	TaskTitle    string     `db:"task_title"`
+	ProfileID    *uuid.UUID `db:"profile_id"`
+	ProfileName  string     `db:"profile_name"`
+	Status       string     `db:"status"`
+	CreatedAt    SQLiteTime `db:"created_at"`
+	Model        string     `db:"model"`
+	CallCount    int        `db:"call_count"`
+	SuccessCount int        `db:"success_count"`
+	FailedCount  int        `db:"failed_count"`
+}
+
+func (r toolRunUsageRow) toRepository() *repository.ToolRunUsage {
+	return &repository.ToolRunUsage{
+		RunID:        r.RunID,
+		TaskID:       r.TaskID,
+		TaskTitle:    r.TaskTitle,
+		ProfileID:    r.ProfileID,
+		ProfileName:  r.ProfileName,
+		Status:       r.Status,
+		CreatedAt:    r.CreatedAt.Time(),
+		Model:        r.Model,
+		CallCount:    r.CallCount,
+		SuccessCount: r.SuccessCount,
+		FailedCount:  r.FailedCount,
+	}
+}
+
+type errorPatternRow struct {
+	ErrorCode   string     `db:"error_code"`
+	Count       int        `db:"count"`
+	LastSeen    SQLiteTime `db:"last_seen"`
+	SampleRunID uuid.UUID  `db:"sample_run_id"`
+}
+
+func (r errorPatternRow) toRepository() *repository.ErrorPattern {
+	return &repository.ErrorPattern{
+		ErrorCode:   r.ErrorCode,
+		Count:       r.Count,
+		LastSeen:    r.LastSeen.Time(),
+		SampleRunID: r.SampleRunID,
+	}
+}
+
+type timeSeriesBucketRow struct {
+	Timestamp     SQLiteTime `db:"timestamp"`
+	RunsStarted   int        `db:"runs_started"`
+	RunsCompleted int        `db:"runs_completed"`
+	RunsFailed    int        `db:"runs_failed"`
+	RunsCancelled int        `db:"runs_cancelled"`
+	TotalCostUSD  float64    `db:"total_cost_usd"`
+	AvgDurationMs int64      `db:"avg_duration_ms"`
+}
+
+func (r timeSeriesBucketRow) toRepository() *repository.TimeSeriesBucket {
+	return &repository.TimeSeriesBucket{
+		Timestamp:     r.Timestamp.Time(),
+		RunsStarted:   r.RunsStarted,
+		RunsCompleted: r.RunsCompleted,
+		RunsFailed:    r.RunsFailed,
+		RunsCancelled: r.RunsCancelled,
+		TotalCostUSD:  r.TotalCostUSD,
+		AvgDurationMs: r.AvgDurationMs,
+	}
+}
 
 // GetRunStatusCounts returns counts of runs by status within the time window.
 func (r *statsRepository) GetRunStatusCounts(ctx context.Context, filter repository.StatsFilter) (*repository.RunStatusCounts, error) {
@@ -315,11 +410,15 @@ func (r *statsRepository) GetModelRunUsage(ctx context.Context, filter repositor
 		ORDER BY r.created_at DESC
 		LIMIT ?`
 
-	var rows []*repository.ModelRunUsage
+	var rows []modelRunUsageRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, wrapDBError("get_model_run_usage", "Stats", "", err)
 	}
-	return rows, nil
+	result := make([]*repository.ModelRunUsage, len(rows))
+	for i, row := range rows {
+		result[i] = row.toRepository()
+	}
+	return result, nil
 }
 
 // GetToolRunUsage returns run-level usage for a specific tool.
@@ -383,11 +482,15 @@ func (r *statsRepository) GetToolRunUsage(ctx context.Context, filter repository
 			LIMIT ?`
 	}
 
-	var rows []*repository.ToolRunUsage
+	var rows []toolRunUsageRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, wrapDBError("get_tool_run_usage", "Stats", "", err)
 	}
-	return rows, nil
+	result := make([]*repository.ToolRunUsage, len(rows))
+	for i, row := range rows {
+		result[i] = row.toRepository()
+	}
+	return result, nil
 }
 
 // GetToolUsageByModel returns tool usage grouped by model.
@@ -465,11 +568,15 @@ func (r *statsRepository) GetErrorPatterns(ctx context.Context, filter repositor
 		LIMIT ?`
 	args = append(args, limit)
 
-	var rows []*repository.ErrorPattern
+	var rows []errorPatternRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, wrapDBError("get_error_patterns", "Stats", "", err)
 	}
-	return rows, nil
+	result := make([]*repository.ErrorPattern, len(rows))
+	for i, row := range rows {
+		result[i] = row.toRepository()
+	}
+	return result, nil
 }
 
 // GetTimeSeries returns time-bucketed data for charts.
@@ -494,11 +601,15 @@ func (r *statsRepository) GetTimeSeries(ctx context.Context, filter repository.S
 
 	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
 
-	var rows []*repository.TimeSeriesBucket
+	var rows []timeSeriesBucketRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, wrapDBError("get_time_series", "Stats", "", err)
 	}
-	return rows, nil
+	result := make([]*repository.TimeSeriesBucket, len(rows))
+	for i, row := range rows {
+		result[i] = row.toRepository()
+	}
+	return result, nil
 }
 
 // getBucketSQL returns the SQLite expression for time bucketing.

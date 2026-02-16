@@ -25,6 +25,10 @@ export interface OrgChartNodeData extends Record<string, unknown> {
   managerName?: string
   /** Number of direct reports */
   directReportCount: number
+  /** Whether a heartbeat config exists and is enabled */
+  heartbeatEnabled?: boolean
+  /** Last execution status of the heartbeat (or 'running' if currently active) */
+  heartbeatStatus?: 'running' | 'completed' | 'failed' | null
   /** Callback when node is clicked */
   onSelect: (agentId: string) => void
 }

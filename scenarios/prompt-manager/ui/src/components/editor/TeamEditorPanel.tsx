@@ -276,6 +276,15 @@ export function TeamEditorPanel({
     [setSelectedMemberId]
   )
 
+  // Navigate to a member in the Members tab (from role member chips)
+  const handleNavigateToMember = useCallback(
+    (agentId: string) => {
+      setSelectedMemberId(agentId)
+      setActiveTab('members')
+    },
+    [setSelectedMemberId]
+  )
+
   // Handle add member
   const handleAddMember = useCallback(
     async (agentId: string) => {
@@ -555,7 +564,7 @@ export function TeamEditorPanel({
             value="info"
             className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
           >
-            <TeamInfoTab team={team} onSetRoles={onSetRoles} onUpdate={onUpdate} onNavigateToMemberHeartbeat={handleNavigateToMemberHeartbeat} />
+            <TeamInfoTab team={team} onSetRoles={onSetRoles} onUpdate={onUpdate} allAgents={allAgents} onNavigateToMemberHeartbeat={handleNavigateToMemberHeartbeat} onNavigateToMember={handleNavigateToMember} />
           </Tabs.Content>
 
           <Tabs.Content
