@@ -144,6 +144,138 @@ export const ContentSearchResponseSchema = z.object({
 
 export type ContentSearchResponse = z.infer<typeof ContentSearchResponseSchema>
 
+// --- Agent AI search ---
+
+/**
+ * AI agent search result item.
+ */
+export const AIAgentSearchResultSchema = z.object({
+  id: z.string(),
+  displayName: z.string(),
+  description: z.string().nullable().optional().transform((val) => val ?? ''),
+  status: z.string(),
+  tags: nullableStringArray,
+  score: z.number(),
+  scorePercent: z.number(),
+})
+
+export type AIAgentSearchResult = z.infer<typeof AIAgentSearchResultSchema>
+
+/**
+ * AI agent search response from the API.
+ */
+export const AIAgentSearchResponseSchema = z.object({
+  results: z.array(AIAgentSearchResultSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+  method: SearchMethodSchema,
+})
+
+export type AIAgentSearchResponse = z.infer<typeof AIAgentSearchResponseSchema>
+
+/**
+ * AI agent search request parameters.
+ */
+export const AIAgentSearchRequestSchema = z.object({
+  query: z.string(),
+  limit: z.number().optional(),
+})
+
+export type AIAgentSearchRequest = z.infer<typeof AIAgentSearchRequestSchema>
+
+// --- Team AI search ---
+
+/**
+ * AI team search result item.
+ */
+export const AITeamSearchResultSchema = z.object({
+  id: z.string(),
+  displayName: z.string(),
+  mission: z.string().nullable().optional().transform((val) => val ?? ''),
+  enabled: z.boolean(),
+  memberCount: z.number(),
+  score: z.number(),
+  scorePercent: z.number(),
+})
+
+export type AITeamSearchResult = z.infer<typeof AITeamSearchResultSchema>
+
+/**
+ * AI team search response from the API.
+ */
+export const AITeamSearchResponseSchema = z.object({
+  results: z.array(AITeamSearchResultSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+  method: SearchMethodSchema,
+})
+
+export type AITeamSearchResponse = z.infer<typeof AITeamSearchResponseSchema>
+
+/**
+ * AI team search request parameters.
+ */
+export const AITeamSearchRequestSchema = z.object({
+  query: z.string(),
+  limit: z.number().optional(),
+})
+
+export type AITeamSearchRequest = z.infer<typeof AITeamSearchRequestSchema>
+
+// --- Agent content search ---
+
+/**
+ * Agent content search match.
+ */
+export const AgentContentSearchMatchSchema = z.object({
+  agentId: z.string(),
+  agentName: z.string(),
+  file: z.string(),
+  lineNumber: z.number(),
+  line: z.string(),
+  matchRanges: z.array(ContentMatchRangeSchema).nullable().optional().transform((val) => val ?? []),
+})
+
+export type AgentContentSearchMatch = z.infer<typeof AgentContentSearchMatchSchema>
+
+/**
+ * Agent content search response.
+ */
+export const AgentContentSearchResponseSchema = z.object({
+  matches: z.array(AgentContentSearchMatchSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+})
+
+export type AgentContentSearchResponse = z.infer<typeof AgentContentSearchResponseSchema>
+
+// --- Team content search ---
+
+/**
+ * Team content search match.
+ */
+export const TeamContentSearchMatchSchema = z.object({
+  teamId: z.string(),
+  teamName: z.string(),
+  file: z.string(),
+  lineNumber: z.number(),
+  line: z.string(),
+  matchRanges: z.array(ContentMatchRangeSchema).nullable().optional().transform((val) => val ?? []),
+})
+
+export type TeamContentSearchMatch = z.infer<typeof TeamContentSearchMatchSchema>
+
+/**
+ * Team content search response.
+ */
+export const TeamContentSearchResponseSchema = z.object({
+  matches: z.array(TeamContentSearchMatchSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+})
+
+export type TeamContentSearchResponse = z.infer<typeof TeamContentSearchResponseSchema>
+
 /**
  * Link preview data from OpenGraph metadata.
  */

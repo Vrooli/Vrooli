@@ -589,7 +589,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 	fmt.Printf("Available:      %s\n", boolToYesNo(status.Available))
 	fmt.Printf("Ollama:         %s\n", boolToConnected(status.Ollama))
 	fmt.Printf("Qdrant:         %s\n", boolToConnected(status.Qdrant))
-	fmt.Printf("Indexed Skills: %d\n", status.IndexedCount)
+	fmt.Printf("Indexed:        %d (skills, agents, teams)\n", status.IndexedCount)
 	if status.Message != "" {
 		fmt.Printf("Message:        %s\n", status.Message)
 	}

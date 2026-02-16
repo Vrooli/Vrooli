@@ -130,6 +130,12 @@ func main() {
 	searchService := search.NewService(skillStoreAdapter)
 	searchHandlers := search.NewHandlers(searchService)
 
+	// Agent and team search services
+	agentSearchService := search.NewAgentSearchService(fileStore.Agents(), fileStore.Agents().(*store.FileAgentStore))
+	teamSearchService := search.NewTeamSearchService(fileStore.Teams(), fileStore.Relations(), fileStore.Teams().(*store.FileTeamStore))
+	searchHandlers.SetAgentService(agentSearchService)
+	searchHandlers.SetTeamService(teamSearchService)
+
 	// AI Search service (graceful degradation when unavailable)
 	qdrantURL := resolveQdrantURL()
 	qdrantAPIKey := os.Getenv("QDRANT_API_KEY")
@@ -154,6 +160,26 @@ func main() {
 
 	// Set AI indexer on skill handlers for CRUD hook integration
 	skillHandlers.SetAIIndexer(aiSearchService)
+
+	// Agent and team AI search vector stores
+	agentAICollection := os.Getenv("AI_SEARCH_AGENT_COLLECTION")
+	if agentAICollection == "" {
+		agentAICollection = "prompt-manager-agents"
+	}
+	agentVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, agentAICollection, 768)
+
+	teamAICollection := os.Getenv("AI_SEARCH_TEAM_COLLECTION")
+	if teamAICollection == "" {
+		teamAICollection = "prompt-manager-teams"
+	}
+	teamVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, teamAICollection, 768)
+
+	// Wire agent/team AI search into the service
+	aiSearchService.SetAgentSearch(agentVectorStore, fileStore.Agents().(*store.FileAgentStore), agentSearchService)
+	aiSearchService.SetTeamSearch(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations(), teamSearchService)
+
+	// Set AI indexer on agent and team handlers for CRUD hook integration
+	agentHandlers.SetAIIndexer(aiSearchService)
 
 	// Graph detection
 	scenarioNames := discoverScenarioNames(absStoreDir)
@@ -205,23 +231,26 @@ func main() {
 				log.Printf("AI Search: Failed to ensure collection: %v", err)
 				return
 			}
-			// Check if index is empty
-			count, err := vectorStore.CountPoints(ctx)
+			// Check if index is stale (count mismatch between Qdrant and disk)
+			needs, indexed, disk, err := aiSearchService.NeedsReindex(ctx)
 			if err != nil {
-				log.Printf("AI Search: Failed to count points: %v", err)
+				log.Printf("AI Search: Failed staleness check: %v", err)
 				return
 			}
-			if count == 0 {
-				log.Println("AI Search: Index empty, starting initial indexing...")
+			if needs {
+				log.Printf("AI Search: Index out of sync (indexed=%d, on-disk=%d), reindexing...", indexed, disk)
 				status, started := aiSearchService.StartReindex()
 				if started {
-					log.Printf("AI Search: Initial indexing started at %s", status.StartedAt)
+					log.Printf("AI Search: Reindexing started at %s", status.StartedAt)
 				} else {
 					log.Printf("AI Search: Reindex already running (started at %s)", status.StartedAt)
 				}
 			} else {
-				log.Printf("AI Search: Index contains %d skills", count)
+				log.Printf("AI Search: Index up-to-date (%d skills)", indexed)
 			}
+
+			// Start periodic sync to catch external file changes and service recovery
+			aiSearchService.StartPeriodicSync(ctx, 5*time.Minute)
 		}()
 	} else {
 		log.Println("AI Search: Resources not fully configured (will gracefully degrade to text search)")
@@ -280,9 +309,15 @@ func main() {
 	// Search routes
 	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
 	v1.HandleFunc("/search/skills/content", searchHandlers.ContentSearch).Methods("GET")
+	v1.HandleFunc("/search/agents", searchHandlers.SearchAgents).Methods("GET")
+	v1.HandleFunc("/search/agents/content", searchHandlers.AgentContentSearch).Methods("GET")
+	v1.HandleFunc("/search/teams", searchHandlers.SearchTeams).Methods("GET")
+	v1.HandleFunc("/search/teams/content", searchHandlers.TeamContentSearch).Methods("GET")
 
 	// AI Search routes
 	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
+	v1.HandleFunc("/search/agents/ai", aiSearchHandlers.SearchAgents).Methods("POST")
+	v1.HandleFunc("/search/teams/ai", aiSearchHandlers.SearchTeams).Methods("POST")
 	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
 	v1.HandleFunc("/search/ai/reindex", aiSearchHandlers.Reindex).Methods("POST")
 	v1.HandleFunc("/search/ai/reindex/status", aiSearchHandlers.ReindexStatus).Methods("GET")
@@ -318,6 +353,7 @@ func main() {
 	// Team routes
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
 	teamHandlers.SetGraphInvalidator(graphIndex)
+	teamHandlers.SetAIIndexer(aiSearchService)
 	// Import routes must come before /teams/{id} to avoid mux treating "import" as an ID
 	v1.HandleFunc("/teams/import/claude-code/available", teamHandlers.ListAvailableCCTeams).Methods("GET")
 	v1.HandleFunc("/teams/import/claude-code", teamHandlers.ImportClaudeCode).Methods("POST")

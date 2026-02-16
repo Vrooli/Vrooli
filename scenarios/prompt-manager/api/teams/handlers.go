@@ -32,6 +32,12 @@ type GraphInvalidator interface {
 	Invalidate()
 }
 
+// AITeamIndexer defines the interface for AI search index operations on teams.
+type AITeamIndexer interface {
+	IndexTeam(ctx context.Context, teamID string) error
+	DeleteTeamFromIndex(ctx context.Context, teamID string) error
+}
+
 // Handlers provides HTTP handlers for team operations.
 type Handlers struct {
 	teamStore          store.TeamStore
@@ -40,6 +46,7 @@ type Handlers struct {
 	indexStore         store.IndexStore
 	heartbeatScheduler HeartbeatScheduler
 	graphInvalidator   GraphInvalidator
+	aiIndexer          AITeamIndexer
 	readCCConfig       func(teamName string) ([]byte, error) // Testing seam for CC config reader
 	listCCTeamDirs     func() ([]AvailableCCTeam, error)     // Testing seam for CC team listing
 }
@@ -79,10 +86,37 @@ func (h *Handlers) SetGraphInvalidator(inv GraphInvalidator) {
 	h.graphInvalidator = inv
 }
 
+// SetAIIndexer sets the AI search indexer for async index updates.
+func (h *Handlers) SetAIIndexer(indexer AITeamIndexer) {
+	h.aiIndexer = indexer
+}
+
 func (h *Handlers) invalidateGraph() {
 	if h.graphInvalidator != nil {
 		h.graphInvalidator.Invalidate()
 	}
+}
+
+func (h *Handlers) asyncIndexTeam(ctx context.Context, teamID string) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func() {
+		if err := h.aiIndexer.IndexTeam(ctx, teamID); err != nil {
+			log.Printf("[teams] AI index update failed for %s: %v", teamID, err)
+		}
+	}()
+}
+
+func (h *Handlers) asyncDeleteTeamFromIndex(ctx context.Context, teamID string) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func() {
+		if err := h.aiIndexer.DeleteTeamFromIndex(ctx, teamID); err != nil {
+			log.Printf("[teams] AI index delete failed for %s: %v", teamID, err)
+		}
+	}()
 }
 
 // List handles GET /teams - returns all teams.
@@ -171,6 +205,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 	h.invalidateGraph()
+	h.asyncIndexTeam(context.Background(), team.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -222,6 +257,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
+	h.asyncIndexTeam(context.Background(), id)
 
 	if req.Enabled != nil {
 		h.updateHeartbeatSchedules(ctx, id, *req.Enabled)
@@ -264,6 +300,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 	h.invalidateGraph()
+	h.asyncDeleteTeamFromIndex(context.Background(), id)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -313,6 +350,7 @@ func (h *Handlers) AddMember(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
+	h.asyncIndexTeam(context.Background(), teamID)
 
 	// Get agent for response
 	agent, _ := h.agentStore.Get(ctx, req.AgentID)
@@ -396,6 +434,7 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateTeams(ctx)
 	}
+	h.asyncIndexTeam(context.Background(), teamID)
 
 	w.WriteHeader(http.StatusNoContent)
 }

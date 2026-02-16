@@ -40,24 +40,48 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | `RelationStore` | `store` | Team-member relations |
 | `IndexStore` | `store` | Generated index management |
 | `MetricsService` | `skills` | Usage tracking |
-| `AISearchIndexer` | `skills` | AI search index updates |
+| `AISearchIndexer` | `skills` | AI search index updates for skills |
+| `AIAgentIndexer` | `agents` | AI search index updates for agents |
+| `AITeamIndexer` | `teams` | AI search index updates for teams |
+| `AgentFileReader` | `search` | Content search across agent files |
+| `TeamFileReader` | `search` | Content search across team shared files |
+| `AgentStoreReader` | `aisearch` | Read-only agent access for AI indexing |
+| `AgentSoulReader` | `aisearch` | SOUL.md content for agent embeddings |
+| `TeamStoreReader` | `aisearch` | Read-only team access for AI indexing |
+| `TeamRelReader` | `aisearch` | Team member relations for team embeddings |
 
-### Search Service Seam
+### Search Service Seams
 
-The `search.Service` provides a dedicated seam for text and content search, isolating
-search behavior from HTTP handlers and the UI:
+The `search` package provides dedicated seams for text and content search across all
+entity types, isolating search behavior from HTTP handlers and the UI:
 
 ```
-HTTP handler (/search/skills, /search/skills/content)
+HTTP handler (/search/skills, /search/agents, /search/teams)
   ↓
-search.Service (Search / SearchContent)
+search.Service / AgentSearchService / TeamSearchService
   ↓
-skills.SkillStore (GetAll + GetContent)
+SkillStore / AgentStore / TeamStore + file reader interfaces
 ```
 
-`SearchContent` is the authoritative boundary for line-level matching behavior
-(case sensitivity, whole word matching, regex parsing), which makes it testable
-without touching the HTTP layer or filesystem.
+**Agent Content Search** uses the `AgentFileReader` interface:
+```go
+type AgentFileReader interface {
+    ListFiles(ctx context.Context, id string) ([]store.AgentFileEntry, error)
+    ReadFile(ctx context.Context, id, path string) (string, error)
+}
+```
+
+**Team Content Search** uses the `TeamFileReader` interface:
+```go
+type TeamFileReader interface {
+    ListSharedFiles(ctx context.Context, id string) ([]store.TeamFileEntry, error)
+    ReadSharedFile(ctx context.Context, id, path string) (string, error)
+}
+```
+
+`SearchContent` (on all three services) is the authoritative boundary for line-level
+matching behavior (case sensitivity, whole word matching, regex parsing), which makes
+it testable without touching the HTTP layer or filesystem.
 
 ## Store Adapter Layer
 
@@ -119,15 +143,22 @@ called on them, allowing tests to verify that only changed skills are updated.
 
 ## Circular Dependency Handling
 
-The `skills` package cannot import `aisearch` (would cause circular import: aisearch needs skills).
+The `skills`, `agents`, and `teams` packages cannot import `aisearch` (would cause circular
+import: aisearch depends on these packages for store access).
 
 **Solution:** Post-initialization setter injection
 
 ```go
 // In main.go
-skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter)
-skillHandlers.SetAIIndexer(aiSearchService)  // Called after aisearch.Service is initialized
+skillHandlers.SetAIIndexer(aiSearchService)
+agentHandlers.SetAIIndexer(aiSearchService)  // AIAgentIndexer interface
+teamHandlers.SetAIIndexer(aiSearchService)   // AITeamIndexer interface
 ```
+
+Each handler package defines its own narrow indexer interface:
+- `skills.AISearchIndexer` — `IndexSkill`, `DeleteFromIndex`
+- `agents.AIAgentIndexer` — `IndexAgent`, `DeleteAgentFromIndex`
+- `teams.AITeamIndexer` — `IndexTeam`, `DeleteTeamFromIndex`
 
 **Testing Impact:** Mock tests must call `SetAIIndexer()` or the async indexing code path won't be exercised.
 

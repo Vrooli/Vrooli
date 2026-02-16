@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,13 +21,20 @@ type GraphInvalidator interface {
 	Invalidate()
 }
 
+// AIAgentIndexer defines the interface for AI search index operations on agents.
+type AIAgentIndexer interface {
+	IndexAgent(ctx context.Context, agentID string) error
+	DeleteAgentFromIndex(ctx context.Context, agentID string) error
+}
+
 // Handlers provides HTTP handlers for agent operations.
 type Handlers struct {
-	agentStore      store.AgentStore
+	agentStore       store.AgentStore
 	indexStore       store.IndexStore
 	relationStore    store.RelationStore
 	teamStore        store.TeamStore
 	graphInvalidator GraphInvalidator
+	aiIndexer        AIAgentIndexer
 	storeDir         string
 }
 
@@ -46,10 +54,37 @@ func (h *Handlers) SetGraphInvalidator(inv GraphInvalidator) {
 	h.graphInvalidator = inv
 }
 
+// SetAIIndexer sets the AI search indexer for async index updates.
+func (h *Handlers) SetAIIndexer(indexer AIAgentIndexer) {
+	h.aiIndexer = indexer
+}
+
 func (h *Handlers) invalidateGraph() {
 	if h.graphInvalidator != nil {
 		h.graphInvalidator.Invalidate()
 	}
+}
+
+func (h *Handlers) asyncIndexAgent(ctx context.Context, agentID string) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func() {
+		if err := h.aiIndexer.IndexAgent(ctx, agentID); err != nil {
+			log.Printf("[agents] AI index update failed for %s: %v", agentID, err)
+		}
+	}()
+}
+
+func (h *Handlers) asyncDeleteAgentFromIndex(ctx context.Context, agentID string) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func() {
+		if err := h.aiIndexer.DeleteAgentFromIndex(ctx, agentID); err != nil {
+			log.Printf("[agents] AI index delete failed for %s: %v", agentID, err)
+		}
+	}()
 }
 
 // List handles GET /agents - returns all agents.
@@ -203,6 +238,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		_ = h.indexStore.RegenerateAgents(ctx)
 	}
 	h.invalidateGraph()
+	h.asyncIndexAgent(context.Background(), agent.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -315,6 +351,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if h.indexStore != nil {
 		_ = h.indexStore.RegenerateAgents(ctx)
 	}
+	h.asyncIndexAgent(context.Background(), id)
 
 	// Get updated agent
 	agent, _ := h.agentStore.Get(ctx, id)
@@ -343,6 +380,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 		_ = h.indexStore.RegenerateAgents(ctx)
 	}
 	h.invalidateGraph()
+	h.asyncDeleteAgentFromIndex(context.Background(), id)
 
 	w.WriteHeader(http.StatusNoContent)
 }

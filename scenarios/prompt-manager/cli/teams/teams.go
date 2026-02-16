@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -207,6 +208,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdTriggerTeam(ctx, subArgs)
 	case "member-context":
 		return cmdMemberContext(ctx, subArgs)
+	case "search", "find":
+		return cmdSearch(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -1504,5 +1507,230 @@ func cmdMemberContext(ctx appctx.Context, args []string) error {
 
 	// Default: print prompt text directly (most useful for piping)
 	fmt.Print(resp.Prompt)
+	return nil
+}
+
+// --- Team search types ---
+
+// TeamSearchResult represents a text search result for teams.
+type TeamSearchResult struct {
+	ID          string  `json:"id"`
+	DisplayName string  `json:"displayName"`
+	Mission     string  `json:"mission,omitempty"`
+	Enabled     bool    `json:"enabled"`
+	MemberCount int     `json:"memberCount"`
+	Score       float64 `json:"score,omitempty"`
+	Highlight   string  `json:"highlight,omitempty"`
+}
+
+// TeamSearchResponse wraps team text search results.
+type TeamSearchResponse struct {
+	Results []TeamSearchResult `json:"results"`
+	Total   int                `json:"total"`
+	Query   string             `json:"query"`
+}
+
+// AITeamSearchResult represents an AI search result for teams.
+type AITeamSearchResult struct {
+	ID           string  `json:"id"`
+	DisplayName  string  `json:"displayName"`
+	Mission      string  `json:"mission,omitempty"`
+	Enabled      bool    `json:"enabled"`
+	MemberCount  int     `json:"memberCount"`
+	Score        float64 `json:"score"`
+	ScorePercent int     `json:"scorePercent"`
+}
+
+// AITeamSearchResponse wraps team AI search results.
+type AITeamSearchResponse struct {
+	Results []AITeamSearchResult `json:"results,omitempty"`
+	Total   int                  `json:"total"`
+	Query   string               `json:"query"`
+	Method  string               `json:"method"`
+}
+
+// AITeamSearchRequest is the request body for team AI search.
+type AITeamSearchRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit"`
+}
+
+// TeamContentSearchMatch represents a content search match in team files.
+type TeamContentSearchMatch struct {
+	TeamID     string `json:"teamId"`
+	TeamName   string `json:"teamName"`
+	File       string `json:"file"`
+	LineNumber int    `json:"lineNumber"`
+	Line       string `json:"line"`
+}
+
+// TeamContentSearchResponse wraps team content search results.
+type TeamContentSearchResponse struct {
+	Matches []TeamContentSearchMatch `json:"matches"`
+	Total   int                      `json:"total"`
+	Query   string                   `json:"query"`
+}
+
+func cmdSearch(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("team search", flag.ContinueOnError)
+	textOnly := fs.Bool("text", false, "Force text-only search (skip AI)")
+	contentOnly := fs.Bool("content", false, "Search within team shared file contents")
+	caseSensitive := fs.Bool("case-sensitive", false, "Case-sensitive content search")
+	wholeWord := fs.Bool("whole-word", false, "Whole word matching for content search")
+	regex := fs.Bool("regex", false, "Treat query as regex for content search")
+	limit := fs.Int("limit", 5, "Maximum number of results")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team search <query> [--text] [--content] [--case-sensitive] [--whole-word] [--regex] [--limit=N] [--json]")
+	}
+
+	query := strings.Join(fs.Args(), " ")
+
+	if *contentOnly {
+		return teamContentSearch(ctx, query, *limit, *caseSensitive, *wholeWord, *regex, *jsonOut)
+	}
+
+	if *textOnly {
+		return teamTextSearch(ctx, query, *jsonOut)
+	}
+
+	return teamAISearch(ctx, query, *limit, *jsonOut)
+}
+
+func teamAISearch(ctx appctx.Context, query string, limit int, jsonOut bool) error {
+	req := AITeamSearchRequest{
+		Query: query,
+		Limit: limit,
+	}
+
+	var resp AITeamSearchResponse
+	if err := ctx.Post("/search/teams/ai", req, &resp); err != nil {
+		fmt.Fprintln(os.Stderr, "(AI search unavailable, using text search)")
+		return teamTextSearch(ctx, query, jsonOut)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	methodLabel := "AI"
+	if resp.Method == "text" {
+		methodLabel = "text (AI unavailable)"
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No teams found matching: %s (%s search)\n", query, methodLabel)
+		return nil
+	}
+
+	fmt.Printf("Team Search Results (%d found, %s search):\n", resp.Total, methodLabel)
+	for _, r := range resp.Results {
+		enabled := "enabled"
+		if !r.Enabled {
+			enabled = "disabled"
+		}
+		score := fmt.Sprintf(" (%d%%)", r.ScorePercent)
+		fmt.Printf("  %s%s (%s, %d members) [%s]\n", r.DisplayName, score, enabled, r.MemberCount, r.ID)
+		if r.Mission != "" {
+			mission := r.Mission
+			if len(mission) > 80 {
+				mission = mission[:77] + "..."
+			}
+			fmt.Printf("    → %s\n", mission)
+		}
+	}
+	return nil
+}
+
+func teamTextSearch(ctx appctx.Context, query string, jsonOut bool) error {
+	params := url.Values{}
+	if query != "" {
+		params.Set("q", query)
+	}
+
+	var resp TeamSearchResponse
+	if err := ctx.GetWithQuery("/search/teams", params, &resp); err != nil {
+		return fmt.Errorf("team search failed: %w", err)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No teams found matching: %s\n", query)
+		return nil
+	}
+
+	fmt.Printf("Team Search Results (%d found, text search):\n", resp.Total)
+	for _, r := range resp.Results {
+		enabled := "enabled"
+		if !r.Enabled {
+			enabled = "disabled"
+		}
+		score := ""
+		if r.Score > 0 {
+			score = fmt.Sprintf(" (%.1f)", r.Score)
+		}
+		fmt.Printf("  %s%s (%s, %d members) [%s]\n", r.DisplayName, score, enabled, r.MemberCount, r.ID)
+		if r.Highlight != "" {
+			highlight := r.Highlight
+			if len(highlight) > 80 {
+				highlight = highlight[:77] + "..."
+			}
+			fmt.Printf("    → %s\n", highlight)
+		}
+	}
+	return nil
+}
+
+func teamContentSearch(ctx appctx.Context, query string, limit int, caseSensitive, wholeWord, regex, jsonOut bool) error {
+	params := url.Values{}
+	params.Set("q", query)
+	if limit > 0 {
+		params.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if caseSensitive {
+		params.Set("caseSensitive", "true")
+	}
+	if wholeWord {
+		params.Set("wholeWord", "true")
+	}
+	if regex {
+		params.Set("regex", "true")
+	}
+
+	var resp TeamContentSearchResponse
+	if err := ctx.GetWithQuery("/search/teams/content", params, &resp); err != nil {
+		return fmt.Errorf("team content search failed: %w", err)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No content matches found for: %s\n", query)
+		return nil
+	}
+
+	fmt.Printf("Team Content Matches (%d found):\n", resp.Total)
+	for _, m := range resp.Matches {
+		line := m.Line
+		if len(line) > 120 {
+			line = line[:117] + "..."
+		}
+		fmt.Printf("  %s/%s:%d: %s\n", m.TeamName, m.File, m.LineNumber, line)
+	}
 	return nil
 }

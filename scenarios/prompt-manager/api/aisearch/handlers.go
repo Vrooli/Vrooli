@@ -100,3 +100,61 @@ func (h *Handlers) CancelReindex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(status)
 }
+
+// SearchAgents handles POST /api/v1/search/agents/ai - AI semantic agent search.
+func (h *Handlers) SearchAgents(w http.ResponseWriter, r *http.Request) {
+	var req AIAgentSearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Query == "" {
+		http.Error(w, "Query is required", http.StatusBadRequest)
+		return
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+
+	resp, err := h.service.SearchAgents(r.Context(), req.Query, limit)
+	if err != nil {
+		log.Printf("[aisearch] Agent search error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// SearchTeams handles POST /api/v1/search/teams/ai - AI semantic team search.
+func (h *Handlers) SearchTeams(w http.ResponseWriter, r *http.Request) {
+	var req AITeamSearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Query == "" {
+		http.Error(w, "Query is required", http.StatusBadRequest)
+		return
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+
+	resp, err := h.service.SearchTeams(r.Context(), req.Query, limit)
+	if err != nil {
+		log.Printf("[aisearch] Team search error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}

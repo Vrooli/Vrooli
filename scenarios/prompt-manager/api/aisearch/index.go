@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"prompt-manager/skills"
+	"prompt-manager/store"
 )
 
 // IndexSkill indexes a single skill into the vector store.
@@ -160,11 +161,77 @@ func (s *Service) reindexAllWithProgress(
 		}
 	}
 
+	// Index agents if configured
+	if s.agentVectorStore != nil && s.agentStore != nil {
+		if err := s.agentVectorStore.EnsureCollection(ctx); err != nil {
+			log.Printf("[aisearch] Failed to ensure agent collection: %v", err)
+		} else {
+			agents, err := s.agentStore.List(ctx)
+			if err != nil {
+				log.Printf("[aisearch] Failed to list agents: %v", err)
+			} else {
+				if setTotal != nil {
+					setTotal(len(allSkills) + len(agents))
+				}
+				for _, agent := range agents {
+					if err := ctx.Err(); err != nil {
+						break
+					}
+					if err := s.IndexAgent(ctx, agent.ID); err != nil {
+						log.Printf("[aisearch] Failed to index agent %s: %v", agent.ID, err)
+						errors++
+					} else {
+						indexed++
+					}
+					if progress != nil {
+						progress(indexed, skipped, errors)
+					}
+				}
+			}
+		}
+	}
+
+	// Index teams if configured
+	if s.teamVectorStore != nil && s.teamStore != nil {
+		if err := s.teamVectorStore.EnsureCollection(ctx); err != nil {
+			log.Printf("[aisearch] Failed to ensure team collection: %v", err)
+		} else {
+			teams, err := s.teamStore.List(ctx)
+			if err != nil {
+				log.Printf("[aisearch] Failed to list teams: %v", err)
+			} else {
+				if setTotal != nil {
+					currentTotal := len(allSkills)
+					if s.agentStore != nil {
+						if agents, err := s.agentStore.List(ctx); err == nil {
+							currentTotal += len(agents)
+						}
+					}
+					setTotal(currentTotal + len(teams))
+				}
+				for _, team := range teams {
+					if err := ctx.Err(); err != nil {
+						break
+					}
+					if err := s.IndexTeam(ctx, team.ID); err != nil {
+						log.Printf("[aisearch] Failed to index team %s: %v", team.ID, err)
+						errors++
+					} else {
+						indexed++
+					}
+					if progress != nil {
+						progress(indexed, skipped, errors)
+					}
+				}
+			}
+		}
+	}
+
 	return &ReindexResponse{
 		Indexed: indexed,
 		Skipped: skipped,
 		Errors:  errors,
-		Message: fmt.Sprintf("Indexed %d skills, skipped %d, errors %d", indexed, skipped, errors),
+		Message: fmt.Sprintf("Indexed %d entities, skipped %d, errors %d", indexed, skipped, errors),
 	}, nil
 }
 
@@ -241,4 +308,183 @@ func uuidV5(namespace [16]byte, name string) string {
 
 	hexStr := hex.EncodeToString(uuid[:])
 	return hexStr[0:8] + "-" + hexStr[8:12] + "-" + hexStr[12:16] + "-" + hexStr[16:20] + "-" + hexStr[20:32]
+}
+
+// --- Agent indexing ---
+
+func agentPointID(agentID string) string {
+	name := strings.TrimSpace(agentID)
+	if name == "" {
+		name = "unknown"
+	}
+	return uuidV5(qdrantNamespace, "prompt-manager-agent:"+name)
+}
+
+// composeAgentEmbeddingText creates a rich text representation for agent embedding.
+func composeAgentEmbeddingText(agent *store.Agent, soulContent string) string {
+	var parts []string
+
+	parts = append(parts, agent.DisplayName)
+
+	if agent.Description != "" {
+		parts = append(parts, agent.Description)
+	}
+
+	if len(agent.Tags) > 0 {
+		parts = append(parts, "Tags: "+strings.Join(agent.Tags, ", "))
+	}
+
+	if agent.Status != "" {
+		parts = append(parts, "Status: "+agent.Status)
+	}
+
+	if soulContent != "" {
+		truncated := soulContent
+		if len(truncated) > 2000 {
+			truncated = truncated[:2000] + "..."
+		}
+		parts = append(parts, truncated)
+	}
+
+	return strings.Join(parts, "\n\n")
+}
+
+// IndexAgent indexes a single agent into the vector store.
+func (s *Service) IndexAgent(ctx context.Context, agentID string) error {
+	if s.agentVectorStore == nil || s.agentStore == nil {
+		return nil
+	}
+
+	agent, err := s.agentStore.Get(ctx, agentID)
+	if err != nil {
+		return fmt.Errorf("agent not found: %w", err)
+	}
+
+	// Try to load SOUL.md content
+	var soulContent string
+	if soulReader, ok := s.agentStore.(AgentSoulReader); ok {
+		content, err := soulReader.GetSoul(ctx, agentID)
+		if err == nil {
+			soulContent = content
+		}
+	}
+
+	embeddingText := composeAgentEmbeddingText(agent, soulContent)
+
+	vector, err := s.embedder.Embed(ctx, embeddingText)
+	if err != nil {
+		return fmt.Errorf("embedding failed: %w", err)
+	}
+
+	payload := map[string]interface{}{
+		"agent_id":     agent.ID,
+		"display_name": agent.DisplayName,
+		"description":  agent.Description,
+		"status":       agent.Status,
+		"tags":         agent.Tags,
+	}
+
+	if err := s.agentVectorStore.Upsert(ctx, agentPointID(agent.ID), vector, payload); err != nil {
+		return fmt.Errorf("upsert failed: %w", err)
+	}
+
+	log.Printf("[aisearch] Indexed agent: %s (%s)", agent.DisplayName, agent.ID)
+	return nil
+}
+
+// DeleteAgentFromIndex removes an agent from the vector index.
+func (s *Service) DeleteAgentFromIndex(ctx context.Context, agentID string) error {
+	if s.agentVectorStore == nil {
+		return nil
+	}
+	if err := s.agentVectorStore.Delete(ctx, agentPointID(agentID)); err != nil {
+		return fmt.Errorf("delete from index failed: %w", err)
+	}
+	log.Printf("[aisearch] Deleted agent from index: %s", agentID)
+	return nil
+}
+
+// --- Team indexing ---
+
+func teamPointID(teamID string) string {
+	name := strings.TrimSpace(teamID)
+	if name == "" {
+		name = "unknown"
+	}
+	return uuidV5(qdrantNamespace, "prompt-manager-team:"+name)
+}
+
+// composeTeamEmbeddingText creates a rich text representation for team embedding.
+func composeTeamEmbeddingText(team *store.Team, memberNames []string) string {
+	var parts []string
+
+	parts = append(parts, team.DisplayName)
+
+	if team.Mission != "" {
+		parts = append(parts, team.Mission)
+	}
+
+	if len(memberNames) > 0 {
+		parts = append(parts, "Members: "+strings.Join(memberNames, ", "))
+	}
+
+	return strings.Join(parts, "\n\n")
+}
+
+// IndexTeam indexes a single team into the vector store.
+func (s *Service) IndexTeam(ctx context.Context, teamID string) error {
+	if s.teamVectorStore == nil || s.teamStore == nil {
+		return nil
+	}
+
+	team, err := s.teamStore.Get(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("team not found: %w", err)
+	}
+
+	// Get member names for richer embedding
+	var memberNames []string
+	if s.teamRelStore != nil {
+		members, err := s.teamRelStore.ListTeamMembers(ctx, teamID)
+		if err == nil {
+			for _, m := range members {
+				memberNames = append(memberNames, m.AgentID)
+			}
+		}
+	}
+
+	embeddingText := composeTeamEmbeddingText(team, memberNames)
+
+	vector, err := s.embedder.Embed(ctx, embeddingText)
+	if err != nil {
+		return fmt.Errorf("embedding failed: %w", err)
+	}
+
+	memberCount := len(memberNames)
+	payload := map[string]interface{}{
+		"team_id":      team.ID,
+		"display_name": team.DisplayName,
+		"mission":      team.Mission,
+		"enabled":      team.Enabled,
+		"member_count": memberCount,
+	}
+
+	if err := s.teamVectorStore.Upsert(ctx, teamPointID(team.ID), vector, payload); err != nil {
+		return fmt.Errorf("upsert failed: %w", err)
+	}
+
+	log.Printf("[aisearch] Indexed team: %s (%s)", team.DisplayName, team.ID)
+	return nil
+}
+
+// DeleteTeamFromIndex removes a team from the vector index.
+func (s *Service) DeleteTeamFromIndex(ctx context.Context, teamID string) error {
+	if s.teamVectorStore == nil {
+		return nil
+	}
+	if err := s.teamVectorStore.Delete(ctx, teamPointID(teamID)); err != nil {
+		return fmt.Errorf("delete from index failed: %w", err)
+	}
+	log.Printf("[aisearch] Deleted team from index: %s", teamID)
+	return nil
 }

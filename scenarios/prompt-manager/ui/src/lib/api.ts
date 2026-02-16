@@ -56,6 +56,8 @@ import {
   AISearchStatusSchema,
   AIReindexStatusSchema,
   ContentSearchResponseSchema,
+  AIAgentSearchResponseSchema,
+  AITeamSearchResponseSchema,
   LinkPreviewDataSchema,
   TeamArraySchema,
   TeamDetailsSchema,
@@ -105,6 +107,8 @@ import {
   type AISearchStatus,
   type AIReindexStatus,
   type ContentSearchResponse,
+  type AIAgentSearchResponse,
+  type AITeamSearchResponse,
   type LinkPreviewData,
   type FolderType,
   type Team,
@@ -490,6 +494,28 @@ class ApiClient {
       '/search/ai/reindex/cancel',
       { method: 'POST' },
       AIReindexStatusSchema
+    )
+  }
+
+  async aiSearchAgents(query: string, limit = 5): Promise<AIAgentSearchResponse> {
+    return this.request<AIAgentSearchResponse>(
+      '/search/agents/ai',
+      {
+        method: 'POST',
+        body: JSON.stringify({ query, limit }),
+      },
+      AIAgentSearchResponseSchema
+    )
+  }
+
+  async aiSearchTeams(query: string, limit = 5): Promise<AITeamSearchResponse> {
+    return this.request<AITeamSearchResponse>(
+      '/search/teams/ai',
+      {
+        method: 'POST',
+        body: JSON.stringify({ query, limit }),
+      },
+      AITeamSearchResponseSchema
     )
   }
 

@@ -13,12 +13,24 @@ import (
 
 // Handlers provides HTTP handlers for search operations.
 type Handlers struct {
-	service *Service
+	service      *Service
+	agentService *AgentSearchService
+	teamService  *TeamSearchService
 }
 
 // NewHandlers creates a new search handler.
 func NewHandlers(service *Service) *Handlers {
 	return &Handlers{service: service}
+}
+
+// SetAgentService sets the agent search service.
+func (h *Handlers) SetAgentService(svc *AgentSearchService) {
+	h.agentService = svc
+}
+
+// SetTeamService sets the team search service.
+func (h *Handlers) SetTeamService(svc *TeamSearchService) {
+	h.teamService = svc
 }
 
 // Search handles GET /api/v1/search/skills - searches skills.
@@ -52,6 +64,114 @@ func (h *Handlers) ContentSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response, err := h.service.SearchContent(query)
+	if err != nil {
+		if errors.Is(err, ErrInvalidPattern) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+// SearchAgents handles GET /api/v1/search/agents - searches agents.
+func (h *Handlers) SearchAgents(w http.ResponseWriter, r *http.Request) {
+	if h.agentService == nil {
+		http.Error(w, "Agent search not configured", http.StatusInternalServerError)
+		return
+	}
+
+	query := AgentSearchQuery{
+		Query:  r.URL.Query().Get("q"),
+		Tag:    r.URL.Query().Get("tag"),
+		Status: r.URL.Query().Get("status"),
+	}
+
+	response, err := h.agentService.Search(r.Context(), query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+// AgentContentSearch handles GET /api/v1/search/agents/content - searches agent file contents.
+func (h *Handlers) AgentContentSearch(w http.ResponseWriter, r *http.Request) {
+	if h.agentService == nil {
+		http.Error(w, "Agent search not configured", http.StatusInternalServerError)
+		return
+	}
+
+	query := AgentContentSearchQuery{
+		Query:         r.URL.Query().Get("q"),
+		Tags:          parseMultiValues(r.URL.Query()["tag"], r.URL.Query()["tags"]),
+		CaseSensitive: parseBool(r.URL.Query().Get("caseSensitive")),
+		WholeWord:     parseBool(r.URL.Query().Get("wholeWord")),
+		Regex:         parseBool(r.URL.Query().Get("regex")),
+		Limit:         parseInt(r.URL.Query().Get("limit")),
+	}
+
+	response, err := h.agentService.SearchContent(r.Context(), query)
+	if err != nil {
+		if errors.Is(err, ErrInvalidPattern) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+// SearchTeams handles GET /api/v1/search/teams - searches teams.
+func (h *Handlers) SearchTeams(w http.ResponseWriter, r *http.Request) {
+	if h.teamService == nil {
+		http.Error(w, "Team search not configured", http.StatusInternalServerError)
+		return
+	}
+
+	query := TeamSearchQuery{
+		Query: r.URL.Query().Get("q"),
+	}
+
+	if enabledStr := r.URL.Query().Get("enabled"); enabledStr != "" {
+		enabled := parseBool(enabledStr)
+		query.Enabled = &enabled
+	}
+
+	response, err := h.teamService.Search(r.Context(), query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+// TeamContentSearch handles GET /api/v1/search/teams/content - searches team shared file contents.
+func (h *Handlers) TeamContentSearch(w http.ResponseWriter, r *http.Request) {
+	if h.teamService == nil {
+		http.Error(w, "Team search not configured", http.StatusInternalServerError)
+		return
+	}
+
+	query := TeamContentSearchQuery{
+		Query:         r.URL.Query().Get("q"),
+		CaseSensitive: parseBool(r.URL.Query().Get("caseSensitive")),
+		WholeWord:     parseBool(r.URL.Query().Get("wholeWord")),
+		Regex:         parseBool(r.URL.Query().Get("regex")),
+		Limit:         parseInt(r.URL.Query().Get("limit")),
+	}
+
+	response, err := h.teamService.SearchContent(r.Context(), query)
 	if err != nil {
 		if errors.Is(err, ErrInvalidPattern) {
 			http.Error(w, err.Error(), http.StatusBadRequest)

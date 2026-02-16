@@ -11,6 +11,7 @@ import (
 
 	"prompt-manager/search"
 	"prompt-manager/skills"
+	"prompt-manager/store"
 )
 
 // Service provides AI-powered search with graceful fallback to text search.
@@ -21,6 +22,37 @@ type Service struct {
 	searchService *search.Service
 	threshold     float64
 	reindex       *reindexState
+
+	// Multi-entity support
+	agentVectorStore *VectorStore
+	agentStore       AgentStoreReader
+	agentSearchSvc   *search.AgentSearchService
+	teamVectorStore  *VectorStore
+	teamStore        TeamStoreReader
+	teamRelStore     TeamRelReader
+	teamSearchSvc    *search.TeamSearchService
+}
+
+// AgentStoreReader provides read access to agents for AI search.
+type AgentStoreReader interface {
+	List(ctx context.Context) ([]store.Agent, error)
+	Get(ctx context.Context, id string) (*store.Agent, error)
+}
+
+// AgentSoulReader provides access to agent SOUL.md content.
+type AgentSoulReader interface {
+	GetSoul(ctx context.Context, agentID string) (string, error)
+}
+
+// TeamStoreReader provides read access to teams for AI search.
+type TeamStoreReader interface {
+	List(ctx context.Context) ([]store.Team, error)
+	Get(ctx context.Context, id string) (*store.Team, error)
+}
+
+// TeamRelReader provides access to team member relations.
+type TeamRelReader interface {
+	ListTeamMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error)
 }
 
 // SearchOptions controls optional output formatting for AI search responses.
@@ -406,6 +438,306 @@ func formatReindexTime(t time.Time) string {
 		return ""
 	}
 	return t.Format(time.RFC3339)
+}
+
+// NeedsReindex compares indexed count against on-disk entity counts across all collections.
+// Returns (needsReindex, totalIndexedCount, totalDiskCount, error).
+func (s *Service) NeedsReindex(ctx context.Context) (bool, int, int, error) {
+	indexedCount, err := s.vectorStore.CountPoints(ctx)
+	if err != nil {
+		return false, 0, 0, err
+	}
+	allSkills, err := s.skillStore.GetAll()
+	if err != nil {
+		return false, 0, 0, err
+	}
+	diskCount := len(allSkills)
+
+	totalIndexed := indexedCount
+	totalDisk := diskCount
+
+	// Check agent collection
+	if s.agentVectorStore != nil && s.agentStore != nil {
+		agentIndexed, err := s.agentVectorStore.CountPoints(ctx)
+		if err == nil {
+			agents, err := s.agentStore.List(ctx)
+			if err == nil {
+				totalIndexed += agentIndexed
+				totalDisk += len(agents)
+			}
+		}
+	}
+
+	// Check team collection
+	if s.teamVectorStore != nil && s.teamStore != nil {
+		teamIndexed, err := s.teamVectorStore.CountPoints(ctx)
+		if err == nil {
+			teams, err := s.teamStore.List(ctx)
+			if err == nil {
+				totalIndexed += teamIndexed
+				totalDisk += len(teams)
+			}
+		}
+	}
+
+	return totalIndexed != totalDisk, totalIndexed, totalDisk, nil
+}
+
+// StartPeriodicSync runs a background goroutine that periodically checks for
+// index staleness and triggers a reindex when counts diverge.
+func (s *Service) StartPeriodicSync(ctx context.Context, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				needs, indexed, disk, err := s.NeedsReindex(ctx)
+				if err != nil {
+					log.Printf("[aisearch] Periodic sync staleness check failed: %v", err)
+					continue
+				}
+				if needs {
+					log.Printf("[aisearch] Periodic sync: index out of sync (indexed=%d, on-disk=%d), reindexing...", indexed, disk)
+					s.StartReindex()
+				}
+			}
+		}
+	}()
+}
+
+// SetAgentSearch configures agent AI search support.
+func (s *Service) SetAgentSearch(vectorStore *VectorStore, agentStore AgentStoreReader, searchSvc *search.AgentSearchService) {
+	s.agentVectorStore = vectorStore
+	s.agentStore = agentStore
+	s.agentSearchSvc = searchSvc
+}
+
+// SetTeamSearch configures team AI search support.
+func (s *Service) SetTeamSearch(vectorStore *VectorStore, teamStore TeamStoreReader, relStore TeamRelReader, searchSvc *search.TeamSearchService) {
+	s.teamVectorStore = vectorStore
+	s.teamStore = teamStore
+	s.teamRelStore = relStore
+	s.teamSearchSvc = searchSvc
+}
+
+// SearchAgents performs AI semantic search for agents with fallback to text search.
+func (s *Service) SearchAgents(ctx context.Context, query string, limit int) (*AIAgentSearchResponse, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	if s.agentVectorStore == nil {
+		return s.fallbackToAgentTextSearch(ctx, query, limit)
+	}
+
+	vector, err := s.embedder.Embed(ctx, query)
+	if err != nil {
+		log.Printf("[aisearch] Agent embedding failed, falling back to text search: %v", err)
+		return s.fallbackToAgentTextSearch(ctx, query, limit)
+	}
+
+	results, err := s.agentVectorStore.Search(ctx, vector, limit, s.threshold)
+	if err != nil {
+		log.Printf("[aisearch] Agent vector search failed, falling back to text search: %v", err)
+		return s.fallbackToAgentTextSearch(ctx, query, limit)
+	}
+
+	aiResults := make([]AIAgentSearchResult, 0, len(results))
+	for _, r := range results {
+		aiResults = append(aiResults, toAIAgentSearchResult(r))
+	}
+
+	return &AIAgentSearchResponse{
+		Results: aiResults,
+		Total:   len(aiResults),
+		Query:   query,
+		Method:  "ai",
+	}, nil
+}
+
+// SearchTeams performs AI semantic search for teams with fallback to text search.
+func (s *Service) SearchTeams(ctx context.Context, query string, limit int) (*AITeamSearchResponse, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	if s.teamVectorStore == nil {
+		return s.fallbackToTeamTextSearch(ctx, query, limit)
+	}
+
+	vector, err := s.embedder.Embed(ctx, query)
+	if err != nil {
+		log.Printf("[aisearch] Team embedding failed, falling back to text search: %v", err)
+		return s.fallbackToTeamTextSearch(ctx, query, limit)
+	}
+
+	results, err := s.teamVectorStore.Search(ctx, vector, limit, s.threshold)
+	if err != nil {
+		log.Printf("[aisearch] Team vector search failed, falling back to text search: %v", err)
+		return s.fallbackToTeamTextSearch(ctx, query, limit)
+	}
+
+	aiResults := make([]AITeamSearchResult, 0, len(results))
+	for _, r := range results {
+		aiResults = append(aiResults, toAITeamSearchResult(r))
+	}
+
+	return &AITeamSearchResponse{
+		Results: aiResults,
+		Total:   len(aiResults),
+		Query:   query,
+		Method:  "ai",
+	}, nil
+}
+
+func (s *Service) fallbackToAgentTextSearch(ctx context.Context, query string, limit int) (*AIAgentSearchResponse, error) {
+	if s.agentSearchSvc == nil {
+		return &AIAgentSearchResponse{
+			Results: []AIAgentSearchResult{},
+			Total:   0,
+			Query:   query,
+			Method:  "text",
+		}, nil
+	}
+
+	textResp, err := s.agentSearchSvc.Search(ctx, search.AgentSearchQuery{Query: query})
+	if err != nil {
+		return nil, fmt.Errorf("agent text search failed: %w", err)
+	}
+
+	results := textResp.Results
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	aiResults := make([]AIAgentSearchResult, 0, len(results))
+	for _, r := range results {
+		aiResults = append(aiResults, AIAgentSearchResult{
+			ID:           r.ID,
+			DisplayName:  r.DisplayName,
+			Description:  r.Description,
+			Status:       r.Status,
+			Tags:         r.Tags,
+			Score:        r.Score / 10.0,
+			ScorePercent: int(r.Score * 10),
+		})
+	}
+
+	return &AIAgentSearchResponse{
+		Results: aiResults,
+		Total:   len(aiResults),
+		Query:   query,
+		Method:  "text",
+	}, nil
+}
+
+func (s *Service) fallbackToTeamTextSearch(ctx context.Context, query string, limit int) (*AITeamSearchResponse, error) {
+	if s.teamSearchSvc == nil {
+		return &AITeamSearchResponse{
+			Results: []AITeamSearchResult{},
+			Total:   0,
+			Query:   query,
+			Method:  "text",
+		}, nil
+	}
+
+	textResp, err := s.teamSearchSvc.Search(ctx, search.TeamSearchQuery{Query: query})
+	if err != nil {
+		return nil, fmt.Errorf("team text search failed: %w", err)
+	}
+
+	results := textResp.Results
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	aiResults := make([]AITeamSearchResult, 0, len(results))
+	for _, r := range results {
+		aiResults = append(aiResults, AITeamSearchResult{
+			ID:           r.ID,
+			DisplayName:  r.DisplayName,
+			Mission:      r.Mission,
+			Enabled:      r.Enabled,
+			MemberCount:  r.MemberCount,
+			Score:        r.Score / 10.0,
+			ScorePercent: int(r.Score * 10),
+		})
+	}
+
+	return &AITeamSearchResponse{
+		Results: aiResults,
+		Total:   len(aiResults),
+		Query:   query,
+		Method:  "text",
+	}, nil
+}
+
+func toAIAgentSearchResult(r SearchResult) AIAgentSearchResult {
+	payload := r.Payload
+	resultID := r.ID
+	if pid, ok := payload["agent_id"].(string); ok && pid != "" {
+		resultID = pid
+	}
+	displayName, _ := payload["display_name"].(string)
+	description, _ := payload["description"].(string)
+	status, _ := payload["status"].(string)
+
+	var tags []string
+	if tagsRaw, ok := payload["tags"].([]interface{}); ok {
+		for _, t := range tagsRaw {
+			if ts, ok := t.(string); ok {
+				tags = append(tags, ts)
+			}
+		}
+	}
+
+	scorePercent := int(r.Score * 100)
+	if scorePercent > 100 {
+		scorePercent = 100
+	}
+
+	return AIAgentSearchResult{
+		ID:           resultID,
+		DisplayName:  displayName,
+		Description:  description,
+		Status:       status,
+		Tags:         tags,
+		Score:        r.Score,
+		ScorePercent: scorePercent,
+	}
+}
+
+func toAITeamSearchResult(r SearchResult) AITeamSearchResult {
+	payload := r.Payload
+	resultID := r.ID
+	if pid, ok := payload["team_id"].(string); ok && pid != "" {
+		resultID = pid
+	}
+	displayName, _ := payload["display_name"].(string)
+	mission, _ := payload["mission"].(string)
+	enabled, _ := payload["enabled"].(bool)
+	memberCount := 0
+	if mc, ok := payload["member_count"].(float64); ok {
+		memberCount = int(mc)
+	}
+
+	scorePercent := int(r.Score * 100)
+	if scorePercent > 100 {
+		scorePercent = 100
+	}
+
+	return AITeamSearchResult{
+		ID:           resultID,
+		DisplayName:  displayName,
+		Mission:      mission,
+		Enabled:      enabled,
+		MemberCount:  memberCount,
+		Score:        r.Score,
+		ScorePercent: scorePercent,
+	}
 }
 
 func (rs *reindexState) statusLocked() ReindexStatus {

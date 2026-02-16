@@ -77,3 +77,57 @@ type VectorPayload struct {
 	Tags        []string `json:"tags"`
 	Modes       []string `json:"modes"`
 }
+
+// --- Agent AI search types ---
+
+// AIAgentSearchRequest represents an agent AI search request.
+type AIAgentSearchRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit,omitempty"`
+}
+
+// AIAgentSearchResult represents a single agent AI search result.
+type AIAgentSearchResult struct {
+	ID           string   `json:"id"`
+	DisplayName  string   `json:"displayName"`
+	Description  string   `json:"description,omitempty"`
+	Status       string   `json:"status"`
+	Tags         []string `json:"tags,omitempty"`
+	Score        float64  `json:"score"`
+	ScorePercent int      `json:"scorePercent"`
+}
+
+// AIAgentSearchResponse wraps agent AI search results.
+type AIAgentSearchResponse struct {
+	Results []AIAgentSearchResult `json:"results,omitempty"`
+	Total   int                   `json:"total"`
+	Query   string                `json:"query"`
+	Method  string                `json:"method"`
+}
+
+// --- Team AI search types ---
+
+// AITeamSearchRequest represents a team AI search request.
+type AITeamSearchRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit,omitempty"`
+}
+
+// AITeamSearchResult represents a single team AI search result.
+type AITeamSearchResult struct {
+	ID           string  `json:"id"`
+	DisplayName  string  `json:"displayName"`
+	Mission      string  `json:"mission,omitempty"`
+	Enabled      bool    `json:"enabled"`
+	MemberCount  int     `json:"memberCount"`
+	Score        float64 `json:"score"`
+	ScorePercent int     `json:"scorePercent"`
+}
+
+// AITeamSearchResponse wraps team AI search results.
+type AITeamSearchResponse struct {
+	Results []AITeamSearchResult `json:"results,omitempty"`
+	Total   int                  `json:"total"`
+	Query   string               `json:"query"`
+	Method  string               `json:"method"`
+}

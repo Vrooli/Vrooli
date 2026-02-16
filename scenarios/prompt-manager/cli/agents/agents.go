@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -104,6 +105,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdDelete(ctx, subArgs)
 	case "soul":
 		return cmdSoul(ctx, subArgs)
+	case "search", "find":
+		return cmdSearch(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -123,7 +126,8 @@ Subcommands:
   create, add <name>    Create a new agent
   update, edit <id>     Update an agent
   delete, rm <id>       Delete an agent
-  soul <id>             Get/set agent SOUL.md content`
+  soul <id>             Get/set agent SOUL.md content
+  search, find <query>  Search agents (AI-powered, --text for text-only, --content for file content)`
 }
 
 func cmdList(ctx appctx.Context, args []string) error {
@@ -421,5 +425,230 @@ func cmdSoul(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Println(resp.Content)
+	return nil
+}
+
+// --- Agent search types ---
+
+// AgentSearchResult represents a text search result for agents.
+type AgentSearchResult struct {
+	ID          string   `json:"id"`
+	DisplayName string   `json:"displayName"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status"`
+	Tags        []string `json:"tags,omitempty"`
+	Score       float64  `json:"score,omitempty"`
+	Highlight   string   `json:"highlight,omitempty"`
+}
+
+// AgentSearchResponse wraps agent text search results.
+type AgentSearchResponse struct {
+	Results []AgentSearchResult `json:"results"`
+	Total   int                 `json:"total"`
+	Query   string              `json:"query"`
+}
+
+// AIAgentSearchResult represents an AI search result for agents.
+type AIAgentSearchResult struct {
+	ID           string   `json:"id"`
+	DisplayName  string   `json:"displayName"`
+	Description  string   `json:"description,omitempty"`
+	Status       string   `json:"status"`
+	Tags         []string `json:"tags,omitempty"`
+	Score        float64  `json:"score"`
+	ScorePercent int      `json:"scorePercent"`
+}
+
+// AIAgentSearchResponse wraps agent AI search results.
+type AIAgentSearchResponse struct {
+	Results []AIAgentSearchResult `json:"results,omitempty"`
+	Total   int                   `json:"total"`
+	Query   string                `json:"query"`
+	Method  string                `json:"method"`
+}
+
+// AIAgentSearchRequest is the request body for agent AI search.
+type AIAgentSearchRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit"`
+}
+
+// AgentContentSearchMatch represents a content search match in agent files.
+type AgentContentSearchMatch struct {
+	AgentID    string `json:"agentId"`
+	AgentName  string `json:"agentName"`
+	File       string `json:"file"`
+	LineNumber int    `json:"lineNumber"`
+	Line       string `json:"line"`
+}
+
+// AgentContentSearchResponse wraps agent content search results.
+type AgentContentSearchResponse struct {
+	Matches []AgentContentSearchMatch `json:"matches"`
+	Total   int                       `json:"total"`
+	Query   string                    `json:"query"`
+}
+
+func cmdSearch(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("agent search", flag.ContinueOnError)
+	textOnly := fs.Bool("text", false, "Force text-only search (skip AI)")
+	contentOnly := fs.Bool("content", false, "Search within agent file contents")
+	caseSensitive := fs.Bool("case-sensitive", false, "Case-sensitive content search")
+	wholeWord := fs.Bool("whole-word", false, "Whole word matching for content search")
+	regex := fs.Bool("regex", false, "Treat query as regex for content search")
+	limit := fs.Int("limit", 5, "Maximum number of results")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: agent search <query> [--text] [--content] [--case-sensitive] [--whole-word] [--regex] [--limit=N] [--json]")
+	}
+
+	query := strings.Join(fs.Args(), " ")
+
+	if *contentOnly {
+		return agentContentSearch(ctx, query, *limit, *caseSensitive, *wholeWord, *regex, *jsonOut)
+	}
+
+	if *textOnly {
+		return agentTextSearch(ctx, query, *jsonOut)
+	}
+
+	return agentAISearch(ctx, query, *limit, *jsonOut)
+}
+
+func agentAISearch(ctx appctx.Context, query string, limit int, jsonOut bool) error {
+	req := AIAgentSearchRequest{
+		Query: query,
+		Limit: limit,
+	}
+
+	var resp AIAgentSearchResponse
+	if err := ctx.Post("/search/agents/ai", req, &resp); err != nil {
+		fmt.Fprintln(os.Stderr, "(AI search unavailable, using text search)")
+		return agentTextSearch(ctx, query, jsonOut)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	methodLabel := "AI"
+	if resp.Method == "text" {
+		methodLabel = "text (AI unavailable)"
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No agents found matching: %s (%s search)\n", query, methodLabel)
+		return nil
+	}
+
+	fmt.Printf("Agent Search Results (%d found, %s search):\n", resp.Total, methodLabel)
+	for _, r := range resp.Results {
+		tags := ""
+		if len(r.Tags) > 0 {
+			tags = " [" + strings.Join(r.Tags, ", ") + "]"
+		}
+		score := fmt.Sprintf(" (%d%%)", r.ScorePercent)
+		fmt.Printf("  %s%s%s (%s) [%s]\n", r.DisplayName, score, tags, r.Status, r.ID)
+		if r.Description != "" {
+			desc := r.Description
+			if len(desc) > 80 {
+				desc = desc[:77] + "..."
+			}
+			fmt.Printf("    → %s\n", desc)
+		}
+	}
+	return nil
+}
+
+func agentTextSearch(ctx appctx.Context, query string, jsonOut bool) error {
+	params := url.Values{}
+	if query != "" {
+		params.Set("q", query)
+	}
+
+	var resp AgentSearchResponse
+	if err := ctx.GetWithQuery("/search/agents", params, &resp); err != nil {
+		return fmt.Errorf("agent search failed: %w", err)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No agents found matching: %s\n", query)
+		return nil
+	}
+
+	fmt.Printf("Agent Search Results (%d found, text search):\n", resp.Total)
+	for _, r := range resp.Results {
+		tags := ""
+		if len(r.Tags) > 0 {
+			tags = " [" + strings.Join(r.Tags, ", ") + "]"
+		}
+		score := ""
+		if r.Score > 0 {
+			score = fmt.Sprintf(" (%.1f)", r.Score)
+		}
+		fmt.Printf("  %s%s%s (%s) [%s]\n", r.DisplayName, score, tags, r.Status, r.ID)
+		if r.Highlight != "" {
+			highlight := r.Highlight
+			if len(highlight) > 80 {
+				highlight = highlight[:77] + "..."
+			}
+			fmt.Printf("    → %s\n", highlight)
+		}
+	}
+	return nil
+}
+
+func agentContentSearch(ctx appctx.Context, query string, limit int, caseSensitive, wholeWord, regex, jsonOut bool) error {
+	params := url.Values{}
+	params.Set("q", query)
+	if limit > 0 {
+		params.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if caseSensitive {
+		params.Set("caseSensitive", "true")
+	}
+	if wholeWord {
+		params.Set("wholeWord", "true")
+	}
+	if regex {
+		params.Set("regex", "true")
+	}
+
+	var resp AgentContentSearchResponse
+	if err := ctx.GetWithQuery("/search/agents/content", params, &resp); err != nil {
+		return fmt.Errorf("agent content search failed: %w", err)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No content matches found for: %s\n", query)
+		return nil
+	}
+
+	fmt.Printf("Agent Content Matches (%d found):\n", resp.Total)
+	for _, m := range resp.Matches {
+		line := m.Line
+		if len(line) > 120 {
+			line = line[:117] + "..."
+		}
+		fmt.Printf("  %s/%s:%d: %s\n", m.AgentName, m.File, m.LineNumber, line)
+	}
 	return nil
 }
