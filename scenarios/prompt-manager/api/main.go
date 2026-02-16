@@ -131,7 +131,7 @@ func main() {
 	searchHandlers := search.NewHandlers(searchService)
 
 	// AI Search service (graceful degradation when unavailable)
-	qdrantURL := os.Getenv("QDRANT_URL")
+	qdrantURL := resolveQdrantURL()
 	qdrantAPIKey := os.Getenv("QDRANT_API_KEY")
 
 	aiSearchCollection := os.Getenv("AI_SEARCH_COLLECTION")
@@ -464,4 +464,20 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// resolveQdrantURL returns the Qdrant base URL from environment variables.
+// It checks QDRANT_URL, QDRANT_BASE_URL (Vrooli resource export), and
+// falls back to constructing from QDRANT_PORT if available.
+func resolveQdrantURL() string {
+	if url := os.Getenv("QDRANT_URL"); url != "" {
+		return url
+	}
+	if url := os.Getenv("QDRANT_BASE_URL"); url != "" {
+		return url
+	}
+	if port := os.Getenv("QDRANT_PORT"); port != "" {
+		return "http://localhost:" + port
+	}
+	return ""
 }

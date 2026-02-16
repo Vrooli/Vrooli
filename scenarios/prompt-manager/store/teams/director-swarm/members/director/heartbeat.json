@@ -4,14 +4,14 @@
   "teamId": "director-swarm",
   "agentId": "director",
   "enabled": true,
-  "schedule": "40 14 * * *",
+  "schedule": "16 18 * * *",
   "lastExecution": {
     "startedAt": "2026-02-15T19:40:00Z",
     "endedAt": "2026-02-15T19:40:00Z",
     "status": "failed",
     "error": "creating run: agent-manager error: validation error on defaults: field is required (hint: Provide default profile settings to create a new profile)"
   },
-  "revision": 30,
+  "revision": 32,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-15T19:40:00Z"
+  "updatedAt": "2026-02-15T23:10:12Z"
 }

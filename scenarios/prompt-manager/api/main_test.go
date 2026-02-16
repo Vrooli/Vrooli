@@ -58,3 +58,72 @@ func TestDiscoverScenarioNames_NonexistentDir(t *testing.T) {
 		t.Fatalf("expected 0 names for nonexistent dir, got %d", len(names))
 	}
 }
+
+func TestResolveQdrantURL(t *testing.T) {
+	// Save original env and restore after test
+	origURL := os.Getenv("QDRANT_URL")
+	origBase := os.Getenv("QDRANT_BASE_URL")
+	origPort := os.Getenv("QDRANT_PORT")
+	t.Cleanup(func() {
+		os.Setenv("QDRANT_URL", origURL)
+		os.Setenv("QDRANT_BASE_URL", origBase)
+		os.Setenv("QDRANT_PORT", origPort)
+	})
+
+	tests := []struct {
+		name     string
+		envURL   string
+		envBase  string
+		envPort  string
+		expected string
+	}{
+		{
+			name:     "QDRANT_URL takes priority",
+			envURL:   "http://qdrant:6333",
+			envBase:  "http://localhost:6333",
+			envPort:  "6333",
+			expected: "http://qdrant:6333",
+		},
+		{
+			name:     "falls back to QDRANT_BASE_URL",
+			envURL:   "",
+			envBase:  "http://localhost:6333",
+			envPort:  "6333",
+			expected: "http://localhost:6333",
+		},
+		{
+			name:     "constructs from QDRANT_PORT",
+			envURL:   "",
+			envBase:  "",
+			envPort:  "6333",
+			expected: "http://localhost:6333",
+		},
+		{
+			name:     "custom port from QDRANT_PORT",
+			envURL:   "",
+			envBase:  "",
+			envPort:  "16333",
+			expected: "http://localhost:16333",
+		},
+		{
+			name:     "returns empty when nothing set",
+			envURL:   "",
+			envBase:  "",
+			envPort:  "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("QDRANT_URL", tt.envURL)
+			os.Setenv("QDRANT_BASE_URL", tt.envBase)
+			os.Setenv("QDRANT_PORT", tt.envPort)
+
+			got := resolveQdrantURL()
+			if got != tt.expected {
+				t.Errorf("resolveQdrantURL() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}

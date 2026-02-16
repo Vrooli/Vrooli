@@ -3,18 +3,18 @@
  *
  * Features:
  * - Header with avatar, name, status dropdown
- * - Overview tab with roles, schedule, and prompt pipeline
- * - Responsibilities.md markdown editor
- * - Heartbeat instructions editor
+ * - Overview tab with relationships, roles, schedule, heartbeat instructions, responsibilities
+ * - Pipeline tab with prompt pipeline editor
  * - Remove member button
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, ChevronDown, PanelRightClose } from 'lucide-react'
+import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, PanelRightClose } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
+import { CollapsibleSection } from '@/components/shared/CollapsibleSection'
 import * as heartbeatService from '@/services/heartbeatService'
 import { toast } from '@/hooks/use-toast'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
@@ -27,6 +27,8 @@ import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
 // ============================================================================
 
 export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'pipeline'
+
+type ActiveTab = 'overview' | 'pipeline'
 
 interface MemberDetailPanelProps {
   team: TeamDetails
@@ -78,16 +80,25 @@ export function MemberDetailPanel({
   // Running agent state from shared store
   const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
 
-  // Local state
-  const [activeSection, setActiveSection] = useState<MemberDetailSection>(initialSection ?? 'overview')
+  // Local state — only 2 tabs now
+  const [activeSection, setActiveSection] = useState<ActiveTab>(
+    initialSection === 'pipeline' ? 'pipeline' : 'overview'
+  )
 
   // Sync when a navigation request arrives (e.g. clicking a heartbeat in Info tab).
   // The nonce ensures the effect fires even for repeated navigations to the same section.
   useEffect(() => {
-    if (initialSection) {
-      setActiveSection(initialSection)
+    if (!initialSection) return
+    const tab: ActiveTab = (initialSection === 'responsibilities' || initialSection === 'heartbeat')
+      ? 'overview' : initialSection
+    setActiveSection(tab)
+    if (initialSection === 'responsibilities' || initialSection === 'heartbeat') {
+      setTimeout(() => {
+        document.getElementById(`section-${initialSection}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
     }
   }, [initialSection, initialSectionNonce])
+
   const [responsibilities, setResponsibilities] = useState('')
   const [heartbeatInstructions, setHeartbeatInstructions] = useState('')
   const [heartbeatConfig, setHeartbeatConfig] = useState<HeartbeatConfig | null>(null)
@@ -95,7 +106,6 @@ export function MemberDetailPanel({
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isRelationshipsExpanded, setIsRelationshipsExpanded] = useState(true)
 
   // Dirty tracking
   const [isResponsibilitiesDirty, setIsResponsibilitiesDirty] = useState(false)
@@ -260,6 +270,23 @@ export function MemberDetailPanel({
     }
   }, [member.agentId, member.displayName, onRemoveMember, onClose])
 
+  const saveButton = (onClick: () => void, isDirty: boolean) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!isDirty || isSaving}
+      className={cn(
+        'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+        isDirty
+          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+          : 'bg-muted text-muted-foreground cursor-not-allowed'
+      )}
+    >
+      <Save className="h-3.5 w-3.5" />
+      {isSaving ? 'Saving...' : 'Save'}
+    </button>
+  )
+
   return (
     <div className={cn('h-full flex flex-col bg-card/50', className)}>
       {/* Header */}
@@ -310,7 +337,7 @@ export function MemberDetailPanel({
         </div>
       </div>
 
-      {/* Section tabs */}
+      {/* Section tabs — 2 tabs */}
       <div className="flex-shrink-0 flex border-b border-border">
         <button
           type="button"
@@ -323,36 +350,6 @@ export function MemberDetailPanel({
           )}
         >
           Overview
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSection('responsibilities')}
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium transition-colors relative',
-            activeSection === 'responsibilities'
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Responsibilities
-          {isResponsibilitiesDirty && (
-            <span className="absolute top-1 right-2 w-2 h-2 bg-amber-500 rounded-full" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSection('heartbeat')}
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium transition-colors relative',
-            activeSection === 'heartbeat'
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Heartbeat
-          {isInstructionsDirty && (
-            <span className="absolute top-1 right-2 w-2 h-2 bg-amber-500 rounded-full" />
-          )}
         </button>
         <button
           type="button"
@@ -385,57 +382,33 @@ export function MemberDetailPanel({
           </div>
         )}
 
-        {/* Loading skeleton */}
-        {isLoading && activeSection !== 'overview' && (
-          <div className="space-y-4 animate-pulse">
-            <div className="h-4 bg-muted rounded w-1/3" />
-            <div className="h-32 bg-muted rounded" />
-          </div>
-        )}
-
         {/* Overview section */}
         {activeSection === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Relationships */}
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-3">
-              <button
-                type="button"
-                onClick={() => setIsRelationshipsExpanded((prev) => !prev)}
-                className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-                aria-expanded={isRelationshipsExpanded}
-              >
-                <ChevronDown
-                  className={cn(
-                    'h-4 w-4 transition-transform',
-                    isRelationshipsExpanded ? 'rotate-0' : '-rotate-90'
-                  )}
-                />
-                Relationships
-              </button>
-              {isRelationshipsExpanded && (
-                <div className="grid gap-2 mt-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Reports to:</span>
-                    <span className="text-foreground">
-                      {manager ? manager.displayName : 'None'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Direct reports:</span>
-                    {directReports.length === 0 ? (
-                      <span className="text-foreground">None</span>
-                    ) : (
-                      <span className="text-foreground">
-                        {displayReports.join(', ')}
-                        {remainingReports > 0 ? ` +${remainingReports} more` : ''}
-                      </span>
-                    )}
-                  </div>
+            <CollapsibleSection title="Relationships" defaultExpanded>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Reports to:</span>
+                  <span className="text-foreground">
+                    {manager ? manager.displayName : 'None'}
+                  </span>
                 </div>
-              )}
-            </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Direct reports:</span>
+                  {directReports.length === 0 ? (
+                    <span className="text-foreground">None</span>
+                  ) : (
+                    <span className="text-foreground">
+                      {displayReports.join(', ')}
+                      {remainingReports > 0 ? ` +${remainingReports} more` : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </CollapsibleSection>
 
             {/* Roles */}
             <div className="space-y-4">
@@ -479,93 +452,83 @@ export function MemberDetailPanel({
               runDuration={runningAgent?.duration}
             />
 
-          </div>
-        )}
-
-        {/* Responsibilities section */}
-        {activeSection === 'responsibilities' && !isLoading && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm font-medium">RESPONSIBILITIES.md</label>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleSaveResponsibilities()}
-                disabled={!isResponsibilitiesDirty || isSaving}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                  isResponsibilitiesDirty
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed'
-                )}
-              >
-                <Save className="h-3.5 w-3.5" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-            <textarea
-              value={responsibilities}
-              onChange={(e) => {
-                setResponsibilities(e.target.value)
-                setIsResponsibilitiesDirty(true)
-              }}
-              className={cn(
-                'w-full h-64 px-3 py-2 text-sm font-mono',
-                'bg-muted border border-border rounded-lg',
-                'text-foreground placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary',
-                'resize-none'
-              )}
-              placeholder="# Responsibilities
-
-Describe what this agent is responsible for in this team..."
-            />
-          </div>
-        )}
-
-        {/* Heartbeat section */}
-        {activeSection === 'heartbeat' && !isLoading && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm font-medium">HEARTBEAT.md</label>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleSaveInstructions()}
-                disabled={!isInstructionsDirty || isSaving}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                  isInstructionsDirty
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed'
-                )}
-              >
-                <Save className="h-3.5 w-3.5" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-
-            <textarea
-              value={heartbeatInstructions}
-              onChange={(e) => {
-                setHeartbeatInstructions(e.target.value)
-                setIsInstructionsDirty(true)
-              }}
-              className={cn(
-                'w-full h-48 px-3 py-2 text-sm font-mono',
-                'bg-muted border border-border rounded-lg',
-                'text-foreground placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary',
-                'resize-none'
-              )}
-              placeholder="# Heartbeat Task
+            {/* Heartbeat Instructions */}
+            <CollapsibleSection
+              title="Heartbeat Instructions"
+              id="section-heartbeat"
+              isDirty={isInstructionsDirty}
+              headerRight={saveButton(() => void handleSaveInstructions(), isInstructionsDirty)}
+            >
+              {isLoading ? (
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-4 bg-muted rounded w-1/3" />
+                  <div className="h-32 bg-muted rounded" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-sm font-medium">HEARTBEAT.md</label>
+                  </div>
+                  <textarea
+                    value={heartbeatInstructions}
+                    onChange={(e) => {
+                      setHeartbeatInstructions(e.target.value)
+                      setIsInstructionsDirty(true)
+                    }}
+                    className={cn(
+                      'w-full h-48 px-3 py-2 text-sm font-mono',
+                      'bg-muted border border-border rounded-lg',
+                      'text-foreground placeholder:text-muted-foreground',
+                      'focus:outline-none focus:ring-2 focus:ring-primary',
+                      'resize-none'
+                    )}
+                    placeholder="# Heartbeat Task
 
 Describe what this agent should do on each heartbeat..."
-            />
+                  />
+                </div>
+              )}
+            </CollapsibleSection>
+
+            {/* Responsibilities */}
+            <CollapsibleSection
+              title="Responsibilities"
+              id="section-responsibilities"
+              isDirty={isResponsibilitiesDirty}
+              headerRight={saveButton(() => void handleSaveResponsibilities(), isResponsibilitiesDirty)}
+            >
+              {isLoading ? (
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-4 bg-muted rounded w-1/3" />
+                  <div className="h-32 bg-muted rounded" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-sm font-medium">RESPONSIBILITIES.md</label>
+                  </div>
+                  <textarea
+                    value={responsibilities}
+                    onChange={(e) => {
+                      setResponsibilities(e.target.value)
+                      setIsResponsibilitiesDirty(true)
+                    }}
+                    className={cn(
+                      'w-full h-64 px-3 py-2 text-sm font-mono',
+                      'bg-muted border border-border rounded-lg',
+                      'text-foreground placeholder:text-muted-foreground',
+                      'focus:outline-none focus:ring-2 focus:ring-primary',
+                      'resize-none'
+                    )}
+                    placeholder="# Responsibilities
+
+Describe what this agent is responsible for in this team..."
+                  />
+                </div>
+              )}
+            </CollapsibleSection>
           </div>
         )}
 
@@ -574,7 +537,12 @@ Describe what this agent should do on each heartbeat..."
           <MemberPromptPipelineSection
             teamId={team.id}
             memberId={member.agentId}
-            onNavigateToTab={(tab) => setActiveSection(tab)}
+            onNavigateToTab={(section) => {
+              setActiveSection('overview')
+              setTimeout(() => {
+                document.getElementById(`section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }, 50)
+            }}
             onNavigateToAgentFiles={onNavigateToAgentFiles ? (filePath) => onNavigateToAgentFiles(member.agentId, filePath) : undefined}
           />
         )}

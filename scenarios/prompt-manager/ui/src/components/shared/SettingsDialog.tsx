@@ -15,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
 import type { Theme } from '@/types'
 import { getShortcutDisplay } from '@/hooks/useKeyboardShortcuts'
+import { AISearchStatusPanel } from '@/components/shared/AISearchStatusPanel'
 
 interface SettingsDialogProps {
   isOpen: boolean
@@ -107,6 +108,12 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                 <ShortcutRow label="Close / Cancel" shortcut={getShortcutDisplay('escape')} />
                 <ShortcutRow label="Open settings" shortcut={getShortcutDisplay('settings')} />
               </div>
+            </div>
+
+            {/* AI Search Section */}
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">AI Search</h4>
+              <AISearchStatusPanel active={isOpen} compact />
             </div>
           </div>
 
