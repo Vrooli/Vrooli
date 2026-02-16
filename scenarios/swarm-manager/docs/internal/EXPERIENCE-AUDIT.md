@@ -2,7 +2,7 @@
 
 > **Purpose**: Document user personas, flows, and UX friction points for Swarm Manager.
 >
-> **Last Updated**: 2026-01-28 (Phase 29 - Experience Architecture Audit)
+> **Last Updated**: 2026-02-16 (Mobile Backlog Info-First Flow)
 >
 > **Current State (2026-02-14)**: Runtime navigation is Backlog, Scenarios, Execution, Settings. References to Ideas/Recommendations in this file are historical naming from earlier iterations.
 
@@ -173,6 +173,15 @@ The product is a **command center for scenario lifecycle management**, bridging 
 ---
 
 ## Recommended Improvements
+
+### Mobile Backlog Details (2026-02-16) - Implemented
+
+9. **[IMPLEMENTED] Switch mobile backlog details to Info-first with explicit Files toggle**
+   - Mobile now defaults to an **Info view** for `backlog/:kind/:name` and exposes a header toggle to switch to **Files**.
+   - Info view surfaces direct action controls (queue/start/schedule, edit, agent, convert, delete), followed by details and clarify/suggest question panels.
+   - Files remain fully accessible via one-tap mode switch, preserving file editing workflows while prioritizing decision/action workflows.
+   - Reduced mode confusion by replacing modal-style details access with an explicit two-mode page model.
+   - Implementation: `ui/src/pages/BacklogDetailsPage.tsx` (shared action renderer + shared info/files content across mobile/desktop paths)
 
 ### This Loop (Phase 29) - Safe, Targeted
 

@@ -69,6 +69,23 @@ stop::cleanup_port_locks() {
     rm -f "$SCENARIO_STATE_DIR/${scenario_name}.json" 2>/dev/null
 }
 
+# Clean only stale lock files (dead or invalid owner PID) across scenarios.
+stop::cleanup_stale_global_port_locks() {
+    [[ -d "$SCENARIO_STATE_DIR" ]] || return 0
+    [[ "$DRY_RUN" == "true" ]] && return 0
+
+    local lock_file lock_info lock_pid
+    for lock_file in "$SCENARIO_STATE_DIR"/.port_*.lock; do
+        [[ -f "$lock_file" ]] || continue
+        lock_info=$(cat "$lock_file" 2>/dev/null || true)
+        lock_pid=${lock_info#*:}
+        lock_pid=${lock_pid%%:*}
+        if [[ -z "$lock_pid" || ! "$lock_pid" =~ ^[0-9]+$ ]] || ! kill -0 "$lock_pid" 2>/dev/null; then
+            rm -f "$lock_file" 2>/dev/null || true
+        fi
+    done
+}
+
 # Stop a single scenario by name
 stop::scenario() {
     local scenario_name="$1"
@@ -147,13 +164,6 @@ stop::resource() {
 stop::all_scenarios() {
     log::info "Stopping all scenarios..."
     
-    # Clean up ALL scenario lock files when stopping all
-    if [[ -d "$SCENARIO_STATE_DIR" ]] && [[ "$DRY_RUN" != "true" ]]; then
-        rm -f "$SCENARIO_STATE_DIR"/.port_*.lock 2>/dev/null
-        rm -f "$SCENARIO_STATE_DIR"/*.json 2>/dev/null
-        log::debug "Cleaned up all scenario port locks and state files"
-    fi
-    
     # Find scenarios with running PID-tracked processes
     local scenarios=()
     local processes_dir="$HOME/.vrooli/processes/scenarios"
@@ -184,6 +194,7 @@ stop::all_scenarios() {
     
     if [[ ${#scenarios[@]} -eq 0 ]]; then
         log::info "No running scenarios found"
+        stop::cleanup_stale_global_port_locks
         return 0
     fi
     
@@ -226,6 +237,11 @@ stop::all_scenarios() {
     else
         log::warning "Stopped $stopped_count scenarios, $failed_count failed"
     fi
+
+    # Best-effort stale lock cleanup after stop attempts complete.
+    # Do this at the end (not before stopping) so live scenario processes do not
+    # lose lock ownership while they are still running.
+    stop::cleanup_stale_global_port_locks
     
     return 0
 }

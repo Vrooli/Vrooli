@@ -127,6 +127,70 @@ ports::init_scenario_state() {
     mkdir -p "$SCENARIO_STATE_DIR"
 }
 
+ports::_listening_pids() {
+    local port="$1"
+    lsof -tiTCP:"$port" -sTCP:LISTEN -n -P 2>/dev/null || true
+}
+
+ports::_scenario_runtime_listener_pid() {
+    local scenario_name="$1"
+    local port="$2"
+    local process_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+    local listener_pids listener_pid
+
+    [[ -d "$process_dir" ]] || return 1
+
+    listener_pids=$(ports::_listening_pids "$port")
+    [[ -n "$listener_pids" ]] || return 1
+
+    while IFS= read -r step_file; do
+        [[ -f "$step_file" ]] || continue
+
+        local pid pgid declared_port
+        pid=$(jq -r '.pid // empty' "$step_file" 2>/dev/null)
+        pgid=$(jq -r '.pgid // empty' "$step_file" 2>/dev/null)
+        declared_port=$(jq -r '.port // empty' "$step_file" 2>/dev/null)
+
+        [[ "$declared_port" == "$port" ]] || continue
+        [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]] || continue
+        kill -0 "$pid" 2>/dev/null || continue
+
+        # Exact match: tracked PID is the listener.
+        while IFS= read -r listener_pid; do
+            [[ -n "$listener_pid" ]] || continue
+            if [[ "$listener_pid" == "$pid" ]]; then
+                echo "$listener_pid"
+                return 0
+            fi
+        done <<< "$listener_pids"
+
+        # Process-group match: runtime may have forked but still runs in the same PGID.
+        if [[ -n "$pgid" && "$pgid" =~ ^[0-9]+$ ]]; then
+            while IFS= read -r listener_pid; do
+                [[ -n "$listener_pid" ]] || continue
+                local listener_pgid
+                listener_pgid=$(ps -o pgid= -p "$listener_pid" 2>/dev/null | tr -d '[:space:]')
+                if [[ "$listener_pgid" == "$pgid" ]]; then
+                    echo "$listener_pid"
+                    return 0
+                fi
+            done <<< "$listener_pids"
+        fi
+    done < <(find "$process_dir" -maxdepth 1 -name '*.json' -type f 2>/dev/null)
+
+    return 1
+}
+
+ports::_reclaim_lock_from_runtime() {
+    local scenario_name="$1"
+    local port="$2"
+    local listener_pid
+
+    listener_pid=$(ports::_scenario_runtime_listener_pid "$scenario_name" "$port") || return 1
+    printf '%s:%s:%s\n' "$scenario_name" "$listener_pid" "$(date +%s)" > "$SCENARIO_STATE_DIR/.port_${port}.lock" 2>/dev/null || return 1
+    return 0
+}
+
 # Fast port availability check using kernel binding test
 # Replaces the old O(n²) check_port_conflicts function
 ports::is_port_available() {
@@ -177,10 +241,14 @@ ports::is_port_available() {
         fi
     fi
     
-    # Ultimate test: can we bind to it?
-    # Using timeout to prevent hanging
-    if timeout 0.1 bash -c "exec 3<>/dev/tcp/127.0.0.1/$port" 2>/dev/null; then
-        # Port is in use (we connected to something)
+    # If a process is already listening, allow same-scenario reuse by recovering
+    # lock ownership from runtime metadata when possible.
+    local listening_pids
+    listening_pids=$(ports::_listening_pids "$port")
+    if [[ -n "$listening_pids" ]]; then
+        if [[ -n "$scenario_name" ]] && ports::_reclaim_lock_from_runtime "$scenario_name" "$port"; then
+            return 0
+        fi
         return 1
     fi
     
@@ -325,14 +393,28 @@ ports::allocate_scenario() {
                 fi
             fi
             
-            # Claim the port with lock file
+            # Claim the port with lock file. Prefer keeping an existing live owner
+            # PID (e.g., recovered from scenario runtime metadata) so lock liveness
+            # reflects the real process holding the fixed port.
             local lock_file="$SCENARIO_STATE_DIR/.port_${fixed_port}.lock"
             if [[ -f "$lock_file" ]]; then
-                local existing_info existing_scenario
+                local existing_info existing_scenario existing_pid owner_pid
                 existing_info=$(cat "$lock_file" 2>/dev/null || true)
                 existing_scenario=${existing_info%%:*}
+                existing_pid=${existing_info#*:}
+                existing_pid=${existing_pid%%:*}
                 if [[ -n "$existing_scenario" && "$existing_scenario" == "$scenario_name" ]]; then
-                    printf '%s:%s:%s\n' "$scenario_name" "$$" "$(date +%s)" > "$lock_file"
+                    owner_pid="$$"
+                    if [[ -n "$existing_pid" && "$existing_pid" =~ ^[0-9]+$ ]] && kill -0 "$existing_pid" 2>/dev/null; then
+                        owner_pid="$existing_pid"
+                    elif ports::_reclaim_lock_from_runtime "$scenario_name" "$fixed_port"; then
+                        # Runtime reclaim already wrote scenario:listener_pid:timestamp
+                        owner_pid=""
+                    fi
+
+                    if [[ -n "$owner_pid" ]]; then
+                        printf '%s:%s:%s\n' "$scenario_name" "$owner_pid" "$(date +%s)" > "$lock_file"
+                    fi
                 else
                     errors+=("LOCK FAILURE: Fixed port $fixed_port for '$port_name' already locked by scenario '${existing_scenario:-unknown}'")
                     continue

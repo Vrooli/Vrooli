@@ -247,6 +247,41 @@ lifecycle::ensure_database() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
+lifecycle::_update_port_lock_owner() {
+    local scenario_name="$1"
+    local port="$2"
+    local owner_pid="$3"
+    local state_dir="$HOME/.vrooli/state/scenarios"
+
+    [[ -n "$scenario_name" ]] || return 0
+    [[ -n "$port" && "$port" =~ ^[0-9]+$ ]] || return 0
+    [[ -n "$owner_pid" && "$owner_pid" =~ ^[0-9]+$ ]] || return 0
+
+    mkdir -p "$state_dir" 2>/dev/null || true
+
+    # Lock format: scenario_name:pid:timestamp. We use the runtime PID so lock
+    # liveness matches the actual long-lived process, not a short-lived shell.
+    printf '%s:%s:%s\n' "$scenario_name" "$owner_pid" "$(date +%s)" > "$state_dir/.port_${port}.lock" 2>/dev/null || true
+}
+
+lifecycle::_remove_port_lock_if_owned_by() {
+    local scenario_name="$1"
+    local port="$2"
+    local state_dir="$HOME/.vrooli/state/scenarios"
+    local lock_file="$state_dir/.port_${port}.lock"
+
+    [[ -n "$scenario_name" ]] || return 0
+    [[ -n "$port" && "$port" =~ ^[0-9]+$ ]] || return 0
+    [[ -f "$lock_file" ]] || return 0
+
+    local lock_info lock_scenario
+    lock_info=$(cat "$lock_file" 2>/dev/null || true)
+    lock_scenario=${lock_info%%:*}
+    if [[ "$lock_scenario" == "$scenario_name" ]]; then
+        rm -f "$lock_file" 2>/dev/null || true
+    fi
+}
+
 lifecycle::start_tracked_process() {
     local phase="$1"
     local step_name="$2" 
@@ -349,9 +384,11 @@ EOF_JSON
         fi
 
         rm -f "$process_dir/${step_name}.json" "$process_dir/${step_name}.pid"
+        lifecycle::_remove_port_lock_if_owned_by "$app_name" "$port"
         return 1
     fi
 
+    lifecycle::_update_port_lock_owner "$app_name" "$port" "$pid"
     log::info "Started background process: $process_id (PID: $pid)"
     return 0
 }

@@ -26,11 +26,13 @@ import {
   Edit,
   FileText,
   Files,
+  Info,
   Loader2,
   MoreHorizontal,
   Play,
   Search,
   Sparkles,
+  Tags,
   Trash2,
   Upload,
   Wrench,
@@ -89,6 +91,7 @@ const MIN_FILES_PANEL_WIDTH = 240;
 const MAX_FILES_PANEL_WIDTH = 520;
 const MIN_PREVIEW_WIDTH = 320;
 const RESIZE_HANDLE_WIDTH = 8;
+type MobileView = "info" | "files";
 
 const collectMatchingFiles = (entries: BacklogFile[], query: string): BacklogFile[] => {
   const normalized = query.trim().toLowerCase();
@@ -132,9 +135,9 @@ export function BacklogDetailsPage() {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [filesPanelWidth, setFilesPanelWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
+  const [mobileView, setMobileView] = useState<MobileView>("info");
   const [showFilesSheet, setShowFilesSheet] = useState(false);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
-  const [showHelpSheet, setShowHelpSheet] = useState(false);
   const [fileSearch, setFileSearch] = useState("");
   const [recentFiles, setRecentFiles] = useState<BacklogFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
@@ -241,6 +244,7 @@ export function BacklogDetailsPage() {
   const handleFileSelect = useCallback((file: BacklogFile) => {
     if (file.type === "file") {
       setSelectedFile(file);
+      setMobileView("files");
       setShowFilesSheet(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -522,6 +526,17 @@ export function BacklogDetailsPage() {
     setSelectedFile(null);
   }, [files, selectedFileParam, setSearchParams]);
 
+  useEffect(() => {
+    setMobileView("info");
+    setShowFilesSheet(false);
+  }, [backlogKind, name]);
+
+  useEffect(() => {
+    if (mobileView === "info" && showFilesSheet) {
+      setShowFilesSheet(false);
+    }
+  }, [mobileView, showFilesSheet]);
+
   if (!backlogKind || !name) {
     return (
       <div className="space-y-6" data-testid={selectors.backlogDetails.page}>
@@ -651,25 +666,40 @@ export function BacklogDetailsPage() {
   );
 
   const detailsPanel = item ? (
-    <Card>
+    <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium text-slate-200">Details</h2>
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+          <Info className="h-4 w-4 text-slate-400" />
+          <h2 className="text-base font-semibold text-slate-100">Details</h2>
         </div>
         <p
-          className="text-slate-400"
+          className="text-sm leading-relaxed text-slate-300"
           data-testid={selectors.backlogDetails.description}
         >
           {item.description || "No description provided"}
         </p>
-        <TagList tags={item.tags} maxTags={10} />
-        <div className="flex flex-wrap gap-6 border-t border-white/10 pt-4 text-sm text-slate-500">
-          <span title={new Date(item.created).toLocaleString()}>
-            Created {formatRelativeTime(item.created)}
-          </span>
-          <span title={new Date(item.updated).toLocaleString()}>
-            Updated {formatRelativeTime(item.updated)}
-          </span>
+        {item.tags.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <Tags className="h-3.5 w-3.5" />
+              Tags
+            </div>
+            <TagList tags={item.tags} maxTags={10} />
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>
+            <p className="text-sm text-slate-300" title={new Date(item.created).toLocaleString()}>
+              {formatRelativeTime(item.created)}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Updated</p>
+            <p className="text-sm text-slate-300" title={new Date(item.updated).toLocaleString()}>
+              {formatRelativeTime(item.updated)}
+            </p>
+          </div>
         </div>
       </div>
     </Card>
@@ -702,6 +732,251 @@ export function BacklogDetailsPage() {
     </div>
   ) : null;
 
+  const renderActionButtons = (closeOnAction = false) => {
+    const runAction = (action: () => void) => {
+      if (closeOnAction) {
+        setShowActionsSheet(false);
+      }
+      action();
+    };
+
+    const rowButtonClass =
+      "h-10 w-full justify-start rounded-lg border-slate-700/80 bg-slate-900/40 px-3 text-sm text-slate-100 hover:bg-slate-800/70";
+    const primaryRowButtonClass =
+      "h-10 w-full justify-start rounded-lg border-transparent bg-slate-100 px-3 text-sm text-slate-900 hover:bg-white";
+    const destructiveRowButtonClass =
+      "h-10 w-full justify-start rounded-lg border-red-500/30 bg-red-500/10 px-3 text-sm text-red-200 hover:bg-red-500/20";
+
+    return (
+      <div className="space-y-2">
+        {canQueue && (
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className={rowButtonClass}
+              onClick={() => runAction(() => queueMutation.mutate({ mode: "manual" }))}
+              disabled={queueMutation.isPending}
+            >
+              <HeaderIcon className="mr-2 h-4 w-4" />
+              Queue
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className={primaryRowButtonClass}
+              onClick={() => runAction(() => queueMutation.mutate({ mode: "yolo" }))}
+              disabled={queueMutation.isPending}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Start Now
+            </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                value={scheduleDelayValue}
+                onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
+                className="h-10 flex-1 rounded-lg border-slate-700/80 bg-slate-900/40"
+                aria-label="Schedule delay seconds"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 shrink-0 rounded-lg border-slate-700/80 bg-slate-900/40 px-3 text-slate-100 hover:bg-slate-800/70"
+                onClick={() =>
+                  runAction(() => queueMutation.mutate({ mode: "scheduled", delaySeconds: scheduleDelayValue }))
+                }
+                disabled={queueMutation.isPending}
+              >
+                Schedule
+              </Button>
+            </div>
+          </div>
+        )}
+        {canConvert && convertTarget && (
+          <Button
+            variant="default"
+            size="sm"
+            className={primaryRowButtonClass}
+            onClick={() => runAction(() => convertMutation.mutate(convertTarget))}
+            disabled={convertMutation.isPending}
+          >
+            {convertMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowRight className="mr-2 h-4 w-4" />
+            )}
+            {convertMutation.isPending
+              ? "Converting..."
+              : `Convert to ${BACKLOG_KIND_LABELS[convertTarget]}`}
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className={rowButtonClass}
+          onClick={() => runAction(() => setShowEdit(true))}
+        >
+          <Edit className="mr-2 h-4 w-4" />
+          Edit
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={rowButtonClass}
+          onClick={() => runAction(() => setShowAgentDialog(true))}
+        >
+          <Sparkles className="mr-2 h-4 w-4" />
+          {agentLabel}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={destructiveRowButtonClass}
+          onClick={() => runAction(() => setShowDelete(true))}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete
+        </Button>
+      </div>
+    );
+  };
+
+  const fileWorkspace = (
+    <div className="flex-1 min-h-0">
+      <div className="h-full overflow-hidden lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-900/30">
+        <div
+          ref={workspaceRef}
+          className={cn(
+            "flex h-full min-h-0 flex-1 flex-col lg:flex-row lg:min-h-[calc(100dvh-16rem)]",
+            isResizing && "select-none"
+          )}
+        >
+          <div className="hidden lg:flex flex-col" style={{ width: filesPanelWidth }}>
+            {fileBrowserContent}
+          </div>
+          <div
+            className="hidden lg:flex w-2 items-center justify-center bg-slate-900/40 border-x border-white/10 cursor-col-resize"
+            onPointerDown={handleResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-valuenow={Math.round(filesPanelWidth)}
+            aria-valuemin={MIN_FILES_PANEL_WIDTH}
+            aria-valuemax={MAX_FILES_PANEL_WIDTH}
+          >
+            <div className="h-10 w-1 rounded-full bg-slate-700/80" />
+          </div>
+          <div className="flex flex-1 flex-col min-w-0">
+            {selectedFile ? (
+              <ErrorBoundary
+                key={`${selectedFile.path}-${previewResetKey}`}
+                fallback={
+                  <div className="flex flex-1 items-center justify-center p-6">
+                    <ErrorState
+                      title="Unable to render file preview"
+                      message="Try reloading the preview or choose another file."
+                      onRetry={handlePreviewRetry}
+                    />
+                  </div>
+                }
+              >
+                <FilePreview
+                  backlogKind={backlogKind}
+                  backlogName={name}
+                  filePath={selectedFile.path}
+                  fileName={selectedFile.name}
+                  compactHeader
+                  stickyHeader
+                  headerActions={filesButton}
+                  className="flex-1 min-h-0 border-0 rounded-none bg-transparent"
+                  contentClassName="flex-1 max-h-none min-h-0"
+                  data-testid={selectors.backlogDetails.filePreview}
+                />
+              </ErrorBoundary>
+            ) : (
+              <>
+                <div className="flex items-center justify-between border-b border-white/10 bg-slate-800/50 px-3 py-2 sm:px-4 sm:py-3">
+                  <span className="text-sm font-medium text-slate-300">No file selected</span>
+                  {filesButton}
+                </div>
+                <div className="flex flex-1 items-center justify-center p-8 text-center text-slate-500">
+                  Select a file to preview its contents
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showFilesSheet && (
+        <div className="fixed inset-0 z-50 flex items-end lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowFilesSheet(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="relative w-full max-h-[85vh] overflow-hidden rounded-t-2xl border border-white/10 bg-slate-900 shadow-2xl flex flex-col"
+            role="dialog"
+            aria-modal
+            aria-label="File browser"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <span className="text-base font-semibold text-slate-100">Files</span>
+              <button
+                type="button"
+                onClick={() => setShowFilesSheet(false)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                aria-label="Close files"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {fileBrowserContent}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const mobileInfoView = (
+    <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-4">
+      {(queueError || deleteError || convertError) && (
+        <Card padding="sm" className="space-y-2 rounded-lg border-slate-700/60 bg-slate-900/45">
+          {queueError && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {queueError}
+            </div>
+          )}
+          {convertError && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {convertError}
+            </div>
+          )}
+          {deleteError && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {deleteError}
+            </div>
+          )}
+        </Card>
+      )}
+      <Card padding="sm" className="space-y-3 rounded-lg border-slate-700/60 bg-slate-900/45">
+        <div className="space-y-1 border-b border-slate-800 pb-2">
+          <p className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+            <Sparkles className="h-4 w-4 text-slate-400" />
+            Actions
+          </p>
+          <p className="text-sm text-slate-400">Run agents, queue work, and manage this backlog item.</p>
+        </div>
+        {renderActionButtons(false)}
+      </Card>
+      {detailsPanel}
+      {notesPanel}
+    </div>
+  );
+
   return (
     <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
 
@@ -723,51 +998,66 @@ export function BacklogDetailsPage() {
       )}
 
       {item && !error && (
-        <div className="flex min-h-[100dvh] flex-col gap-0 lg:min-h-0 lg:gap-6">
-          <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-white/10 bg-slate-950/95 px-3 py-2 backdrop-blur lg:hidden">
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-            >
-              <Link
-                to="/backlog"
-                data-testid={selectors.backlogDetails.backButton}
-                aria-label="Back to backlog"
+        <>
+          <div className="flex min-h-[100dvh] flex-col lg:hidden">
+            <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
               >
-                <ChevronLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-100" data-testid={selectors.backlogDetails.title}>
-                {item.title}
-              </p>
-              <p className="truncate text-xs text-slate-400">
-                {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
-              </p>
+                <Link
+                  to="/backlog"
+                  data-testid={selectors.backlogDetails.backButton}
+                  aria-label="Back to backlog"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Link>
+              </Button>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-100" data-testid={selectors.backlogDetails.title}>
+                  {item.title}
+                </p>
+                <p className="truncate text-xs text-slate-400">
+                  {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-lg border-slate-700/80 bg-slate-900/45 px-3 text-xs font-medium text-slate-100 hover:bg-slate-800/70"
+                onClick={() => setMobileView((prev) => (prev === "info" ? "files" : "info"))}
+              >
+                {mobileView === "info" ? (
+                  <>
+                    <Files className="mr-1.5 h-4 w-4" />
+                    Files
+                  </>
+                ) : (
+                  <>
+                    <CircleHelp className="mr-1.5 h-4 w-4" />
+                    Info
+                  </>
+                )}
+              </Button>
+              {mobileView === "files" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+                  onClick={() => setShowActionsSheet(true)}
+                  aria-label="More actions"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-              onClick={() => setShowHelpSheet(true)}
-              aria-label="Open details and notes"
-            >
-              <CircleHelp className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-              onClick={() => setShowActionsSheet(true)}
-              aria-label="More actions"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+            {mobileView === "info" ? mobileInfoView : fileWorkspace}
           </div>
 
-          <Card className="hidden lg:block" data-testid={selectors.backlogDetails.header}>
+          <div className="hidden space-y-6 lg:block">
+            <Card data-testid={selectors.backlogDetails.header}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -857,16 +1147,6 @@ export function BacklogDetailsPage() {
                   variant="outline"
                   size="sm"
                   className="hidden lg:inline-flex"
-                  onClick={() => setShowHelpSheet(true)}
-                  aria-label="Open details and notes"
-                >
-                  <CircleHelp className="mr-2 h-4 w-4" />
-                  Help
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="hidden lg:inline-flex"
                   data-testid={selectors.backlogDetails.editButton}
                   onClick={() => setShowEdit(true)}
                 >
@@ -926,115 +1206,10 @@ export function BacklogDetailsPage() {
             )}
           </Card>
 
-          <div className="hidden lg:block">{detailsPanel}</div>
-          {hasNotes && <div className="hidden lg:block">{notesPanel}</div>}
-
-          <div className="flex-1 min-h-0">
-            <div className="h-full overflow-hidden lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-900/30">
-              <div
-                ref={workspaceRef}
-                className={cn(
-                  "flex h-full min-h-0 flex-col lg:flex-row lg:min-h-[calc(100dvh-16rem)]",
-                  isResizing && "select-none"
-                )}
-              >
-                <div className="hidden lg:flex flex-col" style={{ width: filesPanelWidth }}>
-                  {fileBrowserContent}
-                </div>
-                <div
-                  className="hidden lg:flex w-2 items-center justify-center bg-slate-900/40 border-x border-white/10 cursor-col-resize"
-                  onPointerDown={handleResizeStart}
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-valuenow={Math.round(filesPanelWidth)}
-                  aria-valuemin={MIN_FILES_PANEL_WIDTH}
-                  aria-valuemax={MAX_FILES_PANEL_WIDTH}
-                >
-                  <div className="h-10 w-1 rounded-full bg-slate-700/80" />
-                </div>
-                <div className="flex flex-1 flex-col min-w-0">
-                  {selectedFile ? (
-                    <ErrorBoundary
-                      key={`${selectedFile.path}-${previewResetKey}`}
-                      fallback={
-                        <div className="flex flex-1 items-center justify-center p-6">
-                          <ErrorState
-                            title="Unable to render file preview"
-                            message="Try reloading the preview or choose another file."
-                            onRetry={handlePreviewRetry}
-                          />
-                        </div>
-                      }
-                    >
-                      <FilePreview
-                        backlogKind={backlogKind}
-                        backlogName={name}
-                        filePath={selectedFile.path}
-                        fileName={selectedFile.name}
-                        compactHeader
-                        stickyHeader
-                        headerActions={filesButton}
-                        className="flex-1 min-h-0 border-0 rounded-none bg-transparent"
-                        contentClassName="flex-1 max-h-none min-h-0"
-                        data-testid={selectors.backlogDetails.filePreview}
-                      />
-                    </ErrorBoundary>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between border-b border-white/10 bg-slate-800/50 px-3 py-2 sm:px-4 sm:py-3">
-                        <span className="text-sm font-medium text-slate-300">No file selected</span>
-                        {filesButton}
-                      </div>
-                      <div className="flex flex-1 items-center justify-center p-8 text-center text-slate-500">
-                        Select a file to preview its contents
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {showFilesSheet && (
-              <div className="fixed inset-0 z-50 flex items-end lg:hidden">
-                <div
-                  className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                  onClick={() => setShowFilesSheet(false)}
-                  aria-hidden="true"
-                />
-                <div
-                  className="relative w-full max-h-[85vh] overflow-hidden rounded-t-2xl border border-white/10 bg-slate-900 shadow-2xl flex flex-col"
-                  role="dialog"
-                  aria-modal
-                  aria-label="File browser"
-                >
-                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                    <span className="text-base font-semibold text-slate-100">Files</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowFilesSheet(false)}
-                      className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                      aria-label="Close files"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                  {fileBrowserContent}
-                </div>
-              </div>
-            )}
+            {detailsPanel}
+            {notesPanel}
+            {fileWorkspace}
           </div>
-
-          <BottomSheet
-            isOpen={showHelpSheet}
-            onClose={() => setShowHelpSheet(false)}
-            title="Backlog details"
-            description="Description, metadata, and idea notes"
-          >
-            <div className="space-y-4">
-              {detailsPanel}
-              {notesPanel}
-            </div>
-          </BottomSheet>
 
           <BottomSheet
             isOpen={showActionsSheet}
@@ -1042,120 +1217,9 @@ export function BacklogDetailsPage() {
             title="Actions"
             description="Quick actions for this backlog item"
           >
-            <div className="space-y-2">
-              {canQueue && (
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowActionsSheet(false);
-                      queueMutation.mutate({ mode: "manual" });
-                    }}
-                    disabled={queueMutation.isPending}
-                  >
-                    <HeaderIcon className="mr-2 h-4 w-4" />
-                    Queue
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowActionsSheet(false);
-                      queueMutation.mutate({ mode: "yolo" });
-                    }}
-                    disabled={queueMutation.isPending}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Now
-                  </Button>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={scheduleDelayValue}
-                      onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
-                      className="h-9 flex-1"
-                      aria-label="Schedule delay seconds"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => {
-                        setShowActionsSheet(false);
-                        queueMutation.mutate({ mode: "scheduled", delaySeconds: scheduleDelayValue });
-                      }}
-                      disabled={queueMutation.isPending}
-                    >
-                      Schedule
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {canConvert && convertTarget && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    setShowActionsSheet(false);
-                    convertMutation.mutate(convertTarget);
-                  }}
-                  disabled={convertMutation.isPending}
-                >
-                  {convertMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                  )}
-                  {convertMutation.isPending
-                    ? "Converting..."
-                    : `Convert to ${BACKLOG_KIND_LABELS[convertTarget]}`}
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => {
-                  setShowActionsSheet(false);
-                  setShowEdit(true);
-                }}
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => {
-                  setShowActionsSheet(false);
-                  setShowAgentDialog(true);
-                }}
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                {agentLabel}
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => {
-                  setShowActionsSheet(false);
-                  setShowDelete(true);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
-            </div>
+            {renderActionButtons(true)}
           </BottomSheet>
-        </div>
+        </>
       )}
 
       {item && (
