@@ -235,7 +235,7 @@ export function SettingsPage() {
         <ErrorState
           error={policyError}
           title="Unable to load execution defaults"
-          message="You can still update theme and insight preferences."
+          message="You can still update theme preferences."
           onRetry={() => {
             void refetchPolicy();
           }}
@@ -267,49 +267,6 @@ export function SettingsPage() {
           >
             System
           </button>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-lg font-medium text-slate-200">Focus</h3>
-        <p className="mt-1 text-sm text-slate-400">Set optional analysis focus context</p>
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-slate-300">Custom Focus</label>
-          <Input
-            type="text"
-            placeholder="e.g., Focus on test coverage..."
-            className="mt-1"
-            data-testid={selectors.settings.customFocus}
-            value={form.customFocus ?? ""}
-            onChange={(e) => setForm({ ...form, customFocus: e.target.value })}
-          />
-        </div>
-      </Card>
-
-      <Card data-testid={selectors.settings.insightsSettings}>
-        <h3 className="text-lg font-medium text-slate-200">Insights Engine</h3>
-        <p className="mt-1 text-sm text-slate-400">Self-improvement suggestions based on patterns</p>
-        <div className="mt-4 space-y-3">
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-white/20 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
-              data-testid={selectors.settings.insightsEnabled}
-              checked={form.insightsEnabled}
-              onChange={(e) => setForm({ ...form, insightsEnabled: e.target.checked })}
-            />
-            <span className="text-sm text-slate-300">Enable insights</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-white/20 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
-              data-testid={selectors.settings.insightsAutoAnalyze}
-              checked={form.insightsAutoAnalyze}
-              onChange={(e) => setForm({ ...form, insightsAutoAnalyze: e.target.checked })}
-            />
-            <span className="text-sm text-slate-300">Auto-analyze on scenario changes</span>
-          </label>
         </div>
       </Card>
 

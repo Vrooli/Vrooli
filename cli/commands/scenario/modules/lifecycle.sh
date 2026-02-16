@@ -33,6 +33,10 @@ scenario::lifecycle::start() {
                 passthrough_args+=("--path" "$2")
                 shift 2
                 ;;
+            --best-effort)
+                passthrough_args+=("--best-effort")
+                shift
+                ;;
             *)
                 passthrough_args+=("$1")
                 shift

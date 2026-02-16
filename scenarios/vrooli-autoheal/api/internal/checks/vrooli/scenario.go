@@ -343,7 +343,7 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 
 	switch actionID {
 	case "start":
-		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName)
+		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName, "--best-effort")
 		result.Output = string(output)
 
 		if err != nil {
@@ -374,7 +374,7 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		return result
 
 	case "restart":
-		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "restart", c.scenarioName)
+		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "restart", c.scenarioName, "--best-effort")
 		result.Output = string(output)
 
 		if err != nil {
@@ -594,9 +594,9 @@ func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time
 	outputBuilder.WriteString(portResult.Output)
 	outputBuilder.WriteString("\n")
 
-	// Step 3: Start with --clean-stale flag (if vrooli CLI supports it)
+	// Step 3: Start with --best-effort to avoid blocking on failed dependencies
 	outputBuilder.WriteString("=== Starting scenario ===\n")
-	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName)
+	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName, "--best-effort")
 	outputBuilder.Write(startOutput)
 	result.Output = outputBuilder.String()
 

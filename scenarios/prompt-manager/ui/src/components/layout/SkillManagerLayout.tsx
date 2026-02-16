@@ -25,6 +25,7 @@ import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
 import { AgentEditorPanel } from '../editor/AgentEditorPanel'
 import { TeamEditorPanel } from '../editor/TeamEditorPanel'
+import { RunEditorPanel } from '../editor/RunEditorPanel'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { useAgentData } from '@/hooks/useAgentData'
 import { useTeamData, useTeamDetails } from '@/hooks/useTeamData'
@@ -121,6 +122,8 @@ export function SkillManagerLayout() {
   const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
   const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
   const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
+  const selectedRunId = useSelectionStore((state) => state.selectedRunId)
+  const setSelectedRunId = useSelectionStore((state) => state.setSelectedRunId)
   const graphViewActive = useSelectionStore((state) => state.graphViewActive)
   const setGraphViewActive = useSelectionStore((state) => state.setGraphViewActive)
 
@@ -452,6 +455,12 @@ export function SkillManagerLayout() {
       }
       setSelectedTeamId(id)
     }, [isDirty, selectedTeamId, storeCurrentChanges, setSelectedTeamId]),
+    onRunIdChange: useCallback((id: string | null) => {
+      if (isDirty) {
+        storeCurrentChanges()
+      }
+      setSelectedRunId(id)
+    }, [isDirty, storeCurrentChanges, setSelectedRunId]),
     onSettingsOpenChange: useCallback((open: boolean) => {
       setShowSettingsDialog(open)
     }, []),
@@ -479,6 +488,11 @@ export function SkillManagerLayout() {
   useEffect(() => {
     updateUrl({ teamId: selectedTeamId })
   }, [selectedTeamId, updateUrl])
+
+  // Sync URL when selected run changes
+  useEffect(() => {
+    updateUrl({ runId: selectedRunId })
+  }, [selectedRunId, updateUrl])
 
   // Sync URL when settings dialog state changes
   useEffect(() => {
@@ -1258,7 +1272,13 @@ export function SkillManagerLayout() {
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">
-            {selectedTeamId ? (
+            {selectedRunId ? (
+              <RunEditorPanel
+                runId={selectedRunId}
+                onClose={() => setSelectedRunId(null)}
+                className="h-full"
+              />
+            ) : selectedTeamId ? (
               <TeamEditorPanel
                 team={currentTeam ?? null}
                 allAgents={agents}

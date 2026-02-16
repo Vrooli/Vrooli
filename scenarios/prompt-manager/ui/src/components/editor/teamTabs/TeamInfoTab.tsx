@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Clock, Hash, Users, Shield, Target, Cpu, FileText } from 'lucide-react'
+import { Clock, Hash, Users, Shield, Target, Cpu, ExternalLink } from 'lucide-react'
 import type { TeamDetails, TeamRole, UpdateTeamRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { cn } from '@/lib/utils'
@@ -19,7 +19,7 @@ import { selectors } from '@/constants/selectors'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
-import { EventsModal } from '@/components/shared/EventsModal'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { RolesTab } from './RolesTab'
 
 interface TeamInfoTabProps {
@@ -41,14 +41,6 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
-  const [eventsRunId, setEventsRunId] = useState<string | null>(null)
-  const [eventsAgentName, setEventsAgentName] = useState<string | undefined>()
-  const [eventsLive, setEventsLive] = useState(false)
-  const [eventsError, setEventsError] = useState<string | undefined>()
-  const [eventsAgentId, setEventsAgentId] = useState<string | undefined>()
-  const [eventsSchedule, setEventsSchedule] = useState<string | undefined>()
-  const [eventsProfileKey, setEventsProfileKey] = useState<string | undefined>()
-
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown'
     return new Date(dateString).toLocaleString()
@@ -352,18 +344,12 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
                       <button
                         type="button"
                         className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                        title="View events"
+                        title="Open full run view"
                         onClick={() => {
-                          setEventsRunId(rid)
-                          setEventsAgentName(entry.memberName)
-                          setEventsLive(entry.status === 'running')
-                          setEventsError(entry.config.lastExecution.error || undefined)
-                          setEventsAgentId(entry.config.agentId)
-                          setEventsSchedule(entry.config.schedule)
-                          setEventsProfileKey(entry.config.profileKey)
+                          useSelectionStore.getState().setSelectedRunId(rid)
                         }}
                       >
-                        <FileText className="h-3.5 w-3.5" />
+                        <ExternalLink className="h-3.5 w-3.5" />
                       </button>
                     )
                   })()}
@@ -402,25 +388,6 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
         <RolesTab team={team} onSetRoles={onSetRoles} allAgents={allAgents} onNavigateToMember={onNavigateToMember} />
       </section>
 
-      {eventsRunId && (
-        <EventsModal
-          isOpen
-          onClose={() => { setEventsRunId(null); setEventsError(undefined) }}
-          runId={eventsRunId}
-          agentName={eventsAgentName}
-          live={eventsLive}
-          errorMessage={eventsError}
-          teamId={team.id}
-          agentId={eventsAgentId}
-          teamName={team.displayName}
-          schedule={eventsSchedule}
-          profileKey={eventsProfileKey}
-          onNavigateToMember={onNavigateToMember ? (_tId, aId) => {
-            setEventsRunId(null)
-            onNavigateToMember(aId)
-          } : undefined}
-        />
-      )}
     </div>
   )
 }

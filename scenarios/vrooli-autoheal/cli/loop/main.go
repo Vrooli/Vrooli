@@ -474,13 +474,13 @@ func startAPI(config *Config) error {
 	switch runtime.GOOS {
 	case "windows":
 		if strings.HasSuffix(config.VrooliCmdPath, ".bat") {
-			cmd = exec.Command(config.VrooliCmdPath, "scenario", "start", config.ScenarioName)
+			cmd = exec.Command(config.VrooliCmdPath, "scenario", "start", config.ScenarioName, "--best-effort")
 		} else {
 			cmd = exec.Command("powershell", "-Command",
-				fmt.Sprintf("& '%s' scenario start %s", config.VrooliCmdPath, config.ScenarioName))
+				fmt.Sprintf("& '%s' scenario start %s --best-effort", config.VrooliCmdPath, config.ScenarioName))
 		}
 	default:
-		cmd = exec.Command(config.VrooliCmdPath, "scenario", "start", config.ScenarioName)
+		cmd = exec.Command(config.VrooliCmdPath, "scenario", "start", config.ScenarioName, "--best-effort")
 	}
 
 	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
@@ -505,13 +505,13 @@ func restartAPI(config *Config) error {
 	switch runtime.GOOS {
 	case "windows":
 		if strings.HasSuffix(config.VrooliCmdPath, ".bat") {
-			cmd = exec.Command(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName)
+			cmd = exec.Command(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName, "--best-effort")
 		} else {
 			cmd = exec.Command("powershell", "-Command",
-				fmt.Sprintf("& '%s' scenario restart %s", config.VrooliCmdPath, config.ScenarioName))
+				fmt.Sprintf("& '%s' scenario restart %s --best-effort", config.VrooliCmdPath, config.ScenarioName))
 		}
 	default:
-		cmd = exec.Command(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName)
+		cmd = exec.Command(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName, "--best-effort")
 	}
 
 	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))

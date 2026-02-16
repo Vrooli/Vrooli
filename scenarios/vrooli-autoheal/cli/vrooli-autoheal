@@ -171,7 +171,7 @@ start_api() {
     # Use vrooli scenario start to properly start with all dependencies
     # This handles database connections, port allocation, etc.
     local start_output
-    start_output=$(vrooli scenario start "$SCENARIO_ID" 2>&1) || {
+    start_output=$(vrooli scenario start "$SCENARIO_ID" --best-effort 2>&1) || {
         echo -e "${RED}Failed to start scenario: $start_output${NC}" >&2
         echo "$start_output" >> "$CONFIG_DIR/api.log"
         return 1

@@ -17,4 +17,8 @@ type AgentClient interface {
 	WaitForRun(ctx context.Context, runID string, pollInterval time.Duration) (*Run, error)
 	StopRun(ctx context.Context, runID string) error
 	GetRunEvents(ctx context.Context, runID string, afterSequence int64, limit int) ([]byte, error)
+	ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResponse, error)
+	ContinueRun(ctx context.Context, runID string, message string) (*Run, error)
+	CreateInvestigationRun(ctx context.Context, runIDs []string, depth string, customContext string) (*Run, error)
+	CreateInvestigationApplyRun(ctx context.Context, investigationRunID string, customContext string) (*Run, error)
 }

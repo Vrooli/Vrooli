@@ -13,7 +13,7 @@
 
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2 } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType, ContentSearchOptions, SkillSearchMode } from '@/types'
@@ -27,6 +27,7 @@ import { TagFilterPopover } from './TagFilterPopover'
 import { FolderFilterChips } from './FolderFilterChips'
 import { AgentListPanel } from '../agent/AgentListPanel'
 import { TeamListPanel } from '../team/TeamListPanel'
+import { RunListPanel } from '../run/RunListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
@@ -49,6 +50,7 @@ const TAB_SEARCH_FEATURES = {
   skills:  { contentSearch: true, aiSearch: true, tagFilter: true, folderFilter: true },
   agents:  { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
   teams:   { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
+  runs:    { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
 } as const
 
 type SearchableTab = keyof typeof TAB_SEARCH_FEATURES
@@ -57,6 +59,7 @@ const TAB_SEARCH_PLACEHOLDERS: Record<SearchableTab, string> = {
   skills: 'Search skills... (Ctrl+K)',
   agents: 'Search agents...',
   teams: 'Search teams...',
+  runs: 'Search runs...',
 }
 
 interface ContentMatchGroup {
@@ -393,21 +396,28 @@ export function SkillTreeSidebar({
   const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
   const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
+  // Run selection from centralized store
+  const selectedRunId = useSelectionStore((state) => state.selectedRunId)
+  const setSelectedRunId = useSelectionStore((state) => state.setSelectedRunId)
+
   // Active tab state
   const [activeTab, setActiveTab] = useState(initialActiveTab)
 
-  // Search state for agents/teams tabs (skills search is managed by parent)
+  // Search state for agents/teams/runs tabs (skills search is managed by parent)
   const [agentSearchQuery, setAgentSearchQuery] = useState('')
   const [teamSearchQuery, setTeamSearchQuery] = useState('')
+  const [runSearchQuery, setRunSearchQuery] = useState('')
 
   // Unified search query for the current tab
   const currentSearchQuery = activeTab === 'skills' ? searchQuery
     : activeTab === 'agents' ? agentSearchQuery
+    : activeTab === 'runs' ? runSearchQuery
     : teamSearchQuery
 
   const handleCurrentSearchChange = useCallback((query: string) => {
     if (activeTab === 'skills') onSearchChange(query)
     else if (activeTab === 'agents') setAgentSearchQuery(query)
+    else if (activeTab === 'runs') setRunSearchQuery(query)
     else setTeamSearchQuery(query)
   }, [activeTab, onSearchChange])
 
@@ -969,11 +979,11 @@ export function SkillTreeSidebar({
         </div>
 
         {/* Tab triggers */}
-        <Tabs.List className="flex-shrink-0 flex border-b border-border">
+        <Tabs.List className="flex-shrink-0 flex flex-nowrap overflow-x-auto border-b border-border [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <Tabs.Trigger
             value="skills"
             className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
@@ -987,7 +997,7 @@ export function SkillTreeSidebar({
           <Tabs.Trigger
             value="agents"
             className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
@@ -1001,7 +1011,7 @@ export function SkillTreeSidebar({
           <Tabs.Trigger
             value="teams"
             className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
@@ -1010,6 +1020,19 @@ export function SkillTreeSidebar({
           >
             <Users className="h-3.5 w-3.5" />
             Teams
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="runs"
+            className={cn(
+              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'border-b-2 border-transparent',
+              'text-muted-foreground hover:text-foreground',
+              'data-[state=active]:text-foreground data-[state=active]:border-primary',
+              'transition-colors'
+            )}
+          >
+            <Activity className="h-3.5 w-3.5" />
+            Runs
           </Tabs.Trigger>
         </Tabs.List>
 
@@ -1230,6 +1253,16 @@ export function SkillTreeSidebar({
             onSelectTeam={onSelectTeamFromMenu ?? setSelectedTeamId}
             searchQuery={teamSearchQuery}
             onToggleTeamEnabled={onToggleTeamEnabled}
+            className="flex-1"
+          />
+        </Tabs.Content>
+
+        {/* Runs Tab */}
+        <Tabs.Content value="runs" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          <RunListPanel
+            selectedRunId={selectedRunId}
+            onSelectRun={setSelectedRunId}
+            searchQuery={runSearchQuery}
             className="flex-1"
           />
         </Tabs.Content>

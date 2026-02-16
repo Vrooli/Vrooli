@@ -24,9 +24,6 @@ describe("MainLayout", () => {
     vi.clearAllMocks();
     vi.mocked(settingsService.get).mockResolvedValue({
       theme: "dark",
-      customFocus: "",
-      insightsEnabled: false,
-      insightsAutoAnalyze: false,
     });
   });
 

@@ -371,6 +371,15 @@ export async function stopRunningAgent(teamId: string, agentId: string): Promise
 // Run Details
 // ============================================================================
 
+export interface RunActions {
+  canInvestigate: boolean
+  canApplyInvestigation: boolean
+  canDelete: boolean
+  canStop: boolean
+  canRetry: boolean
+  canContinue: boolean
+}
+
 export interface RunDetails {
   id: string
   taskId: string
@@ -379,13 +388,22 @@ export interface RunDetails {
   startedAt?: string
   endedAt?: string
   error?: string
+  tag?: string
+  sessionId?: string
+  actions?: RunActions
+}
+
+export interface ListRunsResponse {
+  runs: RunDetails[]
+  total: number
+  hasMore: boolean
 }
 
 /**
  * Fetch details for a single run by ID.
  */
 export async function getRunDetails(runId: string): Promise<RunDetails> {
-  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string } }>(
+  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string; actions?: { can_investigate?: boolean; can_apply_investigation?: boolean; can_delete?: boolean; can_stop?: boolean; can_retry?: boolean; can_continue?: boolean } } }>(
     `/runs/${encodeURIComponent(runId)}`
   )
   const r = raw.run
@@ -397,6 +415,128 @@ export async function getRunDetails(runId: string): Promise<RunDetails> {
     startedAt: r.started_at,
     endedAt: r.ended_at,
     error: r.error_msg,
+    tag: r.tag,
+    sessionId: r.session_id,
+    actions: r.actions ? {
+      canInvestigate: r.actions.can_investigate ?? false,
+      canApplyInvestigation: r.actions.can_apply_investigation ?? false,
+      canDelete: r.actions.can_delete ?? false,
+      canStop: r.actions.can_stop ?? false,
+      canRetry: r.actions.can_retry ?? false,
+      canContinue: r.actions.can_continue ?? false,
+    } : undefined,
+  }
+}
+
+/**
+ * List runs with optional filtering.
+ */
+export async function listRuns(opts?: {
+  status?: string
+  tagPrefix?: string
+  limit?: number
+  offset?: number
+}): Promise<ListRunsResponse> {
+  const params = new URLSearchParams()
+  if (opts?.status) params.set('status', opts.status)
+  if (opts?.tagPrefix) params.set('tag_prefix', opts.tagPrefix)
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+  if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
+  const qs = params.toString()
+  const endpoint = `/runs${qs ? `?${qs}` : ''}`
+
+  const raw = await apiRequest<{ runs?: Array<{ id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string }>; total?: number; has_more?: boolean }>(endpoint)
+  const runs = (raw.runs ?? []).map((r) => ({
+    id: r.id,
+    taskId: r.task_id,
+    profileId: r.agent_profile_id,
+    status: r.status,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    error: r.error_msg,
+    tag: r.tag,
+    sessionId: r.session_id,
+  }))
+  return {
+    runs,
+    total: raw.total ?? runs.length,
+    hasMore: raw.has_more ?? false,
+  }
+}
+
+/**
+ * Continue a run with an additional message.
+ */
+export async function continueRun(runId: string, message: string): Promise<void> {
+  await apiRequest<Record<string, never>>(
+    `/runs/${encodeURIComponent(runId)}/continue`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }
+  )
+}
+
+/**
+ * Create an investigation run for one or more failed runs.
+ */
+export async function createInvestigationRun(runIds: string[], opts?: {
+  depth?: string
+  customContext?: string
+}): Promise<RunDetails> {
+  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string } }>(
+    '/runs/investigate',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        run_ids: runIds,
+        depth: opts?.depth,
+        custom_context: opts?.customContext,
+      }),
+    }
+  )
+  const r = raw.run
+  return {
+    id: r.id,
+    taskId: r.task_id,
+    profileId: r.agent_profile_id,
+    status: r.status,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    error: r.error_msg,
+    tag: r.tag,
+    sessionId: r.session_id,
+  }
+}
+
+/**
+ * Create an investigation-apply run from an investigation run.
+ */
+export async function createInvestigationApplyRun(
+  investigationRunId: string,
+  customContext?: string
+): Promise<RunDetails> {
+  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string } }>(
+    '/runs/investigation-apply',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        investigation_run_id: investigationRunId,
+        custom_context: customContext,
+      }),
+    }
+  )
+  const r = raw.run
+  return {
+    id: r.id,
+    taskId: r.task_id,
+    profileId: r.agent_profile_id,
+    status: r.status,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    error: r.error_msg,
+    tag: r.tag,
+    sessionId: r.session_id,
   }
 }
 

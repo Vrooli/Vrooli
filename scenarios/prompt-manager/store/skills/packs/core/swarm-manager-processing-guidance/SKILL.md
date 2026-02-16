@@ -41,6 +41,7 @@ Every processing operation must leave evidence of what was done:
 **For Ideas (scenario creation/improvement):**
 - Update or create the scenario
 - Write `notes.md` in the item folder with completion summary
+- Include ecosystem-manager task ID and chosen steering strategy
 - List files created/modified
 - Note any deviations from the plan
 
@@ -71,33 +72,30 @@ Example completion summary:
 # Completion Summary
 
 ## Actions Taken
-- Created new scenario `scenarios/my-scenario/`
-- Implemented API with 3 endpoints
-- Added UI with React components
-- Configured service.json for lifecycle management
+- Created ecosystem-manager task for `scenarios/my-scenario/`
+- Selected steering profile: `balanced` (standard new scenario scope)
+- Started queue processor
 
-## Files Affected
-### Created
-- `scenarios/my-scenario/api/main.go`
-- `scenarios/my-scenario/ui/src/App.tsx`
-- `scenarios/my-scenario/service.json`
+## Ecosystem Manager Task
+- **Task ID**: em-task-20260216-001
+- **Steering**: Profile `balanced` (progress -> test -> refactor -> polish)
+- **Rationale**: Standard scope new scenario with no special UX or quality requirements
+- **Monitor**: `ecosystem-manager task show em-task-20260216-001`
 
-### Modified
-- `.vrooli/service.json` - registered new scenario
-
-## Deviations from Plan
-- Used Redis instead of in-memory cache (per enhancement suggestion s3)
-- Deferred admin panel to v2 (scope reduction)
+## Specification Highlights
+- API with 3 endpoints, UI with React components
+- Depends on postgres and redis resources
+- Key suggestion accepted: use Redis for caching (s3)
+- Admin panel deferred to v2 (scope reduction noted in enhance/summary.md)
 
 ## Verification
-- [x] API starts without errors
-- [x] UI builds successfully
-- [x] Integration with postgres confirmed
-- [x] Manual smoke test passed
+- [x] Task created with correct steering configuration
+- [x] Queue processor running
+- [x] Task confirmed via `ecosystem-manager task show`
 
 ## Follow-up
-- Add comprehensive tests (tracked in separate backlog item)
-- Performance optimization for high load
+- Monitor task progress: `ecosystem-manager task show em-task-20260216-001`
+- Queue status: `ecosystem-manager queue status`
 ```
 
 ### 5. Error Handling
@@ -119,10 +117,10 @@ Do NOT:
 Before marking processing complete:
 
 ### For Scenario Creation/Improvement
-- [ ] Scenario builds without errors
-- [ ] API starts and responds to health check
-- [ ] UI builds and loads
-- [ ] service.json is valid
+- [ ] Ecosystem-manager task created with appropriate steering
+- [ ] Queue processor running or started
+- [ ] Task confirmed via `ecosystem-manager task show <id>`
+- [ ] service.json is valid (if creating/modifying scenario directly)
 - [ ] No security vulnerabilities introduced
 - [ ] No hardcoded secrets
 

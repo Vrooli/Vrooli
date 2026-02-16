@@ -357,9 +357,6 @@ export function mapSpecSyncArchiveResponse(
 export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
   return {
     theme: normalizeThemePreference(protoSettings.theme),
-    customFocus: protoSettings.customFocus ?? "",
-    insightsEnabled: protoSettings.insightsEnabled ?? false,
-    insightsAutoAnalyze: protoSettings.insightsAutoAnalyze ?? false,
   };
 }
 

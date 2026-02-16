@@ -213,10 +213,6 @@ export const literalSelectors = {
     themeDark: "theme-dark",
     themeLight: "theme-light",
     themeSystem: "theme-system",
-    customFocus: "custom-focus",
-    insightsSettings: "insights-settings",
-    insightsEnabled: "insights-enabled",
-    insightsAutoAnalyze: "insights-auto-analyze",
     saveButton: "settings-save",
   },
   // Execution page selectors

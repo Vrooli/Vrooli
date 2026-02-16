@@ -32,6 +32,9 @@ interface SelectionStore {
   // Team selection for editing
   selectedTeamId: string | null
 
+  // Run selection for detail view
+  selectedRunId: string | null
+
   // Graph view toggle (when no skill selected)
   graphViewActive: boolean
 
@@ -45,6 +48,7 @@ interface SelectionStore {
   clearAllSelection: () => void
   setSelectedAgentId: (id: string | null) => void
   setSelectedTeamId: (id: string | null) => void
+  setSelectedRunId: (id: string | null) => void
   setGraphViewActive: (v: boolean) => void
 }
 
@@ -53,6 +57,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedSkillIds: [],
   selectedAgentId: null,
   selectedTeamId: null,
+  selectedRunId: null,
   graphViewActive: loadGraphViewActive(),
 
   setSelectedSkillId: (id) => {
@@ -61,9 +66,10 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       // When selecting a single skill for editing, also update multi-selection
       // This ensures the 3D tree highlights the selected skill
       selectedSkillIds: id ? [id] : [],
-      // Clear agent and team selection when selecting a skill
+      // Clear agent, team, and run selection when selecting a skill
       selectedAgentId: null,
       selectedTeamId: null,
+      selectedRunId: null,
     })
   },
 
@@ -125,26 +131,40 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedSkillIds: [],
       selectedAgentId: null,
       selectedTeamId: null,
+      selectedRunId: null,
     })
   },
 
   setSelectedAgentId: (id) => {
     set({
       selectedAgentId: id,
-      // Clear skill and team selection when selecting an agent
+      // Clear skill, team, and run selection when selecting an agent
       selectedSkillId: null,
       selectedSkillIds: [],
       selectedTeamId: null,
+      selectedRunId: null,
     })
   },
 
   setSelectedTeamId: (id) => {
     set({
       selectedTeamId: id,
-      // Clear skill and agent selection when selecting a team
+      // Clear skill, agent, and run selection when selecting a team
       selectedSkillId: null,
       selectedSkillIds: [],
       selectedAgentId: null,
+      selectedRunId: null,
+    })
+  },
+
+  setSelectedRunId: (id) => {
+    set({
+      selectedRunId: id,
+      // Clear skill, agent, and team selection when selecting a run
+      selectedSkillId: null,
+      selectedSkillIds: [],
+      selectedAgentId: null,
+      selectedTeamId: null,
     })
   },
 

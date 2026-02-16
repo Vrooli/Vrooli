@@ -1061,6 +1061,136 @@ func (h *Handlers) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// ListRuns handles GET /runs - proxies run listing to agent-manager.
+func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	opts := ListRunsOptions{
+		Status:     r.URL.Query().Get("status"),
+		TagPrefix:  r.URL.Query().Get("tag_prefix"),
+		ProfileKey: r.URL.Query().Get("profile_key"),
+		TaskID:     r.URL.Query().Get("task_id"),
+	}
+	if v := r.URL.Query().Get("limit"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+		opts.Limit = parsed
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			http.Error(w, "invalid offset", http.StatusBadRequest)
+			return
+		}
+		opts.Offset = parsed
+	}
+
+	result, err := h.agentClient.ListRuns(r.Context(), opts)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+// ContinueRun handles POST /runs/{runId}/continue - sends a continue message to a paused run.
+func (h *Handlers) ContinueRun(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	runID := vars["runId"]
+
+	if runID == "" {
+		http.Error(w, "runId is required", http.StatusBadRequest)
+		return
+	}
+
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	run, err := h.agentClient.ContinueRun(r.Context(), runID, req.Message)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
+}
+
+// CreateInvestigationRun handles POST /runs/investigate - creates an investigation run.
+func (h *Handlers) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		RunIDs        []string `json:"run_ids"`
+		Depth         string   `json:"depth"`
+		CustomContext string   `json:"custom_context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	run, err := h.agentClient.CreateInvestigationRun(r.Context(), req.RunIDs, req.Depth, req.CustomContext)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
+}
+
+// CreateInvestigationApplyRun handles POST /runs/investigation-apply - applies an investigation.
+func (h *Handlers) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Request) {
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		InvestigationRunID string `json:"investigation_run_id"`
+		CustomContext      string `json:"custom_context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	run, err := h.agentClient.CreateInvestigationApplyRun(r.Context(), req.InvestigationRunID, req.CustomContext)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
+}
+
 // GetTeamExecutionStatus handles GET /teams/{id}/execution-status - returns team execution queue state.
 func (h *Handlers) GetTeamExecutionStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

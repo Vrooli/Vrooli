@@ -28,18 +28,12 @@ import (
 
 // Settings represents persisted configuration for the scenario.
 type Settings struct {
-	Theme               string `json:"theme"`
-	CustomFocus         string `json:"customFocus,omitempty"`
-	InsightsEnabled     bool   `json:"insightsEnabled"`
-	InsightsAutoAnalyze bool   `json:"insightsAutoAnalyze"`
+	Theme string `json:"theme"`
 }
 
 // SettingsPatch allows partial updates.
 type SettingsPatch struct {
-	Theme               *string `json:"theme,omitempty"`
-	CustomFocus         *string `json:"customFocus,omitempty"`
-	InsightsEnabled     *bool   `json:"insightsEnabled,omitempty"`
-	InsightsAutoAnalyze *bool   `json:"insightsAutoAnalyze,omitempty"`
+	Theme *string `json:"theme,omitempty"`
 }
 
 // Store persists settings on disk.
@@ -62,10 +56,7 @@ func NewStore(path string) *Store {
 // DefaultSettings returns the baseline settings.
 func DefaultSettings() Settings {
 	return Settings{
-		Theme:               "dark",
-		CustomFocus:         "",
-		InsightsEnabled:     false,
-		InsightsAutoAnalyze: false,
+		Theme: "dark",
 	}
 }
 
@@ -107,7 +98,6 @@ func normalizeSettings(settings Settings) Settings {
 	if strings.TrimSpace(settings.Theme) == "" {
 		settings.Theme = "dark"
 	}
-	settings.CustomFocus = strings.TrimSpace(settings.CustomFocus)
 	return settings
 }
 
@@ -184,11 +174,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[settings] updated: theme=%s focus=%q insights=%v auto=%v at=%s",
+	log.Printf("[settings] updated: theme=%s at=%s",
 		updated.Theme,
-		updated.CustomFocus,
-		updated.InsightsEnabled,
-		updated.InsightsAutoAnalyze,
 		time.Now().UTC().Format(time.RFC3339),
 	)
 
@@ -203,24 +190,12 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.Theme != nil {
 		current.Theme = strings.TrimSpace(*patch.Theme)
 	}
-	if patch.CustomFocus != nil {
-		current.CustomFocus = strings.TrimSpace(*patch.CustomFocus)
-	}
-	if patch.InsightsEnabled != nil {
-		current.InsightsEnabled = *patch.InsightsEnabled
-	}
-	if patch.InsightsAutoAnalyze != nil {
-		current.InsightsAutoAnalyze = *patch.InsightsAutoAnalyze
-	}
 	return current
 }
 
 func settingsToProto(settings Settings) *domainpb.Settings {
 	return &domainpb.Settings{
-		Theme:               settings.Theme,
-		CustomFocus:         optionalString(settings.CustomFocus),
-		InsightsEnabled:     settings.InsightsEnabled,
-		InsightsAutoAnalyze: settings.InsightsAutoAnalyze,
+		Theme: settings.Theme,
 	}
 }
 
@@ -232,15 +207,6 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.Theme != nil {
 		patch.Theme = req.Theme
 	}
-	if req.CustomFocus != nil {
-		patch.CustomFocus = req.CustomFocus
-	}
-	if req.InsightsEnabled != nil {
-		patch.InsightsEnabled = req.InsightsEnabled
-	}
-	if req.InsightsAutoAnalyze != nil {
-		patch.InsightsAutoAnalyze = req.InsightsAutoAnalyze
-	}
 	return patch
 }
 
@@ -248,16 +214,5 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 	if req == nil {
 		return true
 	}
-	return req.Theme == nil &&
-		req.CustomFocus == nil &&
-		req.InsightsEnabled == nil &&
-		req.InsightsAutoAnalyze == nil
-}
-
-func optionalString(value string) *string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return nil
-	}
-	return &trimmed
+	return req.Theme == nil
 }

@@ -885,7 +885,7 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 		{
 			name:          "start success",
 			actionID:      "start",
-			cmdKey:        "vrooli scenario start test-scenario",
+			cmdKey:        "vrooli scenario start test-scenario --best-effort",
 			cmdOutput:     "Started test-scenario",
 			cmdError:      nil,
 			statusOutput:  "test-scenario: running (healthy)",
@@ -894,7 +894,7 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 		{
 			name:          "start failure - command error",
 			actionID:      "start",
-			cmdKey:        "vrooli scenario start test-scenario",
+			cmdKey:        "vrooli scenario start test-scenario --best-effort",
 			cmdOutput:     "",
 			cmdError:      checks.ErrCommandNotFound,
 			statusOutput:  "",
@@ -903,7 +903,7 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 		{
 			name:          "restart success",
 			actionID:      "restart",
-			cmdKey:        "vrooli scenario restart test-scenario",
+			cmdKey:        "vrooli scenario restart test-scenario --best-effort",
 			cmdOutput:     "Restarted test-scenario",
 			cmdError:      nil,
 			statusOutput:  "test-scenario: running (healthy)",
@@ -912,7 +912,7 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 		{
 			name:          "restart-clean success",
 			actionID:      "restart-clean",
-			cmdKey:        "vrooli scenario restart test-scenario --clean",
+			cmdKey:        "vrooli scenario start test-scenario --best-effort",
 			cmdOutput:     "Clean restart of test-scenario",
 			cmdError:      nil,
 			statusOutput:  "test-scenario: running (healthy)",
@@ -921,7 +921,7 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 		{
 			name:          "restart-clean failure - command error",
 			actionID:      "restart-clean",
-			cmdKey:        "vrooli scenario restart test-scenario --clean",
+			cmdKey:        "vrooli scenario start test-scenario --best-effort",
 			cmdOutput:     "",
 			cmdError:      checks.ErrConnectionRefused,
 			statusOutput:  "",

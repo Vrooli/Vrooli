@@ -29,6 +29,7 @@ export interface UrlState {
   skillId: string | null
   agentId: string | null
   teamId: string | null
+  runId: string | null
   settingsOpen: boolean
   view: ViewMode | null
   hlFile: string | null
@@ -43,6 +44,8 @@ export interface UseUrlStateOptions {
   onAgentIdChange: (id: string | null) => void
   /** Called when team ID changes from URL navigation */
   onTeamIdChange: (id: string | null) => void
+  /** Called when run ID changes from URL navigation */
+  onRunIdChange?: (id: string | null) => void
   /** Called when settings open state changes from URL navigation */
   onSettingsOpenChange: (open: boolean) => void
   /** Called when view mode changes from URL navigation */
@@ -67,6 +70,7 @@ const URL_PARAMS = {
   SKILL: 'skill',
   AGENT: 'agent',
   TEAM: 'team',
+  RUN: 'run',
   SETTINGS: 'settings',
   VIEW: 'view',
   HL_FILE: 'hlFile',
@@ -88,6 +92,7 @@ function parseUrlState(search: string): UrlState {
     skillId: params.get(URL_PARAMS.SKILL),
     agentId: params.get(URL_PARAMS.AGENT),
     teamId: params.get(URL_PARAMS.TEAM),
+    runId: params.get(URL_PARAMS.RUN),
     settingsOpen: params.get(URL_PARAMS.SETTINGS) === 'true',
     view: viewRaw && VALID_VIEWS.has(viewRaw) ? viewRaw : null,
     hlFile: params.get(URL_PARAMS.HL_FILE),
@@ -112,6 +117,10 @@ function buildUrlSearch(state: UrlState): string {
 
   if (state.teamId) {
     params.set(URL_PARAMS.TEAM, state.teamId)
+  }
+
+  if (state.runId) {
+    params.set(URL_PARAMS.RUN, state.runId)
   }
 
   if (state.settingsOpen) {
@@ -166,6 +175,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     skillId: null,
     agentId: null,
     teamId: null,
+    runId: null,
     settingsOpen: false,
     view: null,
     hlFile: null,
@@ -184,7 +194,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
    */
   const getInitialState = useCallback((): UrlState => {
     if (typeof window === 'undefined') {
-      return { skillId: null, agentId: null, teamId: null, settingsOpen: false, view: null, hlFile: null, hlLine: null, hlText: null }
+      return { skillId: null, agentId: null, teamId: null, runId: null, settingsOpen: false, view: null, hlFile: null, hlLine: null, hlText: null }
     }
     return parseUrlState(window.location.search)
   }, [])
@@ -206,6 +216,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
       newState.skillId === currentStateRef.current.skillId &&
       newState.agentId === currentStateRef.current.agentId &&
       newState.teamId === currentStateRef.current.teamId &&
+      newState.runId === currentStateRef.current.runId &&
       newState.settingsOpen === currentStateRef.current.settingsOpen &&
       newState.view === currentStateRef.current.view &&
       newState.hlFile === currentStateRef.current.hlFile &&
@@ -248,6 +259,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     opts.onSkillIdChange(urlState.skillId)
     opts.onAgentIdChange(urlState.agentId)
     opts.onTeamIdChange(urlState.teamId)
+    opts.onRunIdChange?.(urlState.runId)
     opts.onSettingsOpenChange(urlState.settingsOpen)
     if (urlState.view) {
       opts.onViewChange?.(urlState.view)
@@ -268,7 +280,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
 
     // Apply initial state (defer to allow component to mount)
     const hlRequest = extractHighlightRequest(initialState)
-    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.settingsOpen || initialState.view || hlRequest) {
+    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.runId || initialState.settingsOpen || initialState.view || hlRequest) {
       // Use setTimeout to ensure this runs after initial render
       setTimeout(() => {
         if (initialState.skillId) {
@@ -279,6 +291,9 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
         }
         if (initialState.teamId) {
           onTeamIdChange(initialState.teamId)
+        }
+        if (initialState.runId) {
+          options.onRunIdChange?.(initialState.runId)
         }
         if (initialState.settingsOpen) {
           onSettingsOpenChange(initialState.settingsOpen)

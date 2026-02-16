@@ -99,13 +99,61 @@ type CreateRunRequest struct {
 // Run represents an agent run.
 // JSON tags use snake_case to match agent-manager's protojson UseProtoNames output.
 type Run struct {
-	ID        string `json:"id"`
-	TaskID    string `json:"task_id"`
-	ProfileID string `json:"agent_profile_id,omitempty"`
-	Status    string `json:"status"`
-	StartedAt string `json:"started_at,omitempty"`
-	EndedAt   string `json:"ended_at,omitempty"`
-	Error     string `json:"error_msg,omitempty"`
+	ID        string      `json:"id"`
+	TaskID    string      `json:"task_id"`
+	ProfileID string      `json:"agent_profile_id,omitempty"`
+	Status    string      `json:"status"`
+	StartedAt string      `json:"started_at,omitempty"`
+	EndedAt   string      `json:"ended_at,omitempty"`
+	Error     string      `json:"error_msg,omitempty"`
+	Tag       string      `json:"tag,omitempty"`
+	SessionID string      `json:"session_id,omitempty"`
+	Actions   *RunActions `json:"actions,omitempty"`
+}
+
+// RunActions describes which actions are available for a run.
+type RunActions struct {
+	CanInvestigate         bool `json:"can_investigate"`
+	CanApplyInvestigation  bool `json:"can_apply_investigation"`
+	CanDelete              bool `json:"can_delete"`
+	CanStop                bool `json:"can_stop"`
+	CanRetry               bool `json:"can_retry"`
+	CanContinue            bool `json:"can_continue"`
+}
+
+// ListRunsOptions configures filtering for ListRuns.
+type ListRunsOptions struct {
+	Status     string
+	TagPrefix  string
+	ProfileKey string
+	TaskID     string
+	Limit      int
+	Offset     int
+}
+
+// ListRunsResponse is the response from listing runs.
+type ListRunsResponse struct {
+	Runs    []*Run `json:"runs"`
+	Total   int    `json:"total"`
+	HasMore bool   `json:"has_more"`
+}
+
+// ContinueRunRequest is the request for continuing a paused run.
+type ContinueRunRequest struct {
+	Message string `json:"message"`
+}
+
+// InvestigateRunRequest is the request for creating an investigation run.
+type InvestigateRunRequest struct {
+	RunIDs        []string `json:"run_ids"`
+	Depth         string   `json:"depth"`
+	CustomContext string   `json:"custom_context"`
+}
+
+// InvestigationApplyRequest is the request for applying an investigation.
+type InvestigationApplyRequest struct {
+	InvestigationRunID string `json:"investigation_run_id"`
+	CustomContext      string `json:"custom_context"`
 }
 
 // CreateRunResponse is the response from creating a run
@@ -306,6 +354,128 @@ func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, aft
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+// ListRuns retrieves runs with optional filtering.
+func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResponse, error) {
+	path := "/api/v1/runs"
+	var params []string
+	if opts.Status != "" {
+		params = append(params, "status="+opts.Status)
+	}
+	if opts.TagPrefix != "" {
+		params = append(params, "tag_prefix="+opts.TagPrefix)
+	}
+	if opts.ProfileKey != "" {
+		params = append(params, "profile_key="+opts.ProfileKey)
+	}
+	if opts.TaskID != "" {
+		params = append(params, "task_id="+opts.TaskID)
+	}
+	if opts.Limit > 0 {
+		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))
+	}
+	if opts.Offset > 0 {
+		params = append(params, fmt.Sprintf("offset=%d", opts.Offset))
+	}
+	if len(params) > 0 {
+		path += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.doRequestWithRetry(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+
+	var result ListRunsResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// ContinueRun sends a continue message to a paused run.
+func (c *AgentManagerClient) ContinueRun(ctx context.Context, runID string, message string) (*Run, error) {
+	body, err := json.Marshal(ContinueRunRequest{Message: message})
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	resp, err := c.doRequestWithRetry(ctx, "POST", fmt.Sprintf("/api/v1/runs/%s/continue", runID), body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, c.parseError(resp)
+	}
+
+	var result CreateRunResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.Run, nil
+}
+
+// CreateInvestigationRun creates an investigation run for the given run IDs.
+func (c *AgentManagerClient) CreateInvestigationRun(ctx context.Context, runIDs []string, depth string, customContext string) (*Run, error) {
+	body, err := json.Marshal(InvestigateRunRequest{
+		RunIDs:        runIDs,
+		Depth:         depth,
+		CustomContext: customContext,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/runs/investigate", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, c.parseError(resp)
+	}
+
+	var result CreateRunResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.Run, nil
+}
+
+// CreateInvestigationApplyRun creates a run that applies an investigation's recommendations.
+func (c *AgentManagerClient) CreateInvestigationApplyRun(ctx context.Context, investigationRunID string, customContext string) (*Run, error) {
+	body, err := json.Marshal(InvestigationApplyRequest{
+		InvestigationRunID: investigationRunID,
+		CustomContext:      customContext,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/runs/investigation-apply", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, c.parseError(resp)
+	}
+
+	var result CreateRunResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.Run, nil
 }
 
 // isRetryable returns true for transport errors and 5xx status codes.

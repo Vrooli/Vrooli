@@ -180,3 +180,19 @@ func (m *mockAgentClient) StopRun(_ context.Context, runID string) error {
 func (m *mockAgentClient) GetRunEvents(_ context.Context, _ string, _ int64, _ int) ([]byte, error) {
 	return []byte("[]"), nil
 }
+
+func (m *mockAgentClient) ListRuns(_ context.Context, _ ListRunsOptions) (*ListRunsResponse, error) {
+	return &ListRunsResponse{Runs: []*Run{}, Total: 0, HasMore: false}, nil
+}
+
+func (m *mockAgentClient) ContinueRun(_ context.Context, _ string, _ string) (*Run, error) {
+	return &Run{ID: "run-continued", Status: "RUN_STATUS_RUNNING"}, nil
+}
+
+func (m *mockAgentClient) CreateInvestigationRun(_ context.Context, _ []string, _ string, _ string) (*Run, error) {
+	return &Run{ID: "run-investigate", Status: "RUN_STATUS_RUNNING"}, nil
+}
+
+func (m *mockAgentClient) CreateInvestigationApplyRun(_ context.Context, _ string, _ string) (*Run, error) {
+	return &Run{ID: "run-apply", Status: "RUN_STATUS_RUNNING"}, nil
+}

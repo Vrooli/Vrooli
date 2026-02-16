@@ -25,9 +25,6 @@ func TestStore_LoadDefaults(t *testing.T) {
 	if settings.Theme != "dark" {
 		t.Errorf("expected default theme dark, got %s", settings.Theme)
 	}
-	if settings.CustomFocus != "" {
-		t.Errorf("expected default customFocus empty, got %q", settings.CustomFocus)
-	}
 }
 
 func TestHandler_UpdatePartial(t *testing.T) {
@@ -38,8 +35,7 @@ func TestHandler_UpdatePartial(t *testing.T) {
 	router := httptest.NewRecorder()
 
 	payload := map[string]any{
-		"theme":           "light",
-		"insightsEnabled": true,
+		"theme": "light",
 	}
 	body, _ := json.Marshal(payload)
 
@@ -54,8 +50,5 @@ func TestHandler_UpdatePartial(t *testing.T) {
 	settings := response.GetSettings()
 	if settings.GetTheme() != "light" {
 		t.Errorf("expected theme light, got %s", settings.GetTheme())
-	}
-	if !settings.GetInsightsEnabled() {
-		t.Errorf("expected insightsEnabled true")
 	}
 }

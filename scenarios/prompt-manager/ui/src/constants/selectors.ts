@@ -57,6 +57,16 @@ const literalSelectors = {
     addMemberButton: 'team-editor-add-member',
     spawnMode: 'team-editor-spawn-mode',
   },
+  runs: {
+    list: 'run-list',
+    row: 'run-row',
+  },
+  runEditor: {
+    header: 'run-editor-header',
+    tabInfo: 'run-editor-tab-info',
+    tabEvents: 'run-editor-tab-events',
+    tabInvestigation: 'run-editor-tab-investigation',
+  },
   world: {
     canvas: 'world-canvas',
     stats: 'world-stats',

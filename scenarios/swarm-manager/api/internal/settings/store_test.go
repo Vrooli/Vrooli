@@ -72,7 +72,7 @@ func TestHandler_UpdateSuccess(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	handler := &Handler{store: NewStore(path)}
 
-	payload := []byte(`{"theme":"light","customFocus":"  reliability  ","insightsEnabled":true,"insightsAutoAnalyze":true}`)
+	payload := []byte(`{"theme":"light"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewReader(payload))
 	rec := httptest.NewRecorder()
 	handler.Update(rec, req)
@@ -85,14 +85,5 @@ func TestHandler_UpdateSuccess(t *testing.T) {
 	settings := response.GetSettings()
 	if settings.GetTheme() != "light" {
 		t.Fatalf("expected theme light, got %q", settings.GetTheme())
-	}
-	if settings.GetCustomFocus() != "reliability" {
-		t.Fatalf("expected customFocus trimmed to reliability, got %q", settings.GetCustomFocus())
-	}
-	if !settings.GetInsightsEnabled() {
-		t.Fatalf("expected insightsEnabled true")
-	}
-	if !settings.GetInsightsAutoAnalyze() {
-		t.Fatalf("expected insightsAutoAnalyze true")
 	}
 }

@@ -15,12 +15,3 @@ func TestNewStore_DefaultPath(t *testing.T) {
 	}
 }
 
-func TestOptionalString(t *testing.T) {
-	if optionalString("   ") != nil {
-		t.Fatal("expected empty optional string to return nil")
-	}
-	result := optionalString(" value ")
-	if result == nil || *result != "value" {
-		t.Fatalf("expected trimmed value, got %v", result)
-	}
-}

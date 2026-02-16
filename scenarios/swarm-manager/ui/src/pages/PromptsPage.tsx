@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor from "@monaco-editor/react";
-import { Code, Eye } from "lucide-react";
+import { Code, Eye, List } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -146,6 +146,7 @@ export function PromptsPage() {
   const [skillsPanelWidth, setSkillsPanelWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
+  const [showMobileSkills, setShowMobileSkills] = useState(false);
   const [simulationPayload, setSimulationPayload] = useState<SimulationPayload>(defaultSimulationPayload());
   const [lastSimulationPayload, setLastSimulationPayload] = useState<SimulationPayload | null>(null);
 
@@ -454,9 +455,8 @@ export function PromptsPage() {
           <div className="h-full overflow-hidden rounded-xl border border-white/10 bg-slate-900/30">
             <div
               ref={workspaceRef}
-              className={`flex min-h-[calc(100dvh-15rem)] flex-col lg:flex-row ${isResizing ? "select-none" : ""}`}
+              className={`flex h-[calc(100dvh-12rem)] flex-col lg:h-[calc(100dvh-15rem)] lg:flex-row ${isResizing ? "select-none" : ""}`}
             >
-              <div className="border-b border-white/10 lg:hidden">{skillsList}</div>
               <div className="hidden lg:flex lg:flex-col" style={{ width: skillsPanelWidth }}>
                 {skillsList}
               </div>
@@ -472,7 +472,7 @@ export function PromptsPage() {
                 <div className="h-10 w-1 rounded-full bg-slate-700/80" />
               </div>
 
-              <div className="flex min-w-0 flex-1 flex-col" data-testid={selectors.prompts.editor}>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid={selectors.prompts.editor}>
                 {skillQuery.isLoading ? (
                   <InlineLoadingIndicator message="Loading prompt skill..." />
                 ) : selectedSkill ? (
@@ -486,6 +486,15 @@ export function PromptsPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="lg:hidden"
+                          onClick={() => setShowMobileSkills(true)}
+                        >
+                          <List className="mr-1.5 h-4 w-4" />
+                          Skills
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -541,7 +550,7 @@ export function PromptsPage() {
                     ) : null}
 
                     <div className="mt-3 flex min-h-0 flex-1 flex-col px-3 pb-3">
-                      <div className="flex-1 overflow-hidden rounded-lg border border-slate-700/70 bg-slate-950">
+                      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-700/70 bg-slate-950">
                         {markdownView === "raw" ? (
                           <Editor
                             language="markdown"
@@ -718,6 +727,38 @@ export function PromptsPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showMobileSkills ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center lg:hidden">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowMobileSkills(false)} aria-hidden="true" />
+          <div className="relative z-10 w-full max-h-[80dvh] overflow-auto rounded-t-xl border border-white/10 bg-slate-900 shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-white/10 bg-slate-900 px-4 py-3">
+              <h3 className="text-base font-semibold text-slate-100">Prompt Skills</h3>
+              <Button variant="outline" size="sm" onClick={() => setShowMobileSkills(false)}>Close</Button>
+            </div>
+            <div className="space-y-2 p-4">
+              {(skillsQuery.data ?? []).map((skill) => (
+                <button
+                  key={skill.id}
+                  className={`w-full rounded-md border px-3 py-2 text-left transition ${
+                    selectedSkillId === skill.id
+                      ? "border-cyan-500/60 bg-cyan-500/10"
+                      : "border-slate-700/60 bg-slate-900/30 hover:border-slate-500/60"
+                  }`}
+                  onClick={() => {
+                    setSelectedSkillId(skill.id);
+                    setShowMobileSkills(false);
+                  }}
+                >
+                  <p className="font-mono text-xs text-cyan-300">{skill.id}</p>
+                  <p className="mt-1 text-sm text-slate-100">{skill.name}</p>
+                  <p className="mt-1 text-xs text-slate-400">{skill.impact_summary}</p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : null}

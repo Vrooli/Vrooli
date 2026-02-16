@@ -449,9 +449,13 @@ func main() {
 		}
 	}()
 
-	// Heartbeat routes
+	// Heartbeat routes - static paths before parameterized
+	v1.HandleFunc("/runs", heartbeatHandlers.ListRuns).Methods("GET")
+	v1.HandleFunc("/runs/investigate", heartbeatHandlers.CreateInvestigationRun).Methods("POST")
+	v1.HandleFunc("/runs/investigation-apply", heartbeatHandlers.CreateInvestigationApplyRun).Methods("POST")
 	v1.HandleFunc("/runs/{runId}", heartbeatHandlers.GetRun).Methods("GET")
 	v1.HandleFunc("/runs/{runId}/events", heartbeatHandlers.GetRunEvents).Methods("GET")
+	v1.HandleFunc("/runs/{runId}/continue", heartbeatHandlers.ContinueRun).Methods("POST")
 	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")
 	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
 	v1.HandleFunc("/prompt-preview", heartbeatHandlers.PreviewPrompt).Methods("POST")

@@ -18,9 +18,6 @@ import {
 
 const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
-  customFocus: "",
-  insightsEnabled: false,
-  insightsAutoAnalyze: false,
 };
 
 type SettingsPatch = Partial<Settings>;
@@ -29,9 +26,6 @@ function normalizeSettings(input?: SettingsPatch): Settings {
   if (!input) return DEFAULT_SETTINGS;
   return {
     theme: input.theme ?? DEFAULT_SETTINGS.theme,
-    customFocus: input.customFocus ?? "",
-    insightsEnabled: input.insightsEnabled ?? DEFAULT_SETTINGS.insightsEnabled,
-    insightsAutoAnalyze: input.insightsAutoAnalyze ?? DEFAULT_SETTINGS.insightsAutoAnalyze,
   };
 }
 
@@ -51,9 +45,6 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
     async update(patch: SettingsPatch): Promise<Settings> {
       const message = buildMessage(UpdateSettingsRequestSchema, {
         theme: patch.theme,
-        customFocus: patch.customFocus,
-        insightsEnabled: patch.insightsEnabled,
-        insightsAutoAnalyze: patch.insightsAutoAnalyze,
       });
       const data = await apiClient.put<unknown>(
         API_ENDPOINTS.settings,
