@@ -32,7 +32,10 @@ import {
   ScenarioFilesResponseSchema,
   DeleteScenarioRequestSchema,
   PreserveFilesRequestSchema,
+  SpecSyncArchiveRequestSchema,
+  SpecSyncArchiveResponseSchema,
   type DeleteScenarioResponse,
+  type SpecSyncArchiveResponse,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type { ScenarioFile } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import {
@@ -253,6 +256,10 @@ export const deleteScenarioResponseSchema = createProtoSchema(
   DeleteScenarioResponseSchema,
   "scenario delete"
 );
+export const specSyncArchiveResponseSchema = createProtoSchema(
+  SpecSyncArchiveResponseSchema,
+  "spec-sync-archive"
+);
 export const scenarioFilesResponseSchema = createProtoSchema(
   ScenarioFilesResponseSchema,
   "scenario files"
@@ -262,7 +269,7 @@ export const settingsResponseSchema = createProtoSchema(
   "settings"
 );
 
-export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema };
+export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema, SpecSyncArchiveRequestSchema };
 
 export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
   const status = isBacklogStatus(protoItem.status) ? protoItem.status : "backlog";
@@ -334,6 +341,16 @@ export function mapDeleteScenarioResponse(
     message: protoResponse.message,
     backlogIdeaName: protoResponse.backlogIdeaName,
     preservedFiles: protoResponse.preservedFiles,
+  };
+}
+
+export function mapSpecSyncArchiveResponse(
+  protoResponse: SpecSyncArchiveResponse
+): { executionId: string; status: string; message: string } {
+  return {
+    executionId: protoResponse.executionId,
+    status: protoResponse.status,
+    message: protoResponse.message,
   };
 }
 

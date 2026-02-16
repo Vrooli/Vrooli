@@ -46,7 +46,7 @@ import { Select } from "../components/ui/select";
 import { TagList } from "../components/ui/tag-list";
 import { FileSelectionDialog, type FileSelectionResult } from "../components/scenarios/file-selection-dialog";
 import { capitalize, defaultQueryOptions } from "../lib";
-import { scenariosService } from "../services";
+import { scenariosService, executionService } from "../services";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_COLORS, SCENARIO_STATUS_ICONS } from "../types";
 import type { ScenarioFile, PreserveFilesPreset } from "../types";
@@ -69,7 +69,10 @@ interface ArchivePreferences {
   mode: "preset" | "custom";
   preset: PreserveFilesPreset;
   customPaths: string[];
+  specSync: boolean;
 }
+
+type SpecSyncPhase = "idle" | "syncing" | "archiving" | "done" | "failed";
 
 const ARCHIVE_PRESET_PATTERNS: Record<PreserveFilesPreset, string[]> = {
   documentation: ["PRD.md", "README.md", "docs/**", "*.md"],
@@ -133,6 +136,7 @@ function getDefaultArchivePreferences(): ArchivePreferences {
     mode: "preset",
     preset: "planning",
     customPaths: [],
+    specSync: false,
   };
 }
 
@@ -153,7 +157,8 @@ function loadArchivePreferences(): ArchivePreferences {
     const customPaths = Array.isArray(parsed.customPaths)
       ? parsed.customPaths.filter((path): path is string => typeof path === "string" && path.length > 0)
       : [];
-    return { mode, preset, customPaths };
+    const specSync = parsed.specSync === true;
+    return { mode, preset, customPaths, specSync };
   } catch {
     return getDefaultArchivePreferences();
   }
@@ -181,6 +186,12 @@ export function ScenarioDetailsPage() {
   const [archivePreset, setArchivePreset] = useState<PreserveFilesPreset>(() => loadArchivePreferences().preset);
   const [archiveMode, setArchiveMode] = useState<"preset" | "custom">(() => loadArchivePreferences().mode);
   const [customPaths, setCustomPaths] = useState<string[]>(() => loadArchivePreferences().customPaths);
+  const [specSyncEnabled, setSpecSyncEnabled] = useState(() => loadArchivePreferences().specSync);
+
+  // Spec-sync progress state
+  const [specSyncPhase, setSpecSyncPhase] = useState<SpecSyncPhase>("idle");
+  const [specSyncExecutionId, setSpecSyncExecutionId] = useState<string | null>(null);
+  const [specSyncError, setSpecSyncError] = useState<string | null>(null);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [mobileDangerExpanded, setMobileDangerExpanded] = useState(false);
 
@@ -195,8 +206,9 @@ export function ScenarioDetailsPage() {
       mode: archiveMode,
       preset: archivePreset,
       customPaths,
+      specSync: specSyncEnabled,
     });
-  }, [archiveMode, archivePreset, customPaths]);
+  }, [archiveMode, archivePreset, customPaths, specSyncEnabled]);
 
   useEffect(() => {
     setShowActionsSheet(false);
@@ -290,25 +302,105 @@ export function ScenarioDetailsPage() {
       if (name) {
         removeScenario(name);
       }
-      // Navigate back to scenarios list
       navigate("/scenarios");
     },
   });
+
+  // Spec-sync polling effect
+  useEffect(() => {
+    if (specSyncPhase !== "syncing" || !specSyncExecutionId) return;
+    const interval = setInterval(async () => {
+      try {
+        const execution = await executionService.get(specSyncExecutionId);
+        if (execution.status === "completed") {
+          setSpecSyncPhase("done");
+          if (name) {
+            removeScenario(name);
+          }
+          navigate("/scenarios");
+        } else if (execution.status === "failed") {
+          setSpecSyncPhase("failed");
+          setSpecSyncError(execution.failureReason ?? "Spec sync failed");
+        } else if (execution.status === "canceled") {
+          setSpecSyncPhase("idle");
+          setSpecSyncExecutionId(null);
+        }
+      } catch {
+        // Transient error, keep polling
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [specSyncPhase, specSyncExecutionId, name, removeScenario, navigate]);
 
   // Delete handlers
   const handleDeleteClick = () => {
     setShowDeleteDialog(true);
     setFileTreeLoaded(false);
+    setSpecSyncPhase("idle");
+    setSpecSyncError(null);
+    setSpecSyncExecutionId(null);
     void loadScenarioFiles();
   };
 
   const handleDeleteConfirm = () => {
+    if (archiveOnDelete && specSyncEnabled) {
+      // Trigger spec-sync-archive flow
+      if (!name) return;
+      const preserveFiles = effectiveArchiveMode === "custom"
+        ? { paths: customPaths }
+        : { preset: archivePreset };
+      setSpecSyncPhase("syncing");
+      setSpecSyncError(null);
+      scenariosService
+        .specSyncArchive(name, { preserveFiles })
+        .then((response) => {
+          setSpecSyncExecutionId(response.executionId);
+        })
+        .catch((err: unknown) => {
+          setSpecSyncPhase("failed");
+          setSpecSyncError(err instanceof Error ? err.message : "Failed to start spec sync");
+        });
+    } else {
+      deleteMutation.mutate();
+    }
+  };
+
+  const handleSpecSyncRetry = () => {
+    setSpecSyncPhase("idle");
+    setSpecSyncError(null);
+    setSpecSyncExecutionId(null);
+    handleDeleteConfirm();
+  };
+
+  const handleArchiveWithoutSync = () => {
+    setSpecSyncPhase("idle");
+    setSpecSyncError(null);
+    setSpecSyncExecutionId(null);
+    setSpecSyncEnabled(false);
     deleteMutation.mutate();
   };
 
-  const handleDeleteCancel = () => {
+  const handleSpecSyncCancel = () => {
+    if (specSyncExecutionId) {
+      executionService.cancel(specSyncExecutionId).catch(() => {});
+    }
+    setSpecSyncPhase("idle");
+    setSpecSyncError(null);
+    setSpecSyncExecutionId(null);
     setShowDeleteDialog(false);
-    setArchiveOnDelete(true); // Reset to default
+    setArchiveOnDelete(true);
+  };
+
+  const handleDeleteCancel = () => {
+    if (specSyncPhase === "syncing") {
+      handleSpecSyncCancel();
+      return;
+    }
+    setShowDeleteDialog(false);
+    setArchiveOnDelete(true);
+    setSpecSyncPhase("idle");
+    setSpecSyncError(null);
+    setSpecSyncExecutionId(null);
   };
 
   // Load scenario files for file selection dialog
@@ -350,6 +442,7 @@ export function ScenarioDetailsPage() {
 
   // Get status icon
   const StatusIcon = scenario ? (SCENARIO_STATUS_ICONS[scenario.status] || Circle) : Circle;
+  const isSpecSyncInProgress = specSyncPhase === "syncing" || specSyncPhase === "archiving";
   const isPageLoading = isLoading && !scenario;
   const isRunning = scenario?.status === "running";
   const isStopped = scenario?.status === "stopped";
@@ -959,8 +1052,8 @@ export function ScenarioDetailsPage() {
         title="Delete Scenario"
         description={`Are you sure you want to delete "${scenario?.displayName || name}"? This will remove the scenario from the catalog.`}
         confirmationText={scenario?.name}
-        confirmLabel="Delete Scenario"
-        isLoading={deleteMutation.isPending}
+        confirmLabel={specSyncEnabled && archiveOnDelete ? "Sync & Archive" : "Delete Scenario"}
+        isLoading={deleteMutation.isPending || isSpecSyncInProgress}
         checkboxContent={{
           label: "Archive to backlog (idea) before deleting (recommended)",
           checked: archiveOnDelete,
@@ -974,12 +1067,87 @@ export function ScenarioDetailsPage() {
         }}
         sidePanel={archiveOnDelete ? (
           <div className="space-y-4" data-testid="archive-preview-panel">
+            {/* Spec-sync progress overlay */}
+            {specSyncPhase !== "idle" && (
+              <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 space-y-2">
+                {specSyncPhase === "syncing" && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                      <span className="text-sm font-medium text-cyan-300">Syncing specs with code...</span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      An agent is updating docs to match the implementation. This may take several minutes.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-1"
+                      onClick={handleSpecSyncCancel}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                )}
+                {specSyncPhase === "archiving" && (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                    <span className="text-sm font-medium text-cyan-300">Specs synced. Archiving...</span>
+                  </div>
+                )}
+                {specSyncPhase === "done" && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-400" />
+                    <span className="text-sm font-medium text-green-300">Archive complete!</span>
+                  </div>
+                )}
+                {specSyncPhase === "failed" && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-4 w-4 text-red-400" />
+                      <span className="text-sm font-medium text-red-300">Spec sync failed</span>
+                    </div>
+                    <p className="text-xs text-red-300/80">{specSyncError}</p>
+                    <div className="flex gap-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={handleSpecSyncRetry}>
+                        Retry
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleArchiveWithoutSync}>
+                        Archive Without Sync
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleDeleteCancel}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Archive Preview</h3>
               <p className="text-xs text-slate-400">
                 Choose what to keep with the archived idea before deletion.
               </p>
             </div>
+
+            {/* Spec-sync toggle */}
+            <label className="flex items-start gap-2 rounded-lg bg-slate-800/50 p-3 cursor-pointer" data-testid="spec-sync-toggle">
+              <input
+                type="checkbox"
+                checked={specSyncEnabled}
+                onChange={(e) => setSpecSyncEnabled(e.target.checked)}
+                disabled={isSpecSyncInProgress}
+                className="mt-0.5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/50"
+              />
+              <div className="space-y-0.5">
+                <span className="text-xs font-medium text-slate-200">Sync specs with code before archiving</span>
+                <p className="text-[11px] text-slate-400">
+                  An agent will update PRD, requirements, and docs to match the current code. Takes several minutes.
+                </p>
+              </div>
+            </label>
+
             <div className="space-y-2">
               <label className="block text-xs font-medium text-slate-300" htmlFor="archive-preset-select">
                 Preset

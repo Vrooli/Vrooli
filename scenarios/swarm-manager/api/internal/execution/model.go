@@ -27,24 +27,34 @@ const (
 	ModeYOLO      Mode = "yolo"
 )
 
+// ArchiveContext captures archive parameters for spec-sync-archive executions.
+type ArchiveContext struct {
+	ScenarioName   string   `json:"scenario_name"`
+	ScenarioPath   string   `json:"scenario_path"`
+	PresetOrCustom string   `json:"preset_or_custom,omitempty"`
+	PreservePaths  []string `json:"preserve_paths,omitempty"`
+	PreservePreset string   `json:"preserve_preset,omitempty"`
+}
+
 // Record is a persisted execution run record.
 type Record struct {
-	ExecutionID   string       `json:"execution_id"`
-	BacklogKind   string       `json:"backlog_kind"`
-	BacklogName   string       `json:"backlog_name"`
-	TaskID        string       `json:"task_id,omitempty"`
-	RunID         string       `json:"run_id,omitempty"`
-	Status        Status       `json:"status"`
-	Mode          Mode         `json:"mode"`
-	ScheduledAt   string       `json:"scheduled_at,omitempty"`
-	StartedAt     string       `json:"started_at,omitempty"`
-	FinishedAt    string       `json:"finished_at,omitempty"`
-	FailureReason string       `json:"failure_reason,omitempty"`
-	StartedBy     string       `json:"started_by,omitempty"`
-	Operation     string       `json:"operation,omitempty"`
-	PromptTrace   *PromptTrace `json:"prompt_trace,omitempty"`
-	CreatedAt     string       `json:"created_at"`
-	UpdatedAt     string       `json:"updated_at"`
+	ExecutionID    string          `json:"execution_id"`
+	BacklogKind    string          `json:"backlog_kind"`
+	BacklogName    string          `json:"backlog_name"`
+	TaskID         string          `json:"task_id,omitempty"`
+	RunID          string          `json:"run_id,omitempty"`
+	Status         Status          `json:"status"`
+	Mode           Mode            `json:"mode"`
+	ScheduledAt    string          `json:"scheduled_at,omitempty"`
+	StartedAt      string          `json:"started_at,omitempty"`
+	FinishedAt     string          `json:"finished_at,omitempty"`
+	FailureReason  string          `json:"failure_reason,omitempty"`
+	StartedBy      string          `json:"started_by,omitempty"`
+	Operation      string          `json:"operation,omitempty"`
+	PromptTrace    *PromptTrace    `json:"prompt_trace,omitempty"`
+	ArchiveContext *ArchiveContext `json:"archive_context,omitempty"`
+	CreatedAt      string          `json:"created_at"`
+	UpdatedAt      string          `json:"updated_at"`
 }
 
 // PromptTrace captures prompt details used to launch the execution.

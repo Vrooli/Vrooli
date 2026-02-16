@@ -27,6 +27,11 @@ func NewHandler(cfg ServiceConfig) *Handler {
 	return &Handler{service: NewService(cfg)}
 }
 
+// NewHandlerFromService creates a handler from an existing Service.
+func NewHandlerFromService(svc *Service) *Handler {
+	return &Handler{service: svc}
+}
+
 // RegisterRoutes registers execution routes.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution", h.List).Methods("GET")
@@ -309,6 +314,21 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 	}
 	if r.Operation != "" {
 		pb.Operation = &r.Operation
+	}
+	if r.ArchiveContext != nil {
+		ac := r.ArchiveContext
+		pbAc := &domainpb.ArchiveContext{
+			ScenarioName:  ac.ScenarioName,
+			ScenarioPath:  ac.ScenarioPath,
+			PreservePaths: ac.PreservePaths,
+		}
+		if ac.PresetOrCustom != "" {
+			pbAc.PresetOrCustom = &ac.PresetOrCustom
+		}
+		if ac.PreservePreset != "" {
+			pbAc.PreservePreset = &ac.PreservePreset
+		}
+		pb.ArchiveContext = pbAc
 	}
 	return pb
 }

@@ -124,12 +124,33 @@ type ScenarioMetadata struct {
 	IsGreenfield bool `json:"isGreenfield"`
 }
 
+// SpecSyncArchiveContext mirrors the execution package's ArchiveContext.
+type SpecSyncArchiveContext struct {
+	ScenarioName   string
+	ScenarioPath   string
+	PresetOrCustom string
+	PreservePaths  []string
+	PreservePreset string
+}
+
+// SpecSyncArchiveRecord is the result of queueing a spec-sync-archive.
+type SpecSyncArchiveRecord struct {
+	ExecutionID string
+	Status      string
+}
+
+// ExecutionQueuer queues spec-sync-archive executions.
+type ExecutionQueuer interface {
+	QueueSpecSyncArchive(ctx context.Context, ac SpecSyncArchiveContext) (SpecSyncArchiveRecord, error)
+}
+
 // Handler provides HTTP handlers for scenario operations.
 type Handler struct {
-	scenariosDir string
-	source       Source
-	lifecycle    Lifecycle
-	completeness CompletenessSource
+	scenariosDir    string
+	source          Source
+	lifecycle       Lifecycle
+	completeness    CompletenessSource
+	executionQueuer ExecutionQueuer
 }
 
 // NewHandler creates a new scenarios handler.
@@ -178,6 +199,11 @@ func NewHandlerWithDeps(scenariosDir string, source Source, lifecycle Lifecycle,
 	}
 }
 
+// SetExecutionQueuer sets the execution queuer for spec-sync-archive support.
+func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
+	h.executionQueuer = eq
+}
+
 // LoadAll exposes scenario listing for non-HTTP consumers.
 // This keeps data access centralized in the scenarios package.
 func (h *Handler) LoadAll() ([]Scenario, error) {
@@ -214,6 +240,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/scenarios/{name}", h.UpdateMetadata).Methods("PATCH")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Delete).Methods("DELETE")
 	r.HandleFunc("/api/v1/scenarios/{name}/files", h.ListFiles).Methods("GET")
+	r.HandleFunc("/api/v1/scenarios/{name}/spec-sync-archive", h.SpecSyncArchive).Methods("POST")
 	r.HandleFunc("/api/v1/scenarios/{name}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/scenarios/{name}/stop", h.Stop).Methods("POST")
 	r.HandleFunc("/api/v1/scenarios/{name}/restart", h.Restart).Methods("POST")
@@ -717,6 +744,15 @@ func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error
 	}, nil
 }
 
+// loadScenarioByPath builds a Scenario from a name and filesystem path.
+// Used by the Archiver when the scenario is already located.
+func (h *Handler) loadScenarioByPath(name, scenarioPath string) (Scenario, error) {
+	return h.loadScenarioFromSource(ScenarioSource{
+		Name: name,
+		Path: scenarioPath,
+	})
+}
+
 // Delete removes a scenario from the catalog with safeguards.
 // [REQ:REQ-P0-008] DELETE /api/v1/scenarios/{name} endpoint with archive option
 //
@@ -849,6 +885,85 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSON(w, response); err != nil {
 		httputil.InternalError(w, "[scenarios] delete", "failed to encode response")
+	}
+}
+
+// SpecSyncArchive triggers a spec-sync agent, then archives on completion.
+// POST /api/v1/scenarios/{name}/spec-sync-archive
+func (h *Handler) SpecSyncArchive(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+	trimmedName := strings.TrimSpace(name)
+
+	if h.executionQueuer == nil {
+		httputil.ServiceUnavailable(w, "[scenarios] spec-sync-archive", "spec-sync-archive is not available")
+		return
+	}
+
+	source, found, err := h.findScenarioSource(r.Context(), name)
+	if err != nil {
+		httputil.InternalError(w, "[scenarios] spec-sync-archive", "failed to load scenarios from CLI")
+		return
+	}
+	if !found {
+		httputil.NotFound(w, "", "scenario not found")
+		return
+	}
+	scenarioPath := strings.TrimSpace(source.Path)
+	if scenarioPath == "" {
+		httputil.InternalError(w, "[scenarios] spec-sync-archive", "scenario path missing from CLI output")
+		return
+	}
+	if strings.EqualFold(trimmedName, "swarm-manager") {
+		httputil.BadRequest(w, "[scenarios] spec-sync-archive", errProtectedScenarioDelete.Error())
+		return
+	}
+
+	// Parse optional request body for preserve_files
+	var preserveFiles *apipb.PreserveFilesRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		var req apipb.SpecSyncArchiveRequest
+		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+			httputil.BadRequest(w, "[scenarios] spec-sync-archive", "invalid request body")
+			return
+		}
+		if req.PreserveFiles != nil {
+			normalizePreserveFilesRequest(req.PreserveFiles)
+		}
+		preserveFiles = req.PreserveFiles
+	}
+
+	// Build archive context
+	ac := SpecSyncArchiveContext{
+		ScenarioName:   trimmedName,
+		ScenarioPath:   scenarioPath,
+		PresetOrCustom: preservePresetOrCustom(preserveFiles),
+	}
+	if preserveFiles != nil {
+		ac.PreservePaths = preserveFiles.Paths
+		if preserveFiles.Preset != nil {
+			ac.PreservePreset = *preserveFiles.Preset
+		}
+	}
+
+	record, err := h.executionQueuer.QueueSpecSyncArchive(r.Context(), ac)
+	if err != nil {
+		if strings.Contains(err.Error(), "not available") {
+			httputil.ServiceUnavailable(w, "[scenarios] spec-sync-archive", "agent-manager is not available")
+			return
+		}
+		httputil.InternalError(w, "[scenarios] spec-sync-archive", "failed to queue spec-sync-archive")
+		return
+	}
+
+	log.Printf("[scenarios] spec-sync-archive queued for %q: execution_id=%s", name, record.ExecutionID)
+	resp := &apipb.SpecSyncArchiveResponse{
+		ExecutionId: record.ExecutionID,
+		Status:      record.Status,
+		Message:     "Spec sync started. Poll execution status for progress.",
+	}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
+		httputil.InternalError(w, "[scenarios] spec-sync-archive", "failed to encode response")
 	}
 }
 

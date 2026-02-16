@@ -21,6 +21,9 @@ import {
   deleteScenarioResponseSchema,
   DeleteScenarioRequestSchema,
   PreserveFilesRequestSchema,
+  SpecSyncArchiveRequestSchema,
+  specSyncArchiveResponseSchema,
+  mapSpecSyncArchiveResponse,
   listScenariosResponseSchema,
   mapDeleteScenarioResponse,
   mapProtoScenario,
@@ -39,6 +42,7 @@ import type {
   ScenarioFile,
   UpdateScenarioMetadataRequest,
   DeleteScenarioResponse,
+  SpecSyncArchiveResponse,
   PreserveFilesRequest,
 } from "../types";
 
@@ -48,6 +52,14 @@ import type {
 export interface DeleteScenarioOptions {
   /** Whether to archive the scenario to backlog (idea) */
   archive?: boolean;
+  /** Files to preserve when archiving */
+  preserveFiles?: PreserveFilesRequest;
+}
+
+/**
+ * Options for spec-sync-archive
+ */
+export interface SpecSyncArchiveOptions {
   /** Files to preserve when archiving */
   preserveFiles?: PreserveFilesRequest;
 }
@@ -64,6 +76,7 @@ export interface IScenariosService {
   getFiles(name: string): Promise<ScenarioFile[]>;
   updateMetadata(name: string, request: UpdateScenarioMetadataRequest): Promise<Scenario>;
   delete(name: string, options?: DeleteScenarioOptions): Promise<DeleteScenarioResponse>;
+  specSyncArchive(name: string, options?: SpecSyncArchiveOptions): Promise<SpecSyncArchiveResponse>;
   start(name: string): Promise<Scenario>;
   stop(name: string): Promise<Scenario>;
   restart(name: string): Promise<Scenario>;
@@ -142,6 +155,33 @@ export function createScenariosService(
         : await apiClient.delete<unknown>(endpoint);
       const parsed = parseProtoResponse(deleteScenarioResponseSchema, data, "scenario delete");
       return mapDeleteScenarioResponse(parsed);
+    },
+
+    /**
+     * Triggers spec-sync agent followed by archive on completion.
+     * Returns an execution ID for polling progress.
+     */
+    async specSyncArchive(name: string, options: SpecSyncArchiveOptions = {}): Promise<SpecSyncArchiveResponse> {
+      const { preserveFiles } = options;
+      const endpoint = API_ENDPOINTS.scenarioSpecSyncArchive(name);
+
+      let body: unknown = undefined;
+      if (preserveFiles && (preserveFiles.paths?.length || preserveFiles.preset)) {
+        const preserveFilesMsg = buildMessage(PreserveFilesRequestSchema, {
+          paths: preserveFiles.paths ?? [],
+          preset: preserveFiles.preset,
+        });
+        const requestMsg = buildMessage(SpecSyncArchiveRequestSchema, {
+          preserveFiles: preserveFilesMsg,
+        });
+        body = toProtoJson(SpecSyncArchiveRequestSchema, requestMsg);
+      }
+
+      const data = body
+        ? await apiClient.post<unknown>(endpoint, body)
+        : await apiClient.post<unknown>(endpoint, {});
+      const parsed = parseProtoResponse(specSyncArchiveResponseSchema, data, "spec-sync-archive");
+      return mapSpecSyncArchiveResponse(parsed);
     },
 
     async start(name: string): Promise<Scenario> {

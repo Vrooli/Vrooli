@@ -25,6 +25,7 @@ export const API_ENDPOINTS = {
   scenarios: "/scenarios",
   scenarioByName: (name: string) => `/scenarios/${name}`,
   scenarioFiles: (name: string) => `/scenarios/${name}/files`,
+  scenarioSpecSyncArchive: (name: string) => `/scenarios/${name}/spec-sync-archive`,
   scenarioStart: (name: string) => `/scenarios/${name}/start`,
   scenarioStop: (name: string) => `/scenarios/${name}/stop`,
   scenarioRestart: (name: string) => `/scenarios/${name}/restart`,

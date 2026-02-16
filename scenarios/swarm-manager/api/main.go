@@ -104,6 +104,8 @@ import (
 type Server struct {
 	router            *mux.Router
 	agentSvc          *agentmanager.AgentService
+	scenariosHandler  *scenarios.Handler
+	executionSvc      *execution.Service
 	executionHandler  *execution.Handler
 	executionStopChan chan struct{}
 }
@@ -163,8 +165,8 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) {
 func (s *Server) registerScenarioRoutes(scenariosDir string) {
 	// Scenarios catalog endpoints
 	// [REQ:REQ-P0-006] Scenario catalog with priority, search, and filter
-	scenariosHandler := scenarios.NewHandler(scenariosDir)
-	scenariosHandler.RegisterRoutes(s.router)
+	s.scenariosHandler = scenarios.NewHandler(scenariosDir)
+	s.scenariosHandler.RegisterRoutes(s.router)
 }
 
 func (s *Server) registerSettingsRoutes(scenarioRoot string) {
@@ -186,14 +188,28 @@ func (s *Server) registerQueueRoutes(scenarioRoot string) {
 }
 
 func (s *Server) registerExecutionRoutes(scenarioRoot string) {
+	// Create archiver from scenarios handler for post-spec-sync archive
+	var archiver execution.Archiver
+	if s.scenariosHandler != nil {
+		archiver = scenarios.NewArchiver(s.scenariosHandler)
+	}
+
 	// Execution control endpoints
-	s.executionHandler = execution.NewHandler(execution.ServiceConfig{
+	cfg := execution.ServiceConfig{
 		RootDir:      scenarioRoot,
 		StorePath:    filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
 		PolicyPath:   filepath.Join(scenarioRoot, ".vrooli", "execution-policy.json"),
 		AgentService: s.agentSvc,
-	})
+		Archiver:     archiver,
+	}
+	s.executionSvc = execution.NewService(cfg)
+	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)
 	s.executionHandler.RegisterRoutes(s.router)
+
+	// Wire execution queuer back into scenarios handler for spec-sync-archive
+	if s.scenariosHandler != nil {
+		s.scenariosHandler.SetExecutionQueuer(scenarios.NewExecutionQueuer(s.executionSvc))
+	}
 }
 
 func (s *Server) registerPromptRoutes(scenarioRoot string) {

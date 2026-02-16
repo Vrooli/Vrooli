@@ -21,6 +21,7 @@ import type {
   PreserveFilesRequest as ProtoPreserveFilesRequest,
   DeleteScenarioRequest as ProtoDeleteScenarioRequest,
   DeleteScenarioResponse as ProtoDeleteScenarioResponse,
+  SpecSyncArchiveResponse as ProtoSpecSyncArchiveResponse,
   UpdateScenarioMetadataRequest as ProtoUpdateScenarioMetadataRequest,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type { AgentManagerStatusResponse as ProtoAgentManagerStatusResponse } from "@vrooli/proto-types/swarm-manager/v1/api/agent_manager_pb";
@@ -217,6 +218,16 @@ export type DeleteScenarioRequest = Omit<ProtoMessage<ProtoDeleteScenarioRequest
  * [REQ:REQ-P0-008] Deletion confirmation with archive status
  */
 export type DeleteScenarioResponse = ProtoMessage<ProtoDeleteScenarioResponse>;
+
+/**
+ * Response from spec-sync-archive
+ * Contains execution ID for progress polling
+ */
+export interface SpecSyncArchiveResponse {
+  executionId: string;
+  status: string;
+  message: string;
+}
 
 // Agent Manager Domain
 // ============================================================================

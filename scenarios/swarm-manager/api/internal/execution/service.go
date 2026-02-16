@@ -39,6 +39,11 @@ type runStopper interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
+// Archiver performs scenario archive operations after spec-sync completes.
+type Archiver interface {
+	ArchiveScenario(ctx context.Context, ac ArchiveContext) error
+}
+
 // ServiceConfig configures execution service dependencies.
 type ServiceConfig struct {
 	RootDir      string
@@ -46,6 +51,7 @@ type ServiceConfig struct {
 	PolicyPath   string
 	AgentService agentSpawner
 	PromptClient promptmanager.Client
+	Archiver     Archiver
 }
 
 // Service owns execution lifecycle logic.
@@ -55,6 +61,7 @@ type Service struct {
 	policyStore  *PolicyStore
 	agentService agentSpawner
 	promptClient promptmanager.Client
+	archiver     Archiver
 	inspector    runInspector
 	stopper      runStopper
 	mu           sync.Mutex
@@ -83,6 +90,7 @@ func NewService(cfg ServiceConfig) *Service {
 		policyStore:  newPolicyStore(cfg.PolicyPath),
 		agentService: cfg.AgentService,
 		promptClient: pc,
+		archiver:     cfg.Archiver,
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
 		service.inspector = inspector
@@ -175,6 +183,93 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if mode == ModeYOLO {
 		return s.startLocked(ctx, record.ExecutionID)
 	}
+	return record, nil
+}
+
+// QueueSpecSyncArchive creates an execution that runs spec-sync, then archives on completion.
+func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (Record, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if strings.TrimSpace(ac.ScenarioName) == "" {
+		return Record{}, fmt.Errorf("scenario_name is required")
+	}
+	if strings.TrimSpace(ac.ScenarioPath) == "" {
+		return Record{}, fmt.Errorf("scenario_path is required")
+	}
+	if _, err := os.Stat(ac.ScenarioPath); err != nil {
+		return Record{}, fmt.Errorf("scenario path does not exist: %s", ac.ScenarioPath)
+	}
+
+	if s.agentService == nil || !s.agentService.IsEnabled() {
+		return Record{}, agentmanager.ErrNotAvailable
+	}
+
+	records, err := s.store.Load()
+	if err != nil {
+		return Record{}, err
+	}
+
+	now := nowRFC3339()
+	record := Record{
+		ExecutionID:    idgen.Generate(),
+		BacklogKind:    "spec-sync",
+		BacklogName:    ac.ScenarioName,
+		Mode:           ModeYOLO,
+		Status:         StatusPending,
+		StartedBy:      "swarm-manager",
+		Operation:      "spec-sync-archive",
+		ArchiveContext: &ac,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	// Fetch spec-sync prompt from prompt-manager
+	skillID := "spec-sync"
+	vars := map[string]string{
+		"TARGET": ac.ScenarioName,
+	}
+	prompt, promptErr := s.promptClient.ReadSkill(ctx, skillID, vars, false)
+	if promptErr != nil {
+		log.Printf("[execution] spec-sync prompt fetch failed: %v", promptErr)
+		prompt = "Read the implementation code in this scenario and update all spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior."
+	}
+	record.PromptTrace = &PromptTrace{
+		SkillID:      skillID,
+		Purpose:      "spec-sync",
+		Variables:    vars,
+		Prompt:       prompt,
+		UsedFallback: promptErr != nil,
+		CapturedAt:   now,
+	}
+
+	// Spawn agent targeting the scenario directory
+	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		Kind:        "spec-sync",
+		Name:        ac.ScenarioName,
+		Title:       "Spec sync: " + ac.ScenarioName,
+		Description: prompt,
+		Prompt:      prompt,
+		ScopePath:   ac.ScenarioPath,
+		ProjectRoot: ".",
+		CreatedBy:   "swarm-manager",
+		Purpose:     "spec-sync",
+	})
+	if err != nil {
+		return Record{}, err
+	}
+
+	record.TaskID = runResult.TaskID
+	record.RunID = runResult.RunID
+	record.StartedAt = nowRFC3339()
+	record.Status = StatusRunning
+	record.UpdatedAt = nowRFC3339()
+
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
+		return Record{}, err
+	}
+
 	return record, nil
 }
 
@@ -440,7 +535,13 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 		} else {
 			record.FinishedAt = nowRFC3339()
 		}
-		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+		// Post-completion hook: archive scenario after successful spec-sync
+		if record.ArchiveContext != nil {
+			if nextStatus == StatusCompleted {
+				s.handleSpecSyncComplete(ctx, record)
+			}
+			// For spec-sync failures, leave status as failed for UI recovery
+		} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
 			if nextStatus == StatusCompleted {
 				_ = s.updateBacklogStatus(item, "completed")
 			} else if nextStatus == StatusFailed || nextStatus == StatusCanceled {
@@ -454,6 +555,41 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 		return s.store.Save(records)
 	}
 	return nil
+}
+
+// handleSpecSyncComplete performs the archive after a successful spec-sync run.
+func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
+	if s.archiver == nil {
+		log.Printf("[execution] spec-sync completed but no archiver configured for %s", record.BacklogName)
+		record.FailureReason = "archiver not configured"
+		record.Status = StatusFailed
+		return
+	}
+
+	ac := record.ArchiveContext
+	if _, err := os.Stat(ac.ScenarioPath); err != nil {
+		log.Printf("[execution] spec-sync completed but scenario dir missing: %s", ac.ScenarioPath)
+		record.FailureReason = "scenario directory no longer exists"
+		record.Status = StatusFailed
+		return
+	}
+
+	if err := s.archiver.ArchiveScenario(ctx, *ac); err != nil {
+		log.Printf("[execution] post-spec-sync archive failed for %s: %v", ac.ScenarioName, err)
+		record.FailureReason = "archive failed after spec-sync: " + err.Error()
+		record.Status = StatusFailed
+		return
+	}
+
+	// Delete the scenario directory after successful archive
+	if err := os.RemoveAll(ac.ScenarioPath); err != nil {
+		log.Printf("[execution] post-archive scenario deletion failed for %s: %v", ac.ScenarioName, err)
+		record.FailureReason = "scenario deletion failed after archive: " + err.Error()
+		record.Status = StatusFailed
+		return
+	}
+
+	log.Printf("[execution] spec-sync-archive completed for %s", ac.ScenarioName)
 }
 
 func (s *Service) loadRecordLocked(executionID string) ([]Record, int, error) {
