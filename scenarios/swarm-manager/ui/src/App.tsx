@@ -27,6 +27,7 @@ import { BacklogDetailsPage } from "./pages/BacklogDetailsPage";
 import { ScenariosPage } from "./pages/ScenariosPage";
 import { ScenarioDetailsPage } from "./pages/ScenarioDetailsPage";
 import { ExecutionPage } from "./pages/ExecutionPage";
+import { PromptsPage } from "./pages/PromptsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
@@ -107,6 +108,14 @@ export default function App() {
               element={
                 <PageErrorBoundary pageName="Execution">
                   <ExecutionPage />
+                </PageErrorBoundary>
+              }
+            />
+            <Route
+              path="prompts"
+              element={
+                <PageErrorBoundary pageName="Prompts">
+                  <PromptsPage />
                 </PageErrorBoundary>
               }
             />

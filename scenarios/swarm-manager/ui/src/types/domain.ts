@@ -266,3 +266,55 @@ export type ExecutionPolicy = Omit<ProtoMessage<ProtoExecutionPolicy>, "defaultD
   defaultMode: ExecutionMode;
   defaultDelaySeconds: number;
 };
+
+// ============================================================================
+// Prompt Center Domain
+// ============================================================================
+
+export interface PromptTrace {
+  skill_id: string;
+  purpose: string;
+  variables?: Record<string, string>;
+  prompt: string;
+  used_fallback: boolean;
+  captured_at: string;
+}
+
+export interface PromptBinding {
+  area: "research" | "process";
+  trigger: string;
+  kind?: string;
+  mode?: string;
+  operation?: string;
+  skill_id: string;
+  purpose: string;
+  output_paths?: string[];
+}
+
+export interface PromptSkillSummary {
+  id: string;
+  name: string;
+  description: string;
+  default_scope?: string;
+  draft: boolean;
+  updated_at?: string;
+  created_at?: string;
+  trigger_count: number;
+  impact_summary: string;
+  current_content?: string;
+  required_missing?: string[];
+}
+
+export interface PromptSkillVersion {
+  version: number;
+  content: string;
+  name: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+export interface PromptSkillVersions {
+  skillId: string;
+  current: number;
+  versions: PromptSkillVersion[];
+}

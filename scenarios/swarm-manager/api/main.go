@@ -95,6 +95,7 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
@@ -137,6 +138,7 @@ func (s *Server) setupRoutes() {
 	s.registerAgentManagerRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 	s.registerExecutionRoutes(scenarioRoot)
+	s.registerPromptRoutes(scenarioRoot)
 }
 
 func (s *Server) registerHealthRoutes() {
@@ -192,6 +194,11 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 		AgentService: s.agentSvc,
 	})
 	s.executionHandler.RegisterRoutes(s.router)
+}
+
+func (s *Server) registerPromptRoutes(scenarioRoot string) {
+	promptHandler := prompts.NewHandler(scenarioRoot, nil)
+	promptHandler.RegisterRoutes(s.router)
 }
 
 // Handler returns the HTTP handler with recovery middleware

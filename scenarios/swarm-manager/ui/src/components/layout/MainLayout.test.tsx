@@ -51,6 +51,7 @@ describe("MainLayout", () => {
     expect(screen.getByTestId("tab-backlog")).toBeInTheDocument();
     expect(screen.getByTestId("tab-scenarios")).toBeInTheDocument();
     expect(screen.getByTestId("tab-execution")).toBeInTheDocument();
+    expect(screen.getByTestId("tab-prompts")).toBeInTheDocument();
     expect(screen.getByTestId("tab-settings")).toBeInTheDocument();
   });
 
@@ -64,6 +65,7 @@ describe("MainLayout", () => {
     expect(screen.getByTestId("mobile-tab-backlog")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-scenarios")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-execution")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-tab-prompts")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-settings")).toBeInTheDocument();
   });
 

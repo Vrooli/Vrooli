@@ -67,7 +67,7 @@ import {
   parseClarifyQuestionsFile,
   parseSuggestionsFile,
 } from "../lib";
-import { backlogService } from "../services";
+import { backlogService, promptService } from "../services";
 import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
@@ -83,6 +83,7 @@ import type {
   IdeaAgentMode,
   IdeaClarificationQuestion,
   IdeaSuggestion,
+  PromptTrace,
 } from "../types";
 import { useBacklogStore } from "../stores";
 
@@ -218,6 +219,27 @@ export function BacklogDetailsPage() {
     ...defaultQueryOptions,
   });
 
+  const {
+    data: promptTrace,
+    refetch: refetchPromptTrace,
+  } = useQuery({
+    queryKey: ["backlog", backlogKind, name, "prompt-trace"],
+    queryFn: async (): Promise<PromptTrace | null> => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      try {
+        return await promptService.getBacklogPromptTrace(backlogKind, name);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("404") || message.toLowerCase().includes("not found")) {
+          return null;
+        }
+        throw err;
+      }
+    },
+    enabled: !!backlogKind && !!name,
+    ...defaultQueryOptions,
+  });
+
   const clarifyParsed = useMemo(
     () => parseClarifyQuestionsFile(clarifyContent),
     [clarifyContent]
@@ -334,6 +356,7 @@ export function BacklogDetailsPage() {
     },
     onSuccess: () => {
       setShowAgentDialog(false);
+      void refetchPromptTrace();
     },
   });
 
@@ -361,6 +384,7 @@ export function BacklogDetailsPage() {
       });
       void refetchFiles();
       void refetchClarifyContent();
+      void refetchPromptTrace();
     },
   });
 
@@ -389,6 +413,7 @@ export function BacklogDetailsPage() {
       });
       void refetchFiles();
       void refetchSuggestionsContent();
+      void refetchPromptTrace();
     },
   });
 
@@ -991,6 +1016,15 @@ export function BacklogDetailsPage() {
         </div>
         {renderActionButtons(false)}
       </Card>
+      {promptTrace && (
+        <Card padding="sm" className="space-y-2 rounded-lg border-cyan-500/30 bg-cyan-500/10">
+          <p className="font-mono text-xs text-cyan-300">{promptTrace.skill_id}</p>
+          <p className="text-xs text-slate-300">Captured {formatRelativeTime(promptTrace.captured_at)}</p>
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-950/70 p-2 font-mono text-[11px] text-slate-100">
+            {promptTrace.prompt}
+          </pre>
+        </Card>
+      )}
       {detailsPanel}
       {notesPanel}
     </div>
@@ -1225,6 +1259,15 @@ export function BacklogDetailsPage() {
                     {deleteError}
                   </div>
                 )}
+              </div>
+            )}
+            {promptTrace && (
+              <div className="mt-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2">
+                <p className="font-mono text-xs text-cyan-300">{promptTrace.skill_id}</p>
+                <p className="text-xs text-slate-300">Captured {formatRelativeTime(promptTrace.captured_at)}</p>
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-950/70 p-2 font-mono text-[11px] text-slate-100">
+                  {promptTrace.prompt}
+                </pre>
               </div>
             )}
           </Card>

@@ -60,6 +60,12 @@ type Service struct {
 	mu           sync.Mutex
 }
 
+type promptSelection struct {
+	SkillID   string
+	Variables map[string]string
+	Prompt    string
+}
+
 // NewService creates a new execution service.
 func NewService(cfg ServiceConfig) *Service {
 	rootDir := strings.TrimSpace(cfg.RootDir)
@@ -222,10 +228,19 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, err
 	}
 
-	prompt, promptErr := s.fetchProcessingPrompt(ctx, item, record.Operation)
+	selection, promptErr := s.fetchProcessingPrompt(ctx, item, record.Operation)
+	prompt := selection.Prompt
 	if promptErr != nil {
 		log.Printf("[execution] prompt fetch failed: %v", promptErr)
 		prompt = "Use the backlog item folder as context and complete the requested work."
+	}
+	record.PromptTrace = &PromptTrace{
+		SkillID:      selection.SkillID,
+		Purpose:      "process",
+		Variables:    selection.Variables,
+		Prompt:       prompt,
+		UsedFallback: promptErr != nil,
+		CapturedAt:   nowRFC3339(),
 	}
 
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
@@ -669,7 +684,7 @@ var processingSkillIDs = map[string]string{
 }
 
 // fetchProcessingPrompt loads a processing prompt from prompt-manager.
-func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, operation string) (string, error) {
+func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, operation string) (promptSelection, error) {
 	skillID := processingSkillIDs[item.Kind]
 	if skillID == "" {
 		skillID = "swarm-manager-process-execute"
@@ -688,11 +703,18 @@ func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, o
 
 	prompt, err := s.promptClient.ReadSkill(ctx, skillID, vars, true)
 	if err != nil {
-		return "", err
+		return promptSelection{
+			SkillID:   skillID,
+			Variables: vars,
+		}, err
 	}
 
 	if strings.TrimSpace(operation) == "improver" {
 		prompt = prompt + "\n\nOperation hint: improver (focus on improving an existing scenario).\n"
 	}
-	return prompt, nil
+	return promptSelection{
+		SkillID:   skillID,
+		Variables: vars,
+		Prompt:    prompt,
+	}, nil
 }

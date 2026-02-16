@@ -21,7 +21,7 @@ import {
   matchesExecutionFilters,
   type ExecutionTabId,
 } from "../lib";
-import { executionService } from "../services";
+import { executionService, promptService } from "../services";
 import { useExecutionStore } from "../stores";
 import {
   EXECUTION_MODES,
@@ -31,6 +31,7 @@ import {
   type ExecutionMode,
   type ExecutionRecord,
   type ExecutionStatus,
+  type PromptTrace,
 } from "../types";
 
 const AUTO_REFRESH_MS = 6000;
@@ -51,6 +52,8 @@ export function ExecutionPage() {
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [traceByExecutionId, setTraceByExecutionId] = useState<Record<string, PromptTrace>>({});
+  const [traceLoadingId, setTraceLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchExecutions();
@@ -138,6 +141,20 @@ export function ExecutionPage() {
       setActionError(message);
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleViewTrace = async (executionId: string) => {
+    setTraceLoadingId(executionId);
+    setActionError(null);
+    try {
+      const trace = await promptService.getExecutionPromptTrace(executionId);
+      setTraceByExecutionId((prev) => ({ ...prev, [executionId]: trace }));
+    } catch (traceErr) {
+      const message = traceErr instanceof Error ? traceErr.message : "Failed to load prompt trace.";
+      setActionError(message);
+    } finally {
+      setTraceLoadingId(null);
     }
   };
 
@@ -400,6 +417,9 @@ export function ExecutionPage() {
                     onStart={(executionId) => void runAction(executionId, "start")}
                     onCancel={(executionId) => void runAction(executionId, "cancel")}
                     onRetry={(executionId) => void runAction(executionId, "retry")}
+                    onViewTrace={(executionId) => void handleViewTrace(executionId)}
+                    trace={traceByExecutionId[item.executionId]}
+                    traceLoading={traceLoadingId === item.executionId}
                   />
                 </ResponsiveListItem>
               ))}
@@ -424,6 +444,9 @@ export function ExecutionPage() {
                     onStart={(executionId) => void runAction(executionId, "start")}
                     onCancel={(executionId) => void runAction(executionId, "cancel")}
                     onRetry={(executionId) => void runAction(executionId, "retry")}
+                    onViewTrace={(executionId) => void handleViewTrace(executionId)}
+                    trace={traceByExecutionId[item.executionId]}
+                    traceLoading={traceLoadingId === item.executionId}
                   />
                 </ResponsiveListItem>
               ))}

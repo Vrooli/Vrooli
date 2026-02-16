@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
-import { Lightbulb, Package, Zap, Settings } from "lucide-react";
+import { Lightbulb, Package, Zap, ScrollText, Settings } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { applyTheme, cn, defaultQueryOptions, watchSystemTheme } from "../../lib";
@@ -15,7 +15,7 @@ interface TabConfig {
   path: string;
   testId: string;
   mobileTestId: string;
-  /** Keyboard shortcut (1-4) for quick navigation */
+  /** Keyboard shortcut (1-5) for quick navigation */
   shortcut: string;
 }
 
@@ -23,14 +23,15 @@ const tabs: TabConfig[] = [
   { id: "backlog", label: "Backlog", icon: Lightbulb, path: "/backlog", testId: selectors.tabs.backlog, mobileTestId: selectors.mobileTabs.backlog, shortcut: "1" },
   { id: "scenarios", label: "Scenarios", icon: Package, path: "/scenarios", testId: selectors.tabs.scenarios, mobileTestId: selectors.mobileTabs.scenarios, shortcut: "2" },
   { id: "execution", label: "Execution", icon: Zap, path: "/execution", testId: selectors.tabs.execution, mobileTestId: selectors.mobileTabs.execution, shortcut: "3" },
-  { id: "settings", label: "Settings", icon: Settings, path: "/settings", testId: selectors.tabs.settings, mobileTestId: selectors.mobileTabs.settings, shortcut: "4" },
+  { id: "prompts", label: "Prompts", icon: ScrollText, path: "/prompts", testId: selectors.tabs.prompts, mobileTestId: selectors.mobileTabs.prompts, shortcut: "4" },
+  { id: "settings", label: "Settings", icon: Settings, path: "/settings", testId: selectors.tabs.settings, mobileTestId: selectors.mobileTabs.settings, shortcut: "5" },
 ];
 
 /**
  * MainLayout with keyboard navigation support.
  *
  * Experience Architecture (Phase 29):
- * - Keyboard shortcuts (1-4) for power users to quickly switch tabs
+ * - Keyboard shortcuts (1-5) for power users to quickly switch tabs
  * - Reduces mechanical friction for frequent navigators
  * - Only active when no input element is focused
  */

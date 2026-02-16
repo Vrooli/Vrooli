@@ -35,6 +35,7 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/prompttrace"
 )
 
 // BacklogStatus represents the lifecycle state of a backlog item.
@@ -95,6 +96,12 @@ type Handler struct {
 	rootDir      string
 	agentService agentmanager.Service
 	promptClient promptmanager.Client
+}
+
+type promptSelection struct {
+	SkillID   string
+	Variables map[string]string
+	Prompt    string
 }
 
 // researchSkillIDs maps (ResearchMode, BacklogKind) to prompt-manager skill IDs.
@@ -269,6 +276,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
 }
 
@@ -1039,13 +1047,23 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		service = h.agentService
 	}
 
-	prompt, promptErr := h.fetchResearchPrompt(r.Context(), item, mode)
+	selection, promptErr := h.fetchResearchPrompt(r.Context(), item, mode)
+	prompt := selection.Prompt
 	if promptErr != nil {
 		log.Printf("[backlog] research: prompt fetch failed: %v", promptErr)
 		prompt = "Use the backlog item folder as context and perform the requested research."
 	}
+	trace := prompttrace.Trace{
+		SkillID:      selection.SkillID,
+		Purpose:      "research",
+		Variables:    selection.Variables,
+		Prompt:       prompt,
+		UsedFallback: promptErr != nil,
+		CapturedAt:   prompttrace.NowRFC3339(),
+	}
 	if strings.TrimSpace(readOptionalString(req.Prompt)) != "" {
 		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(readOptionalString(req.Prompt))
+		trace.Prompt = prompt
 	}
 
 	runResult, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{
@@ -1076,6 +1094,11 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[backlog] research", "failed to encode response")
+		return
+	}
+	tracePath := prompttrace.ResearchTracePath(h.itemDir(kind, item.Name))
+	if err := prompttrace.Save(tracePath, trace); err != nil {
+		log.Printf("[backlog] research: failed to save prompt trace: %v", err)
 	}
 }
 
@@ -1276,10 +1299,41 @@ func researchSkillID(mode ResearchMode, kind BacklogKind) string {
 }
 
 // fetchResearchPrompt loads a research prompt from prompt-manager.
-func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mode ResearchMode) (string, error) {
+func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mode ResearchMode) (promptSelection, error) {
 	skillID := researchSkillID(mode, item.Kind)
+	vars := buildVariableMap(item, h.itemDir(item.Kind, item.Name))
 	withScope := true
-	return h.promptClient.ReadSkill(ctx, skillID, buildVariableMap(item, h.itemDir(item.Kind, item.Name)), withScope)
+	prompt, err := h.promptClient.ReadSkill(ctx, skillID, vars, withScope)
+	if err != nil {
+		return promptSelection{SkillID: skillID, Variables: vars}, err
+	}
+	return promptSelection{
+		SkillID:   skillID,
+		Variables: vars,
+		Prompt:    prompt,
+	}, nil
+}
+
+// GetPromptTrace returns the latest stored prompt trace for backlog research.
+func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "prompt-trace")
+	if !ok {
+		return
+	}
+	itemDir := h.itemDir(kind, name)
+	tracePath := prompttrace.ResearchTracePath(itemDir)
+	trace, err := prompttrace.Load(tracePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "[backlog] prompt-trace", "prompt trace not found")
+			return
+		}
+		httputil.InternalError(w, "[backlog] prompt-trace", "failed to load prompt trace")
+		return
+	}
+	if err := httputil.JSON(w, map[string]any{"trace": trace}); err != nil {
+		httputil.InternalError(w, "[backlog] prompt-trace", "failed to encode response")
+	}
 }
 
 // buildVariableMap creates the template variable map for prompt-manager skill rendering.

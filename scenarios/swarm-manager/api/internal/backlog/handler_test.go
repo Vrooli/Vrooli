@@ -533,6 +533,15 @@ func TestResearch_SpawnsAgent(t *testing.T) {
 	if agent.lastReq == nil || agent.lastReq.Purpose != "research" {
 		t.Errorf("expected agent spawn for research")
 	}
+
+	traceReq := httptest.NewRequest("GET", "/api/v1/backlog/idea/research-test/prompt-trace", nil)
+	traceReq = mux.SetURLVars(traceReq, map[string]string{"kind": "idea", "name": "research-test"})
+	traceW := httptest.NewRecorder()
+	h.GetPromptTrace(traceW, traceReq)
+	testutil.AssertStatusOK(t, traceW)
+	if !strings.Contains(traceW.Body.String(), `"skill_id":"swarm-manager-clarify-idea"`) {
+		t.Fatalf("expected prompt trace with clarify skill, got %s", traceW.Body.String())
+	}
 }
 
 func TestConvert_MovesFolder(t *testing.T) {

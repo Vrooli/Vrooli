@@ -8,6 +8,7 @@ import {
   formatExecutionStatus,
   type BacklogKind,
   type ExecutionRecord,
+  type PromptTrace,
 } from "../../types";
 
 interface ExecutionCardProps {
@@ -19,6 +20,9 @@ interface ExecutionCardProps {
   onStart: (executionId: string) => void;
   onCancel: (executionId: string) => void;
   onRetry: (executionId: string) => void;
+  onViewTrace: (executionId: string) => void;
+  trace?: PromptTrace;
+  traceLoading?: boolean;
   testId?: string;
 }
 
@@ -31,6 +35,9 @@ export function ExecutionCard({
   onStart,
   onCancel,
   onRetry,
+  onViewTrace,
+  trace,
+  traceLoading = false,
   testId,
 }: ExecutionCardProps) {
   const backlogKindLabel = BACKLOG_KIND_LABELS[(item.backlogKind as BacklogKind)] ?? item.backlogKind;
@@ -126,6 +133,27 @@ export function ExecutionCard({
           )}
         </div>
       )}
+
+      <div className="mt-3">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onViewTrace(item.executionId)}
+        >
+          {traceLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+          Prompt Trace
+        </Button>
+      </div>
+
+      {trace ? (
+        <div className="mt-3 rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs" data-testid="execution-prompt-trace">
+          <p className="font-mono text-cyan-300">{trace.skill_id}</p>
+          <p className="mt-1 text-slate-300">Captured {formatRelativeTime(trace.captured_at)}</p>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-slate-200">
+            {trace.prompt}
+          </pre>
+        </div>
+      ) : null}
     </article>
   );
 }

@@ -12,14 +12,18 @@ vi.mock("../services", () => ({
     cancel: vi.fn(),
     retry: vi.fn(),
   },
+  promptService: {
+    getExecutionPromptTrace: vi.fn(),
+  },
 }));
 
-import { executionService } from "../services";
+import { executionService, promptService } from "../services";
 
 describe("ExecutionPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useExecutionStore.getState().reset();
+    vi.mocked(promptService.getExecutionPromptTrace).mockResolvedValue(null);
   });
 
   afterEach(() => {

@@ -68,6 +68,12 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if started.TaskID != "task-1" || started.RunID != "run-1" {
 		t.Fatalf("expected task/run IDs set, got task=%s run=%s", started.TaskID, started.RunID)
 	}
+	if started.PromptTrace == nil {
+		t.Fatal("expected prompt trace to be captured")
+	}
+	if started.PromptTrace.SkillID != "swarm-manager-process-idea" {
+		t.Fatalf("expected process idea prompt skill ID, got %q", started.PromptTrace.SkillID)
+	}
 	if agent.spawnCalls != 1 {
 		t.Fatalf("expected 1 spawn call, got %d", agent.spawnCalls)
 	}

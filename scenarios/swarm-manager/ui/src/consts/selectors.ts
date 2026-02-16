@@ -81,6 +81,7 @@ export const literalSelectors = {
     backlog: "tab-backlog",
     scenarios: "tab-scenarios",
     execution: "tab-execution",
+    prompts: "tab-prompts",
     settings: "tab-settings",
   },
   // Mobile tab selectors
@@ -88,6 +89,7 @@ export const literalSelectors = {
     backlog: "mobile-tab-backlog",
     scenarios: "mobile-tab-scenarios",
     execution: "mobile-tab-execution",
+    prompts: "mobile-tab-prompts",
     settings: "mobile-tab-settings",
   },
   // Backlog page selectors
@@ -228,6 +230,18 @@ export const literalSelectors = {
     activeSection: "execution-active-section",
     activeList: "execution-active-list",
     grid: "execution-grid",
+    promptTrace: "execution-prompt-trace",
+  },
+  prompts: {
+    page: "prompts-page",
+    bindingMap: "prompts-binding-map",
+    skillsList: "prompts-skills-list",
+    editor: "prompts-editor",
+    contentInput: "prompts-content-input",
+    saveDraft: "prompts-save-draft",
+    publish: "prompts-publish",
+    versions: "prompts-versions",
+    preview: "prompts-preview",
   },
 } as const;
 

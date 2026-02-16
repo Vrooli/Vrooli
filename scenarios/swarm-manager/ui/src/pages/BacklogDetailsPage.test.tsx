@@ -40,9 +40,12 @@ vi.mock("../services", () => ({
     research: vi.fn(),
     convert: vi.fn(),
   },
+  promptService: {
+    getBacklogPromptTrace: vi.fn(),
+  },
 }));
 
-import { backlogService } from "../services";
+import { backlogService, promptService } from "../services";
 
 describe("BacklogDetailsPage", () => {
   let queryClient: QueryClient;
@@ -79,6 +82,7 @@ describe("BacklogDetailsPage", () => {
     vi.clearAllMocks();
     useBacklogStore.getState().reset();
     vi.mocked(backlogService.getFileContent).mockResolvedValue("Spec content");
+    vi.mocked(promptService.getBacklogPromptTrace).mockResolvedValue(null);
   });
 
   const renderPage = (kind = "idea", name = "test-idea") => {

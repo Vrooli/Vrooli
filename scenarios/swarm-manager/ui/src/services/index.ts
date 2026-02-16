@@ -31,3 +31,12 @@ export { executionService, createExecutionService } from "./execution-service";
 export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";
 export { executionPolicyService, createExecutionPolicyService } from "./execution-policy-service";
 export type { IExecutionPolicyService } from "./execution-policy-service";
+
+// Prompt Center
+export { promptService, createPromptService } from "./prompt-service";
+export type {
+  IPromptService,
+  PromptPreviewResponse,
+  PromptSimulateRequest,
+  PromptSimulateResponse,
+} from "./prompt-service";

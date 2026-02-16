@@ -34,6 +34,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution/policy", h.GetPolicy).Methods("GET")
 	r.HandleFunc("/api/v1/execution/policy", h.UpdatePolicy).Methods("PUT")
 	r.HandleFunc("/api/v1/execution/{execution_id}", h.Get).Methods("GET")
+	r.HandleFunc("/api/v1/execution/{execution_id}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/retry", h.Retry).Methods("POST")
@@ -95,6 +96,30 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] get", "failed to encode response")
+	}
+}
+
+func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		httputil.BadRequest(w, "[execution] prompt-trace", "execution_id is required")
+		return
+	}
+	record, err := h.service.Get(r.Context(), executionID)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			httputil.NotFound(w, "[execution] prompt-trace", "execution not found")
+			return
+		}
+		httputil.InternalError(w, "[execution] prompt-trace", "failed to fetch execution")
+		return
+	}
+	if record.PromptTrace == nil {
+		httputil.NotFound(w, "[execution] prompt-trace", "prompt trace not found")
+		return
+	}
+	if err := httputil.JSON(w, map[string]any{"trace": record.PromptTrace}); err != nil {
+		httputil.InternalError(w, "[execution] prompt-trace", "failed to encode response")
 	}
 }
 

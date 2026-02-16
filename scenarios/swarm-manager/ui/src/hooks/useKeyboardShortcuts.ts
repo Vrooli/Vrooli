@@ -16,7 +16,7 @@ import {
  */
 
 interface ShortcutHandlers {
-  /** Tab navigation by number key (1-4). Return true if handled. */
+  /** Tab navigation by number key (1-5). Return true if handled. */
   onTabNav?: (key: string) => boolean;
   /** Ctrl/Cmd+K — Global search / switcher. Return true if handled. */
   onSearch?: () => boolean;
@@ -55,8 +55,8 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
         return;
       }
 
-      // Number keys 1-4 — Tab navigation
-      if (!mod && /^[1-4]$/.test(event.key)) {
+      // Number keys 1-5 — Tab navigation
+      if (!mod && /^[1-5]$/.test(event.key)) {
         const handled = handlers.onTabNav?.(event.key) ?? false;
         if (!handled) {
           emitShortcutIntent({
