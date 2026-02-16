@@ -221,7 +221,27 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 	return result
 }
 
-func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask tasks.TaskItem) {
+func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, r *http.Request, baseTask tasks.TaskItem) {
+	// In dry-run mode, return validated tasks without persisting.
+	if isDryRun(r) {
+		preview := make([]tasks.TaskItem, 0, len(baseTask.Targets))
+		for _, target := range baseTask.Targets {
+			t := baseTask
+			t.ID = generateTaskID(baseTask.Type, baseTask.Operation, target)
+			t.Target = target
+			t.Targets = []string{target}
+			t.Title = deriveTaskTitle("", baseTask.Operation, baseTask.Type, target)
+			t.Status = "pending"
+			preview = append(preview, t)
+		}
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"created": preview,
+		}, http.StatusOK)
+		return
+	}
+
 	created := make([]tasks.TaskItem, 0, len(baseTask.Targets))
 	skipped := make([]map[string]string, 0)
 	errors := make([]map[string]string, 0)
@@ -669,7 +689,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	// Handle multi-target creation as a batch operation
 	if len(task.Targets) > 1 {
-		h.handleMultiTargetCreate(w, task)
+		h.handleMultiTargetCreate(w, r, task)
 		return
 	}
 
@@ -707,6 +727,16 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Ensure canonical single-target representation is persisted
 	if len(task.Targets) == 1 {
 		task.Target = task.Targets[0]
+	}
+
+	// In dry-run mode, return the validated task without persisting.
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"task":    task,
+		}, http.StatusOK)
+		return
 	}
 
 	// Save to pending queue
@@ -895,6 +925,16 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// In dry-run mode, return the validated update without persisting.
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"task":    updatedTask,
+		}, http.StatusOK)
+		return
+	}
+
 	// Route transitions through coordinator for consistency and centralized side effects.
 	ctx := tasks.TransitionContext{Intent: tasks.IntentManual}
 
@@ -937,6 +977,20 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taskID := vars["id"]
+
+	// In dry-run mode, verify the task exists but don't delete.
+	if isDryRun(r) {
+		if _, _, err := h.storage.GetTaskByID(taskID); err != nil {
+			writeError(w, "Task not found", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"id":      taskID,
+		}, http.StatusOK)
+		return
+	}
 
 	// If possible, rely on coordinator runtime to stop any running process before deletion.
 	if h.coordinator != nil && h.processor != nil {
@@ -986,6 +1040,16 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 	targetStatus := update.Status
 	if targetStatus == "" {
 		targetStatus = currentStatus
+	}
+
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success":       true,
+			"dry_run":       true,
+			"task_id":       taskID,
+			"target_status": targetStatus,
+		}, http.StatusOK)
+		return
 	}
 
 	updated, outcome, err := h.coordinator.ApplyTransition(tasks.TransitionRequest{
@@ -1048,6 +1112,16 @@ func (h *TaskHandlers) SetQueuePositionHandler(w http.ResponseWriter, r *http.Re
 	// Validate bounds
 	if req.Position < 0 || req.Position >= len(task.SteeringQueue) {
 		writeError(w, fmt.Sprintf("Position %d out of bounds (0-%d)", req.Position, len(task.SteeringQueue)-1), http.StatusBadRequest)
+		return
+	}
+
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success":  true,
+			"dry_run":  true,
+			"position": req.Position,
+			"mode":     task.SteeringQueue[req.Position],
+		}, http.StatusOK)
 		return
 	}
 

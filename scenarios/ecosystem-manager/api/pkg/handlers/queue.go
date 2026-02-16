@@ -94,6 +94,15 @@ func (h *QueueHandlers) GetResumeDiagnosticsHandler(w http.ResponseWriter, r *ht
 
 // TriggerQueueProcessingHandler forces immediate queue processing
 func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *http.Request) {
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Queue processing would be triggered",
+		}, http.StatusOK)
+		return
+	}
+
 	if h.processor == nil {
 		writeJSON(w, map[string]string{
 			"error":   "queue processor not available",
@@ -145,6 +154,16 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 
 	if request.State != "active" && request.State != "inactive" {
 		writeError(w, "State must be 'active' or 'inactive'", http.StatusBadRequest)
+		return
+	}
+
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": fmt.Sprintf("Maintenance state would be set to %s", request.State),
+			"state":   request.State,
+		}, http.StatusOK)
 		return
 	}
 
@@ -209,6 +228,16 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Process would be terminated",
+			"task_id": request.TaskID,
+		}, http.StatusOK)
+		return
+	}
+
 	if h.coord != nil {
 		var err error
 		_, _, err = h.coord.ApplyTransition(tasks.TransitionRequest{
@@ -266,6 +295,15 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 
 // StopQueueProcessorHandler stops the queue processor
 func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Queue processor would be stopped",
+		}, http.StatusOK)
+		return
+	}
+
 	h.processor.Stop()
 
 	// Keep settings in sync with the processor lifecycle so the play/pause button reflects reality.
@@ -290,6 +328,15 @@ func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http
 
 // StartQueueProcessorHandler starts the queue processor
 func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Queue processor would be started",
+		}, http.StatusOK)
+		return
+	}
+
 	// Ensure settings are marked active so the processor actually runs
 	currentSettings := settings.GetSettings()
 	if !currentSettings.Active {

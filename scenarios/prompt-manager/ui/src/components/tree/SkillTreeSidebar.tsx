@@ -387,6 +387,21 @@ export function SkillTreeSidebar({
   // Tag filter popover state
   const [isTagPopoverOpen, setIsTagPopoverOpen] = useState(false)
   const tagFilterRef = useRef<HTMLDivElement>(null)
+  const tabsListRef = useRef<HTMLDivElement>(null)
+
+  // Convert vertical mouse wheel to horizontal scroll on tab triggers
+  useEffect(() => {
+    const el = tabsListRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        el.scrollLeft += e.deltaY
+        e.preventDefault()
+      }
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [])
 
   // Agent selection from centralized store
   const selectedAgentId = useSelectionStore((state) => state.selectedAgentId)
@@ -978,8 +993,11 @@ export function SkillTreeSidebar({
           )}
         </div>
 
-        {/* Tab triggers */}
-        <Tabs.List className="flex-shrink-0 flex flex-nowrap overflow-x-auto border-b border-border [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Tab triggers — wheel converts vertical scroll to horizontal */}
+        <Tabs.List
+          className="flex-shrink-0 flex flex-nowrap overflow-x-auto border-b border-border [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          ref={tabsListRef}
+        >
           <Tabs.Trigger
             value="skills"
             className={cn(

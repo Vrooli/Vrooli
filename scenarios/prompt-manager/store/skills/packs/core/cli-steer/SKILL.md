@@ -673,3 +673,39 @@ You must NOT:
 - Remove existing functionality without replacement
 
 **Avoid superficial changes that only rename things or restructure code without improving CLI quality or API coverage.**
+
+---
+
+### 15. Dry-Run Support
+
+The `--dry-run` global flag is built into cli-core. When a user passes `--dry-run`, the CLI sets an `X-Dry-Run: true` header on every request automatically. **No CLI-side changes are needed per scenario.**
+
+**API handlers must implement dry-run support** for all mutating endpoints:
+
+1. Run full validation (invalid requests still fail normally)
+2. Before the first mutation (database write, side effect, etc.), check for dry-run:
+   ```go
+   if isDryRun(r) {
+       writeJSON(w, map[string]any{
+           "success": true,
+           "dry_run": true,
+           "task":    validatedTask, // realistic response data
+       }, http.StatusOK)
+       return
+   }
+   ```
+3. Return realistic response data (populated IDs, timestamps, etc.) so callers can verify the shape
+
+**Conventions:**
+- Include `"dry_run": true` in all dry-run responses
+- Use `http.StatusOK` (not 201/204) since nothing was actually created/deleted
+- Run the same validation path as the real request
+- Return data that mirrors what the real response would look like
+
+**Reference implementation:** `scenarios/ecosystem-manager/api/pkg/handlers/tasks.go` (`CreateTaskHandler`, `UpdateTaskHandler`, `DeleteTaskHandler`)
+
+**Helper:** Add `isDryRun(r *http.Request) bool` to your handlers package (checks `X-Dry-Run` header). The canonical helper is `cliutil.IsDryRun(r)` in cli-core for Go APIs that import it directly.
+
+#### Red Flags Checklist Addition
+
+- [ ] Mutating API endpoints without dry-run support

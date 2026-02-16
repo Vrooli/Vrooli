@@ -12,6 +12,13 @@ import (
 
 const defaultMaxBodyBytes int64 = 1 << 20 // 1MB hard cap to prevent oversized payloads
 
+// isDryRun reports whether the request has the X-Dry-Run header set,
+// indicating the caller wants validation without mutation.
+func isDryRun(r *http.Request) bool {
+	return r.Header.Get("X-Dry-Run") == "true"
+}
+
+
 // maxBodyBytes is kept mutable for tests; production uses defaultMaxBodyBytes.
 var maxBodyBytes int64 = defaultMaxBodyBytes
 

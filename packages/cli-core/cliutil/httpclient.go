@@ -109,6 +109,7 @@ type HTTPClient struct {
 	client      *http.Client
 	baseOptions APIBaseOptions
 	token       string
+	dryRun      bool
 }
 
 type HTTPClientOptions struct {
@@ -138,6 +139,12 @@ func NewHTTPClient(opts HTTPClientOptions) *HTTPClient {
 
 func (h *HTTPClient) SetToken(token string) {
 	h.token = token
+}
+
+// SetDryRun enables or disables dry-run mode. When enabled, requests include
+// the X-Dry-Run header so APIs can skip mutations after validation.
+func (h *HTTPClient) SetDryRun(enabled bool) {
+	h.dryRun = enabled
 }
 
 func (h *HTTPClient) SetBaseOptions(opts APIBaseOptions) {
@@ -205,6 +212,9 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 	}
 	if h.token != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.token))
+	}
+	if h.dryRun {
+		req.Header.Set("X-Dry-Run", "true")
 	}
 
 	resp, err := h.client.Do(req)

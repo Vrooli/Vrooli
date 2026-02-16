@@ -57,6 +57,7 @@ type GlobalOptions struct {
 	APIBaseOverride string
 	ColorEnabled    bool
 	AutoStart       bool
+	DryRun          bool
 }
 
 // DefaultColorEnabled derives the default color setting from NO_COLOR.
@@ -203,6 +204,7 @@ func (a *App) PrintHelp() {
 	fmt.Print("Global Options:\n")
 	fmt.Println("  --api-base <url>   Override API base URL (default: auto-detected)")
 	fmt.Println("  --auto-start       Auto-start the scenario if not running")
+	fmt.Println("  --dry-run          Validate without executing mutations")
 	fmt.Println("  --no-color         Disable ANSI color output (or set NO_COLOR)")
 	fmt.Println("  --color            Force-enable ANSI color output")
 	fmt.Println()
@@ -308,6 +310,8 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 			i++
 		case "--auto-start":
 			global.AutoStart = true
+		case "--dry-run":
+			global.DryRun = true
 		case "--no-color":
 			global.ColorEnabled = false
 		case "--color":

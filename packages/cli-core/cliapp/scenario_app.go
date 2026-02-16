@@ -153,6 +153,9 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 				return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
 			}
 		}
+		if global.DryRun {
+			a.HTTPClient.SetDryRun(true)
+		}
 		if a.options.Preflight != nil {
 			return a.options.Preflight(cmd, global, a)
 		}

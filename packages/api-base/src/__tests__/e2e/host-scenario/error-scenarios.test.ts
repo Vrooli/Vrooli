@@ -269,26 +269,11 @@ describe('Error Scenarios', () => {
     expect(result).toContain('href="/test/"')
   }, 30000)
 
-  it('should handle circular proxy references', async () => {
-    // If host tries to embed itself, should detect and prevent
-    await ctx.page.goto(`http://127.0.0.1:${ctx.hostUiPort}/index.html`, {
-      waitUntil: 'networkidle',
-    })
-
-    // Try to create iframe pointing to host itself
-    const result = await ctx.page.evaluate((hostId) => {
-      try {
-        const iframe = document.createElement('iframe')
-        iframe.src = `/apps/${hostId}/proxy/index.html`
-        document.body.appendChild(iframe)
-        return { error: null }
-      } catch (error: any) {
-        return { error: error.message }
-      }
-    }, 'host-scenario')
-
-    // Should either work (with depth limit) or fail gracefully
-    expect(result).toBeDefined()
+  it('should block self-proxy with 403', async () => {
+    const response = await fetch(`http://127.0.0.1:${ctx.hostUiPort}/apps/host-scenario/proxy/`)
+    expect(response.status).toBe(403)
+    const body = await response.json()
+    expect(body.code).toBe('SELF_PROXY_BLOCKED')
   }, 30000)
 
   it('should handle very long proxy paths', async () => {
