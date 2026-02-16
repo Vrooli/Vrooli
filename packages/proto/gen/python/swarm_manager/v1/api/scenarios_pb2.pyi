@@ -73,3 +73,19 @@ class ScenarioFilesResponse(_message.Message):
     FILES_FIELD_NUMBER: _ClassVar[int]
     files: _containers.RepeatedCompositeFieldContainer[ScenarioFile]
     def __init__(self, files: _Optional[_Iterable[_Union[ScenarioFile, _Mapping]]] = ...) -> None: ...
+
+class SpecSyncArchiveRequest(_message.Message):
+    __slots__ = ("preserve_files",)
+    PRESERVE_FILES_FIELD_NUMBER: _ClassVar[int]
+    preserve_files: PreserveFilesRequest
+    def __init__(self, preserve_files: _Optional[_Union[PreserveFilesRequest, _Mapping]] = ...) -> None: ...
+
+class SpecSyncArchiveResponse(_message.Message):
+    __slots__ = ("execution_id", "status", "message")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    status: str
+    message: str
+    def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...

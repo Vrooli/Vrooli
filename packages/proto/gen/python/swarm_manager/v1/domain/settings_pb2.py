@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xd4\x01\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05theme\x12&\n\x0c\x63ustom_focus\x18\x02 \x01(\tH\x00R\x0b\x63ustomFocus\x88\x01\x01\x12)\n\x10insights_enabled\x18\x03 \x01(\x08R\x0finsightsEnabled\x12\x32\n\x15insights_auto_analyze\x18\x04 \x01(\x08R\x13insightsAutoAnalyzeB\x0f\n\r_custom_focusBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"N\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05themeJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,6 +35,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain'
   _globals['_SETTINGS'].fields_by_name['theme']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['theme']._serialized_options = b'\272H\027r\025R\004darkR\005lightR\006system'
-  _globals['_SETTINGS']._serialized_start=90
-  _globals['_SETTINGS']._serialized_end=302
+  _globals['_SETTINGS']._serialized_start=89
+  _globals['_SETTINGS']._serialized_end=167
 # @@protoc_insertion_point(module_scope)

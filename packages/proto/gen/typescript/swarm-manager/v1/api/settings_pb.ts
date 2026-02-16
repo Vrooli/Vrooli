@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/settings.proto.
  */
 export const file_swarm_manager_v1_api_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJAChBTZXR0aW5nc1Jlc3BvbnNlEiwKCHNldHRpbmdzGAEgASgLMhouc3dhcm1fbWFuYWdlci52MS5TZXR0aW5ncyLxAQoVVXBkYXRlU2V0dGluZ3NSZXF1ZXN0EjAKBXRoZW1lGAEgASgJQhy6SBlyF1IAUgRkYXJrUgVsaWdodFIGc3lzdGVtSACIAQESGQoMY3VzdG9tX2ZvY3VzGAIgASgJSAGIAQESHQoQaW5zaWdodHNfZW5hYmxlZBgDIAEoCEgCiAEBEiIKFWluc2lnaHRzX2F1dG9fYW5hbHl6ZRgEIAEoCEgDiAEBQggKBl90aGVtZUIPCg1fY3VzdG9tX2ZvY3VzQhMKEV9pbnNpZ2h0c19lbmFibGVkQhgKFl9pbnNpZ2h0c19hdXRvX2FuYWx5emVCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
+  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJAChBTZXR0aW5nc1Jlc3BvbnNlEiwKCHNldHRpbmdzGAEgASgLMhouc3dhcm1fbWFuYWdlci52MS5TZXR0aW5ncyJlChVVcGRhdGVTZXR0aW5nc1JlcXVlc3QSMAoFdGhlbWUYASABKAlCHLpIGXIXUgBSBGRhcmtSBWxpZ2h0UgZzeXN0ZW1IAIgBAUIICgZfdGhlbWVKBAgCEANKBAgDEARKBAgEEAVCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
 
 /**
  * SettingsResponse returns current settings.
@@ -46,27 +46,6 @@ export type UpdateSettingsRequest = Message<"swarm_manager.v1.UpdateSettingsRequ
    * @generated from field: optional string theme = 1;
    */
   theme?: string;
-
-  /**
-   * Optional custom focus override.
-   *
-   * @generated from field: optional string custom_focus = 2;
-   */
-  customFocus?: string;
-
-  /**
-   * Optional insights enabled override.
-   *
-   * @generated from field: optional bool insights_enabled = 3;
-   */
-  insightsEnabled?: boolean;
-
-  /**
-   * Optional insights auto-analyze override.
-   *
-   * @generated from field: optional bool insights_auto_analyze = 4;
-   */
-  insightsAutoAnalyze?: boolean;
 };
 
 /**

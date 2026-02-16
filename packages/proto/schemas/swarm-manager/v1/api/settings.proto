@@ -34,12 +34,5 @@ message UpdateSettingsRequest {
   // Optional theme override.
   optional string theme = 1 [(buf.validate.field).string = { in: ["", "dark", "light", "system"] }];
 
-  // Optional custom focus override.
-  optional string custom_focus = 2;
-
-  // Optional insights enabled override.
-  optional bool insights_enabled = 3;
-
-  // Optional insights auto-analyze override.
-  optional bool insights_auto_analyze = 4;
+  reserved 2, 3, 4;
 }

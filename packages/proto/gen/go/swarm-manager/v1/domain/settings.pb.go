@@ -26,15 +26,9 @@ const (
 type Settings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UI theme preference.
-	Theme string `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
-	// Optional custom focus for operators.
-	CustomFocus *string `protobuf:"bytes,2,opt,name=custom_focus,json=customFocus,proto3,oneof" json:"custom_focus,omitempty"`
-	// Whether insights engine is enabled.
-	InsightsEnabled bool `protobuf:"varint,3,opt,name=insights_enabled,json=insightsEnabled,proto3" json:"insights_enabled,omitempty"`
-	// Auto-analyze on scenario changes.
-	InsightsAutoAnalyze bool `protobuf:"varint,4,opt,name=insights_auto_analyze,json=insightsAutoAnalyze,proto3" json:"insights_auto_analyze,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	Theme         string `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -74,38 +68,13 @@ func (x *Settings) GetTheme() string {
 	return ""
 }
 
-func (x *Settings) GetCustomFocus() string {
-	if x != nil && x.CustomFocus != nil {
-		return *x.CustomFocus
-	}
-	return ""
-}
-
-func (x *Settings) GetInsightsEnabled() bool {
-	if x != nil {
-		return x.InsightsEnabled
-	}
-	return false
-}
-
-func (x *Settings) GetInsightsAutoAnalyze() bool {
-	if x != nil {
-		return x.InsightsAutoAnalyze
-	}
-	return false
-}
-
 var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd4\x01\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"N\n" +
 	"\bSettings\x120\n" +
-	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x12&\n" +
-	"\fcustom_focus\x18\x02 \x01(\tH\x00R\vcustomFocus\x88\x01\x01\x12)\n" +
-	"\x10insights_enabled\x18\x03 \x01(\bR\x0finsightsEnabled\x122\n" +
-	"\x15insights_auto_analyze\x18\x04 \x01(\bR\x13insightsAutoAnalyzeB\x0f\n" +
-	"\r_custom_focusBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05themeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_settings_proto_rawDescOnce sync.Once
@@ -136,7 +105,6 @@ func file_swarm_manager_v1_domain_settings_proto_init() {
 	if File_swarm_manager_v1_domain_settings_proto != nil {
 		return
 	}
-	file_swarm_manager_v1_domain_settings_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

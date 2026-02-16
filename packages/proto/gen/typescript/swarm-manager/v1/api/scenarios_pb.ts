@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/scenarios.proto.
  */
 export const file_swarm_manager_v1_api_scenarios: GenFile = /*@__PURE__*/
-  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iTQodVXBkYXRlU2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QSGgoNaXNfZ3JlZW5maWVsZBgBIAEoCEgAiAEBQhAKDl9pc19ncmVlbmZpZWxkIoMBChRQcmVzZXJ2ZUZpbGVzUmVxdWVzdBINCgVwYXRocxgBIAMoCRJRCgZwcmVzZXQYAiABKAlCPLpIOXI3UgBSDWRvY3VtZW50YXRpb25SDHJlcXVpcmVtZW50c1IIcGxhbm5pbmdSDGFsbC1wbGFubmluZ0gAiAEBQgkKB19wcmVzZXQibwoVRGVsZXRlU2NlbmFyaW9SZXF1ZXN0EkMKDnByZXNlcnZlX2ZpbGVzGAEgASgLMiYuc3dhcm1fbWFuYWdlci52MS5QcmVzZXJ2ZUZpbGVzUmVxdWVzdEgAiAEBQhEKD19wcmVzZXJ2ZV9maWxlcyKqAQoWRGVsZXRlU2NlbmFyaW9SZXNwb25zZRIVCgRuYW1lGAEgASgJQge6SARyAhABEhAKCGFyY2hpdmVkGAIgASgIEhgKB21lc3NhZ2UYAyABKAlCB7pIBHICEAESHgoRYmFja2xvZ19pZGVhX25hbWUYBCABKAlIAIgBARIXCg9wcmVzZXJ2ZWRfZmlsZXMYBSADKAlCFAoSX2JhY2tsb2dfaWRlYV9uYW1lIrABCgxTY2VuYXJpb0ZpbGUSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIVCgRwYXRoGAIgASgJQge6SARyAhABEiQKBHR5cGUYAyABKAlCFrpIE3IRUgRmaWxlUglkaXJlY3RvcnkSEQoEc2l6ZRgEIAEoA0gAiAEBEjAKCGNoaWxkcmVuGAUgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGVCBwoFX3NpemUiRgoVU2NlbmFyaW9GaWxlc1Jlc3BvbnNlEi0KBWZpbGVzGAEgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGVCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
+  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iTQodVXBkYXRlU2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QSGgoNaXNfZ3JlZW5maWVsZBgBIAEoCEgAiAEBQhAKDl9pc19ncmVlbmZpZWxkIoMBChRQcmVzZXJ2ZUZpbGVzUmVxdWVzdBINCgVwYXRocxgBIAMoCRJRCgZwcmVzZXQYAiABKAlCPLpIOXI3UgBSDWRvY3VtZW50YXRpb25SDHJlcXVpcmVtZW50c1IIcGxhbm5pbmdSDGFsbC1wbGFubmluZ0gAiAEBQgkKB19wcmVzZXQibwoVRGVsZXRlU2NlbmFyaW9SZXF1ZXN0EkMKDnByZXNlcnZlX2ZpbGVzGAEgASgLMiYuc3dhcm1fbWFuYWdlci52MS5QcmVzZXJ2ZUZpbGVzUmVxdWVzdEgAiAEBQhEKD19wcmVzZXJ2ZV9maWxlcyKqAQoWRGVsZXRlU2NlbmFyaW9SZXNwb25zZRIVCgRuYW1lGAEgASgJQge6SARyAhABEhAKCGFyY2hpdmVkGAIgASgIEhgKB21lc3NhZ2UYAyABKAlCB7pIBHICEAESHgoRYmFja2xvZ19pZGVhX25hbWUYBCABKAlIAIgBARIXCg9wcmVzZXJ2ZWRfZmlsZXMYBSADKAlCFAoSX2JhY2tsb2dfaWRlYV9uYW1lIrABCgxTY2VuYXJpb0ZpbGUSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIVCgRwYXRoGAIgASgJQge6SARyAhABEiQKBHR5cGUYAyABKAlCFrpIE3IRUgRmaWxlUglkaXJlY3RvcnkSEQoEc2l6ZRgEIAEoA0gAiAEBEjAKCGNoaWxkcmVuGAUgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGVCBwoFX3NpemUiRgoVU2NlbmFyaW9GaWxlc1Jlc3BvbnNlEi0KBWZpbGVzGAEgAygLMh4uc3dhcm1fbWFuYWdlci52MS5TY2VuYXJpb0ZpbGUicAoWU3BlY1N5bmNBcmNoaXZlUmVxdWVzdBJDCg5wcmVzZXJ2ZV9maWxlcxgBIAEoCzImLnN3YXJtX21hbmFnZXIudjEuUHJlc2VydmVGaWxlc1JlcXVlc3RIAIgBAUIRCg9fcHJlc2VydmVfZmlsZXMiawoXU3BlY1N5bmNBcmNoaXZlUmVzcG9uc2USHQoMZXhlY3V0aW9uX2lkGAEgASgJQge6SARyAhABEhcKBnN0YXR1cxgCIAEoCUIHukgEcgIQARIYCgdtZXNzYWdlGAMgASgJQge6SARyAhABQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
 
 /**
  * ListScenariosResponse returns all scenarios.
@@ -241,4 +241,60 @@ export type ScenarioFilesResponse = Message<"swarm_manager.v1.ScenarioFilesRespo
  */
 export const ScenarioFilesResponseSchema: GenMessage<ScenarioFilesResponse> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_scenarios, 7);
+
+/**
+ * SpecSyncArchiveRequest triggers a spec-sync agent before archiving.
+ *
+ * @generated from message swarm_manager.v1.SpecSyncArchiveRequest
+ */
+export type SpecSyncArchiveRequest = Message<"swarm_manager.v1.SpecSyncArchiveRequest"> & {
+  /**
+   * Optional file preservation settings when archiving.
+   *
+   * @generated from field: optional swarm_manager.v1.PreserveFilesRequest preserve_files = 1;
+   */
+  preserveFiles?: PreserveFilesRequest;
+};
+
+/**
+ * Describes the message swarm_manager.v1.SpecSyncArchiveRequest.
+ * Use `create(SpecSyncArchiveRequestSchema)` to create a new message.
+ */
+export const SpecSyncArchiveRequestSchema: GenMessage<SpecSyncArchiveRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 8);
+
+/**
+ * SpecSyncArchiveResponse returns the execution ID for progress tracking.
+ *
+ * @generated from message swarm_manager.v1.SpecSyncArchiveResponse
+ */
+export type SpecSyncArchiveResponse = Message<"swarm_manager.v1.SpecSyncArchiveResponse"> & {
+  /**
+   * Execution ID to poll for progress.
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Current status (pending, running, completed, failed, canceled).
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * Human-readable message.
+   *
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.SpecSyncArchiveResponse.
+ * Use `create(SpecSyncArchiveResponseSchema)` to create a new message.
+ */
+export const SpecSyncArchiveResponseSchema: GenMessage<SpecSyncArchiveResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 9);
 

@@ -102,3 +102,21 @@ message ScenarioFilesResponse {
   // Root-level files and directories.
   repeated ScenarioFile files = 1;
 }
+
+// SpecSyncArchiveRequest triggers a spec-sync agent before archiving.
+message SpecSyncArchiveRequest {
+  // Optional file preservation settings when archiving.
+  optional PreserveFilesRequest preserve_files = 1;
+}
+
+// SpecSyncArchiveResponse returns the execution ID for progress tracking.
+message SpecSyncArchiveResponse {
+  // Execution ID to poll for progress.
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Current status (pending, running, completed, failed, canceled).
+  string status = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable message.
+  string message = 3 [(buf.validate.field).string.min_len = 1];
+}

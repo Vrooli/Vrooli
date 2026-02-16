@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/settings.proto.
  */
 export const file_swarm_manager_v1_domain_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSKaAQoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEhkKDGN1c3RvbV9mb2N1cxgCIAEoCUgAiAEBEhgKEGluc2lnaHRzX2VuYWJsZWQYAyABKAgSHQoVaW5zaWdodHNfYXV0b19hbmFseXplGAQgASgIQg8KDV9jdXN0b21fZm9jdXNCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJHCghTZXR0aW5ncxIpCgV0aGVtZRgBIAEoCUIaukgXchVSBGRhcmtSBWxpZ2h0UgZzeXN0ZW1KBAgCEANKBAgDEARKBAgEEAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * Settings captures persisted configuration for Swarm Manager.
@@ -25,27 +25,6 @@ export type Settings = Message<"swarm_manager.v1.Settings"> & {
    * @generated from field: string theme = 1;
    */
   theme: string;
-
-  /**
-   * Optional custom focus for operators.
-   *
-   * @generated from field: optional string custom_focus = 2;
-   */
-  customFocus?: string;
-
-  /**
-   * Whether insights engine is enabled.
-   *
-   * @generated from field: bool insights_enabled = 3;
-   */
-  insightsEnabled: boolean;
-
-  /**
-   * Auto-analyze on scenario changes.
-   *
-   * @generated from field: bool insights_auto_analyze = 4;
-   */
-  insightsAutoAnalyze: boolean;
 };
 
 /**

@@ -29,12 +29,5 @@ message Settings {
   // UI theme preference.
   string theme = 1 [(buf.validate.field).string = { in: ["dark", "light", "system"] }];
 
-  // Optional custom focus for operators.
-  optional string custom_focus = 2;
-
-  // Whether insights engine is enabled.
-  bool insights_enabled = 3;
-
-  // Auto-analyze on scenario changes.
-  bool insights_auto_analyze = 4;
+  reserved 2, 3, 4;
 }

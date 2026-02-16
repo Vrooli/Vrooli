@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/execution.proto.
  */
 export const file_swarm_manager_v1_domain_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEigQUKD0V4ZWN1dGlvblJlY29yZBIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESOQoMYmFja2xvZ19raW5kGAIgASgJQiO6SCByHlIEaWRlYVIDZml4UgdleGVjdXRlUghyZXNlYXJjaBIdCgxiYWNrbG9nX25hbWUYAyABKAlCB7pIBHICEAESFAoHdGFza19pZBgEIAEoCUgAiAEBEhMKBnJ1bl9pZBgFIAEoCUgBiAEBEk8KBnN0YXR1cxgGIAEoCUI/ukg8cjpSB3BlbmRpbmdSCXNjaGVkdWxlZFIHcnVubmluZ1IJY29tcGxldGVkUgZmYWlsZWRSCGNhbmNlbGVkEiwKBG1vZGUYByABKAlCHrpIG3IZUgZtYW51YWxSCXNjaGVkdWxlZFIEeW9sbxIZCgxzY2hlZHVsZWRfYXQYCCABKAlIAogBARIXCgpzdGFydGVkX2F0GAkgASgJSAOIAQESGAoLZmluaXNoZWRfYXQYCiABKAlIBIgBARIbCg5mYWlsdXJlX3JlYXNvbhgLIAEoCUgFiAEBEhcKCnN0YXJ0ZWRfYnkYDCABKAlIBogBARIWCglvcGVyYXRpb24YDSABKAlIB4gBARIbCgpjcmVhdGVkX2F0GA4gASgJQge6SARyAhABEhsKCnVwZGF0ZWRfYXQYDyABKAlCB7pIBHICEAFCCgoIX3Rhc2tfaWRCCQoHX3J1bl9pZEIPCg1fc2NoZWR1bGVkX2F0Qg0KC19zdGFydGVkX2F0Qg4KDF9maW5pc2hlZF9hdEIRCg9fZmFpbHVyZV9yZWFzb25CDQoLX3N0YXJ0ZWRfYnlCDAoKX29wZXJhdGlvbiJvCg9FeGVjdXRpb25Qb2xpY3kSNAoMZGVmYXVsdF9tb2RlGAEgASgJQh66SBtyGVIGbWFudWFsUglzY2hlZHVsZWRSBHlvbG8SJgoVZGVmYXVsdF9kZWxheV9zZWNvbmRzGAIgASgDQge6SAQiAigAQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEi1QUKD0V4ZWN1dGlvblJlY29yZBIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESOQoMYmFja2xvZ19raW5kGAIgASgJQiO6SCByHlIEaWRlYVIDZml4UgdleGVjdXRlUghyZXNlYXJjaBIdCgxiYWNrbG9nX25hbWUYAyABKAlCB7pIBHICEAESFAoHdGFza19pZBgEIAEoCUgAiAEBEhMKBnJ1bl9pZBgFIAEoCUgBiAEBEk8KBnN0YXR1cxgGIAEoCUI/ukg8cjpSB3BlbmRpbmdSCXNjaGVkdWxlZFIHcnVubmluZ1IJY29tcGxldGVkUgZmYWlsZWRSCGNhbmNlbGVkEiwKBG1vZGUYByABKAlCHrpIG3IZUgZtYW51YWxSCXNjaGVkdWxlZFIEeW9sbxIZCgxzY2hlZHVsZWRfYXQYCCABKAlIAogBARIXCgpzdGFydGVkX2F0GAkgASgJSAOIAQESGAoLZmluaXNoZWRfYXQYCiABKAlIBIgBARIbCg5mYWlsdXJlX3JlYXNvbhgLIAEoCUgFiAEBEhcKCnN0YXJ0ZWRfYnkYDCABKAlIBogBARIWCglvcGVyYXRpb24YDSABKAlIB4gBARIbCgpjcmVhdGVkX2F0GA4gASgJQge6SARyAhABEhsKCnVwZGF0ZWRfYXQYDyABKAlCB7pIBHICEAESPgoPYXJjaGl2ZV9jb250ZXh0GBAgASgLMiAuc3dhcm1fbWFuYWdlci52MS5BcmNoaXZlQ29udGV4dEgIiAEBQgoKCF90YXNrX2lkQgkKB19ydW5faWRCDwoNX3NjaGVkdWxlZF9hdEINCgtfc3RhcnRlZF9hdEIOCgxfZmluaXNoZWRfYXRCEQoPX2ZhaWx1cmVfcmVhc29uQg0KC19zdGFydGVkX2J5QgwKCl9vcGVyYXRpb25CEgoQX2FyY2hpdmVfY29udGV4dCLOAQoOQXJjaGl2ZUNvbnRleHQSHgoNc2NlbmFyaW9fbmFtZRgBIAEoCUIHukgEcgIQARIeCg1zY2VuYXJpb19wYXRoGAIgASgJQge6SARyAhABEh0KEHByZXNldF9vcl9jdXN0b20YAyABKAlIAIgBARIWCg5wcmVzZXJ2ZV9wYXRocxgEIAMoCRIcCg9wcmVzZXJ2ZV9wcmVzZXQYBSABKAlIAYgBAUITChFfcHJlc2V0X29yX2N1c3RvbUISChBfcHJlc2VydmVfcHJlc2V0Im8KD0V4ZWN1dGlvblBvbGljeRI0CgxkZWZhdWx0X21vZGUYASABKAlCHrpIG3IZUgZtYW51YWxSCXNjaGVkdWxlZFIEeW9sbxImChVkZWZhdWx0X2RlbGF5X3NlY29uZHMYAiABKANCB7pIBCICKABCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * ExecutionRecord captures one backlog execution lifecycle entry.
@@ -93,6 +93,13 @@ export type ExecutionRecord = Message<"swarm_manager.v1.ExecutionRecord"> & {
    * @generated from field: string updated_at = 15;
    */
   updatedAt: string;
+
+  /**
+   * Archive context for spec-sync-archive executions.
+   *
+   * @generated from field: optional swarm_manager.v1.ArchiveContext archive_context = 16;
+   */
+  archiveContext?: ArchiveContext;
 };
 
 /**
@@ -101,6 +108,45 @@ export type ExecutionRecord = Message<"swarm_manager.v1.ExecutionRecord"> & {
  */
 export const ExecutionRecordSchema: GenMessage<ExecutionRecord> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_execution, 0);
+
+/**
+ * ArchiveContext captures archive parameters for spec-sync-archive executions.
+ *
+ * @generated from message swarm_manager.v1.ArchiveContext
+ */
+export type ArchiveContext = Message<"swarm_manager.v1.ArchiveContext"> & {
+  /**
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+
+  /**
+   * @generated from field: string scenario_path = 2;
+   */
+  scenarioPath: string;
+
+  /**
+   * @generated from field: optional string preset_or_custom = 3;
+   */
+  presetOrCustom?: string;
+
+  /**
+   * @generated from field: repeated string preserve_paths = 4;
+   */
+  preservePaths: string[];
+
+  /**
+   * @generated from field: optional string preserve_preset = 5;
+   */
+  preservePreset?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ArchiveContext.
+ * Use `create(ArchiveContextSchema)` to create a new message.
+ */
+export const ArchiveContextSchema: GenMessage<ArchiveContext> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 1);
 
 /**
  * ExecutionPolicy controls default mode and delay.
@@ -124,5 +170,5 @@ export type ExecutionPolicy = Message<"swarm_manager.v1.ExecutionPolicy"> & {
  * Use `create(ExecutionPolicySchema)` to create a new message.
  */
 export const ExecutionPolicySchema: GenMessage<ExecutionPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 1);
+  messageDesc(file_swarm_manager_v1_domain_execution, 2);
 

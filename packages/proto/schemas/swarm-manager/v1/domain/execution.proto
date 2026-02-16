@@ -23,6 +23,18 @@ message ExecutionRecord {
   optional string operation = 13;
   string created_at = 14 [(buf.validate.field).string.min_len = 1];
   string updated_at = 15 [(buf.validate.field).string.min_len = 1];
+
+  // Archive context for spec-sync-archive executions.
+  optional ArchiveContext archive_context = 16;
+}
+
+// ArchiveContext captures archive parameters for spec-sync-archive executions.
+message ArchiveContext {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string scenario_path = 2 [(buf.validate.field).string.min_len = 1];
+  optional string preset_or_custom = 3;
+  repeated string preserve_paths = 4;
+  optional string preserve_preset = 5;
 }
 
 // ExecutionPolicy controls default mode and delay.

@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from swarm_manager.v1.domain import settings_pb2 as swarm__manager_dot_v1_dot_domain_dot_settings__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n\x10SettingsResponse\x12\x36\n\x08settings\x18\x01 \x01(\x0b\x32\x1a.swarm_manager.v1.SettingsR\x08settings\"\xab\x02\n\x15UpdateSettingsRequest\x12\x37\n\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04\x64\x61rkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12&\n\x0c\x63ustom_focus\x18\x02 \x01(\tH\x01R\x0b\x63ustomFocus\x88\x01\x01\x12.\n\x10insights_enabled\x18\x03 \x01(\x08H\x02R\x0finsightsEnabled\x88\x01\x01\x12\x37\n\x15insights_auto_analyze\x18\x04 \x01(\x08H\x03R\x13insightsAutoAnalyze\x88\x01\x01\x42\x08\n\x06_themeB\x0f\n\r_custom_focusB\x13\n\x11_insights_enabledB\x18\n\x16_insights_auto_analyzeBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n\x10SettingsResponse\x12\x36\n\x08settings\x18\x01 \x01(\x0b\x32\x1a.swarm_manager.v1.SettingsR\x08settings\"l\n\x15UpdateSettingsRequest\x12\x37\n\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04\x64\x61rkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x42\x08\n\x06_themeJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05\x42IZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,6 +38,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_UPDATESETTINGSREQUEST'].fields_by_name['theme']._serialized_options = b'\272H\031r\027R\000R\004darkR\005lightR\006system'
   _globals['_SETTINGSRESPONSE']._serialized_start=126
   _globals['_SETTINGSRESPONSE']._serialized_end=200
-  _globals['_UPDATESETTINGSREQUEST']._serialized_start=203
-  _globals['_UPDATESETTINGSREQUEST']._serialized_end=502
+  _globals['_UPDATESETTINGSREQUEST']._serialized_start=202
+  _globals['_UPDATESETTINGSREQUEST']._serialized_end=310
 # @@protoc_insertion_point(module_scope)

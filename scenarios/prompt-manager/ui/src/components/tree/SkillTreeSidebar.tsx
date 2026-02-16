@@ -983,7 +983,7 @@ export function SkillTreeSidebar({
           <Tabs.Trigger
             value="skills"
             className={cn(
-              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
@@ -997,7 +997,7 @@ export function SkillTreeSidebar({
           <Tabs.Trigger
             value="agents"
             className={cn(
-              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
@@ -1011,7 +1011,7 @@ export function SkillTreeSidebar({
           <Tabs.Trigger
             value="teams"
             className={cn(
-              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
@@ -1024,7 +1024,7 @@ export function SkillTreeSidebar({
           <Tabs.Trigger
             value="runs"
             className={cn(
-              'flex-shrink-0 flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',

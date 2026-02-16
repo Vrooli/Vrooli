@@ -470,6 +470,116 @@ func (x *ScenarioFilesResponse) GetFiles() []*ScenarioFile {
 	return nil
 }
 
+// SpecSyncArchiveRequest triggers a spec-sync agent before archiving.
+type SpecSyncArchiveRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional file preservation settings when archiving.
+	PreserveFiles *PreserveFilesRequest `protobuf:"bytes,1,opt,name=preserve_files,json=preserveFiles,proto3,oneof" json:"preserve_files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SpecSyncArchiveRequest) Reset() {
+	*x = SpecSyncArchiveRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpecSyncArchiveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpecSyncArchiveRequest) ProtoMessage() {}
+
+func (x *SpecSyncArchiveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpecSyncArchiveRequest.ProtoReflect.Descriptor instead.
+func (*SpecSyncArchiveRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SpecSyncArchiveRequest) GetPreserveFiles() *PreserveFilesRequest {
+	if x != nil {
+		return x.PreserveFiles
+	}
+	return nil
+}
+
+// SpecSyncArchiveResponse returns the execution ID for progress tracking.
+type SpecSyncArchiveResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Execution ID to poll for progress.
+	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	// Current status (pending, running, completed, failed, canceled).
+	Status string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	// Human-readable message.
+	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SpecSyncArchiveResponse) Reset() {
+	*x = SpecSyncArchiveResponse{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpecSyncArchiveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpecSyncArchiveResponse) ProtoMessage() {}
+
+func (x *SpecSyncArchiveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpecSyncArchiveResponse.ProtoReflect.Descriptor instead.
+func (*SpecSyncArchiveResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SpecSyncArchiveResponse) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *SpecSyncArchiveResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SpecSyncArchiveResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_api_scenarios_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
@@ -504,7 +614,14 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\bchildren\x18\x05 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\bchildrenB\a\n" +
 	"\x05_size\"M\n" +
 	"\x15ScenarioFilesResponse\x124\n" +
-	"\x05files\x18\x01 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\x05filesBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x05files\x18\x01 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\x05files\"\x7f\n" +
+	"\x16SpecSyncArchiveRequest\x12R\n" +
+	"\x0epreserve_files\x18\x01 \x01(\v2&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
+	"\x0f_preserve_files\"\x89\x01\n" +
+	"\x17SpecSyncArchiveResponse\x12*\n" +
+	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12\x1f\n" +
+	"\x06status\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12!\n" +
+	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessageBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_scenarios_proto_rawDescOnce sync.Once
@@ -518,7 +635,7 @@ func file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_scenarios_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
 	(*ListScenariosResponse)(nil),         // 0: swarm_manager.v1.ListScenariosResponse
 	(*ScenarioResponse)(nil),              // 1: swarm_manager.v1.ScenarioResponse
@@ -528,19 +645,22 @@ var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
 	(*DeleteScenarioResponse)(nil),        // 5: swarm_manager.v1.DeleteScenarioResponse
 	(*ScenarioFile)(nil),                  // 6: swarm_manager.v1.ScenarioFile
 	(*ScenarioFilesResponse)(nil),         // 7: swarm_manager.v1.ScenarioFilesResponse
-	(*domain.Scenario)(nil),               // 8: swarm_manager.v1.Scenario
+	(*SpecSyncArchiveRequest)(nil),        // 8: swarm_manager.v1.SpecSyncArchiveRequest
+	(*SpecSyncArchiveResponse)(nil),       // 9: swarm_manager.v1.SpecSyncArchiveResponse
+	(*domain.Scenario)(nil),               // 10: swarm_manager.v1.Scenario
 }
 var file_swarm_manager_v1_api_scenarios_proto_depIdxs = []int32{
-	8, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
-	8, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
-	3, // 2: swarm_manager.v1.DeleteScenarioRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
-	6, // 3: swarm_manager.v1.ScenarioFile.children:type_name -> swarm_manager.v1.ScenarioFile
-	6, // 4: swarm_manager.v1.ScenarioFilesResponse.files:type_name -> swarm_manager.v1.ScenarioFile
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	10, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
+	10, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
+	3,  // 2: swarm_manager.v1.DeleteScenarioRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
+	6,  // 3: swarm_manager.v1.ScenarioFile.children:type_name -> swarm_manager.v1.ScenarioFile
+	6,  // 4: swarm_manager.v1.ScenarioFilesResponse.files:type_name -> swarm_manager.v1.ScenarioFile
+	3,  // 5: swarm_manager.v1.SpecSyncArchiveRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_scenarios_proto_init() }
@@ -553,13 +673,14 @@ func file_swarm_manager_v1_api_scenarios_proto_init() {
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[4].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[5].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[6].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_scenarios_proto_rawDesc), len(file_swarm_manager_v1_api_scenarios_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

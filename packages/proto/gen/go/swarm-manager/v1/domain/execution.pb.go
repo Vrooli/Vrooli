@@ -40,8 +40,10 @@ type ExecutionRecord struct {
 	Operation     *string                `protobuf:"bytes,13,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Archive context for spec-sync-archive executions.
+	ArchiveContext *ArchiveContext `protobuf:"bytes,16,opt,name=archive_context,json=archiveContext,proto3,oneof" json:"archive_context,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ExecutionRecord) Reset() {
@@ -179,6 +181,90 @@ func (x *ExecutionRecord) GetUpdatedAt() string {
 	return ""
 }
 
+func (x *ExecutionRecord) GetArchiveContext() *ArchiveContext {
+	if x != nil {
+		return x.ArchiveContext
+	}
+	return nil
+}
+
+// ArchiveContext captures archive parameters for spec-sync-archive executions.
+type ArchiveContext struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName   string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ScenarioPath   string                 `protobuf:"bytes,2,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
+	PresetOrCustom *string                `protobuf:"bytes,3,opt,name=preset_or_custom,json=presetOrCustom,proto3,oneof" json:"preset_or_custom,omitempty"`
+	PreservePaths  []string               `protobuf:"bytes,4,rep,name=preserve_paths,json=preservePaths,proto3" json:"preserve_paths,omitempty"`
+	PreservePreset *string                `protobuf:"bytes,5,opt,name=preserve_preset,json=preservePreset,proto3,oneof" json:"preserve_preset,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ArchiveContext) Reset() {
+	*x = ArchiveContext{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveContext) ProtoMessage() {}
+
+func (x *ArchiveContext) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveContext.ProtoReflect.Descriptor instead.
+func (*ArchiveContext) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ArchiveContext) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ArchiveContext) GetScenarioPath() string {
+	if x != nil {
+		return x.ScenarioPath
+	}
+	return ""
+}
+
+func (x *ArchiveContext) GetPresetOrCustom() string {
+	if x != nil && x.PresetOrCustom != nil {
+		return *x.PresetOrCustom
+	}
+	return ""
+}
+
+func (x *ArchiveContext) GetPreservePaths() []string {
+	if x != nil {
+		return x.PreservePaths
+	}
+	return nil
+}
+
+func (x *ArchiveContext) GetPreservePreset() string {
+	if x != nil && x.PreservePreset != nil {
+		return *x.PreservePreset
+	}
+	return ""
+}
+
 // ExecutionPolicy controls default mode and delay.
 type ExecutionPolicy struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
@@ -190,7 +276,7 @@ type ExecutionPolicy struct {
 
 func (x *ExecutionPolicy) Reset() {
 	*x = ExecutionPolicy{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -202,7 +288,7 @@ func (x *ExecutionPolicy) String() string {
 func (*ExecutionPolicy) ProtoMessage() {}
 
 func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -215,7 +301,7 @@ func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPolicy.ProtoReflect.Descriptor instead.
 func (*ExecutionPolicy) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ExecutionPolicy) GetDefaultMode() string {
@@ -236,7 +322,7 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa4\x06\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x88\a\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12F\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB#\xbaH r\x1eR\x04ideaR\x03fixR\aexecuteR\bresearchR\vbacklogKind\x12*\n" +
@@ -258,7 +344,8 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAtB\n" +
+	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12N\n" +
+	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\bR\x0earchiveContext\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\x0f\n" +
@@ -268,7 +355,16 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0f_failure_reasonB\r\n" +
 	"\v_started_byB\f\n" +
 	"\n" +
-	"_operation\"\x91\x01\n" +
+	"_operationB\x12\n" +
+	"\x10_archive_context\"\x99\x02\n" +
+	"\x0eArchiveContext\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12,\n" +
+	"\rscenario_path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioPath\x12-\n" +
+	"\x10preset_or_custom\x18\x03 \x01(\tH\x00R\x0epresetOrCustom\x88\x01\x01\x12%\n" +
+	"\x0epreserve_paths\x18\x04 \x03(\tR\rpreservePaths\x12,\n" +
+	"\x0fpreserve_preset\x18\x05 \x01(\tH\x01R\x0epreservePreset\x88\x01\x01B\x13\n" +
+	"\x11_preset_or_customB\x12\n" +
+	"\x10_preserve_preset\"\x91\x01\n" +
 	"\x0fExecutionPolicy\x12A\n" +
 	"\fdefault_mode\x18\x01 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\vdefaultMode\x12;\n" +
 	"\x15default_delay_seconds\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13defaultDelaySecondsBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
@@ -285,17 +381,19 @@ func file_swarm_manager_v1_domain_execution_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_execution_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_swarm_manager_v1_domain_execution_proto_goTypes = []any{
 	(*ExecutionRecord)(nil), // 0: swarm_manager.v1.ExecutionRecord
-	(*ExecutionPolicy)(nil), // 1: swarm_manager.v1.ExecutionPolicy
+	(*ArchiveContext)(nil),  // 1: swarm_manager.v1.ArchiveContext
+	(*ExecutionPolicy)(nil), // 2: swarm_manager.v1.ExecutionPolicy
 }
 var file_swarm_manager_v1_domain_execution_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: swarm_manager.v1.ExecutionRecord.archive_context:type_name -> swarm_manager.v1.ArchiveContext
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_execution_proto_init() }
@@ -304,13 +402,14 @@ func file_swarm_manager_v1_domain_execution_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[0].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_execution_proto_rawDesc), len(file_swarm_manager_v1_domain_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -72,15 +72,9 @@ func (x *SettingsResponse) GetSettings() *domain.Settings {
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional theme override.
-	Theme *string `protobuf:"bytes,1,opt,name=theme,proto3,oneof" json:"theme,omitempty"`
-	// Optional custom focus override.
-	CustomFocus *string `protobuf:"bytes,2,opt,name=custom_focus,json=customFocus,proto3,oneof" json:"custom_focus,omitempty"`
-	// Optional insights enabled override.
-	InsightsEnabled *bool `protobuf:"varint,3,opt,name=insights_enabled,json=insightsEnabled,proto3,oneof" json:"insights_enabled,omitempty"`
-	// Optional insights auto-analyze override.
-	InsightsAutoAnalyze *bool `protobuf:"varint,4,opt,name=insights_auto_analyze,json=insightsAutoAnalyze,proto3,oneof" json:"insights_auto_analyze,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	Theme         *string `protobuf:"bytes,1,opt,name=theme,proto3,oneof" json:"theme,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -120,43 +114,16 @@ func (x *UpdateSettingsRequest) GetTheme() string {
 	return ""
 }
 
-func (x *UpdateSettingsRequest) GetCustomFocus() string {
-	if x != nil && x.CustomFocus != nil {
-		return *x.CustomFocus
-	}
-	return ""
-}
-
-func (x *UpdateSettingsRequest) GetInsightsEnabled() bool {
-	if x != nil && x.InsightsEnabled != nil {
-		return *x.InsightsEnabled
-	}
-	return false
-}
-
-func (x *UpdateSettingsRequest) GetInsightsAutoAnalyze() bool {
-	if x != nil && x.InsightsAutoAnalyze != nil {
-		return *x.InsightsAutoAnalyze
-	}
-	return false
-}
-
 var File_swarm_manager_v1_api_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xab\x02\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"l\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
-	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12&\n" +
-	"\fcustom_focus\x18\x02 \x01(\tH\x01R\vcustomFocus\x88\x01\x01\x12.\n" +
-	"\x10insights_enabled\x18\x03 \x01(\bH\x02R\x0finsightsEnabled\x88\x01\x01\x127\n" +
-	"\x15insights_auto_analyze\x18\x04 \x01(\bH\x03R\x13insightsAutoAnalyze\x88\x01\x01B\b\n" +
-	"\x06_themeB\x0f\n" +
-	"\r_custom_focusB\x13\n" +
-	"\x11_insights_enabledB\x18\n" +
-	"\x16_insights_auto_analyzeBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01B\b\n" +
+	"\x06_themeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05BIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_settings_proto_rawDescOnce sync.Once
