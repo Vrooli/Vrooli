@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react'
 import { useRunningAgents, type UseRunningAgentsResult } from './useRunningAgents'
 import { useAccessoryStore } from '@/stores/accessoryStore'
 import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
+import { useOverlayStore } from '@/stores/overlayStore'
 
 export function useRunningAgentStatusSync(): UseRunningAgentsResult {
   const result = useRunningAgents()
@@ -33,6 +34,7 @@ export function useRunningAgentStatusSync(): UseRunningAgentsResult {
         message: `Running heartbeat (${agent.duration})`,
         source: 'heartbeat',
       })
+      useOverlayStore.getState().setThinking(agent.agentId, true, `Running heartbeat (${agent.duration})`)
     }
 
     // Clear status for agents that stopped — only if source was 'heartbeat'
@@ -42,6 +44,7 @@ export function useRunningAgentStatusSync(): UseRunningAgentsResult {
         if (!existing || existing.source === 'heartbeat') {
           clearAgentStatus(agentId)
         }
+        useOverlayStore.getState().clearThinking(agentId)
       }
     }
 
@@ -57,6 +60,7 @@ export function useRunningAgentStatusSync(): UseRunningAgentsResult {
         if (!existing || existing.source === 'heartbeat') {
           clearAgentStatus(agentId)
         }
+        useOverlayStore.getState().clearThinking(agentId)
       }
       useRunningAgentsStore.getState().setAgents([])
     }

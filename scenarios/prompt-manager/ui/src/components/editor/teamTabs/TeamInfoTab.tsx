@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Clock, Hash, Users, Shield, Target, Cpu } from 'lucide-react'
+import { Clock, Hash, Users, Shield, Target, Cpu, FileText } from 'lucide-react'
 import type { TeamDetails, TeamRole, UpdateTeamRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { cn } from '@/lib/utils'
@@ -19,6 +19,7 @@ import { selectors } from '@/constants/selectors'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
+import { EventsModal } from '@/components/shared/EventsModal'
 import { RolesTab } from './RolesTab'
 
 interface TeamInfoTabProps {
@@ -40,6 +41,9 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
+  const [eventsRunId, setEventsRunId] = useState<string | null>(null)
+  const [eventsAgentName, setEventsAgentName] = useState<string | undefined>()
+  const [eventsLive, setEventsLive] = useState(false)
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown'
@@ -61,6 +65,22 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
     if (diffMs < 3600000) return `In ${Math.round(diffMs / 60000)} minutes`
     if (diffMs < 86400000) return `In ${Math.round(diffMs / 3600000)} hours`
     return `In ${Math.round(diffMs / 86400000)} days`
+  }
+
+  const formatRelativePastTime = (date: Date) => {
+    const diffMs = Date.now() - date.getTime()
+    if (Number.isNaN(diffMs) || diffMs < 0) return 'Just now'
+    if (diffMs < 60000) return 'Just now'
+    if (diffMs < 3600000) {
+      const mins = Math.round(diffMs / 60000)
+      return `${mins} min${mins !== 1 ? 's' : ''} ago`
+    }
+    if (diffMs < 86400000) {
+      const hrs = Math.round(diffMs / 3600000)
+      return `${hrs} hour${hrs !== 1 ? 's' : ''} ago`
+    }
+    const days = Math.round(diffMs / 86400000)
+    return `${days} day${days !== 1 ? 's' : ''} ago`
   }
 
   const upcomingHeartbeats = useMemo(() => {
@@ -87,6 +107,21 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
   const enabledHeartbeatCount = useMemo(() => {
     return heartbeatConfigs.filter((config) => config.enabled).length
   }, [heartbeatConfigs])
+
+  const recentHeartbeats = useMemo(() => {
+    const membersById = new Map(team.members.map((member) => [member.agentId, member]))
+
+    return heartbeatConfigs
+      .filter((config): config is HeartbeatConfig & { lastExecution: NonNullable<HeartbeatConfig['lastExecution']> } => !!config.lastExecution)
+      .map((config) => {
+        const memberName = membersById.get(config.agentId)?.displayName ?? config.agentId
+        const startedAt = new Date(config.lastExecution.startedAt)
+        return { config, memberName, startedAt, status: config.lastExecution.status }
+      })
+      .filter((entry) => !Number.isNaN(entry.startedAt.getTime()))
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+      .slice(0, 5)
+  }, [heartbeatConfigs, team.members])
 
   useEffect(() => {
     let isActive = true
@@ -247,6 +282,79 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
         )}
       </section>
 
+      {/* Recent Heartbeats */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-foreground">Recent Heartbeats</h3>
+          <span className="text-xs text-muted-foreground">Last 5</span>
+        </div>
+        {recentHeartbeats.length === 0 ? (
+          <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+            <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-muted-foreground">No recent heartbeat executions.</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">
+                Heartbeat history will appear here after members run their first heartbeat.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {recentHeartbeats.map((entry) => (
+              <li key={`${entry.config.agentId}-${entry.startedAt.toISOString()}`}>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToMemberHeartbeat?.(entry.config.agentId)}
+                    className={cn(
+                      'flex-1 flex items-start justify-between gap-4 px-3 py-2 bg-muted rounded-lg text-left',
+                      onNavigateToMemberHeartbeat && 'cursor-pointer hover:bg-muted/70 transition-colors'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={cn(
+                          'inline-block h-2 w-2 rounded-full flex-shrink-0',
+                          entry.status === 'completed' && 'bg-emerald-500',
+                          entry.status === 'failed' && 'bg-red-500',
+                          entry.status === 'running' && 'bg-amber-500 animate-pulse'
+                        )}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{entry.memberName}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 capitalize">{entry.status}</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm text-foreground">{entry.startedAt.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{formatRelativePastTime(entry.startedAt)}</p>
+                    </div>
+                  </button>
+                  {(() => {
+                    const rid = entry.config.lastExecution.runId
+                    if (!rid) return null
+                    return (
+                      <button
+                        type="button"
+                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                        title="View events"
+                        onClick={() => {
+                          setEventsRunId(rid)
+                          setEventsAgentName(entry.memberName)
+                          setEventsLive(entry.status === 'running')
+                        }}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                      </button>
+                    )
+                  })()}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {/* Timestamps */}
       <section>
         <h3 className="text-sm font-medium text-foreground mb-3">Timestamps</h3>
@@ -268,6 +376,16 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
       <section>
         <RolesTab team={team} onSetRoles={onSetRoles} allAgents={allAgents} onNavigateToMember={onNavigateToMember} />
       </section>
+
+      {eventsRunId && (
+        <EventsModal
+          isOpen
+          onClose={() => setEventsRunId(null)}
+          runId={eventsRunId}
+          agentName={eventsAgentName}
+          live={eventsLive}
+        />
+      )}
     </div>
   )
 }

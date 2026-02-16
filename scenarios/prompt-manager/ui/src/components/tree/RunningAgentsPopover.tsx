@@ -8,9 +8,12 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { Activity, Square, Loader2 } from 'lucide-react'
+import { Activity, Square, Loader2, Crosshair, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRunningAgents, type TeamGroup } from '@/hooks/useRunningAgents'
+import { useAgentPositionStore } from '@/stores/agentPositionStore'
+import { useCameraStore } from '@/stores/cameraStore'
+import { EventsModal } from '@/components/shared/EventsModal'
 
 interface RunningAgentsPopoverProps {
   onNavigateToMember: (teamId: string, agentId: string) => void
@@ -40,6 +43,8 @@ export function RunningAgentsPopover({
   const stoppingIds = hasExternalData ? (stoppingIdsProp ?? fallback.stoppingIds) : fallback.stoppingIds
 
   const [isOpen, setIsOpen] = useState(false)
+  const [eventsRunId, setEventsRunId] = useState<string | null>(null)
+  const [eventsAgentName, setEventsAgentName] = useState<string | undefined>()
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Click-outside to close (delayed listener to prevent immediate close)
@@ -130,6 +135,36 @@ export function RunningAgentsPopover({
                         </div>
                       </div>
 
+                      {/* Events button — visible on hover */}
+                      {agent.runId && (
+                        <button
+                          type="button"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-primary/10 hover:text-primary text-muted-foreground transition-all"
+                          title="View events"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEventsRunId(agent.runId)
+                            setEventsAgentName(agent.agentName || agent.agentId)
+                          }}
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      {/* Focus button — visible on hover */}
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-primary/10 hover:text-primary text-muted-foreground transition-all"
+                        title="Focus in World View"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const pos = useAgentPositionStore.getState().getPosition(agent.agentId)
+                          if (pos) useCameraStore.getState().zoomToAgent(agent.agentId, pos)
+                        }}
+                      >
+                        <Crosshair className="h-3.5 w-3.5" />
+                      </button>
+
                       {/* Stop button — visible on hover */}
                       <button
                         type="button"
@@ -155,6 +190,16 @@ export function RunningAgentsPopover({
             ))}
           </div>
         </div>
+      )}
+
+      {eventsRunId && (
+        <EventsModal
+          isOpen
+          onClose={() => setEventsRunId(null)}
+          runId={eventsRunId}
+          agentName={eventsAgentName}
+          live
+        />
       )}
     </div>
   )

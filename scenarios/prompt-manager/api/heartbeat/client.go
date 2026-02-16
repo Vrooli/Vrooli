@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
@@ -274,6 +275,37 @@ func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) error {
 		return c.parseError(resp)
 	}
 	return nil
+}
+
+// GetRunEvents fetches raw event JSON for a run from agent-manager.
+// afterSequence <= -1 and limit <= 0 are treated as "not set" and omitted
+// from the forwarded query string so that agent-manager applies its own defaults.
+func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, afterSequence int64, limit int) ([]byte, error) {
+	path := fmt.Sprintf("/api/v1/runs/%s/events", runID)
+	var params []string
+	if afterSequence >= 0 {
+		params = append(params, fmt.Sprintf("after_sequence=%d", afterSequence))
+	}
+	if limit > 0 {
+		params = append(params, fmt.Sprintf("limit=%d", limit))
+	}
+	if len(params) > 0 {
+		path += "?" + strings.Join(params, "&")
+	}
+	resp, err := c.doRequestWithRetry(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("run %s not found", runID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+
+	return io.ReadAll(resp.Body)
 }
 
 // isRetryable returns true for transport errors and 5xx status codes.

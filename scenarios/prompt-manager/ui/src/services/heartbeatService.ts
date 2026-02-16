@@ -368,6 +368,38 @@ export async function stopRunningAgent(teamId: string, agentId: string): Promise
 }
 
 // ============================================================================
+// Run Events
+// ============================================================================
+
+export interface RunEvent {
+  id: string
+  runId: string
+  sequence: number
+  eventType: 'log' | 'message' | 'tool_call' | 'tool_result' | 'status' | 'metric' | 'error'
+  timestamp: string
+  data: Record<string, unknown>
+}
+
+/**
+ * Fetch events for a run, optionally starting after a given sequence number.
+ */
+export async function getRunEvents(runId: string, opts?: {
+  afterSequence?: number
+  limit?: number
+}): Promise<RunEvent[]> {
+  const params = new URLSearchParams()
+  if (opts?.afterSequence !== undefined) {
+    params.set('after_sequence', String(opts.afterSequence))
+  }
+  if (opts?.limit !== undefined) {
+    params.set('limit', String(opts.limit))
+  }
+  const qs = params.toString()
+  const endpoint = `/runs/${encodeURIComponent(runId)}/events${qs ? `?${qs}` : ''}`
+  return apiRequest<RunEvent[]>(endpoint)
+}
+
+// ============================================================================
 // Schedule Presets
 // ============================================================================
 

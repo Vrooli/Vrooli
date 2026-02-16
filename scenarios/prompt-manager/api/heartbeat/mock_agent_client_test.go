@@ -176,3 +176,7 @@ func (m *mockAgentClient) StopRun(_ context.Context, runID string) error {
 	m.mu.Unlock()
 	return m.stopRunErr
 }
+
+func (m *mockAgentClient) GetRunEvents(_ context.Context, _ string, _ int64, _ int) ([]byte, error) {
+	return []byte("[]"), nil
+}

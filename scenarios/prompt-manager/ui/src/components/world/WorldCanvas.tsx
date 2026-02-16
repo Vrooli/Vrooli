@@ -41,6 +41,7 @@ import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { WorldErrorProvider } from './WorldErrorProvider'
 import { cursorRef } from './cursorRef'
 import { useGraphicsStore } from '@/stores/graphicsStore'
+import { useAgentPositionStore } from '@/stores/agentPositionStore'
 import { selectors } from '@/constants/selectors'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
@@ -202,6 +203,15 @@ export function WorldCanvas({
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- furnitureList and seatedAgents are signal deps that force recalculation when furniture/seating state changes (getAgentSeatPosition is referentially stable)
   }, [agents, getAgentSeatPosition, seatedAgents, furnitureList, agentPositionOverrides])
+
+  // Sync agent positions to the position store for external consumers (e.g. RunningAgentsPopover)
+  useEffect(() => {
+    const posMap: Record<string, [number, number, number]> = {}
+    for (const entry of agentsWithPositions) {
+      posMap[entry.agent.id] = entry.position
+    }
+    useAgentPositionStore.getState().setAll(posMap)
+  }, [agentsWithPositions])
 
   // Get position of focused agent (for camera targeting)
   const focusedAgentPosition = useMemo(() => {

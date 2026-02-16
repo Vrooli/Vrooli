@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -975,6 +976,55 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 		SpawnMode: "multi-process",
 		Triggers:  triggers,
 	})
+}
+
+// GetRunEvents handles GET /runs/{runId}/events - proxies event requests to agent-manager.
+func (h *Handlers) GetRunEvents(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	runID := vars["runId"]
+
+	if runID == "" {
+		http.Error(w, "runId is required", http.StatusBadRequest)
+		return
+	}
+
+	afterSequence := int64(-1)
+	if v := r.URL.Query().Get("after_sequence"); v != "" {
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid after_sequence", http.StatusBadRequest)
+			return
+		}
+		afterSequence = parsed
+	}
+
+	limit := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	data, err := h.agentClient.GetRunEvents(r.Context(), runID, afterSequence, limit)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(data)
 }
 
 // GetTeamExecutionStatus handles GET /teams/{id}/execution-status - returns team execution queue state.
