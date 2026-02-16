@@ -5,7 +5,7 @@
  * graphStore's highlightedNodeIds.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, AlertTriangle, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/stores/graphStore'
@@ -34,12 +34,21 @@ export function GraphQueryPanel({ className }: GraphQueryPanelProps) {
   const highlightNodes = useGraphStore((s) => s.highlightNodes)
   const clearHighlights = useGraphStore((s) => s.clearHighlights)
   const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
+  const highlightSource = useGraphStore((s) => s.highlightSource)
   const queryDisplayMode = useGraphStore((s) => s.queryDisplayMode)
   const setQueryDisplayMode = useGraphStore((s) => s.setQueryDisplayMode)
 
   const [activeQuery, setActiveQuery] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [resultCount, setResultCount] = useState<number | null>(null)
+
+  // Reset local query state when highlights are taken over by focus or cleared externally
+  useEffect(() => {
+    if (highlightSource !== 'query' && activeQuery !== null) {
+      setActiveQuery(null)
+      setResultCount(null)
+    }
+  }, [highlightSource, activeQuery])
 
   const queries: QueryDef[] = [
     {

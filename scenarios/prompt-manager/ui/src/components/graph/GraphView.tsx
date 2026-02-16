@@ -37,6 +37,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { GraphFlowNode, type GraphNodeData } from './GraphNode'
 import { GraphNodePopover } from './GraphNodePopover'
+import { collectNeighborhood } from './graphNeighborhood'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
 import type { GraphNode as GraphNodeType, GraphEdge as GraphEdgeType, HealthScore } from '@/lib/schemas'
@@ -223,6 +224,9 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const error = useGraphStore((s) => s.error)
   const fetchGraph = useGraphStore((s) => s.fetchGraph)
   const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
+  const highlightSource = useGraphStore((s) => s.highlightSource)
+  const focusNodes = useGraphStore((s) => s.focusNodes)
+  const clearHighlights = useGraphStore((s) => s.clearHighlights)
   const queryDisplayMode = useGraphStore((s) => s.queryDisplayMode)
   const filters = useGraphStore((s) => s.filters)
   const layoutDirection = useGraphStore((s) => s.layoutDirection)
@@ -334,6 +338,28 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const querySelectedNodeIds = useMemo(() => {
     if (highlightedNodeIds.size === 0) return new Set<string>()
 
+    // Focus highlights use raw IDs directly — no CLI remapping needed
+    // because the BFS already computed the correct neighborhood.
+    if (highlightSource === 'focus') {
+      // Still handle CLI collapsing: if CLIs are collapsed into a cluster
+      // node, map individual CLI IDs to the cluster ID.
+      if (!filters.collapseCLIs) return new Set(highlightedNodeIds)
+
+      const selected = new Set<string>()
+      let hasSelectedCLI = false
+      for (const id of highlightedNodeIds) {
+        if (id.startsWith('cli:')) {
+          hasSelectedCLI = true
+        } else {
+          selected.add(id)
+        }
+      }
+      if (hasSelectedCLI) selected.add(CLI_CLUSTER_ID)
+      return selected
+    }
+
+    // Query highlights: CLI IDs from query results are only meaningful
+    // when collapseCLIs is on (they map to the cluster node).
     const selected = new Set<string>()
     let hasSelectedCLI = false
 
@@ -350,7 +376,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     }
 
     return selected
-  }, [highlightedNodeIds, filters.collapseCLIs])
+  }, [highlightedNodeIds, highlightSource, filters.collapseCLIs])
 
   const hasQuerySelection = querySelectedNodeIds.size > 0
   const hideNonSelected = hasQuerySelection && queryDisplayMode === 'hide-others'
@@ -572,7 +598,7 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     setSelectedNode(nextState)
   }, [nodeMap, healthScoreMap, adjacentEdgesMap])
 
-  // Handle node click -> toggle popover
+  // Handle node click -> toggle popover + focus neighborhood
   const onNodeClick = useCallback<NodeMouseHandler>((_event, node) => {
     const graphNode = nodeMap.get(node.id)
     if (!graphNode) return
@@ -581,6 +607,10 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     if (selectedNodeRef.current?.nodeId === node.id) {
       selectedNodeRef.current = null
       setSelectedNode(null)
+      // If we're in focus mode, clear the focus highlight
+      if (highlightSource === 'focus') {
+        clearHighlights()
+      }
       return
     }
 
@@ -592,13 +622,22 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     }
     selectedNodeRef.current = state
     setSelectedNode(state)
-  }, [nodeMap, healthScoreMap, adjacentEdgesMap])
 
-  // Close popover on pane click
+    // When no query is active (or already in focus mode), compute and focus on the neighborhood
+    if (highlightSource !== 'query') {
+      const neighborhood = collectNeighborhood(node.id, adjacentEdgesMap, nodeMap)
+      focusNodes(Array.from(neighborhood))
+    }
+  }, [nodeMap, healthScoreMap, adjacentEdgesMap, highlightSource, clearHighlights, focusNodes])
+
+  // Close popover on pane click + clear focus
   const onPaneClick = useCallback(() => {
     selectedNodeRef.current = null
     setSelectedNode(null)
-  }, [])
+    if (highlightSource === 'focus') {
+      clearHighlights()
+    }
+  }, [highlightSource, clearHighlights])
 
   // Navigate to editor from popover
   const navigateToEditor = useCallback(() => {

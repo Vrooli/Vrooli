@@ -95,9 +95,12 @@ describe('GraphFlowNode', () => {
     expect(container.querySelector('.bg-emerald-500\\/20.border-emerald-300\\/80')).toBeInTheDocument()
   })
 
-  it('should use selected query styling when queryState is selected', () => {
-    const { container } = renderNode({ queryState: 'selected' })
-    expect(container.querySelector('.bg-indigo-500\\/35.border-indigo-300')).toBeInTheDocument()
+  it('should preserve health colors and add ring when queryState is selected', () => {
+    const { container } = renderNode({ queryState: 'selected', healthScore: 0.8 })
+    // Health colors preserved (green)
+    expect(container.querySelector('.bg-emerald-500\\/20.border-emerald-300\\/80')).toBeInTheDocument()
+    // Selection ring indicator
+    expect(container.querySelector('.ring-2')).toBeInTheDocument()
   })
 
   it('should use dimmed query styling when queryState is dimmed', () => {

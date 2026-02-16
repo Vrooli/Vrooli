@@ -163,6 +163,8 @@ function saveGraphViewSettings(settings: GraphViewSettingsSnapshot): void {
   }
 }
 
+export type HighlightSource = 'query' | 'focus' | null
+
 interface GraphStore {
   graph: GraphResponse | null
   healthScoreOverride: HealthScore[] | null
@@ -170,6 +172,7 @@ interface GraphStore {
   error: string | null
   filters: GraphFilters
   highlightedNodeIds: Set<string>
+  highlightSource: HighlightSource
   queryDisplayMode: GraphQueryDisplayMode
   layoutDirection: 'TB' | 'LR'
   layoutMode: GraphLayoutMode
@@ -180,6 +183,7 @@ interface GraphStore {
   regenerateGraph: () => Promise<void>
   setFilter: <K extends keyof GraphFilters>(key: K, value: GraphFilters[K]) => void
   highlightNodes: (ids: string[]) => void
+  focusNodes: (ids: string[]) => void
   clearHighlights: () => void
   setQueryDisplayMode: (mode: GraphQueryDisplayMode) => void
   setLayoutDirection: (dir: 'TB' | 'LR') => void
@@ -197,6 +201,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   loading: false,
   error: null,
   highlightedNodeIds: new Set(),
+  highlightSource: null,
   fitViewRequested: 0,
   viewport: loadGraphViewport(),
 
@@ -242,11 +247,15 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   highlightNodes: (ids) => {
-    set({ highlightedNodeIds: new Set(ids) })
+    set({ highlightedNodeIds: new Set(ids), highlightSource: 'query' })
+  },
+
+  focusNodes: (ids) => {
+    set({ highlightedNodeIds: new Set(ids), highlightSource: 'focus' })
   },
 
   clearHighlights: () => {
-    set({ highlightedNodeIds: new Set() })
+    set({ highlightedNodeIds: new Set(), highlightSource: null })
   },
 
   setQueryDisplayMode: (mode) => {

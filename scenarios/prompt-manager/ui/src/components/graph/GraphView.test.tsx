@@ -30,18 +30,18 @@ const MOCK_GRAPH_RESPONSE: GraphResponse = {
       { id: 'team-1', type: 'team', label: 'Test Team', description: 'A team', status: '', tags: [] },
       { id: 'agent-1', type: 'agent', label: 'Test Agent', description: 'An agent', status: 'active', tags: ['test'] },
       { id: 'skill-1', type: 'skill', label: 'Test Skill', description: 'A skill', status: '', tags: [] },
-      { id: 'cli-1', type: 'cli', label: 'Test CLI', description: 'A CLI', status: '', tags: [] },
+      { id: 'cli:test-tool', type: 'cli', label: 'Test CLI', description: 'A CLI', status: '', tags: [] },
     ],
     edges: [
       { from: 'team-1', to: 'agent-1', kind: 'membership', category: '', sourceFile: '', lineNumber: 0 },
       { from: 'agent-1', to: 'skill-1', kind: 'bold-listed', category: '', sourceFile: 'TOOLS.md', lineNumber: 1 },
-      { from: 'skill-1', to: 'cli-1', kind: 'code-usage', category: 'CodeScenarioCLI', sourceFile: 'skill.md', lineNumber: 5 },
+      { from: 'skill-1', to: 'cli:test-tool', kind: 'code-usage', category: 'CodeScenarioCLI', sourceFile: 'skill.md', lineNumber: 5 },
     ],
     healthScores: [
       { nodeId: 'team-1', score: 0.5, factors: { 'outgoing-edges': 0.8 }, messages: [] },
       { nodeId: 'agent-1', score: 0.7, factors: { 'incoming-edges': 0.6, 'outgoing-edges': 0.8 }, messages: [] },
       { nodeId: 'skill-1', score: 0.3, factors: { 'incoming-edges': 0.4 }, messages: [] },
-      { nodeId: 'cli-1', score: 0.1, factors: {}, messages: [] },
+      { nodeId: 'cli:test-tool', score: 0.1, factors: {}, messages: [] },
     ],
   },
 }
@@ -200,6 +200,7 @@ describe('GraphView', () => {
         healthThreshold: 0,
       },
       highlightedNodeIds: new Set(),
+      highlightSource: null,
       queryDisplayMode: 'dim-others',
       layoutDirection: 'TB',
       layoutMode: 'compact',
@@ -316,7 +317,7 @@ describe('GraphView', () => {
     expect(screen.getByTestId('node-team-1')).toHaveTextContent('Test Team')
     expect(screen.getByTestId('node-agent-1')).toHaveTextContent('Test Agent')
     expect(screen.getByTestId('node-skill-1')).toHaveTextContent('Test Skill')
-    expect(screen.getByTestId('node-cli-1')).toHaveTextContent('Test CLI')
+    expect(screen.getByTestId('node-cli:test-tool')).toHaveTextContent('Test CLI')
   })
 
   it('should mark graph edges as non-interactive', async () => {
@@ -465,6 +466,184 @@ describe('GraphView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('react-flow')).toBeInTheDocument()
       expect(screen.queryByTestId('monaco-editor')).not.toBeInTheDocument()
+    })
+  })
+
+  // ==========================================================================
+  // Click-to-focus neighborhood tests
+  // ==========================================================================
+
+  describe('click-to-focus neighborhood', () => {
+    async function setupGraph() {
+      const mockGetGraph = vi.mocked(getGraph)
+      mockGetGraph.mockResolvedValue(MOCK_GRAPH_RESPONSE)
+      render(<GraphView />)
+      await waitFor(() => {
+        expect(screen.getByTestId('react-flow')).toBeInTheDocument()
+      })
+    }
+
+    /** Get fresh props from the latest render (callbacks update on re-render). */
+    function getProps(): Record<string, unknown> {
+      expect(latestReactFlowProps).not.toBeNull()
+      return latestReactFlowProps as Record<string, unknown>
+    }
+
+    function clickNode(id: string) {
+      getOnNodeClick(getProps())({}, { id, position: { x: 0, y: 0 } })
+    }
+
+    function clickPane() {
+      getOnPaneClick(getProps())()
+    }
+
+    function getOnNodeClick(props: Record<string, unknown>) {
+      return props.onNodeClick as (event: unknown, node: { id: string; position: { x: number; y: number } }) => void
+    }
+
+    function getOnPaneClick(props: Record<string, unknown>) {
+      return props.onPaneClick as () => void
+    }
+
+    it('should set focus highlight when clicking a node with no active query', async () => {
+      await setupGraph()
+
+      act(() => {
+        clickNode('team-1')
+      })
+
+      const state = useGraphStore.getState()
+      expect(state.highlightSource).toBe('focus')
+      expect(state.highlightedNodeIds.size).toBeGreaterThan(0)
+      expect(state.highlightedNodeIds.has('team-1')).toBe(true)
+      // Should include neighbor agent-1
+      expect(state.highlightedNodeIds.has('agent-1')).toBe(true)
+    })
+
+    it('should clear focus when clicking the same node again', async () => {
+      await setupGraph()
+
+      // First click: focus
+      act(() => {
+        clickNode('team-1')
+      })
+      expect(useGraphStore.getState().highlightSource).toBe('focus')
+
+      // Second click on same node: toggle off (re-read fresh props)
+      act(() => {
+        clickNode('team-1')
+      })
+
+      const state = useGraphStore.getState()
+      expect(state.highlightSource).toBe(null)
+      expect(state.highlightedNodeIds.size).toBe(0)
+    })
+
+    it('should switch focus when clicking a different node', async () => {
+      await setupGraph()
+
+      // Click team-1
+      act(() => {
+        clickNode('team-1')
+      })
+      expect(useGraphStore.getState().highlightedNodeIds.has('team-1')).toBe(true)
+
+      // Click skill-1 (different node, re-read fresh props)
+      act(() => {
+        clickNode('skill-1')
+      })
+
+      const state = useGraphStore.getState()
+      expect(state.highlightSource).toBe('focus')
+      expect(state.highlightedNodeIds.has('skill-1')).toBe(true)
+    })
+
+    it('should clear focus on pane click', async () => {
+      await setupGraph()
+
+      // Click a node to focus
+      act(() => {
+        clickNode('agent-1')
+      })
+      expect(useGraphStore.getState().highlightSource).toBe('focus')
+
+      // Click empty pane (re-read fresh props)
+      act(() => {
+        clickPane()
+      })
+
+      const state = useGraphStore.getState()
+      expect(state.highlightSource).toBe(null)
+      expect(state.highlightedNodeIds.size).toBe(0)
+    })
+
+    it('should not replace query highlights when clicking a node during active query', async () => {
+      // Set up an active query highlight
+      useGraphStore.setState({
+        highlightedNodeIds: new Set(['skill-1']),
+        highlightSource: 'query',
+      })
+
+      await setupGraph()
+
+      // Click a node while query is active
+      act(() => {
+        clickNode('team-1')
+      })
+
+      const state = useGraphStore.getState()
+      // Query should still be active (not replaced by focus)
+      expect(state.highlightSource).toBe('query')
+      expect(state.highlightedNodeIds).toEqual(new Set(['skill-1']))
+    })
+
+    it('should include cli: prefixed nodes in focus neighborhood', async () => {
+      await setupGraph()
+
+      // Click skill-1 which connects to cli:test-tool
+      act(() => {
+        getOnNodeClick(latestReactFlowProps ?? {})({}, { id: 'skill-1', position: { x: 0, y: 0 } })
+      })
+
+      const state = useGraphStore.getState()
+      expect(state.highlightSource).toBe('focus')
+      // CLI node should be IN the highlight set (was previously dropped by cli: prefix filter)
+      expect(state.highlightedNodeIds.has('cli:test-tool')).toBe(true)
+      expect(state.highlightedNodeIds.has('skill-1')).toBe(true)
+    })
+
+    it('should dim cli: nodes in focus mode with dim-others display', async () => {
+      useGraphStore.setState({ queryDisplayMode: 'dim-others' })
+      await setupGraph()
+
+      // Click team-1 — full neighborhood includes cli:test-tool at depth 3
+      act(() => {
+        getOnNodeClick(latestReactFlowProps ?? {})({}, { id: 'team-1', position: { x: 0, y: 0 } })
+      })
+
+      // The cli:test-tool node should be selected (not dimmed)
+      const flowProps = latestReactFlowProps as Record<string, unknown>
+      const flowNodes = (flowProps.nodes as unknown[]) as Array<{ id: string; data?: { queryState?: string } }>
+      const cliNode = flowNodes.find((n) => n.id === 'cli:test-tool')
+      expect(cliNode?.data?.queryState).toBe('selected')
+    })
+
+    it('should not clear query highlights on pane click', async () => {
+      useGraphStore.setState({
+        highlightedNodeIds: new Set(['skill-1']),
+        highlightSource: 'query',
+      })
+
+      await setupGraph()
+
+      act(() => {
+        clickPane()
+      })
+
+      const state = useGraphStore.getState()
+      // Query highlights should remain
+      expect(state.highlightSource).toBe('query')
+      expect(state.highlightedNodeIds.has('skill-1')).toBe(true)
     })
   })
 })

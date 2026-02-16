@@ -74,19 +74,13 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
   const isQuerySelected = queryState === 'selected'
   const isQueryDimmed = queryState === 'dimmed'
 
-  const appearance = isQuerySelected
+  const appearance = isQueryDimmed
     ? {
-      background: 'bg-indigo-500/35',
-      border: 'border-indigo-300',
-      text: 'text-indigo-900 dark:text-indigo-50',
+      background: 'bg-muted/30',
+      border: 'border-border/40',
+      text: 'text-muted-foreground',
     }
-    : isQueryDimmed
-      ? {
-        background: 'bg-muted/30',
-        border: 'border-border/40',
-        text: 'text-muted-foreground',
-      }
-      : health
+    : health
 
   return (
     <div className="relative">
@@ -104,7 +98,7 @@ function GraphNodeComponent({ data }: GraphNodeProps) {
           appearance.background,
           appearance.border,
           shape,
-          isQuerySelected && 'shadow-lg shadow-indigo-500/30',
+          isQuerySelected && 'ring-2 ring-white/40 shadow-lg',
           isQueryDimmed && 'opacity-45 saturate-50',
           isDiamond && 'w-[100px] h-[100px] flex items-center justify-center',
           !isDiamond && 'min-w-[120px] max-w-[180px]',
