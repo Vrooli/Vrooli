@@ -21,7 +21,8 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
-  ChevronRight,
+  ChevronLeft,
+  CircleHelp,
   Edit,
   FileText,
   Files,
@@ -44,7 +45,6 @@ import { Input } from "../components/ui/input";
 import { FileTree } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
 import { FileUpload } from "../components/ui/file-upload";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { TagList } from "../components/ui/tag-list";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
@@ -90,8 +90,6 @@ const MAX_FILES_PANEL_WIDTH = 520;
 const MIN_PREVIEW_WIDTH = 320;
 const RESIZE_HANDLE_WIDTH = 8;
 
-type MobilePanel = "preview" | "details" | "notes";
-
 const collectMatchingFiles = (entries: BacklogFile[], query: string): BacklogFile[] => {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];
@@ -134,9 +132,9 @@ export function BacklogDetailsPage() {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [filesPanelWidth, setFilesPanelWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
-  const [activePanel, setActivePanel] = useState<MobilePanel>("preview");
   const [showFilesSheet, setShowFilesSheet] = useState(false);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [showHelpSheet, setShowHelpSheet] = useState(false);
   const [fileSearch, setFileSearch] = useState("");
   const [recentFiles, setRecentFiles] = useState<BacklogFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
@@ -243,7 +241,6 @@ export function BacklogDetailsPage() {
   const handleFileSelect = useCallback((file: BacklogFile) => {
     if (file.type === "file") {
       setSelectedFile(file);
-      setActivePanel("preview");
       setShowFilesSheet(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -525,18 +522,6 @@ export function BacklogDetailsPage() {
     setSelectedFile(null);
   }, [files, selectedFileParam, setSearchParams]);
 
-  useEffect(() => {
-    if (!hasNotes && activePanel === "notes") {
-      setActivePanel("preview");
-    }
-  }, [activePanel, hasNotes]);
-
-  useEffect(() => {
-    if (activePanel !== "preview" && showFilesSheet) {
-      setShowFilesSheet(false);
-    }
-  }, [activePanel, showFilesSheet]);
-
   if (!backlogKind || !name) {
     return (
       <div className="space-y-6" data-testid={selectors.backlogDetails.page}>
@@ -665,24 +650,60 @@ export function BacklogDetailsPage() {
     </div>
   );
 
-  return (
-    <div className="space-y-6" data-testid={selectors.backlogDetails.page}>
-      <nav className="flex flex-wrap items-center gap-2 text-sm" data-testid={selectors.backlogDetails.breadcrumb}>
-        <Link
-          to="/backlog"
-          className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-colors"
-          data-testid={selectors.backlogDetails.backButton}
+  const detailsPanel = item ? (
+    <Card>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium text-slate-200">Details</h2>
+        </div>
+        <p
+          className="text-slate-400"
+          data-testid={selectors.backlogDetails.description}
         >
-          <Sparkles className="h-4 w-4" />
-          <span>Backlog</span>
-        </Link>
-        <ChevronRight className="h-4 w-4 text-slate-600" />
-        <span className="text-slate-300">{BACKLOG_KIND_LABELS[backlogKind]}</span>
-        <ChevronRight className="h-4 w-4 text-slate-600" />
-        <span className="text-slate-200 truncate max-w-[220px]" title={item?.title || name}>
-          {item?.title || name}
-        </span>
-      </nav>
+          {item.description || "No description provided"}
+        </p>
+        <TagList tags={item.tags} maxTags={10} />
+        <div className="flex flex-wrap gap-6 border-t border-white/10 pt-4 text-sm text-slate-500">
+          <span title={new Date(item.created).toLocaleString()}>
+            Created {formatRelativeTime(item.created)}
+          </span>
+          <span title={new Date(item.updated).toLocaleString()}>
+            Updated {formatRelativeTime(item.updated)}
+          </span>
+        </div>
+      </div>
+    </Card>
+  ) : null;
+
+  const notesPanel = hasNotes ? (
+    <div className="space-y-4">
+      {clarifyFile && (
+        <IdeaClarifyPanel
+          questions={clarifyParsed.questions}
+          filePath={IDEA_AGENT_FILE_PATHS.clarify}
+          parseError={clarifyErrorMessage}
+          isSubmitting={clarifyMutation.isPending}
+          submitError={clarifyError}
+          onSubmit={({ questions, nextMode }) =>
+            clarifyMutation.mutate({ questions, nextMode })
+          }
+        />
+      )}
+      {suggestionsFile && (
+        <IdeaSuggestionsPanel
+          suggestions={suggestionsParsed.suggestions}
+          filePath={IDEA_AGENT_FILE_PATHS.suggest}
+          parseError={suggestionsErrorMessage}
+          isSubmitting={suggestionsMutation.isPending}
+          submitError={suggestionsError}
+          onSubmit={(updatedSuggestions) => suggestionsMutation.mutate(updatedSuggestions)}
+        />
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
 
       {isLoading && (
         <Card padding="lg" centered>
@@ -702,8 +723,51 @@ export function BacklogDetailsPage() {
       )}
 
       {item && !error && (
-        <>
-          <Card data-testid={selectors.backlogDetails.header}>
+        <div className="flex min-h-[100dvh] flex-col gap-0 lg:min-h-0 lg:gap-6">
+          <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-white/10 bg-slate-950/95 px-3 py-2 backdrop-blur lg:hidden">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+            >
+              <Link
+                to="/backlog"
+                data-testid={selectors.backlogDetails.backButton}
+                aria-label="Back to backlog"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-100" data-testid={selectors.backlogDetails.title}>
+                {item.title}
+              </p>
+              <p className="truncate text-xs text-slate-400">
+                {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+              onClick={() => setShowHelpSheet(true)}
+              aria-label="Open details and notes"
+            >
+              <CircleHelp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+              onClick={() => setShowActionsSheet(true)}
+              aria-label="More actions"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Card className="hidden lg:block" data-testid={selectors.backlogDetails.header}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -793,6 +857,16 @@ export function BacklogDetailsPage() {
                   variant="outline"
                   size="sm"
                   className="hidden lg:inline-flex"
+                  onClick={() => setShowHelpSheet(true)}
+                  aria-label="Open details and notes"
+                >
+                  <CircleHelp className="mr-2 h-4 w-4" />
+                  Help
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden lg:inline-flex"
                   data-testid={selectors.backlogDetails.editButton}
                   onClick={() => setShowEdit(true)}
                 >
@@ -822,7 +896,7 @@ export function BacklogDetailsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 w-9 p-0 lg:hidden"
+                  className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70 lg:hidden"
                   onClick={() => setShowActionsSheet(true)}
                   aria-label="More actions"
                 >
@@ -852,76 +926,15 @@ export function BacklogDetailsPage() {
             )}
           </Card>
 
-          <div className="lg:hidden">
-            <Tabs value={activePanel} onValueChange={(value) => setActivePanel(value as MobilePanel)} className="w-full">
-              <TabsList className="w-full">
-                <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
-                <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
-                {hasNotes && <TabsTrigger value="notes" className="flex-1">Notes</TabsTrigger>}
-              </TabsList>
-            </Tabs>
-          </div>
+          <div className="hidden lg:block">{detailsPanel}</div>
+          {hasNotes && <div className="hidden lg:block">{notesPanel}</div>}
 
-          <div className={cn(activePanel === "details" ? "block" : "hidden lg:block")}>
-            <Card>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium text-slate-200">Details</h2>
-                </div>
-                <p
-                  className="text-slate-400"
-                  data-testid={selectors.backlogDetails.description}
-                >
-                  {item.description || "No description provided"}
-                </p>
-                <TagList tags={item.tags} maxTags={10} />
-                <div className="flex flex-wrap gap-6 border-t border-white/10 pt-4 text-sm text-slate-500">
-                  <span title={new Date(item.created).toLocaleString()}>
-                    Created {formatRelativeTime(item.created)}
-                  </span>
-                  <span title={new Date(item.updated).toLocaleString()}>
-                    Updated {formatRelativeTime(item.updated)}
-                  </span>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {hasNotes && (
-            <div className={cn(activePanel === "notes" ? "block" : "hidden lg:block")}>
-              <div className="space-y-4">
-                {clarifyFile && (
-                  <IdeaClarifyPanel
-                    questions={clarifyParsed.questions}
-                    filePath={IDEA_AGENT_FILE_PATHS.clarify}
-                    parseError={clarifyErrorMessage}
-                    isSubmitting={clarifyMutation.isPending}
-                    submitError={clarifyError}
-                    onSubmit={({ questions, nextMode }) =>
-                      clarifyMutation.mutate({ questions, nextMode })
-                    }
-                  />
-                )}
-                {suggestionsFile && (
-                  <IdeaSuggestionsPanel
-                    suggestions={suggestionsParsed.suggestions}
-                    filePath={IDEA_AGENT_FILE_PATHS.suggest}
-                    parseError={suggestionsErrorMessage}
-                    isSubmitting={suggestionsMutation.isPending}
-                    submitError={suggestionsError}
-                    onSubmit={(updatedSuggestions) => suggestionsMutation.mutate(updatedSuggestions)}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className={cn(activePanel === "preview" ? "block" : "hidden lg:block")}>
-            <div className="rounded-xl border border-white/10 bg-slate-900/30 overflow-hidden">
+          <div className="flex-1 min-h-0">
+            <div className="h-full overflow-hidden lg:rounded-xl lg:border lg:border-white/10 lg:bg-slate-900/30">
               <div
                 ref={workspaceRef}
                 className={cn(
-                  "flex flex-col lg:flex-row min-h-[calc(100dvh-16rem)]",
+                  "flex h-full min-h-0 flex-col lg:flex-row lg:min-h-[calc(100dvh-16rem)]",
                   isResizing && "select-none"
                 )}
               >
@@ -1010,6 +1023,18 @@ export function BacklogDetailsPage() {
               </div>
             )}
           </div>
+
+          <BottomSheet
+            isOpen={showHelpSheet}
+            onClose={() => setShowHelpSheet(false)}
+            title="Backlog details"
+            description="Description, metadata, and idea notes"
+          >
+            <div className="space-y-4">
+              {detailsPanel}
+              {notesPanel}
+            </div>
+          </BottomSheet>
 
           <BottomSheet
             isOpen={showActionsSheet}
@@ -1130,7 +1155,7 @@ export function BacklogDetailsPage() {
               </Button>
             </div>
           </BottomSheet>
-        </>
+        </div>
       )}
 
       {item && (

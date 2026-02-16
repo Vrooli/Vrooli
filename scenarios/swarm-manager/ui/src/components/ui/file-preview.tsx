@@ -428,13 +428,18 @@ export function FilePreview({
   const canDiscard = isEditable && isDirty && !isSaving;
   const canToggleDiff = isEditable && isDirty && !isSaving;
 
-  const actionButtonClass = (enabled: boolean, active = false) =>
+  const actionButtonClass = (enabled: boolean, active = false, tone: "default" | "accent" = "default") =>
     cn(
-      "rounded-full p-1 transition-colors",
+      "inline-flex h-8 w-8 items-center justify-center transition-colors",
+      compactHeader
+        ? "rounded-md bg-transparent"
+        : "rounded-full",
       enabled
-        ? "text-slate-300 hover:bg-slate-700/60 hover:text-white"
+        ? tone === "accent"
+          ? "text-cyan-200 hover:bg-cyan-500/20 hover:text-cyan-100"
+          : "text-slate-300 hover:bg-slate-700/60 hover:text-white"
         : "text-slate-600 cursor-not-allowed",
-      active && enabled && "bg-slate-700/60 text-white"
+      active && enabled && (tone === "accent" ? "bg-cyan-500/20 text-cyan-100" : "bg-slate-700/60 text-white")
     );
 
   return (
@@ -472,12 +477,7 @@ export function FilePreview({
                 type="button"
                 onClick={handleSave}
                 disabled={!canSave}
-                className={cn(
-                  "rounded-full p-1 transition-colors",
-                  canSave
-                    ? "bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30"
-                    : "text-slate-600 cursor-not-allowed"
-                )}
+                className={actionButtonClass(canSave, false, "accent")}
                 aria-label="Save changes"
                 title={canSave ? "Save changes" : "No changes to save"}
                 data-testid="file-preview-save"
@@ -536,7 +536,7 @@ export function FilePreview({
             <button
               type="button"
               onClick={() => setShowMobilePath((prev) => !prev)}
-              className="sm:hidden rounded-full p-1 text-slate-400 hover:bg-slate-700/60 hover:text-slate-200"
+              className="sm:hidden inline-flex h-8 w-8 items-center justify-center rounded-md bg-transparent text-slate-400 transition-colors hover:bg-slate-700/60 hover:text-slate-200"
               aria-label="Toggle file path"
               title="Show file path"
             >
@@ -557,7 +557,7 @@ export function FilePreview({
           <button
             type="button"
             onClick={handleCopyPath}
-            className="rounded-full p-1 text-slate-300 hover:bg-slate-800/70 hover:text-white"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-transparent text-slate-300 transition-colors hover:bg-slate-800/70 hover:text-white"
             aria-label="Copy file path"
             title={copied ? "Copied" : "Copy file path"}
           >

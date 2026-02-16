@@ -47,6 +47,7 @@ export function MainLayout() {
   });
 
   const activeTab = tabs.find(tab => location.pathname.startsWith(tab.path))?.id || "backlog";
+  const isBacklogDetailsRoute = /^\/backlog\/[^/]+\/[^/]+/.test(location.pathname);
 
   // Keyboard navigation via centralized shortcut hook (see useKeyboardShortcuts)
   const handleTabNav = useCallback((key: string) => {
@@ -122,43 +123,50 @@ export function MainLayout() {
       </header>
 
       {/* Mobile Header */}
-      <header className="md:hidden flex h-14 items-center justify-center border-b border-slate-200/20 px-4">
-        <h1 className="text-lg font-semibold">Swarm Manager</h1>
-      </header>
+      {!isBacklogDetailsRoute && (
+        <header className="md:hidden flex h-14 items-center justify-center border-b border-slate-200/20 px-4">
+          <h1 className="text-lg font-semibold">Swarm Manager</h1>
+        </header>
+      )}
 
       {/* Main Content */}
-      <main className="pb-20 md:pb-6 p-6">
+      <main className={cn(
+        isBacklogDetailsRoute ? "p-0 md:p-6" : "p-6",
+        isBacklogDetailsRoute ? "pb-0 md:pb-6" : "pb-20 md:pb-6"
+      )}>
         <Outlet />
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav
-        className={cn(
-          "md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-slate-200/20 bg-slate-950/95 backdrop-blur"
-        )}
-        data-testid={selectors.layout.mobileNav}
-      >
-        <div className="flex h-full items-center justify-around">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => navigate(tab.path)}
-                data-testid={tab.mobileTestId}
-                className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors",
-                  isActive ? "text-cyan-400" : "text-slate-300"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {!isBacklogDetailsRoute && (
+        <nav
+          className={cn(
+            "md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-slate-200/20 bg-slate-950/95 backdrop-blur"
+          )}
+          data-testid={selectors.layout.mobileNav}
+        >
+          <div className="flex h-full items-center justify-around">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => navigate(tab.path)}
+                  data-testid={tab.mobileTestId}
+                  className={cn(
+                    "flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors",
+                    isActive ? "text-cyan-400" : "text-slate-300"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
