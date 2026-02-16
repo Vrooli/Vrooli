@@ -486,7 +486,17 @@ export function PreviewPane({
     onViewReportRequest: handleOpenReportDialog,
   });
 
+  // DOC: scenarios/app-monitor/docs/internal/SEAMS.md#recursive-self-embedding-prevention
   const onIframeLoad = useCallback(() => {
+    try {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc?.querySelector('[data-app-monitor-self]')) {
+        setIframeLoadError('Recursive embedding detected');
+        if (iframeRef.current) iframeRef.current.src = 'about:blank';
+        setIsIframeLoading(false);
+        return;
+      }
+    } catch { /* cross-origin — fine */ }
     setIsIframeLoading(false);
     setIframeLoadedAt(Date.now());
     setIframeLoadError(null);

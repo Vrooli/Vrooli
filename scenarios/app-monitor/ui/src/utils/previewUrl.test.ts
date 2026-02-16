@@ -78,6 +78,14 @@ describe('isBlockedHostEmbedPreviewTarget', () => {
     expect(isBlockedHostEmbedPreviewTarget('http://localhost:3000/apps/git-control-tower/proxy/', 'http://localhost:3000')).toBe(false);
   });
 
+  it('blocks app-monitor proxy URL on host origin', () => {
+    expect(isBlockedHostEmbedPreviewTarget('http://localhost:3000/apps/app-monitor/proxy/', 'http://localhost:3000')).toBe(true);
+  });
+
+  it('allows non-app-monitor proxy URL on host origin', () => {
+    expect(isBlockedHostEmbedPreviewTarget('http://localhost:3000/apps/other-scenario/proxy/', 'http://localhost:3000')).toBe(false);
+  });
+
   it('allows same path on non-host origin', () => {
     expect(isBlockedHostEmbedPreviewTarget('http://localhost:4310/apps/workspace', 'http://localhost:3000')).toBe(false);
   });

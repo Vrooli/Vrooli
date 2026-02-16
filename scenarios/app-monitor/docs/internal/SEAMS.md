@@ -40,6 +40,20 @@
   - `ui/src/components/AppPreviewToolbar.css`
   - Toolbar now owns compact-nav mode switching (`isFullView || max-width: 640px`) and small-screen suppression of lifecycle actions while preserving URL input visibility.
 
+- Recursive self-embedding prevention:
+  - **Layer 1 — Server-side** (`packages/api-base/src/server/host.ts`):
+    - `handleScenarioProxyRequest` / `handlePortProxyRequest`: Direct `appId === hostScenario` check returns 403 with `code: 'SELF_PROXY_BLOCKED'`.
+    - `handleUpgrade`: Same check destroys the WebSocket socket.
+    - `getProxyContext`: After `fetchAppMetadata`, checks if resolved `scenario_name` matches hostScenario (catches alias-based recursion).
+    - `streamProxiedHtml` / cached HTML path: `hostHtmlFingerprint` option detects when upstream accidentally serves the host's own content; evicts cache entry on detection.
+  - **Layer 2 — Client-side depth** (`ui/src/main.tsx`):
+    - `getIframeDepth()` reads `window.parent.__appMonitorDepth` to compute nesting level.
+    - Blocks React render when `depth > 1`, showing a static error message instead.
+  - **Layer 3 — Preview guards** (`ui/src/utils/previewUrl.ts`, `ui/src/features/preview-workspace/components/PreviewPane.tsx`):
+    - `isBlockedHostEmbedPreviewTarget`: Now blocks `/apps/app-monitor/proxy/` paths instead of allowing all proxy paths.
+    - `PreviewPane.onIframeLoad`: Checks loaded iframe's `contentDocument` for `[data-app-monitor-self]` attribute; resets iframe to `about:blank` if detected.
+  - **Tests**: `packages/api-base/src/__tests__/server/host-self-proxy.test.ts`, E2E in `error-scenarios.test.ts`, `ui/src/utils/previewUrl.test.ts`.
+
 ## Weak Seams To Improve
 - `AppPreviewView` still owns route-specific and feature orchestration in a single large file.
 - Workspace layout type (`grid|split`) exists in store but UI only exposes interaction mode toggle.

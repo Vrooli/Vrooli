@@ -90,6 +90,7 @@ const proxyHost = createScenarioProxyHost({
   timeoutMs: DEFAULT_TIMEOUT_MS,
   proxiedAppHeader: 'X-App-Monitor-App',
   childBaseTagAttribute: 'data-app-monitor',
+  hostHtmlFingerprint: 'data-app-monitor-self',
   patchFetch: true,
   hostEndpoints: HOST_ENDPOINTS,
   verbose: true,

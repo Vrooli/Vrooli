@@ -247,7 +247,11 @@ export const isBlockedHostEmbedPreviewTarget = (
     const path = parsed.pathname.endsWith('/') && parsed.pathname !== '/'
       ? parsed.pathname.slice(0, -1)
       : parsed.pathname;
-    if (path.match(SCENARIO_PROXY_PATH_PATTERN)) {
+    // DOC: scenarios/app-monitor/docs/internal/SEAMS.md#recursive-self-embedding-prevention
+    const proxyMatch = path.match(SCENARIO_PROXY_PATH_PATTERN);
+    if (proxyMatch) {
+      const target = decodeURIComponent(proxyMatch[1] ?? '').trim().toLowerCase();
+      if (target === 'app-monitor') return true;
       return false;
     }
 

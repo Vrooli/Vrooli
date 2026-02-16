@@ -87,8 +87,32 @@ if (
   ;(window as unknown as Record<string, unknown>)[BRIDGE_FLAG] = true
 }
 
+// DOC: scenarios/app-monitor/docs/internal/SEAMS.md#recursive-self-embedding-prevention
+const APP_MONITOR_DEPTH_KEY = '__appMonitorDepth'
+const APP_MONITOR_MAX_DEPTH = 1
+
+function getIframeDepth(): number {
+  if (window.parent === window) return 0
+  try {
+    const parentDepth = (window.parent as any)[APP_MONITOR_DEPTH_KEY]
+    return typeof parentDepth === 'number' ? parentDepth + 1 : 1
+  } catch {
+    return 1 // Cross-origin = assume depth 1
+  }
+}
+
+const currentDepth = getIframeDepth()
+;(window as any)[APP_MONITOR_DEPTH_KEY] = currentDepth
+
 const rootEl = document.getElementById('root')
-if (rootEl) {
+if (currentDepth > APP_MONITOR_MAX_DEPTH) {
+  sendDebugEvent('recursive-embed-blocked', { depth: currentDepth })
+  if (rootEl) {
+    rootEl.innerHTML = '<div style="padding:2rem;font-family:system-ui;color:#ef4444">'
+      + '<h2>Recursive Embedding Detected</h2>'
+      + '<p>App Monitor cannot render inside itself.</p></div>'
+  }
+} else if (rootEl) {
   ReactDOM.createRoot(rootEl).render(
     <React.StrictMode>
       <SnackStackProvider>
