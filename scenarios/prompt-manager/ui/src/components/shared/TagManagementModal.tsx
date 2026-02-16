@@ -12,8 +12,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { GripVertical, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useModalBehavior } from '@/hooks/useModalBehavior'
 
 interface TagManagementModalProps {
+  /** Whether the modal is visible (default: true, for backward compat with conditional rendering) */
+  isOpen?: boolean
   tags: string[]
   onChange: (tags: string[]) => void
   availableTags?: string[]
@@ -21,6 +24,7 @@ interface TagManagementModalProps {
 }
 
 export function TagManagementModal({
+  isOpen = true,
   tags,
   onChange,
   availableTags = [],
@@ -33,11 +37,37 @@ export function TagManagementModal({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  // Shared dismiss behavior: Escape closes (unless editing), scroll lock
+  useModalBehavior({
+    isOpen,
+    onClose,
+    ref: modalRef,
+    preventBodyScroll: true,
+    disableCloseOnEsc: editingIndex !== null,
+    disableCloseOnOutsideClick: true,
+  })
+
+  // When editing and Escape is pressed, cancel editing (not handled by useModalBehavior
+  // since disableCloseOnEsc is true during editing)
+  useEffect(() => {
+    if (!isOpen || editingIndex === null) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingIndex(null)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, editingIndex])
 
   // Focus add input on mount
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 100)
-  }, [])
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [isOpen])
 
   // Focus edit input when editing starts
   useEffect(() => {
@@ -45,21 +75,6 @@ export function TagManagementModal({
       setTimeout(() => editInputRef.current?.focus(), 0)
     }
   }, [editingIndex])
-
-  // Close on Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (editingIndex !== null) {
-          setEditingIndex(null)
-        } else {
-          onClose()
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose, editingIndex])
 
   const addTag = useCallback(
     (tag: string) => {
@@ -173,8 +188,11 @@ export function TagManagementModal({
   const trimmedInput = inputValue.trim()
   const isNewTag = trimmedInput && !availableTags.includes(trimmedInput) && !tags.includes(trimmedInput)
 
+  if (!isOpen) return null
+
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 z-50 bg-background flex flex-col"
       role="dialog"
       aria-modal="true"

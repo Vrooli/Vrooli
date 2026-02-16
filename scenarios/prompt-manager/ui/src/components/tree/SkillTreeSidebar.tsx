@@ -293,6 +293,16 @@ interface SkillTreeSidebarProps {
   onNavigateToRunningAgent?: (teamId: string, agentId: string) => void
   /** Pre-fetched running agents data from the sync hook (eliminates duplicate polling) */
   runningAgentsData?: UseRunningAgentsResult
+  // Agent context menu callbacks
+  /** Called when user requests to duplicate an agent via context menu */
+  onDuplicateAgent?: (agentId: string) => void
+  /** Called when user requests to customize an agent via context menu */
+  onCustomizeAgent?: (agentId: string) => void
+  /** Called when user requests to preview an agent's prompt via context menu */
+  onPreviewPrompt?: (agentId: string) => void
+  // Team context menu callbacks
+  /** Called when user toggles team enabled/disabled via context menu */
+  onToggleTeamEnabled?: (teamId: string) => void
   className?: string
 }
 
@@ -362,6 +372,10 @@ export function SkillTreeSidebar({
   onContentMatchesChange,
   onNavigateToRunningAgent,
   runningAgentsData,
+  onDuplicateAgent,
+  onCustomizeAgent,
+  onPreviewPrompt,
+  onToggleTeamEnabled,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -1202,6 +1216,9 @@ export function SkillTreeSidebar({
             selectedAgentId={selectedAgentId}
             onSelectAgent={onSelectAgentFromMenu ?? setSelectedAgentId}
             searchQuery={agentSearchQuery}
+            onDuplicateAgent={onDuplicateAgent}
+            onCustomizeAgent={onCustomizeAgent}
+            onPreviewPrompt={onPreviewPrompt}
             className="flex-1"
           />
         </Tabs.Content>
@@ -1212,6 +1229,7 @@ export function SkillTreeSidebar({
             selectedTeamId={selectedTeamId}
             onSelectTeam={onSelectTeamFromMenu ?? setSelectedTeamId}
             searchQuery={teamSearchQuery}
+            onToggleTeamEnabled={onToggleTeamEnabled}
             className="flex-1"
           />
         </Tabs.Content>

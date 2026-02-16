@@ -2,12 +2,13 @@
  * AgentListPanel - Panel for listing and managing agents.
  */
 
-import { useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Plus, User, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAgentData } from '@/hooks/useAgentData'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
+import { AgentContextMenu } from '@/components/agent/AgentContextMenu'
 import { selectors } from '@/constants/selectors'
 
 interface AgentListPanelProps {
@@ -16,6 +17,12 @@ interface AgentListPanelProps {
   /** Filter agents by display name */
   searchQuery?: string
   className?: string
+  /** Called when user requests to duplicate an agent via context menu */
+  onDuplicateAgent?: (agentId: string) => void
+  /** Called when user requests to customize an agent via context menu */
+  onCustomizeAgent?: (agentId: string) => void
+  /** Called when user requests to preview an agent's prompt via context menu */
+  onPreviewPrompt?: (agentId: string) => void
 }
 
 /**
@@ -26,8 +33,19 @@ export function AgentListPanel({
   onSelectAgent,
   searchQuery,
   className,
+  onDuplicateAgent,
+  onCustomizeAgent,
+  onPreviewPrompt,
 }: AgentListPanelProps) {
   const { agents, isLoading, isError, createAgent, deleteAgent } = useAgentData()
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    agentId: string
+    agentName: string
+  } | null>(null)
 
   const filteredAgents = useMemo(() => {
     if (!searchQuery) return agents
@@ -52,6 +70,16 @@ export function AgentListPanel({
   const handleDeleteAgent = async (id: string) => {
     await deleteAgent(id)
   }
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, agentId: string, agentName: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, agentId, agentName })
+  }, [])
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null)
+  }, [])
 
   if (isLoading) {
     return (
@@ -99,6 +127,7 @@ export function AgentListPanel({
               key={agent.id}
               type="button"
               onClick={() => onSelectAgent(agent.id)}
+              onContextMenu={(e) => handleContextMenu(e, agent.id, agent.displayName)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-left group',
                 'hover:bg-muted/50 transition-colors',
@@ -151,6 +180,21 @@ export function AgentListPanel({
           New Agent
         </button>
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <AgentContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          agentId={contextMenu.agentId}
+          agentName={contextMenu.agentName}
+          onClose={handleCloseContextMenu}
+          onDuplicate={onDuplicateAgent ?? (() => {})}
+          onCustomize={onCustomizeAgent ?? (() => {})}
+          onPreviewPrompt={onPreviewPrompt ?? (() => {})}
+          onDelete={(id) => void handleDeleteAgent(id)}
+        />
+      )}
     </div>
   )
 }

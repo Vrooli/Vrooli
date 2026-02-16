@@ -3,11 +3,19 @@
  *
  * Used for settings/help overlays so users can keep panels open while
  * interacting with content behind them.
+ *
+ * Features:
+ * - Escape to close (via useModalBehavior)
+ * - Viewport clamping on window resize
+ * - Full header bar as drag handle (desktop)
+ * - Mobile bottom tray mode (undraggable, slides up from bottom)
  */
 
-import { useCallback, useId, useRef, useState, type ReactNode } from 'react'
-import { GripVertical, X } from 'lucide-react'
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { GripVertical, X, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useModalBehavior } from '@/hooks/useModalBehavior'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 
 interface Position {
   x: number
@@ -40,6 +48,15 @@ export function FloatingPanel({
   const dragOffset = useRef({ x: 0, y: 0 })
   const panelRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  const isMobile = useIsMobile()
+
+  // Escape to close (no scroll lock, no click-outside for non-modal panels)
+  useModalBehavior({
+    isOpen,
+    onClose,
+    ref: panelRef,
+    disableCloseOnOutsideClick: true,
+  })
 
   const clampPosition = useCallback((next: Position): Position => {
     const panelWidth = panelRef.current?.offsetWidth ?? 560
@@ -52,8 +69,20 @@ export function FloatingPanel({
     }
   }, [])
 
+  // Clamp position on window resize
+  useEffect(() => {
+    if (!isOpen || isMobile) return
+
+    const handleResize = () => {
+      setPosition((prev) => clampPosition(prev))
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [isOpen, isMobile, clampPosition])
+
   const handleDragStart = useCallback((e: React.MouseEvent) => {
-    if (!panelRef.current) return
+    if (!panelRef.current || isMobile) return
     setIsDragging(true)
     const rect = panelRef.current.getBoundingClientRect()
     dragOffset.current = {
@@ -77,10 +106,51 @@ export function FloatingPanel({
 
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
-  }, [clampPosition])
+  }, [clampPosition, isMobile])
 
   if (!isOpen) return null
 
+  // Mobile: bottom tray mode
+  if (isMobile) {
+    return (
+      <div
+        ref={panelRef}
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-40',
+          'bg-card/95 border-t border-border rounded-t-2xl shadow-2xl backdrop-blur-sm',
+          'animate-in slide-in-from-bottom duration-200',
+          className,
+        )}
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby={titleId}
+        data-testid={testId}
+      >
+        {/* Drag handle indicator (visual only) */}
+        <div className="flex justify-center pt-2 pb-1">
+          <Minus className="h-5 w-8 text-muted-foreground/50" />
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1 border-b border-border">
+          <h2 id={titleId} className="flex-1 text-sm font-semibold text-foreground">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Close panel"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4 max-h-[70vh] overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    )
+  }
+
+  // Desktop: draggable floating panel
   return (
     <div
       ref={panelRef}
@@ -96,25 +166,25 @@ export function FloatingPanel({
       aria-labelledby={titleId}
       data-testid={testId}
     >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-        <button
-          type="button"
-          onMouseDown={handleDragStart}
-          className={cn(
-            'p-1 rounded cursor-grab text-muted-foreground hover:text-foreground hover:bg-muted transition-colors',
-            isDragging && 'cursor-grabbing',
-          )}
-          title="Drag to move"
-          aria-label="Drag panel"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      {/* Full header as drag handle */}
+      <div
+        className={cn(
+          'flex items-center gap-2 px-3 py-2 border-b border-border cursor-grab',
+          isDragging && 'cursor-grabbing',
+        )}
+        onMouseDown={handleDragStart}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
         <h2 id={titleId} className="text-sm font-semibold text-foreground">
           {title}
         </h2>
         <button
           type="button"
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation()
+            onClose()
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Close panel"
         >

@@ -2,13 +2,14 @@
  * TeamListPanel - Panel for listing and managing teams.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Plus, Users, Trash2, Download, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTeamData } from '@/hooks/useTeamData'
 import { selectors } from '@/constants/selectors'
 import * as teamService from '@/services/teamService'
 import { CCTeamImportModal } from './CCTeamImportModal'
+import { TeamContextMenu } from '@/components/team/TeamContextMenu'
 
 interface TeamListPanelProps {
   selectedTeamId: string | null
@@ -16,6 +17,8 @@ interface TeamListPanelProps {
   /** Filter teams by display name */
   searchQuery?: string
   className?: string
+  /** Called when user toggles team enabled/disabled via context menu */
+  onToggleTeamEnabled?: (teamId: string) => void
 }
 
 /**
@@ -41,6 +44,7 @@ export function TeamListPanel({
   onSelectTeam,
   searchQuery,
   className,
+  onToggleTeamEnabled,
 }: TeamListPanelProps) {
   const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
 
@@ -50,6 +54,15 @@ export function TeamListPanel({
     return teams.filter((t) => t.displayName.toLowerCase().includes(lower))
   }, [teams, searchQuery])
   const [importModalOpen, setImportModalOpen] = useState(false)
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    teamId: string
+    teamName: string
+    isEnabled: boolean
+  } | null>(null)
 
   const handleCreateTeam = async () => {
     const name = `Team ${teams.length + 1}`
@@ -64,8 +77,7 @@ export function TeamListPanel({
     await deleteTeam(id)
   }
 
-  const handleExportTeam = async (e: React.MouseEvent, teamId: string, teamName: string) => {
-    e.stopPropagation()
+  const handleExportTeam = async (teamId: string, teamName: string) => {
     try {
       const data = await teamService.exportClaudeCodeTeam(teamId)
       downloadJson(data, `${teamName}-cc-config.json`)
@@ -78,6 +90,16 @@ export function TeamListPanel({
     refetch()
     onSelectTeam(teamId)
   }
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, teamId: string, teamName: string, isEnabled: boolean) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, teamId, teamName, isEnabled })
+  }, [])
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null)
+  }, [])
 
   if (isLoading) {
     return (
@@ -125,6 +147,7 @@ export function TeamListPanel({
               key={team.id}
               type="button"
               onClick={() => onSelectTeam(team.id)}
+              onContextMenu={(e) => handleContextMenu(e, team.id, team.displayName, team.enabled)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-left group',
                 'hover:bg-muted/50 transition-colors',
@@ -169,7 +192,10 @@ export function TeamListPanel({
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   type="button"
-                  onClick={(e) => void handleExportTeam(e, team.id, team.displayName)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void handleExportTeam(team.id, team.displayName)
+                  }}
                   className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                   title="Export as Claude Code config"
                   data-testid={selectors.teams.exportButton}
@@ -227,6 +253,21 @@ export function TeamListPanel({
         onClose={() => setImportModalOpen(false)}
         onImported={handleImported}
       />
+
+      {/* Context menu */}
+      {contextMenu && (
+        <TeamContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          teamId={contextMenu.teamId}
+          teamName={contextMenu.teamName}
+          isEnabled={contextMenu.isEnabled}
+          onClose={handleCloseContextMenu}
+          onToggleEnabled={onToggleTeamEnabled ?? (() => {})}
+          onExport={(id, name) => void handleExportTeam(id, name)}
+          onDelete={(id) => void handleDeleteTeam(id)}
+        />
+      )}
     </div>
   )
 }

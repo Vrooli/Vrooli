@@ -103,6 +103,7 @@ export function SkillManagerLayout() {
   } = useAgentData()
 
   const {
+    teams,
     updateTeam,
     deleteTeam,
     addMember,
@@ -669,6 +670,68 @@ export function SkillManagerLayout() {
     }
   }, [agentFromEditor, createAgent, setSelectedAgentId, isMobile])
 
+  // Context menu: duplicate any agent by ID (not just the currently selected one)
+  const handleDuplicateAgentById = useCallback(async (agentId: string) => {
+    const agent = agents.find((a) => a.id === agentId)
+    if (!agent) return
+
+    try {
+      const created = await createAgent({
+        displayName: `${agent.displayName} (Copy)`,
+        description: agent.description,
+        appearance: agent.appearance ?? {
+          body: DEFAULT_AGENT_COLORS.body,
+          head: DEFAULT_AGENT_COLORS.head,
+          accent: DEFAULT_AGENT_COLORS.accent,
+        },
+        capabilities: agent.capabilities ?? undefined,
+        connectors: agent.connectors,
+        defaultProfileRef: agent.defaultProfileRef ?? undefined,
+        heartbeat: agent.heartbeat ?? undefined,
+        tags: [...agent.tags],
+        fileOrder: [...agent.fileOrder],
+      })
+      setSelectedAgentId(created.id)
+
+      if (isMobile) {
+        setIsMobileSidebarOpen(false)
+      }
+    } catch (error) {
+      console.error('Failed to duplicate agent:', error)
+      toast({
+        title: 'Duplicate failed',
+        description: 'Unable to duplicate agent. Try again.',
+      })
+    }
+  }, [agents, createAgent, setSelectedAgentId, isMobile])
+
+  // Context menu: open customize modal for a specific agent (selects and opens editor)
+  const handleCustomizeAgentById = useCallback((agentId: string) => {
+    setSelectedAgentId(agentId)
+  }, [setSelectedAgentId])
+
+  // Context menu: open prompt preview for a specific agent (selects and opens editor)
+  const handlePreviewPromptById = useCallback((agentId: string) => {
+    setSelectedAgentId(agentId)
+  }, [setSelectedAgentId])
+
+  // Context menu: toggle team enabled/disabled
+  const handleToggleTeamEnabled = useCallback(async (teamId: string) => {
+    const team = teams.find((t) => t.id === teamId)
+    if (!team) return
+
+    try {
+      await updateTeam(teamId, { enabled: !team.enabled })
+    } catch (error) {
+      console.error('Failed to toggle team enabled:', error)
+      toast({
+        title: 'Update failed',
+        description: 'Unable to toggle team status. Try again.',
+        variant: 'destructive',
+      })
+    }
+  }, [teams, updateTeam])
+
   const handleConfirmDeleteAgent = useCallback(async () => {
     if (!agentFromEditor) {
       setShowDeleteAgentDialog(false)
@@ -1113,6 +1176,10 @@ export function SkillManagerLayout() {
         onContentMatchesChange={setContentMatches}
         onNavigateToRunningAgent={handleNavigateToRunningAgent}
         runningAgentsData={runningAgentsData}
+        onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
+        onCustomizeAgent={handleCustomizeAgentById}
+        onPreviewPrompt={handlePreviewPromptById}
+        onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
       />
     </PanelErrorBoundary>
   )
@@ -1389,6 +1456,10 @@ export function SkillManagerLayout() {
                 onContentMatchesChange={setContentMatches}
                 onNavigateToRunningAgent={handleNavigateToRunningAgent}
                 runningAgentsData={runningAgentsData}
+                onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
+                onCustomizeAgent={handleCustomizeAgentById}
+                onPreviewPrompt={handlePreviewPromptById}
+                onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
                 className="border-r-0"
               />
             </div>

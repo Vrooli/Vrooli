@@ -33,6 +33,7 @@ const literalSelectors = {
     list: 'agent-list',
     newButton: 'agent-new-button',
     row: 'agent-row',
+    contextMenu: 'agent-context-menu',
   },
   agentEditor: {
     header: 'agent-editor-header',
@@ -45,6 +46,7 @@ const literalSelectors = {
     importButton: 'team-import-button',
     row: 'team-row',
     exportButton: 'team-export-button',
+    contextMenu: 'team-context-menu',
   },
   teamEditor: {
     header: 'team-editor-header',

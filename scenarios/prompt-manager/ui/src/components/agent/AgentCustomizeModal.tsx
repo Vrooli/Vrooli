@@ -8,9 +8,10 @@
  * - Live preview
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Palette, Crown } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Palette, Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Dialog } from '@/components/shared/Dialog'
 import type { Agent, UpdateAgentRequest } from '@/types/agent'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { useAccessoryStore } from '@/stores/accessoryStore'
@@ -60,7 +61,6 @@ export function AgentCustomizeModal({
   onSave,
   isLoading = false,
 }: AgentCustomizeModalProps) {
-  const dialogRef = useRef<HTMLDivElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
   // Form state
@@ -98,45 +98,6 @@ export function AgentCustomizeModal({
     }
   }, [isOpen])
 
-  // Handle escape key
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isLoading) {
-        onClose()
-      }
-    },
-    [onClose, isLoading]
-  )
-
-  // Handle click outside
-  const handleClickOutside = useCallback(
-    (event: MouseEvent) => {
-      if (
-        dialogRef.current &&
-        !dialogRef.current.contains(event.target as Node) &&
-        !isLoading
-      ) {
-        onClose()
-      }
-    },
-    [onClose, isLoading]
-  )
-
-  // Set up event listeners
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown)
-      document.addEventListener('mousedown', handleClickOutside)
-      document.body.style.overflow = 'hidden'
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.body.style.overflow = ''
-    }
-  }, [isOpen, handleKeyDown, handleClickOutside])
-
   // Handle save
   const handleSave = async () => {
     if (!agent) return
@@ -158,207 +119,183 @@ export function AgentCustomizeModal({
     onClose()
   }
 
-  if (!isOpen || !agent) return null
+  if (!agent) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      isLoading={isLoading}
+      maxWidth="max-w-lg"
+      titleId="customize-dialog-title"
+      className="bg-card border-border"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+          <Palette className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h2 id="customize-dialog-title" className="text-lg font-semibold text-foreground">
+            Customize Agent
+          </h2>
+          <p className="text-sm text-muted-foreground">Personalize your agent's appearance</p>
+        </div>
+      </div>
 
-      {/* Dialog */}
-      <div
-        ref={dialogRef}
-        className={cn(
-          'relative w-full max-w-lg mx-4 p-6',
-          'bg-card border border-border rounded-xl shadow-2xl',
-          'animate-in fade-in-0 zoom-in-95 duration-150'
-        )}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="customize-dialog-title"
-      >
-        {/* Close button */}
+      {/* Preview - slime blob shape */}
+      <div className="flex justify-center mb-4">
+        <div className="relative">
+          {/* Head accessory preview */}
+          {headAccessory !== 'none' && (
+            <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl">
+              {HEAD_ACCESSORIES.find((a) => a.type === headAccessory)?.icon}
+            </span>
+          )}
+          {/* Slime body */}
+          <div
+            className="w-24 h-20 rounded-[50%] flex items-center justify-center relative"
+            style={{ backgroundColor: bodyColor }}
+          >
+            {/* Eyes */}
+            <div className="flex gap-3 -mt-1">
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: '#ffffff' }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#1e1b4b' }} />
+              </div>
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: '#ffffff' }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#1e1b4b' }} />
+              </div>
+            </div>
+            {/* Accent dot */}
+            <div
+              className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
+              style={{ backgroundColor: accentColor }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Name input */}
+      <div className="mb-4">
+        <label htmlFor="agent-name" className="block text-sm font-medium text-foreground mb-1">
+          Name
+        </label>
+        <input
+          ref={nameInputRef}
+          id="agent-name"
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          className={cn(
+            'w-full px-3 py-2 text-sm',
+            'bg-muted border border-border rounded-lg',
+            'text-foreground placeholder:text-muted-foreground',
+            'focus:outline-none focus:ring-2 focus:ring-primary'
+          )}
+          placeholder="Enter agent name"
+        />
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4 border-b border-border">
+        <button
+          type="button"
+          onClick={() => setActiveTab('colors')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'colors'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Palette className="h-4 w-4" />
+          Colors
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('accessories')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'accessories'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Crown className="h-4 w-4" />
+          Accessories
+        </button>
+      </div>
+
+      {/* Colors Tab */}
+      {activeTab === 'colors' && (
+        <div className="space-y-4">
+          <ColorPicker
+            label="Body Color"
+            value={bodyColor}
+            onChange={setBodyColor}
+          />
+          <ColorPicker
+            label="Highlight Color"
+            value={headColor}
+            onChange={setHeadColor}
+          />
+          <ColorPicker
+            label="Accent Color"
+            value={accentColor}
+            onChange={setAccentColor}
+          />
+        </div>
+      )}
+
+      {/* Accessories Tab */}
+      {activeTab === 'accessories' && (
+        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+          {/* Head Accessory */}
+          <AccessoryPicker
+            label="Head"
+            icon={<Crown className="h-4 w-4" />}
+            options={HEAD_ACCESSORIES}
+            value={headAccessory}
+            onChange={(type) => setHeadAccessory(type as HeadAccessoryType)}
+          />
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-3 mt-6">
         <button
           type="button"
           onClick={onClose}
           disabled={isLoading}
           className={cn(
-            'absolute top-4 right-4 p-1 rounded',
-            'text-muted-foreground hover:text-foreground hover:bg-muted transition-colors',
+            'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
+            'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+            'border border-border transition-colors',
             isLoading && 'opacity-50 cursor-not-allowed'
           )}
-          aria-label="Close dialog"
         >
-          <X className="h-5 w-5" />
+          Cancel
         </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-            <Palette className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h2 id="customize-dialog-title" className="text-lg font-semibold text-foreground">
-              Customize Agent
-            </h2>
-            <p className="text-sm text-muted-foreground">Personalize your agent's appearance</p>
-          </div>
-        </div>
-
-        {/* Preview - slime blob shape */}
-        <div className="flex justify-center mb-4">
-          <div className="relative">
-            {/* Head accessory preview */}
-            {headAccessory !== 'none' && (
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl">
-                {HEAD_ACCESSORIES.find((a) => a.type === headAccessory)?.icon}
-              </span>
-            )}
-            {/* Slime body */}
-            <div
-              className="w-24 h-20 rounded-[50%] flex items-center justify-center relative"
-              style={{ backgroundColor: bodyColor }}
-            >
-              {/* Eyes */}
-              <div className="flex gap-3 -mt-1">
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: '#ffffff' }}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#1e1b4b' }} />
-                </div>
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: '#ffffff' }}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#1e1b4b' }} />
-                </div>
-              </div>
-              {/* Accent dot */}
-              <div
-                className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
-                style={{ backgroundColor: accentColor }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Name input */}
-        <div className="mb-4">
-          <label htmlFor="agent-name" className="block text-sm font-medium text-foreground mb-1">
-            Name
-          </label>
-          <input
-            ref={nameInputRef}
-            id="agent-name"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className={cn(
-              'w-full px-3 py-2 text-sm',
-              'bg-muted border border-border rounded-lg',
-              'text-foreground placeholder:text-muted-foreground',
-              'focus:outline-none focus:ring-2 focus:ring-primary'
-            )}
-            placeholder="Enter agent name"
-          />
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-4 border-b border-border">
-          <button
-            type="button"
-            onClick={() => setActiveTab('colors')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'colors'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Palette className="h-4 w-4" />
-            Colors
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('accessories')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'accessories'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Crown className="h-4 w-4" />
-            Accessories
-          </button>
-        </div>
-
-        {/* Colors Tab */}
-        {activeTab === 'colors' && (
-          <div className="space-y-4">
-            <ColorPicker
-              label="Body Color"
-              value={bodyColor}
-              onChange={setBodyColor}
-            />
-            <ColorPicker
-              label="Highlight Color"
-              value={headColor}
-              onChange={setHeadColor}
-            />
-            <ColorPicker
-              label="Accent Color"
-              value={accentColor}
-              onChange={setAccentColor}
-            />
-          </div>
-        )}
-
-        {/* Accessories Tab */}
-        {activeTab === 'accessories' && (
-          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-            {/* Head Accessory */}
-            <AccessoryPicker
-              label="Head"
-              icon={<Crown className="h-4 w-4" />}
-              options={HEAD_ACCESSORIES}
-              value={headAccessory}
-              onChange={(type) => setHeadAccessory(type as HeadAccessoryType)}
-            />
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-3 mt-6">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isLoading}
-            className={cn(
-              'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-              'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-              'border border-border transition-colors',
-              isLoading && 'opacity-50 cursor-not-allowed'
-            )}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={isLoading}
-            className={cn(
-              'flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
-              'bg-primary text-primary-foreground hover:bg-primary/90',
-              isLoading && 'opacity-50 cursor-not-allowed'
-            )}
-          >
-            {isLoading ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={isLoading}
+          className={cn(
+            'flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+            'bg-primary text-primary-foreground hover:bg-primary/90',
+            isLoading && 'opacity-50 cursor-not-allowed'
+          )}
+        >
+          {isLoading ? 'Saving...' : 'Save Changes'}
+        </button>
       </div>
-    </div>
+    </Dialog>
   )
 }
 

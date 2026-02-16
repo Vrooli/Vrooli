@@ -7,9 +7,10 @@
  * - Change storage location
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Copy, Folder, FolderPlus, HardDrive, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Popover } from '@/components/shared/Popover'
 import type { FolderType } from '@/types'
 
 interface SkillContextMenuProps {
@@ -44,57 +45,7 @@ export function SkillContextMenu({
   onChangeStorage,
   onCreateNewFolder,
 }: SkillContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null)
   const [activeSubmenu, setActiveSubmenu] = useState<'move' | 'storage' | null>(null)
-
-  // Close on click outside or escape
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    // Add listeners after a brief delay to avoid immediate close from the right-click event
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscape)
-    }, 0)
-
-    return () => {
-      clearTimeout(timer)
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [onClose])
-
-  // Adjust position to stay within viewport
-  useEffect(() => {
-    if (menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect()
-      const viewportWidth = window.innerWidth
-      const viewportHeight = window.innerHeight
-
-      let adjustedX = x
-      let adjustedY = y
-
-      if (x + rect.width > viewportWidth) {
-        adjustedX = viewportWidth - rect.width - 8
-      }
-      if (y + rect.height > viewportHeight) {
-        adjustedY = viewportHeight - rect.height - 8
-      }
-
-      menuRef.current.style.left = `${adjustedX}px`
-      menuRef.current.style.top = `${adjustedY}px`
-    }
-  }, [x, y])
 
   const handleCopySkill = useCallback(() => {
     onCopySkill()
@@ -124,15 +75,7 @@ export function SkillContextMenu({
   const currentPathString = currentModes.filter(Boolean).join('/')
 
   return (
-    <div
-      ref={menuRef}
-      className={cn(
-        'fixed z-50 min-w-[180px] overflow-visible rounded-md',
-        'bg-popover border border-border shadow-lg',
-        'animate-in fade-in-0 zoom-in-95 duration-100'
-      )}
-      style={{ left: x, top: y }}
-    >
+    <Popover isOpen onClose={onClose} x={x} y={y} delayClickOutside className="overflow-visible">
       <div className="p-1">
         {/* Copy skill */}
         <button
@@ -300,6 +243,6 @@ export function SkillContextMenu({
           )}
         </div>
       </div>
-    </div>
+    </Popover>
   )
 }
