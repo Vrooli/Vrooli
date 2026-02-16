@@ -7,8 +7,9 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Loader2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
 import { Dialog } from './Dialog'
+import { MarkdownRenderer } from '@/components/markdown/MarkdownRenderer'
 import { getRunEvents, type RunEvent } from '@/services/heartbeatService'
 import { cn } from '@/lib/utils'
 
@@ -92,16 +93,25 @@ export function EventsModal({ isOpen, onClose, runId, agentName, live, errorMess
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title={title} maxWidth="max-w-2xl">
-      {/* Live indicator */}
-      {live && (
-        <div className="flex items-center gap-2 mb-4">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-          </span>
-          <span className="text-xs font-medium text-emerald-400">Live</span>
-        </div>
-      )}
+      {/* Header row: live indicator + copy all */}
+      <div className="flex items-center justify-between mb-4">
+        {live ? (
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <span className="text-xs font-medium text-emerald-400">Live</span>
+          </div>
+        ) : <div />}
+        {events.length > 0 && (
+          <CopyButton
+            text={JSON.stringify(events, null, 2)}
+            label="Copy JSON"
+            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700"
+          />
+        )}
+      </div>
 
       {/* Event list */}
       {loading ? (
@@ -140,6 +150,31 @@ export function EventsModal({ isOpen, onClose, runId, agentName, live, errorMess
   )
 }
 
+/** Copy-to-clipboard button with check feedback. */
+function CopyButton({ text, label, className }: { text: string; label?: string; className?: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = useCallback(() => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }, [text])
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={cn(
+        'inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-slate-200 transition-colors',
+        className,
+      )}
+      title={label ?? 'Copy'}
+    >
+      {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+      {label && <span>{copied ? 'Copied' : label}</span>}
+    </button>
+  )
+}
+
 /** Safely stringify an unknown value for display. */
 function str(v: unknown, fallback = ''): string {
   if (v == null) return fallback
@@ -174,13 +209,18 @@ function MessageEvent({ event }: { event: RunEvent }) {
   const content = str(event.data.content)
   return (
     <div className="rounded-lg bg-slate-800/50 p-3">
-      <span className={cn(
-        'text-[10px] font-semibold uppercase tracking-wider',
-        role === 'assistant' ? 'text-blue-400' : 'text-slate-400',
-      )}>
-        {role}
-      </span>
-      <p className="text-sm text-slate-200 mt-1 whitespace-pre-wrap">{content}</p>
+      <div className="flex items-center justify-between">
+        <span className={cn(
+          'text-[10px] font-semibold uppercase tracking-wider',
+          role === 'assistant' ? 'text-blue-400' : 'text-slate-400',
+        )}>
+          {role}
+        </span>
+        <CopyButton text={content} />
+      </div>
+      <div className="text-sm text-slate-200 mt-1">
+        <MarkdownRenderer content={content} />
+      </div>
     </div>
   )
 }
