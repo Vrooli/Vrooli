@@ -473,6 +473,35 @@ func TestQueue_ScheduledMode_DoesNotSpawnImmediately(t *testing.T) {
 	}
 }
 
+func TestQueue_AllowsArchivedIdea(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:        "archived-idea",
+		Title:       "Archived Idea",
+		Description: "",
+		Status:      StatusArchived,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+		Kind:        KindIdea,
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator"}`)
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/archived-idea/queue", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "archived-idea"})
+	w := httptest.NewRecorder()
+
+	h.Queue(w, req)
+	testutil.AssertStatus(t, w, http.StatusAccepted)
+}
+
 func TestResearch_SpawnsAgent(t *testing.T) {
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},

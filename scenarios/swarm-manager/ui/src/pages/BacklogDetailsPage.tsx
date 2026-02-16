@@ -61,7 +61,9 @@ import {
   defaultQueryOptions,
   findBacklogFileByPath,
   formatRelativeTime,
+  getBacklogNotQueueableReason,
   IDEA_AGENT_FILE_PATHS,
+  isBacklogQueueable,
   parseClarifyQuestionsFile,
   parseSuggestionsFile,
 } from "../lib";
@@ -78,14 +80,12 @@ import type {
   BacklogFile,
   BacklogKind,
   BacklogResearchTarget,
-  BacklogStatus,
   IdeaAgentMode,
   IdeaClarificationQuestion,
   IdeaSuggestion,
 } from "../types";
 import { useBacklogStore } from "../stores";
 
-const QUEUEABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready"];
 const RECENT_FILES_LIMIT = 5;
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const MIN_FILES_PANEL_WIDTH = 240;
@@ -419,7 +419,8 @@ export function BacklogDetailsPage() {
   const queueError = queueMutation.isError ? "Failed to queue backlog item. Please try again." : null;
   const convertError = convertMutation.isError ? "Failed to convert backlog item. Please try again." : null;
 
-  const canQueue = Boolean(item && item.kind !== "research" && QUEUEABLE_STATUSES.includes(item.status));
+  const canQueue = Boolean(item && isBacklogQueueable(item));
+  const queueBlockedReason = item ? getBacklogNotQueueableReason(item) : null;
 
   const hasResearchOutput = useMemo(() => {
     if (!files || files.length === 0) return false;
@@ -810,6 +811,9 @@ export function BacklogDetailsPage() {
             </div>
           </div>
         )}
+        {!canQueue && queueBlockedReason ? (
+          <p className="text-xs text-slate-500">{queueBlockedReason}</p>
+        ) : null}
         {canConvert && convertTarget && (
           <Button
             variant="default"
@@ -1141,6 +1145,9 @@ export function BacklogDetailsPage() {
                     </Button>
                   </>
                 )}
+                {!canQueue && queueBlockedReason ? (
+                  <span className="max-w-xs text-xs text-slate-500">{queueBlockedReason}</span>
+                ) : null}
                 {canConvert && convertTarget && (
                   <Button
                     variant="default"

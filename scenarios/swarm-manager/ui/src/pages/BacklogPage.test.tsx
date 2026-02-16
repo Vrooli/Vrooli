@@ -32,6 +32,7 @@ vi.mock("../services", () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    queue: vi.fn(),
   },
 }));
 
@@ -50,6 +51,23 @@ describe("BacklogPage", () => {
     });
     vi.clearAllMocks();
     useBacklogStore.getState().reset();
+    vi.mocked(backlogService.queue).mockResolvedValue({
+      item: {
+        name: "queued-item",
+        title: "Queued Item",
+        description: "",
+        status: "queued",
+        priority: 5,
+        tags: [],
+        kind: "idea",
+        created: "2026-01-28T00:00:00Z",
+        updated: "2026-01-28T00:00:00Z",
+      },
+      taskId: "task_1",
+      runId: "run_1",
+      baseUrl: "",
+      created: "2026-01-28T00:00:00Z",
+    });
   });
 
   const renderPage = () => {
@@ -186,5 +204,109 @@ describe("BacklogPage", () => {
     });
 
     expect(backlogService.list).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a reason when an item is not queueable", async () => {
+    vi.mocked(backlogService.list).mockResolvedValue([
+      {
+        name: "done-idea",
+        title: "Done Idea",
+        description: "Already complete",
+        status: "completed" as const,
+        priority: 1,
+        tags: [],
+        created: "2026-01-28T00:00:00Z",
+        updated: "2026-01-28T00:00:00Z",
+        kind: "idea" as const,
+      },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Completed items cannot be queued again.")).toBeInTheDocument();
+    });
+  });
+
+  it("allows archived ideas to be queued", async () => {
+    vi.mocked(backlogService.list).mockResolvedValue([
+      {
+        name: "archived-idea",
+        title: "Archived Idea",
+        description: "Archived but should be queueable",
+        status: "archived" as const,
+        priority: 1,
+        tags: [],
+        created: "2026-01-28T00:00:00Z",
+        updated: "2026-01-28T00:00:00Z",
+        kind: "idea" as const,
+      },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Queue")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Only archived ideas can be queued directly.")).not.toBeInTheDocument();
+  });
+
+  it("queues selected backlog items from bulk actions", async () => {
+    vi.mocked(backlogService.list).mockResolvedValue([
+      {
+        name: "idea-1",
+        title: "Idea One",
+        description: "desc",
+        status: "ready" as const,
+        priority: 1,
+        tags: [],
+        created: "2026-01-28T00:00:00Z",
+        updated: "2026-01-28T00:00:00Z",
+        kind: "idea" as const,
+      },
+      {
+        name: "idea-2",
+        title: "Idea Two",
+        description: "desc",
+        status: "backlog" as const,
+        priority: 2,
+        tags: [],
+        created: "2026-01-28T00:00:00Z",
+        updated: "2026-01-28T00:00:00Z",
+        kind: "idea" as const,
+      },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Queue Selected")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("Select backlog item Idea One"));
+    fireEvent.click(screen.getByLabelText("Select backlog item Idea Two"));
+    fireEvent.click(screen.getByText("Queue Selected"));
+
+    await waitFor(() => {
+      expect(backlogService.queue).toHaveBeenCalledTimes(2);
+    });
+    expect(backlogService.queue).toHaveBeenNthCalledWith(
+      1,
+      "idea",
+      "idea-1",
+      expect.objectContaining({
+        mode: "manual",
+        startedBy: "swarm-manager-ui",
+      })
+    );
+    expect(backlogService.queue).toHaveBeenNthCalledWith(
+      2,
+      "idea",
+      "idea-2",
+      expect.objectContaining({
+        mode: "manual",
+        startedBy: "swarm-manager-ui",
+      })
+    );
   });
 });

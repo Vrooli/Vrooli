@@ -36,7 +36,7 @@ import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.cons
 import { TagList } from "../components/ui/tag-list";
 import { WelcomeHint } from "../components/ui/welcome-hint";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { formatRelativeTime } from "../lib";
+import { formatRelativeTime, getBacklogNotQueueableReason, isBacklogQueueable } from "../lib";
 import { backlogService } from "../services";
 import { selectors } from "../consts/selectors";
 import {
@@ -112,6 +112,7 @@ export function BacklogPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
   const error = useBacklogStore((state) => state.error);
@@ -151,9 +152,56 @@ export function BacklogPage() {
       void fetchBacklog({ force: true });
     },
   });
+  const bulkQueueMutation = useMutation({
+    mutationFn: async ({
+      items: selectedItems,
+      mode,
+      delaySeconds,
+    }: {
+      items: Array<{ kind: BacklogKind; name: string }>;
+      mode: "manual" | "scheduled" | "yolo";
+      delaySeconds?: number;
+    }) => {
+      let queuedCount = 0;
+      const failures: string[] = [];
+
+      for (const item of selectedItems) {
+        try {
+          await backlogService.queue(item.kind, item.name, {
+            mode,
+            delaySeconds,
+            startedBy: "swarm-manager-ui",
+          });
+          queuedCount += 1;
+        } catch {
+          failures.push(`${item.kind}/${item.name}`);
+        }
+      }
+
+      if (failures.length > 0) {
+        const preview = failures.slice(0, 3).join(", ");
+        const suffix = failures.length > 3 ? ", ..." : "";
+        throw new Error(
+          `Queued ${queuedCount}/${selectedItems.length}. Failed: ${preview}${suffix}`
+        );
+      }
+    },
+    onSuccess: () => {
+      setSelectedKeys([]);
+    },
+    onSettled: () => {
+      void fetchBacklog({ force: true });
+    },
+  });
 
   const createError = createMutation.isError ? "Failed to create backlog item. Please try again." : null;
-  const queueError = queueMutation.isError ? "Failed to queue backlog item." : null;
+  const queueError = queueMutation.isError
+    ? "Failed to queue backlog item."
+    : bulkQueueMutation.isError
+      ? bulkQueueMutation.error instanceof Error
+        ? bulkQueueMutation.error.message
+        : "Failed to queue selected backlog items."
+      : null;
 
   const kindItems = useMemo(
     () => items.filter((item) => item.kind === activeKind),
@@ -194,8 +242,54 @@ export function BacklogPage() {
 
   const activeTab = BACKLOG_KIND_TABS.find((tab) => tab.kind === activeKind) ?? BACKLOG_KIND_TABS[0];
   const scheduleDelayValue = Number.isFinite(scheduleDelaySeconds) && scheduleDelaySeconds >= 0 ? scheduleDelaySeconds : 0;
-  const isQueueable = (item: { kind: BacklogKind; status: BacklogStatus }) =>
-    item.kind !== "research" && ["backlog", "researching", "ready"].includes(item.status);
+  const isAnyQueuePending = queueMutation.isPending || bulkQueueMutation.isPending;
+  const queueableFilteredItems = useMemo(
+    () => filteredItems.filter((item) => isBacklogQueueable(item)),
+    [filteredItems]
+  );
+  const queueableFilteredKeySet = useMemo(
+    () => new Set(queueableFilteredItems.map((item) => `${item.kind}/${item.name}`)),
+    [queueableFilteredItems]
+  );
+  const selectedQueueableItems = useMemo(
+    () => queueableFilteredItems.filter((item) => selectedKeys.includes(`${item.kind}/${item.name}`)),
+    [queueableFilteredItems, selectedKeys]
+  );
+  const allQueueableSelected =
+    queueableFilteredItems.length > 0 && selectedQueueableItems.length === queueableFilteredItems.length;
+  const hasAnySelectedQueueable = selectedQueueableItems.length > 0;
+
+  useEffect(() => {
+    setSelectedKeys((prev) => {
+      const next = prev.filter((key) => queueableFilteredKeySet.has(key));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [queueableFilteredKeySet]);
+
+  const toggleItemSelection = (item: { kind: BacklogKind; name: string }) => {
+    const key = `${item.kind}/${item.name}`;
+    setSelectedKeys((prev) => (prev.includes(key) ? prev.filter((existing) => existing !== key) : [...prev, key]));
+  };
+
+  const toggleSelectAllQueueable = () => {
+    if (allQueueableSelected) {
+      setSelectedKeys([]);
+      return;
+    }
+    setSelectedKeys(queueableFilteredItems.map((item) => `${item.kind}/${item.name}`));
+  };
+
+  const queueSelected = (mode: "manual" | "scheduled" | "yolo") => {
+    if (!hasAnySelectedQueueable || isAnyQueuePending) {
+      return;
+    }
+    bulkQueueMutation.mutate({
+      items: selectedQueueableItems.map((item) => ({ kind: item.kind, name: item.name })),
+      mode,
+      ...(mode === "scheduled" ? { delaySeconds: scheduleDelayValue } : {}),
+    });
+  };
+
   if (!activeTab) {
     return (
       <div className="space-y-6" data-testid={selectors.backlog.page}>
@@ -458,6 +552,53 @@ export function BacklogPage() {
             {continueWorkingItems.length > 0 && (
               <div className="text-sm font-medium text-slate-400">All {activeTab.label} Items</div>
             )}
+            <Card className="border border-slate-700/70 bg-slate-900/45 p-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all queueable items"
+                      checked={allQueueableSelected}
+                      onChange={toggleSelectAllQueueable}
+                      disabled={queueableFilteredItems.length === 0 || isAnyQueuePending}
+                    />
+                    <span>Select all queueable</span>
+                  </label>
+                  <span className="text-slate-400">
+                    {selectedQueueableItems.length} selected
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {queueableFilteredItems.length} queueable in current view
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => queueSelected("manual")}
+                    disabled={!hasAnySelectedQueueable || isAnyQueuePending}
+                  >
+                    Queue Selected
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => queueSelected("yolo")}
+                    disabled={!hasAnySelectedQueueable || isAnyQueuePending}
+                  >
+                    Start Selected
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => queueSelected("scheduled")}
+                    disabled={!hasAnySelectedQueueable || isAnyQueuePending}
+                  >
+                    Schedule Selected
+                  </Button>
+                </div>
+              </div>
+            </Card>
             <ResponsiveList data-testid={selectors.backlog.grid}>
               {filteredItems.map((item) => (
                 <ResponsiveListItem
@@ -470,6 +611,19 @@ export function BacklogPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
+                      {isBacklogQueueable(item) ? (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select backlog item ${item.title}`}
+                          checked={selectedKeys.includes(`${item.kind}/${item.name}`)}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => {
+                            event.stopPropagation();
+                            toggleItemSelection(item);
+                          }}
+                          disabled={isAnyQueuePending}
+                        />
+                      ) : null}
                       <span
                         className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
                       />
@@ -492,12 +646,12 @@ export function BacklogPage() {
                     <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
                   </div>
-                  {isQueueable(item) && (
+                  {isBacklogQueueable(item) && (
                     <div className="mt-3 flex flex-wrap gap-2" onClick={(event) => event.preventDefault()}>
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={queueMutation.isPending}
+                        disabled={isAnyQueuePending}
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
@@ -508,7 +662,7 @@ export function BacklogPage() {
                       </Button>
                       <Button
                         size="sm"
-                        disabled={queueMutation.isPending}
+                        disabled={isAnyQueuePending}
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
@@ -520,7 +674,7 @@ export function BacklogPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={queueMutation.isPending}
+                        disabled={isAnyQueuePending}
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
@@ -536,6 +690,11 @@ export function BacklogPage() {
                       </Button>
                     </div>
                   )}
+                  {!isBacklogQueueable(item) ? (
+                    <p className="mt-3 text-xs text-slate-500">
+                      {getBacklogNotQueueableReason(item)}
+                    </p>
+                  ) : null}
                 </ResponsiveListItem>
               ))}
             </ResponsiveList>

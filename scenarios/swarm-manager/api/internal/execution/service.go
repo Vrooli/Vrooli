@@ -118,7 +118,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if err != nil {
 		return Record{}, err
 	}
-	if !isQueueableStatus(item.Status) {
+	if !isQueueableStatus(item.Kind, item.Status) {
 		return Record{}, fmt.Errorf("backlog item cannot be queued from current status: %s", item.Status)
 	}
 
@@ -630,10 +630,13 @@ func (s *Service) itemDir(kind, name string) string {
 	return filepath.Join(s.kindDir(kind), strings.TrimSpace(name))
 }
 
-func isQueueableStatus(status string) bool {
+func isQueueableStatus(kind, status string) bool {
+	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "backlog", "researching", "ready":
 		return true
+	case "archived":
+		return normalizedKind == "idea"
 	default:
 		return false
 	}

@@ -888,7 +888,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isQueueableStatus(item.Status) {
+	if !isQueueableStatus(item.Kind, item.Status) {
 		httputil.BadRequest(w, "[backlog] queue", "backlog item cannot be queued from current status: "+string(item.Status))
 		return
 	}
@@ -1170,10 +1170,12 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 }
 
 // isQueueableStatus checks if an item can be queued from its current status.
-func isQueueableStatus(status BacklogStatus) bool {
+func isQueueableStatus(kind BacklogKind, status BacklogStatus) bool {
 	switch status {
 	case StatusBacklog, StatusResearching, StatusReady:
 		return true
+	case StatusArchived:
+		return kind == KindIdea
 	default:
 		return false
 	}

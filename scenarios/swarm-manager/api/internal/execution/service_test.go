@@ -177,6 +177,35 @@ func TestQueueBacklog_RejectsScheduledModeWithoutEffectiveDelay(t *testing.T) {
 	}
 }
 
+func TestQueueBacklog_AllowsArchivedIdeas(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "archived-idea", map[string]any{
+		"name":        "archived-idea",
+		"title":       "Archived Idea",
+		"description": "desc",
+		"status":      "archived",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	service := NewService(ServiceConfig{
+		RootDir:   root,
+		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+	})
+
+	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind: "idea",
+		BacklogName: "archived-idea",
+		Mode:        ModeManual,
+	})
+	if err != nil {
+		t.Fatalf("QueueBacklog error: %v", err)
+	}
+	if record.Status != StatusPending {
+		t.Fatalf("expected pending status, got %s", record.Status)
+	}
+}
+
 func TestUpdatePolicy_RejectsInvalidScheduledDefaults(t *testing.T) {
 	root := t.TempDir()
 	service := NewService(ServiceConfig{
