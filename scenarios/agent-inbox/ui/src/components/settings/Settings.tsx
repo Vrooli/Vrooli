@@ -840,6 +840,9 @@ export function Settings({
         );
 
       default:
+        // Fallback: render general tab content if activeTab is somehow invalid.
+        // Also schedule a state correction so activeTab reflects what's rendered.
+        queueMicrotask(() => setActiveTab("general"));
         return null;
     }
   };

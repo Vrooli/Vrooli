@@ -376,7 +376,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
 
   return (
     <aside
-      className="w-80 border-r border-white/10 flex flex-col bg-slate-950 shrink-0 h-full"
+      className="w-full border-r border-white/10 flex flex-col bg-slate-950 shrink-0 h-full"
       data-testid="sidebar"
     >
       {/* Header with Logo + New Chat */}

@@ -24,6 +24,7 @@ import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
 import { useAutoSuggestSkills } from "../../hooks/useAutoSuggestSkills";
 import { useModeHistory } from "../../hooks/useModeHistory";
 import { useAIMerge } from "../../hooks/useAIMerge";
+import { useMessageDraft } from "../../hooks/useMessageDraft";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
 import { getTemplateById } from "@/data/templates";
 import type { Model, Message } from "../../lib/api";
@@ -116,7 +117,29 @@ export function MessageInput({
 }: MessageInputProps) {
   // Support both isLoading and deprecated isGenerating
   const loading = isLoading ?? isGenerating ?? false;
-  const [message, setMessage] = useState("");
+
+  // Draft persistence
+  const pageKey = chatId ?? "home";
+  const { draft, setDraft, clearDraft } = useMessageDraft({ pageKey });
+  const [message, setMessageState] = useState(draft);
+  // Keep message in sync when draft changes due to pageKey change
+  const prevPageKeyRef = useRef(pageKey);
+  useEffect(() => {
+    if (prevPageKeyRef.current !== pageKey) {
+      prevPageKeyRef.current = pageKey;
+      setMessageState(draft);
+    }
+  }, [pageKey, draft]);
+
+  // Wrapper to update both state and draft
+  const setMessage = useCallback(
+    (value: string) => {
+      setMessageState(value);
+      setDraft(value);
+    },
+    [setDraft]
+  );
+
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [forcedTool, setForcedTool] = useState<ForcedTool | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -296,10 +319,10 @@ export function MessageInput({
     }
   }, [autoFocus]);
 
-  // Populate textarea when entering edit mode
+  // Populate textarea when entering edit mode (don't overwrite draft)
   useEffect(() => {
     if (editingMessage) {
-      setMessage(editingMessage.content);
+      setMessageState(editingMessage.content);
       // Focus and move cursor to end
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -308,7 +331,11 @@ export function MessageInput({
           editingMessage.content.length
         );
       }
+    } else {
+      // Restore draft when exiting edit mode
+      setMessageState(draft);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run when editingMessage changes, not on every draft change
   }, [editingMessage]);
 
   const handleSubmit = useCallback(() => {
@@ -363,7 +390,8 @@ export function MessageInput({
       onSend(payload);
     }
 
-    setMessage("");
+    setMessageState("");
+    clearDraft();
     if (enableAttachments) {
       clearAttachments();
     }
@@ -393,6 +421,7 @@ export function MessageInput({
     forcedTool,
     onSend,
     clearAttachments,
+    clearDraft,
     chatWebSearchDefault,
     enableAttachments,
     enableWebSearch,
@@ -442,10 +471,10 @@ export function MessageInput({
         e.preventDefault();
         handleSubmit();
       }
-      // Escape cancels edit mode
+      // Escape cancels edit mode — restore draft (don't clear it)
       if (e.key === "Escape" && isEditMode && onCancelEdit) {
         e.preventDefault();
-        setMessage("");
+        setMessageState(draft);
         onCancelEdit();
       }
     },
@@ -719,7 +748,7 @@ export function MessageInput({
           <span className="text-sm text-amber-300">Editing message</span>
           <button
             onClick={() => {
-              setMessage("");
+              setMessageState(draft);
               onCancelEdit?.();
             }}
             className="text-xs text-amber-400 hover:text-amber-200 flex items-center gap-1"

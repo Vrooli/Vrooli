@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Menu, X, ChevronLeft, Star } from "lucide-react";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
@@ -8,6 +8,7 @@ import { useTools } from "./hooks/useTools";
 import { useActiveTemplate } from "./hooks/useActiveTemplate";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
+import { useResizableSidebar } from "./hooks/useResizableSidebar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar } from "./components/layout/Sidebar";
 import { EmptyState } from "./components/chat/EmptyState";
@@ -108,6 +109,19 @@ function AppContent() {
   const { addToast } = useToast();
   const isMobile = useIsMobile();
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Resizable sidebar (desktop only)
+  const {
+    width: sidebarWidth,
+    isResizing: isSidebarResizing,
+    containerRef: sidebarContainerRef,
+    handleResizeStart,
+  } = useResizableSidebar({
+    storageKey: "agent-inbox:sidebar-width",
+    defaultWidth: 320,
+    minWidth: 200,
+    maxWidthRatio: 0.5,
+  });
   // Focused chat index for j/k navigation (separate from selected chat)
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
@@ -777,7 +791,7 @@ function AppContent() {
   });
 
   return (
-    <div className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid="inbox-container">
+    <div ref={sidebarContainerRef as RefObject<HTMLDivElement>} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid="inbox-container">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-slate-950 border-b border-white/10 px-2 py-2 flex items-center justify-between safe-top">
         <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -838,6 +852,11 @@ function AppContent() {
         className={`fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto transform transition-transform duration-200 ${
           sidebarOpen || chatListOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } pt-14 lg:pt-0`}
+        style={
+          !isMobile && !(sidebarCollapsed && !isMobile)
+            ? { width: sidebarWidth }
+            : undefined
+        }
       >
         <div className="lg:hidden absolute top-3 right-3 z-10">
           <Button
@@ -886,6 +905,25 @@ function AppContent() {
           />
         </ErrorBoundary>
       </div>
+
+      {/* Resize Handle - Desktop only, hidden when sidebar is collapsed */}
+      {!isMobile && !(sidebarCollapsed && !isMobile) && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          className={`hidden lg:flex items-center justify-center w-3 cursor-col-resize group shrink-0 ${
+            isSidebarResizing ? "bg-indigo-500/10" : "hover:bg-white/5"
+          }`}
+          onMouseDown={handleResizeStart}
+        >
+          <div
+            className={`w-px h-8 rounded-full transition-colors ${
+              isSidebarResizing ? "bg-indigo-500" : "bg-white/20 group-hover:bg-white/40"
+            }`}
+          />
+        </div>
+      )}
 
       {/* Main Content - Chat View or Empty State */}
       <div
