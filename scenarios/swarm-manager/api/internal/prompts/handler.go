@@ -449,7 +449,7 @@ func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
 		httputil.BadRequest(w, "[prompts] preview", "only swarm-manager skill IDs are supported")
 		return
 	}
-	withScope := true
+	withScope := false
 	if req.WithScope != nil {
 		withScope = *req.WithScope
 	}
@@ -558,7 +558,7 @@ func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
 		skillID = resolveResearchSkill(req.Mode, kind)
 	}
 	vars := defaultVariables(req)
-	rendered, err := h.client.ReadSkill(r.Context(), skillID, vars, true)
+	rendered, err := h.client.ReadSkill(r.Context(), skillID, vars, false)
 	if err != nil {
 		httputil.InternalError(w, "[prompts] simulate", "failed to resolve prompt")
 		return

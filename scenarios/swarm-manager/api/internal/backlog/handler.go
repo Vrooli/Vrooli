@@ -1302,7 +1302,7 @@ func researchSkillID(mode ResearchMode, kind BacklogKind) string {
 func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mode ResearchMode) (promptSelection, error) {
 	skillID := researchSkillID(mode, item.Kind)
 	vars := buildVariableMap(item, h.itemDir(item.Kind, item.Name))
-	withScope := true
+	withScope := false
 	prompt, err := h.promptClient.ReadSkill(ctx, skillID, vars, withScope)
 	if err != nil {
 		return promptSelection{SkillID: skillID, Variables: vars}, err

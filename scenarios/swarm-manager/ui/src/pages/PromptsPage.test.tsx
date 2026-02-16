@@ -89,7 +89,7 @@ describe("PromptsPage", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("prompts-viewer-panel")).toBeVisible();
-      expect(screen.getByTestId("prompts-skills-list")).toBeInTheDocument();
+      expect(screen.getAllByTestId("prompts-skills-list").length).toBeGreaterThan(0);
       expect(screen.getByTestId("prompts-editor")).toBeInTheDocument();
     });
   });

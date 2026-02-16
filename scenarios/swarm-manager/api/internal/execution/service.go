@@ -701,7 +701,7 @@ func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, o
 		"ITEM_FOLDER":      s.itemDir(item.Kind, item.Name),
 	}
 
-	prompt, err := s.promptClient.ReadSkill(ctx, skillID, vars, true)
+	prompt, err := s.promptClient.ReadSkill(ctx, skillID, vars, false)
 	if err != nil {
 		return promptSelection{
 			SkillID:   skillID,

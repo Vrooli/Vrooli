@@ -15,10 +15,18 @@ import (
 
 type mockClient struct {
 	promptmanager.MockClient
+	lastSkillID   string
+	lastVariables map[string]string
+	lastWithScope bool
 }
 
 func setupPromptHandler() *Handler {
-	return NewHandler("", &mockClient{
+	h, _ := setupPromptHandlerWithMock()
+	return h
+}
+
+func setupPromptHandlerWithMock() (*Handler, *mockClient) {
+	client := &mockClient{
 		MockClient: promptmanager.MockClient{
 			Skills: []promptmanager.PromptSkill{
 				{
@@ -46,7 +54,8 @@ func setupPromptHandler() *Handler {
 			},
 			Result: "rendered prompt",
 		},
-	})
+	}
+	return NewHandler("", client), client
 }
 
 func TestMap_ReturnsBindings(t *testing.T) {
@@ -80,7 +89,7 @@ func TestListSkills_OnlySwarmManagerIDs(t *testing.T) {
 }
 
 func TestPreview_RendersPrompt(t *testing.T) {
-	h := setupPromptHandler()
+	h, client := setupPromptHandlerWithMock()
 	body := map[string]any{
 		"skill_id": "swarm-manager-clarify-idea",
 		"variables": map[string]string{
@@ -98,6 +107,35 @@ func TestPreview_RendersPrompt(t *testing.T) {
 	}
 	if !bytes.Contains(w.Body.Bytes(), []byte(`"prompt":"rendered prompt"`)) {
 		t.Fatalf("expected rendered prompt response, got %s", w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"with_scope":false`)) {
+		t.Fatalf("expected with_scope false by default, got %s", w.Body.String())
+	}
+	if client.lastWithScope {
+		t.Fatalf("expected preview ReadSkill with scope disabled")
+	}
+}
+
+func TestSimulate_DisablesScopeByDefault(t *testing.T) {
+	h, client := setupPromptHandlerWithMock()
+	body := map[string]any{
+		"kind": "idea",
+		"mode": "clarify",
+	}
+	payload, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/prompts/simulate", bytes.NewReader(payload))
+	w := httptest.NewRecorder()
+
+	h.Simulate(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+	if client.lastSkillID != "swarm-manager-clarify-idea" {
+		t.Fatalf("expected clarify skill, got %q", client.lastSkillID)
+	}
+	if client.lastWithScope {
+		t.Fatalf("expected simulate ReadSkill with scope disabled")
 	}
 }
 
@@ -118,6 +156,9 @@ func TestUpdateSkill_RejectsMissingRequiredVariables(t *testing.T) {
 	}
 }
 
-func (m *mockClient) ReadSkill(_ context.Context, _ string, _ map[string]string, _ bool) (string, error) {
+func (m *mockClient) ReadSkill(_ context.Context, skillID string, variables map[string]string, withScope bool) (string, error) {
+	m.lastSkillID = skillID
+	m.lastVariables = variables
+	m.lastWithScope = withScope
 	return m.Result, m.Err
 }
