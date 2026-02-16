@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PromptsPage } from "./PromptsPage";
 
@@ -66,7 +66,7 @@ describe("PromptsPage", () => {
     });
   });
 
-  it("renders prompt center with map and skills", async () => {
+  it("renders map tab first and opens viewer tab when a prompt is clicked", async () => {
     render(
       <QueryClientProvider client={queryClient}>
         <PromptsPage />
@@ -75,10 +75,22 @@ describe("PromptsPage", () => {
 
     expect(await screen.findByTestId("prompts-page")).toBeInTheDocument();
     await waitFor(() => {
+      expect(screen.getByTestId("prompts-tabs")).toBeInTheDocument();
+      expect(screen.getByTestId("prompts-map-panel")).toBeInTheDocument();
+      expect(screen.getByTestId("prompts-usage-matrix")).toBeInTheDocument();
       expect(screen.getByTestId("prompts-binding-map")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("prompts-viewer-panel")).not.toBeVisible();
+    expect(screen.getByText("Backlog")).toBeInTheDocument();
+    expect(screen.getByText("Research")).toBeInTheDocument();
+    expect(screen.getByText("Execution")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Backlog Research: Idea Clarify/i })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("prompts-viewer-panel")).toBeVisible();
       expect(screen.getByTestId("prompts-skills-list")).toBeInTheDocument();
       expect(screen.getByTestId("prompts-editor")).toBeInTheDocument();
     });
-    expect(screen.getAllByText("swarm-manager-clarify-idea").length).toBeGreaterThan(0);
   });
 });

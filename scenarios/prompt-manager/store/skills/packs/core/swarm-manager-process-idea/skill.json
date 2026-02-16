@@ -6,7 +6,6 @@
   "description": "Create or improve a Vrooli scenario based on a fully-refined idea specification.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "processing"],
-  "defaultScope": "swarm-manager-processing-guidance",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

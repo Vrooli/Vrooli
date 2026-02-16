@@ -134,7 +134,7 @@ func (r *RunRegistry) persistLocked() {
 // Recover loads persisted runs from disk and checks each against agent-manager.
 // Terminal runs are removed; active ones are kept (without CancelFn since the
 // goroutine is gone after a restart).
-func (r *RunRegistry) Recover(ctx context.Context, client *AgentManagerClient) {
+func (r *RunRegistry) Recover(ctx context.Context, client AgentClient) {
 	data, err := os.ReadFile(r.filePath)
 	if err != nil {
 		if !os.IsNotExist(err) {

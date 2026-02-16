@@ -95,10 +95,17 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 		c.persist()
 
 		// Start execution (don't hold lock during execution)
+		// Use context.Background() because the goroutine outlives the HTTP
+		// request that created ctx — by the time Execute runs, the request
+		// handler has already written the 202 response and ctx is cancelled.
 		go func() {
-			result, err := c.executor.Execute(ctx, c.teamID, agentID, profileKey)
+			result, err := c.executor.Execute(context.Background(), c.teamID, agentID, profileKey)
 			if err != nil {
 				log.Printf("team_execution: execution failed for %s/%s: %v", c.teamID, agentID, err)
+				// Clear running state so the team isn't permanently stuck.
+				// When Execute succeeds, OnMemberComplete is called later via
+				// executor.OnComplete from waitForCompletion.
+				c.OnMemberComplete(agentID)
 			} else {
 				log.Printf("team_execution: execution started for %s/%s, run ID: %s", c.teamID, agentID, result.RunID)
 			}
@@ -154,6 +161,7 @@ func (c *TeamExecutionContext) OnMemberComplete(agentID string) {
 			result, err := c.executor.Execute(ctx, c.teamID, nextAgent, profileKey)
 			if err != nil {
 				log.Printf("team_execution: queued execution failed for %s/%s: %v", c.teamID, nextAgent, err)
+				c.OnMemberComplete(nextAgent)
 			} else {
 				log.Printf("team_execution: queued execution started for %s/%s, run ID: %s", c.teamID, nextAgent, result.RunID)
 			}

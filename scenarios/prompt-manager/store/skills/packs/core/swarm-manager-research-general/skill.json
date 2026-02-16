@@ -6,7 +6,6 @@
   "description": "Conduct thorough research for execute tasks, research-kind items, or general investigations with actionable findings.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "research"],
-  "defaultScope": "swarm-manager-processing-guidance",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

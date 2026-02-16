@@ -178,12 +178,48 @@ Mock stores can supply inbox content directly for unit tests without requiring f
 
 ## Heartbeat Seams
 
-Heartbeat execution uses two explicit seams:
+Heartbeat execution uses three explicit seams:
 
+- **AgentClient interface** (`agent_client_iface.go`): `Executor`, `Scheduler`, `Handlers`, and
+  `RunRegistry` depend on the `AgentClient` interface instead of the concrete `*AgentManagerClient`.
+  Tests substitute `mockAgentClient` (in `mock_agent_client_test.go`) with configurable responses
+  and error injection for all agent-manager API calls (CreateTask, CreateRun, GetRun, WaitForRun,
+  StopRun, EnsureProfile, Health). The concrete `*AgentManagerClient` satisfies this interface
+  and has a `testBaseURL` field for httptest-based integration tests.
 - **Scheduler → Executor**: `heartbeat.Scheduler` depends on the `HeartbeatExecutor` interface, allowing
   tests to substitute fake executors to validate scheduling behavior without running agent-manager.
 - **Scheduler → Config Store**: `heartbeat.Scheduler` depends on `HeartbeatConfigStore` to resolve
   per-member profile keys and enabled state at run time.
+
+### Timeout Serialization Seam
+
+Go's `time.Duration` serializes as nanosecond integers (e.g., `600000000000` for 10 minutes) via
+`encoding/json`. Agent-manager uses `google.protobuf.Duration` which expects the protojson canonical
+string format (e.g., `"600s"`). With `protojson.UnmarshalOptions{DiscardUnknown: false}`, the
+nanosecond integer causes `EnsureProfile` to fail at startup, which then causes every `CreateRun`
+to fail with "profile not found".
+
+**Fix:** `AgentProfile.Timeout` is typed as `string` (not `time.Duration`). The `DurationToProtojson()`
+helper converts Go durations to protojson format. This is validated by:
+- `TestEnsureProfileRequest_ProtojsonCompatibility` — verifies timeout is a JSON string, not a number
+- `TestEnsureProfileRequest_ProtojsonRoundTrip` — validates the full payload structure
+- `TestDurationToProtojson` — unit tests for the helper function
+
+### Contract Test Coverage
+
+Cross-scenario payloads (prompt-manager → agent-manager) are validated by contract tests in
+`client_contract_test.go`. These tests verify:
+- All field names are snake_case (protojson UseProtoNames)
+- Duration fields use protojson string format
+- Enum fields use proto enum name strings (e.g., `RUNNER_TYPE_CODEX`)
+- No unknown fields that would be rejected by `DiscardUnknown=false`
+
+### EnsureProfile → CreateRun Dependency Chain
+
+`Scheduler.Start()` calls `ensureProfile()` to create the heartbeat profile in agent-manager.
+If this fails (e.g., due to a serialization bug), the profile is never created, and all subsequent
+`CreateRun` calls fail with "profile not found". The `TestEnsureProfileFailure_CausesCreateRunProfileNotFound`
+integration test validates this failure chain end-to-end.
 
 Member cleanup is centralized in the team handlers:
 
@@ -223,6 +259,19 @@ tests point at `t.TempDir()` to isolate queue file I/O.
 - Integration tests use `t.TempDir()` for persistence and verify recover-after-restart scenarios
 - The `captureExecutor` pattern from `scheduler_test.go` is reused for queue dequeue tests
 
+### Context Isolation
+
+[CODE: api/heartbeat/team_execution.go]
+
+`TeamExecutionContext.Enqueue` launches executor goroutines with `context.Background()` instead of
+the caller's context. This is critical because the caller is typically an HTTP handler that returns
+a 202 response immediately — by the time the executor calls `CreateTask`/`CreateRun` on
+agent-manager, the request context would already be cancelled. Both the immediate-start path (line 99)
+and the queued-dequeue path (line 153) use `context.Background()` for this reason.
+
+**Testing:** `TestEnqueue_ExecutorUsesDetachedContext` verifies this by cancelling the caller context
+immediately after Enqueue and asserting the executor receives a live context.
+
 ### Executor Completion Callback
 
 [CODE: api/heartbeat/executor.go]
@@ -230,6 +279,36 @@ tests point at `t.TempDir()` to isolate queue file I/O.
 The `Executor` has an `OnComplete func(teamID, agentID string)` field that the `TeamExecutionStore`
 sets during initialization. When `waitForCompletion()` finishes, it calls `OnComplete` to trigger
 queue dequeue. Tests can set this callback to verify completion notification behavior.
+
+### Execute Failure → Queue Cleanup
+
+[CODE: api/heartbeat/team_execution.go]
+
+When `Enqueue` starts a goroutine to call `executor.Execute()`, the goroutine must call
+`OnMemberComplete(agentID)` if Execute returns an error. Without this, the team's `running`
+field stays set forever, blocking all future heartbeats for the team (409 "already queued").
+This was a real production bug: `CreateRun` failed with "profile not found", but the queue
+state was never cleaned up. The same pattern applies to both the immediate-start goroutine
+and the queued-dequeue goroutine in `OnMemberComplete`.
+
+**Testing:** `TestEnqueue_ExecuteFailure_ClearsRunningState` uses a `failingExecutor` to verify
+the state is cleared and re-enqueue succeeds.
+
+### CreateRun ProfileRef.Defaults
+
+[CODE: api/heartbeat/executor.go, api/heartbeat/client.go]
+
+The `CreateRunRequest.ProfileRef` must always include `Defaults` (a full `AgentProfile`).
+Agent-manager's `resolveRunConfig` calls `EnsureProfile` internally, and if the profile
+doesn't exist and no defaults are provided, it returns a validation error. The `EnsureProfile`
+call at scheduler startup is non-fatal (logs warning, continues), so the profile may not
+exist when `CreateRun` is called. Including defaults makes `CreateRun` self-sufficient.
+
+`BuildDefaultProfile(profileKey)` is the exported constructor for the default heartbeat
+profile, shared between `Scheduler.ensureProfile()` and `Executor.Execute()`.
+
+**Testing:** `TestExecute_CreateRunIncludesDefaults` verifies the ProfileRef always has
+non-nil Defaults with required fields populated.
 
 ---
 

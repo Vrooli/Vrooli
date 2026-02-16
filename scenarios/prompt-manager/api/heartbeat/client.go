@@ -6,15 +6,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
 )
 
+// DurationToProtojson converts a Go time.Duration to the protojson string
+// format for google.protobuf.Duration (e.g. "600s"). Returns "" for zero.
+func DurationToProtojson(d time.Duration) string {
+	if d == 0 {
+		return ""
+	}
+	s := d.Seconds()
+	if s == math.Trunc(s) {
+		return fmt.Sprintf("%ds", int64(s))
+	}
+	return fmt.Sprintf("%gs", s)
+}
+
 // AgentManagerClient provides HTTP client for agent-manager API
 type AgentManagerClient struct {
-	httpClient *http.Client
+	httpClient  *http.Client
+	testBaseURL string // override for tests; empty in production
 }
 
 // NewAgentManagerClient creates a new agent-manager client
@@ -35,19 +50,19 @@ type ProfileRef struct {
 // AgentProfile defines the configuration for running an agent.
 // JSON tags use snake_case to match agent-manager's protojson schema.
 type AgentProfile struct {
-	Name                 string        `json:"name"`
-	ProfileKey           string        `json:"profile_key"`
-	Description          string        `json:"description,omitempty"`
-	RunnerType           string        `json:"runner_type"`
-	Model                string        `json:"model,omitempty"`
-	ModelPreset          string        `json:"model_preset,omitempty"`
-	MaxTurns             int32         `json:"max_turns,omitempty"`
-	Timeout              time.Duration `json:"timeout,omitempty"`
-	AllowedTools         []string      `json:"allowed_tools,omitempty"`
-	SkipPermissionPrompt bool          `json:"skip_permission_prompt,omitempty"`
-	RequiresSandbox      bool          `json:"requires_sandbox,omitempty"`
-	RequiresApproval     bool          `json:"requires_approval,omitempty"`
-	CreatedBy            string        `json:"created_by,omitempty"`
+	Name                 string   `json:"name"`
+	ProfileKey           string   `json:"profile_key"`
+	Description          string   `json:"description,omitempty"`
+	RunnerType           string   `json:"runner_type"`
+	Model                string   `json:"model,omitempty"`
+	ModelPreset          string   `json:"model_preset,omitempty"`
+	MaxTurns             int32    `json:"max_turns,omitempty"`
+	Timeout              string   `json:"timeout,omitempty"` // protojson Duration format, e.g. "600s"
+	AllowedTools         []string `json:"allowed_tools,omitempty"`
+	SkipPermissionPrompt bool     `json:"skip_permission_prompt,omitempty"`
+	RequiresSandbox      bool     `json:"requires_sandbox,omitempty"`
+	RequiresApproval     bool     `json:"requires_approval,omitempty"`
+	CreatedBy            string   `json:"created_by,omitempty"`
 }
 
 // Task represents a task for agent execution.
@@ -329,6 +344,9 @@ func (c *AgentManagerClient) doRequest(ctx context.Context, method, path string,
 }
 
 func (c *AgentManagerClient) resolveBaseURL(ctx context.Context) (string, error) {
+	if c.testBaseURL != "" {
+		return c.testBaseURL, nil
+	}
 	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve agent-manager url: %w", err)

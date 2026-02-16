@@ -6,7 +6,7 @@ Perform root cause analysis for a bug or issue, identify all affected components
 
 ## Input Context
 
-See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+**Required reading:** `prompt-manager skill read swarm-manager-processing-guidance` — shared processing workflow and decision hierarchy.
 
 ## Output Requirements
 

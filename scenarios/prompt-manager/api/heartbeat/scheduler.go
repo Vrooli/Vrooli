@@ -39,13 +39,13 @@ type Scheduler struct {
 	executor      HeartbeatExecutor
 	running       bool
 	profileKey    string
-	agentClient   *AgentManagerClient
+	agentClient   AgentClient
 	configStore   HeartbeatConfigStore
 	teamExecStore *TeamExecutionStore
 }
 
 // NewScheduler creates a new heartbeat scheduler
-func NewScheduler(executor HeartbeatExecutor, agentClient *AgentManagerClient, configStore HeartbeatConfigStore, teamExecStore *TeamExecutionStore) *Scheduler {
+func NewScheduler(executor HeartbeatExecutor, agentClient AgentClient, configStore HeartbeatConfigStore, teamExecStore *TeamExecutionStore) *Scheduler {
 	return &Scheduler{
 		cron:          cron.New(),
 		scheduled:     make(map[string]*ScheduledHeartbeat),
@@ -304,14 +304,20 @@ func (s *Scheduler) ensureProfile(ctx context.Context) error {
 
 // buildDefaultProfile returns the default profile for heartbeat execution
 func (s *Scheduler) buildDefaultProfile() *AgentProfile {
+	return BuildDefaultProfile(s.profileKey)
+}
+
+// BuildDefaultProfile returns the default agent profile for the given key.
+// Exported so the executor can embed defaults in CreateRun requests.
+func BuildDefaultProfile(profileKey string) *AgentProfile {
 	return &AgentProfile{
 		Name:                 "Prompt Manager Heartbeat",
-		ProfileKey:           s.profileKey,
+		ProfileKey:           profileKey,
 		Description:          "Profile for team member heartbeat execution",
 		RunnerType:           "RUNNER_TYPE_CODEX",
 		ModelPreset:          "MODEL_PRESET_SMART",
 		MaxTurns:             50,
-		Timeout:              10 * time.Minute,
+		Timeout:              DurationToProtojson(10 * time.Minute),
 		AllowedTools:         []string{"read_file", "write_file", "execute_command"},
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      false,

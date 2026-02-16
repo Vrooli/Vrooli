@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-processing-guidance",
   "name": "Swarm Manager Processing Guidance",
-  "description": "Shared guidance for all swarm-manager processing operations. Referenced as defaultScope by research and processing skills.",
+  "description": "Shared guidance for all swarm-manager processing operations. Referenced directly by research and processing skills via required reading commands.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "processing", "scope"],
   "status": "active",

@@ -6,7 +6,6 @@
   "description": "Generate targeted clarifying questions to reduce ambiguity and ensure backlog items are fully understood before implementation.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "idea-agent", "workflow"],
-  "defaultScope": "swarm-manager-backlog-tools",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

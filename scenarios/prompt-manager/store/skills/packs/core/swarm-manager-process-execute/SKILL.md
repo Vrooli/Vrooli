@@ -6,7 +6,7 @@ Carry out a general execution task that doesn't fit the idea or fix categories. 
 
 ## Input Context
 
-See `swarm-manager-backlog-tools` for folder structure, artifact schemas, and reading order.
+**Required reading:** `prompt-manager skill read swarm-manager-processing-guidance` — shared processing workflow and decision hierarchy.
 
 ## Output Requirements
 

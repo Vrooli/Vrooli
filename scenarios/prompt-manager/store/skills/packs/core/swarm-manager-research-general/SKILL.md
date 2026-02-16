@@ -6,7 +6,7 @@ Conduct thorough research for execute tasks, research-kind items, or other gener
 
 ## Input Context
 
-See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+**Required reading:** `prompt-manager skill read swarm-manager-processing-guidance` — shared processing workflow and decision hierarchy.
 
 - Research target: {{RESEARCH_TARGET}} (if specified)
 

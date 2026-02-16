@@ -6,7 +6,6 @@
   "description": "Apply well-researched fixes to the codebase following remediation plans from research.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "processing"],
-  "defaultScope": "swarm-manager-processing-guidance",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

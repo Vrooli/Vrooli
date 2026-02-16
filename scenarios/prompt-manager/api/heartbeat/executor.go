@@ -26,7 +26,7 @@ type ExecutionResult struct {
 type Executor struct {
 	teamStore     *store.FileTeamStore
 	agentStore    *store.FileAgentStore
-	agentClient   *AgentManagerClient
+	agentClient   AgentClient
 	vrooliRoot    string
 	promptBuilder *PromptBuilder
 	runRegistry   *RunRegistry
@@ -37,7 +37,7 @@ type Executor struct {
 func NewExecutor(
 	teamStore *store.FileTeamStore,
 	agentStore *store.FileAgentStore,
-	agentClient *AgentManagerClient,
+	agentClient AgentClient,
 	vrooliRoot string,
 	runRegistry *RunRegistry,
 ) *Executor {
@@ -117,6 +117,13 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		return result, result.Error
 	}
 
+	// Guard: agent client must be configured
+	if e.agentClient == nil {
+		result.Error = fmt.Errorf("agent client is not configured")
+		result.Status = store.HeartbeatStatusFailed
+		return result, result.Error
+	}
+
 	// Create task in agent-manager
 	task := &Task{
 		Title:       fmt.Sprintf("Heartbeat: %s/%s", teamID, agentID),
@@ -133,12 +140,15 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		return result, result.Error
 	}
 
-	// Create run
+	// Create run — include Defaults so agent-manager can auto-create the
+	// profile if EnsureProfile failed at startup (e.g. agent-manager wasn't
+	// ready yet).
 	runTag := fmt.Sprintf("heartbeat-%s-%s-%s", teamID, agentID, timestamp)
 	runReq := &CreateRunRequest{
 		TaskID: createdTask.ID,
 		ProfileRef: &ProfileRef{
 			ProfileKey: profileKey,
+			Defaults:   BuildDefaultProfile(profileKey),
 		},
 		Tag:     &runTag,
 		RunMode: "RUN_MODE_IN_PLACE",

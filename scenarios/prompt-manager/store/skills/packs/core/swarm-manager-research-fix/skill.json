@@ -6,7 +6,6 @@
   "description": "Perform root cause analysis for bugs, map affected components, assess regression risk, and document safe remediation approaches.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "research"],
-  "defaultScope": "swarm-manager-processing-guidance",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

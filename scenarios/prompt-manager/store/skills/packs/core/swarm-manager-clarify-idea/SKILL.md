@@ -6,7 +6,7 @@ Generate targeted clarifying questions to reduce ambiguity, uncover hidden requi
 
 ## Input Context
 
-See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure and artifact schemas.
 
 - Existing `clarify/questions.json` if present (preserve existing Q&A)
 

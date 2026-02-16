@@ -6,7 +6,7 @@ Synthesize clarifications and accepted suggestions into a refined, actionable pl
 
 ## Input Context
 
-See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure and artifact schemas.
 
 - `clarify/questions.json` with answers (required)
 - `suggest/suggestions.json` with decisions (required)

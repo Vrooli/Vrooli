@@ -25,7 +25,7 @@ type Handlers struct {
 	scheduler     *Scheduler
 	executor      *Executor
 	runRegistry   *RunRegistry
-	agentClient   *AgentManagerClient
+	agentClient   AgentClient
 	teamExecStore *TeamExecutionStore
 }
 
@@ -37,7 +37,7 @@ func NewHandlers(
 	scheduler *Scheduler,
 	executor *Executor,
 	runRegistry *RunRegistry,
-	agentClient *AgentManagerClient,
+	agentClient AgentClient,
 	teamExecStore *TeamExecutionStore,
 ) *Handlers {
 	return &Handlers{

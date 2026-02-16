@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"prompt-manager/store"
 
@@ -122,6 +123,142 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 
 	if w2.Code != http.StatusConflict {
 		t.Fatalf("second trigger: expected 409, got %d: %s", w2.Code, w2.Body.String())
+	}
+}
+
+// TestTriggerHeartbeat_FullPathWithTeamExecStore exercises the full production code
+// path: handler → teamExecStore → executor → mock HTTP client.
+func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+
+	ctx := context.Background()
+	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive,
+	}); err != nil {
+		t.Fatalf("create membership: %v", err)
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", &store.HeartbeatConfig{
+		TeamID: "team-1", AgentID: "agent-1", Schedule: "0 * * * *", Enabled: true,
+		ProfileKey: "test-profile",
+	}); err != nil {
+		t.Fatalf("set config: %v", err)
+	}
+
+	mockClient := newMockAgentClient().
+		WithCreateTaskResponse(&Task{ID: "task-1", Title: "test"}).
+		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
+		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
+
+	registry := NewRunRegistry(t.TempDir())
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry)
+	executor.OnComplete = func(_, _ string) {}
+
+	teamExecStore := NewTeamExecutionStore(executor, t.TempDir())
+
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, registry, mockClient, teamExecStore)
+
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.TriggerHeartbeat(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Give the async goroutine time to call the mock client
+	time.Sleep(200 * time.Millisecond)
+
+	mockClient.mu.Lock()
+	taskCalls := len(mockClient.createTaskCalls)
+	runCalls := len(mockClient.createRunCalls)
+	mockClient.mu.Unlock()
+
+	if taskCalls < 1 {
+		t.Error("expected CreateTask to be called via teamExecStore path")
+	}
+	if runCalls < 1 {
+		t.Error("expected CreateRun to be called via teamExecStore path")
+	}
+
+	// Verify the profile key was propagated correctly
+	mockClient.mu.Lock()
+	if runCalls > 0 {
+		profileKey := mockClient.createRunCalls[0].ProfileRef.ProfileKey
+		if profileKey != "test-profile" {
+			t.Errorf("expected profile key 'test-profile', got %q", profileKey)
+		}
+	}
+	mockClient.mu.Unlock()
+}
+
+// TestTriggerHeartbeat_DirectExecutionFallback exercises the fallback path when
+// no teamExecStore is configured.
+func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+
+	ctx := context.Background()
+	if err := teamStore.Create(ctx, &store.Team{ID: "team-1", DisplayName: "Team", Enabled: true}); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive,
+	}); err != nil {
+		t.Fatalf("create membership: %v", err)
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", &store.HeartbeatConfig{
+		TeamID: "team-1", AgentID: "agent-1", Schedule: "0 * * * *", Enabled: true,
+	}); err != nil {
+		t.Fatalf("set config: %v", err)
+	}
+
+	mockClient := newMockAgentClient().
+		WithCreateTaskResponse(&Task{ID: "task-1", Title: "test"}).
+		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
+		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
+
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+	executor.OnComplete = func(_, _ string) {}
+
+	// No teamExecStore — should use direct execution fallback
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.TriggerHeartbeat(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Direct path should have created task and run
+	mockClient.mu.Lock()
+	defer mockClient.mu.Unlock()
+	if len(mockClient.createTaskCalls) != 1 {
+		t.Errorf("expected 1 CreateTask call, got %d", len(mockClient.createTaskCalls))
+	}
+	if len(mockClient.createRunCalls) != 1 {
+		t.Errorf("expected 1 CreateRun call, got %d", len(mockClient.createRunCalls))
 	}
 }
 

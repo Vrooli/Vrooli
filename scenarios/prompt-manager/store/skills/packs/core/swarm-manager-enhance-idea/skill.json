@@ -6,7 +6,6 @@
   "description": "Synthesize clarifications and accepted suggestions into a refined, actionable plan ready for processing.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "idea-agent", "workflow"],
-  "defaultScope": "swarm-manager-backlog-tools",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

@@ -6,7 +6,7 @@ Propose thoughtful improvements, alternative approaches, and enhancements that c
 
 ## Input Context
 
-See `swarm-manager-backlog-tools` for folder structure and artifact schemas.
+**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure and artifact schemas.
 
 - Existing `suggest/suggestions.json` if present (preserve existing)
 

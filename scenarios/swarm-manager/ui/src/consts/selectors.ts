@@ -234,6 +234,12 @@ export const literalSelectors = {
   },
   prompts: {
     page: "prompts-page",
+    tabs: "prompts-tabs",
+    tabMap: "prompts-tab-map",
+    tabViewer: "prompts-tab-viewer",
+    mapPanel: "prompts-map-panel",
+    viewerPanel: "prompts-viewer-panel",
+    usageMatrix: "prompts-usage-matrix",
     bindingMap: "prompts-binding-map",
     skillsList: "prompts-skills-list",
     editor: "prompts-editor",

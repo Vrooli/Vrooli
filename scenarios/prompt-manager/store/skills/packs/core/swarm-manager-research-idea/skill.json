@@ -6,7 +6,6 @@
   "description": "Research idea feasibility, dependencies, implementation approaches, and Vrooli ecosystem integration opportunities.",
   "modes": ["tools"],
   "tags": ["swarm-manager", "research"],
-  "defaultScope": "swarm-manager-processing-guidance",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 1,

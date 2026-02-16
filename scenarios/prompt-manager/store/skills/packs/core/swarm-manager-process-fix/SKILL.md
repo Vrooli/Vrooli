@@ -6,7 +6,7 @@ Apply a well-researched fix to the codebase, following the remediation plan from
 
 ## Input Context
 
-See `swarm-manager-backlog-tools` for folder structure, artifact schemas, and reading order.
+**Required reading:** `prompt-manager skill read swarm-manager-processing-guidance` — shared processing workflow and decision hierarchy.
 
 ## Output Requirements
 
