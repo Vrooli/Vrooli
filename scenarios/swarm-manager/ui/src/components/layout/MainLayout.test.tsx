@@ -111,4 +111,18 @@ describe("MainLayout", () => {
 
     expect(screen.getAllByText("Swarm Manager").length).toBeGreaterThan(0);
   });
+
+  it("hides mobile chrome on backlog details routes", () => {
+    renderWithRouter("/backlog/idea/test-item");
+
+    expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Swarm Manager")).toHaveLength(1);
+  });
+
+  it("hides mobile chrome on scenario details routes", () => {
+    renderWithRouter("/scenarios/test-scenario");
+
+    expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Swarm Manager")).toHaveLength(1);
+  });
 });

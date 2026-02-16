@@ -574,8 +574,22 @@ export function FilePreview({
         )}
       >
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-800/50">
-            <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+          <div
+            className="absolute inset-0 flex flex-col justify-center gap-3 bg-slate-900/70 p-4 backdrop-blur-[1px]"
+            data-testid="file-preview-loading-state"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div className="inline-flex items-center gap-2 text-sm text-slate-300">
+              <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+              <span>Loading file preview...</span>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-full animate-pulse rounded bg-slate-700/60" />
+              <div className="h-3 w-11/12 animate-pulse rounded bg-slate-700/60" />
+              <div className="h-3 w-9/12 animate-pulse rounded bg-slate-700/60" />
+            </div>
           </div>
         )}
 

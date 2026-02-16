@@ -27,7 +27,7 @@ func NewDefaultScenarioStarter() *DefaultScenarioStarter {
 }
 
 // Start starts the scenario using `vrooli scenario start` and waits for the UI port.
-func (s *DefaultScenarioStarter) Start(ctx context.Context, scenarioName string) (int, error) {
+func (s *DefaultScenarioStarter) Start(ctx context.Context, scenarioName string) (*ScenarioStartResult, error) {
 	// Create a timeout context for the entire start operation
 	startCtx, cancel := context.WithTimeout(ctx, s.StartTimeout)
 	defer cancel()
@@ -35,15 +35,18 @@ func (s *DefaultScenarioStarter) Start(ctx context.Context, scenarioName string)
 	// First, check if scenario is already running
 	port, err := s.getUIPort(startCtx, scenarioName)
 	if err == nil && port > 0 {
-		// Already running, return the port
-		return port, nil
+		// Already running - return port and signal no auto-start ownership.
+		return &ScenarioStartResult{
+			Started: false,
+			UIPort:  port,
+		}, nil
 	}
 
 	// Start the scenario
 	cmd := exec.CommandContext(startCtx, "vrooli", "scenario", "start", scenarioName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return 0, fmt.Errorf("failed to start scenario: %w\nOutput: %s", err, string(output))
+		return nil, fmt.Errorf("failed to start scenario: %w\nOutput: %s", err, string(output))
 	}
 
 	// Wait for the UI port to become available
@@ -53,13 +56,16 @@ func (s *DefaultScenarioStarter) Start(ctx context.Context, scenarioName string)
 	for {
 		select {
 		case <-startCtx.Done():
-			return 0, fmt.Errorf("timeout waiting for scenario UI to start: %w", startCtx.Err())
+			return nil, fmt.Errorf("timeout waiting for scenario UI to start: %w", startCtx.Err())
 		case <-ticker.C:
 			port, err := s.getUIPort(startCtx, scenarioName)
 			if err == nil && port > 0 {
 				// Verify the port is actually listening
 				if s.isPortListening(startCtx, port) {
-					return port, nil
+					return &ScenarioStartResult{
+						Started: true,
+						UIPort:  port,
+					}, nil
 				}
 			}
 		}
@@ -98,19 +104,22 @@ func (s *DefaultScenarioStarter) isPortListening(ctx context.Context, port int) 
 
 // MockScenarioStarter is a test double for ScenarioStarter.
 type MockScenarioStarter struct {
-	StartFunc        func(ctx context.Context, scenarioName string) (int, error)
+	StartFunc        func(ctx context.Context, scenarioName string) (*ScenarioStartResult, error)
 	StopFunc         func(ctx context.Context, scenarioName string) error
 	StartedScenarios []string
 	StoppedScenarios []string
 }
 
 // Start calls the mock function or returns a default response.
-func (m *MockScenarioStarter) Start(ctx context.Context, scenarioName string) (int, error) {
+func (m *MockScenarioStarter) Start(ctx context.Context, scenarioName string) (*ScenarioStartResult, error) {
 	m.StartedScenarios = append(m.StartedScenarios, scenarioName)
 	if m.StartFunc != nil {
 		return m.StartFunc(ctx, scenarioName)
 	}
-	return 8080, nil
+	return &ScenarioStartResult{
+		Started: true,
+		UIPort:  8080,
+	}, nil
 }
 
 // Stop calls the mock function or returns nil.

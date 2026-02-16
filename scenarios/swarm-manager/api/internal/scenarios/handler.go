@@ -1215,15 +1215,20 @@ func applyCompletenessScore(scenario *Scenario, scores map[string]int) {
 func (h *Handler) deriveBacklogIdeasRoot(scenarioPath string) (string, error) {
 	trimmedScenarioPath := strings.TrimSpace(scenarioPath)
 	if trimmedScenarioPath != "" {
-		if strings.EqualFold(filepath.Base(trimmedScenarioPath), "swarm-manager") {
+		cleanScenarioPath := filepath.Clean(trimmedScenarioPath)
+		if strings.EqualFold(filepath.Base(cleanScenarioPath), "swarm-manager") {
 			return "", errProtectedScenarioDelete
 		}
-		return filepath.Join(filepath.Dir(trimmedScenarioPath), "swarm-manager", "ideas"), nil
 	}
 
 	baseDir := strings.TrimSpace(h.scenariosDir)
 	if baseDir == "" {
 		baseDir = "scenarios"
+	}
+	if !filepath.IsAbs(baseDir) {
+		if absBaseDir, err := filepath.Abs(baseDir); err == nil {
+			baseDir = absBaseDir
+		}
 	}
 	return filepath.Join(baseDir, "swarm-manager", "ideas"), nil
 }

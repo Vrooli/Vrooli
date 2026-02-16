@@ -1,0 +1,29 @@
+{
+  "archiveReason": "scenario deleted with archive=true",
+  "archivedAt": "2026-02-16T04:14:56Z",
+  "archivedBy": "matthalloran8",
+  "created": "2026-02-16T04:14:56Z",
+  "description": "Remote-first terminal console with quick command shortcuts",
+  "name": "web-console-archived",
+  "preservePresetOrCustom": "custom",
+  "preservedFiles": [
+    "PRD.md",
+    "README.md",
+    "requirements/index.json"
+  ],
+  "priority": 5,
+  "sourceScenarioName": "web-console",
+  "sourceScenarioPath": "/home/matthalloran8/Vrooli/scenarios/web-console",
+  "status": "archived",
+  "tags": [
+    "terminal",
+    "shortcuts",
+    "iframe",
+    "go-api",
+    "vanilla-js",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] web-console",
+  "updated": "2026-02-16T04:14:56Z"
+}

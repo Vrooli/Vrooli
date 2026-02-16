@@ -785,6 +785,38 @@ func TestDelete_WithArchive_DoesNotOverwriteExistingArchiveTarget(t *testing.T) 
 	}
 }
 
+func TestDelete_WithArchive_UsesConfiguredBacklogRootForExternalScenarioPath(t *testing.T) {
+	root := t.TempDir()
+	externalScenarioPath := filepath.Join(root, "external-scenarios", "test-scenario-1")
+	testutil.WriteFile(t, filepath.Join(externalScenarioPath, "PRD.md"), "# External PRD")
+
+	ideasDir := filepath.Join(root, "scenarios", "swarm-manager", "ideas")
+	testutil.MakeDir(t, ideasDir)
+
+	handler := newTestHandler(root, []ScenarioSource{
+		{
+			Name:        "test-scenario-1",
+			Description: "External test scenario",
+			Path:        externalScenarioPath,
+			Status:      "stopped",
+			Tags:        []string{"external"},
+		},
+	})
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
+
+	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1?archive=true", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	testutil.AssertStatusOK(t, rec)
+	testutil.AssertFileNotExists(t, externalScenarioPath)
+	testutil.AssertFileExists(t, filepath.Join(ideasDir, "test-scenario-1-archived", "spec.json"))
+
+	oldArchivePath := filepath.Join(filepath.Dir(externalScenarioPath), "swarm-manager", "ideas", "test-scenario-1-archived", "spec.json")
+	testutil.AssertFileNotExists(t, oldArchivePath)
+}
+
 // TestDelete_Idempotent tests that delete is idempotent (second delete returns 404).
 // [REQ:REQ-P0-008] Test deletion idempotency
 func TestDelete_Idempotent(t *testing.T) {

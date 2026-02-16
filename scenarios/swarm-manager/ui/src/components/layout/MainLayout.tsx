@@ -48,6 +48,8 @@ export function MainLayout() {
 
   const activeTab = tabs.find(tab => location.pathname.startsWith(tab.path))?.id || "backlog";
   const isBacklogDetailsRoute = /^\/backlog\/[^/]+\/[^/]+/.test(location.pathname);
+  const isScenarioDetailsRoute = /^\/scenarios\/[^/]+$/.test(location.pathname);
+  const isImmersiveMobileRoute = isBacklogDetailsRoute || isScenarioDetailsRoute;
 
   // Keyboard navigation via centralized shortcut hook (see useKeyboardShortcuts)
   const handleTabNav = useCallback((key: string) => {
@@ -123,7 +125,7 @@ export function MainLayout() {
       </header>
 
       {/* Mobile Header */}
-      {!isBacklogDetailsRoute && (
+      {!isImmersiveMobileRoute && (
         <header className="md:hidden flex h-14 items-center justify-center border-b border-slate-200/20 px-4">
           <h1 className="text-lg font-semibold">Swarm Manager</h1>
         </header>
@@ -131,14 +133,14 @@ export function MainLayout() {
 
       {/* Main Content */}
       <main className={cn(
-        isBacklogDetailsRoute ? "p-0 md:p-6" : "p-6",
-        isBacklogDetailsRoute ? "pb-0 md:pb-6" : "pb-20 md:pb-6"
+        isImmersiveMobileRoute ? "p-0 md:p-6" : "p-6",
+        isImmersiveMobileRoute ? "pb-0 md:pb-6" : "pb-20 md:pb-6"
       )}>
         <Outlet />
       </main>
 
       {/* Mobile Bottom Navigation */}
-      {!isBacklogDetailsRoute && (
+      {!isImmersiveMobileRoute && (
         <nav
           className={cn(
             "md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-slate-200/20 bg-slate-950/95 backdrop-blur"

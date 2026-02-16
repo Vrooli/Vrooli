@@ -100,7 +100,7 @@ describe("ScenariosPage", () => {
 
   const renderPage = () => {
     return render(
-      <BrowserRouter>
+      <BrowserRouter basename="/">
         <QueryClientProvider client={queryClient}>
           <ScenariosPage />
         </QueryClientProvider>
@@ -322,7 +322,7 @@ describe("ScenariosPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Loading scenarios...")).toBeInTheDocument();
+      expect(screen.getByTestId("scenarios-loading-state")).toBeInTheDocument();
     });
   });
 

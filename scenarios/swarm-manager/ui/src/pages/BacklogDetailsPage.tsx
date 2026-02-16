@@ -44,6 +44,7 @@ import { Card } from "../components/ui/card";
 import { ErrorBoundary } from "../components/ui/error-boundary";
 import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
+import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
 import { FileTree } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
 import { FileUpload } from "../components/ui/file-upload";
@@ -168,7 +169,7 @@ export function BacklogDetailsPage() {
   const {
     data: files,
     isLoading: isLoadingFiles,
-    error: filesError,
+    error: filesQueryError,
     refetch: refetchFiles,
   } = useQuery({
     queryKey: ["backlog", backlogKind, name, "files"],
@@ -238,8 +239,9 @@ export function BacklogDetailsPage() {
         ? "Unable to load suggestions."
         : suggestionsParsed.error;
 
-  const isLoading = isLoadingItem || isLoadingFiles;
-  const error = itemError ?? filesError;
+  const isPageLoading = isLoadingItem && !item;
+  const pageError = itemError;
+  const filesError = filesQueryError instanceof Error ? filesQueryError : null;
 
   const handleFileSelect = useCallback((file: BacklogFile) => {
     if (file.type === "file") {
@@ -627,8 +629,21 @@ export function BacklogDetailsPage() {
 
         {isLoadingFiles ? (
           <div className="rounded-lg border border-white/10 bg-slate-800/30 p-6 text-center">
-            <p className="text-slate-400">Loading files...</p>
+            <InlineLoadingIndicator
+              label="Loading files..."
+              className="border-transparent bg-transparent px-0 text-slate-400"
+              testId="backlog-files-loading"
+            />
           </div>
+        ) : filesError ? (
+          <ErrorState
+            error={filesError}
+            title="Unable to load files"
+            message="Try again to reload the file tree."
+            onRetry={() => {
+              void refetchFiles();
+            }}
+          />
         ) : fileSearch.trim().length > 0 ? (
           searchResults.length > 0 ? (
             <div className="space-y-1">
@@ -980,24 +995,25 @@ export function BacklogDetailsPage() {
   return (
     <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
 
-      {isLoading && (
-        <Card padding="lg" centered>
-          <p className="text-slate-400">Loading backlog details...</p>
-        </Card>
+      {isPageLoading && (
+        <PageLoadingState
+          label="Loading backlog details..."
+          variant="detail"
+          testId="backlog-details-loading-state"
+        />
       )}
 
-      {error && (
+      {pageError && (
         <ErrorState
-          error={error}
+          error={pageError}
           title="Unable to load backlog item"
           onRetry={() => {
-            refetchItem();
-            refetchFiles();
+            void refetchItem();
           }}
         />
       )}
 
-      {item && !error && (
+      {item && !pageError && (
         <>
           <div className="flex min-h-[100dvh] flex-col lg:hidden">
             <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">

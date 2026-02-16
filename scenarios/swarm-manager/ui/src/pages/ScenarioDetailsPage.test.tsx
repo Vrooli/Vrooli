@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { ScenarioDetailsPage } from "./ScenarioDetailsPage";
@@ -153,8 +153,8 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText("api")).toBeInTheDocument();
-        expect(screen.getByText("backend")).toBeInTheDocument();
+        expect(screen.getAllByText("api").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("backend").length).toBeGreaterThan(0);
       });
     });
 
@@ -163,7 +163,7 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText("75%")).toBeInTheDocument();
+        expect(screen.getAllByText("75%").length).toBeGreaterThan(0);
       });
     });
 
@@ -175,7 +175,7 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText("No description provided")).toBeInTheDocument();
+        expect(screen.getAllByText("No description provided").length).toBeGreaterThan(0);
       });
     });
 
@@ -187,7 +187,7 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText("Greenfield")).toBeInTheDocument();
+        expect(screen.getAllByText("Greenfield").length).toBeGreaterThan(0);
       });
     });
   });
@@ -198,7 +198,7 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockImplementation(() => new Promise(() => {}));
       renderPage();
 
-      expect(screen.getByText("Loading scenario details...")).toBeInTheDocument();
+      expect(screen.getByTestId("scenario-details-loading-state")).toBeInTheDocument();
     });
   });
 
@@ -251,7 +251,7 @@ describe("ScenarioDetailsPage", () => {
       await waitFor(() => {
         expect(screen.getByTestId("scenario-details-metadata")).toBeInTheDocument();
       });
-      expect(screen.getByText("Scenario Settings")).toBeInTheDocument();
+      expect(screen.getAllByText("Scenario Settings").length).toBeGreaterThan(0);
     });
 
     it("shows greenfield toggle", async () => {
@@ -261,7 +261,7 @@ describe("ScenarioDetailsPage", () => {
       await waitFor(() => {
         expect(screen.getByTestId("scenario-greenfield-toggle")).toBeInTheDocument();
       });
-      expect(screen.getByText("Greenfield Mode")).toBeInTheDocument();
+      expect(screen.getAllByText("Greenfield Mode").length).toBeGreaterThan(0);
     });
 
     it("displays correct initial state for greenfield toggle", async () => {
@@ -350,9 +350,7 @@ describe("ScenarioDetailsPage", () => {
       fireEvent.click(screen.getByTestId("scenario-greenfield-toggle"));
 
       await waitFor(() => {
-        expect(
-          screen.getByText("Failed to update settings. Please try again.")
-        ).toBeInTheDocument();
+        expect(screen.getAllByText("Failed to update settings. Please try again.").length).toBeGreaterThan(0);
       });
     });
 
@@ -782,7 +780,7 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText("Running")).toBeInTheDocument();
+        expect(screen.getAllByText("Running").length).toBeGreaterThan(0);
       });
     });
 
@@ -794,7 +792,7 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText("Stopped")).toBeInTheDocument();
+        expect(screen.getAllByText("Stopped").length).toBeGreaterThan(0);
       });
     });
 
@@ -806,7 +804,7 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText("Error")).toBeInTheDocument();
+        expect(screen.getAllByText("Error").length).toBeGreaterThan(0);
       });
     });
   });
@@ -843,6 +841,62 @@ describe("ScenarioDetailsPage", () => {
       await waitFor(() => {
         expect(scenariosService.start).toHaveBeenCalledWith("test-scenario");
       });
+    });
+
+    it("opens and closes mobile actions sheet", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Open scenario actions")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText("Open scenario actions"));
+      expect(screen.getByTestId("scenario-mobile-actions-sheet")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText("Close sheet"));
+      await waitFor(() => {
+        expect(screen.queryByTestId("scenario-mobile-actions-sheet")).not.toBeInTheDocument();
+      });
+    });
+
+    it("runs start from mobile actions sheet", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({
+        ...mockScenario,
+        status: "stopped" as const,
+      });
+      vi.mocked(scenariosService.start).mockResolvedValue({
+        ...mockScenario,
+        status: "running" as const,
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Open scenario actions")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByLabelText("Open scenario actions"));
+
+      const actionsSheet = screen.getByTestId("scenario-mobile-actions-sheet");
+      fireEvent.click(within(actionsSheet).getByRole("button", { name: "Start" }));
+
+      await waitFor(() => {
+        expect(scenariosService.start).toHaveBeenCalledWith("test-scenario");
+      });
+    });
+  });
+
+  describe("mobile danger zone", () => {
+    it("starts collapsed and expands on demand", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Danger Zone/i })).toBeInTheDocument();
+      });
+      expect(screen.queryByRole("button", { name: "Delete Scenario" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Danger Zone/i }));
+      expect(screen.getByRole("button", { name: "Delete Scenario" })).toBeInTheDocument();
     });
   });
 

@@ -4,6 +4,7 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
+import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
 import { Select } from "../components/ui/select";
@@ -335,12 +336,20 @@ export function ExecutionPage() {
           {actionError}
         </Card>
       ) : null}
+      {isRefreshing && items.length > 0 ? (
+        <InlineLoadingIndicator
+          label="Refreshing execution runs..."
+          testId="execution-refreshing-indicator"
+        />
+      ) : null}
 
       <div className="space-y-4">
         {(status === "loading" || !hasLoaded) && items.length === 0 ? (
-          <Card padding="lg" centered>
-            <p className="text-slate-400">Loading execution runs...</p>
-          </Card>
+          <PageLoadingState
+            label="Loading execution runs..."
+            variant="list"
+            testId="execution-loading-state"
+          />
         ) : null}
 
         {error && items.length === 0 && hasLoaded ? (

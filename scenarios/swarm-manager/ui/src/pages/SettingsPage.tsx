@@ -17,6 +17,7 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
+import { InlineLoadingIndicator, PageLoadingState, PanelLoadingState } from "../components/ui/loading-states";
 import { selectors } from "../consts/selectors";
 import { applyTheme, defaultQueryOptions } from "../lib";
 import { executionPolicyService, settingsService } from "../services";
@@ -73,12 +74,24 @@ function useNavigationBlocker(when: boolean, message: string) {
 
 export function SettingsPage() {
   const queryClient = useQueryClient();
-  const { data: settings, isLoading, error, refetch } = useQuery<Settings, Error>({
+  const {
+    data: settings,
+    isLoading,
+    isFetching: isSettingsFetching,
+    error,
+    refetch,
+  } = useQuery<Settings, Error>({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,
   });
-  const { data: executionPolicy, isLoading: isPolicyLoading, error: policyError, refetch: refetchPolicy } = useQuery<ExecutionPolicy, Error>({
+  const {
+    data: executionPolicy,
+    isLoading: isPolicyLoading,
+    isFetching: isPolicyFetching,
+    error: policyError,
+    refetch: refetchPolicy,
+  } = useQuery<ExecutionPolicy, Error>({
     queryKey: ["execution-policy"],
     queryFn: () => executionPolicyService.get(),
     ...defaultQueryOptions,
@@ -174,44 +187,60 @@ export function SettingsPage() {
     applyTheme(theme);
   };
 
-  if (isLoading || isPolicyLoading) {
+  if (isLoading && !settings) {
     return (
       <div className="space-y-6" data-testid={selectors.settings.page}>
-        <Card padding="lg" centered>
-          <p className="text-slate-400">Loading settings...</p>
-        </Card>
+        <PageLoadingState
+          label="Loading settings..."
+          variant="settings"
+          testId="settings-loading-state"
+        />
       </div>
     );
   }
 
-  if (error || policyError) {
+  if (error && !settings) {
     return (
       <div className="space-y-6" data-testid={selectors.settings.page}>
         <ErrorState
-          error={(error ?? policyError) as Error}
+          error={error}
           title="Unable to load settings"
           onRetry={() => {
             void refetch();
-            void refetchPolicy();
           }}
         />
       </div>
     );
   }
 
-  if (!form || !policyForm) return null;
+  if (!form) return null;
 
   return (
     <div className="space-y-6" data-testid={selectors.settings.page}>
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Settings</h2>
-        {savedMessage && (
+        {savedMessage ? (
           <div className="flex items-center gap-2 text-sm text-emerald-400">
             <Info className="h-4 w-4" />
             {savedMessage}
           </div>
-        )}
+        ) : (isSettingsFetching || isPolicyFetching) ? (
+          <InlineLoadingIndicator
+            label="Refreshing settings..."
+            testId="settings-refreshing-indicator"
+          />
+        ) : null}
       </div>
+      {policyError && !executionPolicy ? (
+        <ErrorState
+          error={policyError}
+          title="Unable to load execution defaults"
+          message="You can still update theme and insight preferences."
+          onRetry={() => {
+            void refetchPolicy();
+          }}
+        />
+      ) : null}
 
       <Card data-testid={selectors.settings.themeSettings}>
         <h3 className="text-lg font-medium text-slate-200">Theme</h3>
@@ -287,44 +316,57 @@ export function SettingsPage() {
       <Card>
         <h3 className="text-lg font-medium text-slate-200">Execution Defaults</h3>
         <p className="mt-1 text-sm text-slate-400">Default mode/delay used when queue requests omit explicit values.</p>
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300">Default Mode</label>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {(["manual", "scheduled", "yolo"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  className={`rounded-lg border py-2 text-sm font-medium ${policyForm.defaultMode === mode ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
-                  onClick={() => setPolicyForm({ ...policyForm, defaultMode: mode })}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300">Default Schedule Delay (seconds)</label>
-            <Input
-              type="number"
-              min={0}
-              className="mt-1"
-              value={policyForm.defaultDelaySeconds}
-              onChange={(e) =>
-                setPolicyForm({
-                  ...policyForm,
-                  defaultDelaySeconds: Math.max(0, Number(e.target.value || 0)),
-                })
-              }
+        {isPolicyLoading && !policyForm ? (
+          <div className="mt-4">
+            <PanelLoadingState
+              label="Loading execution defaults..."
+              testId="settings-policy-loading-state"
             />
           </div>
-        </div>
+        ) : policyForm ? (
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Default Mode</label>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(["manual", "scheduled", "yolo"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    className={`rounded-lg border py-2 text-sm font-medium ${policyForm.defaultMode === mode ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
+                    onClick={() => setPolicyForm({ ...policyForm, defaultMode: mode })}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Default Schedule Delay (seconds)</label>
+              <Input
+                type="number"
+                min={0}
+                className="mt-1"
+                value={policyForm.defaultDelaySeconds}
+                onChange={(e) =>
+                  setPolicyForm({
+                    ...policyForm,
+                    defaultDelaySeconds: Math.max(0, Number(e.target.value || 0)),
+                  })
+                }
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <PanelLoadingState label="Execution defaults unavailable." />
+          </div>
+        )}
       </Card>
 
       <div className="flex justify-end">
         <Button
           onClick={() => {
             updateMutation.mutate(form);
-            if (isPolicyDirty) {
+            if (isPolicyDirty && policyForm) {
               updatePolicyMutation.mutate(policyForm);
             }
           }}

@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo } from "react";
 import { X, Files, CheckSquare, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { FileTree } from "../ui/file-tree";
+import { PanelLoadingState } from "../ui/loading-states";
 import { Select } from "../ui/select";
 import type { ScenarioFile, PreserveFilesPreset } from "../../types";
 
@@ -328,8 +329,11 @@ export function FileSelectionDialog({
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+            <div className="py-2">
+              <PanelLoadingState
+                label="Loading file tree..."
+                testId="file-selection-loading-state"
+              />
             </div>
           ) : (
             <FileTree

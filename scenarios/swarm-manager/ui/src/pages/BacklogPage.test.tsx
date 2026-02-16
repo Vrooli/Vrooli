@@ -141,7 +141,7 @@ describe("BacklogPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Loading backlog...")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-loading-state")).toBeInTheDocument();
     });
   });
 

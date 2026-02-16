@@ -26,6 +26,7 @@ import { Filter, Package, ArrowRight, Circle, X, Play, Square, RefreshCw, Loader
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
+import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
 import { Select } from "../components/ui/select";
@@ -49,6 +50,7 @@ export function ScenariosPage() {
   const scenarios = useScenariosStore((state) => state.scenarios);
   const status = useScenariosStore((state) => state.status);
   const error = useScenariosStore((state) => state.error);
+  const isRefreshing = useScenariosStore((state) => state.isRefreshing);
   const fetchScenarios = useScenariosStore((state) => state.fetchScenarios);
   const upsertScenario = useScenariosStore((state) => state.upsertScenario);
   const hasLoaded = status !== "idle";
@@ -245,6 +247,12 @@ export function ScenariosPage() {
               <span className="text-slate-500"> of {scenarios.length}</span>
             )}
           </span>
+          {isRefreshing && scenarios.length > 0 && (
+            <InlineLoadingIndicator
+              label="Refreshing scenarios..."
+              testId="scenarios-refreshing-indicator"
+            />
+          )}
           {/* Quick status filters - one-click filtering for common jobs (Phase 29 iter 4) */}
           {scenarios && scenarios.length > 0 && (
             <div className="flex items-center gap-1" data-testid={selectors.scenarios.statusSummary}>
@@ -305,9 +313,11 @@ export function ScenariosPage() {
           </Card>
         )}
         {(status === "loading" || !hasLoaded) && scenarios.length === 0 && (
-          <Card padding="lg" centered>
-            <p className="text-slate-400">Loading scenarios...</p>
-          </Card>
+          <PageLoadingState
+            label="Loading scenarios..."
+            variant="list"
+            testId="scenarios-loading-state"
+          />
         )}
 
         {/* Error state - clearly different from empty state */}

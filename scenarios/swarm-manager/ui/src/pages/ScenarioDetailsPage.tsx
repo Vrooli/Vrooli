@@ -18,11 +18,30 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Package, Settings2, Circle, CheckCircle2, XCircle, Loader2, Trash2, Terminal, Play, Square, RefreshCw } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Circle,
+  CheckCircle2,
+  Loader2,
+  MoreHorizontal,
+  Package,
+  Play,
+  RefreshCw,
+  Settings2,
+  Square,
+  Terminal,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ErrorState } from "../components/ui/error-state";
+import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
 import { Select } from "../components/ui/select";
 import { TagList } from "../components/ui/tag-list";
 import { FileSelectionDialog, type FileSelectionResult } from "../components/scenarios/file-selection-dialog";
@@ -162,6 +181,8 @@ export function ScenarioDetailsPage() {
   const [archivePreset, setArchivePreset] = useState<PreserveFilesPreset>(() => loadArchivePreferences().preset);
   const [archiveMode, setArchiveMode] = useState<"preset" | "custom">(() => loadArchivePreferences().mode);
   const [customPaths, setCustomPaths] = useState<string[]>(() => loadArchivePreferences().customPaths);
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [mobileDangerExpanded, setMobileDangerExpanded] = useState(false);
 
   // File selection dialog state
   const [showFileSelectionDialog, setShowFileSelectionDialog] = useState(false);
@@ -176,6 +197,11 @@ export function ScenarioDetailsPage() {
       customPaths,
     });
   }, [archiveMode, archivePreset, customPaths]);
+
+  useEffect(() => {
+    setShowActionsSheet(false);
+    setMobileDangerExpanded(false);
+  }, [name]);
 
   // Fetch scenario details
   // Note: queryFn is only called when enabled is true (i.e., name exists)
@@ -324,6 +350,7 @@ export function ScenarioDetailsPage() {
 
   // Get status icon
   const StatusIcon = scenario ? (SCENARIO_STATUS_ICONS[scenario.status] || Circle) : Circle;
+  const isPageLoading = isLoading && !scenario;
   const isRunning = scenario?.status === "running";
   const isStopped = scenario?.status === "stopped";
   const actionInFlight = actionMutation.isPending ? actionMutation.variables : null;
@@ -362,10 +389,68 @@ export function ScenarioDetailsPage() {
     );
   }
 
+  const renderActionButtons = (closeOnAction = false) => {
+    const runAction = (action: () => void) => {
+      if (closeOnAction) {
+        setShowActionsSheet(false);
+      }
+      action();
+    };
+    const rowButtonClass =
+      "h-10 w-full justify-start rounded-lg border-slate-700/80 bg-slate-900/40 px-3 text-sm text-slate-100 hover:bg-slate-800/70";
+
+    return (
+      <div className="space-y-2">
+        <Button
+          variant={isRunning ? "outline" : "default"}
+          size="sm"
+          className={rowButtonClass}
+          onClick={() => runAction(() => actionMutation.mutate("start"))}
+          disabled={actionMutation.isPending || isRunning}
+        >
+          {actionInFlight === "start" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Play className="mr-2 h-4 w-4" />
+          )}
+          Start
+        </Button>
+        <Button
+          variant={isStopped ? "outline" : "default"}
+          size="sm"
+          className={rowButtonClass}
+          onClick={() => runAction(() => actionMutation.mutate("stop"))}
+          disabled={actionMutation.isPending || isStopped}
+        >
+          {actionInFlight === "stop" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Square className="mr-2 h-4 w-4" />
+          )}
+          Stop
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={rowButtonClass}
+          onClick={() => runAction(() => actionMutation.mutate("restart"))}
+          disabled={actionMutation.isPending}
+        >
+          {actionInFlight === "restart" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Restart
+        </Button>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
+    <div className="space-y-0 lg:space-y-6" data-testid={selectors.scenarioDetails.page}>
       {/* Breadcrumb navigation - shows context and allows quick navigation (Phase 29) */}
-      <nav className="flex items-center gap-2 text-sm" data-testid={selectors.scenarioDetails.breadcrumb}>
+      <nav className="hidden items-center gap-2 text-sm lg:flex" data-testid={selectors.scenarioDetails.breadcrumb}>
         <Link
           to="/scenarios"
           className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-colors"
@@ -381,10 +466,12 @@ export function ScenarioDetailsPage() {
       </nav>
 
       {/* Loading state */}
-      {isLoading && (
-        <Card padding="lg" centered>
-          <p className="text-slate-400">Loading scenario details...</p>
-        </Card>
+      {isPageLoading && (
+        <PageLoadingState
+          label="Loading scenario details..."
+          variant="detail"
+          testId="scenario-details-loading-state"
+        />
       )}
 
       {/* Error state */}
@@ -399,246 +486,467 @@ export function ScenarioDetailsPage() {
       {/* Scenario details */}
       {scenario && !error && (
         <>
-          {/* Scenario header */}
-          <Card data-testid={selectors.scenarioDetails.header}>
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <StatusIcon
-                    className={`h-4 w-4 ${SCENARIO_STATUS_COLORS[scenario.status]}`}
-                    data-testid={selectors.scenarioDetails.status}
-                  />
-                  <span className="text-sm uppercase tracking-wider text-slate-500">
-                    {capitalize(scenario.status)}
-                  </span>
-                  <span
-                    className="rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-300"
-                    data-testid={selectors.scenarioDetails.priority}
-                  >
-                    P{scenario.priority}
-                  </span>
-                  {localGreenfield && (
-                    <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-400">
-                      Greenfield
-                    </span>
-                  )}
-                </div>
-                <h1
-                  className="text-2xl font-bold text-slate-100"
-                  data-testid={selectors.scenarioDetails.title}
-                >
-                  {scenario.displayName}
-                </h1>
-                <p
-                  className="text-slate-400"
-                  data-testid={selectors.scenarioDetails.description}
-                >
-                  {scenario.description || "No description provided"}
-                </p>
-                <TagList
-                  tags={scenario.tags}
-                  maxTags={10}
-                  className="mt-4"
-                  data-testid={selectors.scenarioDetails.tags}
-                />
-              </div>
-
-              <div className="flex flex-col items-end gap-2">
-                <Package className="h-12 w-12 text-slate-600" />
-                {scenario.completenessScore !== undefined && (
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-700">
-                      <div
-                        className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
-                        style={{ width: `${scenario.completenessScore}%` }}
-                      />
-                    </div>
-                    <span className="text-sm text-slate-400">{scenario.completenessScore}%</span>
-                  </div>
-                )}
-                <div className="flex flex-wrap items-center justify-end gap-2" data-testid={selectors.scenarioDetails.actionsSection}>
-                  <Button
-                    variant={isRunning ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => actionMutation.mutate("start")}
-                    disabled={actionMutation.isPending || isRunning}
-                    data-testid={selectors.scenarioDetails.startButton}
-                  >
-                    {actionInFlight === "start" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="mr-2 h-4 w-4" />
-                    )}
-                    Start
-                  </Button>
-                  <Button
-                    variant={isStopped ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => actionMutation.mutate("stop")}
-                    disabled={actionMutation.isPending || isStopped}
-                    data-testid={selectors.scenarioDetails.stopButton}
-                  >
-                    {actionInFlight === "stop" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Square className="mr-2 h-4 w-4" />
-                    )}
-                    Stop
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => actionMutation.mutate("restart")}
-                    disabled={actionMutation.isPending}
-                    data-testid={selectors.scenarioDetails.restartButton}
-                  >
-                    {actionInFlight === "restart" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    Restart
-                  </Button>
-                </div>
-                {actionError && (
-                  <div
-                    className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-400"
-                    data-testid={selectors.scenarioDetails.actionError}
-                  >
-                    {actionError}
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          {/* Metadata management section */}
-          <Card data-testid={selectors.scenarioDetails.metadataSection}>
-            <div className="flex items-center gap-2 mb-4">
-              <Settings2 className="h-5 w-5 text-slate-400" />
-              <h2 className="text-lg font-medium text-slate-200">Scenario Settings</h2>
-              {updateMutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin text-cyan-400 ml-2" />
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {/* Greenfield toggle */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-slate-700/30">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-200">Greenfield Mode</span>
-                    {localGreenfield ? (
-                      <CheckCircle2 className="h-4 w-4 text-cyan-400" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-slate-500" />
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Treat this scenario as a new project without existing code base
-                  </p>
-                </div>
-                <Button
-                  variant={localGreenfield ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleGreenfieldToggle}
-                  disabled={updateMutation.isPending}
-                  data-testid={selectors.scenarioDetails.greenfieldToggle}
-                >
-                  {localGreenfield ? "Enabled" : "Disabled"}
-                </Button>
-              </div>
-
-            </div>
-
-            {/* Error feedback */}
-            {updateMutation.isError && (
-              <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                Failed to update settings. Please try again.
-              </div>
-            )}
-          </Card>
-
-          {/* CLI Quick Actions - Helps ops users access common operations (Phase 29 Iteration 5) */}
-          <Card data-testid={selectors.scenarioDetails.cliHint}>
-            <div className="flex items-center gap-2 mb-3">
-              <Terminal className="h-5 w-5 text-slate-400" />
-              <h2 className="text-lg font-medium text-slate-200">Quick Actions (CLI)</h2>
-            </div>
-            <p className="text-sm text-slate-400 mb-4">
-              Common operations for this scenario are also available via the command line.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-slate-700/30 p-3">
-                <span className="text-xs font-medium text-slate-300">View Logs</span>
-                <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
-                  vrooli scenario logs {name}
-                </code>
-              </div>
-              <div className="rounded-lg bg-slate-700/30 p-3">
-                <span className="text-xs font-medium text-slate-300">Check Status</span>
-                <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
-                  vrooli scenario status {name}
-                </code>
-              </div>
-              <div className="rounded-lg bg-slate-700/30 p-3">
-                <span className="text-xs font-medium text-slate-300">Run Tests</span>
-                <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
-                  vrooli scenario test {name}
-                </code>
-              </div>
-              <div className="rounded-lg bg-slate-700/30 p-3">
-                <span className="text-xs font-medium text-slate-300">Restart Scenario</span>
-                <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
-                  vrooli scenario restart {name}
-                </code>
-              </div>
-            </div>
-          </Card>
-
-          {/* Danger zone - Delete scenario */}
-          {/* [REQ:REQ-P0-008] Scenario deletion with safeguards */}
-          <div className="rounded-xl border border-red-500/20 bg-slate-800/30 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Trash2 className="h-5 w-5 text-red-400" />
-              <h2 className="text-lg font-medium text-red-400">Danger Zone</h2>
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-lg bg-slate-700/30">
-              <div className="space-y-1">
-                <span className="font-medium text-slate-200">Delete Scenario</span>
-                <p className="text-sm text-slate-400">
-                  Permanently remove this scenario from the catalog. This action cannot be undone.
+          <div className="flex min-h-[100dvh] flex-col lg:hidden">
+            <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+              >
+                <Link to="/scenarios" aria-label="Back to scenarios">
+                  <ChevronLeft className="h-4 w-4" />
+                </Link>
+              </Button>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-100">{scenario.displayName}</p>
+                <p className="truncate text-xs text-slate-400">
+                  {capitalize(scenario.status)} · P{scenario.priority}
                 </p>
               </div>
               <Button
-                variant="destructive"
+                variant="outline"
                 size="sm"
-                onClick={handleDeleteClick}
-                disabled={deleteMutation.isPending}
-                data-testid={selectors.scenarioDetails.deleteButton}
+                className="h-9 rounded-lg border-slate-700/80 bg-slate-900/45 px-3 text-xs font-medium text-slate-100 hover:bg-slate-800/70"
+                onClick={() => setShowActionsSheet(true)}
+                aria-label="Open scenario actions"
               >
-                {deleteMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </>
-                )}
+                Actions
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+                onClick={() => setMobileDangerExpanded((prev) => !prev)}
+                aria-label={mobileDangerExpanded ? "Hide danger section" : "Show danger section"}
+              >
+                <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>
 
-            {/* Delete error feedback */}
-            {deleteMutation.isError && (
-              <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                Failed to delete scenario. Please try again.
-              </div>
-            )}
+            <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-6">
+              {actionError && (
+                <Card padding="sm" className="rounded-lg border-red-500/30 bg-red-500/10">
+                  <p className="text-sm text-red-300">{actionError}</p>
+                </Card>
+              )}
+
+              <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <StatusIcon className={`h-4 w-4 ${SCENARIO_STATUS_COLORS[scenario.status]}`} />
+                    <span className="text-xs uppercase tracking-wider text-slate-500">
+                      {capitalize(scenario.status)}
+                    </span>
+                    <span className="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs text-slate-300">P{scenario.priority}</span>
+                    {localGreenfield && (
+                      <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[11px] text-cyan-300">
+                        Greenfield
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm leading-relaxed text-slate-300">
+                    {scenario.description || "No description provided"}
+                  </p>
+                  {scenario.completenessScore !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-700">
+                        <div
+                          className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
+                          style={{ width: `${scenario.completenessScore}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-400">{scenario.completenessScore}%</span>
+                    </div>
+                  )}
+                  {scenario.tags.length > 0 && <TagList tags={scenario.tags} maxTags={10} />}
+                </div>
+              </Card>
+
+              <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-slate-400" />
+                    <h2 className="text-base font-semibold text-slate-100">Scenario Settings</h2>
+                    {updateMutation.isPending && (
+                      <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                    )}
+                  </div>
+
+                  <div className="rounded-lg bg-slate-700/30 p-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-200">Greenfield Mode</span>
+                        {localGreenfield ? (
+                          <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-slate-500" />
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Treat this scenario as a new project without existing code base
+                      </p>
+                    </div>
+                    <Button
+                      variant={localGreenfield ? "default" : "outline"}
+                      size="sm"
+                      className="mt-3 w-full"
+                      onClick={handleGreenfieldToggle}
+                      disabled={updateMutation.isPending}
+                    >
+                      {localGreenfield ? "Enabled" : "Disabled"}
+                    </Button>
+                  </div>
+
+                  {updateMutation.isError && (
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                      Failed to update settings. Please try again.
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              <Card className="rounded-lg border-slate-700/60 bg-slate-900/45" data-testid={selectors.scenarioDetails.cliHint}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="h-4 w-4 text-slate-400" />
+                    <h2 className="text-base font-semibold text-slate-100">Quick Actions (CLI)</h2>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    Common operations for this scenario are also available via the command line.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="rounded-lg bg-slate-700/30 p-3">
+                      <span className="text-xs font-medium text-slate-300">View Logs</span>
+                      <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                        vrooli scenario logs {name}
+                      </code>
+                    </div>
+                    <div className="rounded-lg bg-slate-700/30 p-3">
+                      <span className="text-xs font-medium text-slate-300">Check Status</span>
+                      <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                        vrooli scenario status {name}
+                      </code>
+                    </div>
+                    <div className="rounded-lg bg-slate-700/30 p-3">
+                      <span className="text-xs font-medium text-slate-300">Run Tests</span>
+                      <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                        vrooli scenario test {name}
+                      </code>
+                    </div>
+                    <div className="rounded-lg bg-slate-700/30 p-3">
+                      <span className="text-xs font-medium text-slate-300">Restart Scenario</span>
+                      <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                        vrooli scenario restart {name}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="rounded-lg border border-red-500/20 bg-slate-800/35">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left"
+                  onClick={() => setMobileDangerExpanded((prev) => !prev)}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium text-red-300">
+                    <Trash2 className="h-4 w-4" />
+                    Danger Zone
+                  </span>
+                  {mobileDangerExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-red-300" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-red-300" />
+                  )}
+                </button>
+
+                {mobileDangerExpanded && (
+                  <div className="space-y-3 border-t border-red-500/20 px-3 py-3">
+                    <p className="text-sm text-slate-400">
+                      Permanently remove this scenario from the catalog. This action cannot be undone.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleDeleteClick}
+                      disabled={deleteMutation.isPending}
+                    >
+                      {deleteMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Scenario
+                        </>
+                      )}
+                    </Button>
+                    {deleteMutation.isError && (
+                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                        Failed to delete scenario. Please try again.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            </div>
           </div>
+
+          <div className="hidden space-y-6 lg:block">
+            {/* Scenario header */}
+            <Card data-testid={selectors.scenarioDetails.header}>
+              <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <StatusIcon
+                      className={`h-4 w-4 ${SCENARIO_STATUS_COLORS[scenario.status]}`}
+                      data-testid={selectors.scenarioDetails.status}
+                    />
+                    <span className="text-sm uppercase tracking-wider text-slate-500">
+                      {capitalize(scenario.status)}
+                    </span>
+                    <span
+                      className="rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-300"
+                      data-testid={selectors.scenarioDetails.priority}
+                    >
+                      P{scenario.priority}
+                    </span>
+                    {localGreenfield && (
+                      <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-400">
+                        Greenfield
+                      </span>
+                    )}
+                  </div>
+                  <h1
+                    className="text-2xl font-bold text-slate-100"
+                    data-testid={selectors.scenarioDetails.title}
+                  >
+                    {scenario.displayName}
+                  </h1>
+                  <p
+                    className="text-slate-400"
+                    data-testid={selectors.scenarioDetails.description}
+                  >
+                    {scenario.description || "No description provided"}
+                  </p>
+                  <TagList
+                    tags={scenario.tags}
+                    maxTags={10}
+                    className="mt-4"
+                    data-testid={selectors.scenarioDetails.tags}
+                  />
+                </div>
+
+                <div className="flex flex-col items-end gap-2">
+                  <Package className="h-12 w-12 text-slate-600" />
+                  {scenario.completenessScore !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-700">
+                        <div
+                          className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
+                          style={{ width: `${scenario.completenessScore}%` }}
+                        />
+                      </div>
+                      <span className="text-sm text-slate-400">{scenario.completenessScore}%</span>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center justify-end gap-2" data-testid={selectors.scenarioDetails.actionsSection}>
+                    <Button
+                      variant={isRunning ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => actionMutation.mutate("start")}
+                      disabled={actionMutation.isPending || isRunning}
+                      data-testid={selectors.scenarioDetails.startButton}
+                    >
+                      {actionInFlight === "start" ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Play className="mr-2 h-4 w-4" />
+                      )}
+                      Start
+                    </Button>
+                    <Button
+                      variant={isStopped ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => actionMutation.mutate("stop")}
+                      disabled={actionMutation.isPending || isStopped}
+                      data-testid={selectors.scenarioDetails.stopButton}
+                    >
+                      {actionInFlight === "stop" ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Square className="mr-2 h-4 w-4" />
+                      )}
+                      Stop
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => actionMutation.mutate("restart")}
+                      disabled={actionMutation.isPending}
+                      data-testid={selectors.scenarioDetails.restartButton}
+                    >
+                      {actionInFlight === "restart" ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Restart
+                    </Button>
+                  </div>
+                  {actionError && (
+                    <div
+                      className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-400"
+                      data-testid={selectors.scenarioDetails.actionError}
+                    >
+                      {actionError}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Metadata management section */}
+            <Card data-testid={selectors.scenarioDetails.metadataSection}>
+              <div className="mb-4 flex items-center gap-2">
+                <Settings2 className="h-5 w-5 text-slate-400" />
+                <h2 className="text-lg font-medium text-slate-200">Scenario Settings</h2>
+                {updateMutation.isPending && (
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin text-cyan-400" />
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {/* Greenfield toggle */}
+                <div className="flex items-center justify-between rounded-lg bg-slate-700/30 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-200">Greenfield Mode</span>
+                      {localGreenfield ? (
+                        <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-slate-500" />
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      Treat this scenario as a new project without existing code base
+                    </p>
+                  </div>
+                  <Button
+                    variant={localGreenfield ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleGreenfieldToggle}
+                    disabled={updateMutation.isPending}
+                    data-testid={selectors.scenarioDetails.greenfieldToggle}
+                  >
+                    {localGreenfield ? "Enabled" : "Disabled"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Error feedback */}
+              {updateMutation.isError && (
+                <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+                  Failed to update settings. Please try again.
+                </div>
+              )}
+            </Card>
+
+            {/* CLI Quick Actions - Helps ops users access common operations (Phase 29 Iteration 5) */}
+            <Card data-testid={selectors.scenarioDetails.cliHint}>
+              <div className="mb-3 flex items-center gap-2">
+                <Terminal className="h-5 w-5 text-slate-400" />
+                <h2 className="text-lg font-medium text-slate-200">Quick Actions (CLI)</h2>
+              </div>
+              <p className="mb-4 text-sm text-slate-400">
+                Common operations for this scenario are also available via the command line.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-slate-700/30 p-3">
+                  <span className="text-xs font-medium text-slate-300">View Logs</span>
+                  <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                    vrooli scenario logs {name}
+                  </code>
+                </div>
+                <div className="rounded-lg bg-slate-700/30 p-3">
+                  <span className="text-xs font-medium text-slate-300">Check Status</span>
+                  <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                    vrooli scenario status {name}
+                  </code>
+                </div>
+                <div className="rounded-lg bg-slate-700/30 p-3">
+                  <span className="text-xs font-medium text-slate-300">Run Tests</span>
+                  <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                    vrooli scenario test {name}
+                  </code>
+                </div>
+                <div className="rounded-lg bg-slate-700/30 p-3">
+                  <span className="text-xs font-medium text-slate-300">Restart Scenario</span>
+                  <code className="mt-1 block rounded bg-slate-800 px-2 py-1.5 font-mono text-xs text-cyan-400">
+                    vrooli scenario restart {name}
+                  </code>
+                </div>
+              </div>
+            </Card>
+
+            {/* Danger zone - Delete scenario */}
+            {/* [REQ:REQ-P0-008] Scenario deletion with safeguards */}
+            <div className="rounded-xl border border-red-500/20 bg-slate-800/30 p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-red-400" />
+                <h2 className="text-lg font-medium text-red-400">Danger Zone</h2>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-slate-700/30 p-4">
+                <div className="space-y-1">
+                  <span className="font-medium text-slate-200">Delete Scenario</span>
+                  <p className="text-sm text-slate-400">
+                    Permanently remove this scenario from the catalog. This action cannot be undone.
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteClick}
+                  disabled={deleteMutation.isPending}
+                  data-testid={selectors.scenarioDetails.deleteButton}
+                >
+                  {deleteMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Delete error feedback */}
+              {deleteMutation.isError && (
+                <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+                  Failed to delete scenario. Please try again.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <BottomSheet
+            isOpen={showActionsSheet}
+            onClose={() => setShowActionsSheet(false)}
+            title="Scenario Actions"
+            description="Manage scenario lifecycle"
+            data-testid="scenario-mobile-actions-sheet"
+          >
+            {renderActionButtons(true)}
+          </BottomSheet>
         </>
       )}
 
@@ -707,7 +1015,11 @@ export function ScenarioDetailsPage() {
               </div>
               <div className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-slate-300">
                 {filesLoading ? (
-                  <p className="text-slate-400">Loading file tree...</p>
+                  <InlineLoadingIndicator
+                    label="Loading file tree..."
+                    className="border-transparent bg-transparent px-0 text-slate-400"
+                    testId="scenario-archive-file-tree-loading"
+                  />
                 ) : previewList.length > 0 ? (
                   previewList.map((path) => (
                     <p key={path} className="truncate font-mono" title={path}>

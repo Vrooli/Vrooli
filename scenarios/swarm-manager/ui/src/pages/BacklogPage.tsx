@@ -27,6 +27,7 @@ import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { FloatingActionButton } from "../components/ui/floating-action-button";
 import { Input } from "../components/ui/input";
+import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
 import { Select } from "../components/ui/select";
@@ -114,6 +115,7 @@ export function BacklogPage() {
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
   const error = useBacklogStore((state) => state.error);
+  const isRefreshing = useBacklogStore((state) => state.isRefreshing);
   const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const hasLoaded = status !== "idle";
 
@@ -349,12 +351,20 @@ export function BacklogPage() {
           {queueError}
         </Card>
       )}
+      {isRefreshing && items.length > 0 && (
+        <InlineLoadingIndicator
+          label="Refreshing backlog..."
+          testId="backlog-refreshing-indicator"
+        />
+      )}
 
       <div className="space-y-4">
         {(status === "loading" || !hasLoaded) && items.length === 0 && (
-          <Card padding="lg" centered>
-            <p className="text-slate-400">Loading backlog...</p>
-          </Card>
+          <PageLoadingState
+            label="Loading backlog..."
+            variant="list"
+            testId="backlog-loading-state"
+          />
         )}
 
         {error && items.length === 0 && hasLoaded && (
