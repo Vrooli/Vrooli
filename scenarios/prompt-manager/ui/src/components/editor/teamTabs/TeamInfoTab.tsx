@@ -45,6 +45,9 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
   const [eventsAgentName, setEventsAgentName] = useState<string | undefined>()
   const [eventsLive, setEventsLive] = useState(false)
   const [eventsError, setEventsError] = useState<string | undefined>()
+  const [eventsAgentId, setEventsAgentId] = useState<string | undefined>()
+  const [eventsSchedule, setEventsSchedule] = useState<string | undefined>()
+  const [eventsProfileKey, setEventsProfileKey] = useState<string | undefined>()
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown'
@@ -355,6 +358,9 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
                           setEventsAgentName(entry.memberName)
                           setEventsLive(entry.status === 'running')
                           setEventsError(entry.config.lastExecution.error || undefined)
+                          setEventsAgentId(entry.config.agentId)
+                          setEventsSchedule(entry.config.schedule)
+                          setEventsProfileKey(entry.config.profileKey)
                         }}
                       >
                         <FileText className="h-3.5 w-3.5" />
@@ -404,6 +410,15 @@ export function TeamInfoTab({ team, onSetRoles, onUpdate, allAgents, onNavigateT
           agentName={eventsAgentName}
           live={eventsLive}
           errorMessage={eventsError}
+          teamId={team.id}
+          agentId={eventsAgentId}
+          teamName={team.displayName}
+          schedule={eventsSchedule}
+          profileKey={eventsProfileKey}
+          onNavigateToMember={onNavigateToMember ? (_tId, aId) => {
+            setEventsRunId(null)
+            onNavigateToMember(aId)
+          } : undefined}
         />
       )}
     </div>

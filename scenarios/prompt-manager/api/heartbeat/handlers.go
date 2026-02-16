@@ -978,6 +978,40 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetRun handles GET /runs/{runId} - proxies run details to agent-manager.
+func (h *Handlers) GetRun(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	runID := vars["runId"]
+
+	if runID == "" {
+		http.Error(w, "runId is required", http.StatusBadRequest)
+		return
+	}
+
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	run, err := h.agentClient.GetRun(r.Context(), runID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	if run == nil {
+		http.Error(w, "run not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
+}
+
 // GetRunEvents handles GET /runs/{runId}/events - proxies event requests to agent-manager.
 func (h *Handlers) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

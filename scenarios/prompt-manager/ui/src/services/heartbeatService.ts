@@ -368,6 +368,39 @@ export async function stopRunningAgent(teamId: string, agentId: string): Promise
 }
 
 // ============================================================================
+// Run Details
+// ============================================================================
+
+export interface RunDetails {
+  id: string
+  taskId: string
+  profileId?: string
+  status: string
+  startedAt?: string
+  endedAt?: string
+  error?: string
+}
+
+/**
+ * Fetch details for a single run by ID.
+ */
+export async function getRunDetails(runId: string): Promise<RunDetails> {
+  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string } }>(
+    `/runs/${encodeURIComponent(runId)}`
+  )
+  const r = raw.run
+  return {
+    id: r.id,
+    taskId: r.task_id,
+    profileId: r.agent_profile_id,
+    status: r.status,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    error: r.error_msg,
+  }
+}
+
+// ============================================================================
 // Run Events
 // ============================================================================
 

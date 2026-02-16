@@ -45,6 +45,9 @@ export function RunningAgentsPopover({
   const [isOpen, setIsOpen] = useState(false)
   const [eventsRunId, setEventsRunId] = useState<string | null>(null)
   const [eventsAgentName, setEventsAgentName] = useState<string | undefined>()
+  const [eventsTeamId, setEventsTeamId] = useState<string | undefined>()
+  const [eventsAgentId, setEventsAgentId] = useState<string | undefined>()
+  const [eventsTeamName, setEventsTeamName] = useState<string | undefined>()
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Click-outside to close (delayed listener to prevent immediate close)
@@ -145,6 +148,9 @@ export function RunningAgentsPopover({
                             e.stopPropagation()
                             setEventsRunId(agent.runId)
                             setEventsAgentName(agent.agentName || agent.agentId)
+                            setEventsTeamId(agent.teamId)
+                            setEventsAgentId(agent.agentId)
+                            setEventsTeamName(group.teamName)
                           }}
                         >
                           <FileText className="h-3.5 w-3.5" />
@@ -199,6 +205,13 @@ export function RunningAgentsPopover({
           runId={eventsRunId}
           agentName={eventsAgentName}
           live
+          teamId={eventsTeamId}
+          agentId={eventsAgentId}
+          teamName={eventsTeamName}
+          onNavigateToMember={(tId, aId) => {
+            setEventsRunId(null)
+            onNavigateToMember(tId, aId)
+          }}
         />
       )}
     </div>

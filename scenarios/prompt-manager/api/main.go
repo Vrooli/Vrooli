@@ -450,6 +450,7 @@ func main() {
 	}()
 
 	// Heartbeat routes
+	v1.HandleFunc("/runs/{runId}", heartbeatHandlers.GetRun).Methods("GET")
 	v1.HandleFunc("/runs/{runId}/events", heartbeatHandlers.GetRunEvents).Methods("GET")
 	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")
 	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
