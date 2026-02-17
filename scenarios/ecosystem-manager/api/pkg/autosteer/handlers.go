@@ -110,7 +110,10 @@ func (h *AutoSteerHandlers) ListProfiles(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, profiles)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"profiles": profiles,
+		"count":    len(profiles),
+	})
 }
 
 // GetProfile handles GET /api/auto-steer/profiles/:id
@@ -169,7 +172,10 @@ func (h *AutoSteerHandlers) DeleteProfile(w http.ResponseWriter, r *http.Request
 func (h *AutoSteerHandlers) GetTemplates(w http.ResponseWriter, r *http.Request) {
 	templates := h.profileService.GetTemplates()
 
-	writeJSON(w, http.StatusOK, templates)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"templates": templates,
+		"count":     len(templates),
+	})
 }
 
 // StartExecution handles POST /api/auto-steer/execution/start

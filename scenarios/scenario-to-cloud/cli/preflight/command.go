@@ -8,7 +8,6 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
-	"scenario-to-cloud/cli/internal/flagutil"
 	internalmanifest "scenario-to-cloud/cli/internal/manifest"
 )
 
@@ -138,7 +137,7 @@ func runFixPorts(client *Client, args []string) error {
 	fs.Var(&pids, "pid", "Stop specific PID (repeatable)")
 	fs.Var(&services, "service", "Stop specific service (repeatable)")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
@@ -204,7 +203,7 @@ func runFixFirewall(client *Client, args []string) error {
 	var ports intListFlag
 	fs.Var(&ports, "port", "Open specific port (repeatable; default 80,443)")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
@@ -252,7 +251,7 @@ func runFixProcesses(client *Client, args []string) error {
 	targetFlags := registerPreflightTargetFlags(fs)
 	scenarioID := fs.String("scenario-id", "", "Override scenario ID for targeted stop")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
@@ -305,7 +304,7 @@ func runDiskUsage(client *Client, args []string) error {
 	fs := flag.NewFlagSet("preflight disk-usage", flag.ContinueOnError)
 	targetFlags := registerPreflightTargetFlags(fs)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
@@ -355,7 +354,7 @@ func runDiskCleanup(client *Client, args []string) error {
 	var actions cliutil.StringList
 	fs.Var(&actions, "action", "Cleanup action (repeatable): apt_clean, journal_vacuum, docker_prune, tmp_clean")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {

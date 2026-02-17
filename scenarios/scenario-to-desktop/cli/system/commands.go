@@ -45,7 +45,7 @@ func (c *Commands) apiDelete(path string) ([]byte, error) {
 func (c *Commands) Status(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -89,7 +89,7 @@ func (c *Commands) Status(args []string) error {
 func (c *Commands) TemplatesList(args []string) error {
 	fs := flag.NewFlagSet("templates", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -128,7 +128,7 @@ func (c *Commands) TemplatesList(args []string) error {
 func (c *Commands) TemplateGet(args []string) error {
 	fs := flag.NewFlagSet("template", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -156,7 +156,7 @@ func (c *Commands) TemplateGet(args []string) error {
 func (c *Commands) RecordsList(args []string) error {
 	fs := flag.NewFlagSet("records", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -203,7 +203,7 @@ func (c *Commands) RecordsMove(args []string) error {
 	target := fs.String("target", "destination", "Move target: 'destination' or 'custom'")
 	destPath := fs.String("path", "", "Custom destination path")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -238,7 +238,7 @@ func (c *Commands) RecordsMove(args []string) error {
 func (c *Commands) RecordsDelete(args []string) error {
 	fs := flag.NewFlagSet("records-delete", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -265,7 +265,7 @@ func (c *Commands) RecordsDelete(args []string) error {
 func (c *Commands) Download(args []string) error {
 	fs := flag.NewFlagSet("download", flag.ContinueOnError)
 	output := fs.String("output", "", "Output file path (default: current directory)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -311,7 +311,7 @@ func (c *Commands) DesktopStatus(args []string) error {
 	fs := flag.NewFlagSet("desktop-status", flag.ContinueOnError)
 	nameFilter := fs.String("name", "", "Filter by scenario name")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
@@ -410,7 +410,7 @@ func (c *Commands) DesktopStatus(args []string) error {
 func (c *Commands) WineCheck(args []string) error {
 	fs := flag.NewFlagSet("wine-check", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -456,7 +456,7 @@ func (c *Commands) WineInstall(args []string) error {
 	fs := flag.NewFlagSet("wine-install", flag.ContinueOnError)
 	method := fs.String("method", "", "Installation method: flatpak, flatpak-auto, appimage")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -494,7 +494,7 @@ func (c *Commands) WineInstall(args []string) error {
 func (c *Commands) WineStatus(args []string) error {
 	fs := flag.NewFlagSet("wine-status", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

@@ -483,73 +483,6 @@ func TestExtractSmokeTestErrorHint(t *testing.T) {
 	}
 }
 
-func TestReorderArgsForFlags(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want []string
-	}{
-		{
-			name: "no reordering needed",
-			args: []string{"--platforms", "linux", "scenario"},
-			want: []string{"--platforms", "linux", "scenario"},
-		},
-		{
-			name: "positional before flags",
-			args: []string{"scenario", "--platforms", "linux"},
-			want: []string{"--platforms", "linux", "scenario"},
-		},
-		{
-			name: "boolean flag",
-			args: []string{"scenario", "--wait"},
-			want: []string{"--wait", "scenario"},
-		},
-		{
-			name: "mixed flags and positional",
-			args: []string{"scenario", "--stages", "build", "--wait"},
-			want: []string{"--stages", "build", "--wait", "scenario"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := reorderArgsForFlags(tt.args)
-			if !slicesEqual(got, tt.want) {
-				t.Errorf("reorderArgsForFlags(%v) = %v, want %v", tt.args, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestIsBooleanFlag(t *testing.T) {
-	tests := []struct {
-		flag string
-		want bool
-	}{
-		{"--wait", true},
-		{"--verbose", true},
-		{"--json", true},
-		{"--no-create", true},
-		{"--force", true},
-		{"--debug", true},
-		{"--stages", false},
-		{"--platforms", false},
-		{"--timeout", false},
-		{"--limit", false},
-		{"-wait", true},
-		{"-stages", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.flag, func(t *testing.T) {
-			got := isBooleanFlag(tt.flag)
-			if got != tt.want {
-				t.Errorf("isBooleanFlag(%q) = %v, want %v", tt.flag, got, tt.want)
-			}
-		})
-	}
-}
-
 // Helper functions
 func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
@@ -565,14 +498,3 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
-func slicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}

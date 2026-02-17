@@ -11,7 +11,7 @@ import (
 func (a *App) cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

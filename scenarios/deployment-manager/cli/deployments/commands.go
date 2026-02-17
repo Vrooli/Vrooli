@@ -38,10 +38,10 @@ func (c *Commands) Deploy(args []string) error {
 	async := fs.Bool("async", false, "async deploy")
 	validateOnly := fs.Bool("validate-only", false, "validate only")
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -78,10 +78,10 @@ func (c *Commands) Deployment(args []string) error {
 func (c *Commands) deploymentStatus(args []string) error {
 	fs := flag.NewFlagSet("deployment status", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("deployment id is required")
 	}
@@ -99,7 +99,7 @@ func (c *Commands) deploymentStatus(args []string) error {
 func (c *Commands) Packagers(args []string) error {
 	fs := flag.NewFlagSet("packagers", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	_, _ = cmdutil.ParseArgs(fs, args)
+	_ = cliutil.ParseInterspersed(fs, args)
 
 	message := "Packager discovery is deprecated here; use deploy-desktop or scenario-to-* CLIs directly."
 	packagers := []string{
@@ -136,10 +136,10 @@ func (c *Commands) PackageProfile(args []string) error {
 	packager := fs.String("packager", "", "packager name")
 	dryRun := fs.Bool("dry-run", false, "dry run")
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -177,10 +177,10 @@ func (c *Commands) Validate(args []string) error {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
 	verbose := fs.Bool("verbose", false, "verbose output")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -201,10 +201,10 @@ func (c *Commands) EstimateCost(args []string) error {
 	fs := flag.NewFlagSet("estimate-cost", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
 	verbose := fs.Bool("verbose", false, "verbose output")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -228,10 +228,10 @@ func (c *Commands) Logs(args []string) error {
 	level := fs.String("level", "", "log level filter")
 	search := fs.String("search", "", "search term")
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -354,10 +354,10 @@ Build configuration is read from each service's "build" field in the manifest:
 `)
 	}
 
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	// Allow profile ID as positional argument
 	if *profileID == "" && len(remaining) > 0 {
@@ -540,10 +540,10 @@ Examples:
 `)
 	}
 
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	// Allow profile ID as positional argument
 	if *profileID == "" && len(remaining) > 0 {

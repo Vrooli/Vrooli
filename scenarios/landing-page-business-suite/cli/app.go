@@ -661,7 +661,7 @@ func (o *optionalString) Set(value string) error {
 func (a *App) cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -2183,7 +2183,7 @@ func (a *App) cmdAdminDownloadsUploadManaged(args []string) error {
 	remoteProfile := fs.String("remote-profile", "", "Remote profile ID for proxying admin calls")
 	skipApply := fs.Bool("skip-apply", false, "Skip apply step (upload + commit only)")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) > 0 {
@@ -2368,7 +2368,7 @@ func (a *App) cmdAssetsUpload(args []string) error {
 	altText := fs.String("alt-text", "", "Alt text")
 	uploadedBy := fs.String("uploaded-by", "", "Uploaded by")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -2462,7 +2462,7 @@ func (a *App) cmdAssetsUpload(args []string) error {
 func (a *App) cmdAIStream(args []string) error {
 	fs := flag.NewFlagSet("ai-stream", flag.ContinueOnError)
 	body := fs.String("body", "", "JSON body payload or @file.json")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	payload, err := parseBody(*body)

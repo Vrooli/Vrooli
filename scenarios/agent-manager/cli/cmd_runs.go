@@ -127,7 +127,7 @@ func (a *App) runList(args []string) error {
 	status := fs.String("status", "", "Filter by status")
 	tagPrefix := fs.String("tag-prefix", "", "Filter by tag prefix")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -191,7 +191,7 @@ func (a *App) runGet(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -284,7 +284,7 @@ func (a *App) runCreate(args []string) error {
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
 	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -365,7 +365,7 @@ func (a *App) runStop(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -402,7 +402,7 @@ func (a *App) runGetByTag(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -451,7 +451,7 @@ func (a *App) runStopByTag(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -483,7 +483,7 @@ func (a *App) runStopAll(args []string) error {
 	tagPrefix := fs.String("tag-prefix", "", "Only stop runs with this tag prefix")
 	force := fs.Bool("force", false, "Force termination even if graceful stop fails")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -538,7 +538,7 @@ func (a *App) runApprove(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -600,7 +600,7 @@ func (a *App) runReject(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -644,7 +644,7 @@ func (a *App) runDiff(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -688,7 +688,7 @@ func (a *App) runEvents(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -791,7 +791,7 @@ func (a *App) runDelete(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -833,7 +833,7 @@ func (a *App) runContinue(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -877,7 +877,7 @@ func (a *App) runInvestigate(args []string) error {
 	projectRoot := fs.String("project-root", "", "Project root directory")
 	scopePaths := fs.String("scope-paths", "", "Comma-separated scope paths")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -945,7 +945,7 @@ func (a *App) runApplyInvestigation(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -998,7 +998,7 @@ func (a *App) runSandboxSync(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1058,7 +1058,7 @@ func (a *App) runExtractRecommendations(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1103,7 +1103,7 @@ func (a *App) runRegenerateRecommendations(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

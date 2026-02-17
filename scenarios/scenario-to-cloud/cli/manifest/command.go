@@ -9,7 +9,6 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
-	"scenario-to-cloud/cli/internal/flagutil"
 	internalmanifest "scenario-to-cloud/cli/internal/manifest"
 )
 
@@ -94,7 +93,7 @@ func runInit(client *Client, args []string) error {
 	caddyEmail := fs.String("caddy-email", "", "ACME contact email")
 	outPath := fs.String("out", "", "Write manifest JSON to this path")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON response")
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
@@ -139,7 +138,7 @@ func runTemplate(client *Client, args []string) error {
 	fs := flag.NewFlagSet("manifest template", flag.ContinueOnError)
 	variant := fs.String("variant", "minimal", "Template variant: minimal|full")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON response")
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
@@ -166,7 +165,7 @@ func runTemplate(client *Client, args []string) error {
 func runDoctor(client *Client, args []string) error {
 	fs := flag.NewFlagSet("manifest doctor", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON response")
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -198,7 +197,7 @@ func runFix(client *Client, args []string) error {
 	writeInPlace := fs.Bool("write", false, "Write fixes back to input file")
 	outPath := fs.String("out", "", "Write fixed manifest to this output path")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON response")
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {

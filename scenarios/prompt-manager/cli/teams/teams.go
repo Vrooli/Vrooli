@@ -265,7 +265,7 @@ Claude Code Interop Commands:
 func cmdList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -295,7 +295,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 func cmdShow(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("show", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -390,7 +390,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	mission := fs.String("mission", "", "Team mission statement")
 	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -426,7 +426,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	mission := fs.String("mission", "", "New mission statement")
 	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -464,7 +464,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 func cmdDelete(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -502,7 +502,7 @@ func cmdAddMember(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("add-member", flag.ContinueOnError)
 	roles := fs.String("roles", "", "Comma-separated role IDs")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -545,7 +545,7 @@ func cmdUpdateMember(ctx appctx.Context, args []string) error {
 	roles := fs.String("roles", "", "Comma-separated role IDs (replaces existing)")
 	status := fs.String("status", "", "New status (active|inactive|pending)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -585,7 +585,7 @@ func cmdUpdateMember(ctx appctx.Context, args []string) error {
 func cmdRemoveMember(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("remove-member", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -617,7 +617,7 @@ func cmdRemoveMember(ctx appctx.Context, args []string) error {
 func cmdRoles(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("roles", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -656,7 +656,7 @@ func cmdRoles(ctx appctx.Context, args []string) error {
 func cmdOrgList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("org-list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -706,7 +706,7 @@ func cmdOrgList(ctx appctx.Context, args []string) error {
 func cmdOrgSet(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("org-set", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -735,7 +735,7 @@ func cmdOrgSet(ctx appctx.Context, args []string) error {
 
 func cmdOrgRemove(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("org-remove", flag.ContinueOnError)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -756,7 +756,7 @@ func cmdOrgRemove(ctx appctx.Context, args []string) error {
 func cmdMessageList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("message-list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -795,7 +795,7 @@ func cmdMessageSend(ctx appctx.Context, args []string) error {
 	content := fs.String("content", "", "Message content")
 	file := fs.String("file", "", "Read message content from file")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -842,7 +842,7 @@ func cmdMessageSend(ctx appctx.Context, args []string) error {
 
 func cmdMessageDelete(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("message-delete", flag.ContinueOnError)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -863,7 +863,7 @@ func cmdMessageDelete(ctx appctx.Context, args []string) error {
 
 func cmdMessageClear(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("message-clear", flag.ContinueOnError)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -956,7 +956,7 @@ type MemberDocRequest struct {
 func cmdHeartbeatList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -999,7 +999,7 @@ func cmdHeartbeatList(ctx appctx.Context, args []string) error {
 func cmdHeartbeat(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1052,7 +1052,7 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	schedule := fs.String("schedule", "0 */6 * * *", "Cron schedule expression")
 	profileKey := fs.String("profile", "", "Agent-manager profile key")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1112,7 +1112,7 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 func cmdHeartbeatDisable(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-disable", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1145,7 +1145,7 @@ func cmdHeartbeatDisable(ctx appctx.Context, args []string) error {
 func cmdHeartbeatTrigger(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-trigger", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1175,7 +1175,7 @@ func cmdHeartbeatTrigger(ctx appctx.Context, args []string) error {
 func cmdHeartbeatLogs(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-logs", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1213,7 +1213,7 @@ func cmdResponsibilities(ctx appctx.Context, args []string) error {
 	setContent := fs.String("set", "", "Set content from string")
 	setFile := fs.String("file", "", "Set content from file")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1278,7 +1278,7 @@ func cmdHeartbeatInstructions(ctx appctx.Context, args []string) error {
 	setContent := fs.String("set", "", "Set content from string")
 	setFile := fs.String("file", "", "Set content from file")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1346,7 +1346,7 @@ type ImportCCRequest struct {
 func cmdImportCC(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("import-cc", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1394,7 +1394,7 @@ func cmdExportCC(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("export-cc", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	output := fs.String("output", "", "Write output to file path")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1447,7 +1447,7 @@ type TriggerTeamResponse struct {
 func cmdTriggerTeam(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("trigger", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1484,7 +1484,7 @@ type MemberContextResponse struct {
 func cmdMemberContext(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("member-context", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1580,7 +1580,7 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 	regex := fs.Bool("regex", false, "Treat query as regex for content search")
 	limit := fs.Int("limit", 5, "Maximum number of results")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"ecosystem-manager/cli/internal/appctx"
 )
@@ -30,6 +31,7 @@ type QueueStatusResponse struct {
 // ActionResponse represents a generic action response.
 type ActionResponse struct {
 	Success bool   `json:"success"`
+	DryRun  bool   `json:"dry_run,omitempty"`
 	Message string `json:"message"`
 }
 
@@ -87,7 +89,7 @@ Subcommands:
 func cmdStatus(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -127,7 +129,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 func cmdStart(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -142,7 +144,9 @@ func cmdStart(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	if resp.Success {
+	if resp.DryRun {
+		fmt.Println("[DRY RUN] Queue processor would be started")
+	} else if resp.Success {
 		fmt.Println("Queue started successfully")
 	} else {
 		fmt.Printf("Failed to start queue: %s\n", resp.Message)
@@ -153,7 +157,7 @@ func cmdStart(ctx appctx.Context, args []string) error {
 func cmdStop(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -168,7 +172,9 @@ func cmdStop(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	if resp.Success {
+	if resp.DryRun {
+		fmt.Println("[DRY RUN] Queue processor would be stopped")
+	} else if resp.Success {
 		fmt.Println("Queue stopped successfully")
 	} else {
 		fmt.Printf("Failed to stop queue: %s\n", resp.Message)

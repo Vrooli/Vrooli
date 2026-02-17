@@ -105,7 +105,7 @@ func (a *App) settingsInvestigationGet(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	if args != nil {
-		if err := fs.Parse(args); err != nil {
+		if err := cliutil.ParseInterspersed(fs, args); err != nil {
 			return err
 		}
 	}
@@ -141,7 +141,7 @@ func (a *App) settingsInvestigationUpdate(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	filePath := fs.String("file", "", "Path to JSON file containing settings (required)")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -183,7 +183,7 @@ func (a *App) settingsInvestigationReset(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	force := fs.Bool("force", false, "Skip confirmation")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

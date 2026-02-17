@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
 )
@@ -105,7 +106,7 @@ func cmdRun(ctx appctx.Context, args []string) error {
 	maxTokens := fs.Int("max-tokens", 1000, "Maximum tokens in response")
 	temperature := fs.Float64("temperature", 0.7, "Temperature for generation")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -154,7 +155,7 @@ func cmdRun(ctx appctx.Context, args []string) error {
 func cmdHistory(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("history", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

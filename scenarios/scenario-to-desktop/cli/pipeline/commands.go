@@ -143,9 +143,7 @@ func (c *Commands) Run(args []string) error {
 	appKey := fs.String("app-key", "", "App key for the download app in LPBS (required for deploy)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -355,9 +353,7 @@ func (c *Commands) Status(args []string) error {
 	showOutput := fs.Bool("show-output", false, "Show app stdout/stderr on failure (useful for debugging)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -422,8 +418,7 @@ func (c *Commands) Resume(args []string) error {
 	fs := flag.NewFlagSet("pipeline-resume", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -452,8 +447,7 @@ func (c *Commands) Cancel(args []string) error {
 	fs := flag.NewFlagSet("pipeline-cancel", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -480,7 +474,7 @@ func (c *Commands) Cancel(args []string) error {
 func (c *Commands) List(args []string) error {
 	fs := flag.NewFlagSet("pipeline-list", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -524,8 +518,7 @@ func (c *Commands) Active(args []string) error {
 	noCreate := fs.Bool("no-create", false, "Don't create if none exists")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -558,8 +551,7 @@ func (c *Commands) Create(args []string) error {
 	fs := flag.NewFlagSet("pipeline-create", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -588,8 +580,7 @@ func (c *Commands) Reset(args []string) error {
 	fs := flag.NewFlagSet("pipeline-reset", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -619,8 +610,7 @@ func (c *Commands) History(args []string) error {
 	limit := fs.Int("limit", 10, "Number of pipelines to return")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -660,9 +650,7 @@ func (c *Commands) Start(args []string) error {
 	appKey := fs.String("app-key", "", "App key for the download app in LPBS (required for deploy)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	// Reorder args so flags come before positional arguments (Go's flag package stops at first non-flag)
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1546,56 +1534,6 @@ func printAPIError(err error, debug bool) {
 	} else {
 		fmt.Printf("Error: %s\n", err)
 	}
-}
-
-// reorderArgsForFlags moves flag arguments before positional arguments.
-// Go's flag package stops parsing at the first non-flag argument, so we need
-// to ensure flags come first for them to be parsed correctly.
-// Example: ["scenario", "--platforms", "linux"] -> ["--platforms", "linux", "scenario"]
-func reorderArgsForFlags(args []string) []string {
-	var flags []string
-	var positional []string
-
-	i := 0
-	for i < len(args) {
-		arg := args[i]
-		if strings.HasPrefix(arg, "-") {
-			// This is a flag
-			flags = append(flags, arg)
-			// Check if the next arg is a value for this flag (not another flag)
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				// Check if this flag takes a value (not a boolean flag)
-				// Boolean flags: --wait, --verbose, --json, --no-create
-				// Flags with values: --stages, --platforms, --timeout, --limit, --target, --path, etc.
-				if !isBooleanFlag(arg) {
-					i++
-					flags = append(flags, args[i])
-				}
-			}
-		} else {
-			positional = append(positional, arg)
-		}
-		i++
-	}
-
-	return append(flags, positional...)
-}
-
-// isBooleanFlag returns true if the flag is a known boolean flag that doesn't take a value.
-func isBooleanFlag(flag string) bool {
-	// Strip leading dashes
-	name := strings.TrimLeft(flag, "-")
-
-	booleanFlags := map[string]bool{
-		"wait":        true,
-		"verbose":     true,
-		"json":        true,
-		"no-create":   true,
-		"force":       true,
-		"debug":       true,
-		"show-output": true,
-	}
-	return booleanFlags[name]
 }
 
 func normalizeBumpValue(input string) (string, error) {

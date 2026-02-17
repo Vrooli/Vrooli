@@ -78,7 +78,7 @@ func (a *App) taskList(args []string) error {
 	offset := fs.Int("offset", 0, "Number of tasks to skip")
 	status := fs.String("status", "", "Filter by status")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (a *App) taskGet(args []string) error {
 	fs := flag.NewFlagSet("task get", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -209,7 +209,7 @@ func (a *App) taskCreate(args []string) error {
 	projectRoot := fs.String("project-root", "", "Project root directory")
 	createdBy := fs.String("created-by", "", "Creator identifier")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -258,7 +258,7 @@ func (a *App) taskUpdate(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -329,7 +329,7 @@ func (a *App) taskDelete(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -370,7 +370,7 @@ func (a *App) taskCancel(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

@@ -324,7 +324,7 @@ Flags:
 	fs := flag.NewFlagSet("bundle vps-list", flag.ContinueOnError)
 	selFlags := registerSelectorFlags(fs)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	sel, err := selFlags.toSelector()
@@ -499,7 +499,7 @@ func runVPSGC(client *Client, args []string) error {
 	dryRun := fs.Bool("dry-run", false, "Report plan only; do not delete")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

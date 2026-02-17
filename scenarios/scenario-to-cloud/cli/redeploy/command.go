@@ -12,7 +12,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"scenario-to-cloud/cli/deployment"
-	"scenario-to-cloud/cli/internal/flagutil"
 )
 
 // Run executes the redeploy workflow: create/update → execute → report.
@@ -29,7 +28,7 @@ func Run(client *deployment.Client, args []string) error {
 	ifNeeded := fs.Bool("if-needed", false, "Deploy only when missing, unhealthy, or outdated")
 	wait := fs.Bool("wait", false, "Wait for completion and print stage durations")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

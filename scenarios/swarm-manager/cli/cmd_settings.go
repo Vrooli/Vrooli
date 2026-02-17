@@ -10,7 +10,7 @@ import (
 func (a *App) cmdSettingsGet(args []string) error {
 	fs := flag.NewFlagSet("settings get", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -35,7 +35,7 @@ func (a *App) cmdSettingsGet(args []string) error {
 func (a *App) cmdSettingsUpdate(args []string) error {
 	fs := flag.NewFlagSet("settings update", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

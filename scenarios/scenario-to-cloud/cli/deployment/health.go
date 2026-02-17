@@ -6,15 +6,13 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
-
-	"scenario-to-cloud/cli/internal/flagutil"
 )
 
 func runHealth(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment health", flag.ContinueOnError)
 	selectorArgs := registerSelectorFlags(fs)
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

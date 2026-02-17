@@ -11,7 +11,7 @@ import (
 func (a *App) cmdAgentManagerStatus(args []string) error {
 	fs := flag.NewFlagSet("agent-manager status", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

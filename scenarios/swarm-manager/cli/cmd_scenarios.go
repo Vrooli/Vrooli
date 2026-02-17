@@ -18,7 +18,7 @@ func (a *App) cmdScenariosList(args []string) error {
 	sortField := fs.String("sort", "", "Sort by field (priority|name|displayName)")
 	order := fs.String("order", "", "Sort order (asc|desc)")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -94,7 +94,7 @@ func (a *App) cmdScenariosList(args []string) error {
 func (a *App) cmdScenariosGet(args []string) error {
 	fs := flag.NewFlagSet("scenarios get", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
@@ -143,7 +143,7 @@ func (a *App) cmdScenariosGet(args []string) error {
 func (a *App) cmdScenariosUpdate(args []string) error {
 	fs := flag.NewFlagSet("scenarios update", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -189,7 +189,7 @@ func (a *App) cmdScenariosDelete(args []string) error {
 	fs := flag.NewFlagSet("scenarios delete", flag.ContinueOnError)
 	archive := fs.Bool("archive", false, "Archive scenario to backlog (idea) before deletion")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
@@ -227,7 +227,7 @@ func (a *App) cmdScenariosDelete(args []string) error {
 func (a *App) cmdScenariosFiles(args []string) error {
 	fs := flag.NewFlagSet("scenarios files", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
@@ -291,7 +291,7 @@ func (a *App) cmdScenariosRestart(args []string) error {
 func (a *App) runScenarioLifecycle(args []string, action string) error {
 	fs := flag.NewFlagSet("scenarios "+action, flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {

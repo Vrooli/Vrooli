@@ -53,10 +53,10 @@ func (c *Commands) Run(args []string) error {
 func (c *Commands) list(args []string) error {
 	fs := flag.NewFlagSet("swaps list", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("scenario is required")
 	}
@@ -83,10 +83,10 @@ func (c *Commands) list(args []string) error {
 func (c *Commands) analyze(args []string) error {
 	fs := flag.NewFlagSet("swaps analyze", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) < 2 {
 		return errors.New("usage: swaps analyze <from> <to>")
 	}
@@ -103,10 +103,10 @@ func (c *Commands) analyze(args []string) error {
 func (c *Commands) cascade(args []string) error {
 	fs := flag.NewFlagSet("swaps cascade", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) < 2 {
 		return errors.New("usage: swaps cascade <from> <to>")
 	}
@@ -123,10 +123,10 @@ func (c *Commands) cascade(args []string) error {
 func (c *Commands) info(args []string) error {
 	fs := flag.NewFlagSet("swaps info", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("swap id is required")
 	}
@@ -143,10 +143,10 @@ func (c *Commands) apply(args []string) error {
 	fs := flag.NewFlagSet("swaps apply", flag.ContinueOnError)
 	showFitness := fs.Bool("show-fitness", false, "show fitness after apply")
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) < 3 {
 		return errors.New("usage: swaps apply <profile_id> <from> <to>")
 	}
@@ -155,7 +155,7 @@ func (c *Commands) apply(args []string) error {
 	to := remaining[2]
 
 	payload := map[string]string{"from": from, "to": to}
-	_, err = c.api.Request("POST", "/api/v1/profiles/"+profileID+"/swaps", nil, payload)
+	_, err := c.api.Request("POST", "/api/v1/profiles/"+profileID+"/swaps", nil, payload)
 	if err != nil {
 		return err
 	}

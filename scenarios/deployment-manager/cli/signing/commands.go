@@ -149,10 +149,10 @@ func (c *Commands) Show(args []string) error {
 	fs := flag.NewFlagSet("signing show", flag.ContinueOnError)
 	platform := fs.String("platform", "", "show only specific platform (windows|macos|linux)")
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing show <profile> [--platform <platform>]")
@@ -280,10 +280,10 @@ func (c *Commands) Set(args []string) error {
 	gpgPassphraseEnv := fs.String("gpg-passphrase-env", "", "env var containing GPG passphrase")
 	gpgHomedir := fs.String("gpg-homedir", "", "GPG home directory override")
 
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing set <profile> --platform <platform> [options]")
@@ -350,10 +350,10 @@ func (c *Commands) Set(args []string) error {
 func (c *Commands) Remove(args []string) error {
 	fs := flag.NewFlagSet("signing remove", flag.ContinueOnError)
 	platform := fs.String("platform", "", "remove only specific platform (windows|macos|linux)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing remove <profile> [--platform <platform>]")
@@ -380,10 +380,10 @@ func (c *Commands) Remove(args []string) error {
 func (c *Commands) Validate(args []string) error {
 	fs := flag.NewFlagSet("signing validate", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing validate <profile>")
@@ -448,8 +448,7 @@ func (c *Commands) Validate(args []string) error {
 func (c *Commands) Prerequisites(args []string) error {
 	fs := flag.NewFlagSet("signing prerequisites", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	_, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -529,8 +528,7 @@ func (c *Commands) Discover(args []string) error {
 	fs := flag.NewFlagSet("signing discover", flag.ContinueOnError)
 	platform := fs.String("platform", "", "platform to discover (windows|macos|linux) [required]")
 	format := fs.String("format", "", "output format (json|table)")
-	_, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

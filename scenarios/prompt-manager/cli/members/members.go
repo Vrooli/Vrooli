@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
 )
@@ -106,7 +107,7 @@ Subcommands:
 func cmdList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -136,7 +137,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 func cmdShow(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("show", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -172,7 +173,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	headColor := fs.String("head-color", "#F59E0B", "Head color (hex)")
 	accentColor := fs.String("accent-color", "#10B981", "Accent color (hex)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -210,7 +211,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	headColor := fs.String("head-color", "", "Head color (hex)")
 	accentColor := fs.String("accent-color", "", "Accent color (hex)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -251,7 +252,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 func cmdDelete(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

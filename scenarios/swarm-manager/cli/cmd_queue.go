@@ -12,7 +12,7 @@ import (
 func (a *App) cmdQueueList(args []string) error {
 	fs := flag.NewFlagSet("queue list", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -61,7 +61,7 @@ func (a *App) cmdQueueList(args []string) error {
 func (a *App) cmdQueueCreate(args []string) error {
 	fs := flag.NewFlagSet("queue create", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
@@ -107,7 +107,7 @@ func (a *App) cmdQueueCreate(args []string) error {
 func (a *App) cmdQueueDelete(args []string) error {
 	fs := flag.NewFlagSet("queue delete", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {

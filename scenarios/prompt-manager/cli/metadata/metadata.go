@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
 )
@@ -76,7 +77,7 @@ Subcommands:
 func cmdFetch(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

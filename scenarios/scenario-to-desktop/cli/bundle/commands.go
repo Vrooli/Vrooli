@@ -28,9 +28,7 @@ func (c *Commands) Clean(args []string) error {
 	pipelineID := fs.String("pipeline-id", "", "Pipeline ID (required for staging/temp location-mode)")
 	jsonOut := cliutil.JSONFlag(fs)
 
-	// Flags must come before positionals for Go flag parsing.
-	reordered := reorderArgsForFlags(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if len(fs.Args()) != 1 {
@@ -85,23 +83,3 @@ func (c *Commands) Clean(args []string) error {
 	return nil
 }
 
-// reorderArgsForFlags is a lightweight helper for Go's flag package, which stops parsing at
-// the first non-flag. It moves all flags before positionals while keeping relative order.
-func reorderArgsForFlags(args []string) []string {
-	var flags []string
-	var positionals []string
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		if strings.HasPrefix(a, "-") {
-			flags = append(flags, a)
-			// If this flag has a separate value, keep it with the flag.
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !strings.Contains(a, "=") {
-				flags = append(flags, args[i+1])
-				i++
-			}
-			continue
-		}
-		positionals = append(positionals, a)
-	}
-	return append(flags, positionals...)
-}

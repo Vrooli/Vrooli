@@ -15,7 +15,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"scenario-to-cloud/cli/deployment"
-	"scenario-to-cloud/cli/internal/flagutil"
 )
 
 func Run(client *Client, deploymentClient *deployment.Client, args []string) error {
@@ -91,7 +90,7 @@ func runSet(client *Client, deploymentClient *deployment.Client, args []string) 
 	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
 	fs.BoolVar(&sel.all, "all-deployments", false, "Apply to all deployments for --scenario")
 
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -221,7 +220,7 @@ func runGet(client *Client, deploymentClient *deployment.Client, args []string) 
 	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
 	fs.BoolVar(&sel.all, "all-deployments", false, "Read from all deployments for --scenario")
 
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -313,7 +312,7 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
 	fs.BoolVar(&sel.all, "all-deployments", false, "Read from all deployments for --scenario")
 
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -496,7 +495,7 @@ func runDelete(client *Client, deploymentClient *deployment.Client, args []strin
 	fs.StringVar(&sel.target, "target", "", "Deployment convenience selector (domain or host)")
 	fs.BoolVar(&sel.all, "all-deployments", false, "Delete from all deployments for --scenario")
 
-	if err := flagutil.ParseInterspersed(fs, args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {

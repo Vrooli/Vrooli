@@ -19,4 +19,7 @@ type Context interface {
 
 	// Delete performs a DELETE request.
 	Delete(path string) error
+
+	// DeleteWithResult performs a DELETE request and unmarshals the response into result.
+	DeleteWithResult(path string, result interface{}) error
 }

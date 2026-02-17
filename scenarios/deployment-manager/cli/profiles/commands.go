@@ -131,7 +131,7 @@ func New(api *cliutil.APIClient) *Commands {
 func (c *Commands) List(args []string) error {
 	fs := flag.NewFlagSet("profiles", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	_, _ = cmdutil.ParseArgs(fs, args)
+	_ = cliutil.ParseInterspersed(fs, args)
 	body, err := c.api.Get("/api/v1/profiles", nil)
 	if err != nil {
 		return err
@@ -164,10 +164,10 @@ func (c *Commands) List(args []string) error {
 func (c *Commands) Create(args []string) error {
 	fs := flag.NewFlagSet("profile create", flag.ContinueOnError)
 	tier := fs.String("tier", "2", "deployment tier")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) < 2 {
 		return errors.New("usage: profile create <name> <scenario> [--tier <tier>]")
 	}
@@ -190,10 +190,10 @@ func (c *Commands) Create(args []string) error {
 func (c *Commands) Show(args []string) error {
 	fs := flag.NewFlagSet("profile show", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -226,10 +226,10 @@ func (c *Commands) Export(args []string) error {
 	fs := flag.NewFlagSet("profile export", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
 	outputPath := fs.String("output", "", "output file")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -261,10 +261,10 @@ func (c *Commands) Import(args []string) error {
 	fs := flag.NewFlagSet("profile import", flag.ContinueOnError)
 	name := fs.String("name", "", "override profile name")
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("file path is required")
 	}
@@ -293,10 +293,10 @@ func (c *Commands) Update(args []string) error {
 	fs := flag.NewFlagSet("profile update", flag.ContinueOnError)
 	tier := fs.String("tier", "", "deployment tier")
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -420,10 +420,10 @@ func (c *Commands) Swap(args []string) error {
 func (c *Commands) Versions(args []string) error {
 	fs := flag.NewFlagSet("profile versions", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -443,10 +443,10 @@ func (c *Commands) Versions(args []string) error {
 func (c *Commands) Analyze(args []string) error {
 	fs := flag.NewFlagSet("profile analyze", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -489,10 +489,10 @@ func (c *Commands) Save(args []string) error {
 func (c *Commands) Diff(args []string) error {
 	fs := flag.NewFlagSet("profile diff", flag.ContinueOnError)
 	format := fs.String("format", "json", "output format")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -535,10 +535,10 @@ func (c *Commands) Rollback(args []string) error {
 	fs := flag.NewFlagSet("profile rollback", flag.ContinueOnError)
 	target := fs.String("version", "", "version number")
 	toVersion := fs.String("to-version", "", "version number")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -603,10 +603,10 @@ func (c *Commands) Secrets(args []string) error {
 func (c *Commands) secretsIdentify(args []string) error {
 	fs := flag.NewFlagSet("secrets identify", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -622,10 +622,10 @@ func (c *Commands) secretsIdentify(args []string) error {
 func (c *Commands) secretsTemplate(args []string) error {
 	fs := flag.NewFlagSet("secrets template", flag.ContinueOnError)
 	format := fs.String("format", "env", "template format (env|json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -651,10 +651,10 @@ func (c *Commands) secretsTemplate(args []string) error {
 func (c *Commands) secretsValidate(args []string) error {
 	fs := flag.NewFlagSet("secrets validate", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}

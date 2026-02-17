@@ -47,7 +47,7 @@ func (c *Commands) apiDelete(path string) ([]byte, error) {
 func (c *Commands) Get(args []string) error {
 	fs := flag.NewFlagSet("signing-get", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -75,7 +75,7 @@ func (c *Commands) Set(args []string) error {
 	fs := flag.NewFlagSet("signing-set", flag.ContinueOnError)
 	configJSON := fs.String("config", "", "Signing configuration JSON or @file.json")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -120,7 +120,7 @@ func (c *Commands) Set(args []string) error {
 func (c *Commands) Delete(args []string) error {
 	fs := flag.NewFlagSet("signing-delete", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -147,7 +147,7 @@ func (c *Commands) Delete(args []string) error {
 func (c *Commands) Validate(args []string) error {
 	fs := flag.NewFlagSet("signing-validate", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -192,7 +192,7 @@ func (c *Commands) Validate(args []string) error {
 func (c *Commands) Ready(args []string) error {
 	fs := flag.NewFlagSet("signing-ready", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -247,7 +247,7 @@ func (c *Commands) Ready(args []string) error {
 func (c *Commands) Prerequisites(args []string) error {
 	fs := flag.NewFlagSet("signing-prerequisites", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -269,7 +269,7 @@ func (c *Commands) Prerequisites(args []string) error {
 func (c *Commands) Discover(args []string) error {
 	fs := flag.NewFlagSet("signing-discover", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -301,7 +301,7 @@ func (c *Commands) GenerateKey(args []string) error {
 	passphraseEnv := fs.String("passphrase-env", "", "Environment variable for passphrase")
 	force := fs.Bool("force", false, "Overwrite existing key")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

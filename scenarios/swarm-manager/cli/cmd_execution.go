@@ -69,7 +69,7 @@ func (a *App) cmdExecutionList(args []string) error {
 	createdFrom := fs.String("created-from", "", "Filter by created_at lower bound (RFC3339)")
 	createdTo := fs.String("created-to", "", "Filter by created_at upper bound (RFC3339)")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -149,7 +149,7 @@ func (a *App) cmdExecutionList(args []string) error {
 func (a *App) cmdExecutionGet(args []string) error {
 	fs := flag.NewFlagSet("execution get", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
@@ -195,7 +195,7 @@ func (a *App) cmdExecutionCreate(args []string) error {
 	fs := flag.NewFlagSet("execution create", flag.ContinueOnError)
 	mode, delay, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -248,7 +248,7 @@ func (a *App) cmdExecutionCreate(args []string) error {
 func (a *App) cmdExecutionPolicyGet(args []string) error {
 	fs := flag.NewFlagSet("execution policy get", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -278,7 +278,7 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 	mode := fs.String("mode", "", "Default mode: manual|scheduled|yolo")
 	delay := fs.Int64("delay-seconds", 300, "Default delay seconds for scheduled mode")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	opts, err := parsePolicyOptions(mode, delay)
@@ -330,7 +330,7 @@ func (a *App) cmdExecutionRetry(args []string) error {
 func (a *App) runExecutionMutation(args []string, action string) error {
 	fs := flag.NewFlagSet("execution "+action, flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {

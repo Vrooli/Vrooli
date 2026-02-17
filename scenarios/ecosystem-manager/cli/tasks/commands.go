@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"ecosystem-manager/cli/internal/appctx"
 )
@@ -19,6 +20,7 @@ type TaskCreateRequest struct {
 	Title            string `json:"title"`
 	Type             string `json:"type"`
 	Operation        string `json:"operation"`
+	Target           string `json:"target,omitempty"`
 	Category         string `json:"category,omitempty"`
 	Priority         string `json:"priority,omitempty"`
 	SteerMode        string `json:"steer_mode,omitempty"`
@@ -57,9 +59,17 @@ type TaskDetailResponse struct {
 	AutoSteerPhaseIndex *int            `json:"auto_steer_phase_index,omitempty"`
 }
 
+// TaskCreateResponse wraps the API envelope for task creation.
+type TaskCreateResponse struct {
+	Success bool         `json:"success"`
+	DryRun  bool         `json:"dry_run,omitempty"`
+	Task    TaskResponse `json:"task"`
+}
+
 // TaskActionResponse represents the result of an action on a task.
 type TaskActionResponse struct {
 	Success bool   `json:"success"`
+	DryRun  bool   `json:"dry_run,omitempty"`
 	Message string `json:"message,omitempty"`
 	TaskID  string `json:"task_id,omitempty"`
 	Error   string `json:"error,omitempty"`
@@ -81,7 +91,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "task",
 					Aliases:     []string{"tasks"},
 					NeedsAPI:    true,
-					Description: "Manage tasks (add|improve|list|show|status)",
+					Description: "Manage tasks (add|improve|list|show|status|delete)",
 					Run: func(args []string) error {
 						return route(ctx, args)
 					},
@@ -110,6 +120,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdShow(ctx, subArgs)
 	case "status":
 		return cmdStatus(ctx, subArgs)
+	case "delete", "rm":
+		return cmdDelete(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -128,23 +140,24 @@ Subcommands:
   improve [resource|scenario] <name> Create an improvement task
   list, ls                          List tasks
   show, get <id>                    Show task details
-  status <id>                       Update task status`
+  status <id>                       Update task status
+  delete, rm <id>                   Delete a task`
 }
 
 func cmdAdd(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("add", flag.ContinueOnError)
 	steerProfile := fs.String("steer-profile", "", "Auto-steer profile ID")
-	steerQueue := fs.String("steer-queue", "", "Steer queue modes (e.g. progress,test,refactor)")
-	steerMode := fs.String("steer-mode", "", "Steer mode")
+	steerQueue := fs.String("steer-queue", "", "Single steer mode (e.g. test)")
+	steerMode := fs.String("steer-mode", "", "Steer mode (alias for --steer-queue)")
 	priority := fs.String("priority", "medium", "Priority (low, medium, high, critical)")
 	category := fs.String("category", "general", "Category")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: task add [resource|scenario] <name> [--steer-profile ID] [--steer-queue modes] [--priority P] [--category C] [--json]")
+		return fmt.Errorf("usage: task add [resource|scenario] <name> [--steer-profile ID] [--steer-queue mode] [--priority P] [--category C] [--json]")
 	}
 
 	typeName := fs.Arg(0)
@@ -157,6 +170,7 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 		Title:     fmt.Sprintf("Generate %s %s", name, typeName),
 		Type:      typeName,
 		Operation: "generator",
+		Target:    name,
 		Category:  *category,
 		Priority:  *priority,
 	}
@@ -171,18 +185,23 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 		req.SteerMode = *steerMode
 	}
 
-	var task TaskResponse
-	if err := ctx.Post("/tasks", req, &task); err != nil {
+	var resp TaskCreateResponse
+	if err := ctx.Post("/tasks", req, &resp); err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
+	task := resp.Task
 
 	if *jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(task)
+		return enc.Encode(resp)
 	}
 
-	fmt.Printf("Created task: %s [%s]\n", task.Title, task.ID)
+	if resp.DryRun {
+		fmt.Printf("[DRY RUN] Would create task: %s [%s]\n", task.Title, task.ID)
+	} else {
+		fmt.Printf("Created task: %s [%s]\n", task.Title, task.ID)
+	}
 	fmt.Printf("  View: ecosystem-manager task show %s\n", task.ID)
 	return nil
 }
@@ -190,16 +209,16 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 func cmdImprove(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("improve", flag.ContinueOnError)
 	steerProfile := fs.String("steer-profile", "", "Auto-steer profile ID")
-	steerQueue := fs.String("steer-queue", "", "Steer queue modes (e.g. progress,test,refactor)")
-	steerMode := fs.String("steer-mode", "", "Steer mode")
+	steerQueue := fs.String("steer-queue", "", "Single steer mode (e.g. test)")
+	steerMode := fs.String("steer-mode", "", "Steer mode (alias for --steer-queue)")
 	priority := fs.String("priority", "medium", "Priority (low, medium, high, critical)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: task improve [resource|scenario] <name> [--steer-profile ID] [--steer-queue modes] [--priority P] [--json]")
+		return fmt.Errorf("usage: task improve [resource|scenario] <name> [--steer-profile ID] [--steer-queue mode] [--priority P] [--json]")
 	}
 
 	typeName := fs.Arg(0)
@@ -212,6 +231,7 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 		Title:     fmt.Sprintf("Improve %s %s", name, typeName),
 		Type:      typeName,
 		Operation: "improver",
+		Target:    name,
 		Category:  "improvement",
 		Priority:  *priority,
 	}
@@ -226,18 +246,23 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 		req.SteerMode = *steerMode
 	}
 
-	var task TaskResponse
-	if err := ctx.Post("/tasks", req, &task); err != nil {
+	var resp TaskCreateResponse
+	if err := ctx.Post("/tasks", req, &resp); err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
+	task := resp.Task
 
 	if *jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(task)
+		return enc.Encode(resp)
 	}
 
-	fmt.Printf("Created improvement task: %s [%s]\n", task.Title, task.ID)
+	if resp.DryRun {
+		fmt.Printf("[DRY RUN] Would create improvement task: %s [%s]\n", task.Title, task.ID)
+	} else {
+		fmt.Printf("Created improvement task: %s [%s]\n", task.Title, task.ID)
+	}
 	fmt.Printf("  View: ecosystem-manager task show %s\n", task.ID)
 	return nil
 }
@@ -248,7 +273,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 	typeName := fs.String("type", "", "Filter by type (resource, scenario)")
 	operation := fs.String("operation", "", "Filter by operation (generator, improver)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -293,7 +318,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 func cmdShow(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("show", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -349,7 +374,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 	status := fs.String("status", "", "New status")
 	phase := fs.String("phase", "", "Current phase")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -381,7 +406,17 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	if resp.Success {
+	if resp.DryRun {
+		fmt.Printf("[DRY RUN] Would update task\n")
+		parts := []string{}
+		if *status != "" {
+			parts = append(parts, fmt.Sprintf("Status: %s", *status))
+		}
+		if *phase != "" {
+			parts = append(parts, fmt.Sprintf("Phase: %s", *phase))
+		}
+		fmt.Printf("  %s\n", strings.Join(parts, ", "))
+	} else if resp.Success {
 		fmt.Printf("Task updated successfully\n")
 		parts := []string{}
 		if *status != "" {
@@ -393,6 +428,37 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 		fmt.Printf("  %s\n", strings.Join(parts, ", "))
 	} else {
 		fmt.Printf("Failed to update task: %s\n", resp.Error)
+	}
+	return nil
+}
+
+func cmdDelete(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: task delete <id> [--json]")
+	}
+	taskID := fs.Arg(0)
+
+	var resp TaskActionResponse
+	if err := ctx.DeleteWithResult(fmt.Sprintf("/tasks/%s", taskID), &resp); err != nil {
+		return fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.DryRun {
+		fmt.Printf("[DRY RUN] Would delete task: %s\n", taskID)
+	} else {
+		fmt.Printf("Task deleted: %s\n", taskID)
 	}
 	return nil
 }

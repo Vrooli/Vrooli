@@ -68,7 +68,7 @@ func (a *App) runnerList(args []string) error {
 	fs := flag.NewFlagSet("runner list", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -125,7 +125,7 @@ func (a *App) runnerProbe(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -171,7 +171,7 @@ func (a *App) runnerModels(args []string) error {
 	fs := flag.NewFlagSet("runner models", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -206,7 +206,7 @@ func (a *App) runnerModelsUpdate(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	filePath := fs.String("file", "", "Path to JSON file containing model registry (required)")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
 )
@@ -205,7 +206,7 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 	format := fs.String("format", "xml", "Combined output format (xml|markdown|json)")
 	renderLimit := fs.Int("render-limit", 0, "Limit number of skills rendered in combined output")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -562,7 +563,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("search-status", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Bool("j", false, "Output as JSON (shorthand)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -602,7 +603,7 @@ func cmdReindex(ctx appctx.Context, args []string) error {
 	wait := fs.Bool("wait", false, "Wait for reindex to complete")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Bool("j", false, "Output as JSON (shorthand)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -692,7 +693,7 @@ func cmdReindexStatus(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("search-reindex-status", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Bool("j", false, "Output as JSON (shorthand)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -756,7 +757,7 @@ func cmdReindexCancel(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("search-reindex-cancel", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Bool("j", false, "Output as JSON (shorthand)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

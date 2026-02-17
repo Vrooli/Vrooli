@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"ecosystem-manager/cli/internal/appctx"
 )
@@ -96,7 +97,7 @@ Subcommands:
 func cmdProfiles(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("profiles", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -134,7 +135,7 @@ func cmdProfiles(ctx appctx.Context, args []string) error {
 func cmdTemplates(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("templates", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -168,7 +169,7 @@ func cmdTemplates(ctx appctx.Context, args []string) error {
 func cmdShow(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("show", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

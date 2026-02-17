@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/internal/clipboard"
@@ -211,7 +212,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	folder := fs.String("folder", "", "Filter by folder (core|local|drafts)")
 	tag := fs.String("tag", "", "Filter by tag")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -257,7 +258,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 func cmdShow(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("show", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -319,7 +320,7 @@ func cmdRead(ctx appctx.Context, args []string) error {
 	copyOut := fs.Bool("copy", false, "Copy combined output to clipboard")
 	withScope := fs.Bool("with-scope", false, "Include default scope skill from first skill")
 	scope := fs.String("scope", "", "Explicit scope skill to include")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -406,7 +407,7 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	description := fs.String("description", "", "Skill description")
 	draft := fs.Bool("draft", false, "Mark as draft")
 	tags := fs.String("tags", "", "Comma-separated tags")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -471,7 +472,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	draft := fs.Bool("draft", false, "Mark as draft")
 	undraft := fs.Bool("undraft", false, "Unmark as draft")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -524,7 +525,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 func cmdDelete(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -593,7 +594,7 @@ func cmdSync(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("sync", flag.ContinueOnError)
 	tag := fs.String("tag", "", "Filter by tag")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -622,7 +623,7 @@ func cmdSync(ctx appctx.Context, args []string) error {
 func cmdRate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("rate", flag.ContinueOnError)
 	notes := fs.String("notes", "", "Optional notes about the rating")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -659,7 +660,7 @@ func cmdRate(ctx appctx.Context, args []string) error {
 func cmdVersions(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("versions", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -693,7 +694,7 @@ func cmdVersions(ctx appctx.Context, args []string) error {
 func cmdRevert(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("revert", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

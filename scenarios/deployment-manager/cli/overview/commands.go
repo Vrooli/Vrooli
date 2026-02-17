@@ -29,10 +29,10 @@ func (c *Commands) Status(args []string) error {
 func (c *Commands) Analyze(args []string) error {
 	fs := flag.NewFlagSet("analyze", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("scenario is required")
 	}
@@ -49,10 +49,10 @@ func (c *Commands) Fitness(args []string) error {
 	fs := flag.NewFlagSet("fitness", flag.ContinueOnError)
 	tier := fs.String("tier", "2", "deployment tier")
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("scenario is required")
 	}

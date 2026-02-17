@@ -138,10 +138,10 @@ Examples:
 `)
 	}
 
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		fs.Usage()
 		return errors.New("scenario name is required")
@@ -243,10 +243,10 @@ Examples:
 `)
 	}
 
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		fs.Usage()
 		return errors.New("scenario name is required")
@@ -337,10 +337,10 @@ Examples:
 `)
 	}
 
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		fs.Usage()
 		return errors.New("manifest file path is required")

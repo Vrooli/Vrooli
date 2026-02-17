@@ -161,6 +161,18 @@ func (a *App) Delete(path string) error {
 	return err
 }
 
+// DeleteWithResult performs a DELETE request and unmarshals the response into result.
+func (a *App) DeleteWithResult(path string, result interface{}) error {
+	body, err := a.core.APIClient.Request("DELETE", a.apiPath(path), nil, nil)
+	if err != nil {
+		return err
+	}
+	if result != nil && len(body) > 0 {
+		return json.Unmarshal(body, result)
+	}
+	return nil
+}
+
 // healthResponse represents the API health check response.
 type healthResponse struct {
 	Status     string            `json:"status"`

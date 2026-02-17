@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
 )
@@ -82,7 +83,7 @@ Subcommands:
 func cmdList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -122,7 +123,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	color := fs.String("color", "", "Tag color (hex, e.g., #FF5733)")
 	description := fs.String("description", "", "Tag description")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

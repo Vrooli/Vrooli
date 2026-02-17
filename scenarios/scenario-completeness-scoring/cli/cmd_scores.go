@@ -14,7 +14,7 @@ import (
 func (a *App) cmdScores(args []string) error {
 	fs := flag.NewFlagSet("scores", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	parsed, body, err := a.services.Scoring.ScoresList()
@@ -47,7 +47,7 @@ func (a *App) cmdScore(args []string) error {
 	verbose := fs.Bool("verbose", false, "Show detailed breakdown")
 	fs.BoolVar(verbose, "v", false, "Show detailed breakdown")
 	metrics := fs.Bool("metrics", false, "Include raw metric counters")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if *metrics {
@@ -105,7 +105,7 @@ func (a *App) cmdCalculate(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	var tags cliutil.StringList
 	fs.Var(&tags, "tag", "Tag to associate with snapshot (repeatable)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() == 0 {
@@ -132,7 +132,7 @@ func (a *App) cmdHistory(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	var tags cliutil.StringList
 	fs.Var(&tags, "tag", "Filter by tag (repeatable)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() == 0 {
@@ -158,7 +158,7 @@ func (a *App) cmdTrends(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	var tags cliutil.StringList
 	fs.Var(&tags, "tag", "Filter by tag")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() == 0 {
@@ -181,7 +181,7 @@ func (a *App) cmdWhatIf(args []string) error {
 	fs := flag.NewFlagSet("what-if", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	changesFile := fs.String("file", "", "Path to JSON file describing changes")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() == 0 {

@@ -187,13 +187,19 @@ func TestHandlers_ListProfiles(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 		}
 
-		var profiles []*AutoSteerProfile
-		if err := json.NewDecoder(w.Body).Decode(&profiles); err != nil {
+		var resp struct {
+			Profiles []*AutoSteerProfile `json:"profiles"`
+			Count    int                 `json:"count"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if len(profiles) != 2 {
-			t.Errorf("Expected 2 profiles, got %d", len(profiles))
+		if len(resp.Profiles) != 2 {
+			t.Errorf("Expected 2 profiles, got %d", len(resp.Profiles))
+		}
+		if resp.Count != 2 {
+			t.Errorf("Expected count 2, got %d", resp.Count)
 		}
 	})
 
@@ -207,13 +213,16 @@ func TestHandlers_ListProfiles(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 		}
 
-		var profiles []*AutoSteerProfile
-		if err := json.NewDecoder(w.Body).Decode(&profiles); err != nil {
+		var resp struct {
+			Profiles []*AutoSteerProfile `json:"profiles"`
+			Count    int                 `json:"count"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if len(profiles) != 1 {
-			t.Errorf("Expected 1 profile, got %d", len(profiles))
+		if len(resp.Profiles) != 1 {
+			t.Errorf("Expected 1 profile, got %d", len(resp.Profiles))
 		}
 	})
 }
@@ -453,12 +462,15 @@ func TestHandlers_GetTemplates(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 		}
 
-		var templates []*AutoSteerProfile
-		if err := json.NewDecoder(w.Body).Decode(&templates); err != nil {
+		var resp struct {
+			Templates []*AutoSteerProfile `json:"templates"`
+			Count     int                 `json:"count"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if len(templates) == 0 {
+		if len(resp.Templates) == 0 {
 			t.Error("Expected at least one template")
 		}
 	})

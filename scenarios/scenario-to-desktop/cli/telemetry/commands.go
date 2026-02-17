@@ -45,7 +45,7 @@ func (c *Commands) Ingest(args []string) error {
 	filePath := fs.String("file", "", "Path to telemetry JSONL file")
 	source := fs.String("source", "cli", "Source identifier")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -112,7 +112,7 @@ func (c *Commands) Ingest(args []string) error {
 func (c *Commands) Summary(args []string) error {
 	fs := flag.NewFlagSet("telemetry-summary", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -139,7 +139,7 @@ func (c *Commands) Summary(args []string) error {
 func (c *Commands) Insights(args []string) error {
 	fs := flag.NewFlagSet("telemetry-insights", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -167,7 +167,7 @@ func (c *Commands) Tail(args []string) error {
 	fs := flag.NewFlagSet("telemetry-tail", flag.ContinueOnError)
 	limit := fs.Int("limit", 200, "Number of entries to return")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -196,7 +196,7 @@ func (c *Commands) Tail(args []string) error {
 func (c *Commands) Download(args []string) error {
 	fs := flag.NewFlagSet("telemetry-download", flag.ContinueOnError)
 	output := fs.String("output", "", "Output file path (default: stdout)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -226,7 +226,7 @@ func (c *Commands) Download(args []string) error {
 func (c *Commands) Delete(args []string) error {
 	fs := flag.NewFlagSet("telemetry-delete", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

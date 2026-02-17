@@ -58,7 +58,7 @@ func (a *App) maintenancePurge(args []string) error {
 	dryRun := fs.Bool("dry-run", false, "Preview without deleting")
 	force := fs.Bool("force", false, "Skip confirmation (for non-dry-run)")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

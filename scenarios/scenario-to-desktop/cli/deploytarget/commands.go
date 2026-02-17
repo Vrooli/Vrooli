@@ -46,7 +46,7 @@ func (c *Commands) apiPath(path string) string {
 func (c *Commands) List(args []string) error {
 	fs := flag.NewFlagSet("deploy-target-list", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -103,9 +103,7 @@ func (c *Commands) Add(args []string) error {
 	label := fs.String("label", "", "Human-readable label")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	// Reorder args so flags come before positional arguments
-	reordered := reorderArgs(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -144,7 +142,7 @@ func (c *Commands) Add(args []string) error {
 func (c *Commands) Remove(args []string) error {
 	fs := flag.NewFlagSet("deploy-target-remove", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -172,8 +170,7 @@ func (c *Commands) Test(args []string) error {
 	fs := flag.NewFlagSet("deploy-target-test", flag.ContinueOnError)
 	requireServiceAuth := fs.Bool("require-service-auth", false, "Also verify LPBS service auth is enabled and LPBS_SERVICE_SECRET is set")
 	jsonOutput := cliutil.JSONFlag(fs)
-	reordered := reorderArgs(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -214,8 +211,7 @@ func (c *Commands) Test(args []string) error {
 func (c *Commands) Doctor(args []string) error {
 	fs := flag.NewFlagSet("deploy-target-doctor", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	reordered := reorderArgs(args)
-	if err := fs.Parse(reordered); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -297,26 +293,3 @@ func buildServiceAuthNextSteps(err error, name string) string {
 	)
 }
 
-// reorderArgs moves flag arguments before positional arguments.
-func reorderArgs(args []string) []string {
-	var flags []string
-	var positional []string
-
-	i := 0
-	for i < len(args) {
-		arg := args[i]
-		if strings.HasPrefix(arg, "-") {
-			flags = append(flags, arg)
-			// Check if next arg is a value for this flag
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				i++
-				flags = append(flags, args[i])
-			}
-		} else {
-			positional = append(positional, arg)
-		}
-		i++
-	}
-
-	return append(flags, positional...)
-}

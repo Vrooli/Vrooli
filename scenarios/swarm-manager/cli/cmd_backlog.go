@@ -18,7 +18,7 @@ import (
 func (a *App) cmdBacklogList(args []string) error {
 	fs := flag.NewFlagSet("backlog list", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -84,7 +84,7 @@ func (a *App) cmdBacklogList(args []string) error {
 func (a *App) cmdBacklogGet(args []string) error {
 	fs := flag.NewFlagSet("backlog get", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -137,7 +137,7 @@ func (a *App) cmdBacklogGet(args []string) error {
 func (a *App) cmdBacklogCreate(args []string) error {
 	fs := flag.NewFlagSet("backlog create", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
@@ -188,7 +188,7 @@ func (a *App) cmdBacklogCreate(args []string) error {
 func (a *App) cmdBacklogUpdate(args []string) error {
 	fs := flag.NewFlagSet("backlog update", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 3 {
@@ -236,7 +236,7 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 func (a *App) cmdBacklogDelete(args []string) error {
 	fs := flag.NewFlagSet("backlog delete", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -265,7 +265,7 @@ func (a *App) cmdBacklogDelete(args []string) error {
 func (a *App) cmdBacklogFiles(args []string) error {
 	fs := flag.NewFlagSet("backlog files", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -319,7 +319,7 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	fs := flag.NewFlagSet("backlog queue", flag.ContinueOnError)
 	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -378,7 +378,7 @@ func (a *App) cmdBacklogQueue(args []string) error {
 func (a *App) cmdBacklogResearch(args []string) error {
 	fs := flag.NewFlagSet("backlog research", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
@@ -425,7 +425,7 @@ func (a *App) cmdBacklogResearch(args []string) error {
 func (a *App) cmdBacklogConvert(args []string) error {
 	fs := flag.NewFlagSet("backlog convert", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 3 {
@@ -476,7 +476,7 @@ func (a *App) cmdBacklogFileGet(args []string) error {
 	fs := flag.NewFlagSet("backlog file get", flag.ContinueOnError)
 	outPath := fs.String("out", "", "Write file content to local path instead of stdout")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 3 {
@@ -533,7 +533,7 @@ func (a *App) cmdBacklogFileUpload(args []string) error {
 	fs := flag.NewFlagSet("backlog file upload", flag.ContinueOnError)
 	targetPath := fs.String("path", "", "Optional directory path within backlog item")
 	jsonOut := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 3 {

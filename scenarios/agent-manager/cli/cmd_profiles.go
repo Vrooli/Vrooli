@@ -78,7 +78,7 @@ func (a *App) profileList(args []string) error {
 	limit := fs.Int("limit", 0, "Maximum number of profiles to return")
 	offset := fs.Int("offset", 0, "Number of profiles to skip")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -139,7 +139,7 @@ func (a *App) profileGet(args []string) error {
 	fs := flag.NewFlagSet("profile get", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -223,7 +223,7 @@ func (a *App) profileCreate(args []string) error {
 	deniedTools := fs.String("denied-tools", "", "Comma-separated list of denied tools")
 	createdBy := fs.String("created-by", "", "Creator identifier")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -314,7 +314,7 @@ func (a *App) profileUpdate(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -403,7 +403,7 @@ func (a *App) profileDelete(args []string) error {
 		args = args[1:]
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -451,7 +451,7 @@ func (a *App) profileEnsure(args []string) error {
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Default sandbox retention mode")
 	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Default sandbox retention TTL")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

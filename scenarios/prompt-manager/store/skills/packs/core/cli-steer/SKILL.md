@@ -327,22 +327,25 @@ All cli-core CLIs automatically support these flags:
 
 ### 8. Argument Parsing Pattern
 
+**Important:** Always use `cliutil.ParseInterspersed` instead of `fs.Parse`. Go's standard `flag.FlagSet.Parse()` stops at the first non-flag argument, which means `task status my-id --status pending` silently drops `--status pending`. `ParseInterspersed` reorders args so flags come before positionals, then calls `fs.Parse` — a zero-risk drop-in fix.
+
 ```go
 func (a *App) cmdCreate(args []string) error {
-    // 1. Check for required positional arguments
-    if len(args) == 0 {
-        return fmt.Errorf("usage: create <name> [--type TYPE] [--json]")
-    }
-
-    // 2. Parse flags
-    name := args[0]
+    // 1. Define flags
     fs := flag.NewFlagSet("create", flag.ContinueOnError)
     typeFlag := fs.String("type", "default", "Resource type")
     jsonOutput := cliutil.JSONFlag(fs)  // Standard --json flag
 
-    if err := fs.Parse(args[1:]); err != nil {
+    // 2. Parse with interspersed support (handles "create myname --type foo")
+    if err := cliutil.ParseInterspersed(fs, args); err != nil {
         return err
     }
+
+    // 3. Check required positional arguments
+    if fs.NArg() < 1 {
+        return fmt.Errorf("usage: create <name> [--type TYPE] [--json]")
+    }
+    name := fs.Arg(0)
 
     // 3. Build request
     req := CreateRequest{
@@ -383,6 +386,7 @@ func (a *App) cmdCreate(args []string) error {
 | File input | `--config @file.json` | Large payloads |
 
 **Utilities for parsing:**
+- `cliutil.ParseInterspersed(fs, args)` — Parse flags interspersed with positional args (use instead of `fs.Parse`)
 - `cliutil.ParseCSV(value)` — Parse comma-separated values
 - `cliutil.ReadFileString(value)` — Read file if prefixed with `@`
 - `cliutil.JSONFlag(fs)` — Add standard `--json` flag
@@ -603,6 +607,7 @@ file scenarios/{{TARGET}}/cli/* | grep -i "shell\|bash\|script"
 - [ ] No install.sh / install.ps1 for cross-platform installation
 - [ ] Commands that don't use `NeedsAPI: true` when calling API
 - [ ] Duplicate HTTP client code (should use cli-core's APIClient)
+- [ ] Commands using `fs.Parse()` instead of `cliutil.ParseInterspersed()` for mixed positional+flag args
 
 #### 12.3 Document Findings
 

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
 )
@@ -197,7 +198,7 @@ func cmdShow(ctx appctx.Context, _ []string) error {
 func cmdDump(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("dump", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON (default: human-readable)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -251,7 +252,7 @@ func cmdDump(ctx appctx.Context, args []string) error {
 func cmdNode(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("node", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -377,7 +378,7 @@ func cmdOrphanedSkills(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("orphaned-skills", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "Limit results (0 = all)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -402,7 +403,7 @@ func cmdSkilllessAgents(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("skillless-agents", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "Limit results (0 = all)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -426,7 +427,7 @@ func cmdSkilllessAgents(ctx appctx.Context, args []string) error {
 func cmdEmptyTeams(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("empty-teams", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -446,7 +447,7 @@ func cmdEmptyTeams(ctx appctx.Context, args []string) error {
 func cmdUnaffiliatedAgents(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("unaffiliated-agents", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -469,7 +470,7 @@ func cmdCLIlessSkills(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("cliless-skills", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "Limit results (0 = all)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -510,7 +511,7 @@ func cmdPopular(ctx appctx.Context, args []string) error {
 	limit := fs.Int("limit", 10, "Number of results")
 	nodeType := fs.String("type", "", "Filter by node type (team|agent|skill|cli)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -544,7 +545,7 @@ func cmdPopular(ctx appctx.Context, args []string) error {
 func cmdCircularRefs(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("circular-refs", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -574,7 +575,7 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("health", flag.ContinueOnError)
 	nodeType := fs.String("type", "", "Filter by node type (team|agent|skill|cli)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
