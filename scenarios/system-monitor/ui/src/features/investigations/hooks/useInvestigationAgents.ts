@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildApiUrl } from '../../../shared/api/apiBase';
 import { usePolling } from '../../../shared/hooks/usePolling';
+import { extractBoolean, extractNumber, extractString } from '../../../shared/utils/typeGuards';
 import type { InvestigationAgentState } from '../../../types';
 
 const TERMINAL_AGENT_STATUSES = new Set(['completed', 'error', 'failed', 'cancelled', 'canceled', 'stopped']);
@@ -28,18 +29,6 @@ const mapAgentPayload = (payload: unknown): InvestigationAgentState | null => {
   if (!idCandidate) {
     return null;
   }
-
-  const extractString = (value: unknown): string | undefined => {
-    return typeof value === 'string' ? value : undefined;
-  };
-
-  const extractBoolean = (value: unknown): boolean | undefined => {
-    return typeof value === 'boolean' ? value : undefined;
-  };
-
-  const extractNumber = (value: unknown): number | undefined => {
-    return typeof value === 'number' ? value : undefined;
-  };
 
   const statusCandidate = extractString(payloadRecord.status) ?? extractString(payloadRecord.state) ?? 'investigating';
   const startTime = extractString(payloadRecord.start_time)
@@ -126,6 +115,7 @@ export const useInvestigationAgents = () => {
   const agentsRef = useRef(agents);
   agentsRef.current = agents;
   const [isSpawningAgent, setIsSpawningAgent] = useState(false);
+  const isSpawningRef = useRef(false);
   const [stoppingAgents, setStoppingAgents] = useState<Set<string>>(() => new Set());
   const [agentErrors, setAgentErrors] = useState<Record<string, string>>({});
   const [spawnAgentError, setSpawnAgentError] = useState<string | null>(null);
@@ -158,6 +148,8 @@ export const useInvestigationAgents = () => {
   }, []);
 
   const spawnInvestigationAgent = useCallback(async ({ autoFix, note }: { autoFix: boolean; note?: string }) => {
+    if (isSpawningRef.current) return undefined;
+    isSpawningRef.current = true;
     setSpawnAgentError(null);
     setIsSpawningAgent(true);
     try {
@@ -230,6 +222,7 @@ export const useInvestigationAgents = () => {
       throw spawnError;
     } finally {
       setIsSpawningAgent(false);
+      isSpawningRef.current = false;
     }
   }, []);
 
@@ -303,11 +296,14 @@ export const useInvestigationAgents = () => {
 
     if (currentAgents.length === 0) return;
 
+    const removals = new Set<string>();
+    const updates = new Map<string, InvestigationAgentState>();
+
     await Promise.all(currentAgents.map(async agent => {
       try {
         const response = await fetch(buildApiUrl(`/investigations/agent/${encodeURIComponent(agent.id)}/status`));
         if (response.status === 404) {
-          setAgents(prev => prev.filter(existing => existing.id !== agent.id));
+          removals.add(agent.id);
           return;
         }
         if (!response.ok) return;
@@ -326,15 +322,25 @@ export const useInvestigationAgents = () => {
         if (mapped) {
           const normalizedStatus = mapped.status?.toLowerCase?.();
           if (normalizedStatus && TERMINAL_AGENT_STATUSES.has(normalizedStatus)) {
-            setAgents(prev => prev.filter(existing => existing.id !== mapped.id));
+            removals.add(mapped.id);
           } else {
-            setAgents(prev => prev.map(existing => existing.id === mapped.id ? { ...existing, ...mapped } : existing));
+            updates.set(mapped.id, mapped);
           }
         }
       } catch (pollError) {
         console.error('Failed to poll agent status:', pollError);
       }
     }));
+
+    if (removals.size > 0 || updates.size > 0) {
+      setAgents(prev => prev
+        .filter(existing => !removals.has(existing.id))
+        .map(existing => {
+          const update = updates.get(existing.id);
+          return update ? { ...existing, ...update } : existing;
+        })
+      );
+    }
   }, []);
 
   // Initial poll when agents become active

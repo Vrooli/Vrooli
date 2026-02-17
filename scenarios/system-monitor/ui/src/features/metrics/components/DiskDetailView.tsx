@@ -2,8 +2,9 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { HardDrive } from 'lucide-react';
 
-import { buildApiUrl } from '../../../shared/api/apiBase';
-import { formatPercentage, getUtilizationColor } from '../../../shared/utils/formatters';
+import { apiFetch } from '../../../shared/api/apiFetch';
+import { DetailRow } from '../../../shared/components/DetailRow';
+import { formatMbPerSecond, formatPercentage, formatTimeLabel, getUtilizationColor } from '../../../shared/utils/formatters';
 import type {
   DetailedMetrics,
   MetricHistory,
@@ -15,11 +16,9 @@ import type {
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import {
-  formatTimeLabel,
   buildSingleSeriesData,
   combineDiskSeries,
-  buildDiskUsageCard,
-  formatMbPerSecond
+  buildDiskUsageCard
 } from './metricHelpers';
 
 export interface DiskDetailViewProps {
@@ -75,15 +74,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           params.set('include_files', 'true');
         }
 
-        const response = await fetch(buildApiUrl(`/metrics/disk/details?${params.toString()}`), {
+        const data = await apiFetch<DiskDetailResponse>(`/metrics/disk/details?${params.toString()}`, {
           signal: controller.signal
         });
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || `request failed with status ${response.status}`);
-        }
-
-        const data = (await response.json()) as DiskDetailResponse;
         setDiskDetails(data);
         setSelectedMount(data.active_mount || mount);
         setDepth(data.depth);
@@ -189,7 +182,6 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
     >
       <MetricLineChart
         className="card"
-        style={{ padding: 'var(--spacing-lg)' }}
         data={diskIoHistory.map(point => ({ timestamp: point.timestamp, read: point.read, write: point.write }))}
         lines={[
           { dataKey: 'read', name: 'Read Throughput', color: 'var(--color-accent)' },
@@ -200,37 +192,25 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         yDomain={['auto', 'auto']}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--spacing-lg)' }}>
+      <div className="metric-grid-auto-lg">
         {buildDiskUsageCard(summaryDiskInfo, {
           title: `Usage for ${selectedMountLabel}`,
           subtitle: deviceLabel ?? 'Current usage across monitored volumes'
         })}
 
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+        <div className="card flex-col-gap-md">
           <div>
-            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Storage I/O Snapshot</h3>
+            <h3 className="section-heading">Storage I/O Snapshot</h3>
             <div className="card-subtitle">
               Real-time disk queue and wait metrics
             </div>
           </div>
           {storageIO ? (
             <div className="detail-grid detail-grid-md">
-              <div className="detail-row">
-                <span className="detail-row-label">Disk Queue Depth</span>
-                <span className="detail-row-value">{storageIO.disk_queue_depth?.toFixed(2) ?? '—'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-row-label">I/O Wait</span>
-                <span style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-lg)' }}>{storageIO.io_wait_percent?.toFixed(1) ?? '—'}%</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-row-label">Read Throughput</span>
-                <span className="detail-row-value">{storageIO.read_mb_per_sec?.toFixed(2) ?? '—'} MB/s</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-row-label">Write Throughput</span>
-                <span className="detail-row-value">{storageIO.write_mb_per_sec?.toFixed(2) ?? '—'} MB/s</span>
-              </div>
+              <DetailRow label="Disk Queue Depth" value={storageIO.disk_queue_depth?.toFixed(2) ?? '\u2014'} />
+              <DetailRow label="I/O Wait" value={`${storageIO.io_wait_percent?.toFixed(1) ?? '\u2014'}%`} valueColor="var(--color-warning)" />
+              <DetailRow label="Read Throughput" value={`${storageIO.read_mb_per_sec?.toFixed(2) ?? '\u2014'} MB/s`} />
+              <DetailRow label="Write Throughput" value={`${storageIO.write_mb_per_sec?.toFixed(2) ?? '\u2014'} MB/s`} />
             </div>
           ) : (
             <div className="text-muted">
@@ -240,22 +220,18 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         </div>
 
         {fileDescriptors && (
-          <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+          <div className="card flex-col-gap-md">
             <div>
-              <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>File Descriptor Utilization</h3>
+              <h3 className="section-heading">File Descriptor Utilization</h3>
               <div className="card-subtitle">
                 Tracks open file handles across all services
               </div>
             </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <div style={{ color: 'var(--color-text-bright)', fontSize: 'var(--font-size-xl)', fontWeight: 600 }}>
+          <div className="utilization-header">
+            <div className="utilization-value-lg">
               {fileDescriptors.used.toLocaleString()} / {fileDescriptors.max.toLocaleString()}
             </div>
-            <div style={{
-              color: getUtilizationColor(fileDescriptors.percent),
-              fontSize: 'var(--font-size-lg)',
-              fontWeight: 600
-            }}>
+            <div className="utilization-percent" style={{ color: getUtilizationColor(fileDescriptors.percent) }}>
               {fileDescriptors.percent.toFixed(1)}%
             </div>
           </div>
@@ -277,23 +253,22 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         )}
 
         {inotifyWatchers && (
-          <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+          <div className="card flex-col-gap-md">
             <div>
-              <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Inotify Watcher Utilization</h3>
+              <h3 className="section-heading">Inotify Watcher Utilization</h3>
               <div className="card-subtitle">
                 Kernel file watcher instances and watch descriptors in use
               </div>
             </div>
             {watchersSupported ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <div style={{ color: 'var(--color-text-bright)', fontSize: 'var(--font-size-lg)', fontWeight: 600 }}>
+                <div className="utilization-header">
+                  <div className="utilization-value-lg" style={{ fontSize: 'var(--font-size-lg)' }}>
                     {inotifyWatchers.watches_used.toLocaleString()} / {inotifyWatchers.watches_max.toLocaleString()} watches
                   </div>
-                  <div style={{
+                  <div className="utilization-percent" style={{
                     color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-md)',
-                    fontWeight: 600
+                    fontSize: 'var(--font-size-md)'
                   }}>
                     {watcherPercent !== undefined ? `${watcherPercent.toFixed(1)}%` : '—'}
                   </div>
@@ -309,7 +284,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }} className="text-dim-xs">
+                <div className="utilization-header text-dim-xs">
                   <span>
                     Instances: {inotifyWatchers.instances_used.toLocaleString()} / {inotifyWatchers.instances_max.toLocaleString()}
                   </span>
@@ -330,16 +305,16 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--spacing-lg)' }}>
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+      <div className="metric-grid-auto-lg">
+        <div className="card flex-col-gap-md">
           <div>
-            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Mounted Volumes</h3>
+            <h3 className="section-heading">Mounted Volumes</h3>
             <div className="card-subtitle">
               Select a mount to drill into its usage profile
             </div>
           </div>
           {partitions.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+            <div className="flex-col-gap-sm">
               {partitions.map(partition => {
                 const isActive = partition.mount_point === selectedMount;
                 const percent = Math.min(Math.max(partition.use_percent, 0), 100);
@@ -347,44 +322,25 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                   <button
                     key={`${partition.device}-${partition.mount_point}`}
                     type="button"
+                    className={`partition-btn ${isActive ? 'active' : ''}`}
                     onClick={() => handleMountSelect(partition.mount_point)}
                     disabled={detailsLoading && isActive}
-                    style={{
-                      textAlign: 'left',
-                      border: `1px solid ${isActive ? 'var(--color-text-bright)' : 'var(--alpha-accent-20)'}`,
-                      background: 'rgba(0,0,0,0.4)',
-                      color: 'var(--color-text)',
-                      padding: 'var(--spacing-sm) var(--spacing-md)',
-                      borderRadius: 'var(--border-radius-md)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 'var(--spacing-xs)',
-                      cursor: detailsLoading && isActive ? 'not-allowed' : 'pointer',
-                      opacity: detailsLoading && isActive ? 0.6 : 1,
-                      letterSpacing: '0.04em'
-                    }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>{partition.mount_point}</span>
-                      <span style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-sm)' }}>{percent.toFixed(1)}%</span>
+                    <div className="flex-row-baseline">
+                      <span className="text-bright font-semibold">{partition.mount_point}</span>
+                      <span className="text-warning text-sm">{percent.toFixed(1)}%</span>
                     </div>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{partition.device}</div>
-                    <div style={{
-                      width: '100%',
-                      height: '6px',
-                      background: 'var(--alpha-accent-10)',
-                      borderRadius: 'var(--border-radius-sm)'
-                    }}>
+                    <div className="text-dim-xs">{partition.device}</div>
+                    <div className="mini-progress-track">
                       <div
+                        className="mini-progress-fill"
                         style={{
                           width: `${percent}%`,
-                          height: '100%',
-                          background: 'linear-gradient(90deg, var(--color-warning), var(--color-error))',
-                          borderRadius: 'var(--border-radius-sm)'
+                          background: 'linear-gradient(90deg, var(--color-warning), var(--color-error))'
                         }}
                       />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>
+                    <div className="flex-row-baseline text-dim-xs">
                       <span>Used {partition.used_human}</span>
                       <span>Free {partition.available_human}</span>
                     </div>
@@ -399,26 +355,20 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           )}
         </div>
 
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+        <div className="card flex-col-gap-md">
           <div>
-            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Analysis Controls</h3>
+            <h3 className="section-heading">Analysis Controls</h3>
             <div className="card-subtitle">
               Customize the depth and scope of disk analysis
             </div>
           </div>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+          <label className="analysis-select-label">
             Depth
             <select
               value={depth}
               onChange={handleDepthChange}
               disabled={detailsLoading}
-              style={{
-                background: 'rgba(0,0,0,0.6)',
-                color: 'var(--color-text)',
-                border: '1px solid var(--color-accent)',
-                borderRadius: 'var(--border-radius-md)',
-                padding: 'var(--spacing-xs) var(--spacing-sm)'
-              }}
+              className="analysis-select"
             >
               <option value={1}>Top-level directories</option>
               <option value={2}>Include first sub-level</option>
@@ -426,7 +376,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
               <option value={4}>Deep scan (slower)</option>
             </select>
           </label>
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+          <div className="analysis-btn-row">
             <button
               type="button"
               className="btn btn-action"
@@ -459,13 +409,13 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
       </div>
 
       {detailsError && (
-        <div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)', letterSpacing: '0.08em' }}>
+        <div className="card" style={{ color: 'var(--color-error)', letterSpacing: '0.08em' }}>
           Failed to analyze disk usage: {detailsError}
         </div>
       )}
 
       {diskDetails?.notes && diskDetails.notes.length > 0 && (
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', color: 'var(--color-warning)' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', color: 'var(--color-warning)' }}>
           {diskDetails.notes.map((note, index) => (
             <div key={`${note}-${index}`} style={{ letterSpacing: '0.08em' }}>
               {'\u2022'} {note}
@@ -474,10 +424,10 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         </div>
       )}
 
-      <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+      <div className="card flex-col-gap-md">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
           <div>
-            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Top Directories</h3>
+            <h3 className="section-heading">Top Directories</h3>
             <div className="card-subtitle">
               Heaviest paths within {selectedMountLabel} (depth {depth})
             </div>
@@ -497,8 +447,8 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
               <tbody>
                 {topDirectories.map((entry: DiskUsageEntry) => (
                   <tr key={entry.path}>
-                    <td style={{ color: 'var(--color-text-bright)' }}>{entry.path}</td>
-                    <td style={{ color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{entry.size_human}</td>
+                    <td className="text-bright">{entry.path}</td>
+                    <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.size_human}</td>
                   </tr>
                 ))}
               </tbody>
@@ -511,9 +461,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         )}
       </div>
 
-      <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+      <div className="card flex-col-gap-md">
         <div>
-          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Largest Files</h3>
+          <h3 className="section-heading">Largest Files</h3>
           <div className="card-subtitle">
             Files larger than 50 MB within {selectedMountLabel}
           </div>
@@ -531,8 +481,8 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 <tbody>
                   {largestFiles.map(entry => (
                     <tr key={entry.path}>
-                      <td style={{ color: 'var(--color-text-bright)' }}>{entry.path}</td>
-                      <td style={{ color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{entry.size_human}</td>
+                      <td className="text-bright">{entry.path}</td>
+                      <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.size_human}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -552,9 +502,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         )}
       </div>
 
-      <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+      <div className="card flex-col-gap-md">
         <div>
-          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Disk Usage History</h3>
+          <h3 className="section-heading">Disk Usage History</h3>
           <div className="card-subtitle">
             Utilization trend across the observation window
           </div>

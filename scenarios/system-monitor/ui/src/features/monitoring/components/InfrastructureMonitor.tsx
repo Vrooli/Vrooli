@@ -17,38 +17,27 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
 
   return (
     <section className="monitoring-panel collapsible card">
-      <div 
-        className="panel-header clickable" 
+      <div
+        className="panel-header clickable monitor-panel-header"
         onClick={onToggle}
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: 'pointer',
-          marginBottom: isExpanded ? 'var(--spacing-md)' : 0
-        }}
+        style={{ marginBottom: isExpanded ? 'var(--spacing-md)' : 0 }}
       >
-        <h2 className="icon-text" style={{ margin: 0, color: 'var(--color-text-bright)' }}>
+        <h2 className="icon-text monitor-heading">
           <Zap size={20} />
           INFRASTRUCTURE MONITOR
         </h2>
-        <span className="expand-arrow" style={{ color: 'var(--color-accent)' }}>
+        <span className="expand-arrow text-accent">
           {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </span>
       </div>
-      
+
       {isExpanded && (
         <div className="panel-content">
           {data ? (
             <div>
-              <div className="monitor-grid" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: 'var(--spacing-lg)',
-                marginBottom: 'var(--spacing-lg)'
-              }}>
+              <div className="monitor-grid">
                 <div className="monitor-section">
-                  <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                  <h3 className="monitor-section-heading">
                     Database Pools:
                   </h3>
                   <div className="pool-list">
@@ -62,7 +51,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                             Active: {pool.active} | Idle: {pool.idle} | Max: {pool.max_size}
                           </div>
                         </div>
-                        <span style={{ 
+                        <span style={{
                           color: pool.healthy ? 'var(--color-success)' : 'var(--color-error)'
                         }}>
                           {pool.healthy ? '●' : '●'}
@@ -71,9 +60,9 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="monitor-section">
-                  <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                  <h3 className="monitor-section-heading">
                     HTTP Client Pools:
                   </h3>
                   <div className="pool-list">
@@ -87,9 +76,9 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                             Active: {pool.active} | Waiting: {pool.waiting}
                           </div>
                         </div>
-                        <span style={{ 
-                          color: pool.leak_risk === 'high' ? 'var(--color-error)' : 
-                                 pool.leak_risk === 'medium' ? 'var(--color-warning)' : 
+                        <span style={{
+                          color: pool.leak_risk === 'high' ? 'var(--color-error)' :
+                                 pool.leak_risk === 'medium' ? 'var(--color-warning)' :
                                  'var(--color-success)'
                         }}>
                           {pool.leak_risk}
@@ -98,43 +87,43 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="monitor-section">
-                  <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                  <h3 className="monitor-section-heading">
                     Message Queues:
                   </h3>
                   <div className="queue-stats">
-                    <div className="stat-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-                      <h4 style={{ color: 'var(--color-accent)', marginBottom: 'var(--spacing-sm)' }}>
+                    <div className="stat-group mb-md">
+                      <h4 className="monitor-sub-heading">
                         Redis Pub/Sub:
                       </h4>
                       <div className="stat-item">
                         <span className="stat-label">Subscribers:</span>
-                        <span className="stat-value" style={{ color: 'var(--color-text-bright)' }}>
+                        <span className="stat-value text-bright">
                           {data.message_queues?.redis_pubsub?.subscribers ?? '—'}
                         </span>
                       </div>
                       <div className="stat-item">
                         <span className="stat-label">Channels:</span>
-                        <span className="stat-value" style={{ color: 'var(--color-text-bright)' }}>
+                        <span className="stat-value text-bright">
                           {data.message_queues?.redis_pubsub?.channels ?? '—'}
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="stat-group">
-                      <h4 style={{ color: 'var(--color-accent)', marginBottom: 'var(--spacing-sm)' }}>
+                      <h4 className="monitor-sub-heading">
                         Background Jobs:
                       </h4>
                       <div className="stat-item">
                         <span className="stat-label">Pending:</span>
-                        <span className="stat-value" style={{ color: 'var(--color-warning)' }}>
+                        <span className="stat-value text-warning">
                           {data.message_queues?.background_jobs?.pending ?? '—'}
                         </span>
                       </div>
                       <div className="stat-item">
                         <span className="stat-label">Active:</span>
-                        <span className="stat-value" style={{ color: 'var(--color-success)' }}>
+                        <span className="stat-value text-success">
                           {data.message_queues?.background_jobs?.active ?? '—'}
                         </span>
                       </div>
@@ -151,23 +140,13 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
 
                 {(fdInfo || (inotifyWatchers && inotifyWatchers.supported)) && (
                   <div className="monitor-section">
-                    <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                    <h3 className="monitor-section-heading">
                       Kernel Resource Limits:
                     </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                    <div className="flex-col-gap-sm">
                       {fdInfo && (
-                        <div style={{
-                          padding: 'var(--spacing-sm)',
-                          background: 'rgba(0, 0, 0, 0.3)',
-                          borderRadius: 'var(--border-radius-sm)',
-                          border: '1px solid var(--alpha-accent-15)'
-                        }}>
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            fontSize: 'var(--font-size-sm)',
-                            color: 'var(--color-text-bright)'
-                          }}>
+                        <div className="kernel-resource-card">
+                          <div className="kernel-resource-header">
                             <span>File Descriptors</span>
                             <span style={{ color: getUtilizationColor(fdInfo.percent) }}>
                               {fdInfo.percent.toFixed(1)}%
@@ -180,18 +159,8 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                       )}
 
                       {inotifyWatchers && (
-                        <div style={{
-                          padding: 'var(--spacing-sm)',
-                          background: 'rgba(0, 0, 0, 0.3)',
-                          borderRadius: 'var(--border-radius-sm)',
-                          border: '1px solid var(--alpha-accent-15)'
-                        }}>
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            fontSize: 'var(--font-size-sm)',
-                            color: 'var(--color-text-bright)'
-                          }}>
+                        <div className="kernel-resource-card">
+                          <div className="kernel-resource-header">
                             <span>Inotify Watches</span>
                             <span style={{ color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-dim)' }}>
                               {watcherPercent !== undefined ? `${watcherPercent.toFixed(1)}%` : '—'}
@@ -207,11 +176,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                               </div>
                             </>
                           ) : (
-                            <div style={{
-                              color: 'var(--color-text-dim)',
-                              fontSize: 'var(--font-size-xs)',
-                              letterSpacing: '0.06em'
-                            }}>
+                            <div className="text-dim-xs">
                               Inotify metrics unavailable on this host.
                             </div>
                           )}
@@ -223,17 +188,17 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
               </div>
 
                 <div className="monitor-section">
-                  <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                  <h3 className="monitor-section-heading">
                     Service Dependencies & Certificates:
                   </h3>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                  <div className="flex-col-gap-md">
                     <div>
-                      <h4 style={{ color: 'var(--color-accent)', marginBottom: 'var(--spacing-sm)' }}>
+                      <h4 className="monitor-sub-heading">
                         Service Dependencies:
                       </h4>
                       {systemHealth?.service_dependencies && systemHealth.service_dependencies.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                        <div className="flex-col-gap-sm">
                           {systemHealth.service_dependencies.map((service, index) => (
                             <div
                               key={`${service.name}-${index}`}
@@ -263,24 +228,18 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           ))}
                         </div>
                       ) : (
-                        <div style={{
-                          padding: 'var(--spacing-sm)',
-                          background: 'rgba(0, 0, 0, 0.3)',
-                          borderRadius: 'var(--border-radius-sm)',
-                          color: 'var(--color-text-dim)',
-                          fontSize: 'var(--font-size-sm)'
-                        }}>
+                        <div className="unavailable-notice">
                           Dependency telemetry unavailable.
                         </div>
                       )}
                     </div>
 
                     <div>
-                      <h4 style={{ color: 'var(--color-accent)', marginBottom: 'var(--spacing-sm)' }}>
+                      <h4 className="monitor-sub-heading">
                         Certificates:
                       </h4>
                       {systemHealth?.certificates && systemHealth.certificates.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                        <div className="flex-col-gap-sm">
                           {systemHealth.certificates.map((cert, index) => {
                             const expiryColor = cert.days_to_expiry < 15
                               ? 'var(--color-error)'
@@ -309,13 +268,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           })}
                         </div>
                       ) : (
-                        <div style={{
-                          padding: 'var(--spacing-sm)',
-                          background: 'rgba(0, 0, 0, 0.3)',
-                          borderRadius: 'var(--border-radius-sm)',
-                          color: 'var(--color-text-dim)',
-                          fontSize: 'var(--font-size-sm)'
-                        }}>
+                        <div className="unavailable-notice">
                           No certificate data reported.
                         </div>
                       )}
@@ -325,11 +278,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
               </div>
             </div>
           ) : (
-            <div style={{ 
-              textAlign: 'center', 
-              color: 'var(--color-text-dim)', 
-              padding: 'var(--spacing-xl)' 
-            }}>
+            <div className="monitor-loading">
               LOADING INFRASTRUCTURE DATA...
             </div>
           )}

@@ -1,0 +1,90 @@
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { apiFetch } from '../../../shared/api/apiFetch';
+import type { SystemHealthStatus } from './useSystemMonitor';
+
+export interface UseHealthCheckReturn {
+  healthStatus: SystemHealthStatus | null;
+  healthError: string | null;
+  checkHealth: () => Promise<boolean>;
+  refreshHealth: () => Promise<void>;
+  toggleMonitoring: () => Promise<void>;
+}
+
+export const useHealthCheck = (): UseHealthCheckReturn => {
+  const [healthStatus, setHealthStatus] = useState<SystemHealthStatus | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const checkHealth = useCallback(async (): Promise<boolean> => {
+    try {
+      setHealthError(null);
+      const data = await apiFetch<SystemHealthStatus>('/health', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!mountedRef.current) return false;
+      setHealthStatus(data);
+      return true;
+    } catch (err) {
+      if (!mountedRef.current) return false;
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setHealthError(msg);
+      return false;
+    }
+  }, []);
+
+  const refreshHealth = useCallback(async () => {
+    await checkHealth();
+  }, [checkHealth]);
+
+  const toggleMonitoring = useCallback(async () => {
+    if (!healthStatus) {
+      await checkHealth();
+      return;
+    }
+
+    const isCurrentlyActive = healthStatus.processor_active ?? (healthStatus.maintenance_state === 'active');
+    const nextState = isCurrentlyActive ? 'inactive' : 'active';
+
+    try {
+      const data = await apiFetch<{ success?: boolean; error?: string }>('/maintenance/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maintenanceState: nextState })
+      });
+
+      if (!mountedRef.current) return;
+      if (data.success === false) {
+        throw new Error(data.error ?? 'Failed to update status');
+      }
+
+      setHealthStatus(prev => prev ? {
+        ...prev,
+        processor_active: nextState === 'active',
+        maintenance_state: nextState
+      } : {
+        processor_active: nextState === 'active',
+        maintenance_state: nextState
+      });
+
+      // Refresh from server to confirm
+      setTimeout(checkHealth, 500);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      console.error('Failed to toggle system status:', err);
+      setHealthError(err instanceof Error ? err.message : 'Failed to update status');
+      checkHealth();
+    }
+  }, [checkHealth, healthStatus]);
+
+  return {
+    healthStatus,
+    healthError,
+    checkHealth,
+    refreshHealth,
+    toggleMonitoring
+  };
+};

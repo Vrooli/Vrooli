@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Cpu } from 'lucide-react';
 
 import { ProcessMonitor } from '../../monitoring/components/ProcessMonitor';
+import { DetailRow } from '../../../shared/components/DetailRow';
 import type {
   MetricsResponse,
   DetailedMetrics,
@@ -9,11 +10,10 @@ import type {
   MetricHistory
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { formatInteger, formatTimeLabel } from '../../../shared/utils/formatters';
 import {
-  formatTimeLabel,
   buildSingleSeriesData,
-  renderProcessTable,
-  formatInteger
+  renderProcessTable
 } from './metricHelpers';
 
 export interface CpuDetailViewProps {
@@ -55,46 +55,39 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
       />
 
       <div className="detail-grid detail-grid-lg" style={{ gap: 'var(--spacing-lg)' }}>
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Load Profile</h3>
+        <div className="card flex-col-gap-sm">
+          <h3 className="section-heading">Load Profile</h3>
           <div className="card-subtitle">
             1m / 5m / 15m load average
           </div>
           <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
             {loadAverage.slice(0, 3).map((value, index) => (
-              <div key={`${value}-${index}`} className="detail-row">
-                <span className="detail-row-label">
-                  {index === 0 ? '1 min' : index === 1 ? '5 min' : '15 min'}
-                </span>
-                <span className="detail-row-value">{value.toFixed(2)}</span>
-              </div>
+              <DetailRow
+                key={`${value}-${index}`}
+                label={index === 0 ? '1 min' : index === 1 ? '5 min' : '15 min'}
+                value={value.toFixed(2)}
+              />
             ))}
           </div>
         </div>
 
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+        <div className="card flex-col-gap-md">
           <div>
-            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Runtime Signals</h3>
+            <h3 className="section-heading">Runtime Signals</h3>
             <div className="card-subtitle">
               Scheduler and goroutine metrics
             </div>
           </div>
           <div className="detail-grid detail-grid-md">
-            <div className="detail-row">
-              <span className="detail-row-label">Context Switches</span>
-              <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-lg)' }}>{formatInteger(contextSwitches)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-row-label">Goroutines</span>
-              <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-lg)' }}>{formatInteger(goroutines)}</span>
-            </div>
+            <DetailRow label="Context Switches" value={formatInteger(contextSwitches)} valueColor="var(--color-accent)" />
+            <DetailRow label="Goroutines" value={formatInteger(goroutines)} valueColor="var(--color-accent)" />
           </div>
         </div>
       </div>
 
-      <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+      <div className="card flex-col-gap-md">
         <div>
-          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Top CPU Consumers</h3>
+          <h3 className="section-heading">Top CPU Consumers</h3>
           <div className="card-subtitle">
             Processes ranked by CPU utilization
           </div>
@@ -102,7 +95,7 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
         {renderProcessTable(topProcesses, 'CPU %', process => process.cpu_percent)}
       </div>
 
-      <div className="card" style={{ padding: 'var(--spacing-lg)' }}>
+      <div className="card">
         <ProcessMonitor data={processMonitorData} collapsible={false} isExpanded={true} />
       </div>
     </MetricDetailLayout>

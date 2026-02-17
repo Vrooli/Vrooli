@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { buildApiUrl } from '../../../shared/api/apiBase';
+import { extractNumber, extractString } from '../../../shared/utils/typeGuards';
 import type { ModalState, InvestigationScript, ScriptExecution } from '../../../types';
 
 interface UseScriptExecutionReturn {
@@ -99,21 +100,13 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
         data = null;
       }
 
-      const readString = (value: unknown): string | undefined => {
-        return typeof value === 'string' ? value : undefined;
-      };
-      const readNumber = (value: unknown): number | undefined => {
-        return typeof value === 'number' ? value : undefined;
-      };
-      const readBoolean = (value: unknown): boolean => value === true;
-
-      const stdout = readString(data?.['stdout']) ?? readString(data?.['output']) ?? '';
-      const stderr = readString(data?.['stderr']) ?? '';
-      const exitCode = readNumber(data?.['exit_code']) ?? (response.ok ? 0 : 1);
-      const timedOut = readBoolean(data?.['timed_out']);
-      const completedAt = readString(data?.['completed_at']) ?? new Date().toISOString();
-      const errorFromResponse = readString(data?.['error']);
-      const durationSeconds = readNumber(data?.['duration_seconds']);
+      const stdout = extractString(data?.['stdout']) ?? extractString(data?.['output']) ?? '';
+      const stderr = extractString(data?.['stderr']) ?? '';
+      const exitCode = extractNumber(data?.['exit_code']) ?? (response.ok ? 0 : 1);
+      const timedOut = data?.['timed_out'] === true;
+      const completedAt = extractString(data?.['completed_at']) ?? new Date().toISOString();
+      const errorFromResponse = extractString(data?.['error']);
+      const durationSeconds = extractNumber(data?.['duration_seconds']);
 
       const completedExecution: ScriptExecution = {
         ...execution,

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { MemoryStick } from 'lucide-react';
 
+import { DetailRow } from '../../../shared/components/DetailRow';
 import { formatBytes } from '../../../shared/utils/formatters';
 import type {
   MetricsResponse,
@@ -8,8 +9,8 @@ import type {
   MetricHistory
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { formatTimeLabel } from '../../../shared/utils/formatters';
 import {
-  formatTimeLabel,
   buildSingleSeriesData,
   renderProcessTable,
   renderGrowthPatterns
@@ -45,7 +46,6 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
     >
       <MetricLineChart
         className="card"
-        style={{ padding: 'var(--spacing-lg)' }}
         data={memoryData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
         lines={[{ dataKey: 'value', name: 'Memory Usage', color: 'var(--color-warning)' }]}
         unit="%"
@@ -54,22 +54,13 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
       />
 
       <div className="detail-grid detail-grid-lg" style={{ gap: 'var(--spacing-lg)' }}>
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Swap Activity</h3>
+        <div className="card flex-col-gap-sm">
+          <h3 className="section-heading">Swap Activity</h3>
           {swapUsage ? (
             <div className="detail-grid detail-grid-md">
-              <div className="detail-row">
-                <span className="detail-row-label">Swap Used</span>
-                <span className="detail-row-value">{formatBytes(swapUsage.used)}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-row-label">Swap Total</span>
-                <span className="detail-row-value">{formatBytes(swapUsage.total)}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-row-label">Utilization</span>
-                <span style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-lg)' }}>{swapUsage.percent.toFixed(1)}%</span>
-              </div>
+              <DetailRow label="Swap Used" value={formatBytes(swapUsage.used)} />
+              <DetailRow label="Swap Total" value={formatBytes(swapUsage.total)} />
+              <DetailRow label="Utilization" value={`${swapUsage.percent.toFixed(1)}%`} valueColor="var(--color-warning)" />
             </div>
           ) : (
             <div className="text-muted">
@@ -78,8 +69,8 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
           )}
         </div>
 
-        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Growth Patterns</h3>
+        <div className="card flex-col-gap-sm">
+          <h3 className="section-heading">Growth Patterns</h3>
           <div className="card-subtitle">
             Heaviest allocators during the observation window
           </div>
@@ -87,9 +78,9 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
         </div>
       </div>
 
-      <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+      <div className="card flex-col-gap-md">
         <div>
-          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Top Memory Consumers</h3>
+          <h3 className="section-heading">Top Memory Consumers</h3>
           <div className="card-subtitle">
             Processes ranked by resident set size
           </div>

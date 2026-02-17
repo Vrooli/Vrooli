@@ -1,18 +1,6 @@
 import type { ChartDataPoint, DiskInfo } from '../../../types';
+import { DetailRow } from '../../../shared/components/DetailRow';
 import { formatBytes } from '../../../shared/utils/formatters';
-
-// ── Formatting Helpers ─────────────────────────────────────────────────────
-
-export const formatTimeLabel = (timestamp: string) => {
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) {
-    return timestamp;
-  }
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-};
-
-export const formatInteger = (value: number) => Math.round(value).toLocaleString();
-export const formatMbPerSecond = (value: number) => `${value.toFixed(2)} MB/s`;
 
 // ── Data Builders ──────────────────────────────────────────────────────────
 
@@ -50,7 +38,7 @@ export const buildDiskUsageCard = (
   if (!diskUsage) {
     return (
       <div className="card" style={{ padding: 'var(--spacing-lg)' }}>
-        <h3 style={{ marginTop: 0, color: 'var(--color-text-bright)' }}>{options?.title ?? 'Disk Utilization'}</h3>
+        <h3 className="section-heading">{options?.title ?? 'Disk Utilization'}</h3>
         <div className="text-muted">
           Disk usage metrics are unavailable.
         </div>
@@ -61,9 +49,9 @@ export const buildDiskUsageCard = (
   const freeBytes = diskUsage.total - diskUsage.used;
 
   return (
-    <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+    <div className="card flex-col-gap-md" style={{ padding: 'var(--spacing-lg)' }}>
       <div>
-        <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>{options?.title ?? 'Disk Utilization'}</h3>
+        <h3 className="section-heading">{options?.title ?? 'Disk Utilization'}</h3>
         <div className="card-subtitle">
           {options?.subtitle ?? 'Current usage across monitored volumes'}
         </div>
@@ -75,27 +63,15 @@ export const buildDiskUsageCard = (
             width: `${Math.min(Math.max(diskUsage.percent, 0), 100)}%`,
             background: 'linear-gradient(90deg, var(--color-warning), var(--color-error))',
             borderRadius: 'var(--border-radius-sm)',
-            boxShadow: '0 0 12px rgba(255,0,64,0.35)'
+            boxShadow: '0 0 12px var(--color-error-glow)'
           }}
         />
       </div>
       <div className="detail-grid detail-grid-md">
-        <div className="detail-row">
-          <span className="detail-row-label">Used</span>
-          <span className="detail-row-value">{formatBytes(diskUsage.used)}</span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-row-label">Free</span>
-          <span className="detail-row-value">{formatBytes(freeBytes)}</span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-row-label">Capacity</span>
-          <span className="detail-row-value">{formatBytes(diskUsage.total)}</span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-row-label">Utilization</span>
-          <span style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-lg)' }}>{diskUsage.percent.toFixed(1)}%</span>
-        </div>
+        <DetailRow label="Used" value={formatBytes(diskUsage.used)} />
+        <DetailRow label="Free" value={formatBytes(freeBytes)} />
+        <DetailRow label="Capacity" value={formatBytes(diskUsage.total)} />
+        <DetailRow label="Utilization" value={`${diskUsage.percent.toFixed(1)}%`} valueColor="var(--color-warning)" />
       </div>
     </div>
   );

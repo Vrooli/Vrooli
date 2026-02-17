@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp, Square, Clock } from 'lucide-react';
+import { AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp, ChevronDown, Square, Clock } from 'lucide-react';
 import { InvestigationsPanel } from './InvestigationsPanel';
 import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
 import { AutomaticTriggersSection } from './AutomaticTriggersSection';
-import { SearchInput } from '../../../shared/components/SearchInput';
+import { CollapsibleSection } from '../../../shared/components/CollapsibleSection';
+import { useInvestigationsSectionState } from '../hooks/useInvestigationsSectionState';
 import type { Investigation, InvestigationScript, InvestigationAgentState } from '../../../types';
 
 interface InvestigationsSectionProps {
@@ -16,8 +16,8 @@ interface InvestigationsSectionProps {
   spawnAgentError?: string | null;
 }
 
-export const InvestigationsSection = ({ 
-  investigations, 
+export const InvestigationsSection = ({
+  investigations,
   onOpenScriptEditor,
   onSpawnAgent,
   agents,
@@ -25,88 +25,28 @@ export const InvestigationsSection = ({
   spawnAgentError
 }: InvestigationsSectionProps) => {
   const navigate = useNavigate();
-  const [reportsExpanded, setReportsExpanded] = useState(true);
-  const [scriptsExpanded, setScriptsExpanded] = useState(true);
-  const [autoFixEnabled, setAutoFixEnabled] = useState(false);
-  const [reportsSearch, setReportsSearch] = useState('');
-  const [scriptsSearch, setScriptsSearch] = useState('');
-  const [agentNote, setAgentNote] = useState('');
-  const [showNoteField, setShowNoteField] = useState(false);
-  const [localSpawnError, setLocalSpawnError] = useState<string | null>(null);
-
-  // Filter investigations based on search
-  const filteredInvestigations = useMemo(() => investigations.filter(inv => {
-    if (!reportsSearch) return true;
-    const searchLower = reportsSearch.toLowerCase();
-    return inv.id.toLowerCase().includes(searchLower) ||
-           inv.findings?.toLowerCase().includes(searchLower) ||
-           inv.status?.toLowerCase().includes(searchLower);
-  }), [investigations, reportsSearch]);
-
-  const combinedSpawnError = localSpawnError ?? spawnAgentError ?? null;
-
-  const activeAgentSummary = useMemo(() => {
-    if (agents.length === 0) {
-      return {
-        text: 'No active investigation agents at the moment.',
-        tone: 'idle' as const
-      };
-    }
-
-    if (agents.length === 1) {
-      const agent = agents[0] ?? { status: undefined, label: undefined };
-      const statusLabel = typeof agent.status === 'string' ? agent.status.toUpperCase() : 'ACTIVE';
-      const label = agent.label ?? 'Anomaly investigation';
-      const tone = statusLabel === 'ERROR'
-        ? 'error'
-        : statusLabel === 'COMPLETED'
-        ? 'success'
-        : 'active';
-      return {
-        text: `${label} • ${statusLabel}`,
-        tone
-      };
-    }
-
-    const runningCount = agents.filter(agent => {
-      const status = agent.status?.toLowerCase?.();
-      if (!status) {
-        return true;
-      }
-      return !['completed', 'error', 'failed', 'stopped', 'cancelled', 'canceled'].includes(status);
-    }).length;
-
-    return {
-      text: `${agents.length} agents in flight (${runningCount} running)`,
-      tone: runningCount > 0 ? 'active' as const : 'success' as const
-    };
-  }, [agents]);
-
-  const summaryAccentColor = activeAgentSummary.tone === 'error'
-    ? 'var(--color-error)'
-    : activeAgentSummary.tone === 'success'
-    ? 'var(--color-success)'
-    : activeAgentSummary.tone === 'active'
-    ? 'var(--color-accent)'
-    : 'var(--color-text-dim)';
-
-  const handleSpawnAgent = async () => {
-    const trimmedNote = agentNote.trim();
-    setLocalSpawnError(null);
-    try {
-      await onSpawnAgent({
-        autoFix: autoFixEnabled,
-        note: trimmedNote ? trimmedNote : undefined
-      });
-      if (trimmedNote) {
-        setAgentNote('');
-        setShowNoteField(false);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to spawn agent';
-      setLocalSpawnError(message);
-    }
-  };
+  const {
+    reportsSearch,
+    setReportsSearch,
+    scriptsSearch,
+    setScriptsSearch,
+    filteredInvestigations,
+    autoFixEnabled,
+    setAutoFixEnabled,
+    agentNote,
+    setAgentNote,
+    showNoteField,
+    setShowNoteField,
+    combinedSpawnError,
+    activeAgentSummary,
+    summaryAccentColor,
+    handleSpawnAgent,
+  } = useInvestigationsSectionState({
+    investigations,
+    agents,
+    spawnAgentError,
+    onSpawnAgent,
+  });
 
   const handleUpdateTrigger = (triggerId: string, config: unknown) => {
     // TODO: Implement API call to update trigger configuration
@@ -114,80 +54,39 @@ export const InvestigationsSection = ({
   };
 
   return (
-    <div className="panel investigations-section" style={{
-      border: '1px solid var(--color-accent)',
-      borderRadius: 'var(--border-radius-lg)',
-      overflow: 'hidden',
-      background: 'var(--overlay-medium)'
-    }}>
-      <div className="panel-header" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 'var(--spacing-md)',
-        borderBottom: '1px solid var(--color-accent)',
-        background: 'var(--alpha-accent-02)'
-      }}>
-        <h2 style={{ 
-          margin: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--spacing-sm)',
-          color: 'var(--color-text-bright)',
-          fontSize: 'var(--font-size-xl)'
-        }}>
+    <div className="panel-accent">
+      <div className="panel-accent-header">
+        <h2 className="investigations-heading">
           <AlertTriangle size={24} style={{ color: 'var(--color-warning)' }} />
           INVESTIGATIONS
         </h2>
       </div>
 
-      <div className="panel-body" style={{ padding: 'var(--spacing-lg)' }}>
-        
+      <div className="panel-accent-body">
+
         {/* Agent Spawn Card */}
-        <div className="agent-spawn-card" style={{
-          background: 'var(--alpha-accent-03)',
-          border: '1px solid var(--color-accent)',
-          borderRadius: 'var(--border-radius-md)',
-          padding: 'var(--spacing-lg)',
-          marginBottom: 'var(--spacing-xl)',
-          boxShadow: 'var(--shadow-glow)'
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-lg)', alignItems: 'flex-start' }}>
+        <div className="agent-spawn-card">
+          <div className="flex-col-gap-lg">
+            <div className="agent-spawn-layout">
               <Bot
                 size={48}
-                style={{
-                  color: 'var(--color-success)',
-                  flexShrink: 0,
-                  filter: 'drop-shadow(0 0 10px var(--alpha-accent-50))'
-                }}
+                className="agent-spawn-icon"
+                style={{ color: 'var(--color-success)' }}
               />
 
-              <div style={{ flex: 1, minWidth: '260px', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+              <div className="flex-col-gap-md" style={{ flex: 1, minWidth: '260px' }}>
                 <div>
-                  <h3 style={{
-                    margin: '0 0 var(--spacing-sm) 0',
-                    color: 'var(--color-text-bright)',
-                    fontSize: 'var(--font-size-lg)'
-                  }}>
+                  <h3 className="agent-spawn-title">
                     System Anomaly Investigation Agent
                   </h3>
 
-                  <p style={{
-                    margin: 0,
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-sm)',
-                    lineHeight: 1.5
-                  }}>
+                  <p className="agent-spawn-description">
                     Launch an autonomous agent to analyze real-time metrics, investigate anomalies, and propose or execute remediation steps. Results and live status now surface in the header for quick access.
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                  <div className="icon-text" style={{
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-xs)'
-                  }}>
+                <div className="flex-col-gap-sm">
+                  <div className="icon-text text-dim-xs">
                     <Square size={10} />
                     <span>Active agents are managed from the header control with a full dropdown of progress and stop actions.</span>
                   </div>
@@ -207,37 +106,19 @@ export const InvestigationsSection = ({
             </div>
 
             {combinedSpawnError && (
-              <div className="error-banner" style={{ fontSize: 'var(--font-size-sm)' }}>
+              <div className="error-banner text-sm">
                 {combinedSpawnError}
               </div>
             )}
 
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-lg)',
-              flexWrap: 'wrap'
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-sm)',
-                  cursor: 'pointer',
-                  color: 'var(--color-text)',
-                  fontSize: 'var(--font-size-sm)',
-                  userSelect: 'none'
-                }}>
+            <div className="agent-spawn-controls">
+              <div className="flex-col-gap-sm">
+                <label className="agent-checkbox-label">
                   <input
                     type="checkbox"
                     checked={autoFixEnabled}
                     onChange={(event) => setAutoFixEnabled(event.target.checked)}
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      accentColor: 'var(--color-success)',
-                      cursor: 'pointer'
-                    }}
+                    className="agent-checkbox-input"
                   />
                   <Shield size={16} style={{ color: autoFixEnabled ? 'var(--color-success)' : 'var(--color-text-dim)' }} />
                   <span style={{
@@ -247,21 +128,14 @@ export const InvestigationsSection = ({
                     Adaptive auto-fix & recovery
                   </span>
                 </label>
-                <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+                <span className="text-dim-xs">
                   Allows the agent to apply safe remediation steps automatically; otherwise it stays report-only.
                 </span>
               </div>
 
               <button
-                className="btn btn-secondary"
+                className="btn btn-secondary icon-text icon-text-xs text-xs"
                 onClick={() => setShowNoteField(!showNoteField)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-xs)',
-                  padding: 'var(--spacing-xs) var(--spacing-sm)',
-                  fontSize: 'var(--font-size-xs)'
-                }}
               >
                 <MessageCircle size={14} />
                 NOTE
@@ -269,13 +143,10 @@ export const InvestigationsSection = ({
               </button>
 
               <button
-                className="btn btn-primary"
+                className="btn btn-primary icon-text icon-text-xs"
                 onClick={handleSpawnAgent}
                 disabled={isSpawningAgent}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-sm)',
                   padding: 'var(--spacing-sm) var(--spacing-lg)',
                   fontSize: 'var(--font-size-sm)',
                   fontWeight: 'bold',
@@ -289,18 +160,10 @@ export const InvestigationsSection = ({
             </div>
 
             {showNoteField && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-sm)'
-              }}>
+              <div className="flex-col-gap-sm">
                 <label
                   htmlFor="agent-note"
-                  style={{
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-xs)',
-                    letterSpacing: '0.05em'
-                  }}
+                  className="text-dim-xs agent-note-label"
                 >
                   OPTIONAL NOTE FOR AGENT CONTEXT
                 </label>
@@ -309,124 +172,52 @@ export const InvestigationsSection = ({
                   value={agentNote}
                   onChange={(event) => setAgentNote(event.target.value)}
                   rows={3}
-                  style={{
-                    width: '100%',
-                    background: 'var(--overlay-medium)',
-                    border: '1px solid var(--color-accent)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    color: 'var(--color-text)',
-                    padding: 'var(--spacing-sm)',
-                    fontFamily: 'var(--font-family-mono)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}
+                  className="agent-note-textarea"
                 />
-                <span style={{
-                  fontSize: 'var(--font-size-xs)',
-                  color: 'var(--color-text-dim)'
-                }}>
+                <span className="text-dim-xs">
                   Provide guardrails or extra context. The agent attaches this note to its reasoning and audit trail.
                 </span>
               </div>
             )}
           </div>
         </div>
+
         {/* Automatic Triggers Section */}
         <AutomaticTriggersSection onUpdateTrigger={handleUpdateTrigger} />
 
         {/* Reports Subsection */}
-        <div className="subsection" style={{ 
-          marginBottom: 'var(--spacing-lg)',
-          border: '1px solid var(--color-accent)',
-          borderRadius: 'var(--border-radius-md)',
-          overflow: 'hidden'
-        }}>
-          <div
-            className="section-header hover-bg-accent"
-            style={{
-              borderBottom: reportsExpanded ? '1px solid var(--color-accent)' : 'none'
-            }}
-          >
-            <div
-              className="section-header-toggle"
-              onClick={() => setReportsExpanded(!reportsExpanded)}
-            >
-              {reportsExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-              <h3 style={{
-                margin: 0,
-                fontSize: 'var(--font-size-md)',
-                color: 'var(--color-text-bright)'
-              }}>
-                Reports
-              </h3>
-              <span className="text-muted" style={{
-                fontSize: 'var(--font-size-sm)',
-                marginLeft: 'var(--spacing-xs)'
-              }}>
-                ({filteredInvestigations.length})
-              </span>
-            </div>
-
-            {reportsExpanded && (
-              <SearchInput placeholder="Search reports..." value={reportsSearch} onChange={setReportsSearch} />
-            )}
-          </div>
-
-          {reportsExpanded && (
-            <div>              
-              <InvestigationsPanel investigations={filteredInvestigations} embedded={true} />
-            </div>
-          )}
-        </div>
+        <CollapsibleSection
+          title="Reports"
+          count={filteredInvestigations.length}
+          search={{
+            placeholder: 'Search reports...',
+            value: reportsSearch,
+            onChange: setReportsSearch,
+          }}
+        >
+          <InvestigationsPanel investigations={filteredInvestigations} embedded={true} />
+        </CollapsibleSection>
 
         {/* Scripts Subsection */}
-        <div className="subsection" style={{
-          border: '1px solid var(--color-accent)',
-          borderRadius: 'var(--border-radius-md)',
-          overflow: 'hidden'
-        }}>
-          <div
-            className="section-header hover-bg-accent"
-            style={{
-              borderBottom: scriptsExpanded ? '1px solid var(--color-accent)' : 'none'
-            }}
-          >
-            <div
-              className="section-header-toggle"
-              onClick={() => setScriptsExpanded(!scriptsExpanded)}
-            >
-              {scriptsExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-              <h3 style={{
-                margin: 0,
-                fontSize: 'var(--font-size-md)',
-                color: 'var(--color-text-bright)'
-              }}>
-                Scripts
-              </h3>
-              <span className="text-muted" style={{
-                fontSize: 'var(--font-size-sm)',
-                marginLeft: 'var(--spacing-xs)'
-              }}>
-                (Tools)
-              </span>
-            </div>
-
-            {scriptsExpanded && (
-              <SearchInput placeholder="Search scripts..." value={scriptsSearch} onChange={setScriptsSearch} />
-            )}
+        <CollapsibleSection
+          title="Scripts"
+          count="Tools"
+          search={{
+            placeholder: 'Search scripts...',
+            value: scriptsSearch,
+            onChange: setScriptsSearch,
+          }}
+        >
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <InvestigationScriptsPanel
+              onOpenScriptEditor={onOpenScriptEditor}
+              embedded={true}
+              searchFilter={scriptsSearch}
+              maxVisible={4}
+              onShowAll={() => navigate('/scripts')}
+            />
           </div>
-
-          {scriptsExpanded && (
-            <div style={{ marginTop: 'var(--spacing-md)' }}>              
-              <InvestigationScriptsPanel 
-                onOpenScriptEditor={onOpenScriptEditor} 
-                embedded={true} 
-                searchFilter={scriptsSearch}
-                maxVisible={4}
-                onShowAll={() => navigate('/scripts')}
-              />
-            </div>
-          )}
-        </div>
+        </CollapsibleSection>
       </div>
     </div>
   );

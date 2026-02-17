@@ -144,28 +144,16 @@ export const ReportsPanel = () => {
 
   return (
     <section className="reports-panel card">
-      <div className="panel-header" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 'var(--spacing-md)'
-      }}>
-        <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
+      <div className="flex-row-between mb-md">
+        <h2 className="section-heading">
           PLAYBACK REPORTS
         </h2>
-        
-        <div className="report-controls" style={{
-          display: 'flex',
-          gap: 'var(--spacing-sm)'
-        }}>
-          <button 
-            className={`btn btn-action ${(isGenerating || isRefreshing) ? 'disabled' : ''}`}
+
+        <div className="flex-row-center gap-sm">
+          <button
+            className="btn btn-action"
             onClick={() => generateReport('daily')}
             disabled={isGenerating !== null || isRefreshing}
-            style={{
-              opacity: (isGenerating !== null || isRefreshing) ? 0.6 : 1,
-              cursor: (isGenerating !== null || isRefreshing) ? 'not-allowed' : 'pointer'
-            }}
           >
             {isGenerating === 'daily' ? (
               <>
@@ -179,14 +167,10 @@ export const ReportsPanel = () => {
               </>
             )}
           </button>
-          <button 
-            className={`btn btn-action ${(isGenerating || isRefreshing) ? 'disabled' : ''}`}
+          <button
+            className="btn btn-action"
             onClick={() => generateReport('weekly')}
             disabled={isGenerating !== null || isRefreshing}
-            style={{
-              opacity: (isGenerating !== null || isRefreshing) ? 0.6 : 1,
-              cursor: (isGenerating !== null || isRefreshing) ? 'not-allowed' : 'pointer'
-            }}
           >
             {isGenerating === 'weekly' ? (
               <>
@@ -200,14 +184,10 @@ export const ReportsPanel = () => {
               </>
             )}
           </button>
-          <button 
-            className={`btn btn-action ${(isGenerating || isRefreshing) ? 'disabled' : ''}`}
+          <button
+            className="btn btn-action"
             onClick={() => loadReports(true)}
             disabled={isGenerating !== null || isRefreshing}
-            style={{
-              opacity: (isGenerating !== null || isRefreshing) ? 0.6 : 1,
-              cursor: (isGenerating !== null || isRefreshing) ? 'not-allowed' : 'pointer'
-            }}
           >
             {isRefreshing ? (
               <>
@@ -228,57 +208,28 @@ export const ReportsPanel = () => {
         {loading ? (
           <LoadingSkeleton variant="card" count={2} />
         ) : reports.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
-          }}>
+          <div className="text-center text-muted p-lg text-lg">
             NO REPORTS AVAILABLE
           </div>
         ) : (
           reports.map(report => (
-            <div key={report.id} className="report-item card" style={{
-              padding: 'var(--spacing-md)',
-              background: 'var(--overlay-heavy)',
-              marginBottom: 'var(--spacing-md)',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: 'var(--spacing-md)'
-              }}>
+            <div key={report.id} className="report-item section-card mb-md" style={{ cursor: 'pointer' }}>
+              <div className="flex-row-between mb-md" style={{ alignItems: 'flex-start' }}>
                 <div>
-                  <h4 style={{ 
-                    margin: '0 0 var(--spacing-xs) 0', 
-                    color: 'var(--color-text-bright)',
-                    textTransform: 'uppercase'
-                  }}>
+                  <h4 className="section-heading" style={{ textTransform: 'uppercase' }}>
                     {report.type} Report
                   </h4>
-                  <p style={{
-                    margin: 0,
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
+                  <p className="text-muted text-sm" style={{ margin: 0 }}>
                     Generated: {new Date(report.generated_at).toLocaleString()}
                   </p>
                 </div>
-                
-                <span className="badge" style={{
-                  background: 'var(--color-accent)',
-                  color: 'var(--color-background)'
-                }}>
+
+                <span className="badge badge-success">
                   {report.type}
                 </span>
               </div>
-              
-              <div className="report-summary detail-grid detail-grid-md" style={{
-                marginBottom: 'var(--spacing-md)'
-              }}>
+
+              <div className="report-summary detail-grid detail-grid-md mb-md">
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg CPU Usage:</span>
                   <span className="summary-stat-value" style={{ color: 'var(--color-text-bright)' }}>
@@ -312,21 +263,12 @@ export const ReportsPanel = () => {
               
               {report.recommendations.length > 0 && (
                 <div className="recommendations">
-                  <h5 style={{ 
-                    margin: '0 0 var(--spacing-sm) 0',
-                    color: 'var(--color-accent)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
+                  <h5 className="text-accent text-sm" style={{ margin: '0 0 var(--spacing-sm) 0' }}>
                     Key Recommendations:
                   </h5>
-                  <ul style={{ 
-                    margin: 0, 
-                    paddingLeft: 'var(--spacing-lg)',
-                    color: 'var(--color-text)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
+                  <ul className="text-sm" style={{ margin: 0, paddingLeft: 'var(--spacing-lg)' }}>
                     {report.recommendations.slice(0, 2).map((rec, index) => (
-                      <li key={index} style={{ marginBottom: 'var(--spacing-xs)' }}>
+                      <li key={index} className="mb-sm">
                         {rec}
                       </li>
                     ))}

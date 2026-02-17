@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { buildApiUrl } from '../../../shared/api/apiBase';
+import { apiFetch, toApiError } from '../../../shared/api/apiFetch';
 import { usePolling } from '../../../shared/hooks/usePolling';
+import { useHealthCheck } from './useHealthCheck';
+import { useMetricHistory } from './useMetricHistory';
 import type {
   MetricsResponse,
   DetailedMetrics,
   ProcessMonitorData,
   InfrastructureMonitorData,
   Investigation,
-  APIError,
-  MetricsTimelineResponse,
-  MetricHistory,
-  ChartDataPoint
+  APIError
 } from '../../../types';
 
 export interface SystemHealthStatus {
@@ -34,7 +34,7 @@ interface UseSystemMonitorReturn {
   processMonitorData: ProcessMonitorData | null;
   infrastructureData: InfrastructureMonitorData | null;
   investigations: Investigation[];
-  metricHistory: MetricHistory | null;
+  metricHistory: import('../../../types').MetricHistory | null;
   isLoading: boolean;
   error: APIError | null;
   healthStatus: SystemHealthStatus | null;
@@ -54,45 +54,14 @@ interface MaintenanceStateResponse {
   error?: string;
 }
 
-const DISK_HISTORY_LIMIT = 180;
-
-const appendHistoryPoint = (
-  series: ChartDataPoint[] | undefined,
-  point: ChartDataPoint,
-  limit = DISK_HISTORY_LIMIT
-): ChartDataPoint[] => {
-  const next = series ? [...series, point] : [point];
-  if (next.length > limit) {
-    return next.slice(next.length - limit);
-  }
-  return next;
-};
-
-const cloneSeries = (series?: ChartDataPoint[]) => (series ? [...series] : undefined);
-
-const ensureHistoryBase = (history: MetricHistory | null): MetricHistory => ({
-  windowSeconds: history?.windowSeconds ?? 0,
-  sampleIntervalSeconds: history?.sampleIntervalSeconds ?? 0,
-  cpu: history?.cpu ? [...history.cpu] : [],
-  memory: history?.memory ? [...history.memory] : [],
-  network: history?.network ? [...history.network] : [],
-  gpu: history?.gpu ? [...history.gpu] : [],
-  diskUsage: cloneSeries(history?.diskUsage),
-  diskRead: cloneSeries(history?.diskRead),
-  diskWrite: cloneSeries(history?.diskWrite)
-});
-
 export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetrics | null>(null);
   const [processMonitorData, setProcessMonitorData] = useState<ProcessMonitorData | null>(null);
   const [infrastructureData, setInfrastructureData] = useState<InfrastructureMonitorData | null>(null);
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
-  const [metricHistory, setMetricHistory] = useState<MetricHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<APIError | null>(null);
-  const [healthStatus, setHealthStatus] = useState<SystemHealthStatus | null>(null);
-  const [healthError, setHealthError] = useState<string | null>(null);
   const [uiBoostActive, setUiBoostActive] = useState(false);
   const mountedRef = useRef(true);
   const maintenanceStateRef = useRef<{ previous: MaintenanceState | null; activated: boolean }>({
@@ -104,62 +73,17 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     return () => { mountedRef.current = false; };
   }, []);
 
+  const { healthStatus, healthError, checkHealth, refreshHealth, toggleMonitoring } = useHealthCheck();
+  const { metricHistory, fetchMetricsTimeline, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setError);
+
   const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => {
     try {
-      const response = await fetch(buildApiUrl(url));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData: APIError;
-        try {
-          errorData = JSON.parse(errorText) as APIError;
-        } catch {
-          errorData = {
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            details: errorText,
-            timestamp: new Date().toISOString()
-          };
-        }
-        throw errorData;
-      }
-
-      const data = (await response.json()) as T;
-      return data;
+      return await apiFetch<T>(url);
     } catch (err) {
       console.error(`API call failed for ${url}:`, err);
-
       if (!mountedRef.current) return null;
-
-      if (err && typeof err === 'object' && 'error' in err) {
-        setError(err as APIError);
-      } else {
-        setError({
-          error: 'Network or unknown error',
-          details: err instanceof Error ? err.message : String(err),
-          timestamp: new Date().toISOString()
-        });
-      }
+      setError(toApiError(err));
       return null;
-    }
-  }, []);
-
-  const checkHealth = useCallback(async (): Promise<boolean> => {
-    try {
-      setHealthError(null);
-      const response = await fetch(buildApiUrl('/health'), {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!response.ok) {
-        setHealthError(`Failed to fetch system status (HTTP ${response.status})`);
-        return false;
-      }
-      const data = (await response.json()) as SystemHealthStatus;
-      setHealthStatus(data);
-      return true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setHealthError(msg);
-      return false;
     }
   }, []);
 
@@ -171,19 +95,10 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       setError(null);
       if (typeof data.gpu_usage === 'number' && Number.isFinite(data.gpu_usage)) {
         const timestamp = data.timestamp ?? new Date().toISOString();
-        setMetricHistory(prev => {
-          const base = ensureHistoryBase(prev);
-          return {
-            ...base,
-            gpu: appendHistoryPoint(base.gpu, {
-              timestamp,
-              value: data.gpu_usage as number
-            })
-          };
-        });
+        appendGpuPoint(timestamp, data.gpu_usage as number);
       }
     }
-  }, [handleApiCall, uiBoostActive]);
+  }, [handleApiCall, uiBoostActive, appendGpuPoint]);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,53 +162,10 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       const diskPercent = data.memory_details?.disk_usage?.percent;
       if (typeof diskPercent === 'number' && Number.isFinite(diskPercent)) {
         const timestamp = data.timestamp ?? new Date().toISOString();
-        setMetricHistory(prev => {
-          const base = ensureHistoryBase(prev);
-          return {
-            ...base,
-            diskUsage: appendHistoryPoint(base.diskUsage, {
-              timestamp,
-              value: diskPercent
-            })
-          };
-        });
+        appendDiskUsagePoint(timestamp, diskPercent);
       }
     }
-  }, [handleApiCall]);
-
-  const fetchMetricsTimeline = useCallback(async (windowSeconds = 120) => {
-    const data = await handleApiCall<MetricsTimelineResponse>(`/metrics/timeline?window=${windowSeconds}`);
-    if (!data || !data.samples) {
-      return;
-    }
-
-    setMetricHistory(prev => {
-      const base = ensureHistoryBase(prev);
-      return {
-        ...base,
-        windowSeconds: data.window_seconds,
-        sampleIntervalSeconds: data.sample_interval_seconds,
-        cpu: data.samples.map(sample => ({
-          timestamp: sample.timestamp,
-          value: sample.cpu_usage
-        })),
-        memory: data.samples.map(sample => ({
-          timestamp: sample.timestamp,
-          value: sample.memory_usage
-        })),
-        network: data.samples.map(sample => ({
-          timestamp: sample.timestamp,
-          value: sample.tcp_connections
-        })),
-        gpu: data.samples
-          .filter(sample => typeof sample.gpu_usage === 'number' && Number.isFinite(sample.gpu_usage as number))
-          .map(sample => ({
-            timestamp: sample.timestamp,
-            value: Number(sample.gpu_usage)
-          }))
-      };
-    });
-  }, [handleApiCall]);
+  }, [handleApiCall, appendDiskUsagePoint]);
 
   const fetchProcessMonitorData = useCallback(async () => {
     const data = await handleApiCall<ProcessMonitorData>('/metrics/processes');
@@ -312,28 +184,11 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
         const readRate = Number(storage_io.read_mb_per_sec);
         const writeRate = Number(storage_io.write_mb_per_sec);
         if (Number.isFinite(readRate) || Number.isFinite(writeRate)) {
-          setMetricHistory(prev => {
-            const base = ensureHistoryBase(prev);
-            return {
-              ...base,
-              diskRead: Number.isFinite(readRate)
-                ? appendHistoryPoint(base.diskRead, {
-                    timestamp: recordTimestamp,
-                    value: readRate
-                  })
-                : base.diskRead,
-              diskWrite: Number.isFinite(writeRate)
-                ? appendHistoryPoint(base.diskWrite, {
-                    timestamp: recordTimestamp,
-                    value: writeRate
-                  })
-                : base.diskWrite
-            };
-          });
+          appendDiskPoints(recordTimestamp, readRate, writeRate);
         }
       }
     }
-  }, [handleApiCall]);
+  }, [handleApiCall, appendDiskPoints]);
 
   const fetchInvestigations = useCallback(async () => {
     const data = await handleApiCall<Investigation[]>('/investigations?limit=10');
@@ -353,53 +208,6 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     }
   }, [handleApiCall]);
 
-  const refreshHealth = useCallback(async () => {
-    await checkHealth();
-  }, [checkHealth]);
-
-  const toggleMonitoring = useCallback(async () => {
-    if (!healthStatus) {
-      await checkHealth();
-      return;
-    }
-
-    const isCurrentlyActive = healthStatus.processor_active ?? (healthStatus.maintenance_state === 'active');
-    const nextState = isCurrentlyActive ? 'inactive' : 'active';
-
-    try {
-      const response = await fetch(buildApiUrl('/maintenance/state'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maintenanceState: nextState })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update system status');
-      }
-
-      const data = (await response.json()) as { success?: boolean; error?: string };
-      if (data.success === false) {
-        throw new Error(data.error ?? 'Failed to update status');
-      }
-
-      setHealthStatus(prev => prev ? {
-        ...prev,
-        processor_active: nextState === 'active',
-        maintenance_state: nextState
-      } : {
-        processor_active: nextState === 'active',
-        maintenance_state: nextState
-      });
-
-      // Refresh from server to confirm
-      setTimeout(checkHealth, 500);
-    } catch (err) {
-      console.error('Failed to toggle system status:', err);
-      setHealthError(err instanceof Error ? err.message : 'Failed to update status');
-      checkHealth();
-    }
-  }, [checkHealth, healthStatus]);
-
   const refreshMetrics = useCallback(async () => {
     await Promise.all([
       fetchMetrics(),
@@ -410,9 +218,9 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
-    
-    // Check health first
+
     const isHealthy = await checkHealth();
+    if (!mountedRef.current) return;
     if (!isHealthy) {
       setError({
         error: 'API server is not responding',
@@ -423,7 +231,6 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       return;
     }
 
-    // Fetch all data
     await Promise.all([
       fetchMetrics(),
       fetchDetailedMetrics(),
@@ -432,7 +239,8 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       fetchInvestigations(),
       fetchMetricsTimeline(120)
     ]);
-    
+
+    if (!mountedRef.current) return;
     setIsLoading(false);
   }, [
     checkHealth,

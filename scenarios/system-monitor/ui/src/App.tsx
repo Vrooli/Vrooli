@@ -23,7 +23,6 @@ import './styles/matrix-theme.css';
 function App() {
   const navigate = useNavigate();
   const [dashboardState, setDashboardState] = useState<DashboardState>({
-    isOnline: false,
     lastUpdate: new Date().toISOString(),
     expandedCards: new Set(),
     expandedPanels: new Set(),
@@ -81,7 +80,6 @@ function App() {
   useEffect(() => {
     setDashboardState(prev => ({
       ...prev,
-      isOnline: !isLoading && !error,
       lastUpdate: new Date().toISOString()
     }));
   }, [isLoading, error]);
@@ -144,7 +142,6 @@ function App() {
         <MatrixBackground />
         
         <Header
-          isOnline={dashboardState.isOnline}
           unreadErrorCount={dashboardState.unreadErrorCount}
           agents={agents}
           onStopAgent={stopAgent}

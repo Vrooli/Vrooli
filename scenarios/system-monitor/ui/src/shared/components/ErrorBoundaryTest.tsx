@@ -24,7 +24,7 @@ export const ErrorBoundaryTest = () => {
       bottom: '20px',
       right: '20px',
       zIndex: 9999,
-      background: 'rgba(255, 0, 0, 0.1)',
+      background: 'var(--color-error-bg)',
       border: '1px solid var(--color-error)',
       borderRadius: 'var(--border-radius-md)',
       padding: 'var(--spacing-md)',

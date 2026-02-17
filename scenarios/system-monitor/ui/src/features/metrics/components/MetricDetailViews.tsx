@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { ArrowLeft } from 'lucide-react';
 
-import { formatTimeLabel } from './metricHelpers';
+import { formatTimeLabel } from '../../../shared/utils/formatters';
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -46,32 +46,22 @@ export interface MetricLineChartProps {
 // ── Shared Components ───────────────────────────────────────────────────────
 
 export const MetricDetailLayout = ({ title, icon, headline, subhead, onBack, children }: MetricDetailLayoutProps) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-lg)', flexWrap: 'wrap' }}>
+  <div className="flex-col-gap-lg">
+    <div className="metric-detail-toolbar">
       <button
         type="button"
-        className="btn btn-action"
+        className="btn btn-action metric-detail-back-btn"
         onClick={onBack}
-        style={{ textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: 'var(--font-size-xs)' }}
       >
         <ArrowLeft size={16} />
         Back To Dashboard
       </button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-sm)',
-            color: 'var(--color-text-bright)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em'
-          }}
-        >
+      <div className="icon-text gap-md">
+        <div className="metric-detail-title">
           {icon}
           <span>{title}</span>
         </div>
-        <div style={{ fontSize: 'var(--font-size-xl)', color: 'var(--color-accent)' }}>{headline}</div>
+        <div className="metric-detail-headline">{headline}</div>
       </div>
     </div>
     {subhead && (
@@ -133,7 +123,7 @@ export const MetricLineChart = ({
           />
           <Tooltip
             contentStyle={{
-              background: 'rgba(7, 25, 16, 0.88)',
+              background: 'var(--surface-tooltip)',
               border: '1px solid var(--color-surface-border)',
               borderRadius: 'var(--border-radius-md)',
               color: 'var(--color-text)'

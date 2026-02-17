@@ -4,7 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import { apiFetch } from '../../../shared/api/apiFetch';
 import { ScriptListItem } from '../components/ScriptListItem';
 
 interface InvestigationScriptsPageProps {
@@ -108,11 +108,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     setLoading(true);
     setErrorMessage(null);
     try {
-      const response = await fetch(buildApiUrl('/investigations/scripts'));
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-      const data = (await response.json()) as { scripts?: InvestigationScript[] };
+      const data = await apiFetch<{ scripts?: InvestigationScript[] }>('/investigations/scripts');
       const loaded: InvestigationScript[] = Array.isArray(data.scripts) ? data.scripts : [];
       setScripts(loaded);
       if (loaded.length > 0) {
@@ -163,11 +159,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     }
     dispatch({ type: 'SET_FETCHING', fetching: true });
     try {
-      const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(script.id)}`));
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-      const data = (await response.json()) as { content?: string };
+      const data = await apiFetch<{ content?: string }>(`/investigations/scripts/${encodeURIComponent(script.id)}`);
       const content = typeof data.content === 'string' ? data.content : '';
       contentCache.current[script.id] = content;
       dispatch({ type: 'SET_CONTENT', content });
@@ -258,11 +250,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     dispatch({ type: 'SET_SAVE_ERROR', error: null });
     if (!isDesktop) {
       try {
-        const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(script.id)}`));
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-        const data = (await response.json()) as { content?: string; script?: InvestigationScript };
+        const data = await apiFetch<{ content?: string; script?: InvestigationScript }>(`/investigations/scripts/${encodeURIComponent(script.id)}`);
         const content = typeof data.content === 'string' ? data.content : '';
         onOpenScriptEditor(data.script ?? script, content, 'view');
       } catch (error) {
@@ -319,14 +307,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
   };
 
   return (
-    <div style={{
-      padding: '2rem',
-      maxWidth: '1200px',
-      margin: '0 auto',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 'var(--spacing-lg)'
-    }}>
+    <div className="page-container">
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -400,7 +381,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
             border: '1px solid var(--color-accent)',
             borderRadius: 'var(--border-radius-md)',
             overflow: 'hidden',
-            background: 'rgba(0, 0, 0, 0.25)'
+            background: 'var(--overlay-medium)'
           }}>
             <div className="detail-row-label" style={{
               padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -509,7 +490,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                 style={{
                   padding: 'var(--spacing-md) var(--spacing-lg)',
                   borderBottom: '1px solid var(--alpha-accent-20)',
-                  background: 'rgba(0, 0, 0, 0.35)',
+                  background: 'var(--overlay-medium)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 'var(--spacing-md)'
@@ -684,7 +665,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         ...tomorrow,
                         'pre[class*="language-"]': {
                           ...tomorrow['pre[class*="language-"]'],
-                          background: 'rgba(0, 0, 0, 0.8)',
+                          background: 'var(--overlay-backdrop)',
                           margin: 0,
                           padding: 'var(--spacing-lg)',
                           fontSize: 'var(--font-size-sm)',
@@ -693,7 +674,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         }
                       }}
                       customStyle={{
-                        background: 'rgba(0, 0, 0, 0.8)',
+                        background: 'var(--overlay-backdrop)',
                         margin: 0,
                         fontSize: 'var(--font-size-sm)',
                         fontFamily: 'var(--font-family-mono)'
@@ -710,7 +691,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         width: '100%',
                         height: '100%',
                         padding: 'var(--spacing-lg)',
-                        background: 'rgba(0, 0, 0, 0.8)',
+                        background: 'var(--overlay-backdrop)',
                         border: 'none',
                         color: 'var(--color-text)',
                         fontFamily: 'var(--font-family-mono)',

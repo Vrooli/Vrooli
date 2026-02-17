@@ -25,7 +25,6 @@ export interface TerminalLine {
 }
 
 export interface DashboardState {
-  isOnline: boolean;
   lastUpdate: string;
   expandedCards: Set<CardType>;
   expandedPanels: Set<PanelType>;

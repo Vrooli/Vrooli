@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 interface ModalProps {
   isOpen: boolean;
@@ -15,17 +16,7 @@ interface ModalProps {
 export const Modal = ({ isOpen, onClose, children, className, ariaLabel }: ModalProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const handleEscape = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, handleEscape]);
+  useEscapeKey(onClose, isOpen);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (contentRef.current && !contentRef.current.contains(e.target as Node)) {

@@ -129,7 +129,7 @@ Browser Info:
       return (
         <div style={{
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
+          background: 'linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-bg-dark-alt) 100%)',
           color: 'var(--color-text)',
           fontFamily: 'var(--font-family-mono)',
           display: 'flex',
@@ -144,7 +144,7 @@ Browser Info:
             padding: 'var(--spacing-xxl)',
             maxWidth: '800px',
             width: '100%',
-            boxShadow: '0 0 30px rgba(255, 0, 0, 0.3)'
+            boxShadow: '0 0 30px var(--color-error-border)'
           }}>
             {/* Header */}
             <div style={{
@@ -157,7 +157,7 @@ Browser Info:
             }}>
               <div style={{
                 padding: 'var(--spacing-sm)',
-                background: 'rgba(255, 0, 0, 0.2)',
+                background: 'var(--color-error-bg)',
                 borderRadius: 'var(--border-radius-md)',
                 display: 'flex',
                 alignItems: 'center',
@@ -189,7 +189,7 @@ Browser Info:
 
             {/* Error Message */}
             <div style={{
-              background: 'rgba(255, 0, 0, 0.1)',
+              background: 'var(--color-error-bg)',
               border: '1px solid var(--color-error)',
               borderRadius: 'var(--border-radius-md)',
               padding: 'var(--spacing-lg)',
@@ -211,7 +211,7 @@ Browser Info:
                 color: 'var(--color-text)',
                 fontSize: 'var(--font-size-sm)',
                 fontFamily: 'var(--font-family-mono)',
-                background: 'rgba(0, 0, 0, 0.5)',
+                background: 'var(--overlay-heavy)',
                 padding: 'var(--spacing-md)',
                 borderRadius: 'var(--border-radius-sm)',
                 overflowX: 'auto',

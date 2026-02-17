@@ -37,6 +37,21 @@ export const formatPercentage = (value?: number | null): string => {
   return `${Number(value).toFixed(1)}%`;
 };
 
+/** Format a timestamp into a short time string (e.g. "14:05:30"). */
+export const formatTimeLabel = (timestamp: string): string => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+};
+
+/** Format a number as a rounded, locale-aware integer string. */
+export const formatInteger = (value: number): string => Math.round(value).toLocaleString();
+
+/** Format a number as MB/s (e.g. "1.23 MB/s"). */
+export const formatMbPerSecond = (value: number): string => `${value.toFixed(2)} MB/s`;
+
 /** Return a CSS color variable based on utilization thresholds. */
 export const getUtilizationColor = (percent: number): string =>
   percent >= 85 ? 'var(--color-error)' : percent >= 70 ? 'var(--color-warning)' : 'var(--color-success)';

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, RotateCcw, AlertTriangle, CheckCircle, Settings, Activity } from 'lucide-react';
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import { apiFetch } from '../../../shared/api/apiFetch';
 
 interface SystemSettingsModalProps {
   isOpen: boolean;
@@ -43,6 +43,23 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const showTemporarySuccess = useCallback((msg: string) => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
+    setSuccessMessage(msg);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,8 +72,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setError(null);
 
     try {
-      const response = await fetch(buildApiUrl('/settings'));
-      const data = (await response.json()) as SettingsResponse;
+      const data = await apiFetch<SettingsResponse>('/settings');
 
       if (data.success && data.settings) {
         setSettings(data.settings);
@@ -80,7 +96,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSuccessMessage(null);
 
     try {
-      const response = await fetch(buildApiUrl('/settings'), {
+      const data = await apiFetch<SettingsResponse>('/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -88,13 +104,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
         body: JSON.stringify(settings)
       });
 
-      const data = (await response.json()) as SettingsResponse;
-
       if (data.success && data.settings) {
         setSettings(data.settings);
         setOriginalSettings(data.settings);
-        setSuccessMessage('Settings saved successfully!');
-        setTimeout(() => setSuccessMessage(null), 3000);
+        showTemporarySuccess('Settings saved successfully!');
       } else {
         throw new Error(data.error || 'Failed to save settings');
       }
@@ -116,17 +129,14 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSuccessMessage(null);
 
     try {
-      const response = await fetch(buildApiUrl('/settings/reset'), {
+      const data = await apiFetch<SettingsResponse>('/settings/reset', {
         method: 'POST'
       });
-
-      const data = (await response.json()) as SettingsResponse;
 
       if (data.success && data.settings) {
         setSettings(data.settings);
         setOriginalSettings(data.settings);
-        setSuccessMessage('Settings reset to defaults!');
-        setTimeout(() => setSuccessMessage(null), 3000);
+        showTemporarySuccess('Settings reset to defaults!');
       } else {
         throw new Error(data.error || 'Failed to reset settings');
       }
@@ -189,12 +199,11 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
         )}
 
         {!loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+          <div className="flex-col-gap-lg">
             {/* System Status Section */}
             <div>
-              <h3 className="icon-text" style={{
-                margin: '0 0 var(--spacing-md) 0',
-                color: 'var(--color-text-bright)',
+              <h3 className="icon-text section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
                 fontSize: 'var(--font-size-lg)'
               }}>
                 <Activity size={18} />
@@ -207,7 +216,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                 gap: 'var(--spacing-sm)',
                 cursor: 'pointer',
                 padding: 'var(--spacing-md)',
-                background: 'rgba(0, 0, 0, 0.3)',
+                background: 'var(--overlay-medium)',
                 border: '1px solid var(--color-accent)',
                 borderRadius: 'var(--border-radius-md)'
               }}>
@@ -242,9 +251,8 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* Monitoring Intervals Section */}
             <div>
-              <h3 style={{
-                margin: '0 0 var(--spacing-md) 0',
-                color: 'var(--color-text-bright)',
+              <h3 className="section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
                 fontSize: 'var(--font-size-lg)'
               }}>
                 Monitoring Intervals (seconds)
@@ -304,9 +312,8 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* System Thresholds Section */}
             <div>
-              <h3 style={{
-                margin: '0 0 var(--spacing-md) 0',
-                color: 'var(--color-text-bright)',
+              <h3 className="section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
                 fontSize: 'var(--font-size-lg)'
               }}>
                 Alert Thresholds (%)
@@ -369,9 +376,8 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* Investigation Settings Section */}
             <div>
-              <h3 style={{
-                margin: '0 0 var(--spacing-md) 0',
-                color: 'var(--color-text-bright)',
+              <h3 className="section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
                 fontSize: 'var(--font-size-lg)'
               }}>
                 Investigation Settings
@@ -411,7 +417,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
         alignItems: 'center',
         padding: 'var(--spacing-lg)',
         borderTop: '1px solid var(--color-accent)',
-        background: 'rgba(0, 0, 0, 0.3)'
+        background: 'var(--overlay-medium)'
       }}>
         <button
           onClick={resetSettings}

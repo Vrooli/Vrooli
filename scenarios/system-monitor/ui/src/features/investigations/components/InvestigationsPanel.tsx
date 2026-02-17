@@ -55,7 +55,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         style={{
           padding: 'var(--spacing-md)',
           borderBottom: '1px solid var(--color-accent)',
-          background: 'rgba(0, 0, 0, 0.2)',
+          background: 'var(--overlay-light)',
           transition: 'background 0.2s'
         }}
       >
@@ -223,7 +223,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         alignItems: 'center',
         marginBottom: 'var(--spacing-md)'
       }}>
-        <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
+        <h2 className="section-heading">
           RECENT INVESTIGATIONS
         </h2>
         <button 

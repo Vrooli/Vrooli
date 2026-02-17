@@ -250,7 +250,7 @@ export const ScriptEditorModal = ({
                   }
                 }}
                 customStyle={{
-                  background: 'rgba(0, 0, 0, 0.8)',
+                  background: 'var(--overlay-backdrop)',
                   margin: 0,
                   fontSize: 'var(--font-size-sm)',
                   fontFamily: 'var(--font-family-mono)'
@@ -267,7 +267,7 @@ export const ScriptEditorModal = ({
                   width: '100%',
                   height: '100%',
                   padding: 'var(--spacing-md)',
-                  background: 'rgba(0, 0, 0, 0.8)',
+                  background: 'var(--overlay-backdrop)',
                   border: 'none',
                   color: 'var(--color-text)',
                   fontFamily: 'var(--font-family-mono)',

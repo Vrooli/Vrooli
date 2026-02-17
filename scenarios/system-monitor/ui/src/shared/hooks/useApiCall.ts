@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { buildApiUrl } from '../api/apiBase';
+import { apiFetch, toApiError } from '../api/apiFetch';
 import type { APIError } from '../../types';
 
 interface UseApiCallReturn<T> {
@@ -44,27 +44,10 @@ export function useApiCall<T = unknown>(): UseApiCallReturn<T> {
     setError(null);
 
     try {
-      const response = await fetch(buildApiUrl(url), {
+      const result = await apiFetch<T>(url, {
         ...options,
         signal: controller.signal,
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData: APIError;
-        try {
-          errorData = JSON.parse(errorText) as APIError;
-        } catch {
-          errorData = {
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            details: errorText,
-            timestamp: new Date().toISOString(),
-          };
-        }
-        throw errorData;
-      }
-
-      const result = (await response.json()) as T;
       if (mountedRef.current) {
         setData(result);
         setError(null);
@@ -78,14 +61,7 @@ export function useApiCall<T = unknown>(): UseApiCallReturn<T> {
 
       if (!mountedRef.current) return null;
 
-      const apiError: APIError =
-        err && typeof err === 'object' && 'error' in err
-          ? (err as APIError)
-          : {
-              error: 'Network or unknown error',
-              details: err instanceof Error ? err.message : String(err),
-              timestamp: new Date().toISOString(),
-            };
+      const apiError = toApiError(err);
       setError(apiError);
       return null;
     } finally {
