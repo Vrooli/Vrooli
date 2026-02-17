@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	reqservice "test-genie/internal/requirements"
 	"test-genie/internal/requirements/reporting"
 )
@@ -21,7 +23,7 @@ func runReport(args []string) error {
 	phase := fs.String("phase", "", "Filter validations to a specific phase (phase-inspect)")
 	dirFlag, _ := parseCommonFlags(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

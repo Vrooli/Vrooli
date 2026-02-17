@@ -26,7 +26,7 @@ func (a *App) cmdLeastVisited(args []string) error {
 	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -98,7 +98,7 @@ func (a *App) cmdMostStale(args []string) error {
 	limit := fs.String("limit", "", "Limit results")
 	threshold := fs.String("threshold", "", "Minimum staleness score")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -166,7 +166,7 @@ func (a *App) cmdCoverage(args []string) error {
 	pattern := fs.String("pattern", "", "File pattern")
 	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

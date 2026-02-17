@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	reqservice "test-genie/internal/requirements"
 )
 
@@ -14,7 +16,7 @@ func runSync(args []string) error {
 	dirFlag, scenarioFlag := parseCommonFlags(fs)
 	commands := multiStringFlag(fs, "command", "Test command to record (repeatable)")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

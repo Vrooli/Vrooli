@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	"test-genie/internal/requirements/evidence"
 	"test-genie/internal/requirements/types"
 )
@@ -27,7 +29,7 @@ func runManualLog(args []string) error {
 	dryRun := fs.Bool("dry-run", false, "Print entry instead of writing")
 	dirFlag, scenarioFlag := parseCommonFlags(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if *reqID == "" {

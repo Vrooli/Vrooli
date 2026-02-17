@@ -72,7 +72,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.BoolVar(&out.AutoStart, "auto-start", false, "Auto-start the scenario if UI port is not detected")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput

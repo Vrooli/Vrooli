@@ -17,7 +17,7 @@ func (a *App) cmdSync(args []string) error {
 	removeDeleted := fs.Bool("remove-deleted", false, "Remove deleted files")
 	_ = fs.String("structure", "", "Structure snapshot (ignored)")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

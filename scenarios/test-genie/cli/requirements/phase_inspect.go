@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	reqservice "test-genie/internal/requirements"
 )
 
@@ -18,7 +20,7 @@ func runPhaseInspect(args []string) error {
 	phase := fs.String("phase", "", "Phase to inspect (required)")
 	outputPath := fs.String("output", "", "Write output to file")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

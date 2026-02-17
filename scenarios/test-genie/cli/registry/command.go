@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	registrypkg "test-genie/cli/internal/registry"
 )
 
@@ -41,7 +43,7 @@ func runBuild(args []string) error {
 	scenarioDir := fs.String("scenario", "", "Path to scenario directory (defaults to current directory)")
 	quiet := fs.Bool("q", false, "Quiet mode - only output errors")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

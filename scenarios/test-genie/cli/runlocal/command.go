@@ -79,7 +79,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.Filter, "filter", "", "Pass through filter string to runner (e.g., test name)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput

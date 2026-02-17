@@ -15,7 +15,7 @@ func (a *App) cmdStatus(args []string) error {
 	pattern := fs.String("pattern", "", "File pattern")
 	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

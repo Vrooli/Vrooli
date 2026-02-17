@@ -17,7 +17,7 @@ func (a *App) cmdFileGetByPath(args []string) error {
 	fs.SetOutput(io.Discard)
 	pathFlag := fs.String("path", "", "File path to lookup")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -66,7 +66,7 @@ func (a *App) cmdFileNote(args []string) error {
 	fileID := fs.String("file-id", "", "Tracked file ID")
 	note := fs.String("note", "", "Note text")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (a *App) cmdFilePriority(args []string) error {
 	fileID := fs.String("file-id", "", "Tracked file ID")
 	weight := fs.String("weight", "", "Priority weight (float)")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -148,7 +148,7 @@ func (a *App) cmdFileExclude(args []string) error {
 	excluded := fs.Bool("excluded", true, "Set excluded state")
 	include := fs.Bool("include", false, "Clear exclusion")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

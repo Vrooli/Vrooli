@@ -27,7 +27,7 @@ func (a *App) cmdExport(args []string) error {
 	format := fs.String("format", "json", "Export format (json only)")
 	includeHistory := fs.Bool("include-history", false, "Include visit history")
 	patterns := fs.String("patterns", "", "Comma-separated patterns")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return err
 	}
 
@@ -79,7 +79,7 @@ func (a *App) cmdImport(args []string) error {
 	mergeValue := fs.String("merge", "", "Merge with existing campaign (true/false)")
 	format := fs.String("format", "json", "Import format (json only)")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return err
 	}
 

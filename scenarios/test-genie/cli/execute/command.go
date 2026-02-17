@@ -160,7 +160,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.BrowserlessURL, "browserless-url", "", "Browserless URL (default: BROWSERLESS_URL env or http://localhost:4110)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput

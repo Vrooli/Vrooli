@@ -15,7 +15,7 @@ func (a *App) cmdCampaignList(args []string) error {
 	fs := flag.NewFlagSet("campaigns list", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -68,7 +68,7 @@ func (a *App) cmdCampaignCreate(args []string) error {
 	patternsCSV := fs.String("patterns", "", "Comma-separated file patterns")
 	jsonOutput := cliutil.JSONFlag(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -136,7 +136,7 @@ func (a *App) cmdCampaignGet(args []string) error {
 	fs := flag.NewFlagSet("campaigns get", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return err
 	}
 
@@ -183,7 +183,7 @@ func (a *App) cmdCampaignUpdate(args []string) error {
 	note := fs.String("note", "", "Campaign notes")
 	notes := fs.String("notes", "", "Campaign notes (alias)")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return err
 	}
 
@@ -221,7 +221,7 @@ func (a *App) cmdCampaignNote(args []string) error {
 	pattern := fs.String("pattern", "", "File pattern")
 	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -264,7 +264,7 @@ func (a *App) cmdCampaignReset(args []string) error {
 	pattern := fs.String("pattern", "", "File pattern")
 	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -305,7 +305,7 @@ func (a *App) cmdCampaignDelete(args []string) error {
 	fs := flag.NewFlagSet("campaigns delete", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return err
 	}
 
@@ -332,7 +332,7 @@ func (a *App) cmdCampaignFindOrCreate(args []string) error {
 	pattern := fs.String("pattern", "", "File pattern")
 	name := fs.String("name", "", "Campaign name")
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

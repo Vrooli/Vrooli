@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/parsing"
 )
@@ -39,7 +41,7 @@ func runLintPRD(args []string) error {
 	jsonOut := fs.Bool("json", false, "Output JSON")
 	dirFlag, scenarioFlag := parseCommonFlags(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
