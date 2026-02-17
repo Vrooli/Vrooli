@@ -27,10 +27,12 @@ type ListFilter struct {
 // RunListFilter extends ListFilter with run-specific filters.
 type RunListFilter struct {
 	ListFilter
-	TaskID         *uuid.UUID
-	AgentProfileID *uuid.UUID
-	Status         *domain.RunStatus
-	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	TaskID                    *uuid.UUID
+	AgentProfileID            *uuid.UUID
+	Status                    *domain.RunStatus
+	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	InvestigatesRunID         *uuid.UUID
+	AppliesInvestigationRunID *uuid.UUID
 }
 
 // -----------------------------------------------------------------------------

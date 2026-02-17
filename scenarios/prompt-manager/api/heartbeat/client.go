@@ -113,22 +113,24 @@ type Run struct {
 
 // RunActions describes which actions are available for a run.
 type RunActions struct {
-	CanInvestigate         bool `json:"can_investigate"`
-	CanApplyInvestigation  bool `json:"can_apply_investigation"`
-	CanDelete              bool `json:"can_delete"`
-	CanStop                bool `json:"can_stop"`
-	CanRetry               bool `json:"can_retry"`
-	CanContinue            bool `json:"can_continue"`
+	CanInvestigate        bool `json:"can_investigate"`
+	CanApplyInvestigation bool `json:"can_apply_investigation"`
+	CanDelete             bool `json:"can_delete"`
+	CanStop               bool `json:"can_stop"`
+	CanRetry              bool `json:"can_retry"`
+	CanContinue           bool `json:"can_continue"`
 }
 
 // ListRunsOptions configures filtering for ListRuns.
 type ListRunsOptions struct {
-	Status     string
-	TagPrefix  string
-	ProfileKey string
-	TaskID     string
-	Limit      int
-	Offset     int
+	Status                    string
+	TagPrefix                 string
+	ProfileKey                string
+	TaskID                    string
+	InvestigatesRunID         string
+	AppliesInvestigationRunID string
+	Limit                     int
+	Offset                    int
 }
 
 // ListRunsResponse is the response from listing runs.
@@ -371,6 +373,12 @@ func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions)
 	}
 	if opts.TaskID != "" {
 		params = append(params, "task_id="+opts.TaskID)
+	}
+	if opts.InvestigatesRunID != "" {
+		params = append(params, "investigates_run_id="+opts.InvestigatesRunID)
+	}
+	if opts.AppliesInvestigationRunID != "" {
+		params = append(params, "applies_investigation_run_id="+opts.AppliesInvestigationRunID)
 	}
 	if opts.Limit > 0 {
 		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))

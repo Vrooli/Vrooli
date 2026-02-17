@@ -32,6 +32,11 @@ const (
 	taskSortCreatedAsc  taskSort = "created_asc"
 )
 
+// TargetValidator checks whether a task target exists on disk.
+type TargetValidator interface {
+	TargetExists(taskType, targetName string) bool
+}
+
 // TaskHandlers contains handlers for task-related endpoints
 type TaskHandlers struct {
 	storage           tasks.StorageAPI
@@ -42,6 +47,7 @@ type TaskHandlers struct {
 	coordinator       *tasks.Coordinator
 	lifecycle         *tasks.Lifecycle
 	queueStateRepo    steering.QueueStateRepository
+	targetValidator   TargetValidator
 }
 
 func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool {
@@ -377,8 +383,9 @@ func operationDisplayName(operation string) string {
 	}
 }
 
-// NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles autosteer.ProfileRepository, coordinator *tasks.Coordinator, queueStateRepo steering.QueueStateRepository) *TaskHandlers {
+// NewTaskHandlers creates a new task handlers instance.
+// targetValidator is optional (nil skips target existence checks).
+func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles autosteer.ProfileRepository, coordinator *tasks.Coordinator, queueStateRepo steering.QueueStateRepository, targetValidator TargetValidator) *TaskHandlers {
 	lc := &tasks.Lifecycle{Store: storage}
 	if coordinator != nil && coordinator.LC != nil {
 		lc = coordinator.LC
@@ -401,6 +408,7 @@ func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, pro
 		coordinator:       coord,
 		lifecycle:         lc,
 		queueStateRepo:    queueStateRepo,
+		targetValidator:   targetValidator,
 	}
 }
 
@@ -449,7 +457,7 @@ func validateAndNormalizeSteerMode(task *tasks.TaskItem, w http.ResponseWriter) 
 	}
 
 	if task.Type != "scenario" || task.Operation != "improver" {
-		writeError(w, "Manual steering is only supported for scenario improver tasks", http.StatusBadRequest)
+		writeError(w, "Manual steering (--steer-mode/--steer-queue) is only supported for improver tasks. Use --steer-profile instead, or switch to 'task improve'", http.StatusBadRequest)
 		return false
 	}
 
@@ -459,6 +467,40 @@ func validateAndNormalizeSteerMode(task *tasks.TaskItem, w http.ResponseWriter) 
 	}
 
 	task.SteerMode = string(mode)
+	return true
+}
+
+// validateAndNormalizeSteeringQueue ensures the steering queue entries are valid steer modes
+// and that queue steering is only used on scenario improver tasks.
+func validateAndNormalizeSteeringQueue(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if len(task.SteeringQueue) == 0 {
+		return true
+	}
+
+	if task.Type != "scenario" || task.Operation != "improver" {
+		writeError(w, "Steering queue (--steer-queue) is only supported for scenario improver tasks. Use --steer-profile instead, or switch to 'task improve scenario <name>'", http.StatusBadRequest)
+		return false
+	}
+
+	normalized := make([]string, 0, len(task.SteeringQueue))
+	for _, raw := range task.SteeringQueue {
+		mode := normalizeSteerMode(raw)
+		if mode == "" {
+			continue
+		}
+		if !mode.IsValid() {
+			writeError(w, fmt.Sprintf("Invalid mode in steering_queue: %s. Must be one of: %v", raw, autosteer.AllowedSteerModes()), http.StatusBadRequest)
+			return false
+		}
+		normalized = append(normalized, string(mode))
+	}
+
+	if len(normalized) == 0 {
+		task.SteeringQueue = nil
+		return true
+	}
+
+	task.SteeringQueue = normalized
 	return true
 }
 
@@ -681,10 +723,24 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if !validateAndNormalizeSteeringQueue(&task, w) {
+		return
+	}
+
 	// Target validation for improver operations
 	if task.Operation == "improver" && len(task.Targets) == 0 {
 		writeError(w, "Improver tasks require at least one target", http.StatusBadRequest)
 		return
+	}
+
+	// Validate that improver targets exist on disk (generators create new targets)
+	if task.Operation == "improver" && h.targetValidator != nil {
+		for _, target := range task.Targets {
+			if !h.targetValidator.TargetExists(task.Type, target) {
+				writeError(w, fmt.Sprintf("Target %s %q not found. Verify it exists before creating an improver task", task.Type, target), http.StatusBadRequest)
+				return
+			}
+		}
 	}
 
 	// Handle multi-target creation as a batch operation
@@ -896,6 +952,10 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if !validateAndNormalizeSteerMode(&updatedTask, w) {
+		return
+	}
+
+	if !validateAndNormalizeSteeringQueue(&updatedTask, w) {
 		return
 	}
 

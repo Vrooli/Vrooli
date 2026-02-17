@@ -69,6 +69,8 @@ func route(ctx appctx.Context, args []string) error {
 	subArgs := args[1:]
 
 	switch subcommand {
+	case "help":
+		return printUsage()
 	case "profiles", "ls":
 		return cmdProfiles(ctx, subArgs)
 	case "templates":

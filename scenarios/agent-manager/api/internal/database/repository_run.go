@@ -28,33 +28,35 @@ var _ repository.RunRepository = (*runRepository)(nil)
 
 // runRow is the database row representation for runs.
 type runRow struct {
-	ID               uuid.UUID             `db:"id"`
-	TaskID           uuid.UUID             `db:"task_id"`
-	AgentProfileID   NullableUUID          `db:"agent_profile_id"`
-	Tag              string                `db:"tag"`
-	SandboxID        NullableUUID          `db:"sandbox_id"`
-	RunMode          string                `db:"run_mode"`
-	Status           string                `db:"status"`
-	StartedAt        NullableTime          `db:"started_at"`
-	EndedAt          NullableTime          `db:"ended_at"`
-	Phase            string                `db:"phase"`
-	LastCheckpointID NullableUUID          `db:"last_checkpoint_id"`
-	LastHeartbeat    NullableTime          `db:"last_heartbeat"`
-	ProgressPercent  int                   `db:"progress_percent"`
-	IdempotencyKey   sql.NullString        `db:"idempotency_key"`
-	Summary          NullableRunSummary    `db:"summary"`
-	ErrorMsg         string                `db:"error_msg"`
-	ExitCode         sql.NullInt32         `db:"exit_code"`
-	ApprovalState    string                `db:"approval_state"`
-	ApprovedBy       string                `db:"approved_by"`
-	ApprovedAt       NullableTime          `db:"approved_at"`
-	ResolvedConfig   NullableRunConfig     `db:"resolved_config"`
-	DiffPath         string                `db:"diff_path"`
-	LogPath          string                `db:"log_path"`
-	ChangedFiles     int                   `db:"changed_files"`
-	TotalSizeBytes   int64                 `db:"total_size_bytes"`
-	SandboxConfig    NullableSandboxConfig `db:"sandbox_config"`
-	SessionID        sql.NullString        `db:"session_id"`
+	ID                       uuid.UUID             `db:"id"`
+	TaskID                   uuid.UUID             `db:"task_id"`
+	AgentProfileID           NullableUUID          `db:"agent_profile_id"`
+	Tag                      string                `db:"tag"`
+	SandboxID                NullableUUID          `db:"sandbox_id"`
+	RunMode                  string                `db:"run_mode"`
+	Status                   string                `db:"status"`
+	StartedAt                NullableTime          `db:"started_at"`
+	EndedAt                  NullableTime          `db:"ended_at"`
+	Phase                    string                `db:"phase"`
+	LastCheckpointID         NullableUUID          `db:"last_checkpoint_id"`
+	LastHeartbeat            NullableTime          `db:"last_heartbeat"`
+	ProgressPercent          int                   `db:"progress_percent"`
+	IdempotencyKey           sql.NullString        `db:"idempotency_key"`
+	Summary                  NullableRunSummary    `db:"summary"`
+	ErrorMsg                 string                `db:"error_msg"`
+	ExitCode                 sql.NullInt32         `db:"exit_code"`
+	ApprovalState            string                `db:"approval_state"`
+	ApprovedBy               string                `db:"approved_by"`
+	ApprovedAt               NullableTime          `db:"approved_at"`
+	ResolvedConfig           NullableRunConfig     `db:"resolved_config"`
+	DiffPath                 string                `db:"diff_path"`
+	LogPath                  string                `db:"log_path"`
+	ChangedFiles             int                   `db:"changed_files"`
+	TotalSizeBytes           int64                 `db:"total_size_bytes"`
+	SandboxConfig            NullableSandboxConfig `db:"sandbox_config"`
+	SessionID                sql.NullString        `db:"session_id"`
+	SourceRunIDs             sql.NullString        `db:"source_run_ids"`
+	SourceInvestigationRunID NullableUUID          `db:"source_investigation_run_id"`
 	// Recommendation extraction fields (for investigation runs)
 	RecommendationStatus   sql.NullString           `db:"recommendation_status"`
 	RecommendationResult   NullableExtractionResult `db:"recommendation_result"`
@@ -66,33 +68,36 @@ type runRow struct {
 }
 
 func (row *runRow) toDomain() *domain.Run {
+	sourceRunIDs := parseUUIDSliceJSON(row.SourceRunIDs)
 	run := &domain.Run{
-		ID:               row.ID,
-		TaskID:           row.TaskID,
-		AgentProfileID:   row.AgentProfileID.ToPtr(),
-		Tag:              row.Tag,
-		SandboxID:        row.SandboxID.ToPtr(),
-		RunMode:          domain.RunMode(row.RunMode),
-		Status:           domain.RunStatus(row.Status),
-		StartedAt:        row.StartedAt.ToPtr(),
-		EndedAt:          row.EndedAt.ToPtr(),
-		Phase:            domain.RunPhase(row.Phase),
-		LastCheckpointID: row.LastCheckpointID.ToPtr(),
-		LastHeartbeat:    row.LastHeartbeat.ToPtr(),
-		ProgressPercent:  row.ProgressPercent,
-		IdempotencyKey:   row.IdempotencyKey.String, // Empty string if NULL
-		Summary:          row.Summary.V,
-		ErrorMsg:         row.ErrorMsg,
-		ApprovalState:    domain.ApprovalState(row.ApprovalState),
-		ApprovedBy:       row.ApprovedBy,
-		ApprovedAt:       row.ApprovedAt.ToPtr(),
-		ResolvedConfig:   row.ResolvedConfig.V,
-		DiffPath:         row.DiffPath,
-		LogPath:          row.LogPath,
-		ChangedFiles:     row.ChangedFiles,
-		TotalSizeBytes:   row.TotalSizeBytes,
-		SandboxConfig:    row.SandboxConfig.V,
-		SessionID:        row.SessionID.String,
+		ID:                       row.ID,
+		TaskID:                   row.TaskID,
+		AgentProfileID:           row.AgentProfileID.ToPtr(),
+		Tag:                      row.Tag,
+		SandboxID:                row.SandboxID.ToPtr(),
+		RunMode:                  domain.RunMode(row.RunMode),
+		Status:                   domain.RunStatus(row.Status),
+		StartedAt:                row.StartedAt.ToPtr(),
+		EndedAt:                  row.EndedAt.ToPtr(),
+		Phase:                    domain.RunPhase(row.Phase),
+		LastCheckpointID:         row.LastCheckpointID.ToPtr(),
+		LastHeartbeat:            row.LastHeartbeat.ToPtr(),
+		ProgressPercent:          row.ProgressPercent,
+		IdempotencyKey:           row.IdempotencyKey.String, // Empty string if NULL
+		Summary:                  row.Summary.V,
+		ErrorMsg:                 row.ErrorMsg,
+		ApprovalState:            domain.ApprovalState(row.ApprovalState),
+		ApprovedBy:               row.ApprovedBy,
+		ApprovedAt:               row.ApprovedAt.ToPtr(),
+		ResolvedConfig:           row.ResolvedConfig.V,
+		DiffPath:                 row.DiffPath,
+		LogPath:                  row.LogPath,
+		ChangedFiles:             row.ChangedFiles,
+		TotalSizeBytes:           row.TotalSizeBytes,
+		SandboxConfig:            row.SandboxConfig.V,
+		SessionID:                row.SessionID.String,
+		SourceRunIDs:             sourceRunIDs,
+		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		// Recommendation extraction fields
 		RecommendationStatus:   domain.RecommendationStatus(row.RecommendationStatus.String),
 		RecommendationResult:   row.RecommendationResult.V,
@@ -110,33 +115,36 @@ func (row *runRow) toDomain() *domain.Run {
 }
 
 func runFromDomain(r *domain.Run) *runRow {
+	sourceRunIDs := marshalUUIDSliceJSON(r.SourceRunIDs)
 	row := &runRow{
-		ID:               r.ID,
-		TaskID:           r.TaskID,
-		AgentProfileID:   NewNullableUUID(r.AgentProfileID),
-		Tag:              r.Tag,
-		SandboxID:        NewNullableUUID(r.SandboxID),
-		RunMode:          string(r.RunMode),
-		Status:           string(r.Status),
-		StartedAt:        NewNullableTime(r.StartedAt),
-		EndedAt:          NewNullableTime(r.EndedAt),
-		Phase:            string(r.Phase),
-		LastCheckpointID: NewNullableUUID(r.LastCheckpointID),
-		LastHeartbeat:    NewNullableTime(r.LastHeartbeat),
-		ProgressPercent:  r.ProgressPercent,
-		IdempotencyKey:   sql.NullString{String: r.IdempotencyKey, Valid: r.IdempotencyKey != ""},
-		Summary:          NullableRunSummary{V: r.Summary},
-		ErrorMsg:         r.ErrorMsg,
-		ApprovalState:    string(r.ApprovalState),
-		ApprovedBy:       r.ApprovedBy,
-		ApprovedAt:       NewNullableTime(r.ApprovedAt),
-		ResolvedConfig:   NullableRunConfig{V: r.ResolvedConfig},
-		DiffPath:         r.DiffPath,
-		LogPath:          r.LogPath,
-		ChangedFiles:     r.ChangedFiles,
-		TotalSizeBytes:   r.TotalSizeBytes,
-		SandboxConfig:    NullableSandboxConfig{V: r.SandboxConfig},
-		SessionID:        sql.NullString{String: r.SessionID, Valid: r.SessionID != ""},
+		ID:                       r.ID,
+		TaskID:                   r.TaskID,
+		AgentProfileID:           NewNullableUUID(r.AgentProfileID),
+		Tag:                      r.Tag,
+		SandboxID:                NewNullableUUID(r.SandboxID),
+		RunMode:                  string(r.RunMode),
+		Status:                   string(r.Status),
+		StartedAt:                NewNullableTime(r.StartedAt),
+		EndedAt:                  NewNullableTime(r.EndedAt),
+		Phase:                    string(r.Phase),
+		LastCheckpointID:         NewNullableUUID(r.LastCheckpointID),
+		LastHeartbeat:            NewNullableTime(r.LastHeartbeat),
+		ProgressPercent:          r.ProgressPercent,
+		IdempotencyKey:           sql.NullString{String: r.IdempotencyKey, Valid: r.IdempotencyKey != ""},
+		Summary:                  NullableRunSummary{V: r.Summary},
+		ErrorMsg:                 r.ErrorMsg,
+		ApprovalState:            string(r.ApprovalState),
+		ApprovedBy:               r.ApprovedBy,
+		ApprovedAt:               NewNullableTime(r.ApprovedAt),
+		ResolvedConfig:           NullableRunConfig{V: r.ResolvedConfig},
+		DiffPath:                 r.DiffPath,
+		LogPath:                  r.LogPath,
+		ChangedFiles:             r.ChangedFiles,
+		TotalSizeBytes:           r.TotalSizeBytes,
+		SandboxConfig:            NullableSandboxConfig{V: r.SandboxConfig},
+		SessionID:                sql.NullString{String: r.SessionID, Valid: r.SessionID != ""},
+		SourceRunIDs:             sql.NullString{String: sourceRunIDs, Valid: sourceRunIDs != ""},
+		SourceInvestigationRunID: NewNullableUUID(r.SourceInvestigationRunID),
 		// Recommendation extraction fields
 		RecommendationStatus:   sql.NullString{String: string(r.RecommendationStatus), Valid: r.RecommendationStatus != ""},
 		RecommendationResult:   NullableExtractionResult{V: r.RecommendationResult},
@@ -152,10 +160,45 @@ func runFromDomain(r *domain.Run) *runRow {
 	return row
 }
 
+func parseUUIDSliceJSON(raw sql.NullString) []uuid.UUID {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return nil
+	}
+	var ids []string
+	if err := json.Unmarshal([]byte(raw.String), &ids); err != nil {
+		return nil
+	}
+	out := make([]uuid.UUID, 0, len(ids))
+	for _, s := range ids {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			continue
+		}
+		out = append(out, id)
+	}
+	return out
+}
+
+func marshalUUIDSliceJSON(ids []uuid.UUID) string {
+	if len(ids) == 0 {
+		return "[]"
+	}
+	values := make([]string, 0, len(ids))
+	for _, id := range ids {
+		values = append(values, id.String())
+	}
+	data, err := json.Marshal(values)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
+}
+
 const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+	source_run_ids, source_investigation_run_id,
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 	created_at, updated_at`
 
@@ -169,17 +212,19 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 
 	row := runFromDomain(run)
 	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
-		started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
-		idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
-		resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
-		recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
-		created_at, updated_at)
-		VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
-		:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
-		:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
-		:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
-		:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
-		:created_at, :updated_at)`
+			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
+			idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
+			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+			source_run_ids, source_investigation_run_id,
+			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
+			created_at, updated_at)
+			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
+			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
+			:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
+			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
+			:source_run_ids, :source_investigation_run_id,
+			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
+			:created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
@@ -221,6 +266,14 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 		conditions = append(conditions, "tag LIKE ?")
 		args = append(args, filter.TagPrefix+"%")
 	}
+	if filter.InvestigatesRunID != nil {
+		conditions = append(conditions, "EXISTS (SELECT 1 FROM json_each(source_run_ids) WHERE json_each.value = ?)")
+		args = append(args, (*filter.InvestigatesRunID).String())
+	}
+	if filter.AppliesInvestigationRunID != nil {
+		conditions = append(conditions, "source_investigation_run_id = ?")
+		args = append(args, *filter.AppliesInvestigationRunID)
+	}
 
 	whereClause := ""
 	if len(conditions) > 0 {
@@ -256,16 +309,17 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	row := runFromDomain(run)
 
 	query := `UPDATE runs SET task_id = :task_id, agent_profile_id = :agent_profile_id,
-		tag = :tag, sandbox_id = :sandbox_id, run_mode = :run_mode, status = :status,
+			tag = :tag, sandbox_id = :sandbox_id, run_mode = :run_mode, status = :status,
 		started_at = :started_at, ended_at = :ended_at, phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = :last_heartbeat,
 		progress_percent = :progress_percent, idempotency_key = :idempotency_key,
 		summary = :summary, error_msg = :error_msg, exit_code = :exit_code,
 		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
-		changed_files = :changed_files, total_size_bytes = :total_size_bytes, sandbox_config = :sandbox_config,
-		session_id = :session_id,
-		recommendation_status = :recommendation_status, recommendation_result = :recommendation_result,
+			changed_files = :changed_files, total_size_bytes = :total_size_bytes, sandbox_config = :sandbox_config,
+			session_id = :session_id, source_run_ids = :source_run_ids,
+			source_investigation_run_id = :source_investigation_run_id,
+			recommendation_status = :recommendation_status, recommendation_result = :recommendation_result,
 		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,
 		recommendation_queued_at = :recommendation_queued_at,
 		updated_at = :updated_at

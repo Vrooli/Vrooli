@@ -52,6 +52,67 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	}
 }
 
+func TestInitSchema_WithLegacyRunsTable_AddsInvestigationColumns(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "agent-manager-legacy.db")
+	dsn := fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
+		dbPath,
+	)
+
+	sqlDB, err := sqlx.Connect("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("connect sqlite: %v", err)
+	}
+	defer func() { _ = sqlDB.Close() }()
+
+	log := logrus.New()
+	log.SetOutput(os.Stdout)
+	log.SetLevel(logrus.PanicLevel)
+
+	legacySchema := `
+		CREATE TABLE IF NOT EXISTS runs (
+			id TEXT PRIMARY KEY,
+			task_id TEXT NOT NULL,
+			agent_profile_id TEXT,
+			tag TEXT,
+			status TEXT DEFAULT 'pending',
+			session_id TEXT,
+			recommendation_status TEXT DEFAULT 'none',
+			recommendation_queued_at TEXT,
+			created_at TEXT DEFAULT (datetime('now'))
+		);
+	`
+	if _, err := sqlDB.Exec(legacySchema); err != nil {
+		t.Fatalf("seed legacy runs schema: %v", err)
+	}
+
+	wrapped := &DB{DB: sqlDB, log: log}
+	if err := wrapped.initSchema(); err != nil {
+		t.Fatalf("init schema with legacy runs table: %v", err)
+	}
+
+	var hasSourceRunIDs int
+	if err := sqlDB.Get(&hasSourceRunIDs, `
+		SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = 'source_run_ids'
+	`); err != nil {
+		t.Fatalf("check source_run_ids column: %v", err)
+	}
+	if hasSourceRunIDs != 1 {
+		t.Fatalf("expected source_run_ids column to exist, got count %d", hasSourceRunIDs)
+	}
+
+	var hasSourceInvestigationRunID int
+	if err := sqlDB.Get(&hasSourceInvestigationRunID, `
+		SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = 'source_investigation_run_id'
+	`); err != nil {
+		t.Fatalf("check source_investigation_run_id column: %v", err)
+	}
+	if hasSourceInvestigationRunID != 1 {
+		t.Fatalf("expected source_investigation_run_id column to exist, got count %d", hasSourceInvestigationRunID)
+	}
+}
+
 // ============================================================================
 // Profile Repository Tests
 // ============================================================================
@@ -652,9 +713,11 @@ func TestRunListFilters(t *testing.T) {
 	}
 
 	// Create runs with different tags and statuses
+	sourceRunID := uuid.New()
+	investigationRunID := uuid.New()
 	runs := []*domain.Run{
-		{ID: uuid.New(), TaskID: task.ID, AgentProfileID: &profile.ID, Tag: "batch-1", Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-1"},
-		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-2", Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-2"},
+		{ID: uuid.New(), TaskID: task.ID, AgentProfileID: &profile.ID, Tag: "batch-1", Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-1", SourceRunIDs: []uuid.UUID{sourceRunID}},
+		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-2", Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-2", SourceInvestigationRunID: &investigationRunID},
 		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-1-sub", Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-3"},
 	}
 	for _, run := range runs {
@@ -695,6 +758,28 @@ func TestRunListFilters(t *testing.T) {
 	}
 	if len(profileRuns) != 1 {
 		t.Errorf("expected 1 run with profile, got %d", len(profileRuns))
+	}
+
+	// Filter by source run ID lineage
+	investigationRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		InvestigatesRunID: &sourceRunID,
+	})
+	if err != nil {
+		t.Fatalf("List by source run ID: %v", err)
+	}
+	if len(investigationRuns) != 1 {
+		t.Errorf("expected 1 investigation run for source run ID, got %d", len(investigationRuns))
+	}
+
+	// Filter by source investigation run ID lineage
+	applyRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		AppliesInvestigationRunID: &investigationRunID,
+	})
+	if err != nil {
+		t.Fatalf("List by source investigation run ID: %v", err)
+	}
+	if len(applyRuns) != 1 {
+		t.Errorf("expected 1 apply run for source investigation run ID, got %d", len(applyRuns))
 	}
 }
 

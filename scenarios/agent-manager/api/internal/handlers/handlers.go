@@ -1455,8 +1455,12 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 //   - taskId: Filter by task ID
 //   - profileId: Filter by agent profile ID
 //   - tagPrefix: Filter by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+//   - investigates_run_id: Filter investigation runs linked to a source run ID
+//   - applies_investigation_run_id: Filter apply runs linked to an investigation run ID
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	req := apipb.ListRunsRequest{}
+	var investigatesRunID *uuid.UUID
+	var appliesInvestigationRunID *uuid.UUID
 
 	// Parse status filter
 	if statusStr := queryFirst(r, "status"); statusStr != "" {
@@ -1492,6 +1496,22 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	// Parse tag prefix filter
 	if tagPrefix := queryFirst(r, "tag_prefix", "tagPrefix"); tagPrefix != "" {
 		req.TagPrefix = &tagPrefix
+	}
+	if investigatesRunIDStr := queryFirst(r, "investigates_run_id", "investigatesRunId"); investigatesRunIDStr != "" {
+		parsed, err := uuid.Parse(investigatesRunIDStr)
+		if err != nil {
+			writeSimpleError(w, r, "investigates_run_id", "invalid UUID format")
+			return
+		}
+		investigatesRunID = &parsed
+	}
+	if appliesInvestigationRunIDStr := queryFirst(r, "applies_investigation_run_id", "appliesInvestigationRunId"); appliesInvestigationRunIDStr != "" {
+		parsed, err := uuid.Parse(appliesInvestigationRunIDStr)
+		if err != nil {
+			writeSimpleError(w, r, "applies_investigation_run_id", "invalid UUID format")
+			return
+		}
+		appliesInvestigationRunID = &parsed
 	}
 
 	if limit, limitProvided, err := parseQueryIntStrict(r, "limit"); err != nil {
@@ -1537,6 +1557,8 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	if req.Offset != nil {
 		opts.Offset = int(req.GetOffset())
 	}
+	opts.InvestigatesRunID = investigatesRunID
+	opts.AppliesInvestigationRunID = appliesInvestigationRunID
 
 	runs, err := h.svc.ListRuns(r.Context(), opts)
 	if err != nil {

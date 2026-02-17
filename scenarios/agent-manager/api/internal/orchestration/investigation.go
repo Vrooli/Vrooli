@@ -167,7 +167,14 @@ func (o *Orchestrator) CreateInvestigationRun(
 		return nil, err
 	}
 
-	run, err := o.createInvestigationRunWithProfile(ctx, task.ID, investigationTag, investigationProfileRef())
+	run, err := o.createInvestigationRunWithProfile(
+		ctx,
+		task.ID,
+		investigationTag,
+		investigationProfileRef(),
+		req.RunIDs,
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +225,14 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	}
 
 	// Apply runs use a different profile with write capabilities
-	applyRun, err := o.createInvestigationRunWithProfile(ctx, applyTask.ID, investigationApplyTag, applyInvestigationProfileRef())
+	applyRun, err := o.createInvestigationRunWithProfile(
+		ctx,
+		applyTask.ID,
+		investigationApplyTag,
+		applyInvestigationProfileRef(),
+		nil,
+		&investigationRunID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +281,14 @@ func (o *Orchestrator) createInvestigationTask(
 	return o.CreateTask(ctx, task)
 }
 
-func (o *Orchestrator) createInvestigationRunWithProfile(ctx context.Context, taskID uuid.UUID, tag string, profileRef *ProfileRef) (*domain.Run, error) {
+func (o *Orchestrator) createInvestigationRunWithProfile(
+	ctx context.Context,
+	taskID uuid.UUID,
+	tag string,
+	profileRef *ProfileRef,
+	sourceRunIDs []uuid.UUID,
+	sourceInvestigationRunID *uuid.UUID,
+) (*domain.Run, error) {
 	sandboxConfig := &domain.SandboxConfig{NoLock: true}
 	if o.config.DefaultSandboxConfig != nil {
 		clone := *o.config.DefaultSandboxConfig
@@ -276,11 +297,13 @@ func (o *Orchestrator) createInvestigationRunWithProfile(ctx context.Context, ta
 	}
 
 	return o.CreateRun(ctx, CreateRunRequest{
-		TaskID:        taskID,
-		ProfileRef:    profileRef,
-		Tag:           tag,
-		Force:         true,
-		SandboxConfig: sandboxConfig,
+		TaskID:                   taskID,
+		ProfileRef:               profileRef,
+		Tag:                      tag,
+		Force:                    true,
+		SandboxConfig:            sandboxConfig,
+		SourceRunIDs:             sourceRunIDs,
+		SourceInvestigationRunID: sourceInvestigationRunID,
 	})
 }
 

@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS runs (
     total_size_bytes INTEGER DEFAULT 0,
     sandbox_config TEXT DEFAULT '{}',
     session_id TEXT,
+    source_run_ids TEXT DEFAULT '[]',
+    source_investigation_run_id TEXT,
     recommendation_status TEXT DEFAULT 'none',
     recommendation_result TEXT,
     recommendation_attempts INTEGER DEFAULT 0,
@@ -97,6 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_runs_session_id ON runs(session_id) WHERE session
 CREATE INDEX IF NOT EXISTS idx_runs_agent_profile_id ON runs(agent_profile_id);
 CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 CREATE INDEX IF NOT EXISTS idx_runs_tag ON runs(tag);
+CREATE INDEX IF NOT EXISTS idx_runs_source_investigation_run_id ON runs(source_investigation_run_id);
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
 
 -- Stats query indexes

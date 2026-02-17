@@ -1069,10 +1069,12 @@ func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opts := ListRunsOptions{
-		Status:     r.URL.Query().Get("status"),
-		TagPrefix:  r.URL.Query().Get("tag_prefix"),
-		ProfileKey: r.URL.Query().Get("profile_key"),
-		TaskID:     r.URL.Query().Get("task_id"),
+		Status:                    r.URL.Query().Get("status"),
+		TagPrefix:                 r.URL.Query().Get("tag_prefix"),
+		ProfileKey:                r.URL.Query().Get("profile_key"),
+		TaskID:                    r.URL.Query().Get("task_id"),
+		InvestigatesRunID:         r.URL.Query().Get("investigates_run_id"),
+		AppliesInvestigationRunID: r.URL.Query().Get("applies_investigation_run_id"),
 	}
 	if v := r.URL.Query().Get("limit"); v != "" {
 		parsed, err := strconv.Atoi(v)

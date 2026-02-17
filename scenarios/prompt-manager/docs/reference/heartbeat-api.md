@@ -256,6 +256,61 @@ GET /teams/{teamId}/members/{agentId}/context
 
 ## Execution Logs
 
+## Run Operations
+
+### List Runs
+
+List runs proxied from agent-manager, with optional filtering.
+
+```
+GET /runs
+```
+
+Supported query parameters:
+
+- `status`
+- `tag_prefix`
+- `task_id`
+- `limit`
+- `offset`
+- `investigates_run_id` - list investigation runs linked to a specific source run
+- `applies_investigation_run_id` - list apply runs linked to a specific investigation run
+
+### Create Investigation Run
+
+Create a new investigation run for one or more source runs.
+
+```
+POST /runs/investigate
+```
+
+Request body:
+
+```json
+{
+  "run_ids": ["<source-run-id>"],
+  "depth": "standard",
+  "custom_context": "Optional extra context"
+}
+```
+
+### Create Investigation Apply Run
+
+Create a run that applies recommendations from an investigation run.
+
+```
+POST /runs/investigation-apply
+```
+
+Request body:
+
+```json
+{
+  "investigation_run_id": "<investigation-run-id>",
+  "custom_context": "Optional extra context"
+}
+```
+
 ### List Logs
 
 List execution logs for a member.

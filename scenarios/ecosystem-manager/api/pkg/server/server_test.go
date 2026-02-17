@@ -81,7 +81,7 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	processor.SetCoordinator(coord)
 	recyclerSvc.SetCoordinator(coord)
 
-	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil)
+	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil, nil)
 	queueHandlers := handlers.NewQueueHandlers(processor, wsManager, storage, coord)
 	discoveryHandlers := handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers := handlers.NewHealthHandlers(processor, recyclerSvc, queueDir, nil, "test-version")

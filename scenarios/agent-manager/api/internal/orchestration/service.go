@@ -123,10 +123,12 @@ type ListOptions struct {
 // RunListOptions extends ListOptions for run-specific filtering.
 type RunListOptions struct {
 	ListOptions
-	TaskID         *uuid.UUID
-	AgentProfileID *uuid.UUID
-	Status         *domain.RunStatus
-	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	TaskID                    *uuid.UUID
+	AgentProfileID            *uuid.UUID
+	Status                    *domain.RunStatus
+	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	InvestigatesRunID         *uuid.UUID
+	AppliesInvestigationRunID *uuid.UUID
 }
 
 // PurgeTarget identifies entities eligible for purge.
@@ -173,6 +175,10 @@ type CreateRunRequest struct {
 	// Used for agent tracking, log filtering, and external process identification
 	// Example: "ecosystem-task-123", "test-genie-abc"
 	Tag string `json:"tag,omitempty"`
+
+	// Investigation lineage metadata.
+	SourceRunIDs             []uuid.UUID `json:"sourceRunIds,omitempty"`
+	SourceInvestigationRunID *uuid.UUID  `json:"sourceInvestigationRunId,omitempty"`
 
 	// Inline config (optional - used if no profile, or overrides profile)
 	RunnerType           *domain.RunnerType      `json:"runnerType,omitempty"`
@@ -973,20 +979,22 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		profileID = &profile.ID
 	}
 	run := &domain.Run{
-		ID:              uuid.New(),
-		TaskID:          task.ID,
-		AgentProfileID:  profileID, // May be nil if inline config used
-		Tag:             req.Tag,   // Custom tag for identification
-		RunMode:         runMode,
-		Status:          domain.RunStatusPending,
-		Phase:           domain.RunPhaseQueued,
-		ProgressPercent: 0,
-		IdempotencyKey:  req.IdempotencyKey,
-		ApprovalState:   domain.ApprovalStateNone,
-		ResolvedConfig:  resolvedConfig,
-		SandboxConfig:   sandboxConfig,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:                       uuid.New(),
+		TaskID:                   task.ID,
+		AgentProfileID:           profileID, // May be nil if inline config used
+		Tag:                      req.Tag,   // Custom tag for identification
+		SourceRunIDs:             req.SourceRunIDs,
+		SourceInvestigationRunID: req.SourceInvestigationRunID,
+		RunMode:                  runMode,
+		Status:                   domain.RunStatusPending,
+		Phase:                    domain.RunPhaseQueued,
+		ProgressPercent:          0,
+		IdempotencyKey:           req.IdempotencyKey,
+		ApprovalState:            domain.ApprovalStateNone,
+		ResolvedConfig:           resolvedConfig,
+		SandboxConfig:            sandboxConfig,
+		CreatedAt:                time.Now(),
+		UpdatedAt:                time.Now(),
 	}
 	if run.ResolvedConfig != nil {
 		run.ResolvedConfig.SandboxConfig = sandboxConfig
@@ -1363,10 +1371,12 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 			Limit:  opts.Limit,
 			Offset: opts.Offset,
 		},
-		TaskID:         opts.TaskID,
-		AgentProfileID: opts.AgentProfileID,
-		Status:         opts.Status,
-		TagPrefix:      opts.TagPrefix,
+		TaskID:                    opts.TaskID,
+		AgentProfileID:            opts.AgentProfileID,
+		Status:                    opts.Status,
+		TagPrefix:                 opts.TagPrefix,
+		InvestigatesRunID:         opts.InvestigatesRunID,
+		AppliesInvestigationRunID: opts.AppliesInvestigationRunID,
 	})
 	if err != nil {
 		return nil, err

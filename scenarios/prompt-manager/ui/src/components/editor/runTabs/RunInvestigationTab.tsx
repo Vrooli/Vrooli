@@ -1,22 +1,15 @@
 /**
  * RunInvestigationTab - Investigation agent tab.
  *
- * States:
- * 1. Not started: "Investigate" button + depth selector + optional custom context
- * 2. Running: EventsDisplay for investigation run + Stop
- * 3. Completed: Events + message input for follow-up + "Apply Recommendations"
- * 4. Follow-up running: Updated events stream
- *
  * Flow:
- * - "Investigate" -> createInvestigationRun([runId])
- * - Poll events via EventsDisplay
- * - Follow-up -> continueRun(investigationRunId, message)
- * - "Apply" -> createInvestigationApplyRun(investigationRunId)
- * - On mount: check listRuns({tagPrefix:"investigate-"}) for existing investigations
+ * - Discover investigations linked to this run via investigates_run_id filter
+ * - "Investigate" starts a new investigation run
+ * - Follow-up supports both continue current run and start-new-investigation
+ * - "Apply" starts investigation-apply run from selected investigation
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search as SearchIcon, Loader2, Play, MessageSquare, Wrench, ChevronDown, Info } from 'lucide-react'
+import { Search as SearchIcon, Loader2, Play, MessageSquare, Wrench, ChevronDown, Info, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EventsDisplay } from '@/components/shared/EventsDisplay'
 import {
@@ -41,40 +34,76 @@ const DEPTH_OPTIONS: { value: DepthOption; label: string; description: string }[
   { value: 'deep', label: 'Deep', description: 'Thorough deep dive' },
 ]
 
-type InvestigationState =
-  | { phase: 'idle' }
-  | { phase: 'running'; investigationRun: RunDetails; depth?: string; customContext?: string }
-  | { phase: 'completed'; investigationRun: RunDetails; depth?: string; customContext?: string }
-  | { phase: 'followup'; investigationRun: RunDetails; depth?: string; customContext?: string }
-  | { phase: 'applying'; applyRun: RunDetails; investigationRun: RunDetails; depth?: string; customContext?: string }
+function isActiveStatus(status: string): boolean {
+  return status === 'running' || status === 'pending' || status === 'starting'
+}
+
+function formatRunLabel(run: RunDetails, index: number): string {
+  const ts = run.startedAt || run.endedAt || ''
+  if (!ts) return `Investigation ${index + 1}`
+  const parsed = new Date(ts)
+  if (Number.isNaN(parsed.getTime())) return `Investigation ${index + 1}`
+  return `Investigation ${index + 1} · ${parsed.toLocaleString()}`
+}
 
 export function RunInvestigationTab({ runId, className }: RunInvestigationTabProps) {
-  const [state, setState] = useState<InvestigationState>({ phase: 'idle' })
+  const [investigations, setInvestigations] = useState<RunDetails[]>([])
+  const [selectedInvestigationId, setSelectedInvestigationId] = useState<string | null>(null)
+  const [applyRun, setApplyRun] = useState<RunDetails | null>(null)
+
   const [depth, setDepth] = useState<DepthOption>('standard')
   const [customContext, setCustomContext] = useState('')
   const [followUpMessage, setFollowUpMessage] = useState('')
-  const [isStarting, setIsStarting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+
   const [checkingExisting, setCheckingExisting] = useState(true)
+  const [isStarting, setIsStarting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [systemContextOpen, setSystemContextOpen] = useState(false)
 
-  // Check for existing investigation runs on mount
+  const selectedInvestigation = investigations.find((r) => r.id === selectedInvestigationId) ?? null
+
+  const loadInvestigations = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setIsRefreshing(true)
+    try {
+      const response = await listRuns({
+        investigatesRunId: runId,
+        limit: 50,
+      })
+      const runs = response.runs
+      setInvestigations(runs)
+      if (runs.length === 0) {
+        setSelectedInvestigationId(null)
+      } else if (!selectedInvestigationId || !runs.some((r) => r.id === selectedInvestigationId)) {
+        const firstRun = runs[0]
+        if (firstRun) {
+          setSelectedInvestigationId(firstRun.id)
+        }
+      }
+    } catch (err) {
+      if (showSpinner) {
+        setError(err instanceof Error ? err.message : 'Failed to refresh investigations')
+      }
+    } finally {
+      if (showSpinner) setIsRefreshing(false)
+    }
+  }, [runId, selectedInvestigationId])
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
-        const response = await listRuns({ tagPrefix: `investigate-${runId}` })
+        const response = await listRuns({
+          investigatesRunId: runId,
+          limit: 50,
+        })
         if (cancelled) return
-        const existing = response.runs[0]
-        if (existing) {
-          if (existing.status === 'running' || existing.status === 'pending') {
-            setState({ phase: 'running', investigationRun: existing })
-          } else if (existing.status === 'completed') {
-            setState({ phase: 'completed', investigationRun: existing })
-          }
-        }
+        const runs = response.runs
+        setInvestigations(runs)
+        const firstRun = runs[0]
+        if (firstRun) setSelectedInvestigationId(firstRun.id)
       } catch {
-        // Ignore - just start fresh
+        // Start with idle state if lookup fails
       } finally {
         if (!cancelled) setCheckingExisting(false)
       }
@@ -82,45 +111,51 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
     return () => { cancelled = true }
   }, [runId])
 
-  // Poll investigation run status when running
   useEffect(() => {
-    if (state.phase !== 'running' && state.phase !== 'followup') return
-    const invRun = state.investigationRun
-
-    const poll = async () => {
-      try {
-        const updated = await getRunDetails(invRun.id)
-        if (updated.status === 'completed' || updated.status === 'failed') {
-          setState((prev) => {
-            if (prev.phase === 'running' || prev.phase === 'followup') {
-              return { phase: 'completed', investigationRun: updated, depth: prev.depth, customContext: prev.customContext }
-            }
-            return prev
-          })
+    if (!selectedInvestigation || !isActiveStatus(selectedInvestigation.status)) return
+    const id = selectedInvestigation.id
+    const interval = setInterval(() => {
+      void (async () => {
+        try {
+          const updated = await getRunDetails(id)
+          setInvestigations((prev) => prev.map((r) => (r.id === id ? updated : r)))
+        } catch {
+          // ignore transient poll errors
         }
-      } catch {
-        // Ignore poll errors
-      }
-    }
-
-    const interval = setInterval(() => void poll(), 3000)
+      })()
+    }, 3000)
     return () => clearInterval(interval)
-  }, [state])
+  }, [selectedInvestigation])
 
-  const handleInvestigate = useCallback(async () => {
+  useEffect(() => {
+    if (!applyRun || !isActiveStatus(applyRun.status)) return
+    const id = applyRun.id
+    const interval = setInterval(() => {
+      void (async () => {
+        try {
+          const updated = await getRunDetails(id)
+          setApplyRun(updated)
+        } catch {
+          // ignore transient poll errors
+        }
+      })()
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [applyRun])
+
+  const handleInvestigate = useCallback(async (message?: string) => {
     setIsStarting(true)
     setError(null)
     try {
       const invRun = await createInvestigationRun([runId], {
         depth,
-        customContext: customContext || undefined,
+        customContext: message ?? (customContext || undefined),
       })
-      setState({
-        phase: 'running',
-        investigationRun: invRun,
-        depth,
-        customContext: customContext || undefined,
-      })
+      setInvestigations((prev) => [invRun, ...prev])
+      setSelectedInvestigationId(invRun.id)
+      if (!message) {
+        setCustomContext('')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start investigation')
     } finally {
@@ -128,28 +163,35 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
     }
   }, [runId, depth, customContext])
 
-  const handleFollowUp = useCallback(async () => {
-    if (state.phase !== 'completed' || !followUpMessage.trim()) return
+  const handleContinue = useCallback(async () => {
+    if (!selectedInvestigation || !followUpMessage.trim()) return
     setError(null)
     try {
-      await continueRun(state.investigationRun.id, followUpMessage)
-      setState({ phase: 'followup', investigationRun: state.investigationRun, depth: state.depth, customContext: state.customContext })
+      await continueRun(selectedInvestigation.id, followUpMessage)
+      const updated = await getRunDetails(selectedInvestigation.id)
+      setInvestigations((prev) => prev.map((r) => (r.id === selectedInvestigation.id ? updated : r)))
       setFollowUpMessage('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send follow-up')
     }
-  }, [state, followUpMessage])
+  }, [selectedInvestigation, followUpMessage])
+
+  const handleNewInvestigationFromFollowup = useCallback(async () => {
+    if (!followUpMessage.trim()) return
+    await handleInvestigate(followUpMessage.trim())
+    setFollowUpMessage('')
+  }, [followUpMessage, handleInvestigate])
 
   const handleApply = useCallback(async () => {
-    if (state.phase !== 'completed') return
+    if (!selectedInvestigation) return
     setError(null)
     try {
-      const applyRun = await createInvestigationApplyRun(state.investigationRun.id)
-      setState({ phase: 'applying', applyRun, investigationRun: state.investigationRun, depth: state.depth, customContext: state.customContext })
+      const nextApplyRun = await createInvestigationApplyRun(selectedInvestigation.id)
+      setApplyRun(nextApplyRun)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply recommendations')
     }
-  }, [state])
+  }, [selectedInvestigation])
 
   if (checkingExisting) {
     return (
@@ -159,18 +201,6 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
     )
   }
 
-  // Config summary shown for running/completed/followup/applying states
-  const configSummary = state.phase !== 'idle' && (state.depth || state.customContext) ? (
-    <div className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
-      {state.depth && (
-        <p><span className="font-medium text-foreground">Depth:</span> {DEPTH_OPTIONS.find((d) => d.value === state.depth)?.label ?? state.depth}</p>
-      )}
-      {state.customContext && (
-        <p><span className="font-medium text-foreground">Custom context:</span> {state.customContext}</p>
-      )}
-    </div>
-  ) : null
-
   return (
     <div className={cn('flex flex-col gap-4', className)}>
       {error && (
@@ -179,8 +209,7 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
         </div>
       )}
 
-      {/* Idle state: start investigation */}
-      {state.phase === 'idle' && (
+      {!selectedInvestigation && (
         <div className="space-y-4">
           <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
             <SearchIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -192,7 +221,6 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
             </div>
           </div>
 
-          {/* Depth selector */}
           <div>
             <label className="text-xs text-muted-foreground block mb-2">Investigation Depth</label>
             <div className="inline-flex rounded-lg border border-border overflow-hidden">
@@ -216,11 +244,8 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
             </div>
           </div>
 
-          {/* Investigation Context */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground block">Investigation Context</label>
-
-            {/* Collapsible system context info */}
             <button
               type="button"
               onClick={() => setSystemContextOpen(!systemContextOpen)}
@@ -237,23 +262,18 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
               </div>
             )}
 
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">
-                Custom Context (your additions)
-              </label>
-              <textarea
-                value={customContext}
-                onChange={(e) => setCustomContext(e.target.value)}
-                placeholder="Describe what you expected or any specific areas to investigate..."
-                className={cn(
-                  'w-full px-3 py-2 text-sm rounded-md border border-border bg-muted',
-                  'text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary',
-                  'resize-y min-h-[60px]'
-                )}
-                rows={3}
-              />
-            </div>
+            <textarea
+              value={customContext}
+              onChange={(e) => setCustomContext(e.target.value)}
+              placeholder="Describe what you expected or any specific areas to investigate..."
+              className={cn(
+                'w-full px-3 py-2 text-sm rounded-md border border-border bg-muted',
+                'text-foreground placeholder:text-muted-foreground',
+                'focus:outline-none focus:ring-2 focus:ring-primary',
+                'resize-y min-h-[60px]'
+              )}
+              rows={3}
+            />
           </div>
 
           <button
@@ -266,106 +286,125 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
               isStarting && 'opacity-50 cursor-not-allowed'
             )}
           >
-            {isStarting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
+            {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             {isStarting ? 'Starting...' : 'Investigate'}
           </button>
         </div>
       )}
 
-      {/* Running state: show events */}
-      {(state.phase === 'running' || state.phase === 'followup') && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </span>
-            <span className="text-xs font-medium text-emerald-400">Investigation in progress</span>
-          </div>
-          {configSummary}
-          <EventsDisplay
-            runId={state.investigationRun.id}
-            live
-          />
-        </div>
-      )}
-
-      {/* Completed state: events + follow-up + apply */}
-      {state.phase === 'completed' && (
+      {selectedInvestigation && (
         <div className="space-y-4">
-          {configSummary}
-          <EventsDisplay
-            runId={state.investigationRun.id}
-          />
-
-          {/* Follow-up input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={followUpMessage}
-              onChange={(e) => setFollowUpMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && followUpMessage.trim()) {
-                  void handleFollowUp()
-                }
-              }}
-              placeholder="Ask a follow-up question..."
-              className={cn(
-                'flex-1 px-3 py-2 text-sm rounded-md border border-border bg-muted',
-                'text-foreground placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-primary'
-              )}
-            />
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Investigation history for run <span className="font-mono text-foreground">{runId}</span>
+            </p>
             <button
               type="button"
-              onClick={() => void handleFollowUp()}
-              disabled={!followUpMessage.trim()}
-              className={cn(
-                'p-2 rounded-lg transition-colors',
-                followUpMessage.trim()
-                  ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                  : 'bg-muted text-muted-foreground cursor-not-allowed'
-              )}
-              title="Send follow-up"
+              onClick={() => void loadInvestigations(true)}
+              className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              <MessageSquare className="h-4 w-4" />
+              <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} /> Refresh
             </button>
           </div>
 
-          {/* Apply button */}
-          <button
-            type="button"
-            onClick={() => void handleApply()}
-            className={cn(
-              'flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
-              'border border-primary text-primary hover:bg-primary/10'
-            )}
-          >
-            <Wrench className="h-4 w-4" />
-            Apply Recommendations
-          </button>
-        </div>
-      )}
-
-      {/* Applying state */}
-      {state.phase === 'applying' && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-            </span>
-            <span className="text-xs font-medium text-amber-400">Applying recommendations</span>
+          <div className="flex flex-wrap gap-2">
+            {investigations.map((run, idx) => (
+              <button
+                key={run.id}
+                type="button"
+                onClick={() => setSelectedInvestigationId(run.id)}
+                className={cn(
+                  'rounded-md border px-2 py-1 text-xs',
+                  selectedInvestigationId === run.id
+                    ? 'border-primary text-primary bg-primary/10'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                )}
+                title={run.id}
+              >
+                {formatRunLabel(run, idx)}
+              </button>
+            ))}
           </div>
-          {configSummary}
+
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                'h-2.5 w-2.5 rounded-full',
+                isActiveStatus(selectedInvestigation.status) && 'bg-emerald-500',
+                selectedInvestigation.status === 'completed' && 'bg-blue-500',
+                selectedInvestigation.status === 'failed' && 'bg-red-500',
+                !isActiveStatus(selectedInvestigation.status) && selectedInvestigation.status !== 'completed' && selectedInvestigation.status !== 'failed' && 'bg-slate-500'
+              )}
+            />
+            <span className="text-xs text-muted-foreground">
+              Selected investigation status: <span className="font-medium text-foreground">{selectedInvestigation.status}</span>
+            </span>
+          </div>
+
           <EventsDisplay
-            runId={state.applyRun.id}
-            live
+            runId={selectedInvestigation.id}
+            live={isActiveStatus(selectedInvestigation.status)}
           />
+
+          {!isActiveStatus(selectedInvestigation.status) && (
+            <>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={followUpMessage}
+                  onChange={(e) => setFollowUpMessage(e.target.value)}
+                  placeholder="Ask follow-up or start a fresh investigation from this message..."
+                  className={cn(
+                    'flex-1 px-3 py-2 text-sm rounded-md border border-border bg-muted',
+                    'text-foreground placeholder:text-muted-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-primary'
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleContinue()}
+                  disabled={!followUpMessage.trim()}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium',
+                    followUpMessage.trim()
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  )}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" /> Continue current
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleNewInvestigationFromFollowup()}
+                  disabled={!followUpMessage.trim() || isStarting}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium border border-primary',
+                    followUpMessage.trim() && !isStarting
+                      ? 'text-primary hover:bg-primary/10'
+                      : 'text-muted-foreground border-border cursor-not-allowed'
+                  )}
+                >
+                  <Play className="h-3.5 w-3.5" /> Start new investigation
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void handleApply()}
+                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-primary text-primary hover:bg-primary/10"
+              >
+                <Wrench className="h-4 w-4" />
+                Apply Recommendations
+              </button>
+            </>
+          )}
+
+          {applyRun && (
+            <div className="space-y-2">
+              <p className="text-xs text-amber-400 font-medium">Apply run ({applyRun.status})</p>
+              <EventsDisplay runId={applyRun.id} live={isActiveStatus(applyRun.status)} />
+            </div>
+          )}
         </div>
       )}
     </div>

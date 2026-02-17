@@ -334,7 +334,8 @@ func (a *Application) initializeComponents() error {
 	a.taskRecycler.SetCoordinator(coord)
 
 	// Initialize handlers
-	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService, coord, queueStateRepo)
+	targetValidator := handlers.NewFSTargetValidator(a.projectRoot)
+	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService, coord, queueStateRepo, targetValidator)
 	a.queueHandlers = handlers.NewQueueHandlers(a.processor, a.wsManager, a.storage, coord)
 	a.discoveryHandlers = handlers.NewDiscoveryHandlers(a.assembler)
 	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler, queueDir, a.db, apiVersion)

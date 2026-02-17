@@ -130,7 +130,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	}
 	testRecycler.SetCoordinator(coord)
 
-	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil)
+	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil, nil)
 	queueHandlers := NewQueueHandlers(processor, wsManager, storage, coord)
 	healthHandlers := NewHealthHandlers(processor, nil, queueDir, nil, "test-version")
 	discoveryHandlers := NewDiscoveryHandlers(assembler)
@@ -555,6 +555,107 @@ func TestTaskHandlers_CreateTask(t *testing.T) {
 	})
 }
 
+func TestTaskHandlers_CreateTask_TargetValidation(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	// Create a real scenario directory so "existing-scenario" passes validation
+	scenariosDir := filepath.Join(tempDir, "scenarios", "existing-scenario")
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
+		t.Fatalf("Failed to create scenario dir: %v", err)
+	}
+
+	validator := NewFSTargetValidator(tempDir)
+
+	queueDir := filepath.Join(tempDir, "queue")
+	promptsDir := filepath.Join(tempDir, "prompts")
+	storage := tasks.NewStorage(queueDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create assembler: %v", err)
+	}
+	wsManager := websocket.NewManager()
+	fp := &fakeProcessor{}
+	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, validator)
+
+	t.Run("RejectsNonexistentTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "improver",
+			"target":    "nonexistent-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Response: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "not found") {
+			t.Errorf("Expected 'not found' in error, got: %s", w.Body.String())
+		}
+	})
+
+	t.Run("AcceptsExistingTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "improver",
+			"target":    "existing-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("DryRunAlsoValidatesTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "improver",
+			"target":    "nonexistent-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Dry-Run", "true")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for dry-run with bad target, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("GeneratorSkipsTargetValidation", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "generator",
+			"target":    "brand-new-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		// Generator tasks should succeed even for nonexistent targets
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
+}
+
 func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
@@ -827,7 +928,7 @@ func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil)
+	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, nil)
 
 	completed := mustSaveTask(t, taskHandlers.storage, "completed", tasks.TaskItem{
 		ID:        "status-task",
@@ -886,7 +987,7 @@ func TestTaskHandlers_UpdateTaskStatus_CooldownConflict(t *testing.T) {
 	}
 
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, &fakeProcessor{}, wsManager, nil, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, &fakeProcessor{}, wsManager, nil, nil, nil, nil)
 
 	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
 	task := mustSaveTask(t, storage, "failed", tasks.TaskItem{
@@ -964,7 +1065,7 @@ func TestUpdateTaskHandler_ActiveToPendingTriggersProcessStopsAndWake(t *testing
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, nil)
 
 	task := mustSaveTask(t, storage, "in-progress", tasks.TaskItem{
 		ID:                   "active-task",
@@ -1020,7 +1121,7 @@ func TestUpdateTaskHandler_PendingToActiveTriggersForceStart(t *testing.T) {
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, nil)
 
 	task := mustSaveTask(t, storage, "pending", tasks.TaskItem{
 		ID:                   "pending-task",

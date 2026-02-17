@@ -169,7 +169,7 @@ type healthResponse struct {
 func (a *App) cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -225,7 +225,7 @@ func (a *App) cmdSearch(args []string) error {
 	ingestedBefore := fs.String("ingested-before", "", "Filter records ingested before RFC3339 timestamp")
 	limit := fs.Int("limit", 0, "Maximum number of results")
 	threshold := fs.Float64("threshold", 0, "Score threshold")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -267,7 +267,7 @@ func (a *App) cmdGraph(args []string) error {
 	depth := fs.Int("depth", 0, "Graph traversal depth")
 	limit := fs.Int("limit", 0, "Maximum number of nodes")
 	threshold := fs.Float64("threshold", 0, "Score threshold")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -385,7 +385,7 @@ func (a *App) cmdDocsSearchFiles(args []string) error {
 	basePath := fs.String("base-path", "", "Base path (required for scope=path)")
 	limit := fs.Int("limit", 0, "Maximum number of results")
 	includeContent := fs.Bool("include-content", false, "Include content preview")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -425,7 +425,7 @@ func (a *App) cmdDocsSearchText(args []string) error {
 	caseSensitive := fs.Bool("case-sensitive", false, "Case-sensitive search")
 	limit := fs.Int("limit", 0, "Maximum number of results")
 	contextLines := fs.Int("context-lines", 0, "Lines of context before/after matches")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -467,7 +467,7 @@ func (a *App) cmdDocsSearchDeep(args []string) error {
 	followRefs := fs.Bool("follow-refs", true, "Follow documentation references")
 	timeoutSeconds := fs.Int("timeout-seconds", 0, "Agent timeout in seconds")
 	wait := fs.Bool("wait", true, "Wait for results to complete")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -533,7 +533,7 @@ func (a *App) cmdDocsSearchDeep(args []string) error {
 
 func (a *App) cmdDocsScenarios(args []string) error {
 	fs := flag.NewFlagSet("docs scenarios", flag.ContinueOnError)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -547,7 +547,7 @@ func (a *App) cmdDocsScenarios(args []string) error {
 func (a *App) cmdDocsTree(args []string) error {
 	fs := flag.NewFlagSet("docs tree", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -573,7 +573,7 @@ func (a *App) cmdDocsHealth(args []string) error {
 	fs := flag.NewFlagSet("docs health", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -607,7 +607,7 @@ func (a *App) cmdDocsView(args []string) error {
 	path := fs.String("path", "", "Document path")
 	format := fs.String("format", "raw", "Output format: raw (default, content only) or json (full response)")
 	jsonOut := fs.Bool("json", false, "Output full JSON response (shorthand for --format json)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -645,7 +645,7 @@ func (a *App) cmdDocsReset(args []string) error {
 	maxAgeDays := fs.Int("max-age-days", 0, "Remove entries older than N days")
 	keepMin := fs.Int("keep-min-entries", 0, "Always keep at least N entries")
 	preview := fs.Bool("preview", false, "Preview changes without writing")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -678,7 +678,7 @@ func (a *App) cmdDocsHeal(args []string) error {
 	autoApprove := fs.Bool("auto-approve", false, "Auto-approve if health improves")
 	dryRun := fs.Bool("dry-run", false, "Preview only (no apply)")
 	wait := fs.Bool("wait", false, "Wait for job completion")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -731,7 +731,7 @@ func (a *App) cmdDocsHeal(args []string) error {
 func (a *App) cmdDocsHealStatus(args []string) error {
 	fs := flag.NewFlagSet("docs heal-status", flag.ContinueOnError)
 	jobID := fs.String("job-id", "", "Healing job ID")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	jobValue := strings.TrimSpace(*jobID)
@@ -752,7 +752,7 @@ func (a *App) cmdDocsAutoFix(args []string) error {
 	fs := flag.NewFlagSet("docs autofix", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
 	dryRun := fs.Bool("dry-run", false, "Preview only (no moves)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -808,7 +808,7 @@ func (a *App) cmdDocsRead(args []string) error {
 	doc := fs.String("doc", "", "Document type (problems, progress, seams, invariants, assumptions, error-semantics, security-posture, temporal-flows, coherence-notes, experience-audit, quickstart, architecture, glossary, prd, readme, manifest)")
 	format := fs.String("format", "raw", "Output format: raw (default, content only) or json (full response)")
 	jsonOut := fs.Bool("json", false, "Output full JSON response (shorthand for --format json)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -856,7 +856,7 @@ func (a *App) cmdDocsAdd(args []string) error {
 	body := fs.String("body", "", "Entry body/notes")
 	author := fs.String("author", "", "Author (for progress entries)")
 	status := fs.String("status", "", "Status (for progress entries)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -886,7 +886,7 @@ func (a *App) cmdDocsStats(args []string) error {
 	fs := flag.NewFlagSet("docs stats", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Filter by scenario name")
 	doc := fs.String("doc", "", "Filter by document type")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -908,7 +908,7 @@ func (a *App) cmdDocsStats(args []string) error {
 func (a *App) cmdDocsTemplates(args []string) error {
 	fs := flag.NewFlagSet("docs templates", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -934,7 +934,7 @@ func (a *App) cmdDocsTemplates(args []string) error {
 func (a *App) cmdDocsTemplate(args []string) error {
 	fs := flag.NewFlagSet("docs template", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output full JSON response")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -966,7 +966,7 @@ func (a *App) cmdDocsAudit(args []string) error {
 	fs := flag.NewFlagSet("docs audit", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1007,7 +1007,7 @@ func (a *App) cmdIngest(args []string) error {
 	source := fs.String("source", "", "Source identifier")
 	sourceType := fs.String("source-type", "", "Source type")
 	content := fs.String("content", "", "Content string (or pass as arg/stdin)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1062,7 +1062,7 @@ func (a *App) cmdIngestJob(args []string) error {
 	chunkSize := fs.Int("chunk-size", 0, "Chunk size (default handled by API)")
 	chunkOverlap := fs.Int("chunk-overlap", 0, "Chunk overlap (default handled by API)")
 	content := fs.String("content", "", "Content string (or pass as arg/stdin)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1145,7 +1145,7 @@ func (a *App) cmdIngestHealth(args []string) error {
 	fs := flag.NewFlagSet("ingest-health", flag.ContinueOnError)
 	watch := fs.Bool("watch", false, "Poll ingest health continuously")
 	intervalRaw := fs.String("interval", "5s", "Polling interval when --watch is set")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1295,7 +1295,7 @@ func (a *App) cmdDocumentDelete(args []string) error {
 	externalID := fs.String("external-id", "", "External ID mapped to document")
 	dryRun := fs.Bool("dry-run", true, "Preview candidates without deleting")
 	apply := fs.Bool("apply", false, "Execute deletions (overrides --dry-run)")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -1334,7 +1334,7 @@ func (a *App) cmdHealth(args []string) error {
 	fs := flag.NewFlagSet("health", flag.ContinueOnError)
 	watch := fs.Bool("watch", false, "Poll health metrics continuously")
 	intervalRaw := fs.String("interval", "5s", "Polling interval when --watch is set")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

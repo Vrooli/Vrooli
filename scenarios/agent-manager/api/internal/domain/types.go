@@ -293,6 +293,12 @@ type Run struct {
 	// For OpenCode: sessionID from stream events
 	SessionID string `json:"sessionId,omitempty" db:"session_id"`
 
+	// Investigation lineage fields
+	// SourceRunIDs links investigation runs back to the run(s) being investigated.
+	SourceRunIDs []uuid.UUID `json:"sourceRunIds,omitempty" db:"source_run_ids"`
+	// SourceInvestigationRunID links apply runs back to the investigation run they apply.
+	SourceInvestigationRunID *uuid.UUID `json:"sourceInvestigationRunId,omitempty" db:"source_investigation_run_id"`
+
 	// Recommendation extraction state (for investigation runs)
 	// Recommendations are extracted passively after investigation runs complete.
 	RecommendationStatus   RecommendationStatus `json:"recommendationStatus,omitempty" db:"recommendation_status"`

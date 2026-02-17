@@ -177,6 +177,11 @@ func (db *DB) initSchema() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultMigrationTimeout)
 	defer cancel()
 
+	if err := db.ensureRunsTableCompatibility(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to prepare runs table compatibility")
+		return err
+	}
+
 	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
@@ -188,6 +193,63 @@ func (db *DB) initSchema() error {
 	}
 
 	db.log.Info("Database schema initialized successfully")
+	return nil
+}
+
+func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
+	var runsTableCount int
+	if err := db.GetContext(ctx, &runsTableCount, `
+		SELECT COUNT(*)
+		FROM sqlite_master
+		WHERE type = 'table' AND name = 'runs'
+	`); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "schema_preflight",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+	if runsTableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('runs')"); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "schema_preflight",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+
+	hasColumn := make(map[string]bool, len(columns))
+	for _, col := range columns {
+		hasColumn[col.Name] = true
+	}
+
+	if !hasColumn["source_run_ids"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN source_run_ids TEXT DEFAULT '[]'"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["source_investigation_run_id"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN source_investigation_run_id TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
 	return nil
 }
 

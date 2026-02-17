@@ -61,6 +61,8 @@ func route(ctx appctx.Context, args []string) error {
 	subArgs := args[1:]
 
 	switch subcommand {
+	case "help":
+		return printUsage()
 	case "status":
 		return cmdStatus(ctx, subArgs)
 	case "start":

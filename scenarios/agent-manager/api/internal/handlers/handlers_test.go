@@ -1553,6 +1553,60 @@ func TestListRuns_WithMultipleFilters(t *testing.T) {
 	}
 }
 
+// TestListRuns_WithInvestigatesRunIDFilter tests listing runs with investigates_run_id filter.
+func TestListRuns_WithInvestigatesRunIDFilter(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	sourceRunID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?investigates_run_id="+sourceRunID, nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+}
+
+// TestListRuns_WithAppliesInvestigationRunIDFilter tests listing runs with applies_investigation_run_id filter.
+func TestListRuns_WithAppliesInvestigationRunIDFilter(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	investigationRunID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?applies_investigation_run_id="+investigationRunID, nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+}
+
+// TestListRuns_WithInvalidInvestigatesRunID tests validation for investigates_run_id.
+func TestListRuns_WithInvalidInvestigatesRunID(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?investigates_run_id=invalid-uuid", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rr.Code)
+	}
+}
+
+// TestListRuns_WithInvalidAppliesInvestigationRunID tests validation for applies_investigation_run_id.
+func TestListRuns_WithInvalidAppliesInvestigationRunID(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?applies_investigation_run_id=invalid-uuid", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rr.Code)
+	}
+}
+
 // =============================================================================
 // UPDATE TASK TESTS
 // =============================================================================

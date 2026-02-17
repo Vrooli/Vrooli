@@ -17,14 +17,15 @@ import (
 
 // TaskCreateRequest represents the request body for creating a task.
 type TaskCreateRequest struct {
-	Title            string `json:"title"`
-	Type             string `json:"type"`
-	Operation        string `json:"operation"`
-	Target           string `json:"target,omitempty"`
-	Category         string `json:"category,omitempty"`
-	Priority         string `json:"priority,omitempty"`
-	SteerMode        string `json:"steer_mode,omitempty"`
-	AutoSteerProfile string `json:"auto_steer_profile_id,omitempty"`
+	Title            string   `json:"title"`
+	Type             string   `json:"type"`
+	Operation        string   `json:"operation"`
+	Target           string   `json:"target,omitempty"`
+	Category         string   `json:"category,omitempty"`
+	Priority         string   `json:"priority,omitempty"`
+	SteerMode        string   `json:"steer_mode,omitempty"`
+	SteeringQueue    []string `json:"steering_queue,omitempty"`
+	AutoSteerProfile string   `json:"auto_steer_profile_id,omitempty"`
 }
 
 // TaskResponse represents a task from the API.
@@ -110,6 +111,8 @@ func route(ctx appctx.Context, args []string) error {
 	subArgs := args[1:]
 
 	switch subcommand {
+	case "help":
+		return printUsage()
 	case "add":
 		return cmdAdd(ctx, subArgs)
 	case "improve":
@@ -147,8 +150,8 @@ Subcommands:
 func cmdAdd(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("add", flag.ContinueOnError)
 	steerProfile := fs.String("steer-profile", "", "Auto-steer profile ID")
-	steerQueue := fs.String("steer-queue", "", "Single steer mode (e.g. test)")
-	steerMode := fs.String("steer-mode", "", "Steer mode (alias for --steer-queue)")
+	steerMode := fs.String("steer-mode", "", "Single steer mode (e.g. test)")
+	steerQueue := fs.String("steer-queue", "", "Comma-separated ordered list of steer modes (improver tasks only)")
 	priority := fs.String("priority", "medium", "Priority (low, medium, high, critical)")
 	category := fs.String("category", "general", "Category")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
@@ -157,7 +160,7 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: task add [resource|scenario] <name> [--steer-profile ID] [--steer-queue mode] [--priority P] [--category C] [--json]")
+		return fmt.Errorf("usage: task add [resource|scenario] <name> [--steer-profile ID] [--steer-mode mode] [--steer-queue modes] [--priority P] [--category C] [--json]")
 	}
 
 	typeName := fs.Arg(0)
@@ -178,11 +181,11 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	if *steerProfile != "" {
 		req.AutoSteerProfile = *steerProfile
 	}
-	if *steerQueue != "" {
-		req.SteerMode = *steerQueue
-	}
 	if *steerMode != "" {
 		req.SteerMode = *steerMode
+	}
+	if *steerQueue != "" {
+		req.SteeringQueue = parseSteerQueue(*steerQueue)
 	}
 
 	var resp TaskCreateResponse
@@ -209,8 +212,8 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 func cmdImprove(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("improve", flag.ContinueOnError)
 	steerProfile := fs.String("steer-profile", "", "Auto-steer profile ID")
-	steerQueue := fs.String("steer-queue", "", "Single steer mode (e.g. test)")
-	steerMode := fs.String("steer-mode", "", "Steer mode (alias for --steer-queue)")
+	steerMode := fs.String("steer-mode", "", "Single steer mode (e.g. test)")
+	steerQueue := fs.String("steer-queue", "", "Comma-separated ordered list of steer modes (improver tasks only)")
 	priority := fs.String("priority", "medium", "Priority (low, medium, high, critical)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -218,7 +221,7 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: task improve [resource|scenario] <name> [--steer-profile ID] [--steer-queue mode] [--priority P] [--json]")
+		return fmt.Errorf("usage: task improve [resource|scenario] <name> [--steer-profile ID] [--steer-mode mode] [--steer-queue modes] [--priority P] [--json]")
 	}
 
 	typeName := fs.Arg(0)
@@ -239,11 +242,11 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 	if *steerProfile != "" {
 		req.AutoSteerProfile = *steerProfile
 	}
-	if *steerQueue != "" {
-		req.SteerMode = *steerQueue
-	}
 	if *steerMode != "" {
 		req.SteerMode = *steerMode
+	}
+	if *steerQueue != "" {
+		req.SteeringQueue = parseSteerQueue(*steerQueue)
 	}
 
 	var resp TaskCreateResponse
@@ -461,4 +464,17 @@ func cmdDelete(ctx appctx.Context, args []string) error {
 		fmt.Printf("Task deleted: %s\n", taskID)
 	}
 	return nil
+}
+
+// parseSteerQueue splits a comma-separated steer queue string into normalized mode entries.
+func parseSteerQueue(raw string) []string {
+	parts := strings.Split(raw, ",")
+	modes := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.ToLower(strings.TrimSpace(p))
+		if trimmed != "" {
+			modes = append(modes, trimmed)
+		}
+	}
+	return modes
 }
