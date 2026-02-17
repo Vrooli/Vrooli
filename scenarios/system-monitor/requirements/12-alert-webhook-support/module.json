@@ -1,0 +1,57 @@
+{
+  "description": "AlertService in api/internal/services/alert.go implements webhook POST with cooldown. Configured via ALERT_WEBHOOK_URL env var. Single webhook destination only (no multiple endpoints or retry logic). Cooldown-based rate limiting.",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "system-monitor-should-have-alert-webhook-support-configured-cooldown-based",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "Implement alert webhook system with configurable endpoints and cooldown periods. System must support multiple webhook destinations, retry logic, and customizable alert formats.",
+      "id": "REQ-P1-002",
+      "prd_ref": "system-monitor-should-have-alert-webhook-support-configured-cooldown-based",
+      "status": "implemented",
+      "title": "Alert Webhook Support",
+      "validation": [
+        {
+          "notes": "Verify webhook payload formatting",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test cooldown logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm successful delivery to test endpoints",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Alert delivery \u003c 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Alerts reliably reach external systems",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Alert webhook support (configured, cooldown-based)"
+}

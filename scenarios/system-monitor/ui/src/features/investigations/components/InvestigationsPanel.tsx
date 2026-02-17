@@ -51,15 +51,13 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     return (
       <div
         key={investigation.id}
-        className="investigation-item"
+        className="investigation-item hover-bg-dark"
         style={{
           padding: 'var(--spacing-md)',
           borderBottom: '1px solid var(--color-accent)',
           background: 'rgba(0, 0, 0, 0.2)',
           transition: 'background 0.2s'
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'; }}
       >
         <div style={{
           display: 'flex',

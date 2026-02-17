@@ -1,0 +1,47 @@
+{
+  "scenario": "system-monitor",
+  "documents": [
+    {
+      "id": "prd",
+      "title": "Product Requirements Document",
+      "path": "../PRD.md",
+      "type": "specification",
+      "description": "Full PRD with operational targets, API contract, CLI interface, and architecture"
+    },
+    {
+      "id": "readme",
+      "title": "README",
+      "path": "../README.md",
+      "type": "overview",
+      "description": "Quick-start guide with features, architecture, usage, and configuration"
+    },
+    {
+      "id": "refactoring",
+      "title": "API Refactoring Guide",
+      "path": "../api/REFACTORING.md",
+      "type": "internal",
+      "description": "API architecture refactoring notes, module structure, and migration guide"
+    },
+    {
+      "id": "progress",
+      "title": "Spec Sync Progress",
+      "path": "internal/PROGRESS.md",
+      "type": "internal",
+      "description": "Tracks spec-sync sessions and unresolved discrepancies"
+    },
+    {
+      "id": "seams",
+      "title": "Seams & Architecture Boundaries",
+      "path": "internal/SEAMS.md",
+      "type": "internal",
+      "description": "Testability boundaries, responsibility zones, and integration seams"
+    },
+    {
+      "id": "problems",
+      "title": "Known Issues & Technical Debt",
+      "path": "internal/PROBLEMS.md",
+      "type": "internal",
+      "description": "Known bugs, test gaps, stability issues, and technical debt"
+    }
+  ]
+}

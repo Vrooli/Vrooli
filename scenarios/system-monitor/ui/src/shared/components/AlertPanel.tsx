@@ -43,7 +43,7 @@ export const AlertPanel = ({ alerts }: AlertPanelProps) => {
               border: '1px solid var(--color-accent)',
               borderRadius: 'var(--border-radius-md)',
               marginBottom: 'var(--spacing-sm)',
-              background: 'rgba(0, 0, 0, 0.5)'
+              background: 'var(--overlay-heavy)'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ 

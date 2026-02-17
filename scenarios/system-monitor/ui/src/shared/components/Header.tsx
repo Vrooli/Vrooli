@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Settings, Terminal, Brain, Loader2, RefreshCcw, ChevronDown, Clock, AlertTriangle, CheckCircle2, XCircle, Square } from 'lucide-react';
 import { StatusIndicator } from './StatusIndicator';
+import { useClickOutside } from '../hooks/useClickOutside';
 import type { InvestigationAgentState } from '../../types';
+import type { SystemHealthStatus } from '../../features/monitoring/hooks/useSystemMonitor';
 
 interface HeaderProps {
   isOnline: boolean;
@@ -13,6 +15,11 @@ interface HeaderProps {
   onRefreshAgents?: () => void;
   onToggleTerminal: () => void;
   onOpenSettings: () => void;
+  healthStatus: SystemHealthStatus | null;
+  healthError: string | null;
+  onToggleMonitoring: () => Promise<void>;
+  onRefreshHealth: () => Promise<void>;
+  isLoadingHealth: boolean;
 }
 
 const terminalStatuses = new Set(['completed', 'error', 'failed', 'stopped', 'cancelled', 'canceled']);
@@ -75,7 +82,7 @@ const statusIconFor = (status: string) => {
 };
 
 export const Header = ({
-  isOnline,
+  _isOnline,
   unreadErrorCount,
   agents,
   onStopAgent,
@@ -83,27 +90,18 @@ export const Header = ({
   agentErrors,
   onRefreshAgents,
   onToggleTerminal,
-  onOpenSettings
+  onOpenSettings,
+  healthStatus,
+  healthError,
+  onToggleMonitoring,
+  onRefreshHealth,
+  isLoadingHealth
 }: HeaderProps) => {
   const [agentsOpen, setAgentsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const closeAgents = useCallback(() => setAgentsOpen(false), []);
 
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      if (!agentsOpen) {
-        return;
-      }
-      const target = event.target as Node;
-      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
-        setAgentsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClick);
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-    };
-  }, [agentsOpen]);
+  useClickOutside(dropdownRef, closeAgents, agentsOpen);
 
   useEffect(() => {
     if (!agentsOpen) {
@@ -187,12 +185,10 @@ export const Header = ({
         gap: '1.5rem'
       }}>
         <h1
-          className="system-monitor-title"
+          className="system-monitor-title icon-text"
           style={{
           margin: 0,
-          fontSize: 'var(--font-size-xl)',
-          display: 'flex',
-          alignItems: 'center'
+          fontSize: 'var(--font-size-xl)'
         }}
         >
           <span style={{ color: 'var(--color-accent)' }}>[</span>
@@ -242,15 +238,13 @@ export const Header = ({
                   boxShadow: 'var(--shadow-glow)'
                 }}
               >
-                <div style={{
+                <div className="text-dim-xs" style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '0.75rem 1rem',
                   borderBottom: '1px solid var(--alpha-accent-12)',
-                  fontSize: 'var(--font-size-xs)',
-                  letterSpacing: '0.1em',
-                  color: 'var(--color-text-dim)'
+                  letterSpacing: '0.1em'
                 }}>
                   <span>ACTIVE AGENTS</span>
                   {onRefreshAgents && (
@@ -333,10 +327,7 @@ export const Header = ({
                             }}>
                               {agent.label ?? `Investigation ${agent.id}`}
                             </div>
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.4rem',
+                            <div className="icon-text icon-text-xs" style={{
                               fontSize: 'var(--font-size-xs)',
                               color
                             }}>
@@ -347,14 +338,12 @@ export const Header = ({
                             </div>
                           </div>
 
-                          <div style={{
+                          <div className="text-dim-xs" style={{
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '0.3rem',
-                            fontSize: 'var(--font-size-xs)',
-                            color: 'var(--color-text-dim)'
+                            gap: '0.3rem'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <div className="icon-text icon-text-xs">
                               <Clock size={12} />
                               <span>{formatDuration(agent.startTime)}</span>
                             </div>
@@ -384,10 +373,8 @@ export const Header = ({
                               type="button"
                               onClick={(event) => handleStopClick(event, agent.id)}
                               disabled={isStopping || isTerminalStatus}
+                              className="icon-text icon-text-xs"
                               style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
                                 padding: '0.35rem 0.75rem',
                                 borderRadius: 'var(--border-radius-sm)',
                                 border: stopButtonBorder,
@@ -411,7 +398,13 @@ export const Header = ({
             )}
           </div>
 
-          <StatusIndicator fallbackOnline={isOnline} />
+          <StatusIndicator
+            healthStatus={healthStatus}
+            healthError={healthError}
+            onToggleMonitoring={onToggleMonitoring}
+            onRefreshHealth={onRefreshHealth}
+            isLoading={isLoadingHealth}
+          />
 
           <button
             className="header-button icon-button"

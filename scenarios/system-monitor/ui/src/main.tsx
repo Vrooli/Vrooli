@@ -124,7 +124,9 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__syste
   window.__systemMonitorBridgeInitialized = true
 }
 
-createRoot(document.getElementById('root')!).render(
+const rootEl = document.getElementById('root');
+if (!rootEl) throw new Error('Root element not found');
+createRoot(rootEl).render(
   <StrictMode>
     <BrowserRouter basename={routerBase}>
       <App />

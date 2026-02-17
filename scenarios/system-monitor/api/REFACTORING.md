@@ -13,16 +13,21 @@ The System Monitor API has been refactored to improve maintainability, scalabili
 ### 2. **Modular Structure**
 ```
 api/
-├── cmd/server/          # Application entry point
+├── cmd/server/              # Application entry point
 ├── internal/
-│   ├── config/         # Configuration management
-│   ├── handlers/       # HTTP request handlers
-│   ├── services/       # Business logic layer
-│   ├── collectors/     # Metric collection implementations
-│   ├── models/         # Data models and structures
-│   ├── repository/     # Data persistence layer
-│   └── middleware/     # HTTP middleware components
-└── pkg/utils/          # Reusable utilities
+│   ├── agentmanager/       # Agent-manager API client and service
+│   ├── config/             # Configuration management
+│   ├── collectors/         # Metric collection implementations (CPU, memory, network, disk, process, GPU)
+│   ├── handlers/           # HTTP request handlers (health, metrics, investigations, reports, settings)
+│   ├── infrastructure/     # Infrastructure monitoring provider
+│   ├── middleware/         # HTTP middleware (logging, auth, CORS)
+│   ├── models/            # Data models and structures
+│   ├── repository/        # Data persistence layer (interfaces + memory implementation)
+│   ├── server/            # Server runtime, router, shutdown, database
+│   ├── services/          # Business logic layer (monitor, investigation, report, settings, alert)
+│   ├── toolexecution/     # Tool execution protocol handler
+│   ├── toolhandlers/      # Tool discovery HTTP handlers
+│   └── toolregistry/      # Tool manifest registry (metrics, investigation, configuration tools)
 ```
 
 ### 3. **Service Layer**

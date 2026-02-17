@@ -68,12 +68,6 @@ export const ErrorBoundaryTest = () => {
           cursor: 'pointer',
           transition: 'all 0.2s'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
       >
         <Bug size={12} />
         Throw Error

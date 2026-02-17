@@ -1,0 +1,57 @@
+{
+  "description": "5 configurable triggers in initialization/configuration/investigation-triggers.json. Threshold evaluation in api/internal/services/monitor.go. Settings endpoints for threshold management.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "system-monitor-must-have-threshold-based-anomaly-detection-with-configurable-triggers",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "System must implement threshold-based anomaly detection with user-configurable warning and critical thresholds for all metric types",
+      "id": "REQ-P0-002",
+      "prd_ref": "system-monitor-must-have-threshold-based-anomaly-detection-with-configurable-triggers",
+      "status": "implemented",
+      "title": "Configurable Anomaly Detection",
+      "validation": [
+        {
+          "notes": "Test threshold configuration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test anomaly detection logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify alerts triggered when thresholds exceeded",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Detection latency \u003c 30s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Alerts visible in dashboard",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Threshold-based anomaly detection with configurable triggers"
+}

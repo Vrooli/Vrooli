@@ -1,0 +1,50 @@
+{
+  "description": "30 scripts exist in investigations/active/. Scripts are executed by the investigation agent directly, not via the API. API script endpoints (ListScripts, GetScript, ExecuteScript) are placeholders: list returns empty array, get/execute return 404. UI has script browser/editor panel.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "system-monitor-must-have-investigation-script-execution-30-scripts-in-investigationsactive-api-script-endpoints-are-placeholders",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "System must support execution of 30 predefined investigation scripts via API endpoints",
+      "id": "REQ-P0-008",
+      "prd_ref": "system-monitor-must-have-investigation-script-execution-30-scripts-in-investigationsactive-api-script-endpoints-are-placeholders",
+      "status": "in-progress",
+      "title": "Investigation Script System",
+      "validation": [
+        {
+          "notes": "Test script execution engine",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify all 30 scripts executable",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Script execution \u003c 30s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Scripts runnable from UI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Investigation script execution (30 scripts in investigations/active/; API script endpoints are placeholders)"
+}

@@ -9,7 +9,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
       style={{
         padding: 'var(--spacing-md)',
         borderBottom: '1px solid var(--color-accent)',
-        background: 'rgba(0, 0, 0, 0.2)'
+        background: 'var(--overlay-light)'
       }}
     >
       {/* Header skeleton */}
@@ -97,7 +97,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
     <div 
       style={{
         padding: 'var(--spacing-md)',
-        background: 'rgba(0, 0, 0, 0.5)',
+        background: 'var(--overlay-heavy)',
         borderRadius: 'var(--border-radius-md)',
         marginBottom: 'var(--spacing-md)'
       }}

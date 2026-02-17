@@ -1,0 +1,57 @@
+{
+  "description": "Webhook channel implemented in api/internal/services/alert.go. Email channel configured in alert service but email sending not implemented (only webhook POST). No configurable routing rules or templates.",
+  "module_id": "MOD-P1-016",
+  "prd_ref": "system-monitor-should-have-alert-routing-to-multiple-channels-webhook-and-email-configured-but-email-not-implemented",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-002"
+      ],
+      "description": "Implement alert routing system supporting multiple channels including webhook and email with configurable rules and templates.",
+      "id": "REQ-P1-006",
+      "prd_ref": "system-monitor-should-have-alert-routing-to-multiple-channels-webhook-and-email-configured-but-email-not-implemented",
+      "status": "in-progress",
+      "title": "Multi-Channel Alert Routing",
+      "validation": [
+        {
+          "notes": "Test route configuration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify email formatting",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate multi-channel delivery",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Route determination \u003c 50ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Alerts reach all configured channels",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Alert routing to multiple channels (webhook and email configured but email not implemented)"
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BarChart, TrendingUp, RefreshCw, Loader } from 'lucide-react';
 import type { SystemReport } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
@@ -6,8 +6,13 @@ import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
 export const ReportsPanel = () => {
   const [reports, setReports] = useState<SystemReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState<string | null>(null); // Track which report is generating
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const loadReports = async (isRefresh = false) => {
     if (isRefresh) {
@@ -21,6 +26,7 @@ export const ReportsPanel = () => {
       // For now, show placeholder data
       await new Promise(resolve => setTimeout(resolve, 800));
       
+      if (!mountedRef.current) return;
       setReports([
         {
           id: 'daily-' + Date.now(),
@@ -59,16 +65,18 @@ export const ReportsPanel = () => {
     } catch (error) {
       console.error('Failed to load reports:', error);
     } finally {
-      if (isRefresh) {
-        setIsRefreshing(false);
-      } else {
-        setLoading(false);
+      if (mountedRef.current) {
+        if (isRefresh) {
+          setIsRefreshing(false);
+        } else {
+          setLoading(false);
+        }
       }
     }
   };
 
   useEffect(() => {
-    loadReports();
+    void loadReports();
   }, []);
 
   const generateReport = async (type: 'daily' | 'weekly') => {
@@ -108,8 +116,8 @@ export const ReportsPanel = () => {
         alerts: [
           {
             timestamp: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString(),
-            severity: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as 'low' | 'medium' | 'high',
-            category: ['CPU', 'Memory', 'Network', 'Disk'][Math.floor(Math.random() * 4)],
+            severity: (['low', 'medium', 'high'] as const)[Math.floor(Math.random() * 3)] ?? 'low',
+            category: (['CPU', 'Memory', 'Network', 'Disk'] as const)[Math.floor(Math.random() * 4)] ?? 'CPU',
             message: 'System resource alert detected',
             resolved: Math.random() > 0.3
           }
@@ -121,13 +129,16 @@ export const ReportsPanel = () => {
         ]
       };
       
+      if (!mountedRef.current) return;
       setReports(prev => [newReport, ...prev]);
       console.log(`${type} report generated successfully`);
-      
+
     } catch (error) {
       console.error('Failed to generate report:', error);
     } finally {
-      setIsGenerating(null);
+      if (mountedRef.current) {
+        setIsGenerating(null);
+      }
     }
   };
 
@@ -229,7 +240,7 @@ export const ReportsPanel = () => {
           reports.map(report => (
             <div key={report.id} className="report-item card" style={{
               padding: 'var(--spacing-md)',
-              background: 'rgba(0, 0, 0, 0.5)',
+              background: 'var(--overlay-heavy)',
               marginBottom: 'var(--spacing-md)',
               cursor: 'pointer',
               transition: 'all var(--transition-fast)'
@@ -257,60 +268,43 @@ export const ReportsPanel = () => {
                   </p>
                 </div>
                 
-                <span style={{
-                  padding: 'var(--spacing-xs) var(--spacing-sm)',
+                <span className="badge" style={{
                   background: 'var(--color-accent)',
-                  color: 'var(--color-background)',
-                  borderRadius: 'var(--border-radius-sm)',
-                  fontSize: 'var(--font-size-xs)',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase'
+                  color: 'var(--color-background)'
                 }}>
                   {report.type}
                 </span>
               </div>
               
-              <div className="report-summary" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: 'var(--spacing-md)',
+              <div className="report-summary detail-grid detail-grid-md" style={{
                 marginBottom: 'var(--spacing-md)'
               }}>
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Avg CPU Usage:
-                  </span>
-                  <span style={{ color: 'var(--color-text-bright)', fontWeight: 'bold' }}>
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Avg CPU Usage:</span>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-text-bright)' }}>
                     {report.summary.avg_cpu_usage.toFixed(1)}%
                   </span>
                 </div>
-                
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Avg Memory Usage:
-                  </span>
-                  <span style={{ color: 'var(--color-text-bright)', fontWeight: 'bold' }}>
+
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Avg Memory Usage:</span>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-text-bright)' }}>
                     {report.summary.avg_memory_usage.toFixed(1)}%
                   </span>
                 </div>
-                
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Total Alerts:
-                  </span>
-                  <span style={{ 
-                    color: report.summary.total_alerts > 0 ? 'var(--color-warning)' : 'var(--color-success)',
-                    fontWeight: 'bold'
+
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Total Alerts:</span>
+                  <span className="summary-stat-value" style={{
+                    color: report.summary.total_alerts > 0 ? 'var(--color-warning)' : 'var(--color-success)'
                   }}>
                     {report.summary.total_alerts}
                   </span>
                 </div>
-                
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Uptime:
-                  </span>
-                  <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>
+
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Uptime:</span>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-success)' }}>
                     {report.summary.uptime_percentage.toFixed(1)}%
                   </span>
                 </div>

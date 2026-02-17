@@ -26,32 +26,39 @@ Real-time system monitoring with AI-driven anomaly detection and automated root 
 
 ### Functional Requirements
 - **Must Have (P0)**
-  - [x] Real-time CPU, memory, disk, network monitoring
-  - [x] AI-powered anomaly detection with Ollama
-  - [x] Automated investigation of system anomalies
-  - [x] Time-series data storage in QuestDB
-  - [x] Configurable warning/critical thresholds
-  - [x] Scheduled HTML report generation
-  - [x] Dark cyberpunk monitoring dashboard
-  
+  - [x] Real-time CPU, memory, disk, network, GPU monitoring
+  - [x] Threshold-based anomaly detection with configurable triggers
+  - [x] Automated investigation of system anomalies via agent-manager
+  - [x] Time-series data storage in QuestDB (configured; API defaults to in-memory with PostgreSQL fallback)
+  - [x] Configurable warning/critical thresholds (via API settings endpoints)
+  - [x] Report generation (daily/weekly via API endpoint)
+  - [x] Dark cyberpunk monitoring dashboard (Matrix-themed React UI)
+  - [x] Investigation script execution (30 scripts in investigations/active/; API script endpoints are placeholders)
+  - [x] Process monitoring and management (zombie detection, process kill — UI has kill dialog but API endpoint `/processes/{pid}/kill` not implemented)
+  - [x] Infrastructure monitoring (database pools, HTTP pools, message queues, storage I/O)
+
 - **Should Have (P1)**
-  - [x] Custom metric collection via API
-  - [x] Alert routing to multiple channels
-  - [x] Historical trend analysis
-  - [x] Resource prediction models
-  - [x] Correlation analysis between metrics
-  
+  - [ ] Historical trend analysis (no timeline endpoint exists; trend analysis implemented only within report generation)
+  - [x] Alert webhook support (configured, cooldown-based)
+  - [x] Investigation cooldown management (configurable period, reset capability)
+  - [x] Agent configuration management (runner type, model, max turns, timeout)
+  - [ ] Custom metric collection via API (no custom metric ingestion endpoint; only built-in collectors)
+  - [ ] Alert routing to multiple channels (webhook and email configured but email not implemented)
+  - [ ] Resource prediction models (not implemented)
+  - [ ] Correlation analysis between metrics (not implemented)
+
 - **Nice to Have (P2)**
   - [ ] Distributed tracing integration
   - [ ] Custom dashboard builder
   - [ ] Mobile monitoring app
+  - [ ] WebSocket real-time updates (type defined but UI uses HTTP polling)
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
 |--------|--------|-------------------|
 | Metric Collection | < 100ms latency | Prometheus scrape duration |
 | Anomaly Detection | < 30s from occurrence | Alert timestamp comparison |
-| Dashboard Refresh | 1s real-time updates | WebSocket latency |
+| Dashboard Refresh | 5s current+detailed metrics, 60s process/infra/investigations, 4s agent status (WebSocket not implemented) | UI polling interval |
 | Query Performance | < 500ms for 24h data | QuestDB query profiling |
 | AI Investigation | < 2min per anomaly | Workflow execution time |
 
@@ -90,7 +97,19 @@ required:
   - resource_name: ollama
     purpose: AI analysis of anomalies (llama3.2:3b)
     integration_pattern: Investigation prompt execution via agent-manager
-    access_method: initialization/claude-code/anomaly-check.md
+    access_method: Agent-manager API integration (api/internal/agentmanager/)
+
+optional:
+  - resource_name: grafana
+    purpose: Advanced visualization dashboards
+    integration_pattern: Optional dashboard integration
+    access_method: GRAFANA_URL env var (disabled by default)
+
+scenario_dependencies:
+  - scenario_name: agent-manager
+    purpose: Orchestrate AI-driven investigations
+    integration_pattern: API calls for agent spawning, status polling, stopping
+    access_method: api/internal/agentmanager/ package
 ```
 
 ### Resource Integration Standards
@@ -117,9 +136,11 @@ integration_priorities:
   3_direct_api:
     - justification: Real-time metric ingestion requires ILP protocol
       endpoint: tcp://localhost:9009 (QuestDB ILP)
-      
-    - justification: WebSocket needed for live dashboard updates
-      endpoint: ws://localhost:${UI_PORT}/metrics
+      note: Configured but API primarily uses in-memory + PostgreSQL fallback
+
+    - justification: Live dashboard updates via HTTP polling
+      endpoint: http://localhost:${API_PORT}/api/v1/metrics/current (5s poll interval)
+      note: WebSocket types defined but not implemented; UI uses HTTP polling
 
 shared_workflow_validation:
   - metric-collector.json collects system telemetry for storage
@@ -128,126 +149,254 @@ shared_workflow_validation:
 
 ### Data Models
 ```yaml
+# PostgreSQL tables (initialization/postgres/schema.sql):
 primary_entities:
-  - name: Metric
-    storage: questdb
-    schema: |
-      {
-        timestamp: timestamp
-        host: symbol
-        metric_name: symbol
-        value: double
-        tags: string
-      }
-    relationships: Time-series data, no foreign keys
-    
-  - name: Anomaly
+  - name: metrics
     storage: postgres
     schema: |
-      {
-        id: UUID
-        detected_at: timestamp
-        metric_name: string
-        severity: enum(low, medium, high, critical)
-        investigation: {
-          status: enum(pending, investigating, resolved)
-          root_cause: text
-          ai_analysis: jsonb
-          resolution: text
-        }
-        resolved_at: timestamp
-      }
-    relationships: References metrics in QuestDB by timestamp
-    
-  - name: Threshold
+      { id: serial PK, metric_name: varchar(255), value: double precision,
+        unit: varchar(50), source: varchar(100), tags: jsonb, timestamp: timestamptz }
+    indexes: [idx_metrics_timestamp, idx_metrics_name]
+
+  - name: anomalies
     storage: postgres
     schema: |
-      {
-        id: UUID
-        metric_name: string
-        warning_value: float
-        critical_value: float
-        comparison: enum(gt, lt, eq)
-        enabled: boolean
-        actions: jsonb
-      }
-    relationships: Triggers anomaly creation
+      { id: serial PK, anomaly_type: varchar(100), severity: varchar(20),
+        detected_at: timestamptz, resolved_at: timestamptz, status: varchar(20) default 'open',
+        description: text, metadata: jsonb }
+    indexes: [idx_anomalies_status]
+
+  - name: investigations
+    storage: postgres
+    schema: |
+      { id: serial PK, anomaly_id: int FK→anomalies, started_at: timestamptz,
+        completed_at: timestamptz, status: varchar(20) default 'pending',
+        agent: varchar(100) default 'claude', findings: text, recommendations: text,
+        metadata: jsonb }
+    indexes: [idx_investigations_anomaly]
+
+  - name: reports
+    storage: postgres
+    schema: |
+      { id: serial PK, report_type: varchar(50), generated_at: timestamptz default now(),
+        period_start: timestamptz, period_end: timestamptz, content: jsonb,
+        metrics_snapshot: jsonb, status: varchar(20) default 'generated' }
+
+  - name: thresholds
+    storage: postgres
+    schema: |
+      { id: serial PK, metric_name: varchar(255) unique, warning_level: double precision,
+        critical_level: double precision, enabled: boolean default true,
+        created_at: timestamptz default now(), updated_at: timestamptz default now() }
+    default_data: [cpu_usage 70/90, memory_usage 80/95, disk_usage 85/95, tcp_connections 500/1000]
+
+  - name: system_health
+    storage: postgres
+    schema: |
+      { id: serial PK, timestamp: timestamptz default now(), cpu_usage: double precision,
+        memory_usage: double precision, disk_usage: double precision,
+        network_rx_bytes: bigint, network_tx_bytes: bigint, tcp_connections: int,
+        process_count: int, load_average: double precision }
+
+# API in-memory models (api/internal/models/):
+api_models:
+  - MetricsResponse: { cpu_usage, memory_usage, tcp_connections, gpu_usage, timestamp }
+  - DetailedMetrics: { cpu, memory, network, gpu, disk, processes, system_health }
+  - Investigation: { id, status, anomaly_id, start/end time, findings, progress, steps, details }
+  - EnhancedSystemReport: { id, type, time range, executive summary, performance, trends, recommendations }
+  - Settings: { metric/anomaly/threshold intervals, thresholds, cooldown }
+  - TriggerConfig: { id, name, enabled, auto_fix, threshold, unit, condition }
+
+# QuestDB configured but API primarily uses in-memory + PostgreSQL fallback
 ```
 
 ### API Contract
 ```yaml
 endpoints:
+  # Health
+  - method: GET
+    path: /health
+    purpose: Basic health check
+  - method: GET
+    path: /api/v1/health
+    purpose: Detailed health check with dependency status
+
+  # Metrics
   - method: GET
     path: /api/v1/metrics/current
-    purpose: Get current system metrics
+    purpose: Current system metrics snapshot
+    query_params: { fresh: "1|true for real-time collection" }
     output_schema: |
-      {
-        cpu: { usage: float, cores: int }
-        memory: { used: int, total: int, percent: float }
-        disk: { used: int, total: int, percent: float }
-        network: { rx_bytes: int, tx_bytes: int }
-        timestamp: timestamp
-      }
-    sla:
-      response_time: 100ms
-      availability: 99.99%
-      
-  - method: POST
-    path: /api/v1/anomaly/investigate
-    purpose: Trigger AI investigation of anomaly
-    input_schema: |
-      {
-        anomaly_id: UUID
-        context_window: string (1h, 6h, 24h)
-        include_logs: boolean
-      }
-    output_schema: |
-      {
-        investigation_id: UUID
-        status: "investigating"
-        estimated_completion: timestamp
-      }
-      
+      { cpu_usage: float, memory_usage: float, tcp_connections: int, gpu_usage: float, timestamp: string }
   - method: GET
-    path: /api/v1/metrics/history
-    purpose: Query historical metrics
+    path: /api/v1/metrics/detailed
+    purpose: Comprehensive metrics (CPU, memory, network, GPU, disk, processes, system health)
+  - method: GET
+    path: /api/v1/metrics/processes
+    purpose: Process monitoring data (zombies, high-thread, leak candidates)
+  - method: GET
+    path: /api/v1/metrics/infrastructure
+    purpose: Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O)
+
+  # Investigations
+  - method: GET
+    path: /api/v1/investigations
+    purpose: List investigations (query param limit, default 20)
+  - method: GET
+    path: /api/v1/investigations/latest
+    purpose: Get latest investigation
+  - method: GET
+    path: /api/v1/investigations/{id}
+    purpose: Get investigation by ID
+  - method: POST
+    path: /api/v1/investigations/trigger
+    purpose: Trigger new investigation
     input_schema: |
-      {
-        metric: string
-        from: timestamp
-        to: timestamp
-        aggregation: enum(raw, 1m, 5m, 1h)
-      }
+      { auto_fix: boolean, note: string }
     output_schema: |
-      {
-        data: [{
-          timestamp: timestamp
-          value: float
-        }]
-      }
+      { id: string, status: "queued", message: string }
+  - method: POST
+    path: /api/v1/investigations/agent/spawn
+    purpose: Alias for trigger investigation
+  - method: GET
+    path: /api/v1/investigations/agent/current
+    purpose: Get currently running agent status
+  - method: GET
+    path: /api/v1/investigations/agent/{id}/status
+    purpose: Get agent status by investigation ID
+  - method: POST
+    path: /api/v1/investigations/agent/{id}/stop
+    purpose: Stop agent for investigation
+  - method: PUT
+    path: /api/v1/investigations/{id}/status
+    purpose: Update investigation status
+  - method: PUT
+    path: /api/v1/investigations/{id}/findings
+    purpose: Update findings
+  - method: PUT
+    path: /api/v1/investigations/{id}/progress
+    purpose: Update progress (0-100)
+  - method: POST
+    path: /api/v1/investigations/{id}/step
+    purpose: Add investigation step
+  - method: GET
+    path: /api/v1/investigations/cooldown
+    purpose: Get cooldown status
+  - method: POST
+    path: /api/v1/investigations/cooldown/reset
+    purpose: Reset cooldown period
+  - method: PUT
+    path: /api/v1/investigations/cooldown/period
+    purpose: Update cooldown duration
+  - method: GET
+    path: /api/v1/investigations/triggers
+    purpose: Get all investigation triggers
+  - method: PUT
+    path: /api/v1/investigations/triggers/{id}
+    purpose: Update trigger config
+  - method: PUT
+    path: /api/v1/investigations/triggers/{id}/threshold
+    purpose: Update trigger threshold only
+  - method: GET
+    path: /api/v1/investigations/scripts
+    purpose: List investigation scripts (placeholder - returns empty array)
+  - method: GET
+    path: /api/v1/investigations/scripts/{id}
+    purpose: Get script by ID (placeholder - returns not found)
+  - method: POST
+    path: /api/v1/investigations/scripts/{id}/execute
+    purpose: Execute investigation script (placeholder - returns not found)
+
+  # Reports
+  - method: POST
+    path: /api/v1/reports/generate
+    purpose: Generate report
+    input_schema: |
+      { type: "daily"|"weekly" }
+  - method: GET
+    path: /api/v1/reports
+    purpose: List all reports
+  - method: GET
+    path: /api/v1/reports/{id}
+    purpose: Get report by ID
+
+  # Settings
+  - method: GET
+    path: /api/v1/settings
+    purpose: Get all settings
+  - method: PUT
+    path: /api/v1/settings
+    purpose: Update settings
+  - method: POST
+    path: /api/v1/settings/reset
+    purpose: Reset to defaults
+
+  # Maintenance
+  - method: GET
+    path: /api/v1/maintenance/state
+    purpose: Get maintenance state
+  - method: POST
+    path: /api/v1/maintenance/state
+    purpose: Set maintenance state (active/inactive)
+
+  # Agent Configuration
+  - method: GET
+    path: /api/v1/agent/config
+    purpose: Get agent configuration
+  - method: PUT
+    path: /api/v1/agent/config
+    purpose: Update agent config (runner, model, max turns, timeout, tools, skip_permissions, requires_sandbox, requires_approval)
+  - method: GET
+    path: /api/v1/agent/runners
+    purpose: Get available runners
+  - method: GET
+    path: /api/v1/agent/status
+    purpose: Get agent status
+
+  # Tool Discovery Protocol
+  - method: GET
+    path: /api/v1/tools
+    purpose: Get tool manifest
+  - method: GET
+    path: /api/v1/tools/{name}
+    purpose: Get specific tool definition
+  - method: POST
+    path: /api/v1/tools/execute
+    purpose: Execute a tool
 ```
 
 ### Event Interface
 ```yaml
-published_events:
-  - name: monitor.anomaly.detected
-    payload: { metric: string, value: float, threshold: float, severity: string }
-    subscribers: [incident-manager, alert-router, auto-scaler]
-    
-  - name: monitor.investigation.complete
-    payload: { anomaly_id: UUID, root_cause: string, recommended_action: string }
-    subscribers: [ops-dashboard, remediation-engine]
-    
-  - name: monitor.resource.critical
-    payload: { resource: string, usage: float, limit: float }
-    subscribers: [resource-manager, capacity-planner]
-    
-consumed_events:
-  - name: scenario.performance.degraded
-    action: Initiate targeted performance investigation
-    
-  - name: resource.health.changed
-    action: Update monitoring thresholds dynamically
+# Note: The event system is configured via Node-RED flows and Redis pub/sub,
+# but no formal event bus with named events is implemented in the Go API.
+# The following describes the actual integration pattern:
+
+node_red_flows:
+  - name: metric-collector
+    location: initialization/node-red/metric-collector.json
+    trigger: Every 30 seconds
+    action: Collect system metrics, store to PostgreSQL/QuestDB/Redis
+
+  - name: anomaly-detector
+    location: initialization/node-red/anomaly-detector.json
+    trigger: Every 60 seconds
+    action: Check thresholds, trigger alerts
+
+redis_channels:
+  - key_patterns: system_metrics:*, system_alerts:*, system_thresholds:*, system_investigations:*
+  - keyspace_events: Enabled ("Ex") for expiry notifications
+
+webhook_alerts:
+  - configured: true (via ALERT_WEBHOOK_URL env var)
+  - implemented: Basic webhook POST on threshold violations
+  - cooldown: 5 minutes between alerts (configurable)
+
+# These planned events from the original PRD are NOT implemented:
+# - monitor.anomaly.detected (no formal event bus)
+# - monitor.investigation.complete (no event publishing)
+# - monitor.resource.critical (no event publishing)
+# - scenario.performance.degraded (no event consumption)
+# - resource.health.changed (no event consumption)
 ```
 
 ## 🖥️ CLI Interface Contract
@@ -256,130 +405,112 @@ consumed_events:
 ```yaml
 cli_binary: system-monitor
 install_script: cli/install.sh
+language: Bash
+version: 2.0.0
 
-required_commands:
-  - name: status
-    description: Show current system health and metrics
-    flags: [--json, --verbose, --resources]
-    example: system-monitor status --resources
-    
-  - name: help
-    description: Display command documentation
-    flags: [--all, --command <name>]
-    
+global_flags:
+  - name: -h, --help
+    description: Display help message
+  - name: -v, --version
+    description: Display CLI version
+  - name: -p, --port <port>
+    description: Override API port (default 8080)
+  - name: -j, --json
+    description: Output in JSON format
+  - name: -q, --quiet
+    description: Suppress non-essential output (parsed but never checked in code - no effect)
+
+commands:
   - name: version
-    description: Show CLI and API version
-    flags: [--json]
+    description: Show CLI version (2.0.0)
+    api_endpoint: none (local only)
 
-custom_commands:
+  - name: health
+    description: Check API health status
+    api_endpoint: GET /health
+    flags: [--json]
+    example: system-monitor health
+
   - name: metrics
-    description: Query system metrics
-    api_endpoint: /api/v1/metrics/history
-    flags:
-      - name: --last
-        description: Time window (1h, 6h, 24h, 7d)
-        default: 1h
-      - name: --metric
-        description: Specific metric to query
-      - name: --aggregate
-        description: Aggregation level (raw, 1m, 5m, 1h)
-        default: 1m
-    example: system-monitor metrics --last 24h --metric cpu.usage
-    
+    description: Get current system metrics (CPU, memory, TCP connections)
+    api_endpoint: GET /api/v1/metrics/current
+    flags: [--json]
+    example: system-monitor metrics --json
+
+  - name: status
+    description: Show system status (HEALTHY/WARNING/CRITICAL/OFFLINE)
+    api_endpoint: GET /api/v1/metrics/current
+    thresholds: "CRITICAL: CPU>90% or Mem>95%; WARNING: CPU>80% or Mem>85%"
+    example: system-monitor status
+
+  - name: alerts
+    description: List active alerts based on current metrics
+    api_endpoint: GET /api/v1/metrics/current
+    alert_conditions: "HIGH_CPU>80%, HIGH_MEMORY>85%, HIGH_CONNECTIONS>150"
+    example: system-monitor alerts
+
   - name: investigate
-    description: Trigger AI anomaly investigation
-    api_endpoint: /api/v1/anomaly/investigate
-    arguments:
-      - name: anomaly-id
-        type: string
-        required: true
-        description: UUID of anomaly to investigate
-    flags:
-      - name: --context
-        description: Context window (1h, 6h, 24h)
-        default: 6h
-      - name: --include-logs
-        description: Include system logs in analysis
-    example: system-monitor investigate abc-123 --context 24h --include-logs
-    
-  - name: threshold
-    description: Manage alert thresholds
-    subcommands:
-      - name: set
-        arguments:
-          - name: metric
-            type: string
-            required: true
-          - name: warning
-            type: float
-            required: true
-          - name: critical
-            type: float
-            required: true
-        example: system-monitor threshold set cpu.usage 70 90
-      
-      - name: list
-        flags:
-          - name: --enabled-only
-            description: Show only enabled thresholds
-        example: system-monitor threshold list --enabled-only
-    
+    description: Fetch latest investigation results
+    api_endpoint: GET /api/v1/investigations/latest
+    flags: [--json]
+    example: system-monitor investigate
+
   - name: report
-    description: Generate system health report
-    api_endpoint: /api/v1/report/generate
-    flags:
-      - name: --period
-        description: Report period (daily, weekly, monthly)
-        default: daily
-      - name: --format
-        description: Output format (html, pdf, json)
-        default: html
-      - name: --email
-        description: Email address for delivery
-    example: system-monitor report --period weekly --format pdf
-    
+    description: Generate system report
+    api_endpoint: POST /api/v1/reports/generate
+    note: "CLI BUG: script calls /api/reports/generate (missing /v1/ prefix)"
+    arguments:
+      - name: type
+        values: [daily, weekly]
+        required: true
+    flags: [--json]
+    example: system-monitor report daily
+
+  - name: simulate
+    description: Simulate CPU anomaly for testing
+    api_endpoint: GET /api/test/anomaly/cpu (not implemented in API)
+    flags: [--json]
+    note: Test endpoint does not exist in API router
+
+  - name: dashboard
+    description: Open UI dashboard in browser
+    api_endpoint: none (launches browser via xdg-open)
+    example: system-monitor dashboard
+
   - name: watch
-    description: Live monitoring mode (Matrix-style)
-    flags:
-      - name: --refresh
-        description: Refresh interval in seconds
-        default: 1
-      - name: --metrics
-        description: Comma-separated metrics to watch
-        default: cpu,memory,disk,network
-    example: system-monitor watch --refresh 2 --metrics cpu,memory
+    description: Live monitoring with ASCII progress bars (2s refresh)
+    api_endpoint: GET /api/v1/metrics/current (polling)
+    example: system-monitor watch
 ```
 
 ### CLI-API Parity Requirements
-- **Coverage**: All monitoring endpoints accessible via CLI
-- **Naming**: Commands match API resource names
-- **Arguments**: Direct parameter mapping
-- **Output**: Human-readable by default, JSON with --json
-- **Authentication**: Uses API key from ~/.vrooli/system-monitor/config.yaml
+- **Coverage**: Core monitoring endpoints accessible via CLI (metrics, investigations, reports)
+- **Output**: Human-readable by default, JSON with --json flag
+- **Configuration**: Environment variables only (API_PORT, UI_PORT); no config file
+- **Authentication**: None (no API key support)
+- **Note**: Several API endpoints have no CLI equivalent (settings, triggers, agent config, tools, maintenance, detailed metrics, processes, infrastructure)
 
 ### Implementation Standards
 ```yaml
 implementation_requirements:
-  - architecture: Thin Go wrapper with terminal UI for watch mode
-  - language: Go (performance-critical for metrics)
-  - dependencies: 
-      - API client library
-      - termui for Matrix-style display
+  - architecture: Bash shell script with curl-based API client
+  - language: Bash (not Go as originally planned)
+  - dependencies:
+      - curl (HTTP client)
+      - bc (floating-point math)
+      - grep, cut (JSON parsing - fragile, no jq)
   - error_handling:
       - Exit 0: Success
-      - Exit 1: General error
-      - Exit 2: Connection failure
-      - Exit 3: Threshold exceeded (for CI/CD integration)
+      - Exit 1: General error or API unavailable
   - configuration:
-      - Config: ~/.vrooli/system-monitor/config.yaml
-      - Env: MONITOR_API_URL, MONITOR_API_KEY
-      - Flags: Override any config value
-  
+      - Env: API_PORT (default 8080), UI_PORT (default 3003)
+      - Flags: --port overrides API_PORT
+
 installation:
   - install_script: Creates symlink in ~/.vrooli/bin/
-  - permissions: 755 on binary
-  - documentation: system-monitor help --all
-  - terminal_support: Detects terminal capabilities for UI
+  - permissions: 755 on script
+  - two_entry_points: system-monitor and vrooli-system-monitor
+  - note: vrooli-system-monitor is missing the version command and -v flag
 ```
 
 ## 🎨 Style and Branding Requirements
@@ -599,25 +730,27 @@ vrooli scenario test system-monitor
 ```
 
 ### Performance Validation
-- [x] Metric ingestion < 100ms latency
-- [x] Anomaly detection < 30s from occurrence
-- [x] Dashboard updates every 1s via WebSocket
-- [x] 1000+ metrics/second throughput
-- [x] 24-hour retention with no data loss
+- [ ] Metric ingestion < 100ms latency (not formally tested)
+- [ ] Anomaly detection < 30s from occurrence (not formally tested)
+- [x] Dashboard updates every 5s via HTTP polling for metrics (WebSocket not implemented; UI also polls process/infra/investigations every 60s, agent status every 4s when active)
+- [ ] Metrics throughput benchmarks (not formally tested)
+- [ ] Data retention with no data loss (not formally tested)
 
 ### Integration Validation
-- [ ] Publishes alerts to Redis pub/sub
-- [ ] Stores investigations in PostgreSQL
-- [ ] Ingests metrics to QuestDB via ILP
-- [ ] Executes Ollama analysis workflows
-- [ ] WebSocket streams to dashboard
+- [ ] Publishes alerts to Redis pub/sub (configured, not verified)
+- [ ] Stores investigations in PostgreSQL (repository layer exists; defaults to in-memory)
+- [ ] Ingests metrics to QuestDB via ILP (configured, not verified)
+- [ ] Executes investigations via agent-manager (integration code exists)
+- [ ] HTTP polling delivers metrics to dashboard (implemented, 5s interval)
 
 ### Capability Verification
-- [ ] Accurately monitors all system metrics
-- [ ] Detects anomalies with 85%+ accuracy
-- [ ] AI investigations identify root causes
-- [ ] Matrix UI renders without lag
-- [ ] Alerts fire within thresholds
+- [x] Monitors CPU, memory, disk, network, GPU, process metrics
+- [x] Threshold-based anomaly detection with configurable triggers
+- [x] Investigation system with agent-manager integration
+- [x] Matrix-themed UI with cyberpunk styling
+- [x] 30 investigation scripts available in investigations/active/
+- [ ] AI investigation accuracy benchmarks (not measured)
+- [ ] Alerts fire within configured thresholds (not formally tested)
 
 ## 📝 Implementation Notes
 
@@ -632,19 +765,50 @@ vrooli scenario test system-monitor
 - Decision driver: Differentiation and user engagement
 - Trade-offs: Longer development, unique user experience
 
-**Go for CLI over Python**: Performance requirements
-- Alternative considered: Python for easier development
-- Decision driver: Metric collection needs minimal overhead
-- Trade-offs: More complex code, better performance
+**Bash for CLI**: Rapid development with curl-based API client
+- Original plan: Go CLI for performance
+- Actual implementation: Bash script with curl, bc, grep/cut for JSON parsing
+- Trade-offs: Fragile JSON parsing (no jq), but fast to develop and no compilation needed
 
 ### Known Limitations
 - **Cloud Metrics**: Currently local systems only
   - Workaround: Agent installation on cloud instances
   - Future fix: Cloud provider API integration
-  
-- **Custom Metrics**: Limited to predefined set
-  - Workaround: Extend via API
+
+- **Custom Metrics**: Limited to 6 built-in collectors (CPU, Memory, Network, Disk, Process, GPU)
+  - No custom metric ingestion endpoint exists
   - Future fix: Plugin system for collectors
+
+- **WebSocket**: UI type definitions exist but not implemented
+  - Dashboard uses HTTP polling (5s current+detailed metrics+timeline, 60s process/infrastructure/investigations, 4s agent status when active)
+  - UI activates maintenance state on mount and restores previous state on unmount
+  - Future fix: Implement WebSocket server in Go API
+
+- **Missing API Endpoints Referenced by UI**: UI calls endpoints not registered in the API router
+  - `/api/v1/metrics/timeline`: UI sparkline history falls back to client-side accumulation
+  - `/api/v1/metrics/disk/details`: UI disk detail view cannot fetch partition-level data
+  - `/processes/{pid}/kill` (POST): UI ProcessMonitor has kill confirmation dialog but API has no kill endpoint — kill action silently fails
+  - Future fix: Implement these endpoints in the Go API
+
+- **CLI Fragility**: Bash CLI uses regex-based JSON parsing (no jq)
+  - Can break on unexpected JSON structures
+  - Future fix: Rewrite CLI in Go or add jq dependency
+
+- **Storage**: API defaults to in-memory repository
+  - PostgreSQL repository interface exists but may not be fully implemented
+  - QuestDB integration configured but not directly used by API collectors
+
+- **Authentication**: No auth on API endpoints
+  - No API key, token, or session support
+  - Future fix: Add middleware authentication
+
+- **Investigation Script API**: Script endpoints (list, get, execute) are placeholders
+  - ListScripts returns empty array; GetScript and ExecuteScript return 404
+  - 30 scripts exist on disk in investigations/active/ but are not served via API
+  - Scripts are executed by the investigation agent directly, not via the API
+
+- **Test Coverage**: test/ directory is empty
+  - Tests defined in service.json via test-genie but test phases not populated
 
 ### Security Considerations
 - **Data Protection**: Metrics encrypted in transit (TLS)
@@ -656,14 +820,15 @@ vrooli scenario test system-monitor
 
 ### Documentation
 - README.md - Quick start guide
-- api/docs/metrics.md - Metric definitions
-- cli/docs/advanced.md - Power user features
-- ui/docs/customization.md - Theme modifications
+- api/REFACTORING.md - API refactoring notes
+- (api/docs/metrics.md - not created)
+- (cli/docs/advanced.md - not created)
+- (ui/docs/customization.md - not created)
 
-### Related PRDs
-- scenarios/incident-manager/PRD.md - Consumes anomaly events
-- scenarios/auto-scaler/PRD.md - Uses metrics for scaling
-- scenarios/cost-optimizer/PRD.md - Analyzes resource usage
+### Related PRDs (planned scenarios, not yet created)
+- scenarios/incident-manager/PRD.md - Would consume anomaly events
+- scenarios/auto-scaler/PRD.md - Would use metrics for scaling
+- scenarios/cost-optimizer/PRD.md - Would analyze resource usage
 
 ### External Resources
 - [QuestDB Documentation](https://questdb.io/docs/)
@@ -672,7 +837,7 @@ vrooli scenario test system-monitor
 
 ---
 
-**Last Updated**: 2025-01-20  
-**Status**: Not Tested  
-**Owner**: AI Agent - Infrastructure Intelligence Module  
-**Review Cycle**: Daily validation of anomaly detection accuracy
+**Last Updated**: 2026-02-16 (spec-sync pass 4: documented missing process kill endpoint, corrected requirement counts)
+**Status**: Implemented, Not Formally Tested
+**Owner**: AI Agent - Infrastructure Intelligence Module
+**Review Cycle**: Periodic spec-sync before archiving

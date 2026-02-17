@@ -15,9 +15,9 @@ import { MatrixBackground } from './shared/components/MatrixBackground';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { useSystemMonitor } from './features/monitoring/hooks/useSystemMonitor';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
-import { buildApiUrl } from './shared/api/apiBase';
+import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { InvestigationScriptsPage } from './features/investigations/pages/InvestigationScriptsPage';
-import type { DashboardState, ModalState, InvestigationScript, ScriptExecution, CardType, PanelType } from './types';
+import type { DashboardState, CardType, PanelType } from './types';
 import './styles/matrix-theme.css';
 
 function App() {
@@ -32,20 +32,6 @@ function App() {
     alerts: []
   });
 
-  const [modalState, setModalState] = useState<ModalState>({
-    reportModal: {
-      isOpen: false,
-      loading: false
-    },
-    scriptEditor: {
-      isOpen: false,
-      mode: 'view'
-    },
-    scriptResults: {
-      isOpen: false
-    }
-  });
-
   const [systemSettingsModalOpen, setSystemSettingsModalOpen] = useState(false);
 
   const {
@@ -56,7 +42,11 @@ function App() {
     investigations,
     metricHistory,
     isLoading,
-    error
+    error,
+    healthStatus,
+    healthError,
+    toggleMonitoring,
+    refreshHealth
   } = useSystemMonitor();
 
   const {
@@ -69,6 +59,15 @@ function App() {
     spawnAgent,
     stopAgent
   } = useInvestigationAgents();
+
+  const {
+    modalState,
+    openScriptEditor,
+    closeScriptEditor,
+    closeScriptResults,
+    executeScript,
+    saveScript
+  } = useScriptExecution();
 
   const openDetailPage = (cardType: CardType) => {
     navigate(`/metrics/${cardType}`);
@@ -124,146 +123,6 @@ function App() {
     }));
   };
 
-  // Modal handler functions
-  const openScriptEditor = (script?: InvestigationScript, content?: string, mode: 'create' | 'edit' | 'view' = 'view') => {
-    setModalState(prev => ({
-      ...prev,
-      scriptEditor: {
-        isOpen: true,
-        script,
-        scriptContent: content,
-        scriptId: script?.id,
-        mode
-      }
-    }));
-  };
-
-  const closeScriptEditor = () => {
-    setModalState(prev => ({
-      ...prev,
-      scriptEditor: {
-        ...prev.scriptEditor,
-        isOpen: false
-      }
-    }));
-  };
-
-  const closeScriptResults = () => {
-    setModalState(prev => ({
-      ...prev,
-      scriptResults: {
-        ...prev.scriptResults,
-        isOpen: false
-      }
-    }));
-  };
-
-  const executeScript = async (scriptId: string, scriptContent: string) => {
-    try {
-      const execution: ScriptExecution = {
-        script_id: scriptId,
-        execution_id: `exec-${Date.now()}`,
-        status: 'running',
-        started_at: new Date().toISOString()
-      };
-
-      setModalState(prev => ({
-        ...prev,
-        scriptResults: {
-          isOpen: true,
-          scriptId,
-          executionId: execution.execution_id,
-          execution
-        }
-      }));
-
-      closeScriptEditor();
-
-      const requestBody = scriptContent ? { content: scriptContent } : {};
-
-      const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(scriptId)}/execute`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      let data: Record<string, unknown> | null = null;
-      try {
-        data = await response.json() as Record<string, unknown>;
-      } catch {
-        data = null;
-      }
-
-      const readString = (value: unknown): string | undefined => {
-        return typeof value === 'string' ? value : undefined;
-      };
-      const readNumber = (value: unknown): number | undefined => {
-        return typeof value === 'number' ? value : undefined;
-      };
-      const readBoolean = (value: unknown): boolean => value === true;
-
-      const stdout = readString(data?.['stdout']) ?? readString(data?.['output']) ?? '';
-      const stderr = readString(data?.['stderr']) ?? '';
-      const exitCode = readNumber(data?.['exit_code']) ?? (response.ok ? 0 : 1);
-      const timedOut = readBoolean(data?.['timed_out']);
-      const completedAt = readString(data?.['completed_at']) ?? new Date().toISOString();
-      const errorFromResponse = readString(data?.['error']);
-      const durationSeconds = readNumber(data?.['duration_seconds']);
-
-      const completedExecution: ScriptExecution = {
-        ...execution,
-        status: response.ok && exitCode === 0 && !timedOut ? 'completed' : 'failed',
-        completed_at: completedAt,
-        exit_code: exitCode,
-        output: stdout,
-        stdout,
-        stderr,
-        error: stderr || errorFromResponse || (!response.ok ? `Request failed with status ${response.status}` : undefined),
-        timed_out: timedOut,
-        duration_seconds: durationSeconds
-      };
-
-      setModalState(prev => ({
-        ...prev,
-        scriptResults: {
-          ...prev.scriptResults,
-          execution: completedExecution
-        }
-      }));
-    } catch (error) {
-      console.error('Failed to execute script:', error);
-
-      setModalState(prev => ({
-        ...prev,
-        scriptResults: {
-          ...prev.scriptResults,
-          execution: {
-            script_id: scriptId,
-            execution_id: `exec-${Date.now()}`,
-            status: 'failed',
-            started_at: new Date().toISOString(),
-            completed_at: new Date().toISOString(),
-            exit_code: 1,
-            error: error instanceof Error ? error.message : 'Unknown error occurred'
-          }
-        }
-      }));
-    }
-  };
-
-  const saveScript = async (script: InvestigationScript, content: string) => {
-    try {
-      // TODO: Implement actual API call to save script
-      console.log('Saving script:', script, content);
-      // For now, just close the modal
-      closeScriptEditor();
-    } catch (error) {
-      console.error('Failed to save script:', error);
-    }
-  };
-
   const handleError = (error: Error, errorInfo: ErrorInfo) => {
     // Log error details for monitoring/analytics
     console.error('App Error Boundary caught error:', {
@@ -284,7 +143,7 @@ function App() {
       <div className="app">
         <MatrixBackground />
         
-        <Header 
+        <Header
           isOnline={dashboardState.isOnline}
           unreadErrorCount={dashboardState.unreadErrorCount}
           agents={agents}
@@ -294,6 +153,11 @@ function App() {
           onRefreshAgents={refreshAgents}
           onToggleTerminal={toggleTerminal}
           onOpenSettings={() => setSystemSettingsModalOpen(true)}
+          healthStatus={healthStatus}
+          healthError={healthError}
+          onToggleMonitoring={toggleMonitoring}
+          onRefreshHealth={refreshHealth}
+          isLoadingHealth={isLoading}
         />
 
         <main className="main-content">
@@ -305,26 +169,30 @@ function App() {
                   <>
                     {/* Real-time Metrics Grid */}
                     <section className="mb-lg">
-                      <MetricsGrid
-                        metrics={metrics}
-                        detailedMetrics={detailedMetrics}
-                        expandedCards={dashboardState.expandedCards}
-                        onToggleCard={toggleCard}
-                        metricHistory={metricHistory}
-                        storageIO={infrastructureData?.storage_io}
-                        diskLastUpdated={infrastructureData?.timestamp}
-                        onOpenDetail={openDetailPage}
-                      />
+                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Metrics failed to render. Try refreshing the page.</div>}>
+                        <MetricsGrid
+                          metrics={metrics}
+                          detailedMetrics={detailedMetrics}
+                          expandedCards={dashboardState.expandedCards}
+                          onToggleCard={toggleCard}
+                          metricHistory={metricHistory}
+                          storageIO={infrastructureData?.storage_io}
+                          diskLastUpdated={infrastructureData?.timestamp}
+                          onOpenDetail={openDetailPage}
+                        />
+                      </ErrorBoundary>
                     </section>
 
                     {/* Infrastructure Monitor Panel */}
                     <section className="mb-lg">
-                      <InfrastructureMonitor 
-                        data={infrastructureData}
-                        isExpanded={dashboardState.expandedPanels.has('infrastructure')}
-                        onToggle={() => togglePanel('infrastructure')}
-                        systemHealth={detailedMetrics?.system_details}
-                      />
+                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Infrastructure monitor failed to render.</div>}>
+                        <InfrastructureMonitor
+                          data={infrastructureData}
+                          isExpanded={dashboardState.expandedPanels.has('infrastructure')}
+                          onToggle={() => togglePanel('infrastructure')}
+                          systemHealth={detailedMetrics?.system_details}
+                        />
+                      </ErrorBoundary>
                     </section>
 
                     {/* Alert Panel */}
@@ -334,19 +202,23 @@ function App() {
 
                     {/* Investigations Section */}
                     <section className="mb-lg">
-                      <InvestigationsSection 
-                        investigations={investigations}
-                        onOpenScriptEditor={openScriptEditor}
-                        onSpawnAgent={spawnAgent}
-                        agents={agents}
-                        isSpawningAgent={isSpawningAgent}
-                        spawnAgentError={spawnAgentError}
-                      />
+                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Investigations section failed to render.</div>}>
+                        <InvestigationsSection
+                          investigations={investigations}
+                          onOpenScriptEditor={openScriptEditor}
+                          onSpawnAgent={spawnAgent}
+                          agents={agents}
+                          isSpawningAgent={isSpawningAgent}
+                          spawnAgentError={spawnAgentError}
+                        />
+                      </ErrorBoundary>
                     </section>
 
                     {/* Playback Reports */}
                     <section className="mb-lg">
-                      <ReportsPanel />
+                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Reports failed to render.</div>}>
+                        <ReportsPanel />
+                      </ErrorBoundary>
                     </section>
                   </>
                 )}
@@ -355,68 +227,80 @@ function App() {
               <Route
                 path="/scripts"
                 element={(
-                  <InvestigationScriptsPage 
-                    onOpenScriptEditor={openScriptEditor}
-                    onExecuteScript={executeScript}
-                    onSaveScript={saveScript}
-                  />
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Scripts page failed to render.</div>}>
+                    <InvestigationScriptsPage
+                      onOpenScriptEditor={openScriptEditor}
+                      onExecuteScript={executeScript}
+                      onSaveScript={saveScript}
+                    />
+                  </ErrorBoundary>
                 )}
               />
 
               <Route
                 path="/metrics/cpu"
                 element={(
-                  <CpuDetailView
-                    metrics={metrics}
-                    detailedMetrics={detailedMetrics}
-                    processMonitorData={processMonitorData}
-                    metricHistory={metricHistory}
-                    onBack={handleBackToDashboard}
-                  />
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>CPU detail view failed to render.</div>}>
+                    <CpuDetailView
+                      metrics={metrics}
+                      detailedMetrics={detailedMetrics}
+                      processMonitorData={processMonitorData}
+                      metricHistory={metricHistory}
+                      onBack={handleBackToDashboard}
+                    />
+                  </ErrorBoundary>
                 )}
               />
               <Route
                 path="/metrics/memory"
                 element={(
-                  <MemoryDetailView
-                    metrics={metrics}
-                    detailedMetrics={detailedMetrics}
-                    metricHistory={metricHistory}
-                    onBack={handleBackToDashboard}
-                  />
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Memory detail view failed to render.</div>}>
+                    <MemoryDetailView
+                      metrics={metrics}
+                      detailedMetrics={detailedMetrics}
+                      metricHistory={metricHistory}
+                      onBack={handleBackToDashboard}
+                    />
+                  </ErrorBoundary>
                 )}
               />
               <Route
                 path="/metrics/network"
                 element={(
-                  <NetworkDetailView
-                    metrics={metrics}
-                    detailedMetrics={detailedMetrics}
-                    metricHistory={metricHistory}
-                    onBack={handleBackToDashboard}
-                  />
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Network detail view failed to render.</div>}>
+                    <NetworkDetailView
+                      metrics={metrics}
+                      detailedMetrics={detailedMetrics}
+                      metricHistory={metricHistory}
+                      onBack={handleBackToDashboard}
+                    />
+                  </ErrorBoundary>
                 )}
               />
               <Route
                 path="/metrics/gpu"
                 element={(
-                  <GpuDetailView
-                    detailedMetrics={detailedMetrics}
-                    metricHistory={metricHistory}
-                    onBack={handleBackToDashboard}
-                  />
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>GPU detail view failed to render.</div>}>
+                    <GpuDetailView
+                      detailedMetrics={detailedMetrics}
+                      metricHistory={metricHistory}
+                      onBack={handleBackToDashboard}
+                    />
+                  </ErrorBoundary>
                 )}
               />
               <Route
                 path="/metrics/disk"
                 element={(
-                  <DiskDetailView
-                    detailedMetrics={detailedMetrics}
-                    storageIO={infrastructureData?.storage_io}
-                    metricHistory={metricHistory}
-                    diskLastUpdated={infrastructureData?.timestamp}
-                    onBack={handleBackToDashboard}
-                  />
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Disk detail view failed to render.</div>}>
+                    <DiskDetailView
+                      detailedMetrics={detailedMetrics}
+                      storageIO={infrastructureData?.storage_io}
+                      metricHistory={metricHistory}
+                      diskLastUpdated={infrastructureData?.timestamp}
+                      onBack={handleBackToDashboard}
+                    />
+                  </ErrorBoundary>
                 )}
               />
             </Routes>
@@ -424,24 +308,30 @@ function App() {
           </div>
         </main>
 
-        <Terminal 
-          isVisible={dashboardState.terminalVisible}
-          onClose={toggleTerminal}
-        />
+        <ErrorBoundary fallback={null}>
+          <Terminal
+            isVisible={dashboardState.terminalVisible}
+            onClose={toggleTerminal}
+          />
+        </ErrorBoundary>
 
-        <ModalsContainer 
-          modalState={modalState}
-          onCloseScriptEditor={closeScriptEditor}
-          onCloseScriptResults={closeScriptResults}
-          onExecuteScript={executeScript}
-          onSaveScript={saveScript}
-        />
+        <ErrorBoundary fallback={null}>
+          <ModalsContainer
+            modalState={modalState}
+            onCloseScriptEditor={closeScriptEditor}
+            onCloseScriptResults={closeScriptResults}
+            onExecuteScript={executeScript}
+            onSaveScript={saveScript}
+          />
+        </ErrorBoundary>
 
         {/* System Settings Modal */}
-        <SystemSettingsModal
-          isOpen={systemSettingsModalOpen}
-          onClose={() => setSystemSettingsModalOpen(false)}
-        />
+        <ErrorBoundary fallback={null}>
+          <SystemSettingsModal
+            isOpen={systemSettingsModalOpen}
+            onClose={() => setSystemSettingsModalOpen(false)}
+          />
+        </ErrorBoundary>
       </div>
     </ErrorBoundary>
   );

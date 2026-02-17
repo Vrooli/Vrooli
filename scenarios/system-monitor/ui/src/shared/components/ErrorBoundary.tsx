@@ -18,6 +18,7 @@ interface State {
 
 export class ErrorBoundary extends Component<Props, State> {
   private retryTimeout: NodeJS.Timeout | null = null;
+  private copyTimeout: NodeJS.Timeout | null = null;
 
   constructor(props: Props) {
     super(props);
@@ -64,6 +65,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.retryTimeout) {
       clearTimeout(this.retryTimeout);
     }
+    if (this.copyTimeout) {
+      clearTimeout(this.copyTimeout);
+    }
   }
 
   handleRetry = () => {
@@ -104,7 +108,7 @@ Browser Info:
       this.setState({ copied: true });
       
       // Reset copied state after 2 seconds
-      setTimeout(() => {
+      this.copyTimeout = setTimeout(() => {
         this.setState({ copied: false });
       }, 2000);
     } catch (err) {
@@ -134,7 +138,7 @@ Browser Info:
           padding: 'var(--spacing-xl)'
         }}>
           <div style={{
-            background: 'rgba(0, 0, 0, 0.9)',
+            background: 'var(--overlay-solid)',
             border: '2px solid var(--color-error)',
             borderRadius: 'var(--border-radius-lg)',
             padding: 'var(--spacing-xxl)',
@@ -242,7 +246,7 @@ Browser Info:
                     margin: 'var(--spacing-xs) 0 0 0',
                     color: 'var(--color-text-dim)',
                     fontSize: 'var(--font-size-xs)',
-                    background: 'rgba(0, 0, 0, 0.5)',
+                    background: 'var(--overlay-heavy)',
                     padding: 'var(--spacing-sm)',
                     borderRadius: 'var(--border-radius-sm)',
                     overflowX: 'auto',
@@ -260,7 +264,7 @@ Browser Info:
                       margin: 'var(--spacing-xs) 0 0 0',
                       color: 'var(--color-text-dim)',
                       fontSize: 'var(--font-size-xs)',
-                      background: 'rgba(0, 0, 0, 0.5)',
+                      background: 'var(--overlay-heavy)',
                       padding: 'var(--spacing-sm)',
                       borderRadius: 'var(--border-radius-sm)',
                       overflowX: 'auto',
@@ -281,95 +285,17 @@ Browser Info:
               justifyContent: 'center',
               flexWrap: 'wrap'
             }}>
-              <button
-                onClick={this.handleRetry}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-sm)',
-                  padding: 'var(--spacing-md) var(--spacing-lg)',
-                  background: 'var(--color-success)',
-                  color: 'var(--color-background)',
-                  border: 'none',
-                  borderRadius: 'var(--border-radius-md)',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--color-success-bright)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--color-success)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
+              <button className="btn-retry" onClick={this.handleRetry}>
                 <RefreshCw size={16} />
                 Retry
               </button>
 
-              <button
-                onClick={this.handleCopyError}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-sm)',
-                  padding: 'var(--spacing-md) var(--spacing-lg)',
-                  background: 'var(--alpha-accent-10)',
-                  color: 'var(--color-accent)',
-                  border: '1px solid var(--color-accent)',
-                  borderRadius: 'var(--border-radius-md)',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--alpha-accent-20)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--alpha-accent-10)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
+              <button className="btn-copy-error" onClick={this.handleCopyError}>
                 {this.state.copied ? <Check size={16} /> : <Copy size={16} />}
                 {this.state.copied ? 'Copied!' : 'Copy Error'}
               </button>
 
-              <button
-                onClick={() => window.location.reload()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-sm)',
-                  padding: 'var(--spacing-md) var(--spacing-lg)',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  color: 'var(--color-text)',
-                  border: '1px solid var(--color-text-dim)',
-                  borderRadius: 'var(--border-radius-md)',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
+              <button className="btn-reload" onClick={() => window.location.reload()}>
                 <RefreshCw size={16} />
                 Reload Page
               </button>

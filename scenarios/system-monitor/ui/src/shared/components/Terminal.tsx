@@ -23,32 +23,29 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
     }
   ]);
 
-  const addLine = (message: string, type: TerminalLine['type'] = 'info') => {
-    const newLine: TerminalLine = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-      message,
-      type
-    };
-    
-    setLines(prev => [...prev.slice(-49), newLine]); // Keep last 50 lines
-  };
-
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   // Simulate some system messages
   useEffect(() => {
+    const messages = [
+      '[DEBUG] Metrics polling active',
+      '[INFO] API connection healthy',
+      '[DEBUG] Memory usage within normal range',
+      '[INFO] No alerts detected'
+    ];
+
     const interval = setInterval(() => {
-      const messages = [
-        '[DEBUG] Metrics polling active',
-        '[INFO] API connection healthy',
-        '[DEBUG] Memory usage within normal range',
-        '[INFO] No alerts detected'
-      ];
-      
-      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-      addLine(randomMessage, 'info');
-    }, 10000); // Every 10 seconds
+      const randomIndex = Math.floor(Math.random() * messages.length);
+      const randomMessage = messages[randomIndex] ?? messages[0] ?? '[INFO] System active';
+
+      const newLine: TerminalLine = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        message: randomMessage,
+        type: 'info'
+      };
+      setLines(prev => [...prev.slice(-49), newLine]);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);

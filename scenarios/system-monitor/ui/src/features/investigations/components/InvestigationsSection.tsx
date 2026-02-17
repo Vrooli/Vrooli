@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Search, AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp, Square, Clock } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp, Square, Clock } from 'lucide-react';
 import { InvestigationsPanel } from './InvestigationsPanel';
 import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
 import { AutomaticTriggersSection } from './AutomaticTriggersSection';
+import { SearchInput } from '../../../shared/components/SearchInput';
 import type { Investigation, InvestigationScript, InvestigationAgentState } from '../../../types';
 
 interface InvestigationsSectionProps {
@@ -34,13 +35,13 @@ export const InvestigationsSection = ({
   const [localSpawnError, setLocalSpawnError] = useState<string | null>(null);
 
   // Filter investigations based on search
-  const filteredInvestigations = investigations.filter(inv => {
+  const filteredInvestigations = useMemo(() => investigations.filter(inv => {
     if (!reportsSearch) return true;
     const searchLower = reportsSearch.toLowerCase();
     return inv.id.toLowerCase().includes(searchLower) ||
            inv.findings?.toLowerCase().includes(searchLower) ||
            inv.status?.toLowerCase().includes(searchLower);
-  });
+  }), [investigations, reportsSearch]);
 
   const combinedSpawnError = localSpawnError ?? spawnAgentError ?? null;
 
@@ -53,7 +54,7 @@ export const InvestigationsSection = ({
     }
 
     if (agents.length === 1) {
-      const agent = agents[0];
+      const agent = agents[0] ?? { status: undefined, label: undefined };
       const statusLabel = typeof agent.status === 'string' ? agent.status.toUpperCase() : 'ACTIVE';
       const label = agent.label ?? 'Anomaly investigation';
       const tone = statusLabel === 'ERROR'
@@ -117,7 +118,7 @@ export const InvestigationsSection = ({
       border: '1px solid var(--color-accent)',
       borderRadius: 'var(--border-radius-lg)',
       overflow: 'hidden',
-      background: 'rgba(0, 0, 0, 0.3)'
+      background: 'var(--overlay-medium)'
     }}>
       <div className="panel-header" style={{
         display: 'flex',
@@ -183,10 +184,7 @@ export const InvestigationsSection = ({
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--spacing-sm)',
+                  <div className="icon-text" style={{
                     color: 'var(--color-text-dim)',
                     fontSize: 'var(--font-size-xs)'
                   }}>
@@ -194,10 +192,7 @@ export const InvestigationsSection = ({
                     <span>Active agents are managed from the header control with a full dropdown of progress and stop actions.</span>
                   </div>
 
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--spacing-sm)',
+                  <div className="icon-text" style={{
                     color: summaryAccentColor,
                     fontSize: 'var(--font-size-sm)',
                     fontWeight: 600,
@@ -212,14 +207,7 @@ export const InvestigationsSection = ({
             </div>
 
             {combinedSpawnError && (
-              <div style={{
-                background: 'rgba(255, 0, 0, 0.1)',
-                border: '1px solid var(--color-error)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: 'var(--spacing-sm) var(--spacing-md)',
-                color: 'var(--color-error)',
-                fontSize: 'var(--font-size-sm)'
-              }}>
+              <div className="error-banner" style={{ fontSize: 'var(--font-size-sm)' }}>
                 {combinedSpawnError}
               </div>
             )}
@@ -323,7 +311,7 @@ export const InvestigationsSection = ({
                   rows={3}
                   style={{
                     width: '100%',
-                    background: 'rgba(0, 0, 0, 0.4)',
+                    background: 'var(--overlay-medium)',
                     border: '1px solid var(--color-accent)',
                     borderRadius: 'var(--border-radius-sm)',
                     color: 'var(--color-text)',
@@ -352,85 +340,34 @@ export const InvestigationsSection = ({
           borderRadius: 'var(--border-radius-md)',
           overflow: 'hidden'
         }}>
-          <div 
-            className="subsection-header"
+          <div
+            className="section-header hover-bg-accent"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-sm)',
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: 'var(--alpha-accent-02)',
-              borderBottom: reportsExpanded ? '1px solid var(--color-accent)' : 'none',
-              userSelect: 'none',
-              transition: 'background 0.2s'
+              borderBottom: reportsExpanded ? '1px solid var(--color-accent)' : 'none'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--alpha-accent-05)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'var(--alpha-accent-02)'}
           >
-            <div 
+            <div
+              className="section-header-toggle"
               onClick={() => setReportsExpanded(!reportsExpanded)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-sm)',
-                cursor: 'pointer',
-                flex: '0 0 auto'
-              }}
             >
               {reportsExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-              <h3 style={{ 
-                margin: 0, 
+              <h3 style={{
+                margin: 0,
                 fontSize: 'var(--font-size-md)',
                 color: 'var(--color-text-bright)'
               }}>
                 Reports
               </h3>
-              <span style={{ 
+              <span className="text-muted" style={{
                 fontSize: 'var(--font-size-sm)',
-                color: 'var(--color-text-dim)',
                 marginLeft: 'var(--spacing-xs)'
               }}>
                 ({filteredInvestigations.length})
               </span>
             </div>
-            
+
             {reportsExpanded && (
-              <div style={{ 
-                position: 'relative',
-                flex: 1,
-                maxWidth: '300px',
-                marginLeft: 'auto'
-              }}>
-                <Search size={14} style={{
-                  position: 'absolute',
-                  left: 'var(--spacing-sm)',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--color-text-dim)',
-                  pointerEvents: 'none'
-                }} />
-                <input
-                  type="text"
-                  placeholder="Search reports..."
-                  value={reportsSearch}
-                  onChange={(e) => setReportsSearch(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    width: '100%',
-                    padding: 'var(--spacing-xs) var(--spacing-xs) var(--spacing-xs) calc(var(--spacing-xs) + 20px)',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid var(--color-accent)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    color: 'var(--color-text)',
-                    fontSize: 'var(--font-size-xs)',
-                    fontFamily: 'var(--font-family-mono)',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-success)'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-accent)'}
-                />
-              </div>
+              <SearchInput placeholder="Search reports..." value={reportsSearch} onChange={setReportsSearch} />
             )}
           </div>
 
@@ -447,85 +384,34 @@ export const InvestigationsSection = ({
           borderRadius: 'var(--border-radius-md)',
           overflow: 'hidden'
         }}>
-          <div 
-            className="subsection-header"
+          <div
+            className="section-header hover-bg-accent"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-sm)',
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: 'var(--alpha-accent-02)',
-              borderBottom: scriptsExpanded ? '1px solid var(--color-accent)' : 'none',
-              userSelect: 'none',
-              transition: 'background 0.2s'
+              borderBottom: scriptsExpanded ? '1px solid var(--color-accent)' : 'none'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--alpha-accent-05)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'var(--alpha-accent-02)'}
           >
-            <div 
+            <div
+              className="section-header-toggle"
               onClick={() => setScriptsExpanded(!scriptsExpanded)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-sm)',
-                cursor: 'pointer',
-                flex: '0 0 auto'
-              }}
             >
               {scriptsExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-              <h3 style={{ 
-                margin: 0, 
+              <h3 style={{
+                margin: 0,
                 fontSize: 'var(--font-size-md)',
                 color: 'var(--color-text-bright)'
               }}>
                 Scripts
               </h3>
-              <span style={{ 
+              <span className="text-muted" style={{
                 fontSize: 'var(--font-size-sm)',
-                color: 'var(--color-text-dim)',
                 marginLeft: 'var(--spacing-xs)'
               }}>
                 (Tools)
               </span>
             </div>
-            
+
             {scriptsExpanded && (
-              <div style={{ 
-                position: 'relative',
-                flex: 1,
-                maxWidth: '300px',
-                marginLeft: 'auto'
-              }}>
-                <Search size={14} style={{
-                  position: 'absolute',
-                  left: 'var(--spacing-sm)',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--color-text-dim)',
-                  pointerEvents: 'none'
-                }} />
-                <input
-                  type="text"
-                  placeholder="Search scripts..."
-                  value={scriptsSearch}
-                  onChange={(e) => setScriptsSearch(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    width: '100%',
-                    padding: 'var(--spacing-xs) var(--spacing-xs) var(--spacing-xs) calc(var(--spacing-xs) + 20px)',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid var(--color-accent)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    color: 'var(--color-text)',
-                    fontSize: 'var(--font-size-xs)',
-                    fontFamily: 'var(--font-family-mono)',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-success)'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-accent)'}
-                />
-              </div>
+              <SearchInput placeholder="Search scripts..." value={scriptsSearch} onChange={setScriptsSearch} />
             )}
           </div>
 

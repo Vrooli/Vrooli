@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FileText, RefreshCw, Plus } from 'lucide-react';
+import { RefreshCw, Plus } from 'lucide-react';
 import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
 import { buildApiUrl } from '../../../shared/api/apiBase';
+import { ScriptListItem } from './ScriptListItem';
 
 interface InvestigationScriptsPanelProps {
   onOpenScriptEditor: (script?: InvestigationScript, content?: string, mode?: 'create' | 'edit' | 'view') => void;
@@ -49,7 +50,7 @@ export const InvestigationScriptsPanel = ({
         throw new Error(`Request failed with status ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { scripts?: InvestigationScript[] };
       const loadedScripts: InvestigationScript[] = Array.isArray(data.scripts) ? data.scripts : [];
       setScripts(loadedScripts);
     } catch (error) {
@@ -76,7 +77,7 @@ export const InvestigationScriptsPanel = ({
         throw new Error(`Request failed with status ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { content?: string; script?: InvestigationScript };
       const scriptContent = typeof data.content === 'string' ? data.content : '';
       const scriptMetadata: InvestigationScript = data.script ?? script;
 
@@ -87,117 +88,75 @@ export const InvestigationScriptsPanel = ({
     }
   };
 
-  // If embedded, render without header
+  const showMoreAlign = embedded ? 'center' : 'flex-end';
+
+  const renderScriptsList = () => {
+    if (loading) {
+      return <LoadingSkeleton variant="list" count={3} />;
+    }
+
+    if (errorMessage) {
+      return (
+        <div style={{
+          textAlign: 'center',
+          color: 'var(--color-warning)',
+          padding: 'var(--spacing-lg)',
+          fontSize: 'var(--font-size-sm)'
+        }}>
+          FAILED TO LOAD SCRIPTS
+          <br />
+          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{errorMessage}</span>
+        </div>
+      );
+    }
+
+    if (visibleScripts.length === 0) {
+      return (
+        <div style={{
+          textAlign: 'center',
+          color: 'var(--color-text-dim)',
+          padding: 'var(--spacing-lg)',
+          fontSize: 'var(--font-size-lg)'
+        }}>
+          NO SCRIPTS AVAILABLE
+        </div>
+      );
+    }
+
+    return (
+      <div className="scripts-list">
+        {scriptsToDisplay.map(script => (
+          <ScriptListItem
+            key={script.id}
+            script={script}
+            isSelected={false}
+            onSelect={openScript}
+          />
+        ))}
+        {hasMoreScripts && onShowAll && (
+          <div style={{
+            padding: 'var(--spacing-md)',
+            display: 'flex',
+            justifyContent: showMoreAlign
+          }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onShowAll}
+              style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+            >
+              Show More Scripts
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (embedded) {
     return (
       <div className="investigation-scripts-list">
-        {loading ? (
-          <LoadingSkeleton variant="list" count={3} />
-        ) : errorMessage ? (
-          <div style={{
-            textAlign: 'center',
-            color: 'var(--color-warning)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-sm)'
-          }}>
-            FAILED TO LOAD SCRIPTS
-            <br />
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{errorMessage}</span>
-          </div>
-        ) : visibleScripts.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
-          }}>
-            NO SCRIPTS AVAILABLE
-          </div>
-        ) : (
-          <div className="scripts-list">
-            {scriptsToDisplay.map(script => (
-              <div 
-                key={script.id} 
-                className="script-item" 
-                onClick={() => openScript(script)}
-                style={{
-                  padding: 'var(--spacing-md)',
-                  borderBottom: '1px solid var(--color-accent)',
-                  background: 'rgba(0, 0, 0, 0.2)',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'}
-              >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 'var(--spacing-xs)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                    <FileText size={16} style={{ color: 'var(--color-accent)' }} />
-                    <span style={{ 
-                      margin: 0, 
-                      color: 'var(--color-text-bright)',
-                      fontSize: 'var(--font-size-md)',
-                      fontWeight: 'bold'
-                    }}>
-                      {script.name}
-                    </span>
-                  </div>
-                  
-                  <span style={{
-                    color: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-sm)',
-                    textTransform: 'uppercase',
-                    fontWeight: 'bold'
-                  }}>
-                    {script.enabled ? 'ENABLED' : 'DISABLED'}
-                  </span>
-                </div>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 'var(--spacing-sm)'
-                }}>
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Category: {script.category}
-                  </span>
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    By: {script.author}
-                  </span>
-                </div>
-                
-                <div style={{
-                  color: 'var(--color-text)',
-                  fontSize: 'var(--font-size-sm)',
-                  lineHeight: 1.4
-                }}>
-                  {script.description}
-                </div>
-              </div>
-            ))}
-            {hasMoreScripts && onShowAll && (
-              <div style={{
-                padding: 'var(--spacing-md)',
-                display: 'flex',
-                justifyContent: 'center'
-              }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={onShowAll}
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
-                >
-                  Show More Scripts
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {renderScriptsList()}
       </div>
     );
   }
@@ -213,19 +172,19 @@ export const InvestigationScriptsPanel = ({
         <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
           INVESTIGATION SCRIPTS
         </h2>
-        
+
         <div className="investigation-script-controls" style={{
           display: 'flex',
           gap: 'var(--spacing-sm)'
         }}>
-          <button 
+          <button
             className="btn btn-action"
             onClick={showNewScriptDialog}
           >
             <Plus size={16} />
             NEW SCRIPT
           </button>
-          <button 
+          <button
             className="btn btn-action"
             onClick={loadScripts}
           >
@@ -245,113 +204,7 @@ export const InvestigationScriptsPanel = ({
       </div>
 
       <div className="investigation-scripts-list">
-        {loading ? (
-          <LoadingSkeleton variant="list" count={3} />
-        ) : errorMessage ? (
-          <div style={{
-            textAlign: 'center',
-            color: 'var(--color-warning)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-sm)'
-          }}>
-            FAILED TO LOAD SCRIPTS
-            <br />
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{errorMessage}</span>
-          </div>
-        ) : visibleScripts.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
-          }}>
-            NO SCRIPTS AVAILABLE
-          </div>
-        ) : (
-          <div className="scripts-list">
-            {scriptsToDisplay.map(script => (
-              <div 
-                key={script.id} 
-                className="script-item" 
-                onClick={() => openScript(script)}
-                style={{
-                  padding: 'var(--spacing-md)',
-                  borderBottom: '1px solid var(--color-accent)',
-                  background: 'rgba(0, 0, 0, 0.2)',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'}
-              >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 'var(--spacing-xs)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                    <FileText size={16} style={{ color: 'var(--color-accent)' }} />
-                    <span style={{ 
-                      margin: 0, 
-                      color: 'var(--color-text-bright)',
-                      fontSize: 'var(--font-size-md)',
-                      fontWeight: 'bold'
-                    }}>
-                      {script.name}
-                    </span>
-                  </div>
-                  
-                  <span style={{
-                    color: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-sm)',
-                    textTransform: 'uppercase',
-                    fontWeight: 'bold'
-                  }}>
-                    {script.enabled ? 'ENABLED' : 'DISABLED'}
-                  </span>
-                </div>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 'var(--spacing-sm)'
-                }}>
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Category: {script.category}
-                  </span>
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    By: {script.author}
-                  </span>
-                </div>
-                
-                <div style={{
-                  color: 'var(--color-text)',
-                  fontSize: 'var(--font-size-sm)',
-                  lineHeight: 1.4
-                }}>
-                  {script.description}
-                </div>
-              </div>
-            ))}
-            {hasMoreScripts && onShowAll && (
-              <div style={{
-                padding: 'var(--spacing-md)',
-                display: 'flex',
-                justifyContent: 'flex-end'
-              }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={onShowAll}
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
-                >
-                  Show More Scripts
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {renderScriptsList()}
       </div>
     </section>
   );

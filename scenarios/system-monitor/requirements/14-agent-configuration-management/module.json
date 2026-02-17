@@ -1,0 +1,57 @@
+{
+  "description": "Agent config endpoints: GET/PUT /api/v1/agent/config, GET /api/v1/agent/runners, GET /api/v1/agent/status. Supports runner type, model, max turns, timeout, tools, skip_permissions, requires_sandbox, requires_approval.",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "system-monitor-should-have-agent-configuration-management-runner-type-model-max-turns-timeout",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Create comprehensive agent configuration system supporting runner type selection, model specification, maximum turns limit, and timeout settings.",
+      "id": "REQ-P1-004",
+      "prd_ref": "system-monitor-should-have-agent-configuration-management-runner-type-model-max-turns-timeout",
+      "status": "implemented",
+      "title": "Agent Configuration Management",
+      "validation": [
+        {
+          "notes": "Test configuration persistence",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify parameter validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate agent behavior with different configs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Config retrieval \u003c 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Agents operate within specified parameters",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Agent configuration management (runner type, model, max turns, timeout)"
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { buildApiUrl } from '../../../shared/api/apiBase';
+import { usePolling } from '../../../shared/hooks/usePolling';
 import type {
   MetricsResponse,
   DetailedMetrics,
@@ -12,6 +13,21 @@ import type {
   ChartDataPoint
 } from '../../../types';
 
+export interface SystemHealthStatus {
+  status?: string;
+  service?: string;
+  timestamp?: number | string;
+  uptime?: number;
+  processor_active?: boolean;
+  maintenance_state?: string;
+  api_connectivity?: {
+    connected?: boolean;
+    latency_ms?: number;
+    error?: { code?: string; message?: string } | null;
+  };
+  checks?: Record<string, unknown>;
+}
+
 interface UseSystemMonitorReturn {
   metrics: MetricsResponse | null;
   detailedMetrics: DetailedMetrics | null;
@@ -21,6 +37,10 @@ interface UseSystemMonitorReturn {
   metricHistory: MetricHistory | null;
   isLoading: boolean;
   error: APIError | null;
+  healthStatus: SystemHealthStatus | null;
+  healthError: string | null;
+  toggleMonitoring: () => Promise<void>;
+  refreshHealth: () => Promise<void>;
   refresh: () => void;
   refreshMetrics: () => void;
 }
@@ -71,21 +91,28 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [metricHistory, setMetricHistory] = useState<MetricHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<APIError | null>(null);
+  const [healthStatus, setHealthStatus] = useState<SystemHealthStatus | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
   const [uiBoostActive, setUiBoostActive] = useState(false);
+  const mountedRef = useRef(true);
   const maintenanceStateRef = useRef<{ previous: MaintenanceState | null; activated: boolean }>({
     previous: null,
     activated: false
   });
 
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
   const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => {
     try {
       const response = await fetch(buildApiUrl(url));
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         let errorData: APIError;
         try {
-          errorData = JSON.parse(errorText);
+          errorData = JSON.parse(errorText) as APIError;
         } catch {
           errorData = {
             error: `HTTP ${response.status}: ${response.statusText}`,
@@ -96,11 +123,13 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
         throw errorData;
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as T;
       return data;
     } catch (err) {
       console.error(`API call failed for ${url}:`, err);
-      
+
+      if (!mountedRef.current) return null;
+
       if (err && typeof err === 'object' && 'error' in err) {
         setError(err as APIError);
       } else {
@@ -116,9 +145,20 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   const checkHealth = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch(buildApiUrl('/health'));
-      return response.ok;
-    } catch {
+      setHealthError(null);
+      const response = await fetch(buildApiUrl('/health'), {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) {
+        setHealthError(`Failed to fetch system status (HTTP ${response.status})`);
+        return false;
+      }
+      const data = (await response.json()) as SystemHealthStatus;
+      setHealthStatus(data);
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setHealthError(msg);
       return false;
     }
   }, []);
@@ -181,10 +221,12 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
     void activateMonitoring();
 
+    const stateRef = maintenanceStateRef.current;
+
     return () => {
       cancelled = true;
-      const previous = maintenanceStateRef.current.previous;
-      if (maintenanceStateRef.current.activated && previous && previous !== 'active') {
+      const previous = stateRef.previous;
+      if (stateRef.activated && previous && previous !== 'active') {
         fetch(buildApiUrl('/maintenance/state'), {
           method: 'POST',
           headers: {
@@ -311,6 +353,53 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     }
   }, [handleApiCall]);
 
+  const refreshHealth = useCallback(async () => {
+    await checkHealth();
+  }, [checkHealth]);
+
+  const toggleMonitoring = useCallback(async () => {
+    if (!healthStatus) {
+      await checkHealth();
+      return;
+    }
+
+    const isCurrentlyActive = healthStatus.processor_active ?? (healthStatus.maintenance_state === 'active');
+    const nextState = isCurrentlyActive ? 'inactive' : 'active';
+
+    try {
+      const response = await fetch(buildApiUrl('/maintenance/state'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maintenanceState: nextState })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update system status');
+      }
+
+      const data = (await response.json()) as { success?: boolean; error?: string };
+      if (data.success === false) {
+        throw new Error(data.error ?? 'Failed to update status');
+      }
+
+      setHealthStatus(prev => prev ? {
+        ...prev,
+        processor_active: nextState === 'active',
+        maintenance_state: nextState
+      } : {
+        processor_active: nextState === 'active',
+        maintenance_state: nextState
+      });
+
+      // Refresh from server to confirm
+      setTimeout(checkHealth, 500);
+    } catch (err) {
+      console.error('Failed to toggle system status:', err);
+      setHealthError(err instanceof Error ? err.message : 'Failed to update status');
+      checkHealth();
+    }
+  }, [checkHealth, healthStatus]);
+
   const refreshMetrics = useCallback(async () => {
     await Promise.all([
       fetchMetrics(),
@@ -361,23 +450,18 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, [refresh]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
-  useEffect(() => {
-    const metricsInterval = setInterval(refreshMetrics, 5000);
-    return () => clearInterval(metricsInterval);
-  }, [refreshMetrics]);
+  usePolling(refreshMetrics, 5000);
 
-  // Set up polling for detailed data (every 60 seconds)
-  useEffect(() => {
-    const detailedInterval = setInterval(() => {
-      Promise.all([
-        fetchProcessMonitorData(),
-        fetchInfrastructureData(),
-        fetchInvestigations()
-      ]);
-    }, 60000);
-    
-    return () => clearInterval(detailedInterval);
-  }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations]);
+  // Set up polling for detailed data + health (every 60 seconds)
+  const fetchDetailedAll = useCallback(() => {
+    void Promise.all([
+      fetchProcessMonitorData(),
+      fetchInfrastructureData(),
+      fetchInvestigations(),
+      checkHealth()
+    ]);
+  }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth]);
+  usePolling(fetchDetailedAll, 60000);
 
   return {
     metrics,
@@ -388,6 +472,10 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     metricHistory,
     isLoading,
     error,
+    healthStatus,
+    healthError,
+    toggleMonitoring,
+    refreshHealth,
     refresh,
     refreshMetrics
   };

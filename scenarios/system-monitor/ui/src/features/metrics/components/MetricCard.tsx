@@ -8,23 +8,8 @@ import type {
   DiskCardDetails,
   GPUCardDetails
 } from '../../../types';
-/* eslint-disable no-case-declarations */
 import { MetricSparkline } from './MetricSparkline';
-
-const formatBytes = (value?: number) => {
-  if (!Number.isFinite(value ?? NaN) || !value) {
-    return '—';
-  }
-  const absolute = Math.max(value, 0);
-  if (absolute === 0) {
-    return '0 B';
-  }
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const exponent = Math.min(Math.floor(Math.log(absolute) / Math.log(1024)), units.length - 1);
-  const scaled = absolute / Math.pow(1024, exponent);
-  const precision = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
-  return `${scaled.toFixed(precision)} ${units[exponent]}`;
-};
+import { formatBytes, formatMegabytes, formatPercentage } from '../../../shared/utils/formatters';
 
 interface MetricCardProps {
   type: CardType;
@@ -134,52 +119,40 @@ export const MetricCard = ({
     return unit ? ` ${unit}` : undefined;
   })();
 
-  const formatPercentage = (val?: number | null) => {
-    if (!Number.isFinite(val ?? NaN)) {
-      return '—';
-    }
-    return `${Number(val).toFixed(1)}%`;
-  };
-
-  const formatMegabytes = (val?: number | null) => {
-    if (!Number.isFinite(val ?? NaN)) {
-      return '—';
-    }
-    return `${Number(val).toFixed(0)} MB`;
-  };
-
   const renderExpandedContent = () => {
     if (!isExpanded || !details) return null;
 
     switch (type) {
-      case 'cpu':
+      case 'cpu': {
         const cpuDetails = details as CPUMetrics;
         return (
           <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-            <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
-              <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
-                Top Processes by CPU:
-              </h4>
-              <div className="process-list">
-                {cpuDetails.top_processes.slice(0, 5).map((process) => (
-                  <div key={process.pid} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    margin: 'var(--spacing-xs) 0',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
-                    <span>{process.name} ({process.pid})</span>
-                    <span style={{ color: 'var(--color-accent)' }}>
-                      {process.cpu_percent.toFixed(1)}%
-                    </span>
-                  </div>
-                ))}
+            {(cpuDetails.top_processes?.length ?? 0) > 0 && (
+              <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
+                <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
+                  Top Processes by CPU:
+                </h4>
+                <div className="process-list">
+                  {(cpuDetails.top_processes ?? []).slice(0, 5).map((process) => (
+                    <div key={process.pid} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      margin: 'var(--spacing-xs) 0',
+                      fontSize: 'var(--font-size-sm)'
+                    }}>
+                      <span>{process.name} ({process.pid})</span>
+                      <span style={{ color: 'var(--color-accent)' }}>
+                        {process.cpu_percent?.toFixed(1) ?? '—'}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            
-            <div className="detail-row" style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
+            )}
+
+            <div className="detail-row" style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
               gap: 'var(--spacing-md)',
               marginBottom: 'var(--spacing-sm)'
             }}>
@@ -188,7 +161,7 @@ export const MetricCard = ({
                   Load Average:
                 </span>
                 <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {cpuDetails.load_average.slice(0, 3).map(load => load.toFixed(2)).join(', ')}
+                  {cpuDetails.load_average?.slice(0, 3).map(load => load.toFixed(2)).join(', ') ?? '—'}
                 </span>
               </div>
               <div className="detail-item">
@@ -196,50 +169,53 @@ export const MetricCard = ({
                   Context Switches:
                 </span>
                 <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {cpuDetails.context_switches.toLocaleString()}
+                  {cpuDetails.context_switches?.toLocaleString() ?? '—'}
                 </span>
               </div>
             </div>
-            
+
             <div className="detail-item">
               <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
                 Total Goroutines:
               </span>
               <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                {cpuDetails.total_goroutines}
+                {cpuDetails.total_goroutines ?? '—'}
               </span>
             </div>
           </div>
         );
+      }
 
-      case 'memory':
+      case 'memory': {
         const memoryDetails = details as MemoryMetrics;
         return (
           <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-            <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
-              <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
-                Top Processes by Memory:
-              </h4>
-              <div className="process-list">
-                {memoryDetails.top_processes.slice(0, 5).map((process) => (
-                  <div key={process.pid} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    margin: 'var(--spacing-xs) 0',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
-                    <span>{process.name} ({process.pid})</span>
-                    <span style={{ color: 'var(--color-accent)' }}>
-                      {process.memory_mb.toFixed(1)} MB
-                    </span>
-                  </div>
-                ))}
+            {(memoryDetails.top_processes?.length ?? 0) > 0 && (
+              <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
+                <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
+                  Top Processes by Memory:
+                </h4>
+                <div className="process-list">
+                  {(memoryDetails.top_processes ?? []).slice(0, 5).map((process) => (
+                    <div key={process.pid} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      margin: 'var(--spacing-xs) 0',
+                      fontSize: 'var(--font-size-sm)'
+                    }}>
+                      <span>{process.name} ({process.pid})</span>
+                      <span style={{ color: 'var(--color-accent)' }}>
+                        {process.memory_mb?.toFixed(1) ?? '—'} MB
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            
-            <div className="detail-row" style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
+            )}
+
+            <div className="detail-row" style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
               gap: 'var(--spacing-md)',
               marginBottom: 'var(--spacing-sm)'
             }}>
@@ -248,7 +224,7 @@ export const MetricCard = ({
                   Swap Usage:
                 </span>
                 <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {memoryDetails.swap_usage.percent.toFixed(1)}%
+                  {memoryDetails.swap_usage?.percent?.toFixed(1) ?? '—'}%
                 </span>
               </div>
               <div className="detail-item">
@@ -256,29 +232,29 @@ export const MetricCard = ({
                   Disk Usage:
                 </span>
                 <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {memoryDetails.disk_usage.percent.toFixed(1)}%
+                  {memoryDetails.disk_usage?.percent?.toFixed(1) ?? '—'}%
                 </span>
               </div>
             </div>
-            
-            {memoryDetails.growth_patterns.length > 0 && (
+
+            {(memoryDetails.growth_patterns?.length ?? 0) > 0 && (
               <div className="detail-section">
                 <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
                   Memory Growth Patterns:
                 </h4>
                 <div className="growth-patterns">
-                  {memoryDetails.growth_patterns.slice(0, 3).map((pattern, index) => (
-                    <div key={index} style={{ 
+                  {(memoryDetails.growth_patterns ?? []).slice(0, 3).map((pattern, index) => (
+                    <div key={index} style={{
                       margin: 'var(--spacing-xs) 0',
                       fontSize: 'var(--font-size-sm)'
                     }}>
                       <span>{pattern.process}: </span>
-                      <span style={{ 
-                        color: pattern.risk_level === 'high' ? 'var(--color-error)' : 
-                               pattern.risk_level === 'medium' ? 'var(--color-warning)' : 
+                      <span style={{
+                        color: pattern.risk_level === 'high' ? 'var(--color-error)' :
+                               pattern.risk_level === 'medium' ? 'var(--color-warning)' :
                                'var(--color-accent)'
                       }}>
-                        {pattern.growth_mb_per_hour.toFixed(1)} MB/hr ({pattern.risk_level})
+                        {pattern.growth_mb_per_hour?.toFixed(1) ?? '—'} MB/hr ({pattern.risk_level})
                       </span>
                     </div>
                   ))}
@@ -287,11 +263,15 @@ export const MetricCard = ({
             )}
           </div>
         );
+      }
 
-      case 'disk':
+      case 'disk': {
         const diskDetails = details as DiskCardDetails;
-        const freeBytes = Number.isFinite(diskDetails.diskUsage.total - diskDetails.diskUsage.used)
-          ? diskDetails.diskUsage.total - diskDetails.diskUsage.used
+        const diskUsage = diskDetails.diskUsage;
+        const total = diskUsage?.total ?? 0;
+        const used = diskUsage?.used ?? 0;
+        const freeBytes = Number.isFinite(total - used)
+          ? total - used
           : undefined;
         return (
           <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
@@ -306,7 +286,7 @@ export const MetricCard = ({
                   Total Capacity:
                 </span>
                 <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {formatBytes(diskDetails.diskUsage.total)}
+                  {formatBytes(total)}
                 </span>
               </div>
               <div className="detail-item">
@@ -314,7 +294,7 @@ export const MetricCard = ({
                   Used:
                 </span>
                 <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {formatBytes(diskDetails.diskUsage.used)}
+                  {formatBytes(used)}
                 </span>
               </div>
               <div className="detail-item">
@@ -330,7 +310,7 @@ export const MetricCard = ({
                   Utilization:
                 </span>
                 <span className="detail-value" style={{ color: 'var(--color-warning)' }}>
-                  {diskDetails.diskUsage.percent.toFixed(1)}%
+                  {diskUsage?.percent?.toFixed(1) ?? '—'}%
                 </span>
               </div>
             </div>
@@ -347,7 +327,7 @@ export const MetricCard = ({
                     Disk Queue Depth:
                   </span>
                   <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                    {diskDetails.storageIO.disk_queue_depth.toFixed(2)}
+                    {diskDetails.storageIO.disk_queue_depth?.toFixed(2) ?? '—'}
                   </span>
                 </div>
                 <div className="detail-item">
@@ -355,7 +335,7 @@ export const MetricCard = ({
                     I/O Wait:
                   </span>
                   <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                    {diskDetails.storageIO.io_wait_percent.toFixed(1)}%
+                    {diskDetails.storageIO.io_wait_percent?.toFixed(1) ?? '—'}%
                   </span>
                 </div>
                 <div className="detail-item">
@@ -363,7 +343,7 @@ export const MetricCard = ({
                     Read Throughput:
                   </span>
                   <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                    {diskDetails.storageIO.read_mb_per_sec.toFixed(2)} MB/s
+                    {diskDetails.storageIO.read_mb_per_sec?.toFixed(2) ?? '—'} MB/s
                   </span>
                 </div>
                 <div className="detail-item">
@@ -371,7 +351,7 @@ export const MetricCard = ({
                     Write Throughput:
                   </span>
                   <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                    {diskDetails.storageIO.write_mb_per_sec.toFixed(2)} MB/s
+                    {diskDetails.storageIO.write_mb_per_sec?.toFixed(2) ?? '—'} MB/s
                   </span>
                 </div>
               </div>
@@ -388,11 +368,12 @@ export const MetricCard = ({
             )}
           </div>
         );
+      }
 
-      case 'gpu':
+      case 'gpu': {
         const gpuDetails = details as GPUCardDetails;
-        const metrics = gpuDetails?.metrics;
-        if (!metrics) {
+        const gpuMetrics = gpuDetails?.metrics;
+        if (!gpuMetrics) {
           return (
             <div style={{ marginTop: 'var(--spacing-md)', color: 'var(--color-text-dim)' }}>
               GPU metrics unavailable. Ensure compatible NVIDIA drivers are installed.
@@ -400,50 +381,52 @@ export const MetricCard = ({
           );
         }
 
-        const { summary, devices, errors } = metrics;
+        const { summary, devices, errors: gpuErrors } = gpuMetrics;
 
         return (
           <div className="metric-details" style={{ marginTop: 'var(--spacing-md)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-            <div className="detail-row" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: 'var(--spacing-md)'
-            }}>
-              <div className="detail-item">
-                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Devices:</span>
-                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>{summary.device_count}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Average Utilization:</span>
-                <span className="detail-value" style={{ color: 'var(--color-accent)' }}>{summary.average_utilization_percent.toFixed(1)}%</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Memory:</span>
-                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {summary.used_memory_mb.toFixed(0)} / {summary.total_memory_mb.toFixed(0)} MB
-                </span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Avg Temp:</span>
-                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {summary.device_count > 0 && summary.average_temperature_c > 0 ? `${summary.average_temperature_c.toFixed(1)}°C` : '—'}
-                </span>
-              </div>
-            </div>
-
-            {metrics.driver_version && (
-              <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                Driver Version: <span style={{ color: 'var(--color-text-bright)' }}>{metrics.driver_version}</span>
+            {summary && (
+              <div className="detail-row" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 'var(--spacing-md)'
+              }}>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Devices:</span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>{summary.device_count}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Average Utilization:</span>
+                  <span className="detail-value" style={{ color: 'var(--color-accent)' }}>{summary.average_utilization_percent?.toFixed(1) ?? '—'}%</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Memory:</span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {summary.used_memory_mb?.toFixed(0) ?? '—'} / {summary.total_memory_mb?.toFixed(0) ?? '—'} MB
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Avg Temp:</span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {summary.device_count > 0 && summary.average_temperature_c > 0 ? `${summary.average_temperature_c.toFixed(1)}°C` : '—'}
+                  </span>
+                </div>
               </div>
             )}
 
-            {metrics.primary_model && (
+            {gpuMetrics.driver_version && (
               <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                Primary Model: <span style={{ color: 'var(--color-text-bright)' }}>{metrics.primary_model}</span>
+                Driver Version: <span style={{ color: 'var(--color-text-bright)' }}>{gpuMetrics.driver_version}</span>
               </div>
             )}
 
-            {errors && errors.length > 0 && (
+            {gpuMetrics.primary_model && (
+              <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                Primary Model: <span style={{ color: 'var(--color-text-bright)' }}>{gpuMetrics.primary_model}</span>
+              </div>
+            )}
+
+            {gpuErrors && gpuErrors.length > 0 && (
               <div style={{
                 border: '1px solid var(--color-warning)',
                 padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -451,14 +434,14 @@ export const MetricCard = ({
                 color: 'var(--color-warning)',
                 fontSize: 'var(--font-size-sm)'
               }}>
-                {errors.join(' • ')}
+                {gpuErrors.join(' • ')}
               </div>
             )}
 
-            {devices.length > 0 ? (
+            {(devices?.length ?? 0) > 0 ? (
               <div className="device-list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                {devices.map(device => (
-                  <div key={device.uuid || device.index} style={{
+                {(devices ?? []).map(device => (
+                  <div key={device.uuid ?? device.index} style={{
                     border: '1px solid var(--color-surface)',
                     borderRadius: 'var(--border-radius-md)',
                     padding: 'var(--spacing-md)',
@@ -474,7 +457,7 @@ export const MetricCard = ({
                         {device.name} (GPU {device.index})
                       </span>
                       <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)' }}>
-                        {device.utilization_percent.toFixed(1)}%
+                        {device.utilization_percent?.toFixed(1) ?? '—'}%
                       </span>
                     </div>
 
@@ -530,61 +513,72 @@ export const MetricCard = ({
             )}
           </div>
         );
+      }
 
-      case 'network':
+      case 'network': {
         const networkDetails = details as NetworkMetrics;
+        const tcpStates = networkDetails?.tcp_states;
+        const portUsage = networkDetails?.port_usage;
+        const networkStats = networkDetails?.network_stats;
         return (
           <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-            <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
-              <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
-                Connection States:
-              </h4>
-              <div className="connection-states" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 'var(--spacing-sm)',
-                fontSize: 'var(--font-size-sm)'
-              }}>
-                <div>Established: <span style={{ color: 'var(--color-accent)' }}>
-                  {networkDetails.tcp_states.established}
-                </span></div>
-                <div>Time Wait: <span style={{ color: 'var(--color-accent)' }}>
-                  {networkDetails.tcp_states.time_wait}
-                </span></div>
-                <div>Listen: <span style={{ color: 'var(--color-accent)' }}>
-                  {networkDetails.tcp_states.listen}
-                </span></div>
-                <div>Total: <span style={{ color: 'var(--color-accent)' }}>
-                  {networkDetails.tcp_states.total}
-                </span></div>
+            {tcpStates && (
+              <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
+                <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
+                  Connection States:
+                </h4>
+                <div className="connection-states" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 'var(--spacing-sm)',
+                  fontSize: 'var(--font-size-sm)'
+                }}>
+                  <div>Established: <span style={{ color: 'var(--color-accent)' }}>
+                    {tcpStates.established ?? '—'}
+                  </span></div>
+                  <div>Time Wait: <span style={{ color: 'var(--color-accent)' }}>
+                    {tcpStates.time_wait ?? '—'}
+                  </span></div>
+                  <div>Listen: <span style={{ color: 'var(--color-accent)' }}>
+                    {tcpStates.listen ?? '—'}
+                  </span></div>
+                  <div>Total: <span style={{ color: 'var(--color-accent)' }}>
+                    {tcpStates.total ?? '—'}
+                  </span></div>
+                </div>
               </div>
-            </div>
-            
-            <div className="detail-row" style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
+            )}
+
+            <div className="detail-row" style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
               gap: 'var(--spacing-md)',
               marginBottom: 'var(--spacing-sm)'
             }}>
-              <div className="detail-item">
-                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
-                  Port Usage:
-                </span>
-                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {networkDetails.port_usage.used} / {networkDetails.port_usage.total}
-                </span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
-                  DNS Health:
-                </span>
-                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {networkDetails.network_stats.dns_success_rate.toFixed(1)}%
-                </span>
-              </div>
+              {portUsage && (
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                    Port Usage:
+                  </span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {portUsage.used} / {portUsage.total}
+                  </span>
+                </div>
+              )}
+              {networkStats && (
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                    DNS Health:
+                  </span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {networkStats.dns_success_rate?.toFixed(1) ?? '—'}%
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         );
+      }
 
       default:
         return null;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Shield, Clock, RefreshCw, AlertCircle, Cpu, HardDrive, Network, Database, Zap, X, Save } from 'lucide-react';
 import { buildApiUrl } from '../../../shared/api/apiBase';
+import { usePolling } from '../../../shared/hooks/usePolling';
 
 interface TriggerConfig {
   id: string;
@@ -30,6 +31,13 @@ interface TriggerApiResponse {
   progress?: number;
 }
 
+interface CooldownApiResponse {
+  cooldown_period_seconds: number;
+  remaining_seconds: number;
+  last_trigger_time: string;
+  is_ready: boolean;
+}
+
 interface AutomaticTriggersSectionProps {
   onUpdateTrigger: (triggerId: string, config: Partial<TriggerConfig>) => void;
 }
@@ -49,19 +57,14 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
   const [editValues, setEditValues] = useState<{ [key: string]: number }>({});
 
   // Update cooldown timer
-  useEffect(() => {
-    if (cooldownStatus.remainingSeconds <= 0) return;
-    
-    const timer = setInterval(() => {
-      setCooldownStatus(prev => ({
-        ...prev,
-        remainingSeconds: Math.max(0, prev.remainingSeconds - 1),
-        isReady: prev.remainingSeconds <= 1
-      }));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [cooldownStatus.remainingSeconds]);
+  const tickCooldown = useCallback(() => {
+    setCooldownStatus(prev => ({
+      ...prev,
+      remainingSeconds: Math.max(0, prev.remainingSeconds - 1),
+      isReady: prev.remainingSeconds <= 1
+    }));
+  }, []);
+  usePolling(tickCooldown, 1000, cooldownStatus.remainingSeconds > 0);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -97,7 +100,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       ]);
       
       if (triggersResponse.ok) {
-        const triggersData: Record<string, TriggerApiResponse> = await triggersResponse.json();
+        const triggersData = (await triggersResponse.json()) as Record<string, TriggerApiResponse>;
         // Convert API data to UI format
         const uiTriggers = Object.values(triggersData).map((trigger) => ({
           id: trigger.id,
@@ -116,7 +119,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       }
       
       if (cooldownResponse.ok) {
-        const cooldownData = await cooldownResponse.json();
+        const cooldownData = (await cooldownResponse.json()) as CooldownApiResponse;
         setCooldownStatus({
           cooldownPeriodSeconds: cooldownData.cooldown_period_seconds,
           remainingSeconds: cooldownData.remaining_seconds,
@@ -134,16 +137,16 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     }
   }, [getIconComponent]);
 
-  // Load data from API on mount and refresh periodically for live progress updates
+  // Load data from API on mount
   useEffect(() => {
     loadData();
-
-    const refreshInterval = setInterval(() => {
-      loadData({ suppressLoading: true });
-    }, 5000);
-
-    return () => clearInterval(refreshInterval);
   }, [loadData]);
+
+  // Refresh periodically for live progress updates
+  const refreshTriggerData = useCallback(() => {
+    void loadData({ suppressLoading: true });
+  }, [loadData]);
+  usePolling(refreshTriggerData, 5000);
 
   const handleToggleTrigger = async (triggerId: string) => {
     try {
@@ -332,14 +335,14 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
             style={{
               marginBottom: 'var(--spacing-lg)',
               padding: 'var(--spacing-md)',
-              background: 'rgba(0, 0, 0, 0.3)',
+              background: 'var(--overlay-medium)',
               borderRadius: 'var(--border-radius-sm)',
               border: '1px solid var(--alpha-accent-10)'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+            <div className="icon-text">
               <Clock size={16} style={{ color: 'var(--color-accent)' }} />
-              <span style={{ 
+              <span style={{
                 color: 'var(--color-text)',
                 fontSize: 'var(--font-size-sm)',
                 fontWeight: 'bold'
@@ -444,7 +447,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     alignItems: 'center',
                     gap: 'var(--spacing-md)',
                     padding: 'var(--spacing-md)',
-                    background: trigger.enabled ? 'var(--alpha-accent-05)' : 'rgba(0, 0, 0, 0.3)',
+                    background: trigger.enabled ? 'var(--alpha-accent-05)' : 'var(--overlay-medium)',
                     border: `1px solid ${trigger.enabled ? 'var(--color-accent)' : 'var(--alpha-accent-20)'}`,
                     borderRadius: 'var(--border-radius-sm)',
                     transition: 'all 0.2s'
@@ -488,7 +491,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                             style={{
                               width: '60px',
                               padding: '2px 4px',
-                              background: 'rgba(0, 0, 0, 0.5)',
+                              background: 'var(--overlay-heavy)',
                               border: '1px solid var(--color-accent)',
                               borderRadius: 'var(--border-radius-sm)',
                               color: 'var(--color-success)',
@@ -575,21 +578,19 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     </span>
                     {showProgress && (
                       <div
+                        className="progress-bar"
                         style={{
                           marginTop: 'var(--spacing-sm)',
                           background: 'var(--alpha-accent-08)',
                           borderRadius: '999px',
-                          overflow: 'hidden',
-                          height: '6px',
                           boxShadow: '0 0 8px var(--alpha-accent-20)'
                         }}
                       >
                         <div
+                          className="progress-fill"
                           style={{
                             width: `${progressValue * 100}%`,
-                            height: '100%',
                             background: 'linear-gradient(90deg, var(--alpha-accent-30) 0%, var(--alpha-accent-80) 100%)',
-                            transition: 'width 0.4s ease',
                             boxShadow: progressValue > 0.95 ? '0 0 12px var(--alpha-accent-60)' : 'none'
                           }}
                         />
@@ -659,7 +660,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
             gap: 'var(--spacing-sm)',
             marginTop: 'var(--spacing-lg)',
             padding: 'var(--spacing-sm)',
-            background: 'rgba(255, 166, 0, 0.1)',
+            background: 'var(--color-warning-bg)',
             border: '1px solid var(--color-warning)',
             borderRadius: 'var(--border-radius-sm)'
           }}>

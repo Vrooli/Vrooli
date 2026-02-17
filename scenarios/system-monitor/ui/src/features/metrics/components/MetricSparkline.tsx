@@ -80,7 +80,10 @@ export const MetricSparkline = ({
   }
 
   const width = 100;
-  const latest = points[points.length - 1];
+  const latest = points[points.length - 1] ?? points[0];
+  if (!latest) {
+    return null;
+  }
   const linePoints = (() => {
     if (points.length === 1) {
       return `0,${latest.y.toFixed(2)} ${width.toFixed(2)},${latest.y.toFixed(2)}`;
