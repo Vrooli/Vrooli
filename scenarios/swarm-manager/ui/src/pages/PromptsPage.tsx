@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor from "@monaco-editor/react";
 import { Code, Eye, List } from "lucide-react";
 import { Card } from "../components/ui/card";
+import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Button } from "../components/ui/button";
+import { Dialog } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -630,138 +632,132 @@ export function PromptsPage() {
         </TabsContent>
       </Tabs>
 
-      {showSimulationModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowSimulationModal(false)} aria-hidden="true" />
-          <div className="relative z-10 w-full max-w-3xl rounded-xl border border-white/10 bg-slate-900 p-5 shadow-2xl">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-slate-100">Simulation Preview</h3>
-              <p className="text-sm text-slate-400">Enter context values and generate an exact prompt preview.</p>
-            </div>
+      <Dialog
+        isOpen={showSimulationModal}
+        onClose={() => setShowSimulationModal(false)}
+        title="Simulation Preview"
+        maxWidth="max-w-3xl"
+        isLoading={simulateMutation.isPending}
+      >
+        <p className="text-sm text-slate-400 -mt-4 mb-4">Enter context values and generate an exact prompt preview.</p>
 
-            <form className="space-y-3" onSubmit={runSimulation}>
-              <div className="grid gap-2 md:grid-cols-3">
-                <Select
-                  value={simulationPayload.kind}
-                  onChange={(event) =>
-                    setSimulationPayload((prev) => ({ ...prev, kind: event.target.value as BacklogKind }))
-                  }
-                >
-                  {KINDS.map((kind) => (
-                    <option key={kind} value={kind}>{kind}</option>
-                  ))}
-                </Select>
-                <Select
-                  value={simulationPayload.mode}
-                  onChange={(event) =>
-                    setSimulationPayload((prev) => ({ ...prev, mode: event.target.value as IdeaAgentMode | "research" }))
-                  }
-                >
-                  {MODES.map((mode) => (
-                    <option key={mode} value={mode}>{mode}</option>
-                  ))}
-                </Select>
-                <Select
-                  value={simulationPayload.operation ?? ""}
-                  onChange={(event) =>
-                    setSimulationPayload((prev) => ({
-                      ...prev,
-                      operation: (event.target.value as "" | "generator" | "improver") || undefined,
-                    }))
-                  }
-                >
-                  {OPERATIONS.map((operation) => (
-                    <option key={operation || "none"} value={operation}>
-                      {operation || "research"}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className="grid gap-2 md:grid-cols-2">
-                <Input
-                  value={simulationPayload.item_name}
-                  onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_name: event.target.value }))}
-                  placeholder="item_name"
-                />
-                <Input
-                  value={simulationPayload.item_title}
-                  onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_title: event.target.value }))}
-                  placeholder="item_title"
-                />
-                <Input
-                  value={simulationPayload.item_status}
-                  onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_status: event.target.value }))}
-                  placeholder="item_status"
-                />
-                <Input
-                  value={simulationPayload.item_priority}
-                  onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_priority: event.target.value }))}
-                  placeholder="item_priority"
-                />
-                <Input
-                  value={simulationPayload.item_tags}
-                  onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_tags: event.target.value }))}
-                  placeholder="item_tags"
-                />
-                <Input
-                  value={simulationPayload.item_folder}
-                  onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_folder: event.target.value }))}
-                  placeholder="item_folder"
-                />
-              </div>
-
-              <textarea
-                value={simulationPayload.item_description}
-                onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_description: event.target.value }))}
-                className="min-h-[110px] w-full rounded-md border border-slate-700/70 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
-                placeholder="item_description"
-              />
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowSimulationModal(false)} disabled={simulateMutation.isPending}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={simulateMutation.isPending}>
-                  {simulateMutation.isPending ? "Generating..." : "Generate Preview"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {showMobileSkills ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center lg:hidden">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowMobileSkills(false)} aria-hidden="true" />
-          <div className="relative z-10 w-full max-h-[80dvh] overflow-auto rounded-t-xl border border-white/10 bg-slate-900 shadow-2xl">
-            <div className="sticky top-0 flex items-center justify-between border-b border-white/10 bg-slate-900 px-4 py-3">
-              <h3 className="text-base font-semibold text-slate-100">Prompt Skills</h3>
-              <Button variant="outline" size="sm" onClick={() => setShowMobileSkills(false)}>Close</Button>
-            </div>
-            <div className="space-y-2 p-4">
-              {(skillsQuery.data ?? []).map((skill) => (
-                <button
-                  key={skill.id}
-                  className={`w-full rounded-md border px-3 py-2 text-left transition ${
-                    selectedSkillId === skill.id
-                      ? "border-cyan-500/60 bg-cyan-500/10"
-                      : "border-slate-700/60 bg-slate-900/30 hover:border-slate-500/60"
-                  }`}
-                  onClick={() => {
-                    setSelectedSkillId(skill.id);
-                    setShowMobileSkills(false);
-                  }}
-                >
-                  <p className="font-mono text-xs text-cyan-300">{skill.id}</p>
-                  <p className="mt-1 text-sm text-slate-100">{skill.name}</p>
-                  <p className="mt-1 text-xs text-slate-400">{skill.impact_summary}</p>
-                </button>
+        <form className="space-y-3" onSubmit={runSimulation}>
+          <div className="grid gap-2 md:grid-cols-3">
+            <Select
+              value={simulationPayload.kind}
+              onChange={(event) =>
+                setSimulationPayload((prev) => ({ ...prev, kind: event.target.value as BacklogKind }))
+              }
+            >
+              {KINDS.map((kind) => (
+                <option key={kind} value={kind}>{kind}</option>
               ))}
-            </div>
+            </Select>
+            <Select
+              value={simulationPayload.mode}
+              onChange={(event) =>
+                setSimulationPayload((prev) => ({ ...prev, mode: event.target.value as IdeaAgentMode | "research" }))
+              }
+            >
+              {MODES.map((mode) => (
+                <option key={mode} value={mode}>{mode}</option>
+              ))}
+            </Select>
+            <Select
+              value={simulationPayload.operation ?? ""}
+              onChange={(event) =>
+                setSimulationPayload((prev) => ({
+                  ...prev,
+                  operation: (event.target.value as "" | "generator" | "improver") || undefined,
+                }))
+              }
+            >
+              {OPERATIONS.map((operation) => (
+                <option key={operation || "none"} value={operation}>
+                  {operation || "research"}
+                </option>
+              ))}
+            </Select>
           </div>
+
+          <div className="grid gap-2 md:grid-cols-2">
+            <Input
+              value={simulationPayload.item_name}
+              onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_name: event.target.value }))}
+              placeholder="item_name"
+            />
+            <Input
+              value={simulationPayload.item_title}
+              onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_title: event.target.value }))}
+              placeholder="item_title"
+            />
+            <Input
+              value={simulationPayload.item_status}
+              onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_status: event.target.value }))}
+              placeholder="item_status"
+            />
+            <Input
+              value={simulationPayload.item_priority}
+              onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_priority: event.target.value }))}
+              placeholder="item_priority"
+            />
+            <Input
+              value={simulationPayload.item_tags}
+              onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_tags: event.target.value }))}
+              placeholder="item_tags"
+            />
+            <Input
+              value={simulationPayload.item_folder}
+              onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_folder: event.target.value }))}
+              placeholder="item_folder"
+            />
+          </div>
+
+          <textarea
+            value={simulationPayload.item_description}
+            onChange={(event) => setSimulationPayload((prev) => ({ ...prev, item_description: event.target.value }))}
+            className="min-h-[110px] w-full rounded-md border border-slate-700/70 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
+            placeholder="item_description"
+          />
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setShowSimulationModal(false)} disabled={simulateMutation.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={simulateMutation.isPending}>
+              {simulateMutation.isPending ? "Generating..." : "Generate Preview"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      <BottomSheet
+        isOpen={showMobileSkills}
+        onClose={() => setShowMobileSkills(false)}
+        title="Prompt Skills"
+        className="lg:hidden"
+      >
+        <div className="space-y-2">
+          {(skillsQuery.data ?? []).map((skill) => (
+            <button
+              key={skill.id}
+              className={`w-full rounded-md border px-3 py-2 text-left transition ${
+                selectedSkillId === skill.id
+                  ? "border-cyan-500/60 bg-cyan-500/10"
+                  : "border-slate-700/60 bg-slate-900/30 hover:border-slate-500/60"
+              }`}
+              onClick={() => {
+                setSelectedSkillId(skill.id);
+                setShowMobileSkills(false);
+              }}
+            >
+              <p className="font-mono text-xs text-cyan-300">{skill.id}</p>
+              <p className="mt-1 text-sm text-slate-100">{skill.name}</p>
+              <p className="mt-1 text-xs text-slate-400">{skill.impact_summary}</p>
+            </button>
+          ))}
         </div>
-      ) : null}
+      </BottomSheet>
     </div>
   );
 }

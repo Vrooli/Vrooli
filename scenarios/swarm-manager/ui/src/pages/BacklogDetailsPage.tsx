@@ -21,7 +21,9 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
+  ChevronDown,
   ChevronLeft,
+  ChevronRight,
   CircleHelp,
   Edit,
   FileText,
@@ -152,6 +154,9 @@ export function BacklogDetailsPage() {
   const [showAgentDialog, setShowAgentDialog] = useState(false);
   const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
   const [previewResetKey, setPreviewResetKey] = useState(0);
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
+  const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
+  const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
 
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
 
@@ -731,42 +736,73 @@ export function BacklogDetailsPage() {
     </div>
   );
 
+  const handleTargetToggle = useCallback((id: string) => {
+    setSelectedTargetIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleRequirementToggle = useCallback((id: string) => {
+    setSelectedRequirementIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   const detailsPanel = item ? (
     <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
       <div className="space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+        <button
+          type="button"
+          onClick={() => setDetailsExpanded(!detailsExpanded)}
+          className="flex w-full items-center gap-2 border-b border-slate-800 pb-2 text-left"
+        >
+          {detailsExpanded ? (
+            <ChevronDown className="h-4 w-4 text-slate-400" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-slate-400" />
+          )}
           <Info className="h-4 w-4 text-slate-400" />
           <h2 className="text-base font-semibold text-slate-100">Details</h2>
-        </div>
-        <p
-          className="text-sm leading-relaxed text-slate-300"
-          data-testid={selectors.backlogDetails.description}
-        >
-          {item.description || "No description provided"}
-        </p>
-        {item.tags.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-              <Tags className="h-3.5 w-3.5" />
-              Tags
+        </button>
+        {detailsExpanded && (
+          <>
+            <p
+              className="text-sm leading-relaxed text-slate-300"
+              data-testid={selectors.backlogDetails.description}
+            >
+              {item.description || "No description provided"}
+            </p>
+            {item.tags.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <Tags className="h-3.5 w-3.5" />
+                  Tags
+                </div>
+                <TagList tags={item.tags} maxTags={10} />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>
+                <p className="text-sm text-slate-300" title={new Date(item.created).toLocaleString()}>
+                  {formatRelativeTime(item.created)}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Updated</p>
+                <p className="text-sm text-slate-300" title={new Date(item.updated).toLocaleString()}>
+                  {formatRelativeTime(item.updated)}
+                </p>
+              </div>
             </div>
-            <TagList tags={item.tags} maxTags={10} />
-          </div>
+          </>
         )}
-        <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>
-            <p className="text-sm text-slate-300" title={new Date(item.created).toLocaleString()}>
-              {formatRelativeTime(item.created)}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Updated</p>
-            <p className="text-sm text-slate-300" title={new Date(item.updated).toLocaleString()}>
-              {formatRelativeTime(item.updated)}
-            </p>
-          </div>
-        </div>
       </div>
     </Card>
   ) : null;
@@ -919,7 +955,7 @@ export function BacklogDetailsPage() {
         <div
           ref={workspaceRef}
           className={cn(
-            "flex h-full min-h-0 flex-1 flex-col lg:flex-row lg:min-h-[calc(100dvh-16rem)]",
+            "flex h-full flex-1 flex-col lg:flex-row min-h-[calc(100dvh-6rem)] lg:min-h-[calc(100dvh-16rem)]",
             isResizing && "select-none"
           )}
         >
@@ -979,34 +1015,15 @@ export function BacklogDetailsPage() {
         </div>
       </div>
 
-      {showFilesSheet && (
-        <div className="fixed inset-0 z-50 flex items-end lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowFilesSheet(false)}
-            aria-hidden="true"
-          />
-          <div
-            className="relative w-full max-h-[85vh] overflow-hidden rounded-t-2xl border border-white/10 bg-slate-900 shadow-2xl flex flex-col"
-            role="dialog"
-            aria-modal
-            aria-label="File browser"
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <span className="text-base font-semibold text-slate-100">Files</span>
-              <button
-                type="button"
-                onClick={() => setShowFilesSheet(false)}
-                className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                aria-label="Close files"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {fileBrowserContent}
-          </div>
-        </div>
-      )}
+      <BottomSheet
+        isOpen={showFilesSheet}
+        onClose={() => setShowFilesSheet(false)}
+        title="Files"
+        className="lg:hidden max-h-[85vh]"
+        contentClassName="p-0"
+      >
+        {fileBrowserContent}
+      </BottomSheet>
     </div>
   );
 
@@ -1056,6 +1073,10 @@ export function BacklogDetailsPage() {
         <OperationalTargetsPanel
           targets={archiveTargets.targets}
           requirements={archiveTargets.requirements}
+          selectedTargetIds={selectedTargetIds}
+          selectedRequirementIds={selectedRequirementIds}
+          onTargetToggle={handleTargetToggle}
+          onRequirementToggle={handleRequirementToggle}
         />
       )}
     </div>
@@ -1084,7 +1105,7 @@ export function BacklogDetailsPage() {
 
       {item && !pageError && (
         <>
-          <div className="flex min-h-[100dvh] flex-col lg:hidden">
+          <div className="flex h-dvh flex-col overflow-hidden lg:hidden">
             <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
               <Button
                 asChild
@@ -1386,6 +1407,8 @@ export function BacklogDetailsPage() {
         errorMessage={agentError}
         files={files}
         archiveTargets={archiveTargets}
+        initialSelectedTargetIds={selectedTargetIds}
+        initialSelectedRequirementIds={selectedRequirementIds}
         onClose={() => {
           setShowAgentDialog(false);
           agentMutation.reset();

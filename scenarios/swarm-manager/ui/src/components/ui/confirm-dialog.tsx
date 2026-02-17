@@ -9,8 +9,9 @@
  */
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "./button";
+import { Dialog } from "./dialog";
 
 interface ConfirmDialogProps {
   /** Whether the dialog is open */
@@ -73,52 +74,24 @@ export function ConfirmDialog({
     }
   }, [isOpen, confirmationText]);
 
-  // Handle keyboard events
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   const canConfirm = !confirmationText || inputValue === confirmationText;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth={sidePanel ? "max-w-5xl" : "max-w-md"}
+      isLoading={isLoading}
+      testId={testIds?.dialog}
+      className={sidePanel ? "overflow-hidden p-0" : undefined}
+    >
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Dialog */}
-      <div
-        className={`relative z-10 w-full rounded-xl border border-white/10 bg-slate-900 shadow-2xl ${
-          sidePanel ? "max-w-5xl overflow-hidden" : "max-w-md p-6"
-        }`}
         role="alertdialog"
-        aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
-        data-testid={testIds?.dialog}
       >
-        {/* Close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Close dialog"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
         <div className={sidePanel ? "grid max-h-[85vh] gap-0 overflow-hidden lg:grid-cols-[1fr_340px]" : ""}>
           <div className={sidePanel ? "overflow-y-auto p-6 lg:p-7" : ""}>
             {/* Warning icon */}
@@ -201,6 +174,6 @@ export function ConfirmDialog({
           )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

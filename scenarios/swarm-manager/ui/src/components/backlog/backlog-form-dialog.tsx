@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { X } from "lucide-react";
 import { Button } from "../ui/button";
+import { Dialog } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
@@ -111,247 +111,239 @@ export function BacklogFormDialog({
   const displayError = error ?? submitError;
   const kindLabel = kindLabelFor(kind);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" data-testid={selectors.backlogForm.dialog}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative z-10 w-full max-w-xl rounded-xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Close dialog"
-        >
-          <X className="h-5 w-5" />
-        </button>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-xl"
+      isLoading={isSubmitting}
+      testId={selectors.backlogForm.dialog}
+    >
+      <h2 className="text-xl font-semibold text-slate-100">
+        {isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
+      </h2>
+      <p className="mt-1 text-sm text-slate-400">
+        {isEditMode
+          ? "Update backlog details and lifecycle status."
+          : "Capture a new backlog item and add it to the swarm."}
+      </p>
 
-        <h2 className="text-xl font-semibold text-slate-100">
-          {isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
-        </h2>
-        <p className="mt-1 text-sm text-slate-400">
-          {isEditMode
-            ? "Update backlog details and lifecycle status."
-            : "Capture a new backlog item and add it to the swarm."}
-        </p>
+      <div className="mt-6 space-y-4">
+        <div>
+          <label htmlFor="backlog-form-kind" className="text-sm font-medium text-slate-300">
+            Backlog type
+          </label>
+          <div className="mt-2">
+            {isEditMode ? (
+              <div className="rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-slate-200">
+                {kindLabel}
+              </div>
+            ) : (
+              <Select
+                id="backlog-form-kind"
+                value={kind}
+                onChange={(e) => {
+                  setField("kind", e.target.value as BacklogKind);
+                  if (error) setError(null);
+                }}
+                data-testid={selectors.backlogForm.kindSelect}
+                disabled={isSubmitting}
+              >
+                {KIND_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            )}
+            {!isEditMode && (
+              <p className="mt-1 text-xs text-slate-500">
+                {KIND_OPTIONS.find((option) => option.value === kind)?.helper}
+              </p>
+            )}
+          </div>
+        </div>
 
-        <div className="mt-6 space-y-4">
+        {kind === "research" && (
           <div>
-            <label htmlFor="backlog-form-kind" className="text-sm font-medium text-slate-300">
-              Backlog type
+            <label htmlFor="backlog-form-research-target" className="text-sm font-medium text-slate-300">
+              Research target
             </label>
             <div className="mt-2">
-              {isEditMode ? (
-                <div className="rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2 text-sm text-slate-200">
-                  {kindLabel}
-                </div>
-              ) : (
-                <Select
-                  id="backlog-form-kind"
-                  value={kind}
-                  onChange={(e) => {
-                    setField("kind", e.target.value as BacklogKind);
-                    if (error) setError(null);
-                  }}
-                  data-testid={selectors.backlogForm.kindSelect}
-                  disabled={isSubmitting}
-                >
-                  {KIND_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              )}
-              {!isEditMode && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {KIND_OPTIONS.find((option) => option.value === kind)?.helper}
-                </p>
-              )}
+              <Select
+                id="backlog-form-research-target"
+                value={researchTarget}
+                onChange={(e) => {
+                  setField("researchTarget", e.target.value as BacklogResearchTarget);
+                  if (error) setError(null);
+                }}
+                data-testid={selectors.backlogForm.researchTargetSelect}
+                disabled={isSubmitting}
+              >
+                {RESEARCH_TARGET_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
             </div>
+            <p className="mt-1 text-xs text-slate-500">
+              {RESEARCH_TARGET_OPTIONS.find((option) => option.value === researchTarget)?.helper}
+            </p>
           </div>
+        )}
 
-          {kind === "research" && (
+        <div>
+          <label htmlFor="backlog-form-title" className="text-sm font-medium text-slate-300">
+            Title
+          </label>
+          <Input
+            id="backlog-form-title"
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder="Backlog item title"
+            className="mt-2"
+            data-testid={selectors.backlogForm.titleInput}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="backlog-form-name" className="text-sm font-medium text-slate-300">
+            Name
+          </label>
+          <Input
+            id="backlog-form-name"
+            value={name}
+            onChange={(e) => {
+              setField("name", e.target.value);
+              setNameDirty(true);
+              if (error) setError(null);
+            }}
+            placeholder="folder-safe-name"
+            className="mt-2"
+            data-testid={selectors.backlogForm.nameInput}
+            disabled={isSubmitting || isEditMode}
+          />
+          {!isEditMode && (
+            <p className="mt-1 text-xs text-slate-500">Auto-generated from title if left empty.</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="backlog-form-description" className="text-sm font-medium text-slate-300">
+            Description
+          </label>
+          <textarea
+            id="backlog-form-description"
+            value={description}
+            onChange={(e) => {
+              setField("description", e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="Describe the task, goals, and constraints..."
+            className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            rows={4}
+            data-testid={selectors.backlogForm.descriptionInput}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="backlog-form-priority" className="text-sm font-medium text-slate-300">
+              Priority (1-10)
+            </label>
+            <Input
+              id="backlog-form-priority"
+              type="number"
+              min={1}
+              max={10}
+              value={priority}
+              onChange={(e) => {
+                setField("priority", Number(e.target.value) || 1);
+                if (error) setError(null);
+              }}
+              className="mt-2"
+              data-testid={selectors.backlogForm.priorityInput}
+              disabled={isSubmitting}
+            />
+          </div>
+          {isEditMode ? (
             <div>
-              <label htmlFor="backlog-form-research-target" className="text-sm font-medium text-slate-300">
-                Research target
+              <label htmlFor="backlog-form-status" className="text-sm font-medium text-slate-300">
+                Status
               </label>
               <div className="mt-2">
                 <Select
-                  id="backlog-form-research-target"
-                  value={researchTarget}
+                  id="backlog-form-status"
+                  value={status}
                   onChange={(e) => {
-                    setField("researchTarget", e.target.value as BacklogResearchTarget);
+                    setField("status", e.target.value as BacklogStatus);
                     if (error) setError(null);
                   }}
-                  data-testid={selectors.backlogForm.researchTargetSelect}
+                  data-testid={selectors.backlogForm.statusSelect}
                   disabled={isSubmitting}
                 >
-                  {RESEARCH_TARGET_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option.replace(/_/g, " ")}
                     </option>
                   ))}
                 </Select>
               </div>
-              <p className="mt-1 text-xs text-slate-500">
-                {RESEARCH_TARGET_OPTIONS.find((option) => option.value === researchTarget)?.helper}
-              </p>
             </div>
-          )}
-
-          <div>
-            <label htmlFor="backlog-form-title" className="text-sm font-medium text-slate-300">
-              Title
-            </label>
-            <Input
-              id="backlog-form-title"
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="Backlog item title"
-              className="mt-2"
-              data-testid={selectors.backlogForm.titleInput}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="backlog-form-name" className="text-sm font-medium text-slate-300">
-              Name
-            </label>
-            <Input
-              id="backlog-form-name"
-              value={name}
-              onChange={(e) => {
-                setField("name", e.target.value);
-                setNameDirty(true);
-                if (error) setError(null);
-              }}
-              placeholder="folder-safe-name"
-              className="mt-2"
-              data-testid={selectors.backlogForm.nameInput}
-              disabled={isSubmitting || isEditMode}
-            />
-            {!isEditMode && (
-              <p className="mt-1 text-xs text-slate-500">Auto-generated from title if left empty.</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="backlog-form-description" className="text-sm font-medium text-slate-300">
-              Description
-            </label>
-            <textarea
-              id="backlog-form-description"
-              value={description}
-              onChange={(e) => {
-                setField("description", e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="Describe the task, goals, and constraints..."
-              className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-              rows={4}
-              data-testid={selectors.backlogForm.descriptionInput}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="backlog-form-priority" className="text-sm font-medium text-slate-300">
-                Priority (1-10)
-              </label>
-              <Input
-                id="backlog-form-priority"
-                type="number"
-                min={1}
-                max={10}
-                value={priority}
-                onChange={(e) => {
-                  setField("priority", Number(e.target.value) || 1);
-                  if (error) setError(null);
-                }}
-                className="mt-2"
-                data-testid={selectors.backlogForm.priorityInput}
-                disabled={isSubmitting}
-              />
-            </div>
-            {isEditMode ? (
-              <div>
-                <label htmlFor="backlog-form-status" className="text-sm font-medium text-slate-300">
-                  Status
-                </label>
-                <div className="mt-2">
-                  <Select
-                    id="backlog-form-status"
-                    value={status}
-                    onChange={(e) => {
-                      setField("status", e.target.value as BacklogStatus);
-                      if (error) setError(null);
-                    }}
-                    data-testid={selectors.backlogForm.statusSelect}
-                    disabled={isSubmitting}
-                  >
-                    {STATUS_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option.replace(/_/g, " ")}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col justify-end text-sm text-slate-400">
-                <span className="font-medium text-slate-300">Status</span>
-                <span className="mt-2 rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2">Backlog</span>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="backlog-form-tags" className="text-sm font-medium text-slate-300">
-              Tags
-            </label>
-            <Input
-              id="backlog-form-tags"
-              value={tagsInput}
-              onChange={(e) => {
-                setTagsInput(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="ai, automation, ops"
-              className="mt-2"
-              data-testid={selectors.backlogForm.tagsInput}
-              disabled={isSubmitting}
-            />
-            <p className="mt-1 text-xs text-slate-500">Separate tags with commas.</p>
-          </div>
-
-          {displayError && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {displayError}
+          ) : (
+            <div className="flex flex-col justify-end text-sm text-slate-400">
+              <span className="font-medium text-slate-300">Status</span>
+              <span className="mt-2 rounded-lg border border-white/10 bg-slate-800/50 px-4 py-2">Backlog</span>
             </div>
           )}
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={onClose}
+        <div>
+          <label htmlFor="backlog-form-tags" className="text-sm font-medium text-slate-300">
+            Tags
+          </label>
+          <Input
+            id="backlog-form-tags"
+            value={tagsInput}
+            onChange={(e) => {
+              setTagsInput(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="ai, automation, ops"
+            className="mt-2"
+            data-testid={selectors.backlogForm.tagsInput}
             disabled={isSubmitting}
-            data-testid={selectors.backlogForm.cancelButton}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            data-testid={selectors.backlogForm.submitButton}
-          >
-            {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : `Create ${kindLabel}`}
-          </Button>
+          />
+          <p className="mt-1 text-xs text-slate-500">Separate tags with commas.</p>
         </div>
+
+        {displayError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {displayError}
+          </div>
+        )}
       </div>
-    </div>
+
+      <div className="mt-6 flex justify-end gap-3">
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isSubmitting}
+          data-testid={selectors.backlogForm.cancelButton}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          data-testid={selectors.backlogForm.submitButton}
+        >
+          {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : `Create ${kindLabel}`}
+        </Button>
+      </div>
+    </Dialog>
   );
 }

@@ -2,11 +2,13 @@
  * BottomSheet Component
  *
  * Mobile-first sheet overlay for compact actions and contextual panels.
+ * Built on Dialog for consistent dismiss behavior (Esc, click-outside, scroll lock).
  */
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { Dialog } from "./dialog";
 
 interface BottomSheetProps {
   /** Whether the sheet is open */
@@ -40,67 +42,60 @@ export function BottomSheet({
   contentClassName,
   "data-testid": testId,
 }: BottomSheetProps) {
-  if (!isOpen) return null;
+  const titleElementId = useId();
+  const descriptionElementId = useId();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-lg"
+      testId={testId}
+      titleId={title ? titleElementId : undefined}
+      descriptionId={description ? descriptionElementId : undefined}
+      className={cn(
+        "!items-end !rounded-t-2xl !rounded-b-none !mx-0 !mb-0 !p-0",
+        "animate-in slide-in-from-bottom duration-200",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div className="space-y-0.5">
+          {title && (
+            <h2 id={titleElementId} className="text-base font-semibold text-slate-100">
+              {title}
+            </h2>
+          )}
+          {description && (
+            <p id={descriptionElementId} className="text-xs text-slate-400">
+              {description}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          aria-label="Close sheet"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-      {/* Sheet */}
       <div
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-t-2xl border border-white/10 bg-slate-900 shadow-2xl",
-          className
+          "max-h-[70vh] overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]",
+          contentClassName,
         )}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? "bottom-sheet-title" : undefined}
-        aria-describedby={description ? "bottom-sheet-description" : undefined}
-        data-testid={testId}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <div className="space-y-0.5">
-            {title && (
-              <h2 id="bottom-sheet-title" className="text-base font-semibold text-slate-100">
-                {title}
-              </h2>
-            )}
-            {description && (
-              <p id="bottom-sheet-description" className="text-xs text-slate-400">
-                {description}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            aria-label="Close sheet"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div
-          className={cn(
-            "max-h-[70vh] overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]",
-            contentClassName
-          )}
-        >
-          {children}
-        </div>
-
-        {footer && (
-          <div className="border-t border-white/10 px-4 py-3">
-            {footer}
-          </div>
-        )}
+        {children}
       </div>
-    </div>
+
+      {footer && (
+        <div className="border-t border-white/10 px-4 py-3">
+          {footer}
+        </div>
+      )}
+    </Dialog>
   );
 }

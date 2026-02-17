@@ -7,8 +7,9 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
-import { X, Files, CheckSquare, Square } from "lucide-react";
+import { Files, CheckSquare, Square } from "lucide-react";
 import { Button } from "../ui/button";
+import { Dialog } from "../ui/dialog";
 import { FileTree } from "../ui/file-tree";
 import { PanelLoadingState } from "../ui/loading-states";
 import { Select } from "../ui/select";
@@ -189,18 +190,6 @@ export function FileSelectionDialog({
     }
   }, [selectedPreset, files]);
 
-  // Handle keyboard events
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value as PreserveFilesPreset | "";
     setSelectedPreset(value);
@@ -233,129 +222,109 @@ export function FileSelectionDialog({
     });
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Dialog */}
-      <div
-        className="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-xl border border-white/10 bg-slate-900 shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="file-selection-title"
-        data-testid="file-selection-dialog"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-cyan-500/20 p-2">
-              <Files className="h-5 w-5 text-cyan-400" />
-            </div>
-            <div>
-              <h2 id="file-selection-title" className="text-lg font-semibold text-slate-100">
-                Preserve Files
-              </h2>
-              <p className="text-sm text-slate-400">
-                Select files to keep when archiving <span className="text-cyan-400">{scenarioName}</span>
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            aria-label="Close dialog"
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      isLoading={isLoading}
+      testId="file-selection-dialog"
+      titleId="file-selection-title"
+      className="flex flex-col max-h-[80vh] p-0"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+        <div className="rounded-full bg-cyan-500/20 p-2">
+          <Files className="h-5 w-5 text-cyan-400" />
         </div>
-
-        {/* Preset selector */}
-        <div className="border-b border-white/10 px-6 py-4">
-          <label className="mb-2 block text-sm font-medium text-slate-300">Quick select preset</label>
-          <Select
-            value={selectedPreset}
-            onChange={handlePresetChange}
-            withChevron
-            data-testid="preset-select"
-          >
-            {PRESETS.map((preset) => (
-              <option key={preset.value} value={preset.value}>
-                {preset.label}
-              </option>
-            ))}
-          </Select>
-          {selectedPreset && (
-            <p className="mt-1 text-xs text-slate-500">
-              {PRESETS.find((p) => p.value === selectedPreset)?.description}
-            </p>
-          )}
-        </div>
-
-        {/* File tree with checkboxes */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {/* Select all / Clear all buttons */}
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm text-slate-400">
-              {selectedPaths.size} of {allFilePaths.length} files selected
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-cyan-400 hover:bg-slate-800"
-                data-testid="select-all-button"
-              >
-                <CheckSquare className="h-3 w-3" />
-                Select All
-              </button>
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-400 hover:bg-slate-800"
-                data-testid="clear-all-button"
-              >
-                <Square className="h-3 w-3" />
-                Clear All
-              </button>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="py-2">
-              <PanelLoadingState
-                label="Loading file tree..."
-                testId="file-selection-loading-state"
-              />
-            </div>
-          ) : (
-            <FileTree
-              files={files}
-              selectionMode="checkbox"
-              selectedPaths={selectedPaths}
-              onSelectionChange={handleSelectionChange}
-              data-testid="file-selection-tree"
-            />
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-3 border-t border-white/10 px-6 py-4">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="default" onClick={handleConfirm} data-testid="confirm-selection-button">
-            Confirm Selection ({selectedPaths.size} files)
-          </Button>
+        <div>
+          <h2 id="file-selection-title" className="text-lg font-semibold text-slate-100">
+            Preserve Files
+          </h2>
+          <p className="text-sm text-slate-400">
+            Select files to keep when archiving <span className="text-cyan-400">{scenarioName}</span>
+          </p>
         </div>
       </div>
-    </div>
+
+      {/* Preset selector */}
+      <div className="border-b border-white/10 px-6 py-4">
+        <label className="mb-2 block text-sm font-medium text-slate-300">Quick select preset</label>
+        <Select
+          value={selectedPreset}
+          onChange={handlePresetChange}
+          withChevron
+          data-testid="preset-select"
+        >
+          {PRESETS.map((preset) => (
+            <option key={preset.value} value={preset.value}>
+              {preset.label}
+            </option>
+          ))}
+        </Select>
+        {selectedPreset && (
+          <p className="mt-1 text-xs text-slate-500">
+            {PRESETS.find((p) => p.value === selectedPreset)?.description}
+          </p>
+        )}
+      </div>
+
+      {/* File tree with checkboxes */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        {/* Select all / Clear all buttons */}
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-sm text-slate-400">
+            {selectedPaths.size} of {allFilePaths.length} files selected
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-cyan-400 hover:bg-slate-800"
+              data-testid="select-all-button"
+            >
+              <CheckSquare className="h-3 w-3" />
+              Select All
+            </button>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-400 hover:bg-slate-800"
+              data-testid="clear-all-button"
+            >
+              <Square className="h-3 w-3" />
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="py-2">
+            <PanelLoadingState
+              label="Loading file tree..."
+              testId="file-selection-loading-state"
+            />
+          </div>
+        ) : (
+          <FileTree
+            files={files}
+            selectionMode="checkbox"
+            selectedPaths={selectedPaths}
+            onSelectionChange={handleSelectionChange}
+            data-testid="file-selection-tree"
+          />
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end gap-3 border-t border-white/10 px-6 py-4">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="default" onClick={handleConfirm} data-testid="confirm-selection-button">
+          Confirm Selection ({selectedPaths.size} files)
+        </Button>
+      </div>
+    </Dialog>
   );
 }
