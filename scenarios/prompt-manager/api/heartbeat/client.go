@@ -145,15 +145,15 @@ type ContinueRunRequest struct {
 
 // InvestigateRunRequest is the request for creating an investigation run.
 type InvestigateRunRequest struct {
-	RunIDs        []string `json:"run_ids"`
+	RunIDs        []string `json:"runIds"`
 	Depth         string   `json:"depth"`
-	CustomContext string   `json:"custom_context"`
+	CustomContext string   `json:"customContext"`
 }
 
 // InvestigationApplyRequest is the request for applying an investigation.
 type InvestigationApplyRequest struct {
-	InvestigationRunID string `json:"investigation_run_id"`
-	CustomContext      string `json:"custom_context"`
+	InvestigationRunID string `json:"investigationRunId"`
+	CustomContext      string `json:"customContext"`
 }
 
 // CreateRunResponse is the response from creating a run

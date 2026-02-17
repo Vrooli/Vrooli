@@ -483,7 +483,14 @@ export function ChatView({
       {/* Main content: Agent events or normal message list */}
       {isAgentActive ? (
         <ErrorBoundary name="AgentEventList">
-          <AgentEventList events={agentEvents} autoScroll={true} viewMode={viewMode} />
+          <AgentEventList
+            events={agentEvents}
+            autoScroll={!scrollToMessageId}
+            viewMode={viewMode}
+            initialMessages={visibleMessages}
+            scrollToMessageId={scrollToMessageId}
+            onScrollComplete={onScrollComplete}
+          />
         </ErrorBoundary>
       ) : (
         <ErrorBoundary name="MessageList">

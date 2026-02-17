@@ -1141,6 +1141,7 @@ func (h *Handlers) ContinueRun(w http.ResponseWriter, r *http.Request) {
 // CreateInvestigationRun handles POST /runs/investigate - creates an investigation run.
 func (h *Handlers) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
 	if h.agentClient == nil {
+		w.Header().Set("X-Vrooli-Error-Hop", "prompt-manager-api")
 		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
 		return
 	}
@@ -1157,6 +1158,7 @@ func (h *Handlers) CreateInvestigationRun(w http.ResponseWriter, r *http.Request
 
 	run, err := h.agentClient.CreateInvestigationRun(r.Context(), req.RunIDs, req.Depth, req.CustomContext)
 	if err != nil {
+		w.Header().Set("X-Vrooli-Error-Hop", "prompt-manager-api->agent-manager")
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
@@ -1168,6 +1170,7 @@ func (h *Handlers) CreateInvestigationRun(w http.ResponseWriter, r *http.Request
 // CreateInvestigationApplyRun handles POST /runs/investigation-apply - applies an investigation.
 func (h *Handlers) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Request) {
 	if h.agentClient == nil {
+		w.Header().Set("X-Vrooli-Error-Hop", "prompt-manager-api")
 		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
 		return
 	}
@@ -1183,6 +1186,7 @@ func (h *Handlers) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Re
 
 	run, err := h.agentClient.CreateInvestigationApplyRun(r.Context(), req.InvestigationRunID, req.CustomContext)
 	if err != nil {
+		w.Header().Set("X-Vrooli-Error-Hop", "prompt-manager-api->agent-manager")
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

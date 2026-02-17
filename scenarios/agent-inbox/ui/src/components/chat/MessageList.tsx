@@ -211,9 +211,6 @@ function MessageListInner({
       const messageEl = messageRefs.current.get(scrollToMessageId);
       if (messageEl) {
         messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        // Use React state for highlight instead of classList.add/remove.
-        // Tailwind CSS purges dynamically-added class names, so classList
-        // manipulation with Tailwind classes doesn't work.
         setHighlightedMessageId(scrollToMessageId);
         highlightTimerId = window.setTimeout(() => {
           setHighlightedMessageId(null);
@@ -1030,7 +1027,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
     return null;
   };
 
-  const highlightClass = isHighlighted ? "ring-2 ring-yellow-400 ring-offset-2 ring-offset-slate-950 rounded-lg bg-yellow-400/10" : "";
+  const highlightClass = isHighlighted ? "ring-4 ring-yellow-400 rounded-xl bg-yellow-400/20 shadow-[0_0_15px_rgba(250,204,21,0.4)]" : "";
 
   // System messages - same in both modes
   if (isSystem) {

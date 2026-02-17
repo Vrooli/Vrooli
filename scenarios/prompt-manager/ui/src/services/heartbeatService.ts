@@ -113,7 +113,7 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error')
-    throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`)
+    throw new Error(formatApiError(response, errorText))
   }
 
   if (response.status === 204) {
@@ -121,6 +121,63 @@ async function apiRequest<T>(
   }
 
   return response.json() as Promise<T>
+}
+
+function formatApiError(response: Response, rawBody: string): string {
+  const status = response.status
+  const statusText = response.statusText || 'Error'
+  const body = (rawBody || '').trim()
+  const contentType = response.headers.get('content-type') || ''
+  const hop = response.headers.get('x-vrooli-error-hop') || response.headers.get('x-vrooli-proxy-hop')
+  const hopSuffix = hop ? ` (hop: ${hop})` : ''
+
+  // Handle gateway/proxy HTML pages (e.g., Cloudflare/nginx) with a concise message.
+  if (status >= 500 && looksLikeHtml(body, contentType)) {
+    if (hop) {
+      return `API error: ${status} ${statusText} - Upstream gateway error at ${hop}.`
+    }
+    return `API error: ${status} ${statusText} - Upstream gateway error before prompt-manager API (edge/tunnel or host).`
+  }
+
+  // Prefer structured JSON errors when available.
+  const jsonMessage = extractJsonErrorMessage(body, contentType)
+  if (jsonMessage) {
+    return `API error: ${status} ${statusText}${hopSuffix} - ${jsonMessage}`
+  }
+
+  const sanitized = sanitizeBody(body)
+  return `API error: ${status} ${statusText}${hopSuffix} - ${sanitized || 'Unknown error'}`
+}
+
+function looksLikeHtml(body: string, contentType: string): boolean {
+  if (contentType.toLowerCase().includes('text/html')) return true
+  const lower = body.toLowerCase()
+  return lower.includes('<!doctype html') || lower.includes('<html')
+}
+
+function extractJsonErrorMessage(body: string, contentType: string): string | null {
+  if (!body) return null
+  const mayBeJson = contentType.toLowerCase().includes('application/json') || body.startsWith('{')
+  if (!mayBeJson) return null
+
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>
+    const message = parsed.message
+    if (typeof message === 'string' && message.trim()) return message.trim()
+    const error = parsed.error
+    if (typeof error === 'string' && error.trim()) return error.trim()
+  } catch {
+    return null
+  }
+  return null
+}
+
+function sanitizeBody(body: string): string {
+  if (!body) return ''
+  const normalized = body.replace(/\s+/g, ' ').trim()
+  const limit = 220
+  if (normalized.length <= limit) return normalized
+  return `${normalized.slice(0, limit)}...`
 }
 
 // ============================================================================

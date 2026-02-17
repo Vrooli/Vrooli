@@ -353,7 +353,9 @@ function AppContent() {
       selectChat(chatId);
       // Clear first, then set in next frame to force re-trigger even if same messageId
       setScrollToMessageId(null);
-      requestAnimationFrame(() => setScrollToMessageId(messageId || null));
+      requestAnimationFrame(() => {
+        setScrollToMessageId(messageId || null);
+      });
       // Close chat list on mobile when selecting
       if (window.innerWidth < 1024) {
         setChatListOpen(false);

@@ -117,6 +117,72 @@ func TestCreateRunRequest_ProtojsonCompatibility(t *testing.T) {
 	}
 }
 
+func TestInvestigateRunRequest_JSONFieldNames(t *testing.T) {
+	req := InvestigateRunRequest{
+		RunIDs:        []string{"11111111-1111-1111-1111-111111111111"},
+		Depth:         "standard",
+		CustomContext: "check",
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	allowed := map[string]bool{
+		"runIds":        true,
+		"depth":         true,
+		"customContext": true,
+	}
+	for key := range fields {
+		if !allowed[key] {
+			t.Errorf("unexpected field %q in InvestigateRunRequest JSON", key)
+		}
+	}
+	for key := range allowed {
+		if _, ok := fields[key]; !ok {
+			t.Errorf("expected field %q missing from InvestigateRunRequest JSON", key)
+		}
+	}
+}
+
+func TestInvestigationApplyRequest_JSONFieldNames(t *testing.T) {
+	req := InvestigationApplyRequest{
+		InvestigationRunID: "11111111-1111-1111-1111-111111111111",
+		CustomContext:      "apply",
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	allowed := map[string]bool{
+		"investigationRunId": true,
+		"customContext":      true,
+	}
+	for key := range fields {
+		if !allowed[key] {
+			t.Errorf("unexpected field %q in InvestigationApplyRequest JSON", key)
+		}
+	}
+	for key := range allowed {
+		if _, ok := fields[key]; !ok {
+			t.Errorf("expected field %q missing from InvestigationApplyRequest JSON", key)
+		}
+	}
+}
+
 // TestCreateRunRequest_WithProfileRefDefaults verifies ProfileRef with Defaults
 // serializes correctly.
 func TestCreateRunRequest_WithProfileRefDefaults(t *testing.T) {

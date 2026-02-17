@@ -1,9 +1,11 @@
-import { useRef, useEffect, useMemo } from "react";
-import type { AgentEvent } from "../../../lib/api";
+import { useRef, useEffect, useMemo, useState } from "react";
+import type { AgentEvent, Message } from "../../../lib/api";
 import type { ViewMode } from "../../settings/Settings";
 import AgentMessageBubble from "./AgentMessageBubble";
 import AgentRawEventCard from "./AgentRawEventCard";
 import { getToolComponent } from "./tools";
+import { MarkdownRenderer } from "../../markdown/MarkdownRenderer";
+import { User } from "lucide-react";
 
 /** Parsed metric from raw_data JSON. */
 export interface AgentMetric {
@@ -22,6 +24,12 @@ interface AgentEventListProps {
   runnerType?: string;
   /** Message rendering style (bubble or compact) */
   viewMode?: ViewMode;
+  /** Initial messages (e.g. user's prompt) to render before agent events */
+  initialMessages?: Message[];
+  /** ID of a message to scroll to and highlight (from search navigation) */
+  scrollToMessageId?: string | null;
+  /** Called after scroll-to-message completes or gives up */
+  onScrollComplete?: () => void;
 }
 
 /**
@@ -35,10 +43,19 @@ export function AgentEventList({
   autoScroll = true,
   runnerType,
   viewMode = "bubble",
+  initialMessages,
+  scrollToMessageId,
+  onScrollComplete,
 }: AgentEventListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevEventCountRef = useRef(events.length);
   const isCompact = viewMode === "compact";
+
+  // Ref map for scroll-to-message support (keyed by message ID or event ID)
+  const elementRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Track which element is highlighted (from search result navigation)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   // Auto-scroll to bottom when new events arrive
   useEffect(() => {
@@ -50,6 +67,42 @@ export function AgentEventList({
     }
     prevEventCountRef.current = events.length;
   }, [events.length, autoScroll]);
+
+  // Scroll to target message/event when scrollToMessageId is set.
+  // Uses retry polling because the target element may not be in the DOM yet.
+  useEffect(() => {
+    if (!scrollToMessageId) return;
+
+    let attempts = 0;
+    const maxAttempts = 30; // ~3 seconds
+    let timerId: number;
+    let highlightTimerId: number;
+
+    const tryScroll = () => {
+      const el = elementRefs.current.get(scrollToMessageId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedId(scrollToMessageId);
+        highlightTimerId = window.setTimeout(() => {
+          setHighlightedId(null);
+          onScrollComplete?.();
+        }, 2000);
+        return;
+      }
+      attempts++;
+      if (attempts < maxAttempts) {
+        timerId = window.setTimeout(tryScroll, 100);
+      } else {
+        onScrollComplete?.();
+      }
+    };
+
+    tryScroll();
+    return () => {
+      clearTimeout(timerId);
+      clearTimeout(highlightTimerId);
+    };
+  }, [scrollToMessageId, onScrollComplete]);
 
   // Group tool calls with their results
   const groupedEvents = useMemo(() => {
@@ -128,7 +181,7 @@ export function AgentEventList({
     return grouped;
   }, [events]);
 
-  if (events.length === 0) {
+  if ((!initialMessages || initialMessages.length === 0) && events.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-zinc-500">
         <p>Waiting for agent response...</p>
@@ -136,12 +189,61 @@ export function AgentEventList({
     );
   }
 
+  const highlightClass = "ring-4 ring-yellow-400 rounded-xl bg-yellow-400/20 shadow-[0_0_15px_rgba(250,204,21,0.4)]";
+
   return (
     <div
       ref={containerRef}
       className={`flex-1 overflow-y-auto ${isCompact ? "p-3 space-y-2" : "p-4 space-y-4"}`}
       data-testid="agent-event-list"
     >
+      {/* Render initial messages (user's prompt) before agent events */}
+      {initialMessages?.map((msg) => {
+        const isHighlighted = msg.id === highlightedId;
+        return (
+          <div
+            key={msg.id}
+            ref={(el) => {
+              if (el) elementRefs.current.set(msg.id, el);
+              else elementRefs.current.delete(msg.id);
+            }}
+            className={`transition-all duration-300 ${isHighlighted ? highlightClass : ""}`}
+          >
+            {isCompact ? (
+              <div className="border-l-2 border-l-blue-500 pl-3 py-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-medium text-blue-400">You</span>
+                  <span className="text-xs text-zinc-500">
+                    {new Date(msg.created_at).toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="text-sm text-zinc-100">
+                  <MarkdownRenderer content={msg.content} />
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-3 flex-row-reverse">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-blue-600">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <div className="max-w-[80%] rounded-2xl px-4 py-2 bg-blue-600 text-white rounded-br-md">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-blue-200">You</span>
+                  </div>
+                  <div className="prose prose-invert prose-sm max-w-none">
+                    <MarkdownRenderer content={msg.content} />
+                  </div>
+                  <div className="text-xs mt-1 text-blue-200">
+                    {new Date(msg.created_at).toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Render grouped agent events */}
       {groupedEvents.map((item, index) => {
         switch (item.type) {
           case "message":

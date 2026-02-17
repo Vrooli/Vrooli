@@ -73,7 +73,7 @@ This matters critically when **archiving and recreating scenarios**. The swarm-m
 
 Follow this sequence to systematically sync all spec artifacts:
 
-#### Phase 1: Inventory
+#### Phase 1: Inventory & Gap Detection
 
 Map what exists in the scenario:
 
@@ -87,6 +87,19 @@ ls scenarios/{{TARGET}}/api/ scenarios/{{TARGET}}/ui/ scenarios/{{TARGET}}/cli/ 
 # Get a high-level view of the codebase
 find scenarios/{{TARGET}} -name "*.go" -o -name "*.ts" -o -name "*.tsx" -o -name "*.py" | head -50
 ```
+
+**Gap Detection:** For each missing artifact, record the required action:
+
+| Missing Artifact | Action | When |
+|-----------------|--------|------|
+| `PRD.md` | **STOP** — flag to user. PRD.md is a prerequisite input for this skill. | — |
+| `requirements/` | Bootstrap via `prd-control-tower requirements generate` | Phase 4 |
+| `docs/internal/SEAMS.md` | Create via `knowledge-observatory docs template seams` | Phase 6 |
+| `docs/internal/PROBLEMS.md` | Create via `knowledge-observatory docs template problems` | Phase 6 |
+| `docs/internal/PROGRESS.md` | Create from template | Phase 6 |
+| `docs/manifest.json` | Create with initial entries | Phase 6 |
+
+**Missing infrastructure is work this skill must perform, not an "unresolved discrepancy."** If an artifact doesn't exist, you create it using the CLI tooling listed above — that is core sync work.
 
 #### Phase 2: Capability Extraction
 
@@ -142,6 +155,32 @@ Compare the capability map against PRD.md operational targets:
 
 #### Phase 4: Requirements Sync
 
+**Bootstrap step — if `requirements/` does not exist:**
+
+If Phase 1 detected that `requirements/` is missing, bootstrap it before syncing:
+
+1. **Primary path** — generate from PRD operational targets:
+   ```bash
+   prd-control-tower requirements generate {{TARGET}} --context-file scenarios/{{TARGET}}/PRD.md --json
+   ```
+   This creates `requirements/index.json`, `requirements/README.md`, and `requirements/01-*/module.json` files from PRD operational targets.
+
+2. **Fallback** — if prd-control-tower is unavailable, scaffold a template structure:
+   ```bash
+   test-genie requirements init --dir scenarios/{{TARGET}} --scenario {{TARGET}}
+   ```
+
+3. **Validate** the generated structure:
+   ```bash
+   prd-control-tower requirements validate {{TARGET}} --json
+   ```
+
+4. Proceed to the sync step below to verify generated statuses against actual code.
+
+> **Note:** This bootstrap step is NOT what the "Avoid" section prohibits. The "Avoid" caveat applies to creating granular modules for trivial internal helpers — bootstrapping the `requirements/` structure itself is essential infrastructure work.
+
+**Sync step — if `requirements/` already exists (or was just bootstrapped):**
+
 For each module in `requirements/`:
 
 1. **Read the module.json** — check each requirement's status and validation references
@@ -186,7 +225,7 @@ Apply `documentation-health` skill standards:
 - Ensure `docs/manifest.json` exists and registers all doc files
 - Verify `[CODE: ...]` references in docs point to real files
 - Verify `// DOC:` comments in code point to real docs
-- Check that internal docs (SEAMS.md, PROBLEMS.md, PROGRESS.md) are current
+- Ensure `docs/internal/SEAMS.md`, `docs/internal/PROBLEMS.md`, and `docs/internal/PROGRESS.md` exist (these are "always create" core internal docs per the `documentation-health` skill). If missing, use `knowledge-observatory docs template <type>` to get the template, create the file, then populate with findings from Phases 1-5
 
 ---
 
@@ -217,6 +256,28 @@ NICE-TO-HAVE:
   [ ] All docs follow documentation-health standards
   [ ] Configuration documentation covers all options
 ```
+
+**When a CRITICAL item fails — decision tree:**
+
+```
+CRITICAL item fails
+    │
+    ├─ Infrastructure exists but content is wrong?
+    │   └─ Fix the content (normal sync work)
+    │
+    └─ Infrastructure does not exist at all?
+        │
+        ├─ requirements/ or modules?
+        │   └─ Bootstrap via prd-control-tower requirements generate (Phase 4)
+        │
+        ├─ Core internal doc (SEAMS, PROBLEMS, PROGRESS)?
+        │   └─ Create via knowledge-observatory docs template (Phase 6)
+        │
+        └─ PRD.md?
+            └─ STOP — flag to user. PRD.md is a prerequisite input.
+```
+
+A CRITICAL item that fails due to missing infrastructure is a signal to **create the infrastructure** using existing CLI tooling, not to log an "unresolved discrepancy."
 
 ---
 
@@ -283,4 +344,4 @@ You must **NOT**:
 - Trusting existing specs without verifying against code
 - Bulk status updates without individual verification
 - Over-documenting internal utilities — focus on user-facing capabilities
-- Creating new spec infrastructure (like requirements modules) for trivial internal helpers
+- Creating granular requirements modules for trivial internal helpers (e.g., a separate module for a string-formatting utility). You **should** still bootstrap the `requirements/` structure via `prd-control-tower requirements generate` if it does not exist — see Phase 4.

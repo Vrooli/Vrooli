@@ -32,6 +32,10 @@ type mockAgentClient struct {
 
 	stopRunErr error
 
+	continueRunErr               error
+	createInvestigationRunErr    error
+	createInvestigationApplyErr  error
+
 	// Call tracking
 	createTaskCalls []*Task
 	createRunCalls  []*CreateRunRequest
@@ -83,6 +87,21 @@ func (m *mockAgentClient) WithWaitRunError(err error) *mockAgentClient {
 
 func (m *mockAgentClient) WithStopRunError(err error) *mockAgentClient {
 	m.stopRunErr = err
+	return m
+}
+
+func (m *mockAgentClient) WithContinueRunError(err error) *mockAgentClient {
+	m.continueRunErr = err
+	return m
+}
+
+func (m *mockAgentClient) WithCreateInvestigationRunError(err error) *mockAgentClient {
+	m.createInvestigationRunErr = err
+	return m
+}
+
+func (m *mockAgentClient) WithCreateInvestigationApplyError(err error) *mockAgentClient {
+	m.createInvestigationApplyErr = err
 	return m
 }
 
@@ -186,13 +205,22 @@ func (m *mockAgentClient) ListRuns(_ context.Context, _ ListRunsOptions) (*ListR
 }
 
 func (m *mockAgentClient) ContinueRun(_ context.Context, _ string, _ string) (*Run, error) {
+	if m.continueRunErr != nil {
+		return nil, m.continueRunErr
+	}
 	return &Run{ID: "run-continued", Status: "RUN_STATUS_RUNNING"}, nil
 }
 
 func (m *mockAgentClient) CreateInvestigationRun(_ context.Context, _ []string, _ string, _ string) (*Run, error) {
+	if m.createInvestigationRunErr != nil {
+		return nil, m.createInvestigationRunErr
+	}
 	return &Run{ID: "run-investigate", Status: "RUN_STATUS_RUNNING"}, nil
 }
 
 func (m *mockAgentClient) CreateInvestigationApplyRun(_ context.Context, _ string, _ string) (*Run, error) {
+	if m.createInvestigationApplyErr != nil {
+		return nil, m.createInvestigationApplyErr
+	}
 	return &Run{ID: "run-apply", Status: "RUN_STATUS_RUNNING"}, nil
 }
