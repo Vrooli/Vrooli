@@ -80,6 +80,7 @@ import type {
   BacklogFile,
   BacklogKind,
   BacklogResearchTarget,
+  BacklogStatus,
   IdeaAgentMode,
   IdeaClarificationQuestion,
   IdeaSuggestion,

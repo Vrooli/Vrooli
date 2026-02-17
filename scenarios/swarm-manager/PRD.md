@@ -21,21 +21,29 @@
 - [x] OT-P0-005 | Scenario catalog with priority | List all scenarios with priority ranking, search, and filter
 - [x] OT-P0-006 | Scenario metadata management | Greenfield/brownfield toggle
 - [x] OT-P0-007 | Scenario deletion with safeguards | Strong confirmation dialog + archive-to-backlog option
-- [x] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with four tabs: Backlog, Scenarios, Execution, Settings
-- [ ] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
+- [x] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with five tabs: Backlog, Scenarios, Execution, Prompts, Settings
+- [x] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
 - [x] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from backlog ideas via ecosystem-manager
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Execution control policy | Manual/scheduled/yolo defaults with configurable delay
 - [x] OT-P1-002 | Execution operations page | View pending/running/completed/failed and govern runs
 - [ ] OT-P1-003 | Insights engine | Self-improvement suggestions based on system patterns
-- [ ] OT-P1-004 | Research agent modal | Spawn research agents from backlog details page
+- [x] OT-P1-004 | Research agent modal | Spawn research agents from backlog details page (Idea Agent: clarify/suggest/enhance workflow)
 - [ ] OT-P1-005 | visited-tracker integration | Campaign management for context cleanup
 - [ ] OT-P1-006 | knowledge-observatory integration | View and prune PROBLEMS.md files
 - [ ] OT-P1-007 | scenario-completeness-scoring integration | Display completeness scores
 - [ ] OT-P1-008 | app-issue-tracker integration | Open and track issues against scenarios
 - [ ] OT-P1-009 | test-genie integration | Run tests and display results
 - [x] OT-P1-010 | Settings modal | Theme, execution policy config, insights config
+
+### 🟡 P0.5 – Implemented but not in original PRD
+- [x] OT-P05-001 | Prompts management | View, edit, preview, simulate, and version prompt-manager skills from the Prompts tab
+- [x] OT-P05-002 | Backlog CRUD form dialog | Create and edit backlog items via UI form dialog with kind selection, validation, and name sanitization
+- [x] OT-P05-003 | Scenario lifecycle control | Start, stop, restart scenarios from UI and CLI
+- [x] OT-P05-004 | Scenario spec-sync-archive | Queue spec-sync agent then auto-archive scenario with configurable file preservation
+- [x] OT-P05-005 | Backlog convert | Move backlog items between kinds (idea/research/fix/execute) via API and CLI
+- [x] OT-P05-006 | Backlog prompt trace | Capture and view prompt traces for research and execution operations
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Advanced cost formulas | Sophisticated priority calculations based on value/effort
@@ -45,21 +53,21 @@
 - [ ] OT-P2-005 | Webhooks | External integrations for notifications and triggers
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks / frameworks: Go API (Gin), React UI (Vite, TypeScript), Go CLI (Cobra)
+- Preferred stacks / frameworks: Go API (api-core/server with gorilla/mux), React UI (Vite, TypeScript, React Query, Zustand), Go CLI (cli-core with urfave/cli)
 - Data + storage expectations: Filesystem only (git-tracked backlog folders, `.vrooli/settings.json`, `.vrooli/queue.json`)
-- Integration strategy: All agent work via agent-manager, all scenario ops via ecosystem-manager, never direct calls
+- Integration strategy: All agent work via agent-manager, scenario ops via ecosystem-manager and Vrooli CLI, prompt resolution via prompt-manager
 - Non-goals / guardrails: No kanban/Trello UI, no direct agent spawning, no embedded scenario implementation code, no complex workflow builders, no multi-user auth
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: None (filesystem-only persistence)
-- Scenario dependencies (required): agent-manager, ecosystem-manager
-- Scenario dependencies (optional P1): knowledge-observatory, visited-tracker, scenario-completeness-scoring, app-issue-tracker, test-genie, prompt-manager
+- Scenario dependencies (required): agent-manager, ecosystem-manager, prompt-manager
+- Scenario dependencies (optional P1): knowledge-observatory, visited-tracker, scenario-completeness-scoring, app-issue-tracker, test-genie
 - Operational risks: Tight coupling with ecosystem-manager and agent-manager API stability; filesystem integrity for settings/queue/execution policy
 - Launch sequencing: P0 core CRUD and UI → P0 integrations → P1 execution control policy → P1 integrations → P2 analytics
 
 ## 🎨 UX & Branding
 - Look & feel: Dark theme default, responsive mobile-first, clean minimal interface
-- Tab structure: Backlog (icon: list), Scenarios (icon: package), Execution (icon: zap), Settings (icon: gear)
+- Tab structure: Backlog (icon: lightbulb), Scenarios (icon: package), Execution (icon: zap), Prompts (icon: scroll-text), Settings (icon: settings)
 - Accessibility: WCAG AA compliance, keyboard navigation, screen reader support
 - Voice & messaging: Technical but approachable, focused on efficiency and clarity
 - Branding hooks: Consistent with Vrooli design system, scenario status indicators with color coding

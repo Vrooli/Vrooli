@@ -280,6 +280,72 @@ func (a *App) cmdScenariosStart(args []string) error {
 	return a.runScenarioLifecycle(args, "start")
 }
 
+func (a *App) cmdScenariosSpecSyncArchive(args []string) error {
+	fs := flag.NewFlagSet("scenarios spec-sync-archive", flag.ContinueOnError)
+	preset := fs.String("preset", "", "Preserve-files preset for archive (for example: planning, all-planning)")
+	pathsCSV := fs.String("paths", "", "Comma-separated preserve path globs")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: scenarios spec-sync-archive <name> [--preset PRESET] [--paths path1,path2] [--json]")
+	}
+	name := strings.TrimSpace(fs.Arg(0))
+	if name == "" {
+		return fmt.Errorf("scenario name is required")
+	}
+
+	var payload any
+	trimmedPreset := strings.TrimSpace(*preset)
+	paths := make([]string, 0)
+	for _, value := range cliutil.ParseCSV(*pathsCSV) {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			paths = append(paths, trimmed)
+		}
+	}
+	if trimmedPreset != "" || len(paths) > 0 {
+		preserveFiles := map[string]any{}
+		if trimmedPreset != "" {
+			preserveFiles["preset"] = trimmedPreset
+		}
+		if len(paths) > 0 {
+			preserveFiles["paths"] = paths
+		}
+		payload = map[string]any{
+			"preserve_files": preserveFiles,
+		}
+	}
+
+	body, err := a.requestV1("POST", "/scenarios/"+name+"/spec-sync-archive", nil, payload)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[SpecSyncArchiveResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Result")
+	fmt.Printf("  Queued spec-sync-archive for %s\n", name)
+	printSection("What Changed")
+	fmt.Printf("  Execution ID: %s\n", response.ExecutionID)
+	fmt.Printf("  Status: %s\n", response.Status)
+	if strings.TrimSpace(response.Message) != "" {
+		fmt.Printf("  Message: %s\n", response.Message)
+	}
+	printCommandListSection("Next Steps", []string{
+		cliCommand("execution", "get", response.ExecutionID),
+		cliCommand("execution", "prompt-trace", response.ExecutionID),
+		cliCommand("execution", "list", "--status", "queued"),
+	})
+	return nil
+}
+
 func (a *App) cmdScenariosStop(args []string) error {
 	return a.runScenarioLifecycle(args, "stop")
 }

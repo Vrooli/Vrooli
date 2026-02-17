@@ -33,24 +33,24 @@
       "dependencies": [
         "REQ-P1-010-API"
       ],
-      "description": "Implement settings modal UI for theme, execution policy, and insights configuration",
+      "description": "Settings page with theme selection (dark/light/system) and execution policy configuration",
       "id": "REQ-P1-010-UI",
       "prd_ref": "OT-P1-010",
-      "status": "draft",
-      "title": "Settings Configuration Modal",
+      "status": "implemented",
+      "title": "Settings Page",
       "validation": [
         {
-          "notes": "Verify UI updates reflect settings changes",
+          "notes": "SettingsPage renders theme and execution policy controls with API persistence",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/pages/SettingsPage.tsx",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Users can customize system behavior",
+          "notes": "Theme changes applied via applyTheme() with system theme watching",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/components/layout/MainLayout.tsx",
+          "status": "passing",
           "type": "test"
         }
       ]

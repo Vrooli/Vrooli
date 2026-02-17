@@ -72,7 +72,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ PRESENTATION LAYER (UI)                                     │
-│ Backlog, Scenarios, Execution, Settings pages               │
+│ Backlog, Scenarios, Execution, Prompts, Settings pages       │
 ├─────────────────────────────────────────────────────────────┤
 │ API GATEWAY LAYER (Go API)                                  │
 │ HTTP/proto endpoints, validation, response contracts         │
@@ -92,8 +92,8 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Functional | 4 primary tabs wired (`backlog`, `scenarios`, `execution`, `settings`) |
-| API Gateway | Implemented | Health, backlog, scenarios, settings, queue, execution, agent-manager status |
+| Presentation | Functional | 5 primary tabs wired (`backlog`, `scenarios`, `execution`, `prompts`, `settings`) |
+| API Gateway | Implemented | Health, backlog, scenarios, settings, queue, execution, prompts, agent-manager status |
 | Domain Logic | Implemented | CRUD, archive, queue, research, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/settings/queue JSON persisted on disk |
@@ -116,6 +116,7 @@ Key implementation files:
 - `/api/v1/settings/*` - settings persistence
 - `/api/v1/queue/*` - queue state operations
 - `/api/v1/execution/*` - execution runs and policy operations
+- `/api/v1/prompts/*` - prompt skill map, CRUD, versions, revert, preview, simulate
 - `/api/v1/agent-manager/status` - agent-manager availability
 
 ## Design Principles

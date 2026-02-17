@@ -85,7 +85,13 @@ describe("PromptsPage", () => {
     expect(screen.getByText("Research")).toBeInTheDocument();
     expect(screen.getByText("Execution")).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Backlog Research: Idea Clarify/i })[0]);
+    const bindingButtons = screen.getAllByRole("button", { name: /Backlog Research: Idea Clarify/i });
+    expect(bindingButtons.length).toBeGreaterThan(0);
+    const firstBindingButton = bindingButtons[0];
+    if (!firstBindingButton) {
+      throw new Error("Expected at least one prompt binding button");
+    }
+    fireEvent.click(firstBindingButton);
 
     await waitFor(() => {
       expect(screen.getByTestId("prompts-viewer-panel")).toBeVisible();

@@ -422,6 +422,45 @@ func (a *App) cmdBacklogResearch(args []string) error {
 	return nil
 }
 
+func (a *App) cmdBacklogPromptTrace(args []string) error {
+	fs := flag.NewFlagSet("backlog prompt-trace", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: backlog prompt-trace <kind> <name> [--json]")
+	}
+	kind := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(fs.Arg(1))
+	if kind == "" || name == "" {
+		return fmt.Errorf("kind and name are required")
+	}
+
+	body, err := a.getV1("/backlog/"+kind+"/"+name+"/prompt-trace", nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[PromptTraceResponse](body)
+	if err != nil {
+		return err
+	}
+	printPromptTraceSummary(
+		"Summary",
+		fmt.Sprintf("Prompt trace for backlog item %s/%s", kind, name),
+		response.Trace,
+	)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "research", kind, name),
+		cliCommand("backlog", "get", kind, name),
+	})
+	return nil
+}
+
 func (a *App) cmdBacklogConvert(args []string) error {
 	fs := flag.NewFlagSet("backlog convert", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)

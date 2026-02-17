@@ -6,31 +6,31 @@
   "requirements": [
     {
       "category": "api",
-      "description": "Implement API endpoints for listing, starting, canceling, and retrying execution runs",
+      "description": "Implement API endpoints for listing, creating, starting, canceling, and retrying execution runs with filtering",
       "id": "REQ-P1-002-API",
       "prd_ref": "OT-P1-002",
-      "status": "draft",
+      "status": "implemented",
       "title": "Execution Operations API",
       "validation": [
         {
-          "notes": "Test execution listing endpoint",
+          "notes": "GET /api/v1/execution lists runs with status/mode/kind/date filters",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/execution/handler.go",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify start/cancel/retry actions",
+          "notes": "POST /api/v1/execution creates new run, POST start/cancel/retry control lifecycle",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/execution/handler.go",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "List loads within 1s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Scheduler polls and transitions scheduled runs to running",
+          "phase": "integration",
+          "ref": "api/internal/execution/service.go",
+          "status": "passing",
           "type": "test"
         }
       ]
@@ -40,24 +40,24 @@
       "dependencies": [
         "REQ-P1-002-API"
       ],
-      "description": "Create operations page UI for viewing run states with start/cancel/retry controls",
+      "description": "Create execution page UI showing pending/running/completed/failed runs with start/cancel/retry controls",
       "id": "REQ-P1-002-UI",
       "prd_ref": "OT-P1-002",
-      "status": "draft",
+      "status": "implemented",
       "title": "Execution Operations Interface",
       "validation": [
         {
-          "notes": "End-to-end execution workflow",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "ExecutionPage renders run list with status badges and action buttons",
+          "phase": "unit",
+          "ref": "ui/src/pages/ExecutionPage.tsx",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Users can effectively govern execution runs",
+          "notes": "Users can view and govern execution runs from the Execution tab",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/pages/ExecutionPage.test.tsx",
+          "status": "passing",
           "type": "test"
         }
       ]

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -126,9 +127,15 @@ func TestScenarioCommandsRegistered(t *testing.T) {
 		args []string
 	}{
 		{"scenarios list no-api", []string{"scenarios", "list"}},
+		{"scenarios spec-sync-archive no-args", []string{"scenarios", "spec-sync-archive"}},
 		{"scenarios get no-args", []string{"scenarios", "get"}},
 		{"settings get no-api", []string{"settings", "get"}},
 		{"queue list no-api", []string{"queue", "list"}},
+		{"backlog prompt-trace no-args", []string{"backlog", "prompt-trace"}},
+		{"execution prompt-trace no-args", []string{"execution", "prompt-trace"}},
+		{"prompts map no-api", []string{"prompts", "map"}},
+		{"prompts skill-get no-args", []string{"prompts", "skill-get"}},
+		{"prompts preview no-args", []string{"prompts", "preview"}},
 		{"agent-manager status no-api", []string{"agent-manager", "status"}},
 		{"execution create no-args", []string{"execution", "create"}},
 	}
@@ -689,5 +696,147 @@ func TestRequestMultipartV1IncludesAuthHeader(t *testing.T) {
 	}
 	if string(body) != `{"ok":true}` {
 		t.Fatalf("unexpected response body: %s", string(body))
+	}
+}
+
+func TestCmdPromptsMapRequestsExpectedEndpoint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/prompts/map" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"items":[{"area":"research","trigger":"x","skill_id":"swarm-manager-clarify-idea","purpose":"p"}]}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdPromptsMap([]string{}); err != nil {
+		t.Fatalf("cmdPromptsMap returned error: %v", err)
+	}
+}
+
+func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/prompts/preview" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if payload["skill_id"] != "swarm-manager-clarify-idea" {
+			t.Fatalf("unexpected skill_id: %v", payload["skill_id"])
+		}
+		if payload["with_scope"] != true {
+			t.Fatalf("expected with_scope=true, got %v", payload["with_scope"])
+		}
+		vars, ok := payload["variables"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected variables object, got %T", payload["variables"])
+		}
+		if vars["ITEM_TITLE"] != "My Idea" {
+			t.Fatalf("unexpected ITEM_TITLE: %v", vars["ITEM_TITLE"])
+		}
+		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-clarify-idea","with_scope":true,"variables":{"ITEM_TITLE":"My Idea"},"prompt":"preview prompt"}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdPromptsPreview([]string{"swarm-manager-clarify-idea", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
+		t.Fatalf("cmdPromptsPreview returned error: %v", err)
+	}
+}
+
+func TestCmdExecutionPromptTraceRequestsExpectedEndpoint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/execution/ex-123/prompt-trace" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"trace":{"skill_id":"swarm-manager-process-idea","purpose":"p","prompt":"prompt text","used_fallback":false,"captured_at":"2026-01-01T00:00:00Z"}}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdExecutionPromptTrace([]string{"ex-123"}); err != nil {
+		t.Fatalf("cmdExecutionPromptTrace returned error: %v", err)
+	}
+}
+
+func TestCmdScenariosSpecSyncArchiveSendsPreserveFiles(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/scenarios/my-scenario/spec-sync-archive" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		preserve, ok := payload["preserve_files"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected preserve_files object, got %T", payload["preserve_files"])
+		}
+		if preserve["preset"] != "planning" {
+			t.Fatalf("unexpected preset: %v", preserve["preset"])
+		}
+		paths, ok := preserve["paths"].([]any)
+		if !ok || len(paths) != 2 {
+			t.Fatalf("unexpected paths: %#v", preserve["paths"])
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"execution_id":"exec-1","status":"queued","message":"ok"}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdScenariosSpecSyncArchive([]string{"my-scenario", "--preset", "planning", "--paths", "PRD.md,docs/**"}); err != nil {
+		t.Fatalf("cmdScenariosSpecSyncArchive returned error: %v", err)
+	}
+}
+
+func TestParseKVCSVValidation(t *testing.T) {
+	if _, err := parseKVCSV("FOO"); err == nil {
+		t.Fatal("expected parseKVCSV to reject invalid key-value entry")
+	}
+	values, err := parseKVCSV("A=1,B=2")
+	if err != nil {
+		t.Fatalf("parseKVCSV returned error: %v", err)
+	}
+	if values["A"] != "1" || values["B"] != "2" {
+		t.Fatalf("unexpected parsed values: %#v", values)
 	}
 }

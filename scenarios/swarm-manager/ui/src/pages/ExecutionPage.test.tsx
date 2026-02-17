@@ -18,12 +18,21 @@ vi.mock("../services", () => ({
 }));
 
 import { executionService, promptService } from "../services";
+import type { PromptTrace } from "../types";
 
 describe("ExecutionPage", () => {
+  const mockPromptTrace: PromptTrace = {
+    skill_id: "swarm-manager-process-execute",
+    purpose: "Execution trace",
+    prompt: "Execution prompt",
+    used_fallback: false,
+    captured_at: "2026-02-12T10:00:00.000Z",
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     useExecutionStore.getState().reset();
-    vi.mocked(promptService.getExecutionPromptTrace).mockResolvedValue(null);
+    vi.mocked(promptService.getExecutionPromptTrace).mockResolvedValue(mockPromptTrace);
   });
 
   afterEach(() => {

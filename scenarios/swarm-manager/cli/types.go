@@ -162,6 +162,93 @@ type ExecutionPolicyResponse struct {
 	Policy ExecutionPolicy `json:"policy"`
 }
 
+type SpecSyncArchiveResponse struct {
+	ExecutionID string `json:"execution_id"`
+	Status      string `json:"status"`
+	Message     string `json:"message"`
+}
+
+type PromptTraceResponse struct {
+	Trace PromptTrace `json:"trace"`
+}
+
+type PromptTrace struct {
+	SkillID      string            `json:"skill_id"`
+	Purpose      string            `json:"purpose"`
+	Variables    map[string]string `json:"variables,omitempty"`
+	Prompt       string            `json:"prompt"`
+	UsedFallback bool              `json:"used_fallback"`
+	CapturedAt   string            `json:"captured_at"`
+}
+
+type PromptBinding struct {
+	Area        string   `json:"area"`
+	Trigger     string   `json:"trigger"`
+	Kind        string   `json:"kind,omitempty"`
+	Mode        string   `json:"mode,omitempty"`
+	Operation   string   `json:"operation,omitempty"`
+	SkillID     string   `json:"skill_id"`
+	Purpose     string   `json:"purpose"`
+	OutputPaths []string `json:"output_paths,omitempty"`
+}
+
+type PromptMapResponse struct {
+	Items []PromptBinding `json:"items"`
+}
+
+type PromptSkillSummary struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description"`
+	DefaultScope    string   `json:"default_scope,omitempty"`
+	Draft           bool     `json:"draft"`
+	UpdatedAt       string   `json:"updated_at,omitempty"`
+	CreatedAt       string   `json:"created_at,omitempty"`
+	TriggerCount    int      `json:"trigger_count"`
+	ImpactSummary   string   `json:"impact_summary"`
+	CurrentContent  string   `json:"current_content,omitempty"`
+	RequiredMissing []string `json:"required_missing,omitempty"`
+}
+
+type PromptSkillsResponse struct {
+	Items []PromptSkillSummary `json:"items"`
+}
+
+type PromptSkillResponse struct {
+	Item PromptSkillSummary `json:"item"`
+}
+
+type PromptSkillVersion struct {
+	Version   int    `json:"version"`
+	Content   string `json:"content"`
+	Name      string `json:"name"`
+	UpdatedAt string `json:"updatedAt"`
+	CreatedBy string `json:"createdBy,omitempty"`
+}
+
+type PromptSkillVersionsResponse struct {
+	SkillID  string               `json:"skillId"`
+	Current  int                  `json:"current"`
+	Versions []PromptSkillVersion `json:"versions"`
+}
+
+type PromptPreviewResponse struct {
+	SkillID   string            `json:"skill_id"`
+	WithScope bool              `json:"with_scope"`
+	Variables map[string]string `json:"variables,omitempty"`
+	Prompt    string            `json:"prompt"`
+}
+
+type PromptSimulateResponse struct {
+	Area      string            `json:"area"`
+	Kind      string            `json:"kind"`
+	Mode      string            `json:"mode,omitempty"`
+	Operation string            `json:"operation,omitempty"`
+	SkillID   string            `json:"skill_id"`
+	Variables map[string]string `json:"variables,omitempty"`
+	Prompt    string            `json:"prompt"`
+}
+
 type AgentManagerStatusResponse struct {
 	Enabled   bool    `json:"enabled"`
 	Available bool    `json:"available"`

@@ -21,7 +21,6 @@ import type {
   PreserveFilesRequest as ProtoPreserveFilesRequest,
   DeleteScenarioRequest as ProtoDeleteScenarioRequest,
   DeleteScenarioResponse as ProtoDeleteScenarioResponse,
-  SpecSyncArchiveResponse as ProtoSpecSyncArchiveResponse,
   UpdateScenarioMetadataRequest as ProtoUpdateScenarioMetadataRequest,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type { AgentManagerStatusResponse as ProtoAgentManagerStatusResponse } from "@vrooli/proto-types/swarm-manager/v1/api/agent_manager_pb";

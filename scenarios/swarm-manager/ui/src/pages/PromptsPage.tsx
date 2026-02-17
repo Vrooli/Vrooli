@@ -316,7 +316,7 @@ export function PromptsPage() {
   };
 
   if (bindingsQuery.isLoading || skillsQuery.isLoading) {
-    return <PageLoadingState variant="settings" message="Loading prompt center..." />;
+    return <PageLoadingState variant="settings" label="Loading prompt center..." />;
   }
 
   if (bindingsQuery.error || skillsQuery.error) {
@@ -474,7 +474,7 @@ export function PromptsPage() {
 
               <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid={selectors.prompts.editor}>
                 {skillQuery.isLoading ? (
-                  <InlineLoadingIndicator message="Loading prompt skill..." />
+                  <InlineLoadingIndicator label="Loading prompt skill..." />
                 ) : selectedSkill ? (
                   <>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-800/50 px-3 py-2">

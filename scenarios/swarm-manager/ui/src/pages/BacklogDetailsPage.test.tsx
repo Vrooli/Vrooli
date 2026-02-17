@@ -46,9 +46,17 @@ vi.mock("../services", () => ({
 }));
 
 import { backlogService, promptService } from "../services";
+import type { PromptTrace } from "../types";
 
 describe("BacklogDetailsPage", () => {
   let queryClient: QueryClient;
+  const mockPromptTrace: PromptTrace = {
+    skill_id: "swarm-manager-clarify-idea",
+    purpose: "Test prompt trace",
+    prompt: "Test prompt",
+    used_fallback: false,
+    captured_at: "2026-01-20T10:00:00Z",
+  };
 
   const mockItem = {
     name: "test-idea",
@@ -82,7 +90,7 @@ describe("BacklogDetailsPage", () => {
     vi.clearAllMocks();
     useBacklogStore.getState().reset();
     vi.mocked(backlogService.getFileContent).mockResolvedValue("Spec content");
-    vi.mocked(promptService.getBacklogPromptTrace).mockResolvedValue(null);
+    vi.mocked(promptService.getBacklogPromptTrace).mockResolvedValue(mockPromptTrace);
   });
 
   const renderPage = (kind = "idea", name = "test-idea") => {

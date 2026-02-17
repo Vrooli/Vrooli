@@ -315,6 +315,44 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 	return nil
 }
 
+func (a *App) cmdExecutionPromptTrace(args []string) error {
+	fs := flag.NewFlagSet("execution prompt-trace", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: execution prompt-trace <execution-id> [--json]")
+	}
+	executionID := strings.TrimSpace(fs.Arg(0))
+	if executionID == "" {
+		return fmt.Errorf("execution-id is required")
+	}
+
+	body, err := a.getV1("/execution/"+executionID+"/prompt-trace", nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[PromptTraceResponse](body)
+	if err != nil {
+		return err
+	}
+	printPromptTraceSummary(
+		"Summary",
+		fmt.Sprintf("Prompt trace for execution %s", executionID),
+		response.Trace,
+	)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("execution", "get", executionID),
+		cliCommand("execution", "retry", executionID),
+	})
+	return nil
+}
+
 func (a *App) cmdExecutionStart(args []string) error {
 	return a.runExecutionMutation(args, "start")
 }
