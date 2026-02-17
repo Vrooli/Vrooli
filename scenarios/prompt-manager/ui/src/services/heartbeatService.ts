@@ -649,7 +649,7 @@ interface RawRunEvent {
 
 /** Normalize a single raw event into the UI-friendly RunEvent shape. */
 function normalizeEvent(raw: RawRunEvent): RunEvent {
-  const shortType = EVENT_TYPE_MAP[raw.event_type] ?? (raw.event_type?.toLowerCase().replace('run_event_type_', '') as RunEvent['eventType'])
+  const shortType = EVENT_TYPE_MAP[raw.event_type] ?? (raw.event_type.toLowerCase().replace('run_event_type_', '') as RunEvent['eventType'])
 
   // Extract the typed payload — agent-manager nests it under the short type key
   const payload: Record<string, unknown> =

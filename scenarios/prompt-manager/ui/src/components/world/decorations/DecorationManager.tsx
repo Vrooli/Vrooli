@@ -3,7 +3,7 @@
  * Connects to the decoration store and renders DecorationItem components.
  */
 
-import { useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { DecorationItem } from './DecorationItem'
 import { DraggableObject } from '../interaction'
 import { useDecorationStore, useDecorationList } from '@/stores/decorationStore'
@@ -22,6 +22,70 @@ interface DecorationManagerProps {
   draggable?: boolean
 }
 
+const LOCAL_ORIGIN: [number, number, number] = [0, 0, 0]
+
+interface DecorationNodeProps {
+  decoration: DecorationInstance
+  decorationScale: number
+  draggable: boolean
+  interactive: boolean
+  isNightTime: boolean
+  constrainPosition: (position: [number, number, number]) => [number, number, number]
+  onDecorationClick?: (decoration: DecorationInstance) => void
+  onPositionChange: (decorationId: string, newPosition: [number, number, number]) => void
+}
+
+const DecorationNode = memo(function DecorationNode({
+  decoration,
+  decorationScale,
+  draggable,
+  interactive,
+  isNightTime,
+  constrainPosition,
+  onDecorationClick,
+  onPositionChange,
+}: DecorationNodeProps) {
+  const handleClick = useCallback(() => {
+    onDecorationClick?.(decoration)
+  }, [onDecorationClick, decoration])
+
+  // Resolve effective light state from mode + time of day
+  const config = DECORATION_CONFIGS[decoration.type]
+  let effectiveLightOn: boolean | undefined
+  if (config.emitsLight) {
+    const mode = decoration.lightMode ?? 'auto'
+    effectiveLightOn = mode === 'on' ? true : mode === 'off' ? false : isNightTime
+  }
+
+  const item = (
+    <DecorationItem
+      id={decoration.id}
+      type={decoration.type}
+      position={draggable ? LOCAL_ORIGIN : decoration.position}
+      rotation={decoration.rotation}
+      scale={(decoration.scale ?? 1) * decorationScale}
+      color={decoration.color}
+      lightOn={effectiveLightOn}
+      onClick={interactive ? handleClick : undefined}
+    />
+  )
+
+  if (draggable) {
+    return (
+      <DraggableObject
+        objectId={decoration.id}
+        position={decoration.position}
+        onPositionChange={(pos) => onPositionChange(decoration.id, pos)}
+        constrainPosition={constrainPosition}
+      >
+        {item}
+      </DraggableObject>
+    )
+  }
+
+  return item
+})
+
 /**
  * Manages rendering of all decoration instances in the world.
  */
@@ -36,10 +100,8 @@ export function DecorationManager({
   const placementConfig = useEnvironmentStore((state) => state.current.placement)
   const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
   const groundSize = useEnvironmentStore((state) => state.current.ground.size)
-  const timeValue = useEnvironmentStore((state) => state.timeValue)
-
-  // Lamps auto-turn-on at night (before 6 AM or after 6 PM)
-  const isNightTime = timeValue < 6 || timeValue >= 18
+  // Subscribe to derived day/night state so manager doesn't rerender on every time tick.
+  const isNightTime = useEnvironmentStore((state) => state.timeValue < 6 || state.timeValue >= 18)
 
   const constrainPosition = useMemo(() => {
     return (position: [number, number, number]) =>
@@ -66,45 +128,19 @@ export function DecorationManager({
 
   return (
     <group name="decoration-manager">
-      {decorationList.map((decoration) => {
-        // Resolve effective light state from mode + time of day
-        const config = DECORATION_CONFIGS[decoration.type]
-        let effectiveLightOn: boolean | undefined
-        if (config.emitsLight) {
-          const mode = decoration.lightMode ?? 'auto'
-          effectiveLightOn = mode === 'on' ? true : mode === 'off' ? false : isNightTime
-        }
-
-        const item = (
-          <DecorationItem
-            key={decoration.id}
-            id={decoration.id}
-            type={decoration.type}
-            position={draggable ? [0, 0, 0] : decoration.position}
-            rotation={decoration.rotation}
-            scale={(decoration.scale ?? 1) * decorationScale}
-            color={decoration.color}
-            lightOn={effectiveLightOn}
-            onClick={interactive ? () => handleClick(decoration) : undefined}
-          />
-        )
-
-        if (draggable) {
-          return (
-            <DraggableObject
-              key={decoration.id}
-              objectId={decoration.id}
-              position={decoration.position}
-              onPositionChange={(pos) => handlePositionChange(decoration.id, pos)}
-              constrainPosition={constrainPosition}
-            >
-              {item}
-            </DraggableObject>
-          )
-        }
-
-        return item
-      })}
+      {decorationList.map((decoration) => (
+        <DecorationNode
+          key={decoration.id}
+          decoration={decoration}
+          decorationScale={decorationScale}
+          draggable={draggable}
+          interactive={interactive}
+          isNightTime={isNightTime}
+          constrainPosition={constrainPosition}
+          onDecorationClick={handleClick}
+          onPositionChange={handlePositionChange}
+        />
+      ))}
     </group>
   )
 }

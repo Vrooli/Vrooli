@@ -45,7 +45,7 @@ import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useCombineStore } from '@/stores/combineStore'
 import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
-import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
+import { getAllItemIdsInSubtree } from '@/services/treeService'
 import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
@@ -155,17 +155,9 @@ export function SkillManagerLayout() {
   // Filter matches to only those for the currently selected skill
   const currentSkillMatches = useMemo(() => {
     if (!selectedSkillId || searchMode !== 'content') {
-      console.log('[SearchHighlight] No matches - selectedSkillId:', selectedSkillId, 'searchMode:', searchMode)
       return []
     }
-    const filtered = contentMatches.filter((match) => match.skillId === selectedSkillId)
-    console.log('[SearchHighlight] Filtering matches:', {
-      totalMatches: contentMatches.length,
-      selectedSkillId,
-      filteredCount: filtered.length,
-      sampleMatch: contentMatches[0],
-    })
-    return filtered
+    return contentMatches.filter((match) => match.skillId === selectedSkillId)
   }, [contentMatches, selectedSkillId, searchMode])
 
   // Tree state (expansion, filtering, collapse - but NOT selection)
@@ -235,23 +227,6 @@ export function SkillManagerLayout() {
       }
     },
     [combineSelectedIds, toggleCombineSkillSelection, toggleCombineMultipleSkills]
-  )
-
-  const getCombineSelectionState = useCallback(
-    (node: TreeNode): 'none' | 'partial' | 'all' => {
-      if (!node.isCategory && node.itemId) {
-        return combineSelectedIds.has(node.itemId) ? 'all' : 'none'
-      }
-
-      const allIds = getAllItemIdsInSubtree(node)
-      if (allIds.length === 0) return 'none'
-
-      const selectedCount = countSelectedInSubtree(node, combineSelectedIds)
-      if (selectedCount === 0) return 'none'
-      if (selectedCount === allIds.length) return 'all'
-      return 'partial'
-    },
-    [combineSelectedIds]
   )
 
   const handleCombineCopy = useCallback(async () => {
@@ -1170,7 +1145,6 @@ export function SkillManagerLayout() {
         combineFormat={combineFormat}
         onCombineFormatChange={setCombineFormat}
         onCombineToggle={handleCombineCheckboxChange}
-        getCombineSelectionState={getCombineSelectionState}
         onEnterCombineMode={enterCombineMode}
         onExitCombineMode={exitCombineMode}
         onCombineCopy={() => void handleCombineCopy()}
@@ -1446,7 +1420,6 @@ export function SkillManagerLayout() {
                 combineFormat={combineFormat}
                 onCombineFormatChange={setCombineFormat}
                 onCombineToggle={handleCombineCheckboxChange}
-                getCombineSelectionState={getCombineSelectionState}
                 onEnterCombineMode={enterCombineMode}
                 onExitCombineMode={exitCombineMode}
                 onCombineCopy={() => void handleCombineCopy()}

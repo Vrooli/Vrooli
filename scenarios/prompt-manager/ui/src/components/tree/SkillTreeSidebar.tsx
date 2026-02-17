@@ -35,9 +35,11 @@ import { CombineActionBar } from './CombineActionBar'
 import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
 import { RunningAgentsPopover } from './RunningAgentsPopover'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
+import { buildDirtyCountIndex, buildSelectionStateIndex } from '@/services/treeService'
 import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useEditorStore } from '@/stores/editorStore'
 
 const CONTENT_SNIPPET_LENGTH = 120
 const CONTENT_SEARCH_MIN_CHARS = 2
@@ -259,7 +261,6 @@ interface SkillTreeSidebarProps {
   combineFormat?: CombineFormat
   onCombineFormatChange?: (format: CombineFormat) => void
   onCombineToggle?: (node: TreeNode) => void
-  getCombineSelectionState?: (node: TreeNode) => 'none' | 'partial' | 'all'
   onEnterCombineMode?: () => void
   onExitCombineMode?: () => void
   onCombineCopy?: () => void
@@ -309,6 +310,8 @@ interface SkillTreeSidebarProps {
   className?: string
 }
 
+const EMPTY_SET = new Set<string>()
+
 /**
  * Full tree sidebar component.
  */
@@ -320,8 +323,8 @@ export function SkillTreeSidebar({
   onSelectItem,
   dirtyItemIds,
   dirtySkillIds,
-  dirtyAgentIds = new Set(),
-  dirtyTeamMemberIds = new Set(),
+  dirtyAgentIds = EMPTY_SET,
+  dirtyTeamMemberIds = EMPTY_SET,
   expandedNodes,
   onToggleNode,
   renderItemIcon,
@@ -350,11 +353,10 @@ export function SkillTreeSidebar({
   onChangeStorage,
   onCreateNewFolder,
   combineMode = false,
-  combineSelectedIds = new Set(),
+  combineSelectedIds = EMPTY_SET,
   combineFormat = 'xml',
   onCombineFormatChange,
   onCombineToggle,
-  getCombineSelectionState,
   onEnterCombineMode,
   onExitCombineMode,
   onCombineCopy,
@@ -478,6 +480,36 @@ export function SkillTreeSidebar({
     [contentMatches]
   )
 
+  const promptStates = useEditorStore((state) => state.prompts)
+
+  const editedNameById = useMemo(() => {
+    const next = new Map<string, string>()
+    for (const [id, promptState] of promptStates) {
+      if (promptState.current.name !== promptState.original.name) {
+        next.set(id, promptState.current.name)
+      }
+    }
+    return next
+  }, [promptStates])
+
+  const skillsById = useMemo(() => {
+    const map = new Map<string, Skill>()
+    for (const skill of skills) {
+      map.set(skill.id, skill)
+    }
+    return map
+  }, [skills])
+
+  const dirtyCountByNodeId = useMemo(
+    () => buildDirtyCountIndex(treeNodes, dirtyItemIds),
+    [treeNodes, dirtyItemIds]
+  )
+
+  const selectionStateByNodeId = useMemo(
+    () => (combineMode ? buildSelectionStateIndex(treeNodes, combineSelectedIds) : undefined),
+    [combineMode, treeNodes, combineSelectedIds]
+  )
+
   // Check AI search availability on mount
   useEffect(() => {
     getAISearchStatus()
@@ -580,10 +612,6 @@ export function SkillTreeSidebar({
 
   // Notify parent when content matches change (for editor highlighting)
   useEffect(() => {
-    console.log('[SearchHighlight] Sidebar notifying parent:', {
-      matchCount: contentMatches.length,
-      hasCallback: !!onContentMatchesChange,
-    })
     onContentMatchesChange?.(contentMatches)
   }, [contentMatches, onContentMatchesChange])
 
@@ -659,9 +687,12 @@ export function SkillTreeSidebar({
   }, [skillContextMenu, onCreateNewFolder])
 
   // Get all available mode paths from skills
-  const availableModePaths = skills
-    .filter((s) => s.modes.length > 0)
-    .map((s) => s.modes)
+  const availableModePaths = useMemo(
+    () => skills
+      .filter((s) => s.modes.length > 0)
+      .map((s) => s.modes),
+    [skills]
+  )
 
   // Collapsed state - show narrow strip with expand button
   if (isCollapsed) {
@@ -1171,16 +1202,18 @@ export function SkillTreeSidebar({
                     <TreeNodeComponent
                       key={node.id}
                       node={node}
-                      skills={skills}
+                      skillsById={skillsById}
+                      editedNameById={editedNameById}
                       selectedItemId={selectedItemId}
                       onSelectItem={onSelectItem}
                       dirtyItemIds={dirtyItemIds}
+                      dirtyCountByNodeId={dirtyCountByNodeId}
                       expandedNodes={expandedNodes}
                       onToggleNode={onToggleNode}
                       renderItemIcon={renderItemIcon}
                       showCheckbox={combineMode}
                       onCheckboxChange={combineMode ? onCombineToggle : undefined}
-                      getSelectionState={combineMode ? getCombineSelectionState : undefined}
+                      selectionStateByNodeId={selectionStateByNodeId}
                       onCategoryContextMenu={handleCategoryContextMenu}
                       onSkillContextMenu={handleSkillContextMenu}
                     />

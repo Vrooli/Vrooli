@@ -153,7 +153,6 @@ export function filterTree(nodes: TreeNode[], query: string, skills: Skill[]): T
       .filter((p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
         p.description.toLowerCase().includes(lowerQuery) ||
-        p.content.toLowerCase().includes(lowerQuery) ||
         p.tags.some((t) => t.toLowerCase().includes(lowerQuery)) ||
         p.modes.some((m) => m.toLowerCase().includes(lowerQuery))
       )
@@ -318,6 +317,77 @@ export function countSelectedInSubtree(node: TreeNode, selectedIds: Set<string>)
     return selectedIds.has(node.itemId) ? 1 : 0
   }
   return node.children.reduce((acc, child) => acc + countSelectedInSubtree(child, selectedIds), 0)
+}
+
+/**
+ * Build a nodeId => dirtyCount map in a single traversal.
+ */
+export function buildDirtyCountIndex(
+  nodes: TreeNode[],
+  dirtyItemIds: Set<string>
+): Map<string, number> {
+  const dirtyCountByNodeId = new Map<string, number>()
+
+  const visit = (node: TreeNode): number => {
+    if (!node.isCategory) {
+      const count = node.itemId && dirtyItemIds.has(node.itemId) ? 1 : 0
+      dirtyCountByNodeId.set(node.id, count)
+      return count
+    }
+
+    let total = 0
+    for (const child of node.children) {
+      total += visit(child)
+    }
+    dirtyCountByNodeId.set(node.id, total)
+    return total
+  }
+
+  for (const node of nodes) {
+    visit(node)
+  }
+
+  return dirtyCountByNodeId
+}
+
+/**
+ * Build a nodeId => selection state map in a single traversal.
+ */
+export function buildSelectionStateIndex(
+  nodes: TreeNode[],
+  selectedIds: Set<string>
+): Map<string, 'none' | 'partial' | 'all'> {
+  const selectionByNodeId = new Map<string, 'none' | 'partial' | 'all'>()
+
+  const visit = (node: TreeNode): { selected: number; total: number } => {
+    if (!node.isCategory) {
+      const selected = node.itemId && selectedIds.has(node.itemId) ? 1 : 0
+      selectionByNodeId.set(node.id, selected > 0 ? 'all' : 'none')
+      return { selected, total: 1 }
+    }
+
+    let selected = 0
+    let total = 0
+    for (const child of node.children) {
+      const childResult = visit(child)
+      selected += childResult.selected
+      total += childResult.total
+    }
+
+    const state = selected === 0
+      ? 'none'
+      : selected === total
+        ? 'all'
+        : 'partial'
+    selectionByNodeId.set(node.id, state)
+    return { selected, total }
+  }
+
+  for (const node of nodes) {
+    visit(node)
+  }
+
+  return selectionByNodeId
 }
 
 /**

@@ -19,7 +19,6 @@ import { useCameraStore } from '@/stores/cameraStore'
 import { useFurnitureStore, useFurnitureList, useSeatedAgents } from '@/stores/furnitureStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useAgentData } from '@/hooks/useAgentData'
-import { useTeamData } from '@/hooks/useTeamData'
 import { useWorldDefaults } from '@/hooks/useWorldDefaults'
 import { useTeamActivity } from '@/hooks/useTeamActivity'
 import { useTeamGathering } from '@/hooks/useTeamGathering'
@@ -106,10 +105,11 @@ export function WorldCanvas({
 
   // Perf: Read DPR from graphics tier — hardcoded [1,2] renders 4x fragments on retina at low tier
   const dpr = useGraphicsStore((state) => state.config.dpr)
+  const shadowsEnabled = useGraphicsStore((state) => state.config.shadows)
+  const antialiasEnabled = useGraphicsStore((state) => state.config.antialiasing !== 'none')
 
   // Agent data (must be above useWorldDefaults so agents.length is available)
   const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
-  useTeamData()
 
   // Seed world with default furniture/decorations on first load
   useWorldDefaults(agents.length)
@@ -128,7 +128,14 @@ export function WorldCanvas({
   const focusedAgentId = useCameraStore((state) => state.focusedAgentId)
   const exitZoom = useCameraStore((state) => state.exitZoom)
   const zoomToAgent = useCameraStore((state) => state.zoomToAgent)
-  const focusedAgent = agents.find((a) => a.id === focusedAgentId) ?? null
+  const agentsById = useMemo(() => {
+    const map = new Map<string, (typeof agents)[number]>()
+    for (const agent of agents) {
+      map.set(agent.id, agent)
+    }
+    return map
+  }, [agents])
+  const focusedAgent = focusedAgentId ? (agentsById.get(focusedAgentId) ?? null) : null
 
   // Furniture and seating state (scene-aware)
   const sceneType = useEnvironmentStore((s) => s.current.type)
@@ -329,7 +336,11 @@ export function WorldCanvas({
   )
 
   // Get full skill objects for selected IDs
-  const selectedSkillObjects = skills.filter((p) => selectedSkillIds.includes(p.id))
+  const selectedSkillObjects = useMemo(() => {
+    if (selectedSkillIds.length === 0) return []
+    const selectedSet = new Set(selectedSkillIds)
+    return skills.filter((skill) => selectedSet.has(skill.id))
+  }, [skills, selectedSkillIds])
 
   // Agent overlay handlers
   const handleCloseOverlay = useCallback(() => {
@@ -373,14 +384,14 @@ export function WorldCanvas({
       <WorldErrorProvider>
         <WorldErrorBoundary componentName="WorldCanvas" className="absolute inset-0">
           <Canvas
-            shadows
+            shadows={shadowsEnabled}
             camera={{
               position: cameraState.position,
               fov: 50,
               near: 0.1,
               far: 100,
             }}
-            gl={{ antialias: true, alpha: false }}
+            gl={{ antialias: antialiasEnabled, alpha: false }}
             dpr={dpr}
           >
             <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />

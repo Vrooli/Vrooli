@@ -90,25 +90,24 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
   }, [runId, selectedInvestigationId])
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     void (async () => {
       try {
         const response = await listRuns({
           investigatesRunId: runId,
           limit: 50,
         })
-        if (cancelled) return
+        if (controller.signal.aborted) return
         const runs = response.runs
         setInvestigations(runs)
-        const firstRun = runs[0]
-        if (firstRun) setSelectedInvestigationId(firstRun.id)
+        setSelectedInvestigationId(runs[0]?.id ?? null)
       } catch {
         // Start with idle state if lookup fails
       } finally {
-        if (!cancelled) setCheckingExisting(false)
+        if (!controller.signal.aborted) setCheckingExisting(false)
       }
     })()
-    return () => { cancelled = true }
+    return () => controller.abort()
   }, [runId])
 
   useEffect(() => {

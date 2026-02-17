@@ -13,7 +13,7 @@
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 
-import { useRef, useEffect, useMemo, useCallback } from 'react'
+import { memo, useRef, useEffect, useMemo, useCallback } from 'react'
 import { OrbitControls } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -140,6 +140,63 @@ interface WorldSceneProps {
   /** Whether to enable automatic performance adjustment */
   autoAdjustPerformance?: boolean
 }
+
+const LOCAL_ORIGIN: [number, number, number] = [0, 0, 0]
+
+interface AgentLayerProps {
+  agentsWithPositions: AgentWithPosition[]
+  agentDraggable: boolean
+  selectedNodeIds: string[]
+  onAgentClick?: (agentId: string, position: [number, number, number]) => void
+  onAgentPositionChange?: (agentId: string, newPosition: [number, number, number]) => void
+  constrainAgentPosition: (position: [number, number, number]) => [number, number, number]
+}
+
+const AgentLayer = memo(function AgentLayer({
+  agentsWithPositions,
+  agentDraggable,
+  selectedNodeIds,
+  onAgentClick,
+  onAgentPositionChange,
+  constrainAgentPosition,
+}: AgentLayerProps) {
+  return (
+    <>
+      {agentsWithPositions.map(({ agent, position, isSeated = false, seatRotation = 0 }) => {
+        const agentComponent = (
+          <AgentWithAccessories
+            key={agent.id}
+            agent={agent}
+            position={agentDraggable ? LOCAL_ORIGIN : position}
+            selectedNodes={selectedNodeIds}
+            isAnimating={false}
+            isSeated={isSeated}
+            seatRotation={seatRotation}
+            onAgentClick={() => onAgentClick?.(agent.id, position)}
+            showOverlays
+            showAccessories
+          />
+        )
+
+        if (agentDraggable && !isSeated) {
+          return (
+            <DraggableObject
+              key={agent.id}
+              objectId={`agent-${agent.id}`}
+              position={position}
+              onPositionChange={(pos) => onAgentPositionChange?.(agent.id, pos)}
+              constrainPosition={constrainAgentPosition}
+            >
+              {agentComponent}
+            </DraggableObject>
+          )
+        }
+
+        return agentComponent
+      })}
+    </>
+  )
+})
 
 export function WorldScene({
   cameraState,
@@ -299,39 +356,15 @@ export function WorldScene({
       {/* Team activity overlays */}
       <TeamOverlayManager onTeamClick={onTeamClick} />
 
-      {/* Render all agents with accessories and overlays */}
-      {agentsWithPositions.map(({ agent, position, isSeated = false, seatRotation = 0 }) => {
-        const agentComponent = (
-          <AgentWithAccessories
-            key={agent.id}
-            agent={agent}
-            position={agentDraggable ? [0, 0, 0] : position}
-            selectedNodes={selectedNodeIds}
-            isAnimating={false}
-            isSeated={isSeated}
-            seatRotation={seatRotation}
-            onAgentClick={() => onAgentClick?.(agent.id, position)}
-            showOverlays
-            showAccessories
-          />
-        )
-
-        if (agentDraggable && !isSeated) {
-          return (
-            <DraggableObject
-              key={agent.id}
-              objectId={`agent-${agent.id}`}
-              position={position}
-              onPositionChange={(pos) => handleAgentPositionChange(agent.id, pos)}
-              constrainPosition={constrainAgentPosition}
-            >
-              {agentComponent}
-            </DraggableObject>
-          )
-        }
-
-        return agentComponent
-      })}
+      {/* Keep agent subtree isolated from sky/lighting/environment rerenders */}
+      <AgentLayer
+        agentsWithPositions={agentsWithPositions}
+        agentDraggable={agentDraggable}
+        selectedNodeIds={selectedNodeIds}
+        onAgentClick={onAgentClick}
+        onAgentPositionChange={handleAgentPositionChange}
+        constrainAgentPosition={constrainAgentPosition}
+      />
     </>
   )
 }

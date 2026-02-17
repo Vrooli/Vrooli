@@ -3,7 +3,7 @@
  * above a furniture piece. Clicking navigates to the team editor.
  */
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Html } from '@react-three/drei'
 import type { TeamActivity } from '@/stores/teamActivityStore'
 
@@ -12,6 +12,39 @@ interface TeamCountdownOverlayProps {
   position: [number, number, number]
   yOffset: number
   onClick: () => void
+}
+
+let nowValue = Date.now()
+let tickerId: ReturnType<typeof setInterval> | null = null
+const tickerListeners = new Set<() => void>()
+
+function emitTick() {
+  nowValue = Date.now()
+  for (const listener of tickerListeners) {
+    listener()
+  }
+}
+
+function subscribeTick(listener: () => void) {
+  tickerListeners.add(listener)
+  if (tickerId === null) {
+    tickerId = setInterval(emitTick, 1000)
+  }
+  return () => {
+    tickerListeners.delete(listener)
+    if (tickerListeners.size === 0 && tickerId !== null) {
+      clearInterval(tickerId)
+      tickerId = null
+    }
+  }
+}
+
+function getTickSnapshot() {
+  return nowValue
+}
+
+function useNowTick() {
+  return useSyncExternalStore(subscribeTick, getTickSnapshot, getTickSnapshot)
 }
 
 function formatTimer(ms: number): string {
@@ -27,25 +60,15 @@ export function TeamCountdownOverlay({
   yOffset,
   onClick,
 }: TeamCountdownOverlayProps) {
-  const [display, setDisplay] = useState('')
+  const now = useNowTick()
   const [showName, setShowName] = useState(false)
-
-  useEffect(() => {
-    function update() {
-      const now = Date.now()
-      const ref = new Date(activity.referenceTime).getTime()
-      if (activity.status === 'upcoming') {
-        const remaining = ref - now
-        setDisplay(`T-${formatTimer(remaining)}`)
-      } else {
-        const elapsed = now - ref
-        setDisplay(`T+${formatTimer(elapsed)}`)
-      }
+  const display = useMemo(() => {
+    const referenceTimeMs = new Date(activity.referenceTime).getTime()
+    if (activity.status === 'upcoming') {
+      return `T-${formatTimer(referenceTimeMs - now)}`
     }
-    update()
-    const id = setInterval(update, 1000)
-    return () => clearInterval(id)
-  }, [activity.referenceTime, activity.status])
+    return `T+${formatTimer(now - referenceTimeMs)}`
+  }, [activity.referenceTime, activity.status, now])
 
   const isUpcoming = activity.status === 'upcoming'
 

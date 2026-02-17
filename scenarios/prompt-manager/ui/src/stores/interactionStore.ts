@@ -86,7 +86,8 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
   setMode: (mode) => set({ mode }),
 
   setHovered: (id) => {
-    if (get().isDragging) return // Don't change hover during drag
+    const state = get()
+    if (state.isDragging || state.hoveredObjectId === id) return // Don't change hover during drag or no-op updates
     set({ hoveredObjectId: id })
   },
 

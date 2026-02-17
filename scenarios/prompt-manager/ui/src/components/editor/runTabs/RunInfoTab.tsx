@@ -70,26 +70,24 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
 
   // Fetch run details
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     setLoading(true)
     setError(null)
 
     void (async () => {
       try {
         const details = await getRunDetails(runId)
-        if (!cancelled) {
-          setRunDetails(details)
-        }
+        if (controller.signal.aborted) return
+        setRunDetails(details)
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load run details')
-        }
+        if (controller.signal.aborted) return
+        setError(err instanceof Error ? err.message : 'Failed to load run details')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     })()
 
-    return () => { cancelled = true }
+    return () => controller.abort()
   }, [runId])
 
   // Live elapsed time ticker

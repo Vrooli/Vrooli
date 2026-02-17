@@ -25,6 +25,9 @@ export function useTeamActivity() {
 
   const poll = useCallback(async () => {
     try {
+      if (document.hidden) {
+        return
+      }
       const now = Date.now()
       const activities: TeamActivity[] = []
 

@@ -2,6 +2,7 @@
  * Performance monitoring store for runtime FPS tracking and dynamic tier adjustment.
  * Enables automatic graphics tier adjustment based on actual device performance.
  */
+// AI_CHECK: REACT_PERFORMANCE=1 | LAST: 2026-02-17
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#performance-monitoring
 
 import { create } from 'zustand'
@@ -161,8 +162,8 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
         },
       })
     } else {
-      // Update just the sample index (minimal state update)
-      set({ sampleIndex: newIndex })
+      // Avoid notifying subscribers every frame; sampleIndex is internal.
+      state.sampleIndex = newIndex
     }
   },
 

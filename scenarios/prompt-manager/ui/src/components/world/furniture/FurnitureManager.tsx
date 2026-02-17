@@ -3,7 +3,7 @@
  * Connects to the furniture store and renders FurnitureItem components.
  */
 
-import { useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { FurnitureItem } from './FurnitureItem'
 import { SeatHandle3D } from './SeatHandle3D'
 import { DraggableObject } from '../interaction'
@@ -18,6 +18,7 @@ import { applyPlacementConstraints } from '@/lib/world'
 
 /** Stable empty array for selector fallback — avoids new references triggering R3F re-render loops. */
 const EMPTY_SEATS: SeatPosition[] = []
+const LOCAL_ORIGIN: [number, number, number] = [0, 0, 0]
 
 interface FurnitureManagerProps {
   /** Called when furniture is clicked */
@@ -27,6 +28,68 @@ interface FurnitureManagerProps {
   /** Whether furniture is draggable */
   draggable?: boolean
 }
+
+interface FurnitureNodeProps {
+  furniture: FurnitureInstance
+  furnitureScale: number
+  draggable: boolean
+  interactive: boolean
+  isNightTime: boolean
+  constrainPosition: (position: [number, number, number]) => [number, number, number]
+  onFurnitureClick?: (furniture: FurnitureInstance) => void
+  onPositionChange: (furnitureId: string, newPosition: [number, number, number]) => void
+}
+
+const FurnitureNode = memo(function FurnitureNode({
+  furniture,
+  furnitureScale,
+  draggable,
+  interactive,
+  isNightTime,
+  constrainPosition,
+  onFurnitureClick,
+  onPositionChange,
+}: FurnitureNodeProps) {
+  const handleClick = useCallback(() => {
+    onFurnitureClick?.(furniture)
+  }, [onFurnitureClick, furniture])
+
+  // Resolve effective light state from mode + time of day
+  const config = FURNITURE_CONFIGS[furniture.type]
+  let effectiveLightOn: boolean | undefined
+  if (config.emitsLight) {
+    const mode = furniture.lightMode ?? 'auto'
+    effectiveLightOn = mode === 'on' ? true : mode === 'off' ? false : isNightTime
+  }
+
+  const item = (
+    <FurnitureItem
+      id={furniture.id}
+      type={furniture.type}
+      position={draggable ? LOCAL_ORIGIN : furniture.position}
+      rotation={furniture.rotation}
+      scale={furnitureScale}
+      color={furniture.color}
+      lightOn={effectiveLightOn}
+      onClick={interactive ? handleClick : undefined}
+    />
+  )
+
+  if (draggable) {
+    return (
+      <DraggableObject
+        objectId={furniture.id}
+        position={furniture.position}
+        onPositionChange={(pos) => onPositionChange(furniture.id, pos)}
+        constrainPosition={constrainPosition}
+      >
+        {item}
+      </DraggableObject>
+    )
+  }
+
+  return item
+})
 
 /**
  * Manages rendering of all furniture instances in the world.
@@ -42,10 +105,8 @@ export function FurnitureManager({
   const placementConfig = useEnvironmentStore((state) => state.current.placement)
   const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
   const groundSize = useEnvironmentStore((state) => state.current.ground.size)
-  const timeValue = useEnvironmentStore((state) => state.timeValue)
-
-  // Campfire (and other light-emitting furniture) auto-lights at night
-  const isNightTime = timeValue < 6 || timeValue >= 18
+  // Subscribe to derived day/night state so manager doesn't rerender on every time tick.
+  const isNightTime = useEnvironmentStore((state) => state.timeValue < 6 || state.timeValue >= 18)
 
   const constrainPosition = useMemo(() => {
     return (position: [number, number, number]) =>
@@ -95,45 +156,19 @@ export function FurnitureManager({
 
   return (
     <group name="furniture-manager">
-      {furnitureList.map((furniture) => {
-        // Resolve effective light state from mode + time of day
-        const config = FURNITURE_CONFIGS[furniture.type]
-        let effectiveLightOn: boolean | undefined
-        if (config.emitsLight) {
-          const mode = furniture.lightMode ?? 'auto'
-          effectiveLightOn = mode === 'on' ? true : mode === 'off' ? false : isNightTime
-        }
-
-        const item = (
-          <FurnitureItem
-            key={furniture.id}
-            id={furniture.id}
-            type={furniture.type}
-            position={draggable ? [0, 0, 0] : furniture.position}
-            rotation={furniture.rotation}
-            scale={furnitureScale}
-            color={furniture.color}
-            lightOn={effectiveLightOn}
-            onClick={interactive ? () => handleClick(furniture) : undefined}
-          />
-        )
-
-        if (draggable) {
-          return (
-            <DraggableObject
-              key={furniture.id}
-              objectId={furniture.id}
-              position={furniture.position}
-              onPositionChange={(pos) => handlePositionChange(furniture.id, pos)}
-              constrainPosition={constrainPosition}
-            >
-              {item}
-            </DraggableObject>
-          )
-        }
-
-        return item
-      })}
+      {furnitureList.map((furniture) => (
+        <FurnitureNode
+          key={furniture.id}
+          furniture={furniture}
+          furnitureScale={furnitureScale}
+          draggable={draggable}
+          interactive={interactive}
+          isNightTime={isNightTime}
+          constrainPosition={constrainPosition}
+          onFurnitureClick={handleClick}
+          onPositionChange={handlePositionChange}
+        />
+      ))}
 
       {/* Seat editing handles */}
       {editingFurniture && editingSeats.map((seat, index) => (

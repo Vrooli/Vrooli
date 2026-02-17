@@ -58,7 +58,7 @@ export function useSkillsData(): UseSkillsDataReturn {
     refetch,
   } = useQuery({
     queryKey: QUERY_KEYS.skills,
-    queryFn: () => skillService.getSkills(true), // Force refresh on query
+    queryFn: () => skillService.getSkills(),
     staleTime: 5000, // Match service cache TTL
   })
 

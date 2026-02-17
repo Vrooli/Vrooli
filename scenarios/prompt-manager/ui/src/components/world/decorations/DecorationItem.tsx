@@ -5,7 +5,7 @@
  * DOC: docs/guides/ASSET-GENERATION.md
  */
 
-import { Suspense, useMemo, useRef, useCallback, useEffect } from 'react'
+import { Suspense, useMemo, useRef, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import type { Mesh } from 'three'
@@ -27,6 +27,9 @@ interface DecorationItemProps {
   receiveShadow?: boolean
   onClick?: () => void
 }
+
+// Cached tree templates with shadow flags applied once per model path + shadow mode.
+const TREE_TEMPLATE_CACHE = new Map<string, THREE.Object3D>()
 
 /**
  * Renders a decoration item based on type.
@@ -556,18 +559,24 @@ function TreeFallback({ color, castShadow }: { color: string; castShadow: boolea
 /** Renders an external GLB tree model */
 function TreeModel({ modelPath, castShadow }: { modelPath: string; castShadow: boolean }) {
   const { scene } = useGLTF(modelPath)
-  const clonedScene = useMemo(() => scene.clone(), [scene])
+  const cacheKey = `${modelPath}:${castShadow ? 'shadow-on' : 'shadow-off'}`
+  const template = useMemo(() => {
+    const cached = TREE_TEMPLATE_CACHE.get(cacheKey)
+    if (cached) return cached
 
-  useEffect(() => {
-    clonedScene.traverse((child) => {
+    const root = scene.clone(true)
+    root.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = castShadow
         child.receiveShadow = true
       }
     })
-  }, [clonedScene, castShadow])
+    TREE_TEMPLATE_CACHE.set(cacheKey, root)
+    return root
+  }, [scene, castShadow, cacheKey])
 
-  return <primitive object={clonedScene} />
+  const instance = useMemo(() => template.clone(true), [template])
+  return <primitive object={instance} />
 }
 
 // Preload tree models so they start loading immediately

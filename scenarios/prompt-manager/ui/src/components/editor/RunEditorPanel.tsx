@@ -59,21 +59,22 @@ export function RunEditorPanel({
 
   // Fetch run details
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     setLoading(true)
 
     void (async () => {
       try {
         const details = await getRunDetails(runId)
-        if (!cancelled) setRunDetails(details)
+        if (controller.signal.aborted) return
+        setRunDetails(details)
       } catch {
         // Non-critical for header display
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     })()
 
-    return () => { cancelled = true }
+    return () => controller.abort()
   }, [runId])
 
   // Live elapsed ticker

@@ -81,12 +81,8 @@ export function DraggableObject({
   const groupRef = useRef<Group>(null)
   const [currentPosition, setCurrentPosition] = useState(initialPosition)
 
-  // Subscribe to store drag state for this object — this is the source of
-  // truth for position during drag, regardless of whether pointer events
-  // arrive on the object mesh or on the DragPlane.
-  const storeDragState = useInteractionStore((state) =>
-    state.draggedObjectId === objectId ? state.dragState : null
-  )
+  // Subscribe only to the dragging flag to avoid pointer-move re-renders.
+  // Per-frame drag position is read from store inside useFrame.
   const isDragging = useInteractionStore((state) => state.draggedObjectId === objectId)
 
   // Sync with external position prop changes when not dragging
@@ -152,18 +148,23 @@ export function DraggableObject({
   })
 
   // Animate lift, scale, and position during drag
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!groupRef.current) return
 
     // Derive target position: from store during drag, from state otherwise
     let targetPos: [number, number, number]
-    if (isDragging && storeDragState) {
-      targetPos = computeDragPosition(
-        initialPosition,
-        storeDragState.offset,
-        constrainPosition,
-      )
-      lastDragPosRef.current = targetPos
+    if (isDragging) {
+      const dragState = useInteractionStore.getState().dragState
+      if (dragState) {
+        targetPos = computeDragPosition(
+          initialPosition,
+          dragState.offset,
+          constrainPosition,
+        )
+        lastDragPosRef.current = targetPos
+      } else {
+        targetPos = currentPosition
+      }
     } else {
       targetPos = currentPosition
     }
@@ -173,25 +174,28 @@ export function DraggableObject({
       : targetPos[1]
     const targetScale = isDragging ? DRAG_SCALE_FACTOR : 1
 
-    // Smooth interpolation
-    groupRef.current.position.x = THREE.MathUtils.lerp(
+    // Frame-rate independent damping keeps drag feel consistent across devices.
+    groupRef.current.position.x = THREE.MathUtils.damp(
       groupRef.current.position.x,
       targetPos[0],
-      0.3
+      18,
+      delta,
     )
-    groupRef.current.position.y = THREE.MathUtils.lerp(
+    groupRef.current.position.y = THREE.MathUtils.damp(
       groupRef.current.position.y,
       targetY,
-      0.2
+      16,
+      delta,
     )
-    groupRef.current.position.z = THREE.MathUtils.lerp(
+    groupRef.current.position.z = THREE.MathUtils.damp(
       groupRef.current.position.z,
       targetPos[2],
-      0.3
+      18,
+      delta,
     )
 
     const currentScale = groupRef.current.scale.x
-    const newScale = THREE.MathUtils.lerp(currentScale, targetScale, 0.2)
+    const newScale = THREE.MathUtils.damp(currentScale, targetScale, 12, delta)
     groupRef.current.scale.setScalar(newScale)
   })
 

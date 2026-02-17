@@ -95,7 +95,7 @@ describe('useSkillsData', () => {
       })
 
       expect(result.current.skills).toEqual(mockSkills)
-      expect(skillService.getSkills).toHaveBeenCalledWith(true)
+      expect(skillService.getSkills).toHaveBeenCalledWith()
     })
 
     it('should return empty array when no skills', async () => {

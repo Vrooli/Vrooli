@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 // ============================================================================
 
 /** Safely stringify an unknown value for display. */
-export function str(v: unknown, fallback = ''): string {
+function str(v: unknown, fallback = ''): string {
   if (v == null) return fallback
   if (typeof v === 'string') return v
   if (typeof v === 'number' || typeof v === 'boolean') return String(v)

@@ -35,6 +35,27 @@ function agentKey(teamId: string, agentId: string) {
   return `${teamId}/${agentId}`
 }
 
+function areRunningAgentsEqual(a: RunningAgentEntry[], b: RunningAgentEntry[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const left = a[i]
+    const right = b[i]
+    if (!left || !right) return false
+    if (
+      left.teamId !== right.teamId ||
+      left.agentId !== right.agentId ||
+      left.agentName !== right.agentName ||
+      left.teamName !== right.teamName ||
+      left.runId !== right.runId ||
+      left.startedAt !== right.startedAt ||
+      left.duration !== right.duration
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
 export function useRunningAgents(): UseRunningAgentsResult {
   const [runningAgents, setRunningAgents] = useState<RunningAgentEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -48,9 +69,17 @@ export function useRunningAgents(): UseRunningAgentsResult {
 
     async function poll() {
       try {
+        if (document.hidden) {
+          if (mountedRef.current) {
+            timeoutId = setTimeout(() => void poll(), POLL_INTERVAL_MS)
+          }
+          return
+        }
         const response = await listRunningAgents()
         if (mountedRef.current) {
-          setRunningAgents(response.agents)
+          setRunningAgents((prev) =>
+            areRunningAgentsEqual(prev, response.agents) ? prev : response.agents
+          )
           setIsLoading(false)
         }
       } catch {

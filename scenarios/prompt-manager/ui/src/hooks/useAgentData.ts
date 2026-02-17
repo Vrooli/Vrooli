@@ -59,7 +59,7 @@ export function useAgentData(): UseAgentDataReturn {
   } = useQuery({
     queryKey: QUERY_KEYS.agents,
     queryFn: async () => {
-      return agentService.getAgents(true) // Force refresh on query
+      return agentService.getAgents()
     },
     staleTime: 5000, // Match service cache TTL
   })

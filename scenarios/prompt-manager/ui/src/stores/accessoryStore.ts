@@ -72,6 +72,14 @@ export const useAccessoryStore = create<AccessoryStore>()(
 
       setAgentStatus: (agentId, status) => {
         const current = get().agentAccessories[agentId] ?? { accessories: {}, status: null }
+        const existing = current.status
+        if (
+          existing?.type === status?.type &&
+          existing?.message === status?.message &&
+          existing?.source === status?.source
+        ) {
+          return
+        }
         set({
           agentAccessories: {
             ...get().agentAccessories,

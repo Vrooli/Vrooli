@@ -23,13 +23,14 @@ export function TeamOverlayManager({ onTeamClick }: TeamOverlayManagerProps) {
 
   // Group activities by their allocated furniture (or fallback position key)
   const overlayGroups = useMemo(() => {
+    const allocationMap = new Map(allocations.map((allocation) => [allocation.teamId, allocation]))
     const groups = new Map<string, {
       position: [number, number, number]
       activities: typeof activities
     }>()
 
     for (const activity of activities) {
-      const allocation = allocations.find((a) => a.teamId === activity.teamId)
+      const allocation = allocationMap.get(activity.teamId)
       if (!allocation) continue
 
       let position: [number, number, number]

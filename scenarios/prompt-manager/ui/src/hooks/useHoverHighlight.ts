@@ -55,19 +55,16 @@ export function useHoverHighlight(
   const { cursor = 'pointer', enabled = true } = options
 
   const setHovered = useInteractionStore((state) => state.setHovered)
-  const hoveredId = useInteractionStore((state) => state.hoveredObjectId)
-  const isDragging = useInteractionStore((state) => state.isDragging)
-
-  const isHovered = hoveredId === objectId
+  const isHovered = useInteractionStore((state) => enabled && state.hoveredObjectId === objectId)
 
   const onPointerOver = useCallback(
     (e: { stopPropagation: () => void }) => {
-      if (!enabled || isDragging) return
+      if (!enabled || useInteractionStore.getState().isDragging) return
       e.stopPropagation()
       setHovered(objectId)
       document.body.style.cursor = cursor
     },
-    [objectId, setHovered, cursor, enabled, isDragging]
+    [objectId, setHovered, cursor, enabled]
   )
 
   const onPointerOut = useCallback(() => {

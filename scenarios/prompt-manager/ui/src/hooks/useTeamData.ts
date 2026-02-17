@@ -79,7 +79,7 @@ export function useTeamData(): UseTeamDataReturn {
   } = useQuery({
     queryKey: QUERY_KEYS.teams,
     queryFn: async () => {
-      return teamService.getTeams(true) // Force refresh on query
+      return teamService.getTeams()
     },
     staleTime: 5000, // Match service cache TTL
   })

@@ -42,7 +42,7 @@ interface OverlayState {
   /** Active speech bubbles */
   speechBubbles: SpeechBubble[]
   /** Agents currently in thinking state */
-  thinkingStates: Record<string, ThinkingState>
+  thinkingStates: Partial<Record<string, ThinkingState>>
   /** Name tag configuration */
   nameTagConfig: NameTagConfig
   /** Global overlay visibility */
@@ -130,6 +130,14 @@ export const useOverlayStore = create<OverlayStore>((set, get) => ({
   },
 
   setThinking: (agentId, isThinking, label) => {
+    const existing = get().thinkingStates[agentId]
+    if (
+      existing &&
+      existing.isThinking === isThinking &&
+      existing.label === label
+    ) {
+      return
+    }
     set({
       thinkingStates: {
         ...get().thinkingStates,

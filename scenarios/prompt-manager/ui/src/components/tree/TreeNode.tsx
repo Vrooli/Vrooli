@@ -8,23 +8,23 @@
  * - Checkbox selection for combine mode
  */
 
-import { type ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 import { ChevronRight, ChevronDown, FolderOpen, Check, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode as TreeNodeType } from '@/types/editor'
 import type { Skill } from '@/types'
-import { countDirtyInSubtree } from '@/services/treeService'
-import { useEditorStore } from '@/stores/editorStore'
 import { selectors } from '@/constants/selectors'
 
 type SelectionState = 'none' | 'partial' | 'all'
 
 interface TreeNodeProps {
   node: TreeNodeType
-  skills: Skill[]
+  skillsById: Map<string, Skill>
+  editedNameById: Map<string, string>
   selectedItemId: string | null
   onSelectItem: (id: string) => void
   dirtyItemIds: Set<string>
+  dirtyCountByNodeId: Map<string, number>
   expandedNodes: Set<string>
   onToggleNode: (nodeId: string) => void
   renderItemIcon?: (skill: Skill) => ReactNode
@@ -32,7 +32,7 @@ interface TreeNodeProps {
   showCheckbox?: boolean
   selectionState?: SelectionState
   onCheckboxChange?: (node: TreeNodeType) => void
-  getSelectionState?: (node: TreeNodeType) => SelectionState
+  selectionStateByNodeId?: Map<string, SelectionState>
   // Context menu props
   onCategoryContextMenu?: (node: TreeNodeType, x: number, y: number) => void
   onSkillContextMenu?: (skillId: string, skillName: string, x: number, y: number) => void
@@ -73,30 +73,26 @@ function SelectionCheckbox({
 /**
  * Recursive tree node component.
  */
-export function TreeNodeComponent({
+function TreeNodeComponentImpl({
   node,
-  skills,
+  skillsById,
+  editedNameById,
   selectedItemId,
   onSelectItem,
   dirtyItemIds,
+  dirtyCountByNodeId,
   expandedNodes,
   onToggleNode,
   renderItemIcon,
   showCheckbox = false,
   onCheckboxChange,
-  getSelectionState,
+  selectionStateByNodeId,
   onCategoryContextMenu,
   onSkillContextMenu,
 }: TreeNodeProps) {
   const isExpanded = expandedNodes.has(node.id)
   const paddingLeft = `${node.depth * 12 + 8}px`
-  const selectionState = getSelectionState?.(node) ?? 'none'
-
-  // IMPORTANT: Hooks must be called unconditionally at the top level
-  // Get live form state for display name override (used only for leaf nodes)
-  const formState = useEditorStore((state) =>
-    node.itemId ? state.getFormState(node.itemId) : null
-  )
+  const selectionState = selectionStateByNodeId?.get(node.id) ?? 'none'
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -104,8 +100,7 @@ export function TreeNodeComponent({
   }
 
   if (node.isCategory) {
-    // Count dirty children for this category
-    const dirtyCount = countDirtyInSubtree(node, dirtyItemIds)
+    const dirtyCount = dirtyCountByNodeId.get(node.id) ?? 0
 
     const handleContextMenu = (e: React.MouseEvent) => {
       if (onCategoryContextMenu && !showCheckbox) {
@@ -149,16 +144,18 @@ export function TreeNodeComponent({
               <TreeNodeComponent
                 key={child.id}
                 node={child}
-                skills={skills}
+                skillsById={skillsById}
+                editedNameById={editedNameById}
                 selectedItemId={selectedItemId}
                 onSelectItem={onSelectItem}
                 dirtyItemIds={dirtyItemIds}
+                dirtyCountByNodeId={dirtyCountByNodeId}
                 expandedNodes={expandedNodes}
                 onToggleNode={onToggleNode}
                 renderItemIcon={renderItemIcon}
                 showCheckbox={showCheckbox}
                 onCheckboxChange={onCheckboxChange}
-                getSelectionState={getSelectionState}
+                selectionStateByNodeId={selectionStateByNodeId}
                 onCategoryContextMenu={onCategoryContextMenu}
                 onSkillContextMenu={onSkillContextMenu}
               />
@@ -170,10 +167,10 @@ export function TreeNodeComponent({
   }
 
   // Leaf node (skill)
-  const skill = skills.find((p) => p.id === node.itemId)
+  const skill = node.itemId ? skillsById.get(node.itemId) : undefined
   const isSelected = selectedItemId === node.itemId
   const isDirty = node.itemId ? dirtyItemIds.has(node.itemId) : false
-  const displayLabel = formState?.name || node.label
+  const displayLabel = node.itemId ? (editedNameById.get(node.itemId) ?? node.label) : node.label
 
   // In checkbox mode, clicking the row toggles the checkbox
   const handleRowClick = () => {
@@ -231,3 +228,30 @@ export function TreeNodeComponent({
     </button>
   )
 }
+
+function areEqual(prev: TreeNodeProps, next: TreeNodeProps): boolean {
+  if (prev.node !== next.node) return false
+  if (prev.selectedItemId !== next.selectedItemId) return false
+  if (prev.showCheckbox !== next.showCheckbox) return false
+  if (prev.renderItemIcon !== next.renderItemIcon) return false
+  if (prev.onSelectItem !== next.onSelectItem) return false
+  if (prev.onToggleNode !== next.onToggleNode) return false
+  if (prev.onCheckboxChange !== next.onCheckboxChange) return false
+  if (prev.onCategoryContextMenu !== next.onCategoryContextMenu) return false
+  if (prev.onSkillContextMenu !== next.onSkillContextMenu) return false
+
+  if ((prev.expandedNodes.has(prev.node.id)) !== (next.expandedNodes.has(next.node.id))) return false
+  if ((prev.dirtyCountByNodeId.get(prev.node.id) ?? 0) !== (next.dirtyCountByNodeId.get(next.node.id) ?? 0)) return false
+  if ((prev.selectionStateByNodeId?.get(prev.node.id) ?? 'none') !== (next.selectionStateByNodeId?.get(next.node.id) ?? 'none')) return false
+
+  if (!prev.node.isCategory && prev.node.itemId) {
+    const id = prev.node.itemId
+    if ((prev.dirtyItemIds.has(id)) !== (next.dirtyItemIds.has(id))) return false
+    if ((prev.editedNameById.get(id) ?? prev.node.label) !== (next.editedNameById.get(id) ?? next.node.label)) return false
+    if (prev.skillsById.get(id) !== next.skillsById.get(id)) return false
+  }
+
+  return true
+}
+
+export const TreeNodeComponent = memo(TreeNodeComponentImpl, areEqual)
