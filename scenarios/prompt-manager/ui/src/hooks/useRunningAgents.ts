@@ -31,6 +31,10 @@ export interface UseRunningAgentsResult {
   stoppingIds: Set<string>
 }
 
+interface UseRunningAgentsOptions {
+  enabled?: boolean
+}
+
 function agentKey(teamId: string, agentId: string) {
   return `${teamId}/${agentId}`
 }
@@ -56,50 +60,155 @@ function areRunningAgentsEqual(a: RunningAgentEntry[], b: RunningAgentEntry[]): 
   return true
 }
 
-export function useRunningAgents(): UseRunningAgentsResult {
-  const [runningAgents, setRunningAgents] = useState<RunningAgentEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+interface SharedRunningAgentsState {
+  runningAgents: RunningAgentEntry[]
+  isLoading: boolean
+}
+
+const INITIAL_SHARED_STATE: SharedRunningAgentsState = {
+  runningAgents: [],
+  isLoading: true,
+}
+
+let sharedState: SharedRunningAgentsState = INITIAL_SHARED_STATE
+let pollTimeoutId: ReturnType<typeof setTimeout> | null = null
+let isPolling = false
+let hasPrimed = false
+const subscribers = new Set<(state: SharedRunningAgentsState) => void>()
+
+export function resetRunningAgentsPollingForTests() {
+  sharedState = INITIAL_SHARED_STATE
+  clearPollTimeout()
+  isPolling = false
+  hasPrimed = false
+  subscribers.clear()
+}
+
+function emitSharedState() {
+  for (const listener of subscribers) {
+    listener(sharedState)
+  }
+}
+
+function clearPollTimeout() {
+  if (pollTimeoutId !== null) {
+    clearTimeout(pollTimeoutId)
+    pollTimeoutId = null
+  }
+}
+
+function schedulePoll() {
+  if (pollTimeoutId !== null || subscribers.size === 0) {
+    return
+  }
+  pollTimeoutId = setTimeout(() => {
+    pollTimeoutId = null
+    void pollRunningAgents()
+  }, POLL_INTERVAL_MS)
+}
+
+async function pollRunningAgents() {
+  if (isPolling || subscribers.size === 0) {
+    return
+  }
+  isPolling = true
+  try {
+    if (document.hidden) {
+      schedulePoll()
+      return
+    }
+    const response = await listRunningAgents()
+    if (
+      !areRunningAgentsEqual(sharedState.runningAgents, response.agents)
+      || sharedState.isLoading
+    ) {
+      sharedState = {
+        runningAgents: response.agents,
+        isLoading: false,
+      }
+      emitSharedState()
+    } else if (!hasPrimed) {
+      // Ensure first successful poll exits loading state for late subscribers.
+      sharedState = {
+        ...sharedState,
+        isLoading: false,
+      }
+      emitSharedState()
+    }
+    hasPrimed = true
+  } catch {
+    if (sharedState.isLoading) {
+      sharedState = {
+        ...sharedState,
+        isLoading: false,
+      }
+      emitSharedState()
+    }
+  } finally {
+    isPolling = false
+    schedulePoll()
+  }
+}
+
+function subscribeToRunningAgents(listener: (state: SharedRunningAgentsState) => void): () => void {
+  subscribers.add(listener)
+  listener(sharedState)
+
+  if (subscribers.size === 1) {
+    clearPollTimeout()
+    void pollRunningAgents()
+  }
+
+  return () => {
+    subscribers.delete(listener)
+    if (subscribers.size === 0) {
+      clearPollTimeout()
+    }
+  }
+}
+
+function updateSharedRunningAgents(mutator: (current: RunningAgentEntry[]) => RunningAgentEntry[]) {
+  const nextAgents = mutator(sharedState.runningAgents)
+  if (areRunningAgentsEqual(sharedState.runningAgents, nextAgents)) {
+    return
+  }
+  sharedState = {
+    ...sharedState,
+    runningAgents: nextAgents,
+  }
+  emitSharedState()
+}
+
+export function useRunningAgents(options?: UseRunningAgentsOptions): UseRunningAgentsResult {
+  const enabled = options?.enabled ?? true
+  const [runningAgents, setRunningAgents] = useState<RunningAgentEntry[]>(() =>
+    enabled ? sharedState.runningAgents : []
+  )
+  const [isLoading, setIsLoading] = useState(() => enabled && sharedState.isLoading)
   const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set())
   const mountedRef = useRef(true)
 
-  // Poll for running agents
   useEffect(() => {
     mountedRef.current = true
-    let timeoutId: ReturnType<typeof setTimeout>
-
-    async function poll() {
-      try {
-        if (document.hidden) {
-          if (mountedRef.current) {
-            timeoutId = setTimeout(() => void poll(), POLL_INTERVAL_MS)
-          }
-          return
-        }
-        const response = await listRunningAgents()
-        if (mountedRef.current) {
-          setRunningAgents((prev) =>
-            areRunningAgentsEqual(prev, response.agents) ? prev : response.agents
-          )
-          setIsLoading(false)
-        }
-      } catch {
-        // Silently ignore poll errors — will retry
-        if (mountedRef.current) {
-          setIsLoading(false)
-        }
-      }
-      if (mountedRef.current) {
-        timeoutId = setTimeout(() => void poll(), POLL_INTERVAL_MS)
+    if (!enabled) {
+      setRunningAgents([])
+      setIsLoading(false)
+      return () => {
+        mountedRef.current = false
       }
     }
 
-    void poll()
+    const unsubscribe = subscribeToRunningAgents((state) => {
+      if (!mountedRef.current) return
+      setRunningAgents(state.runningAgents)
+      setIsLoading(state.isLoading)
+    })
 
     return () => {
       mountedRef.current = false
-      clearTimeout(timeoutId)
+      unsubscribe()
     }
-  }, [])
+  }, [enabled])
 
   // Group by team
   const groupedByTeam = useMemo(() => {
@@ -132,7 +241,7 @@ export function useRunningAgents(): UseRunningAgentsResult {
       await stopRunningAgent(teamId, agentId)
       // Optimistic removal
       if (mountedRef.current) {
-        setRunningAgents((prev) =>
+        updateSharedRunningAgents((prev) =>
           prev.filter((a) => !(a.teamId === teamId && a.agentId === agentId))
         )
       }

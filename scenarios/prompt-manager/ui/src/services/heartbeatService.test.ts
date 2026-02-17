@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createInvestigationRun, getHeartbeat, listHeartbeats } from './heartbeatService'
+import {
+  createInvestigationRun,
+  getHeartbeat,
+  listHeartbeats,
+  resetHeartbeatServiceCachesForTests,
+} from './heartbeatService'
 
 vi.mock('@vrooli/api-base', () => ({
   resolveApiBase: () => 'http://example.test/api/v1',
@@ -14,6 +19,7 @@ describe('heartbeatService api errors', () => {
   beforeEach(() => {
     vi.unstubAllGlobals()
     vi.clearAllMocks()
+    resetHeartbeatServiceCachesForTests()
   })
 
   it('returns a concise upstream message for HTML 502 responses', async () => {
@@ -74,5 +80,42 @@ describe('heartbeatService api errors', () => {
     )
 
     await expect(getHeartbeat('team-a', 'agent-a')).resolves.toBeNull()
+  })
+})
+
+describe('heartbeatService listHeartbeats coalescing', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+    resetHeartbeatServiceCachesForTests()
+  })
+
+  it('coalesces concurrent requests for the same team', async () => {
+    const payload = [{
+      teamId: 'team-a',
+      agentId: 'agent-a',
+      enabled: true,
+      schedule: '*/5 * * * *',
+      createdAt: '2026-02-17T00:00:00Z',
+      updatedAt: '2026-02-17T00:00:00Z',
+    }]
+
+    mockFetchResponse(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    const [a, b, c] = await Promise.all([
+      listHeartbeats('team-a'),
+      listHeartbeats('team-a'),
+      listHeartbeats('team-a'),
+    ])
+
+    expect(a).toEqual(payload)
+    expect(b).toEqual(payload)
+    expect(c).toEqual(payload)
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })

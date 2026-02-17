@@ -35,7 +35,7 @@ export function RunningAgentsPopover({
 }: RunningAgentsPopoverProps) {
   // Fallback to self-polling only if no data provided
   const hasExternalData = groupedByTeamProp !== undefined
-  const fallback = useRunningAgents()
+  const fallback = useRunningAgents({ enabled: !hasExternalData })
 
   const groupedByTeam = hasExternalData ? groupedByTeamProp : fallback.groupedByTeam
   const count = hasExternalData ? (countProp ?? 0) : fallback.count

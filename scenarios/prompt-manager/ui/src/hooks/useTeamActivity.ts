@@ -6,14 +6,16 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react'
-import { listRunningAgents, listHeartbeats } from '@/services/heartbeatService'
+import { listHeartbeats } from '@/services/heartbeatService'
 import { getTeams, getTeam } from '@/services/teamService'
 import { useFurnitureStore } from '@/stores/furnitureStore'
 import { getSeats } from '@/stores/worldSeatsStore'
 import { useTeamActivityStore, type TeamActivity, type TeamFurnitureAllocation } from '@/stores/teamActivityStore'
+import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
 
 const POLL_INTERVAL_MS = 10_000
 const UPCOMING_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes
+const HEARTBEAT_REFRESH_MS = 60_000
 
 export function useTeamActivity() {
   const setActivities = useTeamActivityStore((s) => s.setActivities)
@@ -21,6 +23,7 @@ export function useTeamActivity() {
 
   // Cache team details keyed by teamId to avoid re-fetching every cycle
   const teamDetailsCacheRef = useRef<Map<string, { memberAgentIds: string[]; teamName: string }>>(new Map())
+  const heartbeatCacheRef = useRef<Map<string, { heartbeats: Awaited<ReturnType<typeof listHeartbeats>>; fetchedAt: number }>>(new Map())
   const prevTeamIdsRef = useRef<string>('')
 
   const poll = useCallback(async () => {
@@ -31,10 +34,11 @@ export function useTeamActivity() {
       const now = Date.now()
       const activities: TeamActivity[] = []
 
-      // 1. Find running teams
-      const runningResponse = await listRunningAgents()
+      // 1. Find running teams from shared running-agent store.
+      // This avoids a duplicate /heartbeats/running network poll loop.
+      const runningResponse = useRunningAgentsStore.getState().agents
       const runningByTeam = new Map<string, { agentIds: string[]; startedAt: string }>()
-      for (const entry of runningResponse.agents) {
+      for (const entry of runningResponse) {
         const existing = runningByTeam.get(entry.teamId)
         if (existing) {
           existing.agentIds.push(entry.agentId)
@@ -53,32 +57,55 @@ export function useTeamActivity() {
       // 2. Find upcoming teams (heartbeats within threshold)
       const teams = await getTeams()
       const upcomingTeams = new Map<string, { nextExecution: string; agentId: string }>()
+      const teamIdSet = new Set(teams.map((team) => team.id))
+      const heartbeatCache = heartbeatCacheRef.current
 
-      await Promise.all(
-        teams.map(async (team) => {
-          // Skip teams that are already running
-          if (runningByTeam.has(team.id)) return
+      // Evict heartbeat cache for deleted/unknown teams.
+      for (const teamId of heartbeatCache.keys()) {
+        if (!teamIdSet.has(teamId)) {
+          heartbeatCache.delete(teamId)
+        }
+      }
+
+      // AI_CHECK: TEAM_ACTIVITY_HEARTBEAT_POLL_THROTTLE=1 | LAST: 2026-02-17
+      // Only check enabled + non-running teams, and throttle per-team heartbeat refreshes.
+      const candidateTeams = teams.filter((team) => team.enabled && !runningByTeam.has(team.id))
+
+      for (const team of candidateTeams) {
+        let heartbeats: Awaited<ReturnType<typeof listHeartbeats>> | undefined
+        const cached = heartbeatCache.get(team.id)
+        if (cached && now - cached.fetchedAt < HEARTBEAT_REFRESH_MS) {
+          heartbeats = cached.heartbeats
+        } else {
           try {
-            const heartbeats = await listHeartbeats(team.id)
-            for (const hb of heartbeats) {
-              if (!hb.enabled || !hb.nextExecution) continue
-              const nextTime = new Date(hb.nextExecution).getTime()
-              if (nextTime - now <= UPCOMING_THRESHOLD_MS && nextTime > now) {
-                const existing = upcomingTeams.get(team.id)
-                // Use the soonest upcoming execution
-                if (!existing || hb.nextExecution < existing.nextExecution) {
-                  upcomingTeams.set(team.id, {
-                    nextExecution: hb.nextExecution,
-                    agentId: hb.agentId,
-                  })
-                }
-              }
-            }
+            heartbeats = await listHeartbeats(team.id)
+            heartbeatCache.set(team.id, {
+              heartbeats,
+              fetchedAt: now,
+            })
           } catch {
-            // Skip teams whose heartbeats can't be fetched
+            // If refresh fails, fall back to previous cache if available.
+            heartbeats = cached?.heartbeats
           }
-        }),
-      )
+        }
+
+        if (!heartbeats) continue
+
+        for (const hb of heartbeats) {
+          if (!hb.enabled || !hb.nextExecution) continue
+          const nextTime = new Date(hb.nextExecution).getTime()
+          if (nextTime - now <= UPCOMING_THRESHOLD_MS && nextTime > now) {
+            const existing = upcomingTeams.get(team.id)
+            // Use the soonest upcoming execution
+            if (!existing || hb.nextExecution < existing.nextExecution) {
+              upcomingTeams.set(team.id, {
+                nextExecution: hb.nextExecution,
+                agentId: hb.agentId,
+              })
+            }
+          }
+        }
+      }
 
       // 3. Determine which teamIds need detail lookups
       const activeTeamIds = new Set([...runningByTeam.keys(), ...upcomingTeams.keys()])

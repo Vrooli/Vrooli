@@ -4,7 +4,6 @@
  */
 // AI_CHECK: FPS_TRACE_OVERLAY_RENDER=1 | LAST: 2026-02-17
 
-import { Html } from '@react-three/drei'
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { usePerformanceStore, selectTraceData } from '@/stores/performanceStore'
@@ -13,8 +12,6 @@ import { useLODStore } from '@/stores/lodStore'
 import type { PerformanceTraceMarker, PerformanceTraceSample } from '@/types/performance'
 
 interface FPSOverlayProps {
-  /** Position in 3D space */
-  position?: [number, number, number]
   /** Whether to show detailed stats */
   detailed?: boolean
 }
@@ -135,12 +132,10 @@ function drawTraceCanvas(
  * ```
  */
 export function FPSOverlay({
-  position = [-5, 4, 0],
   detailed = false,
 }: FPSOverlayProps) {
   // Performance metrics
   const metrics = usePerformanceStore((state) => state.metrics)
-  const showOverlay = usePerformanceStore((state) => state.config.showOverlay)
   const autoAdjust = usePerformanceStore((state) => state.config.autoAdjust)
   const showTraceCharts = usePerformanceStore((state) => state.config.showTraceCharts)
   const traceData = usePerformanceStore(useShallow(selectTraceData))
@@ -156,13 +151,10 @@ export function FPSOverlay({
   })))
 
   useEffect(() => {
-    if (!showOverlay) return
     const canvas = traceCanvasRef.current
     if (!canvas) return
     drawTraceCanvas(canvas, traceData.samples, traceData.markers)
-  }, [showOverlay, traceData.version, traceData.samples, traceData.markers])
-
-  if (!showOverlay) return null
+  }, [traceData.version, traceData.samples, traceData.markers])
 
   // Color based on FPS
   const fpsColor =
@@ -173,86 +165,78 @@ export function FPSOverlay({
         : '#ef4444' // Red - poor
 
   return (
-    <Html
-      position={position}
-      center={false}
+    <div
       style={{
-        pointerEvents: 'none',
-        userSelect: 'none',
+        background: 'rgba(0, 0, 0, 0.75)',
+        color: '#fff',
+        padding: '8px 12px',
+        borderRadius: '6px',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        minWidth: '140px',
+        backdropFilter: 'blur(4px)',
       }}
     >
+        {/* FPS Display */}
+      <div style={{ marginBottom: '4px' }}>
+        <span style={{ color: fpsColor, fontWeight: 'bold', fontSize: '16px' }}>
+          {metrics.currentFps}
+        </span>
+        <span style={{ color: '#9ca3af', marginLeft: '4px' }}>FPS</span>
+      </div>
+
+      {/* Average FPS */}
+      <div style={{ color: '#9ca3af', fontSize: '10px' }}>
+        Avg: {metrics.averageFps} | Min: {metrics.minFps} | Max: {metrics.maxFps}
+      </div>
+
+      {/* Performance Tier */}
       <div
         style={{
-          background: 'rgba(0, 0, 0, 0.75)',
-          color: '#fff',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          minWidth: '140px',
-          backdropFilter: 'blur(4px)',
+          marginTop: '6px',
+          paddingTop: '6px',
+          borderTop: '1px solid rgba(255,255,255,0.1)',
         }}
       >
-        {/* FPS Display */}
-        <div style={{ marginBottom: '4px' }}>
-          <span style={{ color: fpsColor, fontWeight: 'bold', fontSize: '16px' }}>
-            {metrics.currentFps}
-          </span>
-          <span style={{ color: '#9ca3af', marginLeft: '4px' }}>FPS</span>
-        </div>
-
-        {/* Average FPS */}
-        <div style={{ color: '#9ca3af', fontSize: '10px' }}>
-          Avg: {metrics.averageFps} | Min: {metrics.minFps} | Max: {metrics.maxFps}
-        </div>
-
-        {/* Performance Tier */}
-        <div
+        <span style={{ color: '#9ca3af' }}>Tier: </span>
+        <span
           style={{
-            marginTop: '6px',
-            paddingTop: '6px',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
+            color: '#a5b4fc',
+            textTransform: 'uppercase',
+            fontWeight: 'bold',
           }}
         >
-          <span style={{ color: '#9ca3af' }}>Tier: </span>
+          {tier}
+        </span>
+        {autoAdjust && (
           <span
             style={{
-              color: '#a5b4fc',
-              textTransform: 'uppercase',
-              fontWeight: 'bold',
+              marginLeft: '6px',
+              fontSize: '9px',
+              color: '#22c55e',
             }}
           >
-            {tier}
+            (auto)
           </span>
-          {autoAdjust && (
-            <span
-              style={{
-                marginLeft: '6px',
-                fontSize: '9px',
-                color: '#22c55e',
-              }}
-            >
-              (auto)
-            </span>
-          )}
-        </div>
-
-        {/* Degraded Warning */}
-        {metrics.isDegraded && (
-          <div
-            style={{
-              marginTop: '4px',
-              color: '#ef4444',
-              fontSize: '10px',
-            }}
-          >
-            ⚠ Performance degraded
-          </div>
         )}
+      </div>
 
-        {/* Detailed Stats */}
-        {detailed && (
-          <>
+      {/* Degraded Warning */}
+      {metrics.isDegraded && (
+        <div
+          style={{
+            marginTop: '4px',
+            color: '#ef4444',
+            fontSize: '10px',
+          }}
+        >
+          ⚠ Performance degraded
+        </div>
+      )}
+
+      {/* Detailed Stats */}
+      {detailed && (
+        <>
             {showTraceCharts && (
               <div
                 style={{
@@ -288,55 +272,54 @@ export function FPSOverlay({
               </div>
             )}
 
-            {/* Frame Time */}
-            <div
-              style={{
-                marginTop: '6px',
-                paddingTop: '6px',
-                borderTop: '1px solid rgba(255,255,255,0.1)',
-                fontSize: '10px',
-                color: '#9ca3af',
-              }}
-            >
-              Frame: {metrics.frameTimeMs.toFixed(2)}ms
-              {metrics.memoryUsageMb !== null && (
-                <span style={{ marginLeft: '8px' }}>
-                  Mem: {metrics.memoryUsageMb}MB
-                </span>
-              )}
-            </div>
+          {/* Frame Time */}
+          <div
+            style={{
+              marginTop: '6px',
+              paddingTop: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '10px',
+              color: '#9ca3af',
+            }}
+          >
+            Frame: {metrics.frameTimeMs.toFixed(2)}ms
+            {metrics.memoryUsageMb !== null && (
+              <span style={{ marginLeft: '8px' }}>
+                Mem: {metrics.memoryUsageMb}MB
+              </span>
+            )}
+          </div>
 
-            {/* LOD Stats */}
-            <div
-              style={{
-                marginTop: '6px',
-                paddingTop: '6px',
-                borderTop: '1px solid rgba(255,255,255,0.1)',
-                fontSize: '10px',
-              }}
-            >
-              <div style={{ color: '#9ca3af', marginBottom: '2px' }}>
-                LOD Objects: {lodStats.objectCount}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ color: '#22c55e' }}>
-                  H:{lodStats.levelCounts.high}
-                </span>
-                <span style={{ color: '#eab308' }}>
-                  M:{lodStats.levelCounts.medium}
-                </span>
-                <span style={{ color: '#f97316' }}>
-                  L:{lodStats.levelCounts.low}
-                </span>
-                <span style={{ color: '#ef4444' }}>
-                  C:{lodStats.levelCounts.culled}
-                </span>
+          {/* LOD Stats */}
+          <div
+            style={{
+              marginTop: '6px',
+              paddingTop: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '10px',
+            }}
+          >
+            <div style={{ color: '#9ca3af', marginBottom: '2px' }}>
+              LOD Objects: {lodStats.objectCount}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ color: '#22c55e' }}>
+                H:{lodStats.levelCounts.high}
+              </span>
+              <span style={{ color: '#eab308' }}>
+                M:{lodStats.levelCounts.medium}
+              </span>
+              <span style={{ color: '#f97316' }}>
+                L:{lodStats.levelCounts.low}
+              </span>
+              <span style={{ color: '#ef4444' }}>
+                C:{lodStats.levelCounts.culled}
+              </span>
               </div>
             </div>
-          </>
-        )}
-      </div>
-    </Html>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -345,31 +328,23 @@ export function FPSOverlay({
  */
 export function MiniFPSCounter() {
   const fps = usePerformanceStore((state) => state.metrics.currentFps)
-  const showOverlay = usePerformanceStore((state) => state.config.showOverlay)
-
-  if (!showOverlay) return null
 
   const color =
     fps >= 55 ? '#22c55e' : fps >= 40 ? '#eab308' : '#ef4444'
 
   return (
-    <Html
-      position={[-6, 5, 0]}
-      style={{ pointerEvents: 'none', userSelect: 'none' }}
+    <div
+      style={{
+        background: 'rgba(0,0,0,0.6)',
+        color,
+        padding: '2px 6px',
+        borderRadius: '4px',
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        fontWeight: 'bold',
+      }}
     >
-      <div
-        style={{
-          background: 'rgba(0,0,0,0.6)',
-          color,
-          padding: '2px 6px',
-          borderRadius: '4px',
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          fontWeight: 'bold',
-        }}
-      >
-        {fps}
-      </div>
-    </Html>
+      {fps}
+    </div>
   )
 }

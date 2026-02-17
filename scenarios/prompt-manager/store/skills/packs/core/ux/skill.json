@@ -14,7 +14,8 @@
   "icon": "users",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 46,
+  "defaultScope": "refactor-scope",
+  "revision": 48,
   "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-02-05T01:03:11Z"
+  "updatedAt": "2026-02-17T16:30:42Z"
 }

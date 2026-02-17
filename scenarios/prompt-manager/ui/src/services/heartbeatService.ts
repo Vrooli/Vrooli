@@ -87,6 +87,24 @@ export interface MemberDocRequest {
   content: string
 }
 
+const HEARTBEAT_LIST_CACHE_TTL_MS = 1200
+const heartbeatListInFlight = new Map<string, Promise<HeartbeatConfig[]>>()
+const heartbeatListCache = new Map<string, { data: HeartbeatConfig[]; fetchedAt: number }>()
+
+function invalidateHeartbeatListCache(teamId?: string) {
+  if (teamId === undefined) {
+    heartbeatListInFlight.clear()
+    heartbeatListCache.clear()
+    return
+  }
+  heartbeatListInFlight.delete(teamId)
+  heartbeatListCache.delete(teamId)
+}
+
+export function resetHeartbeatServiceCachesForTests() {
+  invalidateHeartbeatListCache()
+}
+
 // ============================================================================
 // API Client
 // ============================================================================
@@ -188,7 +206,28 @@ function sanitizeBody(body: string): string {
  * List all heartbeat configs for a team.
  */
 export async function listHeartbeats(teamId: string): Promise<HeartbeatConfig[]> {
-  return apiRequest<HeartbeatConfig[]>(`/teams/${encodeURIComponent(teamId)}/heartbeats`)
+  const now = Date.now()
+  const cached = heartbeatListCache.get(teamId)
+  if (cached && now - cached.fetchedAt < HEARTBEAT_LIST_CACHE_TTL_MS) {
+    return cached.data
+  }
+
+  const inFlight = heartbeatListInFlight.get(teamId)
+  if (inFlight) {
+    return inFlight
+  }
+
+  const request = apiRequest<HeartbeatConfig[]>(`/teams/${encodeURIComponent(teamId)}/heartbeats`)
+    .then((data) => {
+      heartbeatListCache.set(teamId, { data, fetchedAt: Date.now() })
+      return data
+    })
+    .finally(() => {
+      heartbeatListInFlight.delete(teamId)
+    })
+
+  heartbeatListInFlight.set(teamId, request)
+  return request
 }
 
 /**
@@ -215,13 +254,15 @@ export async function createHeartbeat(
   agentId: string,
   request: CreateHeartbeatRequest
 ): Promise<HeartbeatConfig> {
-  return apiRequest<HeartbeatConfig>(
+  const response = await apiRequest<HeartbeatConfig>(
     `/teams/${encodeURIComponent(teamId)}/heartbeats/${encodeURIComponent(agentId)}`,
     {
       method: 'POST',
       body: JSON.stringify(request),
     }
   )
+  invalidateHeartbeatListCache(teamId)
+  return response
 }
 
 /**
@@ -232,13 +273,15 @@ export async function updateHeartbeat(
   agentId: string,
   request: UpdateHeartbeatRequest
 ): Promise<HeartbeatConfig> {
-  return apiRequest<HeartbeatConfig>(
+  const response = await apiRequest<HeartbeatConfig>(
     `/teams/${encodeURIComponent(teamId)}/heartbeats/${encodeURIComponent(agentId)}`,
     {
       method: 'PUT',
       body: JSON.stringify(request),
     }
   )
+  invalidateHeartbeatListCache(teamId)
+  return response
 }
 
 /**
@@ -251,18 +294,21 @@ export async function deleteHeartbeat(teamId: string, agentId: string): Promise<
       method: 'DELETE',
     }
   )
+  invalidateHeartbeatListCache(teamId)
 }
 
 /**
  * Manually trigger a heartbeat.
  */
 export async function triggerHeartbeat(teamId: string, agentId: string): Promise<TriggerResponse> {
-  return apiRequest<TriggerResponse>(
+  const response = await apiRequest<TriggerResponse>(
     `/teams/${encodeURIComponent(teamId)}/heartbeats/${encodeURIComponent(agentId)}/trigger`,
     {
       method: 'POST',
     }
   )
+  invalidateHeartbeatListCache(teamId)
+  return response
 }
 
 // ============================================================================
