@@ -54,12 +54,110 @@ Optional reading:
 
 ### **5. Responsiveness & Device Adaptation**
 
-* Ensure the UI behaves well on **mobile**, tablet, and desktop:
+Mobile is not a secondary concern — most scenarios will be accessed on constrained viewports.
+Every view must degrade gracefully from desktop to mobile without requiring a separate "mobile version."
 
-  * elements resize or stack appropriately
-  * touch targets are comfortably sized
-  * no overflow or clipping
-* Do not introduce layout assumptions (e.g., sidebars, footers) unless they already fit naturally with the existing design.
+#### 5.1 The Mobile Viewport Test
+
+Before considering any view or component done, mentally render it in a constrained mobile viewport
+with a virtual keyboard open. If it is not usable, readable, and non-overflowing, it needs adaptation.
+
+#### 5.2 Vertical Space Budget
+
+The core mobile constraint is vertical space. Evaluate what earns screen real estate:
+
+```
+Is this element needed for the PRIMARY action on this screen?
+    ├─ YES → Keep visible, but make it compact
+    └─ NO → Can the user access it on demand (menu, expand, long-press)?
+         ├─ YES → Hide it; surface via progressive disclosure
+         └─ NO → Is it critical for orientation (status, context)?
+              ├─ YES → Condense to minimal indicator (icon, badge, chip)
+              └─ NO → Remove from mobile view entirely
+```
+
+* Headers are the most common offender — they accumulate elements that each seem small but together consume disproportionate space.
+* Secondary actions belong behind overflow/ellipsis menus on mobile.
+* Metadata rows (tags, labels, selectors) should condense to summary representations (counts, chips) with expandable access to full content.
+* When a desktop view has both an app-level header and a page-level header, the mobile version should consolidate into one, carrying essential actions from both.
+
+#### 5.3 Overflow & Containment
+
+Every element that accepts variable-length content must have an explicit containment strategy.
+The two failure modes are **horizontal overflow** (content pushes beyond viewport width) and
+**vertical bloat** (content expands without bound, pushing other elements off-screen).
+
+| Content type | Strategy |
+|---|---|
+| Prose / user-generated text | Word-wrap within container; container width should decrease on smaller viewports |
+| Code / preformatted text | Horizontal scroll within a bounded container |
+| URLs, file paths, hashes | Break at any character to prevent overflow |
+| Labels, tags, metadata | Truncate with access to full text (tooltip, expand) |
+| Lists of items (tags, chips) | Show limited count with "+N more" pattern |
+
+#### 5.4 Layout Adaptation
+
+Layouts that distribute content horizontally on desktop should redistribute vertically or into
+layered surfaces on mobile.
+
+```
+Does this layout place 2+ content regions side by side?
+    ├─ YES → On mobile, should the user see both simultaneously?
+    │    ├─ YES (rare) → Stack vertically, each taking full width
+    │    └─ NO → Use navigation between views (back button, tabs, drawer)
+    └─ NO (single column already) → Verify spacing and padding reduce appropriately
+```
+
+Common patterns to reason about:
+* **Multi-column grids** → single column on mobile, with appropriate item representation (e.g., card grids often become simpler list items with dividers, not just a single-column card stack)
+* **Sidebars** → drawers, sheets, or overlay panels
+* **Tab bars with many tabs** → scrollable or collapsed into a selector
+* **Split panes** → single pane with navigation between views
+
+#### 5.5 Input & Interaction Areas
+
+On mobile, the virtual keyboard consumes roughly half the viewport. Everything surrounding an
+input field competes for the remaining space.
+
+* Count the UI elements surrounding the primary input. If there are more than 2-3, some must be collapsed, deferred, or hidden when the input is active.
+* Toolbars and action bars around inputs should be consolidated — prefer a single compact row with overflow over multiple stacked rows.
+* Auxiliary UI (suggestions, previews, options panels) should overlay or replace content rather than pushing the input area around.
+* The input itself should feel native (e.g. if updating a message input box, study how professional messaging/chat apps like iMessage and ChatGPT handle input, and match that behavior rather than inventing novel interactions).
+
+#### 5.6 Spacing Adaptation
+
+Spacing appropriate for desktop is almost always too generous for mobile. Every container visible
+at multiple viewport sizes should use responsive spacing.
+
+* Reduce padding and margins at smaller breakpoints — the space that creates "breathing room" on desktop becomes wasted space on mobile.
+* Gaps between items should tighten proportionally.
+* Modals and dialogs should approach edge-to-edge on mobile rather than floating with large margins.
+
+**Anti-pattern:** any fixed spacing value on a container that appears at every viewport size without responsive variants.
+
+#### 5.7 Touch & Interaction Targets
+
+* Interactive elements need a minimum comfortable touch target (~44px).
+* Adjacent touch targets need enough spacing that mis-taps are rare.
+* Expand hit areas via padding rather than making icons larger.
+* Swipe gestures and long-press should supplement but never replace visible controls.
+
+#### 5.8 Safe-Area Awareness
+
+Elements fixed to viewport edges (input bars, floating buttons, bottom navigation) must account
+for device safe areas (notches, home indicators, rounded corners). Use environment-aware insets
+rather than hardcoded offsets.
+
+#### 5.9 Mobile Readiness Checklist
+
+* [ ] Responsive spacing on containers (not fixed padding at all sizes)
+* [ ] Variable-length content has containment (wrap, truncate, or scroll)
+* [ ] Headers don't accumulate uncondensed elements
+* [ ] Layout redistributes for narrow viewports
+* [ ] Input areas remain usable with virtual keyboard
+* [ ] No horizontal overflow at narrow viewport widths
+* [ ] Touch targets are comfortably sized
+* [ ] Fixed-position elements account for safe areas
 
 ### **6. Memory Management with Visited Tracker**
 
