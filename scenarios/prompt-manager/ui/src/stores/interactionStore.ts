@@ -5,6 +5,7 @@
 // AI_CHECK: R3F_INTERACTION_CHURN=1 | LAST: 2026-02-17
 
 import { create } from 'zustand'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 /** Available interaction modes */
 export type InteractionMode = 'navigate' | 'select' | 'drag' | 'place'
@@ -84,12 +85,16 @@ const initialState: InteractionState = {
 export const useInteractionStore = create<InteractionStore>((set, get) => ({
   ...initialState,
 
-  setMode: (mode) => set({ mode }),
+  setMode: (mode) => {
+    set({ mode })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
 
   setHovered: (id) => {
     const state = get()
     if (state.isDragging || state.hoveredObjectId === id) return // Don't change hover during drag or no-op updates
     set({ hoveredObjectId: id })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   startDrag: (objectId, startPosition) => {
@@ -104,6 +109,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       },
       mode: 'drag',
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   updateDrag: (currentPosition) => {
@@ -129,6 +135,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
         ],
       },
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   endDrag: () => {
@@ -138,6 +145,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       dragState: null,
       mode: 'navigate',
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   cancelDrag: () => {
@@ -147,10 +155,12 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       dragState: null,
       mode: 'navigate',
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   selectObject: (id) => {
     set({ selectedObjectIds: [id] })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   toggleSelection: (id) => {
@@ -160,28 +170,36 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
     } else {
       set({ selectedObjectIds: [...selectedObjectIds, id] })
     }
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   addToSelection: (id) => {
     const { selectedObjectIds } = get()
     if (!selectedObjectIds.includes(id)) {
       set({ selectedObjectIds: [...selectedObjectIds, id] })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     }
   },
 
   clearSelection: () => {
     set({ selectedObjectIds: [] })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   setMultiSelectActive: (active) => {
     set({ isMultiSelectActive: active })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   setLastClickPosition: (position) => {
     set({ lastClickPosition: position })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
-  reset: () => set(initialState),
+  reset: () => {
+    set(initialState)
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
 }))
 
 /**

@@ -7,6 +7,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 interface HoverGlowProps {
   /** Whether glow is active */
@@ -47,8 +48,11 @@ export function HoverGlow({
   const outerRingRef = useRef<Mesh>(null)
   const glowSphereRef = useRef<Mesh>(null)
   const timeRef = useRef(0)
+  const perfWindowMsRef = useRef(0)
+  const perfWindowCallbacksRef = useRef(0)
 
   useFrame((_, delta) => {
+    const t0 = performance.now()
     if (!isActive || !animated) return
     if (!groupRef.current) return
 
@@ -81,6 +85,17 @@ export function HoverGlow({
 
     // Gentle rotation
     groupRef.current.rotation.y += delta * 0.5
+
+    perfWindowMsRef.current += performance.now() - t0
+    perfWindowCallbacksRef.current += 1
+    if (perfWindowCallbacksRef.current >= 60) {
+      usePerformanceStore.getState().recordFrameLoopAggregate(
+        perfWindowMsRef.current,
+        perfWindowCallbacksRef.current
+      )
+      perfWindowMsRef.current = 0
+      perfWindowCallbacksRef.current = 0
+    }
   })
 
   if (!isActive) {

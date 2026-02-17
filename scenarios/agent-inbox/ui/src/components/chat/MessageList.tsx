@@ -304,7 +304,7 @@ function MessageListInner({
   }
 
   return (
-    <div className={`flex-1 overflow-y-auto p-4 ${isCompact ? "space-y-2" : "space-y-4"}`} data-testid="message-list">
+    <div className={`flex-1 overflow-y-auto overflow-x-hidden p-4 ${isCompact ? "space-y-2" : "space-y-4"}`} data-testid="message-list">
       {filteredMessages.map((message) => (
         <MessageBubble
           key={message.id}
@@ -361,11 +361,11 @@ function MessageListInner({
           </div>
         ) : (
           <div className="flex justify-start" data-testid="active-tool-calls">
-            <div className="flex gap-3 max-w-[85%]">
+            <div className="flex gap-3 max-w-[85%] min-w-0">
               <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
                 <Wrench className="h-4 w-4 text-amber-400" />
               </div>
-              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 space-y-2">
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 space-y-2 min-w-0">
                 {activeToolCalls.map((tc) => (
                   <div key={tc.id} className="flex items-center gap-2">
                     {tc.status === "running" ? (
@@ -445,11 +445,11 @@ function MessageListInner({
           </div>
         ) : (
           <div className="flex justify-start" data-testid="streaming-message">
-            <div className="flex gap-3 max-w-[85%]">
+            <div className="flex gap-3 max-w-[85%] min-w-0">
               <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
                 <Bot className="h-4 w-4 text-indigo-400" />
               </div>
-              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 min-w-0">
                 {/* Show generated images during streaming */}
                 {generatedImages.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -1121,11 +1121,11 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
 
     return (
       <div ref={ref} className={`group flex justify-start transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
-        <div className="flex gap-3 max-w-[85%]">
+        <div className="flex gap-3 max-w-[85%] min-w-0">
           <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
             <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
           </div>
-          <div className="text-slate-600 dark:text-slate-300">
+          <div className="text-slate-600 dark:text-slate-300 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs text-amber-600 dark:text-amber-400">Tool Result</span>
             </div>
@@ -1143,13 +1143,13 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
   if (hasToolCalls) {
     return (
       <div ref={ref} className={`group flex justify-start transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
-        <div className="flex gap-3 max-w-[85%]">
+        <div className="flex gap-3 max-w-[85%] min-w-0">
           <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
             <Bot className="h-4 w-4 text-indigo-400" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             {(message.content || (message.attachments && message.attachments.length > 0)) && (
-              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 min-w-0">
                 <div className="flex items-center justify-end gap-2 mb-1">
                   {renderActions("assistant")}
                 </div>
@@ -1187,7 +1187,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
       className={`group flex ${isUser ? "justify-end" : "justify-start"} transition-all duration-300 ${highlightClass}`}
       data-testid={`message-${message.id}`}
     >
-      <div className={`flex gap-3 max-w-[85%] ${isUser ? "flex-row-reverse" : ""}`}>
+      <div className={`flex gap-3 max-w-[85%] min-w-0 ${isUser ? "flex-row-reverse" : ""}`}>
         {/* Avatar */}
         <div
           className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
@@ -1207,7 +1207,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
             isUser
               ? "bg-indigo-600 text-white rounded-tr-md"
               : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-md"
-          }`}
+          } min-w-0`}
         >
           {/* Action buttons row */}
           <div className={`flex items-center ${isUser ? "justify-start" : "justify-end"} gap-2 mb-1`}>

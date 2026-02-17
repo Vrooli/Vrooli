@@ -15,7 +15,7 @@
 
 import { memo, useRef, useEffect, useMemo, useCallback } from 'react'
 import { OrbitControls } from '@react-three/drei'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { AgentWithAccessories } from './agents/AgentWithAccessories'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
@@ -29,9 +29,14 @@ import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
+import { usePerformanceStore } from '@/stores/performanceStore'
+import { useLODStore } from '@/stores/lodStore'
 import { useIsPlacing, useIsEditMode } from '@/stores/worldEditorStore'
+import { useFurnitureList } from '@/stores/furnitureStore'
+import { useDecorationList } from '@/stores/decorationStore'
 import { calculateStarOpacity } from '@/lib/sky/sunPosition'
 import { applyPlacementConstraints } from '@/lib/world'
+import { useLODManager } from '@/hooks/useLOD'
 import type { Agent } from '@/types/agent'
 import type { FurnitureInstance } from '@/types/furniture'
 import type { DecorationInstance } from '@/types/decoration'
@@ -220,6 +225,9 @@ export function WorldScene({
   const shadows = useGraphicsStore((state) => state.config.shadows)
   const shadowMapSize = useGraphicsStore((state) => state.config.shadowMapSize)
   const tier = useGraphicsStore((state) => state.tier)
+  const furnitureList = useFurnitureList()
+  const decorationList = useDecorationList()
+  const { updateAllLODs } = useLODManager()
 
   // Environment config for ground styling
   const currentEnv = useEnvironmentStore((state) => state.current)
@@ -258,6 +266,43 @@ export function WorldScene({
   // Perf: Tier-aware star count — 3000 points is expensive fill at low tiers
   const starCount = tier === 'low' ? 0 : tier === 'medium' ? 1000 : 3000
   const showStars = starOpacity > 0 && starCount > 0
+
+  const lodObjects = useMemo(
+    () => [
+      ...furnitureList.map((f) => ({ id: `furniture:${f.id}`, position: f.position })),
+      ...decorationList.map((d) => ({ id: `decoration:${d.id}`, position: d.position })),
+    ],
+    [furnitureList, decorationList]
+  )
+
+  useEffect(() => {
+    const store = useLODStore.getState()
+    if (tier === 'low') {
+      store.setThresholds({ high: 6, medium: 12, low: 20, culled: 32 })
+      return
+    }
+    if (tier === 'medium') {
+      store.setThresholds({ high: 8, medium: 16, low: 28, culled: 45 })
+      return
+    }
+    if (tier === 'high') {
+      store.setThresholds({ high: 10, medium: 22, low: 36, culled: 60 })
+      return
+    }
+    store.setThresholds({ high: 12, medium: 26, low: 42, culled: 70 })
+  }, [tier])
+
+  useFrame(() => {
+    if (lodObjects.length === 0) return
+    const frequency = tier === 'low' ? 5 : tier === 'medium' ? 8 : 12
+    updateAllLODs(lodObjects, frequency)
+  })
+
+  useEffect(() => {
+    usePerformanceStore.getState().setSceneSnapshot({
+      stars: showStars ? starCount : 0,
+    })
+  }, [showStars, starCount])
 
   // Update camera position when state changes
   useEffect(() => {

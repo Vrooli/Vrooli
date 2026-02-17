@@ -39,7 +39,7 @@ export function AgentMessageBubble({ event, viewMode = "bubble" }: AgentMessageB
     const roleColor = isUser ? "text-blue-400" : isSystem ? "text-zinc-400" : "text-emerald-400";
 
     return (
-      <div className={`group transition-all duration-200 border-l-2 ${borderColor} pl-3 py-1`}>
+      <div className={`group transition-all duration-200 border-l-2 ${borderColor} pl-3 py-1 min-w-0 max-w-full overflow-x-auto`}>
         <div className="flex items-center gap-2 mb-1">
           <span className={`text-xs font-medium ${roleColor}`}>{roleLabel}</span>
           <span className="text-xs text-zinc-500">{new Date(event.timestamp).toLocaleTimeString()}</span>
@@ -59,7 +59,7 @@ export function AgentMessageBubble({ event, viewMode = "bubble" }: AgentMessageB
         {isSystem ? (
           <p className="text-sm italic text-zinc-300">{event.content}</p>
         ) : (
-          <div className="prose prose-invert prose-sm max-w-none text-sm text-zinc-100">
+          <div className="min-w-0 max-w-full text-sm text-zinc-100 break-words [overflow-wrap:anywhere]">
             <MarkdownRenderer content={event.content} />
           </div>
         )}
@@ -68,7 +68,7 @@ export function AgentMessageBubble({ event, viewMode = "bubble" }: AgentMessageB
   }
 
   return (
-    <div className={`group flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`group flex gap-3 min-w-0 max-w-full w-full ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar */}
       <div
         className={`
@@ -86,7 +86,7 @@ export function AgentMessageBubble({ event, viewMode = "bubble" }: AgentMessageB
       {/* Message bubble */}
       <div
         className={`
-          max-w-[80%] rounded-2xl px-4 py-2
+          w-0 min-w-0 flex-1 max-w-full rounded-2xl px-4 py-2 overflow-x-auto
           ${isUser
             ? "bg-blue-600 text-white rounded-br-md"
             : isSystem
@@ -119,7 +119,7 @@ export function AgentMessageBubble({ event, viewMode = "bubble" }: AgentMessageB
         {isSystem ? (
           <p className="text-sm italic">{event.content}</p>
         ) : (
-          <div className="prose prose-invert prose-sm max-w-none">
+          <div className="min-w-0 max-w-full text-sm break-words [overflow-wrap:anywhere]">
             <MarkdownRenderer content={event.content} />
           </div>
         )}

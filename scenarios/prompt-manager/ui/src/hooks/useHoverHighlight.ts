@@ -2,10 +2,15 @@
  * useHoverHighlight - Hook for managing hover state on 3D objects.
  * Provides event handlers and state for highlighting objects on hover.
  */
-// AI_CHECK: R3F_HOVER_EVENT_CHURN=1 | LAST: 2026-02-17
+// AI_CHECK: R3F_HOVER_EVENT_CHURN=2 | LAST: 2026-02-17
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { useInteractionStore } from '@/stores/interactionStore'
+import { usePerformanceStore } from '@/stores/performanceStore'
+import { useLODStore } from '@/stores/lodStore'
+
+const HOVER_UPDATE_INTERVAL_MS = 66 // ~15Hz
+const HOVER_MARKER_INTERVAL_MS = 100
 
 interface HoverHighlightResult {
   /** Whether this object is currently hovered */
@@ -57,14 +62,40 @@ export function useHoverHighlight(
 
   const setHovered = useInteractionStore((state) => state.setHovered)
   const isHovered = useInteractionStore((state) => enabled && state.hoveredObjectId === objectId)
+  const hoverEventCountRef = useRef(0)
+  const lastHoverUpdateMsRef = useRef(0)
+  const lastMarkerMsRef = useRef(0)
 
   const onPointerOver = useCallback(
     (e: { stopPropagation: () => void }) => {
       if (!enabled || useInteractionStore.getState().isDragging) return
+      if (!useLODStore.getState().canReceiveHover(objectId)) return
+
+      const t0 = performance.now()
+      const now = t0
+      const wasHovered = useInteractionStore.getState().hoveredObjectId === objectId
+      if (
+        !wasHovered &&
+        now - lastHoverUpdateMsRef.current < HOVER_UPDATE_INTERVAL_MS
+      ) {
+        return
+      }
       e.stopPropagation()
       setHovered(objectId)
+      lastHoverUpdateMsRef.current = now
       if (document.body.style.cursor !== cursor) {
         document.body.style.cursor = cursor
+      }
+      if (!wasHovered && now - lastMarkerMsRef.current >= HOVER_MARKER_INTERVAL_MS) {
+        usePerformanceStore.getState().recordTraceMarker('hover-start', `Hover start: ${objectId}`)
+        lastMarkerMsRef.current = now
+      }
+      hoverEventCountRef.current++
+      if (hoverEventCountRef.current % 10 === 0) {
+        usePerformanceStore.getState().recordSubsystemSample(
+          'interaction.hover',
+          performance.now() - t0
+        )
       }
     },
     [objectId, setHovered, cursor, enabled]
@@ -72,12 +103,26 @@ export function useHoverHighlight(
 
   const onPointerOut = useCallback(() => {
     if (!enabled) return
+    const t0 = performance.now()
+    const now = t0
     const { hoveredObjectId } = useInteractionStore.getState()
     if (hoveredObjectId === objectId) {
       setHovered(null)
+      lastHoverUpdateMsRef.current = now
+      if (now - lastMarkerMsRef.current >= HOVER_MARKER_INTERVAL_MS) {
+        usePerformanceStore.getState().recordTraceMarker('hover-end', `Hover end: ${objectId}`)
+        lastMarkerMsRef.current = now
+      }
     }
     if (document.body.style.cursor !== 'auto') {
       document.body.style.cursor = 'auto'
+    }
+    hoverEventCountRef.current++
+    if (hoverEventCountRef.current % 10 === 0) {
+      usePerformanceStore.getState().recordSubsystemSample(
+        'interaction.hover',
+        performance.now() - t0
+      )
     }
   }, [objectId, setHovered, enabled])
 

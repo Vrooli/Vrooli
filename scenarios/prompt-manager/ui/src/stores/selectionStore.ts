@@ -8,6 +8,7 @@
  */
 
 import { create } from 'zustand'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 const VIEW_STORAGE_KEY = 'pm.viewMode'
 
@@ -71,6 +72,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedTeamId: null,
       selectedRunId: null,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   toggleSkillSelection: (id) => {
@@ -90,6 +92,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
         selectedSkillId: newIds.length === 1 ? id : get().selectedSkillId,
       })
     }
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   addToSelection: (id) => {
@@ -100,6 +103,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
         selectedSkillIds: newIds,
         selectedSkillId: newIds.length === 1 ? id : get().selectedSkillId,
       })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     }
   },
 
@@ -111,6 +115,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       // Update single selection if we just removed the selected item
       selectedSkillId: get().selectedSkillId === id ? null : get().selectedSkillId,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   setSelectedSkillIds: (ids) => {
@@ -119,10 +124,12 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       // If there's exactly one selection, also set it as the single selected
       selectedSkillId: ids.length === 1 ? ids[0] : get().selectedSkillId,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   clearSelection: () => {
     set({ selectedSkillIds: [] })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   clearAllSelection: () => {
@@ -133,6 +140,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedTeamId: null,
       selectedRunId: null,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   setSelectedAgentId: (id) => {
@@ -144,6 +152,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedTeamId: null,
       selectedRunId: null,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   setSelectedTeamId: (id) => {
@@ -155,6 +164,7 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedAgentId: null,
       selectedRunId: null,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   setSelectedRunId: (id) => {
@@ -166,10 +176,12 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedAgentId: null,
       selectedTeamId: null,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   setGraphViewActive: (v) => {
     set({ graphViewActive: v })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
     try {
       localStorage.setItem(VIEW_STORAGE_KEY, v ? 'graph' : 'world')
     } catch { /* ignore quota errors */ }

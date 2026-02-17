@@ -4,6 +4,7 @@ import { MessageInput, type MessagePayload } from "./MessageInput";
 import { ModeSelector, type ChatMode } from "./ModeSelector";
 import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
 import { useAgentSettings } from "../../hooks/useAgentSettings";
+import { selectorsManifest } from "../../consts/selectors";
 import type { Model } from "../../lib/api";
 
 interface EmptyStateProps {
@@ -21,6 +22,13 @@ export function EmptyState({
   isCreating,
   models,
 }: EmptyStateProps) {
+  const emptyStateTestIds = {
+    container: selectorsManifest.selectors["emptyState.container"]?.testId ?? "empty-state",
+    title: selectorsManifest.selectors["emptyState.title"]?.testId ?? "empty-state-title",
+    subtitle: selectorsManifest.selectors["emptyState.subtitle"]?.testId ?? "empty-state-subtitle",
+    modeHint: selectorsManifest.selectors["emptyState.modeHint"]?.testId ?? "empty-state-mode-hint",
+    mobileTips: selectorsManifest.selectors["emptyState.mobileTips"]?.testId ?? "empty-state-mobile-tips",
+  };
   // Use the first model as default for capability checking
   const defaultModel = models[0] ?? null;
 
@@ -77,7 +85,7 @@ export function EmptyState({
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid="empty-state">
+    <div className="flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid={emptyStateTestIds.container}>
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -89,8 +97,10 @@ export function EmptyState({
               <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
             </div>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">What can I help you with?</h2>
-          <p className="text-sm sm:text-base text-slate-400 max-w-md mx-auto">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2" data-testid={emptyStateTestIds.title}>
+            What can I help you with?
+          </h2>
+          <p className="text-sm sm:text-base text-slate-400 max-w-md mx-auto" data-testid={emptyStateTestIds.subtitle}>
             Ask me anything about coding, writing, research, or any other topic.
           </p>
         </div>
@@ -105,7 +115,7 @@ export function EmptyState({
               onOpenAgentSettings={onOpenAgentSettings}
             />
             {selectedMode === "agent" && !agentSettings.defaultProjectPath && (
-              <span className="text-xs text-amber-400">
+              <span className="text-xs text-amber-400" data-testid={emptyStateTestIds.modeHint}>
                 Project path required
               </span>
             )}
@@ -140,8 +150,8 @@ export function EmptyState({
           />
         </div>
 
-        {/* Quick tips - Hidden on mobile for cleaner experience */}
-        <div className="hidden sm:block mt-8 p-4 bg-white/5 rounded-xl border border-white/10">
+        {/* Quick tips */}
+        <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-white/5 rounded-xl border border-white/10" data-testid={emptyStateTestIds.mobileTips}>
           <h3 className="text-sm font-medium text-white mb-2">Quick Tips</h3>
           <ul className="text-xs text-slate-400 space-y-1 text-left">
             <li>Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">Ctrl+N</kbd> to create a new chat anytime</li>

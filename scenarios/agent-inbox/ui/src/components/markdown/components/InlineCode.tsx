@@ -15,8 +15,8 @@ export function InlineCode({ children }: InlineCodeProps) {
   const { copied, copyCode } = useCodeCopy(textContent);
 
   return (
-    <span className="group inline-flex items-center gap-1.5 rounded-full border border-slate-600/80 bg-slate-700/80 px-2 py-0.5 text-xs font-mono text-slate-200">
-      <code className="leading-relaxed">{children}</code>
+    <span className="group inline-flex max-w-full items-center gap-1 rounded-full border border-slate-600/80 bg-slate-700/80 px-2 py-0.5 text-xs font-mono text-slate-200 align-middle">
+      <code className="leading-relaxed min-w-0 break-all [overflow-wrap:anywhere]">{children}</code>
       {textContent ? (
         <button
           type="button"

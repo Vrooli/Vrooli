@@ -11,6 +11,7 @@ import { useGraphicsStore } from '@/stores/graphicsStore'
 
 export function FrameRateController() {
   const maxFpsSetting = usePerformanceStore((state) => state.config.maxFps)
+  const forceAlwaysFrameloop = usePerformanceStore((state) => state.config.forceAlwaysFrameloop)
   const graphicsTier = useGraphicsStore((state) => state.tier)
   const maxFps = maxFpsSetting === 'auto'
     ? (graphicsTier === 'low' || graphicsTier === 'medium' ? 30 : 60)
@@ -21,8 +22,14 @@ export function FrameRateController() {
 
   useEffect(() => {
     const fpsCap = Number.isFinite(maxFps) ? Math.max(1, Math.round(maxFps)) : 60
+    const shouldForceAlways = forceAlwaysFrameloop || fpsCap >= 60
+    usePerformanceStore.getState().setSceneSnapshot({
+      effectiveMaxFps: fpsCap,
+      frameloopMode: shouldForceAlways ? 'always' : 'demand',
+      forceAlwaysFrameloop,
+    })
 
-    if (fpsCap >= 60) {
+    if (shouldForceAlways) {
       setFrameloop('always')
       return
     }
@@ -34,6 +41,7 @@ export function FrameRateController() {
     const tick = () => {
       if (!active) return
       invalidate()
+      usePerformanceStore.getState().recordInvalidate()
       timeoutRef.current = setTimeout(tick, frameDelay)
     }
 
@@ -47,7 +55,7 @@ export function FrameRateController() {
       }
       setFrameloop('always')
     }
-  }, [invalidate, maxFps, setFrameloop])
+  }, [forceAlwaysFrameloop, invalidate, maxFps, setFrameloop])
 
   return null
 }

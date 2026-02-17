@@ -13,6 +13,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Defensive markdown containment: never let message content exceed bubble width */
+.markdown-content,
+.markdown-content * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.markdown-content pre,
+.markdown-content code,
+.markdown-content table {
+  max-width: 100%;
+}
+
+.markdown-content pre,
+.markdown-content table {
+  overflow-x: auto;
+}
+
+/* Agent-mode guardrails: every event row must be shrinkable on narrow screens */
+[data-testid="agent-event-list"] > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Custom scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;

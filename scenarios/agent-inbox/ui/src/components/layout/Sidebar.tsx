@@ -22,13 +22,17 @@ import {
   PanelLeftClose,
   PanelLeft,
   Bot,
+  Tag,
+  MoreVertical,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { Badge } from "../ui/badge";
+import { Dropdown, DropdownItem, DropdownSeparator } from "../ui/dropdown";
 import { useSearch, type ChatSearchMode } from "../../hooks/useSearch";
+import { selectorsManifest } from "../../consts/selectors";
 import type { View } from "../../hooks/useChats";
 import type { Chat, Label, SearchResult, BulkOperation } from "../../lib/api";
 
@@ -101,6 +105,22 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
   },
   ref
 ) {
+  const sidebarTestIds = {
+    container: selectorsManifest.selectors["sidebar.container"]?.testId ?? "sidebar",
+    newChatButton: selectorsManifest.selectors["sidebar.newChatButton"]?.testId ?? "new-chat-button",
+    nav: selectorsManifest.selectors["sidebar.nav"]?.testId ?? "sidebar-nav",
+    manageLabelsButton: selectorsManifest.selectors["sidebar.manageLabelsButton"]?.testId ?? "manage-labels-button",
+    mobileActionsButton: selectorsManifest.selectors["sidebar.mobileActionsButton"]?.testId ?? "sidebar-mobile-actions",
+  };
+  const chatListPanelTestIds = {
+    searchInput: selectorsManifest.selectors["chatListPanel.searchInput"]?.testId ?? "chat-search-input",
+    clearSearchButton: selectorsManifest.selectors["chatListPanel.clearSearchButton"]?.testId ?? "clear-search-button",
+    searchModeToggle: selectorsManifest.selectors["chatListPanel.searchModeToggle"]?.testId ?? "search-mode-toggle",
+    searchModeQuick: selectorsManifest.selectors["chatListPanel.searchModeQuick"]?.testId ?? "search-mode-quick",
+    searchModeContent: selectorsManifest.selectors["chatListPanel.searchModeContent"]?.testId ?? "search-mode-content",
+    list: selectorsManifest.selectors["chatListPanel.list"]?.testId ?? "chat-list",
+    switchToContentSearchButton: selectorsManifest.selectors["chatListPanel.switchToContentSearchButton"]?.testId ?? "switch-to-content-search",
+  };
   // Refs for each chat item to enable scroll-into-view on focus
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -419,7 +439,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
   return (
     <aside
       className="w-full border-r border-white/10 flex flex-col bg-slate-950 shrink-0 h-full"
-      data-testid="sidebar"
+      data-testid={sidebarTestIds.container}
     >
       {/* Header with Logo + New Chat */}
       <div className="p-3 border-b border-white/10 shrink-0">
@@ -457,7 +477,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                     setSelectionMode(true);
                   }
                 }}
-                className={`p-1.5 rounded-lg transition-colors ${
+                className={`hidden lg:flex p-1.5 rounded-lg transition-colors ${
                   selectionMode
                     ? "bg-indigo-500/20 text-indigo-400"
                     : "text-slate-500 hover:text-white hover:bg-white/10"
@@ -469,6 +489,50 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
               </button>
             </Tooltip>
           )}
+          <div className="lg:hidden">
+            <Dropdown
+              align="right"
+              trigger={
+                <button
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Open sidebar actions"
+                  data-testid={sidebarTestIds.mobileActionsButton}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              }
+            >
+              {onBulkOperate && displayChats.length > 0 && !search.isActive && (
+                <>
+                  <DropdownItem
+                    onClick={() => {
+                      if (selectionMode) {
+                        exitSelectionMode();
+                      } else {
+                        setSelectionMode(true);
+                      }
+                    }}
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    {selectionMode ? "Cancel selection mode" : "Select multiple chats"}
+                  </DropdownItem>
+                  <DropdownSeparator />
+                </>
+              )}
+              <DropdownItem onClick={onManageLabels} testId={sidebarTestIds.manageLabelsButton}>
+                <Tag className="h-4 w-4" />
+                Manage labels
+              </DropdownItem>
+              <DropdownItem onClick={onShowKeyboardShortcuts}>
+                <Keyboard className="h-4 w-4" />
+                Keyboard shortcuts
+              </DropdownItem>
+              <DropdownItem onClick={onOpenSettings}>
+                <Settings className="h-4 w-4" />
+                Settings
+              </DropdownItem>
+            </Dropdown>
+          </div>
         </div>
         {/* New Chat button with optional agent mode dropdown */}
         <div className="relative" ref={newChatMenuRef}>
@@ -477,7 +541,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
               onClick={onNewChat}
               disabled={isCreatingChat || selectionMode}
               className="flex-1 justify-center gap-2"
-              data-testid="new-chat-button"
+              data-testid={sidebarTestIds.newChatButton}
             >
               {isCreatingChat ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -632,7 +696,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
       )}
 
       {/* Navigation Tabs */}
-      <div className="px-3 py-2 border-b border-white/10 shrink-0" data-testid="sidebar-nav">
+      <div className="px-3 py-2 border-b border-white/10 shrink-0" data-testid={sidebarTestIds.nav}>
         <div className="flex gap-1">
           {navItems.map(({ id, label, icon: Icon }) => {
             const count = chatCounts?.[id];
@@ -723,13 +787,13 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
             onChange={(e) => search.setQuery(e.target.value)}
             placeholder={searchMode === "quick" ? "Filter chats... (/ or Ctrl+K)" : "Search messages... (/ or Ctrl+K)"}
             className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            data-testid="chat-search-input"
+            data-testid={chatListPanelTestIds.searchInput}
           />
           {search.query && (
             <button
               onClick={search.clear}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-white/10 text-slate-500 hover:text-white"
-              data-testid="clear-search-button"
+              data-testid={chatListPanelTestIds.clearSearchButton}
             >
               <X className="h-3 w-3" />
             </button>
@@ -740,7 +804,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
         </div>
         {/* Search mode toggle - visible when query has text */}
         {search.query && (
-          <div className="flex items-center gap-1 mt-2" data-testid="search-mode-toggle">
+          <div className="flex items-center gap-1 mt-2" data-testid={chatListPanelTestIds.searchModeToggle}>
             <button
               type="button"
               onClick={() => setSearchMode("quick")}
@@ -749,7 +813,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                   ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40"
                   : "text-slate-400 border-white/10 hover:text-white hover:bg-white/5"
               }`}
-              data-testid="search-mode-quick"
+              data-testid={chatListPanelTestIds.searchModeQuick}
             >
               Quick
             </button>
@@ -761,7 +825,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                   ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40"
                   : "text-slate-400 border-white/10 hover:text-white hover:bg-white/5"
               }`}
-              data-testid="search-mode-content"
+              data-testid={chatListPanelTestIds.searchModeContent}
             >
               Content
             </button>
@@ -815,10 +879,14 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
             )}
           </div>
         )}
+        <p className="mt-2 text-[11px] text-slate-500">
+          Tip: <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">/</kbd> or{" "}
+          <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">Ctrl+K</kbd> focuses search.
+        </p>
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto" data-testid="chat-list">
+      <div className="flex-1 overflow-y-auto" data-testid={chatListPanelTestIds.list}>
         {isLoadingChats && !search.isActive ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-500">
             <Loader2 className="h-6 w-6 animate-spin mb-2" />
@@ -838,7 +906,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                   <button
                     onClick={() => setSearchMode("content")}
                     className="mt-2 text-sm text-indigo-400 hover:text-indigo-300"
-                    data-testid="switch-to-content-search"
+                    data-testid={chatListPanelTestIds.switchToContentSearchButton}
                   >
                     Search message content instead
                   </button>
@@ -968,12 +1036,12 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
 
       {/* Footer */}
       <div className="p-3 border-t border-white/10 shrink-0">
-        <div className="flex items-center justify-center gap-1">
+        <div className="hidden lg:flex items-center justify-center gap-1">
           <Tooltip content="Manage labels">
             <button
               onClick={onManageLabels}
               className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
-              data-testid="sidebar-labels-button"
+              data-testid={sidebarTestIds.manageLabelsButton}
             >
               <Badge color="#6366f1" className="h-4 w-4 p-0 flex items-center justify-center text-[8px]">
                 {labels.length}
@@ -1001,6 +1069,9 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
             </button>
           </Tooltip>
         </div>
+        <p className="text-[11px] text-slate-500 text-center lg:hidden">
+          Use the top-right menu for labels, shortcuts, and settings.
+        </p>
       </div>
     </aside>
   );

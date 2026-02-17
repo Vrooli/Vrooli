@@ -71,6 +71,25 @@ const TIER_CONFIGS: Record<PerformanceTier, GraphicsConfig> = {
   },
 }
 
+function applyTierPolicy(tier: PerformanceTier, config: GraphicsConfig): GraphicsConfig {
+  if (tier !== 'low') return config
+
+  // Enforce safe low-tier defaults regardless of manual overrides.
+  return {
+    ...config,
+    shadows: false,
+    shadowMapSize: 512,
+    contactShadows: false,
+    materialQuality: 'basic',
+    antialiasing: 'none',
+    postProcessing: false,
+    bloom: false,
+    ssao: false,
+    vignette: false,
+    envMap: false,
+  }
+}
+
 interface GraphicsState {
   /** Current performance tier */
   tier: PerformanceTier
@@ -113,7 +132,7 @@ export const useGraphicsStore = create<GraphicsStore>()(
       setTier: (tier) =>
         set({
           tier,
-          config: { ...TIER_CONFIGS[tier], ...get().overrides },
+          config: applyTierPolicy(tier, { ...TIER_CONFIGS[tier], ...get().overrides }),
         }),
 
       setAutoDetect: (enabled) =>
@@ -121,21 +140,27 @@ export const useGraphicsStore = create<GraphicsStore>()(
 
       setOverride: (key, value) => {
         const newOverrides = { ...get().overrides, [key]: value }
+        const tier = get().tier
         set({
           overrides: newOverrides,
-          config: { ...TIER_CONFIGS[get().tier], ...newOverrides },
+          config: applyTierPolicy(tier, { ...TIER_CONFIGS[tier], ...newOverrides }),
         })
       },
 
       clearOverrides: () =>
-        set({
-          overrides: {},
-          config: TIER_CONFIGS[get().tier],
-        }),
+        {
+          const tier = get().tier
+          return set({
+            overrides: {},
+            config: applyTierPolicy(tier, TIER_CONFIGS[tier]),
+          })
+        },
 
       getEffectiveConfig: () => ({
-        ...TIER_CONFIGS[get().tier],
-        ...get().overrides,
+        ...applyTierPolicy(get().tier, {
+          ...TIER_CONFIGS[get().tier],
+          ...get().overrides,
+        }),
       }),
     }),
     {

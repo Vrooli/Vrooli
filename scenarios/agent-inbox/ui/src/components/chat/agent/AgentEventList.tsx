@@ -194,7 +194,7 @@ export function AgentEventList({
   return (
     <div
       ref={containerRef}
-      className={`flex-1 overflow-y-auto ${isCompact ? "p-3 space-y-2" : "p-4 space-y-4"}`}
+      className={`flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-auto ${isCompact ? "p-3 space-y-2" : "p-4 space-y-4"}`}
       data-testid="agent-event-list"
     >
       {/* Render initial messages (user's prompt) before agent events */}
@@ -222,15 +222,15 @@ export function AgentEventList({
                 </div>
               </div>
             ) : (
-              <div className="flex gap-3 flex-row-reverse">
+              <div className="flex gap-3 flex-row-reverse min-w-0 max-w-full w-full">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-blue-600">
                   <User className="h-4 w-4 text-white" />
                 </div>
-                <div className="max-w-[80%] rounded-2xl px-4 py-2 bg-blue-600 text-white rounded-br-md">
+                <div className="w-0 min-w-0 flex-1 max-w-full rounded-2xl px-4 py-2 bg-blue-600 text-white rounded-br-md overflow-x-auto">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-blue-200">You</span>
                   </div>
-                  <div className="prose prose-invert prose-sm max-w-none">
+                  <div className="min-w-0 max-w-full text-sm break-words [overflow-wrap:anywhere]">
                     <MarkdownRenderer content={msg.content} />
                   </div>
                   <div className="text-xs mt-1 text-blue-200">

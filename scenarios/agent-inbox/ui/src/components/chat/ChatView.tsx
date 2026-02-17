@@ -404,25 +404,27 @@ export function ChatView({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-950" data-testid="chat-view">
-      <ErrorBoundary name="ChatHeader">
-        <ChatHeader
-          chat={chatData.chat}
-          models={models}
-          labels={labels}
-          chatMode={chatMode}
-          onUpdateChat={onUpdateChat}
-          onToggleRead={onToggleRead}
-          onToggleStar={onToggleStar}
-          onToggleArchive={onToggleArchive}
-          onDelete={onDeleteChat}
-          onAssignLabel={onAssignLabel}
-          onRemoveLabel={onRemoveLabel}
-        />
-      </ErrorBoundary>
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-950" data-testid="chat-view">
+      <div className="hidden lg:block">
+        <ErrorBoundary name="ChatHeader">
+          <ChatHeader
+            chat={chatData.chat}
+            models={models}
+            labels={labels}
+            chatMode={chatMode}
+            onUpdateChat={onUpdateChat}
+            onToggleRead={onToggleRead}
+            onToggleStar={onToggleStar}
+            onToggleArchive={onToggleArchive}
+            onDelete={onDeleteChat}
+            onAssignLabel={onAssignLabel}
+            onRemoveLabel={onRemoveLabel}
+          />
+        </ErrorBoundary>
+      </div>
 
       {/* Mode selector and agent status */}
-      <div className="flex items-center flex-wrap gap-2 px-4 py-2 border-b border-zinc-800">
+      <div className="flex items-center gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-b border-zinc-800 overflow-x-auto">
         <ModeSelector
           mode={chatMode}
           onModeChange={handleModeChange}
@@ -431,13 +433,13 @@ export function ChatView({
           onOpenAgentSettings={onOpenAgentSettings}
         />
         {agentError && (
-          <span className="text-xs text-red-400">
+          <span className="text-xs text-red-400 truncate">
             {agentError.message}
             {agentError.recovery && <span className="text-zinc-400 ml-1">— {agentError.recovery}</span>}
           </span>
         )}
         {agentWsError && isAgentActive && (
-          <span className="text-xs text-yellow-400">Connection issue: {agentWsError}</span>
+          <span className="text-xs text-yellow-400 truncate">Connection issue: {agentWsError}</span>
         )}
         {isAgentActive && agentStatus && (
           <AgentStatusIndicator

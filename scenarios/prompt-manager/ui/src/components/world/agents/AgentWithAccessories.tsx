@@ -22,6 +22,7 @@ import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import type { AgentProps } from '@/types/world'
 import type { Agent } from '@/types/agent'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 const NONE_ACCESSORY = { type: 'none' as const }
 
@@ -147,6 +148,7 @@ export function AgentWithAccessories({
 
   useFrame(({ clock }, delta) => {
     if (!locomotionRef.current) return
+    const timingStart = performance.now()
 
     const agentId = agent.id
     frameCountRef.current++
@@ -216,6 +218,13 @@ export function AgentWithAccessories({
         locomotionRef.current.rotation.y,
         [pos.x, pos.y, pos.z],
         [camera.position.x, camera.position.y, camera.position.z],
+      )
+    }
+
+    if (frameCountRef.current % 30 === 0) {
+      usePerformanceStore.getState().recordSubsystemSample(
+        'agent.locomotion',
+        performance.now() - timingStart
       )
     }
   })

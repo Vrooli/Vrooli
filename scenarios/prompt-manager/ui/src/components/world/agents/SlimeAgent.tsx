@@ -23,6 +23,7 @@ import { useLODStore } from '@/stores/lodStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import type { LODLevel } from '@/types/lod'
 import { bindSlimeShader, syncSlimeShader } from '@/lib/shaders/slimeShader'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 // Body sphere radius - used for ground offset so bottom of sphere sits on ground
 const BODY_RADIUS = 0.4
@@ -238,6 +239,7 @@ export function SlimeAgent({
   // Animation loop with LOD-based optimization
   useFrame((_, delta) => {
     if (!groupRef.current) return
+    const frameStart = performance.now()
 
     const state = animationState.current
     state.time += delta
@@ -245,6 +247,7 @@ export function SlimeAgent({
     // ===== LOD CALCULATION & MOVEMENT DETECTION (every 5 frames) =====
     lodFrameCountRef.current++
     if (lodFrameCountRef.current % 5 === 0) {
+      const lodStart = performance.now()
       groupRef.current.getWorldPosition(worldPosVec.current)
       const dx = worldPosVec.current.x - camera.position.x
       const dy = worldPosVec.current.y - camera.position.y
@@ -260,6 +263,10 @@ export function SlimeAgent({
       const lodLevel = useLODStore.getState().calculateLODLevel(distance)
       lodLevelRef.current = lodLevel
       useLODStore.getState().updateObjectLOD(objectIdRef.current, distance)
+      usePerformanceStore.getState().recordSubsystemSample(
+        'lod.update',
+        performance.now() - lodStart
+      )
     }
 
     const lodLevel = lodLevelRef.current
@@ -427,6 +434,13 @@ export function SlimeAgent({
           groupRef.current.scale.setScalar(1)
         }
       }
+    }
+
+    if (lodFrameCountRef.current % 30 === 0) {
+      usePerformanceStore.getState().recordSubsystemSample(
+        'agent.animation',
+        performance.now() - frameStart
+      )
     }
   })
 

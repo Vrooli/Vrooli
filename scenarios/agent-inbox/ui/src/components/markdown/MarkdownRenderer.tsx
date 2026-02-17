@@ -121,7 +121,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
       // Paragraphs
       p: ({ children }: { children?: ReactNode }) => (
-        <p className="my-2 leading-relaxed">{children}</p>
+        <p className="my-2 leading-relaxed break-words [overflow-wrap:anywhere]">{children}</p>
       ),
 
       // Lists
@@ -132,7 +132,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>
       ),
       li: ({ children }: { children?: ReactNode }) => (
-        <li className="leading-relaxed">{children}</li>
+        <li className="leading-relaxed break-words [overflow-wrap:anywhere]">{children}</li>
       ),
 
       // Blockquotes
@@ -191,7 +191,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
   return (
     <MarkdownErrorBoundary content={safeContent}>
-      <div className={`markdown-content ${className || ""}`}>
+      <div className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] ${className || ""}`}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
           {safeContent}
         </ReactMarkdown>

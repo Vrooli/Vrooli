@@ -4,9 +4,9 @@
  */
 // AI_CHECK: FPS_TRACE_OVERLAY_RENDER=1 | LAST: 2026-02-17
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { usePerformanceStore, selectTraceData } from '@/stores/performanceStore'
+import { usePerformanceStore, selectTraceData, selectSceneSnapshot } from '@/stores/performanceStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useLODStore } from '@/stores/lodStore'
 import type { PerformanceTraceMarker, PerformanceTraceSample } from '@/types/performance'
@@ -31,6 +31,22 @@ function markerColor(type: PerformanceTraceMarker['type']): string {
       return '#f59e0b'
     case 'visible':
       return '#10b981'
+    case 'focus':
+      return '#38bdf8'
+    case 'blur':
+      return '#fb7185'
+    case 'drag-start':
+      return '#facc15'
+    case 'drag-end':
+      return '#eab308'
+    case 'hover-start':
+      return '#34d399'
+    case 'hover-end':
+      return '#10b981'
+    case 'selection-change':
+      return '#93c5fd'
+    case 'camera-mode-change':
+      return '#a78bfa'
   }
 }
 
@@ -136,10 +152,14 @@ export function FPSOverlay({
 }: FPSOverlayProps) {
   // Performance metrics
   const metrics = usePerformanceStore((state) => state.metrics)
+  const forceAlwaysFrameloop = usePerformanceStore((state) => state.config.forceAlwaysFrameloop)
   const autoAdjust = usePerformanceStore((state) => state.config.autoAdjust)
   const showTraceCharts = usePerformanceStore((state) => state.config.showTraceCharts)
   const traceData = usePerformanceStore(useShallow(selectTraceData))
+  const sceneSnapshot = usePerformanceStore(selectSceneSnapshot)
   const traceCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
 
   // Graphics tier
   const tier = useGraphicsStore((state) => state.tier)
@@ -155,6 +175,70 @@ export function FPSOverlay({
     if (!canvas) return
     drawTraceCanvas(canvas, traceData.samples, traceData.markers)
   }, [traceData.version, traceData.samples, traceData.markers])
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current) {
+        clearTimeout(copyResetTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const diagnosticsPayload = useMemo(() => ({
+    generatedAt: new Date().toISOString(),
+    metrics,
+    tier,
+    autoAdjust,
+    showTraceCharts,
+    lodStats,
+    sceneSnapshot,
+    trace: traceData,
+  }), [metrics, tier, autoAdjust, showTraceCharts, lodStats, sceneSnapshot, traceData])
+
+  const drawCallAnomaly = (
+    sceneSnapshot.mountedAgents > 0 &&
+    (sceneSnapshot.sceneMeshes > 20 || sceneSnapshot.decorations > 20) &&
+    (metrics.workload.drawCalls ?? 0) <= 2
+  )
+
+  const handleCopyJson = useCallback(async () => {
+    const payload = JSON.stringify(diagnosticsPayload, null, 2)
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload)
+      } else if (typeof document !== 'undefined') {
+        const ta = document.createElement('textarea')
+        ta.value = payload
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      } else {
+        throw new Error('Clipboard unavailable')
+      }
+
+      setCopyState('copied')
+    } catch {
+      setCopyState('error')
+    }
+
+    if (copyResetTimeoutRef.current) {
+      clearTimeout(copyResetTimeoutRef.current)
+    }
+    copyResetTimeoutRef.current = setTimeout(() => {
+      setCopyState('idle')
+      copyResetTimeoutRef.current = null
+    }, 1600)
+  }, [diagnosticsPayload])
+
+  const handleToggleForceAlways = useCallback(() => {
+    usePerformanceStore.getState().setConfig({
+      forceAlwaysFrameloop: !forceAlwaysFrameloop,
+    })
+  }, [forceAlwaysFrameloop])
 
   // Color based on FPS
   const fpsColor =
@@ -178,11 +262,49 @@ export function FPSOverlay({
       }}
     >
         {/* FPS Display */}
-      <div style={{ marginBottom: '4px' }}>
-        <span style={{ color: fpsColor, fontWeight: 'bold', fontSize: '16px' }}>
-          {metrics.currentFps}
-        </span>
-        <span style={{ color: '#9ca3af', marginLeft: '4px' }}>FPS</span>
+      <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <span style={{ color: fpsColor, fontWeight: 'bold', fontSize: '16px' }}>
+            {metrics.currentFps}
+          </span>
+          <span style={{ color: '#9ca3af', marginLeft: '4px' }}>FPS</span>
+        </div>
+        {detailed && (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={handleToggleForceAlways}
+              style={{
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: forceAlwaysFrameloop ? 'rgba(22,163,74,0.35)' : 'rgba(15,23,42,0.65)',
+                color: '#e2e8f0',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '10px',
+                cursor: 'pointer',
+              }}
+              title="Force Canvas frameloop to always for A/B diagnostics"
+            >
+              Force Always: {forceAlwaysFrameloop ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCopyJson()}
+              style={{
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(15,23,42,0.65)',
+                color: copyState === 'error' ? '#ef4444' : '#e2e8f0',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '10px',
+                cursor: 'pointer',
+              }}
+              title="Copy diagnostics JSON"
+            >
+              {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy JSON'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Average FPS */}
@@ -287,6 +409,215 @@ export function FPSOverlay({
               <span style={{ marginLeft: '8px' }}>
                 Mem: {metrics.memoryUsageMb}MB
               </span>
+            )}
+            <div style={{ marginTop: '2px' }}>
+              P95: {metrics.frameP95Ms.toFixed(2)}ms
+              <span style={{ marginLeft: '8px' }}>
+                P99: {metrics.frameP99Ms.toFixed(2)}ms
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              {'>16.7ms'}: {metrics.overBudget16Pct.toFixed(1)}%
+              <span style={{ marginLeft: '8px' }}>
+                {'>33.3ms'}: {metrics.overBudget33Pct.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Renderer Workload */}
+          <div
+            style={{
+              marginTop: '6px',
+              paddingTop: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '10px',
+              color: '#9ca3af',
+            }}
+          >
+            Draw: {metrics.workload.drawCalls ?? '-'}
+            {metrics.workload.drawCallsAvg !== null && (
+              <span style={{ marginLeft: '6px' }}>
+                avg {metrics.workload.drawCallsAvg}
+              </span>
+            )}
+            <div style={{ marginTop: '2px' }}>
+              Tris: {metrics.workload.triangles ?? '-'}
+              {metrics.workload.trianglesAvg !== null && (
+                <span style={{ marginLeft: '6px' }}>
+                  avg {metrics.workload.trianglesAvg}
+                </span>
+              )}
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              Pts: {metrics.workload.points ?? '-'}
+              <span style={{ marginLeft: '8px' }}>
+                Lines: {metrics.workload.lines ?? '-'}
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              Geo: {metrics.workload.geometries ?? '-'}
+              <span style={{ marginLeft: '8px' }}>
+                Tex: {metrics.workload.textures ?? '-'}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Prog: {metrics.workload.programs ?? '-'}
+              </span>
+            </div>
+          </div>
+
+          {/* Main-thread Long Tasks */}
+          <div
+            style={{
+              marginTop: '6px',
+              paddingTop: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '10px',
+              color: '#9ca3af',
+            }}
+          >
+            Long tasks: {metrics.longTasks.count}
+            <span style={{ marginLeft: '8px' }}>
+              blocked {metrics.longTasks.blockedMs.toFixed(1)}ms
+            </span>
+            <span style={{ marginLeft: '8px' }}>
+              worst {metrics.longTasks.worstMs.toFixed(1)}ms
+            </span>
+          </div>
+
+          {/* Subsystem Timing Hotspots */}
+          <div
+            style={{
+              marginTop: '6px',
+              paddingTop: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '10px',
+              color: '#9ca3af',
+            }}
+          >
+            Hotspots:
+            {metrics.subsystemTimings.length === 0 ? (
+              <span style={{ marginLeft: '6px' }}>no samples</span>
+            ) : (
+              metrics.subsystemTimings.slice(0, 3).map((timing) => (
+                <div key={timing.name} style={{ marginTop: '2px' }}>
+                  {timing.name}: {timing.avgMs.toFixed(2)}ms avg / {timing.maxMs.toFixed(2)}ms max
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* useFrame Aggregate */}
+          <div
+            style={{
+              marginTop: '6px',
+              paddingTop: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '10px',
+              color: '#9ca3af',
+            }}
+          >
+            useFrame total: {metrics.useFrameTotalMs.toFixed(2)}ms
+            <span style={{ marginLeft: '8px' }}>
+              callbacks/frame: {metrics.useFrameCallbacksPerFrame.toFixed(2)}
+            </span>
+            <div style={{ marginTop: '2px' }}>
+              render fps: {metrics.renderedFramesPerSecond.toFixed(2)}
+              <span style={{ marginLeft: '8px' }}>
+                ptr move/s: {metrics.pointerMoveRateHz.toFixed(2)}
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              raycast avg/max: {metrics.raycastAvgMs.toFixed(2)} / {metrics.raycastMaxMs.toFixed(2)}ms
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              store writes/s: {metrics.interactionStoreWritesPerSec.toFixed(2)}
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              interaction ms/frame: {metrics.interactionMsPerFrame.toFixed(2)}
+              <span style={{ marginLeft: '8px' }}>
+                unaccounted: {metrics.unaccountedFrameMs.toFixed(2)}ms
+              </span>
+            </div>
+          </div>
+
+          {/* Scene Snapshot */}
+          <div
+            style={{
+              marginTop: '6px',
+              paddingTop: '6px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '10px',
+              color: '#9ca3af',
+            }}
+          >
+            Scene: {sceneSnapshot.sceneType}
+            <div style={{ marginTop: '2px' }}>
+              Agents {sceneSnapshot.agents}
+              <span style={{ marginLeft: '8px' }}>
+                Mounted {sceneSnapshot.mountedAgents}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Furn {sceneSnapshot.furniture}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Deco {sceneSnapshot.decorations}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Stars {sceneSnapshot.stars}
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              Tier {sceneSnapshot.tier}
+              <span style={{ marginLeft: '8px' }}>
+                DPR {sceneSnapshot.dpr}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                MaxFPS {sceneSnapshot.maxFps}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Shadows {sceneSnapshot.shadows ? 'on' : 'off'}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Mat {sceneSnapshot.materialQuality}
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              Loop {sceneSnapshot.frameloopMode}
+              <span style={{ marginLeft: '8px' }}>
+                EffCap {sceneSnapshot.effectiveMaxFps}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                ForceAlways {sceneSnapshot.forceAlwaysFrameloop ? 'on' : 'off'}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Inv {sceneSnapshot.invalidateRateHz.toFixed(1)}/s
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              Hidden {sceneSnapshot.documentHidden ? 'yes' : 'no'}
+              <span style={{ marginLeft: '8px' }}>
+                Focus {sceneSnapshot.windowFocused ? 'yes' : 'no'}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                Lag {sceneSnapshot.eventLoopLagMs.toFixed(1)}ms
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              Obj {sceneSnapshot.sceneObjects}
+              <span style={{ marginLeft: '8px' }}>
+                Mesh {sceneSnapshot.sceneMeshes}
+              </span>
+            </div>
+            <div style={{ marginTop: '2px' }}>
+              Last vis: {sceneSnapshot.lastVisibilityEvent}
+              <span style={{ marginLeft: '8px' }}>
+                Last focus: {sceneSnapshot.lastFocusEvent}
+              </span>
+            </div>
+            {drawCallAnomaly && (
+              <div style={{ marginTop: '4px', color: '#fca5a5' }}>
+                Warn: draw calls are unexpectedly low for scene complexity
+              </div>
             )}
           </div>
 

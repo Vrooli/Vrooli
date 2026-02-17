@@ -12,6 +12,8 @@ import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { useWorldSeatsStore } from '@/stores/worldSeatsStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
+import { useGraphicsStore } from '@/stores/graphicsStore'
+import { useLODStore } from '@/stores/lodStore'
 import type { FurnitureInstance, SeatPosition } from '@/types/furniture'
 import { FURNITURE_CONFIGS } from '@/types/furniture'
 import { applyPlacementConstraints } from '@/lib/world'
@@ -34,6 +36,10 @@ interface FurnitureNodeProps {
   furnitureScale: number
   draggable: boolean
   interactive: boolean
+  hoverEnabled: boolean
+  simplifiedMaterials: boolean
+  castShadow: boolean
+  receiveShadow: boolean
   isNightTime: boolean
   constrainPosition: (position: [number, number, number]) => [number, number, number]
   onFurnitureClick?: (furniture: FurnitureInstance) => void
@@ -45,6 +51,10 @@ const FurnitureNode = memo(function FurnitureNode({
   furnitureScale,
   draggable,
   interactive,
+  hoverEnabled,
+  simplifiedMaterials,
+  castShadow,
+  receiveShadow,
   isNightTime,
   constrainPosition,
   onFurnitureClick,
@@ -71,6 +81,10 @@ const FurnitureNode = memo(function FurnitureNode({
       scale={furnitureScale}
       color={furniture.color}
       lightOn={effectiveLightOn}
+      castShadow={castShadow}
+      receiveShadow={receiveShadow}
+      hoverEnabled={hoverEnabled}
+      simplifiedMaterials={simplifiedMaterials}
       onClick={interactive ? handleClick : undefined}
     />
   )
@@ -102,6 +116,10 @@ export function FurnitureManager({
   const furnitureList = useFurnitureList()
   const furnitureScale = useWorldScaleStore((state) => state.furniture)
   const moveFurniture = useFurnitureStore((state) => state.moveFurniture)
+  const tier = useGraphicsStore((state) => state.tier)
+  const shadowsEnabled = useGraphicsStore((state) => state.config.shadows)
+  // Reactive signal so LOD changes are reflected in render decisions.
+  useLODStore((state) => state.levelCounts)
   const placementConfig = useEnvironmentStore((state) => state.current.placement)
   const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
   const groundSize = useEnvironmentStore((state) => state.current.ground.size)
@@ -130,6 +148,7 @@ export function FurnitureManager({
     },
     [moveFurniture]
   )
+  const allowShadows = shadowsEnabled && tier !== 'low'
 
   // Seat editing state
   const editingSeatFurnitureId = useWorldEditorStore((s) => s.editingSeatFurnitureId)
@@ -157,17 +176,31 @@ export function FurnitureManager({
   return (
     <group name="furniture-manager">
       {furnitureList.map((furniture) => (
+        (() => {
+          const lodLevel = useLODStore.getState().getObjectLOD(`furniture:${furniture.id}`)?.level ?? 'high'
+          if (lodLevel === 'culled') return null
+          const hoverEnabled = lodLevel === 'high' || lodLevel === 'medium'
+          const simplifiedMaterials = tier === 'low' || lodLevel === 'low'
+          const nodeShadows = allowShadows && lodLevel !== 'low'
+
+          return (
         <FurnitureNode
           key={furniture.id}
           furniture={furniture}
           furnitureScale={furnitureScale}
           draggable={draggable}
           interactive={interactive}
+          hoverEnabled={hoverEnabled}
+          simplifiedMaterials={simplifiedMaterials}
+          castShadow={nodeShadows}
+          receiveShadow={nodeShadows}
           isNightTime={isNightTime}
           constrainPosition={constrainPosition}
           onFurnitureClick={handleClick}
           onPositionChange={handlePositionChange}
         />
+          )
+        })()
       ))}
 
       {/* Seat editing handles */}

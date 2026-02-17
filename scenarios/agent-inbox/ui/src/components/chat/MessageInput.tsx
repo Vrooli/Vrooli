@@ -26,6 +26,7 @@ import { useModeHistory } from "../../hooks/useModeHistory";
 import { useAIMerge } from "../../hooks/useAIMerge";
 import { useMessageDraft } from "../../hooks/useMessageDraft";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
+import { selectorsManifest } from "../../consts/selectors";
 import { getTemplateById } from "@/data/templates";
 import type { Model, Message } from "../../lib/api";
 import type { SkillPayload, SlashCommand, Template, MergeAction } from "@/lib/types/templates";
@@ -115,6 +116,12 @@ export function MessageInput({
   disableSend,
   disableSendReason,
 }: MessageInputProps) {
+  const messageInputTestIds = {
+    container: selectorsManifest.selectors["messageInput.container"]?.testId ?? "message-input-container",
+    suggestionsToggle: selectorsManifest.selectors["messageInput.suggestionsToggle"]?.testId ?? "suggestions-toggle",
+    input: selectorsManifest.selectors["messageInput.input"]?.testId ?? "message-input",
+    sendButton: selectorsManifest.selectors["messageInput.sendButton"]?.testId ?? "send-message-button",
+  };
   // Support both isLoading and deprecated isGenerating
   const loading = isLoading ?? isGenerating ?? false;
 
@@ -741,7 +748,7 @@ export function MessageInput({
   }
 
   return (
-    <div className="p-4" data-testid="message-input-container">
+    <div className="p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]" data-testid={messageInputTestIds.container}>
       {/* Edit mode banner */}
       {isEditMode && (
         <div className="mb-2 px-3 py-2 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-center justify-between">
@@ -765,7 +772,7 @@ export function MessageInput({
             type="button"
             onClick={() => setSuggestionsExpanded(!suggestionsExpanded)}
             className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors"
-            data-testid="suggestions-toggle"
+            data-testid={messageInputTestIds.suggestionsToggle}
           >
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-indigo-400" />
@@ -838,7 +845,7 @@ export function MessageInput({
       )}
 
       {/* Input container with buttons inside */}
-      <div className="relative flex items-end gap-2 p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
+      <div className="relative flex items-end gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
         {/* AI Merge Overlay */}
         <AIMergeOverlay
           isOpen={showMergeOverlay}
@@ -880,8 +887,9 @@ export function MessageInput({
             placeholder={activeTemplate ? "Template variables above..." : placeholder}
             disabled={loading}
             rows={1}
-            className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[40px]"
-            data-testid="message-input"
+            className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[36px] sm:min-h-[40px]"
+            data-testid={messageInputTestIds.input}
+            aria-label="Message input"
           />
 
           {/* Slash command popup */}
@@ -898,7 +906,7 @@ export function MessageInput({
 
         {/* Character count */}
         {!loading && message.length > 0 && (
-          <span className="text-xs text-slate-600 self-end pb-2">{message.length}</span>
+          <span className="hidden sm:inline text-xs text-slate-600 self-end pb-2">{message.length}</span>
         )}
 
         {/* Send/Save Button (inside, on right) */}
@@ -907,8 +915,8 @@ export function MessageInput({
             onClick={handleSubmit}
             disabled={!canSend}
             size="icon"
-            className={`h-10 w-10 shrink-0 ${isEditMode ? "bg-amber-600 hover:bg-amber-500" : ""}`}
-            data-testid={isEditMode ? "save-edit-button" : "send-message-button"}
+            className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 ${isEditMode ? "bg-amber-600 hover:bg-amber-500" : ""}`}
+            data-testid={isEditMode ? "save-edit-button" : messageInputTestIds.sendButton}
             aria-label={isEditMode ? "Save edit" : "Send message"}
           >
             {loading ? (
@@ -923,8 +931,8 @@ export function MessageInput({
       </div>
 
       {/* Footer with keyboard hint and web search indicator */}
-      <div className="flex items-center justify-between mt-2 px-1">
-        <div className="flex items-center gap-3">
+      <div className="mt-1.5 sm:mt-2 px-1 space-y-1.5 sm:space-y-2">
+        <div className="hidden sm:flex items-center justify-between gap-2">
           <p className="text-xs text-slate-400">
             {isEditMode ? (
               <>
@@ -940,6 +948,18 @@ export function MessageInput({
               </>
             )}
           </p>
+          {!isEditMode && (
+            <p className="text-[11px] text-slate-500 shrink-0">
+              Type <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">/</kbd> for tools
+            </p>
+          )}
+        </div>
+        {!isEditMode && (
+          <p className="sm:hidden text-[11px] text-slate-500">
+            <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">/</kbd> tools
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
           {enableWebSearch && modelSupportsWebSearch && (
             <WebSearchIndicator
               enabled={webSearchEnabled}
@@ -981,21 +1001,23 @@ export function MessageInput({
               onAdd={() => setShowSkillSelector(true)}
             />
           )}
-          <SuggestedSkills
-            suggestions={suggestedSkills}
-            isLoading={suggestionsLoading}
-            didSearch={suggestionsDidSearch}
-            onAttach={addSkill}
-            onDismiss={dismissSuggestion}
-            onDismissAll={dismissAllSuggestions}
-          />
-        </div>
-        {loading && (
-          <span className="text-xs text-indigo-400 flex items-center gap-1">
+          <div className="hidden sm:block">
+            <SuggestedSkills
+              suggestions={suggestedSkills}
+              isLoading={suggestionsLoading}
+              didSearch={suggestionsDidSearch}
+              onAttach={addSkill}
+              onDismiss={dismissSuggestion}
+              onDismissAll={dismissAllSuggestions}
+            />
+          </div>
+          {loading && (
+            <span className="text-xs text-indigo-400 flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
             AI is responding...
-          </span>
-        )}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Template Selector Modal */}

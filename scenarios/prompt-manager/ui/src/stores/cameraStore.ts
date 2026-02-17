@@ -8,6 +8,7 @@
 // DOC: docs/internal/SEAMS.md#2-zustand-stores-state-injection
 
 import { create } from 'zustand'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 export type CameraMode = 'freeform' | 'zoomed-agent' | 'top-down'
 
@@ -77,11 +78,26 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
   isAnimating: false,
   zoomToAgentRequested: 0,
 
-  setPosition: (position) => set({ position }),
-  setTarget: (target) => set({ target }),
-  setZoom: (zoom) => set({ zoom }),
-  setMode: (mode) => set({ mode }),
-  setIsAnimating: (isAnimating) => set({ isAnimating }),
+  setPosition: (position) => {
+    set({ position })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
+  setTarget: (target) => {
+    set({ target })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
+  setZoom: (zoom) => {
+    set({ zoom })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
+  setMode: (mode) => {
+    set({ mode })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
+  setIsAnimating: (isAnimating) => {
+    set({ isAnimating })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
 
   zoomToAgent: (agentId, agentPosition) => {
     const state = get()
@@ -106,10 +122,12 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       focusedAgentId: agentId,
       isAnimating: true,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
 
     // Reset animation flag after transition completes
     setTimeout(() => {
       set({ isAnimating: false })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     }, 1000)
   },
 
@@ -125,6 +143,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         focusedAgentId: null,
         isAnimating: true,
       })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     } else {
       // No history, return to default
       set({
@@ -135,10 +154,12 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         focusedAgentId: null,
         isAnimating: true,
       })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     }
 
     setTimeout(() => {
       set({ isAnimating: false })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     }, 1000)
   },
 
@@ -154,9 +175,11 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       focusedAgentId: null,
       isAnimating: true,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
 
     setTimeout(() => {
       set({ isAnimating: false })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     }, 1000)
   },
 
@@ -172,9 +195,11 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       focusedAgentId: null,
       isAnimating: true,
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
 
     setTimeout(() => {
       set({ isAnimating: false })
+      usePerformanceStore.getState().recordInteractionStoreWrite()
     }, 1000)
   },
 
@@ -202,6 +227,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
 
   requestZoomToAgent: () => {
     set((state) => ({ zoomToAgentRequested: state.zoomToAgentRequested + 1 }))
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   pushHistory: () => {
@@ -216,6 +242,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
     set({
       history: [...state.history, entry].slice(-10), // Keep last 10 entries
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
   },
 
   popHistory: () => {
@@ -226,9 +253,13 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
     set({
       history: state.history.slice(0, -1),
     })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
 
     return lastEntry ?? null
   },
 
-  clearHistory: () => set({ history: [] }),
+  clearHistory: () => {
+    set({ history: [] })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
 }))

@@ -3,12 +3,13 @@
  * Procedural geometry for various furniture types.
  */
 
-import { useMemo, useCallback, useRef } from 'react'
+import { useMemo, useCallback, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { FurnitureType } from '@/types/furniture'
 import { DEFAULT_FURNITURE_COLORS } from '@/types/furniture'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 interface FurnitureItemProps {
   id: string
@@ -20,6 +21,8 @@ interface FurnitureItemProps {
   castShadow?: boolean
   receiveShadow?: boolean
   lightOn?: boolean
+  hoverEnabled?: boolean
+  simplifiedMaterials?: boolean
   onClick?: () => void
 }
 
@@ -36,14 +39,44 @@ export function FurnitureItem({
   castShadow = true,
   receiveShadow = true,
   lightOn,
+  hoverEnabled = true,
+  simplifiedMaterials = false,
   onClick,
 }: FurnitureItemProps) {
   const finalColor = color ?? DEFAULT_FURNITURE_COLORS[type]
+  const groupRef = useRef<THREE.Group>(null)
 
   const { isHovered, hoverProps } = useHoverHighlight(id, {
-    enabled: !!onClick,
+    enabled: hoverEnabled && !!onClick,
     cursor: onClick ? 'pointer' : 'default',
   })
+
+  useEffect(() => {
+    if (!simplifiedMaterials || !groupRef.current) return
+
+    groupRef.current.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return
+      if (Array.isArray(child.material)) return
+      if ((child.userData as { lowTierSimplified?: boolean }).lowTierSimplified) return
+
+      const source = child.material
+      if (
+        !(source instanceof THREE.MeshStandardMaterial) &&
+        !(source instanceof THREE.MeshPhysicalMaterial)
+      ) {
+        return
+      }
+
+      child.material = new THREE.MeshBasicMaterial({
+        color: source.color,
+        transparent: source.transparent,
+        opacity: source.opacity,
+        side: source.side,
+        depthWrite: source.depthWrite,
+      })
+      ;(child.userData as { lowTierSimplified?: boolean }).lowTierSimplified = true
+    })
+  }, [simplifiedMaterials])
 
   const material = useMemo(
     () =>
@@ -222,6 +255,7 @@ export function FurnitureItem({
 
   return (
     <group
+      ref={groupRef}
       position={position}
       rotation={[0, rotation, 0]}
       scale={scale}
@@ -547,6 +581,8 @@ function Campfire({
   ]
   const lightRef = useRef<THREE.PointLight>(null)
   const timeRef = useRef(0)
+  const perfWindowMsRef = useRef(0)
+  const perfWindowCallbacksRef = useRef(0)
 
   // Materials
   const charcoal = useMemo(
@@ -692,6 +728,7 @@ function Campfire({
 
   // Animate flames and light
   useFrame((_, delta) => {
+    const t0 = performance.now()
     timeRef.current += delta
     const t = timeRef.current
 
@@ -718,6 +755,17 @@ function Campfire({
       if (lightRef.current) {
         lightRef.current.intensity = 2.8 + Math.sin(t * 7) * 0.4 + Math.sin(t * 17) * 0.15 + Math.sin(t * 31) * 0.05
       }
+    }
+
+    perfWindowMsRef.current += performance.now() - t0
+    perfWindowCallbacksRef.current += 1
+    if (perfWindowCallbacksRef.current >= 60) {
+      usePerformanceStore.getState().recordFrameLoopAggregate(
+        perfWindowMsRef.current,
+        perfWindowCallbacksRef.current
+      )
+      perfWindowMsRef.current = 0
+      perfWindowCallbacksRef.current = 0
     }
   })
 

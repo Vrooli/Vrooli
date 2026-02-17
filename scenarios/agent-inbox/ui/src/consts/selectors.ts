@@ -274,6 +274,8 @@ const literalSelectors: LiteralSelectorTree = {
   app: {
     container: 'inbox-container',
     mobileMenuButton: 'mobile-menu-button',
+    mobileBackButton: 'mobile-back-button',
+    mobileStarButton: 'mobile-star-button',
     mobileSidebarOverlay: 'mobile-sidebar-overlay',
     closeSidebarButton: 'close-sidebar-button',
   },
@@ -284,6 +286,7 @@ const literalSelectors: LiteralSelectorTree = {
     nav: 'sidebar-nav',
     manageLabelsButton: 'manage-labels-button',
     addLabelsButton: 'add-labels-button',
+    mobileActionsButton: 'sidebar-mobile-actions',
   },
   // Navigation
   nav: {
@@ -295,6 +298,11 @@ const literalSelectors: LiteralSelectorTree = {
   chatListPanel: {
     container: 'chat-list-panel',
     searchInput: 'chat-search-input',
+    clearSearchButton: 'clear-search-button',
+    searchModeToggle: 'search-mode-toggle',
+    searchModeQuick: 'search-mode-quick',
+    searchModeContent: 'search-mode-content',
+    switchToContentSearchButton: 'switch-to-content-search',
     list: 'chat-list',
   },
   // Chat view
@@ -315,18 +323,23 @@ const literalSelectors: LiteralSelectorTree = {
     toggleStarButton: 'toggle-star-button',
     toggleArchiveButton: 'toggle-archive-button',
     moreActionsButton: 'chat-more-actions',
+    mobileActionsButton: 'chat-mobile-actions',
     confirmDeleteButton: 'confirm-delete-button',
   },
   // Message input
   messageInput: {
     container: 'message-input-container',
     input: 'message-input',
+    suggestionsToggle: 'suggestions-toggle',
     sendButton: 'send-message-button',
   },
   // Empty state
   emptyState: {
     container: 'empty-state',
-    newChatButton: 'empty-state-new-chat',
+    title: 'empty-state-title',
+    subtitle: 'empty-state-subtitle',
+    modeHint: 'empty-state-mode-hint',
+    mobileTips: 'empty-state-mobile-tips',
   },
   // Dialogs
   dialog: {

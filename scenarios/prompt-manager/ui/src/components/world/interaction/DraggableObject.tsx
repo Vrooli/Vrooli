@@ -13,6 +13,7 @@ import type { Group } from 'three'
 import * as THREE from 'three'
 import { useDragDrop } from '@/hooks/useDragDrop'
 import { useInteractionStore } from '@/stores/interactionStore'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 interface DraggableObjectProps {
   /** Unique ID for this draggable object */
@@ -94,6 +95,8 @@ export function DraggableObject({
 
   // Track the last computed drag position so we can persist it on drag end.
   const lastDragPosRef = useRef<[number, number, number] | null>(null)
+  const perfWindowMsRef = useRef(0)
+  const perfWindowCallbacksRef = useRef(0)
   // Track previous isDragging to detect the true→false transition.
   const prevIsDraggingRef = useRef(false)
 
@@ -149,6 +152,7 @@ export function DraggableObject({
 
   // Animate lift, scale, and position during drag
   useFrame((_, delta) => {
+    const t0 = performance.now()
     if (!groupRef.current) return
 
     // Derive target position: from store during drag, from state otherwise
@@ -197,6 +201,17 @@ export function DraggableObject({
     const currentScale = groupRef.current.scale.x
     const newScale = THREE.MathUtils.damp(currentScale, targetScale, 12, delta)
     groupRef.current.scale.setScalar(newScale)
+
+    perfWindowMsRef.current += performance.now() - t0
+    perfWindowCallbacksRef.current += 1
+    if (perfWindowCallbacksRef.current >= 60) {
+      usePerformanceStore.getState().recordFrameLoopAggregate(
+        perfWindowMsRef.current,
+        perfWindowCallbacksRef.current
+      )
+      perfWindowMsRef.current = 0
+      perfWindowCallbacksRef.current = 0
+    }
   })
 
   return (

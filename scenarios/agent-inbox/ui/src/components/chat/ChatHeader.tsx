@@ -21,6 +21,7 @@ import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { ModelSelector } from "../settings/ModelSelector";
 import { ChatToolsSelector } from "./ChatToolsSelector";
+import { selectorsManifest } from "../../consts/selectors";
 import { exportChat } from "../../lib/api";
 import type { Chat, Model, Label, ExportFormat } from "../../lib/api";
 
@@ -52,6 +53,17 @@ export function ChatHeader({
   onAssignLabel,
   onRemoveLabel,
 }: ChatHeaderProps) {
+  const chatHeaderTestIds = {
+    container: selectorsManifest.selectors["chatView.header"]?.testId ?? "chat-header",
+    renameChatButton: selectorsManifest.selectors["chatHeader.renameChatButton"]?.testId ?? "rename-chat-button",
+    addLabelButton: selectorsManifest.selectors["chatHeader.addLabelButton"]?.testId ?? "add-label-button",
+    toggleReadButton: selectorsManifest.selectors["chatHeader.toggleReadButton"]?.testId ?? "toggle-read-button",
+    toggleStarButton: selectorsManifest.selectors["chatHeader.toggleStarButton"]?.testId ?? "toggle-star-button",
+    toggleArchiveButton: selectorsManifest.selectors["chatHeader.toggleArchiveButton"]?.testId ?? "toggle-archive-button",
+    moreActionsButton: selectorsManifest.selectors["chatHeader.moreActionsButton"]?.testId ?? "chat-more-actions",
+    mobileActionsButton: selectorsManifest.selectors["chatHeader.mobileActionsButton"]?.testId ?? "chat-mobile-actions",
+    confirmDeleteButton: selectorsManifest.selectors["chatHeader.confirmDeleteButton"]?.testId ?? "confirm-delete-button",
+  };
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -88,12 +100,12 @@ export function ChatHeader({
 
   return (
     <>
-      <header className="p-4 border-b border-white/10 bg-slate-950/50" data-testid="chat-header">
-        <div className="flex items-start justify-between gap-4">
+      <header className="p-3 sm:p-4 border-b border-white/10 bg-slate-950/50" data-testid={chatHeaderTestIds.container}>
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
           {/* Left Section - Title & Info */}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-white truncate">{chat.name}</h2>
+            <div className="hidden sm:flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-semibold text-white truncate">{chat.name}</h2>
               <Tooltip content="Rename chat">
                 <button
                   onClick={() => {
@@ -101,7 +113,7 @@ export function ChatHeader({
                     setShowRenameDialog(true);
                   }}
                   className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
-                  data-testid="rename-chat-button"
+                  data-testid={chatHeaderTestIds.renameChatButton}
                 >
                   <Edit3 className="h-3.5 w-3.5" />
                 </button>
@@ -110,7 +122,7 @@ export function ChatHeader({
 
             {/* Model Selector, Tools & Mode — hidden in agent mode */}
             {chatMode !== "agent" && (
-              <div className="flex items-center gap-3 mt-1.5">
+              <div className="flex items-center gap-2 mt-0 sm:mt-1.5 overflow-x-auto pb-1 sm:pb-0">
                 <ModelSelector
                   models={models}
                   selectedModel={chat.model}
@@ -126,7 +138,7 @@ export function ChatHeader({
 
             {/* Labels */}
             {assignedLabels.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <div className="flex items-center gap-1.5 mt-1.5 sm:mt-2 flex-nowrap sm:flex-wrap overflow-x-auto">
                 {assignedLabels.map((label) => (
                   <Badge key={label.id} color={label.color} onRemove={() => onRemoveLabel(label.id)}>
                     {label.name}
@@ -142,7 +154,7 @@ export function ChatHeader({
             <Dropdown
               trigger={
                 <Tooltip content="Add label">
-                  <Button variant="ghost" size="icon" data-testid="add-label-button">
+                  <Button variant="ghost" size="icon" data-testid={chatHeaderTestIds.addLabelButton}>
                     <Tag className="h-4 w-4" />
                   </Button>
                 </Tooltip>
@@ -173,38 +185,60 @@ export function ChatHeader({
               </div>
             </Dropdown>
 
-            <Tooltip content={chat.is_read ? "Mark as unread" : "Mark as read"}>
-              <Button variant="ghost" size="icon" onClick={onToggleRead} data-testid="toggle-read-button">
-                {chat.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
-              </Button>
-            </Tooltip>
+            <div className="hidden sm:flex items-center gap-1">
+              <Tooltip content={chat.is_read ? "Mark as unread" : "Mark as read"}>
+                <Button variant="ghost" size="icon" onClick={onToggleRead} data-testid={chatHeaderTestIds.toggleReadButton}>
+                  {chat.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
+                </Button>
+              </Tooltip>
 
-            <Tooltip content={chat.is_starred ? "Remove star" : "Star chat"}>
-              <Button variant="ghost" size="icon" onClick={onToggleStar} data-testid="toggle-star-button">
-                <Star
-                  className={`h-4 w-4 ${
-                    chat.is_starred ? "text-yellow-500 fill-yellow-500" : ""
-                  }`}
-                />
-              </Button>
-            </Tooltip>
+              <Tooltip content={chat.is_starred ? "Remove star" : "Star chat"}>
+                <Button variant="ghost" size="icon" onClick={onToggleStar} data-testid={chatHeaderTestIds.toggleStarButton}>
+                  <Star
+                    className={`h-4 w-4 ${
+                      chat.is_starred ? "text-yellow-500 fill-yellow-500" : ""
+                    }`}
+                  />
+                </Button>
+              </Tooltip>
 
-            <Tooltip content={chat.is_archived ? "Unarchive" : "Archive"}>
-              <Button variant="ghost" size="icon" onClick={onToggleArchive} data-testid="toggle-archive-button">
-                <Archive className="h-4 w-4" />
-              </Button>
-            </Tooltip>
+              <Tooltip content={chat.is_archived ? "Unarchive" : "Archive"}>
+                <Button variant="ghost" size="icon" onClick={onToggleArchive} data-testid={chatHeaderTestIds.toggleArchiveButton}>
+                  <Archive className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+            </div>
 
             <Dropdown
               trigger={
                 <Tooltip content="More actions">
-                  <Button variant="ghost" size="icon" data-testid="chat-more-actions">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-testid={chatHeaderTestIds.moreActionsButton}
+                    aria-label="Open more chat actions"
+                  >
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </Tooltip>
               }
               align="right"
             >
+              <div className="sm:hidden">
+                <DropdownItem onClick={onToggleRead} testId={chatHeaderTestIds.mobileActionsButton}>
+                  {chat.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
+                  {chat.is_read ? "Mark as unread" : "Mark as read"}
+                </DropdownItem>
+                <DropdownItem onClick={onToggleStar}>
+                  <Star className={`h-4 w-4 ${chat.is_starred ? "text-yellow-500 fill-yellow-500" : ""}`} />
+                  {chat.is_starred ? "Remove star" : "Star chat"}
+                </DropdownItem>
+                <DropdownItem onClick={onToggleArchive}>
+                  <Archive className="h-4 w-4" />
+                  {chat.is_archived ? "Unarchive" : "Archive"}
+                </DropdownItem>
+                <DropdownSeparator />
+              </div>
               <DropdownItem
                 onClick={() => {
                   setNewName(chat.name);
@@ -215,7 +249,7 @@ export function ChatHeader({
                 Rename chat
               </DropdownItem>
               <DropdownSeparator />
-              <DropdownItem onClick={() => setShowExportDialog(true)} data-testid="export-chat-button">
+              <DropdownItem onClick={() => setShowExportDialog(true)} testId="export-chat-button">
                 <Download className="h-4 w-4" />
                 Export chat
               </DropdownItem>
@@ -267,7 +301,7 @@ export function ChatHeader({
           <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleDelete} data-testid="confirm-delete-button">
+          <Button variant="destructive" onClick={handleDelete} data-testid={chatHeaderTestIds.confirmDeleteButton}>
             Delete
           </Button>
         </DialogFooter>

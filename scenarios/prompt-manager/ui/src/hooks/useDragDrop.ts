@@ -8,6 +8,7 @@ import { useCallback, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useInteractionStore } from '@/stores/interactionStore'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 interface DragDropResult {
   /** Whether this object is currently being dragged */
@@ -98,6 +99,7 @@ export function useDragDrop(
     new THREE.Plane(new THREE.Vector3(0, 1, 0), -(planeY ?? currentPosition[1]))
   )
   const intersectionPoint = useRef(new THREE.Vector3())
+  const dragUpdateCountRef = useRef(0)
 
   const startDrag = useCallback(
     (e: { stopPropagation: () => void; point: THREE.Vector3 }) => {
@@ -112,6 +114,7 @@ export function useDragDrop(
 
       startDragFn(objectId, startPos)
       onDragStart?.(startPos)
+      usePerformanceStore.getState().recordTraceMarker('drag-start', `Drag start: ${objectId}`)
 
       // Update drag plane height
       dragPlaneRef.current.constant = -(planeY ?? currentPosition[1])
@@ -122,12 +125,16 @@ export function useDragDrop(
   const updateDrag = useCallback(
     (e: { point: THREE.Vector3 }) => {
       if (!isDragging || !enabled) return
+      const t0 = performance.now()
+      usePerformanceStore.getState().recordPointerMoveEvent()
 
       let newPos: [number, number, number]
 
       if (constrainToPlane) {
         // Project mouse onto drag plane
+        const raycastStart = performance.now()
         raycaster.ray.intersectPlane(dragPlaneRef.current, intersectionPoint.current)
+        usePerformanceStore.getState().recordRaycastSample(performance.now() - raycastStart)
         newPos = [
           intersectionPoint.current.x,
           planeY ?? currentPosition[1],
@@ -148,6 +155,14 @@ export function useDragDrop(
         ]
         onDrag?.(newPos, offset)
       }
+
+      dragUpdateCountRef.current++
+      if (dragUpdateCountRef.current % 5 === 0) {
+        usePerformanceStore.getState().recordSubsystemSample(
+          'interaction.drag.update',
+          performance.now() - t0
+        )
+      }
     },
     [
       isDragging,
@@ -167,14 +182,18 @@ export function useDragDrop(
     const dragState = useInteractionStore.getState().dragState
     if (dragState) {
       onDragEnd?.(dragState.currentPosition)
+      usePerformanceStore.getState().recordTraceMarker('drag-end', `Drag end: ${objectId}`)
     }
 
     endDragFn()
-  }, [isDragging, onDragEnd, endDragFn])
+  }, [isDragging, objectId, onDragEnd, endDragFn])
 
   const cancelDrag = useCallback(() => {
+    if (isDragging) {
+      usePerformanceStore.getState().recordTraceMarker('drag-end', `Drag cancel: ${objectId}`)
+    }
     cancelDragFn()
-  }, [cancelDragFn])
+  }, [cancelDragFn, isDragging, objectId])
 
   return {
     isDragging,

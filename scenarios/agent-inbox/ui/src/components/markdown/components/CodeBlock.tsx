@@ -107,7 +107,7 @@ export const CodeBlock = memo(function CodeBlock({
   }, [safeCode, normalizedLang]);
 
   return (
-    <div className="relative group rounded-lg overflow-hidden my-3">
+    <div className="relative group rounded-lg overflow-hidden my-3 max-w-full">
       {/* Header with language label and copy button */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
         <span className="text-xs text-slate-400 font-mono">{displayLang}</span>
@@ -131,14 +131,14 @@ export const CodeBlock = memo(function CodeBlock({
       </div>
 
       {/* Code content */}
-      <div className="bg-slate-800 overflow-x-auto">
+      <div className="bg-slate-800 overflow-x-auto max-w-full">
         {highlightedHtml ? (
           <div
-            className="p-4 text-sm [&>pre]:!bg-transparent [&>pre]:!m-0 [&>pre]:!p-0"
+            className="max-w-full overflow-x-auto p-4 text-sm [&>pre]:!bg-transparent [&>pre]:!m-0 [&>pre]:!p-0 [&>pre]:!max-w-full [&>pre]:!overflow-x-auto"
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
-          <pre className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto">
+          <pre className="max-w-full p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto">
             {safeCode}
           </pre>
         )}

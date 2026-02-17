@@ -17,6 +17,7 @@ import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
 import { useFurnitureStore, useFurnitureList, useSeatedAgents } from '@/stores/furnitureStore'
+import { useDecorationList } from '@/stores/decorationStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useAgentData } from '@/hooks/useAgentData'
 import { useWorldDefaults } from '@/hooks/useWorldDefaults'
@@ -41,6 +42,7 @@ import { WorldErrorProvider } from './WorldErrorProvider'
 import { cursorRef } from './cursorRef'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useAgentPositionStore } from '@/stores/agentPositionStore'
+import { usePerformanceStore } from '@/stores/performanceStore'
 import { selectors } from '@/constants/selectors'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
@@ -107,6 +109,9 @@ export function WorldCanvas({
   const dpr = useGraphicsStore((state) => state.config.dpr)
   const shadowsEnabled = useGraphicsStore((state) => state.config.shadows)
   const antialiasEnabled = useGraphicsStore((state) => state.config.antialiasing !== 'none')
+  const materialQuality = useGraphicsStore((state) => state.config.materialQuality)
+  const tier = useGraphicsStore((state) => state.tier)
+  const maxFps = usePerformanceStore((state) => state.config.maxFps)
 
   // Agent data (must be above useWorldDefaults so agents.length is available)
   const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
@@ -140,10 +145,40 @@ export function WorldCanvas({
   // Furniture and seating state (scene-aware)
   const sceneType = useEnvironmentStore((s) => s.current.type)
   const furnitureList = useFurnitureList()
+  const decorationList = useDecorationList()
   const seatedAgents = useSeatedAgents()
   const seatAgent = useFurnitureStore((state) => state.seatAgent)
   const unseatAgent = useFurnitureStore((state) => state.unseatAgent)
   const getAgentSeatPosition = useFurnitureStore((state) => state.getAgentSeatPosition)
+
+  // Update scene complexity snapshot for performance panel correlation.
+  useEffect(() => {
+    const dprLabel = Array.isArray(dpr) ? `${dpr[0]}-${dpr[1]}` : String(dpr)
+    usePerformanceStore.getState().setSceneSnapshot({
+      agents: agents.length,
+      mountedAgents: agents.length,
+      furniture: furnitureList.length,
+      decorations: decorationList.length,
+      selectedNodes: selectedSkillIds.length,
+      sceneType,
+      tier,
+      dpr: dprLabel,
+      shadows: shadowsEnabled,
+      materialQuality,
+      maxFps,
+    })
+  }, [
+    agents.length,
+    furnitureList.length,
+    decorationList.length,
+    selectedSkillIds.length,
+    sceneType,
+    tier,
+    dpr,
+    shadowsEnabled,
+    materialQuality,
+    maxFps,
+  ])
 
   // Furniture context menu state
   const [selectedFurniture, setSelectedFurniture] = useState<FurnitureInstance | null>(null)

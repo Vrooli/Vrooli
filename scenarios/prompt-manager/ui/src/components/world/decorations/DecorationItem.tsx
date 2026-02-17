@@ -5,7 +5,7 @@
  * DOC: docs/guides/ASSET-GENERATION.md
  */
 
-import { Suspense, useMemo, useRef, useCallback } from 'react'
+import { Suspense, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import type { Mesh } from 'three'
@@ -14,6 +14,7 @@ import type { DecorationType } from '@/types/decoration'
 import { DEFAULT_DECORATION_COLORS, DECORATION_CONFIGS } from '@/types/decoration'
 import { getAssetPath } from '@/config/assetManifest'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
+import { usePerformanceStore } from '@/stores/performanceStore'
 
 interface DecorationItemProps {
   id: string
@@ -25,6 +26,8 @@ interface DecorationItemProps {
   lightOn?: boolean
   castShadow?: boolean
   receiveShadow?: boolean
+  hoverEnabled?: boolean
+  simplifiedMaterials?: boolean
   onClick?: () => void
 }
 
@@ -44,14 +47,44 @@ export function DecorationItem({
   lightOn = true,
   castShadow = true,
   receiveShadow = true,
+  hoverEnabled = true,
+  simplifiedMaterials = false,
   onClick,
 }: DecorationItemProps) {
   const finalColor = color ?? DEFAULT_DECORATION_COLORS[type] ?? '#888888'
+  const groupRef = useRef<THREE.Group>(null)
 
   const { isHovered, hoverProps } = useHoverHighlight(id, {
-    enabled: !!onClick,
+    enabled: hoverEnabled && !!onClick,
     cursor: onClick ? 'pointer' : 'default',
   })
+
+  useEffect(() => {
+    if (!simplifiedMaterials || !groupRef.current) return
+
+    groupRef.current.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return
+      if (Array.isArray(child.material)) return
+      if ((child.userData as { lowTierSimplified?: boolean }).lowTierSimplified) return
+
+      const source = child.material
+      if (
+        !(source instanceof THREE.MeshStandardMaterial) &&
+        !(source instanceof THREE.MeshPhysicalMaterial)
+      ) {
+        return
+      }
+
+      child.material = new THREE.MeshBasicMaterial({
+        color: source.color,
+        transparent: source.transparent,
+        opacity: source.opacity,
+        side: source.side,
+        depthWrite: source.depthWrite,
+      })
+      ;(child.userData as { lowTierSimplified?: boolean }).lowTierSimplified = true
+    })
+  }, [simplifiedMaterials])
 
   const handleClick = useCallback(
     (e: { stopPropagation: () => void }) => {
@@ -119,6 +152,7 @@ export function DecorationItem({
 
   return (
     <group
+      ref={groupRef}
       position={position}
       rotation={[0, rotation, 0]}
       scale={scale}
@@ -473,11 +507,24 @@ function Vase({ color, castShadow }: { color: string; castShadow: boolean }) {
 
 function Globe({ castShadow }: { castShadow: boolean }) {
   const globeRef = useRef<Mesh>(null)
+  const perfWindowMsRef = useRef(0)
+  const perfWindowCallbacksRef = useRef(0)
 
   // Slow rotation animation
   useFrame((_, delta) => {
+    const t0 = performance.now()
     if (globeRef.current) {
       globeRef.current.rotation.y += delta * 0.2
+    }
+    perfWindowMsRef.current += performance.now() - t0
+    perfWindowCallbacksRef.current += 1
+    if (perfWindowCallbacksRef.current >= 120) {
+      usePerformanceStore.getState().recordFrameLoopAggregate(
+        perfWindowMsRef.current,
+        perfWindowCallbacksRef.current
+      )
+      perfWindowMsRef.current = 0
+      perfWindowCallbacksRef.current = 0
     }
   })
 
