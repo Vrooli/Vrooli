@@ -734,13 +734,30 @@ export interface SearchResult {
   chat: Chat;
   message_id?: string;
   snippet?: string;
+  match_start?: number;
+  match_end?: number;
   rank: number;
   match_type: "chat_name" | "message_content";
 }
 
-export async function searchChats(query: string, limit?: number): Promise<SearchResult[]> {
+export interface ContentSearchOptions {
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  regex?: boolean;
+}
+
+export async function searchChats(
+  query: string,
+  limit?: number,
+  perChat?: number,
+  options?: ContentSearchOptions,
+): Promise<SearchResult[]> {
   const params = new URLSearchParams({ q: query });
   if (limit) params.set("limit", limit.toString());
+  if (perChat && perChat > 1) params.set("per_chat", perChat.toString());
+  if (options?.caseSensitive) params.set("case_sensitive", "true");
+  if (options?.wholeWord) params.set("whole_word", "true");
+  if (options?.regex) params.set("regex", "true");
 
   const url = buildApiUrl(`/search?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {

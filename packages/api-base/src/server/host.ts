@@ -717,6 +717,7 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
   const htmlCacheOrder: HtmlCachePointer[] = []
   let htmlCacheEntries = 0
   const htmlCacheActive = htmlCacheEnabled && htmlCacheTtl > 0 && htmlCacheMaxEntries > 0
+  const hostHtmlFingerprint = options.hostHtmlFingerprint || undefined
   const upstreamHost = options.upstreamHost ?? LOOPBACK_HOST
   const timeout = options.timeoutMs ?? DEFAULT_PROXY_TIMEOUT
   const verbose = Boolean(options.verbose)
@@ -888,6 +889,12 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
       throw new Error(`App ${appId} not found`)
     }
 
+    // DOC: scenarios/app-monitor/docs/internal/SEAMS.md#recursive-self-embedding-prevention
+    const scenarioName = deduceScenarioName(metadata)
+    if (scenarioName?.trim().toLowerCase() === options.hostScenario.trim().toLowerCase()) {
+      throw new Error(`Self-proxy blocked: "${appId}" resolves to host scenario "${options.hostScenario}"`)
+    }
+
     const context = buildProxyContext(appId, metadata, {
       hostScenario: options.hostScenario,
       loopbackHosts,
@@ -903,10 +910,19 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
   }
 
   // DOC: docs/concepts/ARCHITECTURE.md#request-decision-tree
+  // DOC: scenarios/app-monitor/docs/internal/SEAMS.md#recursive-self-embedding-prevention
   async function handleScenarioProxyRequest(req: Request, res: Response): Promise<void> {
     const appId = req.params.appId
     if (hasPathTraversal(appId)) {
       res.status(400).json({ error: 'Invalid proxy path' })
+      return
+    }
+    if (appId.trim().toLowerCase() === options.hostScenario.trim().toLowerCase()) {
+      res.status(403).json({
+        error: 'Self-proxy blocked',
+        message: `Cannot proxy ${options.hostScenario} through itself`,
+        code: 'SELF_PROXY_BLOCKED',
+      })
       return
     }
     const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/', proxySegment)
@@ -942,6 +958,11 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
         let htmlResponse = getCachedHtmlEntry(appId, targetUrl)
 
         if (htmlResponse && !healthTracker.isHealthy(context.uiPort)) {
+          removeHtmlCacheEntry(appId, targetUrl)
+          htmlResponse = null
+        }
+
+        if (htmlResponse && hostHtmlFingerprint && htmlResponse.body.includes(hostHtmlFingerprint)) {
           removeHtmlCacheEntry(appId, targetUrl)
           htmlResponse = null
         }
@@ -997,6 +1018,11 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
           upstreamAgent,
           shouldCache: responseIsCacheable,
           onCacheStore: ({ status, headers, body }) => {
+            if (hostHtmlFingerprint && body.includes(hostHtmlFingerprint)) {
+              console.warn(`[proxy-host] Recursive proxy detected: response for ${appId} contains host fingerprint`)
+              removeHtmlCacheEntry(appId, targetUrl)
+              return
+            }
             setCachedHtmlEntry(appId, targetUrl, {
               status,
               headers,
@@ -1038,6 +1064,14 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
     const portKey = req.params.portKey
     if (hasPathTraversal(appId)) {
       res.status(400).json({ error: 'Invalid proxy path' })
+      return
+    }
+    if (appId.trim().toLowerCase() === options.hostScenario.trim().toLowerCase()) {
+      res.status(403).json({
+        error: 'Self-proxy blocked',
+        message: `Cannot proxy ${options.hostScenario} through itself`,
+        code: 'SELF_PROXY_BLOCKED',
+      })
       return
     }
     const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/', proxySegment)
@@ -1156,6 +1190,10 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
           socket.destroy()
           return true
         }
+        if (decodeURIComponent(appId).trim().toLowerCase() === options.hostScenario.trim().toLowerCase()) {
+          socket.destroy()
+          return true
+        }
         if (hasPathTraversal(portKey) || rest.some((segment) => hasPathTraversal(segment))) {
           socket.destroy()
           return true
@@ -1185,6 +1223,10 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
       if (segments.length >= 2 && segments[1] === proxySegment) {
         const [appId, , ...rest] = segments
         if (hasPathTraversal(appId)) {
+          socket.destroy()
+          return true
+        }
+        if (decodeURIComponent(appId).trim().toLowerCase() === options.hostScenario.trim().toLowerCase()) {
           socket.destroy()
           return true
         }

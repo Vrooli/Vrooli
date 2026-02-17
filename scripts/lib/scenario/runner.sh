@@ -16,6 +16,7 @@ scenario::run() {
     local clean_stale=false
     local allow_skip_missing_runtime=false
     local manage_runtime=false
+    local best_effort=false
     local had_prior_allow_var=false
     local prior_allow_value=""
     local had_prior_manage_var=false
@@ -62,6 +63,10 @@ scenario::run() {
                 manage_runtime=true
                 shift
                 ;;
+            --best-effort)
+                best_effort=true
+                shift
+                ;;
             *)
                 if [[ "$phase" == "test" && -z "$selection" && "$1" != "-"* ]]; then
                     selection="$1"
@@ -97,9 +102,12 @@ scenario::run() {
         scenario::dependencies::ready_reset
     fi
 
+    # Clear prior degraded state (will be re-set if needed after startup)
+    rm -f "$HOME/.vrooli/processes/scenarios/$scenario_name/degraded.json" 2>/dev/null || true
+
     if scenario::dependencies::phase_requires_bootstrap "$phase"; then
         scenario::dependencies::stack_push "$scenario_name"
-        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase"; then
+        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase" "$best_effort"; then
             scenario::dependencies::stack_pop "$scenario_name"
             return 1
         fi
@@ -282,6 +290,24 @@ scenario::run() {
     # (e.g., the dependency iteration loop in dependencies.sh)
     "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" < /dev/null 2>&1 | tee -a "$lifecycle_log"
     local run_exit="${PIPESTATUS[0]}"
+
+    # If best-effort mode produced failed dependencies, mark scenario as degraded
+    if [[ "$run_exit" -eq 0 && ${#SCENARIO_FAILED_DEPS[@]} -gt 0 ]]; then
+        local process_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+        if [[ -d "$process_dir" ]]; then
+            local failed_json
+            failed_json=$(printf '%s\n' "${SCENARIO_FAILED_DEPS[@]}" | jq -R . | jq -sc .)
+            cat > "$process_dir/degraded.json" <<EOF
+{
+    "status": "degraded",
+    "reason": "best-effort startup with failed dependencies",
+    "failed_dependencies": ${failed_json},
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+            log::warning "⚠️  Scenario '$scenario_name' started in DEGRADED mode. Failed dependencies: ${SCENARIO_FAILED_DEPS[*]}"
+        fi
+    fi
 
     # Clean up custom path export
     if [[ -n "$custom_path" ]]; then

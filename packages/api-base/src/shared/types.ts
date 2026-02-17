@@ -321,6 +321,8 @@ export interface ScenarioProxyHostOptions {
   enableMetrics?: boolean
   /** Ring-buffer size for percentile samples when metrics are enabled (default: 1000) */
   metricsSampleSize?: number
+  /** HTML fingerprint string to detect recursive self-proxy (e.g., 'data-app-monitor-self') */
+  hostHtmlFingerprint?: string
 }
 
 /**

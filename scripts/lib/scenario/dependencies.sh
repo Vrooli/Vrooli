@@ -14,6 +14,7 @@ _SCENARIO_DEPENDENCIES_SH=1
 # shellcheck disable=SC2034 # referenced via functions in this file
 declare -ag SCENARIO_DEPENDENCY_STACK=()
 declare -Ag SCENARIO_DEPENDENCIES_READY=()
+declare -ag SCENARIO_FAILED_DEPS=()
 
 ################################################################################
 # Common helpers
@@ -142,6 +143,9 @@ scenario::dependencies::dependency_phase() {
 scenario::dependencies::ensure_started() {
     local scenario_name="$1"
     local caller_phase="$2"
+    local best_effort="${3:-false}"
+
+    SCENARIO_FAILED_DEPS=()
 
     local scenario_dir="${var_ROOT_DIR}/scenarios/${scenario_name}"
     local service_json="${scenario_dir}/.vrooli/service.json"
@@ -181,7 +185,12 @@ scenario::dependencies::ensure_started() {
         fi
 
         if ! scenario::dependencies::start_dependency "$scenario_name" "$dependency" "$dependency_phase"; then
-            return 1
+            if [[ "$best_effort" == "true" ]]; then
+                log::warning "⚠️  BEST-EFFORT: Required dependency '$dependency' failed to start — continuing anyway"
+                SCENARIO_FAILED_DEPS+=("$dependency")
+            else
+                return 1
+            fi
         fi
     done < <(echo "$dependencies_json" | jq -r 'keys[]?' 2>/dev/null || true)
 

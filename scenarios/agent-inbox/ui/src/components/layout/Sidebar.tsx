@@ -23,11 +23,12 @@ import {
   PanelLeft,
   Bot,
   ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { Badge } from "../ui/badge";
-import { useSearch } from "../../hooks/useSearch";
+import { useSearch, type ChatSearchMode } from "../../hooks/useSearch";
 import type { View } from "../../hooks/useChats";
 import type { Chat, Label, SearchResult, BulkOperation } from "../../lib/api";
 
@@ -121,15 +122,35 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Server-side search (must be defined before displayChats)
-  const search = useSearch({ debounceMs: 300, limit: 20 });
+  // Search mode: "quick" = client-side name filter, "content" = server-side regex search
+  const [searchMode, setSearchMode] = useState<ChatSearchMode>("quick");
 
-  // When not searching, show chats from props; when searching, show search results
+  // Content search options
+  const [contentSearchOptions, setContentSearchOptions] = useState({
+    caseSensitive: false,
+    wholeWord: false,
+    regex: false,
+  });
+
+  // Search hook (must be defined before displayChats)
+  const search = useSearch({
+    debounceMs: 300,
+    limit: 20,
+    mode: searchMode,
+    perChat: searchMode === "content" ? 5 : 1,
+    ...(searchMode === "content" ? contentSearchOptions : {}),
+  });
+
+  // When not searching, show chats from props; when searching, filter/search results
   // Must be defined before toggleChatSelection which uses it
   const displayChats = useMemo(() => {
     if (!search.isActive) return chats;
+    if (searchMode === "quick") {
+      const q = search.query.toLowerCase();
+      return chats.filter((c) => c.name.toLowerCase().includes(q));
+    }
     return search.results.map((r) => r.chat);
-  }, [chats, search.isActive, search.results]);
+  }, [chats, search.isActive, search.query, search.results, searchMode]);
 
   // Bulk selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -233,10 +254,10 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
     }
   }, [focusedIndex]);
 
-  // Build a map of search results by chat ID for snippet display
+  // Build a map of search results by chat ID for snippet display (content mode only)
   const searchResultsMap = useMemo(() => {
     const map = new Map<string, SearchResult>();
-    if (search.isActive) {
+    if (search.isActive && searchMode === "content") {
       for (const result of search.results) {
         if (!map.has(result.chat.id)) {
           map.set(result.chat.id, result);
@@ -244,7 +265,28 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
       }
     }
     return map;
-  }, [search.isActive, search.results]);
+  }, [search.isActive, search.results, searchMode]);
+
+  // Group search results by chat for content mode (multiple matches per chat)
+  const groupedSearchResults = useMemo(() => {
+    if (!search.isActive || searchMode !== "content") return [];
+    const groupMap = new Map<string, { chat: Chat; matches: SearchResult[] }>();
+    for (const result of search.results) {
+      const existing = groupMap.get(result.chat.id);
+      if (existing) existing.matches.push(result);
+      else groupMap.set(result.chat.id, { chat: result.chat, matches: [result] });
+    }
+    return Array.from(groupMap.values());
+  }, [search.isActive, search.results, searchMode]);
+
+  // Track which chat groups are expanded in content search (auto-expand all)
+  const [expandedSearchGroups, setExpandedSearchGroups] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (searchMode === "content" && groupedSearchResults.length > 0) {
+      setExpandedSearchGroups(new Set(groupedSearchResults.map((g) => g.chat.id)));
+    }
+  }, [groupedSearchResults, searchMode]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -679,7 +721,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
             type="text"
             value={search.query}
             onChange={(e) => search.setQuery(e.target.value)}
-            placeholder="Search... (/ or Ctrl+K)"
+            placeholder={searchMode === "quick" ? "Filter chats... (/ or Ctrl+K)" : "Search messages... (/ or Ctrl+K)"}
             className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             data-testid="chat-search-input"
           />
@@ -696,6 +738,83 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
             <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-slate-400" />
           )}
         </div>
+        {/* Search mode toggle - visible when query has text */}
+        {search.query && (
+          <div className="flex items-center gap-1 mt-2" data-testid="search-mode-toggle">
+            <button
+              type="button"
+              onClick={() => setSearchMode("quick")}
+              className={`px-2 py-1 text-[10px] rounded border transition-colors ${
+                searchMode === "quick"
+                  ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40"
+                  : "text-slate-400 border-white/10 hover:text-white hover:bg-white/5"
+              }`}
+              data-testid="search-mode-quick"
+            >
+              Quick
+            </button>
+            <button
+              type="button"
+              onClick={() => setSearchMode("content")}
+              className={`px-2 py-1 text-[10px] rounded border transition-colors ${
+                searchMode === "content"
+                  ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40"
+                  : "text-slate-400 border-white/10 hover:text-white hover:bg-white/5"
+              }`}
+              data-testid="search-mode-content"
+            >
+              Content
+            </button>
+            {/* Content search option toggles */}
+            {searchMode === "content" && (
+              <>
+                <div className="w-px h-4 bg-white/10 mx-0.5" />
+                <Tooltip content="Case sensitive">
+                  <button
+                    type="button"
+                    onClick={() => setContentSearchOptions((prev) => ({ ...prev, caseSensitive: !prev.caseSensitive }))}
+                    className={`px-1.5 py-1 text-[10px] rounded border font-mono transition-colors ${
+                      contentSearchOptions.caseSensitive
+                        ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40"
+                        : "text-slate-400 border-white/10 hover:text-white hover:bg-white/5"
+                    }`}
+                    data-testid="search-opt-case"
+                  >
+                    Aa
+                  </button>
+                </Tooltip>
+                <Tooltip content="Whole word">
+                  <button
+                    type="button"
+                    onClick={() => setContentSearchOptions((prev) => ({ ...prev, wholeWord: !prev.wholeWord }))}
+                    className={`px-1.5 py-1 text-[10px] rounded border font-mono transition-colors ${
+                      contentSearchOptions.wholeWord
+                        ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40"
+                        : "text-slate-400 border-white/10 hover:text-white hover:bg-white/5"
+                    }`}
+                    data-testid="search-opt-word"
+                  >
+                    W
+                  </button>
+                </Tooltip>
+                <Tooltip content="Regex">
+                  <button
+                    type="button"
+                    onClick={() => setContentSearchOptions((prev) => ({ ...prev, regex: !prev.regex }))}
+                    className={`px-1.5 py-1 text-[10px] rounded border font-mono transition-colors ${
+                      contentSearchOptions.regex
+                        ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/40"
+                        : "text-slate-400 border-white/10 hover:text-white hover:bg-white/5"
+                    }`}
+                    data-testid="search-opt-regex"
+                  >
+                    .*
+                  </button>
+                </Tooltip>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Chat List */}
@@ -715,6 +834,15 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                     ? "Searching..."
                     : `No results for "${search.query}"`}
                 </p>
+                {searchMode === "quick" && !search.isSearching && (
+                  <button
+                    onClick={() => setSearchMode("content")}
+                    className="mt-2 text-sm text-indigo-400 hover:text-indigo-300"
+                    data-testid="switch-to-content-search"
+                  >
+                    Search message content instead
+                  </button>
+                )}
                 <button
                   onClick={search.clear}
                   className="mt-2 text-sm text-indigo-400 hover:text-indigo-300"
@@ -729,6 +857,61 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
               </>
             )}
           </div>
+        ) : searchMode === "content" && search.isActive && groupedSearchResults.length > 0 ? (
+          groupedSearchResults.map((group) => {
+            const isExpanded = expandedSearchGroups.has(group.chat.id);
+            return (
+              <div key={group.chat.id} className="border-b border-white/5">
+                {/* Group header */}
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setExpandedSearchGroups((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(group.chat.id)) next.delete(group.chat.id);
+                      else next.add(group.chat.id);
+                      return next;
+                    });
+                  }}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
+                  )}
+                  <MessageSquare className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  <span className="text-sm text-slate-200 truncate flex-1 text-left">{group.chat.name}</span>
+                  <span className="text-[10px] text-slate-500 bg-white/5 rounded-full px-1.5 py-0.5 shrink-0">
+                    {group.matches.length}
+                  </span>
+                </button>
+                {/* Match list */}
+                {isExpanded && (
+                  <div className="divide-y divide-white/5">
+                    {group.matches.map((match, matchIdx) => (
+                      <button
+                        key={`${match.chat.id}-${match.message_id}-${matchIdx}`}
+                        type="button"
+                        className="w-full flex items-start gap-2 pl-8 pr-3 py-2 hover:bg-white/5 transition-colors text-left"
+                        onClick={() => onSelectChat(group.chat.id, match.message_id)}
+                      >
+                        <FileText className="h-3 w-3 text-slate-500 mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wide">{match.match_type === "chat_name" ? "Name" : "Message"}</span>
+                          {match.snippet && (
+                            <p className="text-xs text-slate-400 line-clamp-2 break-all">
+                              <SnippetHighlight snippet={match.snippet} matchStart={match.match_start} matchEnd={match.match_end} />
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
         ) : (
           displayChats.map((chat, index) => {
             const searchResult = searchResultsMap.get(chat.id);
@@ -822,6 +1005,23 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
     </aside>
   );
 });
+
+/** Renders a snippet with the match portion highlighted via <mark> tag. Safe alternative to dangerouslySetInnerHTML. */
+function SnippetHighlight({ snippet, matchStart, matchEnd }: { snippet: string; matchStart?: number; matchEnd?: number }) {
+  if (matchStart == null || matchEnd == null || matchStart >= matchEnd || matchStart >= snippet.length) {
+    return <>{snippet}</>;
+  }
+  const before = snippet.slice(0, matchStart);
+  const match = snippet.slice(matchStart, matchEnd);
+  const after = snippet.slice(matchEnd);
+  return (
+    <>
+      {before}
+      <mark className="bg-yellow-500/30 text-yellow-200 px-0.5 rounded">{match}</mark>
+      {after}
+    </>
+  );
+}
 
 interface ChatListItemProps {
   chat: Chat;
@@ -1030,11 +1230,9 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
                 <FileText className="h-3 w-3" />
                 <span>{searchResult.match_type === "message_content" ? "Message" : "Name"}</span>
               </div>
-              <p
-                className="text-xs text-slate-400 line-clamp-2 [&>mark]:bg-yellow-500/30 [&>mark]:text-yellow-200 [&>mark]:px-0.5 [&>mark]:rounded"
-                dangerouslySetInnerHTML={{ __html: searchResult.snippet }}
-                data-testid="search-snippet"
-              />
+              <p className="text-xs text-slate-400 line-clamp-2 break-all" data-testid="search-snippet">
+                <SnippetHighlight snippet={searchResult.snippet} matchStart={searchResult.match_start} matchEnd={searchResult.match_end} />
+              </p>
             </div>
           ) : (
             <p className="text-xs text-slate-400 truncate mt-0.5">

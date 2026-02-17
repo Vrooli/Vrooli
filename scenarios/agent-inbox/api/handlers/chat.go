@@ -246,6 +246,7 @@ func (h *Handlers) MarkAllAsRead(w http.ResponseWriter, r *http.Request) {
 // Query parameters:
 //   - q: the search query (required)
 //   - limit: maximum number of results (optional, default 20)
+//   - per_chat: max message matches per chat, 1–10 (optional, default 1)
 func (h *Handlers) SearchChats(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
@@ -261,8 +262,26 @@ func (h *Handlers) SearchChats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	results, err := h.Repo.SearchChats(r.Context(), query, limit)
+	// Parse per_chat with default
+	perChat := 1
+	if perChatStr := r.URL.Query().Get("per_chat"); perChatStr != "" {
+		if parsed, err := parseInt(perChatStr); err == nil && parsed > 0 && parsed <= 10 {
+			perChat = parsed
+		}
+	}
+
+	// Parse search options
+	caseSensitive := r.URL.Query().Get("case_sensitive") == "true"
+	wholeWord := r.URL.Query().Get("whole_word") == "true"
+	useRegex := r.URL.Query().Get("regex") == "true"
+
+	results, err := h.Repo.SearchChats(r.Context(), query, limit, perChat, caseSensitive, wholeWord, useRegex)
 	if err != nil {
+		// Check if it's an invalid regex pattern
+		if useRegex && strings.Contains(err.Error(), "invalid search pattern") {
+			h.WriteAppError(w, r, domain.ErrInvalidInput("invalid regex pattern: "+err.Error()))
+			return
+		}
 		log.Printf("[ERROR] [%s] SearchChats failed: %v", middleware.GetRequestID(r.Context()), err)
 		h.WriteAppError(w, r, domain.ErrDatabaseError("search chats", err))
 		return

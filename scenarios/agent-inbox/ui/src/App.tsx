@@ -351,8 +351,9 @@ function AppContent() {
   const handleSelectChat = useCallback(
     (chatId: string, messageId?: string) => {
       selectChat(chatId);
-      // Set message to scroll to if navigating from search
-      setScrollToMessageId(messageId || null);
+      // Clear first, then set in next frame to force re-trigger even if same messageId
+      setScrollToMessageId(null);
+      requestAnimationFrame(() => setScrollToMessageId(messageId || null));
       // Close chat list on mobile when selecting
       if (window.innerWidth < 1024) {
         setChatListOpen(false);

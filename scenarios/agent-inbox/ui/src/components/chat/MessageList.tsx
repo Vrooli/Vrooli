@@ -126,6 +126,11 @@ function MessageListInner({
   const endRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Track which message is highlighted (from search result navigation)
+  // Using React state instead of classList.add/remove because Tailwind CSS
+  // purges dynamically-added class names that don't appear in source files.
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
   // Ref for debouncing auto-scroll to prevent rapid scroll triggers during streaming
   const scrollTimeoutRef = useRef<number | null>(null);
 
@@ -191,25 +196,47 @@ function MessageListInner({
     return map;
   }, [messagesForSiblings, messages]);
 
-  // Scroll to specific message when navigating from search
+  // Scroll to specific message when navigating from search.
+  // Uses retry polling because when navigating to a new chat, messages load async
+  // and the target DOM element may not exist yet on first attempt.
   useEffect(() => {
-    if (scrollToMessageId) {
+    if (!scrollToMessageId) return;
+
+    let attempts = 0;
+    const maxAttempts = 30; // ~3 seconds
+    let timerId: number;
+    let highlightTimerId: number;
+
+    const tryScroll = () => {
       const messageEl = messageRefs.current.get(scrollToMessageId);
       if (messageEl) {
-        // Scroll into view with highlight effect
         messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        // Add highlight class temporarily
-        messageEl.classList.add("ring-2", "ring-yellow-400", "ring-offset-2");
-        setTimeout(() => {
-          messageEl.classList.remove("ring-2", "ring-yellow-400", "ring-offset-2");
+        // Use React state for highlight instead of classList.add/remove.
+        // Tailwind CSS purges dynamically-added class names, so classList
+        // manipulation with Tailwind classes doesn't work.
+        setHighlightedMessageId(scrollToMessageId);
+        highlightTimerId = window.setTimeout(() => {
+          setHighlightedMessageId(null);
           onScrollComplete?.();
         }, 2000);
+        return;
+      }
+      attempts++;
+      if (attempts < maxAttempts) {
+        timerId = window.setTimeout(tryScroll, 100);
       } else {
-        // Message not found, just clear the state
         onScrollComplete?.();
       }
-    }
-  }, [scrollToMessageId, onScrollComplete, messages]);
+    };
+
+    // Try immediately first (element may already be in DOM for same-chat scrolls),
+    // then retry with delay for cross-chat navigation where messages load async.
+    tryScroll();
+    return () => {
+      clearTimeout(timerId);
+      clearTimeout(highlightTimerId);
+    };
+  }, [scrollToMessageId, onScrollComplete]);
 
   // Auto-scroll to end for new messages/streaming
   // DEBOUNCED: Use timeout to prevent rapid scroll triggers during streaming which can
@@ -297,6 +324,7 @@ function MessageListInner({
           onOpenAsyncDrawer={onOpenAsyncDrawer}
           isRegenerating={isRegenerating}
           isForking={isForking}
+          isHighlighted={message.id === highlightedMessageId}
           ref={(el) => {
             if (el) messageRefs.current.set(message.id, el);
             else messageRefs.current.delete(message.id);
@@ -809,11 +837,13 @@ interface MessageBubbleProps {
   isRegenerating?: boolean;
   /** Whether forking is in progress */
   isForking?: boolean;
+  /** Whether this message is highlighted (from search navigation) */
+  isHighlighted?: boolean;
 }
 
 // Inner component for MessageBubble - will be wrapped with memo
 const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubbleInner(
-  { message, viewMode, allMessages, siblingInfo, toolCallRecordMap, asyncOperationMap, onRegenerate, onSelectBranch, onFork, onEdit, onOpenAsyncDrawer, isRegenerating = false, isForking = false },
+  { message, viewMode, allMessages, siblingInfo, toolCallRecordMap, asyncOperationMap, onRegenerate, onSelectBranch, onFork, onEdit, onOpenAsyncDrawer, isRegenerating = false, isForking = false, isHighlighted = false },
   ref
 ) {
   const { addToast } = useToast();
@@ -1000,10 +1030,12 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
     return null;
   };
 
+  const highlightClass = isHighlighted ? "ring-2 ring-yellow-400 ring-offset-2 ring-offset-slate-950 rounded-lg bg-yellow-400/10" : "";
+
   // System messages - same in both modes
   if (isSystem) {
     return (
-      <div ref={ref} className="flex justify-center transition-all duration-300" data-testid={`message-${message.id}`}>
+      <div ref={ref} className={`flex justify-center transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
         <div className={`bg-slate-200/50 dark:bg-slate-800/50 rounded-lg px-4 py-2 text-sm text-slate-500 dark:text-slate-400 italic ${isCompact ? "w-full text-left" : "max-w-[80%]"}`}>
           <MarkdownRenderer content={message.content} />
         </div>
@@ -1020,7 +1052,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
     return (
       <div
         ref={ref}
-        className={`group transition-all duration-300 border-l-2 ${borderColor} pl-3 py-1`}
+        className={`group transition-all duration-300 border-l-2 ${borderColor} pl-3 py-1 ${highlightClass}`}
         data-testid={`message-${message.id}`}
       >
         <div className="flex items-center gap-2 mb-1">
@@ -1091,7 +1123,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
     };
 
     return (
-      <div ref={ref} className="group flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
+      <div ref={ref} className={`group flex justify-start transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
         <div className="flex gap-3 max-w-[85%]">
           <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
             <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
@@ -1113,7 +1145,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
   // Bubble mode: Assistant message with tool calls
   if (hasToolCalls) {
     return (
-      <div ref={ref} className="group flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
+      <div ref={ref} className={`group flex justify-start transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
         <div className="flex gap-3 max-w-[85%]">
           <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
             <Bot className="h-4 w-4 text-indigo-400" />
@@ -1155,7 +1187,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
   return (
     <div
       ref={ref}
-      className={`group flex ${isUser ? "justify-end" : "justify-start"} transition-all duration-300`}
+      className={`group flex ${isUser ? "justify-end" : "justify-start"} transition-all duration-300 ${highlightClass}`}
       data-testid={`message-${message.id}`}
     >
       <div className={`flex gap-3 max-w-[85%] ${isUser ? "flex-row-reverse" : ""}`}>
