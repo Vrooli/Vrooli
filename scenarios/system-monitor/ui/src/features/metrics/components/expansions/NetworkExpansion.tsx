@@ -5,9 +5,9 @@ interface NetworkExpansionProps {
 }
 
 export const NetworkExpansion = ({ details }: NetworkExpansionProps) => {
-  const tcpStates = details?.tcp_states;
-  const portUsage = details?.port_usage;
-  const networkStats = details?.network_stats;
+  const tcpStates = details?.tcpStates;
+  const portUsage = details?.portUsage;
+  const networkStats = details?.networkStats;
 
   return (
     <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
@@ -23,16 +23,16 @@ export const NetworkExpansion = ({ details }: NetworkExpansionProps) => {
             fontSize: 'var(--font-size-sm)'
           }}>
             <div>Established: <span style={{ color: 'var(--color-accent)' }}>
-              {tcpStates.established ?? '\u2014'}
+              {tcpStates.established ?? '—'}
             </span></div>
             <div>Time Wait: <span style={{ color: 'var(--color-accent)' }}>
-              {tcpStates.time_wait ?? '\u2014'}
+              {tcpStates.timeWait ?? '—'}
             </span></div>
             <div>Listen: <span style={{ color: 'var(--color-accent)' }}>
-              {tcpStates.listen ?? '\u2014'}
+              {tcpStates.listen ?? '—'}
             </span></div>
             <div>Total: <span style={{ color: 'var(--color-accent)' }}>
-              {tcpStates.total ?? '\u2014'}
+              {tcpStates.total ?? '—'}
             </span></div>
           </div>
         </div>
@@ -55,7 +55,7 @@ export const NetworkExpansion = ({ details }: NetworkExpansionProps) => {
               DNS Health:
             </span>
             <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-              {networkStats.dns_success_rate?.toFixed(1) ?? '\u2014'}%
+              {networkStats.dnsSuccessRate?.toFixed(1) ?? '—'}%
             </span>
           </div>
         )}

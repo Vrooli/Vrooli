@@ -2,7 +2,9 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { HardDrive } from 'lucide-react';
 
-import { apiFetch } from '../../../shared/api/apiFetch';
+import { protoFetch } from '../../../shared/api/apiFetch';
+import { parseDiskDetailResponse } from '../../../shared/api/proto-contracts';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { DetailRow } from '../../../shared/components/DetailRow';
 import { formatMbPerSecond, formatPercentage, formatTimeLabel, getUtilizationColor } from '../../../shared/utils/formatters';
 import type {
@@ -15,11 +17,8 @@ import type {
   DiskUsageEntry
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
-import {
-  buildSingleSeriesData,
-  combineDiskSeries,
-  buildDiskUsageCard
-} from './metricHelpers';
+import { buildSingleSeriesData, combineDiskSeries } from '../../../shared/utils/chartData';
+import { buildDiskUsageCard } from './MetricRenderHelpers';
 
 export interface DiskDetailViewProps {
   detailedMetrics: DetailedMetrics | null;
@@ -39,20 +38,20 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const activeRequestRef = useRef<AbortController | null>(null);
 
-  const diskUsage = detailedMetrics?.memory_details?.disk_usage;
+  const diskUsage = detailedMetrics?.memoryDetails?.diskUsage;
   const diskIoHistory = useMemo(
     () => combineDiskSeries(metricHistory?.diskRead, metricHistory?.diskWrite),
     [metricHistory?.diskRead, metricHistory?.diskWrite]
   );
   const diskUsageHistory = useMemo(() => buildSingleSeriesData(metricHistory?.diskUsage), [metricHistory?.diskUsage]);
-  const fileDescriptors = detailedMetrics?.system_details?.file_descriptors;
-  const inotifyWatchers = detailedMetrics?.system_details?.inotify_watchers;
+  const fileDescriptors = detailedMetrics?.systemDetails?.fileDescriptors;
+  const inotifyWatchers = detailedMetrics?.systemDetails?.inotifyWatchers;
   const watchersSupported = inotifyWatchers?.supported ?? true;
-  const watcherPercent = inotifyWatchers && Number.isFinite(inotifyWatchers.watches_percent)
-    ? inotifyWatchers.watches_percent
+  const watcherPercent = inotifyWatchers && Number.isFinite(inotifyWatchers.watchesPercent)
+    ? inotifyWatchers.watchesPercent
     : undefined;
-  const watcherInstancePercent = inotifyWatchers && Number.isFinite(inotifyWatchers.instances_percent)
-    ? inotifyWatchers.instances_percent
+  const watcherInstancePercent = inotifyWatchers && Number.isFinite(inotifyWatchers.instancesPercent)
+    ? inotifyWatchers.instancesPercent
     : undefined;
   const fetchDiskDetails = useCallback(
     async (mount: string, nextDepth: number, includeFilesValue: boolean) => {
@@ -74,11 +73,11 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           params.set('include_files', 'true');
         }
 
-        const data = await apiFetch<DiskDetailResponse>(`/metrics/disk/details?${params.toString()}`, {
+        const data = await protoFetch(`/metrics/disk/details?${params.toString()}`, parseDiskDetailResponse, {
           signal: controller.signal
         });
         setDiskDetails(data);
-        setSelectedMount(data.active_mount || mount);
+        setSelectedMount(data.activeMount || mount);
         setDepth(data.depth);
         setIncludeFiles(includeFilesValue);
         setDetailsError(null);
@@ -111,24 +110,24 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
     if (partitions.length === 0) {
       return null;
     }
-    const exact = partitions.find(partition => partition.mount_point === selectedMount);
+    const exact = partitions.find(partition => partition.mountPoint === selectedMount);
     return exact ?? partitions[0] ?? null;
   }, [partitions, selectedMount]);
 
   const summaryDiskInfo: DiskInfo | undefined = activePartition
     ? {
-        used: activePartition.used_bytes,
-        total: activePartition.size_bytes,
-        percent: activePartition.use_percent
-      }
+        used: activePartition.usedBytes,
+        total: activePartition.sizeBytes,
+        percent: activePartition.usePercent
+      } as DiskInfo
     : diskUsage;
 
-  const selectedMountLabel = activePartition?.mount_point ?? selectedMount;
+  const selectedMountLabel = activePartition?.mountPoint ?? selectedMount;
   const deviceLabel = activePartition?.device ? `Device ${activePartition.device}` : undefined;
 
   const lastUpdated = diskDetails?.timestamp
-    ? diskDetails.timestamp
-    : diskLastUpdated ?? detailedMetrics?.timestamp;
+    ? timestampDate(diskDetails.timestamp).toISOString()
+    : diskLastUpdated ?? (detailedMetrics?.timestamp ? timestampDate(detailedMetrics.timestamp).toISOString() : undefined);
 
   const subheadParts: string[] = [];
   if (deviceLabel) {
@@ -141,8 +140,8 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
     subheadParts.push('Analyzing...');
   }
 
-  const topDirectories = diskDetails?.top_directories ?? [];
-  const largestFiles = diskDetails?.largest_files ?? [];
+  const topDirectories = diskDetails?.topDirectories ?? [];
+  const largestFiles = diskDetails?.largestFiles ?? [];
 
   const handleMountSelect = (mountPoint: string) => {
     setSelectedMount(mountPoint);
@@ -207,10 +206,10 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           </div>
           {storageIO ? (
             <div className="detail-grid detail-grid-md">
-              <DetailRow label="Disk Queue Depth" value={storageIO.disk_queue_depth?.toFixed(2) ?? '\u2014'} />
-              <DetailRow label="I/O Wait" value={`${storageIO.io_wait_percent?.toFixed(1) ?? '\u2014'}%`} valueColor="var(--color-warning)" />
-              <DetailRow label="Read Throughput" value={`${storageIO.read_mb_per_sec?.toFixed(2) ?? '\u2014'} MB/s`} />
-              <DetailRow label="Write Throughput" value={`${storageIO.write_mb_per_sec?.toFixed(2) ?? '\u2014'} MB/s`} />
+              <DetailRow label="Disk Queue Depth" value={storageIO.diskQueueDepth?.toFixed(2) ?? '—'} />
+              <DetailRow label="I/O Wait" value={`${storageIO.ioWaitPercent?.toFixed(1) ?? '—'}%`} valueColor="var(--color-warning)" />
+              <DetailRow label="Read Throughput" value={`${storageIO.readMbPerSec?.toFixed(2) ?? '—'} MB/s`} />
+              <DetailRow label="Write Throughput" value={`${storageIO.writeMbPerSec?.toFixed(2) ?? '—'} MB/s`} />
             </div>
           ) : (
             <div className="text-muted">
@@ -264,7 +263,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
               <>
                 <div className="utilization-header">
                   <div className="utilization-value-lg" style={{ fontSize: 'var(--font-size-lg)' }}>
-                    {inotifyWatchers.watches_used.toLocaleString()} / {inotifyWatchers.watches_max.toLocaleString()} watches
+                    {inotifyWatchers.watchesUsed.toLocaleString()} / {inotifyWatchers.watchesMax.toLocaleString()} watches
                   </div>
                   <div className="utilization-percent" style={{
                     color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-dim)',
@@ -286,7 +285,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 </div>
                 <div className="utilization-header text-dim-xs">
                   <span>
-                    Instances: {inotifyWatchers.instances_used.toLocaleString()} / {inotifyWatchers.instances_max.toLocaleString()}
+                    Instances: {inotifyWatchers.instancesUsed.toLocaleString()} / {inotifyWatchers.instancesMax.toLocaleString()}
                   </span>
                   <span style={{ color: watcherInstancePercent !== undefined ? getUtilizationColor(watcherInstancePercent) : 'var(--color-text-dim)' }}>
                     {watcherInstancePercent !== undefined ? `${watcherInstancePercent.toFixed(1)}%` : '—'}
@@ -316,18 +315,18 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           {partitions.length > 0 ? (
             <div className="flex-col-gap-sm">
               {partitions.map(partition => {
-                const isActive = partition.mount_point === selectedMount;
-                const percent = Math.min(Math.max(partition.use_percent, 0), 100);
+                const isActive = partition.mountPoint === selectedMount;
+                const percent = Math.min(Math.max(partition.usePercent, 0), 100);
                 return (
                   <button
-                    key={`${partition.device}-${partition.mount_point}`}
+                    key={`${partition.device}-${partition.mountPoint}`}
                     type="button"
                     className={`partition-btn ${isActive ? 'active' : ''}`}
-                    onClick={() => handleMountSelect(partition.mount_point)}
+                    onClick={() => handleMountSelect(partition.mountPoint)}
                     disabled={detailsLoading && isActive}
                   >
                     <div className="flex-row-baseline">
-                      <span className="text-bright font-semibold">{partition.mount_point}</span>
+                      <span className="text-bright font-semibold">{partition.mountPoint}</span>
                       <span className="text-warning text-sm">{percent.toFixed(1)}%</span>
                     </div>
                     <div className="text-dim-xs">{partition.device}</div>
@@ -341,8 +340,8 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                       />
                     </div>
                     <div className="flex-row-baseline text-dim-xs">
-                      <span>Used {partition.used_human}</span>
-                      <span>Free {partition.available_human}</span>
+                      <span>Used {partition.usedHuman}</span>
+                      <span>Free {partition.availableHuman}</span>
                     </div>
                   </button>
                 );
@@ -448,7 +447,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 {topDirectories.map((entry: DiskUsageEntry) => (
                   <tr key={entry.path}>
                     <td className="text-bright">{entry.path}</td>
-                    <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.size_human}</td>
+                    <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.sizeHuman}</td>
                   </tr>
                 ))}
               </tbody>
@@ -482,7 +481,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                   {largestFiles.map(entry => (
                     <tr key={entry.path}>
                       <td className="text-bright">{entry.path}</td>
-                      <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.size_human}</td>
+                      <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.sizeHuman}</td>
                     </tr>
                   ))}
                 </tbody>

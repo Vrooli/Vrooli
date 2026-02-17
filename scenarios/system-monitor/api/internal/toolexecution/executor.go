@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/services"
 )
 
@@ -275,7 +276,7 @@ func (e *ServerExecutor) executeStopInvestigation(ctx context.Context, args map[
 
 	return NewSuccessResult(map[string]interface{}{
 		"investigation_id": investigationID,
-		"status":           "stopped",
+		"status":           models.StatusStopped,
 		"message":          "Investigation stopped successfully",
 	}), nil
 }

@@ -7,6 +7,8 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"system-monitor-api/internal/agentmanager"
@@ -46,6 +48,7 @@ func Run(cfg *config.Config) error {
 	}
 
 	investigationSvc := services.NewInvestigationService(cfg, repo, alertSvc, agentSvc)
+	scriptSvc := services.NewScriptService(resolveScriptsDir())
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
 	monitorSvc.SetActive(settingsMgr.IsActive())
@@ -59,7 +62,7 @@ func Run(cfg *config.Config) error {
 
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc)
-	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc)
+	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc)
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc)
 	settingsHandler := handlers.NewSettingsHandler(settingsMgr)
 
@@ -108,6 +111,31 @@ func Run(cfg *config.Config) error {
 
 	waitForShutdown(monitorSvc, srv, db)
 	return nil
+}
+
+// resolveScriptsDir finds the investigations/active directory on disk.
+func resolveScriptsDir() string {
+	// Try VROOLI_ROOT first
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			vrooliRoot = filepath.Join(homeDir, "Vrooli")
+		}
+	}
+	if vrooliRoot == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			vrooliRoot = cwd
+		} else {
+			return "."
+		}
+	}
+
+	scriptsPath := filepath.Join(vrooliRoot, "scenarios", "system-monitor", "investigations", "active")
+	if info, err := os.Stat(scriptsPath); err == nil && info.IsDir() {
+		return scriptsPath
+	}
+
+	return filepath.Join(vrooliRoot, "investigations", "active")
 }
 
 func connectRepository(cfg *config.Config) (*sql.DB, repository.Repository) {

@@ -1,33 +1,7 @@
-import type { ChartDataPoint, DiskInfo } from '../../../types';
+import type { DiskInfo } from '../../../types';
 import { DetailRow } from '../../../shared/components/DetailRow';
 import { formatBytes } from '../../../shared/utils/formatters';
-
-// ── Data Builders ──────────────────────────────────────────────────────────
-
-export const buildSingleSeriesData = (series?: ChartDataPoint[]) => {
-  if (!series || series.length === 0) {
-    return [] as Array<{ timestamp: string; value: number }>;
-  }
-  return [...series]
-    .map(point => ({ timestamp: point.timestamp, value: Number(point.value) }))
-    .filter(point => !Number.isNaN(point.value))
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-};
-
-export const combineDiskSeries = (readSeries?: ChartDataPoint[], writeSeries?: ChartDataPoint[]) => {
-  const combined = new Map<string, { timestamp: string; read: number; write: number }>();
-  (readSeries ?? []).forEach(point => {
-    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp, read: 0, write: 0 };
-    existing.read = Number(point.value) || 0;
-    combined.set(point.timestamp, existing);
-  });
-  (writeSeries ?? []).forEach(point => {
-    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp, read: 0, write: 0 };
-    existing.write = Number(point.value) || 0;
-    combined.set(point.timestamp, existing);
-  });
-  return Array.from(combined.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-};
+import { getRiskLevelColor } from '../../../shared/utils/colors';
 
 // ── Render Helpers ─────────────────────────────────────────────────────────
 
@@ -46,7 +20,7 @@ export const buildDiskUsageCard = (
     );
   }
 
-  const freeBytes = diskUsage.total - diskUsage.used;
+  const freeBytes = Number(diskUsage.total) - Number(diskUsage.used);
 
   return (
     <div className="card flex-col-gap-md" style={{ padding: 'var(--spacing-lg)' }}>
@@ -68,9 +42,9 @@ export const buildDiskUsageCard = (
         />
       </div>
       <div className="detail-grid detail-grid-md">
-        <DetailRow label="Used" value={formatBytes(diskUsage.used)} />
+        <DetailRow label="Used" value={formatBytes(Number(diskUsage.used))} />
         <DetailRow label="Free" value={formatBytes(freeBytes)} />
-        <DetailRow label="Capacity" value={formatBytes(diskUsage.total)} />
+        <DetailRow label="Capacity" value={formatBytes(Number(diskUsage.total))} />
         <DetailRow label="Utilization" value={`${diskUsage.percent.toFixed(1)}%`} valueColor="var(--color-warning)" />
       </div>
     </div>
@@ -78,9 +52,9 @@ export const buildDiskUsageCard = (
 };
 
 export const renderProcessTable = (
-  processes: Array<{ name: string; pid: number; cpu_percent?: number; memory_mb?: number }> | undefined,
+  processes: Array<{ name: string; pid: number; cpuPercent?: number; memoryMb?: number }> | undefined,
   valueLabel: string,
-  valueAccessor: (process: { cpu_percent?: number; memory_mb?: number }) => number | undefined
+  valueAccessor: (process: { cpuPercent?: number; memoryMb?: number }) => number | undefined
 ) => {
   if (!processes || processes.length === 0) {
     return (
@@ -108,7 +82,7 @@ export const renderProcessTable = (
                 <td style={{ color: 'var(--color-text-bright)' }}>{process.name}</td>
                 <td style={{ color: 'var(--color-text)' }}>{process.pid}</td>
                 <td style={{ color: 'var(--color-accent)' }}>
-                  {value !== undefined ? value.toFixed(1) : '\u2014'}
+                  {value !== undefined ? value.toFixed(1) : '—'}
                 </td>
               </tr>
             );
@@ -120,7 +94,7 @@ export const renderProcessTable = (
 };
 
 export const renderGrowthPatterns = (
-  patterns: Array<{ process: string; growth_mb_per_hour: number; risk_level: string }> | undefined
+  patterns: Array<{ process: string; growthMbPerHour: number; riskLevel: string }> | undefined
 ) => {
   if (!patterns || patterns.length === 0) {
     return (
@@ -134,7 +108,7 @@ export const renderGrowthPatterns = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
       {patterns.slice(0, 8).map(pattern => (
         <div
-          key={`${pattern.process}-${pattern.growth_mb_per_hour}`}
+          key={`${pattern.process}-${pattern.growthMbPerHour}`}
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -142,17 +116,8 @@ export const renderGrowthPatterns = (
           }}
         >
           <span style={{ color: 'var(--color-text)' }}>{pattern.process}</span>
-          <span
-            style={{
-              color:
-                pattern.risk_level === 'high'
-                  ? 'var(--color-error)'
-                  : pattern.risk_level === 'medium'
-                    ? 'var(--color-warning)'
-                    : 'var(--color-success)'
-            }}
-          >
-            {pattern.growth_mb_per_hour.toFixed(1)} MB/hr ({pattern.risk_level})
+          <span style={{ color: getRiskLevelColor(pattern.riskLevel) }}>
+            {pattern.growthMbPerHour.toFixed(1)} MB/hr ({pattern.riskLevel})
           </span>
         </div>
       ))}

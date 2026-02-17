@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { apiFetch, toApiError } from '../../../shared/api/apiFetch';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
+import { parseMetricsTimelineResponse } from '../../../shared/api/proto-contracts';
 import type {
-  MetricsTimelineResponse,
   MetricHistory,
   ChartDataPoint,
   APIError
@@ -55,32 +57,35 @@ export const useMetricHistory = (
 
   const fetchMetricsTimeline = useCallback(async (windowSeconds = 120) => {
     try {
-      const data = await apiFetch<MetricsTimelineResponse>(`/metrics/timeline?window=${windowSeconds}`);
+      const data = await protoFetch(`/metrics/timeline?window=${windowSeconds}`, parseMetricsTimelineResponse);
       if (!mountedRef.current || !data || !data.samples) return;
+
+      const toIso = (ts?: Timestamp): string =>
+        ts ? timestampDate(ts).toISOString() : new Date().toISOString();
 
       setMetricHistory(prev => {
         const base = ensureHistoryBase(prev);
         return {
           ...base,
-          windowSeconds: data.window_seconds,
-          sampleIntervalSeconds: data.sample_interval_seconds,
+          windowSeconds: data.windowSeconds,
+          sampleIntervalSeconds: data.sampleIntervalSeconds,
           cpu: data.samples.map(sample => ({
-            timestamp: sample.timestamp,
-            value: sample.cpu_usage
+            timestamp: toIso(sample.timestamp),
+            value: sample.cpuUsage
           })),
           memory: data.samples.map(sample => ({
-            timestamp: sample.timestamp,
-            value: sample.memory_usage
+            timestamp: toIso(sample.timestamp),
+            value: sample.memoryUsage
           })),
           network: data.samples.map(sample => ({
-            timestamp: sample.timestamp,
-            value: sample.tcp_connections
+            timestamp: toIso(sample.timestamp),
+            value: sample.tcpConnections
           })),
           gpu: data.samples
-            .filter(sample => typeof sample.gpu_usage === 'number' && Number.isFinite(sample.gpu_usage as number))
+            .filter(sample => typeof sample.gpuUsage === 'number' && Number.isFinite(sample.gpuUsage))
             .map(sample => ({
-              timestamp: sample.timestamp,
-              value: Number(sample.gpu_usage)
+              timestamp: toIso(sample.timestamp),
+              value: sample.gpuUsage as number
             }))
         };
       });

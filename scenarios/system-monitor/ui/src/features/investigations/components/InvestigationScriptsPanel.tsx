@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { RefreshCw, Plus } from 'lucide-react';
 import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import { protoFetch } from '../../../shared/api/apiFetch';
+import { parseListScriptsResponse, parseGetScriptResponse } from '../../../shared/api/proto-contracts';
 import { ScriptListItem } from './ScriptListItem';
 
 interface InvestigationScriptsPanelProps {
@@ -45,13 +46,8 @@ export const InvestigationScriptsPanel = ({
     setLoading(true);
     setErrorMessage(null);
     try {
-      const response = await fetch(buildApiUrl('/investigations/scripts'));
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      const data = (await response.json()) as { scripts?: InvestigationScript[] };
-      const loadedScripts: InvestigationScript[] = Array.isArray(data.scripts) ? data.scripts : [];
+      const data = await protoFetch('/investigations/scripts', parseListScriptsResponse);
+      const loadedScripts: InvestigationScript[] = Array.isArray(data.scripts) ? [...data.scripts] : [];
       setScripts(loadedScripts);
     } catch (error) {
       console.error('Failed to load scripts:', error);
@@ -72,13 +68,11 @@ export const InvestigationScriptsPanel = ({
 
   const openScript = async (script: InvestigationScript) => {
     try {
-      const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(script.id)}`));
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      const data = (await response.json()) as { content?: string; script?: InvestigationScript };
-      const scriptContent = typeof data.content === 'string' ? data.content : '';
+      const data = await protoFetch(
+        `/investigations/scripts/${encodeURIComponent(script.id)}`,
+        parseGetScriptResponse,
+      );
+      const scriptContent = data.content ?? '';
       const scriptMetadata: InvestigationScript = data.script ?? script;
 
       onOpenScriptEditor(scriptMetadata, scriptContent, 'view');

@@ -507,7 +507,7 @@ func (s *ReportService) generateHighlights(metrics []*models.MetricsResponse, in
 	
 	// Add investigation highlights
 	for _, inv := range investigations {
-		if inv.Status == "completed" {
+		if inv.Status == models.StatusCompleted {
 			highlights = append(highlights, fmt.Sprintf("Investigation %s completed: %s", inv.ID[:8], inv.Findings))
 		}
 	}

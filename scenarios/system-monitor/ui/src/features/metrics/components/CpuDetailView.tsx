@@ -10,11 +10,9 @@ import type {
   MetricHistory
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
-import { formatInteger, formatTimeLabel } from '../../../shared/utils/formatters';
-import {
-  buildSingleSeriesData,
-  renderProcessTable
-} from './metricHelpers';
+import { formatInteger, formatProtoTimestamp } from '../../../shared/utils/formatters';
+import { buildSingleSeriesData } from '../../../shared/utils/chartData';
+import { renderProcessTable } from './MetricRenderHelpers';
 
 export interface CpuDetailViewProps {
   metrics: MetricsResponse | null;
@@ -25,15 +23,15 @@ export interface CpuDetailViewProps {
 }
 
 export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, metricHistory, onBack }: CpuDetailViewProps) => {
-  const cpuUsage = detailedMetrics?.cpu_details?.usage ?? metrics?.cpu_usage ?? 0;
+  const cpuUsage = detailedMetrics?.cpuDetails?.usage ?? metrics?.cpuUsage ?? 0;
   const cpuData = useMemo(() => buildSingleSeriesData(metricHistory?.cpu), [metricHistory?.cpu]);
-  const loadAverage = detailedMetrics?.cpu_details?.load_average ?? [];
-  const contextSwitches = detailedMetrics?.cpu_details?.context_switches ?? 0;
-  const goroutines = detailedMetrics?.cpu_details?.total_goroutines ?? 0;
-  const topProcesses = detailedMetrics?.cpu_details?.top_processes;
+  const loadAverage = detailedMetrics?.cpuDetails?.loadAverage ?? [];
+  const contextSwitches = detailedMetrics?.cpuDetails?.contextSwitches ?? BigInt(0);
+  const goroutines = detailedMetrics?.cpuDetails?.totalGoroutines ?? 0;
+  const topProcesses = detailedMetrics?.cpuDetails?.topProcesses;
 
   const subhead = detailedMetrics?.timestamp
-    ? `Updated ${formatTimeLabel(detailedMetrics.timestamp)}`
+    ? `Updated ${formatProtoTimestamp(detailedMetrics.timestamp)}`
     : undefined;
 
   return (
@@ -61,7 +59,7 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
             1m / 5m / 15m load average
           </div>
           <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-            {loadAverage.slice(0, 3).map((value, index) => (
+            {loadAverage.slice(0, 3).map((value: number, index: number) => (
               <DetailRow
                 key={`${value}-${index}`}
                 label={index === 0 ? '1 min' : index === 1 ? '5 min' : '15 min'}
@@ -79,7 +77,7 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
             </div>
           </div>
           <div className="detail-grid detail-grid-md">
-            <DetailRow label="Context Switches" value={formatInteger(contextSwitches)} valueColor="var(--color-accent)" />
+            <DetailRow label="Context Switches" value={formatInteger(Number(contextSwitches))} valueColor="var(--color-accent)" />
             <DetailRow label="Goroutines" value={formatInteger(goroutines)} valueColor="var(--color-accent)" />
           </div>
         </div>
@@ -92,7 +90,7 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
             Processes ranked by CPU utilization
           </div>
         </div>
-        {renderProcessTable(topProcesses, 'CPU %', process => process.cpu_percent)}
+        {renderProcessTable(topProcesses, 'CPU %', process => process.cpuPercent)}
       </div>
 
       <div className="card">

@@ -7,6 +7,8 @@ import (
 	"context"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+
+	"system-monitor-api/internal/models"
 )
 
 // InvestigationToolProvider provides the AI-driven investigation tools.
@@ -104,9 +106,9 @@ func (p *InvestigationToolProvider) triggerInvestigationTool() *toolspb.ToolDefi
 				},
 				CompletionConditions: &toolspb.CompletionConditions{
 					StatusField:   "status",
-					SuccessValues: []string{"completed"},
-					FailureValues: []string{"failed", "cancelled", "stopped"},
-					PendingValues: []string{"queued", "in_progress"},
+					SuccessValues: []string{models.StatusCompleted},
+					FailureValues: []string{models.StatusFailed, models.StatusCancelled, models.StatusStopped},
+					PendingValues: []string{models.StatusQueued, models.StatusInProgress},
 					ErrorField:    "error",
 					ResultField:   "findings",
 				},

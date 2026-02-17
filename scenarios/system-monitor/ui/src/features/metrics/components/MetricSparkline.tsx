@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { formatTime } from '../../../shared/utils/formatters';
 import type { ChartDataPoint } from '../../../types';
 
 interface MetricSparklineProps {
@@ -128,7 +129,7 @@ export const MetricSparkline = ({
     ? `${latest.raw.toFixed(1)}${unit}`
     : latest.raw.toFixed(1);
 
-  const tooltip = `Latest ${latestValueLabel} at ${new Date(latest.timestamp).toLocaleTimeString()}`;
+  const tooltip = `Latest ${latestValueLabel} at ${formatTime(latest.timestamp)}`;
 
   return (
     <div className={className} style={{ width: '100%' }}>

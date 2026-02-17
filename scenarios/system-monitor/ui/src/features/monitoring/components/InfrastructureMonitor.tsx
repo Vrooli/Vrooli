@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Zap } from 'lucide-react';
-import type { InfrastructureMonitorData, SystemHealth } from '../../../types';
+import type { InfrastructureMonitorData, SystemHealth, ConnectionPool, ServiceHealth } from '../../../types';
 import { getUtilizationColor } from '../../../shared/utils/formatters';
+import { getStatusColor, getHealthColor } from '../../../shared/utils/colors';
 
 interface InfrastructureMonitorProps {
   data: InfrastructureMonitorData | null;
@@ -10,10 +11,10 @@ interface InfrastructureMonitorProps {
 }
 
 export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth }: InfrastructureMonitorProps) => {
-  const fdInfo = systemHealth?.file_descriptors;
-  const inotifyWatchers = systemHealth?.inotify_watchers;
-  const watcherPercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.watches_percent : undefined;
-  const watcherInstancePercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.instances_percent : undefined;
+  const fdInfo = systemHealth?.fileDescriptors;
+  const inotifyWatchers = systemHealth?.inotifyWatchers;
+  const watcherPercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.watchesPercent : undefined;
+  const watcherInstancePercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.instancesPercent : undefined;
 
   return (
     <section className="monitoring-panel collapsible card">
@@ -41,18 +42,18 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                     Database Pools:
                   </h3>
                   <div className="pool-list">
-                    {(data.database_pools ?? []).map((pool, index) => (
+                    {(data.databasePools ?? []).map((pool: ConnectionPool, index: number) => (
                       <div key={index} className="pool-item" style={{
-                        border: `1px solid ${pool.healthy ? 'var(--color-success)' : 'var(--color-error)'}`
+                        border: `1px solid ${getHealthColor(pool.healthy)}`
                       }}>
                         <div>
                           <div>{pool.name}</div>
                           <div className="text-dim-xs">
-                            Active: {pool.active} | Idle: {pool.idle} | Max: {pool.max_size}
+                            Active: {pool.active} | Idle: {pool.idle} | Max: {pool.maxSize}
                           </div>
                         </div>
                         <span style={{
-                          color: pool.healthy ? 'var(--color-success)' : 'var(--color-error)'
+                          color: getHealthColor(pool.healthy)
                         }}>
                           {pool.healthy ? '●' : '●'}
                         </span>
@@ -66,7 +67,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                     HTTP Client Pools:
                   </h3>
                   <div className="pool-list">
-                    {(data.http_client_pools ?? []).map((pool, index) => (
+                    {(data.httpClientPools ?? []).map((pool: ConnectionPool, index: number) => (
                       <div key={index} className="pool-item" style={{
                         border: `1px solid ${pool.healthy ? 'var(--color-success)' : 'var(--color-error)'}`
                       }}>
@@ -77,11 +78,9 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           </div>
                         </div>
                         <span style={{
-                          color: pool.leak_risk === 'high' ? 'var(--color-error)' :
-                                 pool.leak_risk === 'medium' ? 'var(--color-warning)' :
-                                 'var(--color-success)'
+                          color: getStatusColor(pool.leakRisk ?? '')
                         }}>
-                          {pool.leak_risk}
+                          {pool.leakRisk}
                         </span>
                       </div>
                     ))}
@@ -100,13 +99,13 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                       <div className="stat-item">
                         <span className="stat-label">Subscribers:</span>
                         <span className="stat-value text-bright">
-                          {data.message_queues?.redis_pubsub?.subscribers ?? '—'}
+                          {data.messageQueues?.redisPubsub?.subscribers ?? '—'}
                         </span>
                       </div>
                       <div className="stat-item">
                         <span className="stat-label">Channels:</span>
                         <span className="stat-value text-bright">
-                          {data.message_queues?.redis_pubsub?.channels ?? '—'}
+                          {data.messageQueues?.redisPubsub?.channels ?? '—'}
                         </span>
                       </div>
                     </div>
@@ -118,21 +117,21 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                       <div className="stat-item">
                         <span className="stat-label">Pending:</span>
                         <span className="stat-value text-warning">
-                          {data.message_queues?.background_jobs?.pending ?? '—'}
+                          {data.messageQueues?.backgroundJobs?.pending ?? '—'}
                         </span>
                       </div>
                       <div className="stat-item">
                         <span className="stat-label">Active:</span>
                         <span className="stat-value text-success">
-                          {data.message_queues?.background_jobs?.active ?? '—'}
+                          {data.messageQueues?.backgroundJobs?.active ?? '—'}
                         </span>
                       </div>
                       <div className="stat-item">
                         <span className="stat-label">Failed:</span>
                         <span className="stat-value" style={{
-                          color: (data.message_queues?.background_jobs?.failed ?? 0) > 0 ? 'var(--color-error)' : 'var(--color-success)'
+                          color: (data.messageQueues?.backgroundJobs?.failed ?? 0) > 0 ? 'var(--color-error)' : 'var(--color-success)'
                         }}>
-                          {data.message_queues?.background_jobs?.failed ?? '—'}
+                          {data.messageQueues?.backgroundJobs?.failed ?? '—'}
                         </span>
                       </div>
                   </div>
@@ -169,10 +168,10 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           {inotifyWatchers.supported ? (
                             <>
                               <div className="text-dim-xs">
-                                {inotifyWatchers.watches_used.toLocaleString()} / {inotifyWatchers.watches_max.toLocaleString()} watch descriptors
+                                {inotifyWatchers.watchesUsed.toLocaleString()} / {inotifyWatchers.watchesMax.toLocaleString()} watch descriptors
                               </div>
                               <div className="text-dim-xs">
-                                Instances: {inotifyWatchers.instances_used.toLocaleString()} / {inotifyWatchers.instances_max.toLocaleString()} ({watcherInstancePercent !== undefined ? `${watcherInstancePercent.toFixed(1)}%` : '—'})
+                                Instances: {inotifyWatchers.instancesUsed.toLocaleString()} / {inotifyWatchers.instancesMax.toLocaleString()} ({watcherInstancePercent !== undefined ? `${watcherInstancePercent.toFixed(1)}%` : '—'})
                               </div>
                             </>
                           ) : (
@@ -197,9 +196,9 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                       <h4 className="monitor-sub-heading">
                         Service Dependencies:
                       </h4>
-                      {systemHealth?.service_dependencies && systemHealth.service_dependencies.length > 0 ? (
+                      {systemHealth?.serviceDependencies && systemHealth.serviceDependencies.length > 0 ? (
                         <div className="flex-col-gap-sm">
-                          {systemHealth.service_dependencies.map((service, index) => (
+                          {systemHealth.serviceDependencies.map((service: ServiceHealth, index: number) => (
                             <div
                               key={`${service.name}-${index}`}
                               className="pool-item"
@@ -221,7 +220,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                                   {service.status}
                                 </div>
                                 <div className="text-dim-xs">
-                                  {service.latency_ms.toFixed(0)} ms
+                                  {service.latencyMs.toFixed(0)} ms
                                 </div>
                               </div>
                             </div>
@@ -241,9 +240,9 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                       {systemHealth?.certificates && systemHealth.certificates.length > 0 ? (
                         <div className="flex-col-gap-sm">
                           {systemHealth.certificates.map((cert, index) => {
-                            const expiryColor = cert.days_to_expiry < 15
+                            const expiryColor = cert.daysToExpiry < 15
                               ? 'var(--color-error)'
-                              : cert.days_to_expiry < 45
+                              : cert.daysToExpiry < 45
                                 ? 'var(--color-warning)'
                                 : 'var(--color-success)';
                             return (
@@ -261,7 +260,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                                   </div>
                                 </div>
                                 <div style={{ textAlign: 'right', color: expiryColor, fontWeight: 600 }}>
-                                  {cert.days_to_expiry} days
+                                  {cert.daysToExpiry} days
                                 </div>
                               </div>
                             );

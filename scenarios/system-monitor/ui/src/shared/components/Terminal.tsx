@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Modal } from './Modal';
+import { formatTime } from '../utils/formatters';
 import type { TerminalLine } from '../../types';
 
 interface TerminalProps {
@@ -70,7 +71,7 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
             className={`terminal-line ${line.type}`}
           >
             <span className="text-muted">
-              [{new Date(line.timestamp).toLocaleTimeString()}]
+              [{formatTime(line.timestamp)}]
             </span>{' '}
             {line.message}
           </div>

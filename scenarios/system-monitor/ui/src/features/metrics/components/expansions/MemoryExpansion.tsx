@@ -1,4 +1,6 @@
-import type { MemoryMetrics } from '../../../../types';
+import type { MemoryMetrics, ProcessInfo, MemoryGrowth } from '../../../../types';
+import { formatOptionalNumber } from '../../../../shared/utils/formatters';
+import { getRiskLevelColor } from '../../../../shared/utils/colors';
 
 interface MemoryExpansionProps {
   details: MemoryMetrics;
@@ -6,13 +8,13 @@ interface MemoryExpansionProps {
 
 export const MemoryExpansion = ({ details }: MemoryExpansionProps) => (
   <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-    {(details.top_processes?.length ?? 0) > 0 && (
+    {(details.topProcesses?.length ?? 0) > 0 && (
       <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
         <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
           Top Processes by Memory:
         </h4>
         <div className="process-list">
-          {(details.top_processes ?? []).slice(0, 5).map((process) => (
+          {(details.topProcesses ?? []).slice(0, 5).map((process: ProcessInfo) => (
             <div key={process.pid} style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -21,7 +23,7 @@ export const MemoryExpansion = ({ details }: MemoryExpansionProps) => (
             }}>
               <span>{process.name} ({process.pid})</span>
               <span style={{ color: 'var(--color-accent)' }}>
-                {process.memory_mb?.toFixed(1) ?? '\u2014'} MB
+                {formatOptionalNumber(process.memoryMb)} MB
               </span>
             </div>
           ))}
@@ -35,7 +37,7 @@ export const MemoryExpansion = ({ details }: MemoryExpansionProps) => (
           Swap Usage:
         </span>
         <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-          {details.swap_usage?.percent?.toFixed(1) ?? '\u2014'}%
+          {formatOptionalNumber(details.swapUsage?.percent)}%
         </span>
       </div>
       <div className="detail-item">
@@ -43,29 +45,25 @@ export const MemoryExpansion = ({ details }: MemoryExpansionProps) => (
           Disk Usage:
         </span>
         <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-          {details.disk_usage?.percent?.toFixed(1) ?? '\u2014'}%
+          {formatOptionalNumber(details.diskUsage?.percent)}%
         </span>
       </div>
     </div>
 
-    {(details.growth_patterns?.length ?? 0) > 0 && (
+    {(details.growthPatterns?.length ?? 0) > 0 && (
       <div className="detail-section">
         <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
           Memory Growth Patterns:
         </h4>
         <div className="growth-patterns">
-          {(details.growth_patterns ?? []).slice(0, 3).map((pattern, index) => (
+          {(details.growthPatterns ?? []).slice(0, 3).map((pattern: MemoryGrowth, index: number) => (
             <div key={index} style={{
               margin: 'var(--spacing-xs) 0',
               fontSize: 'var(--font-size-sm)'
             }}>
               <span>{pattern.process}: </span>
-              <span style={{
-                color: pattern.risk_level === 'high' ? 'var(--color-error)' :
-                       pattern.risk_level === 'medium' ? 'var(--color-warning)' :
-                       'var(--color-accent)'
-              }}>
-                {pattern.growth_mb_per_hour?.toFixed(1) ?? '\u2014'} MB/hr ({pattern.risk_level})
+              <span style={{ color: getRiskLevelColor(pattern.riskLevel) }}>
+                {formatOptionalNumber(pattern.growthMbPerHour)} MB/hr ({pattern.riskLevel})
               </span>
             </div>
           ))}

@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
-import { buildApiUrl } from '../../../shared/api/apiBase';
-import { extractNumber, extractString } from '../../../shared/utils/typeGuards';
+import { protoFetch } from '../../../shared/api/apiFetch';
+import { parseExecuteScriptResponse } from '../../../shared/api/proto-contracts';
 import type { ModalState, InvestigationScript, ScriptExecution } from '../../../types';
+import { ScriptExecutionStatus } from '../../../types';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 interface UseScriptExecutionReturn {
   modalState: ModalState;
@@ -62,20 +64,20 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
 
   const executeScript = useCallback(async (scriptId: string, scriptContent: string) => {
     try {
-      const execution: ScriptExecution = {
-        script_id: scriptId,
-        execution_id: `exec-${Date.now()}`,
-        status: 'running',
-        started_at: new Date().toISOString()
-      };
+      const pendingExecution = {
+        scriptId,
+        executionId: `exec-${Date.now()}`,
+        status: ScriptExecutionStatus.RUNNING,
+        startedAt: timestampFromDate(new Date()),
+      } as ScriptExecution;
 
       setModalState(prev => ({
         ...prev,
         scriptResults: {
           isOpen: true,
           scriptId,
-          executionId: execution.execution_id,
-          execution
+          executionId: pendingExecution.executionId,
+          execution: pendingExecution
         },
         scriptEditor: {
           ...prev.scriptEditor,
@@ -83,67 +85,65 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
         }
       }));
 
-      const requestBody = scriptContent ? { content: scriptContent } : {};
+      const requestBody = scriptContent ? JSON.stringify({ content: scriptContent }) : '{}';
 
-      const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(scriptId)}/execute`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      let data: Record<string, unknown> | null = null;
       try {
-        data = await response.json() as Record<string, unknown>;
-      } catch {
-        data = null;
-      }
+        const data = await protoFetch(
+          `/investigations/scripts/${encodeURIComponent(scriptId)}/execute`,
+          parseExecuteScriptResponse,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: requestBody,
+          },
+        );
 
-      const stdout = extractString(data?.['stdout']) ?? extractString(data?.['output']) ?? '';
-      const stderr = extractString(data?.['stderr']) ?? '';
-      const exitCode = extractNumber(data?.['exit_code']) ?? (response.ok ? 0 : 1);
-      const timedOut = data?.['timed_out'] === true;
-      const completedAt = extractString(data?.['completed_at']) ?? new Date().toISOString();
-      const errorFromResponse = extractString(data?.['error']);
-      const durationSeconds = extractNumber(data?.['duration_seconds']);
-
-      const completedExecution: ScriptExecution = {
-        ...execution,
-        status: response.ok && exitCode === 0 && !timedOut ? 'completed' : 'failed',
-        completed_at: completedAt,
-        exit_code: exitCode,
-        output: stdout,
-        stdout,
-        stderr,
-        error: stderr || errorFromResponse || (!response.ok ? `Request failed with status ${response.status}` : undefined),
-        timed_out: timedOut,
-        duration_seconds: durationSeconds
-      };
-
-      setModalState(prev => ({
-        ...prev,
-        scriptResults: {
-          ...prev.scriptResults,
-          execution: completedExecution
+        const completedExecution = data.execution;
+        if (completedExecution) {
+          setModalState(prev => ({
+            ...prev,
+            scriptResults: {
+              ...prev.scriptResults,
+              execution: completedExecution as ScriptExecution
+            }
+          }));
         }
-      }));
+      } catch (fetchErr) {
+        const now = timestampFromDate(new Date());
+        const errMsg = fetchErr instanceof Error ? fetchErr.message : 'Script execution failed';
+        setModalState(prev => ({
+          ...prev,
+          scriptResults: {
+            ...prev.scriptResults,
+            execution: {
+              scriptId,
+              executionId: `exec-${Date.now()}`,
+              status: ScriptExecutionStatus.FAILED,
+              startedAt: now,
+              completedAt: now,
+              exitCode: 1,
+              error: errMsg,
+            } as ScriptExecution,
+          }
+        }));
+      }
     } catch (err) {
       console.error('Failed to execute script:', err);
 
+      const now = timestampFromDate(new Date());
       setModalState(prev => ({
         ...prev,
         scriptResults: {
           ...prev.scriptResults,
           execution: {
-            script_id: scriptId,
-            execution_id: `exec-${Date.now()}`,
-            status: 'failed',
-            started_at: new Date().toISOString(),
-            completed_at: new Date().toISOString(),
-            exit_code: 1,
-            error: err instanceof Error ? err.message : 'Unknown error occurred'
-          }
+            scriptId,
+            executionId: `exec-${Date.now()}`,
+            status: ScriptExecutionStatus.FAILED,
+            startedAt: now,
+            completedAt: now,
+            exitCode: 1,
+            error: err instanceof Error ? err.message : 'Unknown error occurred',
+          } as ScriptExecution,
         }
       }));
     }

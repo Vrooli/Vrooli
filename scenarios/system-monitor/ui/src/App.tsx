@@ -18,6 +18,7 @@ import { useInvestigationAgents } from './features/investigations/hooks/useInves
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { InvestigationScriptsPage } from './features/investigations/pages/InvestigationScriptsPage';
 import type { DashboardState, CardType, PanelType } from './types';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/matrix-theme.css';
 
 function App() {
@@ -173,8 +174,8 @@ function App() {
                           expandedCards={dashboardState.expandedCards}
                           onToggleCard={toggleCard}
                           metricHistory={metricHistory}
-                          storageIO={infrastructureData?.storage_io}
-                          diskLastUpdated={infrastructureData?.timestamp}
+                          storageIO={infrastructureData?.storageIo}
+                          diskLastUpdated={infrastructureData?.timestamp ? timestampDate(infrastructureData.timestamp)?.toISOString() : undefined}
                           onOpenDetail={openDetailPage}
                         />
                       </ErrorBoundary>
@@ -187,7 +188,7 @@ function App() {
                           data={infrastructureData}
                           isExpanded={dashboardState.expandedPanels.has('infrastructure')}
                           onToggle={() => togglePanel('infrastructure')}
-                          systemHealth={detailedMetrics?.system_details}
+                          systemHealth={detailedMetrics?.systemDetails}
                         />
                       </ErrorBoundary>
                     </section>
@@ -292,9 +293,9 @@ function App() {
                   <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Disk detail view failed to render.</div>}>
                     <DiskDetailView
                       detailedMetrics={detailedMetrics}
-                      storageIO={infrastructureData?.storage_io}
+                      storageIO={infrastructureData?.storageIo}
                       metricHistory={metricHistory}
-                      diskLastUpdated={infrastructureData?.timestamp}
+                      diskLastUpdated={infrastructureData?.timestamp ? timestampDate(infrastructureData.timestamp)?.toISOString() : undefined}
                       onBack={handleBackToDashboard}
                     />
                   </ErrorBoundary>

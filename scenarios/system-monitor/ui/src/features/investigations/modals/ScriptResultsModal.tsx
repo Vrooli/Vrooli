@@ -1,6 +1,9 @@
 import { CheckCircle, XCircle, Clock, Terminal } from 'lucide-react';
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
 import type { ScriptExecution } from '../../../types';
+import { ScriptExecutionStatus } from '../../../types';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
+import { formatDurationSeconds } from '../../../shared/utils/formatters';
 
 interface ScriptResultsModalProps {
   isOpen: boolean;
@@ -16,13 +19,13 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
 
   const getStatusIcon = () => {
     switch (execution.status) {
-      case 'completed':
-        return execution.exit_code === 0 && !execution.timed_out ?
+      case ScriptExecutionStatus.COMPLETED:
+        return execution.exitCode === 0 && !execution.timedOut ?
           <CheckCircle size={20} style={{ color: 'var(--color-success)' }} /> :
           <XCircle size={20} style={{ color: 'var(--color-error)' }} />;
-      case 'failed':
+      case ScriptExecutionStatus.FAILED:
         return <XCircle size={20} style={{ color: 'var(--color-error)' }} />;
-      case 'running':
+      case ScriptExecutionStatus.RUNNING:
         return <Clock size={20} style={{ color: 'var(--color-warning)' }} />;
       default:
         return <Terminal size={20} style={{ color: 'var(--color-info)' }} />;
@@ -31,11 +34,11 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
 
   const getStatusColor = () => {
     switch (execution.status) {
-      case 'completed':
-        return execution.exit_code === 0 && !execution.timed_out ? 'var(--color-success)' : 'var(--color-error)';
-      case 'failed':
+      case ScriptExecutionStatus.COMPLETED:
+        return execution.exitCode === 0 && !execution.timedOut ? 'var(--color-success)' : 'var(--color-error)';
+      case ScriptExecutionStatus.FAILED:
         return 'var(--color-error)';
-      case 'running':
+      case ScriptExecutionStatus.RUNNING:
         return 'var(--color-warning)';
       default:
         return 'var(--color-info)';
@@ -43,24 +46,16 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
   };
 
   const formatDuration = () => {
-    if (typeof execution.duration_seconds === 'number') {
-      const duration = Math.round(execution.duration_seconds);
-      if (duration < 1) return '< 1s';
-      if (duration < 60) return `${duration}s`;
-      if (duration < 3600) return `${Math.floor(duration / 60)}m ${duration % 60}s`;
-      return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
+    if (typeof execution.durationSeconds === 'number') {
+      return formatDurationSeconds(execution.durationSeconds);
     }
 
-    if (!execution.started_at) return 'Unknown';
+    if (!execution.startedAt) return 'Unknown';
 
-    const start = new Date(execution.started_at);
-    const end = execution.completed_at ? new Date(execution.completed_at) : new Date();
+    const start = timestampDate(execution.startedAt);
+    const end = execution.completedAt ? timestampDate(execution.completedAt) : new Date();
     const duration = Math.round((end.getTime() - start.getTime()) / 1000);
-
-    if (duration < 1) return '< 1s';
-    if (duration < 60) return `${duration}s`;
-    if (duration < 3600) return `${Math.floor(duration / 60)}m ${duration % 60}s`;
-    return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
+    return formatDurationSeconds(duration);
   };
 
   return (
@@ -81,7 +76,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
               color: 'var(--color-text-dim)',
               fontSize: 'var(--font-size-sm)'
             }}>
-              Script: {execution.script_id} | Execution ID: {execution.execution_id}
+              Script: {execution.scriptId} | Execution ID: {execution.executionId}
             </p>
           </div>
         </div>
@@ -104,14 +99,14 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             </span>
           </div>
 
-          {execution.exit_code !== undefined && (
+          {execution.exitCode !== undefined && (
             <div className="summary-stat">
               <span className="summary-stat-label">Exit Code:</span>
               <span className="summary-stat-value" style={{
-                color: execution.exit_code === 0 ? 'var(--color-success)' : 'var(--color-error)',
+                color: execution.exitCode === 0 ? 'var(--color-success)' : 'var(--color-error)',
                 fontFamily: 'var(--font-family-mono)'
               }}>
-                {execution.exit_code}
+                {execution.exitCode}
               </span>
             </div>
           )}
@@ -126,13 +121,13 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             </span>
           </div>
 
-          {execution.timed_out !== undefined && (
+          {execution.timedOut !== undefined && (
             <div className="summary-stat">
               <span className="summary-stat-label">Timed Out:</span>
               <span className="summary-stat-value" style={{
-                color: execution.timed_out ? 'var(--color-error)' : 'var(--color-text-bright)'
+                color: execution.timedOut ? 'var(--color-error)' : 'var(--color-text-bright)'
               }}>
-                {execution.timed_out ? 'Yes' : 'No'}
+                {execution.timedOut ? 'Yes' : 'No'}
               </span>
             </div>
           )}
@@ -143,7 +138,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
               color: 'var(--color-text)',
               fontSize: 'var(--font-size-sm)'
             }}>
-              {execution.started_at ? new Date(execution.started_at).toLocaleString() : 'Unknown'}
+              {execution.startedAt ? timestampDate(execution.startedAt).toLocaleString() : 'Unknown'}
             </span>
           </div>
         </div>
@@ -229,7 +224,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
         )}
 
         {/* No Output Message */}
-        {!stdoutContent && !stderrContent && execution.status === 'running' && (
+        {!stdoutContent && !stderrContent && execution.status === ScriptExecutionStatus.RUNNING && (
           <div style={{
             flex: 1,
             display: 'flex',
@@ -248,7 +243,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
           </div>
         )}
 
-        {!stdoutContent && !stderrContent && execution.status !== 'running' && (
+        {!stdoutContent && !stderrContent && execution.status !== ScriptExecutionStatus.RUNNING && (
           <div style={{
             flex: 1,
             display: 'flex',

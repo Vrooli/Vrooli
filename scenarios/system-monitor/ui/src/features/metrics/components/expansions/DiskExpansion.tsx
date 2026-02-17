@@ -1,5 +1,5 @@
 import type { DiskCardDetails } from '../../../../types';
-import { formatBytes } from '../../../../shared/utils/formatters';
+import { formatBytes, formatTime } from '../../../../shared/utils/formatters';
 
 interface DiskExpansionProps {
   details: DiskCardDetails;
@@ -7,8 +7,8 @@ interface DiskExpansionProps {
 
 export const DiskExpansion = ({ details }: DiskExpansionProps) => {
   const diskUsage = details.diskUsage;
-  const total = diskUsage?.total ?? 0;
-  const used = diskUsage?.used ?? 0;
+  const total = Number(diskUsage?.total ?? 0);
+  const used = Number(diskUsage?.used ?? 0);
   const freeBytes = Number.isFinite(total - used) ? total - used : undefined;
 
   return (
@@ -43,7 +43,7 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
             Utilization:
           </span>
           <span className="detail-value" style={{ color: 'var(--color-warning)' }}>
-            {diskUsage?.percent?.toFixed(1) ?? '\u2014'}%
+            {diskUsage?.percent?.toFixed(1) ?? '—'}%
           </span>
         </div>
       </div>
@@ -55,7 +55,7 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
               Disk Queue Depth:
             </span>
             <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-              {details.storageIO.disk_queue_depth?.toFixed(2) ?? '\u2014'}
+              {details.storageIO.diskQueueDepth?.toFixed(2) ?? '—'}
             </span>
           </div>
           <div className="detail-item">
@@ -63,7 +63,7 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
               I/O Wait:
             </span>
             <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-              {details.storageIO.io_wait_percent?.toFixed(1) ?? '\u2014'}%
+              {details.storageIO.ioWaitPercent?.toFixed(1) ?? '—'}%
             </span>
           </div>
           <div className="detail-item">
@@ -71,7 +71,7 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
               Read Throughput:
             </span>
             <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-              {details.storageIO.read_mb_per_sec?.toFixed(2) ?? '\u2014'} MB/s
+              {details.storageIO.readMbPerSec?.toFixed(2) ?? '—'} MB/s
             </span>
           </div>
           <div className="detail-item">
@@ -79,7 +79,7 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
               Write Throughput:
             </span>
             <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-              {details.storageIO.write_mb_per_sec?.toFixed(2) ?? '\u2014'} MB/s
+              {details.storageIO.writeMbPerSec?.toFixed(2) ?? '—'} MB/s
             </span>
           </div>
         </div>
@@ -91,7 +91,7 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
           color: 'var(--color-text-dim)',
           fontSize: 'var(--font-size-xs)'
         }}>
-          Updated {new Date(details.lastUpdated).toLocaleTimeString()}
+          Updated {formatTime(details.lastUpdated)}
         </div>
       )}
     </div>

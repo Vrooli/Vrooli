@@ -9,7 +9,6 @@ import (
 	"system-monitor-api/internal/repository/memory"
 )
 
-
 func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
@@ -18,26 +17,25 @@ func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 		},
 	}
 	repo := memory.NewRepository()
-	
+
 	svc := NewMonitorService(cfg, repo, nil) // Pass nil for alert service in tests
-	
+
 	// Test
 	ctx := context.Background()
 	metrics, err := svc.GetCurrentMetrics(ctx)
-	
 	// Assertions
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	
+
 	if metrics == nil {
-		t.Error("Expected metrics, got nil")
+		t.Fatal("Expected metrics, got nil")
 	}
-	
+
 	if metrics.CPUUsage < 0 || metrics.CPUUsage > 100 {
 		t.Errorf("Invalid CPU usage: %f", metrics.CPUUsage)
 	}
-	
+
 	if metrics.MemoryUsage < 0 || metrics.MemoryUsage > 100 {
 		t.Errorf("Invalid memory usage: %f", metrics.MemoryUsage)
 	}
@@ -51,14 +49,14 @@ func TestMonitorService_CollectorRegistration(t *testing.T) {
 		},
 	}
 	repo := memory.NewRepository()
-	
+
 	svc := NewMonitorService(cfg, repo, nil)
-	
+
 	// Test that collectors are registered
 	if svc.collectors == nil {
 		t.Error("Collectors not initialized")
 	}
-	
+
 	// Check for expected collectors
 	expectedCollectors := []string{"cpu", "memory", "network", "disk", "process"}
 	for _, name := range expectedCollectors {
@@ -80,24 +78,24 @@ func TestMonitorService_StartStop(t *testing.T) {
 		},
 	}
 	repo := memory.NewRepository()
-	
+
 	svc := NewMonitorService(cfg, repo, nil)
-	
+
 	// Start service
 	err := svc.Start()
 	if err != nil {
 		t.Fatalf("Failed to start service: %v", err)
 	}
-	
+
 	// Let it run briefly
 	time.Sleep(200 * time.Millisecond)
-	
+
 	// Stop service
 	svc.Stop()
-	
+
 	// Give it time to stop
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Service should be stopped (context canceled)
 	if svc.ctx == nil {
 		t.Fatal("Service context not initialized after Start()")

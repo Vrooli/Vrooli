@@ -1,16 +1,10 @@
 import type { Alert } from '../../types';
+import { formatTime } from '../utils/formatters';
+import { getStatusColor } from '../utils/colors';
 
 interface AlertPanelProps {
   alerts: Alert[];
 }
-
-const severityColor = (severity: string): string => {
-  switch (severity) {
-    case 'critical': return 'var(--color-error)';
-    case 'high': return 'var(--color-warning)';
-    default: return 'var(--color-info)';
-  }
-};
 
 export const AlertPanel = ({ alerts }: AlertPanelProps) => {
   return (
@@ -41,11 +35,11 @@ export const AlertPanel = ({ alerts }: AlertPanelProps) => {
               alignItems: 'stretch'
             }}>
               <div className="flex-row-between">
-                <span style={{ color: severityColor(alert.severity) }}>
+                <span style={{ color: getStatusColor(alert.severity) }}>
                   [{alert.severity.toUpperCase()}] {alert.category}
                 </span>
                 <span className="text-muted text-sm">
-                  {new Date(alert.timestamp).toLocaleTimeString()}
+                  {formatTime(alert.timestamp)}
                 </span>
               </div>
               <div style={{ marginTop: 'var(--spacing-xs)' }}>

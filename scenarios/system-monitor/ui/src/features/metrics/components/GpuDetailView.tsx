@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
 import { CircuitBoard } from 'lucide-react';
 
-import { formatMegabytes, formatPercentage } from '../../../shared/utils/formatters';
+import { formatPercentage } from '../../../shared/utils/formatters';
 import type {
   DetailedMetrics,
   MetricHistory,
   GPUMetrics
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
-import { buildSingleSeriesData } from './metricHelpers';
+import { buildSingleSeriesData } from '../../../shared/utils/chartData';
+import { GpuDeviceCard } from './GpuDeviceCard';
 
 export interface GpuDetailViewProps {
   detailedMetrics: DetailedMetrics | null;
@@ -17,19 +18,19 @@ export interface GpuDetailViewProps {
 }
 
 export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDetailViewProps) => {
-  const gpuMetrics: GPUMetrics | null = detailedMetrics?.gpu_details ?? null;
+  const gpuMetrics: GPUMetrics | null = detailedMetrics?.gpuDetails ?? null;
   const gpuHistory = useMemo(() => buildSingleSeriesData(metricHistory?.gpu), [metricHistory?.gpu]);
 
   const headline = gpuMetrics?.summary
-    ? `${gpuMetrics.summary.average_utilization_percent.toFixed(1)}% Avg`
+    ? `${gpuMetrics.summary.averageUtilizationPercent.toFixed(1)}% Avg`
     : 'Awaiting telemetry';
 
   const subheadParts: string[] = [];
-  if (gpuMetrics?.driver_version) {
-    subheadParts.push(`Driver ${gpuMetrics.driver_version}`);
+  if (gpuMetrics?.driverVersion) {
+    subheadParts.push(`Driver ${gpuMetrics.driverVersion}`);
   }
-  if (gpuMetrics?.primary_model) {
-    subheadParts.push(gpuMetrics.primary_model);
+  if (gpuMetrics?.primaryModel) {
+    subheadParts.push(gpuMetrics.primaryModel);
   }
 
   return (
@@ -55,18 +56,18 @@ export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDet
             <div className="metric-grid-auto">
               {[{
                 label: 'Devices',
-                value: String(gpuMetrics.summary.device_count)
+                value: String(gpuMetrics.summary.deviceCount)
               }, {
                 label: 'Average Utilization',
-                value: `${gpuMetrics.summary.average_utilization_percent.toFixed(1)}%`
+                value: `${gpuMetrics.summary.averageUtilizationPercent.toFixed(1)}%`
               }, {
                 label: 'Memory Used',
-                value: `${gpuMetrics.summary.used_memory_mb.toFixed(0)} / ${gpuMetrics.summary.total_memory_mb.toFixed(0)} MB`
+                value: `${gpuMetrics.summary.usedMemoryMb.toFixed(0)} / ${gpuMetrics.summary.totalMemoryMb.toFixed(0)} MB`
               }, {
                 label: 'Average Temperature',
-                value: gpuMetrics.summary.device_count > 0 && gpuMetrics.summary.average_temperature_c > 0
-                  ? `${gpuMetrics.summary.average_temperature_c.toFixed(1)}\u00B0C`
-                  : '\u2014'
+                value: gpuMetrics.summary.deviceCount > 0 && gpuMetrics.summary.averageTemperatureC > 0
+                  ? `${gpuMetrics.summary.averageTemperatureC.toFixed(1)}\u00B0C`
+                  : '—'
               }].map(stat => (
                 <div key={stat.label} className="pool-card">
                   <div className="detail-row-label mb-sm">
@@ -89,42 +90,7 @@ export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDet
             <div className="flex-col-gap-md">
               {gpuMetrics.devices.length > 0 ? (
                 gpuMetrics.devices.map(device => (
-                  <div key={device.uuid || device.index} className="gpu-device-card">
-                    <div className="flex-row-between" style={{ marginBottom: 'var(--spacing-sm)' }}>
-                      <span className="text-bright font-semibold">
-                        {device.name} (GPU {device.index})
-                      </span>
-                      <span className="text-accent text-sm">
-                        {device.utilization_percent.toFixed(1)}%
-                      </span>
-                    </div>
-
-                    <div className="gpu-stats-grid">
-                      <div>Memory: <span className="text-bright">{formatMegabytes(device.memory_used_mb)} / {formatMegabytes(device.memory_total_mb)}</span></div>
-                      <div>Memory Util: <span className="text-bright">{formatPercentage(device.memory_utilization_percent)}</span></div>
-                      <div>Temperature: <span className="text-bright">{device.temperature_c != null ? `${device.temperature_c.toFixed(1)}\u00B0C` : '\u2014'}</span></div>
-                      <div>Fan: <span className="text-bright">{device.fan_speed_percent != null ? `${device.fan_speed_percent.toFixed(0)}%` : '\u2014'}</span></div>
-                      <div>Power: <span className="text-bright">{device.power_draw_w != null ? `${device.power_draw_w.toFixed(1)} W` : '\u2014'}</span></div>
-                      <div>SM Clock: <span className="text-bright">{device.sm_clock_mhz != null ? `${device.sm_clock_mhz.toFixed(0)} MHz` : '\u2014'}</span></div>
-                      <div>Mem Clock: <span className="text-bright">{device.memory_clock_mhz != null ? `${device.memory_clock_mhz.toFixed(0)} MHz` : '\u2014'}</span></div>
-                    </div>
-
-                    {device.processes && device.processes.length > 0 && (
-                      <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                        <div className="text-dim-xs" style={{ marginBottom: '2px' }}>
-                          Processes
-                        </div>
-                        <div className="flex-col-gap-sm">
-                          {device.processes.map(process => (
-                            <div key={`${device.uuid || device.index}-${process.pid}`} className="flex-row-between text-bright text-xs">
-                              <span>{process.process_name} ({process.pid})</span>
-                              <span>{formatMegabytes(process.memory_used_mb)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <GpuDeviceCard key={device.uuid || device.index} device={device} variant="detail" />
                 ))
               ) : (
                 <div className="text-dim-sm">

@@ -1,8 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
+	"system-monitor-api/internal/convert"
+	"system-monitor-api/internal/httputil"
 	"system-monitor-api/internal/services"
 )
 
@@ -18,174 +21,122 @@ func NewSettingsHandler(settingsManager *services.SettingsManager) *SettingsHand
 	}
 }
 
-// SettingsResponse represents the API response for settings
-type SettingsResponse struct {
-	Success  bool                `json:"success"`
-	Settings *services.Settings  `json:"settings,omitempty"`
-	Error    string             `json:"error,omitempty"`
-}
-
-// MaintenanceStateRequest represents the request for maintenance state changes
-type MaintenanceStateRequest struct {
-	MaintenanceState string `json:"maintenanceState"`
-}
-
-// MaintenanceStateResponse represents the response for maintenance state operations
-type MaintenanceStateResponse struct {
-	Success          bool   `json:"success"`
-	MaintenanceState string `json:"maintenanceState,omitempty"`
-	Error           string `json:"error,omitempty"`
-}
-
 // GetSettings handles GET /api/settings
 func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
 	settings := h.settingsManager.GetSettings()
-	
-	response := SettingsResponse{
+
+	resp := &apipb.GetSettingsResponse{
 		Success:  true,
-		Settings: &settings,
+		Settings: convert.SettingsToProto(&settings),
 	}
-	
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	httputil.ProtoJSON(w, resp) //nolint:errcheck
 }
 
 // UpdateSettings handles PUT /api/settings
 func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
-	var newSettings services.Settings
-	if err := json.NewDecoder(r.Body).Decode(&newSettings); err != nil {
-		response := SettingsResponse{
-			Success: false,
-			Error:   "Invalid JSON payload",
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+	var reqPb apipb.UpdateSettingsRequest
+	if err := httputil.DecodeProtoJSON(r, &reqPb); err != nil {
+		httputil.ProtoJSONWithStatus(w, http.StatusBadRequest, &apipb.UpdateSettingsResponse{ //nolint:errcheck
+			Error: "Invalid JSON payload",
+		})
 		return
 	}
-	
+
+	newSettings := convert.ProtoToSettings(reqPb.Settings)
+	if newSettings == nil {
+		httputil.ProtoJSONWithStatus(w, http.StatusBadRequest, &apipb.UpdateSettingsResponse{ //nolint:errcheck
+			Error: "Settings are required",
+		})
+		return
+	}
+
 	// Validate settings
-	if err := h.validateSettings(&newSettings); err != nil {
-		response := SettingsResponse{
-			Success: false,
-			Error:   err.Error(),
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+	if err := h.validateSettings(newSettings); err != nil {
+		httputil.ProtoJSONWithStatus(w, http.StatusBadRequest, &apipb.UpdateSettingsResponse{ //nolint:errcheck
+			Error: err.Error(),
+		})
 		return
 	}
-	
+
 	// Update settings
-	if err := h.settingsManager.UpdateSettings(newSettings); err != nil {
-		response := SettingsResponse{
-			Success: false,
-			Error:   "Failed to update settings: " + err.Error(),
-		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
+	if err := h.settingsManager.UpdateSettings(*newSettings); err != nil {
+		httputil.ProtoJSONWithStatus(w, http.StatusInternalServerError, &apipb.UpdateSettingsResponse{ //nolint:errcheck
+			Error: "Failed to update settings: " + err.Error(),
+		})
 		return
 	}
-	
+
 	// Return updated settings
 	updatedSettings := h.settingsManager.GetSettings()
-	response := SettingsResponse{
+	resp := &apipb.UpdateSettingsResponse{
 		Success:  true,
-		Settings: &updatedSettings,
+		Settings: convert.SettingsToProto(&updatedSettings),
 	}
-	
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	httputil.ProtoJSON(w, resp) //nolint:errcheck
 }
 
 // ResetSettings handles POST /api/settings/reset
 func (h *SettingsHandler) ResetSettings(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
 	if err := h.settingsManager.ResetSettings(); err != nil {
-		response := SettingsResponse{
-			Success: false,
-			Error:   "Failed to reset settings: " + err.Error(),
-		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
+		httputil.ProtoJSONWithStatus(w, http.StatusInternalServerError, &apipb.ResetSettingsResponse{ //nolint:errcheck
+			Error: "Failed to reset settings: " + err.Error(),
+		})
 		return
 	}
-	
+
 	// Return reset settings
 	settings := h.settingsManager.GetSettings()
-	response := SettingsResponse{
+	resp := &apipb.ResetSettingsResponse{
 		Success:  true,
-		Settings: &settings,
+		Settings: convert.SettingsToProto(&settings),
 	}
-	
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	httputil.ProtoJSON(w, resp) //nolint:errcheck
 }
 
 // GetMaintenanceState handles GET /api/maintenance/state
 func (h *SettingsHandler) GetMaintenanceState(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
 	state := h.settingsManager.GetMaintenanceState()
-	
-	response := MaintenanceStateResponse{
+
+	resp := &apipb.GetMaintenanceStateResponse{
 		Success:          true,
 		MaintenanceState: state,
 	}
-	
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	httputil.ProtoJSON(w, resp) //nolint:errcheck
 }
 
 // SetMaintenanceState handles POST /api/maintenance/state
 func (h *SettingsHandler) SetMaintenanceState(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
-	var request MaintenanceStateRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		response := MaintenanceStateResponse{
-			Success: false,
-			Error:   "Invalid JSON payload",
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+	var reqPb apipb.SetMaintenanceStateRequest
+	if err := httputil.DecodeProtoJSON(r, &reqPb); err != nil {
+		httputil.ProtoJSONWithStatus(w, http.StatusBadRequest, &apipb.SetMaintenanceStateResponse{ //nolint:errcheck
+			Error: "Invalid JSON payload",
+		})
 		return
 	}
-	
+
 	// Validate maintenance state
-	if request.MaintenanceState != "active" && request.MaintenanceState != "inactive" {
-		response := MaintenanceStateResponse{
-			Success: false,
-			Error:   "Invalid maintenance state. Must be 'active' or 'inactive'",
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+	if reqPb.MaintenanceState != "active" && reqPb.MaintenanceState != "inactive" {
+		httputil.ProtoJSONWithStatus(w, http.StatusBadRequest, &apipb.SetMaintenanceStateResponse{ //nolint:errcheck
+			Error: "Invalid maintenance state. Must be 'active' or 'inactive'",
+		})
 		return
 	}
-	
+
 	// Update maintenance state
-	if err := h.settingsManager.SetMaintenanceState(request.MaintenanceState); err != nil {
-		response := MaintenanceStateResponse{
-			Success: false,
-			Error:   "Failed to update maintenance state: " + err.Error(),
-		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
+	if err := h.settingsManager.SetMaintenanceState(reqPb.MaintenanceState); err != nil {
+		httputil.ProtoJSONWithStatus(w, http.StatusInternalServerError, &apipb.SetMaintenanceStateResponse{ //nolint:errcheck
+			Error: "Failed to update maintenance state: " + err.Error(),
+		})
 		return
 	}
-	
+
 	// Return updated state
 	newState := h.settingsManager.GetMaintenanceState()
-	response := MaintenanceStateResponse{
+	resp := &apipb.SetMaintenanceStateResponse{
 		Success:          true,
 		MaintenanceState: newState,
 	}
-	
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	httputil.ProtoJSON(w, resp) //nolint:errcheck
 }
 
 // validateSettings validates the settings before applying them
@@ -203,7 +154,7 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	if settings.CooldownPeriodSeconds < 0 {
 		return &ValidationError{Field: "cooldown_period_seconds", Message: "must be greater than or equal to 0"}
 	}
-	
+
 	// Validate thresholds (must be between 0 and 100)
 	if settings.CPUThreshold < 0 || settings.CPUThreshold > 100 {
 		return &ValidationError{Field: "cpu_threshold", Message: "must be between 0 and 100"}
@@ -214,7 +165,7 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	if settings.DiskThreshold < 0 || settings.DiskThreshold > 100 {
 		return &ValidationError{Field: "disk_threshold", Message: "must be between 0 and 100"}
 	}
-	
+
 	// Validate reasonable ranges
 	if settings.MetricCollectionInterval > 3600 { // Max 1 hour
 		return &ValidationError{Field: "metric_collection_interval", Message: "must be less than or equal to 3600 seconds"}
@@ -228,7 +179,7 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	if settings.CooldownPeriodSeconds > 86400 { // Max 24 hours
 		return &ValidationError{Field: "cooldown_period_seconds", Message: "must be less than or equal to 86400 seconds"}
 	}
-	
+
 	return nil
 }
 

@@ -39,6 +39,7 @@ type ServerConfig struct {
 	Environment string
 	Version     string
 	ServiceName string
+	APIBaseURL  string
 }
 
 // DatabaseConfig contains database configuration
@@ -120,6 +121,7 @@ func Load() *Config {
 			Environment: getEnv("ENVIRONMENT", "development"),
 			Version:     getEnv("VERSION", "2.0.0"),
 			ServiceName: "system-monitor",
+			APIBaseURL:  getEnv("API_BASE_URL", ""),
 		},
 		Database: DatabaseConfig{
 			URL:                getEnv("DATABASE_URL", ""),
@@ -181,6 +183,10 @@ func Load() *Config {
 
 	if cfg.AgentManager.ProfileKey == "" {
 		cfg.AgentManager.ProfileKey = cfg.AgentManager.ProfileName
+	}
+
+	if cfg.Server.APIBaseURL == "" {
+		cfg.Server.APIBaseURL = fmt.Sprintf("http://localhost:%s", cfg.Server.APIPort)
 	}
 
 	cfg.validate()

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import type {
   MetricsResponse,
   DetailedMetrics,
@@ -55,23 +56,23 @@ export const MetricsGrid = ({
   }, [metricHistory?.diskRead, metricHistory?.diskWrite]);
 
   const diskDetails = useMemo<DiskCardDetails | undefined>(() => {
-    if (!detailedMetrics?.memory_details?.disk_usage) {
+    if (!detailedMetrics?.memoryDetails?.diskUsage) {
       return undefined;
     }
     return {
-      diskUsage: detailedMetrics.memory_details.disk_usage,
+      diskUsage: detailedMetrics.memoryDetails.diskUsage,
       storageIO: storageIO ?? undefined,
-      lastUpdated: diskLastUpdated ?? detailedMetrics.timestamp
+      lastUpdated: diskLastUpdated ?? (detailedMetrics.timestamp ? timestampDate(detailedMetrics.timestamp).toISOString() : undefined)
     };
   }, [detailedMetrics, storageIO, diskLastUpdated]);
 
   const gpuDetails = useMemo<GPUCardDetails | undefined>(() => {
-    if (!detailedMetrics?.gpu_details) {
+    if (!detailedMetrics?.gpuDetails) {
       return undefined;
     }
     return {
-      metrics: detailedMetrics.gpu_details,
-      lastUpdated: detailedMetrics.timestamp
+      metrics: detailedMetrics.gpuDetails,
+      lastUpdated: detailedMetrics.timestamp ? timestampDate(detailedMetrics.timestamp).toISOString() : undefined
     };
   }, [detailedMetrics]);
   
@@ -83,10 +84,10 @@ export const MetricsGrid = ({
         type="cpu"
         label="CPU USAGE"
         unit="%"
-        value={metrics?.cpu_usage ?? 0}
+        value={metrics?.cpuUsage ?? 0}
         isExpanded={expandedCards.has('cpu')}
         onToggle={() => onToggleCard('cpu')}
-        details={detailedMetrics?.cpu_details}
+        details={detailedMetrics?.cpuDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.cpu}
         historyWindowSeconds={metricHistory?.windowSeconds}
@@ -100,10 +101,10 @@ export const MetricsGrid = ({
         type="memory"
         label="MEMORY"
         unit="%"
-        value={metrics?.memory_usage ?? 0}
+        value={metrics?.memoryUsage ?? 0}
         isExpanded={expandedCards.has('memory')}
         onToggle={() => onToggleCard('memory')}
-        details={detailedMetrics?.memory_details}
+        details={detailedMetrics?.memoryDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.memory}
         historyWindowSeconds={metricHistory?.windowSeconds}
@@ -117,7 +118,7 @@ export const MetricsGrid = ({
         type="gpu"
         label="GPU"
         unit="%"
-        value={metrics?.gpu_usage ?? null}
+        value={metrics?.gpuUsage ?? null}
         isExpanded={expandedCards.has('gpu')}
         onToggle={() => onToggleCard('gpu')}
         details={gpuDetails}
@@ -152,10 +153,10 @@ export const MetricsGrid = ({
         type="network"
         label="NETWORK & CONNECTIONS"
         unit="#"
-        value={metrics?.tcp_connections ?? 0}
+        value={metrics?.tcpConnections ?? 0}
         isExpanded={expandedCards.has('network')}
         onToggle={() => onToggleCard('network')}
-        details={detailedMetrics?.network_details}
+        details={detailedMetrics?.networkDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.network}
         historyWindowSeconds={metricHistory?.windowSeconds}

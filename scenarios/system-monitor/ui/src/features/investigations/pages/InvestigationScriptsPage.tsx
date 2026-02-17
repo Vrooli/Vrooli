@@ -4,7 +4,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
-import { apiFetch } from '../../../shared/api/apiFetch';
+import { protoFetch } from '../../../shared/api/apiFetch';
+import { formatTimestampDisplay } from '../../../shared/utils/formatters';
+import { parseListScriptsResponse, parseGetScriptResponse } from '../../../shared/api/proto-contracts';
 import { ScriptListItem } from '../components/ScriptListItem';
 
 interface InvestigationScriptsPageProps {
@@ -108,8 +110,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     setLoading(true);
     setErrorMessage(null);
     try {
-      const data = await apiFetch<{ scripts?: InvestigationScript[] }>('/investigations/scripts');
-      const loaded: InvestigationScript[] = Array.isArray(data.scripts) ? data.scripts : [];
+      const data = await protoFetch('/investigations/scripts', parseListScriptsResponse);
+      const loaded: InvestigationScript[] = Array.isArray(data.scripts) ? [...data.scripts] : [];
       setScripts(loaded);
       if (loaded.length > 0) {
         const firstScript = loaded[0];
@@ -159,8 +161,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     }
     dispatch({ type: 'SET_FETCHING', fetching: true });
     try {
-      const data = await apiFetch<{ content?: string }>(`/investigations/scripts/${encodeURIComponent(script.id)}`);
-      const content = typeof data.content === 'string' ? data.content : '';
+      const data = await protoFetch(`/investigations/scripts/${encodeURIComponent(script.id)}`, parseGetScriptResponse);
+      const content = data.content ?? '';
       contentCache.current[script.id] = content;
       dispatch({ type: 'SET_CONTENT', content });
     } catch (error) {
@@ -170,17 +172,6 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
       dispatch({ type: 'SET_FETCHING', fetching: false });
     }
   }, []);
-
-  const formatTimestamp = (value?: string) => {
-    if (!value) {
-      return 'Unknown';
-    }
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return 'Unknown';
-    }
-    return parsed.toLocaleString();
-  };
 
   const handleScriptFieldChange = <K extends keyof InvestigationScript>(field: K, value: InvestigationScript[K]) => {
     dispatch({
@@ -250,8 +241,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     dispatch({ type: 'SET_SAVE_ERROR', error: null });
     if (!isDesktop) {
       try {
-        const data = await apiFetch<{ content?: string; script?: InvestigationScript }>(`/investigations/scripts/${encodeURIComponent(script.id)}`);
-        const content = typeof data.content === 'string' ? data.content : '';
+        const data = await protoFetch(`/investigations/scripts/${encodeURIComponent(script.id)}`, parseGetScriptResponse);
+        const content = data.content ?? '';
         onOpenScriptEditor(data.script ?? script, content, 'view');
       } catch (error) {
         console.error('Failed to load script:', error);
@@ -437,7 +428,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         <span>•</span>
                         <span>{currentScriptData.author}</span>
                         <span>•</span>
-                        <span>{formatTimestamp(currentScriptData.updated_at)}</span>
+                        <span>{formatTimestampDisplay(currentScriptData.updatedAt)}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
@@ -583,14 +574,14 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       <div className="detail-row">
                         <span className="detail-row-label">Created</span>
                         <span className="detail-row-value-sm">
-                          {formatTimestamp(scriptDraft?.created_at)}
+                          {formatTimestampDisplay(scriptDraft?.createdAt)}
                         </span>
                       </div>
 
                       <div className="detail-row">
                         <span className="detail-row-label">Updated</span>
                         <span className="detail-row-value-sm">
-                          {formatTimestamp(scriptDraft?.updated_at)}
+                          {formatTimestampDisplay(scriptDraft?.updatedAt)}
                         </span>
                       </div>
                     </div>
@@ -611,11 +602,11 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       </div>
                       <div className="detail-row">
                         <div className="detail-row-label">Created</div>
-                        <div className="detail-row-value-sm">{formatTimestamp(currentScriptData.created_at)}</div>
+                        <div className="detail-row-value-sm">{formatTimestampDisplay(currentScriptData.createdAt)}</div>
                       </div>
                       <div className="detail-row">
                         <div className="detail-row-label">Updated</div>
-                        <div className="detail-row-value-sm">{formatTimestamp(currentScriptData.updated_at)}</div>
+                        <div className="detail-row-value-sm">{formatTimestampDisplay(currentScriptData.updatedAt)}</div>
                       </div>
                       <div className="detail-row">
                         <div className="detail-row-label">Status</div>

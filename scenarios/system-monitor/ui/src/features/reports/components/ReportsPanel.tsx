@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { BarChart, TrendingUp, RefreshCw, Loader } from 'lucide-react';
 import type { SystemReport } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
+import { timestampDate, timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 export const ReportsPanel = () => {
   const [reports, setReports] = useState<SystemReport[]>([]);
@@ -31,25 +32,25 @@ export const ReportsPanel = () => {
         {
           id: 'daily-' + Date.now(),
           type: 'daily',
-          generated_at: new Date().toISOString(),
-          period_start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          period_end: new Date().toISOString(),
+          generatedAt: timestampFromDate(new Date()),
+          periodStart: timestampFromDate(new Date(Date.now() - 24 * 60 * 60 * 1000)),
+          periodEnd: timestampFromDate(new Date()),
           summary: {
-            total_alerts: 3,
-            avg_cpu_usage: 45.2,
-            avg_memory_usage: 67.8,
-            max_tcp_connections: 1247,
-            uptime_percentage: 99.8
+            totalAlerts: 3,
+            avgCpuUsage: 45.2,
+            avgMemoryUsage: 67.8,
+            maxTcpConnections: 1247,
+            uptimePercentage: 99.8
           },
           metrics: {
-            cpu_trend: [40, 42, 45, 48, 46, 44, 45],
-            memory_trend: [65, 66, 68, 70, 69, 67, 68],
-            network_trend: [1200, 1180, 1220, 1247, 1230, 1210, 1225],
+            cpuTrend: [40, 42, 45, 48, 46, 44, 45],
+            memoryTrend: [65, 66, 68, 70, 69, 67, 68],
+            networkTrend: [1200, 1180, 1220, 1247, 1230, 1210, 1225],
             timestamps: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00']
           },
           alerts: [
             {
-              timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+              timestamp: timestampFromDate(new Date(Date.now() - 6 * 60 * 60 * 1000)),
               severity: 'medium',
               category: 'CPU',
               message: 'CPU usage exceeded 80% for 5 minutes',
@@ -60,7 +61,7 @@ export const ReportsPanel = () => {
             'Consider upgrading CPU for better performance',
             'Monitor memory usage patterns during peak hours'
           ]
-        }
+        } as SystemReport
       ]);
     } catch (error) {
       console.error('Failed to load reports:', error);
@@ -95,27 +96,27 @@ export const ReportsPanel = () => {
       const newReport = {
         id: type + '-' + Date.now(),
         type: type,
-        generated_at: new Date().toISOString(),
-        period_start: new Date(Date.now() - (type === 'daily' ? 24 : 168) * 60 * 60 * 1000).toISOString(),
-        period_end: new Date().toISOString(),
+        generatedAt: timestampFromDate(new Date()),
+        periodStart: timestampFromDate(new Date(Date.now() - (type === 'daily' ? 24 : 168) * 60 * 60 * 1000)),
+        periodEnd: timestampFromDate(new Date()),
         summary: {
-          total_alerts: Math.floor(Math.random() * 10),
-          avg_cpu_usage: Math.random() * 100,
-          avg_memory_usage: Math.random() * 100,
-          max_tcp_connections: Math.floor(Math.random() * 2000) + 1000,
-          uptime_percentage: 95 + Math.random() * 5
+          totalAlerts: Math.floor(Math.random() * 10),
+          avgCpuUsage: Math.random() * 100,
+          avgMemoryUsage: Math.random() * 100,
+          maxTcpConnections: Math.floor(Math.random() * 2000) + 1000,
+          uptimePercentage: 95 + Math.random() * 5
         },
         metrics: {
-          cpu_trend: Array(7).fill(0).map(() => Math.random() * 100),
-          memory_trend: Array(7).fill(0).map(() => Math.random() * 100),
-          network_trend: Array(7).fill(0).map(() => Math.floor(Math.random() * 1000) + 1000),
-          timestamps: type === 'daily' 
+          cpuTrend: Array(7).fill(0).map(() => Math.random() * 100),
+          memoryTrend: Array(7).fill(0).map(() => Math.random() * 100),
+          networkTrend: Array(7).fill(0).map(() => Math.floor(Math.random() * 1000) + 1000),
+          timestamps: type === 'daily'
             ? ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00']
             : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         },
         alerts: [
           {
-            timestamp: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString(),
+            timestamp: timestampFromDate(new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000)),
             severity: (['low', 'medium', 'high'] as const)[Math.floor(Math.random() * 3)] ?? 'low',
             category: (['CPU', 'Memory', 'Network', 'Disk'] as const)[Math.floor(Math.random() * 4)] ?? 'CPU',
             message: 'System resource alert detected',
@@ -127,8 +128,8 @@ export const ReportsPanel = () => {
           'Consider resource optimization strategies',
           'Review alert thresholds for accuracy'
         ]
-      };
-      
+      } as SystemReport;
+
       if (!mountedRef.current) return;
       setReports(prev => [newReport, ...prev]);
       console.log(`${type} report generated successfully`);
@@ -220,7 +221,7 @@ export const ReportsPanel = () => {
                     {report.type} Report
                   </h4>
                   <p className="text-muted text-sm" style={{ margin: 0 }}>
-                    Generated: {new Date(report.generated_at).toLocaleString()}
+                    Generated: {report.generatedAt ? timestampDate(report.generatedAt).toLocaleString() : 'Unknown'}
                   </p>
                 </div>
 
@@ -233,30 +234,30 @@ export const ReportsPanel = () => {
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg CPU Usage:</span>
                   <span className="summary-stat-value" style={{ color: 'var(--color-text-bright)' }}>
-                    {report.summary.avg_cpu_usage.toFixed(1)}%
+                    {report.summary?.avgCpuUsage.toFixed(1)}%
                   </span>
                 </div>
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg Memory Usage:</span>
                   <span className="summary-stat-value" style={{ color: 'var(--color-text-bright)' }}>
-                    {report.summary.avg_memory_usage.toFixed(1)}%
+                    {report.summary?.avgMemoryUsage.toFixed(1)}%
                   </span>
                 </div>
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Total Alerts:</span>
                   <span className="summary-stat-value" style={{
-                    color: report.summary.total_alerts > 0 ? 'var(--color-warning)' : 'var(--color-success)'
+                    color: (report.summary?.totalAlerts ?? 0) > 0 ? 'var(--color-warning)' : 'var(--color-success)'
                   }}>
-                    {report.summary.total_alerts}
+                    {report.summary?.totalAlerts}
                   </span>
                 </div>
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Uptime:</span>
                   <span className="summary-stat-value" style={{ color: 'var(--color-success)' }}>
-                    {report.summary.uptime_percentage.toFixed(1)}%
+                    {report.summary?.uptimePercentage.toFixed(1)}%
                   </span>
                 </div>
               </div>

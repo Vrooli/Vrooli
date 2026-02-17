@@ -21,24 +21,7 @@ const normalizeStatus = (status?: string): string => {
   return status.toLowerCase();
 };
 
-const formatDuration = (startTime: string): string => {
-  const start = new Date(startTime);
-  if (Number.isNaN(start.getTime())) {
-    return 'unknown duration';
-  }
-  const seconds = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000));
-  if (seconds < 60) {
-    return `${seconds}s elapsed`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    const remaining = seconds % 60;
-    return `${minutes}m ${remaining}s elapsed`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m elapsed`;
-};
+import { formatDurationElapsed } from '../utils/formatters';
 
 const statusAccent = (status: string): string => {
   switch (status) {
@@ -216,7 +199,7 @@ export const AgentDropdown = ({
                     <div className="text-dim-xs agent-item-meta">
                       <div className="icon-text icon-text-xs">
                         <Clock size={12} />
-                        <span>{formatDuration(agent.startTime)}</span>
+                        <span>{formatDurationElapsed(agent.startTime)}</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <span>Mode: {agent.operationMode ?? 'report-only'}</span>

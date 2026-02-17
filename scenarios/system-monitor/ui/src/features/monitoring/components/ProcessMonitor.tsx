@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { ProcessMonitorData } from '../../../types';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import type { ProcessMonitorData, ProcessInfo } from '../../../types';
+import { apiFetch } from '../../../shared/api/apiFetch';
 import { ConfirmDialog } from '../../../shared/components/ConfirmDialog';
 import { ProcessAlertItem } from './ProcessAlertItem';
 
@@ -43,20 +43,9 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
     try {
       console.log(`Killing process ${processName} (PID: ${processPid})`);
 
-      const response = await fetch(buildApiUrl(`/processes/${processPid}/kill`), {
+      await apiFetch<{ message?: string }>(`/processes/${processPid}/kill`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
       });
-
-      const result = (await response.json()) as { error?: string; message?: string };
-
-      if (!response.ok) {
-        throw new Error(result.error ?? 'Failed to terminate process');
-      }
-
-      console.log('Process terminated successfully:', result.message);
 
       // Close dialog
       setConfirmDialog({ isOpen: false, processName: '', processPid: 0, processType: 'zombie' });
@@ -117,22 +106,22 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
                   <div className="stat-item">
                     <span className="stat-label">Total Processes:</span>
                     <span className="stat-value" style={{ color: 'var(--color-accent)' }}>
-                      {data.process_health.total_processes}
+                      {data.processHealth?.totalProcesses}
                     </span>
                   </div>
                   <div className="stat-item">
                     <span className="stat-label">Zombie Processes:</span>
                     <span className="stat-value" style={{ 
-                      color: (data.process_health.zombie_processes && data.process_health.zombie_processes.length > 0) ? 'var(--color-error)' : 'var(--color-success)'
+                      color: (data.processHealth?.zombieProcesses && data.processHealth?.zombieProcesses.length > 0) ? 'var(--color-error)' : 'var(--color-success)'
                     }}>
-                      {data.process_health.zombie_processes?.length ?? 0}
+                      {data.processHealth?.zombieProcesses?.length ?? 0}
                     </span>
                   </div>
                 </div>
                 
-                {data.process_health.zombie_processes && data.process_health.zombie_processes.length > 0 && (
+                {data.processHealth?.zombieProcesses && data.processHealth?.zombieProcesses.length > 0 && (
                   <div className="process-alerts">
-                    {data.process_health.zombie_processes.slice(0, 5).map(process => (
+                    {data.processHealth?.zombieProcesses.slice(0, 5).map((process: ProcessInfo) => (
                       <ProcessAlertItem
                         key={process.pid}
                         pid={process.pid}
@@ -150,7 +139,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
                   High Thread Count:
                 </h3>
                 <div className="thread-list">
-                  {(data.process_health.high_thread_count ?? []).slice(0, 5).map(process => (
+                  {(data.processHealth?.highThreadCount ?? []).slice(0, 5).map((process: ProcessInfo) => (
                     <ProcessAlertItem
                       key={process.pid}
                       pid={process.pid}
@@ -168,13 +157,13 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
                   Resource Leak Candidates:
                 </h3>
                 <div className="leak-list">
-                  {(data.process_health.leak_candidates ?? []).slice(0, 5).map(process => (
+                  {(data.processHealth?.leakCandidates ?? []).slice(0, 5).map((process: ProcessInfo) => (
                     <ProcessAlertItem
                       key={process.pid}
                       pid={process.pid}
                       name={process.name}
                       variant="leak_candidate"
-                      detail={`${process.memory_mb.toFixed(0)} MB`}
+                      detail={`${process.memoryMb.toFixed(0)} MB`}
                       onKill={handleKillProcess}
                     />
                   ))}

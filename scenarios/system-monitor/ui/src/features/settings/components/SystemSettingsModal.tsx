@@ -1,44 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, RotateCcw, AlertTriangle, CheckCircle, Settings, Activity } from 'lucide-react';
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
-import { apiFetch } from '../../../shared/api/apiFetch';
+import { protoFetch } from '../../../shared/api/apiFetch';
+import {
+  parseGetSettingsResponse,
+  parseUpdateSettingsResponse,
+  parseResetSettingsResponse,
+  SystemSettingsSchema,
+  toJsonString,
+  create,
+} from '../../../shared/api/proto-contracts';
+import type { MessageShape } from '@bufbuild/protobuf';
 
 interface SystemSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface SystemSettings {
-  active: boolean;
-  metric_collection_interval: number;
-  anomaly_detection_interval: number;
-  threshold_check_interval: number;
-  cooldown_period_seconds: number;
-  cpu_threshold: number;
-  memory_threshold: number;
-  disk_threshold: number;
-}
+type ProtoSettings = MessageShape<typeof SystemSettingsSchema>;
 
-interface SettingsResponse {
-  success: boolean;
-  settings?: SystemSettings;
-  error?: string;
-}
-
-const defaultSettings: SystemSettings = {
+const defaultSettings: ProtoSettings = create(SystemSettingsSchema, {
   active: false,
-  metric_collection_interval: 10,
-  anomaly_detection_interval: 30,
-  threshold_check_interval: 20,
-  cooldown_period_seconds: 300,
-  cpu_threshold: 85.0,
-  memory_threshold: 90.0,
-  disk_threshold: 85.0,
-};
+  metricCollectionInterval: 10,
+  anomalyDetectionInterval: 30,
+  thresholdCheckInterval: 20,
+  cooldownPeriodSeconds: 300,
+  cpuThreshold: 85.0,
+  memoryThreshold: 90.0,
+  diskThreshold: 85.0,
+});
 
 export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProps) => {
-  const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
-  const [originalSettings, setOriginalSettings] = useState<SystemSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ProtoSettings>(defaultSettings);
+  const [originalSettings, setOriginalSettings] = useState<ProtoSettings>(defaultSettings);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,10 +64,8 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const data = await apiFetch<SettingsResponse>('/settings');
-
+      const data = await protoFetch('/settings', parseGetSettingsResponse);
       if (data.success && data.settings) {
         setSettings(data.settings);
         setOriginalSettings(data.settings);
@@ -94,16 +86,12 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSaving(true);
     setError(null);
     setSuccessMessage(null);
-
     try {
-      const data = await apiFetch<SettingsResponse>('/settings', {
+      const data = await protoFetch('/settings', parseUpdateSettingsResponse, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(settings)
+        headers: { 'Content-Type': 'application/json' },
+        body: toJsonString(SystemSettingsSchema, settings),
       });
-
       if (data.success && data.settings) {
         setSettings(data.settings);
         setOriginalSettings(data.settings);
@@ -129,7 +117,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSuccessMessage(null);
 
     try {
-      const data = await apiFetch<SettingsResponse>('/settings/reset', {
+      const data = await protoFetch('/settings/reset', parseResetSettingsResponse, {
         method: 'POST'
       });
 
@@ -148,7 +136,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     }
   };
 
-  const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+  const hasChanges = toJsonString(SystemSettingsSchema, settings) !== toJsonString(SystemSettingsSchema, originalSettings);
 
   const handleClose = () => {
     if (hasChanges && !confirm('You have unsaved changes. Are you sure you want to close?')) {
@@ -270,10 +258,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     className="input-field"
                     min="5"
                     max="3600"
-                    value={settings.metric_collection_interval}
+                    value={settings.metricCollectionInterval}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
-                      metric_collection_interval: parseInt(e.target.value) || 10
+                      metricCollectionInterval: parseInt(e.target.value) || 10
                     }))}
                   />
                 </div>
@@ -285,10 +273,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     className="input-field"
                     min="10"
                     max="1800"
-                    value={settings.threshold_check_interval}
+                    value={settings.thresholdCheckInterval}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
-                      threshold_check_interval: parseInt(e.target.value) || 20
+                      thresholdCheckInterval: parseInt(e.target.value) || 20
                     }))}
                   />
                 </div>
@@ -300,10 +288,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     className="input-field"
                     min="30"
                     max="7200"
-                    value={settings.anomaly_detection_interval}
+                    value={settings.anomalyDetectionInterval}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
-                      anomaly_detection_interval: parseInt(e.target.value) || 30
+                      anomalyDetectionInterval: parseInt(e.target.value) || 30
                     }))}
                   />
                 </div>
@@ -332,10 +320,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="1"
                     max="100"
                     step="0.1"
-                    value={settings.cpu_threshold}
+                    value={settings.cpuThreshold}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
-                      cpu_threshold: parseFloat(e.target.value) || 85
+                      cpuThreshold: parseFloat(e.target.value) || 85
                     }))}
                   />
                 </div>
@@ -348,10 +336,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="1"
                     max="100"
                     step="0.1"
-                    value={settings.memory_threshold}
+                    value={settings.memoryThreshold}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
-                      memory_threshold: parseFloat(e.target.value) || 90
+                      memoryThreshold: parseFloat(e.target.value) || 90
                     }))}
                   />
                 </div>
@@ -364,10 +352,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="1"
                     max="100"
                     step="0.1"
-                    value={settings.disk_threshold}
+                    value={settings.diskThreshold}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
-                      disk_threshold: parseFloat(e.target.value) || 85
+                      diskThreshold: parseFloat(e.target.value) || 85
                     }))}
                   />
                 </div>
@@ -390,10 +378,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                   className="input-field"
                   min="0"
                   max="86400"
-                  value={settings.cooldown_period_seconds}
+                  value={settings.cooldownPeriodSeconds}
                   onChange={(e) => setSettings(prev => ({
                     ...prev,
-                    cooldown_period_seconds: parseInt(e.target.value) || 300
+                    cooldownPeriodSeconds: parseInt(e.target.value) || 300
                   }))}
                   style={{ width: '200px' }}
                 />

@@ -1,4 +1,5 @@
-import type { CPUMetrics } from '../../../../types';
+import type { CPUMetrics, ProcessInfo } from '../../../../types';
+import { formatOptionalNumber } from '../../../../shared/utils/formatters';
 
 interface CpuExpansionProps {
   details: CPUMetrics;
@@ -6,13 +7,13 @@ interface CpuExpansionProps {
 
 export const CpuExpansion = ({ details }: CpuExpansionProps) => (
   <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-    {(details.top_processes?.length ?? 0) > 0 && (
+    {(details.topProcesses?.length ?? 0) > 0 && (
       <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
         <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
           Top Processes by CPU:
         </h4>
         <div className="process-list">
-          {(details.top_processes ?? []).slice(0, 5).map((process) => (
+          {(details.topProcesses ?? []).slice(0, 5).map((process: ProcessInfo) => (
             <div key={process.pid} style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -21,7 +22,7 @@ export const CpuExpansion = ({ details }: CpuExpansionProps) => (
             }}>
               <span>{process.name} ({process.pid})</span>
               <span style={{ color: 'var(--color-accent)' }}>
-                {process.cpu_percent?.toFixed(1) ?? '\u2014'}%
+                {formatOptionalNumber(process.cpuPercent)}%
               </span>
             </div>
           ))}
@@ -35,7 +36,7 @@ export const CpuExpansion = ({ details }: CpuExpansionProps) => (
           Load Average:
         </span>
         <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-          {details.load_average?.slice(0, 3).map(load => load.toFixed(2)).join(', ') ?? '\u2014'}
+          {details.loadAverage?.slice(0, 3).map((load: number) => load.toFixed(2)).join(', ') ?? '—'}
         </span>
       </div>
       <div className="detail-item">
@@ -43,7 +44,7 @@ export const CpuExpansion = ({ details }: CpuExpansionProps) => (
           Context Switches:
         </span>
         <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-          {details.context_switches?.toLocaleString() ?? '\u2014'}
+          {details.contextSwitches?.toLocaleString() ?? '—'}
         </span>
       </div>
     </div>
@@ -53,7 +54,7 @@ export const CpuExpansion = ({ details }: CpuExpansionProps) => (
         Total Goroutines:
       </span>
       <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-        {details.total_goroutines ?? '\u2014'}
+        {details.totalGoroutines ?? '—'}
       </span>
     </div>
   </div>

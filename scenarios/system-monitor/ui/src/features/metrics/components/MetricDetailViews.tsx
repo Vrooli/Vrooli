@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { ArrowLeft } from 'lucide-react';
 
-import { formatTimeLabel } from '../../../shared/utils/formatters';
+import { formatTimeLabel, formatChartTime } from '../../../shared/utils/formatters';
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -75,17 +75,9 @@ export const MetricDetailLayout = ({ title, icon, headline, subhead, onBack, chi
 
 // ── Private Helpers ─────────────────────────────────────────────────────────
 
-const formatAxisTime = (timestamp: string) => {
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) {
-    return timestamp;
-  }
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
 const defaultValueFormatter = (unit?: string) => (value: number) => {
   if (!Number.isFinite(value)) {
-    return '\u2014';
+    return '—';
   }
   if (unit) {
     return `${value.toFixed(2)}${unit}`;
@@ -113,7 +105,7 @@ export const MetricLineChart = ({
           <XAxis
             dataKey="timestamp"
             stroke="var(--color-text-dim)"
-            tickFormatter={formatAxisTime}
+            tickFormatter={formatChartTime}
             minTickGap={20}
           />
           <YAxis

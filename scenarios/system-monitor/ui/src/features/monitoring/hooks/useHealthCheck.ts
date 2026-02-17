@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { apiFetch } from '../../../shared/api/apiFetch';
+// Note: health endpoint returns free-form JSON, no proto schema
+import { apiFetch, protoFetch } from '../../../shared/api/apiFetch';
+import { parseSetMaintenanceStateResponse } from '../../../shared/api/proto-contracts';
 import type { SystemHealthStatus } from './useSystemMonitor';
 
 export interface UseHealthCheckReturn {
@@ -50,7 +52,7 @@ export const useHealthCheck = (): UseHealthCheckReturn => {
     const nextState = isCurrentlyActive ? 'inactive' : 'active';
 
     try {
-      const data = await apiFetch<{ success?: boolean; error?: string }>('/maintenance/state', {
+      const data = await protoFetch('/maintenance/state', parseSetMaintenanceStateResponse, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ maintenanceState: nextState })

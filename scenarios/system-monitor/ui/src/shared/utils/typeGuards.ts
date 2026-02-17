@@ -2,11 +2,11 @@
  * Shared type-narrowing helpers for safely reading unknown payloads.
  */
 
-export const extractString = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
+/** Narrow an unknown value to string, or undefined. */
+export const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
-export const extractBoolean = (value: unknown): boolean | undefined =>
-  typeof value === 'boolean' ? value : undefined;
+/** Narrow an unknown value to number, or undefined. */
+export const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
 
-export const extractNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' ? value : undefined;
+/** Narrow an unknown value to boolean, or undefined. */
+export const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined);

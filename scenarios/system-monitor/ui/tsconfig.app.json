@@ -42,7 +42,9 @@
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
+    // Note: erasableSyntaxOnly removed — proto-generated types use `export enum`
+    // which TypeScript 5.8+ rejects under erasableSyntaxOnly. verbatimModuleSyntax
+    // already enforces type-only import/export constraints on our own source code.
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },

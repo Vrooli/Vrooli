@@ -84,7 +84,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	defer s.mu.Unlock()
 
 	// Check cooldown
-	if s.lastTrigger.IsZero() == false {
+	if !s.lastTrigger.IsZero() {
 		elapsed := time.Since(s.lastTrigger)
 		if elapsed < s.cooldownPeriod {
 			return nil, fmt.Errorf("investigation is in cooldown period. Please wait %d seconds", int((s.cooldownPeriod - elapsed).Seconds()))
@@ -100,7 +100,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	// Create investigation
 	investigation := &models.Investigation{
 		ID:        investigationID,
-		Status:    "queued",
+		Status:    models.StatusQueued,
 		AnomalyID: fmt.Sprintf("ai_investigation_%d", time.Now().Unix()),
 		StartTime: time.Now(),
 		Findings:  "Investigation queued for processing...",
@@ -140,7 +140,7 @@ func (s *InvestigationService) GetLatestInvestigation(ctx context.Context) (*mod
 		// Return default if none exists
 		return &models.Investigation{
 			ID:        "inv_default",
-			Status:    "pending",
+			Status:    models.StatusQueued,
 			AnomalyID: "none",
 			StartTime: time.Now(),
 			Findings:  "No investigations have been triggered yet. Click 'RUN ANOMALY CHECK' to start an investigation.",
@@ -179,7 +179,7 @@ func (s *InvestigationService) UpdateInvestigationStatus(ctx context.Context, id
 	}
 
 	investigation.Status = status
-	if status == "completed" || status == "failed" {
+	if status == models.StatusCompleted || status == models.StatusFailed {
 		now := time.Now()
 		investigation.EndTime = &now
 	}
@@ -195,10 +195,8 @@ func (s *InvestigationService) UpdateInvestigationFindings(ctx context.Context, 
 	}
 
 	investigation.Findings = findings
-	if details != nil {
-		for k, v := range details {
-			investigation.Details[k] = v
-		}
+	for k, v := range details {
+		investigation.Details[k] = v
 	}
 
 	return s.repo.UpdateInvestigation(ctx, investigation)
@@ -226,8 +224,12 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 	ctx := context.Background()
 
 	// Update status to in_progress
-	s.UpdateInvestigationStatus(ctx, investigationID, "in_progress")
-	s.UpdateInvestigationProgress(ctx, investigationID, 10)
+	if err := s.UpdateInvestigationStatus(ctx, investigationID, models.StatusInProgress); err != nil {
+		log.Printf("failed to update investigation status: %v", err)
+	}
+	if err := s.UpdateInvestigationProgress(ctx, investigationID, 10); err != nil {
+		log.Printf("failed to update investigation progress: %v", err)
+	}
 
 	// Collect current metrics for context
 	cpuUsage := s.getCPUUsage()
@@ -239,19 +241,27 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 	findings, details, ok := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
 
 	// Update investigation with findings
-	s.UpdateInvestigationFindings(ctx, investigationID, findings, details)
-	s.UpdateInvestigationProgress(ctx, investigationID, 100)
+	if err := s.UpdateInvestigationFindings(ctx, investigationID, findings, details); err != nil {
+		log.Printf("failed to update investigation findings: %v", err)
+	}
+	if err := s.UpdateInvestigationProgress(ctx, investigationID, 100); err != nil {
+		log.Printf("failed to update investigation progress: %v", err)
+	}
 	current, err := s.repo.GetInvestigation(ctx, investigationID)
 	if err == nil && current != nil {
 		status := strings.ToLower(strings.TrimSpace(current.Status))
-		if status == "stopped" || status == "cancelled" || status == "canceled" {
+		if models.IsTerminalStatus(status) {
 			return
 		}
 	}
 	if ok {
-		s.UpdateInvestigationStatus(ctx, investigationID, "completed")
+		if err := s.UpdateInvestigationStatus(ctx, investigationID, models.StatusCompleted); err != nil {
+			log.Printf("failed to update investigation status: %v", err)
+		}
 	} else {
-		s.UpdateInvestigationStatus(ctx, investigationID, "failed")
+		if err := s.UpdateInvestigationStatus(ctx, investigationID, models.StatusFailed); err != nil {
+			log.Printf("failed to update investigation status: %v", err)
+		}
 	}
 }
 
@@ -488,11 +498,7 @@ func removeConditionalSection(input, startToken, endToken string) string {
 }
 
 func (s *InvestigationService) resolveAPIBaseURL() string {
-	port := strings.TrimSpace(s.config.Server.APIPort)
-	if port == "" {
-		port = "8080"
-	}
-	return fmt.Sprintf("http://localhost:%s", port)
+	return s.config.Server.APIBaseURL
 }
 
 // Helper methods to get system metrics
@@ -646,7 +652,7 @@ func (s *InvestigationService) StopInvestigationAgent(ctx context.Context, id st
 		return err
 	}
 
-	if investigation.Status == "completed" || investigation.Status == "failed" || investigation.Status == "stopped" || investigation.Status == "cancelled" {
+	if models.IsTerminalStatus(investigation.Status) {
 		return nil
 	}
 
@@ -660,7 +666,7 @@ func (s *InvestigationService) StopInvestigationAgent(ctx context.Context, id st
 		}
 	}
 
-	return s.UpdateInvestigationStatus(ctx, id, "stopped")
+	return s.UpdateInvestigationStatus(ctx, id, models.StatusStopped)
 }
 
 // GetTriggers returns all trigger configurations
@@ -967,7 +973,7 @@ func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType
 // GetAgentStatus returns the current agent-manager status.
 func (s *InvestigationService) GetAgentStatus(ctx context.Context) (*AgentStatusResponse, error) {
 	status := &AgentStatusResponse{
-		Enabled:      s.agentSvc != nil && s.agentSvc.IsEnabled(),
+		Enabled: s.agentSvc != nil && s.agentSvc.IsEnabled(),
 	}
 
 	if !status.Enabled {
@@ -1047,7 +1053,10 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 	existingData, err := os.ReadFile(configPath)
 	var existingConfig map[string]interface{}
 	if err == nil {
-		json.Unmarshal(existingData, &existingConfig)
+		if err := json.Unmarshal(existingData, &existingConfig); err != nil {
+			log.Printf("failed to unmarshal existing config: %v", err)
+			existingConfig = make(map[string]interface{})
+		}
 	} else {
 		existingConfig = make(map[string]interface{})
 	}
@@ -1114,5 +1123,5 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0644)
+	return os.WriteFile(configPath, data, 0o644)
 }

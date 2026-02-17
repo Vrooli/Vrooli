@@ -2,19 +2,15 @@ import { useMemo } from 'react';
 import { MemoryStick } from 'lucide-react';
 
 import { DetailRow } from '../../../shared/components/DetailRow';
-import { formatBytes } from '../../../shared/utils/formatters';
+import { formatBytes, formatProtoTimestamp } from '../../../shared/utils/formatters';
 import type {
   MetricsResponse,
   DetailedMetrics,
   MetricHistory
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
-import { formatTimeLabel } from '../../../shared/utils/formatters';
-import {
-  buildSingleSeriesData,
-  renderProcessTable,
-  renderGrowthPatterns
-} from './metricHelpers';
+import { buildSingleSeriesData } from '../../../shared/utils/chartData';
+import { renderProcessTable, renderGrowthPatterns } from './MetricRenderHelpers';
 
 export interface MemoryDetailViewProps {
   metrics: MetricsResponse | null;
@@ -24,16 +20,16 @@ export interface MemoryDetailViewProps {
 }
 
 export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBack }: MemoryDetailViewProps) => {
-  const memoryUsage = detailedMetrics?.memory_details?.usage ?? metrics?.memory_usage ?? 0;
+  const memoryUsage = detailedMetrics?.memoryDetails?.usage ?? metrics?.memoryUsage ?? 0;
   const memoryData = useMemo(() => buildSingleSeriesData(metricHistory?.memory), [metricHistory?.memory]);
-  const memoryDetails = detailedMetrics?.memory_details;
+  const memoryDetails = detailedMetrics?.memoryDetails;
 
-  const swapUsage = memoryDetails?.swap_usage;
-  const growthPatterns = memoryDetails?.growth_patterns;
-  const topProcesses = memoryDetails?.top_processes;
+  const swapUsage = memoryDetails?.swapUsage;
+  const growthPatterns = memoryDetails?.growthPatterns;
+  const topProcesses = memoryDetails?.topProcesses;
 
   const subhead = detailedMetrics?.timestamp
-    ? `Updated ${formatTimeLabel(detailedMetrics.timestamp)}`
+    ? `Updated ${formatProtoTimestamp(detailedMetrics.timestamp)}`
     : undefined;
 
   return (
@@ -58,8 +54,8 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
           <h3 className="section-heading">Swap Activity</h3>
           {swapUsage ? (
             <div className="detail-grid detail-grid-md">
-              <DetailRow label="Swap Used" value={formatBytes(swapUsage.used)} />
-              <DetailRow label="Swap Total" value={formatBytes(swapUsage.total)} />
+              <DetailRow label="Swap Used" value={formatBytes(Number(swapUsage.used))} />
+              <DetailRow label="Swap Total" value={formatBytes(Number(swapUsage.total))} />
               <DetailRow label="Utilization" value={`${swapUsage.percent.toFixed(1)}%`} valueColor="var(--color-warning)" />
             </div>
           ) : (
@@ -85,7 +81,7 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
             Processes ranked by resident set size
           </div>
         </div>
-        {renderProcessTable(topProcesses, 'Memory (MB)', process => process.memory_mb)}
+        {renderProcessTable(topProcesses, 'Memory (MB)', process => process.memoryMb)}
       </div>
     </MetricDetailLayout>
   );

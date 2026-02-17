@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Investigation, InvestigationAgentState } from '../../../types';
+import { InvestigationStatus, INVESTIGATION_TERMINAL_STATUSES } from '../../../types';
 
 interface UseInvestigationsSectionStateParams {
   investigations: Investigation[];
@@ -24,9 +25,10 @@ export const useInvestigationsSectionState = ({
   const filteredInvestigations = useMemo(() => investigations.filter(inv => {
     if (!reportsSearch) return true;
     const searchLower = reportsSearch.toLowerCase();
+    const statusLabel = (InvestigationStatus[inv.status] ?? '').toLowerCase();
     return inv.id.toLowerCase().includes(searchLower) ||
            inv.findings?.toLowerCase().includes(searchLower) ||
-           inv.status?.toLowerCase().includes(searchLower);
+           statusLabel.includes(searchLower);
   }), [investigations, reportsSearch]);
 
   const combinedSpawnError = localSpawnError ?? spawnAgentError ?? null;
@@ -51,7 +53,7 @@ export const useInvestigationsSectionState = ({
     const runningCount = agents.filter(agent => {
       const status = agent.status?.toLowerCase?.();
       if (!status) return true;
-      return !['completed', 'error', 'failed', 'stopped', 'cancelled', 'canceled'].includes(status);
+      return !INVESTIGATION_TERMINAL_STATUSES.has(status);
     }).length;
 
     return {

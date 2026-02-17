@@ -4,6 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
 import type { InvestigationScript } from '../../../types';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 interface ScriptEditorModalProps {
   isOpen: boolean;
@@ -33,11 +34,11 @@ export const ScriptEditorModal = ({
     name: script?.name || '',
     description: script?.description || '',
     category: script?.category || 'performance',
-    created_at: script?.created_at || new Date().toISOString(),
-    updated_at: script?.updated_at || new Date().toISOString(),
+    createdAt: script?.createdAt ?? timestampFromDate(new Date()),
+    updatedAt: script?.updatedAt ?? timestampFromDate(new Date()),
     author: script?.author || 'user',
     enabled: script?.enabled ?? true
-  });
+  } as InvestigationScript);
 
   useEffect(() => {
     if (script) {

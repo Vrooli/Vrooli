@@ -1,6 +1,10 @@
 import type { Investigation } from '../../../types';
+import { InvestigationStatus } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import { apiFetch } from '../../../shared/api/apiFetch';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
+import { str, bool } from '../../../shared/utils/typeGuards';
+import { getRiskLevelColor } from '../../../shared/utils/colors';
 
 interface InvestigationsPanelProps {
   investigations: Investigation[];
@@ -10,17 +14,14 @@ interface InvestigationsPanelProps {
 export const InvestigationsPanel = ({ investigations, embedded = false }: InvestigationsPanelProps) => {
   const triggerInvestigation = async () => {
     try {
-      const response = await fetch(buildApiUrl('/investigations/trigger'), {
+      await apiFetch('/investigations/trigger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         }
       });
-      
-      if (response.ok) {
-        // TODO: Show success message or refresh investigations
-        console.log('Investigation triggered successfully');
-      }
+      // TODO: Show success message or refresh investigations
+      console.log('Investigation triggered successfully');
     } catch (error) {
       console.error('Failed to trigger investigation:', error);
     }
@@ -29,24 +30,19 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
   const renderInvestigationCard = (investigation: Investigation, options?: { compact?: boolean }) => {
     const compact = options?.compact ?? false;
     const details = (investigation.details ?? {}) as Record<string, unknown>;
-    const startTimeSource = investigation.start_time ?? investigation.timestamp ?? details['start_time'];
-    const formattedStart = typeof startTimeSource === 'string' && startTimeSource
-      ? new Date(startTimeSource).toLocaleString()
+    const formattedStart = investigation.startTime
+      ? timestampDate(investigation.startTime).toLocaleString()
       : 'Unknown';
-    const operationMode = typeof details['operation_mode'] === 'string' ? details['operation_mode'] : 'report-only';
-    const riskLevel = typeof details['risk_level'] === 'string' ? details['risk_level'] : undefined;
-    const agentModel = typeof details['agent_model'] === 'string' ? details['agent_model'] : undefined;
-    const agentResource = typeof details['agent_resource'] === 'string' ? details['agent_resource'] : undefined;
-    const userNote = typeof details['user_note'] === 'string' ? details['user_note'] : undefined;
-    const autoFix = Boolean(details['auto_fix']);
+    const operationMode = str(details['operation_mode']) ?? 'report-only';
+    const riskLevel = str(details['risk_level']);
+    const agentModel = str(details['agent_model']);
+    const agentResource = str(details['agent_resource']);
+    const userNote = str(details['user_note']);
+    const autoFix = bool(details['auto_fix']) ?? false;
     const progress = typeof investigation.progress === 'number' ? investigation.progress : undefined;
-    const confidenceScore = typeof investigation.confidence_score === 'number' ? investigation.confidence_score : undefined;
+    const confidenceScore = typeof investigation.confidenceScore === 'number' ? investigation.confidenceScore : undefined;
 
-    const riskColor = riskLevel === 'high'
-      ? 'var(--color-error)'
-      : riskLevel === 'medium'
-      ? 'var(--color-warning)'
-      : 'var(--color-success)';
+    const riskColor = getRiskLevelColor(riskLevel);
 
     return (
       <div
@@ -82,11 +78,11 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
               </span>
             )}
             <span style={{
-              color: investigation.status === 'completed'
+              color: investigation.status === InvestigationStatus.COMPLETED
                 ? 'var(--color-success)'
-                : investigation.status === 'in_progress'
+                : investigation.status === InvestigationStatus.IN_PROGRESS
                 ? 'var(--color-warning)'
-                : investigation.status === 'failed'
+                : investigation.status === InvestigationStatus.FAILED
                 ? 'var(--color-error)'
                 : 'var(--color-text-dim)',
               fontSize: 'var(--font-size-sm)',

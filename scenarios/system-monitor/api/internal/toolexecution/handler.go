@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"system-monitor-api/internal/httputil"
 )
 
 // Handler handles HTTP requests for tool execution.
@@ -28,12 +30,12 @@ func NewHandler(executor *ServerExecutor, log *slog.Logger) *Handler {
 func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	var req ExecuteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, "invalid request body", ErrorCodeInvalidArgs, http.StatusBadRequest)
+		h.jsonError(w, "invalid request body", ErrorCodeInvalidArgs, http.StatusBadRequest)
 		return
 	}
 
 	if req.ToolName == "" {
-		h.writeError(w, "tool_name is required", ErrorCodeInvalidArgs, http.StatusBadRequest)
+		h.jsonError(w, "tool_name is required", ErrorCodeInvalidArgs, http.StatusBadRequest)
 		return
 	}
 
@@ -42,7 +44,7 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	result, err := h.executor.Execute(r.Context(), req.ToolName, req.Arguments)
 	if err != nil {
 		h.log.Error("tool execution failed", "tool", req.ToolName, "error", err)
-		h.writeError(w, err.Error(), ErrorCodeInternalError, http.StatusInternalServerError)
+		h.jsonError(w, err.Error(), ErrorCodeInternalError, http.StatusInternalServerError)
 		return
 	}
 
@@ -67,23 +69,18 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.writeJSON(w, result, status)
-}
-
-// writeJSON writes a JSON response with the given status code.
-func (h *Handler) writeJSON(w http.ResponseWriter, data interface{}, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
+	if err := httputil.JSONWithStatus(w, status, result); err != nil {
 		h.log.Error("failed to encode response", "error", err)
 	}
 }
 
-// writeError writes a JSON error response.
-func (h *Handler) writeError(w http.ResponseWriter, message string, code string, status int) {
-	h.writeJSON(w, &ExecutionResult{
+// jsonError writes a JSON error response using an ExecutionResult envelope.
+func (h *Handler) jsonError(w http.ResponseWriter, message string, code string, status int) {
+	if err := httputil.JSONWithStatus(w, status, &ExecutionResult{
 		Success: false,
 		Error:   message,
 		Code:    code,
-	}, status)
+	}); err != nil {
+		h.log.Error("failed to encode error response", "error", err)
+	}
 }

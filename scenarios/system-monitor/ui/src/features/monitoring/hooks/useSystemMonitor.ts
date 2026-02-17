@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { timestampMs } from '@bufbuild/protobuf/wkt';
 import { buildApiUrl } from '../../../shared/api/apiBase';
-import { apiFetch, toApiError } from '../../../shared/api/apiFetch';
+import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
+import { toIsoString } from '../../../shared/utils/timestamps';
+import {
+  parseMetricsResponse,
+  parseDetailedMetrics,
+  parseProcessMonitorData,
+  parseInfrastructureMonitorData,
+  parseInvestigations,
+  parseGetMaintenanceStateResponse,
+  parseSetMaintenanceStateResponse,
+} from '../../../shared/api/proto-contracts';
 import { usePolling } from '../../../shared/hooks/usePolling';
 import { useHealthCheck } from './useHealthCheck';
 import { useMetricHistory } from './useMetricHistory';
@@ -13,6 +24,7 @@ import type {
   APIError
 } from '../../../types';
 
+// TODO: proto-back when health/maintenance protos exist
 export interface SystemHealthStatus {
   status?: string;
   service?: string;
@@ -47,13 +59,6 @@ interface UseSystemMonitorReturn {
 
 type MaintenanceState = 'active' | 'inactive' | string;
 
-interface MaintenanceStateResponse {
-  success?: boolean;
-  maintenanceState?: MaintenanceState;
-  maintenance_state?: MaintenanceState;
-  error?: string;
-}
-
 export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetrics | null>(null);
@@ -76,52 +81,47 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const { healthStatus, healthError, checkHealth, refreshHealth, toggleMonitoring } = useHealthCheck();
   const { metricHistory, fetchMetricsTimeline, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setError);
 
-  const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => {
-    try {
-      return await apiFetch<T>(url);
-    } catch (err) {
-      console.error(`API call failed for ${url}:`, err);
-      if (!mountedRef.current) return null;
-      setError(toApiError(err));
-      return null;
-    }
-  }, []);
-
   const fetchMetrics = useCallback(async () => {
     const url = uiBoostActive ? '/metrics/current?fresh=1' : '/metrics/current';
-    const data = await handleApiCall<MetricsResponse>(url);
-    if (data) {
+    try {
+      const data = await protoFetch(url, parseMetricsResponse);
+      if (!mountedRef.current) return;
       setMetrics(data);
       setError(null);
-      if (typeof data.gpu_usage === 'number' && Number.isFinite(data.gpu_usage)) {
-        const timestamp = data.timestamp ?? new Date().toISOString();
-        appendGpuPoint(timestamp, data.gpu_usage as number);
+      if (typeof data.gpuUsage === 'number' && Number.isFinite(data.gpuUsage)) {
+        appendGpuPoint(toIsoString(data.timestamp), data.gpuUsage);
       }
+    } catch (err) {
+      console.error(`API call failed for ${url}:`, err);
+      if (!mountedRef.current) return;
+      setError(toApiError(err));
     }
-  }, [handleApiCall, uiBoostActive, appendGpuPoint]);
+  }, [uiBoostActive, appendGpuPoint]);
 
   useEffect(() => {
     let cancelled = false;
 
     const activateMonitoring = async () => {
-      const state = await handleApiCall<MaintenanceStateResponse>('/maintenance/state');
-      if (cancelled || !state) {
-        return;
+      let currentState: MaintenanceState = 'inactive';
+      try {
+        const state = await protoFetch('/maintenance/state', parseGetMaintenanceStateResponse);
+        if (cancelled) return;
+        currentState = state.maintenanceState || 'inactive';
+      } catch (err) {
+        console.error('API call failed for /maintenance/state:', err);
+        if (cancelled) return;
       }
 
-      const currentState = state.maintenanceState ?? state.maintenance_state ?? 'inactive';
       maintenanceStateRef.current.previous = currentState;
 
       if (currentState !== 'active') {
         try {
-          const response = await fetch(buildApiUrl('/maintenance/state'), {
+          const resp = await protoFetch('/maintenance/state', parseSetMaintenanceStateResponse, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ maintenanceState: 'active' })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ maintenanceState: 'active' }),
           });
-          if (response.ok) {
+          if (resp.success) {
             maintenanceStateRef.current.activated = true;
           }
         } catch (postError) {
@@ -153,49 +153,63 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
         });
       }
     };
-  }, [handleApiCall]);
+  }, []);
 
   const fetchDetailedMetrics = useCallback(async () => {
-    const data = await handleApiCall<DetailedMetrics>('/metrics/detailed');
-    if (data) {
+    try {
+      const data = await protoFetch('/metrics/detailed', parseDetailedMetrics);
+      if (!mountedRef.current) return;
       setDetailedMetrics(data);
-      const diskPercent = data.memory_details?.disk_usage?.percent;
+      const diskPercent = data.memoryDetails?.diskUsage?.percent;
       if (typeof diskPercent === 'number' && Number.isFinite(diskPercent)) {
-        const timestamp = data.timestamp ?? new Date().toISOString();
-        appendDiskUsagePoint(timestamp, diskPercent);
+        appendDiskUsagePoint(toIsoString(data.timestamp), diskPercent);
       }
+    } catch (err) {
+      console.error('API call failed for /metrics/detailed:', err);
+      if (!mountedRef.current) return;
+      setError(toApiError(err));
     }
-  }, [handleApiCall, appendDiskUsagePoint]);
+  }, [appendDiskUsagePoint]);
 
   const fetchProcessMonitorData = useCallback(async () => {
-    const data = await handleApiCall<ProcessMonitorData>('/metrics/processes');
-    if (data) {
+    try {
+      const data = await protoFetch('/metrics/processes', parseProcessMonitorData);
+      if (!mountedRef.current) return;
       setProcessMonitorData(data);
+    } catch (err) {
+      console.error('API call failed for /metrics/processes:', err);
+      if (!mountedRef.current) return;
+      setError(toApiError(err));
     }
-  }, [handleApiCall]);
+  }, []);
 
   const fetchInfrastructureData = useCallback(async () => {
-    const data = await handleApiCall<InfrastructureMonitorData>('/metrics/infrastructure');
-    if (data) {
+    try {
+      const data = await protoFetch('/metrics/infrastructure', parseInfrastructureMonitorData);
+      if (!mountedRef.current) return;
       setInfrastructureData(data);
-      const { storage_io, timestamp } = data;
-      if (storage_io) {
-        const recordTimestamp = timestamp ?? new Date().toISOString();
-        const readRate = Number(storage_io.read_mb_per_sec);
-        const writeRate = Number(storage_io.write_mb_per_sec);
+      const { storageIo, timestamp } = data;
+      if (storageIo) {
+        const readRate = Number(storageIo.readMbPerSec);
+        const writeRate = Number(storageIo.writeMbPerSec);
         if (Number.isFinite(readRate) || Number.isFinite(writeRate)) {
-          appendDiskPoints(recordTimestamp, readRate, writeRate);
+          appendDiskPoints(toIsoString(timestamp), readRate, writeRate);
         }
       }
+    } catch (err) {
+      console.error('API call failed for /metrics/infrastructure:', err);
+      if (!mountedRef.current) return;
+      setError(toApiError(err));
     }
-  }, [handleApiCall, appendDiskPoints]);
+  }, [appendDiskPoints]);
 
   const fetchInvestigations = useCallback(async () => {
-    const data = await handleApiCall<Investigation[]>('/investigations?limit=10');
-    if (Array.isArray(data)) {
+    try {
+      const data = await protoFetch('/investigations?limit=10', parseInvestigations);
+      if (!mountedRef.current) return;
       const sorted = [...data].sort((a, b) => {
-        const aTime = Date.parse(a.start_time ?? a.timestamp ?? '');
-        const bTime = Date.parse(b.start_time ?? b.timestamp ?? '');
+        const aTime = a.startTime ? timestampMs(a.startTime) : NaN;
+        const bTime = b.startTime ? timestampMs(b.startTime) : NaN;
         return isNaN(bTime) && isNaN(aTime)
           ? 0
           : isNaN(bTime)
@@ -205,8 +219,12 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
           : bTime - aTime;
       });
       setInvestigations(sorted);
+    } catch (err) {
+      console.error('API call failed for /investigations:', err);
+      if (!mountedRef.current) return;
+      setError(toApiError(err));
     }
-  }, [handleApiCall]);
+  }, []);
 
   const refreshMetrics = useCallback(async () => {
     await Promise.all([

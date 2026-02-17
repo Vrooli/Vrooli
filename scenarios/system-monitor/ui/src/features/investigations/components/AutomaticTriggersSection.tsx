@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Shield, Clock, RefreshCw, AlertCircle, Cpu, HardDrive, Network, Database, Zap, X, Save } from 'lucide-react';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import { apiFetch, protoFetch } from '../../../shared/api/apiFetch';
+import {
+  parseGetTriggersResponse,
+  parseGetCooldownStatusResponse,
+} from '../../../shared/api/proto-contracts';
+import { TriggerCondition } from '../../../types/api';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { usePolling } from '../../../shared/hooks/usePolling';
+import { formatDurationSeconds } from '../../../shared/utils/formatters';
 
-interface TriggerConfig {
+interface TriggerCardConfig {
   id: string;
   name: string;
   description: string;
@@ -17,33 +24,12 @@ interface TriggerConfig {
   progress?: number;
 }
 
-interface TriggerApiResponse {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  enabled: boolean;
-  auto_fix: boolean;
-  threshold: number;
-  unit: string;
-  condition: 'above' | 'below';
-  current_value?: number;
-  progress?: number;
-}
-
-interface CooldownApiResponse {
-  cooldown_period_seconds: number;
-  remaining_seconds: number;
-  last_trigger_time: string;
-  is_ready: boolean;
-}
-
 interface AutomaticTriggersSectionProps {
-  onUpdateTrigger: (triggerId: string, config: Partial<TriggerConfig>) => void;
+  onUpdateTrigger: (triggerId: string, config: Partial<TriggerCardConfig>) => void;
 }
 
 export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersSectionProps) => {
-  const [triggers, setTriggers] = useState<TriggerConfig[]>([]);
+  const [triggers, setTriggers] = useState<TriggerCardConfig[]>([]);
   const cooldownUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cooldownStatus, setCooldownStatus] = useState({
     cooldownPeriodSeconds: 300,
@@ -86,6 +72,10 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     }
   }, []);
 
+  const conditionToString = (cond: TriggerCondition): 'above' | 'below' => {
+    return cond === TriggerCondition.BELOW ? 'below' : 'above';
+  };
+
   const loadData = useCallback(async (options: { suppressLoading?: boolean } = {}) => {
     const { suppressLoading = false } = options;
     try {
@@ -93,40 +83,39 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
         setLoading(true);
       }
 
-      // Load triggers and cooldown status
-      const [triggersResponse, cooldownResponse] = await Promise.all([
-        fetch(buildApiUrl('/investigations/triggers')),
-        fetch(buildApiUrl('/investigations/cooldown'))
+      // Load triggers and cooldown status in parallel
+      const [triggersResult, cooldownResult] = await Promise.allSettled([
+        protoFetch('/investigations/triggers', parseGetTriggersResponse),
+        protoFetch('/investigations/cooldown', parseGetCooldownStatusResponse),
       ]);
-      
-      if (triggersResponse.ok) {
-        const triggersData = (await triggersResponse.json()) as Record<string, TriggerApiResponse>;
-        // Convert API data to UI format
-        const uiTriggers = Object.values(triggersData).map((trigger) => ({
+
+      if (triggersResult.status === 'fulfilled') {
+        const triggersMap = triggersResult.value.triggers;
+        const uiTriggers: TriggerCardConfig[] = Object.values(triggersMap).map((trigger) => ({
           id: trigger.id,
           name: trigger.name,
           description: trigger.description,
           icon: getIconComponent(trigger.icon),
           enabled: trigger.enabled,
-          autoFix: trigger.auto_fix,
+          autoFix: trigger.autoFix,
           threshold: trigger.threshold,
           unit: trigger.unit,
-          condition: trigger.condition,
-          currentValue: typeof trigger.current_value === 'number' ? trigger.current_value : undefined,
-          progress: typeof trigger.progress === 'number' ? trigger.progress : undefined
+          condition: conditionToString(trigger.condition),
         }));
-        setTriggers(uiTriggers as TriggerConfig[]);
+        setTriggers(uiTriggers);
       }
-      
-      if (cooldownResponse.ok) {
-        const cooldownData = (await cooldownResponse.json()) as CooldownApiResponse;
-        setCooldownStatus({
-          cooldownPeriodSeconds: cooldownData.cooldown_period_seconds,
-          remainingSeconds: cooldownData.remaining_seconds,
-          lastTriggerTime: new Date(cooldownData.last_trigger_time),
-          isReady: cooldownData.is_ready
-        });
-        setLocalCooldownValue(cooldownData.cooldown_period_seconds);
+
+      if (cooldownResult.status === 'fulfilled') {
+        const cooldown = cooldownResult.value.cooldown;
+        if (cooldown) {
+          setCooldownStatus({
+            cooldownPeriodSeconds: cooldown.cooldownPeriodSeconds,
+            remainingSeconds: cooldown.remainingSeconds,
+            lastTriggerTime: cooldown.lastTriggerTime ? timestampDate(cooldown.lastTriggerTime) : new Date(),
+            isReady: cooldown.isReady,
+          });
+          setLocalCooldownValue(cooldown.cooldownPeriodSeconds);
+        }
       }
     } catch (error) {
       console.error('Failed to load trigger data:', error);
@@ -152,21 +141,17 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     try {
       const trigger = triggers.find(t => t.id === triggerId);
       if (!trigger) return;
-      
-      const response = await fetch(buildApiUrl(`/investigations/triggers/${triggerId}`), {
+
+      await apiFetch(`/investigations/triggers/${triggerId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !trigger.enabled })
+        body: JSON.stringify({ enabled: !trigger.enabled }),
       });
-      
-      if (response.ok) {
-        setTriggers(prev => prev.map(t => 
-          t.id === triggerId ? { ...t, enabled: !t.enabled } : t
-        ));
-        onUpdateTrigger(triggerId, { enabled: !trigger.enabled });
-      } else {
-        console.error('Failed to update trigger');
-      }
+
+      setTriggers(prev => prev.map(t =>
+        t.id === triggerId ? { ...t, enabled: !t.enabled } : t
+      ));
+      onUpdateTrigger(triggerId, { enabled: !trigger.enabled });
     } catch (error) {
       console.error('Failed to update trigger:', error);
     }
@@ -176,21 +161,17 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     try {
       const trigger = triggers.find(t => t.id === triggerId);
       if (!trigger) return;
-      
-      const response = await fetch(buildApiUrl(`/investigations/triggers/${triggerId}`), {
+
+      await apiFetch(`/investigations/triggers/${triggerId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ auto_fix: !trigger.autoFix })
+        body: JSON.stringify({ auto_fix: !trigger.autoFix }),
       });
-      
-      if (response.ok) {
-        setTriggers(prev => prev.map(t => 
-          t.id === triggerId ? { ...t, autoFix: !t.autoFix } : t
-        ));
-        onUpdateTrigger(triggerId, { autoFix: !trigger.autoFix });
-      } else {
-        console.error('Failed to update trigger auto-fix');
-      }
+
+      setTriggers(prev => prev.map(t =>
+        t.id === triggerId ? { ...t, autoFix: !t.autoFix } : t
+      ));
+      onUpdateTrigger(triggerId, { autoFix: !trigger.autoFix });
     } catch (error) {
       console.error('Failed to update trigger auto-fix:', error);
     }
@@ -198,50 +179,35 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   const handleUpdateCooldownPeriod = async (newPeriodSeconds: number) => {
     try {
-      const response = await fetch(buildApiUrl('/investigations/cooldown/period'), {
+      await apiFetch('/investigations/cooldown/period', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          cooldown_period_seconds: newPeriodSeconds
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cooldown_period_seconds: newPeriodSeconds }),
       });
-      
-      if (response.ok) {
-        setCooldownStatus(prev => ({
-          ...prev,
-          cooldownPeriodSeconds: newPeriodSeconds
-        }));
-      } else {
-        console.error('Failed to update cooldown period:', response.status);
-        // Revert local value on failure
-        setLocalCooldownValue(cooldownStatus.cooldownPeriodSeconds);
-      }
+
+      setCooldownStatus(prev => ({
+        ...prev,
+        cooldownPeriodSeconds: newPeriodSeconds,
+      }));
     } catch (error) {
       console.error('Failed to update cooldown period:', error);
-      // Revert local value on error
       setLocalCooldownValue(cooldownStatus.cooldownPeriodSeconds);
     }
   };
 
   const handleUpdateTriggerThreshold = async (triggerId: string, newThreshold: number) => {
     try {
-      const response = await fetch(buildApiUrl(`/investigations/triggers/${triggerId}/threshold`), {
+      await apiFetch(`/investigations/triggers/${triggerId}/threshold`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ threshold: newThreshold })
+        body: JSON.stringify({ threshold: newThreshold }),
       });
-      
-      if (response.ok) {
-        setTriggers(prev => prev.map(t => 
-          t.id === triggerId ? { ...t, threshold: newThreshold } : t
-        ));
-        setEditingTrigger(null);
-        setEditValues({});
-      } else {
-        console.error('Failed to update trigger threshold');
-      }
+
+      setTriggers(prev => prev.map(t =>
+        t.id === triggerId ? { ...t, threshold: newThreshold } : t
+      ));
+      setEditingTrigger(null);
+      setEditValues({});
     } catch (error) {
       console.error('Failed to update trigger threshold:', error);
     }
@@ -249,19 +215,15 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   const handleResetCooldown = async () => {
     try {
-      const response = await fetch(buildApiUrl('/investigations/cooldown/reset'), {
-        method: 'POST'
+      await apiFetch('/investigations/cooldown/reset', {
+        method: 'POST',
       });
-      
-      if (response.ok) {
-        setCooldownStatus(prev => ({
-          ...prev,
-          remainingSeconds: 0,
-          isReady: true
-        }));
-      } else {
-        console.error('Failed to reset cooldown');
-      }
+
+      setCooldownStatus(prev => ({
+        ...prev,
+        remainingSeconds: 0,
+        isReady: true,
+      }));
     } catch (error) {
       console.error('Failed to reset cooldown:', error);
     }
@@ -271,12 +233,6 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatCooldownPeriod = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    return `${Math.floor(seconds / 3600)}h`;
   };
 
   if (loading) {
@@ -390,7 +346,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                 fontFamily: 'var(--font-family-mono)',
                 minWidth: '50px'
               }}>
-                {formatCooldownPeriod(localCooldownValue)}
+                {formatDurationSeconds(localCooldownValue)}
               </span>
             </div>
 

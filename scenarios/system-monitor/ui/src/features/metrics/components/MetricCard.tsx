@@ -10,6 +10,7 @@ import type {
 } from '../../../types';
 import { MetricSparkline } from './MetricSparkline';
 import { expansionMap } from './expansions';
+import { formatWindowLabel } from '../../../shared/utils/formatters';
 
 interface MetricCardProps {
   type: CardType;
@@ -91,18 +92,6 @@ export const MetricCard = ({
 
   const sparklineThreshold = typeof threshold === 'number' ? threshold : defaultThresholds[type];
 
-  const formatWindowLabel = (seconds?: number): string | undefined => {
-    if (!seconds) return undefined;
-    if (seconds < 60) {
-      return `Past ${seconds}s`;
-    }
-    const minutes = seconds / 60;
-    if (Number.isInteger(minutes)) {
-      return `Past ${minutes.toFixed(0)}m`;
-    }
-    return `Past ${minutes.toFixed(1)}m`;
-  };
-
   const sparklineUnit = (() => {
     if (historyUnit) {
       return historyUnit;
@@ -154,7 +143,7 @@ export const MetricCard = ({
       </div>
 
       <div className="metric-value" style={{ color: getValueColor() }}>
-        {resolvedValue !== null ? resolvedValue.toFixed(1) : '\u2014'}
+        {resolvedValue !== null ? resolvedValue.toFixed(1) : '—'}
       </div>
 
       {history && history.length > 0 ? (
