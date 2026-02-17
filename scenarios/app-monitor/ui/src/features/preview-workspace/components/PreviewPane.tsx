@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
@@ -43,7 +43,6 @@ import './PreviewPane.css';
 export interface PreviewPaneProps {
   paneId: string;
   appId: string | null;
-  apps: App[];
   isFocused: boolean;
   isArrangeMode: boolean;
   isBeingDragged: boolean;
@@ -53,10 +52,9 @@ export interface PreviewPaneProps {
   onArrangeDragStart: (paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
-export function PreviewPane({
+const PreviewPane = memo(function PreviewPane({
   paneId,
   appId,
-  apps,
   isFocused,
   isArrangeMode,
   isBeingDragged,
@@ -66,6 +64,7 @@ export function PreviewPane({
   onArrangeDragStart,
 }: PreviewPaneProps) {
   const { openOverlay } = useOverlayRouter();
+  const apps = useAppsStore((state) => state.apps);
   const setAppsState = useAppsStore((state) => state.setAppsState);
   const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
   const workspaceZoom = usePreviewWorkspaceStore((state) => state.workspaceZoom);
@@ -521,14 +520,12 @@ export function PreviewPane({
     },
   });
 
+  const lifecycleToggleLabels = useMemo(() => ({ start: 'Start app', stop: 'Stop app' }), []);
   const lifecycle = usePreviewAppLifecycle({
     currentApp,
     setStatusMessage,
     failureMessageForAction: (action) => `Unable to ${action} this application. Check logs for details.`,
-    toggleLabels: {
-      start: 'Start app',
-      stop: 'Stop app',
-    },
+    toggleLabels: lifecycleToggleLabels,
     restartLabel: 'Restart app',
     onSuccess: async ({ appId: currentAppId, action }) => {
       const refreshed = await appService.getApp(currentAppId);
@@ -552,7 +549,41 @@ export function PreviewPane({
     },
   });
 
-  const paneActions = (
+  const scenarioActionIdentifier = resolvedAppIdentifier;
+
+  const handleOpenDetails = useCallback(() => {
+    setIsDetailsOpen(true);
+  }, []);
+
+  const handleToggleApp = useCallback(() => {
+    if (currentApp) {
+      void lifecycle.handleToggleCurrentApp();
+      return;
+    }
+    if (scenarioActionIdentifier) {
+      void lifecycle.runAction(scenarioActionIdentifier, 'start');
+    }
+  }, [currentApp, lifecycle, scenarioActionIdentifier]);
+
+  const handleRestartApp = useCallback(() => {
+    if (currentApp) {
+      void lifecycle.handleRestartCurrentApp();
+      return;
+    }
+    if (scenarioActionIdentifier) {
+      void lifecycle.runAction(scenarioActionIdentifier, 'restart');
+    }
+  }, [currentApp, lifecycle, scenarioActionIdentifier]);
+
+  const handleToggleLogs = useCallback(() => {
+    setIsLogsVisible((value) => !value);
+  }, []);
+
+  const handleToggleFullView = useCallback(() => {
+    setIsFullView((value) => !value);
+  }, []);
+
+  const paneActions = useMemo(() => (
     <>
       {isArrangeMode && !isFullView && !isSmallScreen && (
         <button
@@ -577,7 +608,7 @@ export function PreviewPane({
         </button>
       )}
     </>
-  );
+  ), [isArrangeMode, isFullView, isSmallScreen, canRemove, onArrangeDragStart, onRemove, paneId]);
 
   const isAppRunning = lifecycle.isAppRunning;
   const toggleActionLabel = lifecycle.toggleActionLabel;
@@ -601,7 +632,6 @@ export function PreviewPane({
     currentApp?.id ?? resolvedAppIdentifier ?? null,
     { preload: isDetailsOpen },
   );
-  const scenarioActionIdentifier = resolvedAppIdentifier;
   const modalFallbackApp = useMemo(() => {
     if (!resolvedAppIdentifier) {
       return null;
@@ -632,7 +662,7 @@ export function PreviewPane({
         onGoForward={handleGoForward}
         onRefresh={onRefresh}
         isRefreshing={metadataLoadingFromHydration || isIframeLoading}
-        onOpenDetails={() => setIsDetailsOpen(true)}
+        onOpenDetails={handleOpenDetails}
         previewUrlInput={previewUrlInput}
         onPreviewUrlInputChange={handleUrlInputChange}
         onPreviewUrlInputBlur={handleUrlInputBlur}
@@ -647,31 +677,15 @@ export function PreviewPane({
         pendingAction={lifecycle.pendingAction}
         actionInProgress={actionInProgress}
         toggleActionLabel={toggleActionLabel}
-        onToggleApp={() => {
-          if (currentApp) {
-            void lifecycle.handleToggleCurrentApp();
-            return;
-          }
-          if (scenarioActionIdentifier) {
-            void lifecycle.runAction(scenarioActionIdentifier, 'start');
-          }
-        }}
+        onToggleApp={handleToggleApp}
         restartActionLabel={restartActionLabel}
-        onRestartApp={() => {
-          if (currentApp) {
-            void lifecycle.handleRestartCurrentApp();
-            return;
-          }
-          if (scenarioActionIdentifier) {
-            void lifecycle.runAction(scenarioActionIdentifier, 'restart');
-          }
-        }}
-        onToggleLogs={() => setIsLogsVisible((value) => !value)}
+        onRestartApp={handleRestartApp}
+        onToggleLogs={handleToggleLogs}
         areLogsVisible={isLogsVisible}
         onReportIssue={handleOpenReportDialog}
         appStatusLabel={lifecycle.appStatusLabel}
         isFullView={isFullView}
-        onToggleFullView={() => setIsFullView((value) => !value)}
+        onToggleFullView={handleToggleFullView}
         isDeviceEmulationActive={isDeviceEmulationActive}
         onToggleDeviceEmulation={toggleDeviceEmulation}
         canInspect={inspectState.supported}
@@ -837,6 +851,6 @@ export function PreviewPane({
       )}
     </div>
   );
-}
+});
 
 export default PreviewPane;

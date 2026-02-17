@@ -232,54 +232,6 @@ const normalizePreviewableApps = (apps: App[]): App[] => (
   })
 );
 
-const buildScenarioSuggestions = (apps: App[], query: string, referenceUrl: string | null): PreviewSuggestionItem[] => {
-  const ranked = query ? rankAppsByDiscoveryQuery(apps, query) : apps;
-  const suggestions: PreviewSuggestionItem[] = [];
-  for (const app of ranked) {
-    const previewUrl = buildPreviewUrl(app);
-    if (!previewUrl) {
-      continue;
-    }
-    const previewTarget = resolveSuggestionCandidate(previewUrl, referenceUrl);
-    const label = resolveAppLabel(app);
-    suggestions.push({
-      id: `scenario:${resolveAppIdentifier(app) ?? app.id}`,
-      label,
-      detail: app.status ? app.status.toUpperCase() : undefined,
-      value: previewTarget,
-      kind: app.status === 'running' || app.status === 'healthy' ? 'running-scenario' : 'scenario',
-    });
-    if (suggestions.length >= 10) {
-      break;
-    }
-  }
-  return suggestions;
-};
-
-const buildRunningScenarioSuggestions = (apps: App[], query: string, referenceUrl: string | null): PreviewSuggestionItem[] => {
-  const running = apps.filter((app) => app.status === 'running' || app.status === 'healthy');
-  const ranked = query ? rankAppsByDiscoveryQuery(running, query) : running;
-  const suggestions: PreviewSuggestionItem[] = [];
-  for (const app of ranked) {
-    const previewUrl = buildPreviewUrl(app);
-    if (!previewUrl) {
-      continue;
-    }
-    const previewTarget = resolveSuggestionCandidate(previewUrl, referenceUrl);
-    suggestions.push({
-      id: `running:${resolveAppIdentifier(app) ?? app.id}`,
-      label: resolveAppLabel(app),
-      detail: 'Running',
-      value: previewTarget,
-      kind: 'running-scenario',
-    });
-    if (suggestions.length >= 6) {
-      break;
-    }
-  }
-  return suggestions;
-};
-
 export interface BuildPreviewSuggestionSectionsOptions {
   apps: App[];
   history: string[];
@@ -300,9 +252,52 @@ export const buildPreviewSuggestionSections = ({
     value: entry,
     kind: 'recent-url' as const,
   }));
-  const runningScenarioSuggestions = buildRunningScenarioSuggestions(previewableApps, query, referenceUrl);
-  const scenarioSuggestions = buildScenarioSuggestions(previewableApps, query, referenceUrl)
-    .filter((item) => !runningScenarioSuggestions.some((runningItem) => runningItem.value === item.value));
+
+  // Rank all apps once, then partition into running vs non-running in a single pass
+  const ranked = query ? rankAppsByDiscoveryQuery(previewableApps, query) : previewableApps;
+  const runningSuggestions: PreviewSuggestionItem[] = [];
+  const scenarioSuggestions: PreviewSuggestionItem[] = [];
+  const runningValues = new Set<string>();
+
+  for (const app of ranked) {
+    const previewUrl = buildPreviewUrl(app);
+    if (!previewUrl) {
+      continue;
+    }
+    const previewTarget = resolveSuggestionCandidate(previewUrl, referenceUrl);
+    const label = resolveAppLabel(app);
+    const isRunning = app.status === 'running' || app.status === 'healthy';
+
+    if (isRunning && runningSuggestions.length < 6) {
+      runningSuggestions.push({
+        id: `running:${resolveAppIdentifier(app) ?? app.id}`,
+        label,
+        detail: 'Running',
+        value: previewTarget,
+        kind: 'running-scenario',
+      });
+      runningValues.add(previewTarget);
+    }
+
+    if (scenarioSuggestions.length < 10) {
+      scenarioSuggestions.push({
+        id: `scenario:${resolveAppIdentifier(app) ?? app.id}`,
+        label,
+        detail: app.status ? app.status.toUpperCase() : undefined,
+        value: previewTarget,
+        kind: isRunning ? 'running-scenario' : 'scenario',
+      });
+    }
+
+    if (runningSuggestions.length >= 6 && scenarioSuggestions.length >= 10) {
+      break;
+    }
+  }
+
+  // Filter out running items from the scenario section to avoid duplicates
+  const dedupedScenarioSuggestions = scenarioSuggestions.filter(
+    (item) => !runningValues.has(item.value),
+  );
 
   const sections: PreviewSuggestionSection[] = [];
   if (recentUrls.length > 0) {
@@ -312,18 +307,18 @@ export const buildPreviewSuggestionSections = ({
       items: recentUrls,
     });
   }
-  if (runningScenarioSuggestions.length > 0) {
+  if (runningSuggestions.length > 0) {
     sections.push({
       id: 'running-scenarios',
       label: 'Running scenarios',
-      items: runningScenarioSuggestions,
+      items: runningSuggestions,
     });
   }
-  if (scenarioSuggestions.length > 0) {
+  if (dedupedScenarioSuggestions.length > 0) {
     sections.push({
       id: 'scenario-matches',
       label: query.trim().length > 0 ? 'Scenario matches' : 'Scenarios',
-      items: scenarioSuggestions,
+      items: dedupedScenarioSuggestions,
     });
   }
   return sections;

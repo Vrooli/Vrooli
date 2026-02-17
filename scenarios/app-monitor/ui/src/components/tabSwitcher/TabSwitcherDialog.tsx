@@ -93,19 +93,13 @@ export default function TabSwitcherDialog() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const deferredSearch = useDeferredValue(search);
   const isSearchPending = search !== deferredSearch;
-  const appLoadState = useAppsStore(state => ({
-    loadingInitial: state.loadingInitial,
-    hasInitialized: state.hasInitialized,
-    appsLength: state.apps.length,
-    error: state.error,
-  }));
+  const appLoadingInitial = useAppsStore(state => state.loadingInitial);
+  const appHasInitialized = useAppsStore(state => state.hasInitialized);
   const loadApps = useAppsStore(state => state.loadApps);
-  const resourceLoadState = useResourcesStore(state => ({
-    loading: state.loading,
-    hasInitialized: state.hasInitialized,
-    resourcesLength: state.resources.length,
-    error: state.error,
-  }));
+  const resourceLoading = useResourcesStore(state => state.loading);
+  const resourceHasInitialized = useResourcesStore(state => state.hasInitialized);
+  const resourceCount = useResourcesStore(state => state.resources.length);
+  const resourceError = useResourcesStore(state => state.error);
   const { filteredApps, recentApps } = useAppCatalog({ search: deferredSearch, sort: sortOption, historyLimit: 12 });
   const previewableFilteredApps = useMemo(
     () => filteredApps.filter((app) => !isAppMonitorScenarioId(resolveAppIdentifier(app))),
@@ -136,10 +130,10 @@ export default function TabSwitcherDialog() {
   // Consider loading if:
   // 1. Initial load is in progress AND has not initialized yet
   // This prevents infinite loading when the store has initialized but returned empty results
-  const isLoadingApps = appLoadState.loadingInitial && !appLoadState.hasInitialized;
+  const isLoadingApps = appLoadingInitial && !appHasInitialized;
 
-  const isLoadingResources = (!resourceLoadState.hasInitialized && !resourceLoadState.error)
-    && (resourceLoadState.loading || resourceLoadState.resourcesLength === 0);
+  const isLoadingResources = (!resourceHasInitialized && !resourceError)
+    && (resourceLoading || resourceCount === 0);
 
   useDialogFocus(dialogRef, searchInputRef);
 

@@ -718,7 +718,7 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
     }
   }, [displayDimensions.height, displayDimensions.width, selectedPreset.id]);
 
-  const toolbarBindings: DeviceEmulationToolbarBindings = {
+  const toolbarBindings = useMemo<DeviceEmulationToolbarBindings>(() => ({
     presets: DEVICE_PRESETS,
     selectedPresetId: selectedPreset.id as DevicePresetId,
     displayWidth: displayDimensions.width,
@@ -739,9 +739,26 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
     onVisionChange: handleVisionChange,
     onRotate: handleRotate,
     onReset: handleReset,
-  };
+  }), [
+    selectedPreset.id,
+    displayDimensions.width,
+    displayDimensions.height,
+    state.zoom,
+    state.colorScheme,
+    state.vision,
+    isViewportActive,
+    currentZoomDisplayLimits,
+    toggleViewportActive,
+    handlePresetChange,
+    handleDimensionChange,
+    handleZoomChange,
+    handleColorSchemeChange,
+    handleVisionChange,
+    handleRotate,
+    handleReset,
+  ]);
 
-  const viewportBindings: DeviceEmulationViewportBindings = {
+  const viewportBindings = useMemo<DeviceEmulationViewportBindings>(() => ({
     displayWidth: displayDimensions.width,
     displayHeight: displayDimensions.height,
     zoomedWidth: zoomedDimensions.width,
@@ -751,15 +768,25 @@ export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmu
     vision: state.vision,
     isResponsive: selectedPreset.id === 'responsive',
     onResizePointerDown: handleResizePointerDown,
-  };
+  }), [
+    displayDimensions.width,
+    displayDimensions.height,
+    zoomedDimensions.width,
+    zoomedDimensions.height,
+    state.zoom,
+    state.colorScheme,
+    state.vision,
+    selectedPreset.id,
+    handleResizePointerDown,
+  ]);
 
-  return {
+  return useMemo(() => ({
     isActive,
     isViewportActive,
     toggleActive,
     toolbar: toolbarBindings,
     viewport: viewportBindings,
-  };
+  }), [isActive, isViewportActive, toggleActive, toolbarBindings, viewportBindings]);
 };
 
 export type { DeviceEmulationToolbarBindings, DeviceEmulationViewportBindings };

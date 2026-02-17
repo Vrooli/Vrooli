@@ -54,6 +54,30 @@
     - `PreviewPane.onIframeLoad`: Checks loaded iframe's `contentDocument` for `[data-app-monitor-self]` attribute; resets iframe to `about:blank` if detected.
   - **Tests**: `packages/api-base/src/__tests__/server/host-self-proxy.test.ts`, E2E in `error-scenarios.test.ts`, `ui/src/utils/previewUrl.test.ts`.
 
+- Performance memoization seams:
+  - `ui/src/components/AppPreviewToolbar.tsx`
+    - `useDeferredValue(previewUrlInput)` defers URL suggestion computation so keystrokes render instantly while fuzzy search runs at lower priority.
+    - Wrapped in `React.memo` to prevent re-renders from unrelated parent updates; all callback props are `useCallback`-wrapped in PreviewPane.
+  - `ui/src/features/preview-workspace/components/PreviewPane.tsx`
+    - Wrapped in `React.memo`; reads `apps` from Zustand store directly instead of receiving as prop, avoiding new-array-reference cascading re-renders across all panes.
+  - `ui/src/components/tabSwitcher/TabSwitcherDialog.tsx`
+    - Zustand selectors use atomic scalar reads instead of object-creating selectors to leverage Zustand's built-in shallow equality.
+  - `ui/src/components/tabSwitcher/TabSwitcherCards.tsx`
+    - `AppTabCard` and `ResourceTabCard` wrapped in `React.memo` to prevent list item re-renders when sibling data changes.
+  - `ui/src/features/preview-workspace/components/PreviewPane.tsx`
+    - Six inline callbacks (`onOpenDetails`, `onToggleApp`, `onRestartApp`, `onToggleLogs`, `onToggleFullView`, `paneActions`) wrapped in `useCallback`/`useMemo` to stabilize references passed to memoized `AppPreviewToolbar`.
+    - `lifecycleToggleLabels` memoized to prevent new-object-reference breaking `usePreviewAppLifecycle` return memo.
+  - `ui/src/utils/workspaceDiscovery.ts`
+    - `buildPreviewSuggestionSections` ranks all apps in a single pass then partitions into running vs non-running, eliminating the previous double `rankAppsByDiscoveryQuery` call.
+  - `ui/src/state/systemStatusStore.ts`
+    - `selectRefresh` selector extracted to module scope so `useSystemStatus` effect dependency is stable across renders.
+  - `ui/src/hooks/useDeviceEmulation.ts`
+    - `toolbarBindings`, `viewportBindings`, and the hook's return object wrapped in `useMemo` to prevent new-object-reference cascading re-renders.
+  - `ui/src/hooks/usePreviewAppLifecycle.ts`
+    - Return object wrapped in `useMemo`; `toggleLabels`/`restartLabel` read via refs so the memo depends only on derived values.
+  - `ui/src/hooks/useToolbarMenu.ts`
+    - `useMenuCoordinator.handleMenuOpenChange` uses a ref for `openMenuId` to eliminate state from its `useCallback` dependency array, keeping the callback reference stable across menu open/close cycles.
+
 ## Weak Seams To Improve
 - `AppPreviewView` still owns route-specific and feature orchestration in a single large file.
 - Workspace layout type (`grid|split`) exists in store but UI only exposes interaction mode toggle.

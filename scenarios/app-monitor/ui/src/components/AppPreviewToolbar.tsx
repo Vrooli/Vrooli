@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ChangeEvent,
   KeyboardEvent as ReactKeyboardEvent,
@@ -89,7 +89,7 @@ export interface AppPreviewToolbarProps {
   scenarioSelectorLabel?: string;
 }
 
-const AppPreviewToolbar = ({
+const AppPreviewToolbar = memo(({
   canGoBack,
   canGoForward,
   onGoBack,
@@ -204,12 +204,13 @@ const AppPreviewToolbar = ({
   const [isUrlSuggestionsOpen, setIsUrlSuggestionsOpen] = useState(false);
   const [activeUrlSuggestionIndex, setActiveUrlSuggestionIndex] = useState(-1);
   const [isUrlInputEditing, setIsUrlInputEditing] = useState(false);
+  const deferredPreviewUrlInput = useDeferredValue(previewUrlInput);
   const urlSuggestionSections = useMemo<PreviewSuggestionSection[]>(() => {
     if (!buildUrlSuggestionSections) {
       return [];
     }
-    return buildUrlSuggestionSections(previewUrlInput);
-  }, [buildUrlSuggestionSections, previewUrlInput]);
+    return buildUrlSuggestionSections(deferredPreviewUrlInput);
+  }, [buildUrlSuggestionSections, deferredPreviewUrlInput]);
   const flattenedUrlSuggestions = useMemo(() => (
     urlSuggestionSections.flatMap((section) => section.items)
   ), [urlSuggestionSections]);
@@ -984,6 +985,8 @@ const AppPreviewToolbar = ({
       </div>
     </div>
   );
-};
+});
+
+AppPreviewToolbar.displayName = 'AppPreviewToolbar';
 
 export default AppPreviewToolbar;

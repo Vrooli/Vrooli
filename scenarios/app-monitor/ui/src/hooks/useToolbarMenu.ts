@@ -103,6 +103,8 @@ export const useToolbarMenu = ({
  */
 export const useMenuCoordinator = () => {
   const [openMenuId, setOpenMenuId] = useState<MenuId | null>(null);
+  const openMenuIdRef = useRef(openMenuId);
+  openMenuIdRef.current = openMenuId;
   const closeHandlersRef = useRef(new Map<MenuId, () => void>());
 
   const registerMenu = useCallback((id: MenuId, closeHandler: () => void) => {
@@ -124,10 +126,10 @@ export const useMenuCoordinator = () => {
     if (isOpen) {
       closeOthers(id);
       setOpenMenuId(id);
-    } else if (openMenuId === id) {
+    } else if (openMenuIdRef.current === id) {
       setOpenMenuId(null);
     }
-  }, [closeOthers, openMenuId]);
+  }, [closeOthers]);
 
   const closeAll = useCallback(() => {
     closeHandlersRef.current.forEach(handler => handler());

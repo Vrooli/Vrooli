@@ -122,7 +122,6 @@ const resolvePinnedColumnFractions = (fractions: number[]): [number, number] => 
 
 export default function PreviewWorkspaceView() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const apps = useAppsStore((state) => state.apps);
   const loadApps = useAppsStore((state) => state.loadApps);
   const loadingInitial = useAppsStore((state) => state.loadingInitial);
   const hasInitialized = useAppsStore((state) => state.hasInitialized);
@@ -745,7 +744,6 @@ export default function PreviewWorkspaceView() {
     <PreviewPane
       paneId={paneId}
       appId={appId}
-      apps={apps}
       isFocused={focusedPaneId === paneId}
       canRemove={panes.length > previewWorkspaceLimits.minPanes}
       isArrangeMode={interactionMode === 'arrange'}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { appService } from '@/services/api';
 import type { App } from '@/types';
 import { isRunningStatus } from '@/utils/appPreview';
@@ -139,18 +139,31 @@ export function usePreviewAppLifecycle({
     return runAction(currentApp.id, 'restart');
   }, [currentApp, pendingAction, runAction]);
 
-  return {
+  const toggleLabelsRef = useRef(toggleLabels);
+  toggleLabelsRef.current = toggleLabels;
+  const restartLabelRef = useRef(restartLabel);
+  restartLabelRef.current = restartLabel;
+
+  return useMemo(() => ({
     pendingAction,
     actionInProgress: pendingAction !== null,
     isAppRunning,
     appStatusLabel,
     urlStatusClass,
-    toggleActionLabel: isAppRunning ? toggleLabels.stop : toggleLabels.start,
-    restartActionLabel: pendingAction === 'restart' ? 'Restarting...' : restartLabel,
+    toggleActionLabel: isAppRunning ? toggleLabelsRef.current.stop : toggleLabelsRef.current.start,
+    restartActionLabel: pendingAction === 'restart' ? 'Restarting...' : restartLabelRef.current,
     runAction,
     handleToggleCurrentApp,
     handleRestartCurrentApp,
-  };
+  }), [
+    pendingAction,
+    isAppRunning,
+    appStatusLabel,
+    urlStatusClass,
+    runAction,
+    handleToggleCurrentApp,
+    handleRestartCurrentApp,
+  ]);
 }
 
 export default usePreviewAppLifecycle;

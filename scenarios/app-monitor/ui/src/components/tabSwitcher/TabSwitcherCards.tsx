@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Eye, RefreshCw, SlidersHorizontal, Target } from 'lucide-react';
 import clsx from 'clsx';
 import { AppsGridSkeleton, ResourcesGridSkeleton } from '@/components/LoadingSkeleton';
@@ -268,7 +268,7 @@ export function EmptyState({
   );
 }
 
-function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
+const AppTabCard = memo(function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
   const {
     displayName,
     screenshot,
@@ -324,9 +324,9 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
       </div>
     </button>
   );
-}
+});
 
-function ResourceTabCard({ resource, onSelect }: { resource: Resource; onSelect(resource: Resource): void }) {
+const ResourceTabCard = memo(function ResourceTabCard({ resource, onSelect }: { resource: Resource; onSelect(resource: Resource): void }) {
   const { screenshot, thumbStyle, hasScreenshot } = useSurfaceThumbnail('resource', resource.id);
   const fallbackInitial = getFallbackInitial(resource.name ?? resource.id);
   const statusClassName = getStatusClassName(resource.status);
@@ -365,7 +365,7 @@ function ResourceTabCard({ resource, onSelect }: { resource: Resource; onSelect(
       </div>
     </button>
   );
-}
+});
 
 function useSurfaceThumbnail(type: SurfaceType, id: string | null | undefined) {
   const screenshotSelector = useMemo(() => selectScreenshotBySurface(type, id), [type, id]);
