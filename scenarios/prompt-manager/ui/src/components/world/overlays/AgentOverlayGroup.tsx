@@ -42,18 +42,17 @@ export function AgentOverlayGroup({
   enabled = true,
   overlayScale = 1,
 }: AgentOverlayGroupProps) {
-  // Get stable reference to agent accessories state
-  const agentAccessories = useAccessoryStore((state) => state.agentAccessories)
+  // Subscribe to a single agent slice to avoid rerendering all overlays on any status change.
+  const agentAccessoryState = useAccessoryStore((state) => state.agentAccessories[agentId])
 
-  // Memoize status lookup to avoid creating new objects
+  // AI_CHECK: R3F_AGENT_STATUS_SUBSCRIPTION=1 | LAST: 2026-02-17
   const { effectiveStatus, statusMessage } = useMemo(() => {
     if (status) return { effectiveStatus: status, statusMessage: undefined }
-    const agentState = agentAccessories[agentId]
     return {
-      effectiveStatus: agentState?.status?.type ?? ('normal' as AgentStatusType),
-      statusMessage: agentState?.status?.message,
+      effectiveStatus: agentAccessoryState?.status?.type ?? ('normal' as AgentStatusType),
+      statusMessage: agentAccessoryState?.status?.message,
     }
-  }, [status, agentAccessories, agentId])
+  }, [status, agentAccessoryState])
 
   // Early return for disabled or invalid agentId
   if (!enabled || !agentId) {

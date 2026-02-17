@@ -135,8 +135,6 @@ interface WorldSceneProps {
   /** Called when an agent is repositioned via drag */
   onAgentPositionChange?: (agentId: string, newPosition: [number, number, number]) => void
   isDarkMode?: boolean
-  /** Whether to show FPS overlay */
-  showFpsOverlay?: boolean
   /** Whether to enable automatic performance adjustment */
   autoAdjustPerformance?: boolean
 }
@@ -208,7 +206,6 @@ export function WorldScene({
   onTeamClick,
   onAgentPositionChange,
   isDarkMode = true,
-  showFpsOverlay = false,
   autoAdjustPerformance = true,
 }: WorldSceneProps) {
   const controlsRef = useRef<OrbitControlsRef>(null)
@@ -280,7 +277,7 @@ export function WorldScene({
         enableMemoryCleanup
         enableLOD
       />
-      {showFpsOverlay && <FPSOverlay position={[-6, 4, 0]} detailed />}
+      <FPSOverlay position={[-6, 4, 0]} detailed />
 
       {/* Dynamic Lighting from environment config — reads shadow settings from graphics tier */}
       <DynamicLighting enableShadows={shadows} shadowMapSize={shadowMapSize} />

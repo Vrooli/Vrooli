@@ -41,6 +41,7 @@ import {
   X,
 } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
+import { Dialog } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorBoundary } from "../components/ui/error-boundary";
@@ -1015,15 +1016,16 @@ export function BacklogDetailsPage() {
         </div>
       </div>
 
-      <BottomSheet
+      <Dialog
         isOpen={showFilesSheet}
         onClose={() => setShowFilesSheet(false)}
         title="Files"
-        className="lg:hidden max-h-[85vh]"
-        contentClassName="p-0"
+        maxWidth="max-w-md"
       >
-        {fileBrowserContent}
-      </BottomSheet>
+        <div className="max-h-[60vh] overflow-y-auto -mx-2">
+          {fileBrowserContent}
+        </div>
+      </Dialog>
     </div>
   );
 

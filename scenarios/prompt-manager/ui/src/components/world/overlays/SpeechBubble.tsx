@@ -3,11 +3,11 @@
  * Shows text content in a chat-bubble style overlay.
  */
 
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { Html } from '@react-three/drei'
 import { X } from 'lucide-react'
 import { useOverlayStore } from '@/stores/overlayStore'
-import type { SpeechBubble as SpeechBubbleType } from '@/stores/overlayStore'
+import { selectLatestAgentSpeechBubble } from '@/stores/overlayStore'
 
 interface SpeechBubbleProps {
   /** Agent ID for state lookup */
@@ -30,18 +30,10 @@ export function SpeechBubble({
   yOffset = 1.4,
   maxWidth = 200,
 }: SpeechBubbleProps) {
-  // Get all speech bubbles from store (stable reference)
-  const allBubbles = useOverlayStore((state) => state.speechBubbles)
+  // Subscribe to just the latest bubble for this agent.
+  // AI_CHECK: R3F_SPEECH_BUBBLE_SELECTOR=1 | LAST: 2026-02-17
+  const latestBubble = useOverlayStore((state) => selectLatestAgentSpeechBubble(state, agentId))
   const hideSpeechBubble = useOverlayStore((state) => state.hideSpeechBubble)
-
-  // Filter bubbles for this agent - memoized to avoid recreating array
-  const agentBubbles = useMemo(() => {
-    if (!agentId || !Array.isArray(allBubbles)) return []
-    return allBubbles.filter((b: SpeechBubbleType) => b.agentId === agentId)
-  }, [allBubbles, agentId])
-
-  // Show only the most recent bubble
-  const latestBubble = agentBubbles.length > 0 ? agentBubbles[agentBubbles.length - 1] : null
 
   // Memoize the close handler
   const handleClose = useCallback(() => {

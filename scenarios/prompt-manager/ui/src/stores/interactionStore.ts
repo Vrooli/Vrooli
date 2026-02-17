@@ -2,6 +2,7 @@
  * Interaction store for managing 3D scene interactions.
  * Handles hover, drag, selection modes, and input state.
  */
+// AI_CHECK: R3F_INTERACTION_CHURN=1 | LAST: 2026-02-17
 
 import { create } from 'zustand'
 
@@ -108,6 +109,14 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
   updateDrag: (currentPosition) => {
     const { dragState } = get()
     if (!dragState) return
+
+    if (
+      dragState.currentPosition[0] === currentPosition[0] &&
+      dragState.currentPosition[1] === currentPosition[1] &&
+      dragState.currentPosition[2] === currentPosition[2]
+    ) {
+      return
+    }
 
     set({
       dragState: {

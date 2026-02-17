@@ -2,6 +2,7 @@
  * useDragDrop - Hook for drag-and-drop functionality in 3D space.
  * Manages drag state and provides event handlers.
  */
+// AI_CHECK: R3F_DRAG_RENDER_PATH=1 | LAST: 2026-02-17
 
 import { useCallback, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
@@ -88,8 +89,10 @@ export function useDragDrop(
   const updateDragFn = useInteractionStore((state) => state.updateDrag)
   const endDragFn = useInteractionStore((state) => state.endDrag)
   const cancelDragFn = useInteractionStore((state) => state.cancelDrag)
-  const dragState = useInteractionStore((state) => state.dragState)
   const isDragging = useInteractionStore((state) => state.draggedObjectId === objectId)
+  const dragOffset = useInteractionStore((state) =>
+    state.draggedObjectId === objectId && state.dragState ? state.dragState.offset : null
+  )
 
   const dragPlaneRef = useRef(
     new THREE.Plane(new THREE.Vector3(0, 1, 0), -(planeY ?? currentPosition[1]))
@@ -136,6 +139,7 @@ export function useDragDrop(
 
       updateDragFn(newPos)
 
+      const dragState = useInteractionStore.getState().dragState
       if (dragState) {
         const offset: [number, number, number] = [
           newPos[0] - dragState.startPosition[0],
@@ -153,7 +157,6 @@ export function useDragDrop(
       currentPosition,
       raycaster,
       updateDragFn,
-      dragState,
       onDrag,
     ]
   )
@@ -161,20 +164,17 @@ export function useDragDrop(
   const endDrag = useCallback(() => {
     if (!isDragging) return
 
+    const dragState = useInteractionStore.getState().dragState
     if (dragState) {
       onDragEnd?.(dragState.currentPosition)
     }
 
     endDragFn()
-  }, [isDragging, dragState, onDragEnd, endDragFn])
+  }, [isDragging, onDragEnd, endDragFn])
 
   const cancelDrag = useCallback(() => {
     cancelDragFn()
   }, [cancelDragFn])
-
-  const dragOffset: [number, number, number] | null = isDragging && dragState
-    ? dragState.offset
-    : null
 
   return {
     isDragging,

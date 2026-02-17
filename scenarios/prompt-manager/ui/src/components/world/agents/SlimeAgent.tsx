@@ -9,6 +9,7 @@
  * - low: No wobble, minimal breathing, no cursor tracking
  * - culled: Skip all, set position only
  */
+// AI_CHECK: R3F_FRAME_STORE_READS=1 | LAST: 2026-02-17
 
 import { useRef, useMemo, useCallback, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -164,6 +165,7 @@ export function SlimeAgent({
   // Perf: Read materialQuality from graphics tier — MeshPhysicalMaterial only at 'physical' tier.
   // Clearcoat/transmission/iridescence each add extra shader passes, causing significant GPU overhead per agent.
   const materialQuality = useGraphicsStore((state) => state.config.materialQuality)
+  const agentWobbleEnabled = useGraphicsStore((state) => state.config.agentWobble)
 
   // Create body material — tier-aware
   const bodyMaterial = useMemo(() => {
@@ -269,8 +271,7 @@ export function SlimeAgent({
     }
 
     // ===== SHADER SYNC (physical material only — other tiers have no slime shader) =====
-    const wobbleEnabled = useGraphicsStore.getState().config.agentWobble
-    const wobbleIntensity = !wobbleEnabled ? 0
+    const wobbleIntensity = !agentWobbleEnabled ? 0
       : lodLevel === 'high' ? 0.02
         : lodLevel === 'medium' ? 0.01
           : 0

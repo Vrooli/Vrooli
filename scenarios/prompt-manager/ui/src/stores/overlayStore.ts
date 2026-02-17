@@ -198,6 +198,24 @@ export const selectAgentSpeechBubbles = (state: OverlayStore, agentId: string | 
 }
 
 /**
+ * Selector for the latest speech bubble for a specific agent.
+ * Walks backward to avoid allocating filtered arrays on every store update.
+ */
+export const selectLatestAgentSpeechBubble = (
+  state: OverlayStore,
+  agentId: string | null | undefined,
+): SpeechBubble | null => {
+  if (!agentId) return null
+  for (let i = state.speechBubbles.length - 1; i >= 0; i--) {
+    const bubble = state.speechBubbles[i]
+    if (bubble?.agentId === agentId) {
+      return bubble
+    }
+  }
+  return null
+}
+
+/**
  * Selector for thinking state of a specific agent
  */
 export const selectAgentThinking = (state: OverlayStore, agentId: string) =>

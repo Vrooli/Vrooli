@@ -10,6 +10,23 @@ export interface FPSSample {
   timestamp: number
 }
 
+/** Trace sample for FPS timeline visualization */
+export interface PerformanceTraceSample {
+  timestamp: number
+  fps: number
+  frameTimeMs: number
+  drawCalls: number | null
+  triangles: number | null
+  memoryUsageMb: number | null
+}
+
+/** Marker event on performance timeline */
+export interface PerformanceTraceMarker {
+  timestamp: number
+  type: 'tier-adjust' | 'degraded' | 'recovered' | 'hidden' | 'visible'
+  label: string
+}
+
 /** Performance metrics snapshot */
 export interface PerformanceMetrics {
   /** Current FPS (frames per second) */
@@ -46,6 +63,14 @@ export interface FPSMonitorConfig {
   autoAdjust: boolean
   /** Whether to show FPS overlay */
   showOverlay: boolean
+  /** Whether to render trace charts in overlay */
+  showTraceCharts: boolean
+  /** Number of samples retained for trace charts */
+  traceSampleSize: number
+  /** Number of frames between trace publish updates */
+  tracePublishIntervalFrames: number
+  /** Max marker events retained for trace chart */
+  traceMarkerLimit: number
 }
 
 /** Tier adjustment recommendation */
@@ -69,6 +94,10 @@ export const DEFAULT_FPS_CONFIG: FPSMonitorConfig = {
   adjustmentCooldown: 5000, // 5 seconds between adjustments
   autoAdjust: true,
   showOverlay: false,
+  showTraceCharts: true,
+  traceSampleSize: 240, // ~4 seconds at 60fps
+  tracePublishIntervalFrames: 12,
+  traceMarkerLimit: 50,
 }
 
 /** FPS thresholds for each tier */

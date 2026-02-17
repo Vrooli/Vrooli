@@ -10,6 +10,7 @@ interface SettingsToggleProps {
   onChange: (value: boolean) => void
   disabled?: boolean
   className?: string
+  testId?: string
 }
 
 export function SettingsToggle({
@@ -18,6 +19,7 @@ export function SettingsToggle({
   onChange,
   disabled = false,
   className,
+  testId,
 }: SettingsToggleProps) {
   return (
     <div className={cn('flex items-center justify-between', className)}>
@@ -28,6 +30,7 @@ export function SettingsToggle({
         aria-checked={value}
         disabled={disabled}
         onClick={() => onChange(!value)}
+        data-testid={testId}
         className={cn(
           'relative h-5 w-9 rounded-full transition-colors',
           value ? 'bg-indigo-500' : 'bg-slate-600',

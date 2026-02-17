@@ -7,6 +7,7 @@
  * - Dirty indicators
  * - Checkbox selection for combine mode
  */
+// AI_CHECK: SIDEBAR_TREE_RESELECT_RENDER=1 | LAST: 2026-02-17
 
 import { memo, type ReactNode } from 'react'
 import { ChevronRight, ChevronDown, FolderOpen, Check, Minus } from 'lucide-react'
@@ -231,7 +232,6 @@ function TreeNodeComponentImpl({
 
 function areEqual(prev: TreeNodeProps, next: TreeNodeProps): boolean {
   if (prev.node !== next.node) return false
-  if (prev.selectedItemId !== next.selectedItemId) return false
   if (prev.showCheckbox !== next.showCheckbox) return false
   if (prev.renderItemIcon !== next.renderItemIcon) return false
   if (prev.onSelectItem !== next.onSelectItem) return false
@@ -246,6 +246,7 @@ function areEqual(prev: TreeNodeProps, next: TreeNodeProps): boolean {
 
   if (!prev.node.isCategory && prev.node.itemId) {
     const id = prev.node.itemId
+    if ((prev.selectedItemId === id) !== (next.selectedItemId === id)) return false
     if ((prev.dirtyItemIds.has(id)) !== (next.dirtyItemIds.has(id))) return false
     if ((prev.editedNameById.get(id) ?? prev.node.label) !== (next.editedNameById.get(id) ?? next.node.label)) return false
     if (prev.skillsById.get(id) !== next.skillsById.get(id)) return false

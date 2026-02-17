@@ -6,13 +6,29 @@ Generate targeted clarifying questions to reduce ambiguity, uncover hidden requi
 
 ## Input Context
 
-**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure and artifact schemas.
+**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure, artifact schemas, and CLI commands for reading/writing backlog files.
 
-- Existing `clarify/questions.json` if present (preserve existing Q&A)
+## Scope
+
+**In scope:**
+- Reading existing item context (spec, archive, prior questions, user files)
+- Identifying knowledge gaps that could affect implementation
+- Generating prioritized, categorized questions
+- Preserving existing Q&A from prior runs
+
+**Out of scope:**
+- Answering questions (that's the user's role)
+- Making suggestions or proposing improvements (see `swarm-manager-suggest-idea`)
+- Synthesizing a plan (see `swarm-manager-enhance-idea`)
 
 ## Output Requirements
 
 **Primary output**: `clarify/questions.json` (see `swarm-manager-backlog-tools` for full schema)
+
+Write output via CLI:
+```bash
+swarm-manager backlog file-upload <kind> <name> clarify/questions.json <content>
+```
 
 ### Categories
 
@@ -24,12 +40,14 @@ Generate targeted clarifying questions to reduce ambiguity, uncover hidden requi
 
 ## Success Criteria
 
+- [ ] All available context read before generating questions (spec, archive, user files)
 - [ ] Questions are specific, not vague
 - [ ] Each question has clear business value
 - [ ] Critical questions identified and prioritized
 - [ ] No more than 10 questions (focus on most important)
-- [ ] Existing questions and answers preserved
+- [ ] Existing questions and answers preserved on re-runs
 - [ ] Options provided where applicable
+- [ ] Output uploaded via CLI and verified
 
 ## Instructions
 
@@ -42,38 +60,87 @@ You are generating clarifying questions for a Swarm Manager backlog item. Your g
 - Priority: {{ITEM_PRIORITY}}
 - Tags: {{ITEM_TAGS}}
 
-### Question Generation Steps
+### Processing Steps
 
-1. **Read existing context**
-   - Review `spec.json` thoroughly
-   - Check for existing `clarify/questions.json`
-   - Review any user-added files for context
+1. **Read all available context**
+
+   ```bash
+   swarm-manager backlog get {{ITEM_KIND}} {{ITEM_NAME}}
+   swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
+   ```
+
+   Then read each available artifact:
+   - `spec.json` — the item description and metadata
+   - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs). These often contain answers to questions you might otherwise ask.
+   - `clarify/questions.json` — existing questions from a prior run (preserve these)
+   - Any user-added files in the item root
+
+   > **Why archive matters:** The archive may contain requirements documents, PRDs, or prior scenario docs from a deleted scenario. Review these thoroughly — they often preemptively answer technical, scope, and integration questions.
 
 2. **Identify knowledge gaps**
-   - What's ambiguous in the description?
-   - What assumptions are being made?
-   - What could go wrong if we guess wrong?
 
-3. **Categorize by importance**
-   - **Critical**: Blocks implementation or could cause major rework
-   - **Important**: Affects quality or scope significantly
-   - **Nice-to-have**: Would improve outcome but not essential
+   For each category, assess what's unknown:
 
-4. **Prioritize ruthlessly**
-   - Aim for 5-7 questions, max 10
-   - Better to have 5 excellent questions than 10 mediocre ones
-   - Each question should unlock meaningful progress
+   ```
+   Is the gap answered by archive materials or spec.json?
+     → Yes → Skip (don't ask what's already known)
+     → No  → Could guessing wrong cause rework or failure?
+              → Yes → Critical question
+              → No  → Could it significantly affect quality or scope?
+                       → Yes → Important question
+                       → No  → Nice-to-have (only include if under budget)
+   ```
 
-5. **Craft clear questions**
-   - Be specific, not vague
-   - One question per topic
-   - Provide options where answers are constrained
-   - Make it easy to answer
+3. **Prioritize ruthlessly**
 
-6. **Preserve existing work**
-   - If `clarify/questions.json` exists, keep existing questions
-   - Only add new questions if needed
-   - Never modify existing answers
+   | Budget | Guideline |
+   |--------|-----------|
+   | Target | 5–7 questions |
+   | Maximum | 10 questions |
+   | Minimum | 3 questions (if the idea is already well-defined) |
+
+   Better to have 5 excellent questions than 10 mediocre ones. Each question should unlock meaningful progress when answered.
+
+4. **Handle re-runs**
+
+   ```
+   Does clarify/questions.json already exist?
+     → No  → Generate fresh questions
+     → Yes → Read existing questions
+             Are all questions still relevant given current context?
+               → Keep relevant questions unchanged (never modify existing answers)
+               → Remove questions that archive/context now answers (move to archive)
+             Is the total under budget after removals?
+               → Yes → Add new questions only if genuine gaps remain
+               → No  → Do not add more questions
+   ```
+
+5. **Write output**
+
+   Write the questions file via CLI (see `swarm-manager-backlog-tools` for the full schema):
+   ```bash
+   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} clarify/questions.json '<json content>'
+   ```
+
+6. **Verify**
+
+   ```bash
+   swarm-manager backlog file-get {{ITEM_KIND}} {{ITEM_NAME}} clarify/questions.json
+   ```
+
+   Confirm the file was written correctly and the question count is within budget.
+
+### Importance Classification (Convergence Table)
+
+| Signal | Importance | Rationale |
+|--------|-----------|-----------|
+| Answer determines architecture or tech stack | `critical` | Wrong guess = major rework |
+| Answer affects data model or API contract | `critical` | Downstream dependents break |
+| Answer determines user-facing behavior | `important` | Affects UX but not architecture |
+| Answer affects scope boundaries | `important` | Determines what's built vs deferred |
+| Answer affects non-functional requirements (perf, scale) | `important` | Affects design but recoverable |
+| Answer improves polish or edge case handling | `nice-to-have` | Low rework cost if guessed wrong |
+| Answer is about timeline or process preferences | `nice-to-have` | Informational, not structural |
 
 ### Question Templates by Category
 
@@ -102,27 +169,6 @@ You are generating clarifying questions for a Swarm Manager backlog item. Your g
 - What APIs need to be exposed/consumed?
 - What data needs to be shared?
 
-### Output Format
-
-Write `clarify/questions.json`:
-
-```json
-{
-  "questions": [
-    {
-      "id": "q1",
-      "question": "[Specific question]?",
-      "category": "[category]",
-      "importance": "[importance]",
-      "options": ["Option A", "Option B", "Other"],
-      "answer": ""
-    }
-  ],
-  "generated_at": "[ISO-8601 timestamp]",
-  "max_questions": 10
-}
-```
-
 ## Quality Guidelines
 
 **Good questions:**
@@ -137,8 +183,19 @@ Write `clarify/questions.json`:
 
 ## Anti-Patterns
 
-- **Don't** ask questions already answered in the description
+- **Don't** ask questions already answered in the description or archive materials
 - **Don't** ask hypothetical questions unlikely to affect implementation
-- **Don't** include more than 10 questions - quality over quantity
-- **Don't** modify existing answers - they're user input
-- **Don't** ask compound questions - split into separate questions
+- **Don't** include more than 10 questions — quality over quantity
+- **Don't** modify existing answers — they're user input
+- **Don't** ask compound questions — split into separate questions
+- **Don't** write JSON output directly to disk — use the backlog CLI
+
+## Troubleshooting & Edge Cases
+
+| Problem | Solution |
+|---------|----------|
+| `file-get` returns 404 for `clarify/questions.json` | Normal on first run — generate fresh questions |
+| `file-upload` fails | Check that kind and name match an existing backlog item: `swarm-manager backlog get <kind> <name>` |
+| Archive contains a full PRD with detailed requirements | Many questions may already be answered — focus only on genuine gaps |
+| All critical questions are already answered by context | Generate fewer questions (minimum 3) focused on nice-to-have clarity |
+| Prior run has 10 questions, all still relevant | Do not add more — respect the budget ceiling |

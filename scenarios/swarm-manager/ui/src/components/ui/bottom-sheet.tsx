@@ -6,7 +6,6 @@
  */
 
 import { useId, type ReactNode } from "react";
-import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Dialog } from "./dialog";
 
@@ -53,34 +52,29 @@ export function BottomSheet({
       testId={testId}
       titleId={title ? titleElementId : undefined}
       descriptionId={description ? descriptionElementId : undefined}
+      containerClassName="!items-end"
       className={cn(
-        "!items-end !rounded-t-2xl !rounded-b-none !mx-0 !mb-0 !p-0",
+        "!mx-0 !mb-0 !rounded-b-none rounded-t-2xl !p-0",
+        "!animate-none",
         "animate-in slide-in-from-bottom duration-200",
         className,
       )}
     >
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <div className="space-y-0.5">
+      {/* Header with title/description (X button provided by Dialog) */}
+      {(title || description) && (
+        <div className="border-b border-white/10 px-4 py-3 pr-12">
           {title && (
             <h2 id={titleElementId} className="text-base font-semibold text-slate-100">
               {title}
             </h2>
           )}
           {description && (
-            <p id={descriptionElementId} className="text-xs text-slate-400">
+            <p id={descriptionElementId} className="mt-0.5 text-xs text-slate-400">
               {description}
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Close sheet"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+      )}
 
       <div
         className={cn(

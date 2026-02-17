@@ -11,6 +11,8 @@ import type {
   PerformanceMetrics,
   FPSMonitorConfig,
   TierAdjustment,
+  PerformanceTraceSample,
+  PerformanceTraceMarker,
 } from '@/types/performance'
 import {
   DEFAULT_FPS_CONFIG,
@@ -33,6 +35,22 @@ interface PerformanceState {
   isMonitoring: boolean
   /** Current tier (synced from graphics store) */
   currentTier: PerformanceTier
+  /** Ring buffer storage for trace samples */
+  traceRing: PerformanceTraceSample[]
+  /** Current write index for trace ring */
+  traceRingIndex: number
+  /** Number of valid samples in trace ring */
+  traceRingCount: number
+  /** Published trace samples (ordered oldest->newest) for overlay rendering */
+  publishedTraceSamples: PerformanceTraceSample[]
+  /** Published trace marker events */
+  traceMarkers: PerformanceTraceMarker[]
+  /** Version counter for throttled trace updates */
+  traceVersion: number
+  /** Last known degradation state for marker transition detection */
+  lastDegradedState: boolean
+  /** Last known tab visibility state */
+  isTabVisible: boolean
 }
 
 interface PerformanceActions {
@@ -41,7 +59,7 @@ interface PerformanceActions {
   /** Stop monitoring */
   stopMonitoring: () => void
   /** Record a frame (called from useFrame) */
-  recordFrame: (deltaMs: number) => void
+  recordFrame: (deltaMs: number, renderStats?: { drawCalls: number; triangles: number }) => void
   /** Update configuration */
   setConfig: (config: Partial<FPSMonitorConfig>) => void
   /** Toggle FPS overlay */
@@ -54,6 +72,8 @@ interface PerformanceActions {
   recordAdjustment: () => void
   /** Update current tier (called when graphics store changes) */
   setCurrentTier: (tier: PerformanceTier) => void
+  /** Update visibility state for trace markers */
+  setTabVisibility: (isVisible: boolean) => void
   /** Reset metrics */
   resetMetrics: () => void
   /** Get current metrics (for display) */
@@ -81,6 +101,35 @@ const initialState: PerformanceState = {
   lastAdjustmentTime: 0,
   isMonitoring: false,
   currentTier: 'medium',
+  traceRing: [],
+  traceRingIndex: 0,
+  traceRingCount: 0,
+  publishedTraceSamples: [],
+  traceMarkers: [],
+  traceVersion: 0,
+  lastDegradedState: false,
+  isTabVisible: true,
+}
+
+const orderedTraceSamples = (
+  ring: PerformanceTraceSample[],
+  count: number,
+  head: number,
+): PerformanceTraceSample[] => {
+  if (count === 0) return []
+  if (count < ring.length) {
+    return ring.slice(0, count)
+  }
+
+  const ordered: PerformanceTraceSample[] = []
+  for (let i = 0; i < ring.length; i++) {
+    const idx = (head + i) % ring.length
+    const sample = ring[idx]
+    if (sample) {
+      ordered.push(sample)
+    }
+  }
+  return ordered
 }
 
 /**
@@ -93,13 +142,30 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
   ...initialState,
 
   startMonitoring: () => {
+    const now = performance.now()
+    const traceRing = new Array(get().config.traceSampleSize).fill({
+      timestamp: now,
+      fps: 60,
+      frameTimeMs: 16.67,
+      drawCalls: null,
+      triangles: null,
+      memoryUsageMb: null,
+    })
+
     set({
       isMonitoring: true,
       samples: new Array(get().config.sampleSize).fill({
         fps: 60,
-        timestamp: performance.now(),
+        timestamp: now,
       }),
       sampleIndex: 0,
+      traceRing,
+      traceRingIndex: 0,
+      traceRingCount: 0,
+      publishedTraceSamples: [],
+      traceMarkers: [],
+      traceVersion: 0,
+      lastDegradedState: false,
     })
   },
 
@@ -107,7 +173,7 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
     set({ isMonitoring: false })
   },
 
-  recordFrame: (deltaMs) => {
+  recordFrame: (deltaMs, renderStats) => {
     const state = get()
     if (!state.isMonitoring) return
 
@@ -115,16 +181,30 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
     const fps = deltaMs > 0 ? 1000 / deltaMs : 60
     const now = performance.now()
 
-    // Update ring buffer (direct mutation for performance)
+    // Update FPS ring buffer (direct mutation for performance)
     const samples = state.samples
     const sampleIndex = state.sampleIndex
     samples[sampleIndex] = { fps, timestamp: now }
+
+    // Update trace ring (direct mutation for performance)
+    const traceRing = state.traceRing
+    const traceWriteIndex = state.traceRingIndex
+    traceRing[traceWriteIndex] = {
+      timestamp: now,
+      fps,
+      frameTimeMs: deltaMs,
+      drawCalls: renderStats?.drawCalls ?? null,
+      triangles: renderStats?.triangles ?? null,
+      memoryUsageMb: null,
+    }
+    const newTraceRingIndex = (traceWriteIndex + 1) % state.config.traceSampleSize
+    const newTraceRingCount = Math.min(state.traceRingCount + 1, state.config.traceSampleSize)
 
     // Calculate new index
     const newIndex = (sampleIndex + 1) % state.config.sampleSize
 
     // Only update React state every ~10 frames to reduce overhead
-    if (newIndex % 10 === 0) {
+    if (newIndex % state.config.tracePublishIntervalFrames === 0) {
       // Calculate metrics from samples
       let sum = 0
       let min = Infinity
@@ -148,8 +228,37 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
         }
       }
 
+      const markerEvents: PerformanceTraceMarker[] = []
+      if (isDegraded !== state.lastDegradedState) {
+        markerEvents.push({
+          timestamp: now,
+          type: isDegraded ? 'degraded' : 'recovered',
+          label: isDegraded ? 'FPS degraded' : 'FPS recovered',
+        })
+      }
+
+      const traceMarkers = markerEvents.length > 0
+        ? [...state.traceMarkers, ...markerEvents].slice(-state.config.traceMarkerLimit)
+        : state.traceMarkers
+
+      // Backfill memory usage for latest sample
+      if (newTraceRingCount > 0) {
+        const latestIdx =
+          (newTraceRingIndex - 1 + state.config.traceSampleSize) % state.config.traceSampleSize
+        const latestSample = traceRing[latestIdx]
+        if (latestSample) {
+          latestSample.memoryUsageMb = memoryUsageMb
+        }
+      }
+
       set({
         sampleIndex: newIndex,
+        traceRingIndex: newTraceRingIndex,
+        traceRingCount: newTraceRingCount,
+        publishedTraceSamples: orderedTraceSamples(traceRing, newTraceRingCount, newTraceRingIndex),
+        traceMarkers,
+        traceVersion: state.traceVersion + 1,
+        lastDegradedState: isDegraded,
         metrics: {
           currentFps: Math.round(fps),
           averageFps: Math.round(avgFps),
@@ -164,13 +273,40 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
     } else {
       // Avoid notifying subscribers every frame; sampleIndex is internal.
       state.sampleIndex = newIndex
+      state.traceRingIndex = newTraceRingIndex
+      state.traceRingCount = newTraceRingCount
     }
   },
 
   setConfig: (config) =>
-    set((state) => ({
-      config: { ...state.config, ...config },
-    })),
+    set((state) => {
+      const nextConfig = { ...state.config, ...config }
+      const needsTraceReset =
+        nextConfig.traceSampleSize !== state.config.traceSampleSize
+
+      if (!needsTraceReset) {
+        return { config: nextConfig }
+      }
+
+      const now = performance.now()
+      const traceRing = new Array(nextConfig.traceSampleSize).fill({
+        timestamp: now,
+        fps: 60,
+        frameTimeMs: 16.67,
+        drawCalls: null,
+        triangles: null,
+        memoryUsageMb: null,
+      })
+
+      return {
+        config: nextConfig,
+        traceRing,
+        traceRingIndex: 0,
+        traceRingCount: 0,
+        publishedTraceSamples: [],
+        traceVersion: state.traceVersion + 1,
+      }
+    }),
 
   toggleOverlay: () =>
     set((state) => ({
@@ -242,11 +378,40 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
   },
 
   recordAdjustment: () => {
-    set({ lastAdjustmentTime: performance.now() })
+    const now = performance.now()
+    const marker: PerformanceTraceMarker = {
+      timestamp: now,
+      type: 'tier-adjust',
+      label: `Tier -> ${get().currentTier}`,
+    }
+    set((state) => ({
+      lastAdjustmentTime: now,
+      traceMarkers: [...state.traceMarkers, marker].slice(-state.config.traceMarkerLimit),
+      traceVersion: state.traceVersion + 1,
+    }))
   },
 
   setCurrentTier: (tier) => {
     set({ currentTier: tier })
+  },
+
+  setTabVisibility: (isVisible) => {
+    if (get().isTabVisible === isVisible) {
+      return
+    }
+    set((state) => {
+      const now = performance.now()
+      const marker: PerformanceTraceMarker = {
+        timestamp: now,
+        type: isVisible ? 'visible' : 'hidden',
+        label: isVisible ? 'Tab visible' : 'Tab hidden',
+      }
+      return {
+        isTabVisible: isVisible,
+        traceMarkers: [...state.traceMarkers, marker].slice(-state.config.traceMarkerLimit),
+        traceVersion: state.traceVersion + 1,
+      }
+    })
   },
 
   resetMetrics: () => {
@@ -254,6 +419,14 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
       metrics: initialMetrics,
       samples: [],
       sampleIndex: 0,
+      traceRing: [],
+      traceRingIndex: 0,
+      traceRingCount: 0,
+      publishedTraceSamples: [],
+      traceMarkers: [],
+      traceVersion: 0,
+      lastDegradedState: false,
+      isTabVisible: true,
     })
   },
 
@@ -274,3 +447,12 @@ export const selectConfig = (state: PerformanceStore) => state.config
  * Selector for overlay visibility
  */
 export const selectShowOverlay = (state: PerformanceStore) => state.config.showOverlay
+
+/**
+ * Selector for trace overlay data.
+ */
+export const selectTraceData = (state: PerformanceStore) => ({
+  samples: state.publishedTraceSamples,
+  markers: state.traceMarkers,
+  version: state.traceVersion,
+})

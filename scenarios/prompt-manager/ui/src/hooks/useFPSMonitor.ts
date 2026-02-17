@@ -5,6 +5,7 @@
  * CRITICAL: Uses refs and getState() to minimize overhead in the render loop.
  * Only triggers React updates periodically for UI display.
  */
+// AI_CHECK: FPS_TRACE_MONITOR_OVERHEAD=1 | LAST: 2026-02-17
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#performance-monitoring
 
 import { useRef, useEffect, useCallback } from 'react'
@@ -81,6 +82,7 @@ export function useFPSMonitor(
   // Store actions via getState to avoid re-renders
   const lastFrameTimeRef = useRef<number>(performance.now())
   const adjustCheckCounterRef = useRef<number>(0)
+  const isTabVisibleRef = useRef<boolean>(typeof document === 'undefined' ? true : !document.hidden)
 
   // Start/stop monitoring based on enabled prop
   useEffect(() => {
@@ -100,6 +102,30 @@ export function useFPSMonitor(
     usePerformanceStore.getState().setConfig({ autoAdjust })
   }, [autoAdjust])
 
+  // Track tab visibility to avoid skewed traces when hidden
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    const store = usePerformanceStore.getState()
+    const initialVisible = !document.hidden
+    isTabVisibleRef.current = initialVisible
+    store.setTabVisibility(initialVisible)
+
+    const handleVisibilityChange = () => {
+      const isVisible = !document.hidden
+      isTabVisibleRef.current = isVisible
+      usePerformanceStore.getState().setTabVisibility(isVisible)
+      if (isVisible) {
+        lastFrameTimeRef.current = performance.now()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
   // Sync current tier with performance store
   useEffect(() => {
     const tier = useGraphicsStore.getState().tier
@@ -114,15 +140,19 @@ export function useFPSMonitor(
   }, [])
 
   // Record frame times in animation loop
-  useFrame(() => {
+  useFrame((state) => {
     if (!enabled) return
+    if (!isTabVisibleRef.current) return
 
     const now = performance.now()
     const delta = now - lastFrameTimeRef.current
     lastFrameTimeRef.current = now
 
     // Record frame
-    usePerformanceStore.getState().recordFrame(delta)
+    usePerformanceStore.getState().recordFrame(delta, {
+      drawCalls: state.gl.info.render.calls,
+      triangles: state.gl.info.render.triangles,
+    })
 
     // Check for tier adjustment periodically (every 60 frames)
     adjustCheckCounterRef.current++

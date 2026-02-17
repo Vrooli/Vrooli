@@ -3,8 +3,7 @@ import { buildApiUrl } from '../../../shared/api/apiBase';
 import { usePolling } from '../../../shared/hooks/usePolling';
 import { extractBoolean, extractNumber, extractString } from '../../../shared/utils/typeGuards';
 import type { InvestigationAgentState } from '../../../types';
-
-const TERMINAL_AGENT_STATUSES = new Set(['completed', 'error', 'failed', 'cancelled', 'canceled', 'stopped']);
+import { INVESTIGATION_TERMINAL_STATUSES } from '../../../types/api';
 const AGENT_POLL_INTERVAL_MS = 4000;
 
 const mapAgentPayload = (payload: unknown): InvestigationAgentState | null => {
@@ -285,13 +284,13 @@ export const useInvestigationAgents = () => {
 
   const hasActiveAgents = agents.some(agent => {
     const status = agent.status?.toLowerCase?.();
-    return !status || !TERMINAL_AGENT_STATUSES.has(status);
+    return !status || !INVESTIGATION_TERMINAL_STATUSES.has(status);
   });
 
   const pollAgentStatuses = useCallback(async () => {
     const currentAgents = agentsRef.current.filter(agent => {
       const status = agent.status?.toLowerCase?.();
-      return !status || !TERMINAL_AGENT_STATUSES.has(status);
+      return !status || !INVESTIGATION_TERMINAL_STATUSES.has(status);
     });
 
     if (currentAgents.length === 0) return;
@@ -321,7 +320,7 @@ export const useInvestigationAgents = () => {
 
         if (mapped) {
           const normalizedStatus = mapped.status?.toLowerCase?.();
-          if (normalizedStatus && TERMINAL_AGENT_STATUSES.has(normalizedStatus)) {
+          if (normalizedStatus && INVESTIGATION_TERMINAL_STATUSES.has(normalizedStatus)) {
             removals.add(mapped.id);
           } else {
             updates.set(mapped.id, mapped);

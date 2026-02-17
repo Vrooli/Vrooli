@@ -10,6 +10,7 @@
  * - Collapse/expand controls
  * - New skill button
  */
+// AI_CHECK: SIDEBAR_PROMPT_SUBSCRIPTION=1 | LAST: 2026-02-17
 
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
@@ -40,6 +41,7 @@ import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useShallow } from 'zustand/react/shallow'
 
 const CONTENT_SNIPPET_LENGTH = 120
 const CONTENT_SEARCH_MIN_CHARS = 2
@@ -70,6 +72,46 @@ interface ContentMatchGroup {
   skillName: string
   folder: string
   matches: ContentSearchMatch[]
+}
+
+function areMatchRangesEqual(a: { start: number; end: number }[], b: { start: number; end: number }[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const left = a[i]
+    const right = b[i]
+    if (!left || !right) return false
+    if (left.start !== right.start || left.end !== right.end) return false
+  }
+  return true
+}
+
+function areContentMatchesEqual(a: ContentSearchMatch[], b: ContentSearchMatch[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const left = a[i]
+    const right = b[i]
+    if (!left || !right) return false
+    if (
+      left.skillId !== right.skillId ||
+      left.skillName !== right.skillName ||
+      left.file !== right.file ||
+      left.folder !== right.folder ||
+      left.lineNumber !== right.lineNumber ||
+      left.line !== right.line ||
+      !areMatchRangesEqual(left.matchRanges, right.matchRanges)
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
+function areStringSetsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false
+  for (const value of a) {
+    if (!b.has(value)) return false
+  }
+  return true
 }
 
 function findFirstSkillId(nodes: TreeNode[]): string | null {
@@ -405,17 +447,22 @@ export function SkillTreeSidebar({
     return () => el.removeEventListener('wheel', handler)
   }, [])
 
-  // Agent selection from centralized store
-  const selectedAgentId = useSelectionStore((state) => state.selectedAgentId)
-  const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
-
-  // Team selection from centralized store
-  const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
-  const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
-
-  // Run selection from centralized store
-  const selectedRunId = useSelectionStore((state) => state.selectedRunId)
-  const setSelectedRunId = useSelectionStore((state) => state.setSelectedRunId)
+  // Consolidate selection subscriptions to reduce selector churn during sidebar updates.
+  const {
+    selectedAgentId,
+    setSelectedAgentId,
+    selectedTeamId,
+    setSelectedTeamId,
+    selectedRunId,
+    setSelectedRunId,
+  } = useSelectionStore(useShallow((state) => ({
+    selectedAgentId: state.selectedAgentId,
+    setSelectedAgentId: state.setSelectedAgentId,
+    selectedTeamId: state.selectedTeamId,
+    setSelectedTeamId: state.setSelectedTeamId,
+    selectedRunId: state.selectedRunId,
+    setSelectedRunId: state.setSelectedRunId,
+  })))
 
   // Active tab state
   const [activeTab, setActiveTab] = useState(initialActiveTab)
@@ -480,17 +527,37 @@ export function SkillTreeSidebar({
     [contentMatches]
   )
 
-  const promptStates = useEditorStore((state) => state.prompts)
+  const editedNameSignature = useEditorStore((state) => {
+    const entries: string[] = []
+    for (const [id, promptState] of state.prompts) {
+      if (promptState.current.name !== promptState.original.name) {
+        entries.push(`${JSON.stringify(id)}\t${JSON.stringify(promptState.current.name)}`)
+      }
+    }
+    entries.sort()
+    return entries.join('\n')
+  })
 
   const editedNameById = useMemo(() => {
     const next = new Map<string, string>()
-    for (const [id, promptState] of promptStates) {
-      if (promptState.current.name !== promptState.original.name) {
-        next.set(id, promptState.current.name)
+    if (!editedNameSignature) return next
+
+    for (const entry of editedNameSignature.split('\n')) {
+      const separator = entry.indexOf('\t')
+      if (separator <= 0) continue
+      const idJson = entry.slice(0, separator)
+      const nameJson = entry.slice(separator + 1)
+      try {
+        const id = JSON.parse(idJson) as string
+        const name = JSON.parse(nameJson) as string
+        next.set(id, name)
+      } catch {
+        // Skip malformed entry; keep sidebar rendering resilient.
       }
     }
+
     return next
-  }, [promptStates])
+  }, [editedNameSignature])
 
   const skillsById = useMemo(() => {
     const map = new Map<string, Skill>()
@@ -589,14 +656,16 @@ export function SkillTreeSidebar({
     })
       .then((response) => {
         if (cancelled) return
-        setContentMatches(response.matches)
+        setContentMatches((prev) =>
+          areContentMatchesEqual(prev, response.matches) ? prev : response.matches
+        )
         setContentLoading(false)
       })
       .catch((err: unknown) => {
         if (cancelled) return
         const message = err instanceof Error ? err.message : 'Content search failed'
         setContentError(message)
-        setContentMatches([])
+        setContentMatches((prev) => (prev.length === 0 ? prev : []))
         setContentLoading(false)
       })
 
@@ -607,7 +676,8 @@ export function SkillTreeSidebar({
 
   useEffect(() => {
     if (searchMode !== 'content') return
-    setExpandedContentFiles(new Set(groupedContentMatches.map((group) => group.file)))
+    const next = new Set(groupedContentMatches.map((group) => group.file))
+    setExpandedContentFiles((prev) => (areStringSetsEqual(prev, next) ? prev : next))
   }, [groupedContentMatches, searchMode])
 
   // Notify parent when content matches change (for editor highlighting)

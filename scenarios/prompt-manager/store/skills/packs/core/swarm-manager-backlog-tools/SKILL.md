@@ -20,7 +20,10 @@ item-folder/
 ├── suggest/
 │   └── suggestions.json   # Suggestions with accept/reject (if suggest ran)
 ├── enhance/
-│   └── summary.md         # Refined plan (if enhance ran)
+│   ├── summary.md             # Refined plan (if enhance ran)
+│   ├── prd-context.md         # PRD context brief for prd-control-tower (if enhance ran)
+│   ├── requirements-context.md # Requirements context (if relevant source material exists)
+│   └── doc-outlines.md        # Documentation outlines (if relevant source material exists)
 ├── research/
 │   └── summary.md         # Research findings (if deep research ran)
 ├── archive/
@@ -34,7 +37,7 @@ item-folder/
 |-----------|---------|---------|
 | `clarify/` | clarify agent | Stores clarifying questions and user answers |
 | `suggest/` | suggest agent | Stores improvement suggestions and user decisions |
-| `enhance/` | enhance agent | Stores the refined, synthesized plan |
+| `enhance/` | enhance agent | Stores the refined plan (`summary.md`) and staging artifacts for the process step (`prd-context.md`, `requirements-context.md`, `doc-outlines.md`) |
 | `research/` | research agent | Stores feasibility research and findings |
 | `archive/` | any agent | Superseded artifacts from previous workflow runs |
 | root | user / system | `spec.json` metadata, user-uploaded context files |
@@ -115,9 +118,18 @@ item-folder/
 | `status` | Yes | "pending" for new; "accepted" or "rejected" after user review |
 | `rejection_reason` | Yes | Empty string (filled by user if rejected) |
 
-### `enhance/summary.md`
+### `enhance/` folder
 
-Markdown document with sections: Overview, Clarifications Applied, Suggestions Integrated, Refined Scope, Implementation Notes, Success Criteria. See `swarm-manager-enhance-idea` for the full template.
+The `enhance/` folder serves dual purposes: the refined plan and staging artifacts for the process step.
+
+| File | Purpose |
+|------|---------|
+| `summary.md` | Refined plan — the source of truth for what to implement. Sections: Overview, Clarifications Applied, Suggestions Integrated, Refined Scope, Implementation Notes, Success Criteria, Readiness Gate, Staging Artifacts Produced. |
+| `prd-context.md` | Synthesized PRD context brief ready for `prd-control-tower prd generate` consumption. Combines all backlog sources into the free-form brief format. |
+| `requirements-context.md` | Requirements context ready for `prd-control-tower requirements generate`. Present only when requirements-related source material exists. |
+| `doc-outlines.md` | Documentation outlines (README sections, RESEARCH findings, PROBLEMS entries). Present only when documentation-related source material exists. |
+
+See `swarm-manager-enhance-idea` for the full template and staging artifact guidelines.
 
 ### `research/summary.md`
 
@@ -173,7 +185,7 @@ swarm-manager backlog file-upload <kind> <name> <relative-path> <content>
 | `spec.json` | system, user, enhance agent | all agents |
 | `clarify/questions.json` | clarify agent (questions), user (answers) | all agents |
 | `suggest/suggestions.json` | suggest agent (suggestions), user (decisions) | all agents |
-| `enhance/summary.md` | enhance agent | all agents |
+| `enhance/*` | enhance agent | all agents |
 | `research/summary.md` | research agent | all agents |
 | `archive/*` | any agent (when superseding artifacts) | all agents |
 | user files (root) | user | all agents |

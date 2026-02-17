@@ -5,6 +5,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useShallow } from 'zustand/react/shallow'
 import type { AgentAccessories, AgentStatus } from '@/types/accessory'
 
 interface AgentAccessoryState {
@@ -48,6 +49,8 @@ const initialState: AccessoryState = {
     held: { type: 'none' },
   },
 }
+
+const NONE_ACCESSORY = { type: 'none' as const }
 
 /**
  * Zustand store for accessory management with persistence
@@ -154,12 +157,20 @@ export const useAccessoryStore = create<AccessoryStore>()(
  * Hook for getting accessories for a specific agent
  */
 export function useAgentAccessoriesSelector(agentId: string) {
-  return useAccessoryStore((state) => state.getAgentAccessories(agentId))
+  return useAccessoryStore(useShallow((state) => {
+    const agentState = state.agentAccessories[agentId]
+    const defaults = state.defaults
+    return {
+      head: agentState?.accessories.head ?? defaults.head ?? NONE_ACCESSORY,
+      back: agentState?.accessories.back ?? defaults.back ?? NONE_ACCESSORY,
+      held: agentState?.accessories.held ?? defaults.held ?? NONE_ACCESSORY,
+    }
+  }))
 }
 
 /**
  * Hook for getting status for a specific agent
  */
 export function useAgentStatusSelector(agentId: string) {
-  return useAccessoryStore((state) => state.getAgentStatus(agentId))
+  return useAccessoryStore((state) => state.agentAccessories[agentId]?.status ?? null)
 }

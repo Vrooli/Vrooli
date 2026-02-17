@@ -33,6 +33,8 @@ export interface DialogProps {
   descriptionId?: string
   /** Additional CSS classes for the dialog panel */
   className?: string
+  /** Additional CSS classes for the fixed outer container (controls alignment) */
+  containerClassName?: string
 }
 
 /**
@@ -50,25 +52,38 @@ export function Dialog({
   titleId: customTitleId,
   descriptionId,
   className,
+  containerClassName,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const generatedTitleId = useId()
   const effectiveTitleId = customTitleId ?? generatedTitleId
 
+  // Escape key + scroll lock (click-outside handled via backdrop onClick below)
   useModalBehavior({
     isOpen,
     onClose,
     ref: dialogRef,
     preventBodyScroll: true,
+    disableCloseOnOutsideClick: true,
     isLoading,
   })
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // Only close if the click target is the backdrop/container itself, not the panel
+    if (e.target === e.currentTarget && !isLoading) {
+      onClose()
+    }
+  }
 
   if (!isOpen) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className={cn("fixed inset-0 z-50 flex items-center justify-center", containerClassName)}
+      onMouseDown={handleBackdropClick}
+    >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
 
       {/* Dialog panel */}
       <div
@@ -83,7 +98,7 @@ export function Dialog({
         )}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? effectiveTitleId : undefined}
+        aria-labelledby={(title || customTitleId) ? effectiveTitleId : undefined}
         aria-describedby={descriptionId}
         data-testid={testId}
       >

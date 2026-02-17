@@ -6,13 +6,29 @@ Propose thoughtful improvements, alternative approaches, and enhancements that c
 
 ## Input Context
 
-**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure and artifact schemas.
+**Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure, artifact schemas, and CLI commands for reading/writing backlog files.
 
-- Existing `suggest/suggestions.json` if present (preserve existing)
+## Scope
+
+**In scope:**
+- Reading all available item context (spec, archive, clarify answers, research, user files)
+- Evaluating improvement opportunities across architecture, UX, scope, risk, and strategy
+- Generating prioritized, categorized suggestions
+- Preserving existing suggestions and user decisions from prior runs
+
+**Out of scope:**
+- Generating clarifying questions (see `swarm-manager-clarify-idea`)
+- Synthesizing a refined plan (see `swarm-manager-enhance-idea`)
+- Implementing any changes directly
 
 ## Output Requirements
 
 **Primary output**: `suggest/suggestions.json` (see `swarm-manager-backlog-tools` for full schema)
+
+Write output via CLI:
+```bash
+swarm-manager backlog file-upload <kind> <name> suggest/suggestions.json <content>
+```
 
 ### Categories
 
@@ -24,12 +40,14 @@ Propose thoughtful improvements, alternative approaches, and enhancements that c
 
 ## Success Criteria
 
-- [ ] Each suggestion adds clear value
+- [ ] All available context read before generating suggestions (spec, archive, clarify, research)
+- [ ] Each suggestion adds clear, specific value
 - [ ] Details explain the "why" not just the "what"
 - [ ] High-impact suggestions prioritized
 - [ ] No more than 7 suggestions (focused, not overwhelming)
-- [ ] Existing suggestions and decisions preserved
+- [ ] Existing suggestions and user decisions preserved on re-runs
 - [ ] Suggestions consider Vrooli ecosystem fit
+- [ ] Output uploaded via CLI and verified
 
 ## Instructions
 
@@ -42,39 +60,103 @@ You are suggesting improvements for a Swarm Manager backlog item. Your goal is t
 - Priority: {{ITEM_PRIORITY}}
 - Tags: {{ITEM_TAGS}}
 
-### Suggestion Generation Steps
+### Processing Steps
 
-1. **Understand current state**
-   - Review `spec.json` thoroughly
-   - Check `clarify/questions.json` for answered questions
-   - Review any research or context files
+1. **Read all available context**
 
-2. **Consider improvement dimensions**
-   - **Architecture**: Is there a better technical approach?
-   - **UX**: Could the user experience be improved?
-   - **Scope**: Should anything be added or removed?
-   - **Risk**: Are there risks that should be mitigated?
-   - **Opportunity**: Are there strategic angles being missed?
+   ```bash
+   swarm-manager backlog get {{ITEM_KIND}} {{ITEM_NAME}}
+   swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
+   ```
+
+   Then read each available artifact:
+   - `spec.json` — the item description and metadata
+   - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs). These reveal what the user values and what's been tried before.
+   - `clarify/questions.json` — answered questions narrow the solution space; unanswered questions may reveal areas ripe for suggestions
+   - `research/summary.md` — feasibility findings and implementation options
+   - `suggest/suggestions.json` — existing suggestions from a prior run (preserve these)
+   - Any user-added files in the item root
+
+   > **Why archive matters:** Archive materials from a prior scenario reveal what worked and what didn't. Suggestions should build on strengths and address known weaknesses rather than repeating past mistakes.
+
+2. **Evaluate improvement dimensions**
+
+   For each category, assess whether there's a meaningful improvement to suggest:
+
+   ```
+   Is there a clear improvement opportunity in this category?
+     → No  → Skip the category
+     → Yes → Is the improvement already covered by the spec or answered questions?
+              → Yes → Skip (don't suggest what's already decided)
+              → No  → Would implementing this suggestion significantly change the outcome?
+                       → Yes → High impact
+                       → No  → Would it noticeably improve quality or experience?
+                                → Yes → Medium impact
+                                → No  → Low impact (only include if under budget)
+   ```
 
 3. **Evaluate Vrooli ecosystem fit**
-   - Does this integrate well with existing scenarios?
-   - Could this become a reusable capability?
-   - Are there compound intelligence opportunities?
 
-4. **Prioritize by impact**
-   - **High**: Would significantly improve outcome
-   - **Medium**: Would noticeably improve outcome
-   - **Low**: Nice improvement but not essential
+   For each potential suggestion, consider:
 
-5. **Craft clear suggestions**
-   - One suggestion per improvement
-   - Clear one-line summary
-   - Detailed rationale explaining why
+   | Question | If Yes |
+   |----------|--------|
+   | Does this integrate with existing scenarios? | Mention which scenarios and how in the details |
+   | Could this become a reusable capability? | Flag as `opportunity` category |
+   | Does this leverage shared resources (Ollama, Qdrant, etc.)? | Mention in architecture suggestion |
+   | Does this create compound intelligence opportunities? | Flag as high-impact `opportunity` |
 
-6. **Preserve existing work**
-   - Keep existing suggestions
-   - Respect accepted/rejected status
-   - Only add truly new suggestions
+4. **Prioritize by budget**
+
+   | Budget | Guideline |
+   |--------|-----------|
+   | Target | 3–5 suggestions |
+   | Maximum | 7 suggestions |
+   | Minimum | 1 suggestion (if the idea is already very well-defined) |
+
+   Prefer fewer high-impact suggestions over many low-impact ones.
+
+5. **Handle re-runs**
+
+   ```
+   Does suggest/suggestions.json already exist?
+     → No  → Generate fresh suggestions
+     → Yes → Read existing suggestions
+             Preserve all existing suggestions and their statuses unchanged
+             (never modify accepted/rejected/pending status or rejection reasons)
+             Are there new improvement opportunities not covered by existing suggestions?
+               → Yes, and total would be within budget → Add new suggestions
+               → Yes, but at budget ceiling → Only add if new suggestion is higher impact
+                 than an existing pending one (replace the lower-impact pending suggestion)
+               → No → Do not add more suggestions
+   ```
+
+6. **Write output**
+
+   Write the suggestions file via CLI (see `swarm-manager-backlog-tools` for the full schema):
+   ```bash
+   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} suggest/suggestions.json '<json content>'
+   ```
+
+7. **Verify**
+
+   ```bash
+   swarm-manager backlog file-get {{ITEM_KIND}} {{ITEM_NAME}} suggest/suggestions.json
+   ```
+
+   Confirm the file was written correctly and the suggestion count is within budget.
+
+### Impact Classification (Convergence Table)
+
+| Signal | Impact | Rationale |
+|--------|--------|-----------|
+| Changes architecture or eliminates a technical risk | `high` | Structural improvement, hard to retrofit |
+| Enables monetization or new capability reuse | `high` | Strategic value multiplier |
+| Improves UX for a core workflow | `medium` | Noticeable user benefit |
+| Reduces scope to ship faster without losing core value | `medium` | Accelerates delivery |
+| Adds a safeguard against a likely failure mode | `medium` | Prevents rework |
+| Improves polish, error messages, or edge case handling | `low` | Nice but not essential |
+| Adds optional configurability or extensibility | `low` | Future-proofing, not immediate value |
 
 ### Suggestion Templates by Category
 
@@ -103,28 +185,6 @@ You are suggesting improvements for a Swarm Manager backlog item. Your goal is t
 - "This enables future [capability]"
 - "Integrate with [scenario] to [benefit]"
 
-### Output Format
-
-Write `suggest/suggestions.json`:
-
-```json
-{
-  "suggestions": [
-    {
-      "id": "s1",
-      "suggestion": "[One-line improvement summary]",
-      "details": "[2-4 sentences explaining rationale and benefits]",
-      "category": "[category]",
-      "impact": "[impact]",
-      "status": "pending",
-      "rejection_reason": ""
-    }
-  ],
-  "generated_at": "[ISO-8601 timestamp]",
-  "max_suggestions": 7
-}
-```
-
 ## Quality Guidelines
 
 **Good suggestions:**
@@ -139,8 +199,21 @@ Write `suggest/suggestions.json`:
 
 ## Anti-Patterns
 
-- **Don't** suggest things already in the description
+- **Don't** suggest things already in the description or decided by answered questions
 - **Don't** suggest contradictory improvements
-- **Don't** include more than 7 suggestions - be selective
-- **Don't** modify existing suggestion statuses
-- **Don't** suggest for the sake of suggesting - each must add value
+- **Don't** include more than 7 suggestions — be selective
+- **Don't** modify existing suggestion statuses or rejection reasons
+- **Don't** suggest for the sake of suggesting — each must add value
+- **Don't** ignore archive materials — they reveal user intent and past decisions
+- **Don't** write JSON output directly to disk — use the backlog CLI
+
+## Troubleshooting & Edge Cases
+
+| Problem | Solution |
+|---------|----------|
+| `file-get` returns 404 for `suggest/suggestions.json` | Normal on first run — generate fresh suggestions |
+| `file-upload` fails | Check that kind and name match an existing backlog item: `swarm-manager backlog get <kind> <name>` |
+| Clarify questions are unanswered | Suggestions can still be generated — note that some may become irrelevant once questions are answered |
+| Archive contains a detailed PRD | Focus suggestions on gaps or improvements beyond what the PRD covers |
+| All existing suggestions are already accepted/rejected | Only add new suggestions if genuinely novel opportunities exist |
+| Suggestion conflicts with an answered question | The answered question wins — do not suggest contradicting it |

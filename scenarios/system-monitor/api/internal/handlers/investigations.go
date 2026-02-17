@@ -85,7 +85,7 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 	response := map[string]interface{}{
 		"status":           "queued",
 		"investigation_id": investigation.ID,
-		"api_base_url":     h.resolveAPIBaseURL(),
+		"api_base_url":     h.resolveAPIBaseURL(r),
 		"message":          "Investigation queued for processing",
 		"auto_fix":         req.AutoFix,
 		"note":             req.Note,
@@ -306,7 +306,18 @@ func (h *InvestigationHandler) UpdateTriggerThreshold(w http.ResponseWriter, r *
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-func (h *InvestigationHandler) resolveAPIBaseURL() string {
+func (h *InvestigationHandler) resolveAPIBaseURL(r *http.Request) string {
+	// Prefer forwarded headers for correct addressing behind proxies
+	if host := r.Header.Get("X-Forwarded-Host"); host != "" {
+		scheme := r.Header.Get("X-Forwarded-Proto")
+		if scheme == "" {
+			scheme = "http"
+		}
+		return fmt.Sprintf("%s://%s", scheme, host)
+	}
+	if r.Host != "" {
+		return fmt.Sprintf("http://%s", r.Host)
+	}
 	port := strings.TrimSpace(h.config.Server.APIPort)
 	if port == "" {
 		port = "8080"

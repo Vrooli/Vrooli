@@ -2,6 +2,7 @@
  * useHoverHighlight - Hook for managing hover state on 3D objects.
  * Provides event handlers and state for highlighting objects on hover.
  */
+// AI_CHECK: R3F_HOVER_EVENT_CHURN=1 | LAST: 2026-02-17
 
 import { useCallback, useMemo } from 'react'
 import { useInteractionStore } from '@/stores/interactionStore'
@@ -62,16 +63,23 @@ export function useHoverHighlight(
       if (!enabled || useInteractionStore.getState().isDragging) return
       e.stopPropagation()
       setHovered(objectId)
-      document.body.style.cursor = cursor
+      if (document.body.style.cursor !== cursor) {
+        document.body.style.cursor = cursor
+      }
     },
     [objectId, setHovered, cursor, enabled]
   )
 
   const onPointerOut = useCallback(() => {
     if (!enabled) return
-    setHovered(null)
-    document.body.style.cursor = 'auto'
-  }, [setHovered, enabled])
+    const { hoveredObjectId } = useInteractionStore.getState()
+    if (hoveredObjectId === objectId) {
+      setHovered(null)
+    }
+    if (document.body.style.cursor !== 'auto') {
+      document.body.style.cursor = 'auto'
+    }
+  }, [objectId, setHovered, enabled])
 
   const hoverProps = useMemo(
     () => ({

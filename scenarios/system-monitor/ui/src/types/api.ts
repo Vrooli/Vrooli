@@ -374,3 +374,8 @@ export interface APIResponse<T> {
   error?: APIError;
   status: number;
 }
+
+/** Terminal statuses for investigations — aligned with API values */
+export const INVESTIGATION_TERMINAL_STATUSES = new Set([
+  'completed', 'failed', 'cancelled', 'stopped', 'error',
+]);

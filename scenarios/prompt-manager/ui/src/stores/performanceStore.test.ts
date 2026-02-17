@@ -55,6 +55,45 @@ describe('Performance Store', () => {
       expect(metrics.currentFps).toBeGreaterThan(0)
       expect(metrics.averageFps).toBeGreaterThan(0)
     })
+
+    it('publishes trace samples with render stats on interval', () => {
+      usePerformanceStore.getState().setConfig({
+        traceSampleSize: 16,
+        tracePublishIntervalFrames: 4,
+      })
+      usePerformanceStore.getState().startMonitoring()
+
+      for (let i = 0; i < 4; i++) {
+        usePerformanceStore.getState().recordFrame(16.67, {
+          drawCalls: 100 + i,
+          triangles: 200 + i,
+        })
+      }
+
+      const state = usePerformanceStore.getState()
+      expect(state.publishedTraceSamples.length).toBe(4)
+      expect(state.traceVersion).toBeGreaterThan(0)
+      expect(state.publishedTraceSamples[3]?.drawCalls).toBe(103)
+      expect(state.publishedTraceSamples[3]?.triangles).toBe(203)
+    })
+
+    it('keeps only latest trace samples up to traceSampleSize', () => {
+      usePerformanceStore.getState().setConfig({
+        traceSampleSize: 5,
+        tracePublishIntervalFrames: 5,
+      })
+      usePerformanceStore.getState().startMonitoring()
+
+      for (let i = 0; i < 10; i++) {
+        usePerformanceStore.getState().recordFrame(16.67)
+      }
+
+      const state = usePerformanceStore.getState()
+      expect(state.publishedTraceSamples).toHaveLength(5)
+      const firstTs = state.publishedTraceSamples[0]?.timestamp ?? 0
+      const lastTs = state.publishedTraceSamples[4]?.timestamp ?? 0
+      expect(lastTs).toBeGreaterThanOrEqual(firstTs)
+    })
   })
 
   describe('config', () => {
@@ -133,6 +172,16 @@ describe('Performance Store', () => {
 
       const after = usePerformanceStore.getState().lastAdjustmentTime
       expect(after).toBeGreaterThan(before)
+    })
+
+    it('adds trace markers for tab visibility changes', () => {
+      const before = usePerformanceStore.getState().traceMarkers.length
+      usePerformanceStore.getState().setTabVisibility(false)
+      usePerformanceStore.getState().setTabVisibility(true)
+      const markers = usePerformanceStore.getState().traceMarkers
+      expect(markers.length).toBe(before + 2)
+      expect(markers[markers.length - 2]?.type).toBe('hidden')
+      expect(markers[markers.length - 1]?.type).toBe('visible')
     })
   })
 })

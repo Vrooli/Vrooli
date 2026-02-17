@@ -9,7 +9,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { useOverlayStore, selectAgentSpeechBubbles, selectAgentThinking } from './overlayStore'
+import {
+  useOverlayStore,
+  selectAgentSpeechBubbles,
+  selectLatestAgentSpeechBubble,
+  selectAgentThinking,
+} from './overlayStore'
 
 describe('overlayStore', () => {
   beforeEach(() => {
@@ -262,6 +267,25 @@ describe('overlayStore', () => {
       const bubbles = selectAgentSpeechBubbles(state, '')
 
       expect(bubbles).toEqual([])
+    })
+  })
+
+  describe('selectLatestAgentSpeechBubble', () => {
+    it('returns the latest bubble for the target agent only', () => {
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'First', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-2', 'Other', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Second', 0)
+
+      const latest = selectLatestAgentSpeechBubble(useOverlayStore.getState(), 'agent-1')
+
+      expect(latest?.text).toBe('Second')
+      expect(latest?.agentId).toBe('agent-1')
+    })
+
+    it('returns null for missing agent id', () => {
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Only', 0)
+      expect(selectLatestAgentSpeechBubble(useOverlayStore.getState(), '')).toBeNull()
+      expect(selectLatestAgentSpeechBubble(useOverlayStore.getState(), null as unknown as string)).toBeNull()
     })
   })
 

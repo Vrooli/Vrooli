@@ -23,6 +23,8 @@ import type { AgentProps } from '@/types/world'
 import type { Agent } from '@/types/agent'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 
+const NONE_ACCESSORY = { type: 'none' as const }
+
 interface AgentWithAccessoriesProps extends Omit<AgentProps, 'agentId'> {
   /** Full agent data */
   agent: Agent
@@ -76,21 +78,18 @@ export function AgentWithAccessories({
   const agentScale = useWorldScaleStore((state) => state.agent)
   const overlayScale = useWorldScaleStore((state) => state.overlay)
 
-  // Get stable references from accessory store
-  const agentAccessoriesState = useAccessoryStore((state) => state.agentAccessories)
+  // Subscribe only to this agent's accessory state (avoids all-agent rerenders).
+  const agentAccessoryState = useAccessoryStore((state) => state.agentAccessories[agent.id])
   const accessoryDefaults = useAccessoryStore((state) => state.defaults)
 
-  // Memoize accessory resolution to avoid creating new objects on each render
+  // AI_CHECK: R3F_AGENT_ACCESSORY_SUBSCRIPTION=1 | LAST: 2026-02-17
   const storedAccessories = useMemo(() => {
-    const agentIdLocal = agent.id
-    const agentState = agentAccessoriesState[agentIdLocal]
-    const defaults = accessoryDefaults
     return {
-      head: agentState?.accessories.head ?? defaults.head ?? { type: 'none' as const },
-      back: agentState?.accessories.back ?? defaults.back ?? { type: 'none' as const },
-      held: agentState?.accessories.held ?? defaults.held ?? { type: 'none' as const },
+      head: agentAccessoryState?.accessories.head ?? accessoryDefaults.head ?? NONE_ACCESSORY,
+      back: agentAccessoryState?.accessories.back ?? accessoryDefaults.back ?? NONE_ACCESSORY,
+      held: agentAccessoryState?.accessories.held ?? accessoryDefaults.held ?? NONE_ACCESSORY,
     }
-  }, [agentAccessoriesState, agent.id, accessoryDefaults])
+  }, [agentAccessoryState, accessoryDefaults])
 
   // Hover highlighting
   const { isHovered, hoverProps } = useHoverHighlight(agent.id, {

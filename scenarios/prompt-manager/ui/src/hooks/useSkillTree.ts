@@ -21,6 +21,7 @@ import {
   getAllTags,
   getAllFolders,
 } from '@/services/treeService'
+// AI_CHECK: TREE_EXPAND_STATE_CHURN=1 | LAST: 2026-02-17
 
 interface UseSkillTreeProps {
   skills: Skill[]
@@ -70,6 +71,14 @@ interface UseSkillTreeReturn {
   // Sidebar collapse
   isCollapsed: boolean
   toggleCollapse: () => void
+}
+
+function areStringSetsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false
+  for (const value of a) {
+    if (!b.has(value)) return false
+  }
+  return true
 }
 
 /**
@@ -184,11 +193,15 @@ export function useSkillTree({
       if (paths.length === 0) return
 
       setExpandedNodes((prev) => {
+        let changed = false
         const next = new Set(prev)
         for (const path of paths) {
-          next.add(path)
+          if (!next.has(path)) {
+            next.add(path)
+            changed = true
+          }
         }
-        return next
+        return changed ? next : prev
       })
     },
     []
@@ -225,7 +238,7 @@ export function useSkillTree({
       }
 
       collectExpandable(filteredTreeNodes)
-      setExpandedNodes(nodesToExpand)
+      setExpandedNodes((prev) => (areStringSetsEqual(prev, nodesToExpand) ? prev : nodesToExpand))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery])

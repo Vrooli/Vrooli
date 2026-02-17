@@ -80,6 +80,8 @@ const literalSelectors = {
     scene: 'world-settings-scene',
     graphics: 'world-settings-graphics',
     customToggle: 'world-settings-custom-toggle',
+    fpsOverlayToggle: 'world-settings-fps-overlay-toggle',
+    fpsTraceToggle: 'world-settings-fps-trace-toggle',
   },
   viewOverlay: {
     stats: 'view-overlay-stats',

@@ -54,6 +54,7 @@ import type { ContentSearchMatch, Reference } from '@/lib/schemas'
 import type { HighlightRequest } from '@/lib/highlight'
 import { createHighlightMatch } from '@/lib/highlight'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
+import { useShallow } from 'zustand/react/shallow'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
 
@@ -115,17 +116,30 @@ export function SkillManagerLayout() {
 
   const isLoading = isLoadingSkills || isLoadingAgents
 
-  // Centralized selection state from Zustand store
-  const selectedSkillId = useSelectionStore((state) => state.selectedSkillId)
-  const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
-  const selectedAgentId = useSelectionStore((state) => state.selectedAgentId)
-  const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
-  const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
-  const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
-  const selectedRunId = useSelectionStore((state) => state.selectedRunId)
-  const setSelectedRunId = useSelectionStore((state) => state.setSelectedRunId)
-  const graphViewActive = useSelectionStore((state) => state.graphViewActive)
-  const setGraphViewActive = useSelectionStore((state) => state.setGraphViewActive)
+  // Centralized selection state from Zustand store.
+  const {
+    selectedSkillId,
+    setSelectedSkillId,
+    selectedAgentId,
+    setSelectedAgentId,
+    selectedTeamId,
+    setSelectedTeamId,
+    selectedRunId,
+    setSelectedRunId,
+    graphViewActive,
+    setGraphViewActive,
+  } = useSelectionStore(useShallow((state) => ({
+    selectedSkillId: state.selectedSkillId,
+    setSelectedSkillId: state.setSelectedSkillId,
+    selectedAgentId: state.selectedAgentId,
+    setSelectedAgentId: state.setSelectedAgentId,
+    selectedTeamId: state.selectedTeamId,
+    setSelectedTeamId: state.setSelectedTeamId,
+    selectedRunId: state.selectedRunId,
+    setSelectedRunId: state.setSelectedRunId,
+    graphViewActive: state.graphViewActive,
+    setGraphViewActive: state.setGraphViewActive,
+  })))
 
   // Get the current team details for editing
   const { team: currentTeam } = useTeamDetails(selectedTeamId)
@@ -200,16 +214,29 @@ export function SkillManagerLayout() {
   })
 
   // Combine store
-  const combineMode = useCombineStore((state) => state.isActive)
-  const combineSelectedIds = useCombineStore((state) => state.selectedSkillIds)
-  const combineFormat = useCombineStore((state) => state.format)
-  const isCombineCopying = useCombineStore((state) => state.isCopying)
-  const enterCombineMode = useCombineStore((state) => state.enterCombineMode)
-  const exitCombineMode = useCombineStore((state) => state.exitCombineMode)
-  const toggleCombineSkillSelection = useCombineStore((state) => state.toggleSkillSelection)
-  const toggleCombineMultipleSkills = useCombineStore((state) => state.toggleMultipleSkills)
-  const setCombineFormat = useCombineStore((state) => state.setFormat)
-  const setIsCombineCopying = useCombineStore((state) => state.setIsCopying)
+  const {
+    combineMode,
+    combineSelectedIds,
+    combineFormat,
+    isCombineCopying,
+    enterCombineMode,
+    exitCombineMode,
+    toggleCombineSkillSelection,
+    toggleCombineMultipleSkills,
+    setCombineFormat,
+    setIsCombineCopying,
+  } = useCombineStore(useShallow((state) => ({
+    combineMode: state.isActive,
+    combineSelectedIds: state.selectedSkillIds,
+    combineFormat: state.format,
+    isCombineCopying: state.isCopying,
+    enterCombineMode: state.enterCombineMode,
+    exitCombineMode: state.exitCombineMode,
+    toggleCombineSkillSelection: state.toggleSkillSelection,
+    toggleCombineMultipleSkills: state.toggleMultipleSkills,
+    setCombineFormat: state.setFormat,
+    setIsCombineCopying: state.setIsCopying,
+  })))
 
   // Combine copy success state (local since it's UI feedback)
   const [combineCopySuccess, setCombineCopySuccess] = useState(false)

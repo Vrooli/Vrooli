@@ -110,6 +110,8 @@ export function WorldSettingsContent() {
 
   // Performance store
   const autoAdjust = usePerformanceStore((state) => state.config.autoAdjust)
+  const showFpsOverlay = usePerformanceStore((state) => state.config.showOverlay)
+  const showFpsTraceCharts = usePerformanceStore((state) => state.config.showTraceCharts)
 
   const timeDisplay = useMemo(() => formatTimeFromHour(timeValue), [timeValue])
 
@@ -296,6 +298,27 @@ export function WorldSettingsContent() {
               setAutoDetect(true)
             }
           }}
+        />
+
+        <SettingsToggle
+          label="Show FPS overlay"
+          value={showFpsOverlay}
+          onChange={(v) => {
+            usePerformanceStore.getState().setConfig({ showOverlay: v })
+          }}
+          className="mt-3"
+          testId={selectors.settings.fpsOverlayToggle}
+        />
+
+        <SettingsToggle
+          label="Show FPS traces"
+          value={showFpsTraceCharts}
+          onChange={(v) => {
+            usePerformanceStore.getState().setConfig({ showTraceCharts: v })
+          }}
+          className="mt-3"
+          disabled={!showFpsOverlay}
+          testId={selectors.settings.fpsTraceToggle}
         />
 
         <label className="flex items-center gap-2 mb-4 mt-3 cursor-pointer">

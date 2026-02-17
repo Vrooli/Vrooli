@@ -2,18 +2,120 @@
  * FPSOverlay - Displays FPS and performance metrics in the 3D scene.
  * Shows current FPS, average FPS, and performance tier information.
  */
+// AI_CHECK: FPS_TRACE_OVERLAY_RENDER=1 | LAST: 2026-02-17
 
 import { Html } from '@react-three/drei'
-import { usePerformanceStore } from '@/stores/performanceStore'
+import { useEffect, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import { usePerformanceStore, selectTraceData } from '@/stores/performanceStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import { useLODStore } from '@/stores/lodStore'
-import { useShallow } from 'zustand/react/shallow'
+import type { PerformanceTraceMarker, PerformanceTraceSample } from '@/types/performance'
 
 interface FPSOverlayProps {
   /** Position in 3D space */
   position?: [number, number, number]
   /** Whether to show detailed stats */
   detailed?: boolean
+}
+
+const TRACE_CANVAS_WIDTH = 220
+const TRACE_CANVAS_HEIGHT = 64
+
+function markerColor(type: PerformanceTraceMarker['type']): string {
+  switch (type) {
+    case 'tier-adjust':
+      return '#60a5fa'
+    case 'degraded':
+      return '#ef4444'
+    case 'recovered':
+      return '#22c55e'
+    case 'hidden':
+      return '#f59e0b'
+    case 'visible':
+      return '#10b981'
+  }
+}
+
+function drawLine(
+  ctx: CanvasRenderingContext2D,
+  samples: PerformanceTraceSample[],
+  valueForSample: (sample: PerformanceTraceSample) => number,
+  minValue: number,
+  maxValue: number,
+  color: string,
+  width: number,
+  height: number,
+) {
+  if (samples.length === 0) return
+
+  const range = Math.max(1, maxValue - minValue)
+  const stepX = samples.length <= 1 ? 0 : width / (samples.length - 1)
+
+  ctx.beginPath()
+  for (let i = 0; i < samples.length; i++) {
+    const sample = samples[i]
+    if (!sample) continue
+    const v = valueForSample(sample)
+    const normalized = (v - minValue) / range
+    const x = i * stepX
+    const y = height - normalized * height
+    if (i === 0) {
+      ctx.moveTo(x, y)
+    } else {
+      ctx.lineTo(x, y)
+    }
+  }
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = color
+  ctx.stroke()
+}
+
+function drawTraceCanvas(
+  canvas: HTMLCanvasElement,
+  samples: PerformanceTraceSample[],
+  markers: PerformanceTraceMarker[],
+) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const width = canvas.width
+  const height = canvas.height
+  ctx.clearRect(0, 0, width, height)
+  ctx.fillStyle = 'rgba(2,6,23,0.75)'
+  ctx.fillRect(0, 0, width, height)
+
+  if (samples.length === 0) {
+    ctx.fillStyle = '#94a3b8'
+    ctx.font = '10px monospace'
+    ctx.fillText('collecting trace...', 8, Math.round(height / 2))
+    return
+  }
+
+  const fpsValues = samples.map((s) => s.fps)
+  const frameMsValues = samples.map((s) => s.frameTimeMs)
+  const minFps = Math.max(0, Math.min(...fpsValues) - 5)
+  const maxFps = Math.max(60, Math.max(...fpsValues) + 5)
+  const minFrameMs = 0
+  const maxFrameMs = Math.max(40, Math.max(...frameMsValues) + 2)
+
+  drawLine(ctx, samples, (s) => s.fps, minFps, maxFps, '#22c55e', width, height)
+  drawLine(ctx, samples, (s) => s.frameTimeMs, minFrameMs, maxFrameMs, '#f59e0b', width, height)
+
+  const startTs = samples[0]?.timestamp ?? 0
+  const endTs = samples[samples.length - 1]?.timestamp ?? startTs
+  const tsRange = Math.max(1, endTs - startTs)
+  for (const marker of markers) {
+    if (marker.timestamp < startTs || marker.timestamp > endTs) continue
+    const normalized = (marker.timestamp - startTs) / tsRange
+    const x = Math.round(normalized * width)
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, height)
+    ctx.strokeStyle = markerColor(marker.type)
+    ctx.lineWidth = 1
+    ctx.stroke()
+  }
 }
 
 /**
@@ -40,6 +142,9 @@ export function FPSOverlay({
   const metrics = usePerformanceStore((state) => state.metrics)
   const showOverlay = usePerformanceStore((state) => state.config.showOverlay)
   const autoAdjust = usePerformanceStore((state) => state.config.autoAdjust)
+  const showTraceCharts = usePerformanceStore((state) => state.config.showTraceCharts)
+  const traceData = usePerformanceStore(useShallow(selectTraceData))
+  const traceCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // Graphics tier
   const tier = useGraphicsStore((state) => state.tier)
@@ -49,6 +154,13 @@ export function FPSOverlay({
     objectCount: state.objectCount,
     levelCounts: state.levelCounts,
   })))
+
+  useEffect(() => {
+    if (!showOverlay) return
+    const canvas = traceCanvasRef.current
+    if (!canvas) return
+    drawTraceCanvas(canvas, traceData.samples, traceData.markers)
+  }, [showOverlay, traceData.version, traceData.samples, traceData.markers])
 
   if (!showOverlay) return null
 
@@ -141,6 +253,41 @@ export function FPSOverlay({
         {/* Detailed Stats */}
         {detailed && (
           <>
+            {showTraceCharts && (
+              <div
+                style={{
+                  marginTop: '6px',
+                  paddingTop: '6px',
+                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    marginBottom: '4px',
+                    color: '#9ca3af',
+                    fontSize: '10px',
+                    display: 'flex',
+                    gap: '10px',
+                  }}
+                >
+                  <span style={{ color: '#22c55e' }}>FPS</span>
+                  <span style={{ color: '#f59e0b' }}>Frame ms</span>
+                  <span style={{ color: '#60a5fa' }}>Tier event</span>
+                </div>
+                <canvas
+                  ref={traceCanvasRef}
+                  width={TRACE_CANVAS_WIDTH}
+                  height={TRACE_CANVAS_HEIGHT}
+                  style={{
+                    width: `${TRACE_CANVAS_WIDTH}px`,
+                    height: `${TRACE_CANVAS_HEIGHT}px`,
+                    borderRadius: '4px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                />
+              </div>
+            )}
+
             {/* Frame Time */}
             <div
               style={{
