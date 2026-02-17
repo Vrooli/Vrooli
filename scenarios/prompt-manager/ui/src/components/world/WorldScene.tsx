@@ -23,7 +23,7 @@ import { DragPlane, DraggableObject, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { TeamOverlayManager } from './overlays/TeamOverlayManager'
-import { PerformanceMonitor, FPSOverlay } from './performance'
+import { PerformanceMonitor, FPSOverlay, FrameRateController } from './performance'
 import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, Moon, ProceduralClouds, GroundSurface } from './rendering'
 import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
@@ -271,6 +271,7 @@ export function WorldScene({
   return (
     <>
       {/* Performance Monitoring */}
+      <FrameRateController />
       <PerformanceMonitor
         enabled
         autoAdjust={autoAdjustPerformance}

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { usePerformanceStore } from '@/stores/performanceStore'
+import { usePerformanceStore, selectEffectiveMaxFps } from '@/stores/performanceStore'
 
 describe('Performance Store', () => {
   beforeEach(() => {
@@ -112,6 +112,21 @@ describe('Performance Store', () => {
       const initialValue = usePerformanceStore.getState().config.autoAdjust
       usePerformanceStore.getState().toggleAutoAdjust()
       expect(usePerformanceStore.getState().config.autoAdjust).toBe(!initialValue)
+    })
+
+    it('uses tier-based default max fps when set to auto', () => {
+      usePerformanceStore.getState().setConfig({ maxFps: 'auto' })
+      usePerformanceStore.getState().setCurrentTier('medium')
+      expect(selectEffectiveMaxFps(usePerformanceStore.getState())).toBe(30)
+
+      usePerformanceStore.getState().setCurrentTier('high')
+      expect(selectEffectiveMaxFps(usePerformanceStore.getState())).toBe(60)
+    })
+
+    it('uses explicit max fps override when configured', () => {
+      usePerformanceStore.getState().setConfig({ maxFps: 45 })
+      usePerformanceStore.getState().setCurrentTier('ultra')
+      expect(selectEffectiveMaxFps(usePerformanceStore.getState())).toBe(45)
     })
   })
 

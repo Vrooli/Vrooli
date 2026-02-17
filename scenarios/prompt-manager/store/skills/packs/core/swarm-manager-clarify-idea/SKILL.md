@@ -69,13 +69,14 @@ You are generating clarifying questions for a Swarm Manager backlog item. Your g
    swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
    ```
 
-   Then read each available artifact:
-   - `spec.json` — the item description and metadata
-   - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs). These often contain answers to questions you might otherwise ask.
+   Then read each available artifact, starting with the most refined:
+   - `enhance/` — if a prior enhance run exists, read `enhance/summary.md` and staging artifacts first. These represent the most refined understanding of the idea and may preemptively answer many questions. Generate questions only for gaps that remain after reading enhance/.
+   - `spec.json` — the item description and metadata (superseded by enhance/ if it exists)
+   - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs). These often contain answers to questions you might otherwise ask. Only use for content not already captured in enhance/.
    - `clarify/questions.json` — existing questions from a prior run (preserve these)
    - Any user-added files in the item root
 
-   > **Why archive matters:** The archive may contain requirements documents, PRDs, or prior scenario docs from a deleted scenario. Review these thoroughly — they often preemptively answer technical, scope, and integration questions.
+   > **Why reading order matters:** The backlog folder represents a refinement pipeline (see `swarm-manager-backlog-tools` for the full source authority hierarchy). `enhance/` is the most refined source — if it exists, most questions about scope, architecture, and integration may already be answered there. `archive/` is raw source material — useful when enhance/ doesn't exist or doesn't cover a topic.
 
 2. **Identify knowledge gaps**
 

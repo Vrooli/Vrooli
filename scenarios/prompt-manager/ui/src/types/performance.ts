@@ -4,6 +4,8 @@
 
 import type { PerformanceTier } from './graphics'
 
+export type MaxFpsSetting = 'auto' | number
+
 /** FPS sample for moving average calculation */
 export interface FPSSample {
   fps: number
@@ -63,6 +65,8 @@ export interface FPSMonitorConfig {
   autoAdjust: boolean
   /** Whether to show FPS overlay */
   showOverlay: boolean
+  /** Max FPS cap. 'auto' uses tier defaults (low/medium=30, high/ultra=60). */
+  maxFps: MaxFpsSetting
   /** Whether to render trace charts in overlay */
   showTraceCharts: boolean
   /** Number of samples retained for trace charts */
@@ -94,6 +98,7 @@ export const DEFAULT_FPS_CONFIG: FPSMonitorConfig = {
   adjustmentCooldown: 5000, // 5 seconds between adjustments
   autoAdjust: true,
   showOverlay: false,
+  maxFps: 'auto',
   showTraceCharts: true,
   traceSampleSize: 240, // ~4 seconds at 60fps
   tracePublishIntervalFrames: 12,

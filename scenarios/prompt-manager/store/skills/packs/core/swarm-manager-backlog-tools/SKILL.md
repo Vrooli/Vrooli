@@ -39,7 +39,7 @@ item-folder/
 | `suggest/` | suggest agent | Stores improvement suggestions and user decisions |
 | `enhance/` | enhance agent | Stores the refined plan (`summary.md`) and staging artifacts for the process step (`prd-context.md`, `requirements-context.md`, `doc-outlines.md`) |
 | `research/` | research agent | Stores feasibility research and findings |
-| `archive/` | any agent | Superseded artifacts from previous workflow runs |
+| `archive/` | user / system | User-provided materials (prior scenario artifacts, requirements, designs) and superseded artifacts from previous workflow runs. Agents should read but not modify. |
 | root | user / system | `spec.json` metadata, user-uploaded context files |
 
 ## Artifact Schemas
@@ -135,24 +135,75 @@ See `swarm-manager-enhance-idea` for the full template and staging artifact guid
 
 Markdown document with sections: Executive Summary, Feasibility Assessment, Dependency Analysis, Implementation Approaches, Risks & Mitigations, Next Steps. See the relevant research skill for the full template.
 
-## Reading Order & Decision Hierarchy
+## Source Authority Hierarchy
+
+The backlog folder represents a refinement pipeline. Each stage builds on the previous, producing progressively more refined and authoritative output. Understanding this hierarchy is essential for every agent that reads or writes backlog artifacts.
+
+### Refinement Levels
+
+```
+Most refined / highest authority
+  ┌─────────────────────────────────────────────────────┐
+  │  enhance/          Synthesized plan + staging        │
+  │                    artifacts. The "compiled" output   │
+  │                    of everything below it.            │
+  ├─────────────────────────────────────────────────────┤
+  │  clarify/ + suggest/   User decisions — answered     │
+  │                    questions and accepted/rejected    │
+  │                    suggestions. Direct user intent.   │
+  ├─────────────────────────────────────────────────────┤
+  │  research/         Advisory findings — informs but   │
+  │                    does not override user decisions.  │
+  ├─────────────────────────────────────────────────────┤
+  │  spec.json         Original description and metadata.│
+  │                    Superseded by enhance/ when it     │
+  │                    exists.                            │
+  ├─────────────────────────────────────────────────────┤
+  │  archive/          Raw materials from a prior or     │
+  │                    existing scenario. Least refined   │
+  │                    — used as source material, not     │
+  │                    as authoritative specification.    │
+  └─────────────────────────────────────────────────────┘
+Least refined / lowest authority
+```
+
+**Key principle:** `enhance/` is the most up-to-date and authoritative source. It represents the fully synthesized output of all refinement stages. When `enhance/` exists, treat it as the primary source of truth. When it doesn't, reconstruct the specification from the lower-authority sources.
+
+### How Refinement Accumulates
+
+The pipeline is iterative. Users may run clarify → suggest → enhance, then go back, add more questions or suggestions, and enhance again. Each pass builds on the previous:
+
+- **First enhance run**: Reads spec, clarify, suggest, research, archive → produces `enhance/summary.md` + staging artifacts
+- **Subsequent clarify/suggest runs**: Read the existing `enhance/` output as context, generating questions/suggestions that refine what's already been synthesized
+- **Subsequent enhance runs**: Read the prior `enhance/` output as a **foundation**, then layer on new clarify answers, new accepted suggestions, and any new research — producing an updated synthesis
+
+This means `enhance/` is never stale in the way `archive/` can be. Each enhance run incorporates everything that came before it. Agents re-running any pipeline step should always read `enhance/` (if it exists) as their starting context.
+
+### Reading Order
 
 When processing a backlog item, read artifacts in this order:
 
-1. `spec.json` — understand the item's kind, title, description, and status
-2. `clarify/questions.json` — review all answered questions
-3. `suggest/suggestions.json` — review accepted/rejected suggestions
-4. `enhance/summary.md` — read the refined plan (supersedes raw description)
-5. `research/summary.md` — review any feasibility findings
-6. User-uploaded files — additional context
+1. `enhance/summary.md` — if it exists, start here (it's the most refined source of truth)
+   - Also check for staging artifacts: `enhance/prd-context.md`, `enhance/requirements-context.md`, `enhance/doc-outlines.md`
+2. `spec.json` — item metadata; description is superseded by enhance/ when it exists
+3. `clarify/questions.json` — review answered questions (may contain new answers since last enhance run)
+4. `suggest/suggestions.json` — review accepted/rejected suggestions (may contain new decisions since last enhance run)
+5. `research/summary.md` — advisory feasibility findings
+6. `archive/` — raw materials; only use for content not already captured in enhance/
+7. User-uploaded files — additional context
 
 ### Decision Authority Rules
 
-- **Answered questions** in `clarify/questions.json` are **definitive** — implement as answered
-- **Accepted suggestions** in `suggest/suggestions.json` **must** be incorporated
-- **Rejected suggestions** must **NOT** be implemented
-- **Enhanced description** in `enhance/summary.md` **supersedes** the original description in `spec.json`
-- **Research findings** are advisory — they inform but do not override user decisions
+When sources conflict, apply this precedence (highest to lowest):
+
+1. **Answered questions** in `clarify/questions.json` are **definitive** — always implement as answered, even if they contradict a prior enhance run
+2. **Accepted suggestions** in `suggest/suggestions.json` **must** be incorporated
+3. **Rejected suggestions** must **NOT** be implemented
+4. **`enhance/`** supersedes `spec.json` and `archive/` — it was synthesized later with more context
+5. **Research findings** are advisory — they inform but do not override user decisions
+6. **`archive/`** is raw source material — use it only when `enhance/` doesn't cover the same content
+
+> **Why answered questions outrank enhance/:** A user may answer new questions *after* a prior enhance run. Those new answers represent the latest user intent and must take precedence, even if the current enhance/summary.md doesn't yet reflect them. The next enhance run will incorporate them.
 
 ## CLI Commands
 
@@ -187,7 +238,7 @@ swarm-manager backlog file-upload <kind> <name> <relative-path> <content>
 | `suggest/suggestions.json` | suggest agent (suggestions), user (decisions) | all agents |
 | `enhance/*` | enhance agent | all agents |
 | `research/summary.md` | research agent | all agents |
-| `archive/*` | any agent (when superseding artifacts) | all agents |
+| `archive/*` | user, system (when archiving scenario artifacts) | all agents (read-only) |
 | user files (root) | user | all agents |
 
 ## Troubleshooting & Edge Cases
@@ -202,7 +253,7 @@ No previous runs have been superseded. The archive folder is created on demand w
 Questions with an empty `answer` field have not been answered by the user. Do not assume answers — treat unanswered questions as open unknowns and flag them if they are critical.
 
 ### Missing `enhance/summary.md`
-The enhance workflow hasn't run. Fall back to `spec.json` description plus any answered questions and accepted suggestions as the working specification.
+The enhance workflow hasn't run. Fall back to `spec.json` description plus any answered questions, accepted suggestions, and raw `archive/` materials as the working specification. See the source authority hierarchy for full fallback rules.
 
 ### Conflicting information
-If `enhance/summary.md` and `spec.json` disagree, `enhance/summary.md` wins (it was synthesized later with more context). If user answers contradict suggestions, user answers win.
+Apply the source authority hierarchy: answered questions > accepted suggestions > enhance/ > spec.json > archive/. See the "Decision Authority Rules" section for details and the rationale for why new answered questions outrank a prior enhance run.

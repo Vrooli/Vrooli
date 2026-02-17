@@ -15,7 +15,7 @@ Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-
 - Reading and synthesizing idea context (enhance, clarify, suggest, research, archive artifacts)
 - Determining operation type (new scenario vs improve existing)
 - For new scenarios: scaffolding, PRD generation, requirements registry, archive incorporation
-- For improvements: selecting a steering strategy (profile, steer-mode, or steer-queue)
+- For improvements: incorporating staging/archive materials into the existing scenario, selecting a steering strategy (profile, steer-mode, or steer-queue)
 - Creating ecosystem-manager tasks via CLI
 - Verifying queue processor is running
 - Documenting decisions in notes.md
@@ -38,9 +38,10 @@ Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-
 - `notes.md` in item folder documenting initialization summary, task ID, steering strategy, and rationale
 
 ### For Scenario Improvement
+- Staging/archive materials incorporated into scenario PRD, requirements, and docs (if materials exist)
 - Ecosystem-manager task created targeting existing scenario
 - Queue processor running
-- `notes.md` in item folder documenting task ID, steering strategy, and rationale
+- `notes.md` in item folder documenting materials incorporated, task ID, steering strategy, and rationale
 
 ## Success Criteria
 
@@ -358,6 +359,12 @@ You are processing an idea to create or improve a Vrooli scenario. Your role is 
    ```markdown
    # Processing Notes
 
+   ## Materials Incorporated
+   - **Source**: <enhance/ staging materials | archive/ fallback | none>
+   - **PRD updated**: <yes/no — what changed>
+   - **Requirements updated**: <yes/no — what changed>
+   - **Docs updated**: <yes/no — what changed>
+
    ## Task
    - **ID**: <ecosystem-manager task ID>
    - **Monitor**: `ecosystem-manager task show <id>`
@@ -414,7 +421,8 @@ When choosing a steering strategy, consider:
 - **Don't** forget to verify the queue processor is running
 - **Don't** omit the task ID from notes.md
 - **Don't** skip scenario initialization for new scenarios -- there is no scenario to improve without it
-- **Don't** discard archive materials -- they represent user-provided context that must be incorporated
+- **Don't** discard staging or archive materials -- they represent refined/user-provided context that must be incorporated
+- **Don't** use raw archive materials when enhance/ staging materials exist -- staging is pre-synthesized and preferred
 - **Don't** hand-write PRD.md -- always generate via `prd-control-tower`
 
 ## Troubleshooting

@@ -82,6 +82,9 @@ interface PerformanceActions {
 
 type PerformanceStore = PerformanceState & PerformanceActions
 
+const getDefaultMaxFpsForTier = (tier: PerformanceTier): number =>
+  tier === 'low' || tier === 'medium' ? 30 : 60
+
 const initialMetrics: PerformanceMetrics = {
   currentFps: 60,
   averageFps: 60,
@@ -447,6 +450,15 @@ export const selectConfig = (state: PerformanceStore) => state.config
  * Selector for overlay visibility
  */
 export const selectShowOverlay = (state: PerformanceStore) => state.config.showOverlay
+
+/**
+ * Selector for effective FPS cap. Respects auto default by tier.
+ */
+export const selectEffectiveMaxFps = (state: PerformanceStore): number => (
+  state.config.maxFps === 'auto'
+    ? getDefaultMaxFpsForTier(state.currentTier)
+    : state.config.maxFps
+)
 
 /**
  * Selector for trace overlay data.

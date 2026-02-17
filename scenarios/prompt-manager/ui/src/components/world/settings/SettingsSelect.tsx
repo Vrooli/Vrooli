@@ -16,6 +16,7 @@ interface SettingsSelectProps<T extends string | number> {
   onChange: (value: T) => void
   disabled?: boolean
   className?: string
+  testId?: string
 }
 
 export function SettingsSelect<T extends string | number>({
@@ -25,6 +26,7 @@ export function SettingsSelect<T extends string | number>({
   onChange,
   disabled = false,
   className,
+  testId,
 }: SettingsSelectProps<T>) {
   return (
     <div className={cn('flex items-center justify-between', className)}>
@@ -32,12 +34,12 @@ export function SettingsSelect<T extends string | number>({
       <select
         value={value}
         onChange={(e) => {
-          const newValue = typeof value === 'number'
-            ? Number(e.target.value) as T
-            : e.target.value as T
+          const selected = options.find((option) => String(option.value) === e.target.value)
+          const newValue = (selected?.value ?? e.target.value) as T
           onChange(newValue)
         }}
         disabled={disabled}
+        data-testid={testId}
         className={cn(
           'px-2 py-1 text-xs rounded',
           'bg-slate-700 border border-slate-600 text-slate-300',

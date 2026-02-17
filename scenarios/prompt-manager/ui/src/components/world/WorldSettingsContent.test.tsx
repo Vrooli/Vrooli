@@ -9,6 +9,7 @@ describe('WorldSettingsContent', () => {
     usePerformanceStore.getState().setConfig({
       showOverlay: false,
       showTraceCharts: true,
+      maxFps: 'auto',
     })
   })
 
@@ -38,5 +39,15 @@ describe('WorldSettingsContent', () => {
     fireEvent.click(traceToggle)
     expect(usePerformanceStore.getState().config.showTraceCharts).toBe(false)
   })
-})
 
+  it('updates max FPS from world settings select', () => {
+    render(<WorldSettingsContent />)
+
+    const maxFpsSelect = screen.getByTestId(selectors.settings.fpsMaxSelect)
+    fireEvent.change(maxFpsSelect, { target: { value: '45' } })
+    expect(usePerformanceStore.getState().config.maxFps).toBe(45)
+
+    fireEvent.change(maxFpsSelect, { target: { value: 'auto' } })
+    expect(usePerformanceStore.getState().config.maxFps).toBe('auto')
+  })
+})

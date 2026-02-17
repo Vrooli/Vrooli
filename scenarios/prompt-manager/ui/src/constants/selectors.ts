@@ -82,6 +82,7 @@ const literalSelectors = {
     customToggle: 'world-settings-custom-toggle',
     fpsOverlayToggle: 'world-settings-fps-overlay-toggle',
     fpsTraceToggle: 'world-settings-fps-trace-toggle',
+    fpsMaxSelect: 'world-settings-fps-max-select',
   },
   viewOverlay: {
     stats: 'view-overlay-stats',

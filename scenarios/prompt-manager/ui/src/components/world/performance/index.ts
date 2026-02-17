@@ -4,4 +4,5 @@
 
 export { FPSOverlay, MiniFPSCounter } from './FPSOverlay'
 export { PerformanceMonitor } from './PerformanceMonitor'
+export { FrameRateController } from './FrameRateController'
 export { useIsPerformanceDegraded } from '@/hooks/useFPSMonitor'

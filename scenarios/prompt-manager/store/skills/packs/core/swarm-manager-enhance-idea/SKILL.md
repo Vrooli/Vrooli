@@ -82,13 +82,17 @@ You are creating the enhanced specification for a Swarm Manager backlog item. Yo
    swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
    ```
 
-   Then read each available artifact in decision hierarchy order:
-   - `spec.json` — item metadata and description
-   - `clarify/questions.json` — answered questions (definitive authority)
-   - `suggest/suggestions.json` — accepted/rejected suggestions
+   Read artifacts in refinement order — start with the most refined source:
+
+   - **`enhance/` (prior run)** — if `enhance/summary.md` and staging artifacts exist from a prior run, read them first. These are your **foundation** — they represent the previously synthesized state of all inputs. Your job is to update and improve this foundation, not discard it.
+   - `spec.json` — item metadata and description (superseded by prior enhance/ if it exists)
+   - `clarify/questions.json` — answered questions (definitive authority). Pay special attention to answers added **since the last enhance run** — these are new input that must be layered onto the foundation.
+   - `suggest/suggestions.json` — accepted/rejected suggestions. Same as above: look for decisions made since the last enhance run.
    - `research/summary.md` — feasibility findings (advisory)
-   - `archive/` — user-provided materials (requirements, docs, designs, prior scenario artifacts)
+   - `archive/` — user-provided materials (requirements, docs, designs, prior scenario artifacts). Only use for content not already captured in the prior enhance/ output.
    - User-uploaded files in the item root
+
+   > **Re-run principle:** Each enhance run builds on the last. If `enhance/` already exists, treat it as the accumulated knowledge base. Layer new clarify answers, new suggestion decisions, and new research on top. Don't start from scratch — refine what's there.
 
 2. **Resolve conflicts using the decision hierarchy**
 

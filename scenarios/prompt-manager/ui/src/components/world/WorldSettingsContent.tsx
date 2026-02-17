@@ -29,6 +29,7 @@ import { formatTimeFromHour } from '@/lib/sky/sunPosition'
 import { useRealTimeClock } from '@/hooks/useRealTimeClock'
 import type { SceneType } from '@/types/environment'
 import type { PerformanceTier, GraphicsConfig, MaterialQuality, AntialiasingMethod } from '@/types/graphics'
+import type { MaxFpsSetting } from '@/types/performance'
 import { SettingsToggle, SettingsSelect, SettingsSlider } from './settings'
 import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { selectors } from '@/constants/selectors'
@@ -69,6 +70,16 @@ const ANTIALIASING_OPTIONS: { value: AntialiasingMethod; label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'fxaa', label: 'FXAA' },
   { value: 'smaa', label: 'SMAA' },
+]
+
+const MAX_FPS_OPTIONS: { value: MaxFpsSetting; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
+  { value: 24, label: '24' },
+  { value: 30, label: '30' },
+  { value: 45, label: '45' },
+  { value: 60, label: '60' },
+  { value: 90, label: '90' },
+  { value: 120, label: '120' },
 ]
 
 export function WorldSettingsContent() {
@@ -112,6 +123,7 @@ export function WorldSettingsContent() {
   const autoAdjust = usePerformanceStore((state) => state.config.autoAdjust)
   const showFpsOverlay = usePerformanceStore((state) => state.config.showOverlay)
   const showFpsTraceCharts = usePerformanceStore((state) => state.config.showTraceCharts)
+  const maxFps = usePerformanceStore((state) => state.config.maxFps)
 
   const timeDisplay = useMemo(() => formatTimeFromHour(timeValue), [timeValue])
 
@@ -149,6 +161,15 @@ export function WorldSettingsContent() {
     },
     [setTier, clearOverrides, setAutoDetect]
   )
+
+  const autoFpsDefault = graphicsTier === 'low' || graphicsTier === 'medium' ? 30 : 60
+  const maxFpsOptions = useMemo(() => (
+    MAX_FPS_OPTIONS.map((option) => (
+      option.value === 'auto'
+        ? { value: 'auto' as MaxFpsSetting, label: `Auto (${autoFpsDefault})` }
+        : option
+    ))
+  ), [autoFpsDefault])
 
   return (
     <div className="space-y-6">
@@ -319,6 +340,17 @@ export function WorldSettingsContent() {
           className="mt-3"
           disabled={!showFpsOverlay}
           testId={selectors.settings.fpsTraceToggle}
+        />
+
+        <SettingsSelect
+          label="Max FPS"
+          value={maxFps}
+          options={maxFpsOptions}
+          onChange={(v) => {
+            usePerformanceStore.getState().setConfig({ maxFps: v })
+          }}
+          className="mt-3"
+          testId={selectors.settings.fpsMaxSelect}
         />
 
         <label className="flex items-center gap-2 mb-4 mt-3 cursor-pointer">
