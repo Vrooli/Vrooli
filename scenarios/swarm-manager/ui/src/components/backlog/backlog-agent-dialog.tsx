@@ -1,9 +1,10 @@
 // DOC: docs/guides/idea-agent-workflow.md
 // DOC: docs/concepts/ARCHITECTURE.md#key-flows
 import { useEffect, useMemo, useState } from "react";
-import { X, Sparkles } from "lucide-react";
+import { X, Sparkles, ChevronDown, ChevronRight, Paperclip, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Select } from "../ui/select";
+import { FileTree } from "../ui/file-tree";
 import { selectors } from "../../consts/selectors";
 import { IDEA_AGENT_FILE_PATHS } from "../../lib";
 import {
@@ -11,8 +12,12 @@ import {
   BACKLOG_RESEARCH_TARGET_LABELS,
   BACKLOG_RESEARCH_TARGETS,
   type BacklogKind,
+  type BacklogFile,
   type BacklogResearchTarget,
   type IdeaAgentMode,
+  type ArchiveTarget,
+  type ArchiveRequirementGroup,
+  type ArchiveTargetsResponse,
 } from "../../types";
 
 interface BacklogAgentDialogProps {
@@ -22,8 +27,17 @@ interface BacklogAgentDialogProps {
   backlogTitle: string;
   researchTarget?: BacklogResearchTarget;
   errorMessage?: string | null;
+  files?: BacklogFile[];
+  archiveTargets?: ArchiveTargetsResponse;
   onClose: () => void;
-  onSubmit: (payload: { mode?: IdeaAgentMode; prompt: string; targetKind?: BacklogResearchTarget }) => void;
+  onSubmit: (payload: {
+    mode?: IdeaAgentMode;
+    prompt: string;
+    targetKind?: BacklogResearchTarget;
+    contextPaths?: string[];
+    contextTargetIds?: string[];
+    contextRequirementIds?: string[];
+  }) => void;
 }
 
 const MODE_OPTIONS: Array<{
@@ -61,6 +75,81 @@ const RESEARCH_TARGET_OPTIONS: Array<{ value: BacklogResearchTarget; label: stri
     label: BACKLOG_RESEARCH_TARGET_LABELS[value],
   }));
 
+function RequirementCheckboxGroup({
+  groups,
+  selectedIds,
+  onToggle,
+  depth = 0,
+}: {
+  groups: ArchiveRequirementGroup[];
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  depth?: number;
+}) {
+  return (
+    <div className={depth > 0 ? "ml-3 border-l border-slate-700/50 pl-2" : ""}>
+      {groups.map((group) => (
+        <RequirementCheckboxNode key={group.id} group={group} selectedIds={selectedIds} onToggle={onToggle} depth={depth} />
+      ))}
+    </div>
+  );
+}
+
+function RequirementCheckboxNode({
+  group,
+  selectedIds,
+  onToggle,
+  depth,
+}: {
+  group: ArchiveRequirementGroup;
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(depth === 0);
+  const hasContent = group.requirements.length > 0 || group.children.length > 0;
+
+  if (!hasContent) return null;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-1.5 rounded-md px-1 py-1 text-left text-xs font-medium text-slate-300 hover:bg-slate-800/50"
+      >
+        {expanded ? <ChevronDown className="h-3 w-3 text-slate-500" /> : <ChevronRight className="h-3 w-3 text-slate-500" />}
+        <span>{group.name}</span>
+        <span className="text-slate-500">({group.requirements.length})</span>
+      </button>
+      {expanded && (
+        <div className="space-y-0.5">
+          {group.requirements.map((req) => (
+            <label
+              key={req.id}
+              className="flex items-start gap-2 rounded-md px-2 py-1 text-xs hover:bg-slate-800/50 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(req.id)}
+                onChange={() => onToggle(req.id)}
+                className="mt-0.5 h-3.5 w-3.5 accent-cyan-500"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="font-mono text-slate-500">{req.id}</span>
+                <span className="ml-1 text-slate-300">{req.title}</span>
+              </div>
+            </label>
+          ))}
+          {group.children.length > 0 && (
+            <RequirementCheckboxGroup groups={group.children} selectedIds={selectedIds} onToggle={onToggle} depth={depth + 1} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BacklogAgentDialog({
   isOpen,
   isSubmitting = false,
@@ -68,21 +157,40 @@ export function BacklogAgentDialog({
   backlogTitle,
   researchTarget,
   errorMessage = null,
+  files,
+  archiveTargets,
   onClose,
   onSubmit,
 }: BacklogAgentDialogProps) {
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<IdeaAgentMode>("clarify");
   const [targetKind, setTargetKind] = useState<BacklogResearchTarget>(researchTarget ?? "idea");
+  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
+  const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
+  const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
+  const [showAttachContext, setShowAttachContext] = useState(false);
+  const [attachTab, setAttachTab] = useState<"files" | "targets">("files");
 
   const isIdea = backlogKind === "idea";
   const isResearch = backlogKind === "research";
+
+  const totalAttached = selectedFilePaths.size + selectedTargetIds.size + selectedRequirementIds.size;
+
+  const hasArchive = archiveTargets?.has_archive ?? false;
+  const archiveTargetList = archiveTargets?.targets ?? [];
+  const archiveRequirements = archiveTargets?.requirements ?? [];
+  const hasContextOptions = (files && files.length > 0) || hasArchive;
 
   useEffect(() => {
     if (isOpen) {
       setPrompt("");
       setMode("clarify");
       setTargetKind(researchTarget ?? "idea");
+      setSelectedFilePaths(new Set());
+      setSelectedTargetIds(new Set());
+      setSelectedRequirementIds(new Set());
+      setShowAttachContext(false);
+      setAttachTab("files");
     }
   }, [isOpen, researchTarget]);
 
@@ -207,6 +315,139 @@ export function BacklogAgentDialog({
           )}
         </div>
 
+        {hasContextOptions && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowAttachContext(!showAttachContext)}
+              className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-slate-800/40 px-3 py-2 text-left text-sm text-slate-300 hover:border-white/20"
+            >
+              <Paperclip className="h-4 w-4 text-slate-400" />
+              <span className="flex-1">Attach Context</span>
+              {totalAttached > 0 && (
+                <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-medium text-cyan-400">
+                  {totalAttached} item{totalAttached !== 1 ? "s" : ""} attached
+                </span>
+              )}
+              {showAttachContext ? (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-500" />
+              )}
+            </button>
+
+            {showAttachContext && (
+              <div className="mt-2 rounded-lg border border-white/10 bg-slate-800/30">
+                <div className="flex border-b border-white/10">
+                  {files && files.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAttachTab("files")}
+                      className={`flex-1 px-3 py-2 text-xs font-medium transition ${
+                        attachTab === "files"
+                          ? "border-b-2 border-cyan-500 text-cyan-400"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Files
+                    </button>
+                  )}
+                  {hasArchive && (
+                    <button
+                      type="button"
+                      onClick={() => setAttachTab("targets")}
+                      className={`flex-1 px-3 py-2 text-xs font-medium transition ${
+                        attachTab === "targets"
+                          ? "border-b-2 border-cyan-500 text-cyan-400"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Targets & Requirements
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-60 overflow-y-auto p-3">
+                  {attachTab === "files" && files && files.length > 0 && (
+                    <FileTree
+                      files={files}
+                      selectionMode="checkbox"
+                      selectedPaths={selectedFilePaths}
+                      onSelectionChange={setSelectedFilePaths}
+                      className="border-0 bg-transparent p-0"
+                    />
+                  )}
+
+                  {attachTab === "targets" && hasArchive && (
+                    <div className="space-y-3">
+                      {archiveTargetList.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Operational Targets</p>
+                          {archiveTargetList.map((target) => (
+                            <label
+                              key={target.id}
+                              className="flex items-start gap-2 rounded-md px-2 py-1 text-sm hover:bg-slate-800/50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedTargetIds.has(target.id)}
+                                onChange={() => {
+                                  setSelectedTargetIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(target.id)) next.delete(target.id);
+                                    else next.add(target.id);
+                                    return next;
+                                  });
+                                }}
+                                className="mt-0.5 h-4 w-4 accent-cyan-500"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`text-[10px] font-medium ${
+                                    target.criticality === "P0" ? "text-red-400" :
+                                    target.criticality === "P1" ? "text-orange-400" : "text-green-400"
+                                  }`}>
+                                    {target.criticality}
+                                  </span>
+                                  <span className="font-mono text-xs text-slate-500">{target.id}</span>
+                                  {target.status === "complete" ? (
+                                    <CheckCircle2 className="h-3 w-3 text-green-400" />
+                                  ) : (
+                                    <Circle className="h-3 w-3 text-slate-500" />
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-300">{target.title}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {archiveRequirements.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Requirements</p>
+                          <RequirementCheckboxGroup
+                            groups={archiveRequirements}
+                            selectedIds={selectedRequirementIds}
+                            onToggle={(id) => {
+                              setSelectedRequirementIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(id)) next.delete(id);
+                                else next.add(id);
+                                return next;
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
@@ -217,6 +458,9 @@ export function BacklogAgentDialog({
                 mode: isIdea ? mode : undefined,
                 prompt,
                 targetKind: isResearch ? targetKind : undefined,
+                contextPaths: selectedFilePaths.size > 0 ? [...selectedFilePaths] : undefined,
+                contextTargetIds: selectedTargetIds.size > 0 ? [...selectedTargetIds] : undefined,
+                contextRequirementIds: selectedRequirementIds.size > 0 ? [...selectedRequirementIds] : undefined,
               })
             }
             disabled={isSubmitting}

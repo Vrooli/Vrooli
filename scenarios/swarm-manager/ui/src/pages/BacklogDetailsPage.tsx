@@ -54,6 +54,7 @@ import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { IdeaClarifyPanel } from "../components/backlog/idea-clarify-panel";
 import { IdeaSuggestionsPanel } from "../components/backlog/idea-suggestions-panel";
+import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import {
   buildClarifyQuestionsContent,
   buildSuggestionsContent,
@@ -77,6 +78,7 @@ import {
   formatBacklogStatus,
 } from "../types";
 import type {
+  ArchiveTargetsResponse,
   BacklogFile,
   BacklogKind,
   BacklogResearchTarget,
@@ -241,6 +243,18 @@ export function BacklogDetailsPage() {
     ...defaultQueryOptions,
   });
 
+  const {
+    data: archiveTargets,
+  } = useQuery({
+    queryKey: ["backlog", backlogKind, name, "archive-targets"],
+    queryFn: () => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.getArchiveTargets(backlogKind, name);
+    },
+    enabled: !!backlogKind && !!name,
+    ...defaultQueryOptions,
+  });
+
   const clarifyParsed = useMemo(
     () => parseClarifyQuestionsFile(clarifyContent),
     [clarifyContent]
@@ -347,12 +361,22 @@ export function BacklogDetailsPage() {
   });
 
   const agentMutation = useMutation({
-    mutationFn: ({ mode, prompt, targetKind }: { mode?: IdeaAgentMode; prompt: string; targetKind?: BacklogResearchTarget }) => {
+    mutationFn: ({ mode, prompt, targetKind, contextPaths, contextTargetIds, contextRequirementIds }: {
+      mode?: IdeaAgentMode;
+      prompt: string;
+      targetKind?: BacklogResearchTarget;
+      contextPaths?: string[];
+      contextTargetIds?: string[];
+      contextRequirementIds?: string[];
+    }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.research(backlogKind, name, {
         mode,
         prompt,
         targetKind,
+        contextPaths,
+        contextTargetIds,
+        contextRequirementIds,
       });
     },
     onSuccess: () => {
@@ -1028,6 +1052,12 @@ export function BacklogDetailsPage() {
       )}
       {detailsPanel}
       {notesPanel}
+      {archiveTargets?.has_archive && (
+        <OperationalTargetsPanel
+          targets={archiveTargets.targets}
+          requirements={archiveTargets.requirements}
+        />
+      )}
     </div>
   );
 
@@ -1275,6 +1305,12 @@ export function BacklogDetailsPage() {
 
             {detailsPanel}
             {notesPanel}
+            {archiveTargets?.has_archive && (
+              <OperationalTargetsPanel
+                targets={archiveTargets.targets}
+                requirements={archiveTargets.requirements}
+              />
+            )}
             {fileWorkspace}
           </div>
 
@@ -1348,6 +1384,8 @@ export function BacklogDetailsPage() {
         backlogTitle={item?.title ?? name ?? ""}
         researchTarget={item?.researchTarget}
         errorMessage={agentError}
+        files={files}
+        archiveTargets={archiveTargets}
         onClose={() => {
           setShowAgentDialog(false);
           agentMutation.reset();

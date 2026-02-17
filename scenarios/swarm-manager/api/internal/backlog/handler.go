@@ -278,6 +278,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
 }
 
 // ResearchMode describes the intent for idea agent work.
@@ -1066,6 +1067,61 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		trace.Prompt = prompt
 	}
 
+	// Append attached context sections from request.
+	if len(req.ContextPaths) > 0 {
+		prompt += "\n\nAttached files for reference:\n"
+		for _, p := range req.ContextPaths {
+			prompt += "- " + p + "\n"
+		}
+		trace.Prompt = prompt
+	}
+	archiveDir := filepath.Join(h.itemDir(kind, item.Name), "archive")
+	if len(req.ContextTargetIds) > 0 {
+		targets, parseErr := ParseArchiveTargets(archiveDir)
+		if parseErr == nil && len(targets) > 0 {
+			idSet := make(map[string]bool, len(req.ContextTargetIds))
+			for _, id := range req.ContextTargetIds {
+				idSet[id] = true
+			}
+			prompt += "\n\nAttached operational targets:\n"
+			for _, t := range targets {
+				if idSet[t.ID] {
+					prompt += fmt.Sprintf("- [%s] %s | %s | %s (status: %s)\n", t.Criticality, t.ID, t.Title, t.Notes, t.Status)
+				}
+			}
+			trace.Prompt = prompt
+		}
+	}
+	if len(req.ContextRequirementIds) > 0 {
+		groups, parseErr := ParseArchiveRequirements(archiveDir)
+		if parseErr == nil && len(groups) > 0 {
+			idSet := make(map[string]bool, len(req.ContextRequirementIds))
+			for _, id := range req.ContextRequirementIds {
+				idSet[id] = true
+			}
+			var flatReqs []ArchiveRequirement
+			var walkGroups func([]ArchiveRequirementGroup)
+			walkGroups = func(gs []ArchiveRequirementGroup) {
+				for _, g := range gs {
+					for _, r := range g.Requirements {
+						if idSet[r.ID] {
+							flatReqs = append(flatReqs, r)
+						}
+					}
+					walkGroups(g.Children)
+				}
+			}
+			walkGroups(groups)
+			if len(flatReqs) > 0 {
+				prompt += "\n\nAttached requirements:\n"
+				for _, r := range flatReqs {
+					prompt += fmt.Sprintf("- [%s] %s: %s (status: %s)\n", r.ID, r.Title, r.Description, r.Status)
+				}
+				trace.Prompt = prompt
+			}
+		}
+	}
+
 	runResult, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{
 		Kind:        string(kind),
 		Name:        item.Name,
@@ -1334,6 +1390,41 @@ func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, map[string]any{"trace": trace}); err != nil {
 		httputil.InternalError(w, "[backlog] prompt-trace", "failed to encode response")
 	}
+}
+
+// GetArchiveTargets returns operational targets and requirements parsed from a backlog item's archive.
+func (h *Handler) GetArchiveTargets(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "archive targets")
+	if !ok {
+		return
+	}
+
+	archiveDir := filepath.Join(h.itemDir(kind, name), "archive")
+	info, err := os.Stat(archiveDir)
+	if err != nil || !info.IsDir() {
+		_ = httputil.JSON(w, map[string]any{
+			"targets":      []any{},
+			"requirements": []any{},
+			"has_archive":  false,
+		})
+		return
+	}
+
+	targets, err := ParseArchiveTargets(archiveDir)
+	if err != nil {
+		targets = []ArchiveTarget{}
+	}
+
+	requirements, err := ParseArchiveRequirements(archiveDir)
+	if err != nil {
+		requirements = []ArchiveRequirementGroup{}
+	}
+
+	_ = httputil.JSON(w, map[string]any{
+		"targets":      targets,
+		"requirements": requirements,
+		"has_archive":  true,
+	})
 }
 
 // buildVariableMap creates the template variable map for prompt-manager skill rendering.

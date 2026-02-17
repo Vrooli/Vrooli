@@ -149,6 +149,41 @@ export interface IdeaAgentSuggestionsFile {
 }
 
 // ============================================================================
+// Archive / Operational Targets Domain
+// ============================================================================
+
+export interface ArchiveTarget {
+  id: string;
+  criticality: string;
+  title: string;
+  notes: string;
+  status: string;
+  linked_requirement_ids: string[];
+}
+
+export interface ArchiveRequirement {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  category: string;
+  prd_ref: string;
+}
+
+export interface ArchiveRequirementGroup {
+  id: string;
+  name: string;
+  requirements: ArchiveRequirement[];
+  children: ArchiveRequirementGroup[];
+}
+
+export interface ArchiveTargetsResponse {
+  targets: ArchiveTarget[];
+  requirements: ArchiveRequirementGroup[];
+  has_archive: boolean;
+}
+
+// ============================================================================
 // Scenarios Domain
 // ============================================================================
 

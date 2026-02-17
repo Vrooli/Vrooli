@@ -42,7 +42,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, IdeaAgentMode, ResearchResponse } from "../types";
+import type { ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, IdeaAgentMode, ResearchResponse } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -98,6 +98,9 @@ export interface IBacklogService {
       projectRoot?: string;
       mode?: IdeaAgentMode;
       targetKind?: BacklogResearchTarget;
+      contextPaths?: string[];
+      contextTargetIds?: string[];
+      contextRequirementIds?: string[];
     }
   ): Promise<ResearchResponse>;
   convert(
@@ -105,6 +108,7 @@ export interface IBacklogService {
     name: string,
     payload: { targetKind: BacklogKind; targetName?: string }
   ): Promise<BacklogItem>;
+  getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse>;
 }
 
 export function createBacklogService(apiClient: IApiClient = defaultApiClient): IBacklogService {
@@ -250,6 +254,9 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         projectRoot?: string;
         mode?: IdeaAgentMode;
         targetKind?: BacklogResearchTarget;
+        contextPaths?: string[];
+        contextTargetIds?: string[];
+        contextRequirementIds?: string[];
       }
     ): Promise<ResearchResponse> {
       const message = buildMessage(BacklogResearchRequestSchema, {
@@ -258,6 +265,9 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         projectRoot: payload?.projectRoot,
         mode: payload?.mode,
         targetKind: payload?.targetKind,
+        contextPaths: payload?.contextPaths ?? [],
+        contextTargetIds: payload?.contextTargetIds ?? [],
+        contextRequirementIds: payload?.contextRequirementIds ?? [],
       });
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.backlogResearch(kind, name),
@@ -278,6 +288,10 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       const data = await apiClient.post<unknown>(API_ENDPOINTS.backlogConvert(kind, name), toProtoJson(ConvertBacklogItemRequestSchema, message));
       const parsed = parseProtoResponse(backlogItemResponseSchema, data, "backlog item");
       return mapProtoBacklogItem(requireProtoField(parsed.item, "backlog item"));
+    },
+
+    async getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse> {
+      return apiClient.get<ArchiveTargetsResponse>(API_ENDPOINTS.backlogArchiveTargets(kind, name));
     },
   };
 }
