@@ -4,29 +4,27 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import * as api from './lib/api';
 
-// Mock the API module - include helper functions that are used directly in App.tsx
-vi.mock('./lib/api', () => ({
-  fetchStatus: vi.fn(),
-  fetchChecks: vi.fn(),
-  runTick: vi.fn(),
-  fetchTimeline: vi.fn(),
-  fetchUptimeStats: vi.fn(),
-  fetchCheckHistory: vi.fn(),
-  // Include the helper functions that App.tsx uses
-  groupChecksByStatus: (checks: { status: string }[]) => ({
-    critical: checks.filter((c) => c.status === "critical"),
-    warning: checks.filter((c) => c.status === "warning"),
-    ok: checks.filter((c) => c.status === "ok"),
+vi.mock("./contexts/CheckMetadataContext", () => ({
+  useCheckMetadata: () => ({
+    getTitle: (checkId: string) => checkId,
+    getMetadata: () => undefined,
+    isLoading: false,
   }),
-  statusToEmoji: (status: string) => {
-    switch (status) {
-      case "ok": return "\u2713";
-      case "warning": return "\u26A0";
-      case "critical": return "\u2717";
-      default: return "\u2753";
-    }
-  },
 }));
+
+// Mock API calls used by App while preserving the rest of the module exports.
+vi.mock('./lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/api")>();
+  return {
+    ...actual,
+    fetchStatus: vi.fn(),
+    fetchChecks: vi.fn(),
+    runTick: vi.fn(),
+    fetchTimeline: vi.fn(),
+    fetchUptimeStats: vi.fn(),
+    fetchCheckHistory: vi.fn(),
+  };
+});
 
 const mockTimelineResponse: api.TimelineResponse = {
   events: [

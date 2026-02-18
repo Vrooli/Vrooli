@@ -1,5 +1,6 @@
 // Reusable error display component with retry functionality
 // [REQ:FAIL-SAFE-001] [REQ:UI-HEALTH-001]
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertCircle, RefreshCw, WifiOff, Database, Clock } from "lucide-react";
 import { Button } from "./ui/button";
 import { APIError } from "../lib/api";
@@ -134,4 +135,57 @@ export function InlineError({
       )}
     </div>
   );
+}
+
+interface ReactErrorBoundaryProps {
+  children: ReactNode;
+  sectionName?: string;
+}
+
+interface ReactErrorBoundaryState {
+  hasError: boolean;
+}
+
+export class ReactErrorBoundary extends Component<ReactErrorBoundaryProps, ReactErrorBoundaryState> {
+  state: ReactErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): ReactErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error("React section crashed", {
+      section: this.props.sectionName ?? "unknown",
+      message: error.message,
+      stack: error.stack,
+      componentStack: info.componentStack,
+    });
+  }
+
+  private handleRetry = (): void => {
+    this.setState({ hasError: false });
+  };
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+          <p className="text-sm font-medium text-red-300">
+            {this.props.sectionName ?? "This section"} failed to render.
+          </p>
+          <p className="mt-1 text-xs text-red-200/80">
+            Try reloading this section. If it keeps failing, refresh the page.
+          </p>
+          <button
+            onClick={this.handleRetry}
+            className="mt-3 rounded border border-red-400/30 px-3 py-1 text-xs text-red-200 hover:bg-red-500/10"
+          >
+            Retry Section
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }

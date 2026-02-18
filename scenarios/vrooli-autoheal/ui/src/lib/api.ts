@@ -158,7 +158,7 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
       cache: "no-store",
       ...options,
     });
-  } catch (err) {
+  } catch {
     // Network error - API unreachable
     throw new APIError(
       "Unable to connect to the API",

@@ -5,6 +5,14 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { CheckTrendGrid } from "./CheckTrendGrid";
 import type { CheckTrend, TimelineEvent } from "../lib/api";
 
+vi.mock("../contexts/CheckMetadataContext", () => ({
+  useCheckMetadata: () => ({
+    getTitle: (checkId: string) => checkId,
+    getMetadata: () => undefined,
+    isLoading: false,
+  }),
+}));
+
 describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
   describe("with backend trends data", () => {
     const mockTrends: CheckTrend[] = [
@@ -43,8 +51,8 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
     it("displays total check counts", () => {
       render(<CheckTrendGrid trends={mockTrends} />);
 
-      expect(screen.getByText("100 checks")).toBeInTheDocument();
-      expect(screen.getByText("50 checks")).toBeInTheDocument();
+      expect(screen.getByText("100")).toBeInTheDocument();
+      expect(screen.getByText("50")).toBeInTheDocument();
     });
 
     it("displays uptime percentages", () => {
@@ -57,10 +65,10 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
     it("applies correct color classes for uptime", () => {
       render(<CheckTrendGrid trends={mockTrends} />);
 
-      // 95% should be green (>= 90)
+      // Default sort is uptime ascending, so 50% appears before 95%.
       const uptimeElements = screen.getAllByText(/\d+%/);
-      expect(uptimeElements[0]).toHaveClass("text-amber-400"); // 95% is >= 90, but < 99
-      expect(uptimeElements[1]).toHaveClass("text-red-400"); // 50% is < 90
+      expect(uptimeElements[0]).toHaveClass("text-red-400"); // 50% is < 90
+      expect(uptimeElements[1]).toHaveClass("text-amber-400"); // 95% is >= 90, but < 99
     });
 
     it("calls onCheckClick when row is clicked", () => {
@@ -75,15 +83,20 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
       const onCheckClick = vi.fn();
       render(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
 
-      const rows = screen.getAllByRole("button");
-      expect(rows[0]).toHaveClass("cursor-pointer");
+      const row = screen.getByTitle("check-1").closest("tr");
+      expect(row).toBeTruthy();
+      expect(row).toHaveClass("cursor-pointer");
     });
 
     it("handles keyboard navigation", () => {
       const onCheckClick = vi.fn();
       render(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
 
-      const row = screen.getAllByRole("button")[0];
+      const row = screen.getByTitle("check-1").closest("tr");
+      expect(row).toBeDefined();
+      if (!row) {
+        throw new Error("Expected a clickable row");
+      }
       fireEvent.keyDown(row, { key: "Enter" });
       expect(onCheckClick).toHaveBeenCalledWith("check-1");
 
@@ -118,7 +131,7 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
       render(<CheckTrendGrid events={mockEvents} />);
 
       expect(screen.getByText("event-check")).toBeInTheDocument();
-      expect(screen.getByText("3 checks")).toBeInTheDocument();
+      expect(screen.getByText("3")).toBeInTheDocument();
     });
 
     it("calculates correct uptime from events", () => {

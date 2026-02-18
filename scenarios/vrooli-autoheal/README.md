@@ -109,9 +109,9 @@ test-genie execute vrooli-autoheal --preset quick
 ## Documentation
 
 - [PRD.md](./PRD.md) - Operational targets and product requirements
-- [docs/PROGRESS.md](./docs/PROGRESS.md) - Development progress log
-- [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred work
-- [docs/RESEARCH.md](./docs/RESEARCH.md) - Background research and related scenarios
+- [docs/internal/PROGRESS.md](./docs/internal/PROGRESS.md) - Development progress log
+- [docs/internal/PROBLEMS.md](./docs/internal/PROBLEMS.md) - Known issues and deferred work
+- [docs/internal/RESEARCH.md](./docs/internal/RESEARCH.md) - Background research and related scenarios
 - [requirements/](./requirements/) - Technical requirements registry
 
 ## Related Scenarios

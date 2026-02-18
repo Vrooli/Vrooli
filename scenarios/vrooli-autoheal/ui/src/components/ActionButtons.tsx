@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Play, Square, RotateCcw, FileText, Loader2, AlertTriangle, CheckCircle2, XCircle, Info } from "lucide-react";
 import { fetchCheckActions, executeAction, type RecoveryAction, type ActionResult } from "../lib/api";
+import { CodePreview } from "./CodePreview";
 
 interface ActionButtonsProps {
   checkId: string;
@@ -230,9 +231,7 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
                 {lastResult.message}
               </p>
               {lastResult.output && (
-                <pre className="mt-2 p-2 text-xs font-mono bg-black/30 rounded overflow-x-auto whitespace-pre-wrap max-h-32 overflow-y-auto text-slate-400">
-                  {lastResult.output}
-                </pre>
+                <CodePreview code={lastResult.output} language="text" maxHeight="8rem" className="mt-2" />
               )}
               {lastResult.error && (
                 <p className="mt-1 text-xs text-red-400">{lastResult.error}</p>

@@ -130,6 +130,9 @@ export function ActionHistoryCompact({ checkId }: { checkId: string }) {
   }
 
   const lastAction = data.logs[0];
+  if (!lastAction) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">

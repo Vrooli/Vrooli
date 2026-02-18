@@ -68,7 +68,7 @@ All resource checks support these actions:
 | Start | Yes | Start if stopped, verify running |
 | Stop | No | Stop if running (dangerous) |
 | Restart | Yes | Restart to recover, verify running |
-| Logs | No | View recent logs |
+| Status | No | Check current resource status |
 
 Resources monitored: postgres, redis, ollama, qdrant, searxng, browserless
 

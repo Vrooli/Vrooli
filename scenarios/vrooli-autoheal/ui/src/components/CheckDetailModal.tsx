@@ -8,6 +8,7 @@ import {
   fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction,
   type ActionResult, type RecoveryAction
 } from "../lib/api";
+import { CodePreview } from "./CodePreview";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
 import { StatusSparkline } from "./StatusSparkline";
@@ -22,6 +23,12 @@ interface CheckDetailModalProps {
 }
 
 type TabId = "details" | "history";
+
+function isSubCheck(value: unknown): value is SubCheck {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.name === "string" && typeof record.passed === "boolean";
+}
 
 function formatTimestamp(timestamp: string): string {
   const date = new Date(timestamp);
@@ -197,14 +204,19 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
     return data.history.slice(0, 24).map((h) => h.status as HealthStatus);
   }, [data?.history]);
 
-  // Get latest entry for details - explicitly typed to satisfy TS
-  const latestEntry = (data?.history?.[0] ?? undefined) as HistoryEntry | undefined;
+  // Get latest entry for details
+  const latestEntry: HistoryEntry | undefined = data?.history?.[0];
+  const parsedSubChecks = useMemo<SubCheck[]>(() => {
+    const subChecksValue = latestEntry?.details?.subChecks;
+    if (!Array.isArray(subChecksValue)) return [];
+    return subChecksValue.filter(isSubCheck);
+  }, [latestEntry?.details?.subChecks]);
 
   const uptimePercent = stats && stats.total > 0 ? ((stats.ok / stats.total) * 100).toFixed(1) : "100.0";
 
   // Check if this check has details or sub-checks
   const hasDetails = latestEntry?.details && Object.keys(latestEntry.details).length > 0;
-  const hasSubChecks = latestEntry?.details?.subChecks && Array.isArray(latestEntry.details.subChecks);
+  const hasSubChecks = parsedSubChecks.length > 0;
 
   return (
     <div
@@ -407,9 +419,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                         {autoHealResult.message}
                       </p>
                       {autoHealResult.output && (
-                        <pre className="mt-2 p-2 text-xs font-mono bg-black/30 rounded overflow-x-auto whitespace-pre-wrap max-h-24 overflow-y-auto text-slate-400">
-                          {autoHealResult.output}
-                        </pre>
+                        <CodePreview code={autoHealResult.output} language="text" maxHeight="6rem" className="mt-2" />
                       )}
                       {autoHealResult.error && (
                         <p className="mt-1 text-xs text-red-400">{autoHealResult.error}</p>
@@ -537,7 +547,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium text-slate-400">Sub-checks</h4>
                       <div className="p-3 rounded-lg bg-white/[0.03] space-y-1.5">
-                        {(latestEntry?.details?.subChecks as SubCheck[]).map((sc, idx) => (
+                        {parsedSubChecks.map((sc, idx) => (
                           <SubCheckRow key={idx} subCheck={sc} />
                         ))}
                       </div>
@@ -548,11 +558,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                   {hasDetails && !hasSubChecks && (
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium text-slate-400">Raw Details</h4>
-                      <div className="p-3 rounded-lg bg-black/30 text-xs font-mono">
-                        <pre className="overflow-x-auto whitespace-pre-wrap text-slate-400">
-                          {JSON.stringify(latestEntry?.details, null, 2)}
-                        </pre>
-                      </div>
+                      <CodePreview code={latestEntry?.details} language="json" />
                     </div>
                   )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { DocsSidebar } from "./DocsSidebar";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { useDocsManifest, useDocContent } from "../../hooks/useDocs";

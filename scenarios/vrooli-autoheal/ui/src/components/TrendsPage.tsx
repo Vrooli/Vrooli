@@ -1,9 +1,9 @@
 // Trends page showing comprehensive historical data
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { useQuery } from "@tanstack/react-query";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { TrendingUp, Activity, AlertTriangle, Clock, Download } from "lucide-react";
-import { fetchTimeline, fetchUptimeStats, fetchIncidents, fetchCheckTrends, TimelineEvent, Incident, CheckTrend } from "../lib/api";
+import { fetchTimeline, fetchUptimeStats, fetchIncidents, fetchCheckTrends, TimelineEvent } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
 import { UptimeTrendChart } from "./UptimeTrendChart";
@@ -46,6 +46,9 @@ function detectIncidents(events: TimelineEvent[]): Array<{
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const curr = sorted[i];
+      if (!prev || !curr) {
+        continue;
+      }
       if (prev.status !== curr.status) {
         incidents.push({
           timestamp: curr.timestamp,
@@ -87,9 +90,10 @@ const TIME_WINDOWS: TimeWindow[] = [
   { label: "24h", hours: 24, buckets: 24 },
   { label: "7d", hours: 168, buckets: 28 },
 ];
+const DEFAULT_TIME_WINDOW: TimeWindow = TIME_WINDOWS[2] ?? { label: "24h", hours: 24, buckets: 24 };
 
 export function TrendsPage() {
-  const [selectedWindow, setSelectedWindow] = useState<TimeWindow>(TIME_WINDOWS[2]); // Default 24h
+  const [selectedWindow, setSelectedWindow] = useState<TimeWindow>(DEFAULT_TIME_WINDOW); // Default 24h
   const [selectedCheckId, setSelectedCheckId] = useState<string | null>(null);
   const { getTitle } = useCheckMetadata();
 
@@ -115,14 +119,17 @@ export function TrendsPage() {
   });
 
   // Fallback to timeline for backwards compatibility
-  const { data: timelineData, isLoading: timelineLoading, error: timelineError, refetch: refetchTimeline } = useQuery({
+  const { data: timelineData } = useQuery({
     queryKey: ["timeline"],
     queryFn: fetchTimeline,
     refetchInterval: 30000,
   });
 
   // Use backend incidents if available, otherwise fallback to client-side detection
-  const incidents = incidentsData?.incidents ?? (timelineData?.events ? detectIncidents(timelineData.events) : []);
+  const incidents = useMemo(
+    () => incidentsData?.incidents ?? (timelineData?.events ? detectIncidents(timelineData.events) : []),
+    [incidentsData?.incidents, timelineData?.events]
+  );
 
   // Handle check drill-down
   const handleCheckClick = useCallback((checkId: string) => {

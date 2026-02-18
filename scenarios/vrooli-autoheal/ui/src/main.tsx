@@ -7,12 +7,17 @@ import { CheckMetadataProvider } from "./contexts/CheckMetadataContext";
 import "./styles.css";
 
 const queryClient = new QueryClient();
+const rootElement = document.getElementById("root");
 
 if (window.top !== window.self) {
   initIframeBridgeChild();
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <CheckMetadataProvider>

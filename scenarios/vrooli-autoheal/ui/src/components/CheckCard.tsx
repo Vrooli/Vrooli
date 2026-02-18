@@ -42,8 +42,10 @@ function formatInterval(seconds: number): string {
 }
 
 export function CheckCard({ check, onInfoClick }: CheckCardProps) {
-  const hasSubChecks = check.metrics?.subChecks && check.metrics.subChecks.length > 0;
-  const hasScore = check.metrics?.score !== undefined;
+  const score = check.metrics?.score;
+  const subChecks = check.metrics?.subChecks ?? [];
+  const hasSubChecks = subChecks.length > 0;
+  const hasScore = score !== undefined;
   const isNonOk = check.status !== "ok";
 
   // Use title if available, fall back to checkId
@@ -102,8 +104,8 @@ export function CheckCard({ check, onInfoClick }: CheckCardProps) {
             <div className="flex items-center gap-3 text-xs text-slate-500 flex-shrink-0">
               {hasScore && (
                 <span className="flex items-center gap-1" title="Health score">
-                  <span className={`font-medium ${check.metrics!.score! >= 80 ? "text-emerald-400" : check.metrics!.score! >= 50 ? "text-amber-400" : "text-red-400"}`}>
-                    {check.metrics!.score}%
+                  <span className={`font-medium ${score >= 80 ? "text-emerald-400" : score >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                    {score}%
                   </span>
                 </span>
               )}
@@ -139,7 +141,7 @@ export function CheckCard({ check, onInfoClick }: CheckCardProps) {
           {/* Sub-checks - displayed as structured checklist */}
           {hasSubChecks && (
             <div className="mt-2 space-y-1">
-              {check.metrics!.subChecks!.map((sc, idx) => (
+              {subChecks.map((sc, idx) => (
                 <SubCheckRow key={idx} subCheck={sc} />
               ))}
             </div>

@@ -11,6 +11,8 @@ Core connectivity and services required for the system to function:
 - **NTP** - Time synchronization
 - **Docker** - Container runtime health
 - **Cloudflared** - Tunnel connectivity to Cloudflare
+- **Certificate** - TLS certificate expiry monitoring
+- **Display** - Display manager health (if applicable)
 - **RDP** - Remote desktop access (if enabled)
 - **systemd-resolved** - DNS resolver service
 
@@ -19,8 +21,12 @@ Operating system resource monitoring:
 - **Disk Space** - Storage availability
 - **Inodes** - File system metadata limits
 - **Swap** - Memory pressure indicators
+- **Memory** - RAM usage monitoring
+- **CPU Load** - System load averages
+- **GPU** - GPU utilization (if available)
 - **Zombies** - Defunct process detection
 - **Ports** - Ephemeral port exhaustion
+- **Claude Cache** - Claude Code cache disk usage
 
 ### Resource Checks
 Vrooli-managed services:
@@ -30,6 +36,14 @@ Vrooli-managed services:
 - **Qdrant** - Vector database
 - **SearXNG** - Metasearch engine
 - **Browserless** - Headless Chrome
+
+### Vrooli Checks
+Internal Vrooli platform health:
+- **Vrooli API** - Core API responsiveness
+- **Scenarios** - Per-scenario health (dynamic, based on config)
+- **Watchdog** - OS-level watchdog service status
+- **Orphan Processes** - Leaked processes from stopped scenarios
+- **Stale Locks** - Stale lock file detection
 
 ## Status Levels
 

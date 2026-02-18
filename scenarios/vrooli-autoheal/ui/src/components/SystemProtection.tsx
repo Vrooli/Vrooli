@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Shield, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, ChevronRight, Copy, Check, RefreshCw, ExternalLink, Terminal, Download, Trash2, Loader2 } from "lucide-react";
-import { fetchWatchdogStatus, fetchWatchdogTemplate, installWatchdog, uninstallWatchdog, enableLingering, ProtectionLevel, WatchdogStatus, InstallOptions } from "../lib/api";
+import { fetchWatchdogStatus, fetchWatchdogTemplate, installWatchdog, uninstallWatchdog, ProtectionLevel, WatchdogStatus, InstallOptions } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { selectors } from "../consts/selectors";
 import { getDocsPath } from "../lib/docs";

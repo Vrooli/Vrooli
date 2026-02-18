@@ -235,7 +235,7 @@ Get historical results for a specific check.
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| limit | int | 100 | Maximum results |
+| limit | int | 20 | Maximum results (max 200) |
 | since | string | 24h ago | ISO 8601 timestamp |
 
 **Response:**
@@ -258,27 +258,24 @@ Get historical results for a specific check.
 
 #### GET /api/v1/checks/trends
 
-Get trend data for all checks over time.
+Get per-check trend data over a time window.
 
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| period | string | "24h" | "24h", "7d", or "30d" |
+| hours | int | 24 | Time window in hours (max 168) |
 
 **Response:**
 ```json
 {
-  "period": "24h",
-  "checks": {
-    "infra-network": {
-      "total": 1440,
-      "ok": 1438,
-      "warning": 2,
-      "critical": 0,
-      "uptime": 99.86
-    },
-    ...
-  }
+  "infra-network": {
+    "total": 1440,
+    "ok": 1438,
+    "warning": 2,
+    "critical": 0,
+    "uptime": 99.86
+  },
+  ...
 }
 ```
 
@@ -326,7 +323,12 @@ Get recent health events for the timeline.
 
 #### GET /api/v1/uptime
 
-Get uptime statistics.
+Get uptime statistics over a time window.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| hours | int | 24 | Time window in hours (max 168) |
 
 **Response:**
 ```json
@@ -346,15 +348,44 @@ Get uptime statistics.
 
 ---
 
-#### GET /api/v1/incidents
+#### GET /api/v1/uptime/history
 
-Get incident history.
+Get time-bucketed uptime data for charting.
 
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| limit | int | 20 | Maximum incidents |
-| status | string | all | "open", "resolved", or "all" |
+| hours | int | 24 | Time window in hours (max 168) |
+| buckets | int | 24 | Number of time buckets (max 100) |
+
+**Response:**
+```json
+{
+  "windowHours": 24,
+  "bucketCount": 24,
+  "buckets": [
+    {
+      "start": "2024-01-14T10:00:00Z",
+      "end": "2024-01-14T11:00:00Z",
+      "uptimePercent": 100.0,
+      "checkCount": 60
+    },
+    ...
+  ]
+}
+```
+
+---
+
+#### GET /api/v1/incidents
+
+Get status transition events (incidents).
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| hours | int | 24 | Time window in hours (max 168) |
+| limit | int | 50 | Maximum incidents (max 200) |
 
 **Response:**
 ```json
@@ -403,12 +434,198 @@ Get the watchdog configuration template for the current platform.
 ```json
 {
   "platform": "linux",
-  "type": "systemd",
   "template": "[Unit]\nDescription=Vrooli Autoheal...",
-  "installPath": "/etc/systemd/system/vrooli-autoheal.service",
-  "instructions": "sudo systemctl enable vrooli-autoheal"
+  "instructions": "1. Save the template to /etc/systemd/system/...",
+  "oneLiner": "curl -s .../api/v1/watchdog/template | jq ..."
 }
 ```
+
+---
+
+#### POST /api/v1/watchdog/install
+
+Install the OS-level watchdog service. Timeout: 2 minutes.
+
+**Request Body (optional):**
+```json
+{
+  "serviceName": "vrooli-autoheal",
+  "enableLinger": true
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Watchdog service installed and started"
+}
+```
+
+---
+
+#### POST /api/v1/watchdog/uninstall
+
+Remove the OS-level watchdog service.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Watchdog service removed"
+}
+```
+
+---
+
+#### GET /api/v1/watchdog/status
+
+Get detailed watchdog service status from the OS service manager.
+
+---
+
+#### POST /api/v1/watchdog/linger
+
+Enable systemd linger for the current user (Linux only). Allows user services to run without an active login session.
+
+---
+
+### Configuration
+
+#### GET /api/v1/config
+
+Get the current autoheal configuration.
+
+---
+
+#### PUT /api/v1/config
+
+Replace the entire configuration. Body must be a valid config object.
+
+---
+
+#### POST /api/v1/config/validate
+
+Validate a configuration object without applying it.
+
+---
+
+#### GET /api/v1/config/schema
+
+Get the JSON schema for the configuration format.
+
+---
+
+#### GET /api/v1/config/export
+
+Export the current configuration for backup or transfer.
+
+---
+
+#### POST /api/v1/config/import
+
+Import a previously exported configuration.
+
+---
+
+#### GET /api/v1/config/defaults
+
+Get the default configuration values for all checks.
+
+---
+
+#### GET /api/v1/config/global
+
+Get global configuration (tick interval, auto-heal policy, etc.).
+
+---
+
+#### GET /api/v1/config/ui
+
+Get UI-specific configuration.
+
+---
+
+#### PUT /api/v1/config/checks/bulk
+
+Bulk update check configurations (enable/disable multiple checks at once).
+
+---
+
+#### GET /api/v1/config/checks/{checkId}
+
+Get configuration for a specific check.
+
+---
+
+#### PUT /api/v1/config/checks/{checkId}/enabled
+
+Enable or disable a specific check.
+
+**Request Body:**
+```json
+{ "enabled": true }
+```
+
+---
+
+#### PUT /api/v1/config/checks/{checkId}/autoheal
+
+Enable or disable auto-heal for a specific check.
+
+**Request Body:**
+```json
+{ "enabled": true }
+```
+
+---
+
+### Monitoring Configuration
+
+#### GET /api/v1/config/monitoring
+
+Get the monitoring configuration (which scenarios and resources are monitored).
+
+---
+
+#### PUT /api/v1/config/monitoring
+
+Update the monitoring configuration.
+
+---
+
+#### POST /api/v1/config/monitoring/scenarios
+
+Add a scenario to monitoring.
+
+---
+
+#### DELETE /api/v1/config/monitoring/scenarios/{name}
+
+Remove a scenario from monitoring.
+
+---
+
+#### PUT /api/v1/config/monitoring/scenarios/{name}/critical
+
+Set whether a scenario is critical (affects severity of failures).
+
+**Request Body:**
+```json
+{ "critical": true }
+```
+
+---
+
+#### POST /api/v1/config/monitoring/resources
+
+Add a resource to monitoring.
+
+---
+
+#### DELETE /api/v1/config/monitoring/resources/{name}
+
+Remove a resource from monitoring.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   CheckCircle, XCircle, Loader2, Plus, Trash2, AlertCircle, Monitor
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { CodePreview } from "./CodePreview";
 import {
   fetchConfig, updateConfig, fetchDefaults, exportConfig, importConfig,
   setCheckEnabled, setCheckAutoHeal, bulkUpdateChecks, fetchChecks,
@@ -272,7 +273,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
       if (groups[category]) {
         groups[category].push(enriched);
       } else {
-        groups.system.push(enriched);
+        const systemGroup = groups.system;
+        if (systemGroup) {
+          systemGroup.push(enriched);
+        }
       }
     }
 
@@ -795,9 +799,7 @@ function ImportExportSettings({ onExport, onImport, onReset, config }: ImportExp
       {config && (
         <div className="rounded-lg border border-white/10 bg-white/5 p-4">
           <h3 className="text-lg font-medium mb-2">Current Configuration</h3>
-          <pre className="text-xs text-slate-400 overflow-auto max-h-48 bg-black/20 rounded p-3">
-            {JSON.stringify(config, null, 2)}
-          </pre>
+          <CodePreview code={config} language="json" maxHeight="12rem" />
         </div>
       )}
     </div>

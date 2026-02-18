@@ -7,6 +7,14 @@ import { CheckDetailModal } from "./CheckDetailModal";
 import * as api from "../lib/api";
 import * as exportUtils from "../lib/export";
 
+vi.mock("../contexts/CheckMetadataContext", () => ({
+  useCheckMetadata: () => ({
+    getTitle: (checkId: string) => checkId,
+    getMetadata: () => undefined,
+    isLoading: false,
+  }),
+}));
+
 // Mock the API module
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual("../lib/api");
@@ -196,6 +204,9 @@ describe("[REQ:UI-EVENTS-001] CheckDetailModal", () => {
     renderWithProviders(
       <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
     );
+
+    const historyTab = await screen.findByRole("button", { name: /^History/ });
+    fireEvent.click(historyTab);
 
     await waitFor(() => {
       expect(screen.getByText(/no history available/i)).toBeInTheDocument();

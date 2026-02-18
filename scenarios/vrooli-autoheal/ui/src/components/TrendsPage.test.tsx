@@ -6,6 +6,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TrendsPage } from "./TrendsPage";
 import * as api from "../lib/api";
 
+vi.mock("../contexts/CheckMetadataContext", () => ({
+  useCheckMetadata: () => ({
+    getTitle: (checkId: string) => checkId,
+    getMetadata: () => undefined,
+    isLoading: false,
+  }),
+}));
+
 // Mock the API module
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual("../lib/api");

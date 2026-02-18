@@ -7,9 +7,8 @@ import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import type { CheckInfo, HealthResult, CheckCategory } from "./lib/api";
 import { selectors } from "./consts/selectors";
-import { StatusBadge, SummaryCard, CheckCard, CheckDetailModal, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection, SettingsDialog } from "./components";
+import { StatusBadge, SummaryCard, CheckCard, CheckDetailModal, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection, SettingsDialog, ReactErrorBoundary } from "./components";
 import { DocsPage } from "./pages/Docs";
-import { APIError } from "./lib/api";
 
 const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
 
@@ -45,7 +44,27 @@ function loadCollapsedState(): CollapsedGroups {
   try {
     const saved = localStorage.getItem("autoheal-collapsed-groups");
     if (saved) {
-      return JSON.parse(saved);
+      const parsed: unknown = JSON.parse(saved);
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        "critical" in parsed &&
+        "warning" in parsed &&
+        "ok" in parsed
+      ) {
+        const candidate = parsed as Record<string, unknown>;
+        if (
+          typeof candidate.critical === "boolean" &&
+          typeof candidate.warning === "boolean" &&
+          typeof candidate.ok === "boolean"
+        ) {
+          return {
+            critical: candidate.critical,
+            warning: candidate.warning,
+            ok: candidate.ok,
+          };
+        }
+      }
     }
   } catch {
     // Ignore parse errors
@@ -143,7 +162,7 @@ export default function App() {
       const emoji = statusToEmoji(data.status);
       document.title = `${emoji} Autoheal - ${data.status.toUpperCase()}`;
     }
-  }, [data?.status]);
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -266,7 +285,7 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-6">
         {activeTab === "dashboard" ? (
-          <>
+          <ReactErrorBoundary sectionName="Dashboard">
             {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <SummaryCard
@@ -422,11 +441,15 @@ export default function App() {
             <div className="mt-6">
               <EventsTimeline />
             </div>
-          </>
+          </ReactErrorBoundary>
         ) : activeTab === "trends" ? (
-          <TrendsPage />
+          <ReactErrorBoundary sectionName="Trends">
+            <TrendsPage />
+          </ReactErrorBoundary>
         ) : (
-          <DocsPage />
+          <ReactErrorBoundary sectionName="Docs">
+            <DocsPage />
+          </ReactErrorBoundary>
         )}
       </main>
 
@@ -435,10 +458,12 @@ export default function App() {
 
       {/* Check Detail Modal */}
       {selectedCheckId && (
-        <CheckDetailModal
-          checkId={selectedCheckId}
-          onClose={() => setSelectedCheckId(null)}
-        />
+        <ReactErrorBoundary sectionName="Check details modal">
+          <CheckDetailModal
+            checkId={selectedCheckId}
+            onClose={() => setSelectedCheckId(null)}
+          />
+        </ReactErrorBoundary>
       )}
     </div>
   );

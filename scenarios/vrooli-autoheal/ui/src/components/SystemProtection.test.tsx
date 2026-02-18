@@ -22,6 +22,7 @@ const mockWatchdogStatusFull: api.WatchdogStatus = {
   canInstall: true,
   servicePath: '/etc/systemd/system/vrooli-autoheal.service',
   protectionLevel: 'full',
+  lingeringEnabled: false,
 };
 
 const mockWatchdogStatusPartial: api.WatchdogStatus = {
@@ -33,6 +34,7 @@ const mockWatchdogStatusPartial: api.WatchdogStatus = {
   bootProtectionActive: false,
   canInstall: true,
   protectionLevel: 'partial',
+  lingeringEnabled: false,
 };
 
 const mockWatchdogStatusNone: api.WatchdogStatus = {
@@ -44,6 +46,7 @@ const mockWatchdogStatusNone: api.WatchdogStatus = {
   bootProtectionActive: false,
   canInstall: false,
   protectionLevel: 'none',
+  lingeringEnabled: false,
 };
 
 function createTestQueryClient() {
@@ -105,7 +108,7 @@ describe('SystemProtection', () => {
     });
 
     // Should show install button when not installed but can install
-    expect(screen.getByText('Set up OS Watchdog')).toBeInTheDocument();
+    expect(screen.getByText('Install Watchdog')).toBeInTheDocument();
   });
 
   it('displays no protection status correctly', async () => {
@@ -118,7 +121,7 @@ describe('SystemProtection', () => {
     });
 
     // Should not show install button when can't install
-    expect(screen.queryByText('Set up OS Watchdog')).not.toBeInTheDocument();
+    expect(screen.queryByText('Install Watchdog')).not.toBeInTheDocument();
     expect(screen.getByText(/not available on this platform/i)).toBeInTheDocument();
   });
 

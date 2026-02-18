@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
 import { Copy, Check, ArrowLeft } from "lucide-react";
 import mermaid from "mermaid";
 import { Button } from "../../components/ui/button";
+import { CodePreview } from "../../components/CodePreview";
 
 // Initialize mermaid
 mermaid.initialize({
@@ -23,12 +25,18 @@ interface MermaidBlock {
   code: string;
 }
 
+interface CodeBlock {
+  id: string;
+  code: string;
+  language: string;
+}
+
 // Extract mermaid blocks and return both the modified markdown and the blocks
 function extractMermaidBlocks(markdown: string): { html: string; blocks: MermaidBlock[] } {
   const blocks: MermaidBlock[] = [];
   let counter = 0;
 
-  const html = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (_, code) => {
+  const html = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (_match: string, code: string) => {
     const id = `mermaid-${Date.now()}-${counter++}`;
     blocks.push({ id, code: code.trim() });
     return `<div class="mermaid-container my-4 p-4 bg-slate-900/50 rounded-lg border border-white/10 overflow-x-auto"><div id="${id}" class="mermaid-placeholder flex items-center justify-center py-8 text-slate-400">Loading diagram...</div></div>`;
@@ -38,17 +46,22 @@ function extractMermaidBlocks(markdown: string): { html: string; blocks: Mermaid
 }
 
 // Simple markdown to HTML converter with mermaid support
-function parseMarkdown(markdown: string): { html: string; mermaidBlocks: MermaidBlock[] } {
-  if (!markdown) return { html: "", mermaidBlocks: [] };
+function parseMarkdown(markdown: string): { html: string; mermaidBlocks: MermaidBlock[]; codeBlocks: CodeBlock[] } {
+  if (!markdown) return { html: "", mermaidBlocks: [], codeBlocks: [] };
 
   // First extract mermaid blocks
   const { html: withoutMermaid, blocks } = extractMermaidBlocks(markdown);
 
+  const codeBlocks: CodeBlock[] = [];
+  let codeCounter = 0;
+
   let html = withoutMermaid
-    // Other code blocks
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) =>
-      `<pre class="bg-black/50 rounded-lg p-4 overflow-x-auto text-sm my-4"><code class="language-${lang || "text"}">${escapeHtml(code.trim())}</code></pre>`
-    )
+    // Other code blocks — replace with placeholder divs for React hydration
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_match: string, lang: string | undefined, code: string) => {
+      const id = `code-block-${Date.now()}-${codeCounter++}`;
+      codeBlocks.push({ id, code: code.trim(), language: lang || "text" });
+      return `<div id="${id}" class="my-4"></div>`;
+    })
     // Inline code
     .replace(/`([^`]+)`/g, '<code class="bg-black/50 px-1.5 py-0.5 rounded text-blue-400 text-sm">$1</code>')
     // Headers
@@ -66,7 +79,7 @@ function parseMarkdown(markdown: string): { html: string; mermaidBlocks: Mermaid
     // Ordered lists
     .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal list-inside text-slate-300">$1</li>')
     // Tables
-    .replace(/^\|(.+)\|$/gm, (match, content) => {
+    .replace(/^\|(.+)\|$/gm, (_match: string, content: string) => {
       const cells = content.split("|").map((c: string) => c.trim());
       const isHeader = cells.every((c: string) => /^-+$/.test(c));
       if (isHeader) return "";
@@ -83,16 +96,7 @@ function parseMarkdown(markdown: string): { html: string; mermaidBlocks: Mermaid
     html = `<p class="my-3 text-slate-300">${html}</p>`;
   }
 
-  return { html, mermaidBlocks: blocks };
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return { html, mermaidBlocks: blocks, codeBlocks };
 }
 
 // Dark theme colors for mermaid diagrams
@@ -203,20 +207,51 @@ export function MarkdownViewer({
 }: MarkdownViewerProps) {
   const [copied, setCopied] = useState(false);
   const [mermaidBlocks, setMermaidBlocks] = useState<MermaidBlock[]>([]);
+  const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
   const [htmlContent, setHtmlContent] = useState("");
   const articleRef = useRef<HTMLElement>(null);
+  const codeRootsRef = useRef<Array<ReturnType<typeof createRoot>>>([]);
 
   // Parse markdown and extract mermaid blocks
   useEffect(() => {
     if (!content) {
       setHtmlContent("");
       setMermaidBlocks([]);
+      setCodeBlocks([]);
       return;
     }
-    const { html, mermaidBlocks: blocks } = parseMarkdown(content);
+    const { html, mermaidBlocks: mBlocks, codeBlocks: cBlocks } = parseMarkdown(content);
     setHtmlContent(html);
-    setMermaidBlocks(blocks);
+    setMermaidBlocks(mBlocks);
+    setCodeBlocks(cBlocks);
   }, [content]);
+
+  // Hydrate code block placeholders with CodePreview components
+  useEffect(() => {
+    // Cleanup previous roots
+    for (const root of codeRootsRef.current) {
+      root.unmount();
+    }
+    codeRootsRef.current = [];
+
+    if (codeBlocks.length === 0 || !articleRef.current) return;
+
+    for (const block of codeBlocks) {
+      const element = document.getElementById(block.id);
+      if (!element) continue;
+
+      const root = createRoot(element);
+      root.render(<CodePreview code={block.code} language={block.language} />);
+      codeRootsRef.current.push(root);
+    }
+
+    return () => {
+      for (const root of codeRootsRef.current) {
+        root.unmount();
+      }
+      codeRootsRef.current = [];
+    };
+  }, [codeBlocks, htmlContent]);
 
   // Render mermaid diagrams after content is inserted into DOM
   useEffect(() => {
