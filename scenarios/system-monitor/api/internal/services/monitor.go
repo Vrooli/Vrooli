@@ -378,6 +378,17 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 		}
 
 		detailed.MemoryDetails.GrowthPatterns = nil
+
+		// Add disk usage from disk collector (stored under MemoryMetrics in proto)
+		if diskData != nil {
+			if diskUsage, ok := diskData.Values["usage"].(map[string]interface{}); ok {
+				detailed.MemoryDetails.DiskUsage = models.DiskInfo{
+					Used:    getInt64Value(diskUsage, "used"),
+					Total:   getInt64Value(diskUsage, "total"),
+					Percent: getFloat64Value(diskUsage, "percent"),
+				}
+			}
+		}
 	}
 
 	// Network Details

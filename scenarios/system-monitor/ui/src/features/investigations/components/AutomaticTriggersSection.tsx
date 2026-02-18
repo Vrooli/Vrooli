@@ -100,7 +100,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
         protoFetch('/investigations/cooldown', parseGetCooldownStatusResponse),
         protoFetch('/metrics/current', parseMetricsResponse),
         protoFetch('/metrics/detailed', parseDetailedMetrics),
-        protoFetch('/metrics/process-monitor', parseProcessMonitorData),
+        protoFetch('/metrics/processes', parseProcessMonitorData),
       ]);
 
       // Collect raw metric sources from all endpoints
