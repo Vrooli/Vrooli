@@ -109,6 +109,23 @@ export interface IBacklogService {
     payload: { targetKind: BacklogKind; targetName?: string }
   ): Promise<BacklogItem>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse>;
+  exportItems(params?: {
+    kinds?: string[];
+    statuses?: string[];
+    names?: string[];
+    priorityMax?: number;
+    tags?: string[];
+    includePrd?: boolean;
+    includeRequirements?: boolean;
+  }): Promise<Blob>;
+  importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
+}
+
+export interface ImportBacklogResponse {
+  dryRun: boolean;
+  changes: Array<{ item: string; action: string; details: string[] }>;
+  errors: string[];
+  summary: string;
 }
 
 export function createBacklogService(apiClient: IApiClient = defaultApiClient): IBacklogService {
@@ -292,6 +309,32 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
 
     async getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse> {
       return apiClient.get<ArchiveTargetsResponse>(API_ENDPOINTS.backlogArchiveTargets(kind, name));
+    },
+
+    async exportItems(params?: {
+      kinds?: string[];
+      statuses?: string[];
+      names?: string[];
+      priorityMax?: number;
+      tags?: string[];
+      includePrd?: boolean;
+      includeRequirements?: boolean;
+    }): Promise<Blob> {
+      const response = await apiClient.post<Blob>(API_ENDPOINTS.backlogExport, params ?? {}, {
+        responseType: "blob",
+      });
+      return response;
+    },
+
+    async importItems(file: File, apply = false): Promise<ImportBacklogResponse> {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (apply) {
+        formData.append("apply", "true");
+      }
+      return apiClient.post<ImportBacklogResponse>(API_ENDPOINTS.backlogImport, formData, {
+        headers: {},
+      });
     },
   };
 }

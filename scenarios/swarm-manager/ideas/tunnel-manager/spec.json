@@ -1,0 +1,16 @@
+{
+  "name": "tunnel-manager",
+  "title": "Tunnel Manager",
+  "description": "Central scenario for managing, monitoring, and self-healing the Cloudflare secure tunnel that provides remote access to all Vrooli scenarios. Enforces fixed-port contracts on published scenarios, provides a status dashboard, supports both locally-managed and remotely-managed tunnel configurations, and auto-recovers from tunnel failures.",
+  "status": "backlog",
+  "priority": 2,
+  "tags": [
+    "infrastructure",
+    "cloudflare",
+    "networking",
+    "reliability"
+  ],
+  "created": "2026-02-18T01:45:52Z",
+  "updated": "2026-02-18T01:50:52Z",
+  "kind": "idea"
+}

@@ -1,0 +1,103 @@
+{
+  "module": "cloudflare-api",
+  "description": "Remote tunnel configuration management via Cloudflare API v4",
+  "prd_refs": ["OT-P1-001", "OT-P1-003", "OT-P1-006"],
+  "requirements": [
+    {
+      "id": "CFAPI-001",
+      "title": "API token management",
+      "description": "Store Cloudflare API token securely (environment variable or encrypted file). Token requires 'Cloudflare Tunnel:Edit' permission scope.",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/cf_client_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CFAPI-002",
+      "title": "Read current tunnel configuration",
+      "description": "GET /accounts/{id}/cfd_tunnel/{tunnel_id}/configurations to fetch current ingress rules. Used for seeding the route manifest and detecting drift.",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/cf_client_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CFAPI-003",
+      "title": "Push route manifest to tunnel config",
+      "description": "PUT /accounts/{id}/cfd_tunnel/{tunnel_id}/configurations to update ingress rules from the route manifest. Full replacement (read-modify-write pattern). Always includes catch-all 404 rule as last entry.",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/cf_config_sync_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CFAPI-004",
+      "title": "Hot-reload verification",
+      "description": "After pushing config via API, verify cloudflared picks up changes by checking cloudflared_config_local_config_pushes metric increment. Log success/failure.",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/cf_config_sync_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CFAPI-005",
+      "title": "Tunnel status query",
+      "description": "GET /accounts/{id}/cfd_tunnel/{tunnel_id} to fetch tunnel status and connection info. Display tunnel name, status, created date, and connected edge locations.",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/cf_client_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CFAPI-006",
+      "title": "Mode switching",
+      "description": "tunnel-manager config mode [local|remote] switches management mode. When switching to remote: validate API token, read current local config, push to API. When switching to local: read current API config, write to config.yml.",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/mode_switch_test.go"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

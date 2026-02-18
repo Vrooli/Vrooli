@@ -1,0 +1,71 @@
+{
+  "module": "local-config",
+  "description": "Local tunnel configuration management via config YAML",
+  "prd_refs": ["OT-P1-002", "OT-P1-003", "OT-P1-006"],
+  "requirements": [
+    {
+      "id": "LOCAL-001",
+      "title": "Parse existing cloudflared config",
+      "description": "Read and parse ~/.cloudflared/config.yml to extract current ingress rules, tunnel ID, and credentials file path",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/local_config_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "LOCAL-002",
+      "title": "Generate config from route manifest",
+      "description": "Convert the route manifest to a valid cloudflared config.yml with proper ingress rules and catch-all. Preserve non-ingress settings (tunnel ID, credentials, warp-routing, etc.).",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/local_config_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "LOCAL-003",
+      "title": "Config write with backup",
+      "description": "Before overwriting config.yml, create a timestamped backup (config.yml.backup.YYYYMMDD-HHMMSS). Keep last 5 backups.",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/local_config_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "LOCAL-004",
+      "title": "Restart after config change",
+      "description": "After writing config.yml in local mode, restart cloudflared via systemctl and verify /ready returns 200",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/local_config_test.go"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

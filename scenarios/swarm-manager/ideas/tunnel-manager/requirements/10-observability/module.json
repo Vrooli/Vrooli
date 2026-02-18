@@ -1,0 +1,71 @@
+{
+  "module": "observability",
+  "description": "Metrics storage, logging, and event tracking for tunnel operations",
+  "prd_refs": ["OT-P1-004", "OT-P1-007", "OT-P1-009"],
+  "requirements": [
+    {
+      "id": "OBS-001",
+      "title": "Metrics time-series storage",
+      "description": "Store scraped cloudflared metrics (HA connections, error rate, RTT, active streams) in SQLite with timestamps. Retain 7 days of 1-minute resolution data.",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/metrics_store_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "OBS-002",
+      "title": "Probe history storage",
+      "description": "Store probe results per route in SQLite: timestamp, route, internal result, external result, classification, response time. Retain 7 days.",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/probe_store_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "OBS-003",
+      "title": "Structured logging",
+      "description": "All operations logged with structured fields: component, action, result, duration, error. Log to stderr in JSON format for journalctl compatibility.",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/logging_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "OBS-004",
+      "title": "Health API endpoint",
+      "description": "GET /health returns composite tunnel health for other Vrooli scenarios (e.g., vrooli-autoheal) to consume. Includes route-level status summary.",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/health_handler_test.go"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

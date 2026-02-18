@@ -77,6 +77,21 @@ type ResearchResponse struct {
 	Created string `json:"created"`
 }
 
+// ImportBacklogResponse reports the results of importing an edited markdown export.
+type ImportBacklogResponse struct {
+	DryRun  bool           `json:"dry_run"`
+	Changes []ImportChange `json:"changes"`
+	Errors  []string       `json:"errors"`
+	Summary string         `json:"summary"`
+}
+
+// ImportChange describes a single change from an import operation.
+type ImportChange struct {
+	Item    string   `json:"item"`
+	Action  string   `json:"action"`
+	Details []string `json:"details"`
+}
+
 // Scenario represents a scenario entry in the catalog.
 type Scenario struct {
 	Name              string   `json:"name"`

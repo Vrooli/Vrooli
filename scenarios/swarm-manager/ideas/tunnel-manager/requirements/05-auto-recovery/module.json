@@ -1,0 +1,119 @@
+{
+  "module": "auto-recovery",
+  "description": "Automatic tunnel recovery with exponential backoff and circuit breaker",
+  "prd_refs": ["OT-P0-006", "OT-P1-007"],
+  "requirements": [
+    {
+      "id": "RECOVER-001",
+      "title": "Trigger on ready endpoint failure",
+      "description": "When cloudflared's /ready endpoint returns non-200 for N consecutive checks (configurable, default 3), initiate recovery. Single transient failures should not trigger recovery.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/recovery_engine_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RECOVER-002",
+      "title": "Trigger on HA connection loss",
+      "description": "When cloudflared_tunnel_ha_connections drops to 0 and stays at 0 for 2 consecutive metric scrapes, initiate recovery.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/recovery_engine_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RECOVER-003",
+      "title": "Recovery action: systemctl restart",
+      "description": "Primary recovery action is 'sudo systemctl restart cloudflared'. After restart, poll /ready endpoint until 200 or timeout (30s).",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/recovery_engine_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RECOVER-004",
+      "title": "Exponential backoff",
+      "description": "If recovery fails, retry with exponential backoff: 30s, 1m, 2m, 4m, 8m, capped at 15m. Reset backoff after a successful recovery.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/recovery_backoff_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RECOVER-005",
+      "title": "Circuit breaker",
+      "description": "After 5 consecutive failed recovery attempts, enter circuit-open state: stop automatic recovery, log critical alert. Circuit resets after configurable cooldown (default 1h) or manual reset via CLI/API.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/circuit_breaker_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RECOVER-006",
+      "title": "Recovery event persistence",
+      "description": "Log every recovery attempt to SQLite: timestamp, trigger reason, action taken, outcome (success/failure), duration, backoff level. Retain 30 days of history.",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/recovery_log_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RECOVER-007",
+      "title": "Manual recovery via CLI/API",
+      "description": "'tunnel-manager recover' triggers an immediate recovery attempt, bypassing backoff (but not circuit breaker unless --force is used). Returns result.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/recover_test.go"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

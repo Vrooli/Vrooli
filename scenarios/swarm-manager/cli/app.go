@@ -93,6 +93,8 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "research", NeedsAPI: true, Description: "Spawn research agent (args: <kind> <name> [json-or-@file])", Run: a.cmdBacklogResearch},
 				{Name: "prompt-trace", NeedsAPI: true, Description: "Get latest backlog research prompt trace (args: <kind> <name>)", Run: a.cmdBacklogPromptTrace},
 				{Name: "convert", NeedsAPI: true, Description: "Convert backlog item kind (args: <kind> <name> <target-kind> [target-name])", Run: a.cmdBacklogConvert},
+				{Name: "export", NeedsAPI: true, Description: "Export backlog items to markdown for offline editing", Run: a.cmdBacklogExport},
+				{Name: "import", NeedsAPI: true, Description: "Import edited markdown back into the backlog (args: <file>)", Run: a.cmdBacklogImport},
 			},
 		},
 		{

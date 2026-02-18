@@ -279,6 +279,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/export", h.Export).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
 }
 
 // ResearchMode describes the intent for idea agent work.

@@ -23,6 +23,8 @@ export const API_ENDPOINTS = {
   backlogConvert: (kind: string, name: string) => `/backlog/${kind}/${name}/convert`,
   backlogArchiveTargets: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/targets`,
   backlogPromptTrace: (kind: string, name: string) => `/backlog/${kind}/${name}/prompt-trace`,
+  backlogExport: "/backlog/export",
+  backlogImport: "/backlog/import",
   scenarios: "/scenarios",
   scenarioByName: (name: string) => `/scenarios/${name}`,
   scenarioFiles: (name: string) => `/scenarios/${name}/files`,
