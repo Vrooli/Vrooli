@@ -16,19 +16,22 @@
  * [REQ:REQ-P0-004] Backlog Details UI Page with file tree view, preview, and upload
  */
 
-import { useState, useCallback, useEffect, useMemo, useRef, type PointerEvent } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, type PointerEvent } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
+  ArrowRightLeft,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Copy,
   Edit,
   FileText,
   Files,
   Info,
+  Lock,
   Loader2,
   MoreHorizontal,
   Play,
@@ -42,13 +45,14 @@ import {
 } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Dialog } from "../components/ui/dialog";
+import { Popover } from "../components/ui/popover";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorBoundary } from "../components/ui/error-boundary";
 import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
 import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
-import { FileTree } from "../components/ui/file-tree";
+import { FileTree, type TreeFile } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
 import { FileUpload } from "../components/ui/file-upload";
 import { TagList } from "../components/ui/tag-list";
@@ -100,6 +104,18 @@ const MAX_FILES_PANEL_WIDTH = 520;
 const MIN_PREVIEW_WIDTH = 320;
 const RESIZE_HANDLE_WIDTH = 8;
 type MobileView = "info" | "files";
+type FileActionType = "rename" | "move" | "copy" | "delete";
+
+interface FileActionTarget {
+  action: FileActionType;
+  target: BacklogFile;
+}
+
+interface FileActionMenuState {
+  x: number;
+  y: number;
+  target: BacklogFile;
+}
 
 const collectMatchingFiles = (entries: BacklogFile[], query: string): BacklogFile[] => {
   const normalized = query.trim().toLowerCase();
@@ -133,6 +149,38 @@ const buildFollowupPrompt = (mode: IdeaAgentMode): string => {
   return "Use clarify/questions.json answers to refine the idea and produce an enhanced plan. If suggestions exist, apply accepted ones and ignore rejected ones.";
 };
 
+const getParentPath = (path: string): string => {
+  const slashIndex = path.lastIndexOf("/");
+  return slashIndex > -1 ? path.slice(0, slashIndex) : "";
+};
+
+const getBaseName = (path: string): string => {
+  const slashIndex = path.lastIndexOf("/");
+  return slashIndex > -1 ? path.slice(slashIndex + 1) : path;
+};
+
+const joinPath = (parent: string, name: string): string => (parent ? `${parent}/${name}` : name);
+
+const normalizeDestinationPath = (value: string): string => {
+  return value.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+};
+
+const remapSelectedPath = (
+  currentPath: string,
+  target: BacklogFile,
+  destinationPath: string
+): string | null => {
+  if (target.type === "file") {
+    return currentPath === target.path ? destinationPath : currentPath;
+  }
+  const prefix = `${target.path}/`;
+  if (currentPath === target.path) return destinationPath;
+  if (currentPath.startsWith(prefix)) {
+    return `${destinationPath}/${currentPath.slice(prefix.length)}`;
+  }
+  return currentPath;
+};
+
 export function BacklogDetailsPage() {
   const { kind, name } = useParams<{ kind: string; name: string }>();
   const navigate = useNavigate();
@@ -141,6 +189,7 @@ export function BacklogDetailsPage() {
   const upsertItem = useBacklogStore((state) => state.upsertItem);
   const removeItem = useBacklogStore((state) => state.removeItem);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const headerFileActionsRef = useRef<HTMLDivElement | null>(null);
   const [filesPanelWidth, setFilesPanelWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>("info");
@@ -149,6 +198,11 @@ export function BacklogDetailsPage() {
   const [fileSearch, setFileSearch] = useState("");
   const [recentFiles, setRecentFiles] = useState<BacklogFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
+  const [showFileActionsMenu, setShowFileActionsMenu] = useState(false);
+  const [fileContextMenu, setFileContextMenu] = useState<FileActionMenuState | null>(null);
+  const [activeFileAction, setActiveFileAction] = useState<FileActionTarget | null>(null);
+  const [fileActionInput, setFileActionInput] = useState("");
+  const [fileActionError, setFileActionError] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -461,6 +515,64 @@ export function BacklogDetailsPage() {
     },
   });
 
+  const fileActionMutation = useMutation({
+    mutationFn: async ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      if (action === "rename") {
+        if (!destinationPath) throw new Error("Destination path is required");
+        return backlogService.renameFile(backlogKind, name, target.path, destinationPath);
+      }
+      if (action === "move") {
+        if (!destinationPath) throw new Error("Destination path is required");
+        return backlogService.moveFile(backlogKind, name, target.path, destinationPath);
+      }
+      if (action === "copy") {
+        if (!destinationPath) throw new Error("Destination path is required");
+        return backlogService.copyFile(backlogKind, name, target.path, destinationPath);
+      }
+      return backlogService.deleteFile(backlogKind, name, target.path);
+    },
+    onSuccess: (_result, variables) => {
+      if (!backlogKind || !name) return;
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
+      setFileActionError(null);
+      setActiveFileAction(null);
+      setFileContextMenu(null);
+      setShowFileActionsMenu(false);
+
+      const currentSelectedPath = selectedFile?.path;
+      if (!currentSelectedPath) return;
+
+      if (variables.action === "delete") {
+        const affectedPath =
+          currentSelectedPath === variables.target.path ||
+          (variables.target.type === "directory" && currentSelectedPath.startsWith(`${variables.target.path}/`));
+        if (affectedPath) {
+          setSelectedFile(null);
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete("file");
+            return next;
+          }, { replace: true });
+        }
+        return;
+      }
+
+      if (!variables.destinationPath) return;
+      const remapped = remapSelectedPath(currentSelectedPath, variables.target, variables.destinationPath);
+      if (!remapped || remapped === currentSelectedPath) return;
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("file", remapped);
+        return next;
+      }, { replace: true });
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to apply file action.";
+      setFileActionError(message);
+    },
+  });
+
   const updateError = updateMutation.isError ? "Failed to update backlog item. Please try again." : null;
   const deleteError = deleteMutation.isError ? "Failed to delete backlog item. Please try again." : null;
   const agentError = agentMutation.isError
@@ -596,6 +708,87 @@ export function BacklogDetailsPage() {
     }
   }, [mobileView, showFilesSheet]);
 
+  useEffect(() => {
+    setShowFileActionsMenu(false);
+    setFileContextMenu(null);
+    setActiveFileAction(null);
+    setFileActionInput("");
+    setFileActionError(null);
+  }, [selectedFile?.path, backlogKind, name]);
+
+  useEffect(() => {
+    if (!showFileActionsMenu) return;
+    const onMouseDown = (event: globalThis.MouseEvent) => {
+      if (headerFileActionsRef.current && !headerFileActionsRef.current.contains(event.target as Node)) {
+        setShowFileActionsMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [showFileActionsMenu]);
+
+  const openFileActionDialog = useCallback((action: FileActionType, target: BacklogFile) => {
+    setActiveFileAction({ action, target });
+    setFileActionError(null);
+    if (action === "rename") {
+      setFileActionInput(getBaseName(target.path));
+      return;
+    }
+    if (action === "move") {
+      setFileActionInput(target.path);
+      return;
+    }
+    if (action === "copy") {
+      const suffix = target.type === "directory" ? "-copy" : "-copy";
+      setFileActionInput(joinPath(getParentPath(target.path), `${getBaseName(target.path)}${suffix}`));
+      return;
+    }
+    setFileActionInput("");
+  }, []);
+
+  const handleFileContextMenu = useCallback((file: TreeFile, event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setShowFileActionsMenu(false);
+    setFileContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      target: file as BacklogFile,
+    });
+  }, []);
+
+  const handleOpenHeaderMenu = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setFileContextMenu(null);
+    setShowFileActionsMenu((prev) => !prev);
+  }, []);
+
+  const handleFileActionConfirm = useCallback(() => {
+    if (!activeFileAction) return;
+    const { action, target } = activeFileAction;
+    if (action === "delete") {
+      fileActionMutation.mutate({ action, target });
+      return;
+    }
+
+    if (action === "rename") {
+      const nextName = fileActionInput.trim();
+      if (!nextName || nextName.includes("/")) {
+        setFileActionError("Rename requires a file or folder name without slashes.");
+        return;
+      }
+      const destinationPath = joinPath(getParentPath(target.path), nextName);
+      fileActionMutation.mutate({ action, target, destinationPath });
+      return;
+    }
+
+    const destinationPath = normalizeDestinationPath(fileActionInput);
+    if (!destinationPath) {
+      setFileActionError("Destination path is required.");
+      return;
+    }
+    fileActionMutation.mutate({ action, target, destinationPath });
+  }, [activeFileAction, fileActionInput, fileActionMutation]);
+
   if (!backlogKind || !name) {
     return (
       <div className="space-y-6" data-testid={selectors.backlogDetails.page}>
@@ -610,6 +803,71 @@ export function BacklogDetailsPage() {
   const HeaderIcon = backlogKind === "research" ? Search : backlogKind === "fix" ? Wrench : Play;
   const agentLabel = item?.kind === "idea" ? "Idea Agent" : item?.kind === "research" ? "Research Agent" : "Research";
   const scheduleDelayValue = Number.isFinite(scheduleDelaySeconds) && scheduleDelaySeconds >= 0 ? scheduleDelaySeconds : 0;
+  const isProtectedSelectedFile = selectedFile?.path === "spec.json";
+
+  const renderFileActionItems = (target: BacklogFile, closeMenu: () => void) => {
+    const isProtected = target.path === "spec.json";
+    const rowClass = "flex w-full items-center justify-start gap-2 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800/80";
+    return (
+      <div className="py-1" data-testid="backlog-file-actions-menu">
+        <button
+          type="button"
+          className={rowClass}
+          disabled={isProtected}
+          onClick={() => {
+            closeMenu();
+            openFileActionDialog("rename", target);
+          }}
+        >
+          <Edit className="h-4 w-4 text-slate-300" />
+          Rename
+        </button>
+        <button
+          type="button"
+          className={rowClass}
+          disabled={isProtected}
+          onClick={() => {
+            closeMenu();
+            openFileActionDialog("move", target);
+          }}
+        >
+          <ArrowRightLeft className="h-4 w-4 text-slate-300" />
+          Move
+        </button>
+        <button
+          type="button"
+          className={rowClass}
+          disabled={isProtected}
+          onClick={() => {
+            closeMenu();
+            openFileActionDialog("copy", target);
+          }}
+        >
+          <Copy className="h-4 w-4 text-slate-300" />
+          Copy
+        </button>
+        <button
+          type="button"
+          className={cn(rowClass, "text-red-300 hover:bg-red-500/20")}
+          disabled={isProtected}
+          onClick={() => {
+            closeMenu();
+            openFileActionDialog("delete", target);
+          }}
+        >
+          <Trash2 className="h-4 w-4 text-red-300" />
+          Delete
+        </button>
+        {isProtected && (
+          <p className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400">
+            <Lock className="h-3.5 w-3.5" />
+            `spec.json` is protected.
+          </p>
+        )}
+      </div>
+    );
+  };
+
   const filesButton = (
     <Button
       variant="outline"
@@ -620,6 +878,39 @@ export function BacklogDetailsPage() {
       <Files className="mr-2 h-4 w-4" />
       Files
     </Button>
+  );
+  const fileHeaderActions = (
+    <>
+      {filesButton}
+      {selectedFile && (
+        <div className="relative" ref={headerFileActionsRef}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenHeaderMenu}
+            aria-label="File actions"
+            title="File actions"
+            className="h-8 w-8 p-0"
+            data-testid="file-header-actions-trigger"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+          {showFileActionsMenu && (
+            <div
+              className="absolute right-0 top-10 z-30 min-w-[180px] overflow-visible rounded-md border border-white/10 bg-slate-900 shadow-lg"
+              data-testid="file-header-actions-popover"
+            >
+              {renderFileActionItems(selectedFile, () => setShowFileActionsMenu(false))}
+            </div>
+          )}
+        </div>
+      )}
+      {selectedFile && (
+        <span className={cn("text-xs text-slate-500", isProtectedSelectedFile && "text-amber-300")}>
+          {isProtectedSelectedFile ? "Protected file" : ""}
+        </span>
+      )}
+    </>
   );
   const fileBrowserContent = (
     <div className="flex h-full flex-col">
@@ -728,11 +1019,24 @@ export function BacklogDetailsPage() {
           <FileTree
             files={files ?? []}
             onFileSelect={handleFileSelect}
+            onItemContextMenu={handleFileContextMenu}
             selectedPath={selectedFile?.path}
             className="lg:rounded-none lg:border-0 lg:bg-transparent lg:py-0"
             data-testid={selectors.backlogDetails.fileTree}
           />
         )}
+        <Popover
+          isOpen={Boolean(fileContextMenu)}
+          onClose={() => setFileContextMenu(null)}
+          x={fileContextMenu?.x}
+          y={fileContextMenu?.y}
+          delayClickOutside
+          testId="file-tree-context-popover"
+        >
+          {fileContextMenu
+            ? renderFileActionItems(fileContextMenu.target, () => setFileContextMenu(null))
+            : null}
+        </Popover>
       </div>
     </div>
   );
@@ -995,7 +1299,7 @@ export function BacklogDetailsPage() {
                   fileName={selectedFile.name}
                   compactHeader
                   stickyHeader
-                  headerActions={filesButton}
+                  headerActions={fileHeaderActions}
                   className="flex-1 min-h-0 border-0 rounded-none bg-transparent"
                   contentClassName="flex-1 max-h-none min-h-0"
                   data-testid={selectors.backlogDetails.filePreview}
@@ -1398,6 +1702,84 @@ export function BacklogDetailsPage() {
           confirmButton: selectors.backlogDetails.deleteConfirmButton,
           cancelButton: selectors.backlogDetails.deleteCancelButton,
         }}
+      />
+
+      <Dialog
+        isOpen={Boolean(activeFileAction && activeFileAction.action !== "delete")}
+        onClose={() => {
+          setActiveFileAction(null);
+          setFileActionError(null);
+        }}
+        title={
+          activeFileAction?.action === "rename"
+            ? `Rename ${activeFileAction.target.type}`
+            : activeFileAction?.action === "move"
+              ? `Move ${activeFileAction.target.type}`
+              : activeFileAction?.action === "copy"
+                ? `Copy ${activeFileAction.target.type}`
+                : "File Action"
+        }
+        maxWidth="max-w-md"
+      >
+        {activeFileAction && activeFileAction.action !== "delete" && (
+          <div className="space-y-4">
+            <div className="text-sm text-slate-300">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Source</p>
+              <p className="mt-1 break-all rounded-lg bg-slate-800/60 px-3 py-2">{activeFileAction.target.path}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-wide text-slate-500">
+                {activeFileAction.action === "rename" ? "New name" : "Destination path"}
+              </label>
+              <Input
+                value={fileActionInput}
+                onChange={(event) => setFileActionInput(event.target.value)}
+                placeholder={activeFileAction.action === "rename" ? "new-name.ext" : "path/to/target"}
+              />
+            </div>
+            {fileActionError && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {fileActionError}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setActiveFileAction(null);
+                  setFileActionError(null);
+                }}
+                disabled={fileActionMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleFileActionConfirm}
+                disabled={fileActionMutation.isPending}
+                data-testid="confirm-file-action"
+              >
+                {fileActionMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Apply
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      <ConfirmDialog
+        isOpen={Boolean(activeFileAction && activeFileAction.action === "delete")}
+        onClose={() => {
+          setActiveFileAction(null);
+          setFileActionError(null);
+        }}
+        onConfirm={handleFileActionConfirm}
+        title={`Delete ${activeFileAction?.target.type ?? "file"}`}
+        description={`Delete "${activeFileAction?.target.path ?? ""}" from this backlog item? This cannot be undone.`}
+        confirmLabel="Delete"
+        isLoading={fileActionMutation.isPending}
       />
 
       <BacklogAgentDialog

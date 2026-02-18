@@ -502,6 +502,47 @@ export interface ListRunsResponse {
   hasMore: boolean
 }
 
+function normalizeRunStatus(status: string): string {
+  const normalized = status.trim().toLowerCase()
+  if (!normalized) return status
+  if (
+    normalized.includes('completed') ||
+    normalized.includes('complete') ||
+    normalized.includes('succeeded') ||
+    normalized.includes('success')
+  ) {
+    return 'completed'
+  }
+  if (
+    normalized.includes('running') ||
+    normalized.includes('in_progress') ||
+    normalized.includes('in progress')
+  ) {
+    return 'running'
+  }
+  if (
+    normalized.includes('failed') ||
+    normalized.includes('failure') ||
+    normalized.includes('error')
+  ) {
+    return 'failed'
+  }
+  if (
+    normalized.includes('cancelled') ||
+    normalized.includes('canceled')
+  ) {
+    return 'cancelled'
+  }
+  if (
+    normalized.includes('pending') ||
+    normalized.includes('queued') ||
+    normalized.includes('waiting')
+  ) {
+    return 'pending'
+  }
+  return normalized
+}
+
 /**
  * Fetch details for a single run by ID.
  */
@@ -514,7 +555,7 @@ export async function getRunDetails(runId: string): Promise<RunDetails> {
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
-    status: r.status,
+    status: normalizeRunStatus(r.status),
     startedAt: r.started_at,
     endedAt: r.ended_at,
     error: r.error_msg,
@@ -561,7 +602,7 @@ export async function listRuns(opts?: {
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
-    status: r.status,
+    status: normalizeRunStatus(r.status),
     startedAt: r.started_at,
     endedAt: r.ended_at,
     error: r.error_msg,
@@ -623,7 +664,7 @@ export async function createInvestigationRun(runIds: string[], opts?: {
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
-    status: r.status,
+    status: normalizeRunStatus(r.status),
     startedAt: r.started_at,
     endedAt: r.ended_at,
     error: r.error_msg,
@@ -654,7 +695,7 @@ export async function createInvestigationApplyRun(
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
-    status: r.status,
+    status: normalizeRunStatus(r.status),
     startedAt: r.started_at,
     endedAt: r.ended_at,
     error: r.error_msg,

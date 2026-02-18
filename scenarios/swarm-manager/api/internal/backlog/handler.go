@@ -91,6 +91,8 @@ type BacklogFile struct {
 	Children []BacklogFile `json:"children,omitempty"`
 }
 
+const protectedBacklogFileName = "spec.json"
+
 // Handler provides HTTP handlers for backlog operations.
 type Handler struct {
 	rootDir      string
@@ -274,6 +276,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Delete).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.ListFiles).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.UploadFile).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.OperateFile).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
@@ -889,6 +892,249 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	resp := &apipb.BacklogFileResponse{File: backlogFileToProto(fileNode)}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[backlog] upload file", "failed to encode response")
+	}
+}
+
+func normalizeBacklogRelativePath(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", errors.New("path is required")
+	}
+	cleaned := filepath.Clean(filepath.FromSlash(trimmed))
+	if cleaned == "." {
+		return "", errors.New("path must reference a file or directory")
+	}
+	if filepath.IsAbs(cleaned) {
+		return "", errors.New("path must be relative")
+	}
+	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return "", errors.New("path traversal is not allowed")
+	}
+	return filepath.ToSlash(cleaned), nil
+}
+
+func isProtectedBacklogPath(path string) bool {
+	return strings.EqualFold(filepath.Base(path), protectedBacklogFileName)
+}
+
+func (h *Handler) buildBacklogFileNodeFromPath(absolutePath, relativePath string, info os.FileInfo) (BacklogFile, error) {
+	normalizedPath := filepath.ToSlash(relativePath)
+	if normalizedPath == "." {
+		normalizedPath = ""
+	}
+	node := BacklogFile{
+		Name: filepath.Base(absolutePath),
+		Path: normalizedPath,
+	}
+	if info.IsDir() {
+		node.Type = "directory"
+		children, err := h.buildFileTree(absolutePath, "")
+		if err != nil {
+			return BacklogFile{}, err
+		}
+		node.Children = children
+		return node, nil
+	}
+	node.Type = "file"
+	node.Size = info.Size()
+	return node, nil
+}
+
+func copyBacklogPath(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		if err := os.MkdirAll(dst, info.Mode()); err != nil {
+			return err
+		}
+		return filepath.WalkDir(src, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if path == src {
+				return nil
+			}
+			rel, err := filepath.Rel(src, path)
+			if err != nil {
+				return err
+			}
+			target := filepath.Join(dst, rel)
+			entryInfo, err := d.Info()
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return os.MkdirAll(target, entryInfo.Mode())
+			}
+			return copyBacklogFile(path, target, entryInfo.Mode())
+		})
+	}
+	return copyBacklogFile(src, dst, info.Mode())
+}
+
+func copyBacklogFile(src, dst string, mode fs.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Chmod(mode)
+}
+
+// OperateFile applies rename, move, copy, or delete to a backlog file path.
+func (h *Handler) OperateFile(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "operate file")
+	if !ok {
+		return
+	}
+
+	itemDir := h.itemDir(kind, name)
+	if _, err := os.Stat(itemDir); os.IsNotExist(err) {
+		httputil.NotFound(w, "", "backlog item not found")
+		return
+	}
+
+	var req apipb.BacklogFileOperationRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+		if errors.Is(err, io.EOF) || r.ContentLength == 0 {
+			httputil.BadRequest(w, "[backlog] file operation", "request body is required")
+		} else {
+			httputil.BadRequest(w, "[backlog] file operation", "invalid request body")
+		}
+		return
+	}
+	if !httputil.ValidateProtoRequest(w, "[backlog] file operation", "invalid file operation request", &req) {
+		return
+	}
+
+	operation := strings.ToLower(strings.TrimSpace(req.GetOperation()))
+	sourcePath, err := normalizeBacklogRelativePath(req.GetSourcePath())
+	if err != nil {
+		httputil.BadRequest(w, "[backlog] file operation", err.Error())
+		return
+	}
+	if isProtectedBacklogPath(sourcePath) {
+		httputil.Error(w, "[backlog] file operation", "operation not allowed on protected file", http.StatusForbidden)
+		return
+	}
+
+	sourceFullPath, valid := httputil.SafeFilePath(itemDir, sourcePath)
+	if !valid {
+		httputil.BadRequest(w, "[backlog] file operation", "invalid source path")
+		return
+	}
+	sourceInfo, err := os.Stat(sourceFullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "[backlog] file operation", "source path not found")
+			return
+		}
+		httputil.InternalError(w, "[backlog] file operation", "failed to access source path")
+		return
+	}
+
+	var resp apipb.BacklogFileOperationResponse
+	switch operation {
+	case "delete":
+		if err := os.RemoveAll(sourceFullPath); err != nil {
+			httputil.InternalError(w, "[backlog] file operation", "failed to delete path")
+			return
+		}
+		resp.DeletedPath = &sourcePath
+	case "rename", "move", "copy":
+		destinationPath, pathErr := normalizeBacklogRelativePath(req.GetDestinationPath())
+		if pathErr != nil {
+			httputil.BadRequest(w, "[backlog] file operation", "destination_path is required")
+			return
+		}
+		if isProtectedBacklogPath(destinationPath) {
+			httputil.Error(w, "[backlog] file operation", "operation not allowed on protected file", http.StatusForbidden)
+			return
+		}
+
+		if operation == "rename" && filepath.Dir(sourcePath) != filepath.Dir(destinationPath) {
+			httputil.BadRequest(w, "[backlog] file operation", "rename must stay in the same directory")
+			return
+		}
+
+		destinationFullPath, dstValid := httputil.SafeFilePath(itemDir, destinationPath)
+		if !dstValid {
+			httputil.BadRequest(w, "[backlog] file operation", "invalid destination path")
+			return
+		}
+		if _, statErr := os.Stat(destinationFullPath); statErr == nil {
+			httputil.Conflict(w, "[backlog] file operation", "destination path already exists")
+			return
+		} else if !os.IsNotExist(statErr) {
+			httputil.InternalError(w, "[backlog] file operation", "failed to access destination path")
+			return
+		}
+
+		if err := os.MkdirAll(filepath.Dir(destinationFullPath), 0o755); err != nil {
+			httputil.InternalError(w, "[backlog] file operation", "failed to create destination directory")
+			return
+		}
+
+		if operation == "copy" {
+			if sourceInfo.IsDir() {
+				prefix := sourcePath + "/"
+				if destinationPath == sourcePath || strings.HasPrefix(destinationPath, prefix) {
+					httputil.BadRequest(w, "[backlog] file operation", "cannot copy a directory into itself")
+					return
+				}
+			}
+			if err := copyBacklogPath(sourceFullPath, destinationFullPath); err != nil {
+				httputil.InternalError(w, "[backlog] file operation", "failed to copy path")
+				return
+			}
+		} else {
+			if sourceInfo.IsDir() {
+				prefix := sourcePath + "/"
+				if destinationPath == sourcePath || strings.HasPrefix(destinationPath, prefix) {
+					httputil.BadRequest(w, "[backlog] file operation", "cannot move a directory into itself")
+					return
+				}
+			}
+			if err := os.Rename(sourceFullPath, destinationFullPath); err != nil {
+				httputil.InternalError(w, "[backlog] file operation", "failed to move path")
+				return
+			}
+		}
+
+		dstInfo, statErr := os.Stat(destinationFullPath)
+		if statErr != nil {
+			httputil.InternalError(w, "[backlog] file operation", "failed to inspect destination path")
+			return
+		}
+		fileNode, nodeErr := h.buildBacklogFileNodeFromPath(destinationFullPath, destinationPath, dstInfo)
+		if nodeErr != nil {
+			httputil.InternalError(w, "[backlog] file operation", "failed to build response")
+			return
+		}
+		result := backlogFileToProto(fileNode)
+		resp.File = result
+	default:
+		httputil.BadRequest(w, "[backlog] file operation", "unsupported operation")
+		return
+	}
+
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, &resp); err != nil {
+		httputil.InternalError(w, "[backlog] file operation", "failed to encode response")
 	}
 }
 

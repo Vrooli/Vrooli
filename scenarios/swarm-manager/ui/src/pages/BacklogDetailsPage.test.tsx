@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
@@ -36,6 +36,10 @@ vi.mock("../services", () => ({
     getFileContent: vi.fn(),
     uploadFile: vi.fn(),
     saveFileContent: vi.fn(),
+    renameFile: vi.fn(),
+    moveFile: vi.fn(),
+    copyFile: vi.fn(),
+    deleteFile: vi.fn(),
     queue: vi.fn(),
     research: vi.fn(),
     convert: vi.fn(),
@@ -179,5 +183,31 @@ describe("BacklogDetailsPage", () => {
     });
 
     expect(screen.getByText("Unable to load backlog item")).toBeInTheDocument();
+  });
+
+  it("renders file header actions menu trigger for selected file", async () => {
+    vi.mocked(backlogService.get).mockResolvedValue(mockItem);
+    vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-header-actions-trigger")).toBeInTheDocument();
+    });
+  });
+
+  it("opens file header actions menu when trigger is clicked", async () => {
+    vi.mocked(backlogService.get).mockResolvedValue(mockItem);
+    vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
+
+    renderPage();
+
+    const trigger = await screen.findByTestId("file-header-actions-trigger");
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-header-actions-popover")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-file-actions-menu")).toBeInTheDocument();
+    });
   });
 });

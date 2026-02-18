@@ -19,6 +19,7 @@ import {
   BacklogItemResponseSchema,
   BacklogFilesResponseSchema,
   BacklogFileResponseSchema,
+  BacklogFileOperationResponseSchema,
   ListBacklogItemsResponseSchema,
   QueueBacklogItemResponseSchema,
   BacklogResearchResponseSchema,
@@ -231,6 +232,10 @@ export const backlogFilesResponseSchema = createProtoSchema(
 export const backlogFileResponseSchema = createProtoSchema(
   BacklogFileResponseSchema,
   "backlog file"
+);
+export const backlogFileOperationResponseSchema = createProtoSchema(
+  BacklogFileOperationResponseSchema,
+  "backlog file operation"
 );
 export const queueBacklogResponseSchema = createProtoSchema(
   QueueBacklogItemResponseSchema,

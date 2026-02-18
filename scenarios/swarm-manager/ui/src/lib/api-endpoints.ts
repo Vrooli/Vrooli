@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
   backlog: "/backlog",
   backlogItem: (kind: string, name: string) => `/backlog/${kind}/${name}`,
   backlogFiles: (kind: string, name: string) => `/backlog/${kind}/${name}/files`,
+  backlogFileOperations: (kind: string, name: string) => `/backlog/${kind}/${name}/files`,
   backlogFileContent: (kind: string, name: string, filePath: string) =>
     `/backlog/${kind}/${name}/files/${filePath}`,
   backlogQueue: (kind: string, name: string) => `/backlog/${kind}/${name}/queue`,

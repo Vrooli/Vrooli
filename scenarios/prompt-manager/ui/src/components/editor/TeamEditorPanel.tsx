@@ -127,6 +127,7 @@ export function TeamEditorPanel({
   const setEdges = useTeamEditorStore((state) => state.setEdges)
   const updateEdge = useTeamEditorStore((state) => state.updateEdge)
   const reset = useTeamEditorStore((state) => state.reset)
+  const memberCount = team?.memberCount ?? team?.members.length ?? 0
 
   // Split panel for members tab
   const { width, isResizing, isCollapsed, containerRef, handleResizeStart, expand, collapse } = useResizableSplitPanel({
@@ -346,7 +347,7 @@ export function TeamEditorPanel({
           className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
           data-testid={selectors.teamEditor.header}
         >
-          {/* Row 1: Close, Icon, Name, Member count */}
+          {/* Row 1: Close, Icon, Name */}
           <div className="flex items-center gap-3">
             {/* Close button */}
             <button
@@ -377,10 +378,6 @@ export function TeamEditorPanel({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Member count badge */}
-              <span className="px-2 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full">
-                {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
-              </span>
               <button
                 type="button"
                 onClick={() => void handleToggleTeam()}
@@ -453,7 +450,11 @@ export function TeamEditorPanel({
         {!showDetailOnly && (
           <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
             <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
-            <TabTrigger value="members" icon={<Users className="h-4 w-4" />} label="Members" />
+            <TabTrigger
+              value="members"
+              icon={<Users className="h-4 w-4" />}
+              label={`Members (${memberCount})`}
+            />
             <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
           </Tabs.List>
         )}

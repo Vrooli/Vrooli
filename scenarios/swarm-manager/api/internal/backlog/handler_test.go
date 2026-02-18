@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,6 +40,11 @@ type backlogQueueResponse struct {
 	RunID   string      `json:"run_id"`
 	BaseURL string      `json:"base_url"`
 	Created string      `json:"created"`
+}
+
+type backlogFileOperationResponse struct {
+	File        *BacklogFile `json:"file,omitempty"`
+	DeletedPath *string      `json:"deleted_path,omitempty"`
 }
 
 // setupTestHandler creates a handler with a temporary root directory.
@@ -359,6 +365,142 @@ func TestUploadFile_Success(t *testing.T) {
 
 	filePath := filepath.Join(rootDir, "ideas", "upload-test", "test-upload.txt")
 	testutil.AssertFileExists(t, filePath)
+}
+
+func TestOperateFile_Rename_Success(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:     "rename-file-test",
+		Title:    "Rename File Test",
+		Status:   StatusBacklog,
+		Priority: 3,
+		Created:  "2026-01-28T00:00:00Z",
+		Updated:  "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "rename-file-test", "notes.md"), "hello")
+
+	reqBody := bytes.NewBufferString(`{"operation":"rename","source_path":"notes.md","destination_path":"notes-renamed.md"}`)
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/rename-file-test/files", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "rename-file-test"})
+	w := httptest.NewRecorder()
+
+	h.OperateFile(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "rename-file-test", "notes-renamed.md"))
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "rename-file-test", "notes.md"))
+}
+
+func TestOperateFile_Delete_Success(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:     "delete-file-test",
+		Title:    "Delete File Test",
+		Status:   StatusBacklog,
+		Priority: 3,
+		Created:  "2026-01-28T00:00:00Z",
+		Updated:  "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "delete-file-test", "notes.md"), "hello")
+
+	reqBody := bytes.NewBufferString(`{"operation":"delete","source_path":"notes.md"}`)
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/delete-file-test/files", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "delete-file-test"})
+	w := httptest.NewRecorder()
+
+	h.OperateFile(w, req)
+	testutil.AssertStatusOK(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "delete-file-test", "notes.md"))
+}
+
+func TestOperateFile_CopyDirectory_Success(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:     "copy-dir-test",
+		Title:    "Copy Dir Test",
+		Status:   StatusBacklog,
+		Priority: 3,
+		Created:  "2026-01-28T00:00:00Z",
+		Updated:  "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "copy-dir-test", "docs", "a.txt"), "A")
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "copy-dir-test", "docs", "nested", "b.txt"), "B")
+
+	reqBody := bytes.NewBufferString(`{"operation":"copy","source_path":"docs","destination_path":"docs-copy"}`)
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/copy-dir-test/files", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "copy-dir-test"})
+	w := httptest.NewRecorder()
+
+	h.OperateFile(w, req)
+	testutil.AssertStatusOK(t, w)
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "copy-dir-test", "docs-copy", "a.txt"))
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "copy-dir-test", "docs-copy", "nested", "b.txt"))
+}
+
+func TestOperateFile_ProtectsSpecJSON(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:     "protect-spec-test",
+		Title:    "Protect Spec Test",
+		Status:   StatusBacklog,
+		Priority: 3,
+		Created:  "2026-01-28T00:00:00Z",
+		Updated:  "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	reqBody := bytes.NewBufferString(`{"operation":"delete","source_path":"spec.json"}`)
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/protect-spec-test/files", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "protect-spec-test"})
+	w := httptest.NewRecorder()
+
+	h.OperateFile(w, req)
+	testutil.AssertStatus(t, w, http.StatusForbidden)
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "protect-spec-test", "spec.json"))
+}
+
+func TestOperateFile_DestinationConflict(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:     "conflict-test",
+		Title:    "Conflict Test",
+		Status:   StatusBacklog,
+		Priority: 3,
+		Created:  "2026-01-28T00:00:00Z",
+		Updated:  "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "conflict-test", "one.txt"), "1")
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "conflict-test", "two.txt"), "2")
+
+	reqBody := bytes.NewBufferString(`{"operation":"move","source_path":"one.txt","destination_path":"two.txt"}`)
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/conflict-test/files", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "conflict-test"})
+	w := httptest.NewRecorder()
+
+	h.OperateFile(w, req)
+	testutil.AssertStatus(t, w, http.StatusConflict)
+
+	content, err := os.ReadFile(filepath.Join(rootDir, "ideas", "conflict-test", "two.txt"))
+	if err != nil {
+		t.Fatalf("read destination file: %v", err)
+	}
+	if strings.TrimSpace(string(content)) != "2" {
+		t.Fatalf("expected destination to remain unchanged")
+	}
 }
 
 func TestQueue_SpawnsAgent(t *testing.T) {

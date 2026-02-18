@@ -71,6 +71,20 @@ describe("FileTree", () => {
     expect(onFileSelect).toHaveBeenCalledWith(files[0]);
   });
 
+  it("calls onItemContextMenu when file is right-clicked", () => {
+    const onItemContextMenu = vi.fn();
+    const files: BacklogFile[] = [
+      { name: "spec.json", path: "spec.json", type: "file", size: 256 },
+    ];
+
+    render(<FileTree files={files} onItemContextMenu={onItemContextMenu} />);
+
+    fireEvent.contextMenu(screen.getByTestId("file-tree-button-spec.json"));
+
+    expect(onItemContextMenu).toHaveBeenCalledTimes(1);
+    expect(onItemContextMenu.mock.calls[0]?.[0]).toMatchObject({ path: "spec.json" });
+  });
+
   // [REQ:REQ-P0-004] Test file size formatting
   it("displays file size in human-readable format", () => {
     const files: BacklogFile[] = [

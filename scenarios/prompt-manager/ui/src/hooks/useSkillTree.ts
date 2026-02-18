@@ -119,6 +119,7 @@ export function useSkillTree({
 
   // Sidebar collapse state (initialized from persistence)
   const [isCollapsed, setIsCollapsed] = useState(initialIsCollapsed)
+  const hasHydratedSearchExpansion = useRef(false)
 
   // Get all available tags from skills
   const availableTags = useMemo(() => getAllTags(skills), [skills])
@@ -224,6 +225,12 @@ export function useSkillTree({
   // to avoid infinite loops when setExpandedNodes triggers a re-render.
   // We access filteredTreeNodes as a snapshot, not as a reactive dependency.
   useEffect(() => {
+    // Preserve persisted folder expansion on first mount even when a search query is restored.
+    if (!hasHydratedSearchExpansion.current) {
+      hasHydratedSearchExpansion.current = true
+      return
+    }
+
     if (searchQuery.trim()) {
       // Expand all nodes in filtered tree
       const nodesToExpand = new Set<string>()

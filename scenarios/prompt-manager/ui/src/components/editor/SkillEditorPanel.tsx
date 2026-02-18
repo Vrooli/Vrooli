@@ -18,7 +18,8 @@
  * - Empty state with 3D world visualization
  */
 
-import { MoreHorizontal, RotateCcw, Trash2, X } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -130,6 +131,8 @@ export function SkillEditorPanel({
   onNavigateToXRef,
   className,
 }: SkillEditorPanelProps) {
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
+
   // Access the selection store for closing the editor
   const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
 
@@ -270,14 +273,34 @@ export function SkillEditorPanel({
           </div>
 
           {/* Row 2: Description */}
-          <ExpandableDescription
-            value={formState.description}
-            onChange={(v) => onFieldChange('description', v)}
-            placeholder="Click to add description..."
-            error={validation.errors.description}
-            isLoading={isLoadingContent}
-            className="text-muted-foreground"
-          />
+          <div className="flex items-start gap-2">
+            <button
+              type="button"
+              onClick={() => setIsDescriptionExpanded((prev) => !prev)}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={isDescriptionExpanded ? 'Collapse description' : 'Expand description'}
+            >
+              {isDescriptionExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </button>
+            {isDescriptionExpanded ? (
+              <ExpandableDescription
+                value={formState.description}
+                onChange={(v) => onFieldChange('description', v)}
+                placeholder="Click to add description..."
+                error={validation.errors.description}
+                isLoading={isLoadingContent}
+                className="flex-1 text-muted-foreground"
+              />
+            ) : (
+              <p className="flex-1 text-sm text-muted-foreground truncate">
+                {formState.description || 'No description'}
+              </p>
+            )}
+          </div>
 
           {/* Row 3: Tags, DefaultScope (for steer skills), and File path menu */}
           <div className="flex items-center gap-4 flex-wrap">

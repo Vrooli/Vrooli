@@ -283,6 +283,23 @@ describe('useSkillTree', () => {
       expect(result.current.expandedNodes.has('development')).toBe(true)
       expect(result.current.expandedNodes.has('development/react')).toBe(true)
     })
+
+    it('should preserve persisted expansion on mount with restored search query', () => {
+      const skills = [
+        createTestSkill({ id: '1', name: 'Match', modes: ['development', 'react'] }),
+      ]
+
+      const { result } = renderHook(() =>
+        useSkillTree({
+          skills,
+          initialSearchQuery: 'Match',
+          initialExpandedNodes: ['development'],
+        })
+      )
+
+      expect(result.current.expandedNodes.has('development')).toBe(true)
+      expect(result.current.expandedNodes.has('development/react')).toBe(false)
+    })
   })
 
   describe('sidebar collapse', () => {

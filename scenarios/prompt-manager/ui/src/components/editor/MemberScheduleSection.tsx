@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Clock, Play, Pause, Save, X, MoreVertical, Loader2 } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Clock, Play, Save, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 
@@ -239,8 +239,6 @@ export function MemberScheduleSection({
   const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>('hours')
   const [intervalTime, setIntervalTime] = useState('00:00')
   const [customCron, setCustomCron] = useState('')
-  const [isScheduleMenuOpen, setIsScheduleMenuOpen] = useState(false)
-  const scheduleMenuRef = useRef<HTMLDivElement>(null)
 
   const scheduleSummary = useMemo(() => formatScheduleSummary(schedule), [schedule])
   const nextExecutionLabel = useMemo(
@@ -272,26 +270,6 @@ export function MemberScheduleSection({
   useEffect(() => {
     loadScheduleEditorState(schedule)
   }, [schedule, loadScheduleEditorState])
-
-  useEffect(() => {
-    if (!isScheduleMenuOpen) return
-    const handleClickOutside = (event: MouseEvent) => {
-      if (scheduleMenuRef.current && !scheduleMenuRef.current.contains(event.target as Node)) {
-        setIsScheduleMenuOpen(false)
-      }
-    }
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsScheduleMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEscape)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [isScheduleMenuOpen])
 
   const scheduleDraft = useMemo(() => {
     if (scheduleMode === 'daily') {
@@ -402,76 +380,35 @@ export function MemberScheduleSection({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span
+              <button
+                type="button"
+                onClick={onTriggerHeartbeat}
+                disabled={!heartbeatConfig || isSaving}
                 className={cn(
-                  'px-2 py-0.5 text-[11px] font-medium rounded-full border',
-                  heartbeatConfig?.enabled
-                    ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
-                    : 'bg-muted text-muted-foreground border-border'
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                  heartbeatConfig
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
                 )}
               >
-                {heartbeatConfig ? (heartbeatConfig.enabled ? 'Enabled' : 'Disabled') : 'Not configured'}
-              </span>
-              <div ref={scheduleMenuRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsScheduleMenuOpen((prev) => !prev)}
-                  className={cn(
-                    'p-1.5 rounded-lg transition-colors',
-                    'bg-muted text-muted-foreground hover:bg-muted/80'
-                  )}
-                  aria-label="Schedule actions"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-                {isScheduleMenuOpen && (
-                  <div
-                    className={cn(
-                      'absolute right-0 top-full mt-1 z-50',
-                      'bg-card border border-border rounded-lg shadow-lg',
-                      'min-w-[180px] overflow-hidden',
-                      'animate-in fade-in-0 zoom-in-95 duration-100'
-                    )}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsScheduleMenuOpen(false)
-                        onTriggerHeartbeat()
-                      }}
-                      disabled={!heartbeatConfig || isSaving}
-                      className={cn(
-                        'w-full px-3 py-2 text-xs text-left flex items-center gap-2 transition-colors',
-                        heartbeatConfig
-                          ? 'text-foreground hover:bg-muted/60'
-                          : 'text-muted-foreground cursor-not-allowed'
-                      )}
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                      Run now
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsScheduleMenuOpen(false)
-                        onSetHeartbeatEnabled(!(heartbeatConfig?.enabled ?? false))
-                      }}
-                      disabled={isSaving}
-                      className={cn(
-                        'w-full px-3 py-2 text-xs text-left flex items-center gap-2 transition-colors',
-                        'text-foreground hover:bg-muted/60'
-                      )}
-                    >
-                      {heartbeatConfig?.enabled ? (
-                        <Pause className="h-3.5 w-3.5" />
-                      ) : (
-                        <Play className="h-3.5 w-3.5" />
-                      )}
-                      {heartbeatConfig?.enabled ? 'Disable heartbeat' : 'Enable heartbeat'}
-                    </button>
-                  </div>
+                <Play className="h-3.5 w-3.5" />
+                Run now
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetHeartbeatEnabled(!(heartbeatConfig?.enabled ?? false))}
+                disabled={isSaving}
+                aria-pressed={heartbeatConfig?.enabled ?? false}
+                className={cn(
+                  'px-2 py-0.5 text-[11px] font-medium rounded-full border transition-colors',
+                  heartbeatConfig?.enabled
+                    ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'
+                    : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
                 )}
-              </div>
+                title={heartbeatConfig?.enabled ? 'Disable heartbeat' : 'Enable heartbeat'}
+              >
+                {heartbeatConfig ? (heartbeatConfig.enabled ? 'Enabled' : 'Disabled') : 'Not configured'}
+              </button>
             </div>
           </div>
           {lastExecutionLabel && heartbeatConfig?.lastExecution && (

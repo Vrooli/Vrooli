@@ -153,4 +153,46 @@ describe("Backlog Service", () => {
       expect(mockApiClient.delete).toHaveBeenCalledWith("/backlog/idea/old-idea");
     });
   });
+
+  describe("file operations", () => {
+    it("renames a file via patch endpoint", async () => {
+      vi.mocked(mockApiClient.patch).mockResolvedValue({
+        file: {
+          name: "notes-renamed.md",
+          path: "notes-renamed.md",
+          type: "file",
+          size: 42,
+        },
+      });
+
+      const result = await service.renameFile("idea", "my-idea", "notes.md", "notes-renamed.md");
+
+      expect(mockApiClient.patch).toHaveBeenCalledWith(
+        "/backlog/idea/my-idea/files",
+        expect.objectContaining({
+          operation: "rename",
+          source_path: "notes.md",
+          destination_path: "notes-renamed.md",
+        })
+      );
+      expect(result.file?.path).toBe("notes-renamed.md");
+    });
+
+    it("deletes a file via patch endpoint", async () => {
+      vi.mocked(mockApiClient.patch).mockResolvedValue({
+        deleted_path: "notes.md",
+      });
+
+      const result = await service.deleteFile("idea", "my-idea", "notes.md");
+
+      expect(mockApiClient.patch).toHaveBeenCalledWith(
+        "/backlog/idea/my-idea/files",
+        expect.objectContaining({
+          operation: "delete",
+          source_path: "notes.md",
+        })
+      );
+      expect(result.deletedPath).toBe("notes.md");
+    });
+  });
 });

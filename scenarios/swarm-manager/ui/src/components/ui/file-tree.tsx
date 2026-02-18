@@ -39,6 +39,8 @@ export interface FileTreeProps {
   selectedPaths?: Set<string>;
   /** Callback when selection changes (for checkbox mode) */
   onSelectionChange?: (selectedPaths: Set<string>) => void;
+  /** Right-click handler for files/directories */
+  onItemContextMenu?: (file: TreeFile, event: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
   "data-testid"?: string;
 }
@@ -52,6 +54,7 @@ export interface FileTreeItemProps {
   selectedPaths?: Set<string>;
   onCheckboxChange?: (path: string, checked: boolean) => void;
   getChildPaths?: (file: TreeFile) => string[];
+  onItemContextMenu?: (file: TreeFile, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**
@@ -94,6 +97,7 @@ function FileTreeItem({
   selectionMode = "single",
   selectedPaths,
   onCheckboxChange,
+  onItemContextMenu,
 }: FileTreeItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isDirectory = file.type === "directory";
@@ -139,6 +143,7 @@ function FileTreeItem({
       <button
         type="button"
         onClick={handleClick}
+        onContextMenu={(event) => onItemContextMenu?.(file, event)}
         className={cn(
           "flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm transition-colors",
           "hover:bg-slate-700/50",
@@ -223,6 +228,7 @@ function FileTreeItem({
               selectionMode={selectionMode}
               selectedPaths={selectedPaths}
               onCheckboxChange={onCheckboxChange}
+              onItemContextMenu={onItemContextMenu}
             />
           ))}
         </div>
@@ -241,6 +247,7 @@ export function FileTree({
   selectionMode = "single",
   selectedPaths,
   onSelectionChange,
+  onItemContextMenu,
   className,
   "data-testid": testId,
 }: FileTreeProps) {
@@ -291,6 +298,7 @@ export function FileTree({
           selectionMode={selectionMode}
           selectedPaths={selectedPaths}
           onCheckboxChange={handleCheckboxChange}
+          onItemContextMenu={onItemContextMenu}
         />
       ))}
     </div>
