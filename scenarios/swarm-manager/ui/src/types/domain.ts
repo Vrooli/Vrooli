@@ -148,6 +148,27 @@ export interface IdeaAgentSuggestionsFile {
   updatedAt?: string;
 }
 
+/**
+ * Summary of pending feedback for a single backlog item.
+ */
+export interface FeedbackItemSummary {
+  kind: BacklogKind;
+  name: string;
+  title: string;
+  unanswered_questions: number;
+  pending_suggestions: number;
+}
+
+/**
+ * Response from the feedback summary endpoint.
+ */
+export interface FeedbackSummaryResponse {
+  items: FeedbackItemSummary[];
+  total_unanswered: number;
+  total_pending: number;
+  total_items_affected: number;
+}
+
 // ============================================================================
 // Archive / Operational Targets Domain
 // ============================================================================

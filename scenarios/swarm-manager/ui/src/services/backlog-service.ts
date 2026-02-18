@@ -42,7 +42,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, IdeaAgentMode, ResearchResponse } from "../types";
+import type { ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, IdeaAgentMode, ResearchResponse } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -119,6 +119,7 @@ export interface IBacklogService {
     includeRequirements?: boolean;
   }): Promise<Blob>;
   importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
+  getFeedbackSummary(): Promise<FeedbackSummaryResponse>;
 }
 
 export interface ImportBacklogResponse {
@@ -335,6 +336,10 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       return apiClient.post<ImportBacklogResponse>(API_ENDPOINTS.backlogImport, formData, {
         headers: {},
       });
+    },
+
+    async getFeedbackSummary(): Promise<FeedbackSummaryResponse> {
+      return apiClient.get<FeedbackSummaryResponse>(API_ENDPOINTS.backlogFeedbackSummary);
     },
   };
 }

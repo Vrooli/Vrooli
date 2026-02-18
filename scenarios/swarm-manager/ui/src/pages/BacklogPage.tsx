@@ -19,12 +19,11 @@
  */
 
 import { useMemo, useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Filter, Lightbulb, ArrowRight, Clock, Terminal, X, Search, Wrench, Play, LayoutGrid, Download, Upload } from "lucide-react";
+import { Plus, Filter, Lightbulb, ArrowRight, Clock, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { Dialog } from "../components/ui/dialog";
 import { ErrorState } from "../components/ui/error-state";
 import { FloatingActionButton } from "../components/ui/floating-action-button";
 import { Input } from "../components/ui/input";
@@ -49,9 +48,8 @@ import {
 } from "../types";
 import { displayLimitsConfig } from "../config";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
-import { ExportPreviewModal } from "../components/backlog/export-preview-modal";
+import { FeedbackHubModal } from "../components/backlog/feedback-hub-modal";
 import { useBacklogStore } from "../stores";
-import type { ExportPreviewModalProps } from "../components/backlog/export-preview-modal";
 
 /** Statuses that indicate an item is "completed" and shouldn't appear in Continue Working */
 const COMPLETED_STATUSES: BacklogStatus[] = ["completed", "archived"];
@@ -124,10 +122,10 @@ export function BacklogPage() {
   const [statusFilter, setStatusFilter] = useState<BacklogStatus | "">("");
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
+  const [showFeedbackHub, setShowFeedbackHub] = useState(false);
+  const [feedbackHubInitialTab, setFeedbackHubInitialTab] = useState<"review" | "export" | "import">("review");
+  const [feedbackHubSelectedNames, setFeedbackHubSelectedNames] = useState<string[] | undefined>();
   const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
-  const [exportParams, setExportParams] = useState<ExportPreviewModalProps["params"] | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
@@ -139,6 +137,13 @@ export function BacklogPage() {
   useEffect(() => {
     void fetchBacklog();
   }, [fetchBacklog]);
+
+  const feedbackSummaryQuery = useQuery({
+    queryKey: ["backlog-feedback-summary"],
+    queryFn: () => backlogService.getFeedbackSummary(),
+    staleTime: 60_000,
+  });
+  const feedbackSummary = feedbackSummaryQuery.data;
 
   const createMutation = useMutation({
     mutationFn: backlogService.create,
@@ -210,31 +215,11 @@ export function BacklogPage() {
     },
   });
 
-  const openExportPreview = (names?: string[]) => {
-    const params: Record<string, unknown> = {};
-    if (names && names.length > 0) {
-      params.names = names;
-    } else if (activeKind !== "all") {
-      params.kinds = [activeKind];
-    }
-    if (statusFilter) {
-      params.statuses = [statusFilter];
-    }
-    setExportParams(params as ExportPreviewModalProps["params"]);
+  const openFeedbackHub = (tab: "review" | "export" | "import", names?: string[]) => {
+    setFeedbackHubInitialTab(tab);
+    setFeedbackHubSelectedNames(names);
+    setShowFeedbackHub(true);
   };
-
-  const importMutation = useMutation({
-    mutationFn: async ({ file, apply }: { file: File; apply: boolean }) => {
-      return backlogService.importItems(file, apply);
-    },
-    onSuccess: (data) => {
-      if (!data.dryRun) {
-        void fetchBacklog({ force: true });
-        setShowImport(false);
-        setImportFile(null);
-      }
-    },
-  });
 
   const createError = createMutation.isError ? "Failed to create backlog item. Please try again." : null;
   const queueError = queueMutation.isError
@@ -374,19 +359,17 @@ export function BacklogPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => openExportPreview()}
-                disabled={kindItems.length === 0}
+                onClick={() => openFeedbackHub("review")}
+                data-testid={selectors.backlog.feedbackHub.cta}
+                className={feedbackSummary && feedbackSummary.total_items_affected > 0 ? "border-cyan-500/50 text-cyan-300" : ""}
               >
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowImport(true)}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Import
+                <MessageSquareText className="mr-2 h-4 w-4" />
+                Feedback & Export
+                {feedbackSummary && feedbackSummary.total_items_affected > 0 && (
+                  <span className="ml-2 rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-300">
+                    {feedbackSummary.total_items_affected}
+                  </span>
+                )}
               </Button>
               <Button
                 data-testid={selectors.backlog.createButton}
@@ -638,11 +621,11 @@ export function BacklogPage() {
                     size="sm"
                     onClick={() => {
                       const names = selectedQueueableItems.map((item) => `${item.kind}/${item.name}`);
-                      openExportPreview(names);
+                      openFeedbackHub("export", names);
                     }}
                     disabled={!hasAnySelectedQueueable}
                   >
-                    <Download className="mr-1 h-3 w-3" />
+                    <MessageSquareText className="mr-1 h-3 w-3" />
                     Export Selected
                   </Button>
                   <Button
@@ -795,99 +778,18 @@ export function BacklogPage() {
         onSubmit={(values) => createMutation.mutate(values)}
       />
 
-      <Dialog
-        isOpen={showImport}
-        onClose={() => {
-          setShowImport(false);
-          setImportFile(null);
-          importMutation.reset();
+      <FeedbackHubModal
+        isOpen={showFeedbackHub}
+        onClose={() => setShowFeedbackHub(false)}
+        feedbackSummary={feedbackSummary}
+        activeKind={activeKind}
+        statusFilter={statusFilter}
+        selectedNames={feedbackHubSelectedNames}
+        onDataChanged={() => {
+          void fetchBacklog({ force: true });
+          void feedbackSummaryQuery.refetch();
         }}
-        title="Import Backlog"
-        isLoading={importMutation.isPending}
-        testId="import-backlog-modal"
-      >
-        <div className="space-y-4">
-          <div
-            className="rounded-lg border-2 border-dashed border-slate-700 p-8 text-center cursor-pointer hover:border-slate-500 transition"
-            onClick={() => document.getElementById("import-file-input")?.click()}
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const file = e.dataTransfer.files[0];
-              if (file) setImportFile(file);
-            }}
-          >
-            <Upload className="mx-auto h-8 w-8 text-slate-500 mb-2" />
-            <p className="text-sm text-slate-400">
-              {importFile ? importFile.name : "Drop a markdown file here or click to browse"}
-            </p>
-            <input
-              id="import-file-input"
-              type="file"
-              accept=".md,.markdown"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) setImportFile(file);
-              }}
-            />
-          </div>
-
-          {importMutation.data && importMutation.data.dryRun && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-slate-200">Preview Changes</h3>
-              <p className="text-xs text-slate-400">{importMutation.data.summary}</p>
-              {importMutation.data.changes.map((change, i) => (
-                <div key={i} className="rounded bg-slate-800 p-2 text-xs">
-                  <span className="font-medium text-slate-200">[{change.action}] {change.item}</span>
-                  {change.details.map((d, j) => (
-                    <div key={j} className="text-slate-400 ml-2">- {d}</div>
-                  ))}
-                </div>
-              ))}
-              {importMutation.data.errors.length > 0 && (
-                <div className="rounded bg-red-900/30 border border-red-500/30 p-2 text-xs text-red-300">
-                  {importMutation.data.errors.map((e, i) => <div key={i}>- {e}</div>)}
-                </div>
-              )}
-            </div>
-          )}
-
-          {importMutation.isError && (
-            <Card className="border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-              Failed to import file. Check the file format and try again.
-            </Card>
-          )}
-
-          <div className="flex justify-end gap-2">
-            {importMutation.data?.dryRun && importMutation.data.changes.length > 0 && (
-              <Button
-                onClick={() => {
-                  if (importFile) importMutation.mutate({ file: importFile, apply: true });
-                }}
-                disabled={importMutation.isPending}
-              >
-                Apply Changes
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (importFile) importMutation.mutate({ file: importFile, apply: false });
-              }}
-              disabled={!importFile || importMutation.isPending}
-            >
-              {importMutation.isPending ? "Processing..." : "Preview (Dry Run)"}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-
-      <ExportPreviewModal
-        isOpen={exportParams !== null}
-        onClose={() => setExportParams(null)}
-        params={exportParams ?? undefined}
+        initialTab={feedbackHubInitialTab}
       />
     </div>
   );

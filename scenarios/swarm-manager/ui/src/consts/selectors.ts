@@ -112,6 +112,13 @@ export const literalSelectors = {
     statusLegend: "backlog-status-legend",
     welcomeHint: "backlog-welcome-hint",
     kindTabs: "backlog-kind-tabs",
+    feedbackHub: {
+      modal: "feedback-hub-modal",
+      reviewTab: "feedback-hub-review",
+      exportTab: "feedback-hub-export",
+      importTab: "feedback-hub-import",
+      cta: "feedback-hub-cta",
+    },
   },
   // Backlog details page selectors
   backlogDetails: {

@@ -25,6 +25,7 @@ export const API_ENDPOINTS = {
   backlogPromptTrace: (kind: string, name: string) => `/backlog/${kind}/${name}/prompt-trace`,
   backlogExport: "/backlog/export",
   backlogImport: "/backlog/import",
+  backlogFeedbackSummary: "/backlog/feedback-summary",
   scenarios: "/scenarios",
   scenarioByName: (name: string) => `/scenarios/${name}`,
   scenarioFiles: (name: string) => `/scenarios/${name}/files`,

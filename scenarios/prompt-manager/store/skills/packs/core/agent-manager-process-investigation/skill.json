@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "agent-manager-process-investigation",
+  "name": "Agent Manager Process Investigation",
+  "description": "Investigation agent prompt for behavioral analysis of failed agent runs.",
+  "modes": ["tools"],
+  "tags": ["agent-manager", "investigation"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-17T00:00:00Z",
+  "updatedAt": "2026-02-17T00:00:00Z"
+}
