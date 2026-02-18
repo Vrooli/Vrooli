@@ -6,55 +6,17 @@ import (
 	"testing"
 	"time"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"system-monitor-api/internal/agentmanager"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository/memory"
+	"system-monitor-api/internal/services/mocks"
 )
-
-// stubAgentExecutor is a minimal AgentExecutor for testing.
-type stubAgentExecutor struct{ available bool }
-
-func (s *stubAgentExecutor) IsEnabled() bool                    { return true }
-func (s *stubAgentExecutor) IsAvailable(_ context.Context) bool { return s.available }
-func (s *stubAgentExecutor) Initialize(_ context.Context, _ *agentmanager.ProfileConfig) error {
-	return nil
-}
-
-func (s *stubAgentExecutor) Execute(_ context.Context, _ agentmanager.ExecuteRequest) (*agentmanager.ExecuteResult, error) {
-	return &agentmanager.ExecuteResult{Success: true, Output: "ok"}, nil
-}
-
-func (s *stubAgentExecutor) GetProfile(_ context.Context) (*domainpb.AgentProfile, error) {
-	return nil, nil
-}
-func (s *stubAgentExecutor) GetProfileID() string { return "" }
-func (s *stubAgentExecutor) UpdateProfile(_ context.Context, _ *agentmanager.ProfileConfig) (*domainpb.AgentProfile, error) {
-	return nil, nil
-}
-
-func (s *stubAgentExecutor) GetAvailableRunners(_ context.Context) ([]agentmanager.RunnerInfo, error) {
-	return nil, nil
-}
-
-func (s *stubAgentExecutor) GetRunByTag(_ context.Context, _ string) (*domainpb.Run, error) {
-	return nil, nil
-}
-
-func (s *stubAgentExecutor) ListActiveRuns(_ context.Context) ([]*domainpb.Run, error) {
-	return nil, nil
-}
-func (s *stubAgentExecutor) StopRun(_ context.Context, _ string) error { return nil }
-func (s *stubAgentExecutor) ResolveURL(_ context.Context) (string, error) {
-	return "", nil
-}
 
 func newTestInvestigationService(t *testing.T, clock Clock) *InvestigationService {
 	t.Helper()
 	cfg := &config.Config{}
 	repo := memory.NewRepository()
-	return NewInvestigationService(cfg, repo, nil, &stubAgentExecutor{available: true},
+	return NewInvestigationService(cfg, repo, nil, mocks.NewAgentExecutor().WithAvailable(true),
 		WithInvestigationClock(clock),
 	)
 }

@@ -2,34 +2,18 @@ package services
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
+
+	"system-monitor-api/internal/services/mocks"
+	"system-monitor-api/internal/testutil"
 )
-
-// mockCommandRunner is a test double for CommandRunner.
-type mockCommandRunner struct {
-	stdout   string
-	stderr   string
-	exitCode int
-	err      error
-}
-
-func (m *mockCommandRunner) Run(_ context.Context, _ string, _ []string, _ string) (string, string, int, error) {
-	return m.stdout, m.stderr, m.exitCode, m.err
-}
 
 func TestExecuteScript_Success(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-script.sh"), []byte("#!/bin/bash\necho hello"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExecutableFile(t, dir, "test-script.sh", "#!/bin/bash\necho hello")
 
-	svc := NewScriptService(dir, &mockCommandRunner{
-		stdout:   "OK",
-		exitCode: 0,
-	})
+	runner := mocks.NewCommandRunner().WithStdout("OK").WithExitCode(0)
+	svc := NewScriptService(dir, runner)
 
 	result, err := svc.ExecuteScript(context.Background(), "test-script", "")
 	if err != nil {
@@ -48,15 +32,13 @@ func TestExecuteScript_Success(t *testing.T) {
 
 func TestExecuteScript_Failure(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-script.sh"), []byte("#!/bin/bash\nexit 1"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExecutableFile(t, dir, "test-script.sh", "#!/bin/bash\nexit 1")
 
-	svc := NewScriptService(dir, &mockCommandRunner{
-		stderr:   "failed",
-		exitCode: 1,
-		err:      fmt.Errorf("exit status 1"),
-	})
+	runner := mocks.NewCommandRunner().
+		WithStderr("failed").
+		WithExitCode(1).
+		WithErrorf("exit status 1")
+	svc := NewScriptService(dir, runner)
 
 	result, err := svc.ExecuteScript(context.Background(), "test-script", "")
 	if err != nil {
@@ -75,14 +57,12 @@ func TestExecuteScript_Failure(t *testing.T) {
 
 func TestExecuteScript_Timeout(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "test-script.sh"), []byte("#!/bin/bash\nsleep 999"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	testutil.WriteExecutableFile(t, dir, "test-script.sh", "#!/bin/bash\nsleep 999")
 
-	svc := NewScriptService(dir, &mockCommandRunner{
-		exitCode: -1,
-		err:      context.DeadlineExceeded,
-	})
+	runner := mocks.NewCommandRunner().
+		WithExitCode(-1).
+		WithError(context.DeadlineExceeded)
+	svc := NewScriptService(dir, runner)
 
 	// Use a context with an already-passed deadline so the derived timeout
 	// context's Err() returns DeadlineExceeded.
