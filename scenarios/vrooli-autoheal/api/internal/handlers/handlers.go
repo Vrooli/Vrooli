@@ -91,13 +91,17 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		apierrors.LogError("health", "encode_response", err)
+	}
 }
 
 // Platform returns detected platform capabilities
 func (h *Handlers) Platform(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.platform)
+	if err := json.NewEncoder(w).Encode(h.platform); err != nil {
+		apierrors.LogError("platform", "encode_response", err)
+	}
 }
 
 // Status returns the current health summary
@@ -118,7 +122,9 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		apierrors.LogError("status", "encode_response", err)
+	}
 }
 
 // Tick runs a single health check cycle
@@ -140,13 +146,8 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.tickRunning {
 		h.tickLock.Unlock()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "tick_in_progress",
-			"message": "A health check cycle is already running. Please wait for it to complete.",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewConflictError("tick",
+			"A health check cycle is already running. Please wait for it to complete."))
 		return
 	}
 	h.tickRunning = true
@@ -263,7 +264,9 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ListChecks(w http.ResponseWriter, r *http.Request) {
 	checks := h.registry.ListChecks()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(checks)
+	if err := json.NewEncoder(w).Encode(checks); err != nil {
+		apierrors.LogError("list_checks", "encode_response", err)
+	}
 }
 
 // CheckResult returns the result for a specific check

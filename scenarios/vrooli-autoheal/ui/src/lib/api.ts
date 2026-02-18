@@ -6,6 +6,20 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 
 export type HealthStatus = "ok" | "warning" | "critical";
 
+// AI_CHECK: REACT_STABILITY_AUTOHEAL=1 | LAST: 2026-02-18
+const HEALTH_STATUSES: ReadonlySet<HealthStatus> = new Set(["ok", "warning", "critical"]);
+
+export function isHealthStatus(value: unknown): value is HealthStatus {
+  return typeof value === "string" && HEALTH_STATUSES.has(value as HealthStatus);
+}
+
+export function normalizeHealthStatus(value: unknown, fallback: HealthStatus = "ok"): HealthStatus {
+  if (isHealthStatus(value)) {
+    return value;
+  }
+  return fallback;
+}
+
 // Category groups related health checks for UI organization
 export type CheckCategory = "infrastructure" | "resource" | "scenario";
 
@@ -86,62 +100,118 @@ export interface HealthResponse {
   dependencies: Record<string, string>;
 }
 
-// Structured error response from the API
+// Recovery guidance from the API (machine-readable)
 // [REQ:FAIL-SAFE-001]
+export interface RecoveryInfo {
+  /** Recommended recovery action: retry, fix_input, report, wait, none */
+  action: "retry" | "fix_input" | "report" | "wait" | "none";
+  /** Whether the client should attempt to retry */
+  retryable: boolean;
+  /** Human-readable recovery suggestion from the API */
+  hint?: string;
+}
+
+// Structured error response from the API
 export interface APIErrorResponse {
   success: false;
   error: string;
   message: string;
+  recovery?: RecoveryInfo;
   requestId?: string;
   timestamp: string;
 }
 
-// Custom error class with structured error information
+// Custom error class with structured error information.
+// Recovery semantics come from the API when available, with sensible
+// client-side defaults as fallback (e.g., for network errors).
 export class APIError extends Error {
   code: string;
   requestId?: string;
   statusCode: number;
   isRetryable: boolean;
+  recovery: RecoveryInfo;
 
   constructor(
     message: string,
     code: string,
     statusCode: number,
-    requestId?: string
+    requestId?: string,
+    recovery?: RecoveryInfo
   ) {
     super(message);
     this.name = "APIError";
     this.code = code;
     this.statusCode = statusCode;
     this.requestId = requestId;
-    // Determine if error is retryable based on status code
-    this.isRetryable = statusCode >= 500 || statusCode === 0 || statusCode === 408;
+    // Use API-provided recovery info when available; fall back to heuristic
+    this.recovery = recovery ?? this.defaultRecovery(code, statusCode);
+    this.isRetryable = this.recovery.retryable;
   }
 
-  // User-friendly error message based on error code
+  /** Derive recovery info when the API response doesn't include it (e.g., network errors). */
+  private defaultRecovery(code: string, statusCode: number): RecoveryInfo {
+    if (code === "NETWORK_ERROR" || statusCode === 0) {
+      return { action: "retry", retryable: true, hint: "Check your network connection." };
+    }
+    if (statusCode === 408 || statusCode === 504) {
+      return { action: "retry", retryable: true, hint: "The request timed out. Try again." };
+    }
+    if (statusCode >= 500) {
+      return { action: "retry", retryable: true, hint: "A server error occurred." };
+    }
+    if (statusCode === 400) {
+      return { action: "fix_input", retryable: false, hint: "Check the request data." };
+    }
+    if (statusCode === 404) {
+      return { action: "none", retryable: false, hint: "The requested item was not found." };
+    }
+    if (statusCode === 409) {
+      return { action: "wait", retryable: true, hint: "Wait for the current operation to finish." };
+    }
+    return { action: "none", retryable: false };
+  }
+
+  /** User-friendly error message. Prefers the API-provided hint when available. */
   getUserMessage(): string {
+    // API-provided hint is the most accurate source
+    if (this.recovery.hint) {
+      return this.recovery.hint;
+    }
+    // Fallback to code-based messages
     switch (this.code) {
+      case "NETWORK_ERROR":
+        return "Unable to connect to the API. Check your network connection.";
       case "DATABASE_ERROR":
         return "Database is temporarily unavailable. Your data is safe.";
       case "NOT_FOUND":
-        return this.message; // Already user-friendly
+        return this.message;
       case "TIMEOUT":
         return "The request took too long. Please try again.";
       case "SERVICE_UNAVAILABLE":
         return "A required service is currently unavailable.";
+      case "CONFLICT":
+        return "Another operation is in progress. Please wait.";
+      case "VALIDATION_ERROR":
+        return this.message;
       default:
         return "Something went wrong. Please try again.";
     }
   }
 
-  // Suggested action for the user
+  /** Suggested next action for the user, based on recovery semantics. */
   getSuggestedAction(): string {
-    if (this.isRetryable) {
-      return "Try again in a few seconds.";
-    }
-    switch (this.code) {
-      case "NOT_FOUND":
-        return "The requested item may have been removed.";
+    switch (this.recovery.action) {
+      case "retry":
+        return "Try again in a few seconds.";
+      case "fix_input":
+        return "Check your input and try again.";
+      case "report":
+        return this.requestId
+          ? `If this persists, report request ID: ${this.requestId}`
+          : "If this persists, check if the scenario is running.";
+      case "wait":
+        return "Wait for the current operation to finish, then try again.";
+      case "none":
       default:
         return "If this persists, check if the scenario is running.";
     }
@@ -168,17 +238,18 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
   }
 
   if (!res.ok) {
-    // Try to parse structured error response
+    // Try to parse structured error response (includes recovery hints)
     try {
       const errorBody = (await res.json()) as APIErrorResponse;
       throw new APIError(
         errorBody.message || `Request failed: ${res.statusText}`,
         errorBody.error || "UNKNOWN_ERROR",
         res.status,
-        errorBody.requestId
+        errorBody.requestId,
+        errorBody.recovery
       );
     } catch (parseErr) {
-      // Failed to parse error response, use generic error
+      // Failed to parse error response, use generic error with heuristic recovery
       if (parseErr instanceof APIError) throw parseErr;
       throw new APIError(
         `Request failed: ${res.statusText}`,
@@ -473,10 +544,10 @@ export const STATUS_SEVERITY: Record<HealthStatus, number> = {
  * @param checks - Array of health check results
  * @returns Object with checks grouped by status (critical, warning, ok)
  */
-export function groupChecksByStatus(checks: HealthResult[]): {
-  critical: HealthResult[];
-  warning: HealthResult[];
-  ok: HealthResult[];
+export function groupChecksByStatus<T extends HealthResult>(checks: T[]): {
+  critical: T[];
+  warning: T[];
+  ok: T[];
 } {
   return {
     critical: checks.filter((c) => c.status === "critical"),

@@ -241,8 +241,12 @@ func (c *DiskCheck) runWindows(ctx context.Context, result checks.Result) checks
 
 		// Parse sizes
 		var total, free uint64
-		fmt.Sscanf(sizeStr, "%d", &total)
-		fmt.Sscanf(freeSpaceStr, "%d", &free)
+		if _, err := fmt.Sscanf(sizeStr, "%d", &total); err != nil {
+			continue
+		}
+		if _, err := fmt.Sscanf(freeSpaceStr, "%d", &free); err != nil {
+			continue
+		}
 
 		if total == 0 {
 			continue

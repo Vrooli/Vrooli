@@ -182,6 +182,7 @@ func (c *RDPCheck) Title() string { return "Remote Desktop" }
 func (c *RDPCheck) Description() string {
 	return "Checks RDP service (GNOME Remote Desktop, xrdp, or Windows TermService)"
 }
+
 func (c *RDPCheck) Importance() string {
 	return "Required for remote desktop access to this machine"
 }
@@ -276,7 +277,6 @@ func (c *RDPCheck) checkLinuxXRDP(ctx context.Context, result checks.Result) che
 // checkWindowsTermService checks TermService status on Windows
 func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Result) checks.Result {
 	output, err := c.executor.Output(ctx, "sc", "query", "TermService")
-
 	if err != nil {
 		result.Status = checks.StatusWarning
 		result.Message = "Unable to check RDP service"
@@ -498,9 +498,14 @@ func (c *RDPCheck) executeServiceAction(ctx context.Context, result checks.Actio
 		// Windows: use sc command
 		if action == "restart" {
 			// Windows doesn't have restart, need to stop then start
-			c.executor.CombinedOutput(ctx, "sc", "stop", serviceInfo.ServiceName)
-			time.Sleep(2 * time.Second)
-			output, err = c.executor.CombinedOutput(ctx, "sc", "start", serviceInfo.ServiceName)
+			stopOutput, stopErr := c.executor.CombinedOutput(ctx, "sc", "stop", serviceInfo.ServiceName)
+			if stopErr != nil {
+				output = stopOutput
+				err = stopErr
+			} else {
+				time.Sleep(2 * time.Second)
+				output, err = c.executor.CombinedOutput(ctx, "sc", "start", serviceInfo.ServiceName)
+			}
 		} else {
 			output, err = c.executor.CombinedOutput(ctx, "sc", action, serviceInfo.ServiceName)
 		}
@@ -528,7 +533,11 @@ func (c *RDPCheck) executeGnomeRDPAction(ctx context.Context, result checks.Acti
 	var err error
 	var outputBuilder strings.Builder
 
-	outputBuilder.WriteString(fmt.Sprintf("=== %s GNOME Remote Desktop ===\n", strings.Title(action)))
+	actionTitle := action
+	if len(action) > 0 {
+		actionTitle = strings.ToUpper(action[:1]) + action[1:]
+	}
+	outputBuilder.WriteString(fmt.Sprintf("=== %s GNOME Remote Desktop ===\n", actionTitle))
 
 	// GNOME Remote Desktop is a user session service.
 	// We need to determine who owns the graphical session and run as that user.

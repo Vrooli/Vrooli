@@ -43,6 +43,7 @@ func (c *WatchdogCheck) Title() string { return "OS Watchdog" }
 func (c *WatchdogCheck) Description() string {
 	return "Monitors OS-level watchdog service for boot recovery protection"
 }
+
 func (c *WatchdogCheck) Importance() string {
 	return "Ensures vrooli-autoheal automatically restarts after system reboots or crashes"
 }

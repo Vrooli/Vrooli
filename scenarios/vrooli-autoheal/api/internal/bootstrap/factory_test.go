@@ -217,39 +217,6 @@ func TestDefaultCheckFactory_ChecksImplementInterface(t *testing.T) {
 }
 
 // =============================================================================
-// MockCheckFactory for Testing
-// =============================================================================
-
-// mockCheckFactory is a test implementation of CheckFactory
-type mockCheckFactory struct {
-	infraChecks  []checks.Check
-	systemChecks []checks.Check
-	vrooliChecks []checks.Check
-	callCounts   map[string]int
-}
-
-func newMockCheckFactory() *mockCheckFactory {
-	return &mockCheckFactory{
-		callCounts: make(map[string]int),
-	}
-}
-
-func (f *mockCheckFactory) CreateInfrastructureChecks(caps *platform.Capabilities) []checks.Check {
-	f.callCounts["infrastructure"]++
-	return f.infraChecks
-}
-
-func (f *mockCheckFactory) CreateSystemChecks() []checks.Check {
-	f.callCounts["system"]++
-	return f.systemChecks
-}
-
-func (f *mockCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []checks.Check {
-	f.callCounts["vrooli"]++
-	return f.vrooliChecks
-}
-
-// =============================================================================
 // RegisterChecksWithFactory Tests
 // =============================================================================
 

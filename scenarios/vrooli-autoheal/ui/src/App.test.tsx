@@ -1,16 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen, waitFor } from '@testing-library/react';
 import App from './App';
 import * as api from './lib/api';
+import {
+  createCheckHistoryResponse,
+  createCheckInfo,
+  createHealthResult,
+  renderWithProviders,
+  createStatusResponse,
+  createTimelineResponse,
+  createUptimeStatsResponse,
+} from './test-utils';
 
-vi.mock("./contexts/CheckMetadataContext", () => ({
-  useCheckMetadata: () => ({
-    getTitle: (checkId: string) => checkId,
-    getMetadata: () => undefined,
-    isLoading: false,
-  }),
-}));
+vi.mock("./shared/contexts/CheckMetadataContext", async () => {
+  const { useMockCheckMetadata } = await import(
+    "./test-utils/mocks/checkMetadataContext"
+  );
+  return {
+    useCheckMetadata: useMockCheckMetadata,
+  };
+});
 
 // Mock API calls used by App while preserving the rest of the module exports.
 vi.mock('./lib/api', async (importOriginal) => {
@@ -26,45 +35,53 @@ vi.mock('./lib/api', async (importOriginal) => {
   };
 });
 
-const mockTimelineResponse: api.TimelineResponse = {
+const mockTimelineResponse = createTimelineResponse({
   events: [
     { checkId: 'infra-network', status: 'ok', message: 'Network OK', timestamp: new Date().toISOString() },
     { checkId: 'infra-dns', status: 'ok', message: 'DNS OK', timestamp: new Date().toISOString() },
   ],
-  count: 2,
   summary: { ok: 2, warning: 0, critical: 0 },
-};
+});
 
-const mockUptimeStatsResponse: api.UptimeStatsResponse = {
-  totalEvents: 100,
+const mockUptimeStatsResponse = createUptimeStatsResponse({
   okEvents: 90,
   warningEvents: 10,
   criticalEvents: 0,
   uptimePercentage: 90.0,
-  windowHours: 24,
-};
+});
 
 const mockChecksMetadata: api.CheckInfo[] = [
-  { id: 'infra-network', title: 'Internet Connection', description: 'Network connectivity check', importance: 'Required for external API calls', category: 'infrastructure', intervalSeconds: 30 },
-  { id: 'infra-dns', title: 'DNS Resolution', description: 'DNS resolution check', importance: 'Required for hostname resolution', category: 'infrastructure', intervalSeconds: 30 },
-  { id: 'infra-docker', title: 'Docker Engine', description: 'Docker daemon health', importance: 'Required for containers', category: 'infrastructure', intervalSeconds: 60 },
-  { id: 'infra-cloudflared', title: 'Cloudflare Tunnel', description: 'Cloudflared tunnel health', importance: 'Required for external access', category: 'infrastructure', intervalSeconds: 60 },
-  { id: 'infra-rdp', title: 'Remote Desktop', description: 'Remote desktop service health', importance: 'Required for RDP access', category: 'infrastructure', intervalSeconds: 60 },
+  createCheckInfo({ id: 'infra-network' }),
+  createCheckInfo({
+    id: 'infra-dns',
+    title: 'DNS Resolution',
+    description: 'DNS resolution check',
+    importance: 'Required for hostname resolution',
+  }),
+  createCheckInfo({
+    id: 'infra-docker',
+    title: 'Docker Engine',
+    description: 'Docker daemon health',
+    importance: 'Required for containers',
+    intervalSeconds: 60,
+  }),
+  createCheckInfo({
+    id: 'infra-cloudflared',
+    title: 'Cloudflare Tunnel',
+    description: 'Cloudflared tunnel health',
+    importance: 'Required for external access',
+    intervalSeconds: 60,
+  }),
+  createCheckInfo({
+    id: 'infra-rdp',
+    title: 'Remote Desktop',
+    description: 'Remote desktop service health',
+    importance: 'Required for RDP access',
+    intervalSeconds: 60,
+  }),
 ];
 
-const mockStatusResponse: api.StatusResponse = {
-  status: 'ok',
-  platform: {
-    platform: 'linux',
-    supportsRdp: false,
-    supportsSystemd: true,
-    supportsLaunchd: false,
-    supportsWindowsServices: false,
-    isHeadlessServer: false,
-    hasDocker: true,
-    isWsl: false,
-    supportsCloudflared: true,
-  },
+const mockStatusResponse = createStatusResponse({
   summary: {
     total: 5,
     ok: 4,
@@ -72,64 +89,34 @@ const mockStatusResponse: api.StatusResponse = {
     critical: 0,
   },
   checks: [
-    {
+    createHealthResult({
       checkId: 'infra-network',
-      status: 'ok',
       message: 'Network connectivity OK',
-      timestamp: new Date().toISOString(),
       duration: 10,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-dns',
-      status: 'ok',
       message: 'DNS resolution OK',
-      timestamp: new Date().toISOString(),
       duration: 15,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-docker',
-      status: 'ok',
       message: 'Docker daemon is healthy',
-      timestamp: new Date().toISOString(),
       duration: 30,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-cloudflared',
-      status: 'ok',
       message: 'Cloudflared is healthy',
-      timestamp: new Date().toISOString(),
       duration: 5,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-rdp',
       status: 'warning',
       message: 'xrdp service not active',
-      timestamp: new Date().toISOString(),
       duration: 3,
-    },
+    }),
   ],
-  timestamp: new Date().toISOString(),
-};
-
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-      },
-    },
-  });
-}
-
-function renderWithProviders(ui: React.ReactElement) {
-  const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>
-      {ui}
-    </QueryClientProvider>
-  );
-}
+});
 
 describe('App', () => {
   beforeEach(() => {
@@ -138,7 +125,7 @@ describe('App', () => {
     vi.mocked(api.fetchChecks).mockResolvedValue(mockChecksMetadata);
     vi.mocked(api.fetchTimeline).mockResolvedValue(mockTimelineResponse);
     vi.mocked(api.fetchUptimeStats).mockResolvedValue(mockUptimeStatsResponse);
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue({ checkId: 'test', history: [], count: 0 });
+    vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse({ checkId: 'test' }));
   });
 
   it('[REQ:UI-HEALTH-001] renders loading state initially', () => {

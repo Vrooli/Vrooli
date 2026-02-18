@@ -3,7 +3,6 @@ package userconfig
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 )
@@ -14,16 +13,22 @@ type Manager struct {
 	config     *Config
 	configPath string
 	schemaPath string
+	io         configIO
 }
 
 // NewManager creates a new configuration manager
 // configPath is where the config file is stored (e.g., ~/.vrooli-autoheal/config.json)
 // schemaPath is the path to the JSON schema file for validation
 func NewManager(configPath, schemaPath string) *Manager {
+	return newManagerWithIO(configPath, schemaPath, realConfigIO{})
+}
+
+func newManagerWithIO(configPath, schemaPath string, io configIO) *Manager {
 	return &Manager{
 		configPath: configPath,
 		schemaPath: schemaPath,
 		config:     DefaultConfig(),
+		io:         io,
 	}
 }
 
@@ -37,13 +42,13 @@ func (m *Manager) Load() error {
 	m.config = DefaultConfig()
 
 	// Check if config file exists
-	if _, err := os.Stat(m.configPath); os.IsNotExist(err) {
+	if _, err := m.io.Stat(m.configPath); isNotExistErr(err) {
 		// No config file - use defaults (not an error)
 		return nil
 	}
 
 	// Read and parse config file
-	data, err := os.ReadFile(m.configPath)
+	data, err := m.io.ReadFile(m.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -67,7 +72,7 @@ func (m *Manager) Save() error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(m.configPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := m.io.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -79,12 +84,12 @@ func (m *Manager) Save() error {
 
 	// Write atomically (write to temp file, then rename)
 	tempPath := m.configPath + ".tmp"
-	if err := os.WriteFile(tempPath, data, 0644); err != nil {
+	if err := m.io.WriteFile(tempPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
-	if err := os.Rename(tempPath, m.configPath); err != nil {
-		os.Remove(tempPath) // Clean up temp file on failure
+	if err := m.io.Rename(tempPath, m.configPath); err != nil {
+		_ = m.io.Remove(tempPath) // Best-effort cleanup on rename failure
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 
@@ -470,7 +475,7 @@ func (m *Manager) Validate(config *Config) ValidationResult {
 
 // GetSchema returns the JSON schema as a string
 func (m *Manager) GetSchema() (string, error) {
-	data, err := os.ReadFile(m.schemaPath)
+	data, err := m.io.ReadFile(m.schemaPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read schema file: %w", err)
 	}
@@ -579,9 +584,19 @@ func (m *Manager) mergeThresholds(dest *Thresholds, src *Thresholds) {
 // copyConfig creates a deep copy of a config
 func (m *Manager) copyConfig(src *Config) *Config {
 	// Use JSON marshal/unmarshal for deep copy (simple and correct)
-	data, _ := json.Marshal(src)
+	data, err := json.Marshal(src)
+	if err != nil {
+		// Fallback to a shallow copy if serialization fails.
+		copy := *src
+		return &copy
+	}
+
 	var dest Config
-	json.Unmarshal(data, &dest)
+	if err := json.Unmarshal(data, &dest); err != nil {
+		// Fallback to a shallow copy if deserialization fails.
+		copy := *src
+		return &copy
+	}
 	return &dest
 }
 
@@ -592,7 +607,11 @@ func (m *Manager) GetConfigPath() string {
 
 // DefaultConfigPath returns the default config file path
 func DefaultConfigPath() string {
-	home, err := os.UserHomeDir()
+	return defaultConfigPathWithIO(realConfigIO{})
+}
+
+func defaultConfigPathWithIO(io configIO) string {
+	home, err := io.UserHomeDir()
 	if err != nil {
 		home = "."
 	}

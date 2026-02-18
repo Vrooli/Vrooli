@@ -49,3 +49,9 @@ _None at initialization_
 | Watchdog installation fails without sudo | Medium | Medium | Graceful degradation with warning |
 | Circular dependency (autoheal monitors scenarios that monitor autoheal) | Low | Medium | Exclude autoheal from monitored scenario list |
 | Too-aggressive restarts cause thrashing | Low | High | Add restart cooldown and max retry limits |
+## 2026-02-17: UI lint cycle detection dependency gap
+
+### Problem
+React stability pass completed with runtime status normalization and defensive rendering guards. Remaining gap: eslint import cycle rule (import/no-cycle) is not enabled because eslint-plugin-import and eslint-import-resolver-typescript are not present in scenario UI dependencies, and dependency installation was not performed in this pass.
+
+---

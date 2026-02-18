@@ -56,6 +56,7 @@ func (c *SwapCheck) Title() string { return "Swap Usage" }
 func (c *SwapCheck) Description() string {
 	return "Monitors swap usage as an indicator of memory pressure"
 }
+
 func (c *SwapCheck) Importance() string {
 	return "High swap usage indicates memory pressure and can cause severe performance degradation"
 }

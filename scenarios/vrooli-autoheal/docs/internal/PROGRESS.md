@@ -18,6 +18,8 @@
 | 2025-12-03 | Improver Agent | Documentation Tab | Added Docs tab with in-app documentation browser, markdown + mermaid rendering, searchable sidebar navigation |
 | 2025-12-03 | Improver Agent | Check-Level Docs | Added individual documentation for each health check with "Learn more" button on check cards for direct navigation |
 | 2025-12-04 | Claude | Auto-Heal Verification | Added post-action verification to all recovery actions - restarts now confirm success by re-running checks |
+| 2026-02-18 | Codex | Seam Enforcement (Watchdog Installer) | Routed watchdog install/uninstall side effects through `detectorProbe` (commands, privileged writes, fs mutations, temp-file writes) and added seam-focused unit tests |
+| 2026-02-18 | Codex | Seam Enforcement (User Config I/O) | Added `configIO` seam for `userconfig.Manager` file/home-dir interactions (load/save/schema/default-path), plus seam-focused tests for missing-config behavior, temp-file cleanup on atomic-save failure, and default-path fallback when home resolution fails |
 
 ## Completed Features
 

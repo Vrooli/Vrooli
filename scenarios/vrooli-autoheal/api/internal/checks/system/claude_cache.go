@@ -76,6 +76,7 @@ func (c *ClaudeCacheCheck) Title() string { return "Claude Code Cache" }
 func (c *ClaudeCacheCheck) Description() string {
 	return "Monitors Claude Code cache directory for excessive files that cause file watcher errors"
 }
+
 func (c *ClaudeCacheCheck) Importance() string {
 	return "Excessive cache files exhaust inotify watchers, causing ENOSPC errors and Claude Code startup failures"
 }
@@ -368,7 +369,6 @@ func (c *ClaudeCacheCheck) executeCleanupStale(claudeDir string, start time.Time
 			}
 			return nil
 		})
-
 		if err != nil {
 			output.WriteString(fmt.Sprintf("Error walking %s: %v\n", target.dir, err))
 		}
@@ -423,7 +423,6 @@ func (c *ClaudeCacheCheck) executeCleanupAll(claudeDir string, start time.Time) 
 			}
 			return nil
 		})
-
 		if err != nil {
 			output.WriteString(fmt.Sprintf("Error walking %s: %v\n", target, err))
 		}
@@ -448,7 +447,7 @@ func (c *ClaudeCacheCheck) executeAnalyze(claudeDir string, start time.Time) che
 	}
 
 	var output strings.Builder
-	output.WriteString(fmt.Sprintf("=== Claude Code Cache Analysis ===\n"))
+	output.WriteString("=== Claude Code Cache Analysis ===\n")
 	output.WriteString(fmt.Sprintf("Location: %s\n\n", claudeDir))
 
 	// Analyze each subdirectory
@@ -473,7 +472,7 @@ func (c *ClaudeCacheCheck) executeAnalyze(claudeDir string, start time.Time) che
 		files := 0
 		var size int64
 
-		filepath.Walk(subdir, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(subdir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
 				return nil
 			}
@@ -500,14 +499,14 @@ func (c *ClaudeCacheCheck) executeAnalyze(claudeDir string, start time.Time) che
 
 // cleanEmptyDirs removes empty directories
 func (c *ClaudeCacheCheck) cleanEmptyDirs(dir string) {
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || !info.IsDir() || path == dir {
 			return nil
 		}
 
 		entries, err := os.ReadDir(path)
 		if err == nil && len(entries) == 0 {
-			os.Remove(path)
+			_ = os.Remove(path)
 		}
 		return nil
 	})

@@ -12,10 +12,10 @@ import (
 
 // MockProcReader is a mock implementation of ProcReader for testing
 type MockProcReader struct {
-	Processes      []checks.ProcessInfo
-	Error          error
-	EnvironData    map[int]map[string]string // PID -> env vars
-	CmdlineData    map[int]string            // PID -> cmdline
+	Processes   []checks.ProcessInfo
+	Error       error
+	EnvironData map[int]map[string]string // PID -> env vars
+	CmdlineData map[int]string            // PID -> cmdline
 }
 
 func (m *MockProcReader) ReadMeminfo() (*checks.MemInfo, error) {
@@ -184,10 +184,10 @@ func TestOrphanCheckRunWithMock(t *testing.T) {
 			expectMsgPart:  "No orphan Vrooli processes",
 		},
 		{
-			name: "non-vrooli process ignored",
+			name:             "non-vrooli process ignored",
 			trackedProcesses: []checks.TrackedProcess{},
 			runningProcesses: []checks.ProcessInfo{
-				{PID: 100, PPid: 1, Comm: "nginx", State: "S"},       // Not a Vrooli process
+				{PID: 100, PPid: 1, Comm: "nginx", State: "S"},      // Not a Vrooli process
 				{PID: 200, PPid: 1, Comm: "postgresql", State: "S"}, // Not a Vrooli process
 			},
 			expectedStatus: checks.StatusOK,
@@ -445,7 +445,7 @@ func TestOrphanCheckAncestryTracking(t *testing.T) {
 	mockProcReader := &MockProcReader{
 		Processes: []checks.ProcessInfo{
 			{PID: 100, PPid: 1, Comm: "vrooli-parent", State: "S"},
-			{PID: 200, PPid: 100, Comm: "vrooli-child", State: "S"},   // Child of 100
+			{PID: 200, PPid: 100, Comm: "vrooli-child", State: "S"},      // Child of 100
 			{PID: 300, PPid: 200, Comm: "vrooli-grandchild", State: "S"}, // Grandchild of 100
 		},
 	}
@@ -503,8 +503,8 @@ func TestGetOrphanPIDs(t *testing.T) {
 	mockProcReader := &MockProcReader{
 		Processes: []checks.ProcessInfo{
 			{PID: 100, PPid: 1, Comm: "vrooli-tracked", State: "S"},
-			{PID: 200, PPid: 1, Comm: "scenario-api", State: "S"},   // Not named "orphan" to avoid filter
-			{PID: 201, PPid: 1, Comm: "scenario-ui", State: "S"},    // Not named "orphan" to avoid filter
+			{PID: 200, PPid: 1, Comm: "scenario-api", State: "S"}, // Not named "orphan" to avoid filter
+			{PID: 201, PPid: 1, Comm: "scenario-ui", State: "S"},  // Not named "orphan" to avoid filter
 		},
 		// Provide environment markers to identify as Vrooli processes
 		EnvironData: map[int]map[string]string{

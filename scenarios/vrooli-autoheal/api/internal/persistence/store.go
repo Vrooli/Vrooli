@@ -78,7 +78,9 @@ func (s *Store) GetLatestResultPerCheck(ctx context.Context) ([]checks.Result, e
 
 		r.Duration = time.Duration(durationMs) * time.Millisecond
 		if len(detailsJSON) > 0 {
-			json.Unmarshal(detailsJSON, &r.Details)
+			if err := json.Unmarshal(detailsJSON, &r.Details); err != nil {
+				return nil, fmt.Errorf("unmarshal details failed: %w", err)
+			}
 		}
 
 		results = append(results, r)
@@ -114,7 +116,9 @@ func (s *Store) GetRecentResults(ctx context.Context, checkID string, limit int)
 
 		r.Duration = checks.Result{}.Duration // Zero value, we store ms separately
 		if len(detailsJSON) > 0 {
-			json.Unmarshal(detailsJSON, &r.Details)
+			if err := json.Unmarshal(detailsJSON, &r.Details); err != nil {
+				return nil, fmt.Errorf("unmarshal details failed: %w", err)
+			}
 		}
 
 		results = append(results, r)
@@ -178,7 +182,9 @@ func (s *Store) GetTimelineEvents(ctx context.Context, limit int) ([]TimelineEve
 		e.Timestamp = timestamp.UTC().Format(time.RFC3339)
 
 		if len(detailsJSON) > 0 {
-			json.Unmarshal(detailsJSON, &e.Details)
+			if err := json.Unmarshal(detailsJSON, &e.Details); err != nil {
+				return nil, fmt.Errorf("unmarshal timeline details failed: %w", err)
+			}
 		}
 
 		events = append(events, e)

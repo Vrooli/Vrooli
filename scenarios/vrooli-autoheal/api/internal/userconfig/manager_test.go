@@ -59,7 +59,9 @@ func TestManagerLoadSave(t *testing.T) {
 	schemaPath := filepath.Join(tmpDir, "schema.json")
 
 	// Create a minimal schema file
-	os.WriteFile(schemaPath, []byte(`{"type":"object"}`), 0644)
+	if err := os.WriteFile(schemaPath, []byte(`{"type":"object"}`), 0o644); err != nil {
+		t.Fatalf("failed to write schema file: %v", err)
+	}
 
 	mgr := NewManager(configPath, schemaPath)
 
@@ -191,7 +193,9 @@ func TestManagerGetAutoHealOn(t *testing.T) {
 	schemaPath := filepath.Join(tmpDir, "schema.json")
 
 	mgr := NewManager(configPath, schemaPath)
-	mgr.Load()
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	if got := mgr.GetAutoHealOn("scenario-app-monitor"); got != "critical" {
 		t.Fatalf("default autoHealOn = %q, want critical", got)
@@ -221,7 +225,9 @@ func TestManagerGetCheck(t *testing.T) {
 	schemaPath := filepath.Join(tmpDir, "schema.json")
 
 	mgr := NewManager(configPath, schemaPath)
-	mgr.Load()
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	// Get default check config
 	cfg := mgr.GetCheck("resource-postgres")
@@ -233,7 +239,9 @@ func TestManagerGetCheck(t *testing.T) {
 	}
 
 	// Override via config
-	mgr.SetCheckEnabled("resource-postgres", false)
+	if err := mgr.SetCheckEnabled("resource-postgres", false); err != nil {
+		t.Fatalf("SetCheckEnabled failed: %v", err)
+	}
 
 	cfg = mgr.GetCheck("resource-postgres")
 	if cfg.Enabled {
@@ -247,7 +255,9 @@ func TestManagerSetCheckAutoHeal(t *testing.T) {
 	schemaPath := filepath.Join(tmpDir, "schema.json")
 
 	mgr := NewManager(configPath, schemaPath)
-	mgr.Load()
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	// Initially should be default (true for postgres)
 	if !mgr.IsAutoHealEnabled("resource-postgres") {
@@ -276,10 +286,14 @@ func TestManagerSetCheckAutoHeal(t *testing.T) {
 func TestManagerExportImport(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
-	mgr.Load()
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	// Modify config
-	mgr.SetCheckEnabled("infra-network", false)
+	if err := mgr.SetCheckEnabled("infra-network", false); err != nil {
+		t.Fatalf("SetCheckEnabled failed: %v", err)
+	}
 
 	// Export
 	data, err := mgr.Export()
@@ -289,7 +303,9 @@ func TestManagerExportImport(t *testing.T) {
 
 	// Import into new manager
 	mgr2 := NewManager(filepath.Join(tmpDir, "config2.json"), filepath.Join(tmpDir, "schema.json"))
-	mgr2.Load()
+	if err := mgr2.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	imported, err := mgr2.Import(data)
 	if err != nil {

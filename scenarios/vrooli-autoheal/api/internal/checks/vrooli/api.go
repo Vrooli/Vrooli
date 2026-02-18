@@ -470,7 +470,9 @@ func (c *APICheck) executeRestart(ctx context.Context, start time.Time) checks.A
 	if len(strings.TrimSpace(string(pids))) > 0 {
 		for _, pid := range strings.Fields(strings.TrimSpace(string(pids))) {
 			outputBuilder.WriteString(fmt.Sprintf("Killing PID %s on port %s\n", pid, port))
-			c.executor.Run(ctx, "kill", "-9", pid)
+			if err := c.executor.Run(ctx, "kill", "-9", pid); err != nil {
+				outputBuilder.WriteString(fmt.Sprintf("Failed to kill PID %s: %v\n", pid, err))
+			}
 		}
 	} else {
 		outputBuilder.WriteString("No processes found on port " + port + "\n")

@@ -6,10 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
-	"os/user"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -71,27 +68,29 @@ func (d *Detector) Install(ctx context.Context, opts InstallOptions) *InstallRes
 
 // verifyLoopBinaryExists checks if the Go loop binary has been built
 func (d *Detector) verifyLoopBinaryExists() error {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, _ := d.probe.userHomeDir()
 		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
 
 	var binaryPath string
-	switch runtime.GOOS {
+	switch d.probe.goos() {
 	case "windows":
 		binaryPath = filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal", "cli", "vrooli-autoheal-loop.exe")
 	default:
 		binaryPath = filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal", "cli", "vrooli-autoheal-loop")
 	}
 
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+	if err := d.probe.stat(binaryPath); os.IsNotExist(err) {
 		buildCmd := "go build -o vrooli-autoheal-loop ./cli/loop"
-		if runtime.GOOS == "windows" {
+		if d.probe.goos() == "windows" {
 			buildCmd = "go build -o vrooli-autoheal-loop.exe ./cli/loop"
 		}
 		return fmt.Errorf("loop binary not found at %s. Build it with: cd %s/scenarios/vrooli-autoheal && %s",
 			binaryPath, vrooliRoot, buildCmd)
+	} else if err != nil {
+		return fmt.Errorf("failed to verify loop binary at %s: %w", binaryPath, err)
 	}
 
 	return nil
@@ -126,7 +125,7 @@ func (d *Detector) EnableLingering(ctx context.Context) *InstallResult {
 		}
 	}
 
-	currentUser, err := user.Current()
+	currentUser, err := d.probe.currentUser()
 	if err != nil {
 		return &InstallResult{
 			Success: false,
@@ -136,8 +135,7 @@ func (d *Detector) EnableLingering(ctx context.Context) *InstallResult {
 	}
 
 	// Try to enable lingering (requires sudo)
-	cmd := exec.CommandContext(ctx, "sudo", "loginctl", "enable-linger", currentUser.Username)
-	output, err := cmd.CombinedOutput()
+	output, err := d.probe.commandOutput("sudo", "loginctl", "enable-linger", currentUser.Username)
 	if err != nil {
 		return &InstallResult{
 			Success:       false,
@@ -174,7 +172,7 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 		isUserService = false
 	} else {
 		// User service
-		homeDir, err := os.UserHomeDir()
+		homeDir, err := d.probe.userHomeDir()
 		if err != nil {
 			return &InstallResult{
 				Success: false,
@@ -183,7 +181,7 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 			}
 		}
 		serviceDir := filepath.Join(homeDir, ".config", "systemd", "user")
-		if err := os.MkdirAll(serviceDir, 0755); err != nil {
+		if err := d.probe.mkdirAll(serviceDir, 0o755); err != nil {
 			return &InstallResult{
 				Success: false,
 				Message: "Failed to create systemd user directory",
@@ -198,15 +196,13 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 	var writeErr error
 	if opts.UseSystemService {
 		// System service needs sudo to write
-		cmd := exec.CommandContext(ctx, "sudo", "tee", servicePath)
-		cmd.Stdin = strings.NewReader(template)
-		output, err := cmd.CombinedOutput()
+		output, err := d.probe.commandOutputInput("sudo", template, "tee", servicePath)
 		if err != nil {
 			writeErr = fmt.Errorf("%v: %s", err, string(output))
 		}
 	} else {
 		// User service can be written directly
-		writeErr = os.WriteFile(servicePath, []byte(template), 0644)
+		writeErr = d.probe.writeFile(servicePath, []byte(template), 0o644)
 	}
 
 	if writeErr != nil {
@@ -218,18 +214,26 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 	}
 
 	// Reload systemd daemon
-	var reloadCmd, enableCmd, startCmd *exec.Cmd
+	reloadArgs := []string{"daemon-reload"}
+	enableArgs := []string{"enable", "vrooli-autoheal"}
+	startArgs := []string{"start", "vrooli-autoheal"}
+	reloadCmdName := "systemctl"
+	enableCmdName := "systemctl"
+	startCmdName := "systemctl"
 	if opts.UseSystemService {
-		reloadCmd = exec.CommandContext(ctx, "sudo", "systemctl", "daemon-reload")
-		enableCmd = exec.CommandContext(ctx, "sudo", "systemctl", "enable", "vrooli-autoheal")
-		startCmd = exec.CommandContext(ctx, "sudo", "systemctl", "start", "vrooli-autoheal")
+		reloadCmdName = "sudo"
+		enableCmdName = "sudo"
+		startCmdName = "sudo"
+		reloadArgs = []string{"systemctl", "daemon-reload"}
+		enableArgs = []string{"systemctl", "enable", "vrooli-autoheal"}
+		startArgs = []string{"systemctl", "start", "vrooli-autoheal"}
 	} else {
-		reloadCmd = exec.CommandContext(ctx, "systemctl", "--user", "daemon-reload")
-		enableCmd = exec.CommandContext(ctx, "systemctl", "--user", "enable", "vrooli-autoheal")
-		startCmd = exec.CommandContext(ctx, "systemctl", "--user", "start", "vrooli-autoheal")
+		reloadArgs = []string{"--user", "daemon-reload"}
+		enableArgs = []string{"--user", "enable", "vrooli-autoheal"}
+		startArgs = []string{"--user", "start", "vrooli-autoheal"}
 	}
 
-	if output, err := reloadCmd.CombinedOutput(); err != nil {
+	if output, err := d.probe.commandOutput(reloadCmdName, reloadArgs...); err != nil {
 		return &InstallResult{
 			Success:     false,
 			Message:     "Service file written but daemon-reload failed",
@@ -238,7 +242,7 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 		}
 	}
 
-	if output, err := enableCmd.CombinedOutput(); err != nil {
+	if output, err := d.probe.commandOutput(enableCmdName, enableArgs...); err != nil {
 		return &InstallResult{
 			Success:     false,
 			Message:     "Service file written but enable failed",
@@ -247,7 +251,7 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 		}
 	}
 
-	if output, err := startCmd.CombinedOutput(); err != nil {
+	if output, err := d.probe.commandOutput(startCmdName, startArgs...); err != nil {
 		// Start may fail if already running, which is OK
 		errStr := string(output)
 		if !strings.Contains(errStr, "already") {
@@ -267,7 +271,7 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 
 	// Check lingering for user services - this is critical for boot protection
 	if isUserService {
-		currentUser, _ := user.Current()
+		currentUser, _ := d.probe.currentUser()
 		lingerEnabled := currentUser != nil && d.isLingeringEnabled(currentUser.Username)
 
 		if !lingerEnabled && opts.EnableLingering {
@@ -320,7 +324,7 @@ func (d *Detector) installMacOS(ctx context.Context, opts InstallOptions) *Insta
 		plistPath = "/Library/LaunchDaemons/com.vrooli.autoheal.plist"
 	} else {
 		// User agent
-		homeDir, err := os.UserHomeDir()
+		homeDir, err := d.probe.userHomeDir()
 		if err != nil {
 			return &InstallResult{
 				Success: false,
@@ -329,7 +333,7 @@ func (d *Detector) installMacOS(ctx context.Context, opts InstallOptions) *Insta
 			}
 		}
 		launchDir := filepath.Join(homeDir, "Library", "LaunchAgents")
-		if err := os.MkdirAll(launchDir, 0755); err != nil {
+		if err := d.probe.mkdirAll(launchDir, 0o755); err != nil {
 			return &InstallResult{
 				Success: false,
 				Message: "Failed to create LaunchAgents directory",
@@ -342,14 +346,12 @@ func (d *Detector) installMacOS(ctx context.Context, opts InstallOptions) *Insta
 	// Write plist file
 	var writeErr error
 	if opts.UseSystemService {
-		cmd := exec.CommandContext(ctx, "sudo", "tee", plistPath)
-		cmd.Stdin = strings.NewReader(template)
-		output, err := cmd.CombinedOutput()
+		output, err := d.probe.commandOutputInput("sudo", template, "tee", plistPath)
 		if err != nil {
 			writeErr = fmt.Errorf("%v: %s", err, string(output))
 		}
 	} else {
-		writeErr = os.WriteFile(plistPath, []byte(template), 0644)
+		writeErr = d.probe.writeFile(plistPath, []byte(template), 0o644)
 	}
 
 	if writeErr != nil {
@@ -361,14 +363,13 @@ func (d *Detector) installMacOS(ctx context.Context, opts InstallOptions) *Insta
 	}
 
 	// Load the service
-	var loadCmd *exec.Cmd
+	loadCmdName := "launchctl"
+	loadArgs := []string{"load", plistPath}
 	if opts.UseSystemService {
-		loadCmd = exec.CommandContext(ctx, "sudo", "launchctl", "load", plistPath)
-	} else {
-		loadCmd = exec.CommandContext(ctx, "launchctl", "load", plistPath)
+		loadCmdName = "sudo"
+		loadArgs = []string{"launchctl", "load", plistPath}
 	}
-
-	if output, err := loadCmd.CombinedOutput(); err != nil {
+	if output, err := d.probe.commandOutput(loadCmdName, loadArgs...); err != nil {
 		errStr := string(output)
 		// May already be loaded
 		if !strings.Contains(errStr, "already loaded") && !strings.Contains(errStr, "service already loaded") {
@@ -396,7 +397,7 @@ func (d *Detector) installMacOS(ctx context.Context, opts InstallOptions) *Insta
 // installWindows installs the Windows scheduled task
 // [REQ:WATCH-WIN-002]
 func (d *Detector) installWindows(ctx context.Context, opts InstallOptions) *InstallResult {
-	if runtime.GOOS != "windows" {
+	if d.probe.goos() != "windows" {
 		return &InstallResult{
 			Success: false,
 			Message: "Windows installation must be run on Windows",
@@ -407,7 +408,7 @@ func (d *Detector) installWindows(ctx context.Context, opts InstallOptions) *Ins
 	template := d.getWindowsTaskTemplate()
 
 	// Write XML to temp file
-	tmpFile, err := os.CreateTemp("", "vrooli-autoheal-*.xml")
+	tmpPath, err := d.probe.writeTempFile("vrooli-autoheal-*.xml", []byte(template))
 	if err != nil {
 		return &InstallResult{
 			Success: false,
@@ -415,22 +416,10 @@ func (d *Detector) installWindows(ctx context.Context, opts InstallOptions) *Ins
 			Error:   err.Error(),
 		}
 	}
-	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
-
-	if _, err := tmpFile.WriteString(template); err != nil {
-		tmpFile.Close()
-		return &InstallResult{
-			Success: false,
-			Message: "Failed to write task XML",
-			Error:   err.Error(),
-		}
-	}
-	tmpFile.Close()
+	defer func() { _ = d.probe.remove(tmpPath) }()
 
 	// Create the scheduled task
-	cmd := exec.CommandContext(ctx, "schtasks", "/Create", "/TN", "VrooliAutoheal", "/XML", tmpPath, "/F")
-	if output, err := cmd.CombinedOutput(); err != nil {
+	if output, err := d.probe.commandOutput("schtasks", "/Create", "/TN", "VrooliAutoheal", "/XML", tmpPath, "/F"); err != nil {
 		return &InstallResult{
 			Success: false,
 			Message: "Failed to create scheduled task",
@@ -458,7 +447,7 @@ func (d *Detector) uninstallLinux(ctx context.Context) *UninstallResult {
 		"/usr/lib/systemd/system/vrooli-autoheal.service",
 	}
 
-	homeDir, _ := os.UserHomeDir()
+	homeDir, _ := d.probe.userHomeDir()
 	if homeDir != "" {
 		servicePaths = append(servicePaths, filepath.Join(homeDir, ".config/systemd/user/vrooli-autoheal.service"))
 	}
@@ -468,7 +457,7 @@ func (d *Detector) uninstallLinux(ctx context.Context) *UninstallResult {
 	var removePath string
 
 	for _, path := range servicePaths {
-		if _, err := os.Stat(path); err == nil {
+		if err := d.probe.stat(path); err == nil {
 			removePath = path
 			isUserService = strings.Contains(path, ".config/systemd/user")
 			break
@@ -483,22 +472,17 @@ func (d *Detector) uninstallLinux(ctx context.Context) *UninstallResult {
 	}
 
 	// Stop and disable the service
-	var stopCmd, disableCmd, removeCmd *exec.Cmd
 	if isUserService {
-		stopCmd = exec.CommandContext(ctx, "systemctl", "--user", "stop", "vrooli-autoheal")
-		disableCmd = exec.CommandContext(ctx, "systemctl", "--user", "disable", "vrooli-autoheal")
+		_ = d.probe.commandRun("systemctl", "--user", "stop", "vrooli-autoheal")
+		_ = d.probe.commandRun("systemctl", "--user", "disable", "vrooli-autoheal")
 	} else {
-		stopCmd = exec.CommandContext(ctx, "sudo", "systemctl", "stop", "vrooli-autoheal")
-		disableCmd = exec.CommandContext(ctx, "sudo", "systemctl", "disable", "vrooli-autoheal")
+		_ = d.probe.commandRun("sudo", "systemctl", "stop", "vrooli-autoheal")
+		_ = d.probe.commandRun("sudo", "systemctl", "disable", "vrooli-autoheal")
 	}
-
-	// Ignore errors from stop/disable as service may not be running
-	stopCmd.Run()
-	disableCmd.Run()
 
 	// Remove the service file
 	if isUserService {
-		if err := os.Remove(removePath); err != nil {
+		if err := d.probe.remove(removePath); err != nil {
 			return &UninstallResult{
 				Success: false,
 				Message: "Failed to remove service file",
@@ -507,8 +491,7 @@ func (d *Detector) uninstallLinux(ctx context.Context) *UninstallResult {
 		}
 		removed = true
 	} else {
-		removeCmd = exec.CommandContext(ctx, "sudo", "rm", "-f", removePath)
-		if output, err := removeCmd.CombinedOutput(); err != nil {
+		if output, err := d.probe.commandOutput("sudo", "rm", "-f", removePath); err != nil {
 			return &UninstallResult{
 				Success: false,
 				Message: "Failed to remove service file",
@@ -519,13 +502,11 @@ func (d *Detector) uninstallLinux(ctx context.Context) *UninstallResult {
 	}
 
 	// Reload daemon
-	var reloadCmd *exec.Cmd
 	if isUserService {
-		reloadCmd = exec.CommandContext(ctx, "systemctl", "--user", "daemon-reload")
+		_ = d.probe.commandRun("systemctl", "--user", "daemon-reload")
 	} else {
-		reloadCmd = exec.CommandContext(ctx, "sudo", "systemctl", "daemon-reload")
+		_ = d.probe.commandRun("sudo", "systemctl", "daemon-reload")
 	}
-	reloadCmd.Run()
 
 	// Invalidate cache
 	d.mu.Lock()
@@ -548,7 +529,7 @@ func (d *Detector) uninstallLinux(ctx context.Context) *UninstallResult {
 
 // uninstallMacOS removes the launchd plist
 func (d *Detector) uninstallMacOS(ctx context.Context) *UninstallResult {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, _ := d.probe.userHomeDir()
 	plistPaths := []string{
 		"/Library/LaunchDaemons/com.vrooli.autoheal.plist",
 	}
@@ -558,24 +539,15 @@ func (d *Detector) uninstallMacOS(ctx context.Context) *UninstallResult {
 
 	var removed bool
 	for _, path := range plistPaths {
-		if _, err := os.Stat(path); err == nil {
+		if err := d.probe.stat(path); err == nil {
 			// Unload first
 			isSystem := strings.HasPrefix(path, "/Library")
-			var unloadCmd, removeCmd *exec.Cmd
-
 			if isSystem {
-				unloadCmd = exec.CommandContext(ctx, "sudo", "launchctl", "unload", path)
-				removeCmd = exec.CommandContext(ctx, "sudo", "rm", "-f", path)
+				_ = d.probe.commandRun("sudo", "launchctl", "unload", path)
+				_ = d.probe.commandRun("sudo", "rm", "-f", path)
 			} else {
-				unloadCmd = exec.CommandContext(ctx, "launchctl", "unload", path)
-			}
-
-			unloadCmd.Run() // Ignore errors
-
-			if isSystem {
-				removeCmd.Run()
-			} else {
-				os.Remove(path)
+				_ = d.probe.commandRun("launchctl", "unload", path)
+				_ = d.probe.remove(path)
 			}
 			removed = true
 		}
@@ -601,7 +573,7 @@ func (d *Detector) uninstallMacOS(ctx context.Context) *UninstallResult {
 
 // uninstallWindows removes the scheduled task
 func (d *Detector) uninstallWindows(ctx context.Context) *UninstallResult {
-	if runtime.GOOS != "windows" {
+	if d.probe.goos() != "windows" {
 		return &UninstallResult{
 			Success: false,
 			Message: "Windows uninstallation must be run on Windows",
@@ -609,8 +581,7 @@ func (d *Detector) uninstallWindows(ctx context.Context) *UninstallResult {
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, "schtasks", "/Delete", "/TN", "VrooliAutoheal", "/F")
-	if output, err := cmd.CombinedOutput(); err != nil {
+	if output, err := d.probe.commandOutput("schtasks", "/Delete", "/TN", "VrooliAutoheal", "/F"); err != nil {
 		errStr := string(output)
 		if strings.Contains(errStr, "does not exist") {
 			return &UninstallResult{

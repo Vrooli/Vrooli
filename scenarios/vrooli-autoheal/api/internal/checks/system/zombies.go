@@ -70,6 +70,7 @@ func (c *ZombieCheck) Title() string { return "Zombie Processes" }
 func (c *ZombieCheck) Description() string {
 	return "Detects zombie (defunct) processes that indicate resource leaks"
 }
+
 func (c *ZombieCheck) Importance() string {
 	return "Zombie processes indicate parent processes not reaping children, which can exhaust process table"
 }

@@ -18,7 +18,6 @@ func TestRealExecutorOutput(t *testing.T) {
 	ctx := context.Background()
 
 	output, err := exec.Output(ctx, "echo", "hello")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -45,7 +44,6 @@ func TestRealExecutorCombinedOutput(t *testing.T) {
 	ctx := context.Background()
 
 	output, err := exec.CombinedOutput(ctx, "echo", "test")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -60,7 +58,6 @@ func TestRealExecutorRun(t *testing.T) {
 	ctx := context.Background()
 
 	err := exec.Run(ctx, "true")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

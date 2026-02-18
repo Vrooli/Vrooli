@@ -26,8 +26,7 @@ func TestNewStore(t *testing.T) {
 	store := NewStore(db)
 	if store == nil {
 		t.Error("NewStore should return a non-nil store")
-	}
-	if store.db != db {
+	} else if store.db != db {
 		t.Error("Store should hold reference to provided db")
 	}
 }

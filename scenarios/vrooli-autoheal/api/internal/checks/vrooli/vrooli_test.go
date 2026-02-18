@@ -468,7 +468,7 @@ func TestScenarioCheckRun_APIDownFallsBackToDirectHealthCheck(t *testing.T) {
 		expectedStatus checks.Status
 		expectedMsg    string
 	}{
-	{
+		{
 			name:           "direct check confirms running",
 			directHealthy:  true,
 			critical:       true,

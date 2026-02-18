@@ -67,11 +67,11 @@ type MemInfo struct {
 // ProcessInfo contains information about a process
 type ProcessInfo struct {
 	PID       int
-	State     string // R=running, S=sleeping, Z=zombie, etc.
-	PPid      int    // Parent PID
-	Comm      string // Command name
-	StartTime uint64 // Process start time in clock ticks since boot
-	Cmdline   string // Full command line from /proc/[pid]/cmdline
+	State     string            // R=running, S=sleeping, Z=zombie, etc.
+	PPid      int               // Parent PID
+	Comm      string            // Command name
+	StartTime uint64            // Process start time in clock ticks since boot
+	Cmdline   string            // Full command line from /proc/[pid]/cmdline
 	Environ   map[string]string // Environment variables from /proc/[pid]/environ (lazy loaded)
 }
 
@@ -202,7 +202,9 @@ func (r *RealProcReader) ListProcesses() ([]ProcessInfo, error) {
 
 // readProcessStat reads /proc/[pid]/stat for a single process
 // Format: pid (comm) state ppid pgrp session tty_nr tpgid flags minflt cminflt majflt cmajflt
-//         utime stime cutime cstime priority nice num_threads itrealvalue starttime ...
+//
+//	utime stime cutime cstime priority nice num_threads itrealvalue starttime ...
+//
 // Fields are 1-indexed in documentation, but 0-indexed in the rest slice after we extract pid and comm.
 // starttime is field 22 (1-indexed), which is rest[19] (state=rest[0], ppid=rest[1], ..., starttime=rest[19])
 func readProcessStat(pid int) (ProcessInfo, error) {

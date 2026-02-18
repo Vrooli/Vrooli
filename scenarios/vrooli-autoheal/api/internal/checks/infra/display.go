@@ -50,6 +50,7 @@ func (c *DisplayManagerCheck) Title() string { return "Display Manager" }
 func (c *DisplayManagerCheck) Description() string {
 	return "Monitors display manager and X11/Wayland status"
 }
+
 func (c *DisplayManagerCheck) Importance() string {
 	return "Required for GUI sessions - failures prevent graphical login and desktop access"
 }

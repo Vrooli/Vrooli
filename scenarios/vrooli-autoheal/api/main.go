@@ -230,4 +230,3 @@ func initializeSchema(db *sql.DB) error {
 	log.Printf("database schema initialized successfully")
 	return nil
 }
-

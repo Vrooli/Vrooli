@@ -22,7 +22,6 @@ func TestRealFileSystemReaderStatfs(t *testing.T) {
 	reader := &RealFileSystemReader{}
 
 	result, err := reader.Statfs("/")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -72,7 +71,6 @@ func TestRealProcReaderReadMeminfo(t *testing.T) {
 	reader := &RealProcReader{}
 
 	info, err := reader.ReadMeminfo()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -92,7 +90,6 @@ func TestRealProcReaderListProcesses(t *testing.T) {
 	reader := &RealProcReader{}
 
 	procs, err := reader.ListProcesses()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -123,7 +120,6 @@ func TestReadProcessStat(t *testing.T) {
 	// Read current process
 	pid := os.Getpid()
 	info, err := readProcessStat(pid)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -169,7 +165,6 @@ func TestRealPortReaderReadPortStats(t *testing.T) {
 	reader := &RealPortReader{}
 
 	info, err := reader.ReadPortStats()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -221,17 +216,16 @@ func TestRealCacheCheckerGetCacheSize(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create test files
-	if err := os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("hello"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("hello"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("world!!"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("world!!"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	checker := &RealCacheChecker{}
 
 	size, err := checker.GetCacheSize(tmpDir)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -246,7 +240,6 @@ func TestRealCacheCheckerGetCacheSizeNotExist(t *testing.T) {
 	checker := &RealCacheChecker{}
 
 	size, err := checker.GetCacheSize("/nonexistent/path/12345")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -260,23 +253,22 @@ func TestRealCacheCheckerGetCacheSizeWithSubdir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a file
-	if err := os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("test"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	// Create a subdirectory (should not be counted)
 	subDir := filepath.Join(tmpDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0o644); err != nil {
 		t.Fatalf("failed to create nested file: %v", err)
 	}
 
 	checker := &RealCacheChecker{}
 
 	size, err := checker.GetCacheSize(tmpDir)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -292,7 +284,6 @@ func TestRealCacheCheckerCleanCache(t *testing.T) {
 	checker := &RealCacheChecker{}
 
 	count, size, err := checker.CleanCache(tmpDir, 30)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

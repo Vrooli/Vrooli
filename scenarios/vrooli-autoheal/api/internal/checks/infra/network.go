@@ -75,6 +75,7 @@ func (c *NetworkCheck) Title() string { return "Internet Connection" }
 func (c *NetworkCheck) Description() string {
 	return "Tests TCP connectivity to Google DNS (8.8.8.8:53)"
 }
+
 func (c *NetworkCheck) Importance() string {
 	return "Required for external API calls, package updates, and tunnel connectivity"
 }

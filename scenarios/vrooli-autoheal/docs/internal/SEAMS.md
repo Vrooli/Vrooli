@@ -165,6 +165,54 @@ vrooli-autoheal follows a layered architecture with clear responsibility separat
 
 ## Key Design Decisions
 
+### Watchdog Detection System Probe Seam
+
+`api/internal/watchdog/watchdog.go` now routes environment/runtime interactions through a dedicated `detectorProbe` boundary. This seam isolates:
+
+- OS and platform branching (`GOOS`)
+- command execution (`tasklist`, `pgrep`, `systemctl`, `launchctl`, `schtasks`, `loginctl`)
+- process inspection fallback (`/proc` directory and cmdline reads)
+- file existence checks for service artifacts
+- user/home/environment lookups used by detection and template rendering
+
+Production uses `realDetectorProbe`; tests can inject a fake probe to exercise watchdog detection without real process tables, systemd state, launchctl, or Windows task scheduler.
+
+This avoids environment-coupled tests and keeps watchdog status logic testable as pure decision flow over probe outputs.
+
+### Watchdog Installer Entry Seam (Probe-Reused)
+
+`api/internal/watchdog/installer.go` now reuses `detectorProbe` for installer entry decisions that vary by environment:
+
+- runtime OS checks for Windows-only install/uninstall gating
+- `VROOLI_ROOT` and home-directory lookup when resolving loop binary path
+- binary existence verification before installation
+
+This keeps platform/env discovery at a single seam (`Detector.probe`) and makes installer boundary behavior unit-testable without depending on the host OS or real filesystem layout.
+
+### Watchdog Installer Side-Effect Seam (Probe-Enforced)
+
+`api/internal/watchdog/installer.go` now routes installer/uninstaller side effects through `detectorProbe` instead of calling OS/process APIs directly in boundary logic:
+
+- command execution for service/task lifecycle (`systemctl`, `launchctl`, `schtasks`, `loginctl`, `sudo rm`)
+- command execution with stdin for privileged file writes (`sudo tee` for system service/plist files)
+- filesystem mutations (`mkdirAll`, `writeFile`, `remove`)
+- temporary task-file writes for Windows scheduled task creation (`writeTempFile`)
+
+This consolidates environment-coupled behavior behind one seam so installation flow remains decision-oriented and testable with fakes.
+
+### User Config Filesystem + Home-Dir Seam
+
+`api/internal/userconfig/manager.go` now routes filesystem and home-directory behavior through a dedicated `configIO` seam (`api/internal/userconfig/config_io.go`):
+
+- config file presence checks (`Stat`)
+- config and schema reads (`ReadFile`)
+- directory creation and atomic save writes (`MkdirAll`, `WriteFile`, `Rename`, `Remove`)
+- default config path home-directory lookup (`UserHomeDir`)
+
+Production uses `realConfigIO`. Tests can inject fakes to exercise failure paths and fallback behavior without touching host filesystems or user home directories.
+
+This keeps config merge/validation logic focused on domain behavior while isolating OS-dependent side effects behind one explicit boundary.
+
 ### Dependency Injection for Platform Capabilities
 
 **Before (leaked responsibility):**
@@ -213,6 +261,11 @@ This change:
 - Keeps check implementations pure
 - Centralizes operational configuration
 - Makes defaults visible and changeable in one place
+
+### Remaining Weak Points
+
+- Some checks still rely on wall-clock `time.Now()` internally instead of injected clocks; those paths are testable but less deterministic for edge timing cases.
+- Some Vrooli check action flows (for example parts of `api/internal/checks/vrooli/api.go`) still perform direct env/home/filesystem lookups in action logic instead of a single injected boundary.
 
 ---
 

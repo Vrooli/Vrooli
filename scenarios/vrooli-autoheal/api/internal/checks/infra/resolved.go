@@ -48,6 +48,7 @@ func (c *ResolvedCheck) Title() string { return "DNS Resolver Service" }
 func (c *ResolvedCheck) Description() string {
 	return "Monitors systemd-resolved service which provides DNS resolution"
 }
+
 func (c *ResolvedCheck) Importance() string {
 	return "Required for DNS resolution - failures break hostname lookups and service discovery"
 }

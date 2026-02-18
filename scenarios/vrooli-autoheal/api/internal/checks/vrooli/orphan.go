@@ -103,6 +103,7 @@ func (c *OrphanCheck) Title() string { return "Orphan Processes" }
 func (c *OrphanCheck) Description() string {
 	return "Detects Vrooli processes running without lifecycle tracking"
 }
+
 func (c *OrphanCheck) Importance() string {
 	return "Orphan processes can hold ports, consume resources, and prevent scenario restarts"
 }

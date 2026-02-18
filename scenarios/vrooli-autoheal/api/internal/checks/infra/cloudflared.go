@@ -164,6 +164,7 @@ func (c *CloudflaredCheck) Title() string { return "Cloudflare Tunnel" }
 func (c *CloudflaredCheck) Description() string {
 	return "Verifies cloudflared service is installed and running"
 }
+
 func (c *CloudflaredCheck) Importance() string {
 	return "Required for external access to hosted scenarios via Cloudflare Tunnel"
 }
