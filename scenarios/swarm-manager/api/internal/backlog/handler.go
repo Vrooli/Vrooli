@@ -770,7 +770,31 @@ func (h *Handler) saveItem(item BacklogItem) error {
 		return fmt.Errorf("backlog kind is required")
 	}
 	specPath := filepath.Join(h.itemDir(item.Kind, item.Name), "spec.json")
-	data, err := json.MarshalIndent(item, "", "  ")
+
+	// Preserve archive and other unknown metadata fields when rewriting spec.json.
+	merged := map[string]any{}
+	if existing, err := os.ReadFile(specPath); err == nil {
+		_ = json.Unmarshal(existing, &merged)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	merged["name"] = item.Name
+	merged["title"] = item.Title
+	merged["description"] = item.Description
+	merged["status"] = item.Status
+	merged["priority"] = item.Priority
+	merged["tags"] = item.Tags
+	merged["created"] = item.Created
+	merged["updated"] = item.Updated
+	merged["kind"] = item.Kind
+	if item.Kind == KindResearch && strings.TrimSpace(item.ResearchTarget) != "" {
+		merged["research_target"] = item.ResearchTarget
+	} else {
+		delete(merged, "research_target")
+	}
+
+	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -1192,6 +1216,33 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if httputil.IsDryRun(r) {
+		resp := map[string]any{
+			"item": map[string]any{
+				"name":        item.Name,
+				"title":       item.Title,
+				"description": item.Description,
+				"status":      item.Status,
+				"priority":    item.Priority,
+				"tags":        item.Tags,
+				"created":     item.Created,
+				"updated":     item.Updated,
+				"kind":        item.Kind,
+			},
+			"task_id":   "dry-run-task",
+			"run_id":    "",
+			"base_url":  "",
+			"created":   time.Now().UTC().Format(time.RFC3339),
+			"dry_run":   true,
+			"mode":      string(mode),
+			"operation": operation,
+		}
+		if err := httputil.JSONWithStatus(w, http.StatusOK, resp); err != nil {
+			httputil.InternalError(w, "[backlog] queue", "failed to encode dry-run response")
+		}
+		return
+	}
+
 	executionService := execution.NewService(execution.ServiceConfig{
 		RootDir:      h.rootDir,
 		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
@@ -1379,6 +1430,21 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 				trace.Prompt = prompt
 			}
 		}
+	}
+
+	if httputil.IsDryRun(r) {
+		resp := map[string]any{
+			"task_id":  "dry-run-task",
+			"run_id":   "dry-run-run",
+			"base_url": "",
+			"created":  time.Now().UTC().Format(time.RFC3339),
+			"dry_run":  true,
+			"skill_id": selection.SkillID,
+		}
+		if err := httputil.JSONWithStatus(w, http.StatusOK, resp); err != nil {
+			httputil.InternalError(w, "[backlog] research", "failed to encode dry-run response")
+		}
+		return
 	}
 
 	runResult, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{

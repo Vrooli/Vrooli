@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search as SearchIcon, Loader2, Play, MessageSquare, Wrench, ChevronDown, Info, RefreshCw } from 'lucide-react'
+import { Search as SearchIcon, Loader2, Play, MessageSquare, Wrench, ChevronDown, Info, RefreshCw, Copy, Check, SendHorizontal, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EventsDisplay } from '@/components/shared/EventsDisplay'
 import {
@@ -19,6 +19,7 @@ import {
   listRuns,
   getRunDetails,
   type RunDetails,
+  type RunEvent,
 } from '@/services/heartbeatService'
 
 interface RunInvestigationTabProps {
@@ -27,6 +28,7 @@ interface RunInvestigationTabProps {
 }
 
 type DepthOption = 'quick' | 'standard' | 'deep'
+type InvestigationAction = 'apply' | 'followUp' | 'newInvestigation'
 
 const DEPTH_OPTIONS: { value: DepthOption; label: string; description: string }[] = [
   { value: 'quick', label: 'Quick', description: 'Fast surface-level scan' },
@@ -54,6 +56,10 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
   const [depth, setDepth] = useState<DepthOption>('standard')
   const [customContext, setCustomContext] = useState('')
   const [followUpMessage, setFollowUpMessage] = useState('')
+  const [selectedAction, setSelectedAction] = useState<InvestigationAction | null>(null)
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false)
+  const [copiedJson, setCopiedJson] = useState(false)
+  const [filteredEvents, setFilteredEvents] = useState<RunEvent[]>([])
 
   const [checkingExisting, setCheckingExisting] = useState(true)
   const [isStarting, setIsStarting] = useState(false)
@@ -162,35 +168,71 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
     }
   }, [runId, depth, customContext])
 
-  const handleContinue = useCallback(async () => {
-    if (!selectedInvestigation || !followUpMessage.trim()) return
+  const handleContinue = useCallback(async (message: string) => {
+    if (!selectedInvestigation || !message.trim()) return
     setError(null)
     try {
-      await continueRun(selectedInvestigation.id, followUpMessage)
+      await continueRun(selectedInvestigation.id, message)
       const updated = await getRunDetails(selectedInvestigation.id)
       setInvestigations((prev) => prev.map((r) => (r.id === selectedInvestigation.id ? updated : r)))
-      setFollowUpMessage('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send follow-up')
     }
-  }, [selectedInvestigation, followUpMessage])
+  }, [selectedInvestigation])
 
-  const handleNewInvestigationFromFollowup = useCallback(async () => {
-    if (!followUpMessage.trim()) return
-    await handleInvestigate(followUpMessage.trim())
-    setFollowUpMessage('')
-  }, [followUpMessage, handleInvestigate])
+  const handleNewInvestigationFromFollowup = useCallback(async (message: string) => {
+    if (!message.trim()) return
+    await handleInvestigate(message.trim())
+  }, [handleInvestigate])
 
-  const handleApply = useCallback(async () => {
+  const handleApply = useCallback(async (message?: string) => {
     if (!selectedInvestigation) return
     setError(null)
     try {
-      const nextApplyRun = await createInvestigationApplyRun(selectedInvestigation.id)
+      const nextApplyRun = await createInvestigationApplyRun(selectedInvestigation.id, message?.trim() || undefined)
       setApplyRun(nextApplyRun)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply recommendations')
     }
   }, [selectedInvestigation])
+
+  const handleCopyJson = useCallback(() => {
+    const text = JSON.stringify(filteredEvents, null, 2)
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopiedJson(true)
+      setTimeout(() => setCopiedJson(false), 1500)
+    })
+  }, [filteredEvents])
+
+  const getActionLabel = useCallback((action: InvestigationAction | null): string => {
+    if (action === 'apply') return 'Apply Recommendations'
+    if (action === 'followUp') return 'Follow Up'
+    if (action === 'newInvestigation') return 'New Investigation'
+    return ''
+  }, [])
+
+  const actionCanSubmit = selectedAction === 'apply' ? true : Boolean(followUpMessage.trim())
+
+  const handleActionSubmit = useCallback(async () => {
+    if (!selectedAction || isSubmittingAction) return
+    const message = followUpMessage.trim()
+    if (selectedAction !== 'apply' && !message) return
+
+    setIsSubmittingAction(true)
+    try {
+      if (selectedAction === 'apply') {
+        await handleApply(message)
+      } else if (selectedAction === 'followUp') {
+        await handleContinue(message)
+      } else {
+        await handleNewInvestigationFromFollowup(message)
+      }
+      setFollowUpMessage('')
+      setSelectedAction(null)
+    } finally {
+      setIsSubmittingAction(false)
+    }
+  }, [selectedAction, isSubmittingAction, followUpMessage, handleApply, handleContinue, handleNewInvestigationFromFollowup])
 
   if (checkingExisting) {
     return (
@@ -293,36 +335,51 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
 
       {selectedInvestigation && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Investigation history for run <span className="font-mono text-foreground">{runId}</span>
-            </p>
-            <button
-              type="button"
-              onClick={() => void loadInvestigations(true)}
-              className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} /> Refresh
-            </button>
-          </div>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="min-w-[200px] flex-1">
+              {investigations.length > 1 ? (
+                <select
+                  value={selectedInvestigationId ?? ''}
+                  onChange={(e) => setSelectedInvestigationId(e.target.value)}
+                  aria-label="Select investigation"
+                  className={cn(
+                    'w-full rounded-md border border-border bg-muted px-3 py-2 text-xs text-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-primary'
+                  )}
+                >
+                  {investigations.map((run, idx) => (
+                    <option key={run.id} value={run.id}>
+                      {formatRunLabel(run, idx)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-foreground" title={selectedInvestigation.id}>
+                  {formatRunLabel(selectedInvestigation, 0)}
+                </p>
+              )}
+            </div>
 
-          <div className="flex flex-wrap gap-2">
-            {investigations.map((run, idx) => (
+            <div className="flex items-center gap-2">
               <button
-                key={run.id}
                 type="button"
-                onClick={() => setSelectedInvestigationId(run.id)}
-                className={cn(
-                  'rounded-md border px-2 py-1 text-xs',
-                  selectedInvestigationId === run.id
-                    ? 'border-primary text-primary bg-primary/10'
-                    : 'border-border text-muted-foreground hover:text-foreground'
-                )}
-                title={run.id}
+                onClick={() => void loadInvestigations(true)}
+                aria-label="Refresh investigations"
+                className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
               >
-                {formatRunLabel(run, idx)}
+                <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={handleCopyJson}
+                aria-label="Copy investigation JSON"
+                className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {copiedJson ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{copiedJson ? 'Copied' : 'Copy JSON'}</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -343,58 +400,80 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
           <EventsDisplay
             runId={selectedInvestigation.id}
             live={isActiveStatus(selectedInvestigation.status)}
+            showHeader={false}
+            onFilteredEventsChange={setFilteredEvents}
           />
 
           {!isActiveStatus(selectedInvestigation.status) && (
             <>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={followUpMessage}
-                  onChange={(e) => setFollowUpMessage(e.target.value)}
-                  placeholder="Ask follow-up or start a fresh investigation from this message..."
-                  className={cn(
-                    'flex-1 px-3 py-2 text-sm rounded-md border border-border bg-muted',
-                    'text-foreground placeholder:text-muted-foreground',
-                    'focus:outline-none focus:ring-2 focus:ring-primary'
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleContinue()}
-                  disabled={!followUpMessage.trim()}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium',
-                    followUpMessage.trim()
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'bg-muted text-muted-foreground cursor-not-allowed'
-                  )}
-                >
-                  <MessageSquare className="h-3.5 w-3.5" /> Continue current
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleNewInvestigationFromFollowup()}
-                  disabled={!followUpMessage.trim() || isStarting}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium border border-primary',
-                    followUpMessage.trim() && !isStarting
-                      ? 'text-primary hover:bg-primary/10'
-                      : 'text-muted-foreground border-border cursor-not-allowed'
-                  )}
-                >
-                  <Play className="h-3.5 w-3.5" /> Start new investigation
-                </button>
-              </div>
+              {!selectedAction ? (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAction('apply')}
+                    className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium border border-primary text-primary hover:bg-primary/10"
+                  >
+                    <Wrench className="h-3.5 w-3.5" /> Apply Recommendations
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAction('followUp')}
+                    className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" /> Follow Up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAction('newInvestigation')}
+                    className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium border border-border text-muted-foreground hover:text-foreground"
+                  >
+                    <Play className="h-3.5 w-3.5" /> New Investigation
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedAction(null)
+                      setFollowUpMessage('')
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    {getActionLabel(selectedAction)}
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => void handleApply()}
-                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors border border-primary text-primary hover:bg-primary/10"
-              >
-                <Wrench className="h-4 w-4" />
-                Apply Recommendations
-              </button>
+                  <div className="relative">
+                    <textarea
+                      value={followUpMessage}
+                      onChange={(e) => setFollowUpMessage(e.target.value)}
+                      placeholder={`Add a message for ${getActionLabel(selectedAction).toLowerCase()}...`}
+                      className={cn(
+                        'w-full pr-11 px-3 py-2 text-sm rounded-md border border-border bg-muted',
+                        'text-foreground placeholder:text-muted-foreground',
+                        'focus:outline-none focus:ring-2 focus:ring-primary',
+                        'resize-y min-h-[88px]'
+                      )}
+                      rows={3}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleActionSubmit()}
+                      disabled={!actionCanSubmit || isSubmittingAction}
+                      aria-label={`Send ${getActionLabel(selectedAction).toLowerCase()}`}
+                      className={cn(
+                        'absolute bottom-2 right-2 inline-flex items-center justify-center rounded-md h-8 w-8 transition-colors',
+                        actionCanSubmit && !isSubmittingAction
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-muted border border-border text-muted-foreground cursor-not-allowed'
+                      )}
+                    >
+                      {isSubmittingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

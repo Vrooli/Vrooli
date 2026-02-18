@@ -367,6 +367,22 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return err
 	}
 
+	if response.DryRun {
+		printSection("Result")
+		fmt.Printf("  Dry-run validated queue request for: %s/%s\n", kind, name)
+		printSection("What Would Change")
+		fmt.Printf("  Mode: %s\n", opts.mode)
+		fmt.Printf("  Operation: %s\n", opts.operation)
+		if opts.mode == "scheduled" {
+			fmt.Printf("  Delay Seconds: %d\n", opts.delaySeconds)
+		}
+		printCommandListSection("Next Steps", []string{
+			cliCommand("backlog", "queue", "--kind", kind, "--name", name),
+			cliCommand("execution", "list", "--backlog-kind", kind, "--backlog-name", name),
+		})
+		return nil
+	}
+
 	printSection("Result")
 	fmt.Printf("  Queued backlog item: %s/%s\n", response.Item.Kind, response.Item.Name)
 	printSection("What Changed")
@@ -421,6 +437,16 @@ func (a *App) cmdBacklogResearch(args []string) error {
 	response, err := decodeResponse[ResearchResponse](body)
 	if err != nil {
 		return err
+	}
+
+	if response.DryRun {
+		printSection("Result")
+		fmt.Printf("  Dry-run validated research request for %s/%s\n", kind, name)
+		printCommandListSection("Next Steps", []string{
+			cliCommand("backlog", "research", "--kind", kind, "--name", name),
+			cliCommand("backlog", "prompt-trace", "--kind", kind, "--name", name),
+		})
+		return nil
 	}
 
 	printSection("Result")
@@ -567,7 +593,6 @@ func (a *App) cmdBacklogFileGet(args []string) error {
 	})
 	return nil
 }
-
 
 func (a *App) cmdBacklogFileUpload(args []string) error {
 	fs := flag.NewFlagSet("backlog file-upload", flag.ContinueOnError)

@@ -50,15 +50,15 @@ item-folder/
 
 ```json
 {
-  "kind": "idea | fix | execute",
+  "kind": "idea | research | fix | execute",
   "name": "kebab-case-name",
   "title": "Human-readable title",
   "description": "Full description of the item",
   "priority": 1,
-  "status": "draft | ready | in-progress | done | blocked",
+  "status": "backlog | researching | ready | queued | in_progress | completed | archived",
   "tags": ["tag1", "tag2"],
-  "created_at": "ISO-8601",
-  "updated_at": "ISO-8601"
+  "created": "ISO-8601",
+  "updated": "ISO-8601"
 }
 ```
 

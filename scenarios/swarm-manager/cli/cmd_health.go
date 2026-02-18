@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -37,7 +38,7 @@ func (a *App) cmdStatus(args []string) error {
 			fmt.Println("  No dependency issues reported.")
 		}
 		for key, value := range parsed.Deps {
-			fmt.Printf("  %s: %s\n", key, value)
+			fmt.Printf("  %s: %s\n", key, formatDependencyValue(value))
 		}
 		fmt.Println("\nNext Steps:")
 		if parsed.Readiness {
@@ -51,4 +52,32 @@ func (a *App) cmdStatus(args []string) error {
 	}
 
 	return fmt.Errorf("failed to parse health response")
+}
+
+func formatDependencyValue(v any) string {
+	switch typed := v.(type) {
+	case string:
+		if strings.TrimSpace(typed) == "" {
+			return "unknown"
+		}
+		return typed
+	case map[string]any:
+		if connected, ok := typed["connected"].(bool); ok {
+			if connected {
+				return "connected"
+			}
+			return "disconnected"
+		}
+	case bool:
+		if typed {
+			return "connected"
+		}
+		return "disconnected"
+	}
+
+	encoded, err := json.Marshal(v)
+	if err != nil {
+		return "unknown"
+	}
+	return string(encoded)
 }

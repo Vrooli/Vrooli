@@ -27,6 +27,8 @@ import (
 	"strings"
 )
 
+const dryRunHeader = "X-Dry-Run"
+
 // JSON writes a JSON response with proper Content-Type header.
 // Returns any encoding error, though errors are unlikely for valid Go structs.
 func JSON(w http.ResponseWriter, data any) error {
@@ -97,4 +99,12 @@ func SafeFilePath(baseDir, relativePath string) (string, bool) {
 		return "", false
 	}
 	return filepath.Join(baseDir, relativePath), true
+}
+
+// IsDryRun reports whether request should validate without mutating state.
+func IsDryRun(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(r.Header.Get(dryRunHeader)), "true")
 }

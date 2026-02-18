@@ -644,6 +644,46 @@ func TestQueue_AllowsArchivedIdea(t *testing.T) {
 	testutil.AssertStatus(t, w, http.StatusAccepted)
 }
 
+func TestQueue_DryRun_DoesNotMutateState(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:        "queue-dry-run",
+		Title:       "Queue Dry Run",
+		Description: "",
+		Status:      StatusBacklog,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-dry-run/queue", bytes.NewBufferString(`{"mode":"yolo"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Dry-Run", "true")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "queue-dry-run"})
+	w := httptest.NewRecorder()
+
+	h.Queue(w, req)
+	testutil.AssertStatus(t, w, http.StatusOK)
+
+	resp := testutil.DecodeJSON[map[string]any](t, w)
+	if dryRun, ok := resp["dry_run"].(bool); !ok || !dryRun {
+		t.Fatalf("expected dry_run=true, got %#v", resp["dry_run"])
+	}
+	if agent.lastReq != nil {
+		t.Fatalf("expected no agent spawn during dry-run")
+	}
+	updated := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "queue-dry-run", "spec.json"))
+	if updated.Status != StatusBacklog {
+		t.Fatalf("expected status backlog after dry-run, got %s", updated.Status)
+	}
+}
+
 func TestResearch_SpawnsAgent(t *testing.T) {
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
@@ -683,6 +723,95 @@ func TestResearch_SpawnsAgent(t *testing.T) {
 	testutil.AssertStatusOK(t, traceW)
 	if !strings.Contains(traceW.Body.String(), `"skill_id":"swarm-manager-clarify-idea"`) {
 		t.Fatalf("expected prompt trace with clarify skill, got %s", traceW.Body.String())
+	}
+}
+
+func TestResearch_DryRun_DoesNotSpawnAgent(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:        "research-dry-run",
+		Title:       "Research Dry Run",
+		Description: "",
+		Status:      StatusBacklog,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	payload := map[string]any{"mode": "clarify"}
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/research-dry-run/research", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Dry-Run", "true")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "research-dry-run"})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+	testutil.AssertStatus(t, w, http.StatusOK)
+
+	resp := testutil.DecodeJSON[map[string]any](t, w)
+	if dryRun, ok := resp["dry_run"].(bool); !ok || !dryRun {
+		t.Fatalf("expected dry_run=true, got %#v", resp["dry_run"])
+	}
+	if agent.lastReq != nil {
+		t.Fatalf("expected no agent spawn during dry-run")
+	}
+}
+
+func TestSaveItem_PreservesUnknownSpecFields(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	raw := map[string]any{
+		"name":            "metadata-keep",
+		"title":           "Metadata Keep",
+		"description":     "desc",
+		"status":          "archived",
+		"priority":        5,
+		"tags":            []string{"x"},
+		"created":         "2026-01-28T00:00:00Z",
+		"updated":         "2026-01-28T00:00:00Z",
+		"kind":            "idea",
+		"archiveReason":   "scenario deleted with archive=true",
+		"sourceScenario":  "web-console",
+		"preservedFiles":  []string{"PRD.md"},
+		"archivedByHuman": true,
+	}
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", "metadata-keep", "spec.json"), raw)
+
+	item := BacklogItem{
+		Name:        "metadata-keep",
+		Kind:        KindIdea,
+		Title:       "Metadata Keep Updated",
+		Description: "updated",
+		Status:      StatusArchived,
+		Priority:    6,
+		Tags:        []string{"y"},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-29T00:00:00Z",
+	}
+	if err := h.saveItem(item); err != nil {
+		t.Fatalf("saveItem error: %v", err)
+	}
+
+	var persisted map[string]any
+	data, err := os.ReadFile(filepath.Join(rootDir, "ideas", "metadata-keep", "spec.json"))
+	if err != nil {
+		t.Fatalf("read spec.json: %v", err)
+	}
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		t.Fatalf("unmarshal spec.json: %v", err)
+	}
+
+	if persisted["archiveReason"] != "scenario deleted with archive=true" {
+		t.Fatalf("expected archiveReason preserved, got %#v", persisted["archiveReason"])
+	}
+	if persisted["sourceScenario"] != "web-console" {
+		t.Fatalf("expected sourceScenario preserved, got %#v", persisted["sourceScenario"])
 	}
 }
 

@@ -41,6 +41,7 @@ type Record struct {
 	ExecutionID    string          `json:"execution_id"`
 	BacklogKind    string          `json:"backlog_kind"`
 	BacklogName    string          `json:"backlog_name"`
+	PreviousStatus string          `json:"previous_status,omitempty"`
 	TaskID         string          `json:"task_id,omitempty"`
 	RunID          string          `json:"run_id,omitempty"`
 	Status         Status          `json:"status"`

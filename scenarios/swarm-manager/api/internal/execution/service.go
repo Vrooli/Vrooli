@@ -143,15 +143,16 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 
 	now := nowRFC3339()
 	record := Record{
-		ExecutionID: idgen.Generate(),
-		BacklogKind: strings.ToLower(strings.TrimSpace(req.BacklogKind)),
-		BacklogName: strings.TrimSpace(req.BacklogName),
-		Mode:        mode,
-		Status:      StatusPending,
-		StartedBy:   strings.TrimSpace(req.StartedBy),
-		Operation:   normalizeOperation(req.Operation),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ExecutionID:    idgen.Generate(),
+		BacklogKind:    strings.ToLower(strings.TrimSpace(req.BacklogKind)),
+		BacklogName:    strings.TrimSpace(req.BacklogName),
+		PreviousStatus: strings.ToLower(strings.TrimSpace(item.Status)),
+		Mode:           mode,
+		Status:         StatusPending,
+		StartedBy:      strings.TrimSpace(req.StartedBy),
+		Operation:      normalizeOperation(req.Operation),
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 	if record.StartedBy == "" {
 		record.StartedBy = "swarm-manager"
@@ -181,7 +182,24 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	}
 
 	if mode == ModeYOLO {
-		return s.startLocked(ctx, record.ExecutionID)
+		started, startErr := s.startLocked(ctx, record.ExecutionID)
+		if startErr == nil {
+			return started, nil
+		}
+
+		// Roll back queue side-effects when immediate start fails.
+		rolledBack, rbErr := s.store.Load()
+		if rbErr == nil {
+			filtered := make([]Record, 0, len(rolledBack))
+			for _, candidate := range rolledBack {
+				if candidate.ExecutionID != record.ExecutionID {
+					filtered = append(filtered, candidate)
+				}
+			}
+			_ = s.store.Save(filtered)
+		}
+		_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
+		return Record{}, startErr
 	}
 	return record, nil
 }
@@ -389,7 +407,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 			return Record{}, err
 		}
 		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-			_ = s.updateBacklogStatus(item, "ready")
+			_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
 		}
 		return record, nil
 	case StatusRunning:
@@ -410,7 +428,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 			return Record{}, err
 		}
 		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-			_ = s.updateBacklogStatus(item, "ready")
+			_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
 		}
 		return record, nil
 	default:
@@ -545,7 +563,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 			if nextStatus == StatusCompleted {
 				_ = s.updateBacklogStatus(item, "completed")
 			} else if nextStatus == StatusFailed || nextStatus == StatusCanceled {
-				_ = s.updateBacklogStatus(item, "ready")
+				_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
 			}
 		}
 		changed = true
@@ -725,6 +743,19 @@ func matchesFilters(record Record, filters ListFilters) bool {
 	return true
 }
 
+func restoreBacklogStatus(record Record) string {
+	previous := strings.ToLower(strings.TrimSpace(record.PreviousStatus))
+	switch previous {
+	case "archived":
+		if strings.TrimSpace(record.BacklogKind) == "idea" {
+			return "archived"
+		}
+	case "backlog", "researching", "ready":
+		return previous
+	}
+	return "ready"
+}
+
 type backlogItem struct {
 	Name           string   `json:"name"`
 	Title          string   `json:"title"`
@@ -759,7 +790,29 @@ func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {
 func (s *Service) updateBacklogStatus(item backlogItem, status string) error {
 	item.Status = status
 	item.Updated = nowRFC3339()
-	return storage.WriteJSONAtomic(filepath.Join(s.itemDir(item.Kind, item.Name), "spec.json"), item)
+	specPath := filepath.Join(s.itemDir(item.Kind, item.Name), "spec.json")
+	merged := map[string]any{}
+	if existing, err := os.ReadFile(specPath); err == nil {
+		_ = json.Unmarshal(existing, &merged)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	merged["name"] = item.Name
+	merged["title"] = item.Title
+	merged["description"] = item.Description
+	merged["status"] = item.Status
+	merged["priority"] = item.Priority
+	merged["tags"] = item.Tags
+	merged["created"] = item.Created
+	merged["updated"] = item.Updated
+	merged["kind"] = item.Kind
+	if strings.TrimSpace(item.ResearchTarget) != "" && item.Kind == "research" {
+		merged["research_target"] = item.ResearchTarget
+	} else {
+		delete(merged, "research_target")
+	}
+	return storage.WriteJSONAtomic(specPath, merged)
 }
 
 func (s *Service) kindDir(kind string) string {

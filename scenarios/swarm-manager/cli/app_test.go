@@ -843,3 +843,25 @@ func TestParseKVCSVValidation(t *testing.T) {
 		t.Fatalf("unexpected parsed values: %#v", values)
 	}
 }
+
+func TestCmdStatus_ParsesNestedDependencies(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"status":"healthy","service":"swarm-manager-api","readiness":true,"dependencies":{"database":{"connected":true}}}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdStatus([]string{}); err != nil {
+		t.Fatalf("cmdStatus returned error: %v", err)
+	}
+}

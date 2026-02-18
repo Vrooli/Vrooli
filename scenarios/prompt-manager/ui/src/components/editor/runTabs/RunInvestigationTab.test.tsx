@@ -47,25 +47,27 @@ describe('RunInvestigationTab', () => {
   it('restores linked investigations on mount via investigates_run_id filter', async () => {
     const { unmount } = render(<RunInvestigationTab runId="source-1" />)
 
-    await screen.findByText(/Investigation history for run/i)
+    await screen.findByText(/Selected investigation status:/i)
     expect(listRuns).toHaveBeenCalledWith({ investigatesRunId: 'source-1', limit: 50 })
-    expect(screen.getByText(/Selected investigation status:/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Refresh investigations/i })).toBeInTheDocument()
 
     unmount()
 
     render(<RunInvestigationTab runId="source-1" />)
-    await screen.findByText(/Investigation history for run/i)
+    await screen.findByText(/Selected investigation status:/i)
 
     expect(listRuns).toHaveBeenCalledWith({ investigatesRunId: 'source-1', limit: 50 })
   })
 
-  it('uses continueRun for "Continue current" follow-up path', async () => {
+  it('uses continueRun for Follow Up action', async () => {
     render(<RunInvestigationTab runId="source-1" />)
 
-    const input = await screen.findByPlaceholderText(/Ask follow-up or start a fresh investigation/i)
+    fireEvent.click(await screen.findByRole('button', { name: /Follow Up/i }))
+
+    const input = await screen.findByPlaceholderText(/Add a message for follow up/i)
     fireEvent.change(input, { target: { value: 'Please explain root cause in one paragraph.' } })
 
-    fireEvent.click(screen.getByRole('button', { name: /Continue current/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send follow up/i }))
 
     await waitFor(() => {
       expect(continueRun).toHaveBeenCalledWith('inv-1', 'Please explain root cause in one paragraph.')
@@ -76,10 +78,12 @@ describe('RunInvestigationTab', () => {
   it('starts a new investigation from follow-up message when requested', async () => {
     render(<RunInvestigationTab runId="source-1" />)
 
-    const input = await screen.findByPlaceholderText(/Ask follow-up or start a fresh investigation/i)
+    fireEvent.click(await screen.findByRole('button', { name: /New Investigation/i }))
+
+    const input = await screen.findByPlaceholderText(/Add a message for new investigation/i)
     fireEvent.change(input, { target: { value: 'Try a deeper investigation focused on tool-call ordering.' } })
 
-    fireEvent.click(screen.getByRole('button', { name: /Start new investigation/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send new investigation/i }))
 
     await waitFor(() => {
       expect(createInvestigationRun).toHaveBeenCalledWith(
@@ -91,5 +95,16 @@ describe('RunInvestigationTab', () => {
       )
     })
     expect(continueRun).not.toHaveBeenCalled()
+  })
+
+  it('supports apply recommendations with an optional message', async () => {
+    render(<RunInvestigationTab runId="source-1" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Apply Recommendations/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send apply recommendations/i }))
+
+    await waitFor(() => {
+      expect(createInvestigationApplyRun).toHaveBeenCalledWith('inv-1', undefined)
+    })
   })
 })

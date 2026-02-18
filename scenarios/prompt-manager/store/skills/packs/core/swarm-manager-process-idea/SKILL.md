@@ -88,6 +88,9 @@ You are processing an idea to create or improve a Vrooli scenario. Your role is 
    > **Staging vs archive:** The enhance step synthesizes raw archive materials into ready-to-use staging artifacts in `enhance/`. Always prefer `enhance/` staging materials when available — they incorporate answered questions, accepted suggestions, and resolved conflicts. Only fall back to raw `archive/` when staging materials are absent.
 
 2. **Determine operation type**
+   - **Archived revival guardrail**: if `spec.json` indicates archive metadata (`sourceScenarioName`, `archiveReason`, `preservedFiles`), treat this as a scenario revival workflow. Use `sourceScenarioName` as the target scenario ID unless user explicitly overrides.
+   - **Target naming guardrail**: do not assume backlog folder `<name>` is the scenario ID. Use `TARGET_SCENARIO_ID` when provided; fallback to `<name>` only when no override metadata exists.
+   - **Readiness gate**: if `clarify/questions.json` exists and any `importance: critical` question has an empty/null answer, stop and write `notes.md` explaining the blocking questions. Do not create an ecosystem-manager task until critical gaps are resolved.
    - **New scenario**: No existing scenario at `scenarios/<name>/` → proceed to **step 3** (Initialize Scenario)
    - **Improve existing**: Target scenario already exists → skip to **step 5** (Search Existing Steers)
 
@@ -421,6 +424,8 @@ When choosing a steering strategy, consider:
 - **Don't** forget to verify the queue processor is running
 - **Don't** omit the task ID from notes.md
 - **Don't** skip scenario initialization for new scenarios -- there is no scenario to improve without it
+- **Don't** process archived-revival ideas under the `*-archived` folder name when `sourceScenarioName` is present -- target the source scenario name unless explicitly overridden
+- **Don't** queue ecosystem-manager work while critical clarify questions remain unanswered
 - **Don't** discard staging or archive materials -- they represent refined/user-provided context that must be incorporated
 - **Don't** use raw archive materials when enhance/ staging materials exist -- staging is pre-synthesized and preferred
 - **Don't** hand-write PRD.md -- always generate via `prd-control-tower`

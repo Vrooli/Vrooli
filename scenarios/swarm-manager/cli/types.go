@@ -3,15 +3,15 @@ package main
 import "encoding/json"
 
 type healthResponse struct {
-	Status     string            `json:"status"`
-	Service    string            `json:"service"`
-	Version    string            `json:"version"`
-	Readiness  bool              `json:"readiness"`
-	Timestamp  string            `json:"timestamp"`
-	Deps       map[string]string `json:"dependencies"`
-	Error      string            `json:"error,omitempty"`
-	Message    string            `json:"message,omitempty"`
-	Operations map[string]any    `json:"operations,omitempty"`
+	Status     string         `json:"status"`
+	Service    string         `json:"service"`
+	Version    string         `json:"version"`
+	Readiness  bool           `json:"readiness"`
+	Timestamp  string         `json:"timestamp"`
+	Deps       map[string]any `json:"dependencies"`
+	Error      string         `json:"error,omitempty"`
+	Message    string         `json:"message,omitempty"`
+	Operations map[string]any `json:"operations,omitempty"`
 }
 
 // BacklogItem represents a tracked unit of work for the swarm.
@@ -68,6 +68,7 @@ type QueueBacklogResponse struct {
 	RunID   string      `json:"run_id"`
 	BaseURL string      `json:"base_url"`
 	Created string      `json:"created"`
+	DryRun  bool        `json:"dry_run,omitempty"`
 }
 
 type ResearchResponse struct {
@@ -75,6 +76,7 @@ type ResearchResponse struct {
 	RunID   string `json:"run_id"`
 	BaseURL string `json:"base_url"`
 	Created string `json:"created"`
+	DryRun  bool   `json:"dry_run,omitempty"`
 }
 
 // ImportBacklogResponse reports the results of importing an edited markdown export.
