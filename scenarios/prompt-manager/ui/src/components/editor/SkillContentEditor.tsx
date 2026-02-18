@@ -21,6 +21,7 @@ import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { selectors } from '@/constants/selectors'
+import { useEditorPreferencesStore } from '@/stores/editorPreferencesStore'
 import { TipTapEditor } from './TipTapEditor'
 import {
   validateMarkdown,
@@ -341,6 +342,8 @@ export function SkillContentEditor({
   const monaco = useMonaco()
   const isMobile = useIsMobile()
   const resolvedTheme = useResolvedTheme()
+  const showCodeLineNumbers = useEditorPreferencesStore((state) => state.showCodeLineNumbers)
+  const monacoLineNumbers: 'on' | 'off' = showCodeLineNumbers ? 'on' : 'off'
   const {
     width: splitWidth,
     isResizing: isSplitResizing,
@@ -759,7 +762,7 @@ export function SkillContentEditor({
                   renderSideBySide: !isMobile,
                   minimap: { enabled: false },
                   wordWrap: 'on',
-                  lineNumbers: 'on',
+                  lineNumbers: monacoLineNumbers,
                   fontSize: 13,
                   fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
                   scrollBeyondLastLine: false,
@@ -812,7 +815,7 @@ export function SkillContentEditor({
                       options={{
                         minimap: { enabled: false },
                         wordWrap: 'on',
-                        lineNumbers: 'on',
+                        lineNumbers: monacoLineNumbers,
                         fontSize: 13,
                         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
                         tabSize: 2,
@@ -877,7 +880,7 @@ export function SkillContentEditor({
                 options={{
                   minimap: { enabled: false },
                   wordWrap: 'on',
-                  lineNumbers: 'on',
+                  lineNumbers: monacoLineNumbers,
                   fontSize: 13,
                   fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
                   tabSize: 2,

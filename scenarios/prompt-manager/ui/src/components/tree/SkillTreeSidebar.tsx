@@ -349,6 +349,8 @@ interface SkillTreeSidebarProps {
   // Team context menu callbacks
   /** Called when user toggles team enabled/disabled via context menu */
   onToggleTeamEnabled?: (teamId: string) => void
+  /** Hide the top controls row (running/unsaved/settings/collapse) */
+  hideTopControlsRow?: boolean
   className?: string
 }
 
@@ -423,6 +425,7 @@ export function SkillTreeSidebar({
   onCustomizeAgent,
   onPreviewPrompt,
   onToggleTeamEnabled,
+  hideTopControlsRow = false,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -821,71 +824,73 @@ export function SkillTreeSidebar({
       {/* Header with tabs */}
       <div className="flex-shrink-0 border-b border-border">
         {/* Top bar with settings and collapse */}
-        <div className="flex items-center justify-between px-3 py-2">
-          <div className="flex items-center gap-1">
-            {combineMode ? (
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-primary" />
-                <span className="text-xs font-medium text-foreground">
-                  Combine Mode
-                </span>
-              </div>
-            ) : (
-              <>
-                {onNavigateToRunningAgent && (
-                  <RunningAgentsPopover
-                    onNavigateToMember={onNavigateToRunningAgent}
-                    groupedByTeam={runningAgentsData?.groupedByTeam}
-                    count={runningAgentsData?.count}
-                    stopAgent={runningAgentsData?.stopAgent}
-                    stoppingIds={runningAgentsData?.stoppingIds}
-                  />
-                )}
-                {dirtyCount > 0 && (
-                  <UnsavedChangesMenu
-                    dirtyCount={dirtyCount}
-                    dirtySkillIds={dirtySkillIds ?? dirtyItemIds}
-                    dirtyAgentIds={dirtyAgentIds}
-                    dirtyTeamMemberIds={dirtyTeamMemberIds}
-                    skills={skills}
-                    agents={agents}
-                    onSelectSkill={onSelectSkillFromMenu}
-                    onSelectAgent={onSelectAgentFromMenu}
-                    onSaveSkill={onSaveSkill}
-                    onDiscardSkill={onDiscardSkill}
-                    onSaveAgent={onSaveAgent}
-                    onDiscardAgent={onDiscardAgent}
-                    onSaveAll={onSaveAll}
-                    onDiscardAll={onDiscardAll}
-                    isSaving={isSaving}
-                  />
-                )}
-              </>
-            )}
+        {!hideTopControlsRow && (
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center gap-1">
+              {combineMode ? (
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-medium text-foreground">
+                    Combine Mode
+                  </span>
+                </div>
+              ) : (
+                <>
+                  {onNavigateToRunningAgent && (
+                    <RunningAgentsPopover
+                      onNavigateToMember={onNavigateToRunningAgent}
+                      groupedByTeam={runningAgentsData?.groupedByTeam}
+                      count={runningAgentsData?.count}
+                      stopAgent={runningAgentsData?.stopAgent}
+                      stoppingIds={runningAgentsData?.stoppingIds}
+                    />
+                  )}
+                  {dirtyCount > 0 && (
+                    <UnsavedChangesMenu
+                      dirtyCount={dirtyCount}
+                      dirtySkillIds={dirtySkillIds ?? dirtyItemIds}
+                      dirtyAgentIds={dirtyAgentIds}
+                      dirtyTeamMemberIds={dirtyTeamMemberIds}
+                      skills={skills}
+                      agents={agents}
+                      onSelectSkill={onSelectSkillFromMenu}
+                      onSelectAgent={onSelectAgentFromMenu}
+                      onSaveSkill={onSaveSkill}
+                      onDiscardSkill={onDiscardSkill}
+                      onSaveAgent={onSaveAgent}
+                      onDiscardAgent={onDiscardAgent}
+                      onSaveAll={onSaveAll}
+                      onDiscardAll={onDiscardAll}
+                      isSaving={isSaving}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              {onOpenSettings && !combineMode && (
+                <button
+                  type="button"
+                  onClick={onOpenSettings}
+                  className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Settings (,)"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              )}
+              {!combineMode && (
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Collapse sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            {onOpenSettings && !combineMode && (
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title="Settings (,)"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-            )}
-            {!combineMode && (
-              <button
-                type="button"
-                onClick={onToggleCollapse}
-                className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title="Collapse sidebar"
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       <Tabs.Root

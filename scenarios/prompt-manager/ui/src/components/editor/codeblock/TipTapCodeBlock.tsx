@@ -13,6 +13,7 @@ import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore }
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { Check, Copy } from 'lucide-react'
 import { detectLanguage, normalizeLanguage } from './languageDetection'
+import { useEditorPreferencesStore } from '@/stores/editorPreferencesStore'
 
 /**
  * Generate line numbers for code.
@@ -98,6 +99,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
 }: NodeViewProps) {
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
   const resolvedTheme = useResolvedTheme()
+  const showCodeLineNumbers = useEditorPreferencesStore((state) => state.showCodeLineNumbers)
 
   // Track editor focus state using React's useSyncExternalStore for reliable updates
   const isEditorFocused = useSyncExternalStore(
@@ -231,18 +233,19 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
 
       {/* Code content - layered approach for smooth transitions */}
       <div className="bg-muted/30 overflow-x-auto relative flex">
-        {/* Line numbers gutter */}
-        <div
-          className="flex-shrink-0 py-4 pl-3 pr-2 text-sm font-mono text-muted-foreground select-none border-r border-border/50 text-right"
-          contentEditable={false}
-          aria-hidden="true"
-        >
-          {lineNumbers.map((num, i) => (
-            <div key={i} className="leading-relaxed">
-              {num}
-            </div>
-          ))}
-        </div>
+        {showCodeLineNumbers && (
+          <div
+            className="flex-shrink-0 py-4 pl-3 pr-2 text-sm font-mono text-muted-foreground select-none border-r border-border/50 text-right"
+            contentEditable={false}
+            aria-hidden="true"
+          >
+            {lineNumbers.map((num, i) => (
+              <div key={i} className="leading-relaxed">
+                {num}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Code content area */}
         <div className="flex-1 relative min-w-0">

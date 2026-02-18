@@ -1480,6 +1480,7 @@ export function SkillManagerLayout() {
                 onCustomizeAgent={handleCustomizeAgentById}
                 onPreviewPrompt={handlePreviewPromptById}
                 onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
+                hideTopControlsRow={true}
                 className="border-r-0"
               />
             </div>

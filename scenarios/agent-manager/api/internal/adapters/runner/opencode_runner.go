@@ -804,7 +804,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 		if code == "" {
 			code = "execution_error"
 		}
-		return []*domain.RunEvent{domain.NewErrorEvent(runID, code, streamEvent.Error.Message, false)}, nil
+		return []*domain.RunEvent{domain.NewErrorEvent(runID, code, stripANSI(streamEvent.Error.Message), false)}, nil
 	}
 
 	// Handle events based on top-level type
@@ -816,7 +816,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 	case "text":
 		// Text response from assistant
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text)}, nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", stripANSI(streamEvent.Part.Text))}, nil
 		}
 
 	case "tool_call", "tool_use", "tool-call":
@@ -843,9 +843,9 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			// Check if this is a completed tool call (OpenCode sometimes bundles result in same event)
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
 				events := []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}
-				output := streamEvent.Part.State.Output
+				output := stripANSI(streamEvent.Part.State.Output)
 				if output == "" {
-					output = streamEvent.Part.Output
+					output = stripANSI(streamEvent.Part.Output)
 				}
 				toolCallID := streamEvent.Part.CallID
 				var errMsg error
@@ -869,9 +869,9 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			}
 
 			// Get output - prefer part.state.output (actual OpenCode format)
-			output := streamEvent.Part.Output
+			output := stripANSI(streamEvent.Part.Output)
 			if output == "" && streamEvent.Part.State != nil {
-				output = streamEvent.Part.State.Output
+				output = stripANSI(streamEvent.Part.State.Output)
 			}
 
 			toolCallID := streamEvent.Part.CallID
@@ -912,27 +912,27 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 	case "error":
 		// Error event
 		if streamEvent.Part != nil && streamEvent.Part.IsError {
-			return []*domain.RunEvent{domain.NewErrorEvent(runID, "execution_error", streamEvent.Part.Output, false)}, nil
+			return []*domain.RunEvent{domain.NewErrorEvent(runID, "execution_error", stripANSI(streamEvent.Part.Output), false)}, nil
 		}
 
 	case "user_message":
 		// User message echo
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, "user", streamEvent.Part.Text)}, nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "user", stripANSI(streamEvent.Part.Text))}, nil
 		}
 
 	case "thinking":
 		// Model reasoning/thinking
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", fmt.Sprintf("Thinking: %s", streamEvent.Part.Text))}, nil
+			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", fmt.Sprintf("Thinking: %s", stripANSI(streamEvent.Part.Text)))}, nil
 		}
 
 	case "assistant", "response", "message", "assistant_message":
 		// Alternative event types for assistant messages (OpenCode may vary)
 		if streamEvent.Part != nil {
-			text := streamEvent.Part.Text
+			text := stripANSI(streamEvent.Part.Text)
 			if text == "" {
-				text = streamEvent.Part.Output // Fallback to output field
+				text = stripANSI(streamEvent.Part.Output) // Fallback to output field
 			}
 			if text != "" {
 				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", text)}, nil
@@ -947,7 +947,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			if streamEvent.Part.Type == "user" {
 				role = "user"
 			}
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, role, streamEvent.Part.Text)}, nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, role, stripANSI(streamEvent.Part.Text))}, nil
 		}
 	}
 
@@ -958,7 +958,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 		switch streamEvent.Part.Type {
 		case "text", "assistant":
 			if streamEvent.Part.Text != "" {
-				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text)}, nil
+				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", stripANSI(streamEvent.Part.Text))}, nil
 			}
 		case "tool", "tool-call", "tool_call", "tool_use":
 			// OpenCode uses part.type="tool" with part.tool for the tool name
@@ -976,9 +976,9 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 				if streamEvent.Part.State.Input != nil {
 					events = append(events, domain.NewToolCallEvent(runID, toolName, "", streamEvent.Part.State.Input))
 				}
-				output := streamEvent.Part.State.Output
+				output := stripANSI(streamEvent.Part.State.Output)
 				if output == "" {
-					output = streamEvent.Part.Output
+					output = stripANSI(streamEvent.Part.Output)
 				}
 				toolCallID := streamEvent.Part.CallID
 				var errMsg error
@@ -1002,9 +1002,9 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			if toolName == "" {
 				toolName = streamEvent.Part.Name
 			}
-			output := streamEvent.Part.Output
+			output := stripANSI(streamEvent.Part.Output)
 			if output == "" && streamEvent.Part.State != nil {
-				output = streamEvent.Part.State.Output
+				output = stripANSI(streamEvent.Part.State.Output)
 			}
 			toolCallID := streamEvent.Part.CallID
 			var errMsg error
@@ -1066,15 +1066,15 @@ func (r *OpenCodeRunner) parseStepFinishEvent(runID uuid.UUID, part *OpenCodePar
 func (r *OpenCodeRunner) extractAssistantMessage(runID uuid.UUID, part *OpenCodePart) *domain.RunEvent {
 	// Prefer text or output if available.
 	if part.Text != "" {
-		return domain.NewMessageEvent(runID, "assistant", part.Text)
+		return domain.NewMessageEvent(runID, "assistant", stripANSI(part.Text))
 	}
 	if part.Output != "" {
-		return domain.NewMessageEvent(runID, "assistant", part.Output)
+		return domain.NewMessageEvent(runID, "assistant", stripANSI(part.Output))
 	}
 
 	// Snapshot sometimes contains a hash instead of content.
 	if part.Snapshot != "" && !isLikelyHash(part.Snapshot) {
-		return domain.NewMessageEvent(runID, "assistant", part.Snapshot)
+		return domain.NewMessageEvent(runID, "assistant", stripANSI(part.Snapshot))
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -676,4 +677,147 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// =============================================================================
+// ANSI Sanitization Regression Tests
+// =============================================================================
+
+// TestCodexParseStreamEvents_ANSIStrippedFromMessage verifies ANSI escape
+// sequences are stripped from agent_message text in JSON streaming mode.
+func TestCodexParseStreamEvents_ANSIStrippedFromMessage(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	// agent_message with embedded ANSI color codes
+	line := `{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"\u001b[1mBold\u001b[0m and \u001b[32mgreen\u001b[0m text"}}`
+	events := runner.parseCodexStreamEvents(runID, line)
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	msgData, ok := events[0].Data.(*domain.MessageEventData)
+	if !ok {
+		t.Fatalf("expected MessageEventData, got %T", events[0].Data)
+	}
+	if msgData.Content != "Bold and green text" {
+		t.Errorf("ANSI not stripped from message: got %q", msgData.Content)
+	}
+}
+
+// TestCodexParseStreamEvents_ANSIStrippedFromToolOutput verifies ANSI escape
+// sequences are stripped from tool_result output.
+func TestCodexParseStreamEvents_ANSIStrippedFromToolOutput(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	// tool_result with ANSI in output
+	line := `{"type":"item.completed","item":{"id":"item_2","type":"tool_result","name":"bash","output":"\u001b[32mSuccess\u001b[0m: file created"}}`
+	events := runner.parseCodexStreamEvents(runID, line)
+	if len(events) == 0 {
+		t.Fatal("expected at least 1 event")
+	}
+
+	// Find the tool result event
+	found := false
+	for _, event := range events {
+		if resultData, ok := event.Data.(*domain.ToolResultEventData); ok {
+			found = true
+			if resultData.Output != "Success: file created" {
+				t.Errorf("ANSI not stripped from tool result: got %q", resultData.Output)
+			}
+		}
+	}
+	if !found {
+		t.Error("no ToolResultEventData found in events")
+	}
+}
+
+// TestCodexParseStreamEvents_ANSIStrippedFromCommandExecution verifies ANSI
+// sequences are stripped from command_execution aggregated_output.
+func TestCodexParseStreamEvents_ANSIStrippedFromCommandExecution(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	exitZero := 0
+	item := &CodexItem{
+		Type:             "command_execution",
+		Command:          "ls --color",
+		AggregatedOutput: "\x1b[34mdir1\x1b[0m\n\x1b[32mfile.txt\x1b[0m\n",
+		ExitCode:         &exitZero,
+		Status:           "completed",
+	}
+	events := runner.parseCodexItemEvents(runID, item)
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	resultData, ok := events[0].Data.(*domain.ToolResultEventData)
+	if !ok {
+		t.Fatalf("expected ToolResultEventData, got %T", events[0].Data)
+	}
+	if resultData.Output != "dir1\nfile.txt\n" {
+		t.Errorf("ANSI not stripped from aggregated output: got %q", resultData.Output)
+	}
+}
+
+// TestCodexParseStreamEvents_PureANSILineSkipped verifies that a pure ANSI
+// line (no valid JSON) is silently skipped and produces no events.
+func TestCodexParseStreamEvents_PureANSILineSkipped(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	// These are raw terminal formatting lines that should produce zero events
+	ansiLines := []string{
+		"\x1b[39;49m\x1b[K\x1b[2m\u2514\x1b[39m\x1b[49m\x1b[0m",
+		"\x1b[1m\x1b[34m>\x1b[0m \x1b[2m\x1b[0m",
+		"\x1b[?25h\x1b[?1049l",
+		"\x1b[H\x1b[2J",
+	}
+
+	for _, line := range ansiLines {
+		events := runner.parseCodexStreamEvents(runID, line)
+		if len(events) != 0 {
+			t.Errorf("expected 0 events for ANSI line %q, got %d", line, len(events))
+		}
+	}
+}
+
+// TestCodexParseStreamEvents_HighVolumeANSINoSpam verifies that a large
+// number of pure-ANSI lines produce zero events (regression for the 30k+ spam bug).
+func TestCodexParseStreamEvents_HighVolumeANSINoSpam(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	totalEvents := 0
+	for i := 0; i < 1000; i++ {
+		events := runner.parseCodexStreamEvents(runID, "\x1b[39;49m\x1b[K\x1b[2m\u2514\x1b[39m\x1b[49m\x1b[0m")
+		totalEvents += len(events)
+	}
+	if totalEvents != 0 {
+		t.Errorf("expected 0 events from 1000 ANSI lines, got %d", totalEvents)
+	}
+}
+
+// TestIsOnlyANSI verifies the helper that detects pure-ANSI lines.
+func TestIsOnlyANSI(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect bool
+	}{
+		{"pure ANSI only", "\x1b[39;49m\x1b[K\x1b[2m\x1b[39m\x1b[49m\x1b[0m", true},
+		{"ANSI with box drawing char", "\x1b[39;49m\x1b[K\x1b[2m\u2514\x1b[39m\x1b[49m\x1b[0m", false}, // └ is not an ANSI seq
+		{"ANSI with whitespace only", "\x1b[1m  \x1b[0m", true},
+		{"plain text", "hello world", false},
+		{"empty string", "", false},
+		{"mixed content and ANSI", "\x1b[32mhello\x1b[0m", false},
+		{"only whitespace", "   ", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isOnlyANSI(tt.input)
+			if got != tt.expect {
+				t.Errorf("isOnlyANSI(%q) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
 }

@@ -43,7 +43,7 @@ describe('SettingsDialog', () => {
         <SettingsDialog isOpen={true} onClose={onClose} />
       )
 
-      const closeButton = screen.getByLabelText('Close')
+      const closeButton = screen.getByLabelText('Close dialog')
       fireEvent.click(closeButton)
 
       expect(onClose).toHaveBeenCalledTimes(1)
@@ -107,6 +107,29 @@ describe('SettingsDialog', () => {
       // Check for Esc and comma which are always the same
       expect(screen.getByText('Esc')).toBeInTheDocument()
       expect(screen.getByText(',')).toBeInTheDocument()
+    })
+  })
+
+  describe('editor preferences section', () => {
+    it('should display editor preferences heading and line number setting', () => {
+      renderWithTheme(
+        <SettingsDialog isOpen={true} onClose={vi.fn()} />
+      )
+
+      expect(screen.getByText('Editor Preferences')).toBeInTheDocument()
+      expect(screen.getByText('Show Code Line Numbers')).toBeInTheDocument()
+    })
+
+    it('should toggle code line numbers setting', () => {
+      renderWithTheme(
+        <SettingsDialog isOpen={true} onClose={vi.fn()} />
+      )
+
+      const toggle = screen.getByRole('switch', { name: 'Show code line numbers' })
+      expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-checked', 'false')
     })
   })
 

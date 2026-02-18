@@ -573,19 +573,23 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		}
 	}()
 
-	// Read stdout
+	// Read stdout — strip ANSI and skip pure-formatting lines
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		line := scanner.Text()
-		outputBuilder.WriteString(line)
+		if isOnlyANSI(line) {
+			continue
+		}
+		cleaned := stripANSI(line)
+		outputBuilder.WriteString(cleaned)
 		outputBuilder.WriteString("\n")
 
-		// Emit log event for each line
-		if req.EventSink != nil {
+		// Emit log event for each meaningful line
+		if req.EventSink != nil && strings.TrimSpace(cleaned) != "" {
 			_ = req.EventSink.Emit(domain.NewLogEvent(
 				req.RunID,
 				"info",
-				line,
+				cleaned,
 			))
 		}
 	}
@@ -804,7 +808,7 @@ func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*do
 			events = append(events, domain.NewToolCallEvent(runID, toolName, "", input))
 		}
 		if streamEvent.Tool.Output != "" {
-			events = append(events, domain.NewToolResultEvent(runID, toolName, "", streamEvent.Tool.Output, nil))
+			events = append(events, domain.NewToolResultEvent(runID, toolName, "", stripANSI(streamEvent.Tool.Output), nil))
 		}
 		if len(events) > 0 {
 			return events
@@ -832,8 +836,8 @@ func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*do
 		if streamEvent.Error != nil {
 			return []*domain.RunEvent{domain.NewErrorEvent(
 				runID,
-				streamEvent.Error.Code,
-				streamEvent.Error.Message,
+				stripANSI(streamEvent.Error.Code),
+				stripANSI(streamEvent.Error.Message),
 				false,
 			)}
 		}
@@ -850,12 +854,12 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 	switch item.Type {
 	case "agent_message":
 		if item.Text != "" {
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", item.Text)}
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", stripANSI(item.Text))}
 		}
 	case "reasoning":
 		// Codex outputs reasoning/thinking as a separate item type
 		if item.Text != "" {
-			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Reasoning: "+item.Text)}
+			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Reasoning: "+stripANSI(item.Text))}
 		}
 	case "file_change":
 		// Codex uses file_change instead of tool_call for file operations
@@ -895,7 +899,7 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 			runID,
 			item.Name,
 			"", // Codex doesn't provide tool call IDs
-			item.Output,
+			stripANSI(item.Output),
 			nil,
 		))
 		return events
@@ -911,7 +915,7 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 				runID,
 				toolName,
 				"",
-				item.AggregatedOutput,
+				stripANSI(item.AggregatedOutput),
 				errMsg,
 			)}
 		}
@@ -1174,21 +1178,25 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}()
 
-	// Read stdout (codex resume does not emit JSON)
+	// Read stdout (codex resume does not emit JSON) — strip ANSI and skip pure-formatting lines
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if line == "" {
+		if line == "" || isOnlyANSI(line) {
 			continue
 		}
-		outputBuilder.WriteString(line)
+		cleaned := stripANSI(line)
+		if strings.TrimSpace(cleaned) == "" {
+			continue
+		}
+		outputBuilder.WriteString(cleaned)
 		outputBuilder.WriteString("\n")
 		if req.EventSink != nil {
 			_ = req.EventSink.Emit(domain.NewLogEvent(
 				req.RunID,
 				"info",
-				line,
+				cleaned,
 			))
 		}
 	}
@@ -1318,7 +1326,7 @@ func (r *CodexRunner) parseCodexStreamEventsInternal(runID uuid.UUID, streamEven
 			events = append(events, domain.NewToolCallEvent(runID, toolName, "", input))
 		}
 		if streamEvent.Tool.Output != "" {
-			events = append(events, domain.NewToolResultEvent(runID, toolName, "", streamEvent.Tool.Output, nil))
+			events = append(events, domain.NewToolResultEvent(runID, toolName, "", stripANSI(streamEvent.Tool.Output), nil))
 		}
 		if len(events) > 0 {
 			return events
@@ -1346,8 +1354,8 @@ func (r *CodexRunner) parseCodexStreamEventsInternal(runID uuid.UUID, streamEven
 		if streamEvent.Error != nil {
 			return []*domain.RunEvent{domain.NewErrorEvent(
 				runID,
-				streamEvent.Error.Code,
-				streamEvent.Error.Message,
+				stripANSI(streamEvent.Error.Code),
+				stripANSI(streamEvent.Error.Message),
 				false,
 			)}
 		}

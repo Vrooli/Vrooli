@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import type { Theme } from '@/types'
 import { getShortcutDisplay } from '@/hooks/useKeyboardShortcuts'
 import { AISearchStatusPanel } from '@/components/shared/AISearchStatusPanel'
+import { useEditorPreferencesStore } from '@/stores/editorPreferencesStore'
 
 interface SettingsDialogProps {
   isOpen: boolean
@@ -30,6 +31,8 @@ const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const { theme, setTheme } = useTheme()
+  const showCodeLineNumbers = useEditorPreferencesStore((state) => state.showCodeLineNumbers)
+  const setShowCodeLineNumbers = useEditorPreferencesStore((state) => state.setShowCodeLineNumbers)
 
   return (
     <Dialog
@@ -88,6 +91,39 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             <ShortcutRow label="Focus search" shortcut={getShortcutDisplay('search')} />
             <ShortcutRow label="Close / Cancel" shortcut={getShortcutDisplay('escape')} />
             <ShortcutRow label="Open settings" shortcut={getShortcutDisplay('settings')} />
+          </div>
+        </div>
+
+        {/* Editor Preferences Section */}
+        <div>
+          <h4 className="text-sm font-medium text-muted-foreground mb-3">Editor Preferences</h4>
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm text-foreground">Show Code Line Numbers</p>
+                <p className="text-xs text-muted-foreground">
+                  Display the line-number gutter in markdown code blocks.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showCodeLineNumbers}
+                aria-label="Show code line numbers"
+                onClick={() => setShowCodeLineNumbers(!showCodeLineNumbers)}
+                className={cn(
+                  'relative h-5 w-9 rounded-full transition-colors flex-shrink-0',
+                  showCodeLineNumbers ? 'bg-primary' : 'bg-muted-foreground/40'
+                )}
+              >
+                <span
+                  className={cn(
+                    'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform',
+                    showCodeLineNumbers && 'translate-x-4'
+                  )}
+                />
+              </button>
+            </div>
           </div>
         </div>
 
