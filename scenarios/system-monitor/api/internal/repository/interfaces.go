@@ -1,4 +1,5 @@
 package repository
+// DOC: docs/internal/SEAMS.md#repository-interface
 
 import (
 	"context"

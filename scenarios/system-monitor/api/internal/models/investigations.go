@@ -32,7 +32,7 @@ type Investigation struct {
 	StartTime time.Time              `json:"start_time"`
 	EndTime   *time.Time             `json:"end_time,omitempty"`
 	Findings  string                 `json:"findings,omitempty"`
-	Progress  int                    `json:"progress"`          // 0-100
+	Progress  int                    `json:"progress"` // 0-100
 	Details   map[string]interface{} `json:"details,omitempty"`
 	Steps     []InvestigationStep    `json:"steps,omitempty"`
 }

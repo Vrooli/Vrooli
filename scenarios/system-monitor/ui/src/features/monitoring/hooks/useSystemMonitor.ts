@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+// DOC: docs/internal/COHERENCE-NOTES.md#state-architecture
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { timestampMs } from '@bufbuild/protobuf/wkt';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import { buildUrl as buildApiUrl } from '../../../lib/api-client';
 import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
+import { useToast } from '../../../shared/components/ToastProvider';
 import { toIsoString } from '../../../shared/utils/timestamps';
 import {
   parseMetricsResponse,
@@ -40,6 +42,8 @@ export interface SystemHealthStatus {
   checks?: Record<string, unknown>;
 }
 
+export type Subsystem = 'metrics' | 'detailedMetrics' | 'processes' | 'infrastructure' | 'investigations';
+
 interface UseSystemMonitorReturn {
   metrics: MetricsResponse | null;
   detailedMetrics: DetailedMetrics | null;
@@ -49,6 +53,9 @@ interface UseSystemMonitorReturn {
   metricHistory: import('../../../types').MetricHistory | null;
   isLoading: boolean;
   error: APIError | null;
+  subsystemErrors: Partial<Record<Subsystem, APIError>>;
+  isStale: boolean;
+  lastSuccessfulFetch: Date | null;
   healthStatus: SystemHealthStatus | null;
   healthError: string | null;
   toggleMonitoring: () => Promise<void>;
@@ -66,20 +73,59 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [infrastructureData, setInfrastructureData] = useState<InfrastructureMonitorData | null>(null);
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<APIError | null>(null);
+  const [subsystemErrors, setSubsystemErrors] = useState<Partial<Record<Subsystem, APIError>>>({});
+  const [lastSuccessfulFetch, setLastSuccessfulFetch] = useState<Date | null>(null);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const isStale = consecutiveFailures >= 3;
   const [uiBoostActive, setUiBoostActive] = useState(false);
   const mountedRef = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
   const maintenanceStateRef = useRef<{ previous: MaintenanceState | null; activated: boolean }>({
     previous: null,
     activated: false
   });
+  const { showApiError } = useToast();
+  const lastMetricsErrorRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    return () => { mountedRef.current = false; };
+  const setSubsystemError = useCallback((subsystem: Subsystem, err: APIError | null) => {
+    setSubsystemErrors(prev => {
+      if (err === null) {
+        if (!(subsystem in prev)) return prev;
+        const next = { ...prev };
+        delete next[subsystem];
+        return next;
+      }
+      return { ...prev, [subsystem]: err };
+    });
   }, []);
 
+  const error = useMemo(() => {
+    const values = Object.values(subsystemErrors);
+    return values.length > 0 ? values[0] ?? null : null;
+  }, [subsystemErrors]);
+
+  useEffect(() => {
+    const abort = abortRef.current;
+    return () => {
+      mountedRef.current = false;
+      abort?.abort();
+    };
+  }, []);
+
+  // Only show toast for metrics errors (primary data source)
+  useEffect(() => {
+    const metricsError = subsystemErrors.metrics;
+    if (metricsError && metricsError.error !== lastMetricsErrorRef.current) {
+      lastMetricsErrorRef.current = metricsError.error;
+      showApiError(metricsError);
+    } else if (!metricsError) {
+      lastMetricsErrorRef.current = null;
+    }
+  }, [subsystemErrors, showApiError]);
+
   const { healthStatus, healthError, checkHealth, refreshHealth, toggleMonitoring } = useHealthCheck();
-  const { metricHistory, fetchMetricsTimeline, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setError);
+  const setMetricsError = useCallback((err: APIError | null) => setSubsystemError('metrics', err), [setSubsystemError]);
+  const { metricHistory, fetchMetricsTimeline, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
 
   const fetchMetrics = useCallback(async () => {
     const url = uiBoostActive ? '/metrics/current?fresh=1' : '/metrics/current';
@@ -87,16 +133,19 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       const data = await protoFetch(url, parseMetricsResponse);
       if (!mountedRef.current) return;
       setMetrics(data);
-      setError(null);
+      setSubsystemError('metrics', null);
+      setLastSuccessfulFetch(new Date());
+      setConsecutiveFailures(0);
       if (typeof data.gpuUsage === 'number' && Number.isFinite(data.gpuUsage)) {
         appendGpuPoint(toIsoString(data.timestamp), data.gpuUsage);
       }
     } catch (err) {
-      console.error(`API call failed for ${url}:`, err);
+      console.debug(`API call failed for ${url}:`, err);
       if (!mountedRef.current) return;
-      setError(toApiError(err));
+      setSubsystemError('metrics', toApiError(err));
+      setConsecutiveFailures(prev => prev + 1);
     }
-  }, [uiBoostActive, appendGpuPoint]);
+  }, [uiBoostActive, appendGpuPoint, setSubsystemError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,7 +157,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
         if (cancelled) return;
         currentState = state.maintenanceState || 'inactive';
       } catch (err) {
-        console.error('API call failed for /maintenance/state:', err);
+        console.debug('API call failed for /maintenance/state:', err);
         if (cancelled) return;
       }
 
@@ -134,7 +183,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       }
     };
 
-    void activateMonitoring();
+    activateMonitoring().catch(err => console.error('Failed to activate monitoring:', err));
 
     const stateRef = maintenanceStateRef.current;
 
@@ -160,34 +209,37 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       const data = await protoFetch('/metrics/detailed', parseDetailedMetrics);
       if (!mountedRef.current) return;
       setDetailedMetrics(data);
+      setSubsystemError('detailedMetrics', null);
       const diskPercent = data.memoryDetails?.diskUsage?.percent;
       if (typeof diskPercent === 'number' && Number.isFinite(diskPercent)) {
         appendDiskUsagePoint(toIsoString(data.timestamp), diskPercent);
       }
     } catch (err) {
-      console.error('API call failed for /metrics/detailed:', err);
+      console.debug('API call failed for /metrics/detailed:', err);
       if (!mountedRef.current) return;
-      setError(toApiError(err));
+      setSubsystemError('detailedMetrics', toApiError(err));
     }
-  }, [appendDiskUsagePoint]);
+  }, [appendDiskUsagePoint, setSubsystemError]);
 
   const fetchProcessMonitorData = useCallback(async () => {
     try {
       const data = await protoFetch('/metrics/processes', parseProcessMonitorData);
       if (!mountedRef.current) return;
       setProcessMonitorData(data);
+      setSubsystemError('processes', null);
     } catch (err) {
-      console.error('API call failed for /metrics/processes:', err);
+      console.debug('API call failed for /metrics/processes:', err);
       if (!mountedRef.current) return;
-      setError(toApiError(err));
+      setSubsystemError('processes', toApiError(err));
     }
-  }, []);
+  }, [setSubsystemError]);
 
   const fetchInfrastructureData = useCallback(async () => {
     try {
       const data = await protoFetch('/metrics/infrastructure', parseInfrastructureMonitorData);
       if (!mountedRef.current) return;
       setInfrastructureData(data);
+      setSubsystemError('infrastructure', null);
       const { storageIo, timestamp } = data;
       if (storageIo) {
         const readRate = Number(storageIo.readMbPerSec);
@@ -197,11 +249,11 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
         }
       }
     } catch (err) {
-      console.error('API call failed for /metrics/infrastructure:', err);
+      console.debug('API call failed for /metrics/infrastructure:', err);
       if (!mountedRef.current) return;
-      setError(toApiError(err));
+      setSubsystemError('infrastructure', toApiError(err));
     }
-  }, [appendDiskPoints]);
+  }, [appendDiskPoints, setSubsystemError]);
 
   const fetchInvestigations = useCallback(async () => {
     try {
@@ -219,12 +271,13 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
           : bTime - aTime;
       });
       setInvestigations(sorted);
+      setSubsystemError('investigations', null);
     } catch (err) {
-      console.error('API call failed for /investigations:', err);
+      console.debug('API call failed for /investigations:', err);
       if (!mountedRef.current) return;
-      setError(toApiError(err));
+      setSubsystemError('investigations', toApiError(err));
     }
-  }, []);
+  }, [setSubsystemError]);
 
   const refreshMetrics = useCallback(async () => {
     await Promise.all([
@@ -240,10 +293,10 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     const isHealthy = await checkHealth();
     if (!mountedRef.current) return;
     if (!isHealthy) {
-      setError({
+      setSubsystemError('metrics', {
         error: 'API server is not responding',
-        details: 'Health check failed - ensure the Go backend is running',
-        timestamp: new Date().toISOString()
+        detail: { code: 'unavailable', message: 'Health check failed - ensure the Go backend is running', retryable: true, recovery: 'wait' },
+        timestamp: new Date().toISOString(),
       });
       setIsLoading(false);
       return;
@@ -262,6 +315,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     setIsLoading(false);
   }, [
     checkHealth,
+    setSubsystemError,
     fetchMetricsTimeline,
     fetchMetrics,
     fetchDetailedMetrics,
@@ -276,18 +330,18 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, [refresh]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
-  usePolling(refreshMetrics, 5000);
+  usePolling(refreshMetrics, 5000, true, { enabled: true, maxIntervalMs: 60000 });
 
   // Set up polling for detailed data + health (every 60 seconds)
   const fetchDetailedAll = useCallback(() => {
-    void Promise.all([
+    Promise.all([
       fetchProcessMonitorData(),
       fetchInfrastructureData(),
       fetchInvestigations(),
       checkHealth()
-    ]);
+    ]).catch(err => console.error('Failed to fetch detailed data:', err));
   }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth]);
-  usePolling(fetchDetailedAll, 60000);
+  usePolling(fetchDetailedAll, 60000, true, { enabled: true, maxIntervalMs: 300000 });
 
   return {
     metrics,
@@ -298,6 +352,9 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     metricHistory,
     isLoading,
     error,
+    subsystemErrors,
+    isStale,
+    lastSuccessfulFetch,
     healthStatus,
     healthError,
     toggleMonitoring,

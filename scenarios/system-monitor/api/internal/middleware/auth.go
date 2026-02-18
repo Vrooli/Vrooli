@@ -4,7 +4,11 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
+
+	"system-monitor-api/internal/apierrors"
+	"system-monitor-api/internal/httputil"
 )
 
 // contextKey is a custom type for context keys
@@ -19,12 +23,12 @@ const (
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
-	Enabled       bool
-	TokenHeader   string
-	TokenPrefix   string
-	APIKeys       []string
-	RequireAuth   bool
-	ExcludePaths  []string
+	Enabled      bool
+	TokenHeader  string
+	TokenPrefix  string
+	APIKeys      []string
+	RequireAuth  bool
+	ExcludePaths []string
 }
 
 // NewAuthConfig creates a default auth configuration
@@ -44,13 +48,13 @@ func BasicAuth(username, password string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, pass, ok := r.BasicAuth()
-			
+
 			if !ok || user != username || pass != password {
 				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				httputil.WriteAPIError(w, nil, r, apierrors.Unauthorized("Invalid credentials"))
 				return
 			}
-			
+
 			// Add user to context
 			ctx := context.WithValue(r.Context(), UserContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -69,30 +73,30 @@ func APIKeyAuth(config AuthConfig) func(http.Handler) http.Handler {
 					return
 				}
 			}
-			
+
 			// Skip auth if not enabled or not required
 			if !config.Enabled || !config.RequireAuth {
 				next.ServeHTTP(w, r)
 				return
 			}
-			
+
 			// Get token from header
 			authHeader := r.Header.Get(config.TokenHeader)
 			if authHeader == "" {
-				http.Error(w, "Missing authorization header", http.StatusUnauthorized)
+				httputil.WriteAPIError(w, nil, r, apierrors.Unauthorized("Missing authorization header"))
 				return
 			}
-			
+
 			// Extract token
 			token := authHeader
 			if config.TokenPrefix != "" {
 				if !strings.HasPrefix(authHeader, config.TokenPrefix) {
-					http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
+					httputil.WriteAPIError(w, nil, r, apierrors.Unauthorized("Invalid authorization header format"))
 					return
 				}
 				token = strings.TrimPrefix(authHeader, config.TokenPrefix)
 			}
-			
+
 			// Validate API key
 			valid := false
 			for _, apiKey := range config.APIKeys {
@@ -101,12 +105,12 @@ func APIKeyAuth(config AuthConfig) func(http.Handler) http.Handler {
 					break
 				}
 			}
-			
+
 			if !valid {
-				http.Error(w, "Invalid API key", http.StatusUnauthorized)
+				httputil.WriteAPIError(w, nil, r, apierrors.Unauthorized("Invalid API key"))
 				return
 			}
-			
+
 			// Add token to context
 			ctx := context.WithValue(r.Context(), TokenContextKey, token)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -120,10 +124,10 @@ func RequireAuth(next http.Handler) http.Handler {
 		// Check if user is in context (set by previous auth middleware)
 		user := r.Context().Value(UserContextKey)
 		if user == nil {
-			http.Error(w, "Authentication required", http.StatusUnauthorized)
+			httputil.WriteAPIError(w, nil, r, apierrors.Unauthorized("Authentication required"))
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -151,6 +155,7 @@ func GetTokenFromContext(ctx context.Context) (string, bool) {
 
 // RateLimiter provides basic rate limiting middleware
 type RateLimiter struct {
+	mu       sync.Mutex
 	requests map[string][]int64
 	limit    int
 	window   int64 // in seconds
@@ -174,13 +179,13 @@ func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 			if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 				clientIP = forwarded
 			}
-			
+
 			// Check rate limit
 			if !rl.Allow(clientIP) {
-				http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+				httputil.WriteAPIError(w, nil, r, apierrors.Cooldown(0))
 				return
 			}
-			
+
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -188,16 +193,19 @@ func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 
 // Allow checks if a request is allowed
 func (rl *RateLimiter) Allow(clientID string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
 	now := time.Now().Unix()
 	windowStart := now - rl.window
-	
+
 	// Get or create request history for client
 	history, exists := rl.requests[clientID]
 	if !exists {
 		rl.requests[clientID] = []int64{now}
 		return true
 	}
-	
+
 	// Filter out old requests
 	var recentRequests []int64
 	for _, timestamp := range history {
@@ -205,25 +213,28 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 			recentRequests = append(recentRequests, timestamp)
 		}
 	}
-	
+
 	// Check if under limit
 	if len(recentRequests) >= rl.limit {
 		rl.requests[clientID] = recentRequests
 		return false
 	}
-	
+
 	// Add current request
 	recentRequests = append(recentRequests, now)
 	rl.requests[clientID] = recentRequests
-	
+
 	return true
 }
 
 // Cleanup removes old entries from rate limiter
 func (rl *RateLimiter) Cleanup() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
 	now := time.Now().Unix()
 	windowStart := now - rl.window
-	
+
 	for clientID, history := range rl.requests {
 		var recentRequests []int64
 		for _, timestamp := range history {
@@ -231,7 +242,7 @@ func (rl *RateLimiter) Cleanup() {
 				recentRequests = append(recentRequests, timestamp)
 			}
 		}
-		
+
 		if len(recentRequests) == 0 {
 			delete(rl.requests, clientID)
 		} else {

@@ -11,32 +11,6 @@
     "triggers": [
         {
             "auto_fix": true,
-            "condition": "above",
-            "description": "Triggers when zombie or high-resource processes detected",
-            "enabled": true,
-            "icon": "zap",
-            "id": "process_anomaly",
-            "name": "Process Anomaly",
-            "priority": "high",
-            "sustained_duration_seconds": 10,
-            "threshold": 25,
-            "unit": " processes"
-        },
-        {
-            "auto_fix": true,
-            "condition": "above",
-            "description": "Triggers when CPU usage exceeds threshold for sustained period",
-            "enabled": false,
-            "icon": "cpu",
-            "id": "high_cpu",
-            "name": "High CPU Usage",
-            "priority": "high",
-            "sustained_duration_seconds": 60,
-            "threshold": 95,
-            "unit": "%"
-        },
-        {
-            "auto_fix": true,
             "condition": "below",
             "description": "Triggers when available memory falls below threshold",
             "enabled": true,
@@ -73,6 +47,32 @@
             "sustained_duration_seconds": 30,
             "threshold": 2000,
             "unit": " connections"
+        },
+        {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when zombie or high-resource processes detected",
+            "enabled": true,
+            "icon": "zap",
+            "id": "process_anomaly",
+            "name": "Process Anomaly",
+            "priority": "high",
+            "sustained_duration_seconds": 10,
+            "threshold": 25,
+            "unit": " processes"
+        },
+        {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when CPU usage exceeds threshold for sustained period",
+            "enabled": false,
+            "icon": "cpu",
+            "id": "high_cpu",
+            "name": "High CPU Usage",
+            "priority": "high",
+            "sustained_duration_seconds": 60,
+            "threshold": 95,
+            "unit": "%"
         }
     ],
     "version": "1.0.0"

@@ -19,5 +19,5 @@ vrooli scenario start system-monitor
 ```
 
 ## Production Server
-The production UI server entrypoint is `server.cjs`, which uses `@vrooli/api-base`
+The production UI server entrypoint is `server.js`, which uses `@vrooli/api-base`
 to serve `dist/` and proxy API calls.

@@ -12,6 +12,7 @@
 // - ToolProvider interface enables mocking tool sources
 // - Registry accepts providers via dependency injection
 // - All dependencies are interfaces, not concrete types
+// DOC: docs/reference/api-endpoints.md#tools
 package toolregistry
 
 import (

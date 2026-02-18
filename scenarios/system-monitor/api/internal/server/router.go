@@ -1,4 +1,5 @@
 package server
+// DOC: docs/reference/api-endpoints.md
 
 import (
 	"github.com/gorilla/mux"

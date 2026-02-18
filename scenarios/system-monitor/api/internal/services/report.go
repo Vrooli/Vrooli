@@ -1,12 +1,15 @@
 package services
+// DOC: docs/concepts/ARCHITECTURE.md#reporting
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
 	"time"
 
+	"system-monitor-api/internal/apierrors"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
@@ -50,8 +53,10 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 	// Gather historical metrics from repository
 	historicalMetrics, err := s.gatherHistoricalMetrics(ctx, timeRange)
 	if err != nil {
-		return nil, fmt.Errorf("failed to gather historical metrics: %w", err)
+		return nil, apierrors.Internal("Unable to gather metrics for report generation", err)
 	}
+
+	var warnings []string
 
 	// Get recent investigations for context
 	investigations, err := s.repo.ListInvestigations(ctx, repository.InvestigationFilter{
@@ -59,7 +64,7 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		Limit:     10,
 	})
 	if err != nil {
-		// Non-fatal error, continue without investigations
+		warnings = append(warnings, fmt.Sprintf("Investigation data unavailable: %v", err))
 		investigations = []*models.Investigation{}
 	}
 
@@ -70,7 +75,7 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		Limit:     50,
 	})
 	if err != nil {
-		// Non-fatal error, continue without alerts
+		warnings = append(warnings, fmt.Sprintf("Alert data unavailable: %v", err))
 		alerts = []*models.Alert{}
 	}
 
@@ -103,12 +108,13 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		MetricsCount:        len(historicalMetrics),
 		AlertsCount:         len(alerts),
 		InvestigationsCount: len(investigations),
+		Warnings:            warnings,
 	}
 
 	// Store the report
 	err = s.repo.SaveEnhancedReport(ctx, report)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save report: %w", err)
+		return nil, apierrors.Internal("Report was generated but could not be saved", err)
 	}
 
 	return report, nil
@@ -544,7 +550,7 @@ func (s *ReportService) ListReports(ctx context.Context) ([]*models.EnhancedSyst
 	// Get all enhanced reports from repository
 	reports, err := s.repo.ListEnhancedReports(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list enhanced reports: %w", err)
+		return nil, apierrors.Internal("Unable to retrieve reports", err)
 	}
 
 	// Sort by generation time (newest first)
@@ -557,5 +563,12 @@ func (s *ReportService) ListReports(ctx context.Context) ([]*models.EnhancedSyst
 
 // GetReport retrieves a specific report by ID
 func (s *ReportService) GetReport(ctx context.Context, reportID string) (*models.EnhancedSystemReport, error) {
-	return s.repo.GetEnhancedReport(ctx, reportID)
+	report, err := s.repo.GetEnhancedReport(ctx, reportID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, apierrors.NotFound("report", reportID)
+		}
+		return nil, apierrors.Internal("Unable to retrieve report", err)
+	}
+	return report, nil
 }

@@ -1,6 +1,8 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui
 import { useEffect, useState } from 'react';
 import type { ErrorInfo } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { getProxyInfo } from '@vrooli/api-base';
 import { Header } from './shared/components/Header';
 import { MetricsGrid } from './features/metrics/components/MetricsGrid';
 import { CpuDetailView, MemoryDetailView, NetworkDetailView, DiskDetailView, GpuDetailView } from './features/metrics/components/MetricDetailViews';
@@ -13,6 +15,9 @@ import { ModalsContainer } from './features/investigations/modals/ModalsContaine
 import { SystemSettingsModal } from './features/settings/components/SystemSettingsModal';
 import { MatrixBackground } from './shared/components/MatrixBackground';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
+import { ToastProvider } from './shared/components/ToastProvider';
+import { ToastContainer } from './shared/components/ToastContainer';
+import { ConnectionStatusBanner } from './shared/components/ConnectionStatusBanner';
 import { useSystemMonitor } from './features/monitoring/hooks/useSystemMonitor';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
@@ -21,7 +26,26 @@ import type { DashboardState, CardType, PanelType } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/matrix-theme.css';
 
-function App() {
+/**
+ * Compute BrowserRouter basename from proxy context.
+ *
+ * When served through app-monitor at /apps/<name>/proxy/,
+ * React Router needs the proxy path as basename so that
+ * navigate("/page") resolves to /apps/<name>/proxy/page
+ * instead of /page.
+ *
+ * Returns "" outside proxy context (localhost, tunnel).
+ */
+function getRouterBasename(): string {
+  const proxyInfo = getProxyInfo();
+  const proxyPath = proxyInfo?.primary?.path ?? proxyInfo?.basePath;
+  if (proxyPath) {
+    return proxyPath.replace(/\/+$/, '');
+  }
+  return '';
+}
+
+function AppContent() {
   const navigate = useNavigate();
   const [dashboardState, setDashboardState] = useState<DashboardState>({
     lastUpdate: new Date().toISOString(),
@@ -45,8 +69,11 @@ function App() {
     error,
     healthStatus,
     healthError,
+    isStale,
+    lastSuccessfulFetch,
     toggleMonitoring,
-    refreshHealth
+    refreshHealth,
+    refresh
   } = useSystemMonitor();
 
   const {
@@ -157,6 +184,8 @@ function App() {
           onRefreshHealth={refreshHealth}
           isLoadingHealth={isLoading}
         />
+
+        <ConnectionStatusBanner isStale={isStale} lastSuccessfulFetch={lastSuccessfulFetch} onRefresh={refresh} />
 
         <main className="main-content">
           <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
@@ -331,8 +360,19 @@ function App() {
           />
         </ErrorBoundary>
       </div>
+      <ToastContainer />
     </ErrorBoundary>
   );
 }
 
-export default App;
+export default function App() {
+  const basename = getRouterBasename();
+
+  return (
+    <ToastProvider>
+      <BrowserRouter basename={basename}>
+        <AppContent />
+      </BrowserRouter>
+    </ToastProvider>
+  );
+}

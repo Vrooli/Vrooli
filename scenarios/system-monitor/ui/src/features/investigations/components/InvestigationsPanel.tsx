@@ -2,6 +2,7 @@ import type { Investigation } from '../../../types';
 import { InvestigationStatus } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
 import { apiFetch } from '../../../shared/api/apiFetch';
+import { useToast } from '../../../shared/components/ToastProvider';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { str, bool } from '../../../shared/utils/typeGuards';
 import { getRiskLevelColor } from '../../../shared/utils/colors';
@@ -12,6 +13,8 @@ interface InvestigationsPanelProps {
 }
 
 export const InvestigationsPanel = ({ investigations, embedded = false }: InvestigationsPanelProps) => {
+  const { showApiError } = useToast();
+
   const triggerInvestigation = async () => {
     try {
       await apiFetch('/investigations/trigger', {
@@ -20,10 +23,8 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           'Content-Type': 'application/json'
         }
       });
-      // TODO: Show success message or refresh investigations
-      console.log('Investigation triggered successfully');
     } catch (error) {
-      console.error('Failed to trigger investigation:', error);
+      showApiError(error);
     }
   };
 

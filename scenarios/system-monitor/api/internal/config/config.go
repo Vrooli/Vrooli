@@ -1,4 +1,5 @@
 package config
+// DOC: docs/reference/configuration.md
 
 import (
 	"fmt"

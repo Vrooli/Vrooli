@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"system-monitor-api/internal/agentmanager"
@@ -41,13 +41,15 @@ func Run(cfg *config.Config) error {
 	if agentSvc.IsEnabled() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
-			log.Printf("Warning: Failed to initialize agent-manager profile: %v", err)
-			log.Println("Investigations require agent-manager; anomaly checks will fail until it is available")
+			slog.Warn("Failed to initialize agent-manager profile", "error", err)
+			slog.Info("Investigations require agent-manager; anomaly checks will fail until it is available")
 		}
 		cancel()
 	}
 
-	investigationSvc := services.NewInvestigationService(cfg, repo, monitorSvc, agentSvc)
+	apiLog := slog.Default()
+
+	investigationSvc := services.NewInvestigationService(cfg, repo, monitorSvc, agentSvc, services.WithLogger(apiLog.With("service", "investigation")))
 	scriptSvc := services.NewScriptService(services.ResolveScriptsDir())
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
@@ -61,10 +63,10 @@ func Run(cfg *config.Config) error {
 	}
 
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
-	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc)
-	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc)
-	reportHandler := handlers.NewReportHandler(cfg, reportSvc)
-	settingsHandler := handlers.NewSettingsHandler(settingsMgr)
+	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc, apiLog.With("handler", "metrics"))
+	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc, apiLog.With("handler", "investigations"))
+	reportHandler := handlers.NewReportHandler(cfg, reportSvc, apiLog.With("handler", "reports"))
+	settingsHandler := handlers.NewSettingsHandler(settingsMgr, apiLog.With("handler", "settings"))
 
 	// Initialize Tool Discovery Protocol registry
 	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
@@ -75,7 +77,7 @@ func Run(cfg *config.Config) error {
 	toolRegistry.RegisterProvider(toolregistry.NewMetricsToolProvider())
 	toolRegistry.RegisterProvider(toolregistry.NewInvestigationToolProvider())
 	toolRegistry.RegisterProvider(toolregistry.NewConfigurationToolProvider())
-	log.Printf("Registered %d tool providers with %d tools", toolRegistry.ProviderCount(), len(toolRegistry.ListToolNames(context.Background())))
+	slog.Info("Tool registry initialized", "providers", toolRegistry.ProviderCount(), "tools", len(toolRegistry.ListToolNames(context.Background())))
 
 	// Initialize Tool Execution Protocol executor
 	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
@@ -100,23 +102,26 @@ func Run(cfg *config.Config) error {
 	}
 
 	go func() {
-		log.Printf("System Monitor API starting on port %s", cfg.Server.APIPort)
-		log.Printf("   Environment: %s", cfg.Server.Environment)
-		log.Printf("   Version: %s", cfg.Server.Version)
+		slog.Info("System Monitor API starting",
+			"port", cfg.Server.APIPort,
+			"environment", cfg.Server.Environment,
+			"version", cfg.Server.Version,
+		)
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			slog.Error("Failed to start server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
-	waitForShutdown(monitorSvc, srv, closer)
+	waitForShutdown(monitorSvc, investigationSvc, srv, closer)
 	return nil
 }
 
 func connectRepository(cfg *config.Config) (io.Closer, repository.Repository) {
 	sqliteRepo, err := connectSQLite()
 	if err != nil {
-		log.Printf("Warning: Failed to initialize SQLite, using in-memory storage: %v", err)
+		slog.Warn("Failed to initialize SQLite, using in-memory storage", "error", err)
 		return io.NopCloser(nil), memory.NewRepository()
 	}
 

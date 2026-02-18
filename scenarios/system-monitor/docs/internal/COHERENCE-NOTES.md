@@ -8,6 +8,7 @@
 ---
 
 ## 1. State Architecture
+[CODE: ui/src/features/monitoring/hooks/useSystemMonitor.ts]
 
 ### State Inventory (Audit #2)
 
@@ -38,6 +39,7 @@
 - **InvestigationsSection has 7 useState** — form states should combine into a single reducer.
 
 ### Bugs Found
+[CODE: ui/src/features/investigations/hooks/useInvestigationAgents.ts]
 - **Race condition** in `useInvestigationAgents` (lines 306-337): `pollAgentStatuses()` runs multiple concurrent fetches without dedup. State updates can race.
 - **Missing setTimeout cleanup** in `SystemSettingsModal` (line 97): `setTimeout(..., 3000)` has no useEffect cleanup — can fire after unmount.
 - **Unmounted state updates** in `useSystemMonitor`: Multiple `setState()` calls inside async callbacks without consistent `mountedRef` checks.
@@ -53,6 +55,7 @@
 ---
 
 ## 2. Duplication
+[CODE: ui/src/shared/api/apiFetch.ts]
 
 ### Previously Fixed (Rounds 1-4)
 - Utility functions consolidated to `shared/utils/formatters.ts`

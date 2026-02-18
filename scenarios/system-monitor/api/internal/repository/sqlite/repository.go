@@ -11,6 +11,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"system-monitor-api/internal/apierrors"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
 )
@@ -302,7 +303,7 @@ func (r *Repository) GetLatestMetrics(_ context.Context) (*models.MetricsRespons
 	// Check if we got any data at all.
 	var count int
 	if err := r.db.QueryRow("SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
-		return nil, fmt.Errorf("no metrics available")
+		return nil, apierrors.NotFound("metrics", "latest")
 	}
 
 	return resp, nil
@@ -362,17 +363,17 @@ func (r *Repository) GetEarliestMetricTime(_ context.Context) (time.Time, error)
 	// Check count first to distinguish empty table from parse issues.
 	var count int
 	if err := r.db.QueryRow("SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
-		return time.Time{}, fmt.Errorf("no metrics available")
+		return time.Time{}, apierrors.NotFound("metrics", "earliest")
 	}
 
 	var raw sql.NullString
 	err := r.db.QueryRow("SELECT MIN(timestamp) FROM metrics").Scan(&raw)
 	if err != nil || !raw.Valid || raw.String == "" {
-		return time.Time{}, fmt.Errorf("no metrics available")
+		return time.Time{}, apierrors.NotFound("metrics", "earliest")
 	}
 	ts, err := parseTime(raw.String)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("no metrics available")
+		return time.Time{}, apierrors.NotFound("metrics", "earliest")
 	}
 	return ts, nil
 }
@@ -463,7 +464,7 @@ func (r *Repository) SaveInvestigationStep(_ context.Context, investigationID st
 	var stepsJSON string
 	err := r.db.QueryRow("SELECT steps FROM investigations WHERE id = ?", investigationID).Scan(&stepsJSON)
 	if err != nil {
-		return fmt.Errorf("investigation not found: %s", investigationID)
+		return apierrors.NotFound("investigation", investigationID)
 	}
 
 	var steps []models.InvestigationStep
@@ -509,7 +510,7 @@ func (r *Repository) GetReport(_ context.Context, id string) (*models.Report, er
 		&data, &report.Format,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("report not found: %s", id)
+		return nil, apierrors.NotFound("report", id)
 	}
 	json.Unmarshal([]byte(data), &report.Data) //nolint:errcheck
 	return &report, nil
@@ -574,16 +575,16 @@ func (r *Repository) GetDetailedReport(ctx context.Context, id string) (*models.
 		// Re-marshal and unmarshal to get proper type.
 		b, err := json.Marshal(detailed)
 		if err != nil {
-			return nil, fmt.Errorf("detailed report not found")
+			return nil, apierrors.Internal("failed to read report", err)
 		}
 		var result models.DetailedSystemReport
 		if err := json.Unmarshal(b, &result); err != nil {
-			return nil, fmt.Errorf("detailed report not found")
+			return nil, apierrors.Internal("failed to read report", err)
 		}
 		return &result, nil
 	}
 
-	return nil, fmt.Errorf("detailed report not found")
+	return nil, apierrors.NotFound("report", id)
 }
 
 func (r *Repository) SaveEnhancedReport(_ context.Context, report *models.EnhancedSystemReport) error {
@@ -605,12 +606,12 @@ func (r *Repository) GetEnhancedReport(_ context.Context, id string) (*models.En
 	var data string
 	err := r.db.QueryRow("SELECT report_data FROM enhanced_reports WHERE report_id = ?", id).Scan(&data)
 	if err != nil {
-		return nil, fmt.Errorf("enhanced report not found")
+		return nil, apierrors.NotFound("report", id)
 	}
 
 	var report models.EnhancedSystemReport
 	if err := json.Unmarshal([]byte(data), &report); err != nil {
-		return nil, fmt.Errorf("enhanced report not found")
+		return nil, apierrors.Internal("failed to read report", err)
 	}
 	return &report, nil
 }
@@ -688,7 +689,7 @@ func (r *Repository) GetThreshold(_ context.Context, metricName string) (*models
 	if t, exists := r.th[metricName]; exists {
 		return t, nil
 	}
-	return nil, fmt.Errorf("threshold not found: %s", metricName)
+	return nil, apierrors.NotFound("threshold", metricName)
 }
 
 func (r *Repository) SaveThreshold(_ context.Context, threshold *models.Threshold) error {
@@ -783,7 +784,7 @@ func (r *Repository) GetAlert(_ context.Context, id string) (*models.Alert, erro
 		&alert.Timestamp, &ackedAt, &resolvedAt, &alert.AckedBy,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("alert not found: %s", id)
+		return nil, apierrors.NotFound("alert", id)
 	}
 
 	if threshold != "" && threshold != "null" {
@@ -866,7 +867,7 @@ func (r *Repository) AcknowledgeAlert(_ context.Context, id string, ackedBy stri
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("alert not found: %s", id)
+		return apierrors.NotFound("alert", id)
 	}
 	return nil
 }
@@ -883,7 +884,7 @@ func (r *Repository) ResolveAlert(_ context.Context, id string) error {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("alert not found: %s", id)
+		return apierrors.NotFound("alert", id)
 	}
 	return nil
 }
@@ -970,7 +971,7 @@ func (r *Repository) scanInvestigation(row *sql.Row) (*models.Investigation, err
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("investigation not found")
+			return nil, fmt.Errorf("investigation: %w", repository.ErrNotFound)
 		}
 		return nil, err
 	}

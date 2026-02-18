@@ -1,15 +1,16 @@
 package services
+// DOC: docs/reference/api-endpoints.md#scripts
 
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"system-monitor-api/internal/apierrors"
 )
 
 // ScriptMeta holds parsed metadata from a script file header.
@@ -61,7 +62,7 @@ func (s *ScriptService) ListScripts() ([]ScriptMeta, error) {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("read scripts dir: %w", err)
+		return nil, apierrors.Internal("Unable to load investigation scripts", err)
 	}
 
 	var scripts []ScriptMeta
@@ -88,12 +89,12 @@ func (s *ScriptService) GetScript(id string) (ScriptMeta, string, error) {
 
 	meta, err := parseScriptHeader(path)
 	if err != nil {
-		return ScriptMeta{}, "", fmt.Errorf("parse script header: %w", err)
+		return ScriptMeta{}, "", apierrors.Internal("Script metadata could not be read", err)
 	}
 
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return ScriptMeta{}, "", fmt.Errorf("read script: %w", err)
+		return ScriptMeta{}, "", apierrors.Internal("Script content could not be read", err)
 	}
 
 	return meta, string(content), nil
@@ -118,16 +119,19 @@ func (s *ScriptService) ExecuteScript(ctx context.Context, id string, contentOve
 		// Write content override to a temp file
 		tmpFile, err := os.CreateTemp("", "script-exec-*.sh")
 		if err != nil {
-			return result, fmt.Errorf("create temp script: %w", err)
+			return result, apierrors.Internal("Failed to prepare script for execution", err)
 		}
 		cleanup = func() { os.Remove(tmpFile.Name()) }
 
 		if _, err := tmpFile.WriteString(contentOverride); err != nil {
 			cleanup()
-			return result, fmt.Errorf("write temp script: %w", err)
+			return result, apierrors.Internal("Failed to prepare script for execution", err)
 		}
 		tmpFile.Close()
-		os.Chmod(tmpFile.Name(), 0o700)
+		if err := os.Chmod(tmpFile.Name(), 0o700); err != nil {
+			cleanup()
+			return result, apierrors.Internal("Failed to set script permissions", err)
+		}
 		scriptPath = tmpFile.Name()
 	} else {
 		resolved, err := s.resolveScriptPath(id)
@@ -170,7 +174,7 @@ func (s *ScriptService) resolveScriptPath(id string) (string, error) {
 	// The ID is the filename without .sh extension
 	path := filepath.Join(s.scriptsDir, id+".sh")
 	if _, err := os.Stat(path); err != nil {
-		return "", fmt.Errorf("script not found: %s", id)
+		return "", apierrors.NotFound("script", id)
 	}
 	return path, nil
 }

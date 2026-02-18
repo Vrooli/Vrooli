@@ -149,21 +149,15 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
     }
   }, []);
 
-  const saveScript = useCallback(async (script: InvestigationScript, content: string) => {
-    try {
-      // TODO: Implement actual API call to save script
-      console.log('Saving script:', script, content);
-      // For now, just close the modal
-      setModalState(prev => ({
-        ...prev,
-        scriptEditor: {
-          ...prev.scriptEditor,
-          isOpen: false
-        }
-      }));
-    } catch (err) {
-      console.error('Failed to save script:', err);
-    }
+  const saveScript = useCallback(async (_script: InvestigationScript, _content: string) => {
+    // TODO: Implement actual API call to save script
+    setModalState(prev => ({
+      ...prev,
+      scriptEditor: {
+        ...prev.scriptEditor,
+        isOpen: false
+      }
+    }));
   }, []);
 
   return {

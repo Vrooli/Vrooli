@@ -1,47 +1,73 @@
 {
-  "scenario": "system-monitor",
-  "documents": [
+  "version": "1.0.0",
+  "title": "System Monitor Documentation",
+  "description": "Real-time system monitoring with AI-driven anomaly detection",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
     {
-      "id": "prd",
-      "title": "Product Requirements Document",
-      "path": "../PRD.md",
-      "type": "specification",
-      "description": "Full PRD with operational targets, API contract, CLI interface, and architecture"
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        { "id": "quickstart", "title": "Quick Start", "path": "QUICKSTART.md", "type": "guide", "description": "Get up and running in 5 minutes" },
+        { "id": "readme", "title": "README", "path": "../README.md", "type": "overview", "description": "Full feature overview, architecture, and configuration" }
+      ]
     },
     {
-      "id": "readme",
-      "title": "README",
-      "path": "../README.md",
-      "type": "overview",
-      "description": "Quick-start guide with features, architecture, usage, and configuration"
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        { "id": "architecture", "title": "Architecture", "path": "concepts/ARCHITECTURE.md", "type": "concept", "description": "System design, layers, and data flow" }
+      ]
     },
     {
-      "id": "refactoring",
-      "title": "API Refactoring Guide",
-      "path": "../api/REFACTORING.md",
-      "type": "internal",
-      "description": "API architecture refactoring notes, module structure, and migration guide"
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        { "id": "api-endpoints", "title": "API Endpoints", "path": "reference/api-endpoints.md", "type": "reference", "description": "Complete REST API reference with 40+ endpoints" },
+        { "id": "cli-commands", "title": "CLI Commands", "path": "reference/cli-commands.md", "type": "reference", "description": "Command-line interface reference" },
+        { "id": "configuration", "title": "Configuration", "path": "reference/configuration.md", "type": "reference", "description": "Environment variables and settings" }
+      ]
     },
     {
-      "id": "progress",
-      "title": "Spec Sync Progress",
-      "path": "internal/PROGRESS.md",
-      "type": "internal",
-      "description": "Tracks spec-sync sessions and unresolved discrepancies"
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "documents": [
+        { "id": "troubleshooting", "title": "Troubleshooting", "path": "guides/troubleshooting.md", "type": "guide", "description": "Common issues and solutions" }
+      ]
     },
     {
-      "id": "seams",
-      "title": "Seams & Architecture Boundaries",
-      "path": "internal/SEAMS.md",
-      "type": "internal",
-      "description": "Testability boundaries, responsibility zones, and integration seams"
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        { "id": "seams", "title": "Seams & Architecture Boundaries", "path": "internal/SEAMS.md", "type": "internal", "description": "Testability boundaries, responsibility zones, and integration seams" },
+        { "id": "problems", "title": "Known Issues & Technical Debt", "path": "internal/PROBLEMS.md", "type": "internal", "description": "Known bugs, test gaps, stability issues, and technical debt" },
+        { "id": "progress", "title": "Spec Sync Progress", "path": "internal/PROGRESS.md", "type": "internal", "description": "Tracks spec-sync sessions and unresolved discrepancies" },
+        { "id": "coherence-notes", "title": "UI Coherence Audit", "path": "internal/COHERENCE-NOTES.md", "type": "internal", "description": "React UI coherence audit with scoring and action items" },
+        { "id": "error-semantics", "title": "Error Semantics", "path": "internal/ERROR-SEMANTICS.md", "type": "internal", "description": "Error creation, propagation, and consumption patterns" },
+        { "id": "interop-audit", "title": "Interop Audit", "path": "internal/INTEROP_AUDIT.md", "type": "internal", "description": "Interoperability analysis" },
+        { "id": "unit-test-arch", "title": "Unit Test Architecture", "path": "internal/UNIT_TEST_ARCHITECTURE.md", "type": "internal", "description": "Test strategy and patterns" },
+        { "id": "utils-unification", "title": "Utils Unification Notes", "path": "internal/UTILS_UNIFICATION_NOTES.md", "type": "internal", "description": "Utility consolidation notes" }
+      ]
     },
     {
-      "id": "problems",
-      "title": "Known Issues & Technical Debt",
-      "path": "internal/PROBLEMS.md",
-      "type": "internal",
-      "description": "Known bugs, test gaps, stability issues, and technical debt"
+      "id": "plans",
+      "title": "Plans",
+      "icon": "map",
+      "visibility": "developers-only",
+      "documents": [
+        { "id": "refactoring", "title": "API Refactoring Guide", "path": "plans/REFACTORING.md", "type": "plan", "description": "API architecture refactoring notes, module structure, and migration guide" },
+        { "id": "prd", "title": "Product Requirements Document", "path": "../PRD.md", "type": "specification", "description": "Full PRD with operational targets, API contract, CLI interface, and architecture" }
+      ]
     }
-  ]
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference", "guides"],
+    "secondary": ["internal", "plans"]
+  }
 }

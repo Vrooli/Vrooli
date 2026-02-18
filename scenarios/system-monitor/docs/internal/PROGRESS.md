@@ -90,7 +90,7 @@ IMPORTANT (should pass):
   [x] Architecture documentation matches actual code structure
 
 NICE-TO-HAVE:
-  [ ] Bidirectional DOC:/[CODE:] references
+  [x] Bidirectional DOC:/[CODE:] references
   [ ] All docs follow documentation-health standards
   [ ] Configuration documentation covers all options
 ```

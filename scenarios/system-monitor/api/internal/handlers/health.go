@@ -1,4 +1,5 @@
 package handlers
+// DOC: docs/reference/api-endpoints.md#health
 
 import (
 	"context"

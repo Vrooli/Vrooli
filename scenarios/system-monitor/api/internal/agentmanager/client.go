@@ -3,6 +3,7 @@
 // This package wraps the agent-manager REST API using proto-generated types,
 // enabling system-monitor to delegate agent execution to agent-manager
 // instead of invoking CLI tools directly.
+// DOC: docs/internal/SEAMS.md#agent-manager-client
 package agentmanager
 
 import (

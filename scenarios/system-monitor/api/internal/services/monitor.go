@@ -1,4 +1,5 @@
 package services
+// DOC: docs/concepts/ARCHITECTURE.md#monitoring-service
 
 import (
 	"context"

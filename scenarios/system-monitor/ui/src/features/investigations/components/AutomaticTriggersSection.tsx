@@ -8,6 +8,7 @@ import {
 import { TriggerCondition } from '../../../types/api';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { usePolling } from '../../../shared/hooks/usePolling';
+import { useToast } from '../../../shared/components/ToastProvider';
 import { formatDurationSeconds } from '../../../shared/utils/formatters';
 
 interface TriggerCardConfig {
@@ -29,6 +30,7 @@ interface AutomaticTriggersSectionProps {
 }
 
 export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersSectionProps) => {
+  const { showApiError } = useToast();
   const [triggers, setTriggers] = useState<TriggerCardConfig[]>([]);
   const cooldownUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cooldownStatus, setCooldownStatus] = useState({
@@ -118,13 +120,13 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
         }
       }
     } catch (error) {
-      console.error('Failed to load trigger data:', error);
+      if (!suppressLoading) showApiError(error);
     } finally {
       if (!suppressLoading) {
         setLoading(false);
       }
     }
-  }, [getIconComponent]);
+  }, [getIconComponent, showApiError]);
 
   // Load data from API on mount
   useEffect(() => {
@@ -153,7 +155,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       ));
       onUpdateTrigger(triggerId, { enabled: !trigger.enabled });
     } catch (error) {
-      console.error('Failed to update trigger:', error);
+      showApiError(error);
     }
   };
 
@@ -173,7 +175,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       ));
       onUpdateTrigger(triggerId, { autoFix: !trigger.autoFix });
     } catch (error) {
-      console.error('Failed to update trigger auto-fix:', error);
+      showApiError(error);
     }
   };
 
@@ -190,7 +192,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
         cooldownPeriodSeconds: newPeriodSeconds,
       }));
     } catch (error) {
-      console.error('Failed to update cooldown period:', error);
+      showApiError(error);
       setLocalCooldownValue(cooldownStatus.cooldownPeriodSeconds);
     }
   };
@@ -209,7 +211,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       setEditingTrigger(null);
       setEditValues({});
     } catch (error) {
-      console.error('Failed to update trigger threshold:', error);
+      showApiError(error);
     }
   };
 
@@ -225,7 +227,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
         isReady: true,
       }));
     } catch (error) {
-      console.error('Failed to reset cooldown:', error);
+      showApiError(error);
     }
   };
 

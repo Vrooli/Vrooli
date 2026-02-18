@@ -1,3 +1,4 @@
+// DOC: docs/internal/INTEROP_AUDIT.md#proto-contracts
 /**
  * Proto contract definitions for the System Monitor UI.
  *
@@ -54,6 +55,12 @@ import {
 
 // Domain schemas — reports
 import { EnhancedSystemReportSchema } from "@vrooli/proto-types/system-monitor/v1/domain/reports_pb";
+
+// API schemas — reports
+import {
+  ListReportsResponseSchema,
+  GenerateReportResponseSchema,
+} from "@vrooli/proto-types/system-monitor/v1/api/reports_pb";
 
 // Domain schemas — scripts
 import {
@@ -130,6 +137,14 @@ export function parseSystemSettings(data: unknown): MessageShape<typeof SystemSe
 
 export function parseEnhancedSystemReport(data: unknown): MessageShape<typeof EnhancedSystemReportSchema> {
   return fromJson(EnhancedSystemReportSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+export function parseListReportsResponse(data: unknown): MessageShape<typeof ListReportsResponseSchema> {
+  return fromJson(ListReportsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+export function parseGenerateReportResponse(data: unknown): MessageShape<typeof GenerateReportResponseSchema> {
+  return fromJson(GenerateReportResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +249,8 @@ export {
   ListScriptsResponseSchema,
   GetScriptResponseSchema,
   ExecuteScriptResponseSchema,
+  ListReportsResponseSchema,
+  GenerateReportResponseSchema,
 };
 
 // Re-export utilities for consumers that need them

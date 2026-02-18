@@ -1,5 +1,6 @@
+// DOC: docs/internal/COHERENCE-NOTES.md#bugs-found
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiFetch, protoFetch } from '../../../shared/api/apiFetch';
+import { apiFetch, extractErrorMessage, isApiError, protoFetch } from '../../../shared/api/apiFetch';
 import {
   parseInvestigation,
   parseTriggerInvestigationResponse,
@@ -31,9 +32,14 @@ export const useInvestigationAgents = () => {
       }
       const mapped = protoToAgentState(inv);
       setAgents(mapped ? [mapped] : []);
-    } catch {
-      // 404 or parse failure means no active agent
-      setAgents([]);
+    } catch (err) {
+      // Parse failures or empty responses mean no active agent
+      if (err instanceof SyntaxError || (isApiError(err) && err.detail?.code === 'not_found')) {
+        setAgents([]);
+        return;
+      }
+      // Re-throw server/network errors so callers can handle them
+      throw err;
     }
   }, []);
 
@@ -69,7 +75,7 @@ export const useInvestigationAgents = () => {
 
       return mapped;
     } catch (spawnError) {
-      const message = spawnError instanceof Error ? spawnError.message : 'Unknown error spawning investigation agent';
+      const message = extractErrorMessage(spawnError, 'Unknown error spawning investigation agent');
       setSpawnAgentError(message);
       throw spawnError;
     } finally {
@@ -105,7 +111,7 @@ export const useInvestigationAgents = () => {
       });
       setAgents(prev => prev.filter(agent => agent.id !== agentId));
     } catch (stopError) {
-      const message = stopError instanceof Error ? stopError.message : 'Failed to stop agent';
+      const message = extractErrorMessage(stopError, 'Failed to stop agent');
       setAgentErrors(prev => ({ ...prev, [agentId]: message }));
       throw stopError;
     } finally {
@@ -118,7 +124,9 @@ export const useInvestigationAgents = () => {
   }, []);
 
   useEffect(() => {
-    void fetchActiveAgents();
+    fetchActiveAgents().catch(() => {
+      // Initial fetch failure is non-fatal — polling will retry
+    });
   }, [fetchActiveAgents]);
 
   const hasActiveAgents = agents.some(agent => {
@@ -152,9 +160,13 @@ export const useInvestigationAgents = () => {
             updates.set(mapped.id, mapped);
           }
         }
-      } catch {
-        // 404 means agent was removed
-        removals.add(agent.id);
+      } catch (pollErr) {
+        // 404 / parse error means agent was removed — treat as removal
+        if (pollErr instanceof SyntaxError || (isApiError(pollErr) && pollErr.detail?.code === 'not_found')) {
+          removals.add(agent.id);
+        }
+        // Network/5xx errors are silently ignored per-agent during polling
+        // (the polling backoff in usePolling will handle systemic failures)
       }
     }));
 

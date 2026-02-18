@@ -1,4 +1,5 @@
 package main
+// DOC: docs/QUICKSTART.md, docs/concepts/ARCHITECTURE.md
 
 import (
 	"fmt"

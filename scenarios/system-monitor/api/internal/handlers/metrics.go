@@ -1,6 +1,8 @@
 package handlers
+// DOC: docs/reference/api-endpoints.md#metrics
 
 import (
+	"log/slog"
 	"net/http"
 
 	"system-monitor-api/internal/config"
@@ -11,13 +13,15 @@ import (
 
 // MetricsHandler handles metrics-related requests
 type MetricsHandler struct {
+	log        *slog.Logger
 	config     *config.Config
 	monitorSvc MonitorQuerier
 }
 
 // NewMetricsHandler creates a new metrics handler
-func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier) *MetricsHandler {
+func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier, log *slog.Logger) *MetricsHandler {
 	return &MetricsHandler{
+		log:        log,
 		config:     cfg,
 		monitorSvc: monitorSvc,
 	}
@@ -38,11 +42,11 @@ func (h *MetricsHandler) GetCurrentMetrics(w http.ResponseWriter, r *http.Reques
 		metrics, err = h.monitorSvc.GetCurrentMetrics(ctx)
 	}
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.ProtoJSON(w, convert.MetricsResponseToProto(metrics)) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, convert.MetricsResponseToProto(metrics))
 }
 
 // GetDetailedMetrics handles GET /api/v1/metrics/detailed
@@ -51,11 +55,11 @@ func (h *MetricsHandler) GetDetailedMetrics(w http.ResponseWriter, r *http.Reque
 
 	metrics, err := h.monitorSvc.GetDetailedMetrics(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.ProtoJSON(w, convert.DetailedMetricsToProto(metrics)) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, convert.DetailedMetricsToProto(metrics))
 }
 
 // GetProcessMonitor handles GET /api/v1/metrics/processes
@@ -64,11 +68,11 @@ func (h *MetricsHandler) GetProcessMonitor(w http.ResponseWriter, r *http.Reques
 
 	data, err := h.monitorSvc.GetProcessMonitorData(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.ProtoJSON(w, convert.ProcessMonitorDataToProto(data)) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, convert.ProcessMonitorDataToProto(data))
 }
 
 // GetInfrastructureMonitor handles GET /api/v1/metrics/infrastructure
@@ -77,9 +81,9 @@ func (h *MetricsHandler) GetInfrastructureMonitor(w http.ResponseWriter, r *http
 
 	data, err := h.monitorSvc.GetInfrastructureMonitorData(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.ProtoJSON(w, convert.InfrastructureMonitorDataToProto(data)) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, convert.InfrastructureMonitorDataToProto(data))
 }

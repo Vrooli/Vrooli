@@ -30,12 +30,16 @@ func NewHandler(executor *ServerExecutor, log *slog.Logger) *Handler {
 func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	var req ExecuteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.jsonError(w, "invalid request body", ErrorCodeInvalidArgs, http.StatusBadRequest)
+		result := NewErrorResult(ErrorCodeInvalidArgs, "invalid request body")
+		result.RequestID = r.Header.Get("X-Request-ID")
+		httputil.JSONWithStatus(w, http.StatusBadRequest, result) //nolint:errcheck
 		return
 	}
 
 	if req.ToolName == "" {
-		h.jsonError(w, "tool_name is required", ErrorCodeInvalidArgs, http.StatusBadRequest)
+		result := NewErrorResult(ErrorCodeInvalidArgs, "tool_name is required")
+		result.RequestID = r.Header.Get("X-Request-ID")
+		httputil.JSONWithStatus(w, http.StatusBadRequest, result) //nolint:errcheck
 		return
 	}
 
@@ -44,9 +48,14 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	result, err := h.executor.Execute(r.Context(), req.ToolName, req.Arguments)
 	if err != nil {
 		h.log.Error("tool execution failed", "tool", req.ToolName, "error", err)
-		h.jsonError(w, err.Error(), ErrorCodeInternalError, http.StatusInternalServerError)
+		result = NewErrorResult(ErrorCodeInternalError, "An internal error occurred")
+		result.RequestID = r.Header.Get("X-Request-ID")
+		httputil.JSONWithStatus(w, http.StatusInternalServerError, result) //nolint:errcheck
 		return
 	}
+
+	// Inject request ID
+	result.RequestID = r.Header.Get("X-Request-ID")
 
 	// Map error codes to HTTP status
 	status := http.StatusOK
@@ -71,16 +80,5 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 
 	if err := httputil.JSONWithStatus(w, status, result); err != nil {
 		h.log.Error("failed to encode response", "error", err)
-	}
-}
-
-// jsonError writes a JSON error response using an ExecutionResult envelope.
-func (h *Handler) jsonError(w http.ResponseWriter, message string, code string, status int) {
-	if err := httputil.JSONWithStatus(w, status, &ExecutionResult{
-		Success: false,
-		Error:   message,
-		Code:    code,
-	}); err != nil {
-		h.log.Error("failed to encode error response", "error", err)
 	}
 }

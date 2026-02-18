@@ -1,13 +1,18 @@
 package handlers
+// DOC: docs/reference/api-endpoints.md#investigations
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"system-monitor-api/internal/apierrors"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/convert"
 	"system-monitor-api/internal/httputil"
@@ -19,14 +24,16 @@ import (
 
 // InvestigationHandler handles investigation-related requests
 type InvestigationHandler struct {
+	log              *slog.Logger
 	config           *config.Config
 	investigationSvc InvestigationManager
 	scriptSvc        ScriptRunner
 }
 
 // NewInvestigationHandler creates a new investigation handler
-func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner) *InvestigationHandler {
+func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner, log *slog.Logger) *InvestigationHandler {
 	return &InvestigationHandler{
+		log:              log,
 		config:           cfg,
 		investigationSvc: investigationSvc,
 		scriptSvc:        scriptSvc,
@@ -45,14 +52,14 @@ func (h *InvestigationHandler) ListInvestigations(w http.ResponseWriter, r *http
 
 	investigations, err := h.investigationSvc.ListInvestigations(ctx, limit)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.ListInvestigationsResponse{
 		Investigations: convert.InvestigationsToProto(investigations),
 	}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // GetLatestInvestigation handles GET /api/v1/investigations/latest
@@ -61,11 +68,11 @@ func (h *InvestigationHandler) GetLatestInvestigation(w http.ResponseWriter, r *
 
 	investigation, err := h.investigationSvc.GetLatestInvestigation(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.ProtoJSON(w, convert.InvestigationToProto(investigation)) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, convert.InvestigationToProto(investigation))
 }
 
 // TriggerInvestigation handles POST /api/v1/investigations/trigger
@@ -74,14 +81,19 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 
 	var pbReq apipb.TriggerInvestigationRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		// Allow empty body for backwards compatibility
-		pbReq.AutoFix = false
-		pbReq.Note = ""
+		if r.ContentLength <= 0 || errors.Is(err, io.EOF) {
+			// Allow empty body for backwards compatibility
+			pbReq.AutoFix = false
+			pbReq.Note = ""
+		} else {
+			httputil.HandleError(w, h.log, r, apierrors.Validation("body", "invalid JSON"))
+			return
+		}
 	}
 
 	investigation, err := h.investigationSvc.TriggerInvestigation(ctx, pbReq.AutoFix, pbReq.Note)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
@@ -94,7 +106,7 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 		AutoFix:         pbReq.AutoFix,
 		Note:            pbReq.Note,
 	}
-	httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp) //nolint:errcheck
+	httputil.SafeProtoJSONWithStatus(w, h.log, r, http.StatusAccepted, resp)
 }
 
 // GetInvestigation handles GET /api/v1/investigations/{id}
@@ -105,11 +117,11 @@ func (h *InvestigationHandler) GetInvestigation(w http.ResponseWriter, r *http.R
 
 	investigation, err := h.investigationSvc.GetInvestigation(ctx, id)
 	if err != nil {
-		httputil.NotFound(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.ProtoJSON(w, convert.InvestigationToProto(investigation)) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, convert.InvestigationToProto(investigation))
 }
 
 // UpdateInvestigationStatus handles PUT /api/v1/investigations/{id}/status
@@ -120,7 +132,7 @@ func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, 
 
 	var pbReq apipb.UpdateInvestigationStatusRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
@@ -128,12 +140,12 @@ func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, 
 	statusStr := strings.ToLower(strings.TrimPrefix(pbReq.Status.String(), "INVESTIGATION_STATUS_"))
 
 	if err := h.investigationSvc.UpdateInvestigationStatus(ctx, id, statusStr); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.UpdateInvestigationStatusResponse{Status: "updated"}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // UpdateInvestigationFindings handles PUT /api/v1/investigations/{id}/findings
@@ -144,7 +156,7 @@ func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter
 
 	var pbReq apipb.UpdateInvestigationFindingsRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
@@ -155,12 +167,12 @@ func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter
 	}
 
 	if err := h.investigationSvc.UpdateInvestigationFindings(ctx, id, pbReq.Findings, details); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.UpdateInvestigationFindingsResponse{Status: "updated"}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // UpdateInvestigationProgress handles PUT /api/v1/investigations/{id}/progress
@@ -171,17 +183,17 @@ func (h *InvestigationHandler) UpdateInvestigationProgress(w http.ResponseWriter
 
 	var pbReq apipb.UpdateInvestigationProgressRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
 	if err := h.investigationSvc.UpdateInvestigationProgress(ctx, id, int(pbReq.Progress)); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.UpdateInvestigationProgressResponse{Status: "updated"}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // AddInvestigationStep handles POST /api/v1/investigations/{id}/step
@@ -192,18 +204,18 @@ func (h *InvestigationHandler) AddInvestigationStep(w http.ResponseWriter, r *ht
 
 	var pbReq apipb.AddInvestigationStepRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
 	step := protoStepToModel(pbReq.Step)
 	if err := h.investigationSvc.AddInvestigationStep(ctx, id, step); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.AddInvestigationStepResponse{Status: "step_added"}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // GetCooldownStatus handles GET /api/v1/investigations/cooldown
@@ -212,14 +224,14 @@ func (h *InvestigationHandler) GetCooldownStatus(w http.ResponseWriter, r *http.
 
 	status, err := h.investigationSvc.GetCooldownStatus(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.GetCooldownStatusResponse{
 		Cooldown: convert.CooldownStatusToProto(status),
 	}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // ResetCooldown handles POST /api/v1/investigations/cooldown/reset
@@ -227,11 +239,13 @@ func (h *InvestigationHandler) ResetCooldown(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 
 	if err := h.investigationSvc.ResetCooldown(ctx); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, map[string]string{"status": "cooldown_reset"}) //nolint:errcheck
+	if err := httputil.JSON(w, map[string]string{"status": "cooldown_reset"}); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // UpdateCooldownPeriod handles PUT /api/v1/investigations/cooldown/period
@@ -243,16 +257,18 @@ func (h *InvestigationHandler) UpdateCooldownPeriod(w http.ResponseWriter, r *ht
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
 	if err := h.investigationSvc.UpdateCooldownPeriod(ctx, req.CooldownPeriodSeconds); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, map[string]string{"status": "updated"}) //nolint:errcheck
+	if err := httputil.JSON(w, map[string]string{"status": "updated"}); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // GetTriggers handles GET /api/v1/investigations/triggers
@@ -261,14 +277,14 @@ func (h *InvestigationHandler) GetTriggers(w http.ResponseWriter, r *http.Reques
 
 	triggers, err := h.investigationSvc.GetTriggers(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.GetTriggersResponse{
 		Triggers: convert.TriggerConfigsMapToProto(triggers),
 	}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // UpdateTrigger handles PUT /api/v1/investigations/triggers/{id}
@@ -279,7 +295,7 @@ func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Requ
 
 	var pbReq apipb.UpdateTriggerRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
@@ -299,12 +315,12 @@ func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := h.investigationSvc.UpdateTrigger(ctx, id, enabled, autoFix, threshold); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.UpdateTriggerResponse{Status: "updated"}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // UpdateTriggerThreshold handles PUT /api/v1/investigations/triggers/{id}/threshold
@@ -318,16 +334,18 @@ func (h *InvestigationHandler) UpdateTriggerThreshold(w http.ResponseWriter, r *
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
 	if err := h.investigationSvc.UpdateTrigger(ctx, id, nil, nil, &req.Threshold); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, map[string]string{"status": "updated"}) //nolint:errcheck
+	if err := httputil.JSON(w, map[string]string{"status": "updated"}); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 func (h *InvestigationHandler) resolveAPIBaseURL(r *http.Request) string {
@@ -359,11 +377,13 @@ func (h *InvestigationHandler) GetAgentConfig(w http.ResponseWriter, r *http.Req
 
 	config, err := h.investigationSvc.GetAgentConfig(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, config) //nolint:errcheck
+	if err := httputil.JSON(w, config); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // GetAvailableRunners handles GET /api/agent/runners
@@ -372,11 +392,13 @@ func (h *InvestigationHandler) GetAvailableRunners(w http.ResponseWriter, r *htt
 
 	runners, err := h.investigationSvc.GetAvailableRunners(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, runners) //nolint:errcheck
+	if err := httputil.JSON(w, runners); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // UpdateAgentConfig handles PUT /api/agent/config
@@ -395,17 +417,19 @@ func (h *InvestigationHandler) UpdateAgentConfig(w http.ResponseWriter, r *http.
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
 	}
 
 	config, err := h.investigationSvc.UpdateAgentConfig(ctx, req.RunnerType, req.Model, req.MaxTurns, req.TimeoutSeconds, req.AllowedTools, req.SkipPermissions, req.RequiresSandbox, req.RequiresApproval)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, config) //nolint:errcheck
+	if err := httputil.JSON(w, config); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // GetAgentStatus handles GET /api/agent/status
@@ -414,11 +438,13 @@ func (h *InvestigationHandler) GetAgentStatus(w http.ResponseWriter, r *http.Req
 
 	status, err := h.investigationSvc.GetAgentStatus(ctx)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, status) //nolint:errcheck
+	if err := httputil.JSON(w, status); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // =============================================================================
@@ -433,19 +459,22 @@ func (h *InvestigationHandler) GetCurrentAgent(w http.ResponseWriter, r *http.Re
 	// Get the latest in-progress investigation
 	investigation, err := h.investigationSvc.GetLatestInvestigation(ctx)
 	if err != nil {
-		// Return empty if no investigations
-		httputil.JSON(w, nil) //nolint:errcheck
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	// Only return if there's an active investigation
 	if investigation != nil && !models.IsTerminalStatus(investigation.Status) {
-		httputil.ProtoJSON(w, convert.InvestigationToProto(investigation)) //nolint:errcheck
+		if err := httputil.ProtoJSON(w, convert.InvestigationToProto(investigation)); err != nil {
+			h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+		}
 		return
 	}
 
 	// No active agent
-	httputil.JSON(w, nil) //nolint:errcheck
+	if err := httputil.JSON(w, nil); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // GetAgentStatusByID handles GET /api/v1/investigations/agent/{id}/status
@@ -457,11 +486,11 @@ func (h *InvestigationHandler) GetAgentStatusByID(w http.ResponseWriter, r *http
 
 	investigation, err := h.investigationSvc.GetInvestigationAgentStatus(ctx, id)
 	if err != nil {
-		httputil.NotFound(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.ProtoJSON(w, convert.InvestigationToProto(investigation)) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, convert.InvestigationToProto(investigation))
 }
 
 // StopAgent handles POST /api/v1/investigations/agent/{id}/stop
@@ -471,25 +500,27 @@ func (h *InvestigationHandler) StopAgent(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 
 	if err := h.investigationSvc.StopInvestigationAgent(ctx, id); err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	httputil.JSON(w, map[string]string{"status": models.StatusStopped, "id": id}) //nolint:errcheck
+	if err := httputil.JSON(w, map[string]string{"status": models.StatusStopped, "id": id}); err != nil {
+		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
+	}
 }
 
 // ListScripts handles GET /api/v1/investigations/scripts
 func (h *InvestigationHandler) ListScripts(w http.ResponseWriter, r *http.Request) {
 	scripts, err := h.scriptSvc.ListScripts()
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.ListScriptsResponse{
 		Scripts: convert.ScriptMetasToProto(scripts),
 	}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // GetScript handles GET /api/v1/investigations/scripts/{id}
@@ -499,7 +530,7 @@ func (h *InvestigationHandler) GetScript(w http.ResponseWriter, r *http.Request)
 
 	meta, content, err := h.scriptSvc.GetScript(id)
 	if err != nil {
-		httputil.NotFound(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
@@ -507,7 +538,7 @@ func (h *InvestigationHandler) GetScript(w http.ResponseWriter, r *http.Request)
 		Script:  convert.ScriptMetaToProto(meta),
 		Content: content,
 	}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // ExecuteScript handles POST /api/v1/investigations/scripts/{id}/execute
@@ -529,14 +560,14 @@ func (h *InvestigationHandler) ExecuteScript(w http.ResponseWriter, r *http.Requ
 
 	execution, err := h.scriptSvc.ExecuteScript(ctx, id, contentOverride)
 	if err != nil {
-		httputil.InternalError(w, "", err.Error())
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
 	resp := &apipb.ExecuteScriptResponse{
 		Execution: convert.ScriptExecutionToProto(execution),
 	}
-	httputil.ProtoJSON(w, resp) //nolint:errcheck
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // protoStepToModel converts a proto InvestigationStep to the internal model.

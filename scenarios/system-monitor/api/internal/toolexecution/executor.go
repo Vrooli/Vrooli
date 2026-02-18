@@ -3,9 +3,11 @@ package toolexecution
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
+	"system-monitor-api/internal/apierrors"
 	"system-monitor-api/internal/models"
 )
 
@@ -140,7 +142,8 @@ func (e *ServerExecutor) executeGetMetrics(ctx context.Context, args map[string]
 	}
 
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to get metrics: %v", err)), nil
+		e.log.Error("operation failed", "tool", "get_metrics", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to retrieve metrics"), nil
 	}
 
 	return NewSuccessResult(metrics), nil
@@ -153,7 +156,8 @@ func (e *ServerExecutor) executeGetDetailedMetrics(ctx context.Context, _ map[st
 
 	metrics, err := e.monitorSvc.GetDetailedMetrics(ctx)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to get detailed metrics: %v", err)), nil
+		e.log.Error("operation failed", "tool", "get_detailed_metrics", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to retrieve detailed metrics"), nil
 	}
 
 	return NewSuccessResult(metrics), nil
@@ -167,7 +171,8 @@ func (e *ServerExecutor) executeGetProcesses(ctx context.Context, args map[strin
 	// Process arguments are handled internally by the service
 	data, err := e.monitorSvc.GetProcessMonitorData(ctx)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to get process data: %v", err)), nil
+		e.log.Error("operation failed", "tool", "get_processes", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to retrieve process data"), nil
 	}
 
 	return NewSuccessResult(data), nil
@@ -220,12 +225,12 @@ func (e *ServerExecutor) executeTriggerInvestigation(ctx context.Context, args m
 	// Trigger investigation
 	investigation, err := e.investigationSvc.TriggerInvestigation(ctx, autoFix, note)
 	if err != nil {
-		// Check if it's a cooldown error
-		errMsg := err.Error()
-		if errMsg != "" && (errMsg[:11] == "cooldown" || errMsg[:len("investigation is in cooldown")] == "investigation is in cooldown") {
-			return NewErrorResult(ErrorCodeCooldown, err.Error()), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
 		}
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to trigger investigation: %v", err)), nil
+		e.log.Error("operation failed", "tool", "trigger_investigation", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to trigger investigation"), nil
 	}
 
 	// Return async result
@@ -255,6 +260,10 @@ func (e *ServerExecutor) executeCheckInvestigationStatus(ctx context.Context, ar
 	// Get investigation status
 	investigation, err := e.investigationSvc.GetInvestigation(ctx, investigationID)
 	if err != nil {
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
+		}
 		return NewErrorResult(ErrorCodeNotFound, fmt.Sprintf("investigation not found: %s", investigationID)), nil
 	}
 
@@ -282,7 +291,12 @@ func (e *ServerExecutor) executeGetLatestInvestigation(ctx context.Context, _ ma
 
 	investigation, err := e.investigationSvc.GetLatestInvestigation(ctx)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to get latest investigation: %v", err)), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
+		}
+		e.log.Error("operation failed", "tool", "get_latest_investigation", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to retrieve latest investigation"), nil
 	}
 
 	return NewSuccessResult(investigation), nil
@@ -302,7 +316,12 @@ func (e *ServerExecutor) executeStopInvestigation(ctx context.Context, args map[
 	// Stop the investigation
 	err := e.investigationSvc.StopInvestigationAgent(ctx, investigationID)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to stop investigation: %v", err)), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
+		}
+		e.log.Error("operation failed", "tool", "stop_investigation", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to stop investigation"), nil
 	}
 
 	return NewSuccessResult(map[string]interface{}{
@@ -331,7 +350,12 @@ func (e *ServerExecutor) executeGenerateReport(ctx context.Context, args map[str
 	// Generate report
 	report, err := e.reportSvc.GenerateReport(ctx, reportType)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to generate report: %v", err)), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
+		}
+		e.log.Error("operation failed", "tool", "generate_report", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to generate report"), nil
 	}
 
 	return NewSuccessResult(report), nil
@@ -348,7 +372,12 @@ func (e *ServerExecutor) executeGetTriggers(ctx context.Context, _ map[string]in
 
 	triggers, err := e.investigationSvc.GetTriggers(ctx)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to get triggers: %v", err)), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
+		}
+		e.log.Error("operation failed", "tool", "get_triggers", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to retrieve triggers"), nil
 	}
 
 	return NewSuccessResult(triggers), nil
@@ -384,11 +413,12 @@ func (e *ServerExecutor) executeUpdateTrigger(ctx context.Context, args map[stri
 	// Update trigger
 	err := e.investigationSvc.UpdateTrigger(ctx, triggerID, enabled, autoFix, threshold)
 	if err != nil {
-		// Check if trigger not found
-		if err.Error()[:len("trigger not found")] == "trigger not found" {
-			return NewErrorResult(ErrorCodeNotFound, err.Error()), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
 		}
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to update trigger: %v", err)), nil
+		e.log.Error("operation failed", "tool", "update_trigger", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to update trigger"), nil
 	}
 
 	return NewSuccessResult(map[string]interface{}{
@@ -405,7 +435,12 @@ func (e *ServerExecutor) executeGetCooldownStatus(ctx context.Context, _ map[str
 
 	status, err := e.investigationSvc.GetCooldownStatus(ctx)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to get cooldown status: %v", err)), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
+		}
+		e.log.Error("operation failed", "tool", "get_cooldown_status", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to retrieve cooldown status"), nil
 	}
 
 	return NewSuccessResult(status), nil
@@ -418,7 +453,12 @@ func (e *ServerExecutor) executeResetCooldown(ctx context.Context, _ map[string]
 
 	err := e.investigationSvc.ResetCooldown(ctx)
 	if err != nil {
-		return NewErrorResult(ErrorCodeInternalError, fmt.Sprintf("failed to reset cooldown: %v", err)), nil
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return NewErrorResultFromAPIError(apiErr), nil
+		}
+		e.log.Error("operation failed", "tool", "reset_cooldown", "error", err)
+		return NewErrorResult(ErrorCodeInternalError, "Unable to reset cooldown"), nil
 	}
 
 	return NewSuccessResult(map[string]interface{}{

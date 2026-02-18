@@ -3,12 +3,15 @@ package httputil
 import (
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"sync"
 
 	"buf.build/go/protovalidate"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+
+	"system-monitor-api/internal/apierrors"
 )
 
 var (
@@ -56,12 +59,12 @@ func IsValidationError(err error) bool {
 	return errors.As(err, &validationErr)
 }
 
-func ValidateProtoRequest(w http.ResponseWriter, logPrefix, badRequestMessage string, msg proto.Message) bool {
+func ValidateProtoRequest(w http.ResponseWriter, log *slog.Logger, r *http.Request, badRequestMessage string, msg proto.Message) bool {
 	if err := ValidateProto(msg); err != nil {
 		if IsValidationError(err) {
-			BadRequest(w, logPrefix, badRequestMessage)
+			WriteAPIError(w, log, r, apierrors.Validation("body", badRequestMessage))
 		} else {
-			InternalError(w, logPrefix, "failed to validate request")
+			WriteAPIError(w, log, r, apierrors.Internal("failed to validate request", err))
 		}
 		return false
 	}

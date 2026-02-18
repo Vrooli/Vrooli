@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { RefreshCw, Plus } from 'lucide-react';
 import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
-import { protoFetch } from '../../../shared/api/apiFetch';
+import { extractErrorMessage, protoFetch } from '../../../shared/api/apiFetch';
+import { useToast } from '../../../shared/components/ToastProvider';
 import { parseListScriptsResponse, parseGetScriptResponse } from '../../../shared/api/proto-contracts';
 import { ScriptListItem } from './ScriptListItem';
 
@@ -21,6 +22,7 @@ export const InvestigationScriptsPanel = ({
   maxVisible,
   onShowAll
 }: InvestigationScriptsPanelProps) => {
+  const { showApiError } = useToast();
   const [scripts, setScripts] = useState<InvestigationScript[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export const InvestigationScriptsPanel = ({
     } catch (error) {
       console.error('Failed to load scripts:', error);
       setScripts([]);
-      setErrorMessage(error instanceof Error ? error.message : 'Unknown error');
+      setErrorMessage(extractErrorMessage(error, 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -77,8 +79,7 @@ export const InvestigationScriptsPanel = ({
 
       onOpenScriptEditor(scriptMetadata, scriptContent, 'view');
     } catch (error) {
-      console.error('Failed to load script:', error);
-      alert(`Failed to load script: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showApiError(error);
     }
   };
 
@@ -100,6 +101,12 @@ export const InvestigationScriptsPanel = ({
           FAILED TO LOAD SCRIPTS
           <br />
           <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{errorMessage}</span>
+          <br />
+          <button type="button" className="btn btn-action"
+            onClick={loadScripts}
+            style={{ marginTop: 'var(--spacing-sm)' }}>
+            <RefreshCw size={14} /> RETRY
+          </button>
         </div>
       );
     }

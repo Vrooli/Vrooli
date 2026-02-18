@@ -47,8 +47,12 @@ func TestGetMetricsWithFilter(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 10.0})
-	repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 20.0})
+	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 10.0}); err != nil {
+		t.Fatalf("SaveMetrics(cpu): %v", err)
+	}
+	if err := repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 20.0}); err != nil {
+		t.Fatalf("SaveMetrics(memory): %v", err)
+	}
 
 	results, err := repo.GetMetrics(ctx, repository.MetricsFilter{CollectorName: "cpu"})
 	if err != nil {
@@ -66,7 +70,9 @@ func TestGetMetricsWithTimeRange(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 50.0})
+	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 50.0}); err != nil {
+		t.Fatalf("SaveMetrics: %v", err)
+	}
 	time.Sleep(10 * time.Millisecond)
 
 	now := time.Now()
@@ -89,7 +95,9 @@ func TestGetMetricsWithLimit(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 5; i++ {
-		repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": float64(i * 10)})
+		if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": float64(i * 10)}); err != nil {
+			t.Fatalf("SaveMetrics[%d]: %v", i, err)
+		}
 	}
 
 	results, err := repo.GetMetrics(ctx, repository.MetricsFilter{Limit: 2})
@@ -105,8 +113,12 @@ func TestGetLatestMetrics(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 75.0})
-	repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 80.0})
+	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 75.0}); err != nil {
+		t.Fatalf("SaveMetrics(cpu): %v", err)
+	}
+	if err := repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 80.0}); err != nil {
+		t.Fatalf("SaveMetrics(memory): %v", err)
+	}
 
 	latest, err := repo.GetLatestMetrics(ctx)
 	if err != nil {
@@ -134,7 +146,9 @@ func TestGetHistoricalMetrics(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 50.0})
+	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 50.0}); err != nil {
+		t.Fatalf("SaveMetrics: %v", err)
+	}
 
 	points, err := repo.GetHistoricalMetrics(ctx, "usage_percent", repository.TimeRange{
 		StartTime: time.Now().Add(-1 * time.Minute),
@@ -225,8 +239,12 @@ func TestListInvestigations(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-1", Status: "completed", StartTime: time.Now()})
-	repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-2", Status: "in_progress", StartTime: time.Now()})
+	if err := repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-1", Status: "completed", StartTime: time.Now()}); err != nil {
+		t.Fatalf("CreateInvestigation(inv-1): %v", err)
+	}
+	if err := repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-2", Status: "in_progress", StartTime: time.Now()}); err != nil {
+		t.Fatalf("CreateInvestigation(inv-2): %v", err)
+	}
 
 	all, err := repo.ListInvestigations(ctx, repository.InvestigationFilter{})
 	if err != nil {
@@ -249,8 +267,12 @@ func TestGetLatestInvestigation(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-old", Status: "completed", StartTime: time.Now().Add(-1 * time.Hour)})
-	repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-new", Status: "in_progress", StartTime: time.Now()})
+	if err := repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-old", Status: "completed", StartTime: time.Now().Add(-1 * time.Hour)}); err != nil {
+		t.Fatalf("CreateInvestigation(inv-old): %v", err)
+	}
+	if err := repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-new", Status: "in_progress", StartTime: time.Now()}); err != nil {
+		t.Fatalf("CreateInvestigation(inv-new): %v", err)
+	}
 
 	latest, err := repo.GetLatestInvestigation(ctx)
 	if err != nil {
@@ -265,7 +287,9 @@ func TestSaveInvestigationStep(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-1", Status: "in_progress", StartTime: time.Now()})
+	if err := repo.CreateInvestigation(ctx, &models.Investigation{ID: "inv-1", Status: "in_progress", StartTime: time.Now()}); err != nil {
+		t.Fatalf("CreateInvestigation: %v", err)
+	}
 
 	step := &models.InvestigationStep{
 		Name:      "collect-metrics",
@@ -329,8 +353,12 @@ func TestListReports(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.CreateReport(ctx, &models.Report{ID: "rpt-1", Type: "daily", GeneratedAt: time.Now()})
-	repo.CreateReport(ctx, &models.Report{ID: "rpt-2", Type: "weekly", GeneratedAt: time.Now()})
+	if err := repo.CreateReport(ctx, &models.Report{ID: "rpt-1", Type: "daily", GeneratedAt: time.Now()}); err != nil {
+		t.Fatalf("CreateReport(rpt-1): %v", err)
+	}
+	if err := repo.CreateReport(ctx, &models.Report{ID: "rpt-2", Type: "weekly", GeneratedAt: time.Now()}); err != nil {
+		t.Fatalf("CreateReport(rpt-2): %v", err)
+	}
 
 	all, err := repo.ListReports(ctx, repository.ReportFilter{})
 	if err != nil {
@@ -508,13 +536,15 @@ func TestAlertAcknowledgeAndResolve(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.CreateAlert(ctx, &models.Alert{
+	if err := repo.CreateAlert(ctx, &models.Alert{
 		ID:        "alert-1",
 		Type:      "threshold",
 		Severity:  "warning",
 		Message:   "test",
 		Timestamp: time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("CreateAlert: %v", err)
+	}
 
 	// Acknowledge
 	if err := repo.AcknowledgeAlert(ctx, "alert-1", "admin"); err != nil {
@@ -544,10 +574,16 @@ func TestGetActiveAlerts(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.CreateAlert(ctx, &models.Alert{ID: "alert-1", Type: "threshold", Severity: "warning", Message: "t1", Timestamp: time.Now()})
-	repo.CreateAlert(ctx, &models.Alert{ID: "alert-2", Type: "threshold", Severity: "critical", Message: "t2", Timestamp: time.Now()})
+	if err := repo.CreateAlert(ctx, &models.Alert{ID: "alert-1", Type: "threshold", Severity: "warning", Message: "t1", Timestamp: time.Now()}); err != nil {
+		t.Fatalf("CreateAlert(alert-1): %v", err)
+	}
+	if err := repo.CreateAlert(ctx, &models.Alert{ID: "alert-2", Type: "threshold", Severity: "critical", Message: "t2", Timestamp: time.Now()}); err != nil {
+		t.Fatalf("CreateAlert(alert-2): %v", err)
+	}
 
-	repo.ResolveAlert(ctx, "alert-1")
+	if err := repo.ResolveAlert(ctx, "alert-1"); err != nil {
+		t.Fatalf("ResolveAlert: %v", err)
+	}
 
 	active, err := repo.GetActiveAlerts(ctx)
 	if err != nil {
@@ -565,8 +601,12 @@ func TestListAlerts(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	repo.CreateAlert(ctx, &models.Alert{ID: "a1", Type: "threshold", Severity: "warning", Message: "t1", Timestamp: time.Now()})
-	repo.CreateAlert(ctx, &models.Alert{ID: "a2", Type: "anomaly", Severity: "critical", Message: "t2", Timestamp: time.Now()})
+	if err := repo.CreateAlert(ctx, &models.Alert{ID: "a1", Type: "threshold", Severity: "warning", Message: "t1", Timestamp: time.Now()}); err != nil {
+		t.Fatalf("CreateAlert(a1): %v", err)
+	}
+	if err := repo.CreateAlert(ctx, &models.Alert{ID: "a2", Type: "anomaly", Severity: "critical", Message: "t2", Timestamp: time.Now()}); err != nil {
+		t.Fatalf("CreateAlert(a2): %v", err)
+	}
 
 	byType, err := repo.ListAlerts(ctx, repository.AlertFilter{Type: "threshold"})
 	if err != nil {

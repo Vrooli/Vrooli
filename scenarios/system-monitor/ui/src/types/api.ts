@@ -86,10 +86,26 @@ export type {
   SystemSettings,
 } from '@vrooli/proto-types/system-monitor/v1/domain/settings_pb';
 
+// Structured error codes returned by the Go backend
+export type ErrorCode = 'validation' | 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'cooldown' | 'unavailable' | 'internal' | 'network';
+
+// Recovery hints tell the UI what corrective action is appropriate.
+export type RecoveryAction = 'fix_input' | 'authenticate' | 'wait' | 'check_config' | 'contact_admin' | 'none';
+
+export interface ErrorDetail {
+  code: ErrorCode;
+  message: string;
+  retryable: boolean;
+  retry_after_seconds?: number;
+  field?: string;
+  recovery?: RecoveryAction;
+  request_id?: string;
+}
+
 // API Error Response
 export interface APIError {
   error: string;
-  details?: string;
+  detail?: ErrorDetail;
   timestamp?: string;
 }
 

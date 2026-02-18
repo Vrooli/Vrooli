@@ -4,6 +4,8 @@
 // (like agent-inbox) to execute tools exposed by this scenario.
 package toolexecution
 
+import "system-monitor-api/internal/apierrors"
+
 // ExecuteRequest represents a request to execute a tool.
 type ExecuteRequest struct {
 	// ToolName is the name of the tool to execute.
@@ -39,6 +41,15 @@ type ExecutionResult struct {
 	// Status contains the current status for async operations.
 	// Values: queued, in_progress, completed, failed, cancelled, stopped
 	Status string `json:"status,omitempty"`
+
+	// Retryable indicates whether the client should retry the request.
+	Retryable bool `json:"retryable,omitempty"`
+
+	// RetryAfterSecs hints how many seconds to wait before retrying.
+	RetryAfterSecs int `json:"retry_after_seconds,omitempty"`
+
+	// RequestID is the correlation ID for this request.
+	RequestID string `json:"request_id,omitempty"`
 }
 
 // ErrorCodes for standardized error responses.
@@ -74,8 +85,41 @@ func NewAsyncResult(runID string, status string, result interface{}) *ExecutionR
 // NewErrorResult creates a failed execution result.
 func NewErrorResult(code string, message string) *ExecutionResult {
 	return &ExecutionResult{
-		Success: false,
-		Error:   message,
-		Code:    code,
+		Success:   false,
+		Error:     message,
+		Code:      code,
+		Retryable: code == ErrorCodeCooldown || code == ErrorCodeUnavailable || code == ErrorCodeConflict,
+	}
+}
+
+// NewErrorResultFromAPIError creates a failed execution result from a typed APIError.
+func NewErrorResultFromAPIError(apiErr *apierrors.APIError) *ExecutionResult {
+	var code string
+	switch apiErr.Category {
+	case apierrors.CategoryValidation:
+		code = ErrorCodeInvalidArgs
+	case apierrors.CategoryNotFound:
+		code = ErrorCodeNotFound
+	case apierrors.CategoryConflict:
+		code = ErrorCodeConflict
+	case apierrors.CategoryCooldown:
+		code = ErrorCodeCooldown
+	case apierrors.CategoryUnavailable:
+		code = ErrorCodeUnavailable
+	default:
+		code = ErrorCodeInternalError
+	}
+
+	msg := apiErr.UserMessage
+	if apiErr.Category == apierrors.CategoryInternal {
+		msg = "internal error"
+	}
+
+	return &ExecutionResult{
+		Success:        false,
+		Error:          msg,
+		Code:           code,
+		Retryable:      code == ErrorCodeCooldown || code == ErrorCodeUnavailable || code == ErrorCodeConflict,
+		RetryAfterSecs: apiErr.RetryAfterSecs,
 	}
 }
