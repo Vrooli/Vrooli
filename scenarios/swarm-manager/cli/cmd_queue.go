@@ -33,7 +33,7 @@ func (a *App) cmdQueueList(args []string) error {
 		printSection("Summary")
 		fmt.Println("  No queue items found.")
 		printCommandListSection("Next Steps", []string{
-			cliCommand("queue", "create", "backlog"),
+			cliCommand("queue", "create", "--kind", "backlog"),
 			cliCommand("backlog", "list"),
 		})
 		return nil
@@ -52,29 +52,28 @@ func (a *App) cmdQueueList(args []string) error {
 	}
 	first := response.Items[0]
 	printCommandListSection("Retrieval Hints", []string{
-		cliCommand("queue", "delete", "<id>"),
-		cliCommand("queue", "delete", first.ID),
+		cliCommand("queue", "delete", "--id", "<id>"),
+		cliCommand("queue", "delete", "--id", first.ID),
 	})
 	return nil
 }
 
 func (a *App) cmdQueueCreate(args []string) error {
 	fs := flag.NewFlagSet("queue create", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Queue item kind")
+	data := fs.String("data", "", "Optional JSON payload (inline or @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: queue create <kind> [payload-json-or-@file] [--json]")
+	if err := requireFlag("kind", *kindFlag); err != nil {
+		return fmt.Errorf("usage: queue create --kind KIND [--data JSON] [--json]\n\n%s", err)
 	}
-	kind := strings.TrimSpace(fs.Arg(0))
-	if kind == "" {
-		return fmt.Errorf("kind is required")
-	}
+	kind := strings.TrimSpace(*kindFlag)
 
 	payload := map[string]any{"kind": kind}
-	if fs.NArg() > 1 {
-		raw, err := parseJSONArg(fs.Args()[1:])
+	if strings.TrimSpace(*data) != "" {
+		raw, err := parseJSONString(*data)
 		if err != nil {
 			return fmt.Errorf("invalid payload JSON: %w", err)
 		}
@@ -99,24 +98,22 @@ func (a *App) cmdQueueCreate(args []string) error {
 	cliutil.PrintJSON(body)
 	printCommandListSection("Next Steps", []string{
 		cliCommand("queue", "list"),
-		cliCommand("queue", "delete", "<id>"),
+		cliCommand("queue", "delete", "--id", "<id>"),
 	})
 	return nil
 }
 
 func (a *App) cmdQueueDelete(args []string) error {
 	fs := flag.NewFlagSet("queue delete", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Queue item ID")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: queue delete <id> [--json]")
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: queue delete --id ID [--json]\n\n%s", err)
 	}
-	id := strings.TrimSpace(fs.Arg(0))
-	if id == "" {
-		return fmt.Errorf("id is required")
-	}
+	id := strings.TrimSpace(*idFlag)
 
 	body, err := a.requestV1("DELETE", "/queue/"+id, nil, nil)
 	if err != nil {

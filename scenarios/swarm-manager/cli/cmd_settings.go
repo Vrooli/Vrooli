@@ -26,7 +26,7 @@ func (a *App) cmdSettingsGet(args []string) error {
 	fmt.Println("  Current settings")
 	cliutil.PrintJSON(body)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("settings", "update", "<json-or-@file>"),
+		cliCommand("settings", "update", "--data", "<json-or-@file>"),
 		cliCommand("status"),
 	})
 	return nil
@@ -34,14 +34,18 @@ func (a *App) cmdSettingsGet(args []string) error {
 
 func (a *App) cmdSettingsUpdate(args []string) error {
 	fs := flag.NewFlagSet("settings update", flag.ContinueOnError)
+	data := fs.String("data", "", "JSON payload (inline or @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	if err := requireFlag("data", *data); err != nil {
+		return fmt.Errorf("usage: settings update --data JSON [--json]\n\n%s", err)
+	}
 
-	payload, err := parseJSONArg(fs.Args())
+	payload, err := parseJSONString(*data)
 	if err != nil {
-		return fmt.Errorf("usage: settings update <json-or-@file>\n\n%s", err)
+		return fmt.Errorf("usage: settings update --data JSON [--json]\n\n%s", err)
 	}
 
 	body, err := a.requestV1("PUT", "/settings", nil, payload)

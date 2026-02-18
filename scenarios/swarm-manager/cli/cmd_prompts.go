@@ -73,8 +73,8 @@ func (a *App) cmdPromptsMap(args []string) error {
 	first := response.Items[0]
 	printCommandListSection("Next Steps", []string{
 		cliCommand("prompts", "skills"),
-		cliCommand("prompts", "skill-get", first.SkillID),
-		cliCommand("prompts", "preview", first.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
+		cliCommand("prompts", "skill-get", "--id", first.SkillID),
+		cliCommand("prompts", "preview", "--id", first.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
 	})
 	return nil
 }
@@ -139,26 +139,24 @@ func (a *App) cmdPromptsSkills(args []string) error {
 
 	first := filtered[0]
 	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skill-get", first.ID),
-		cliCommand("prompts", "skill-versions", first.ID),
-		cliCommand("prompts", "preview", first.ID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
+		cliCommand("prompts", "skill-get", "--id", first.ID),
+		cliCommand("prompts", "skill-versions", "--id", first.ID),
+		cliCommand("prompts", "preview", "--id", first.ID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
 	})
 	return nil
 }
 
 func (a *App) cmdPromptsSkillGet(args []string) error {
 	fs := flag.NewFlagSet("prompts skill-get", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Skill ID")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: prompts skill-get <skill-id> [--json]")
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: prompts skill-get --id ID [--json]\n\n%s", err)
 	}
-	skillID := strings.TrimSpace(fs.Arg(0))
-	if skillID == "" {
-		return fmt.Errorf("skill-id is required")
-	}
+	skillID := strings.TrimSpace(*idFlag)
 
 	body, err := a.getV1("/prompts/skills/"+skillID, nil)
 	if err != nil {
@@ -199,27 +197,26 @@ func (a *App) cmdPromptsSkillGet(args []string) error {
 	}
 
 	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "preview", item.ID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
-		cliCommand("prompts", "skill-update", item.ID, "'{\"draft\":true}'"),
-		cliCommand("prompts", "skill-versions", item.ID),
+		cliCommand("prompts", "preview", "--id", item.ID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
+		cliCommand("prompts", "skill-update", "--id", item.ID, "--data", "'{\"draft\":true}'"),
+		cliCommand("prompts", "skill-versions", "--id", item.ID),
 	})
 	return nil
 }
 
 func (a *App) cmdPromptsSkillUpdate(args []string) error {
 	fs := flag.NewFlagSet("prompts skill-update", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Skill ID")
+	data := fs.String("data", "", "JSON payload (inline or @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: prompts skill-update <skill-id> <json-or-@file> [--json]")
+	if err := requireFlags("id", *idFlag, "data", *data); err != nil {
+		return fmt.Errorf("usage: prompts skill-update --id ID --data JSON [--json]\n\n%s", err)
 	}
-	skillID := strings.TrimSpace(fs.Arg(0))
-	if skillID == "" {
-		return fmt.Errorf("skill-id is required")
-	}
-	payload, err := parseJSONArg(fs.Args()[1:])
+	skillID := strings.TrimSpace(*idFlag)
+	payload, err := parseJSONString(*data)
 	if err != nil {
 		return err
 	}
@@ -247,25 +244,23 @@ func (a *App) cmdPromptsSkillUpdate(args []string) error {
 		fmt.Printf("  Missing Required Vars: %s\n", strings.Join(response.Item.RequiredMissing, ", "))
 	}
 	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skill-get", response.Item.ID),
-		cliCommand("prompts", "skill-versions", response.Item.ID),
+		cliCommand("prompts", "skill-get", "--id", response.Item.ID),
+		cliCommand("prompts", "skill-versions", "--id", response.Item.ID),
 	})
 	return nil
 }
 
 func (a *App) cmdPromptsSkillVersions(args []string) error {
 	fs := flag.NewFlagSet("prompts skill-versions", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Skill ID")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: prompts skill-versions <skill-id> [--json]")
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: prompts skill-versions --id ID [--json]\n\n%s", err)
 	}
-	skillID := strings.TrimSpace(fs.Arg(0))
-	if skillID == "" {
-		return fmt.Errorf("skill-id is required")
-	}
+	skillID := strings.TrimSpace(*idFlag)
 
 	body, err := a.getV1("/prompts/skills/"+skillID+"/versions", nil)
 	if err != nil {
@@ -300,28 +295,27 @@ func (a *App) cmdPromptsSkillVersions(args []string) error {
 	}
 
 	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skill-get", skillID),
-		cliCommand("prompts", "skill-revert", skillID, "<version>"),
+		cliCommand("prompts", "skill-get", "--id", skillID),
+		cliCommand("prompts", "skill-revert", "--id", skillID, "--version", "<version>"),
 	})
 	return nil
 }
 
 func (a *App) cmdPromptsSkillRevert(args []string) error {
 	fs := flag.NewFlagSet("prompts skill-revert", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Skill ID")
+	versionFlag := fs.Int("version", 0, "Version number to revert to")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: prompts skill-revert <skill-id> <version> [--json]")
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: prompts skill-revert --id ID --version VERSION [--json]\n\n%s", err)
 	}
-	skillID := strings.TrimSpace(fs.Arg(0))
-	if skillID == "" {
-		return fmt.Errorf("skill-id is required")
-	}
-	version, err := strconv.Atoi(strings.TrimSpace(fs.Arg(1)))
-	if err != nil || version <= 0 {
-		return fmt.Errorf("version must be a positive integer")
+	skillID := strings.TrimSpace(*idFlag)
+	version := *versionFlag
+	if version <= 0 {
+		return fmt.Errorf("usage: prompts skill-revert --id ID --version VERSION [--json]\n\nversion must be a positive integer")
 	}
 
 	body, err := a.requestV1("POST", "/prompts/skills/"+skillID+"/revert/"+strconv.Itoa(version), nil, nil)
@@ -346,27 +340,25 @@ func (a *App) cmdPromptsSkillRevert(args []string) error {
 		fmt.Printf("  Missing Required Vars: %s\n", strings.Join(response.Item.RequiredMissing, ", "))
 	}
 	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skill-get", skillID),
-		cliCommand("prompts", "preview", skillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
+		cliCommand("prompts", "skill-get", "--id", skillID),
+		cliCommand("prompts", "preview", "--id", skillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
 	})
 	return nil
 }
 
 func (a *App) cmdPromptsPreview(args []string) error {
 	fs := flag.NewFlagSet("prompts preview", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Skill ID")
 	withScope := fs.Bool("with-scope", false, "Include prompt scope metadata")
 	varsCSV := fs.String("vars", "", "Comma-separated variables (KEY=VALUE)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: prompts preview <skill-id> [--vars KEY=VALUE,...] [--with-scope] [--json]")
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: prompts preview --id ID [--vars KEY=VALUE,...] [--with-scope] [--json]\n\n%s", err)
 	}
-	skillID := strings.TrimSpace(fs.Arg(0))
-	if skillID == "" {
-		return fmt.Errorf("skill-id is required")
-	}
+	skillID := strings.TrimSpace(*idFlag)
 	vars, err := parseKVCSV(*varsCSV)
 	if err != nil {
 		return err
@@ -396,14 +388,15 @@ func (a *App) cmdPromptsPreview(args []string) error {
 	printSection("Prompt")
 	fmt.Println(response.Prompt)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skill-get", response.SkillID),
-		cliCommand("prompts", "simulate", "idea", "--mode", "clarify", "--item-title", "Example", "--item-folder", "scenarios/example"),
+		cliCommand("prompts", "skill-get", "--id", response.SkillID),
+		cliCommand("prompts", "simulate", "--kind", "idea", "--mode", "clarify", "--item-title", "Example", "--item-folder", "scenarios/example"),
 	})
 	return nil
 }
 
 func (a *App) cmdPromptsSimulate(args []string) error {
 	fs := flag.NewFlagSet("prompts simulate", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Workload kind")
 	mode := fs.String("mode", "", "Research mode (clarify|suggest|enhance|research)")
 	operation := fs.String("operation", "", "Operation mode (generator|improver)")
 	itemName := fs.String("item-name", "", "Backlog item name")
@@ -419,13 +412,10 @@ func (a *App) cmdPromptsSimulate(args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: prompts simulate <kind> [--mode MODE] [--operation OP] [--item-title TITLE] [--item-folder PATH] [--vars KEY=VALUE,...] [--json]")
+	if err := requireFlag("kind", *kindFlag); err != nil {
+		return fmt.Errorf("usage: prompts simulate --kind KIND [--mode MODE] [--operation OP] [--item-title TITLE] [--item-folder PATH] [--vars KEY=VALUE,...] [--json]\n\n%s", err)
 	}
-	kind := strings.TrimSpace(fs.Arg(0))
-	if kind == "" {
-		return fmt.Errorf("kind is required")
-	}
+	kind := strings.TrimSpace(*kindFlag)
 	vars, err := parseKVCSV(*varsCSV)
 	if err != nil {
 		return err
@@ -493,8 +483,8 @@ func (a *App) cmdPromptsSimulate(args []string) error {
 	printSection("Prompt")
 	fmt.Println(response.Prompt)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("prompts", "skill-get", response.SkillID),
-		cliCommand("prompts", "preview", response.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
+		cliCommand("prompts", "skill-get", "--id", response.SkillID),
+		cliCommand("prompts", "preview", "--id", response.SkillID, "--vars", "ITEM_TITLE=Example,ITEM_FOLDER=scenarios/example"),
 	})
 	return nil
 }

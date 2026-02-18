@@ -794,6 +794,11 @@ func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
+		httputil.BadRequest(w, "[backlog] get file", "path is a directory, not a file")
+		return
+	}
+
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -843,6 +848,11 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	fullPath, valid := httputil.SafeFilePath(itemDir, targetPath)
 	if !valid {
 		httputil.BadRequest(w, "[backlog] upload file", "invalid file path")
+		return
+	}
+
+	if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
+		httputil.Conflict(w, "[backlog] upload file", "target path is an existing directory")
 		return
 	}
 

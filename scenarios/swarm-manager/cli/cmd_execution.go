@@ -114,7 +114,7 @@ func (a *App) cmdExecutionList(args []string) error {
 		fmt.Println("  No execution runs found.")
 		printCommandListSection("Next Steps", []string{
 			cliCommand("backlog", "list"),
-			cliCommand("execution", "create", "<backlog-kind>", "<backlog-name>"),
+			cliCommand("execution", "create", "--kind", "<backlog-kind>", "--name", "<backlog-name>"),
 		})
 		return nil
 	}
@@ -139,23 +139,24 @@ func (a *App) cmdExecutionList(args []string) error {
 	}
 	first := response.Items[0]
 	printCommandListSection("Retrieval Hints", []string{
-		cliCommand("execution", "get", "<execution-id>"),
-		cliCommand("execution", "get", first.ExecutionID),
-		cliCommand("execution", "start", first.ExecutionID),
+		cliCommand("execution", "get", "--id", "<execution-id>"),
+		cliCommand("execution", "get", "--id", first.ExecutionID),
+		cliCommand("execution", "start", "--id", first.ExecutionID),
 	})
 	return nil
 }
 
 func (a *App) cmdExecutionGet(args []string) error {
 	fs := flag.NewFlagSet("execution get", flag.ContinueOnError)
+	id := fs.String("id", "", "Execution ID")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: execution get <execution-id> [--json]")
+	if err := requireFlag("id", *id); err != nil {
+		return fmt.Errorf("usage: execution get --id ID [--json]\n\n%s", err)
 	}
-	executionID := strings.TrimSpace(fs.Arg(0))
+	executionID := strings.TrimSpace(*id)
 	body, err := a.getV1("/execution/"+executionID, nil)
 	if err != nil {
 		return err
@@ -184,22 +185,24 @@ func (a *App) cmdExecutionGet(args []string) error {
 		fmt.Printf("  Failure: %s\n", item.FailureReason)
 	}
 	printCommandListSection("Next Steps", []string{
-		cliCommand("execution", "start", item.ExecutionID),
-		cliCommand("execution", "cancel", item.ExecutionID),
-		cliCommand("execution", "retry", item.ExecutionID),
+		cliCommand("execution", "start", "--id", item.ExecutionID),
+		cliCommand("execution", "cancel", "--id", item.ExecutionID),
+		cliCommand("execution", "retry", "--id", item.ExecutionID),
 	})
 	return nil
 }
 
 func (a *App) cmdExecutionCreate(args []string) error {
 	fs := flag.NewFlagSet("execution create", flag.ContinueOnError)
+	kind := fs.String("kind", "", "Backlog kind")
+	name := fs.String("name", "", "Backlog name")
 	mode, delay, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: execution create <backlog-kind> <backlog-name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]")
+	if err := requireFlags("kind", *kind, "name", *name); err != nil {
+		return fmt.Errorf("usage: execution create --kind KIND --name NAME [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
 	}
 
 	opts, err := parseExecutionOptions(mode, delay, operation, startedBy, false)
@@ -208,15 +211,12 @@ func (a *App) cmdExecutionCreate(args []string) error {
 	}
 
 	payload := map[string]any{
-		"backlog_kind":  strings.TrimSpace(fs.Arg(0)),
-		"backlog_name":  strings.TrimSpace(fs.Arg(1)),
+		"backlog_kind":  strings.TrimSpace(*kind),
+		"backlog_name":  strings.TrimSpace(*name),
 		"mode":          opts.mode,
 		"delay_seconds": opts.delaySeconds,
 		"operation":     opts.operation,
 		"started_by":    opts.startedBy,
-	}
-	if payload["backlog_kind"] == "" || payload["backlog_name"] == "" {
-		return fmt.Errorf("backlog-kind and backlog-name are required")
 	}
 
 	body, err := a.requestV1("POST", "/execution", nil, payload)
@@ -239,8 +239,8 @@ func (a *App) cmdExecutionCreate(args []string) error {
 	fmt.Printf("  Status: %s\n", response.Execution.Status)
 	fmt.Printf("  Mode: %s\n", response.Execution.Mode)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("execution", "get", response.Execution.ExecutionID),
-		cliCommand("execution", "start", response.Execution.ExecutionID),
+		cliCommand("execution", "get", "--id", response.Execution.ExecutionID),
+		cliCommand("execution", "start", "--id", response.Execution.ExecutionID),
 	})
 	return nil
 }
@@ -317,17 +317,15 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 
 func (a *App) cmdExecutionPromptTrace(args []string) error {
 	fs := flag.NewFlagSet("execution prompt-trace", flag.ContinueOnError)
+	id := fs.String("id", "", "Execution ID")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: execution prompt-trace <execution-id> [--json]")
+	if err := requireFlag("id", *id); err != nil {
+		return fmt.Errorf("usage: execution prompt-trace --id ID [--json]\n\n%s", err)
 	}
-	executionID := strings.TrimSpace(fs.Arg(0))
-	if executionID == "" {
-		return fmt.Errorf("execution-id is required")
-	}
+	executionID := strings.TrimSpace(*id)
 
 	body, err := a.getV1("/execution/"+executionID+"/prompt-trace", nil)
 	if err != nil {
@@ -347,8 +345,8 @@ func (a *App) cmdExecutionPromptTrace(args []string) error {
 		response.Trace,
 	)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("execution", "get", executionID),
-		cliCommand("execution", "retry", executionID),
+		cliCommand("execution", "get", "--id", executionID),
+		cliCommand("execution", "retry", "--id", executionID),
 	})
 	return nil
 }
@@ -367,14 +365,15 @@ func (a *App) cmdExecutionRetry(args []string) error {
 
 func (a *App) runExecutionMutation(args []string, action string) error {
 	fs := flag.NewFlagSet("execution "+action, flag.ContinueOnError)
+	id := fs.String("id", "", "Execution ID")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: execution %s <execution-id> [--json]", action)
+	if err := requireFlag("id", *id); err != nil {
+		return fmt.Errorf("usage: execution %s --id ID [--json]\n\n%s", action, err)
 	}
-	executionID := strings.TrimSpace(fs.Arg(0))
+	executionID := strings.TrimSpace(*id)
 	body, err := a.requestV1("POST", "/execution/"+executionID+"/"+action, nil, nil)
 	if err != nil {
 		return err
@@ -394,7 +393,7 @@ func (a *App) runExecutionMutation(args []string, action string) error {
 	fmt.Printf("  Status: %s\n", response.Execution.Status)
 	fmt.Printf("  Backlog: %s/%s\n", response.Execution.BacklogKind, response.Execution.BacklogName)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("execution", "get", response.Execution.ExecutionID),
+		cliCommand("execution", "get", "--id", response.Execution.ExecutionID),
 		cliCommand("execution", "list", "--status", response.Execution.Status),
 	})
 	return nil

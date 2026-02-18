@@ -247,7 +247,7 @@ func TestCmdBacklogCreateValidation(t *testing.T) {
 		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 
-	err = app.cmdBacklogCreate([]string{"not-valid-json"})
+	err = app.cmdBacklogCreate([]string{"--data", "not-valid-json"})
 	if err == nil {
 		t.Error("cmdBacklogCreate with invalid JSON should return error")
 	}
@@ -255,7 +255,7 @@ func TestCmdBacklogCreateValidation(t *testing.T) {
 		t.Errorf("Error should contain 'invalid JSON', got: %v", err)
 	}
 
-	err = app.cmdBacklogCreate([]string{`{"description":"only description"}`})
+	err = app.cmdBacklogCreate([]string{"--data", `{"description":"only description"}`})
 	if err == nil {
 		t.Error("cmdBacklogCreate with missing name/title/kind should return error")
 	}
@@ -278,7 +278,7 @@ func TestCmdBacklogQueueValidation(t *testing.T) {
 		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 
-	err = app.cmdBacklogQueue([]string{"--operation", "invalid", "idea", "item-name"})
+	err = app.cmdBacklogQueue([]string{"--kind", "idea", "--name", "item-name", "--operation", "invalid"})
 	if err == nil {
 		t.Error("cmdBacklogQueue with invalid operation should return error")
 	}
@@ -286,7 +286,7 @@ func TestCmdBacklogQueueValidation(t *testing.T) {
 		t.Errorf("Error should contain 'invalid operation', got: %v", err)
 	}
 
-	err = app.cmdBacklogQueue([]string{"--mode", "invalid", "idea", "item-name"})
+	err = app.cmdBacklogQueue([]string{"--kind", "idea", "--name", "item-name", "--mode", "invalid"})
 	if err == nil {
 		t.Error("cmdBacklogQueue with invalid mode should return error")
 	}
@@ -332,7 +332,7 @@ func TestCmdBacklogResearchValidation(t *testing.T) {
 		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 
-	err = app.cmdBacklogResearch([]string{"idea", "item-name", "{invalid"})
+	err = app.cmdBacklogResearch([]string{"--kind", "idea", "--name", "item-name", "--data", "{invalid"})
 	if err == nil {
 		t.Error("cmdBacklogResearch with invalid JSON should return error")
 	}
@@ -355,12 +355,15 @@ func TestCmdBacklogUpdateValidation(t *testing.T) {
 		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 
-	err = app.cmdBacklogUpdate([]string{"idea", "my-idea"})
+	err = app.cmdBacklogUpdate([]string{"--kind", "idea", "--name", "my-idea"})
 	if err == nil {
-		t.Error("cmdBacklogUpdate with missing json should return error")
+		t.Error("cmdBacklogUpdate with missing data should return error")
+	}
+	if !strings.Contains(err.Error(), "required") {
+		t.Errorf("Error should contain 'required', got: %v", err)
 	}
 
-	err = app.cmdBacklogUpdate([]string{"idea", "my-idea", "not-valid-json"})
+	err = app.cmdBacklogUpdate([]string{"--kind", "idea", "--name", "my-idea", "--data", "not-valid-json"})
 	if err == nil {
 		t.Error("cmdBacklogUpdate with invalid JSON should return error")
 	}
@@ -458,12 +461,12 @@ func TestCmdQueueCreateValidation(t *testing.T) {
 		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 
-	err = app.cmdQueueCreate([]string{"build", "{invalid"})
+	err = app.cmdQueueCreate([]string{"--kind", "build", "--data", "{invalid"})
 	if err == nil {
 		t.Error("cmdQueueCreate with invalid payload JSON should return error")
 	}
-	if !strings.Contains(err.Error(), "invalid payload JSON") {
-		t.Errorf("Error should contain 'invalid payload JSON', got: %v", err)
+	if !strings.Contains(err.Error(), "invalid") {
+		t.Errorf("Error should contain 'invalid', got: %v", err)
 	}
 }
 
@@ -481,7 +484,7 @@ func TestCmdExecutionCreateValidation(t *testing.T) {
 		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 
-	err = app.cmdExecutionCreate([]string{"--mode", "invalid", "idea", "test"})
+	err = app.cmdExecutionCreate([]string{"--kind", "idea", "--name", "test", "--mode", "invalid"})
 	if err == nil {
 		t.Error("cmdExecutionCreate with invalid mode should return error")
 	}
@@ -601,16 +604,16 @@ func TestHealthResponseWithError(t *testing.T) {
 	}
 }
 
-func TestParseJSONArg_FromFile(t *testing.T) {
+func TestParseJSONString_FromFile(t *testing.T) {
 	tempDir := t.TempDir()
 	payloadPath := filepath.Join(tempDir, "payload.json")
 	if err := os.WriteFile(payloadPath, []byte(`{"name":"from-file","title":"From File","kind":"idea"}`), 0o644); err != nil {
 		t.Fatalf("write payload file: %v", err)
 	}
 
-	raw, err := parseJSONArg([]string{"@" + payloadPath})
+	raw, err := parseJSONString("@" + payloadPath)
 	if err != nil {
-		t.Fatalf("parseJSONArg returned error: %v", err)
+		t.Fatalf("parseJSONString returned error: %v", err)
 	}
 
 	var parsed map[string]any
@@ -759,7 +762,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdPromptsPreview([]string{"swarm-manager-clarify-idea", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
+	if err := app.cmdPromptsPreview([]string{"--id", "swarm-manager-clarify-idea", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
 		t.Fatalf("cmdPromptsPreview returned error: %v", err)
 	}
 }
@@ -781,7 +784,7 @@ func TestCmdExecutionPromptTraceRequestsExpectedEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdExecutionPromptTrace([]string{"ex-123"}); err != nil {
+	if err := app.cmdExecutionPromptTrace([]string{"--id", "ex-123"}); err != nil {
 		t.Fatalf("cmdExecutionPromptTrace returned error: %v", err)
 	}
 }
@@ -823,7 +826,7 @@ func TestCmdScenariosSpecSyncArchiveSendsPreserveFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdScenariosSpecSyncArchive([]string{"my-scenario", "--preset", "planning", "--paths", "PRD.md,docs/**"}); err != nil {
+	if err := app.cmdScenariosSpecSyncArchive([]string{"--name", "my-scenario", "--preset", "planning", "--paths", "PRD.md,docs/**"}); err != nil {
 		t.Fatalf("cmdScenariosSpecSyncArchive returned error: %v", err)
 	}
 }

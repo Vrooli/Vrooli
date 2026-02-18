@@ -109,55 +109,55 @@ execute/
 
 ```bash
 swarm-manager backlog list [--kinds idea,research,fix,execute]
-swarm-manager backlog get <kind> <name>
-swarm-manager backlog create '<json>'
-swarm-manager backlog update <kind> <name> '<json>'
-swarm-manager backlog delete <kind> <name>
-swarm-manager backlog files <kind> <name>
-swarm-manager backlog file get <kind> <name> <path> [--out local-path]
-swarm-manager backlog file upload <kind> <name> <local-file> [--path backlog/subdir]
-swarm-manager backlog queue <kind> <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver]
-swarm-manager backlog research <kind> <name> '<json>'
-swarm-manager backlog convert <kind> <name> <target-kind> [target-name]
-swarm-manager backlog prompt-trace <kind> <name>
+swarm-manager backlog get --kind <kind> --name <name>
+swarm-manager backlog create --data '<json>'
+swarm-manager backlog update --kind <kind> --name <name> --data '<json>'
+swarm-manager backlog delete --kind <kind> --name <name>
+swarm-manager backlog files --kind <kind> --name <name>
+swarm-manager backlog file-get --kind <kind> --name <name> --path <path> [--out local-path]
+swarm-manager backlog file-upload --kind <kind> --name <name> --path <path> --file <local-file>
+swarm-manager backlog queue --kind <kind> --name <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver]
+swarm-manager backlog research --kind <kind> --name <name> --data '<json>'
+swarm-manager backlog convert --kind <kind> --name <name> --target-kind <target-kind> [--target-name target-name]
+swarm-manager backlog prompt-trace --kind <kind> --name <name>
 
 swarm-manager scenarios list [--search ... --status ... --tags ...]
-swarm-manager scenarios get <name>
-swarm-manager scenarios update <name> '<json>'
-swarm-manager scenarios delete <name> [--archive]
-swarm-manager scenarios files <name>
-swarm-manager scenarios start <name>
-swarm-manager scenarios stop <name>
-swarm-manager scenarios restart <name>
-swarm-manager scenarios spec-sync-archive <name> [--preset PRESET] [--paths path1,path2]
+swarm-manager scenarios get --name <name>
+swarm-manager scenarios update --name <name> --data '<json>'
+swarm-manager scenarios delete --name <name> [--archive]
+swarm-manager scenarios files --name <name>
+swarm-manager scenarios start --name <name>
+swarm-manager scenarios stop --name <name>
+swarm-manager scenarios restart --name <name>
+swarm-manager scenarios spec-sync-archive --name <name> [--preset PRESET] [--paths path1,path2]
 
 swarm-manager execution list [--status ... --mode ... --started-by ...]
-swarm-manager execution get <execution-id>
-swarm-manager execution create <backlog-kind> <backlog-name> [--mode manual|scheduled|yolo]
+swarm-manager execution get --id <execution-id>
+swarm-manager execution create --kind <backlog-kind> --name <backlog-name> [--mode manual|scheduled|yolo]
 swarm-manager execution policy get
 swarm-manager execution policy update --mode manual|scheduled|yolo [--delay-seconds N]
-swarm-manager execution start <execution-id>
-swarm-manager execution cancel <execution-id>
-swarm-manager execution retry <execution-id>
-swarm-manager execution prompt-trace <execution-id>
+swarm-manager execution start --id <execution-id>
+swarm-manager execution cancel --id <execution-id>
+swarm-manager execution retry --id <execution-id>
+swarm-manager execution prompt-trace --id <execution-id>
 
 swarm-manager settings get
-swarm-manager settings update '<json>'
+swarm-manager settings update --data '<json>'
 
 swarm-manager queue list
-swarm-manager queue create <kind> '<payload-json>'
-swarm-manager queue delete <id>
+swarm-manager queue create --kind <kind>
+swarm-manager queue delete --id <id>
 
 swarm-manager agent-manager status
 
 swarm-manager prompts map
 swarm-manager prompts skills [--contains FILTER]
-swarm-manager prompts skill-get <skill-id>
-swarm-manager prompts skill-update <skill-id> '<json-or-@file>'
-swarm-manager prompts skill-versions <skill-id>
-swarm-manager prompts skill-revert <skill-id> <version>
-swarm-manager prompts preview <skill-id> [--vars KEY=VALUE,...] [--with-scope]
-swarm-manager prompts simulate <kind> [--mode MODE] [--operation OP] [--item-title TITLE] [--item-folder PATH]
+swarm-manager prompts skill-get --id <skill-id>
+swarm-manager prompts skill-update --id <skill-id> --data '<json-or-@file>'
+swarm-manager prompts skill-versions --id <skill-id>
+swarm-manager prompts skill-revert --id <skill-id> --version <version>
+swarm-manager prompts preview --id <skill-id> [--vars KEY=VALUE,...] [--with-scope]
+swarm-manager prompts simulate --kind <kind> [--mode MODE] [--operation OP] [--item-title TITLE] [--item-folder PATH]
 ```
 
 ## Integration Points

@@ -18,17 +18,15 @@ import (
 
 func (a *App) cmdBacklogList(args []string) error {
 	fs := flag.NewFlagSet("backlog list", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Comma-separated kinds to filter by")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	query := url.Values{}
-	if fs.NArg() > 0 {
-		kinds := strings.Join(fs.Args(), ",")
-		if strings.TrimSpace(kinds) != "" {
-			query.Set("kinds", kinds)
-		}
+	if strings.TrimSpace(*kindFlag) != "" {
+		query.Set("kinds", strings.TrimSpace(*kindFlag))
 	}
 
 	body, err := a.getV1("/backlog", query)
@@ -48,7 +46,7 @@ func (a *App) cmdBacklogList(args []string) error {
 		printSection("Summary")
 		fmt.Println("  No backlog items found.")
 		printCommandListSection("Next Steps", []string{
-			cliCommand("backlog", "create", "'{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'"),
+			cliCommand("backlog", "create", "--data", "'{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'"),
 		})
 		return nil
 	}
@@ -74,25 +72,27 @@ func (a *App) cmdBacklogList(args []string) error {
 
 	first := response.Items[0]
 	printCommandListSection("Retrieval Hints", []string{
-		cliCommand("backlog", "get", "<kind>", "<name>"),
-		cliCommand("backlog", "get", first.Kind, first.Name),
-		cliCommand("backlog", "files", first.Kind, first.Name),
-		cliCommand("backlog", "queue", first.Kind, first.Name),
+		cliCommand("backlog", "get", "--kind", "<kind>", "--name", "<name>"),
+		cliCommand("backlog", "get", "--kind", first.Kind, "--name", first.Name),
+		cliCommand("backlog", "files", "--kind", first.Kind, "--name", first.Name),
+		cliCommand("backlog", "queue", "--kind", first.Kind, "--name", first.Name),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogGet(args []string) error {
 	fs := flag.NewFlagSet("backlog get", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: backlog get <kind> <name> [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog get --kind KIND --name NAME [--json]\n\n%s", err)
 	}
-	kind := fs.Arg(0)
-	name := fs.Arg(1)
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
 
 	body, err := a.getV1("/backlog/"+kind+"/"+name, nil)
 	if err != nil {
@@ -128,24 +128,25 @@ func (a *App) cmdBacklogGet(args []string) error {
 	fmt.Printf("  Updated: %s\n", item.Updated)
 
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "files", item.Kind, item.Name),
-		cliCommand("backlog", "update", item.Kind, item.Name, "'{\"status\":\"ready\"}'"),
-		cliCommand("backlog", "queue", item.Kind, item.Name),
+		cliCommand("backlog", "files", "--kind", item.Kind, "--name", item.Name),
+		cliCommand("backlog", "update", "--kind", item.Kind, "--name", item.Name, "--data", "'{\"status\":\"ready\"}'"),
+		cliCommand("backlog", "queue", "--kind", item.Kind, "--name", item.Name),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogCreate(args []string) error {
 	fs := flag.NewFlagSet("backlog create", flag.ContinueOnError)
+	data := fs.String("data", "", "JSON payload (inline or @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: backlog create <json-or-@file> [--json]\n\nExample:\n  backlog create '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'")
+	if err := requireFlag("data", *data); err != nil {
+		return fmt.Errorf("usage: backlog create --data JSON [--json]\n\nExample:\n  backlog create --data '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'\n\n%s", err)
 	}
 
-	payload, err := parseJSONArg(fs.Args())
+	payload, err := parseJSONString(*data)
 	if err != nil {
 		return err
 	}
@@ -179,26 +180,29 @@ func (a *App) cmdBacklogCreate(args []string) error {
 	fmt.Printf("  Status: %s\n", item.Status)
 	fmt.Printf("  Priority: %d\n", item.Priority)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "get", item.Kind, item.Name),
-		cliCommand("backlog", "files", item.Kind, item.Name),
-		cliCommand("backlog", "queue", item.Kind, item.Name),
+		cliCommand("backlog", "get", "--kind", item.Kind, "--name", item.Name),
+		cliCommand("backlog", "files", "--kind", item.Kind, "--name", item.Name),
+		cliCommand("backlog", "queue", "--kind", item.Kind, "--name", item.Name),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogUpdate(args []string) error {
 	fs := flag.NewFlagSet("backlog update", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
+	data := fs.String("data", "", "JSON payload (inline or @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 3 {
-		return fmt.Errorf("usage: backlog update <kind> <name> <json-or-@file> [--json]\n\nExample:\n  backlog update idea my-idea '{\"title\":\"Updated Title\",\"status\":\"ready\"}'")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag, "data", *data); err != nil {
+		return fmt.Errorf("usage: backlog update --kind KIND --name NAME --data JSON [--json]\n\nExample:\n  backlog update --kind idea --name my-idea --data '{\"title\":\"Updated Title\",\"status\":\"ready\"}'\n\n%s", err)
 	}
 
-	kind := fs.Arg(0)
-	name := fs.Arg(1)
-	payload, err := parseJSONArg(fs.Args()[2:])
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
+	payload, err := parseJSONString(*data)
 	if err != nil {
 		return err
 	}
@@ -228,23 +232,25 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 	fmt.Printf("  Status: %s\n", item.Status)
 	fmt.Printf("  Priority: %d\n", item.Priority)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "get", item.Kind, item.Name),
-		cliCommand("backlog", "queue", item.Kind, item.Name),
+		cliCommand("backlog", "get", "--kind", item.Kind, "--name", item.Name),
+		cliCommand("backlog", "queue", "--kind", item.Kind, "--name", item.Name),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogDelete(args []string) error {
 	fs := flag.NewFlagSet("backlog delete", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: backlog delete <kind> <name> [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog delete --kind KIND --name NAME [--json]\n\n%s", err)
 	}
-	kind := fs.Arg(0)
-	name := fs.Arg(1)
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
 
 	body, err := a.requestV1("DELETE", "/backlog/"+kind+"/"+name, nil, nil)
 	if err != nil {
@@ -258,22 +264,24 @@ func (a *App) cmdBacklogDelete(args []string) error {
 	fmt.Printf("  Deleted backlog item: %s/%s\n", kind, name)
 	printCommandListSection("Next Steps", []string{
 		cliCommand("backlog", "list"),
-		cliCommand("backlog", "create", "'{\"name\":\"new-item\",\"title\":\"New Item\",\"kind\":\"idea\"}'"),
+		cliCommand("backlog", "create", "--data", "'{\"name\":\"new-item\",\"title\":\"New Item\",\"kind\":\"idea\"}'"),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogFiles(args []string) error {
 	fs := flag.NewFlagSet("backlog files", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: backlog files <kind> <name> [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog files --kind KIND --name NAME [--json]\n\n%s", err)
 	}
-	kind := strings.TrimSpace(fs.Arg(0))
-	name := strings.TrimSpace(fs.Arg(1))
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
 
 	body, err := a.getV1("/backlog/"+kind+"/"+name+"/files", nil)
 	if err != nil {
@@ -291,7 +299,7 @@ func (a *App) cmdBacklogFiles(args []string) error {
 		printSection("Summary")
 		fmt.Printf("  No files found for %s/%s.\n", kind, name)
 		printCommandListSection("Next Steps", []string{
-			cliCommand("backlog", "file-upload", kind, name, "<local-file>"),
+			cliCommand("backlog", "file-upload", "--kind", kind, "--name", name, "--file", "<local-file>"),
 		})
 		return nil
 	}
@@ -310,21 +318,23 @@ func (a *App) cmdBacklogFiles(args []string) error {
 		0,
 	)
 	printCommandListSection("Retrieval Hints", []string{
-		cliCommand("backlog", "file-get", kind, name, "<path>"),
-		cliCommand("backlog", "file-upload", kind, name, "<local-file>", "--path", "docs"),
+		cliCommand("backlog", "file-get", "--kind", kind, "--name", name, "--path", "<path>"),
+		cliCommand("backlog", "file-upload", "--kind", kind, "--name", name, "--path", "<path>", "--file", "<local-file>"),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogQueue(args []string) error {
 	fs := flag.NewFlagSet("backlog queue", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
 	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: backlog queue <kind> <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
 	}
 
 	opts, err := parseExecutionOptions(mode, delaySeconds, operation, startedBy, false)
@@ -332,8 +342,8 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return err
 	}
 
-	kind := fs.Arg(0)
-	name := fs.Arg(1)
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
 	payload, err := json.Marshal(map[string]any{
 		"operation":     opts.operation,
 		"mode":          opts.mode,
@@ -371,26 +381,29 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	}
 	printCommandListSection("Next Steps", []string{
 		cliCommand("execution", "list", "--backlog-kind", response.Item.Kind, "--backlog-name", response.Item.Name),
-		cliCommand("execution", "get", "<execution-id>"),
+		cliCommand("execution", "get", "--id", "<execution-id>"),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogResearch(args []string) error {
 	fs := flag.NewFlagSet("backlog research", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
+	data := fs.String("data", "", "Optional JSON payload (inline or @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: backlog research <kind> <name> [json-or-@file] [--json]\n\nExample:\n  backlog research idea my-idea '{\"prompt\":\"Focus on risks\"}'")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog research --kind KIND --name NAME [--data JSON] [--json]\n\nExample:\n  backlog research --kind idea --name my-idea --data '{\"prompt\":\"Focus on risks\"}'\n\n%s", err)
 	}
-	kind := fs.Arg(0)
-	name := fs.Arg(1)
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
 
 	var payload json.RawMessage
-	if fs.NArg() > 2 {
-		parsed, err := parseJSONArg(fs.Args()[2:])
+	if strings.TrimSpace(*data) != "" {
+		parsed, err := parseJSONString(*data)
 		if err != nil {
 			return err
 		}
@@ -417,7 +430,7 @@ func (a *App) cmdBacklogResearch(args []string) error {
 	fmt.Printf("  Run ID: %s\n", response.RunID)
 	fmt.Printf("  Base URL: %s\n", response.BaseURL)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "get", kind, name),
+		cliCommand("backlog", "get", "--kind", kind, "--name", name),
 		cliCommand("execution", "list", "--backlog-kind", kind, "--backlog-name", name),
 	})
 	return nil
@@ -425,18 +438,17 @@ func (a *App) cmdBacklogResearch(args []string) error {
 
 func (a *App) cmdBacklogPromptTrace(args []string) error {
 	fs := flag.NewFlagSet("backlog prompt-trace", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: backlog prompt-trace <kind> <name> [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog prompt-trace --kind KIND --name NAME [--json]\n\n%s", err)
 	}
-	kind := strings.TrimSpace(fs.Arg(0))
-	name := strings.TrimSpace(fs.Arg(1))
-	if kind == "" || name == "" {
-		return fmt.Errorf("kind and name are required")
-	}
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
 
 	body, err := a.getV1("/backlog/"+kind+"/"+name+"/prompt-trace", nil)
 	if err != nil {
@@ -456,28 +468,29 @@ func (a *App) cmdBacklogPromptTrace(args []string) error {
 		response.Trace,
 	)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "research", kind, name),
-		cliCommand("backlog", "get", kind, name),
+		cliCommand("backlog", "research", "--kind", kind, "--name", name),
+		cliCommand("backlog", "get", "--kind", kind, "--name", name),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogConvert(args []string) error {
 	fs := flag.NewFlagSet("backlog convert", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Source backlog item kind")
+	nameFlag := fs.String("name", "", "Source backlog item name")
+	targetKindFlag := fs.String("target-kind", "", "Target kind to convert to")
+	targetNameFlag := fs.String("target-name", "", "Optional target name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 3 {
-		return fmt.Errorf("usage: backlog convert <kind> <name> <target-kind> [target-name] [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag, "target-kind", *targetKindFlag); err != nil {
+		return fmt.Errorf("usage: backlog convert --kind KIND --name NAME --target-kind TARGET_KIND [--target-name TARGET_NAME] [--json]\n\n%s", err)
 	}
-	kind := fs.Arg(0)
-	name := fs.Arg(1)
-	targetKind := fs.Arg(2)
-	targetName := ""
-	if fs.NArg() > 3 {
-		targetName = strings.Join(fs.Args()[3:], " ")
-	}
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
+	targetKind := strings.TrimSpace(*targetKindFlag)
+	targetName := strings.TrimSpace(*targetNameFlag)
 
 	payload := map[string]string{
 		"targetKind": targetKind,
@@ -506,28 +519,28 @@ func (a *App) cmdBacklogConvert(args []string) error {
 	printSection("Result")
 	fmt.Printf("  Converted backlog item: %s/%s -> %s/%s\n", kind, name, response.Item.Kind, response.Item.Name)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "get", response.Item.Kind, response.Item.Name),
-		cliCommand("backlog", "list", response.Item.Kind),
+		cliCommand("backlog", "get", "--kind", response.Item.Kind, "--name", response.Item.Name),
+		cliCommand("backlog", "list", "--kind", response.Item.Kind),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogFileGet(args []string) error {
-	fs := flag.NewFlagSet("backlog file get", flag.ContinueOnError)
+	fs := flag.NewFlagSet("backlog file-get", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
+	pathFlag := fs.String("path", "", "File path within backlog item")
 	outPath := fs.String("out", "", "Write file content to local path instead of stdout")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 3 {
-		return fmt.Errorf("usage: backlog file get <kind> <name> <path> [--out local-path] [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag, "path", *pathFlag); err != nil {
+		return fmt.Errorf("usage: backlog file-get --kind KIND --name NAME --path PATH [--out local-path] [--json]\n\n%s", err)
 	}
-	kind := strings.TrimSpace(fs.Arg(0))
-	name := strings.TrimSpace(fs.Arg(1))
-	filePath := strings.TrimSpace(fs.Arg(2))
-	if kind == "" || name == "" || filePath == "" {
-		return fmt.Errorf("kind, name, and path are required")
-	}
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
+	filePath := strings.TrimSpace(*pathFlag)
 
 	body, err := a.getV1("/backlog/"+kind+"/"+name+"/files/"+filePath, nil)
 	if err != nil {
@@ -550,61 +563,88 @@ func (a *App) cmdBacklogFileGet(args []string) error {
 	printSection("Result")
 	fmt.Printf("  Saved file to %s\n", *outPath)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "files", kind, name),
+		cliCommand("backlog", "files", "--kind", kind, "--name", name),
 	})
 	return nil
 }
 
-func (a *App) cmdBacklogFile(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: backlog file <get|upload> ...")
-	}
-	switch strings.ToLower(strings.TrimSpace(args[0])) {
-	case "get":
-		return a.cmdBacklogFileGet(args[1:])
-	case "upload":
-		return a.cmdBacklogFileUpload(args[1:])
-	default:
-		return fmt.Errorf("unknown backlog file subcommand %q (expected get or upload)", args[0])
-	}
-}
 
 func (a *App) cmdBacklogFileUpload(args []string) error {
-	fs := flag.NewFlagSet("backlog file upload", flag.ContinueOnError)
-	targetPath := fs.String("path", "", "Optional directory path within backlog item")
+	fs := flag.NewFlagSet("backlog file-upload", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
+	serverPath := fs.String("path", "", "Full server-side destination path (e.g. clarify/questions.json)")
+	localFile := fs.String("file", "", "Local file path to upload")
+	contentStr := fs.String("content", "", "Inline content string to upload")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 3 {
-		return fmt.Errorf("usage: backlog file upload <kind> <name> <local-file> [--path backlog/subdir] [--json]")
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH --file FILE|--content CONTENT [--json]\n\n%s", err)
+	}
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
+	fileStr := strings.TrimSpace(*localFile)
+	contentVal := *contentStr
+
+	if fileStr == "" && contentVal == "" {
+		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH --file FILE|--content CONTENT [--json]\n\neither --file or --content is required")
+	}
+	if fileStr != "" && contentVal != "" {
+		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH --file FILE|--content CONTENT [--json]\n\n--file and --content are mutually exclusive")
 	}
 
-	kind := strings.TrimSpace(fs.Arg(0))
-	name := strings.TrimSpace(fs.Arg(1))
-	localFile := strings.TrimSpace(fs.Arg(2))
-	if kind == "" || name == "" || localFile == "" {
-		return fmt.Errorf("kind, name, and local-file are required")
-	}
-
-	file, err := os.Open(localFile)
-	if err != nil {
-		return fmt.Errorf("open local file: %w", err)
-	}
-	defer file.Close()
+	sp := strings.TrimSpace(*serverPath)
 
 	var formBody bytes.Buffer
 	writer := multipart.NewWriter(&formBody)
-	part, err := writer.CreateFormFile("file", filepath.Base(localFile))
-	if err != nil {
-		return fmt.Errorf("create form file: %w", err)
-	}
-	if _, err := io.Copy(part, file); err != nil {
-		return fmt.Errorf("copy file content: %w", err)
-	}
-	if strings.TrimSpace(*targetPath) != "" {
-		if err := writer.WriteField("path", strings.TrimSpace(*targetPath)); err != nil {
-			return fmt.Errorf("write path field: %w", err)
+
+	if contentVal != "" {
+		// --content mode: --path is required
+		if sp == "" {
+			return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH --content CONTENT [--json]\n\n--path is required when using --content")
+		}
+		serverDir := filepath.Dir(sp)
+		serverFile := filepath.Base(sp)
+
+		part, err := writer.CreateFormFile("file", serverFile)
+		if err != nil {
+			return fmt.Errorf("create form file: %w", err)
+		}
+		if _, err := io.Copy(part, strings.NewReader(contentVal)); err != nil {
+			return fmt.Errorf("copy content: %w", err)
+		}
+		if serverDir != "." && serverDir != "" {
+			if err := writer.WriteField("path", serverDir); err != nil {
+				return fmt.Errorf("write path field: %w", err)
+			}
+		}
+	} else {
+		// --file mode: --path defaults to filepath.Base(localFile)
+		if sp == "" {
+			sp = filepath.Base(fileStr)
+		}
+		serverDir := filepath.Dir(sp)
+		serverFile := filepath.Base(sp)
+
+		file, err := os.Open(fileStr)
+		if err != nil {
+			return fmt.Errorf("open local file: %w", err)
+		}
+		defer file.Close()
+
+		part, err := writer.CreateFormFile("file", serverFile)
+		if err != nil {
+			return fmt.Errorf("create form file: %w", err)
+		}
+		if _, err := io.Copy(part, file); err != nil {
+			return fmt.Errorf("copy file content: %w", err)
+		}
+		if serverDir != "." && serverDir != "" {
+			if err := writer.WriteField("path", serverDir); err != nil {
+				return fmt.Errorf("write path field: %w", err)
+			}
 		}
 	}
 	if err := writer.Close(); err != nil {
@@ -630,8 +670,8 @@ func (a *App) cmdBacklogFileUpload(args []string) error {
 	fmt.Printf("  Name: %s\n", parsed.File.Name)
 	fmt.Printf("  Size: %d bytes\n", parsed.File.Size)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "files", kind, name),
-		cliCommand("backlog", "file-get", kind, name, parsed.File.Path),
+		cliCommand("backlog", "files", "--kind", kind, "--name", name),
+		cliCommand("backlog", "file-get", "--kind", kind, "--name", name, "--path", parsed.File.Path),
 	})
 	return nil
 }
@@ -706,27 +746,25 @@ func (a *App) cmdBacklogExport(args []string) error {
 	printSection("Result")
 	fmt.Printf("  Exported backlog to %s (%d bytes)\n", output, len(body))
 	printCommandListSection("Next Steps", []string{
-		cliCommand("backlog", "import", output),
-		cliCommand("backlog", "import", output, "--apply"),
+		cliCommand("backlog", "import", "--file", output),
+		cliCommand("backlog", "import", "--file", output, "--apply"),
 	})
 	return nil
 }
 
 func (a *App) cmdBacklogImport(args []string) error {
 	fs := flag.NewFlagSet("backlog import", flag.ContinueOnError)
+	fileFlag := fs.String("file", "", "Import file path")
 	apply := fs.Bool("apply", false, "Apply changes (default: dry-run only)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: backlog import <file> [--apply] [--json]")
+	if err := requireFlag("file", *fileFlag); err != nil {
+		return fmt.Errorf("usage: backlog import --file FILE [--apply] [--json]\n\n%s", err)
 	}
 
-	filePath := strings.TrimSpace(fs.Arg(0))
-	if filePath == "" {
-		return fmt.Errorf("file path is required")
-	}
+	filePath := strings.TrimSpace(*fileFlag)
 
 	fileContent, err := os.ReadFile(filePath)
 	if err != nil {
@@ -791,7 +829,7 @@ func (a *App) cmdBacklogImport(args []string) error {
 
 	if response.DryRun {
 		printCommandListSection("Next Steps", []string{
-			cliCommand("backlog", "import", filePath, "--apply"),
+			cliCommand("backlog", "import", "--file", filePath, "--apply"),
 		})
 	} else {
 		printCommandListSection("Next Steps", []string{

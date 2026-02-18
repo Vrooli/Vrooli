@@ -91,11 +91,27 @@ func decodeResponse[T any](body []byte) (T, error) {
 	return response, nil
 }
 
-func parseJSONArg(args []string) (json.RawMessage, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("JSON payload is required")
+func requireFlag(name, value string) error {
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("--%s is required", name)
 	}
-	raw := strings.TrimSpace(strings.Join(args, " "))
+	return nil
+}
+
+func requireFlags(pairs ...string) error {
+	if len(pairs)%2 != 0 {
+		return fmt.Errorf("requireFlags: uneven pairs")
+	}
+	for i := 0; i < len(pairs); i += 2 {
+		if err := requireFlag(pairs[i], pairs[i+1]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseJSONString(raw string) (json.RawMessage, error) {
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, fmt.Errorf("JSON payload is required")
 	}
@@ -118,6 +134,7 @@ func parseJSONArg(args []string) (json.RawMessage, error) {
 	}
 	return json.RawMessage(raw), nil
 }
+
 
 func printTree[T any](items []T, childFn func(T) []T, lineFn func(T) string, level int) {
 	for _, item := range items {

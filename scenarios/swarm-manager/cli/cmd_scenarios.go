@@ -84,23 +84,24 @@ func (a *App) cmdScenariosList(args []string) error {
 	}
 	first := response.Scenarios[0]
 	printCommandListSection("Retrieval Hints", []string{
-		cliCommand("scenarios", "get", "<name>"),
-		cliCommand("scenarios", "get", first.Name),
-		cliCommand("scenarios", "files", first.Name),
+		cliCommand("scenarios", "get", "--name", "<name>"),
+		cliCommand("scenarios", "get", "--name", first.Name),
+		cliCommand("scenarios", "files", "--name", first.Name),
 	})
 	return nil
 }
 
 func (a *App) cmdScenariosGet(args []string) error {
 	fs := flag.NewFlagSet("scenarios get", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Scenario name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: scenarios get <name> [--json]")
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: scenarios get --name NAME [--json]\n\n%s", err)
 	}
-	name := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(*nameFlag)
 
 	body, err := a.getV1("/scenarios/"+name, nil)
 	if err != nil {
@@ -133,24 +134,26 @@ func (a *App) cmdScenariosGet(args []string) error {
 		fmt.Printf("  Tags: %s\n", strings.Join(scenario.Tags, ", "))
 	}
 	printCommandListSection("Next Steps", []string{
-		cliCommand("scenarios", "files", scenario.Name),
-		cliCommand("scenarios", "update", scenario.Name, "'{\"is_greenfield\":true}'"),
-		cliCommand("scenarios", "start", scenario.Name),
+		cliCommand("scenarios", "files", "--name", scenario.Name),
+		cliCommand("scenarios", "update", "--name", scenario.Name, "--data", "'{\"is_greenfield\":true}'"),
+		cliCommand("scenarios", "start", "--name", scenario.Name),
 	})
 	return nil
 }
 
 func (a *App) cmdScenariosUpdate(args []string) error {
 	fs := flag.NewFlagSet("scenarios update", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Scenario name")
+	data := fs.String("data", "", "JSON payload (inline or @file)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: scenarios update <name> <json-or-@file> [--json]\n\nExample:\n  scenarios update my-scenario '{\"is_greenfield\":true}'")
+	if err := requireFlags("name", *nameFlag, "data", *data); err != nil {
+		return fmt.Errorf("usage: scenarios update --name NAME --data JSON [--json]\n\nExample:\n  scenarios update --name my-scenario --data '{\"is_greenfield\":true}'\n\n%s", err)
 	}
-	name := strings.TrimSpace(fs.Arg(0))
-	payload, err := parseJSONArg(fs.Args()[1:])
+	name := strings.TrimSpace(*nameFlag)
+	payload, err := parseJSONString(*data)
 	if err != nil {
 		return err
 	}
@@ -179,23 +182,24 @@ func (a *App) cmdScenariosUpdate(args []string) error {
 	printSection("What Changed")
 	fmt.Printf("  Greenfield: %v\n", scenario.IsGreenfield)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("scenarios", "get", scenario.Name),
-		cliCommand("scenarios", "files", scenario.Name),
+		cliCommand("scenarios", "get", "--name", scenario.Name),
+		cliCommand("scenarios", "files", "--name", scenario.Name),
 	})
 	return nil
 }
 
 func (a *App) cmdScenariosDelete(args []string) error {
 	fs := flag.NewFlagSet("scenarios delete", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Scenario name")
 	archive := fs.Bool("archive", false, "Archive scenario to backlog (idea) before deletion")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: scenarios delete <name> [--archive] [--json]")
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: scenarios delete --name NAME [--archive] [--json]\n\n%s", err)
 	}
-	name := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(*nameFlag)
 
 	query := url.Values{}
 	if *archive {
@@ -226,14 +230,15 @@ func (a *App) cmdScenariosDelete(args []string) error {
 
 func (a *App) cmdScenariosFiles(args []string) error {
 	fs := flag.NewFlagSet("scenarios files", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Scenario name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: scenarios files <name> [--json]")
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: scenarios files --name NAME [--json]\n\n%s", err)
 	}
-	name := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(*nameFlag)
 
 	body, err := a.getV1("/scenarios/"+name+"/files", nil)
 	if err != nil {
@@ -251,7 +256,7 @@ func (a *App) cmdScenariosFiles(args []string) error {
 		printSection("Summary")
 		fmt.Printf("  No files found for scenario %s.\n", name)
 		printCommandListSection("Next Steps", []string{
-			cliCommand("scenarios", "get", name),
+			cliCommand("scenarios", "get", "--name", name),
 		})
 		return nil
 	}
@@ -270,8 +275,8 @@ func (a *App) cmdScenariosFiles(args []string) error {
 		0,
 	)
 	printCommandListSection("Retrieval Hints", []string{
-		cliCommand("scenarios", "get", name),
-		cliCommand("scenarios", "update", name, "<json-or-@file>"),
+		cliCommand("scenarios", "get", "--name", name),
+		cliCommand("scenarios", "update", "--name", name, "--data", "<json-or-@file>"),
 	})
 	return nil
 }
@@ -282,19 +287,17 @@ func (a *App) cmdScenariosStart(args []string) error {
 
 func (a *App) cmdScenariosSpecSyncArchive(args []string) error {
 	fs := flag.NewFlagSet("scenarios spec-sync-archive", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Scenario name")
 	preset := fs.String("preset", "", "Preserve-files preset for archive (for example: planning, all-planning)")
 	pathsCSV := fs.String("paths", "", "Comma-separated preserve path globs")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: scenarios spec-sync-archive <name> [--preset PRESET] [--paths path1,path2] [--json]")
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: scenarios spec-sync-archive --name NAME [--preset PRESET] [--paths path1,path2] [--json]\n\n%s", err)
 	}
-	name := strings.TrimSpace(fs.Arg(0))
-	if name == "" {
-		return fmt.Errorf("scenario name is required")
-	}
+	name := strings.TrimSpace(*nameFlag)
 
 	var payload any
 	trimmedPreset := strings.TrimSpace(*preset)
@@ -339,8 +342,8 @@ func (a *App) cmdScenariosSpecSyncArchive(args []string) error {
 		fmt.Printf("  Message: %s\n", response.Message)
 	}
 	printCommandListSection("Next Steps", []string{
-		cliCommand("execution", "get", response.ExecutionID),
-		cliCommand("execution", "prompt-trace", response.ExecutionID),
+		cliCommand("execution", "get", "--id", response.ExecutionID),
+		cliCommand("execution", "prompt-trace", "--id", response.ExecutionID),
 		cliCommand("execution", "list", "--status", "queued"),
 	})
 	return nil
@@ -356,14 +359,15 @@ func (a *App) cmdScenariosRestart(args []string) error {
 
 func (a *App) runScenarioLifecycle(args []string, action string) error {
 	fs := flag.NewFlagSet("scenarios "+action, flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Scenario name")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: scenarios %s <name> [--json]", action)
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: scenarios %s --name NAME [--json]\n\n%s", action, err)
 	}
-	name := strings.TrimSpace(fs.Arg(0))
+	name := strings.TrimSpace(*nameFlag)
 	body, err := a.requestV1("POST", "/scenarios/"+name+"/"+action, nil, nil)
 	if err != nil {
 		return err
@@ -381,7 +385,7 @@ func (a *App) runScenarioLifecycle(args []string, action string) error {
 	printSection("What Changed")
 	fmt.Printf("  Status: %s\n", response.Scenario.Status)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("scenarios", "get", response.Scenario.Name),
+		cliCommand("scenarios", "get", "--name", response.Scenario.Name),
 		cliCommand("scenarios", "list", "--status", response.Scenario.Status),
 	})
 	return nil

@@ -594,3 +594,71 @@ func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.Back
 func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }
+
+func TestGetFileContent_PathIsDirectory(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:    "dir-test",
+		Title:   "Dir Test",
+		Status:  StatusBacklog,
+		Created: "2026-01-28T00:00:00Z",
+		Updated: "2026-01-28T00:00:00Z",
+	})
+
+	// Create a subdirectory inside the item folder
+	subDir := filepath.Join(rootDir, "ideas", "dir-test", "clarify")
+	testutil.MakeDir(t, subDir)
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog/idea/dir-test/files/clarify", nil)
+	req = mux.SetURLVars(req, map[string]string{
+		"kind":     "idea",
+		"name":     "dir-test",
+		"filepath": "clarify",
+	})
+	w := httptest.NewRecorder()
+
+	h.GetFileContent(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestUploadFile_ConflictWithDirectory(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:    "upload-dir-test",
+		Title:   "Upload Dir Test",
+		Status:  StatusBacklog,
+		Created: "2026-01-28T00:00:00Z",
+		Updated: "2026-01-28T00:00:00Z",
+	})
+
+	// Pre-create a directory at the target path
+	targetDir := filepath.Join(rootDir, "ideas", "upload-dir-test", "questions.json")
+	testutil.MakeDir(t, targetDir)
+
+	// Build multipart upload
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "questions.json")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	part.Write([]byte(`{"test":true}`))
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/upload-dir-test/files", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req = mux.SetURLVars(req, map[string]string{
+		"kind": "idea",
+		"name": "upload-dir-test",
+	})
+	w := httptest.NewRecorder()
+
+	h.UploadFile(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d", w.Code)
+	}
+}
