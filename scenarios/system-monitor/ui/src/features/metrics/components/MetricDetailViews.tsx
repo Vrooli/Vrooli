@@ -101,26 +101,26 @@ export const MetricLineChart = ({
     {data.length > 0 ? (
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="var(--alpha-accent-15)" strokeDasharray="4 4" />
+          <CartesianGrid stroke="var(--color-primary-muted)" strokeDasharray="4 4" />
           <XAxis
             dataKey="timestamp"
-            stroke="var(--color-text-dim)"
+            stroke="var(--color-text-secondary)"
             tickFormatter={formatChartTime}
             minTickGap={20}
           />
           <YAxis
-            stroke="var(--color-text-dim)"
+            stroke="var(--color-text-secondary)"
             domain={yDomain}
             tickFormatter={valueFormatter ?? defaultValueFormatter(unit)}
           />
           <Tooltip
             contentStyle={{
-              background: 'var(--surface-tooltip)',
-              border: '1px solid var(--color-surface-border)',
-              borderRadius: 'var(--border-radius-md)',
+              background: 'var(--color-surface-raised)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
               color: 'var(--color-text)'
             }}
-            labelStyle={{ color: 'var(--color-text-bright)', fontWeight: 600 }}
+            labelStyle={{ color: 'var(--color-text-heading)', fontWeight: 600 }}
             labelFormatter={label => formatTimeLabel(label as string)}
             formatter={(value, key) => {
               const numericValue = typeof value === 'number' ? value : Number(value);

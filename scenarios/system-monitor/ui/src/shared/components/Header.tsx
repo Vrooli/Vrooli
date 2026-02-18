@@ -1,6 +1,7 @@
-import { Settings, Terminal } from 'lucide-react';
+import { Moon, Settings, Sun, Terminal } from 'lucide-react';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
+import { useTheme } from '../theme/ThemeProvider';
 import type { InvestigationAgentState } from '../../types';
 import type { SystemHealthStatus } from '../../features/monitoring/hooks/useSystemMonitor';
 
@@ -35,16 +36,16 @@ export const Header = ({
   onRefreshHealth,
   isLoadingHealth
 }: HeaderProps) => {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <header className="app-header">
       <div className="app-header-inner">
         <h1
           className="system-monitor-title icon-text"
-          style={{ margin: 0, fontSize: 'var(--font-size-xl)' }}
+          style={{ margin: 0, fontSize: 'var(--text-xl)' }}
         >
-          <span className="text-accent">[</span>
-          <span className="text matrix-text-glow system-monitor-title-text">SYSTEM MONITOR</span>
-          <span className="text-accent">]</span>
+          <span className="system-monitor-title-text">System Monitor</span>
         </h1>
 
         <div className="flex-row-center gap-sm">
@@ -63,6 +64,15 @@ export const Header = ({
             onRefreshHealth={onRefreshHealth}
             isLoading={isLoadingHealth}
           />
+
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            type="button"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
 
           <button
             className="header-button icon-button"

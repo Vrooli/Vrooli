@@ -30,14 +30,14 @@ export const buildDiskUsageCard = (
           {options?.subtitle ?? 'Current usage across monitored volumes'}
         </div>
       </div>
-      <div className="progress-bar progress-bar-lg" style={{ borderRadius: 'var(--border-radius-sm)' }}>
+      <div className="progress-bar progress-bar-lg" style={{ borderRadius: 'var(--radius-sm)' }}>
         <div
           className="progress-fill"
           style={{
             width: `${Math.min(Math.max(diskUsage.percent, 0), 100)}%`,
             background: 'linear-gradient(90deg, var(--color-warning), var(--color-error))',
-            borderRadius: 'var(--border-radius-sm)',
-            boxShadow: '0 0 12px var(--color-error-glow)'
+            borderRadius: 'var(--radius-sm)',
+            boxShadow: '0 0 12px var(--color-error-muted)'
           }}
         />
       </div>
@@ -79,9 +79,9 @@ export const renderProcessTable = (
             const value = valueAccessor(process);
             return (
               <tr key={`${process.name}-${process.pid}`}>
-                <td style={{ color: 'var(--color-text-bright)' }}>{process.name}</td>
+                <td style={{ color: 'var(--color-text-heading)' }}>{process.name}</td>
                 <td style={{ color: 'var(--color-text)' }}>{process.pid}</td>
-                <td style={{ color: 'var(--color-accent)' }}>
+                <td style={{ color: 'var(--color-primary)' }}>
                   {value !== undefined ? value.toFixed(1) : '—'}
                 </td>
               </tr>
@@ -112,7 +112,7 @@ export const renderGrowthPatterns = (
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            fontSize: 'var(--font-size-sm)'
+            fontSize: 'var(--text-sm)'
           }}
         >
           <span style={{ color: 'var(--color-text)' }}>{pattern.process}</span>

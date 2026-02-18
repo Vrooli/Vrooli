@@ -33,6 +33,7 @@ import {
   Sparkles,
   Trash2,
   X,
+  MoreHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -803,7 +804,43 @@ export function FilesTab({
     )
   }, [handleApplyTemplate, isFileEditorActive, templateOptions])
 
+  const fileActionsMenu = useMemo<ReactNode | null>(() => {
+    if (!selectedPath || isDirectorySelected) return null
+
+    return (
+      <ToolbarDropdown
+        icon={<MoreHorizontal className="h-4 w-4" />}
+        label="File actions"
+        showChevron={false}
+        align="right"
+        className="h-8 w-8 p-0"
+      >
+        <DropdownItem
+          onClick={() => handleStartRename()}
+          disabled={isReservedSelected}
+          icon={<Pencil className="h-4 w-4" />}
+          label="Rename file"
+        />
+        <DropdownItem
+          onClick={() => void handleDelete()}
+          disabled={isReservedSelected}
+          icon={<Trash2 className="h-4 w-4 text-destructive" />}
+          label="Delete file"
+        />
+      </ToolbarDropdown>
+    )
+  }, [handleDelete, handleStartRename, isDirectorySelected, isReservedSelected, selectedPath])
+
   const headerRight = useMemo<ReactNode | null>(() => {
+    if (filePathMenu && templateHeader && fileActionsMenu) {
+      return (
+        <>
+          {filePathMenu}
+          {templateHeader}
+          {fileActionsMenu}
+        </>
+      )
+    }
     if (filePathMenu && templateHeader) {
       return (
         <>
@@ -812,8 +849,24 @@ export function FilesTab({
         </>
       )
     }
-    return filePathMenu ?? templateHeader
-  }, [filePathMenu, templateHeader])
+    if (filePathMenu && fileActionsMenu) {
+      return (
+        <>
+          {filePathMenu}
+          {fileActionsMenu}
+        </>
+      )
+    }
+    if (templateHeader && fileActionsMenu) {
+      return (
+        <>
+          {templateHeader}
+          {fileActionsMenu}
+        </>
+      )
+    }
+    return filePathMenu ?? templateHeader ?? fileActionsMenu
+  }, [fileActionsMenu, filePathMenu, templateHeader])
 
   const isDialogValid = pendingPath.trim().length > 0
 
@@ -893,30 +946,6 @@ export function FilesTab({
                     title="Add file"
                   >
                     <Plus className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStartRename()}
-                    className={cn(
-                      'p-1 rounded text-muted-foreground hover:text-foreground',
-                      !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-                    )}
-                    disabled={!selectedPath || isReservedSelected}
-                    title="Rename file"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete()}
-                    className={cn(
-                      'p-1 rounded text-muted-foreground hover:text-foreground',
-                      !selectedPath || isReservedSelected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-                    )}
-                    disabled={!selectedPath || isReservedSelected}
-                    title="Delete file"
-                  >
-                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>

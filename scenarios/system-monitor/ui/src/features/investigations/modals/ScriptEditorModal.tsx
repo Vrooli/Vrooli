@@ -86,15 +86,15 @@ export const ScriptEditorModal = ({
           <div style={{ flex: 1 }}>
             <h3 style={{
               margin: '0 0 var(--spacing-xs) 0',
-              color: 'var(--color-text-bright)',
-              fontSize: 'var(--font-size-xl)'
+              color: 'var(--color-text-heading)',
+              fontSize: 'var(--text-xl)'
             }}>
               {script?.name || 'New Investigation Script'}
             </h3>
             <p style={{
               margin: 0,
-              color: 'var(--color-text-dim)',
-              fontSize: 'var(--font-size-sm)'
+              color: 'var(--color-text-secondary)',
+              fontSize: 'var(--text-sm)'
             }}>
               {script?.description || 'Enter script description...'}
             </p>
@@ -151,7 +151,7 @@ export const ScriptEditorModal = ({
         {(currentMode === 'edit' || mode === 'create') && (
           <div className="script-metadata" style={{
             padding: 'var(--spacing-md)',
-            borderBottom: '1px solid var(--alpha-accent-20)',
+            borderBottom: '1px solid var(--color-primary-muted)',
             background: 'var(--overlay-medium)'
           }}>
             <div style={{
@@ -223,13 +223,13 @@ export const ScriptEditorModal = ({
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: 'var(--spacing-sm) var(--spacing-md)',
-            background: 'var(--alpha-accent-05)',
-            borderBottom: '1px solid var(--alpha-accent-20)',
-            fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-text-bright)'
+            background: 'var(--color-primary-muted)',
+            borderBottom: '1px solid var(--color-primary-muted)',
+            fontSize: 'var(--text-sm)',
+            color: 'var(--color-text-heading)'
           }}>
             <span>Script Code</span>
-            <div style={{ color: 'var(--color-text-dim)' }}>
+            <div style={{ color: 'var(--color-text-secondary)' }}>
               {currentMode === 'view' ? 'Read Only' : 'Editable'} | {scriptContent.length} chars
             </div>
           </div>
@@ -242,19 +242,19 @@ export const ScriptEditorModal = ({
                   ...tomorrow,
                   'pre[class*="language-"]': {
                     ...tomorrow['pre[class*="language-"]'],
-                    background: 'var(--overlay-darker)',
+                    background: 'var(--overlay-backdrop)',
                     margin: 0,
                     padding: 'var(--spacing-md)',
-                    fontSize: 'var(--font-size-sm)',
-                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: 'var(--text-sm)',
+                    fontFamily: 'var(--font-mono)',
                     lineHeight: '1.5'
                   }
                 }}
                 customStyle={{
                   background: 'var(--overlay-backdrop)',
                   margin: 0,
-                  fontSize: 'var(--font-size-sm)',
-                  fontFamily: 'var(--font-family-mono)'
+                  fontSize: 'var(--text-sm)',
+                  fontFamily: 'var(--font-mono)'
                 }}
               >
                 {scriptContent || '# No script content available'}
@@ -271,8 +271,8 @@ export const ScriptEditorModal = ({
                   background: 'var(--overlay-backdrop)',
                   border: 'none',
                   color: 'var(--color-text)',
-                  fontFamily: 'var(--font-family-mono)',
-                  fontSize: 'var(--font-size-sm)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--text-sm)',
                   lineHeight: '1.5',
                   resize: 'none',
                   outline: 'none',

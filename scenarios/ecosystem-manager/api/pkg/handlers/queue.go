@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 package handlers
 
 import (

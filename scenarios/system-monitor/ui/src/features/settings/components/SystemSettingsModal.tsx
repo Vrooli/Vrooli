@@ -149,11 +149,11 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     <Modal isOpen={isOpen} onClose={handleClose} ariaLabel="System settings" className="modal-sm">
       <ModalHeader onClose={handleClose}>
         <div className="icon-text">
-          <Settings size={24} style={{ color: 'var(--color-accent)' }} />
+          <Settings size={24} style={{ color: 'var(--color-primary)' }} />
           <h2 style={{
             margin: 0,
-            color: 'var(--color-text-bright)',
-            fontSize: 'var(--font-size-xl)'
+            color: 'var(--color-text-heading)',
+            fontSize: 'var(--text-xl)'
           }}>
             System Monitor Settings
           </h2>
@@ -166,7 +166,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
           <div style={{
             textAlign: 'center',
             padding: 'var(--spacing-xl)',
-            color: 'var(--color-text-dim)'
+            color: 'var(--color-text-secondary)'
           }}>
             Loading settings...
           </div>
@@ -192,7 +192,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
             <div>
               <h3 className="icon-text section-heading" style={{
                 marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--font-size-lg)'
+                fontSize: 'var(--text-lg)'
               }}>
                 <Activity size={18} />
                 System Status
@@ -205,8 +205,8 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                 cursor: 'pointer',
                 padding: 'var(--spacing-md)',
                 background: 'var(--overlay-medium)',
-                border: '1px solid var(--color-accent)',
-                borderRadius: 'var(--border-radius-md)'
+                border: '1px solid var(--color-primary)',
+                borderRadius: 'var(--radius-md)'
               }}>
                 <input
                   type="checkbox"
@@ -221,14 +221,14 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                 />
                 <div>
                   <div style={{
-                    color: 'var(--color-text-bright)',
+                    color: 'var(--color-text-heading)',
                     fontWeight: 'bold'
                   }}>
                     System Monitor Active
                   </div>
                   <div style={{
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-sm)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: 'var(--text-sm)',
                     marginTop: 'var(--spacing-xs)'
                   }}>
                     Enable automatic monitoring, threshold checking, and anomaly detection
@@ -241,7 +241,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
             <div>
               <h3 className="section-heading" style={{
                 marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--font-size-lg)'
+                fontSize: 'var(--text-lg)'
               }}>
                 Monitoring Intervals (seconds)
               </h3>
@@ -302,7 +302,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
             <div>
               <h3 className="section-heading" style={{
                 marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--font-size-lg)'
+                fontSize: 'var(--text-lg)'
               }}>
                 Alert Thresholds (%)
               </h3>
@@ -366,7 +366,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
             <div>
               <h3 className="section-heading" style={{
                 marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--font-size-lg)'
+                fontSize: 'var(--text-lg)'
               }}>
                 Investigation Settings
               </h3>
@@ -386,8 +386,8 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                   style={{ width: '200px' }}
                 />
                 <div style={{
-                  color: 'var(--color-text-dim)',
-                  fontSize: 'var(--font-size-xs)',
+                  color: 'var(--color-text-secondary)',
+                  fontSize: 'var(--text-xs)',
                   marginTop: 'var(--spacing-xs)'
                 }}>
                   Minimum time between automatic investigations to prevent spam
@@ -404,7 +404,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 'var(--spacing-lg)',
-        borderTop: '1px solid var(--color-accent)',
+        borderTop: '1px solid var(--color-primary)',
         background: 'var(--overlay-medium)'
       }}>
         <button

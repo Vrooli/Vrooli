@@ -32,7 +32,7 @@ export const CollapsibleSection = ({
       <div
         className="section-header hover-bg-accent"
         style={{
-          borderBottom: expanded ? '1px solid var(--color-accent)' : 'none'
+          borderBottom: expanded ? '1px solid var(--color-primary)' : 'none'
         }}
       >
         <div

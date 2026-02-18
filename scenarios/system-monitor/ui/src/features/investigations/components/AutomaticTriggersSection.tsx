@@ -240,13 +240,13 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
   if (loading) {
     return (
       <div className="automatic-triggers-section" style={{
-        background: 'var(--alpha-accent-03)',
-        border: '1px solid var(--color-accent)',
-        borderRadius: 'var(--border-radius-md)',
+        background: 'var(--color-primary-muted)',
+        border: '1px solid var(--color-primary)',
+        borderRadius: 'var(--radius-md)',
         padding: 'var(--spacing-lg)',
         marginBottom: 'var(--spacing-xl)',
         textAlign: 'center',
-        color: 'var(--color-text-dim)'
+        color: 'var(--color-text-secondary)'
       }}>
         Loading trigger configuration...
       </div>
@@ -255,32 +255,32 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   return (
     <div className="automatic-triggers-section" style={{
-      background: 'var(--alpha-accent-03)',
-      border: '1px solid var(--color-accent)',
-      borderRadius: 'var(--border-radius-md)',
+      background: 'var(--color-primary-muted)',
+      border: '1px solid var(--color-primary)',
+      borderRadius: 'var(--radius-md)',
       padding: 'var(--spacing-lg)',
       marginBottom: 'var(--spacing-xl)'
     }}>
       <div className="automatic-triggers-layout">
         <Settings size={48} style={{ 
-          color: 'var(--color-accent)', 
+          color: 'var(--color-primary)', 
           flexShrink: 0,
-          filter: 'drop-shadow(0 0 10px var(--alpha-accent-30))'
+          filter: 'drop-shadow(0 0 10px var(--color-primary-muted))'
         }} />
         
         <div style={{ flex: 1 }}>
           <h3 style={{ 
             margin: '0 0 var(--spacing-sm) 0',
-            color: 'var(--color-text-bright)',
-            fontSize: 'var(--font-size-lg)'
+            color: 'var(--color-text-heading)',
+            fontSize: 'var(--text-lg)'
           }}>
             Automatic Investigation Triggers
           </h3>
           
           <p style={{ 
             margin: '0 0 var(--spacing-lg) 0',
-            color: 'var(--color-text-dim)',
-            fontSize: 'var(--font-size-sm)',
+            color: 'var(--color-text-secondary)',
+            fontSize: 'var(--text-sm)',
             lineHeight: '1.5'
           }}>
             Configure conditions that automatically spawn investigation agents. 
@@ -294,15 +294,15 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               marginBottom: 'var(--spacing-lg)',
               padding: 'var(--spacing-md)',
               background: 'var(--overlay-medium)',
-              borderRadius: 'var(--border-radius-sm)',
-              border: '1px solid var(--alpha-accent-10)'
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-primary-muted)'
             }}
           >
             <div className="icon-text">
-              <Clock size={16} style={{ color: 'var(--color-accent)' }} />
+              <Clock size={16} style={{ color: 'var(--color-primary)' }} />
               <span style={{
                 color: 'var(--color-text)',
-                fontSize: 'var(--font-size-sm)',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 'bold'
               }}>
                 Cooldown Period:
@@ -335,7 +335,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                 style={{
                   flex: 1,
                   height: '6px',
-                  background: 'var(--alpha-accent-20)',
+                  background: 'var(--color-primary-muted)',
                   borderRadius: '3px',
                   outline: 'none',
                   WebkitAppearance: 'none',
@@ -344,8 +344,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               />
               <span style={{
                 color: 'var(--color-success)',
-                fontSize: 'var(--font-size-sm)',
-                fontFamily: 'var(--font-family-mono)',
+                fontSize: 'var(--text-sm)',
+                fontFamily: 'var(--font-mono)',
                 minWidth: '50px'
               }}>
                 {formatDurationSeconds(localCooldownValue)}
@@ -357,7 +357,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                 <>
                   <span style={{
                     color: 'var(--color-warning)',
-                    fontSize: 'var(--font-size-sm)'
+                    fontSize: 'var(--text-sm)'
                   }}>
                     Cooldown: {formatTime(cooldownStatus.remainingSeconds)}
                   </span>
@@ -366,7 +366,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     onClick={handleResetCooldown}
                     style={{
                       padding: 'var(--spacing-xs) var(--spacing-sm)',
-                      fontSize: 'var(--font-size-xs)',
+                      fontSize: 'var(--text-xs)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 'var(--spacing-xs)'
@@ -379,7 +379,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               ) : (
                 <span style={{
                   color: 'var(--color-success)',
-                  fontSize: 'var(--font-size-sm)'
+                  fontSize: 'var(--text-sm)'
                 }}>
                   Ready
                 </span>
@@ -405,14 +405,14 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     alignItems: 'center',
                     gap: 'var(--spacing-md)',
                     padding: 'var(--spacing-md)',
-                    background: trigger.enabled ? 'var(--alpha-accent-05)' : 'var(--overlay-medium)',
-                    border: `1px solid ${trigger.enabled ? 'var(--color-accent)' : 'var(--alpha-accent-20)'}`,
-                    borderRadius: 'var(--border-radius-sm)',
+                    background: trigger.enabled ? 'var(--color-primary-muted)' : 'var(--overlay-medium)',
+                    border: `1px solid ${trigger.enabled ? 'var(--color-primary)' : 'var(--color-primary-muted)'}`,
+                    borderRadius: 'var(--radius-sm)',
                     transition: 'all 0.2s'
                   }}
                 >
                   <Icon size={20} style={{ 
-                    color: trigger.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
+                    color: trigger.enabled ? 'var(--color-success)' : 'var(--color-text-secondary)',
                     flexShrink: 0
                   }} />
 
@@ -424,8 +424,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                       marginBottom: 'var(--spacing-xs)'
                     }}>
                       <span style={{
-                        color: trigger.enabled ? 'var(--color-text-bright)' : 'var(--color-text)',
-                        fontSize: 'var(--font-size-sm)',
+                        color: trigger.enabled ? 'var(--color-text-heading)' : 'var(--color-text)',
+                        fontSize: 'var(--text-sm)',
                         fontWeight: 'bold'
                       }}>
                         {trigger.name}
@@ -438,7 +438,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         }}>
                           <span style={{
                             color: 'var(--color-text)',
-                            fontSize: 'var(--font-size-xs)'
+                            fontSize: 'var(--text-xs)'
                           }}>
                             {trigger.condition === 'above' ? '>' : '<'}
                           </span>
@@ -449,12 +449,12 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                             style={{
                               width: '60px',
                               padding: '2px 4px',
-                              background: 'var(--overlay-heavy)',
-                              border: '1px solid var(--color-accent)',
-                              borderRadius: 'var(--border-radius-sm)',
+                              background: 'var(--overlay-medium)',
+                              border: '1px solid var(--color-primary)',
+                              borderRadius: 'var(--radius-sm)',
                               color: 'var(--color-success)',
-                              fontSize: 'var(--font-size-xs)',
-                              fontFamily: 'var(--font-family-mono)'
+                              fontSize: 'var(--text-xs)',
+                              fontFamily: 'var(--font-mono)'
                             }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
@@ -467,7 +467,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                           />
                           <span style={{
                             color: 'var(--color-text)',
-                            fontSize: 'var(--font-size-xs)'
+                            fontSize: 'var(--text-xs)'
                           }}>
                             {trigger.unit}
                           </span>
@@ -504,8 +504,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                       ) : (
                         <span style={{
                           color: 'var(--color-warning)',
-                          fontSize: 'var(--font-size-xs)',
-                          fontFamily: 'var(--font-family-mono)'
+                          fontSize: 'var(--text-xs)',
+                          fontFamily: 'var(--font-mono)'
                         }}>
                           {trigger.condition === 'above' ? '>' : '<'} {trigger.threshold}{trigger.unit}
                         </span>
@@ -518,7 +518,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          color: 'var(--color-accent)',
+                          color: 'var(--color-primary)',
                           cursor: 'pointer',
                           padding: '2px',
                           display: editingTrigger === trigger.id ? 'none' : 'block'
@@ -529,8 +529,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                       </button>
                     </div>
                     <span style={{
-                      color: 'var(--color-text-dim)',
-                      fontSize: 'var(--font-size-xs)'
+                      color: 'var(--color-text-secondary)',
+                      fontSize: 'var(--text-xs)'
                     }}>
                       {trigger.description}
                     </span>
@@ -539,17 +539,17 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         className="progress-bar"
                         style={{
                           marginTop: 'var(--spacing-sm)',
-                          background: 'var(--alpha-accent-08)',
+                          background: 'var(--color-primary-muted)',
                           borderRadius: '999px',
-                          boxShadow: '0 0 8px var(--alpha-accent-20)'
+                          boxShadow: '0 0 8px var(--color-primary-muted)'
                         }}
                       >
                         <div
                           className="progress-fill"
                           style={{
                             width: `${progressValue * 100}%`,
-                            background: 'linear-gradient(90deg, var(--alpha-accent-30) 0%, var(--alpha-accent-80) 100%)',
-                            boxShadow: progressValue > 0.95 ? '0 0 12px var(--alpha-accent-60)' : 'none'
+                            background: 'linear-gradient(90deg, var(--color-primary-muted) 0%, var(--color-primary) 100%)',
+                            boxShadow: progressValue > 0.95 ? '0 0 12px var(--color-primary)' : 'none'
                           }}
                         />
                       </div>
@@ -582,11 +582,11 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         }}
                       />
                       <Shield size={14} style={{ 
-                        color: trigger.autoFix && trigger.enabled ? 'var(--color-success)' : 'var(--color-text-dim)' 
+                        color: trigger.autoFix && trigger.enabled ? 'var(--color-success)' : 'var(--color-text-secondary)' 
                       }} />
                       <span style={{
-                        color: trigger.enabled ? 'var(--color-text)' : 'var(--color-text-dim)',
-                        fontSize: 'var(--font-size-xs)',
+                        color: trigger.enabled ? 'var(--color-text)' : 'var(--color-text-secondary)',
+                        fontSize: 'var(--text-xs)',
                         userSelect: 'none'
                       }}>
                         Auto-fix
@@ -599,7 +599,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                       onClick={() => handleToggleTrigger(trigger.id)}
                       style={{
                         padding: 'var(--spacing-xs) var(--spacing-sm)',
-                        fontSize: 'var(--font-size-xs)',
+                        fontSize: 'var(--text-xs)',
                         minWidth: '80px'
                       }}
                     >
@@ -618,9 +618,9 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
             gap: 'var(--spacing-sm)',
             marginTop: 'var(--spacing-lg)',
             padding: 'var(--spacing-sm)',
-            background: 'var(--color-warning-bg)',
+            background: 'var(--color-warning-muted)',
             border: '1px solid var(--color-warning)',
-            borderRadius: 'var(--border-radius-sm)'
+            borderRadius: 'var(--radius-sm)'
           }}>
             <AlertCircle size={16} style={{ 
               color: 'var(--color-warning)',
@@ -628,8 +628,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               marginTop: '2px'
             }} />
             <span style={{
-              color: 'var(--color-text-dim)',
-              fontSize: 'var(--font-size-xs)',
+              color: 'var(--color-text-secondary)',
+              fontSize: 'var(--text-xs)',
               lineHeight: '1.4'
             }}>
               <strong>Note:</strong> Triggers respect the cooldown period to prevent investigation spam. 

@@ -28,6 +28,7 @@ import {
   RefreshCw,
   Trash2,
   X,
+  MoreHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -40,6 +41,7 @@ import { createHighlightMatch } from '@/lib/highlight'
 import * as teamService from '@/services/teamService'
 import { SkillContentEditor } from '../SkillContentEditor'
 import { FilePathMenu } from '../FilePathMenu'
+import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
 
 interface TeamFilesTabProps {
   teamId: string
@@ -531,6 +533,43 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
     )
   }, [handleRenameSelectedFile, isDirectorySelected, selectedPath, teamId])
 
+  const fileActionsMenu = useMemo<ReactNode | null>(() => {
+    if (!selectedPath || isDirectorySelected) return null
+
+    return (
+      <ToolbarDropdown
+        icon={<MoreHorizontal className="h-4 w-4" />}
+        label="File actions"
+        showChevron={false}
+        align="right"
+        className="h-8 w-8 p-0"
+      >
+        <DropdownItem
+          onClick={() => handleStartRename()}
+          icon={<Pencil className="h-4 w-4" />}
+          label="Rename file"
+        />
+        <DropdownItem
+          onClick={() => void handleDelete()}
+          icon={<Trash2 className="h-4 w-4 text-destructive" />}
+          label="Delete file"
+        />
+      </ToolbarDropdown>
+    )
+  }, [handleDelete, handleStartRename, isDirectorySelected, selectedPath])
+
+  const headerRight = useMemo<ReactNode | null>(() => {
+    if (filePathMenu && fileActionsMenu) {
+      return (
+        <>
+          {filePathMenu}
+          {fileActionsMenu}
+        </>
+      )
+    }
+    return filePathMenu ?? fileActionsMenu
+  }, [fileActionsMenu, filePathMenu])
+
   const isDialogValid = pendingPath.trim().length > 0
 
   const renderNode = (node: FileNode, depth = 0): ReactNode => {
@@ -610,30 +649,6 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
                   >
                     <Plus className="h-4 w-4" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStartRename()}
-                    className={cn(
-                      'p-1 rounded text-muted-foreground hover:text-foreground',
-                      !selectedPath ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-                    )}
-                    disabled={!selectedPath}
-                    title="Rename file"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete()}
-                    className={cn(
-                      'p-1 rounded text-muted-foreground hover:text-foreground',
-                      !selectedPath ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted'
-                    )}
-                    disabled={!selectedPath}
-                    title="Delete file"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
 
@@ -688,7 +703,7 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
                   onDiscard={handleDiscardFile}
                   isSaving={isFileSaving}
                   isValid
-                  headerRight={filePathMenu ?? undefined}
+                  headerRight={headerRight ?? undefined}
                   searchMatches={highlightMatches.length > 0 ? highlightMatches : undefined}
                   scrollToLine={highlightScrollToLine}
                   onScrollToLineHandled={() => setHighlightScrollToLine(null)}

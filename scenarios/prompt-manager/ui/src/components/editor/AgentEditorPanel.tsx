@@ -14,11 +14,12 @@
 
 import { useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye } from 'lucide-react'
+import { Menu, X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
 import type { ValidationResult } from '@/types/entityEditorStore'
+import { useIsCompactHeader } from '@/hooks/useMediaQuery'
 import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
@@ -116,10 +117,12 @@ export function AgentEditorPanel({
   void _onSaveAll
   // Active tab state
   const [activeTab, setActiveTab] = useState('files')
+  const isCompactHeader = useIsCompactHeader()
 
   // Description expanded state
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
   const [isPromptPreviewOpen, setIsPromptPreviewOpen] = useState(false)
+  const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   // Empty state when no agent selected
   if (!agent) {
@@ -143,31 +146,21 @@ export function AgentEditorPanel({
         className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
         data-testid={selectors.agentEditor.header}
       >
-        {/* Row 1: Close, Preview, Name, Status */}
-        <div className="flex items-center gap-3">
+        {/* Row 1: Close, Name, Status */}
+        <div className="flex items-center gap-2 min-w-0">
           {/* Close button */}
           <button
             type="button"
             onClick={onOpenSidebar ?? onClose}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            aria-label={onOpenSidebar ? 'Open sidebar' : 'Close editor'}
-            title={onOpenSidebar ? 'Open sidebar' : 'Close (Esc)'}
+            className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+            aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor'}
+            title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
           >
-            <Menu className="h-5 w-5" />
+            {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
           </button>
 
           {/* Agent color badge - uses form state */}
           <AgentColorBadge appearance={formState.appearance} size="md" />
-
-          <button
-            type="button"
-            onClick={() => setIsPromptPreviewOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
-            title="Preview constructed prompt"
-          >
-            <Eye className="h-4 w-4" />
-            Preview
-          </button>
 
           {/* Editable name - uses form state */}
           <div className="flex-1 min-w-0">
@@ -185,11 +178,12 @@ export function AgentEditorPanel({
             status={formState.status}
             onChange={(status) => updateField('status', status as 'active' | 'inactive' | 'suspended')}
             disabled={isSaving}
+            className="max-[389px]:hidden"
           />
 
           {/* Unsaved indicator */}
           {isDirty && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
+            <div className="hidden min-[390px]:flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
               Unsaved
             </div>
           )}
@@ -200,8 +194,39 @@ export function AgentEditorPanel({
             label="Agent actions"
             showChevron={false}
             align="right"
-            className="p-1.5 rounded-lg"
+            className="h-9 w-9 p-0 rounded-lg"
           >
+            {isCompactHeader && (
+              <>
+                <DropdownItem
+                  onClick={() => updateField('status', 'active')}
+                  isActive={formState.status === 'active'}
+                  disabled={isSaving}
+                  icon={<Circle className="h-4 w-4" />}
+                  label="Status: Active"
+                />
+                <DropdownItem
+                  onClick={() => updateField('status', 'inactive')}
+                  isActive={formState.status === 'inactive'}
+                  disabled={isSaving}
+                  icon={<Circle className="h-4 w-4" />}
+                  label="Status: Inactive"
+                />
+                <DropdownItem
+                  onClick={() => updateField('status', 'suspended')}
+                  isActive={formState.status === 'suspended'}
+                  disabled={isSaving}
+                  icon={<Circle className="h-4 w-4" />}
+                  label="Status: Suspended"
+                />
+              </>
+            )}
+            <DropdownItem
+              onClick={() => setIsPromptPreviewOpen(true)}
+              disabled={isDeleting}
+              icon={<Eye className="h-4 w-4" />}
+              label="Preview prompt"
+            />
             <DropdownItem
               onClick={onDuplicate}
               disabled={isSaving || isDeleting}
@@ -333,9 +358,10 @@ interface AgentStatusToggleProps {
   status: string
   onChange: (status: string) => void
   disabled?: boolean
+  className?: string
 }
 
-function AgentStatusToggle({ status, onChange, disabled }: AgentStatusToggleProps) {
+function AgentStatusToggle({ status, onChange, disabled, className }: AgentStatusToggleProps) {
   const statusColors: Record<string, string> = {
     active: 'bg-green-500/20 text-green-500 border-green-500/30',
     inactive: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
@@ -351,7 +377,8 @@ function AgentStatusToggle({ status, onChange, disabled }: AgentStatusToggleProp
         'px-2 py-1 text-xs font-medium rounded-full border cursor-pointer',
         'focus:outline-none focus:ring-2 focus:ring-primary',
         statusColors[status] ?? statusColors.inactive,
-        disabled && 'opacity-50 cursor-not-allowed'
+        disabled && 'opacity-50 cursor-not-allowed',
+        className
       )}
     >
       {STATUS_OPTIONS.map((opt) => (

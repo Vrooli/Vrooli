@@ -78,12 +78,12 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
           })
         }}
       >
-        <h2 className="icon-text" style={{ margin: 0, color: 'var(--color-text-bright)' }}>
+        <h2 className="icon-text" style={{ margin: 0, color: 'var(--color-text-heading)' }}>
           <Search size={20} />
           PROCESS MONITOR
         </h2>
         {collapsible && (
-          <span className="expand-arrow" style={{ color: 'var(--color-accent)' }}>
+          <span className="expand-arrow" style={{ color: 'var(--color-primary)' }}>
             {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </span>
         )}
@@ -99,13 +99,13 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
               marginBottom: 'var(--spacing-lg)'
             }}>
               <div className="monitor-section">
-                <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ color: 'var(--color-text-heading)', marginBottom: 'var(--spacing-md)' }}>
                   Process Health:
                 </h3>
                 <div className="health-stats">
                   <div className="stat-item">
                     <span className="stat-label">Total Processes:</span>
-                    <span className="stat-value" style={{ color: 'var(--color-accent)' }}>
+                    <span className="stat-value" style={{ color: 'var(--color-primary)' }}>
                       {data.processHealth?.totalProcesses}
                     </span>
                   </div>
@@ -135,7 +135,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
               </div>
               
               <div className="monitor-section">
-                <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ color: 'var(--color-text-heading)', marginBottom: 'var(--spacing-md)' }}>
                   High Thread Count:
                 </h3>
                 <div className="thread-list">
@@ -153,7 +153,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
               </div>
               
               <div className="monitor-section">
-                <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ color: 'var(--color-text-heading)', marginBottom: 'var(--spacing-md)' }}>
                   Resource Leak Candidates:
                 </h3>
                 <div className="leak-list">
@@ -173,7 +173,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
           ) : (
             <div style={{ 
               textAlign: 'center', 
-              color: 'var(--color-text-dim)', 
+              color: 'var(--color-text-secondary)', 
               padding: 'var(--spacing-xl)' 
             }}>
               SCANNING SYSTEM...
@@ -195,12 +195,12 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
               Are you sure you want to terminate the following process?
             </p>
             <div style={{
-              background: 'var(--overlay-heavy)',
-              border: '1px solid var(--color-accent)',
-              borderRadius: 'var(--border-radius-sm)',
+              background: 'var(--overlay-medium)',
+              border: '1px solid var(--color-primary)',
+              borderRadius: 'var(--radius-sm)',
               padding: 'var(--spacing-md)',
-              fontFamily: 'var(--font-family-mono)',
-              fontSize: 'var(--font-size-sm)'
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)'
             }}>
               <div style={{ marginBottom: 'var(--spacing-xs)' }}>
                 <strong>Process:</strong> {confirmDialog.processName}
@@ -215,7 +215,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
             <p style={{
               margin: 'var(--spacing-md) 0 0 0',
               color: 'var(--color-warning)',
-              fontSize: 'var(--font-size-sm)'
+              fontSize: 'var(--text-sm)'
             }}>
               <strong>Warning:</strong> This action cannot be undone. The process will be forcefully terminated.
             </p>

@@ -129,22 +129,22 @@ Browser Info:
       return (
         <div style={{
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-bg-dark-alt) 100%)',
+          background: 'linear-gradient(135deg, var(--color-background) 0%, var(--color-background-alt) 100%)',
           color: 'var(--color-text)',
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 'var(--spacing-xl)'
         }}>
           <div style={{
-            background: 'var(--overlay-solid)',
+            background: 'var(--overlay-backdrop)',
             border: '2px solid var(--color-error)',
-            borderRadius: 'var(--border-radius-lg)',
+            borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-xxl)',
             maxWidth: '800px',
             width: '100%',
-            boxShadow: '0 0 30px var(--color-error-border)'
+            boxShadow: '0 0 30px var(--color-error)'
           }}>
             {/* Header */}
             <div style={{
@@ -157,8 +157,8 @@ Browser Info:
             }}>
               <div style={{
                 padding: 'var(--spacing-sm)',
-                background: 'var(--color-error-bg)',
-                borderRadius: 'var(--border-radius-md)',
+                background: 'var(--color-error-muted)',
+                borderRadius: 'var(--radius-md)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
@@ -170,7 +170,7 @@ Browser Info:
                 <h1 style={{
                   margin: 0,
                   color: 'var(--color-error)',
-                  fontSize: 'var(--font-size-xxl)',
+                  fontSize: 'var(--text-2xl)',
                   fontWeight: 'bold',
                   textTransform: 'uppercase',
                   letterSpacing: '2px'
@@ -179,8 +179,8 @@ Browser Info:
                 </h1>
                 <p style={{
                   margin: 'var(--spacing-xs) 0 0 0',
-                  color: 'var(--color-text-dim)',
-                  fontSize: 'var(--font-size-sm)'
+                  color: 'var(--color-text-secondary)',
+                  fontSize: 'var(--text-sm)'
                 }}>
                   Component crashed • Retry #{retryCount + 1}
                 </p>
@@ -189,16 +189,16 @@ Browser Info:
 
             {/* Error Message */}
             <div style={{
-              background: 'var(--color-error-bg)',
+              background: 'var(--color-error-muted)',
               border: '1px solid var(--color-error)',
-              borderRadius: 'var(--border-radius-md)',
+              borderRadius: 'var(--radius-md)',
               padding: 'var(--spacing-lg)',
               marginBottom: 'var(--spacing-xl)'
             }}>
               <h3 style={{
                 margin: '0 0 var(--spacing-sm) 0',
-                color: 'var(--color-text-bright)',
-                fontSize: 'var(--font-size-md)',
+                color: 'var(--color-text-heading)',
+                fontSize: 'var(--text-base)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 'var(--spacing-sm)'
@@ -209,11 +209,11 @@ Browser Info:
               <p style={{
                 margin: 0,
                 color: 'var(--color-text)',
-                fontSize: 'var(--font-size-sm)',
-                fontFamily: 'var(--font-family-mono)',
-                background: 'var(--overlay-heavy)',
+                fontSize: 'var(--text-sm)',
+                fontFamily: 'var(--font-mono)',
+                background: 'var(--overlay-medium)',
                 padding: 'var(--spacing-md)',
-                borderRadius: 'var(--border-radius-sm)',
+                borderRadius: 'var(--radius-sm)',
                 overflowX: 'auto',
                 whiteSpace: 'pre-wrap'
               }}>
@@ -224,16 +224,16 @@ Browser Info:
             {/* Development Info */}
             {isDev && error && errorInfo && (
               <div style={{
-                background: 'var(--alpha-accent-05)',
-                border: '1px solid var(--color-accent)',
-                borderRadius: 'var(--border-radius-md)',
+                background: 'var(--color-primary-muted)',
+                border: '1px solid var(--color-primary)',
+                borderRadius: 'var(--radius-md)',
                 padding: 'var(--spacing-lg)',
                 marginBottom: 'var(--spacing-xl)'
               }}>
                 <h4 style={{
                   margin: '0 0 var(--spacing-sm) 0',
-                  color: 'var(--color-accent)',
-                  fontSize: 'var(--font-size-sm)',
+                  color: 'var(--color-primary)',
+                  fontSize: 'var(--text-sm)',
                   textTransform: 'uppercase',
                   letterSpacing: '1px'
                 }}>
@@ -241,14 +241,14 @@ Browser Info:
                 </h4>
                 
                 <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                  <strong style={{ color: 'var(--color-text-bright)' }}>Component Stack:</strong>
+                  <strong style={{ color: 'var(--color-text-heading)' }}>Component Stack:</strong>
                   <pre style={{
                     margin: 'var(--spacing-xs) 0 0 0',
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-xs)',
-                    background: 'var(--overlay-heavy)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: 'var(--text-xs)',
+                    background: 'var(--overlay-medium)',
                     padding: 'var(--spacing-sm)',
-                    borderRadius: 'var(--border-radius-sm)',
+                    borderRadius: 'var(--radius-sm)',
                     overflowX: 'auto',
                     maxHeight: '200px',
                     overflowY: 'auto'
@@ -259,14 +259,14 @@ Browser Info:
 
                 {error.stack && (
                   <div>
-                    <strong style={{ color: 'var(--color-text-bright)' }}>Error Stack:</strong>
+                    <strong style={{ color: 'var(--color-text-heading)' }}>Error Stack:</strong>
                     <pre style={{
                       margin: 'var(--spacing-xs) 0 0 0',
-                      color: 'var(--color-text-dim)',
-                      fontSize: 'var(--font-size-xs)',
-                      background: 'var(--overlay-heavy)',
+                      color: 'var(--color-text-secondary)',
+                      fontSize: 'var(--text-xs)',
+                      background: 'var(--overlay-medium)',
                       padding: 'var(--spacing-sm)',
-                      borderRadius: 'var(--border-radius-sm)',
+                      borderRadius: 'var(--radius-sm)',
                       overflowX: 'auto',
                       maxHeight: '200px',
                       overflowY: 'auto'
@@ -305,10 +305,10 @@ Browser Info:
             <div style={{
               marginTop: 'var(--spacing-xl)',
               paddingTop: 'var(--spacing-lg)',
-              borderTop: '1px solid var(--color-text-dim)',
+              borderTop: '1px solid var(--color-text-secondary)',
               textAlign: 'center',
-              color: 'var(--color-text-dim)',
-              fontSize: 'var(--font-size-xs)'
+              color: 'var(--color-text-secondary)',
+              fontSize: 'var(--text-xs)'
             }}>
               <p style={{ margin: 0 }}>
                 This error has been logged. If the problem persists, check the browser console for additional details.

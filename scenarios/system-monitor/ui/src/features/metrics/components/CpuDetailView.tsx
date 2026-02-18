@@ -46,7 +46,7 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
         className="card"
         style={{ padding: 'var(--spacing-lg)' }}
         data={cpuData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
-        lines={[{ dataKey: 'value', name: 'CPU Usage', color: 'var(--color-accent)' }]}
+        lines={[{ dataKey: 'value', name: 'CPU Usage', color: 'var(--color-primary)' }]}
         unit="%"
         yDomain={[0, 100]}
         valueFormatter={value => `${value.toFixed(1)}%`}
@@ -77,8 +77,8 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
             </div>
           </div>
           <div className="detail-grid detail-grid-md">
-            <DetailRow label="Context Switches" value={formatInteger(Number(contextSwitches))} valueColor="var(--color-accent)" />
-            <DetailRow label="Goroutines" value={formatInteger(goroutines)} valueColor="var(--color-accent)" />
+            <DetailRow label="Context Switches" value={formatInteger(Number(contextSwitches))} valueColor="var(--color-primary)" />
+            <DetailRow label="Goroutines" value={formatInteger(goroutines)} valueColor="var(--color-primary)" />
           </div>
         </div>
       </div>

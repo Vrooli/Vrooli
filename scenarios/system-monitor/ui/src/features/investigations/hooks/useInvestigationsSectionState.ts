@@ -67,8 +67,8 @@ export const useInvestigationsSectionState = ({
     : activeAgentSummary.tone === 'success'
     ? 'var(--color-success)'
     : activeAgentSummary.tone === 'active'
-    ? 'var(--color-accent)'
-    : 'var(--color-text-dim)';
+    ? 'var(--color-primary)'
+    : 'var(--color-text-secondary)';
 
   const handleSpawnAgent = async () => {
     const trimmedNote = agentNote.trim();

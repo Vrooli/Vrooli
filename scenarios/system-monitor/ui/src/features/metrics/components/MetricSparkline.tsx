@@ -15,7 +15,7 @@ interface MetricSparklineProps {
 
 export const MetricSparkline = ({
   data = [],
-  color = 'var(--color-accent)',
+  color = 'var(--color-primary)',
   height = 48,
   className,
   valueDomain,
@@ -70,8 +70,8 @@ export const MetricSparkline = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--color-text-dim)',
-          fontSize: 'var(--font-size-xs)',
+          color: 'var(--color-text-secondary)',
+          fontSize: 'var(--text-xs)',
           letterSpacing: '0.08em'
         }}
       >
@@ -159,7 +159,7 @@ export const MetricSparkline = ({
         <div
           style={{
             marginTop: 'var(--spacing-xs)',
-            color: 'var(--color-text-dim)',
+            color: 'var(--color-text-secondary)',
             fontSize: '0.55rem',
             letterSpacing: '0.08em'
           }}

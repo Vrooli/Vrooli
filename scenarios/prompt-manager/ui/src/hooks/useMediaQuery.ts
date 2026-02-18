@@ -9,6 +9,13 @@
 
 import { useState, useEffect } from 'react'
 
+export const BREAKPOINT_QUERIES = {
+  compactHeader: '(max-width: 389px)',
+  mobile: '(max-width: 768px)',
+  tablet: '(min-width: 769px) and (max-width: 1024px)',
+  desktop: '(min-width: 1025px)',
+} as const
+
 /**
  * Custom hook that tracks whether a CSS media query matches.
  * @param query - CSS media query string (e.g., '(max-width: 768px)')
@@ -50,13 +57,17 @@ export function useMediaQuery(query: string): boolean {
  * Common breakpoint hooks for convenience.
  */
 export function useIsMobile(): boolean {
-  return useMediaQuery('(max-width: 768px)')
+  return useMediaQuery(BREAKPOINT_QUERIES.mobile)
 }
 
 export function useIsTablet(): boolean {
-  return useMediaQuery('(min-width: 769px) and (max-width: 1024px)')
+  return useMediaQuery(BREAKPOINT_QUERIES.tablet)
 }
 
 export function useIsDesktop(): boolean {
-  return useMediaQuery('(min-width: 1025px)')
+  return useMediaQuery(BREAKPOINT_QUERIES.desktop)
+}
+
+export function useIsCompactHeader(): boolean {
+  return useMediaQuery(BREAKPOINT_QUERIES.compactHeader)
 }

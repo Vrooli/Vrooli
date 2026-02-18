@@ -13,18 +13,18 @@ import { ReportsPanel } from './features/reports/components/ReportsPanel';
 import { Terminal } from './shared/components/Terminal';
 import { ModalsContainer } from './features/investigations/modals/ModalsContainer';
 import { SystemSettingsModal } from './features/settings/components/SystemSettingsModal';
-import { MatrixBackground } from './shared/components/MatrixBackground';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { ToastProvider } from './shared/components/ToastProvider';
 import { ToastContainer } from './shared/components/ToastContainer';
 import { ConnectionStatusBanner } from './shared/components/ConnectionStatusBanner';
+import { ThemeProvider } from './shared/theme/ThemeProvider';
 import { useSystemMonitor } from './features/monitoring/hooks/useSystemMonitor';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { InvestigationScriptsPage } from './features/investigations/pages/InvestigationScriptsPage';
 import type { DashboardState, CardType, PanelType } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
-import './styles/matrix-theme.css';
+import './styles/tokens.css';
 
 /**
  * Compute BrowserRouter basename from proxy context.
@@ -167,8 +167,6 @@ function AppContent() {
   return (
     <ErrorBoundary onError={handleError}>
       <div className="app">
-        <MatrixBackground />
-        
         <Header
           unreadErrorCount={dashboardState.unreadErrorCount}
           agents={agents}
@@ -369,10 +367,12 @@ export default function App() {
   const basename = getRouterBasename();
 
   return (
-    <ToastProvider>
-      <BrowserRouter basename={basename}>
-        <AppContent />
-      </BrowserRouter>
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <BrowserRouter basename={basename}>
+          <AppContent />
+        </BrowserRouter>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }

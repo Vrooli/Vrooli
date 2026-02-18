@@ -36,7 +36,7 @@ const statusAccent = (status: string): string => {
     case 'investigating':
     case 'running':
     default:
-      return 'var(--color-accent)';
+      return 'var(--color-primary)';
   }
 };
 
@@ -97,10 +97,10 @@ export const AgentDropdown = ({
   const totalCount = sortedAgents.length;
   const buttonTone = totalCount === 0 ? 'idle' : runningCount > 0 ? 'active' : 'success';
   const buttonAccent = buttonTone === 'active'
-    ? 'var(--color-accent)'
+    ? 'var(--color-primary)'
     : buttonTone === 'success'
     ? 'var(--color-success)'
-    : 'var(--color-text-dim)';
+    : 'var(--color-text-secondary)';
 
   const agentButtonLabel = totalCount === 0
     ? 'Agents'
@@ -166,11 +166,11 @@ export const AgentDropdown = ({
                 const isStopping = stoppingAgentIds.has(agent.id);
                 const errorMessage = agentErrors[agent.id];
                 const isTerminalStatus = terminalStatuses.has(normalized);
-                const stopButtonColor = isTerminalStatus ? 'var(--color-text-dim)' : 'var(--color-error)';
-                const stopButtonBackground = isTerminalStatus ? 'var(--surface-tinted-55)' : 'var(--color-error-action-bg)';
+                const stopButtonColor = isTerminalStatus ? 'var(--color-text-secondary)' : 'var(--color-error)';
+                const stopButtonBackground = isTerminalStatus ? 'var(--overlay-light)' : 'var(--color-error-muted)';
                 const stopButtonBorder = isTerminalStatus
-                  ? '1px solid var(--color-text-alpha-12)'
-                  : '1px solid var(--color-error-action-border)';
+                  ? '1px solid var(--color-border)'
+                  : '1px solid var(--color-error)';
                 const stopButtonIcon = isStopping
                   ? <Loader2 size={12} className="animate-spin" />
                   : isTerminalStatus
@@ -188,7 +188,7 @@ export const AgentDropdown = ({
                       <div className="agent-item-title">
                         {agent.label ?? `Investigation ${agent.id}`}
                       </div>
-                      <div className="icon-text icon-text-xs" style={{ fontSize: 'var(--font-size-xs)', color }}>
+                      <div className="icon-text icon-text-xs" style={{ fontSize: 'var(--text-xs)', color }}>
                         {statusIconFor(normalized)}
                         <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                           {agent.status ?? 'UNKNOWN'}

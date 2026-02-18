@@ -304,10 +304,10 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
         flexDirection: 'column',
         gap: 'var(--spacing-sm)'
       }}>
-        <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
+        <h2 style={{ margin: 0, color: 'var(--color-text-heading)' }}>
           Investigation Scripts Library
         </h2>
-        <p style={{ margin: 0, color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+        <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
           Browse and inspect reusable investigative tools. Select a script to review its source, or open it in the editor for deeper analysis.
         </p>
       </div>
@@ -357,8 +357,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
         <div className="text-muted" style={{
           textAlign: 'center',
           padding: 'var(--spacing-xl)',
-          border: '1px dashed var(--color-accent)',
-          borderRadius: 'var(--border-radius-md)'
+          border: '1px dashed var(--color-primary)',
+          borderRadius: 'var(--radius-md)'
         }}>
           No scripts match the current search.
         </div>
@@ -369,15 +369,15 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
           gap: 'var(--spacing-lg)'
         }}>
           <div style={{
-            border: '1px solid var(--color-accent)',
-            borderRadius: 'var(--border-radius-md)',
+            border: '1px solid var(--color-primary)',
+            borderRadius: 'var(--radius-md)',
             overflow: 'hidden',
             background: 'var(--overlay-medium)'
           }}>
             <div className="detail-row-label" style={{
               padding: 'var(--spacing-sm) var(--spacing-md)',
-              borderBottom: '1px solid var(--color-accent)',
-              background: 'var(--alpha-accent-10)',
+              borderBottom: '1px solid var(--color-primary)',
+              background: 'var(--color-primary-muted)',
             }}>
               {filteredScripts.length} Scripts
             </div>
@@ -397,8 +397,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
             <div
               className="script-viewer-pane"
               style={{
-                border: '1px solid var(--color-accent)',
-                borderRadius: 'var(--border-radius-md)',
+                border: '1px solid var(--color-primary)',
+                borderRadius: 'var(--radius-md)',
                 background: 'var(--overlay-medium)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -409,14 +409,14 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
               <div
                 style={{
                   padding: 'var(--spacing-md) var(--spacing-lg)',
-                  borderBottom: '1px solid var(--color-accent)',
-                  background: 'var(--alpha-accent-05)'
+                  borderBottom: '1px solid var(--color-primary)',
+                  background: 'var(--color-primary-muted)'
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--spacing-md)' }}>
                     <div>
-                      <h3 style={{ margin: 0, color: 'var(--color-text-bright)', fontSize: 'var(--font-size-lg)' }}>
+                      <h3 style={{ margin: 0, color: 'var(--color-text-heading)', fontSize: 'var(--text-lg)' }}>
                         {currentScriptData.name}
                       </h3>
                       <div className="detail-row-label" style={{
@@ -480,7 +480,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
               <div
                 style={{
                   padding: 'var(--spacing-md) var(--spacing-lg)',
-                  borderBottom: '1px solid var(--alpha-accent-20)',
+                  borderBottom: '1px solid var(--color-primary-muted)',
                   background: 'var(--overlay-medium)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -564,7 +564,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                           className="btn btn-secondary"
                           onClick={handleToggleEnabled}
                           style={{
-                            color: scriptDraft?.enabled ? 'var(--color-success)' : 'var(--color-text-dim)'
+                            color: scriptDraft?.enabled ? 'var(--color-success)' : 'var(--color-text-secondary)'
                           }}
                         >
                           {scriptDraft?.enabled ? 'ENABLED' : 'DISABLED'}
@@ -588,7 +588,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                   </>
                 ) : (
                   <>
-                    <p style={{ margin: 0, color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                    <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
                       {currentScriptData.description}
                     </p>
                     <div style={{
@@ -611,7 +611,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       <div className="detail-row">
                         <div className="detail-row-label">Status</div>
                         <div className="detail-row-value-sm" style={{
-                          color: currentScriptData.enabled ? 'var(--color-success)' : 'var(--color-text-dim)'
+                          color: currentScriptData.enabled ? 'var(--color-success)' : 'var(--color-text-secondary)'
                         }}>
                           {currentScriptData.enabled ? 'ENABLED' : 'DISABLED'}
                         </div>
@@ -621,7 +621,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                 )}
 
                 {saveError && (
-                  <div className="error-banner" style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--font-size-xs)' }}>
+                  <div className="error-banner" style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--text-xs)' }}>
                     Failed to save script: {saveError}
                   </div>
                 )}
@@ -633,19 +633,19 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: 'var(--spacing-sm) var(--spacing-lg)',
-                  background: 'var(--alpha-accent-05)',
-                  borderBottom: '1px solid var(--alpha-accent-20)',
-                  fontSize: 'var(--font-size-sm)',
-                  color: 'var(--color-text-bright)'
+                  background: 'var(--color-primary-muted)',
+                  borderBottom: '1px solid var(--color-primary-muted)',
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--color-text-heading)'
                 }}>
                   <span>Script Code</span>
-                  <div style={{ color: 'var(--color-text-dim)' }}>
+                  <div style={{ color: 'var(--color-text-secondary)' }}>
                     {editorMode === 'view' ? 'Read Only' : 'Editable'} | {(selectedContent || '').length} chars
                   </div>
                 </div>
                 <div style={{ flex: 1, overflow: 'auto' }}>
                   {isFetchingContent ? (
-                    <div className="icon-text" style={{ color: 'var(--color-text-dim)', padding: 'var(--spacing-md) var(--spacing-lg)' }}>
+                    <div className="icon-text" style={{ color: 'var(--color-text-secondary)', padding: 'var(--spacing-md) var(--spacing-lg)' }}>
                       <Loader2 size={16} className="animate-spin" />
                       Loading script&hellip;
                     </div>
@@ -659,16 +659,16 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                           background: 'var(--overlay-backdrop)',
                           margin: 0,
                           padding: 'var(--spacing-lg)',
-                          fontSize: 'var(--font-size-sm)',
-                          fontFamily: 'var(--font-family-mono)',
+                          fontSize: 'var(--text-sm)',
+                          fontFamily: 'var(--font-mono)',
                           lineHeight: '1.5'
                         }
                       }}
                       customStyle={{
                         background: 'var(--overlay-backdrop)',
                         margin: 0,
-                        fontSize: 'var(--font-size-sm)',
-                        fontFamily: 'var(--font-family-mono)'
+                        fontSize: 'var(--text-sm)',
+                        fontFamily: 'var(--font-mono)'
                       }}
                     >
                       {selectedContent || '# No script content available'}
@@ -685,8 +685,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         background: 'var(--overlay-backdrop)',
                         border: 'none',
                         color: 'var(--color-text)',
-                        fontFamily: 'var(--font-family-mono)',
-                        fontSize: 'var(--font-size-sm)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--text-sm)',
                         lineHeight: '1.5',
                         resize: 'none',
                         outline: 'none',

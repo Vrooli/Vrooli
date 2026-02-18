@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 /**
  * API Client for Ecosystem Manager
  * Centralized HTTP communication with type safety.

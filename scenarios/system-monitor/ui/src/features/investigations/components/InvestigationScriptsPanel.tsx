@@ -96,11 +96,11 @@ export const InvestigationScriptsPanel = ({
           textAlign: 'center',
           color: 'var(--color-warning)',
           padding: 'var(--spacing-lg)',
-          fontSize: 'var(--font-size-sm)'
+          fontSize: 'var(--text-sm)'
         }}>
           FAILED TO LOAD SCRIPTS
           <br />
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{errorMessage}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{errorMessage}</span>
           <br />
           <button type="button" className="btn btn-action"
             onClick={loadScripts}
@@ -115,9 +115,9 @@ export const InvestigationScriptsPanel = ({
       return (
         <div style={{
           textAlign: 'center',
-          color: 'var(--color-text-dim)',
+          color: 'var(--color-text-secondary)',
           padding: 'var(--spacing-lg)',
-          fontSize: 'var(--font-size-lg)'
+          fontSize: 'var(--text-lg)'
         }}>
           NO SCRIPTS AVAILABLE
         </div>
@@ -170,7 +170,7 @@ export const InvestigationScriptsPanel = ({
         alignItems: 'center',
         marginBottom: 'var(--spacing-md)'
       }}>
-        <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
+        <h2 style={{ margin: 0, color: 'var(--color-text-heading)' }}>
           INVESTIGATION SCRIPTS
         </h2>
 

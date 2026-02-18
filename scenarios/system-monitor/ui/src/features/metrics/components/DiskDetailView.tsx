@@ -183,7 +183,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         className="card"
         data={diskIoHistory.map(point => ({ timestamp: point.timestamp, read: point.read, write: point.write }))}
         lines={[
-          { dataKey: 'read', name: 'Read Throughput', color: 'var(--color-accent)' },
+          { dataKey: 'read', name: 'Read Throughput', color: 'var(--color-primary)' },
           { dataKey: 'write', name: 'Write Throughput', color: 'var(--color-warning)' }
         ]}
         unit=" MB/s"
@@ -241,7 +241,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                   width: `${Math.min(Math.max(fileDescriptors.percent, 0), 100)}%`,
                   background: fileDescriptors.percent >= 70
                     ? getUtilizationColor(fileDescriptors.percent)
-                    : 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))'
+                    : 'linear-gradient(90deg, var(--color-primary), var(--color-text-heading))'
                 }}
               />
             </div>
@@ -262,12 +262,12 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             {watchersSupported ? (
               <>
                 <div className="utilization-header">
-                  <div className="utilization-value-lg" style={{ fontSize: 'var(--font-size-lg)' }}>
+                  <div className="utilization-value-lg" style={{ fontSize: 'var(--text-lg)' }}>
                     {inotifyWatchers.watchesUsed.toLocaleString()} / {inotifyWatchers.watchesMax.toLocaleString()} watches
                   </div>
                   <div className="utilization-percent" style={{
-                    color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-md)'
+                    color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-secondary)',
+                    fontSize: 'var(--text-base)'
                   }}>
                     {watcherPercent !== undefined ? `${watcherPercent.toFixed(1)}%` : '—'}
                   </div>
@@ -279,7 +279,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                       width: `${Math.min(Math.max(watcherPercent ?? 0, 0), 100)}%`,
                       background: watcherPercent !== undefined && watcherPercent >= 70
                         ? getUtilizationColor(watcherPercent)
-                        : 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))'
+                        : 'linear-gradient(90deg, var(--color-primary), var(--color-text-heading))'
                     }}
                   />
                 </div>
@@ -287,7 +287,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                   <span>
                     Instances: {inotifyWatchers.instancesUsed.toLocaleString()} / {inotifyWatchers.instancesMax.toLocaleString()}
                   </span>
-                  <span style={{ color: watcherInstancePercent !== undefined ? getUtilizationColor(watcherInstancePercent) : 'var(--color-text-dim)' }}>
+                  <span style={{ color: watcherInstancePercent !== undefined ? getUtilizationColor(watcherInstancePercent) : 'var(--color-text-secondary)' }}>
                     {watcherInstancePercent !== undefined ? `${watcherInstancePercent.toFixed(1)}%` : '—'}
                   </span>
                 </div>

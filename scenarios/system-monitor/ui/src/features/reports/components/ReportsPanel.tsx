@@ -145,11 +145,11 @@ export const ReportsPanel = () => {
             marginBottom: 'var(--spacing-md)',
             color: 'var(--color-warning)',
             textAlign: 'center',
-            fontSize: 'var(--font-size-sm)',
+            fontSize: 'var(--text-sm)',
           }}>
             FAILED TO LOAD REPORTS
             <br />
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{error}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{error}</span>
             <br />
             <button type="button" className="btn btn-action"
               onClick={() => loadReports()}
@@ -182,14 +182,14 @@ export const ReportsPanel = () => {
               <div className="report-summary detail-grid detail-grid-md mb-md">
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg CPU Usage:</span>
-                  <span className="summary-stat-value" style={{ color: 'var(--color-text-bright)' }}>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-text-heading)' }}>
                     {report.summary?.avgCpuUsage.toFixed(1)}%
                   </span>
                 </div>
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg Memory Usage:</span>
-                  <span className="summary-stat-value" style={{ color: 'var(--color-text-bright)' }}>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-text-heading)' }}>
                     {report.summary?.avgMemoryUsage.toFixed(1)}%
                   </span>
                 </div>

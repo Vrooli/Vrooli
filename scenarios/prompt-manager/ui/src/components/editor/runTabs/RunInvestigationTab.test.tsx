@@ -62,12 +62,10 @@ describe('RunInvestigationTab', () => {
   it('uses continueRun for Follow Up action', async () => {
     render(<RunInvestigationTab runId="source-1" />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Follow Up/i }))
-
-    const input = await screen.findByPlaceholderText(/Add a message for follow up/i)
+    const input = await screen.findByPlaceholderText(/Add a message for follow-up/i)
     fireEvent.change(input, { target: { value: 'Please explain root cause in one paragraph.' } })
 
-    fireEvent.click(screen.getByRole('button', { name: /Send follow up/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send follow-up/i }))
 
     await waitFor(() => {
       expect(continueRun).toHaveBeenCalledWith('inv-1', 'Please explain root cause in one paragraph.')
@@ -78,12 +76,13 @@ describe('RunInvestigationTab', () => {
   it('starts a new investigation from follow-up message when requested', async () => {
     render(<RunInvestigationTab runId="source-1" />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /New Investigation/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Follow-Up$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^New$/i }))
 
-    const input = await screen.findByPlaceholderText(/Add a message for new investigation/i)
+    const input = await screen.findByPlaceholderText(/Add a message for new/i)
     fireEvent.change(input, { target: { value: 'Try a deeper investigation focused on tool-call ordering.' } })
 
-    fireEvent.click(screen.getByRole('button', { name: /Send new investigation/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send new/i }))
 
     await waitFor(() => {
       expect(createInvestigationRun).toHaveBeenCalledWith(
@@ -100,8 +99,9 @@ describe('RunInvestigationTab', () => {
   it('supports apply recommendations with an optional message', async () => {
     render(<RunInvestigationTab runId="source-1" />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Apply Recommendations/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Send apply recommendations/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Follow-Up$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Apply$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Send apply/i }))
 
     await waitFor(() => {
       expect(createInvestigationApplyRun).toHaveBeenCalledWith('inv-1', undefined)

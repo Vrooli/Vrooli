@@ -2,10 +2,10 @@ import { X, RotateCcw } from 'lucide-react';
 import { useToast, type ToastSeverity } from './ToastProvider';
 
 const severityColors: Record<ToastSeverity, { bg: string; border: string; text: string }> = {
-  info: { bg: 'var(--alpha-accent-05)', border: 'var(--color-accent)', text: 'var(--color-accent)' },
-  success: { bg: 'var(--alpha-accent-05)', border: 'var(--color-success)', text: 'var(--color-success)' },
-  warning: { bg: 'var(--color-warning-bg)', border: 'var(--color-warning)', text: 'var(--color-warning)' },
-  error: { bg: 'var(--alpha-accent-05)', border: 'var(--color-error)', text: 'var(--color-error)' },
+  info: { bg: 'var(--color-primary-muted)', border: 'var(--color-primary)', text: 'var(--color-primary)' },
+  success: { bg: 'var(--color-primary-muted)', border: 'var(--color-success)', text: 'var(--color-success)' },
+  warning: { bg: 'var(--color-warning-muted)', border: 'var(--color-warning)', text: 'var(--color-warning)' },
+  error: { bg: 'var(--color-primary-muted)', border: 'var(--color-error)', text: 'var(--color-error)' },
 };
 
 export function ToastContainer() {
@@ -33,7 +33,7 @@ export function ToastContainer() {
             style={{
               background: colors.bg,
               border: `1px solid ${colors.border}`,
-              borderRadius: 'var(--border-radius-md)',
+              borderRadius: 'var(--radius-md)',
               padding: 'var(--spacing-md)',
               display: 'flex',
               alignItems: 'flex-start',
@@ -42,7 +42,7 @@ export function ToastContainer() {
               backdropFilter: 'blur(8px)',
             }}
           >
-            <span style={{ color: colors.text, flex: 1, fontSize: 'var(--font-size-sm)' }}>
+            <span style={{ color: colors.text, flex: 1, fontSize: 'var(--text-sm)' }}>
               {toast.message}
             </span>
             <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexShrink: 0 }}>
@@ -52,7 +52,7 @@ export function ToastContainer() {
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--color-accent)',
+                    color: 'var(--color-primary)',
                     cursor: 'pointer',
                     padding: '2px',
                   }}
@@ -66,7 +66,7 @@ export function ToastContainer() {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--color-text-dim)',
+                  color: 'var(--color-text-secondary)',
                   cursor: 'pointer',
                   padding: '2px',
                 }}

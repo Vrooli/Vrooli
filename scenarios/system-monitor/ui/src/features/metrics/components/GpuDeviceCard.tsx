@@ -11,13 +11,13 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
 
   const statsContent = (
     <>
-      <div>Memory: <span style={isExpansion ? { color: 'var(--color-text-bright)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{formatMegabytes(device.memoryUsedMb)} / {formatMegabytes(device.memoryTotalMb)}</span></div>
-      <div>Memory Util: <span style={isExpansion ? { color: 'var(--color-text-bright)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{formatPercentage(device.memoryUtilizationPercent)}</span></div>
-      <div>Temp: <span style={isExpansion ? { color: 'var(--color-text-bright)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.temperatureC != null ? `${device.temperatureC.toFixed(1)}\u00B0C` : '—'}</span></div>
-      <div>Fan: <span style={isExpansion ? { color: 'var(--color-text-bright)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.fanSpeedPercent != null ? `${device.fanSpeedPercent.toFixed(0)}%` : '—'}</span></div>
-      <div>Power: <span style={isExpansion ? { color: 'var(--color-text-bright)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.powerDrawW != null ? `${device.powerDrawW.toFixed(1)} W` : '—'}</span></div>
-      <div>SM Clock: <span style={isExpansion ? { color: 'var(--color-text-bright)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.smClockMhz != null ? `${device.smClockMhz.toFixed(0)} MHz` : '—'}</span></div>
-      <div>Mem Clock: <span style={isExpansion ? { color: 'var(--color-text-bright)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.memoryClockMhz != null ? `${device.memoryClockMhz.toFixed(0)} MHz` : '—'}</span></div>
+      <div>Memory: <span style={isExpansion ? { color: 'var(--color-text-heading)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{formatMegabytes(device.memoryUsedMb)} / {formatMegabytes(device.memoryTotalMb)}</span></div>
+      <div>Memory Util: <span style={isExpansion ? { color: 'var(--color-text-heading)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{formatPercentage(device.memoryUtilizationPercent)}</span></div>
+      <div>Temp: <span style={isExpansion ? { color: 'var(--color-text-heading)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.temperatureC != null ? `${device.temperatureC.toFixed(1)}\u00B0C` : '—'}</span></div>
+      <div>Fan: <span style={isExpansion ? { color: 'var(--color-text-heading)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.fanSpeedPercent != null ? `${device.fanSpeedPercent.toFixed(0)}%` : '—'}</span></div>
+      <div>Power: <span style={isExpansion ? { color: 'var(--color-text-heading)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.powerDrawW != null ? `${device.powerDrawW.toFixed(1)} W` : '—'}</span></div>
+      <div>SM Clock: <span style={isExpansion ? { color: 'var(--color-text-heading)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.smClockMhz != null ? `${device.smClockMhz.toFixed(0)} MHz` : '—'}</span></div>
+      <div>Mem Clock: <span style={isExpansion ? { color: 'var(--color-text-heading)' } : undefined} className={isExpansion ? undefined : 'text-bright'}>{device.memoryClockMhz != null ? `${device.memoryClockMhz.toFixed(0)} MHz` : '—'}</span></div>
     </>
   );
 
@@ -25,7 +25,7 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
     <div style={{ marginTop: 'var(--spacing-sm)' }}>
       <div
         className={isExpansion ? undefined : 'text-dim-xs'}
-        style={isExpansion ? { color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', marginBottom: 'var(--spacing-xs)' } : { marginBottom: '2px' }}
+        style={isExpansion ? { color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-xs)' } : { marginBottom: '2px' }}
       >
         {isExpansion ? 'Active Processes' : 'Processes'}
       </div>
@@ -37,8 +37,8 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
             style={isExpansion ? {
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 'var(--font-size-xs)',
-              color: 'var(--color-text-bright)'
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-text-heading)'
             } : undefined}
           >
             <span>{process.processName} ({process.pid})</span>
@@ -53,9 +53,9 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
     return (
       <div style={{
         border: '1px solid var(--color-surface)',
-        borderRadius: 'var(--border-radius-md)',
+        borderRadius: 'var(--radius-md)',
         padding: 'var(--spacing-md)',
-        background: 'var(--surface-card-accent)'
+        background: 'var(--color-primary-muted)'
       }}>
         <div style={{
           display: 'flex',
@@ -63,10 +63,10 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
           alignItems: 'center',
           marginBottom: 'var(--spacing-sm)'
         }}>
-          <span style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>
+          <span style={{ color: 'var(--color-text-heading)', fontWeight: 600 }}>
             {device.name} (GPU {device.index})
           </span>
-          <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)' }}>
+          <span style={{ color: 'var(--color-primary)', fontSize: 'var(--text-sm)' }}>
             {device.utilizationPercent?.toFixed(1) ?? '—'}%
           </span>
         </div>
@@ -75,8 +75,8 @@ export const GpuDeviceCard = ({ device, variant = 'detail' }: GpuDeviceCardProps
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
           gap: 'var(--spacing-sm)',
-          fontSize: 'var(--font-size-xs)',
-          color: 'var(--color-text-dim)'
+          fontSize: 'var(--text-xs)',
+          color: 'var(--color-text-secondary)'
         }}>
           {statsContent}
         </div>

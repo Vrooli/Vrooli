@@ -51,7 +51,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         className="investigation-item hover-bg-dark"
         style={{
           padding: 'var(--spacing-md)',
-          borderBottom: '1px solid var(--color-accent)',
+          borderBottom: '1px solid var(--color-primary)',
           background: 'var(--overlay-light)',
           transition: 'background 0.2s'
         }}
@@ -62,18 +62,18 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           alignItems: 'center',
           marginBottom: 'var(--spacing-xs)'
         }}>
-          <span style={{ color: 'var(--color-text-bright)', fontWeight: 'bold' }}>
+          <span style={{ color: 'var(--color-text-heading)', fontWeight: 'bold' }}>
             Investigation {investigation.id}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
             {autoFix && (
               <span style={{
-                background: 'var(--alpha-accent-15)',
+                background: 'var(--color-primary-muted)',
                 border: '1px solid var(--color-success)',
                 color: 'var(--color-success)',
                 padding: '2px 6px',
                 borderRadius: '999px',
-                fontSize: 'var(--font-size-xs)'
+                fontSize: 'var(--text-xs)'
               }}>
                 Auto-Fix
               </span>
@@ -85,8 +85,8 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
                 ? 'var(--color-warning)'
                 : investigation.status === InvestigationStatus.FAILED
                 ? 'var(--color-error)'
-                : 'var(--color-text-dim)',
-              fontSize: 'var(--font-size-sm)',
+                : 'var(--color-text-secondary)',
+              fontSize: 'var(--text-sm)',
               textTransform: 'uppercase'
             }}>
               {investigation.status}
@@ -100,24 +100,24 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           gap: 'var(--spacing-md)',
           marginBottom: 'var(--spacing-sm)'
         }}>
-          <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+          <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
             Started: {formattedStart}
           </span>
-          <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+          <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
             Mode: {operationMode}
           </span>
           {agentModel && (
-            <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
               Model: {agentModel}
             </span>
           )}
           {agentResource && (
-            <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
               Resource: {agentResource}
             </span>
           )}
           {riskLevel && (
-            <span style={{ color: riskColor, fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+            <span style={{ color: riskColor, fontSize: 'var(--text-sm)', fontWeight: 600 }}>
               Risk: {riskLevel}
             </span>
           )}
@@ -128,7 +128,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
             <div style={{
               height: '6px',
               borderRadius: '999px',
-              background: 'var(--alpha-accent-15)',
+              background: 'var(--color-primary-muted)',
               overflow: 'hidden'
             }}>
               <div style={{
@@ -138,7 +138,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
                 transition: 'width var(--transition-normal)'
               }} />
             </div>
-            <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
               Progress: {Math.round(progress)}%
             </span>
           </div>
@@ -148,7 +148,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           <div
             style={{
               color: 'var(--color-text)',
-              fontSize: 'var(--font-size-sm)',
+              fontSize: 'var(--text-sm)',
               marginBottom: 'var(--spacing-sm)'
             }}
           >
@@ -158,8 +158,8 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
 
         {userNote && (
           <div style={{
-            color: 'var(--color-text-dim)',
-            fontSize: 'var(--font-size-xs)',
+            color: 'var(--color-text-secondary)',
+            fontSize: 'var(--text-xs)',
             fontStyle: 'italic',
             marginBottom: 'var(--spacing-sm)'
           }}>
@@ -169,13 +169,13 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
 
         {typeof confidenceScore === 'number' && !Number.isNaN(confidenceScore) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-            <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
               Confidence:
             </span>
             <div style={{
               width: '100px',
               height: '4px',
-              background: 'var(--alpha-accent-20)',
+              background: 'var(--color-primary-muted)',
               borderRadius: '2px',
               overflow: 'hidden'
             }}>
@@ -190,7 +190,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
                 transition: 'width var(--transition-normal)'
               }} />
             </div>
-            <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)' }}>
+            <span style={{ color: 'var(--color-primary)', fontSize: 'var(--text-sm)' }}>
               {confidenceScore}/10
             </span>
           </div>

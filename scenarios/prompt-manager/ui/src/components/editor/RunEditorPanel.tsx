@@ -9,10 +9,12 @@
 
 import { useState, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, Info, List, Search, Loader2 } from 'lucide-react'
+import { Menu, X, Info, List, Search, Loader2, MoreHorizontal, Clock3, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getRunDetails, type RunDetails } from '@/services/heartbeatService'
 import { selectors } from '@/constants/selectors'
+import { useIsCompactHeader } from '@/hooks/useMediaQuery'
+import { DropdownItem, ToolbarDropdown } from './ToolbarDropdown'
 import { RunInfoTab } from './runTabs/RunInfoTab'
 import { RunEventsTab } from './runTabs/RunEventsTab'
 import { RunInvestigationTab } from './runTabs/RunInvestigationTab'
@@ -58,6 +60,8 @@ export function RunEditorPanel({
   const [runDetails, setRunDetails] = useState<RunDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [elapsed, setElapsed] = useState('')
+  const isCompactHeader = useIsCompactHeader()
+  const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   // Fetch run details
   useEffect(() => {
@@ -113,16 +117,16 @@ export function RunEditorPanel({
         className="flex-shrink-0 px-4 py-3 border-b border-border"
         data-testid={selectors.runEditor.header}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 min-w-0">
           {/* Close button */}
           <button
             type="button"
             onClick={onOpenSidebar ?? onClose}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            aria-label={onOpenSidebar ? 'Open sidebar' : 'Close editor'}
-            title={onOpenSidebar ? 'Open sidebar' : 'Close (Esc)'}
+            className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+            aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor'}
+            title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
           >
-            <Menu className="h-5 w-5" />
+            {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
           </button>
 
           {/* Status badge */}
@@ -147,7 +151,7 @@ export function RunEditorPanel({
 
           {/* Duration */}
           {duration && (
-            <span className="text-xs text-muted-foreground flex-shrink-0">
+            <span className="text-xs text-muted-foreground flex-shrink-0 max-[389px]:hidden">
               {duration}
             </span>
           )}
@@ -155,7 +159,7 @@ export function RunEditorPanel({
           {/* Status text badge */}
           <span
             className={cn(
-              'px-2 py-1 text-xs font-medium rounded-full capitalize',
+              'px-2 py-1 text-xs font-medium rounded-full capitalize max-[389px]:hidden',
               status === 'completed' && 'bg-emerald-500/15 text-emerald-500',
               status === 'running' && 'bg-amber-500/15 text-amber-500',
               status === 'failed' && 'bg-red-500/15 text-red-500',
@@ -166,6 +170,31 @@ export function RunEditorPanel({
           >
             {status}
           </span>
+
+          {isCompactHeader && (
+            <ToolbarDropdown
+              icon={<MoreHorizontal className="h-4 w-4" />}
+              label="Run details"
+              showChevron={false}
+              align="right"
+              className="h-9 w-9 p-0 rounded-lg"
+            >
+              <DropdownItem
+                onClick={() => void 0}
+                disabled
+                icon={<Activity className="h-4 w-4" />}
+                label={`Status: ${status}`}
+              />
+              {duration && (
+                <DropdownItem
+                  onClick={() => void 0}
+                  disabled
+                  icon={<Clock3 className="h-4 w-4" />}
+                  label={`Duration: ${duration}`}
+                />
+              )}
+            </ToolbarDropdown>
+          )}
         </div>
       </div>
 

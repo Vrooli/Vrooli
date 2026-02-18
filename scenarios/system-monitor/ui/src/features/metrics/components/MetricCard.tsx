@@ -59,27 +59,27 @@ export const MetricCard = ({
 
   const getValueColor = (): string => {
     if (!hasNumericValue || resolvedValue === null) {
-      return 'var(--color-text-dim)';
+      return 'var(--color-text-secondary)';
     }
     if (resolvedValue >= 90) return 'var(--color-error)';
     if (resolvedValue >= 70) return 'var(--color-warning)';
-    return 'var(--color-text-bright)';
+    return 'var(--color-text-heading)';
   };
 
   const sparklineColor = (() => {
     switch (type) {
       case 'cpu':
-        return 'var(--color-accent)';
+        return 'var(--color-primary)';
       case 'memory':
         return 'var(--color-warning)';
       case 'network':
-        return 'var(--color-accent)';
+        return 'var(--color-primary)';
       case 'disk':
         return 'var(--color-info)';
       case 'gpu':
         return 'var(--color-info)';
       default:
-        return 'var(--color-accent)';
+        return 'var(--color-primary)';
     }
   })();
 

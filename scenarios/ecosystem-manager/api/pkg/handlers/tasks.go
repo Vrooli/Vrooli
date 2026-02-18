@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 package handlers
 
 import (
@@ -86,6 +88,26 @@ func (h *TaskHandlers) maybeInitializeAutoSteer(task *tasks.TaskItem) {
 	if err := h.processor.AutoSteerIntegration().InitializeAutoSteer(task, scenarioName); err != nil {
 		systemlog.Warnf("Auto Steer initialization failed for task %s after update/create: %v", task.ID, err)
 	}
+}
+
+func (h *TaskHandlers) validateAutoSteerProfile(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if task == nil {
+		return true
+	}
+	profileID := strings.TrimSpace(task.AutoSteerProfileID)
+	task.AutoSteerProfileID = profileID
+	if profileID == "" {
+		return true
+	}
+	if h.autoSteerProfiles == nil {
+		writeError(w, "auto-steer profile validation is unavailable", http.StatusServiceUnavailable)
+		return false
+	}
+	if _, err := h.autoSteerProfiles.GetProfile(profileID); err != nil {
+		writeError(w, fmt.Sprintf("Auto Steer profile %q not found", profileID), http.StatusBadRequest)
+		return false
+	}
+	return true
 }
 
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
@@ -724,6 +746,9 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if !validateAndNormalizeSteeringQueue(&task, w) {
+		return
+	}
+	if !h.validateAutoSteerProfile(&task, w) {
 		return
 	}
 

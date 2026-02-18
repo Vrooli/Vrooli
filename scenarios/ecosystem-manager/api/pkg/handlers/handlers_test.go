@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
@@ -650,6 +651,57 @@ func TestTaskHandlers_CreateTask_TargetValidation(t *testing.T) {
 		taskHandlers.CreateTaskHandler(w, req)
 
 		// Generator tasks should succeed even for nonexistent targets
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("RejectsUnknownAutoSteerProfile", func(t *testing.T) {
+		profiles := autosteer.NewMockProfileRepository()
+		taskHandlersWithProfiles := NewTaskHandlers(storage, assembler, fp, wsManager, profiles, nil, nil, validator)
+
+		body := map[string]any{
+			"type":                  "scenario",
+			"operation":             "generator",
+			"target":                "brand-new-scenario",
+			"auto_steer_profile_id": "does-not-exist",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlersWithProfiles.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Response: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "not found") {
+			t.Errorf("Expected profile not found error, got: %s", w.Body.String())
+		}
+	})
+
+	t.Run("AcceptsExistingAutoSteerProfile", func(t *testing.T) {
+		profiles := autosteer.NewMockProfileRepository()
+		_ = profiles.CreateProfile(&autosteer.AutoSteerProfile{
+			ID:   "rapid-mvp",
+			Name: "Rapid MVP",
+		})
+		taskHandlersWithProfiles := NewTaskHandlers(storage, assembler, fp, wsManager, profiles, nil, nil, validator)
+
+		body := map[string]any{
+			"type":                  "scenario",
+			"operation":             "generator",
+			"target":                "another-new-scenario",
+			"auto_steer_profile_id": "rapid-mvp",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlersWithProfiles.CreateTaskHandler(w, req)
+
 		if w.Code != http.StatusCreated {
 			t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
 		}

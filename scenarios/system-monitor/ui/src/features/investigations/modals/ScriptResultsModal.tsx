@@ -66,15 +66,15 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
           <div>
             <h3 style={{
               margin: '0 0 var(--spacing-xs) 0',
-              color: 'var(--color-text-bright)',
-              fontSize: 'var(--font-size-xl)'
+              color: 'var(--color-text-heading)',
+              fontSize: 'var(--text-xl)'
             }}>
               Script Execution Results
             </h3>
             <p style={{
               margin: 0,
-              color: 'var(--color-text-dim)',
-              fontSize: 'var(--font-size-sm)'
+              color: 'var(--color-text-secondary)',
+              fontSize: 'var(--text-sm)'
             }}>
               Script: {execution.scriptId} | Execution ID: {execution.executionId}
             </p>
@@ -85,7 +85,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
       {/* Execution Summary */}
       <div className="execution-summary" style={{
         padding: 'var(--spacing-lg)',
-        borderBottom: '1px solid var(--alpha-accent-20)',
+        borderBottom: '1px solid var(--color-primary-muted)',
         background: 'var(--overlay-medium)'
       }}>
         <div className="detail-grid detail-grid-md" style={{ gap: 'var(--spacing-lg)' }}>
@@ -104,7 +104,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
               <span className="summary-stat-label">Exit Code:</span>
               <span className="summary-stat-value" style={{
                 color: execution.exitCode === 0 ? 'var(--color-success)' : 'var(--color-error)',
-                fontFamily: 'var(--font-family-mono)'
+                fontFamily: 'var(--font-mono)'
               }}>
                 {execution.exitCode}
               </span>
@@ -114,8 +114,8 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
           <div className="summary-stat">
             <span className="summary-stat-label">Duration:</span>
             <span className="summary-stat-value" style={{
-              color: 'var(--color-text-bright)',
-              fontFamily: 'var(--font-family-mono)'
+              color: 'var(--color-text-heading)',
+              fontFamily: 'var(--font-mono)'
             }}>
               {formatDuration()}
             </span>
@@ -125,7 +125,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             <div className="summary-stat">
               <span className="summary-stat-label">Timed Out:</span>
               <span className="summary-stat-value" style={{
-                color: execution.timedOut ? 'var(--color-error)' : 'var(--color-text-bright)'
+                color: execution.timedOut ? 'var(--color-error)' : 'var(--color-text-heading)'
               }}>
                 {execution.timedOut ? 'Yes' : 'No'}
               </span>
@@ -136,7 +136,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             <span className="summary-stat-label">Started:</span>
             <span style={{
               color: 'var(--color-text)',
-              fontSize: 'var(--font-size-sm)'
+              fontSize: 'var(--text-sm)'
             }}>
               {execution.startedAt ? timestampDate(execution.startedAt).toLocaleString() : 'Unknown'}
             </span>
@@ -158,17 +158,17 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div className="output-header icon-text" style={{
               padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: 'var(--alpha-accent-05)',
-              borderBottom: '1px solid var(--alpha-accent-20)',
-              fontSize: 'var(--font-size-sm)',
-              color: 'var(--color-text-bright)'
+              background: 'var(--color-primary-muted)',
+              borderBottom: '1px solid var(--color-primary-muted)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--color-text-heading)'
             }}>
               <Terminal size={16} />
               <span>Script Output</span>
               <span style={{
                 marginLeft: 'auto',
-                color: 'var(--color-text-dim)',
-                fontSize: 'var(--font-size-xs)'
+                color: 'var(--color-text-secondary)',
+                fontSize: 'var(--text-xs)'
               }}>
                 {stdoutContent.split('\n').length} lines
               </span>
@@ -177,11 +177,11 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             <div className="output-content" style={{
               flex: 1,
               padding: 'var(--spacing-md)',
-              background: 'var(--overlay-darker)',
+              background: 'var(--overlay-backdrop)',
               overflowY: 'auto',
               maxHeight: '60vh',
-              fontFamily: 'var(--font-family-mono)',
-              fontSize: 'var(--font-size-sm)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
               lineHeight: '1.4',
               whiteSpace: 'pre-wrap',
               color: 'var(--color-text)'
@@ -194,13 +194,13 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
         {/* Error Section */}
         {stderrContent && (
           <div style={{
-            borderTop: stdoutContent ? `1px solid var(--color-error-border)` : 'none',
-            background: 'var(--color-error-bg)'
+            borderTop: stdoutContent ? `1px solid var(--color-error)` : 'none',
+            background: 'var(--color-error-muted)'
           }}>
             <div className="error-header icon-text" style={{
               padding: 'var(--spacing-sm) var(--spacing-md)',
-              borderBottom: '1px solid var(--color-error-border)',
-              fontSize: 'var(--font-size-sm)',
+              borderBottom: '1px solid var(--color-error)',
+              fontSize: 'var(--text-sm)',
               color: 'var(--color-error)'
             }}>
               <XCircle size={16} />
@@ -209,9 +209,9 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
 
             <div className="error-content" style={{
               padding: 'var(--spacing-md)',
-              background: 'var(--color-error-bg)',
-              fontFamily: 'var(--font-family-mono)',
-              fontSize: 'var(--font-size-sm)',
+              background: 'var(--color-error-muted)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
               lineHeight: '1.4',
               whiteSpace: 'pre-wrap',
               color: 'var(--color-error)',
@@ -230,13 +230,13 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--color-text-dim)',
-            fontSize: 'var(--font-size-lg)'
+            color: 'var(--color-text-secondary)',
+            fontSize: 'var(--text-lg)'
           }}>
             <div style={{ textAlign: 'center' }}>
               <Clock size={48} style={{ marginBottom: 'var(--spacing-md)' }} />
               <div>Script is still running...</div>
-              <div style={{ fontSize: 'var(--font-size-sm)', marginTop: 'var(--spacing-sm)' }}>
+              <div style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--spacing-sm)' }}>
                 Started {formatDuration()} ago
               </div>
             </div>
@@ -249,8 +249,8 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--color-text-dim)',
-            fontSize: 'var(--font-size-lg)'
+            color: 'var(--color-text-secondary)',
+            fontSize: 'var(--text-lg)'
           }}>
             No output available
           </div>

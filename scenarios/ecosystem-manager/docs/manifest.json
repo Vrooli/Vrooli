@@ -1,0 +1,157 @@
+{
+  "version": "1.0.0",
+  "title": "Ecosystem Manager Documentation",
+  "description": "Operational and implementation documentation for ecosystem-manager",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Run and verify ecosystem-manager quickly",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "guides/getting-started.md",
+          "title": "Getting Started Guide",
+          "description": "End-to-end startup and first task workflow",
+          "audience": ["operators", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Mental model, flows, and boundaries"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Domain terms used by the scenario"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Endpoints",
+          "description": "HTTP contract summary"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "ecosystem-manager command reference"
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Settings and runtime controls"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "compass",
+      "documents": [
+        {
+          "path": "guides/troubleshooting.md",
+          "title": "Troubleshooting",
+          "description": "Common failures and diagnostics"
+        }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Plans",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "plans/recycler-automation-guide.md",
+          "title": "Recycler Automation Plan",
+          "description": "Design notes for recycler automation"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Problems",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "internal": true
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "internal": true
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "title": "Error Semantics",
+          "internal": true
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "Coherence Notes",
+          "internal": true
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "internal": true
+        },
+        {
+          "path": "internal/INTEROP_AUDIT.md",
+          "title": "Interop Audit",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference", "guides"],
+    "secondary": ["plans", "internal"]
+  }
+}

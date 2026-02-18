@@ -16,7 +16,7 @@ export const ScriptListItem = ({ script, isSelected, onSelect }: ScriptListItemP
       textAlign: 'left',
       padding: 'var(--spacing-md)',
       border: 'none',
-      background: isSelected ? 'var(--alpha-accent-12)' : 'transparent',
+      background: isSelected ? 'var(--color-primary-muted)' : 'transparent',
       color: 'var(--color-text)',
       display: 'flex',
       flexDirection: 'column',
@@ -26,16 +26,16 @@ export const ScriptListItem = ({ script, isSelected, onSelect }: ScriptListItemP
   >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span className="icon-text" style={{
-        fontSize: 'var(--font-size-sm)',
+        fontSize: 'var(--text-sm)',
         fontWeight: 600,
         textTransform: 'uppercase'
       }}>
-        <FileText size={16} style={{ color: 'var(--color-accent)' }} />
+        <FileText size={16} style={{ color: 'var(--color-primary)' }} />
         {script.name}
       </span>
       <span style={{
-        fontSize: 'var(--font-size-xs)',
-        color: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
+        fontSize: 'var(--text-xs)',
+        color: script.enabled ? 'var(--color-success)' : 'var(--color-text-secondary)',
         letterSpacing: '0.08em'
       }}>
         {script.enabled ? 'ENABLED' : 'DISABLED'}
@@ -50,8 +50,8 @@ export const ScriptListItem = ({ script, isSelected, onSelect }: ScriptListItemP
     </div>
     <p style={{
       margin: 0,
-      fontSize: 'var(--font-size-xs)',
-      color: 'var(--color-text-dim)'
+      fontSize: 'var(--text-xs)',
+      color: 'var(--color-text-secondary)'
     }}>
       {script.description}
     </p>

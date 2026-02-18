@@ -161,7 +161,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                         <div className="kernel-resource-card">
                           <div className="kernel-resource-header">
                             <span>Inotify Watches</span>
-                            <span style={{ color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-dim)' }}>
+                            <span style={{ color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-secondary)' }}>
                               {watcherPercent !== undefined ? `${watcherPercent.toFixed(1)}%` : '—'}
                             </span>
                           </div>

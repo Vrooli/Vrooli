@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen } from 'lucide-react'
+import { Menu, X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -21,7 +21,7 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useIsCompactHeader, useIsMobile } from '@/hooks/useMediaQuery'
 import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 import * as orgChartService from '@/services/orgChartService'
 
@@ -98,6 +98,8 @@ export function TeamEditorPanel({
   const [activeTab, setActiveTab] = useState('info')
 
   const isMobile = useIsMobile()
+  const isCompactHeader = useIsCompactHeader()
+  const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   // Mission expanded state
   const [isMissionExpanded, setIsMissionExpanded] = useState(false)
@@ -351,16 +353,16 @@ export function TeamEditorPanel({
           data-testid={selectors.teamEditor.header}
         >
           {/* Row 1: Close, Icon, Name */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0">
             {/* Close button */}
             <button
               type="button"
               onClick={onOpenSidebar ?? onClose}
-              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              aria-label={onOpenSidebar ? 'Open sidebar' : 'Close editor'}
-              title={onOpenSidebar ? 'Open sidebar' : 'Close (Esc)'}
+              className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor'}
+              title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
             >
-              <Menu className="h-5 w-5" />
+              {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
             </button>
 
             {/* Team icon */}
@@ -380,12 +382,12 @@ export function TeamEditorPanel({
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => void handleToggleTeam()}
                 className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors',
+                  'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors max-[389px]:hidden',
                   team.enabled
                     ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'
                     : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
@@ -402,8 +404,15 @@ export function TeamEditorPanel({
                 label="More actions"
                 showChevron={false}
                 align="right"
-                className="p-1.5 rounded-lg"
+                className="h-9 w-9 p-0 rounded-lg"
               >
+                {isCompactHeader && (
+                  <DropdownItem
+                    onClick={() => void handleToggleTeam()}
+                    icon={<Power className="h-4 w-4" />}
+                    label={team.enabled ? 'Turn team off' : 'Turn team on'}
+                  />
+                )}
                 <DropdownItem
                   onClick={onDelete}
                   disabled={isDeleting}

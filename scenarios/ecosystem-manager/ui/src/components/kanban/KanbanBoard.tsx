@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 /**
  * KanbanBoard Component
  * Main Kanban board with 7 status columns and drag-and-drop functionality

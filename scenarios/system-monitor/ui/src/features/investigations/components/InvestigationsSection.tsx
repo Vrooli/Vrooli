@@ -93,7 +93,7 @@ export const InvestigationsSection = ({
 
                   <div className="icon-text" style={{
                     color: summaryAccentColor,
-                    fontSize: 'var(--font-size-sm)',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em'
@@ -120,10 +120,10 @@ export const InvestigationsSection = ({
                     onChange={(event) => setAutoFixEnabled(event.target.checked)}
                     className="agent-checkbox-input"
                   />
-                  <Shield size={16} style={{ color: autoFixEnabled ? 'var(--color-success)' : 'var(--color-text-dim)' }} />
+                  <Shield size={16} style={{ color: autoFixEnabled ? 'var(--color-success)' : 'var(--color-text-secondary)' }} />
                   <span style={{
                     fontWeight: autoFixEnabled ? 'bold' : 'normal',
-                    color: autoFixEnabled ? 'var(--color-text-bright)' : 'inherit'
+                    color: autoFixEnabled ? 'var(--color-text-heading)' : 'inherit'
                   }}>
                     Adaptive auto-fix & recovery
                   </span>
@@ -148,7 +148,7 @@ export const InvestigationsSection = ({
                 disabled={isSpawningAgent}
                 style={{
                   padding: 'var(--spacing-sm) var(--spacing-lg)',
-                  fontSize: 'var(--font-size-sm)',
+                  fontSize: 'var(--text-sm)',
                   fontWeight: 'bold',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px'

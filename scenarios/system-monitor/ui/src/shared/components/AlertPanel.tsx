@@ -15,7 +15,7 @@ export const AlertPanel = ({ alerts }: AlertPanelProps) => {
           className="alert-badge"
           style={{
             background: alerts.length > 0 ? 'var(--color-error)' : 'var(--color-success)',
-            fontSize: 'var(--font-size-sm)'
+            fontSize: 'var(--text-sm)'
           }}
         >
           {alerts.length}
@@ -30,7 +30,7 @@ export const AlertPanel = ({ alerts }: AlertPanelProps) => {
         ) : (
           alerts.map(alert => (
             <div key={alert.id} className="alert-item pool-item mb-sm" style={{
-              border: '1px solid var(--color-accent)',
+              border: '1px solid var(--color-primary)',
               flexDirection: 'column',
               alignItems: 'stretch'
             }}>

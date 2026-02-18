@@ -40,7 +40,7 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
       <MetricLineChart
         className="card"
         data={networkData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
-        lines={[{ dataKey: 'value', name: 'TCP Connections', color: 'var(--color-accent)' }]}
+        lines={[{ dataKey: 'value', name: 'TCP Connections', color: 'var(--color-primary)' }]}
         unit=""
         yDomain={['auto', 'auto']}
         valueFormatter={value => `${Math.round(value).toLocaleString()} connections`}

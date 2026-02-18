@@ -30,20 +30,21 @@ type TaskCreateRequest struct {
 
 // TaskResponse represents a task from the API.
 type TaskResponse struct {
-	ID              string `json:"id"`
-	Title           string `json:"title"`
-	Type            string `json:"type"`
-	Operation       string `json:"operation"`
-	Category        string `json:"category"`
-	Priority        string `json:"priority"`
-	Status          string `json:"status"`
-	CurrentPhase    string `json:"current_phase,omitempty"`
-	CompletionCount int    `json:"completion_count"`
-	LastCompletedAt string `json:"last_completed_at,omitempty"`
-	CreatedAt       string `json:"created_at,omitempty"`
-	UpdatedAt       string `json:"updated_at,omitempty"`
-	SteerMode       string `json:"steer_mode,omitempty"`
-	Notes           string `json:"notes,omitempty"`
+	ID                 string `json:"id"`
+	Title              string `json:"title"`
+	Type               string `json:"type"`
+	Operation          string `json:"operation"`
+	AutoSteerProfileID string `json:"auto_steer_profile_id,omitempty"`
+	Category           string `json:"category"`
+	Priority           string `json:"priority"`
+	Status             string `json:"status"`
+	CurrentPhase       string `json:"current_phase,omitempty"`
+	CompletionCount    int    `json:"completion_count"`
+	LastCompletedAt    string `json:"last_completed_at,omitempty"`
+	CreatedAt          string `json:"created_at,omitempty"`
+	UpdatedAt          string `json:"updated_at,omitempty"`
+	SteerMode          string `json:"steer_mode,omitempty"`
+	Notes              string `json:"notes,omitempty"`
 }
 
 // TaskListResponse represents a list of tasks.
@@ -355,6 +356,9 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	}
 	if task.SteerMode != "" {
 		fmt.Printf("Steer Mode: %s\n", task.SteerMode)
+	}
+	if task.AutoSteerProfileID != "" {
+		fmt.Printf("Auto Steer Profile: %s\n", task.AutoSteerProfileID)
 	}
 	fmt.Printf("Completions: %d\n", task.CompletionCount)
 	if task.LastCompletedAt != "" {

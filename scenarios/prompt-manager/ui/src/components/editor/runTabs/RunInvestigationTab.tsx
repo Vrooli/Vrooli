@@ -56,7 +56,7 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
   const [depth, setDepth] = useState<DepthOption>('standard')
   const [customContext, setCustomContext] = useState('')
   const [followUpMessage, setFollowUpMessage] = useState('')
-  const [selectedAction, setSelectedAction] = useState<InvestigationAction | null>(null)
+  const [selectedAction, setSelectedAction] = useState<InvestigationAction | null>('followUp')
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const [copiedJson, setCopiedJson] = useState(false)
   const [filteredEvents, setFilteredEvents] = useState<RunEvent[]>([])
@@ -205,9 +205,9 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
   }, [filteredEvents])
 
   const getActionLabel = useCallback((action: InvestigationAction | null): string => {
-    if (action === 'apply') return 'Apply Recommendations'
-    if (action === 'followUp') return 'Follow Up'
-    if (action === 'newInvestigation') return 'New Investigation'
+    if (action === 'apply') return 'Apply'
+    if (action === 'followUp') return 'Follow-Up'
+    if (action === 'newInvestigation') return 'New'
     return ''
   }, [])
 
@@ -228,7 +228,7 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
         await handleNewInvestigationFromFollowup(message)
       }
       setFollowUpMessage('')
-      setSelectedAction(null)
+      setSelectedAction('followUp')
     } finally {
       setIsSubmittingAction(false)
     }
@@ -413,21 +413,21 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
                     onClick={() => setSelectedAction('apply')}
                     className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium border border-primary text-primary hover:bg-primary/10"
                   >
-                    <Wrench className="h-3.5 w-3.5" /> Apply Recommendations
+                    <Wrench className="h-3.5 w-3.5" /> Apply
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedAction('followUp')}
                     className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    <MessageSquare className="h-3.5 w-3.5" /> Follow Up
+                    <MessageSquare className="h-3.5 w-3.5" /> Follow-Up
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedAction('newInvestigation')}
                     className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium border border-border text-muted-foreground hover:text-foreground"
                   >
-                    <Play className="h-3.5 w-3.5" /> New Investigation
+                    <Play className="h-3.5 w-3.5" /> New
                   </button>
                 </div>
               ) : (
