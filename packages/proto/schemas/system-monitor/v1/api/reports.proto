@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package system_monitor.v1;
+
+import "system-monitor/v1/domain/reports.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api;api";
+
+// =============================================================================
+// REPORTS API MESSAGES
+// =============================================================================
+//
+// @layer 5
+// @domain system-monitor
+// @imports domain/reports.proto
+// @stability beta
+//
+// Request/response wrappers for report endpoints.
+//
+// =============================================================================
+
+// GenerateReportRequest specifies the type of report to generate.
+message GenerateReportRequest {
+  // Report type (daily, weekly).
+  string type = 1;
+}
+
+// GenerateReportResponse returns the generated report.
+message GenerateReportResponse {
+  // The generated report.
+  EnhancedSystemReport report = 1;
+}
+
+// ListReportsRequest is empty - no parameters needed.
+message ListReportsRequest {}
+
+// ListReportsResponse returns available reports.
+message ListReportsResponse {
+  // List of reports.
+  repeated EnhancedSystemReport reports = 1;
+
+  // Total count.
+  int32 count = 2;
+}
+
+// GetReportRequest retrieves a specific report.
+message GetReportRequest {
+  // Report ID.
+  string id = 1;
+}
+
+// GetReportResponse returns a single report.
+message GetReportResponse {
+  // The report.
+  EnhancedSystemReport report = 1;
+}

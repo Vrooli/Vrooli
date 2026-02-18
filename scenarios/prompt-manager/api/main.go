@@ -454,6 +454,7 @@ func main() {
 	v1.HandleFunc("/runs/investigate", heartbeatHandlers.CreateInvestigationRun).Methods("POST")
 	v1.HandleFunc("/runs/investigation-apply", heartbeatHandlers.CreateInvestigationApplyRun).Methods("POST")
 	v1.HandleFunc("/runs/{runId}", heartbeatHandlers.GetRun).Methods("GET")
+	v1.HandleFunc("/runs/{runId}/retry", heartbeatHandlers.RetryRun).Methods("POST")
 	v1.HandleFunc("/runs/{runId}/events", heartbeatHandlers.GetRunEvents).Methods("GET")
 	v1.HandleFunc("/runs/{runId}/continue", heartbeatHandlers.ContinueRun).Methods("POST")
 	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")

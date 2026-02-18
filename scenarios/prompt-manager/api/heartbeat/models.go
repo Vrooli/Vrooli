@@ -49,11 +49,12 @@ type TriggerHeartbeatRequest struct {
 
 // TriggerHeartbeatResponse is the response for manual trigger
 type TriggerHeartbeatResponse struct {
-	TeamID  string `json:"teamId"`
-	AgentID string `json:"agentId"`
-	RunID   string `json:"runId"`
-	Status  string `json:"status"`
-	LogPath string `json:"logPath,omitempty"`
+	TeamID   string `json:"teamId"`
+	AgentID  string `json:"agentId"`
+	RunID    string `json:"runId"`
+	Status   string `json:"status"`
+	Position int    `json:"position,omitempty"`
+	LogPath  string `json:"logPath,omitempty"`
 }
 
 // LogEntry represents a log file entry in list responses

@@ -31,7 +31,11 @@ generate:
 	      gen/python/scenario_to_desktop/v1/base/py.typed \
 	      gen/python/scenario_to_desktop/v1/domain/py.typed \
 	      gen/python/scenario_to_desktop/v1/pipeline/py.typed \
-	      gen/python/scenario_to_desktop/v1/distribution/py.typed
+	      gen/python/scenario_to_desktop/v1/distribution/py.typed \
+	      gen/python/system_monitor/py.typed \
+	      gen/python/system_monitor/v1/py.typed \
+	      gen/python/system_monitor/v1/api/py.typed \
+	      gen/python/system_monitor/v1/domain/py.typed
 
 lint:
 	buf lint

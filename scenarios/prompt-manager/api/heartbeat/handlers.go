@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -384,26 +385,33 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
-	if h.executor == nil {
-		http.Error(w, "Executor not configured", http.StatusServiceUnavailable)
+	resp, status, err := h.triggerHeartbeatMember(ctx, teamID, agentID)
+	if err != nil {
+		http.Error(w, err.Error(), status)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID string) (*TriggerHeartbeatResponse, int, error) {
+	if h.executor == nil {
+		return nil, http.StatusServiceUnavailable, errors.New("Executor not configured")
+	}
+
 	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
+		return nil, http.StatusNotFound, errors.New("Team not found")
 	}
 	if err := h.requireMember(ctx, teamID, agentID); err != nil {
 		if errors.Is(err, errMemberNotFound) {
-			http.Error(w, "Team member not found", http.StatusNotFound)
-			return
+			return nil, http.StatusNotFound, errors.New("Team member not found")
 		}
 		if strings.Contains(err.Error(), "required") {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return nil, http.StatusBadRequest, err
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, http.StatusInternalServerError, err
 	}
 
 	// Route through team execution store for serialized execution
@@ -418,44 +426,130 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 		enqueueResult, err := h.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
 		if err != nil {
 			if IsMemberAlreadyQueued(err) {
-				http.Error(w, err.Error(), http.StatusConflict)
-				return
+				return nil, http.StatusConflict, err
 			}
 			if IsTeamDisabled(err) {
-				http.Error(w, "Team is disabled; enable the team to run heartbeats", http.StatusConflict)
-				return
+				return nil, http.StatusConflict, errors.New("Team is disabled; enable the team to run heartbeats")
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return nil, http.StatusInternalServerError, err
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusAccepted)
-		_ = json.NewEncoder(w).Encode(enqueueResult)
-		return
+		return &TriggerHeartbeatResponse{
+			TeamID:   enqueueResult.TeamID,
+			AgentID:  enqueueResult.AgentID,
+			Status:   enqueueResult.Status,
+			Position: enqueueResult.Position,
+		}, http.StatusAccepted, nil
 	}
 
 	// Fallback: direct execution
 	result, err := h.executor.TriggerManual(ctx, teamID, agentID)
 	if err != nil {
 		if IsTeamDisabled(err) {
-			http.Error(w, "Team is disabled; enable the team to run heartbeats", http.StatusConflict)
-			return
+			return nil, http.StatusConflict, errors.New("Team is disabled; enable the team to run heartbeats")
 		}
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
+			return nil, http.StatusNotFound, err
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, http.StatusInternalServerError, err
 	}
 
-	resp := TriggerHeartbeatResponse{
+	return &TriggerHeartbeatResponse{
 		TeamID:  result.TeamID,
 		AgentID: result.AgentID,
 		RunID:   result.RunID,
 		Status:  result.Status,
 		LogPath: result.LogPath,
+	}, http.StatusAccepted, nil
+}
+
+func (h *Handlers) resolveHeartbeatTargetFromRunTag(ctx context.Context, tag string) (string, string, error) {
+	const heartbeatTagPrefix = "heartbeat-"
+	const heartbeatTagTimestampLayout = "2006-01-02T15-04-05Z"
+	const heartbeatTagTimestampLen = len("2006-01-02T15-04-05Z")
+
+	if !strings.HasPrefix(tag, heartbeatTagPrefix) {
+		return "", "", fmt.Errorf("run is not a heartbeat run")
+	}
+	rest := strings.TrimPrefix(tag, heartbeatTagPrefix)
+	if len(rest) <= heartbeatTagTimestampLen+1 {
+		return "", "", fmt.Errorf("heartbeat run tag is malformed")
+	}
+	sepIdx := len(rest) - (heartbeatTagTimestampLen + 1)
+	if sepIdx < 1 || rest[sepIdx] != '-' {
+		return "", "", fmt.Errorf("heartbeat run tag is malformed")
+	}
+	if _, err := time.Parse(heartbeatTagTimestampLayout, rest[sepIdx+1:]); err != nil {
+		return "", "", fmt.Errorf("heartbeat run tag has invalid timestamp")
+	}
+
+	teamAndAgent := rest[:sepIdx]
+	teams, err := h.teamStore.List(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("list teams: %w", err)
+	}
+	sort.Slice(teams, func(i, j int) bool {
+		return len(teams[i].ID) > len(teams[j].ID)
+	})
+
+	for _, team := range teams {
+		prefix := team.ID + "-"
+		if !strings.HasPrefix(teamAndAgent, prefix) {
+			continue
+		}
+		agentID := strings.TrimPrefix(teamAndAgent, prefix)
+		if agentID == "" {
+			continue
+		}
+		if err := h.requireMember(ctx, team.ID, agentID); err == nil {
+			return team.ID, agentID, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("could not resolve heartbeat team/member from run tag")
+}
+
+// RetryRun handles POST /runs/{runId}/retry - retries a heartbeat run by re-triggering its team/member heartbeat.
+func (h *Handlers) RetryRun(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	runID := vars["runId"]
+	if runID == "" {
+		http.Error(w, "runId is required", http.StatusBadRequest)
+		return
+	}
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	run, err := h.agentClient.GetRun(r.Context(), runID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if run == nil {
+		http.Error(w, "run not found", http.StatusNotFound)
+		return
+	}
+	if strings.TrimSpace(run.Tag) == "" {
+		http.Error(w, "run has no tag; cannot map to heartbeat", http.StatusBadRequest)
+		return
+	}
+
+	teamID, agentID, err := h.resolveHeartbeatTargetFromRunTag(r.Context(), run.Tag)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resp, status, err := h.triggerHeartbeatMember(r.Context(), teamID, agentID)
+	if err != nil {
+		http.Error(w, err.Error(), status)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

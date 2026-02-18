@@ -50,7 +50,7 @@ type BacklogFile struct {
 	Name     string        `json:"name"`
 	Path     string        `json:"path"`
 	Type     string        `json:"type"`
-	Size     int64         `json:"size,omitempty"`
+	Size     int64         `json:"size,omitempty,string"`
 	Children []BacklogFile `json:"children,omitempty"`
 }
 
@@ -116,7 +116,7 @@ type ScenarioFile struct {
 	Name     string         `json:"name"`
 	Path     string         `json:"path"`
 	Type     string         `json:"type"`
-	Size     int64          `json:"size,omitempty"`
+	Size     int64          `json:"size,omitempty,string"`
 	Children []ScenarioFile `json:"children,omitempty"`
 }
 

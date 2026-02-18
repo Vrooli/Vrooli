@@ -1,5 +1,6 @@
 import type { App } from '@/types';
 import { logger } from '@/services/logger';
+import { parseScenarioProxyPreviewTarget } from '@/utils/previewUrl';
 
 /**
  * Normalizes an identifier string for comparison purposes.
@@ -36,6 +37,70 @@ export const resolveAppIdentifier = (app: App): string | null => {
   const candidates: Array<string | undefined> = [app.id, app.scenario_name, app.name];
   const match = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
   return match ? match.trim() : null;
+};
+
+export interface PreviewContextResolutionInput {
+  activeAppIdentifier: string | null;
+  previewUrlInput: string;
+  hasCustomPreviewUrl: boolean;
+  currentApp?: App | null;
+}
+
+export interface PreviewContextResolution {
+  scenarioIdentifierFromUrl: string | null;
+  resolvedAppIdentifier: string | null;
+  hasScenarioContext: boolean;
+  developerActions: {
+    canOpenMenu: boolean;
+    canToggleFullscreen: boolean;
+    canToggleDeviceEmulation: boolean;
+    canToggleInspectContext: boolean;
+    canToggleLogs: boolean;
+    canReportIssue: boolean;
+  };
+}
+
+/**
+ * Canonical resolver for preview context. It decides which scenario/app identifier
+ * should back the pane and whether app-scoped actions should be available.
+ */
+export const resolvePreviewContext = ({
+  activeAppIdentifier,
+  previewUrlInput,
+  hasCustomPreviewUrl,
+  currentApp = null,
+}: PreviewContextResolutionInput): PreviewContextResolution => {
+  const scenarioIdentifierFromUrl = parseScenarioProxyPreviewTarget(previewUrlInput)?.scenarioIdentifier ?? null;
+
+  const resolvedAppIdentifier = (() => {
+    if (!scenarioIdentifierFromUrl) {
+      return activeAppIdentifier ?? null;
+    }
+    if (!activeAppIdentifier) {
+      return scenarioIdentifierFromUrl;
+    }
+    if (!hasCustomPreviewUrl) {
+      return activeAppIdentifier;
+    }
+
+    return scenarioIdentifierFromUrl.toLowerCase() === activeAppIdentifier.toLowerCase()
+      ? activeAppIdentifier
+      : scenarioIdentifierFromUrl;
+  })();
+
+  return {
+    scenarioIdentifierFromUrl,
+    resolvedAppIdentifier,
+    hasScenarioContext: Boolean(currentApp || resolvedAppIdentifier),
+    developerActions: {
+      canOpenMenu: true,
+      canToggleFullscreen: true,
+      canToggleDeviceEmulation: true,
+      canToggleInspectContext: Boolean(currentApp || resolvedAppIdentifier),
+      canToggleLogs: Boolean(currentApp || resolvedAppIdentifier),
+      canReportIssue: Boolean(currentApp || resolvedAppIdentifier),
+    },
+  };
 };
 
 /**

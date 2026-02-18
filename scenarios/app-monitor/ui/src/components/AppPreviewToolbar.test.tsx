@@ -577,4 +577,68 @@ describe('AppPreviewToolbar', () => {
       params: { segment: 'apps' },
     });
   });
+
+  it('uses developer action capabilities for per-action gating', () => {
+    render(
+      <AppPreviewToolbar
+        canGoBack={false}
+        canGoForward={false}
+        onGoBack={vi.fn()}
+        onGoForward={vi.fn()}
+        onRefresh={vi.fn()}
+        isRefreshing={false}
+        onOpenDetails={vi.fn()}
+        previewUrlInput=""
+        onPreviewUrlInputChange={vi.fn()}
+        onPreviewUrlInputBlur={vi.fn()}
+        onPreviewUrlInputKeyDown={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        openPreviewTarget={null}
+        urlStatusClass="running"
+        urlStatusTitle="running"
+        hasDetailsWarning={false}
+        hasCurrentApp={false}
+        isAppRunning={false}
+        pendingAction={null}
+        actionInProgress={false}
+        toggleActionLabel="Start"
+        onToggleApp={vi.fn()}
+        restartActionLabel="Restart"
+        onRestartApp={vi.fn()}
+        onToggleLogs={vi.fn()}
+        areLogsVisible={false}
+        onReportIssue={vi.fn()}
+        appStatusLabel="Stopped"
+        isFullView={false}
+        onToggleFullView={vi.fn()}
+        isDeviceEmulationActive={false}
+        onToggleDeviceEmulation={vi.fn()}
+        canInspect={true}
+        isInspecting={false}
+        onToggleInspect={vi.fn()}
+        menuPortalContainer={null}
+        canOpenTabsOverlay={false}
+        previewInteractionSignal={0}
+        issueCaptureCount={0}
+        developerActionCapabilities={{
+          canOpenMenu: true,
+          canToggleFullscreen: true,
+          canToggleDeviceEmulation: true,
+          canToggleInspectContext: false,
+          canToggleLogs: false,
+          canReportIssue: false,
+        }}
+        showDetailsButton={false}
+        showLifecycleMenu={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Developer actions' }));
+
+    expect(screen.getByRole('menuitem', { name: /Enter full view/i })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: /Show emulator/i })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: /Inspect element/i })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: /Show logs/i })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: /Report an issue/i })).toBeDisabled();
+  });
 });

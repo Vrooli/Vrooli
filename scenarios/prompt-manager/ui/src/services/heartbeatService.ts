@@ -589,6 +589,18 @@ export async function continueRun(runId: string, message: string): Promise<void>
 }
 
 /**
+ * Retry a heartbeat run by re-triggering the mapped team/member heartbeat.
+ */
+export async function retryRun(runId: string): Promise<TriggerResponse> {
+  return apiRequest<TriggerResponse>(
+    `/runs/${encodeURIComponent(runId)}/retry`,
+    {
+      method: 'POST',
+    }
+  )
+}
+
+/**
  * Create an investigation run for one or more failed runs.
  */
 export async function createInvestigationRun(runIds: string[], opts?: {

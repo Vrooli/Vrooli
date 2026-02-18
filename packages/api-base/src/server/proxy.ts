@@ -110,6 +110,8 @@ export async function proxyToApi(
       (proxyRes: http.IncomingMessage) => {
         // Set status code
         res.status(proxyRes.statusCode ?? 500)
+        // Diagnostic marker for request path visibility in clients/logs.
+        res.setHeader('X-Vrooli-Proxy-Hop', 'ui-proxy')
 
         // Copy response headers, filtering hop-by-hop headers
         for (const [key, value] of Object.entries(proxyRes.headers)) {
@@ -138,6 +140,7 @@ export async function proxyToApi(
       }
 
       if (!res.headersSent) {
+        res.setHeader('X-Vrooli-Error-Hop', 'ui-proxy')
         res.status(502).json({
           error: 'API server unavailable',
           details: err.message,

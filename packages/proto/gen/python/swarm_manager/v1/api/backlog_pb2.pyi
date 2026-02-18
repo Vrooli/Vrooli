@@ -93,18 +93,24 @@ class QueueBacklogItemResponse(_message.Message):
     def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ...) -> None: ...
 
 class BacklogResearchRequest(_message.Message):
-    __slots__ = ("prompt", "scope_path", "project_root", "mode", "target_kind")
+    __slots__ = ("prompt", "scope_path", "project_root", "mode", "target_kind", "context_paths", "context_target_ids", "context_requirement_ids")
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     SCOPE_PATH_FIELD_NUMBER: _ClassVar[int]
     PROJECT_ROOT_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_PATHS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_REQUIREMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     prompt: str
     scope_path: str
     project_root: str
     mode: str
     target_kind: str
-    def __init__(self, prompt: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., mode: _Optional[str] = ..., target_kind: _Optional[str] = ...) -> None: ...
+    context_paths: _containers.RepeatedScalarFieldContainer[str]
+    context_target_ids: _containers.RepeatedScalarFieldContainer[str]
+    context_requirement_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, prompt: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., mode: _Optional[str] = ..., target_kind: _Optional[str] = ..., context_paths: _Optional[_Iterable[str]] = ..., context_target_ids: _Optional[_Iterable[str]] = ..., context_requirement_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BacklogResearchResponse(_message.Message):
     __slots__ = ("task_id", "run_id", "base_url", "created")
@@ -125,3 +131,43 @@ class ConvertBacklogItemRequest(_message.Message):
     target_kind: str
     target_name: str
     def __init__(self, target_kind: _Optional[str] = ..., target_name: _Optional[str] = ...) -> None: ...
+
+class ExportBacklogRequest(_message.Message):
+    __slots__ = ("kinds", "statuses", "names", "priority_max", "tags", "include_prd", "include_requirements")
+    KINDS_FIELD_NUMBER: _ClassVar[int]
+    STATUSES_FIELD_NUMBER: _ClassVar[int]
+    NAMES_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_MAX_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_PRD_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_REQUIREMENTS_FIELD_NUMBER: _ClassVar[int]
+    kinds: _containers.RepeatedScalarFieldContainer[str]
+    statuses: _containers.RepeatedScalarFieldContainer[str]
+    names: _containers.RepeatedScalarFieldContainer[str]
+    priority_max: int
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    include_prd: bool
+    include_requirements: bool
+    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., statuses: _Optional[_Iterable[str]] = ..., names: _Optional[_Iterable[str]] = ..., priority_max: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., include_prd: _Optional[bool] = ..., include_requirements: _Optional[bool] = ...) -> None: ...
+
+class ImportBacklogResponse(_message.Message):
+    __slots__ = ("dry_run", "changes", "errors", "summary")
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    CHANGES_FIELD_NUMBER: _ClassVar[int]
+    ERRORS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    dry_run: bool
+    changes: _containers.RepeatedCompositeFieldContainer[ImportChange]
+    errors: _containers.RepeatedScalarFieldContainer[str]
+    summary: str
+    def __init__(self, dry_run: _Optional[bool] = ..., changes: _Optional[_Iterable[_Union[ImportChange, _Mapping]]] = ..., errors: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ...) -> None: ...
+
+class ImportChange(_message.Message):
+    __slots__ = ("item", "action", "details")
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    DETAILS_FIELD_NUMBER: _ClassVar[int]
+    item: str
+    action: str
+    details: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, item: _Optional[str] = ..., action: _Optional[str] = ..., details: _Optional[_Iterable[str]] = ...) -> None: ...

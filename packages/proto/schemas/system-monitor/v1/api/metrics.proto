@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package system_monitor.v1;
+
+import "system-monitor/v1/domain/metrics.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api;api";
+
+// =============================================================================
+// METRICS API MESSAGES
+// =============================================================================
+//
+// @layer 5
+// @domain system-monitor
+// @imports domain/metrics.proto
+// @stability beta
+//
+// Request/response wrappers for metrics API endpoints.
+//
+// =============================================================================
+
+// GetCurrentMetricsRequest is empty - no parameters needed.
+message GetCurrentMetricsRequest {}
+
+// GetCurrentMetricsResponse returns current system metrics.
+message GetCurrentMetricsResponse {
+  // Current metrics snapshot.
+  MetricsResponse metrics = 1;
+}
+
+// GetDetailedMetricsRequest is empty - no parameters needed.
+message GetDetailedMetricsRequest {}
+
+// GetDetailedMetricsResponse returns comprehensive system metrics.
+message GetDetailedMetricsResponse {
+  // Detailed metrics.
+  DetailedMetrics metrics = 1;
+}
+
+// GetProcessMonitorRequest is empty - no parameters needed.
+message GetProcessMonitorRequest {}
+
+// GetProcessMonitorResponse returns process monitoring data.
+message GetProcessMonitorResponse {
+  // Process monitor data.
+  ProcessMonitorData data = 1;
+}
+
+// GetInfrastructureMonitorRequest is empty - no parameters needed.
+message GetInfrastructureMonitorRequest {}
+
+// GetInfrastructureMonitorResponse returns infrastructure monitoring data.
+message GetInfrastructureMonitorResponse {
+  // Infrastructure monitor data.
+  InfrastructureMonitorData data = 1;
+}
+
+// GetMetricsTimelineRequest specifies timeline parameters.
+message GetMetricsTimelineRequest {
+  // Window duration in seconds.
+  optional int32 window_seconds = 1;
+
+  // Sample interval in seconds.
+  optional int32 sample_interval_seconds = 2;
+}
+
+// GetMetricsTimelineResponse returns a metrics timeline.
+message GetMetricsTimelineResponse {
+  // Timeline data.
+  MetricsTimelineResponse timeline = 1;
+}
+
+// GetDiskDetailRequest is empty - no parameters needed.
+message GetDiskDetailRequest {}
+
+// GetDiskDetailResponse returns disk usage details.
+message GetDiskDetailResponse {
+  // Disk detail data.
+  DiskDetailResponse data = 1;
+}

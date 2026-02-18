@@ -4,6 +4,7 @@ import {
   getHeartbeat,
   listHeartbeats,
   listRuns,
+  retryRun,
   resetHeartbeatServiceCachesForTests,
 } from './heartbeatService'
 
@@ -148,5 +149,30 @@ describe('heartbeatService listRuns filters', () => {
     expect(String(url)).toContain('profile_key=prompt-manager-heartbeat')
     expect(String(url)).toContain('task_id=task-123')
     expect(String(url)).toContain('limit=10')
+  })
+})
+
+describe('heartbeatService retryRun', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+    resetHeartbeatServiceCachesForTests()
+  })
+
+  it('calls retry endpoint for the run', async () => {
+    mockFetchResponse(
+      new Response(JSON.stringify({ teamId: 'team-1', agentId: 'agent-1', runId: 'run-2', status: 'running' }), {
+        status: 202,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    const resp = await retryRun('run-1')
+
+    expect(resp.runId).toBe('run-2')
+    expect(fetch).toHaveBeenCalledTimes(1)
+    const [url, opts] = vi.mocked(fetch).mock.calls[0] ?? []
+    expect(String(url)).toContain('/runs/run-1/retry')
+    expect((opts as RequestInit | undefined)?.method).toBe('POST')
   })
 })

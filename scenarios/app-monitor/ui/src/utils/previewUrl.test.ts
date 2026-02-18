@@ -39,6 +39,16 @@ describe('parseScenarioProxyPreviewTarget', () => {
       displayLabel: 'prompt-manager:?skill=scientific-debugging',
     });
   });
+
+  it('parses deep proxy URLs and resolves scenario identifier from the proxy prefix', () => {
+    expect(parseScenarioProxyPreviewTarget(
+      'https://app-monitor.itsagitime.com/apps/swarm-manager/proxy/backlog/idea/web-console-archived?file=spec.json',
+    )).toEqual({
+      scenarioIdentifier: 'swarm-manager',
+      query: '?file=spec.json',
+      displayLabel: 'swarm-manager:?file=spec.json',
+    });
+  });
 });
 
 describe('formatPreviewUrlForDisplay', () => {

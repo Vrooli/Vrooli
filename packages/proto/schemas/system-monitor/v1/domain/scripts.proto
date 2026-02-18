@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package system_monitor.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain;domain";
+
+// =============================================================================
+// SCRIPTS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain system-monitor
+// @imports google.protobuf.Timestamp
+// @stability beta
+//
+// Investigation script types for manual and automated script execution.
+//
+// USAGE CONTEXTS:
+//   - API responses for script CRUD and execution endpoints
+//   - UI data models (script list, execution results)
+//
+// =============================================================================
+
+// InvestigationScript represents a reusable investigation script.
+message InvestigationScript {
+  // Unique script identifier.
+  string id = 1;
+
+  // Display name.
+  string name = 2;
+
+  // Human-readable description.
+  string description = 3;
+
+  // Script category (e.g. "cpu", "memory", "network", "disk", "process").
+  string category = 4;
+
+  // When the script was created.
+  google.protobuf.Timestamp created_at = 5;
+
+  // When the script was last updated.
+  google.protobuf.Timestamp updated_at = 6;
+
+  // Author of the script.
+  string author = 7;
+
+  // Whether this script is enabled for execution.
+  bool enabled = 8;
+}
+
+// ScriptExecutionStatus represents the state of a script execution.
+enum ScriptExecutionStatus {
+  // Default/unspecified.
+  SCRIPT_EXECUTION_STATUS_UNSPECIFIED = 0;
+
+  // Script is currently running.
+  SCRIPT_EXECUTION_STATUS_RUNNING = 1;
+
+  // Script completed successfully.
+  SCRIPT_EXECUTION_STATUS_COMPLETED = 2;
+
+  // Script failed with error.
+  SCRIPT_EXECUTION_STATUS_FAILED = 3;
+}
+
+// ScriptExecution represents the result of executing an investigation script.
+message ScriptExecution {
+  // ID of the script that was executed.
+  string script_id = 1;
+
+  // Unique execution identifier.
+  string execution_id = 2;
+
+  // Execution status.
+  ScriptExecutionStatus status = 3;
+
+  // When execution started.
+  google.protobuf.Timestamp started_at = 4;
+
+  // When execution completed (if finished).
+  optional google.protobuf.Timestamp completed_at = 5;
+
+  // Combined standard output.
+  string output = 6;
+
+  // Error message (if failed).
+  string error = 7;
+
+  // Process exit code.
+  optional int32 exit_code = 8;
+
+  // Standard output stream.
+  string stdout = 9;
+
+  // Standard error stream.
+  string stderr = 10;
+
+  // Whether the execution timed out.
+  bool timed_out = 11;
+
+  // Duration of execution in seconds.
+  optional double duration_seconds = 12;
+}

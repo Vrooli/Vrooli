@@ -1,0 +1,240 @@
+syntax = "proto3";
+
+package system_monitor.v1;
+
+import "common/v1/types.proto";
+import "google/api/annotations.proto";
+import "system-monitor/v1/api/investigations.proto";
+import "system-monitor/v1/api/metrics.proto";
+import "system-monitor/v1/api/reports.proto";
+import "system-monitor/v1/api/scripts.proto";
+import "system-monitor/v1/api/settings.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api;api";
+
+// =============================================================================
+// SYSTEM MONITOR API SERVICE
+// =============================================================================
+//
+// @layer 5
+// @domain system-monitor
+// @imports common, api/*, domain/*
+// @stability beta
+//
+// gRPC service definition for System Monitor operations.
+// Defines investigation management, metrics retrieval, and system health.
+//
+// USAGE CONTEXTS:
+//   - UI: Dashboard, investigation management, metrics display
+//   - Agent Integration: Investigation triggering and status updates
+//   - Automation: Trigger management and metrics collection
+//
+// =============================================================================
+
+// SystemMonitorService provides system monitoring and investigation management.
+service SystemMonitorService {
+  // ==========================================================================
+  // HEALTH
+  // ==========================================================================
+
+  // Health returns the service health status.
+  rpc Health(HealthRequest) returns (common.v1.HealthResponse) {
+    option (google.api.http) = {get: "/health"};
+  }
+
+  // ==========================================================================
+  // INVESTIGATIONS
+  // ==========================================================================
+
+  // TriggerInvestigation starts a new anomaly investigation.
+  rpc TriggerInvestigation(TriggerInvestigationRequest) returns (TriggerInvestigationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/trigger"
+      body: "*"
+    };
+  }
+
+  // GetInvestigation retrieves an investigation by ID.
+  rpc GetInvestigation(GetInvestigationRequest) returns (GetInvestigationResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/{id}"};
+  }
+
+  // GetLatestInvestigation retrieves the most recent investigation.
+  rpc GetLatestInvestigation(GetLatestInvestigationRequest) returns (GetLatestInvestigationResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/latest"};
+  }
+
+  // ListInvestigations returns recent investigations.
+  rpc ListInvestigations(ListInvestigationsRequest) returns (ListInvestigationsResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations"};
+  }
+
+  // UpdateInvestigationStatus updates an investigation's status.
+  rpc UpdateInvestigationStatus(UpdateInvestigationStatusRequest) returns (UpdateInvestigationStatusResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/{id}/status"
+      body: "*"
+    };
+  }
+
+  // UpdateInvestigationFindings updates an investigation's findings.
+  rpc UpdateInvestigationFindings(UpdateInvestigationFindingsRequest) returns (UpdateInvestigationFindingsResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/{id}/findings"
+      body: "*"
+    };
+  }
+
+  // UpdateInvestigationProgress updates investigation progress.
+  rpc UpdateInvestigationProgress(UpdateInvestigationProgressRequest) returns (UpdateInvestigationProgressResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/{id}/progress"
+      body: "*"
+    };
+  }
+
+  // AddInvestigationStep adds a step to an investigation.
+  rpc AddInvestigationStep(AddInvestigationStepRequest) returns (AddInvestigationStepResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/{id}/step"
+      body: "*"
+    };
+  }
+
+  // GetCooldownStatus returns the current investigation cooldown.
+  rpc GetCooldownStatus(GetCooldownStatusRequest) returns (GetCooldownStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/cooldown"};
+  }
+
+  // GetTriggers returns all trigger configurations.
+  rpc GetTriggers(GetTriggersRequest) returns (GetTriggersResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/triggers"};
+  }
+
+  // UpdateTrigger updates a trigger configuration.
+  rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/triggers/{id}"
+      body: "*"
+    };
+  }
+
+  // ==========================================================================
+  // METRICS
+  // ==========================================================================
+
+  // GetCurrentMetrics returns the current system metrics snapshot.
+  rpc GetCurrentMetrics(GetCurrentMetricsRequest) returns (GetCurrentMetricsResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics"};
+  }
+
+  // GetDetailedMetrics returns comprehensive system metrics.
+  rpc GetDetailedMetrics(GetDetailedMetricsRequest) returns (GetDetailedMetricsResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/detailed"};
+  }
+
+  // GetProcessMonitor returns process monitoring data.
+  rpc GetProcessMonitor(GetProcessMonitorRequest) returns (GetProcessMonitorResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/processes"};
+  }
+
+  // GetInfrastructureMonitor returns infrastructure monitoring data.
+  rpc GetInfrastructureMonitor(GetInfrastructureMonitorRequest) returns (GetInfrastructureMonitorResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/infrastructure"};
+  }
+
+  // GetMetricsTimeline returns a windowed metrics timeline.
+  rpc GetMetricsTimeline(GetMetricsTimelineRequest) returns (GetMetricsTimelineResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/timeline"};
+  }
+
+  // GetDiskDetail returns disk usage details.
+  rpc GetDiskDetail(GetDiskDetailRequest) returns (GetDiskDetailResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/disk"};
+  }
+
+  // ==========================================================================
+  // REPORTS
+  // ==========================================================================
+
+  // GenerateReport generates a daily or weekly system report.
+  rpc GenerateReport(GenerateReportRequest) returns (GenerateReportResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/reports/generate"
+      body: "*"
+    };
+  }
+
+  // ListReports returns available reports.
+  rpc ListReports(ListReportsRequest) returns (ListReportsResponse) {
+    option (google.api.http) = {get: "/api/v1/reports"};
+  }
+
+  // GetReport retrieves a specific report.
+  rpc GetReport(GetReportRequest) returns (GetReportResponse) {
+    option (google.api.http) = {get: "/api/v1/reports/{id}"};
+  }
+
+  // ==========================================================================
+  // SCRIPTS
+  // ==========================================================================
+
+  // ListScripts returns available investigation scripts.
+  rpc ListScripts(ListScriptsRequest) returns (ListScriptsResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/scripts"};
+  }
+
+  // GetScript retrieves a specific script.
+  rpc GetScript(GetScriptRequest) returns (GetScriptResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/scripts/{id}"};
+  }
+
+  // ExecuteScript executes an investigation script.
+  rpc ExecuteScript(ExecuteScriptRequest) returns (ExecuteScriptResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/scripts/{id}/execute"
+      body: "*"
+    };
+  }
+
+  // ==========================================================================
+  // SETTINGS
+  // ==========================================================================
+
+  // GetSettings returns the current system settings.
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
+    option (google.api.http) = {get: "/api/v1/settings"};
+  }
+
+  // UpdateSettings updates system settings.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/settings"
+      body: "*"
+    };
+  }
+
+  // ResetSettings resets settings to defaults.
+  rpc ResetSettings(ResetSettingsRequest) returns (ResetSettingsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/settings/reset"
+      body: "*"
+    };
+  }
+
+  // GetMaintenanceState returns the maintenance state.
+  rpc GetMaintenanceState(GetMaintenanceStateRequest) returns (GetMaintenanceStateResponse) {
+    option (google.api.http) = {get: "/api/v1/maintenance/state"};
+  }
+
+  // SetMaintenanceState sets the maintenance state.
+  rpc SetMaintenanceState(SetMaintenanceStateRequest) returns (SetMaintenanceStateResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/maintenance/state"
+      body: "*"
+    };
+  }
+}
+
+// HealthRequest is empty - no parameters needed.
+message HealthRequest {}

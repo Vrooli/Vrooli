@@ -10,8 +10,9 @@
 import { useState, useEffect } from 'react'
 import { Clock, Timer, Tag, Key, Calendar, Hash, AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getRunDetails, type RunDetails } from '@/services/heartbeatService'
+import { getRunDetails, retryRun, type RunDetails } from '@/services/heartbeatService'
 import { CopyButton } from '@/components/shared/EventsDisplay'
+import { toast } from '@/hooks/use-toast'
 
 interface RunInfoTabProps {
   runId: string
@@ -67,6 +68,7 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState('')
+  const [retrying, setRetrying] = useState(false)
 
   // Fetch run details
   useEffect(() => {
@@ -117,6 +119,28 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
   const status = runDetails?.status ?? 'unknown'
   const styles = STATUS_STYLES[status] ?? { bg: 'bg-slate-500/15', text: 'text-slate-400', border: 'border-slate-500/30' }
   const duration = isRunning ? elapsed : computeDuration(startedAt, runDetails?.endedAt)
+  const canRetry = runDetails?.actions?.canRetry ?? !!runDetails?.error
+
+  const handleRetry = async () => {
+    if (!runDetails?.id) return
+    setRetrying(true)
+    try {
+      const result = await retryRun(runDetails.id)
+      toast({
+        title: 'Retry triggered',
+        description: result.runId ? `Started run ${truncateId(result.runId, 12)}` : undefined,
+        variant: 'success',
+      })
+    } catch (err) {
+      toast({
+        title: 'Failed to retry run',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      })
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -206,7 +230,20 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
           <div className="flex items-center gap-2 mb-2">
             <AlertCircle className="h-4 w-4 text-red-400" />
             <h4 className="text-xs font-semibold uppercase tracking-wider text-red-400">Error</h4>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleRetry()}
+                disabled={!canRetry || retrying}
+                className={cn(
+                  'px-2.5 py-1 text-xs rounded-md border transition-colors',
+                  canRetry && !retrying
+                    ? 'border-red-400/40 text-red-300 hover:bg-red-500/20'
+                    : 'border-red-900/40 text-red-500/60 cursor-not-allowed'
+                )}
+              >
+                {retrying ? 'Retrying...' : 'Retry'}
+              </button>
               <CopyButton text={runDetails.error} />
             </div>
           </div>

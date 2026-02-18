@@ -79,6 +79,14 @@ export interface AppPreviewToolbarProps {
   canOpenTabsOverlay: boolean;
   previewInteractionSignal: number;
   issueCaptureCount: number;
+  developerActionCapabilities?: {
+    canOpenMenu: boolean;
+    canToggleFullscreen: boolean;
+    canToggleDeviceEmulation: boolean;
+    canToggleInspectContext: boolean;
+    canToggleLogs: boolean;
+    canReportIssue: boolean;
+  };
   showDetailsButton?: boolean;
   showLifecycleMenu?: boolean;
   showDevMenu?: boolean;
@@ -129,6 +137,7 @@ const AppPreviewToolbar = memo(({
   canOpenTabsOverlay,
   previewInteractionSignal,
   issueCaptureCount,
+  developerActionCapabilities,
   showDetailsButton = true,
   showLifecycleMenu = true,
   showDevMenu = true,
@@ -177,15 +186,25 @@ const AppPreviewToolbar = memo(({
     : 'Application details';
 
   const fullscreenActionLabel = isFullView ? 'Exit full view' : 'Enter full view';
+  const resolvedDeveloperActionCapabilities = useMemo(() => (
+    developerActionCapabilities ?? {
+      canOpenMenu: true,
+      canToggleFullscreen: true,
+      canToggleDeviceEmulation: true,
+      canToggleInspectContext: hasCurrentApp,
+      canToggleLogs: hasCurrentApp,
+      canReportIssue: hasCurrentApp,
+    }
+  ), [developerActionCapabilities, hasCurrentApp]);
   const inspectModeDisabledReason = useMemo(() => {
-    if (!hasCurrentApp) {
+    if (!resolvedDeveloperActionCapabilities.canToggleInspectContext) {
       return 'Select an application to inspect elements.';
     }
     if (!canInspect) {
       return 'Element inspection is unavailable for this preview.';
     }
     return null;
-  }, [canInspect, hasCurrentApp]);
+  }, [canInspect, resolvedDeveloperActionCapabilities.canToggleInspectContext]);
   const [isSmallScreen, setIsSmallScreen] = useState(() => (
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(max-width: 640px)').matches
@@ -882,7 +901,7 @@ const AppPreviewToolbar = memo(({
               )}
               ref={devMenu.buttonRef}
               onClick={handleToggleDevMenu}
-              disabled={!hasCurrentApp}
+              disabled={!resolvedDeveloperActionCapabilities.canOpenMenu}
               aria-haspopup="menu"
               aria-expanded={devMenu.isOpen}
               aria-label={captureAriaLabel ? `Developer actions (${captureAriaLabel})` : 'Developer actions'}
@@ -908,7 +927,7 @@ const AppPreviewToolbar = memo(({
                 ref={devMenu.firstItemRef}
                 className="preview-toolbar__menu-item"
                 onClick={handleToggleFullscreen}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleFullscreen}
               >
                 {isFullView ? (
                   <Minimize2 aria-hidden size={16} />
@@ -922,7 +941,7 @@ const AppPreviewToolbar = memo(({
                 role="menuitem"
                 className="preview-toolbar__menu-item"
                 onClick={onToggleDeviceEmulation}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleDeviceEmulation}
               >
                 <MonitorSmartphone aria-hidden size={16} />
                 <span>{isDeviceEmulationActive ? 'Hide emulator' : 'Show emulator'}</span>
@@ -933,22 +952,22 @@ const AppPreviewToolbar = memo(({
                 className={clsx(
                   'preview-toolbar__menu-item',
                   isInspecting && 'preview-toolbar__menu-item--active',
-                  !hasCurrentApp || !canInspect ? 'preview-toolbar__menu-item--with-note' : undefined,
+                  !resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect ? 'preview-toolbar__menu-item--with-note' : undefined,
                 )}
                 onClick={() => {
                   closeMenus();
                   onToggleInspect();
                 }}
                 aria-pressed={isInspecting}
-                aria-disabled={(!hasCurrentApp || !canInspect) || undefined}
-                disabled={!hasCurrentApp || !canInspect}
-                title={( !hasCurrentApp || !canInspect ) && inspectModeDisabledReason ? inspectModeDisabledReason : (isInspecting ? 'Exit inspect mode' : 'Inspect element')}
+                aria-disabled={(!resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect) || undefined}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect}
+                title={( !resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect ) && inspectModeDisabledReason ? inspectModeDisabledReason : (isInspecting ? 'Exit inspect mode' : 'Inspect element')}
               >
                 <span className="preview-toolbar__menu-item-label">
                   <Crosshair aria-hidden size={16} />
                   <span>{isInspecting ? 'Exit inspect mode' : 'Inspect element'}</span>
                 </span>
-                {(!hasCurrentApp || !canInspect) && inspectModeDisabledReason && (
+                {(!resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect) && inspectModeDisabledReason && (
                   <span className="preview-toolbar__menu-item-note">{inspectModeDisabledReason}</span>
                 )}
               </button>
@@ -958,7 +977,7 @@ const AppPreviewToolbar = memo(({
                 className={clsx('preview-toolbar__menu-item', areLogsVisible && 'preview-toolbar__menu-item--active')}
                 onClick={handleToggleLogs}
                 aria-pressed={areLogsVisible}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleLogs}
               >
                 <ScrollText aria-hidden size={16} />
                 <span>{areLogsVisible ? 'Hide logs' : 'Show logs'}</span>
@@ -968,7 +987,7 @@ const AppPreviewToolbar = memo(({
                 role="menuitem"
                 className="preview-toolbar__menu-item"
                 onClick={handleReportIssue}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canReportIssue}
               >
                 <span className="preview-toolbar__menu-item-label">
                   <Bug aria-hidden size={16} />

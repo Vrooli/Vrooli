@@ -33,8 +33,7 @@ import { useAppsStore } from '@/state/appsStore';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
 import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
-import { isRunningStatus, locateAppByIdentifier, resolveAppIdentifier } from '@/utils/appPreview';
-import { parseScenarioProxyPreviewTarget } from '@/utils/previewUrl';
+import { isRunningStatus, locateAppByIdentifier, resolveAppIdentifier, resolvePreviewContext } from '@/utils/appPreview';
 import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
 import { usePaneMetadata } from './usePaneMetadata';
 import './PreviewPane.css';
@@ -64,7 +63,7 @@ const PreviewPane = memo(function PreviewPane({
   onArrangeDragStart,
 }: PreviewPaneProps) {
   const { openOverlay } = useOverlayRouter();
-  const apps = useAppsStore((state) => state.apps);
+  const apps = useAppsStore((state) => state.apps) ?? [];
   const setAppsState = useAppsStore((state) => state.setAppsState);
   const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
   const workspaceZoom = usePreviewWorkspaceStore((state) => state.workspaceZoom);
@@ -152,26 +151,12 @@ const PreviewPane = memo(function PreviewPane({
     historyIndex,
     clearNavigationSession,
   } = navigationSession;
-  const scenarioTargetFromUrl = useMemo(
-    () => parseScenarioProxyPreviewTarget(previewUrlInput),
-    [previewUrlInput],
-  );
-  const resolvedAppIdentifier = useMemo(() => {
-    const scenarioIdentifierFromUrl = scenarioTargetFromUrl?.scenarioIdentifier ?? null;
-    if (!scenarioIdentifierFromUrl) {
-      return activeAppIdentifier ?? null;
-    }
-    if (!activeAppIdentifier) {
-      return scenarioIdentifierFromUrl;
-    }
-    if (!hasCustomPreviewUrl) {
-      return activeAppIdentifier;
-    }
-
-    return scenarioIdentifierFromUrl.toLowerCase() === activeAppIdentifier.toLowerCase()
-      ? activeAppIdentifier
-      : scenarioIdentifierFromUrl;
-  }, [activeAppIdentifier, hasCustomPreviewUrl, scenarioTargetFromUrl?.scenarioIdentifier]);
+  const basePreviewContext = useMemo(() => resolvePreviewContext({
+    activeAppIdentifier,
+    previewUrlInput,
+    hasCustomPreviewUrl,
+  }), [activeAppIdentifier, hasCustomPreviewUrl, previewUrlInput]);
+  const resolvedAppIdentifier = basePreviewContext.resolvedAppIdentifier;
   const {
     state: bridgeState,
     runComplianceCheck,
@@ -325,7 +310,7 @@ const PreviewPane = memo(function PreviewPane({
     paneId,
     apps,
     resolvedAppIdentifier,
-    scenarioIdentifierFromUrl: scenarioTargetFromUrl?.scenarioIdentifier ?? null,
+    scenarioIdentifierFromUrl: basePreviewContext.scenarioIdentifierFromUrl,
     shouldPreferExistingApp,
     setAppsState,
     getApp: appService.getApp,
@@ -339,6 +324,12 @@ const PreviewPane = memo(function PreviewPane({
       resetReportDraftState();
     },
   });
+  const previewContext = useMemo(() => resolvePreviewContext({
+    activeAppIdentifier,
+    previewUrlInput,
+    hasCustomPreviewUrl,
+    currentApp,
+  }), [activeAppIdentifier, currentApp, hasCustomPreviewUrl, previewUrlInput]);
 
   useEffect(() => {
     setPaneViewState(paneId, { isLogsVisible });
@@ -639,7 +630,7 @@ const PreviewPane = memo(function PreviewPane({
     return locateAppByIdentifier(apps, resolvedAppIdentifier);
   }, [resolvedAppIdentifier, apps]);
   const appForModal = currentApp ?? modalFallbackApp;
-  const hasScenarioContext = Boolean(currentApp || resolvedAppIdentifier || scenarioActionIdentifier);
+  const hasScenarioContext = previewContext.hasScenarioContext;
 
   return (
     <div
@@ -695,6 +686,7 @@ const PreviewPane = memo(function PreviewPane({
         canOpenTabsOverlay={isFullView}
         previewInteractionSignal={previewReloadToken}
         issueCaptureCount={stagedCaptureCount}
+        developerActionCapabilities={previewContext.developerActions}
         showDetailsButton={true}
         showLifecycleMenu={!isSmallScreen}
         showDevMenu={true}

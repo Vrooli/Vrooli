@@ -1112,6 +1112,43 @@ describe('PreviewPane', () => {
     });
   });
 
+  it('resolves app identifier from deep scenario proxy URL paths', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
+    const deepProxyUrl = 'https://app-monitor.itsagitime.com/apps/swarm-manager/proxy/backlog/idea/web-console-archived?file=spec.json';
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneId, {
+      previewUrl: deepProxyUrl,
+      previewUrlInput: deepProxyUrl,
+      hasCustomPreviewUrl: true,
+      history: [deepProxyUrl],
+      historyIndex: 0,
+      initialPreviewUrl: deepProxyUrl,
+    });
+
+    render(
+      <MemoryRouter>
+        <PreviewPane
+          paneId={paneId}
+          appId={null}
+          apps={[]}
+          isFocused={true}
+          isArrangeMode={false}
+          isBeingDragged={false}
+          canRemove={true}
+          onFocus={vi.fn()}
+          onRemove={vi.fn()}
+          onArrangeDragStart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getAppMock).toHaveBeenCalledWith('swarm-manager');
+      expect(screen.getByTestId('toolbar-has-current-app')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-is-running')).toHaveTextContent('true');
+      expect(screen.getByTestId('toolbar-status-label')).toHaveTextContent('Running');
+    });
+  });
+
   it('applies workspace zoom to standard iframe preview', async () => {
     usePreviewWorkspaceStore.getState().setWorkspaceZoom(0.75);
     renderPane();

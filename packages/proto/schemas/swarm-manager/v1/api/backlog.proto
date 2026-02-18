@@ -147,6 +147,15 @@ message BacklogResearchRequest {
     "execute",
     "unspecified"
   ] }];
+
+  // File paths within the backlog item to include as agent context (by reference).
+  repeated string context_paths = 6;
+
+  // Operational target IDs to attach as agent context.
+  repeated string context_target_ids = 7;
+
+  // Requirement IDs to attach as agent context.
+  repeated string context_requirement_ids = 8;
 }
 
 // BacklogResearchResponse returns agent-manager identifiers for research runs.
@@ -164,4 +173,55 @@ message ConvertBacklogItemRequest {
 
   // Optional new name for the moved item.
   optional string target_name = 2;
+}
+
+// ExportBacklogRequest defines filter criteria for exporting backlog items to markdown.
+message ExportBacklogRequest {
+  // Optional kinds to include (empty = all).
+  repeated string kinds = 1;
+
+  // Optional statuses to include (empty = all non-archived).
+  repeated string statuses = 2;
+
+  // Optional specific item keys (kind/name pairs) to export.
+  repeated string names = 3;
+
+  // Only include items with priority <= this value.
+  optional int32 priority_max = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Only include items with any of these tags.
+  repeated string tags = 5;
+
+  // Whether to include PRD content in the export (default true).
+  optional bool include_prd = 6;
+
+  // Whether to include requirements in the export (default false).
+  optional bool include_requirements = 7;
+}
+
+// ImportBacklogResponse reports the results of importing an edited markdown export.
+message ImportBacklogResponse {
+  // Whether this was a dry-run (no changes applied).
+  bool dry_run = 1;
+
+  // List of changes detected or applied.
+  repeated ImportChange changes = 2;
+
+  // Any errors encountered during parsing.
+  repeated string errors = 3;
+
+  // Human-readable summary of the import.
+  string summary = 4;
+}
+
+// ImportChange describes a single change from an import operation.
+message ImportChange {
+  // Item key (kind/name).
+  string item = 1;
+
+  // Action taken: "update" or "create".
+  string action = 2;
+
+  // Details of what changed.
+  repeated string details = 3;
 }

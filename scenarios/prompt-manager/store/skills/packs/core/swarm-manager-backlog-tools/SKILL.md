@@ -10,7 +10,9 @@ Canonical reference for the swarm-manager backlog item data model and interactio
 
 ## Folder Structure
 
-Every backlog item lives at `{{ITEM_FOLDER}}` and follows this layout:
+Every backlog item lives at `{{ITEM_FOLDER}}` and follows this layout.
+
+> **Filesystem path:** Backlog items are plain directories stored at `scenarios/swarm-manager/{ideas|research|fix|execute}/{item-name}/`. The `{{ITEM_FOLDER}}` variable resolves to this absolute path at runtime when invoked through the swarm-manager workflow. Agents that know the item kind and name can read/write files directly on the filesystem as an alternative to the CLI commands below.
 
 ```
 item-folder/

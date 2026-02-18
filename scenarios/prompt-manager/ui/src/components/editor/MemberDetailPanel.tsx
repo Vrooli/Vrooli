@@ -21,6 +21,8 @@ import type { HeartbeatConfig } from '@/services/heartbeatService'
 import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
 import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
+import { useSelectionStore } from '@/stores/selectionStore'
+import { ToastAction } from '@/components/ui/toast'
 
 // ============================================================================
 // Types
@@ -249,8 +251,20 @@ export function MemberDetailPanel({
   // Trigger heartbeat now
   const handleTriggerHeartbeat = useCallback(async () => {
     try {
-      await heartbeatService.triggerHeartbeat(team.id, member.agentId)
-      toast({ title: 'Heartbeat triggered', variant: 'success' })
+      const result = await heartbeatService.triggerHeartbeat(team.id, member.agentId)
+      const runId = result.runId
+      toast({
+        title: 'Heartbeat triggered',
+        variant: 'success',
+        action: runId ? (
+          <ToastAction
+            altText="Open run"
+            onClick={() => useSelectionStore.getState().setSelectedRunId(runId)}
+          >
+            Open Run
+          </ToastAction>
+        ) : undefined,
+      })
       const updated = await heartbeatService.getHeartbeat(team.id, member.agentId)
       if (updated) setHeartbeatConfig(updated)
     } catch (err) {
