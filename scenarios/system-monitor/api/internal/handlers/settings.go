@@ -11,11 +11,11 @@ import (
 
 // SettingsHandler handles settings-related API endpoints
 type SettingsHandler struct {
-	settingsManager *services.SettingsManager
+	settingsManager SettingsProvider
 }
 
 // NewSettingsHandler creates a new settings handler
-func NewSettingsHandler(settingsManager *services.SettingsManager) *SettingsHandler {
+func NewSettingsHandler(settingsManager SettingsProvider) *SettingsHandler {
 	return &SettingsHandler{
 		settingsManager: settingsManager,
 	}

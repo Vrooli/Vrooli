@@ -12,19 +12,18 @@ import (
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/healthutil"
 	"system-monitor-api/internal/httputil"
-	"system-monitor-api/internal/services"
 )
 
 // HealthHandler handles health check requests
 type HealthHandler struct {
 	config      *config.Config
-	monitorSvc  *services.MonitorService
-	settingsMgr *services.SettingsManager
+	monitorSvc  MonitorQuerier
+	settingsMgr SettingsProvider
 	startTime   time.Time
 }
 
 // NewHealthHandler creates a new health handler
-func NewHealthHandler(cfg *config.Config, monitorSvc *services.MonitorService, settingsMgr *services.SettingsManager) *HealthHandler {
+func NewHealthHandler(cfg *config.Config, monitorSvc MonitorQuerier, settingsMgr SettingsProvider) *HealthHandler {
 	return &HealthHandler{
 		config:      cfg,
 		monitorSvc:  monitorSvc,

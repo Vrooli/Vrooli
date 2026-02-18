@@ -7,24 +7,55 @@ import (
 	"log/slog"
 
 	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/services"
 )
+
+// MonitorSvc abstracts the monitor service operations used by the executor.
+type MonitorSvc interface {
+	GetCurrentMetrics(ctx context.Context) (*models.MetricsResponse, error)
+	GetCurrentMetricsFresh(ctx context.Context) (*models.MetricsResponse, error)
+	GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error)
+	GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error)
+	IsActive() bool
+}
+
+// InvestigationSvc abstracts the investigation service operations used by the executor.
+type InvestigationSvc interface {
+	TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error)
+	GetInvestigation(ctx context.Context, id string) (*models.Investigation, error)
+	GetLatestInvestigation(ctx context.Context) (*models.Investigation, error)
+	StopInvestigationAgent(ctx context.Context, id string) error
+	GetTriggers(ctx context.Context) (map[string]*models.TriggerConfig, error)
+	UpdateTrigger(ctx context.Context, id string, enabled *bool, autoFix *bool, threshold *float64) error
+	GetCooldownStatus(ctx context.Context) (*models.CooldownStatus, error)
+	ResetCooldown(ctx context.Context) error
+}
+
+// ReportSvc abstracts the report service operations used by the executor.
+type ReportSvc interface {
+	GenerateReport(ctx context.Context, reportType string) (*models.EnhancedSystemReport, error)
+}
+
+// SettingsMgr abstracts the settings manager operations used by the executor.
+type SettingsMgr interface {
+	IsActive() bool
+	GetMaintenanceState() string
+}
 
 // ServerExecutorConfig holds the configuration for creating a ServerExecutor.
 type ServerExecutorConfig struct {
-	MonitorSvc       *services.MonitorService
-	InvestigationSvc *services.InvestigationService
-	ReportSvc        *services.ReportService
-	SettingsMgr      *services.SettingsManager
+	MonitorSvc       MonitorSvc
+	InvestigationSvc InvestigationSvc
+	ReportSvc        ReportSvc
+	SettingsMgr      SettingsMgr
 	Logger           *slog.Logger
 }
 
 // ServerExecutor executes tools using the scenario's services.
 type ServerExecutor struct {
-	monitorSvc       *services.MonitorService
-	investigationSvc *services.InvestigationService
-	reportSvc        *services.ReportService
-	settingsMgr      *services.SettingsManager
+	monitorSvc       MonitorSvc
+	investigationSvc InvestigationSvc
+	reportSvc        ReportSvc
+	settingsMgr      SettingsMgr
 	log              *slog.Logger
 }
 

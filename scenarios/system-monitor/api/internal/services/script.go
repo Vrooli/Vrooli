@@ -2,11 +2,9 @@ package services
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -43,11 +41,17 @@ type ScriptExecution struct {
 // ScriptService discovers and executes investigation scripts from disk.
 type ScriptService struct {
 	scriptsDir string
+	runner     CommandRunner
 }
 
 // NewScriptService creates a ScriptService that reads scripts from the given directory.
-func NewScriptService(scriptsDir string) *ScriptService {
-	return &ScriptService{scriptsDir: scriptsDir}
+// An optional CommandRunner can be provided for testability; defaults to ExecCommandRunner.
+func NewScriptService(scriptsDir string, runner ...CommandRunner) *ScriptService {
+	r := CommandRunner(ExecCommandRunner{})
+	if len(runner) > 0 && runner[0] != nil {
+		r = runner[0]
+	}
+	return &ScriptService{scriptsDir: scriptsDir, runner: r}
 }
 
 // ListScripts returns metadata for all scripts in the scripts directory.
@@ -140,29 +144,18 @@ func (s *ScriptService) ExecuteScript(ctx context.Context, id string, contentOve
 	execCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(execCtx, "bash", scriptPath)
-	cmd.Dir = s.scriptsDir
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	stdout, stderr, exitCode, err := s.runner.Run(execCtx, "bash", []string{scriptPath}, s.scriptsDir)
 	result.CompletedAt = time.Now()
 	result.DurationSeconds = result.CompletedAt.Sub(startedAt).Seconds()
-	result.Stdout = stdout.String()
-	result.Stderr = stderr.String()
+	result.Stdout = stdout
+	result.Stderr = stderr
 
 	if execCtx.Err() == context.DeadlineExceeded {
 		result.TimedOut = true
 		result.ExitCode = -1
 		result.Status = "failed"
 	} else if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			result.ExitCode = exitErr.ExitCode()
-		} else {
-			result.ExitCode = 1
-		}
+		result.ExitCode = exitCode
 		result.Status = "failed"
 	} else {
 		result.ExitCode = 0

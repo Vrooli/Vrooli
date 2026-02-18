@@ -3,8 +3,6 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -32,8 +30,22 @@ type Settings struct {
 type SettingsManager struct {
 	settings        Settings
 	mutex           sync.RWMutex
-	configPath      string
+	clock           Clock
+	configStore     ConfigStore
 	onActiveChanged func(active bool) // Callback for when active status changes
+}
+
+// SettingsOption configures a SettingsManager.
+type SettingsOption func(*SettingsManager)
+
+// WithSettingsClock sets the clock used by the settings manager.
+func WithSettingsClock(c Clock) SettingsOption {
+	return func(sm *SettingsManager) { sm.clock = c }
+}
+
+// WithSettingsConfigStore sets the config store used by the settings manager.
+func WithSettingsConfigStore(cs ConfigStore) SettingsOption {
+	return func(sm *SettingsManager) { sm.configStore = cs }
 }
 
 // Default settings (always start inactive for safety)
@@ -90,16 +102,16 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 }
 
 // NewSettingsManager creates a new settings manager
-func NewSettingsManager() *SettingsManager {
-	// Determine config file path
-	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/system-monitor-settings.json")
-	if configPath == "scenarios/system-monitor/initialization/configuration/system-monitor-settings.json" {
-		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/system-monitor-settings.json")
-	}
-
+func NewSettingsManager(opts ...SettingsOption) *SettingsManager {
 	sm := &SettingsManager{
-		settings:   defaultSettings,
-		configPath: configPath,
+		settings: defaultSettings,
+		clock:    RealClock{},
+	}
+	for _, opt := range opts {
+		opt(sm)
+	}
+	if sm.configStore == nil {
+		sm.configStore = &FileConfigStore{basePath: ResolveConfigBasePath()}
 	}
 
 	// Try to load existing settings, but if it fails, use defaults
@@ -196,7 +208,7 @@ func (sm *SettingsManager) SetActiveChangedCallback(callback func(active bool)) 
 
 // loadFromFile loads settings from JSON file
 func (sm *SettingsManager) loadFromFile() error {
-	data, err := os.ReadFile(sm.configPath)
+	data, err := sm.configStore.ReadConfig("system-monitor-settings.json")
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -219,16 +231,11 @@ func (sm *SettingsManager) loadFromFile() error {
 
 // saveToFile saves current settings to JSON file
 func (sm *SettingsManager) saveToFile() error {
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(sm.configPath), 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
 	// Create config with metadata
 	config := map[string]interface{}{
 		"version": "1.0.0",
 		"metadata": map[string]interface{}{
-			"last_modified":  time.Now().Format(time.RFC3339),
+			"last_modified":  sm.clock.Now().Format(time.RFC3339),
 			"config_version": "1.0.0",
 			"description":    "System Monitor settings including active/inactive status",
 		},
@@ -240,7 +247,7 @@ func (sm *SettingsManager) saveToFile() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(sm.configPath, data, 0644); err != nil {
+	if err := sm.configStore.WriteConfig("system-monitor-settings.json", data); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

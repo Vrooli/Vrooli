@@ -7,7 +7,6 @@ import (
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/convert"
 	"system-monitor-api/internal/httputil"
-	"system-monitor-api/internal/services"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 )
@@ -15,11 +14,11 @@ import (
 // ReportHandler handles report-related HTTP requests
 type ReportHandler struct {
 	config        *config.Config
-	reportService *services.ReportService
+	reportService ReportGenerator
 }
 
 // NewReportHandler creates a new report handler
-func NewReportHandler(cfg *config.Config, reportService *services.ReportService) *ReportHandler {
+func NewReportHandler(cfg *config.Config, reportService ReportGenerator) *ReportHandler {
 	return &ReportHandler{
 		config:        cfg,
 		reportService: reportService,

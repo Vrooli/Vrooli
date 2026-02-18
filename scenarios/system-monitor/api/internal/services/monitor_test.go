@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/infrastructure"
 	"system-monitor-api/internal/repository/memory"
 )
 
@@ -18,7 +19,7 @@ func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 	}
 	repo := memory.NewRepository()
 
-	svc := NewMonitorService(cfg, repo, nil) // Pass nil for alert service in tests
+	svc := NewMonitorService(cfg, repo, infrastructure.NewStaticProvider()) // Pass nil for alert service in tests
 
 	// Test
 	ctx := context.Background()
@@ -50,7 +51,7 @@ func TestMonitorService_CollectorRegistration(t *testing.T) {
 	}
 	repo := memory.NewRepository()
 
-	svc := NewMonitorService(cfg, repo, nil)
+	svc := NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
 
 	// Test that collectors are registered
 	if svc.collectors == nil {
@@ -79,7 +80,7 @@ func TestMonitorService_StartStop(t *testing.T) {
 	}
 	repo := memory.NewRepository()
 
-	svc := NewMonitorService(cfg, repo, nil)
+	svc := NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
 
 	// Start service
 	err := svc.Start()

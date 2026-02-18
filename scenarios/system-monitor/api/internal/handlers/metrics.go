@@ -7,17 +7,16 @@ import (
 	"system-monitor-api/internal/convert"
 	"system-monitor-api/internal/httputil"
 	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/services"
 )
 
 // MetricsHandler handles metrics-related requests
 type MetricsHandler struct {
 	config     *config.Config
-	monitorSvc *services.MonitorService
+	monitorSvc MonitorQuerier
 }
 
 // NewMetricsHandler creates a new metrics handler
-func NewMetricsHandler(cfg *config.Config, monitorSvc *services.MonitorService) *MetricsHandler {
+func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier) *MetricsHandler {
 	return &MetricsHandler{
 		config:     cfg,
 		monitorSvc: monitorSvc,

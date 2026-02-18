@@ -7,13 +7,12 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"system-monitor-api/internal/agentmanager"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/handlers"
+	"system-monitor-api/internal/infrastructure"
 	"system-monitor-api/internal/repository"
 	"system-monitor-api/internal/repository/memory"
 	"system-monitor-api/internal/services"
@@ -28,8 +27,8 @@ func Run(cfg *config.Config) error {
 
 	db, repo := connectRepository(cfg)
 
-	alertSvc := services.NewAlertService(cfg, repo)
-	monitorSvc := services.NewMonitorService(cfg, repo, alertSvc)
+	_ = services.NewAlertService(cfg, repo) // Alert service available for future wiring //nolint:ineffassign
+	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
 
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName: cfg.AgentManager.ProfileName,
@@ -47,8 +46,8 @@ func Run(cfg *config.Config) error {
 		cancel()
 	}
 
-	investigationSvc := services.NewInvestigationService(cfg, repo, alertSvc, agentSvc)
-	scriptSvc := services.NewScriptService(resolveScriptsDir())
+	investigationSvc := services.NewInvestigationService(cfg, repo, monitorSvc, agentSvc)
+	scriptSvc := services.NewScriptService(services.ResolveScriptsDir())
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
 	monitorSvc.SetActive(settingsMgr.IsActive())
@@ -111,31 +110,6 @@ func Run(cfg *config.Config) error {
 
 	waitForShutdown(monitorSvc, srv, db)
 	return nil
-}
-
-// resolveScriptsDir finds the investigations/active directory on disk.
-func resolveScriptsDir() string {
-	// Try VROOLI_ROOT first
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			vrooliRoot = filepath.Join(homeDir, "Vrooli")
-		}
-	}
-	if vrooliRoot == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			vrooliRoot = cwd
-		} else {
-			return "."
-		}
-	}
-
-	scriptsPath := filepath.Join(vrooliRoot, "scenarios", "system-monitor", "investigations", "active")
-	if info, err := os.Stat(scriptsPath); err == nil && info.IsDir() {
-		return scriptsPath
-	}
-
-	return filepath.Join(vrooliRoot, "investigations", "active")
 }
 
 func connectRepository(cfg *config.Config) (*sql.DB, repository.Repository) {

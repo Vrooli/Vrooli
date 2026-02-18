@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -25,24 +24,55 @@ import (
 type InvestigationService struct {
 	config         *config.Config
 	repo           repository.InvestigationRepository
-	alertSvc       *AlertService
-	agentSvc       *agentmanager.AgentService
+	metricsSrc     MetricsSource
+	agentSvc       AgentExecutor
+	clock          Clock
+	configStore    ConfigStore
+	promptStore    ConfigStore
 	mu             sync.RWMutex
 	cooldownPeriod time.Duration
 	lastTrigger    time.Time
 	triggers       map[string]*models.TriggerConfig
 }
 
+// InvestigationOption configures an InvestigationService.
+type InvestigationOption func(*InvestigationService)
+
+// WithInvestigationClock sets the clock used by the investigation service.
+func WithInvestigationClock(c Clock) InvestigationOption {
+	return func(s *InvestigationService) { s.clock = c }
+}
+
+// WithConfigStore sets the config store used by the investigation service.
+func WithConfigStore(cs ConfigStore) InvestigationOption {
+	return func(s *InvestigationService) { s.configStore = cs }
+}
+
+// WithPromptStore sets the prompt template store used by the investigation service.
+func WithPromptStore(cs ConfigStore) InvestigationOption {
+	return func(s *InvestigationService) { s.promptStore = cs }
+}
+
 // NewInvestigationService creates a new investigation service
-func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRepository, alertSvc *AlertService, agentSvc *agentmanager.AgentService) *InvestigationService {
+func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRepository, metricsSrc MetricsSource, agentSvc AgentExecutor, opts ...InvestigationOption) *InvestigationService {
 	s := &InvestigationService{
 		config:         cfg,
 		repo:           repo,
-		alertSvc:       alertSvc,
+		metricsSrc:     metricsSrc,
 		agentSvc:       agentSvc,
+		clock:          RealClock{},
 		cooldownPeriod: 5 * time.Minute, // Default 5 minutes
 		lastTrigger:    time.Time{},     // Start with zero time - no cooldown initially
 		triggers:       make(map[string]*models.TriggerConfig),
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	if s.configStore == nil {
+		s.configStore = &FileConfigStore{basePath: ResolveConfigBasePath()}
+	}
+	if s.promptStore == nil {
+		s.promptStore = &FileConfigStore{basePath: ResolvePromptBasePath()}
 	}
 
 	// Load triggers from configuration file, fallback to defaults if not found
@@ -85,24 +115,25 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 
 	// Check cooldown
 	if !s.lastTrigger.IsZero() {
-		elapsed := time.Since(s.lastTrigger)
+		elapsed := s.clock.Since(s.lastTrigger)
 		if elapsed < s.cooldownPeriod {
 			return nil, fmt.Errorf("investigation is in cooldown period. Please wait %d seconds", int((s.cooldownPeriod - elapsed).Seconds()))
 		}
 	}
 
 	// Update last trigger time
-	s.lastTrigger = time.Now()
+	now := s.clock.Now()
+	s.lastTrigger = now
 
 	// Generate investigation ID
-	investigationID := fmt.Sprintf("inv_%d", time.Now().Unix())
+	investigationID := fmt.Sprintf("inv_%d", now.Unix())
 
 	// Create investigation
 	investigation := &models.Investigation{
 		ID:        investigationID,
 		Status:    models.StatusQueued,
-		AnomalyID: fmt.Sprintf("ai_investigation_%d", time.Now().Unix()),
-		StartTime: time.Now(),
+		AnomalyID: fmt.Sprintf("ai_investigation_%d", now.Unix()),
+		StartTime: now,
 		Findings:  "Investigation queued for processing...",
 		Progress:  0,
 		Details:   make(map[string]interface{}),
@@ -142,7 +173,7 @@ func (s *InvestigationService) GetLatestInvestigation(ctx context.Context) (*mod
 			ID:        "inv_default",
 			Status:    models.StatusQueued,
 			AnomalyID: "none",
-			StartTime: time.Now(),
+			StartTime: s.clock.Now(),
 			Findings:  "No investigations have been triggered yet. Click 'RUN ANOMALY CHECK' to start an investigation.",
 		}, nil
 	}
@@ -180,7 +211,7 @@ func (s *InvestigationService) UpdateInvestigationStatus(ctx context.Context, id
 
 	investigation.Status = status
 	if status == models.StatusCompleted || status == models.StatusFailed {
-		now := time.Now()
+		now := s.clock.Now()
 		investigation.EndTime = &now
 	}
 
@@ -215,7 +246,7 @@ func (s *InvestigationService) UpdateInvestigationProgress(ctx context.Context, 
 
 // AddInvestigationStep adds a step to an investigation
 func (s *InvestigationService) AddInvestigationStep(ctx context.Context, id string, step models.InvestigationStep) error {
-	step.StartTime = time.Now()
+	step.StartTime = s.clock.Now()
 	return s.repo.SaveInvestigationStep(ctx, id, &step)
 }
 
@@ -232,10 +263,17 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 	}
 
 	// Collect current metrics for context
-	cpuUsage := s.getCPUUsage()
-	memoryUsage := s.getMemoryUsage()
-	tcpConnections := s.getTCPConnections()
-	timestamp := time.Now().Format(time.RFC3339)
+	cpuUsage := 15.0
+	memoryUsage := 45.0
+	tcpConnections := 50
+	if s.metricsSrc != nil {
+		if fresh, err := s.metricsSrc.GetCurrentMetricsFresh(ctx); err == nil && fresh != nil {
+			cpuUsage = fresh.CPUUsage
+			memoryUsage = fresh.MemoryUsage
+			tcpConnections = fresh.TCPConnections
+		}
+	}
+	timestamp := s.clock.Now().Format(time.RFC3339)
 
 	// Execute investigation via agent-manager
 	findings, details, ok := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
@@ -378,30 +416,7 @@ Analyze system for anomalies and provide findings.`,
 
 // loadPromptTemplate loads and processes the prompt template
 func (s *InvestigationService) loadPromptTemplate(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp, operationMode, note string, autoFix bool) (string, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir := os.Getenv("HOME")
-		if homeDir == "" {
-			homeDir = "/root"
-		}
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
-
-	promptPaths := []string{
-		filepath.Join(vrooliRoot, "scenarios", "system-monitor", "initialization", "claude-code", "anomaly-check.md"),
-		filepath.Join("initialization", "claude-code", "anomaly-check.md"),
-	}
-
-	var promptContent []byte
-	var err error
-
-	for _, path := range promptPaths {
-		promptContent, err = os.ReadFile(path)
-		if err == nil {
-			break
-		}
-	}
-
+	promptContent, err := s.promptStore.ReadConfig("anomaly-check.md")
 	if err != nil {
 		return "", fmt.Errorf("could not read prompt file: %v", err)
 	}
@@ -501,49 +516,6 @@ func (s *InvestigationService) resolveAPIBaseURL() string {
 	return s.config.Server.APIBaseURL
 }
 
-// Helper methods to get system metrics
-func (s *InvestigationService) getCPUUsage() float64 {
-	cmd := exec.Command("bash", "-c", "grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4+$5)} END {print usage}'")
-	output, err := cmd.Output()
-	if err != nil {
-		return 15.0 // Default value
-	}
-
-	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-	if err != nil {
-		return 15.0
-	}
-	return usage
-}
-
-func (s *InvestigationService) getMemoryUsage() float64 {
-	cmd := exec.Command("bash", "-c", "free | grep Mem | awk '{print ($3/$2) * 100.0}'")
-	output, err := cmd.Output()
-	if err != nil {
-		return 45.0 // Default value
-	}
-
-	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-	if err != nil {
-		return 45.0
-	}
-	return usage
-}
-
-func (s *InvestigationService) getTCPConnections() int {
-	cmd := exec.Command("bash", "-c", "netstat -tn 2>/dev/null | grep ESTABLISHED | wc -l")
-	output, err := cmd.Output()
-	if err != nil {
-		return 50 // Default value
-	}
-
-	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
-	if err != nil {
-		return 50
-	}
-	return count
-}
-
 // initializeDefaultTriggers sets up default trigger configurations
 func (s *InvestigationService) initializeDefaultTriggers() {
 	s.triggers["high_cpu"] = &models.TriggerConfig{
@@ -616,7 +588,7 @@ func (s *InvestigationService) GetCooldownStatus(ctx context.Context) (*models.C
 	isReady := true
 
 	if !s.lastTrigger.IsZero() {
-		elapsed := time.Since(s.lastTrigger)
+		elapsed := s.clock.Since(s.lastTrigger)
 		if elapsed < s.cooldownPeriod {
 			remainingSeconds = int((s.cooldownPeriod - elapsed).Seconds())
 			isReady = false
@@ -730,12 +702,7 @@ func (s *InvestigationService) UpdateCooldownPeriod(ctx context.Context, periodS
 
 // loadTriggersFromConfig loads trigger configuration from JSON file
 func (s *InvestigationService) loadTriggersFromConfig() error {
-	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
-		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	}
-
-	data, err := os.ReadFile(configPath)
+	data, err := s.configStore.ReadConfig("investigation-triggers.json")
 	if err != nil {
 		return err
 	}
@@ -1044,13 +1011,8 @@ func stringToRunnerType(s string) domainpb.RunnerType {
 
 // saveTriggersToConfig saves trigger configuration to JSON file
 func (s *InvestigationService) saveTriggersToConfig() error {
-	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
-		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	}
-
 	// Read existing configuration to preserve extra fields
-	existingData, err := os.ReadFile(configPath)
+	existingData, err := s.configStore.ReadConfig("investigation-triggers.json")
 	var existingConfig map[string]interface{}
 	if err == nil {
 		if err := json.Unmarshal(existingData, &existingConfig); err != nil {
@@ -1110,10 +1072,10 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 
 	// Update metadata
 	if metadata, ok := config["metadata"].(map[string]interface{}); ok {
-		metadata["last_modified"] = time.Now().Format(time.RFC3339)
+		metadata["last_modified"] = s.clock.Now().Format(time.RFC3339)
 	} else {
 		config["metadata"] = map[string]interface{}{
-			"last_modified":  time.Now().Format(time.RFC3339),
+			"last_modified":  s.clock.Now().Format(time.RFC3339),
 			"config_version": "1.0.0",
 		}
 	}
@@ -1123,5 +1085,5 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0o644)
+	return s.configStore.WriteConfig("investigation-triggers.json", data)
 }

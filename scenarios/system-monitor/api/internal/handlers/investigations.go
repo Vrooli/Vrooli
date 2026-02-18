@@ -12,7 +12,6 @@ import (
 	"system-monitor-api/internal/convert"
 	"system-monitor-api/internal/httputil"
 	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/services"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
@@ -21,12 +20,12 @@ import (
 // InvestigationHandler handles investigation-related requests
 type InvestigationHandler struct {
 	config           *config.Config
-	investigationSvc *services.InvestigationService
-	scriptSvc        *services.ScriptService
+	investigationSvc InvestigationManager
+	scriptSvc        ScriptRunner
 }
 
 // NewInvestigationHandler creates a new investigation handler
-func NewInvestigationHandler(cfg *config.Config, investigationSvc *services.InvestigationService, scriptSvc *services.ScriptService) *InvestigationHandler {
+func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner) *InvestigationHandler {
 	return &InvestigationHandler{
 		config:           cfg,
 		investigationSvc: investigationSvc,

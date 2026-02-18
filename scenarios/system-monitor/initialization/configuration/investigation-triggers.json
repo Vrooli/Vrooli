@@ -6,20 +6,46 @@
     "metadata": {
         "config_version": "1.0.0",
         "created_at": "2025-09-11T00:00:00Z",
-        "last_modified": "2025-09-23T15:38:14-04:00"
+        "last_modified": "2026-01-01T00:00:00Z"
     },
     "triggers": [
         {
             "auto_fix": true,
             "condition": "above",
-            "description": "Triggers when CPU usage exceeds threshold for sustained period",
+            "description": "Triggers when active connections exceed normal levels",
             "enabled": true,
+            "icon": "network",
+            "id": "network_connections",
+            "name": "Excessive Network Connections",
+            "priority": "medium",
+            "sustained_duration_seconds": 30,
+            "threshold": 2000,
+            "unit": " connections"
+        },
+        {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when zombie or high-resource processes detected",
+            "enabled": true,
+            "icon": "zap",
+            "id": "process_anomaly",
+            "name": "Process Anomaly",
+            "priority": "high",
+            "sustained_duration_seconds": 10,
+            "threshold": 25,
+            "unit": " processes"
+        },
+        {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when CPU usage exceeds threshold for sustained period",
+            "enabled": false,
             "icon": "cpu",
             "id": "high_cpu",
             "name": "High CPU Usage",
             "priority": "high",
             "sustained_duration_seconds": 60,
-            "threshold": 75,
+            "threshold": 95,
             "unit": "%"
         },
         {
@@ -47,32 +73,6 @@
             "sustained_duration_seconds": 120,
             "threshold": 90,
             "unit": "%"
-        },
-        {
-            "auto_fix": true,
-            "condition": "above",
-            "description": "Triggers when active connections exceed normal levels",
-            "enabled": true,
-            "icon": "network",
-            "id": "network_connections",
-            "name": "Excessive Network Connections",
-            "priority": "medium",
-            "sustained_duration_seconds": 30,
-            "threshold": 2000,
-            "unit": " connections"
-        },
-        {
-            "auto_fix": true,
-            "condition": "above",
-            "description": "Triggers when zombie or high-resource processes detected",
-            "enabled": true,
-            "icon": "zap",
-            "id": "process_anomaly",
-            "name": "Process Anomaly",
-            "priority": "high",
-            "sustained_duration_seconds": 10,
-            "threshold": 25,
-            "unit": " processes"
         }
     ],
     "version": "1.0.0"
