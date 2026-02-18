@@ -80,32 +80,7 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 3. Check configured databases
-	if h.config.Resources.PostgresURL != "" {
-		pgHealth := h.checkPostgreSQL()
-		dependencies["postgresql"] = pgHealth
-		if pgHealth["connected"] == false {
-			overallStatus = "degraded"
-		}
-	}
-
-	if h.config.Resources.RedisURL != "" {
-		redisHealth := h.checkRedis()
-		dependencies["redis"] = redisHealth
-		if redisHealth["connected"] == false {
-			overallStatus = "degraded"
-		}
-	}
-
-	if h.config.Resources.QuestDBURL != "" {
-		questdbHealth := h.checkQuestDB()
-		dependencies["questdb"] = questdbHealth
-		if questdbHealth["connected"] == false {
-			overallStatus = "degraded"
-		}
-	}
-
-	// 4. Check external services (if configured)
+	// 3. Check external services (if configured)
 	if h.config.Resources.NodeRedURL != "" {
 		nodeRedHealth := h.checkNodeRed()
 		dependencies["node_red"] = nodeRedHealth
@@ -203,55 +178,6 @@ func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 
 	// Clean up test file
 	os.Remove(testFile)
-
-	return healthutil.MarkConnected(result)
-}
-
-// checkPostgreSQL tests PostgreSQL database connectivity
-func (h *HealthHandler) checkPostgreSQL() map[string]interface{} {
-	result := healthutil.NewResult()
-
-	// This is a placeholder - you'd need to implement actual DB connection
-	// For now, just check if URL is accessible
-	if h.config.Resources.PostgresURL == "" {
-		return healthutil.WithError(result, "POSTGRES_URL_MISSING",
-			"PostgreSQL URL not configured", "configuration", false)
-	}
-
-	// TODO: Implement actual database ping when DB connection is available
-	return healthutil.MarkConnected(result)
-}
-
-// checkRedis tests Redis connectivity
-func (h *HealthHandler) checkRedis() map[string]interface{} {
-	result := healthutil.NewResult()
-
-	if h.config.Resources.RedisURL == "" {
-		return healthutil.WithError(result, "REDIS_URL_MISSING",
-			"Redis URL not configured", "configuration", false)
-	}
-
-	// TODO: Implement actual Redis ping
-	return healthutil.MarkConnected(result)
-}
-
-// checkQuestDB tests QuestDB connectivity
-func (h *HealthHandler) checkQuestDB() map[string]interface{} {
-	result := healthutil.NewResult()
-
-	if h.config.Resources.QuestDBURL == "" {
-		return healthutil.WithError(result, "QUESTDB_URL_MISSING",
-			"QuestDB URL not configured", "configuration", false)
-	}
-
-	// Test HTTP connection to QuestDB
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(h.config.Resources.QuestDBURL)
-	if err != nil {
-		return healthutil.WithError(result, "QUESTDB_CONNECTION_FAILED",
-			fmt.Sprintf("Cannot connect to QuestDB: %v", err), "network", true)
-	}
-	defer resp.Body.Close()
 
 	return healthutil.MarkConnected(result)
 }

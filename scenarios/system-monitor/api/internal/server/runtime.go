@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -15,6 +15,7 @@ import (
 	"system-monitor-api/internal/infrastructure"
 	"system-monitor-api/internal/repository"
 	"system-monitor-api/internal/repository/memory"
+	sqliterepo "system-monitor-api/internal/repository/sqlite"
 	"system-monitor-api/internal/services"
 	"system-monitor-api/internal/toolexecution"
 	"system-monitor-api/internal/toolhandlers"
@@ -25,7 +26,7 @@ import (
 func Run(cfg *config.Config) error {
 	setupLogging(cfg)
 
-	db, repo := connectRepository(cfg)
+	closer, repo := connectRepository(cfg)
 
 	_ = services.NewAlertService(cfg, repo) // Alert service available for future wiring //nolint:ineffassign
 	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
@@ -74,7 +75,7 @@ func Run(cfg *config.Config) error {
 	toolRegistry.RegisterProvider(toolregistry.NewMetricsToolProvider())
 	toolRegistry.RegisterProvider(toolregistry.NewInvestigationToolProvider())
 	toolRegistry.RegisterProvider(toolregistry.NewConfigurationToolProvider())
-	log.Printf("📦 Registered %d tool providers with %d tools", toolRegistry.ProviderCount(), len(toolRegistry.ListToolNames(context.Background())))
+	log.Printf("Registered %d tool providers with %d tools", toolRegistry.ProviderCount(), len(toolRegistry.ListToolNames(context.Background())))
 
 	// Initialize Tool Execution Protocol executor
 	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
@@ -99,7 +100,7 @@ func Run(cfg *config.Config) error {
 	}
 
 	go func() {
-		log.Printf("🚀 System Monitor API starting on port %s", cfg.Server.APIPort)
+		log.Printf("System Monitor API starting on port %s", cfg.Server.APIPort)
 		log.Printf("   Environment: %s", cfg.Server.Environment)
 		log.Printf("   Version: %s", cfg.Server.Version)
 
@@ -108,22 +109,23 @@ func Run(cfg *config.Config) error {
 		}
 	}()
 
-	waitForShutdown(monitorSvc, srv, db)
+	waitForShutdown(monitorSvc, srv, closer)
 	return nil
 }
 
-func connectRepository(cfg *config.Config) (*sql.DB, repository.Repository) {
-	if cfg.HasDatabase() {
-		db, err := connectDatabase(cfg)
-		if err != nil {
-			log.Printf("Warning: Failed to connect to database, using in-memory storage: %v", err)
-			return nil, memory.NewRepository()
-		}
-
-		log.Println("Using in-memory repository (PostgreSQL implementation pending)")
-		return db, memory.NewRepository()
+func connectRepository(cfg *config.Config) (io.Closer, repository.Repository) {
+	sqliteRepo, err := connectSQLite()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize SQLite, using in-memory storage: %v", err)
+		return io.NopCloser(nil), memory.NewRepository()
 	}
 
-	log.Println("No database configured, using in-memory storage")
-	return nil, memory.NewRepository()
+	// Start retention cleanup: hourly, delete metrics older than configured retention.
+	maxAge := time.Duration(cfg.Monitoring.RetentionDays) * 24 * time.Hour
+	sqliteRepo.StartRetentionCleanup(1*time.Hour, maxAge)
+
+	return sqliteRepo, sqliteRepo
 }
+
+// Ensure *sqliterepo.Repository satisfies repository.Repository at compile time.
+var _ repository.Repository = (*sqliterepo.Repository)(nil)

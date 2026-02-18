@@ -1,7 +1,7 @@
 package server
 
 import (
-	"database/sql"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -11,7 +11,7 @@ import (
 	"system-monitor-api/internal/services"
 )
 
-func waitForShutdown(monitorSvc *services.MonitorService, srv *http.Server, db *sql.DB) {
+func waitForShutdown(monitorSvc *services.MonitorService, srv *http.Server, repo io.Closer) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -24,9 +24,9 @@ func waitForShutdown(monitorSvc *services.MonitorService, srv *http.Server, db *
 		log.Printf("Error closing server: %v", err)
 	}
 
-	if db != nil {
-		if err := db.Close(); err != nil {
-			log.Printf("Error closing database: %v", err)
+	if repo != nil {
+		if err := repo.Close(); err != nil {
+			log.Printf("Error closing repository: %v", err)
 		}
 	}
 
