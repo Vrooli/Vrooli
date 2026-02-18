@@ -16,6 +16,65 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// ValidatePathRequest is the request body for the path validation endpoint.
+type ValidatePathRequest struct {
+	Path string `json:"path"`
+}
+
+// ValidatePathResponse is the response body for the path validation endpoint.
+type ValidatePathResponse struct {
+	Valid   bool   `json:"valid"`
+	Message string `json:"message,omitempty"`
+}
+
+// ValidatePath checks whether a given path is a valid, accessible directory.
+// POST /api/v1/validate-path
+func (h *Handlers) ValidatePath(w http.ResponseWriter, r *http.Request) {
+	var req ValidatePathRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONResponse(w, ValidatePathResponse{Valid: false, Message: "invalid request body"}, http.StatusOK)
+		return
+	}
+
+	if req.Path == "" {
+		h.JSONResponse(w, ValidatePathResponse{Valid: false, Message: "path is required"}, http.StatusOK)
+		return
+	}
+
+	info, err := os.Stat(req.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			h.JSONResponse(w, ValidatePathResponse{Valid: false, Message: "path does not exist"}, http.StatusOK)
+		} else if os.IsPermission(err) {
+			h.JSONResponse(w, ValidatePathResponse{Valid: false, Message: "path is not accessible (permission denied)"}, http.StatusOK)
+		} else {
+			h.JSONResponse(w, ValidatePathResponse{Valid: false, Message: "path is not valid: " + err.Error()}, http.StatusOK)
+		}
+		return
+	}
+
+	if !info.IsDir() {
+		h.JSONResponse(w, ValidatePathResponse{Valid: false, Message: "path is not a directory"}, http.StatusOK)
+		return
+	}
+
+	h.JSONResponse(w, ValidatePathResponse{Valid: true}, http.StatusOK)
+}
+
+// GetProjectRoot returns the VROOLI_ROOT or current working directory as a default project path.
+// GET /api/v1/project-root
+func (h *Handlers) GetProjectRoot(w http.ResponseWriter, r *http.Request) {
+	root := os.Getenv("VROOLI_ROOT")
+	if root == "" {
+		var err error
+		root, err = os.Getwd()
+		if err != nil {
+			root = ""
+		}
+	}
+	h.JSONResponse(w, map[string]string{"project_root": root}, http.StatusOK)
+}
+
 // getAgentClient returns the agent-manager client or writes an error response if unavailable.
 func (h *Handlers) getAgentClient(w http.ResponseWriter, r *http.Request) integrations.AgentManagerClientInterface {
 	if h.AgentClient == nil {

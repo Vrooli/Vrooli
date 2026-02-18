@@ -278,6 +278,42 @@ export interface ChatWithMessages {
   tool_call_records?: ToolCallRecord[];
 }
 
+// Path validation
+export interface ValidatePathResult {
+  valid: boolean;
+  message?: string;
+}
+
+export async function validatePath(path: string): Promise<ValidatePathResult> {
+  const url = buildApiUrl("/validate-path", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Path validation failed: ${res.status}`);
+  }
+
+  return jsonResponse<ValidatePathResult>(res);
+}
+
+export async function fetchProjectRoot(): Promise<string> {
+  const url = buildApiUrl("/project-root", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch project root: ${res.status}`);
+  }
+
+  const data = await jsonResponse<{ project_root: string }>(res);
+  return data.project_root;
+}
+
 // Health
 export async function fetchHealth() {
   const url = buildApiUrl("/health", { baseUrl: API_BASE });

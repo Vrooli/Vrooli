@@ -150,6 +150,8 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 
 	// Utilities
 	r.HandleFunc("/api/v1/link-preview", h.GetLinkPreview).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/project-root", h.GetProjectRoot).Methods("GET", "OPTIONS")
 
 	// Templates
 	r.HandleFunc("/api/v1/templates", h.ListTemplates).Methods("GET", "OPTIONS")

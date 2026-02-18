@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { X, Bot, FolderOpen, Cpu, Zap } from "lucide-react";
+import { X, Bot, FolderOpen, Cpu, Zap, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import type { RunnerType } from "../../lib/api";
 import type { AgentModeSettings } from "../../hooks/useAgentSettings";
+import { usePathValidation } from "../../hooks/usePathValidation";
 
 interface AgentStartModalProps {
   /** Whether the modal is open */
@@ -56,8 +57,11 @@ export function AgentStartModal({
   const [projectPath, setProjectPath] = useState(defaultSettings.defaultProjectPath);
   const [model, setModel] = useState(defaultSettings.defaultModel);
   const [maxTurns, setMaxTurns] = useState(defaultSettings.defaultMaxTurns);
+  const { isValidating, result: pathValidation } = usePathValidation(projectPath);
 
   if (!isOpen) return null;
+
+  const pathIsInvalid = !!projectPath && pathValidation !== null && !pathValidation.valid;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,22 +159,44 @@ export function AgentStartModal({
               <FolderOpen className="h-4 w-4" />
               Project Path
             </label>
-            <input
-              type="text"
-              value={projectPath}
-              onChange={(e) => setProjectPath(e.target.value)}
-              placeholder="/path/to/project"
-              required
-              className="
-                w-full px-3 py-2 rounded-lg
-                bg-zinc-800 border border-zinc-700
-                text-white placeholder-zinc-500
-                focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-              "
-            />
-            <p className="mt-1 text-xs text-zinc-500">
-              Directory where the agent will operate
-            </p>
+            <div className="relative">
+              <input
+                type="text"
+                value={projectPath}
+                onChange={(e) => setProjectPath(e.target.value)}
+                placeholder="/path/to/project"
+                required
+                className={`
+                  w-full px-3 py-2 pr-9 rounded-lg
+                  bg-zinc-800 border text-white placeholder-zinc-500
+                  focus:outline-none focus:ring-1
+                  ${pathIsInvalid
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : projectPath && pathValidation?.valid
+                      ? "border-green-500 focus:border-green-500 focus:ring-green-500"
+                      : "border-zinc-700 focus:border-blue-500 focus:ring-blue-500"
+                  }
+                `}
+              />
+              {projectPath && (
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  {isValidating ? (
+                    <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />
+                  ) : pathValidation?.valid ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-400" />
+                  ) : pathValidation !== null ? (
+                    <XCircle className="h-4 w-4 text-red-400" />
+                  ) : null}
+                </span>
+              )}
+            </div>
+            {pathIsInvalid && pathValidation?.message ? (
+              <p className="mt-1 text-xs text-red-400">{pathValidation.message}</p>
+            ) : (
+              <p className="mt-1 text-xs text-zinc-500">
+                Directory where the agent will operate
+              </p>
+            )}
           </div>
 
           {/* Advanced Options */}
@@ -253,7 +279,7 @@ export function AgentStartModal({
             <button
               type="submit"
               onClick={handleSubmit}
-              disabled={isLoading || !projectPath}
+              disabled={isLoading || !projectPath || pathIsInvalid || isValidating}
               className="
                 px-4 py-2 rounded-lg text-sm font-medium
                 bg-blue-600 text-white hover:bg-blue-500
