@@ -1,4 +1,5 @@
 package server
+
 // DOC: docs/reference/api-endpoints.md
 
 import (
@@ -17,6 +18,7 @@ func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandle
 
 	r.HandleFunc("/api/v1/metrics/current", metrics.GetCurrentMetrics).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/detailed", metrics.GetDetailedMetrics).Methods("GET")
+	r.HandleFunc("/api/v1/metrics/timeline", metrics.GetMetricsTimeline).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/processes", metrics.GetProcessMonitor).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/infrastructure", metrics.GetInfrastructureMonitor).Methods("GET")
 

@@ -1,9 +1,11 @@
 package handlers
+
 // DOC: docs/reference/api-endpoints.md#metrics
 
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/convert"
@@ -47,6 +49,33 @@ func (h *MetricsHandler) GetCurrentMetrics(w http.ResponseWriter, r *http.Reques
 	}
 
 	httputil.SafeProtoJSON(w, h.log, r, convert.MetricsResponseToProto(metrics))
+}
+
+// GetMetricsTimeline handles GET /api/v1/metrics/timeline
+func (h *MetricsHandler) GetMetricsTimeline(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	windowSeconds := 120
+	if ws := r.URL.Query().Get("window"); ws != "" {
+		if parsed, err := strconv.Atoi(ws); err == nil && parsed > 0 {
+			windowSeconds = parsed
+		}
+	}
+
+	sampleInterval := 5
+	if si := r.URL.Query().Get("interval"); si != "" {
+		if parsed, err := strconv.Atoi(si); err == nil && parsed > 0 {
+			sampleInterval = parsed
+		}
+	}
+
+	timeline, err := h.monitorSvc.GetMetricsTimeline(ctx, windowSeconds, sampleInterval)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+
+	httputil.SafeProtoJSON(w, h.log, r, convert.MetricsTimelineResponseToProto(timeline))
 }
 
 // GetDetailedMetrics handles GET /api/v1/metrics/detailed

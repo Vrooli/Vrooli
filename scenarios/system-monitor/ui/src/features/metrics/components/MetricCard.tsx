@@ -147,14 +147,16 @@ export const MetricCard = ({
       </div>
 
       {history && history.length > 0 ? (
-        <MetricSparkline
-          data={history}
-          color={sparklineColor}
-          valueDomain={valueDomain}
-          threshold={sparklineThreshold}
-          unit={sparklineUnit}
-          windowLabel={formatWindowLabel(historyWindowSeconds)}
-        />
+        <div style={{ position: 'relative', overflow: 'visible' }}>
+          <MetricSparkline
+            data={history}
+            color={sparklineColor}
+            valueDomain={valueDomain}
+            threshold={sparklineThreshold}
+            unit={sparklineUnit}
+            windowLabel={formatWindowLabel(historyWindowSeconds)}
+          />
+        </div>
       ) : (
         <div className="metric-bar">
           <div

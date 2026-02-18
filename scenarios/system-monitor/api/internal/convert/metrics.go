@@ -21,6 +21,27 @@ func MetricsResponseToProto(m *models.MetricsResponse) *domain.MetricsResponse {
 	return pb
 }
 
+func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *domain.MetricsTimelineResponse {
+	if m == nil {
+		return nil
+	}
+	samples := make([]*domain.MetricTimelineSample, len(m.Samples))
+	for i, s := range m.Samples {
+		samples[i] = &domain.MetricTimelineSample{
+			Timestamp:      timestamppb.New(s.Timestamp),
+			CpuUsage:       s.CPUUsage,
+			MemoryUsage:    s.MemoryUsage,
+			TcpConnections: int32(s.TCPConnections),
+			GpuUsage:       s.GPUUsage,
+		}
+	}
+	return &domain.MetricsTimelineResponse{
+		WindowSeconds:         int32(m.WindowSeconds),
+		SampleIntervalSeconds: int32(m.SampleIntervalSeconds),
+		Samples:               samples,
+	}
+}
+
 func DetailedMetricsToProto(m *models.DetailedMetrics) *domain.DetailedMetrics {
 	if m == nil {
 		return nil

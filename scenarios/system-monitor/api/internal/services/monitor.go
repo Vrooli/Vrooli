@@ -1,4 +1,5 @@
 package services
+
 // DOC: docs/concepts/ARCHITECTURE.md#monitoring-service
 
 import (
@@ -281,6 +282,46 @@ func (s *MonitorService) collectFromRegistry(ctx context.Context, name string) (
 		return nil, nil
 	}
 	return collector.Collect(ctx)
+}
+
+// GetMetricsTimeline retrieves a windowed timeline of metric samples.
+func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error) {
+	if windowSeconds <= 0 {
+		windowSeconds = 120
+	}
+	if sampleIntervalSeconds <= 0 {
+		sampleIntervalSeconds = 5
+	}
+
+	now := s.clock.Now()
+	start := now.Add(-time.Duration(windowSeconds) * time.Second)
+
+	results, err := s.repo.GetMetrics(ctx, repository.MetricsFilter{
+		TimeRange: repository.TimeRange{
+			StartTime: start,
+			EndTime:   now,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	samples := make([]models.MetricTimelineSample, 0, len(results))
+	for _, m := range results {
+		samples = append(samples, models.MetricTimelineSample{
+			Timestamp:      m.Timestamp,
+			CPUUsage:       m.CPUUsage,
+			MemoryUsage:    m.MemoryUsage,
+			TCPConnections: m.TCPConnections,
+			GPUUsage:       m.GPUUsage,
+		})
+	}
+
+	return &models.MetricsTimelineResponse{
+		WindowSeconds:         windowSeconds,
+		SampleIntervalSeconds: sampleIntervalSeconds,
+		Samples:               samples,
+	}, nil
 }
 
 // GetDetailedMetrics retrieves comprehensive system metrics

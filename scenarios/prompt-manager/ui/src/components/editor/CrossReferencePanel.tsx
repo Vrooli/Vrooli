@@ -1,18 +1,20 @@
 /**
- * CrossReferencePanel - Collapsible panel showing which agents, teams,
- * and skills reference a given skill.
+ * CrossReferencePanel - Icon button that opens a modal showing which agents,
+ * teams, and skills reference the current skill.
  *
  * Uses the graph API (GET /api/v1/graph/node/{id}) to discover inbound edges
  * where this skill is the target, and displays them grouped by source entity type.
  */
 
 import { useEffect, useState } from 'react'
-import { ChevronRight, ChevronDown, Bot, Users, Sparkles } from 'lucide-react'
+import { Bot, Users, Sparkles, Link2, Network } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useGraphStore } from '@/stores/graphStore'
 import { getGraphNode } from '@/services/graphService'
 import { selectors } from '@/constants/selectors'
 import type { GraphEdge, Reference } from '@/lib/schemas'
+import { Dialog } from '@/components/shared/Dialog'
 
 interface CrossReferencePanelProps {
   skillId: string
@@ -31,6 +33,23 @@ const GROUP_CONFIG: Record<EntityType, { label: string; icon: typeof Bot }> = {
 
 const GROUP_ORDER: EntityType[] = ['agent', 'team', 'skill']
 
+function inferEntityTypeFromEdge(edge: GraphEdge): EntityType {
+  if (edge.kind === 'membership') {
+    return 'team'
+  }
+  if (edge.kind === 'cli-read' || edge.kind === 'bold-listed' || edge.kind === 'code-usage') {
+    return 'agent'
+  }
+  return 'skill'
+}
+
+function mapNodeTypeToEntityType(nodeType: string | undefined): EntityType | null {
+  if (nodeType === 'agent' || nodeType === 'team' || nodeType === 'skill') {
+    return nodeType
+  }
+  return null
+}
+
 /** Represents a resolved cross-reference from the graph API. */
 interface ResolvedRef {
   entityType: EntityType
@@ -42,7 +61,7 @@ interface ResolvedRef {
 }
 
 export function CrossReferencePanel({ skillId, onNavigateToReference, className }: CrossReferencePanelProps) {
-  const [expanded, setExpanded] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [refs, setRefs] = useState<ResolvedRef[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -50,34 +69,39 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
   const setSelectedAgentId = useSelectionStore((s) => s.setSelectedAgentId)
   const setSelectedTeamId = useSelectionStore((s) => s.setSelectedTeamId)
   const setSelectedSkillId = useSelectionStore((s) => s.setSelectedSkillId)
+  const setGraphViewActive = useSelectionStore((s) => s.setGraphViewActive)
+  const focusNodes = useGraphStore((s) => s.focusNodes)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
 
-    void getGraphNode(skillId).then((result) => {
+    void (async () => {
+      const result = await getGraphNode(skillId)
       if (cancelled) return
+
       if (result) {
         // Find edges where this skill is the target (inbound references)
-        const inboundEdges = result.adjacentEdges.filter(
-          (e: GraphEdge) => e.to === skillId
-        )
+        const inboundEdges = result.adjacentEdges.filter((e: GraphEdge) => e.to === skillId)
+        const sourceIds = Array.from(new Set(inboundEdges.map((edge) => edge.from)))
+        const sourceNodeMap = new Map<string, Awaited<ReturnType<typeof getGraphNode>>>()
+
+        // Resolve source node types so entity routing is accurate.
+        await Promise.all(sourceIds.map(async (sourceId) => {
+          const sourceNode = await getGraphNode(sourceId)
+          sourceNodeMap.set(sourceId, sourceNode)
+        }))
+        if (cancelled) return
 
         // For inbound edges, the 'from' is the entity that references us.
         const resolved: ResolvedRef[] = []
         for (const edge of inboundEdges) {
-          // Determine entity type from edge kind
-          let entityType: EntityType = 'skill'
-          if (edge.kind === 'membership') {
-            entityType = 'team'
-          } else if (edge.kind === 'cli-read' || edge.kind === 'bold-listed' || edge.kind === 'code-usage') {
-            entityType = 'agent'
-          }
-
+          const sourceNode = sourceNodeMap.get(edge.from)
+          const entityType = mapNodeTypeToEntityType(sourceNode?.node.type) ?? inferEntityTypeFromEdge(edge)
           resolved.push({
             entityType,
             entityId: edge.from,
-            entityName: edge.from, // best we have without a full graph lookup
+            entityName: sourceNode?.node.label || edge.from,
             filePath: edge.sourceFile,
             lineNumber: edge.lineNumber,
             edgeKind: edge.kind,
@@ -91,7 +115,7 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
         setTotal(0)
       }
       setLoading(false)
-    })
+    })()
 
     return () => {
       cancelled = true
@@ -114,11 +138,13 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
         },
       }
       onNavigateToReference(legacyRef)
+      setIsOpen(false)
       return
     }
     if (ref.entityType === 'agent') setSelectedAgentId(ref.entityId)
     else if (ref.entityType === 'team') setSelectedTeamId(ref.entityId)
     else setSelectedSkillId(ref.entityId)
+    setIsOpen(false)
   }
 
   // Group references by entity type
@@ -130,67 +156,111 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
   }
 
   return (
-    <div className={cn('text-sm', className)} data-testid={selectors.xrefs.panel}>
+    <div className={cn('text-sm', className)}>
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-        data-testid={selectors.xrefs.toggle}
-      >
-        {expanded ? (
-          <ChevronDown className="h-3.5 w-3.5" />
-        ) : (
-          <ChevronRight className="h-3.5 w-3.5" />
+        onClick={() => setIsOpen(true)}
+        className={cn(
+          'relative flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded text-xs',
+          'text-foreground hover:bg-muted transition-colors',
+          'border border-transparent hover:border-border',
         )}
-        <span>
-          Referenced by ({loading ? '...' : total})
-        </span>
+        data-testid={selectors.xrefs.toggle}
+        title={`Referenced by (${loading ? '...' : total})`}
+        aria-label={`Open references modal${total > 0 ? ` (${total} references)` : ''}`}
+      >
+        <Link2 className="h-4 w-4" />
+        {!loading && total > 0 && (
+          <span
+            className={cn(
+              'absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full',
+              'bg-primary/20 text-primary text-[10px] leading-4 font-medium text-center',
+              'border border-primary/30',
+            )}
+            aria-hidden="true"
+          >
+            {total > 99 ? '99+' : total}
+          </span>
+        )}
       </button>
 
-      {expanded && (
-        <div className="mt-1 ml-4 space-y-1.5" data-testid={selectors.xrefs.list}>
-          {loading && (
-            <div className="text-xs text-muted-foreground">Loading...</div>
-          )}
+      <Dialog
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title={`Referenced by (${loading ? '...' : total})`}
+        maxWidth="max-w-2xl"
+        testId={selectors.xrefs.panel}
+      >
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                focusNodes([skillId])
+                setGraphViewActive(true)
+                setSelectedAgentId(null)
+                setSelectedTeamId(null)
+                setSelectedSkillId(null)
+                setIsOpen(false)
+              }}
+              className={cn(
+                'inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm',
+                'bg-indigo-600/20 text-indigo-200 border border-indigo-500/30',
+                'hover:bg-indigo-600/30 transition-colors',
+              )}
+            >
+              <Network className="h-4 w-4" />
+              Open in Graph View
+            </button>
+          </div>
 
-          {!loading && refs.length === 0 && (
-            <div className="text-xs text-muted-foreground">No references found</div>
-          )}
+          <div className="space-y-1.5" data-testid={selectors.xrefs.list}>
+            {loading && (
+              <div className="text-sm text-slate-300">Loading...</div>
+            )}
 
-          {!loading &&
-            GROUP_ORDER.filter((type) => grouped.has(type)).map((type) => {
-              const config = GROUP_CONFIG[type]
-              const Icon = config.icon
-              const groupRefs = grouped.get(type) ?? []
+            {!loading && refs.length === 0 && (
+              <div className="text-sm text-slate-300">No references found</div>
+            )}
 
-              return (
-                <div key={type}>
-                  <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-0.5">
-                    <Icon className="h-3 w-3" />
-                    <span>{config.label}</span>
+            {!loading &&
+              GROUP_ORDER.filter((type) => grouped.has(type)).map((type) => {
+                const config = GROUP_CONFIG[type]
+                const Icon = config.icon
+                const groupRefs = grouped.get(type) ?? []
+
+                return (
+                  <div key={type}>
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-300 mb-1">
+                      <Icon className="h-4 w-4" />
+                      <span>{config.label}</span>
+                    </div>
+                    {groupRefs.map((ref, i) => (
+                      <button
+                        key={`${ref.entityId}-${ref.filePath}-${i}`}
+                        type="button"
+                        onClick={() => handleClick(ref)}
+                        className={cn(
+                          'block w-full text-left px-3 py-2 text-sm rounded-md transition-colors',
+                          'text-slate-200 hover:text-white hover:bg-white/10'
+                        )}
+                        data-testid={selectors.xrefs.item}
+                      >
+                        <span className="font-medium">{ref.entityName}</span>
+                        {ref.filePath && (
+                          <span className="text-slate-400 ml-2">
+                            {ref.filePath}
+                            {ref.lineNumber > 0 && `:${ref.lineNumber}`}
+                          </span>
+                        )}
+                      </button>
+                    ))}
                   </div>
-                  {groupRefs.map((ref, i) => (
-                    <button
-                      key={`${ref.entityId}-${ref.filePath}-${i}`}
-                      type="button"
-                      onClick={() => handleClick(ref)}
-                      className="block w-full text-left pl-4 py-0.5 text-xs text-foreground/80 hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-                      data-testid={selectors.xrefs.item}
-                    >
-                      <span className="font-medium">{ref.entityName}</span>
-                      {ref.filePath && (
-                        <span className="text-muted-foreground ml-1.5">
-                          {ref.filePath}
-                          {ref.lineNumber > 0 && `:${ref.lineNumber}`}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )
-            })}
+                )
+              })}
+          </div>
         </div>
-      )}
+      </Dialog>
     </div>
   )
 }

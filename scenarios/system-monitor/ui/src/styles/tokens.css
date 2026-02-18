@@ -76,6 +76,13 @@
   --chart-line-2: var(--color-info);
   --chart-line-3: var(--color-success);
   --chart-fill-opacity: 0.15;
+  --chart-tooltip-bg: var(--color-surface-raised);
+  --chart-tooltip-border: var(--color-border-strong);
+  --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --chart-cursor-color: rgba(200, 214, 232, 0.3);
+  --chart-gradient-start-opacity: 0.25;
+  --chart-gradient-end-opacity: 0;
+  --chart-dot-stroke: var(--color-surface);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -147,6 +154,13 @@
   --chart-line-2: var(--color-info);
   --chart-line-3: var(--color-success);
   --chart-fill-opacity: 0.08;
+  --chart-tooltip-bg: var(--color-surface-raised);
+  --chart-tooltip-border: var(--color-border-strong);
+  --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --chart-cursor-color: rgba(15, 23, 42, 0.15);
+  --chart-gradient-start-opacity: 0.15;
+  --chart-gradient-end-opacity: 0;
+  --chart-dot-stroke: #ffffff;
 }
 
 /* ═══════════════════════════════════════════════════════════

@@ -12,6 +12,7 @@ type MonitorQuerier interface {
 	GetCurrentMetrics(ctx context.Context) (*models.MetricsResponse, error)
 	GetCurrentMetricsFresh(ctx context.Context) (*models.MetricsResponse, error)
 	GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error)
+	GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error)
 	GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error)
 	GetInfrastructureMonitorData(ctx context.Context) (*models.InfrastructureMonitorData, error)
 	IsActive() bool

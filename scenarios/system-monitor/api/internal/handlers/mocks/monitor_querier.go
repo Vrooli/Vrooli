@@ -8,13 +8,14 @@ import (
 
 // MonitorQuerier is a configurable test double for handlers.MonitorQuerier.
 type MonitorQuerier struct {
-	metrics         *models.MetricsResponse
-	freshMetrics    *models.MetricsResponse
-	detailedMetrics *models.DetailedMetrics
-	processData     *models.ProcessMonitorData
-	infraData       *models.InfrastructureMonitorData
-	active          bool
-	err             error
+	metrics          *models.MetricsResponse
+	freshMetrics     *models.MetricsResponse
+	detailedMetrics  *models.DetailedMetrics
+	timelineResponse *models.MetricsTimelineResponse
+	processData      *models.ProcessMonitorData
+	infraData        *models.InfrastructureMonitorData
+	active           bool
+	err              error
 }
 
 func NewMonitorQuerier() *MonitorQuerier {
@@ -33,6 +34,11 @@ func (m *MonitorQuerier) WithFreshMetrics(metrics *models.MetricsResponse) *Moni
 
 func (m *MonitorQuerier) WithDetailedMetrics(metrics *models.DetailedMetrics) *MonitorQuerier {
 	m.detailedMetrics = metrics
+	return m
+}
+
+func (m *MonitorQuerier) WithTimelineResponse(timeline *models.MetricsTimelineResponse) *MonitorQuerier {
+	m.timelineResponse = timeline
 	return m
 }
 
@@ -69,6 +75,10 @@ func (m *MonitorQuerier) GetCurrentMetricsFresh(_ context.Context) (*models.Metr
 
 func (m *MonitorQuerier) GetDetailedMetrics(_ context.Context) (*models.DetailedMetrics, error) {
 	return m.detailedMetrics, m.err
+}
+
+func (m *MonitorQuerier) GetMetricsTimeline(_ context.Context, _, _ int) (*models.MetricsTimelineResponse, error) {
+	return m.timelineResponse, m.err
 }
 
 func (m *MonitorQuerier) GetProcessMonitorData(_ context.Context) (*models.ProcessMonitorData, error) {

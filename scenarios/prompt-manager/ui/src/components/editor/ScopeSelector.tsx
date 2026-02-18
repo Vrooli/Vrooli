@@ -115,10 +115,12 @@ export function ScopeSelector({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          'flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1.5 rounded-md text-sm',
-          'border border-white/10 bg-slate-800 hover:bg-slate-700 transition-colors',
+          'flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-0.5 sm:py-1.5 rounded text-xs sm:text-sm',
+          'text-foreground hover:bg-muted transition-colors',
+          'border border-transparent sm:border-white/10 hover:border-border sm:hover:border-white/10',
+          'sm:bg-slate-800 sm:hover:bg-slate-700',
           disabled && 'opacity-50 cursor-not-allowed',
-          selectedScope && 'border-indigo-500/30'
+          selectedScope && 'sm:border-indigo-500/30'
         )}
         title="Select default scope"
         aria-label={`Select default scope${selectedScope ? `, currently ${selectedScope.name}` : ''}`}

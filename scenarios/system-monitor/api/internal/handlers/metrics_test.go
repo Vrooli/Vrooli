@@ -104,4 +104,90 @@ func TestGetCurrentMetrics_WriteError_NoPanic(t *testing.T) {
 	handler.GetCurrentMetrics(w, req)
 }
 
+func TestGetMetricsTimeline_Success(t *testing.T) {
+	gpu := 45.0
+	mock := handlermocks.NewMonitorQuerier().
+		WithTimelineResponse(&models.MetricsTimelineResponse{
+			WindowSeconds:         120,
+			SampleIntervalSeconds: 5,
+			Samples: []models.MetricTimelineSample{
+				{
+					Timestamp:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+					CPUUsage:       42.5,
+					MemoryUsage:    65.3,
+					TCPConnections: 120,
+					GPUUsage:       &gpu,
+				},
+				{
+					Timestamp:      time.Date(2026, 1, 1, 0, 0, 5, 0, time.UTC),
+					CPUUsage:       44.1,
+					MemoryUsage:    66.0,
+					TCPConnections: 118,
+				},
+			},
+		})
+
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=120", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetMetricsTimeline(w, req)
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+
+	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
+	samples, ok := body["samples"].([]interface{})
+	if !ok {
+		t.Fatal("expected samples array in response")
+	}
+	if len(samples) != 2 {
+		t.Fatalf("expected 2 samples, got %d", len(samples))
+	}
+}
+
+func TestGetMetricsTimeline_EmptySamples(t *testing.T) {
+	mock := handlermocks.NewMonitorQuerier().
+		WithTimelineResponse(&models.MetricsTimelineResponse{
+			WindowSeconds:         120,
+			SampleIntervalSeconds: 5,
+			Samples:               []models.MetricTimelineSample{},
+		})
+
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetMetricsTimeline(w, req)
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+}
+
+func TestGetMetricsTimeline_CustomWindow(t *testing.T) {
+	mock := handlermocks.NewMonitorQuerier().
+		WithTimelineResponse(&models.MetricsTimelineResponse{
+			WindowSeconds:         300,
+			SampleIntervalSeconds: 10,
+			Samples:               []models.MetricTimelineSample{},
+		})
+
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=300&interval=10", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetMetricsTimeline(w, req)
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+}
+
+func TestGetMetricsTimeline_Error(t *testing.T) {
+	mock := handlermocks.NewMonitorQuerier().WithError(fmt.Errorf("timeline retrieval failed"))
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=120", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetMetricsTimeline(w, req)
+	testutil.AssertStatusCode(t, w.Code, http.StatusInternalServerError)
+}
+
 var _ MonitorQuerier = (*handlermocks.MonitorQuerier)(nil)

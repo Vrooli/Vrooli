@@ -321,7 +321,7 @@ export function SkillEditorPanel({
             )}
           </div>
 
-          {/* Row 3: Tags, DefaultScope (for steer skills), and File path menu */}
+          {/* Row 3: Tags, DefaultScope (for steer skills), references, and file path menu */}
           <div className="flex items-center gap-4 flex-wrap">
             <TagChipsEditor
               value={formState.tags}
@@ -342,6 +342,13 @@ export function SkillEditorPanel({
               />
             )}
 
+            {/* Cross-references icon button */}
+            <CrossReferencePanel
+              skillId={currentSkill.id}
+              onNavigateToReference={onNavigateToXRef}
+              className="flex-shrink-0"
+            />
+
             {/* File path menu with filename, breadcrumb, copy actions, and storage toggle */}
             <FilePathMenu
               file={formState.file}
@@ -354,13 +361,6 @@ export function SkillEditorPanel({
               className="flex-shrink-0"
             />
           </div>
-
-          {/* Row 4: Cross-references */}
-          <CrossReferencePanel
-            skillId={currentSkill.id}
-            onNavigateToReference={onNavigateToXRef}
-            className="px-4 py-1"
-          />
         </div>
 
         {/* Content area - full width */}
