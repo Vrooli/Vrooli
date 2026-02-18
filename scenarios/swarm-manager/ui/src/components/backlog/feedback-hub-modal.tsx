@@ -16,6 +16,7 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Select } from "../ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import { ClarifyQuestionList } from "./clarify-question-list";
 import { selectors } from "../../consts/selectors";
 import { backlogService } from "../../services";
 import type { ImportBacklogResponse } from "../../services/backlog-service";
@@ -65,6 +66,8 @@ interface ReviewItemState {
   suggestions: IdeaSuggestion[];
   suggestionsRaw: Record<string, unknown> | null;
   saved: boolean;
+  questionsDirty: boolean;
+  suggestionsDirty: boolean;
 }
 
 function ReviewItemSection({
@@ -74,7 +77,7 @@ function ReviewItemSection({
   item: FeedbackItemSummary;
   onSaved: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [local, setLocal] = useState<ReviewItemState | null>(null);
 
   const clarifyQuery = useQuery({
@@ -101,35 +104,43 @@ function ReviewItemSection({
       suggestions: sResult.suggestions,
       suggestionsRaw: sResult.raw,
       saved: false,
+      questionsDirty: false,
+      suggestionsDirty: false,
     });
   }, [expanded, clarifyQuery.data, suggestQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!local) return;
-      await Promise.all([
-        local.questions.length > 0
-          ? backlogService.saveFileContent(
-              item.kind,
-              item.name,
-              IDEA_AGENT_FILE_PATHS.clarify,
-              buildClarifyQuestionsContent(local.questionsRaw, local.questions),
-              "application/json",
-            )
-          : Promise.resolve(),
-        local.suggestions.length > 0
-          ? backlogService.saveFileContent(
-              item.kind,
-              item.name,
-              IDEA_AGENT_FILE_PATHS.suggest,
-              buildSuggestionsContent(local.suggestionsRaw, local.suggestions),
-              "application/json",
-            )
-          : Promise.resolve(),
-      ]);
+      const promises: Promise<unknown>[] = [];
+      if (local.questionsDirty && local.questions.length > 0) {
+        promises.push(
+          backlogService.saveFileContent(
+            item.kind,
+            item.name,
+            IDEA_AGENT_FILE_PATHS.clarify,
+            buildClarifyQuestionsContent(local.questionsRaw, local.questions),
+            "application/json",
+          ),
+        );
+      }
+      if (local.suggestionsDirty && local.suggestions.length > 0) {
+        promises.push(
+          backlogService.saveFileContent(
+            item.kind,
+            item.name,
+            IDEA_AGENT_FILE_PATHS.suggest,
+            buildSuggestionsContent(local.suggestionsRaw, local.suggestions),
+            "application/json",
+          ),
+        );
+      }
+      if (promises.length > 0) await Promise.all(promises);
     },
     onSuccess: () => {
-      setLocal((prev) => (prev ? { ...prev, saved: true } : prev));
+      setLocal((prev) =>
+        prev ? { ...prev, saved: true, questionsDirty: false, suggestionsDirty: false } : prev,
+      );
       onSaved();
     },
   });
@@ -141,6 +152,7 @@ function ReviewItemSection({
     counts.push(`${item.pending_suggestions} suggestion${item.pending_suggestions === 1 ? "" : "s"}`);
 
   const isLoading = clarifyQuery.isLoading || suggestQuery.isLoading;
+  const isDirty = local ? local.questionsDirty || local.suggestionsDirty : false;
 
   return (
     <div className="rounded-lg border border-white/10 bg-slate-800/40">
@@ -181,33 +193,15 @@ function ReviewItemSection({
                     <MessageSquareText className="h-4 w-4 text-cyan-400" />
                     Questions
                   </div>
-                  {local.questions.map((q, idx) => (
-                    <div key={q.id} className="rounded-lg border border-white/10 bg-slate-900/40 p-3">
-                      <p className="text-sm text-slate-100">
-                        {idx + 1}. {q.question}
-                      </p>
-                      <textarea
-                        value={q.answer ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setLocal((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  saved: false,
-                                  questions: prev.questions.map((item) =>
-                                    item.id === q.id ? { ...item, answer: val } : item,
-                                  ),
-                                }
-                              : prev,
-                          );
-                        }}
-                        placeholder="Your answer..."
-                        className="mt-2 w-full rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                        rows={2}
-                      />
-                    </div>
-                  ))}
+                  <ClarifyQuestionList
+                    questions={local.questions}
+                    onChange={(updated) =>
+                      setLocal((prev) =>
+                        prev ? { ...prev, saved: false, questionsDirty: true, questions: updated } : prev,
+                      )
+                    }
+                    testIdPrefix={`feedback-${item.kind}-${item.name}`}
+                  />
                 </div>
               )}
 
@@ -231,6 +225,7 @@ function ReviewItemSection({
                                 ? {
                                     ...prev,
                                     saved: false,
+                                    suggestionsDirty: true,
                                     suggestions: prev.suggestions.map((item) =>
                                       item.id === s.id ? { ...item, status } : item,
                                     ),
@@ -271,7 +266,7 @@ function ReviewItemSection({
                 <Button
                   size="sm"
                   onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending}
+                  disabled={saveMutation.isPending || !isDirty}
                 >
                   {saveMutation.isPending ? "Saving..." : "Save"}
                 </Button>

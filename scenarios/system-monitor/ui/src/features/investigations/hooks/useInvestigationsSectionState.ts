@@ -35,19 +35,19 @@ export const useInvestigationsSectionState = ({
 
   const activeAgentSummary = useMemo(() => {
     if (agents.length === 0) {
-      return { text: 'No active investigation agents at the moment.', tone: 'idle' as const };
+      return { text: 'No active agents', tone: 'idle' as const };
     }
 
     if (agents.length === 1) {
-      const agent = agents[0] ?? { status: undefined, label: undefined };
-      const statusLabel = typeof agent.status === 'string' ? agent.status.toUpperCase() : 'ACTIVE';
-      const label = agent.label ?? 'Anomaly investigation';
-      const tone = statusLabel === 'ERROR'
+      const agent = agents[0] ?? { status: undefined };
+      const statusLabel = typeof agent.status === 'string' ? agent.status : 'active';
+      const lower = statusLabel.toLowerCase();
+      const tone = lower === 'error'
         ? 'error'
-        : statusLabel === 'COMPLETED'
+        : lower === 'completed'
         ? 'success'
         : 'active';
-      return { text: `${label} • ${statusLabel}`, tone };
+      return { text: statusLabel, tone };
     }
 
     const runningCount = agents.filter(agent => {
@@ -61,14 +61,6 @@ export const useInvestigationsSectionState = ({
       tone: runningCount > 0 ? 'active' as const : 'success' as const,
     };
   }, [agents]);
-
-  const summaryAccentColor = activeAgentSummary.tone === 'error'
-    ? 'var(--color-error)'
-    : activeAgentSummary.tone === 'success'
-    ? 'var(--color-success)'
-    : activeAgentSummary.tone === 'active'
-    ? 'var(--color-primary)'
-    : 'var(--color-text-secondary)';
 
   const handleSpawnAgent = async () => {
     const trimmedNote = agentNote.trim();
@@ -104,7 +96,6 @@ export const useInvestigationsSectionState = ({
     setShowNoteField,
     combinedSpawnError,
     activeAgentSummary,
-    summaryAccentColor,
     handleSpawnAgent,
   };
 };

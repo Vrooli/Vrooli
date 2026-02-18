@@ -1,6 +1,7 @@
+import { FileText } from 'lucide-react';
 import type { Investigation } from '../../../types';
 import { InvestigationStatus } from '../../../types';
-import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
+import { EmptyState } from '../../../shared/components/EmptyState';
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
@@ -28,6 +29,13 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     }
   };
 
+  const getStatusBadgeClass = (status: InvestigationStatus | string) => {
+    if (status === InvestigationStatus.COMPLETED) return 'badge-success';
+    if (status === InvestigationStatus.IN_PROGRESS) return 'badge-warning';
+    if (status === InvestigationStatus.FAILED) return 'badge-error';
+    return '';
+  };
+
   const renderInvestigationCard = (investigation: Investigation, options?: { compact?: boolean }) => {
     const compact = options?.compact ?? false;
     const details = (investigation.details ?? {}) as Record<string, unknown>;
@@ -49,75 +57,28 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
       <div
         key={investigation.id}
         className="investigation-item hover-bg-dark"
-        style={{
-          padding: 'var(--spacing-md)',
-          borderBottom: '1px solid var(--color-primary)',
-          background: 'var(--overlay-light)',
-          transition: 'background 0.2s'
-        }}
       >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 'var(--spacing-xs)'
-        }}>
-          <span style={{ color: 'var(--color-text-heading)', fontWeight: 'bold' }}>
+        <div className="investigation-header">
+          <span className="text-sm font-bold text-bright">
             Investigation {investigation.id}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
             {autoFix && (
-              <span style={{
-                background: 'var(--color-primary-muted)',
-                border: '1px solid var(--color-success)',
-                color: 'var(--color-success)',
-                padding: '2px 6px',
-                borderRadius: '999px',
-                fontSize: 'var(--text-xs)'
-              }}>
-                Auto-Fix
-              </span>
+              <span className="badge badge-success">Auto-Fix</span>
             )}
-            <span style={{
-              color: investigation.status === InvestigationStatus.COMPLETED
-                ? 'var(--color-success)'
-                : investigation.status === InvestigationStatus.IN_PROGRESS
-                ? 'var(--color-warning)'
-                : investigation.status === InvestigationStatus.FAILED
-                ? 'var(--color-error)'
-                : 'var(--color-text-secondary)',
-              fontSize: 'var(--text-sm)',
-              textTransform: 'uppercase'
-            }}>
+            <span className={`badge ${getStatusBadgeClass(investigation.status)}`}>
               {investigation.status}
             </span>
           </div>
         </div>
 
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 'var(--spacing-md)',
-          marginBottom: 'var(--spacing-sm)'
-        }}>
-          <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-            Started: {formattedStart}
-          </span>
-          <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-            Mode: {operationMode}
-          </span>
-          {agentModel && (
-            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-              Model: {agentModel}
-            </span>
-          )}
-          {agentResource && (
-            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-              Resource: {agentResource}
-            </span>
-          )}
+        <div className="investigation-meta">
+          <span className="text-xs text-muted">Started: {formattedStart}</span>
+          <span className="text-xs text-muted">Mode: {operationMode}</span>
+          {agentModel && <span className="text-xs text-muted">Model: {agentModel}</span>}
+          {agentResource && <span className="text-xs text-muted">Resource: {agentResource}</span>}
           {riskLevel && (
-            <span style={{ color: riskColor, fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+            <span className="text-xs font-semibold" style={{ color: riskColor }}>
               Risk: {riskLevel}
             </span>
           )}
@@ -125,60 +86,30 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
 
         {typeof progress === 'number' && !compact && (
           <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-            <div style={{
-              height: '6px',
-              borderRadius: '999px',
-              background: 'var(--color-primary-muted)',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                width: `${Math.max(0, Math.min(100, progress))}%`,
-                height: '6px',
-                background: 'var(--color-success)',
-                transition: 'width var(--transition-normal)'
-              }} />
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+              />
             </div>
-            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
-              Progress: {Math.round(progress)}%
-            </span>
+            <span className="text-xs text-muted">Progress: {Math.round(progress)}%</span>
           </div>
         )}
 
         {investigation.findings && (
-          <div
-            style={{
-              color: 'var(--color-text)',
-              fontSize: 'var(--text-sm)',
-              marginBottom: 'var(--spacing-sm)'
-            }}
-          >
-            {investigation.findings}
-          </div>
+          <div className="text-sm mb-sm">{investigation.findings}</div>
         )}
 
         {userNote && (
-          <div style={{
-            color: 'var(--color-text-secondary)',
-            fontSize: 'var(--text-xs)',
-            fontStyle: 'italic',
-            marginBottom: 'var(--spacing-sm)'
-          }}>
+          <div className="text-xs text-muted" style={{ fontStyle: 'italic', marginBottom: 'var(--spacing-sm)' }}>
             User Note: {userNote}
           </div>
         )}
 
         {typeof confidenceScore === 'number' && !Number.isNaN(confidenceScore) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-              Confidence:
-            </span>
-            <div style={{
-              width: '100px',
-              height: '4px',
-              background: 'var(--color-primary-muted)',
-              borderRadius: '2px',
-              overflow: 'hidden'
-            }}>
+          <div className="investigation-confidence">
+            <span className="text-xs text-muted">Confidence:</span>
+            <div className="investigation-confidence-bar">
               <div style={{
                 width: `${Math.max(0, Math.min(10, confidenceScore)) * 10}%`,
                 height: '100%',
@@ -190,9 +121,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
                 transition: 'width var(--transition-normal)'
               }} />
             </div>
-            <span style={{ color: 'var(--color-primary)', fontSize: 'var(--text-sm)' }}>
-              {confidenceScore}/10
-            </span>
+            <span className="text-xs text-accent">{confidenceScore}/10</span>
           </div>
         )}
       </div>
@@ -204,7 +133,11 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     return (
       <div className="investigation-list">
         {investigations.length === 0 ? (
-          <LoadingSkeleton variant="list" count={3} />
+          <EmptyState
+            icon={FileText}
+            message="No investigations yet"
+            description="Run an anomaly check to generate reports."
+          />
         ) : (
           investigations.map(investigation => renderInvestigationCard(investigation, { compact: true }))
         )}
@@ -214,26 +147,25 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
 
   return (
     <section className="investigations-panel card">
-      <div className="panel-header" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 'var(--spacing-md)'
-      }}>
+      <div className="flex-row-between mb-md">
         <h2 className="section-heading">
           RECENT INVESTIGATIONS
         </h2>
-        <button 
+        <button
           className="btn btn-action"
           onClick={triggerInvestigation}
         >
           RUN ANOMALY CHECK
         </button>
       </div>
-      
+
       <div className="investigation-list">
         {investigations.length === 0 ? (
-          <LoadingSkeleton variant="list" count={3} />
+          <EmptyState
+            icon={FileText}
+            message="No investigations yet"
+            description="Run an anomaly check to generate reports."
+          />
         ) : (
           investigations.map(investigation => renderInvestigationCard(investigation))
         )}

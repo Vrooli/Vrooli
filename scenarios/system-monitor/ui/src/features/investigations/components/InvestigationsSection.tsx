@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp, ChevronDown, Square, Clock } from 'lucide-react';
+import { AlertTriangle, Bot, Play, MessageCircle } from 'lucide-react';
+import { ToggleSwitch } from '../../../shared/components/ToggleSwitch';
 import { InvestigationsPanel } from './InvestigationsPanel';
 import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
 import { AutomaticTriggersSection } from './AutomaticTriggersSection';
@@ -39,7 +40,6 @@ export const InvestigationsSection = ({
     setShowNoteField,
     combinedSpawnError,
     activeAgentSummary,
-    summaryAccentColor,
     handleSpawnAgent,
   } = useInvestigationsSectionState({
     investigations,
@@ -52,6 +52,14 @@ export const InvestigationsSection = ({
     // TODO: Implement API call to update trigger configuration
     console.log('Updating trigger:', triggerId, config);
   };
+
+  const statusBadgeClass = activeAgentSummary.tone === 'error'
+    ? 'badge-error'
+    : activeAgentSummary.tone === 'success'
+    ? 'badge-success'
+    : activeAgentSummary.tone === 'active'
+    ? 'badge-info'
+    : 'badge-warning';
 
   return (
     <div className="panel-accent">
@@ -66,120 +74,65 @@ export const InvestigationsSection = ({
 
         {/* Agent Spawn Card */}
         <div className="agent-spawn-card">
-          <div className="flex-col-gap-lg">
-            <div className="agent-spawn-layout">
-              <Bot
-                size={48}
-                className="agent-spawn-icon"
-                style={{ color: 'var(--color-success)' }}
-              />
-
-              <div className="flex-col-gap-md" style={{ flex: 1, minWidth: '260px' }}>
-                <div>
-                  <h3 className="agent-spawn-title">
-                    System Anomaly Investigation Agent
-                  </h3>
-
-                  <p className="agent-spawn-description">
-                    Launch an autonomous agent to analyze real-time metrics, investigate anomalies, and propose or execute remediation steps. Results and live status now surface in the header for quick access.
-                  </p>
-                </div>
-
-                <div className="flex-col-gap-sm">
-                  <div className="icon-text text-dim-xs">
-                    <Square size={10} />
-                    <span>Active agents are managed from the header control with a full dropdown of progress and stop actions.</span>
-                  </div>
-
-                  <div className="icon-text" style={{
-                    color: summaryAccentColor,
-                    fontSize: 'var(--text-sm)',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}>
-                    <Clock size={14} />
-                    <span>{activeAgentSummary.text}</span>
-                  </div>
-                </div>
-              </div>
+          <div className="agent-spawn-header">
+            <div className="agent-spawn-header-left">
+              <Bot size={16} style={{ color: 'var(--color-success)' }} />
+              <h3 className="agent-spawn-title">Investigation Agent</h3>
+              <span className={`badge ${statusBadgeClass}`}>{activeAgentSummary.text}</span>
             </div>
-
-            {combinedSpawnError && (
-              <div className="error-banner text-sm">
-                {combinedSpawnError}
-              </div>
-            )}
 
             <div className="agent-spawn-controls">
-              <div className="flex-col-gap-sm">
-                <label className="agent-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={autoFixEnabled}
-                    onChange={(event) => setAutoFixEnabled(event.target.checked)}
-                    className="agent-checkbox-input"
-                  />
-                  <Shield size={16} style={{ color: autoFixEnabled ? 'var(--color-success)' : 'var(--color-text-secondary)' }} />
-                  <span style={{
-                    fontWeight: autoFixEnabled ? 'bold' : 'normal',
-                    color: autoFixEnabled ? 'var(--color-text-heading)' : 'inherit'
-                  }}>
-                    Adaptive auto-fix & recovery
-                  </span>
-                </label>
-                <span className="text-dim-xs">
-                  Allows the agent to apply safe remediation steps automatically; otherwise it stays report-only.
-                </span>
-              </div>
+              <label className="agent-checkbox-label">
+                <ToggleSwitch
+                  checked={autoFixEnabled}
+                  onChange={() => setAutoFixEnabled(!autoFixEnabled)}
+                  size="sm"
+                />
+                Auto-fix
+              </label>
 
               <button
-                className="btn btn-secondary icon-text icon-text-xs text-xs"
+                className="btn-icon"
                 onClick={() => setShowNoteField(!showNoteField)}
+                title="Add note for agent context"
               >
-                <MessageCircle size={14} />
-                NOTE
-                {showNoteField ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <MessageCircle size={16} />
               </button>
 
               <button
-                className="btn btn-primary icon-text icon-text-xs"
+                className="btn btn-primary text-xs"
                 onClick={handleSpawnAgent}
                 disabled={isSpawningAgent}
-                style={{
-                  padding: 'var(--spacing-sm) var(--spacing-lg)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}
               >
-                <Play size={16} className={isSpawningAgent ? 'animate-spin' : ''} />
-                {isSpawningAgent ? 'SPAWNING…' : 'SPAWN AGENT'}
+                <Play size={14} className={isSpawningAgent ? 'animate-spin' : ''} />
+                {isSpawningAgent ? 'Spawning...' : 'Spawn Agent'}
               </button>
             </div>
-
-            {showNoteField && (
-              <div className="flex-col-gap-sm">
-                <label
-                  htmlFor="agent-note"
-                  className="text-dim-xs agent-note-label"
-                >
-                  OPTIONAL NOTE FOR AGENT CONTEXT
-                </label>
-                <textarea
-                  id="agent-note"
-                  value={agentNote}
-                  onChange={(event) => setAgentNote(event.target.value)}
-                  rows={3}
-                  className="agent-note-textarea"
-                />
-                <span className="text-dim-xs">
-                  Provide guardrails or extra context. The agent attaches this note to its reasoning and audit trail.
-                </span>
-              </div>
-            )}
           </div>
+
+          {combinedSpawnError && (
+            <div className="error-banner text-sm" style={{ marginTop: 'var(--spacing-sm)' }}>
+              {combinedSpawnError}
+            </div>
+          )}
+
+          {showNoteField && (
+            <div className="flex-col-gap-sm" style={{ marginTop: 'var(--spacing-sm)' }}>
+              <label
+                htmlFor="agent-note"
+                className="text-xs text-muted"
+              >
+                Optional note for agent context
+              </label>
+              <textarea
+                id="agent-note"
+                value={agentNote}
+                onChange={(event) => setAgentNote(event.target.value)}
+                rows={3}
+                className="agent-note-textarea"
+              />
+            </div>
+          )}
         </div>
 
         {/* Automatic Triggers Section */}

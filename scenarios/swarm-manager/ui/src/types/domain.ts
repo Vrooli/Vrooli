@@ -112,6 +112,7 @@ export type IdeaAgentMode = "clarify" | "suggest" | "enhance";
 export interface IdeaClarificationQuestion {
   id: string;
   question: string;
+  options?: string[];
   answer?: string;
 }
 

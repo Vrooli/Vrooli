@@ -21,6 +21,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const toString = (value: unknown): string =>
   typeof value === "string" ? value : value == null ? "" : String(value);
 
+const normalizeOptions = (raw: unknown): string[] | undefined => {
+  if (!Array.isArray(raw)) return undefined;
+  const filtered = raw
+    .map((o: unknown) => (typeof o === "string" ? o : null))
+    .filter((o): o is string => o !== null);
+  return filtered.length > 0 ? filtered : undefined;
+};
+
 const normalizeQuestion = (item: unknown, index: number): IdeaClarificationQuestion | null => {
   if (typeof item === "string") {
     return { id: `q${index + 1}`, question: item, answer: "" };
@@ -30,9 +38,11 @@ const normalizeQuestion = (item: unknown, index: number): IdeaClarificationQuest
     if (!question) {
       return null;
     }
+    const options = normalizeOptions(item.options);
     return {
       id: toString(item.id ?? `q${index + 1}`),
       question,
+      ...(options ? { options } : {}),
       answer: typeof item.answer === "string" ? item.answer : "",
     };
   }

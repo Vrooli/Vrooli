@@ -3,8 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
+import { ClarifyQuestionList } from "./clarify-question-list";
 import { selectors } from "../../consts/selectors";
 import type { IdeaAgentMode, IdeaClarificationQuestion } from "../../types";
+
+type NextAction = IdeaAgentMode | "none";
 
 interface IdeaClarifyPanelProps {
   questions: IdeaClarificationQuestion[];
@@ -12,10 +15,15 @@ interface IdeaClarifyPanelProps {
   parseError?: string;
   isSubmitting: boolean;
   submitError?: string | null;
-  onSubmit: (payload: { questions: IdeaClarificationQuestion[]; nextMode: IdeaAgentMode }) => void;
+  onSubmit: (payload: { questions: IdeaClarificationQuestion[]; nextMode: NextAction }) => void;
 }
 
-const NEXT_MODE_OPTIONS: Array<{ value: IdeaAgentMode; label: string; helper: string }> = [
+const NEXT_ACTION_OPTIONS: Array<{ value: NextAction; label: string; helper: string }> = [
+  {
+    value: "none",
+    label: "No action",
+    helper: "Save your answers without triggering an agent.",
+  },
   {
     value: "suggest",
     label: "Suggest",
@@ -37,7 +45,7 @@ export function IdeaClarifyPanel({
   onSubmit,
 }: IdeaClarifyPanelProps) {
   const [localQuestions, setLocalQuestions] = useState<IdeaClarificationQuestion[]>(questions);
-  const [nextMode, setNextMode] = useState<IdeaAgentMode>("suggest");
+  const [nextMode, setNextMode] = useState<NextAction>("none");
 
   useEffect(() => {
     setLocalQuestions(questions);
@@ -46,8 +54,8 @@ export function IdeaClarifyPanel({
   const hasQuestions = localQuestions.length > 0;
   const hasUnanswered = localQuestions.some((item) => !item.answer || !item.answer.trim());
   const selectionHelper = useMemo(
-    () => NEXT_MODE_OPTIONS.find((option) => option.value === nextMode)?.helper,
-    [nextMode]
+    () => NEXT_ACTION_OPTIONS.find((option) => option.value === nextMode)?.helper,
+    [nextMode],
   );
 
   if (parseError) {
@@ -63,6 +71,12 @@ export function IdeaClarifyPanel({
     );
   }
 
+  const submitLabel = isSubmitting
+    ? "Submitting..."
+    : nextMode === "none"
+      ? "Save Answers"
+      : `Save Answers & Run ${nextMode === "suggest" ? "Suggest" : "Enhance"}`;
+
   return (
     <Card padding="lg" data-testid={selectors.backlogDetails.clarifyPanel}>
       <div className="flex items-start justify-between gap-4">
@@ -72,7 +86,7 @@ export function IdeaClarifyPanel({
             Clarify Questions
           </div>
           <p className="mt-2 text-sm text-slate-400">
-            Answer the agent’s questions below. Your responses will be saved back into {filePath}.
+            Answer the agent's questions below. Your responses will be saved back into {filePath}.
           </p>
         </div>
         <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">
@@ -87,37 +101,26 @@ export function IdeaClarifyPanel({
       )}
 
       {hasQuestions && (
-        <div className="mt-4 space-y-4">
-          {localQuestions.map((question, index) => (
-            <div key={question.id} className="rounded-lg border border-white/10 bg-slate-800/40 p-4">
-              <p className="text-sm font-medium text-slate-100">{index + 1}. {question.question}</p>
-              <textarea
-                value={question.answer ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setLocalQuestions((current) =>
-                    current.map((item) => (item.id === question.id ? { ...item, answer: value } : item))
-                  );
-                }}
-                placeholder="Add your answer..."
-                className="mt-3 w-full rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                rows={3}
-              />
-            </div>
-          ))}
+        <div className="mt-4">
+          <ClarifyQuestionList
+            questions={localQuestions}
+            onChange={setLocalQuestions}
+            testIdPrefix="clarify"
+          />
         </div>
       )}
 
       <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/50 p-4">
         <label htmlFor="clarify-next-mode" className="text-sm font-medium text-slate-200">
-          Next agent
+          What happens next?
         </label>
         <div className="mt-2 flex flex-wrap gap-2" data-testid={selectors.backlogDetails.clarifyNextMode}>
-          {NEXT_MODE_OPTIONS.map((option) => (
+          {NEXT_ACTION_OPTIONS.map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => setNextMode(option.value)}
+              data-testid={option.value === "none" ? selectors.backlogDetails.clarifyNextModeNone : undefined}
               className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                 nextMode === option.value
                   ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/50"
@@ -131,9 +134,9 @@ export function IdeaClarifyPanel({
         {selectionHelper && <p className="mt-2 text-xs text-slate-400">{selectionHelper}</p>}
       </div>
 
-      {hasUnanswered && hasQuestions && (
+      {hasUnanswered && hasQuestions && nextMode !== "none" && (
         <div className="mt-3 text-xs text-slate-400">
-          Answer each question before continuing.
+          Answer each question before running an agent.
         </div>
       )}
 
@@ -146,10 +149,10 @@ export function IdeaClarifyPanel({
       <div className="mt-4 flex justify-end">
         <Button
           onClick={() => onSubmit({ questions: localQuestions, nextMode })}
-          disabled={isSubmitting || !hasQuestions || hasUnanswered}
+          disabled={isSubmitting || !hasQuestions || (hasUnanswered && nextMode !== "none")}
           data-testid={selectors.backlogDetails.clarifySubmit}
         >
-          {isSubmitting ? "Submitting..." : `Save Answers & Run ${nextMode === "suggest" ? "Suggest" : "Enhance"}`}
+          {submitLabel}
         </Button>
       </div>
     </Card>

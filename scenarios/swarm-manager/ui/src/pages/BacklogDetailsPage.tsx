@@ -447,7 +447,7 @@ export function BacklogDetailsPage() {
   });
 
   const clarifyMutation = useMutation({
-    mutationFn: async ({ questions, nextMode }: { questions: IdeaClarificationQuestion[]; nextMode: IdeaAgentMode }) => {
+    mutationFn: async ({ questions, nextMode }: { questions: IdeaClarificationQuestion[]; nextMode: IdeaAgentMode | "none" }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       const content = buildClarifyQuestionsContent(clarifyParsed.raw, questions);
       await backlogService.saveFileContent(
@@ -457,10 +457,12 @@ export function BacklogDetailsPage() {
         content,
         "application/json"
       );
-      await backlogService.research(backlogKind, name, {
-        mode: nextMode,
-        prompt: buildFollowupPrompt(nextMode),
-      });
+      if (nextMode !== "none") {
+        await backlogService.research(backlogKind, name, {
+          mode: nextMode,
+          prompt: buildFollowupPrompt(nextMode),
+        });
+      }
     },
     onSuccess: () => {
       if (!backlogKind || !name) return;

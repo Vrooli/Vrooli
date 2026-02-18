@@ -142,6 +142,7 @@ export const literalSelectors = {
     uploadList: "file-upload-list",
     clarifyPanel: "backlog-clarify-panel",
     clarifyNextMode: "backlog-clarify-next-mode",
+    clarifyNextModeNone: "backlog-clarify-next-mode-none",
     clarifySubmit: "backlog-clarify-submit",
     suggestionsPanel: "backlog-suggestions-panel",
     suggestionsSubmit: "backlog-suggestions-submit",
