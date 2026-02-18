@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/policy"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 )
@@ -404,6 +405,9 @@ type Orchestrator struct {
 
 	// Recommendation extractor for investigation outputs.
 	recommendationExtractor recommendation.Extractor
+
+	// Prompt-manager client for reading investigation prompts from skills.
+	promptClient promptmanager.Client
 }
 
 // OrchestratorConfig holds service configuration.
@@ -537,6 +541,13 @@ func WithFlagValidator(v runner.FlagValidator) Option {
 func WithRecommendationExtractor(extractor recommendation.Extractor) Option {
 	return func(o *Orchestrator) {
 		o.recommendationExtractor = extractor
+	}
+}
+
+// WithPromptClient sets the prompt-manager client for reading investigation prompts from skills.
+func WithPromptClient(client promptmanager.Client) Option {
+	return func(o *Orchestrator) {
+		o.promptClient = client
 	}
 }
 
@@ -2493,11 +2504,28 @@ func valueOrDefault(ptr *domain.RunMode, def domain.RunMode) domain.RunMode {
 // -----------------------------------------------------------------------------
 
 func (o *Orchestrator) GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error) {
+	var settings *domain.InvestigationSettings
 	if o.investigationSettings == nil {
-		// Return defaults if no repository configured
-		return domain.DefaultInvestigationSettings(), nil
+		settings = domain.DefaultInvestigationSettings()
+	} else {
+		var err error
+		settings, err = o.investigationSettings.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return o.investigationSettings.Get(ctx)
+
+	// Overlay prompt templates from prompt-manager skills (overrides DB values)
+	if o.promptClient != nil {
+		if prompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation", nil, false); err == nil {
+			settings.PromptTemplate = prompt
+		}
+		if applyPrompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation-apply", nil, false); err == nil {
+			settings.ApplyPromptTemplate = applyPrompt
+		}
+	}
+
+	return settings, nil
 }
 
 func (o *Orchestrator) UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error {
@@ -2505,14 +2533,32 @@ func (o *Orchestrator) UpdateInvestigationSettings(ctx context.Context, settings
 		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
 	}
 
-	// Validate settings
-	if strings.TrimSpace(settings.PromptTemplate) == "" {
-		return domain.NewValidationError("promptTemplate", "cannot be empty")
-	}
+	// Validate operational settings
 	if !settings.DefaultDepth.IsValid() {
 		return domain.NewValidationError("defaultDepth", "invalid depth value")
 	}
 
+	// Write prompt templates to prompt-manager skills
+	if o.promptClient != nil {
+		if adminClient, ok := o.promptClient.(promptmanager.AdminClient); ok {
+			if settings.PromptTemplate != "" {
+				content := settings.PromptTemplate
+				if _, err := adminClient.UpdateSkill(ctx, "agent-manager-process-investigation",
+					promptmanager.PromptSkillUpdate{Content: &content}); err != nil {
+					return fmt.Errorf("update investigation skill: %w", err)
+				}
+			}
+			if settings.ApplyPromptTemplate != "" {
+				content := settings.ApplyPromptTemplate
+				if _, err := adminClient.UpdateSkill(ctx, "agent-manager-process-investigation-apply",
+					promptmanager.PromptSkillUpdate{Content: &content}); err != nil {
+					return fmt.Errorf("update apply investigation skill: %w", err)
+				}
+			}
+		}
+	}
+
+	// Operational config still saved to local DB
 	return o.investigationSettings.Update(ctx, settings)
 }
 
@@ -2520,5 +2566,15 @@ func (o *Orchestrator) ResetInvestigationSettings(ctx context.Context) error {
 	if o.investigationSettings == nil {
 		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
 	}
+
+	// Revert prompt-manager skills to original version
+	if o.promptClient != nil {
+		if adminClient, ok := o.promptClient.(promptmanager.AdminClient); ok {
+			_ = adminClient.RevertSkillVersion(ctx, "agent-manager-process-investigation", 1)
+			_ = adminClient.RevertSkillVersion(ctx, "agent-manager-process-investigation-apply", 1)
+		}
+	}
+
+	// Reset operational config in DB
 	return o.investigationSettings.Reset(ctx)
 }

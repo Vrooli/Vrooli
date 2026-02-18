@@ -3,12 +3,12 @@
   "schemaVersion": 1,
   "id": "agent-manager-process-investigation",
   "name": "Agent Manager Process Investigation",
-  "description": "Investigation agent prompt for behavioral analysis of failed agent runs.",
+  "description": "Diagnose why agent runs fail by classifying root causes as Environment/Tooling or Agent Setup through active codebase exploration.",
   "modes": ["tools"],
   "tags": ["agent-manager", "investigation"],
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-02-17T00:00:00Z",
   "updatedAt": "2026-02-17T00:00:00Z"
 }

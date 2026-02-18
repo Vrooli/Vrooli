@@ -182,6 +182,11 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.dropInvestigationPromptColumns(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to drop investigation prompt columns")
+		return err
+	}
+
 	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
@@ -246,6 +251,56 @@ func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
 				Operation:  "schema_preflight",
 				EntityType: "Schema",
 				Cause:      err,
+			}
+		}
+	}
+
+	return nil
+}
+
+// dropInvestigationPromptColumns removes prompt_template and apply_prompt_template
+// from investigation_settings if they exist (prompts now live in prompt-manager skills).
+func (db *DB) dropInvestigationPromptColumns(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'investigation_settings'
+	`); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+	if tableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('investigation_settings')"); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+
+	hasColumn := make(map[string]bool, len(columns))
+	for _, col := range columns {
+		hasColumn[col.Name] = true
+	}
+
+	for _, col := range []string{"prompt_template", "apply_prompt_template"} {
+		if hasColumn[col] {
+			if _, err := db.ExecContext(ctx, "ALTER TABLE investigation_settings DROP COLUMN "+col); err != nil {
+				return &domain.DatabaseError{
+					Operation:  "migration",
+					EntityType: "Schema",
+					Cause:      fmt.Errorf("drop column %s: %w", col, err),
+				}
 			}
 		}
 	}

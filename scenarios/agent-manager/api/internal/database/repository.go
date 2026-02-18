@@ -469,13 +469,12 @@ type investigationSettingsRepository struct {
 var _ repository.InvestigationSettingsRepository = (*investigationSettingsRepository)(nil)
 
 // investigationSettingsRow is the database row representation for investigation_settings.
+// Prompt templates are no longer stored in the DB — they live in prompt-manager skills.
 type investigationSettingsRow struct {
-	PromptTemplate      string                        `db:"prompt_template"`
-	ApplyPromptTemplate sql.NullString                `db:"apply_prompt_template"`
-	DefaultDepth        string                        `db:"default_depth"`
-	DefaultContext      InvestigationContextFlagsJSON `db:"default_context"`
-	TagAllowlist        InvestigationTagAllowlistJSON `db:"investigation_tag_allowlist"`
-	UpdatedAt           SQLiteTime                    `db:"updated_at"`
+	DefaultDepth   string                        `db:"default_depth"`
+	DefaultContext InvestigationContextFlagsJSON `db:"default_context"`
+	TagAllowlist   InvestigationTagAllowlistJSON `db:"investigation_tag_allowlist"`
+	UpdatedAt      SQLiteTime                    `db:"updated_at"`
 }
 
 // InvestigationContextFlagsJSON handles JSON serialization for context flags.
@@ -549,15 +548,11 @@ func (j *InvestigationContextFlagsJSON) Scan(src interface{}) error {
 }
 
 func (row *investigationSettingsRow) toDomain() *domain.InvestigationSettings {
-	// Use default if apply prompt template is NULL or empty
-	applyPrompt := row.ApplyPromptTemplate.String
-	if !row.ApplyPromptTemplate.Valid || applyPrompt == "" {
-		applyPrompt = domain.DefaultApplyInvestigationPromptTemplate
-	}
-
 	return &domain.InvestigationSettings{
-		PromptTemplate:            row.PromptTemplate,
-		ApplyPromptTemplate:       applyPrompt,
+		// PromptTemplate and ApplyPromptTemplate are populated by the orchestration
+		// layer from prompt-manager skills (with hardcoded constants as fallback).
+		PromptTemplate:            domain.DefaultInvestigationPromptTemplate,
+		ApplyPromptTemplate:       domain.DefaultApplyInvestigationPromptTemplate,
 		DefaultDepth:              domain.InvestigationDepth(row.DefaultDepth),
 		DefaultContext:            domain.InvestigationContextFlags(row.DefaultContext),
 		InvestigationTagAllowlist: []domain.InvestigationTagRule(row.TagAllowlist),
@@ -566,7 +561,7 @@ func (row *investigationSettingsRow) toDomain() *domain.InvestigationSettings {
 }
 
 func (r *investigationSettingsRepository) Get(ctx context.Context) (*domain.InvestigationSettings, error) {
-	query := `SELECT prompt_template, apply_prompt_template, default_depth, default_context, investigation_tag_allowlist, updated_at
+	query := `SELECT default_depth, default_context, investigation_tag_allowlist, updated_at
 		FROM investigation_settings WHERE id = 1`
 
 	var row investigationSettingsRow
@@ -592,18 +587,10 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 		return wrapDBError("update", "InvestigationSettings", "singleton", err)
 	}
 
-	// Handle apply_prompt_template: store NULL if empty to use default
-	var applyPrompt sql.NullString
-	if settings.ApplyPromptTemplate != "" {
-		applyPrompt = sql.NullString{String: settings.ApplyPromptTemplate, Valid: true}
-	}
-
 	query := `
-		INSERT INTO investigation_settings (id, prompt_template, apply_prompt_template, default_depth, default_context, investigation_tag_allowlist, updated_at)
-		VALUES (1, ?, ?, ?, ?, ?, ?)
+		INSERT INTO investigation_settings (id, default_depth, default_context, investigation_tag_allowlist, updated_at)
+		VALUES (1, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
-			prompt_template = EXCLUDED.prompt_template,
-			apply_prompt_template = EXCLUDED.apply_prompt_template,
 			default_depth = EXCLUDED.default_depth,
 			default_context = EXCLUDED.default_context,
 			investigation_tag_allowlist = EXCLUDED.investigation_tag_allowlist,
@@ -611,8 +598,6 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 	`
 
 	_, err = r.db.ExecContext(ctx, query,
-		settings.PromptTemplate,
-		applyPrompt,
 		string(settings.DefaultDepth),
 		contextJSON,
 		allowlistJSON,

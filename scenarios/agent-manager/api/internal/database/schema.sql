@@ -298,8 +298,6 @@ VALUES (1, 7, 21600);
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS investigation_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    prompt_template TEXT NOT NULL DEFAULT '',
-    apply_prompt_template TEXT,
     default_depth TEXT NOT NULL DEFAULT 'standard',
     default_context TEXT NOT NULL DEFAULT '{}',
     investigation_tag_allowlist TEXT NOT NULL DEFAULT '[]',

@@ -36,16 +36,19 @@ const (
 
 // InvestigationSettings holds configuration for investigation agents.
 // This is a singleton - only one row exists in the database.
+// Prompt templates are managed externally via prompt-manager skills;
+// the PromptTemplate and ApplyPromptTemplate fields are populated at
+// read time by the orchestration layer (not stored in the DB).
 type InvestigationSettings struct {
 	// PromptTemplate is the base instruction sent to investigation agents.
-	// Plain text with NO variables/templating - all dynamic content is provided
-	// as separate context attachments.
-	PromptTemplate string `json:"promptTemplate" db:"prompt_template"`
+	// Populated from prompt-manager skill "agent-manager-process-investigation"
+	// at read time; not stored in the database.
+	PromptTemplate string `json:"promptTemplate"`
 
 	// ApplyPromptTemplate is the base instruction sent to apply investigation agents.
-	// Plain text with NO variables/templating - dynamic content (investigation run ID,
-	// CLI commands) is injected separately.
-	ApplyPromptTemplate string `json:"applyPromptTemplate" db:"apply_prompt_template"`
+	// Populated from prompt-manager skill "agent-manager-process-investigation-apply"
+	// at read time; not stored in the database.
+	ApplyPromptTemplate string `json:"applyPromptTemplate"`
 
 	// DefaultDepth is the default investigation depth: "quick", "standard", or "deep"
 	DefaultDepth InvestigationDepth `json:"defaultDepth" db:"default_depth"`
@@ -206,231 +209,207 @@ func globToRegex(pattern string) string {
 // =============================================================================
 
 // DefaultInvestigationPromptTemplate is the default prompt for investigation agents.
-// This template focuses on BEHAVIORAL ANALYSIS of the agent, not technical debugging.
+// This template classifies failures as Environment/Tooling or Agent Setup through active exploration.
 // Dynamic data (depth, runs, scenarios) is provided as separate context attachments.
-const DefaultInvestigationPromptTemplate = `# Agent-Manager Investigation
+const DefaultInvestigationPromptTemplate = `# Agent-Manager Process Investigation
 
-## CRITICAL: What You Are Investigating
-**You are investigating THE AGENT'S BEHAVIOR, NOT the technical problem it was working on.**
+Diagnose why an agent run failed by classifying the root cause as Environment/Tooling, Agent Setup, or both, through active codebase exploration. Produce a structured report with evidence-backed findings and prioritized recommendations.
 
-Think of yourself as an internal affairs investigator, not a detective trying to solve the same case.
-- ✅ CORRECT: "The agent made a bad decision when it tried to read a 50MB log file"
-- ❌ WRONG: "The bufio.Scanner buffer limit is too small" (this is the problem the agent was investigating)
+## Failure Categories
 
-**DO NOT:**
-- Continue or redo the task the failed agent was working on
-- Investigate the same technical problem the agent was investigating
-- Try to fix code issues the agent discovered (that's for a separate apply run)
-- Reproduce actions that caused the agent to fail (you might fail the same way!)
+| Category | Definition | Example Signals |
+|---|---|---|
+| **Environment/Tooling** | Tools, configs, paths, or services are broken, missing, or misconfigured | Tool errors, missing files, service unreachable, permission denied, command not found, wrong versions |
+| **Agent Setup** | The agent's prompt, context, or instructions are malformed, insufficient, or conflicting | Agent looping on contradictory instructions, misinterpreting task scope, ignoring available tools, missing guardrails, prompt ambiguity |
 
-**DO:**
-- Analyze the agent's decision-making process
-- Identify where the agent got confused or made mistakes
-- Find patterns in agent behavior that led to failure
-- Recommend prompt/instruction improvements to prevent similar failures
+When both categories apply, **investigate Environment/Tooling first** -- a broken environment makes Agent Setup analysis unreliable.
 
-## Your Mission
-You are an expert in AI agent behavior analysis. Your job is to understand WHY THE AGENT BEHAVED THE WAY IT DID.
-Analyze the agent's tool usage, reasoning, and decision points to identify behavioral failures.
+## Scope Boundaries
 
-## Required Investigation Steps
-1. **Review the run events chronologically** - understand the sequence of agent actions
-2. **Identify the decision point** - find where the agent made a choice that led to failure
-3. **Analyze the agent's reasoning** - look at what information the agent had and what it concluded
-4. **Check for confusion signals** - repeated attempts, backtracking, tool misuse, ignoring instructions
-5. **Identify behavioral root cause** - why did the agent make this decision? Missing context? Bad prompt? Misunderstanding?
+**In scope:** Classifying failures, exploring codebase/configs/tools, analyzing prompts for conflicts/gaps, structured recommendations.
+**Out of scope:** Fixing problems (apply skill's job), completing the failed task, architecture redesign.
 
-## Common Agent Behavioral Failures
-- **Scope Creep**: Agent went beyond its assigned task or investigated the wrong thing
-- **Dangerous Reproduction**: Agent reproduced an action that broke a previous agent (self-harm)
-- **Tool Misuse**: Agent used tools incorrectly (unbounded searches, reading huge files, etc.)
-- **Instruction Blindness**: Agent ignored explicit warnings or instructions in its prompt
-- **Context Confusion**: Agent confused what it was supposed to investigate vs. what it was given as data
-- **Infinite Loops**: Agent kept retrying the same failing approach
-- **Missing Safeguards**: Agent didn't check file sizes, output lengths, or resource limits before acting
+## Inputs
 
-## ⚠️ SAFETY WARNING
-**DO NOT reproduce actions from the failed run's event log.** If the agent failed because it:
-- Read a huge file → DO NOT read that file yourself
-- Ran an unbounded search → DO NOT run that search yourself
-- Made an API call that hung → DO NOT make that call yourself
+Context attachments are provided automatically (metadata, run summaries, events, diffs, custom context).
 
-You can ANALYZE the events without REPRODUCING them. Look at what happened, don't re-do it.
-
-## How to Fetch Additional Run Data
-If you need full details beyond the attachments, use the agent-manager CLI:
+For additional data, use the agent-manager CLI:
 ` + "```bash\n" + `agent-manager run get <run-id>      # Full run details
 agent-manager run events <run-id>   # All events with tool calls
 agent-manager run diff <run-id>     # Code changes made
 ` + "```\n" + `
+## Investigation Workflow
+
+### Phase 1: Categorize (all depths)
+1. **Build timeline**: Extract chronological sequence of agent actions from run events
+2. **Extract failure signals**: Identify where progress stopped, reversed, or looped
+3. **Classify signals**: Map each signal to Environment/Tooling, Agent Setup, or both
+4. **Determine primary category**: Environment-blocking signal? Investigate Environment/Tooling first
+
+### Phase 2: Deep Investigation (standard and deep only)
+**Environment/Tooling**: Verify tool availability, check configs, test commands, check file existence/permissions, look for missing deps.
+**Agent Setup**: Analyze prompts/instructions for conflicts, gaps, ambiguity, missing guardrails.
+
+### Phase 3: Synthesize
+For each finding: evidence, root cause, severity (Critical/Major/Gap/Minor), recommendation.
+
+## Signal Classification Table
+
+| Signal | Primary Category |
+|---|---|
+| Tool returns error/not found | Environment/Tooling |
+| File missing or inaccessible | Environment/Tooling |
+| Service unreachable | Environment/Tooling |
+| Permission denied | Environment/Tooling |
+| Config syntax invalid | Environment/Tooling |
+| Agent retries same failing approach | Agent Setup |
+| Agent contradicts its instructions | Agent Setup |
+| Agent misinterprets task scope | Agent Setup |
+| Agent ignores available tools | Agent Setup |
+| Prompt contains contradictory guidance | Agent Setup |
+
+## Safety Guardrails
+
+**DO actively explore**: Read files (check size first -- skip files over 1MB unless essential), run diagnostic commands with timeouts, test tool availability, inspect configurations.
+
+**DO NOT**: Modify any files or state, re-run commands that caused the original failure without safeguards, run unbounded searches without timeouts.
+
 ## Required Report Format
-Provide your findings in this structure:
 
-### 1. Executive Summary
-One-paragraph summary of what behavioral mistake the agent made and why.
+` + "```markdown\n" + `# Investigation Report
 
-### 2. Behavioral Analysis
-- **Decision Timeline**: Key decision points where the agent went wrong (cite event sequence numbers)
-- **Root Behavioral Cause**: Why did the agent make this decision? (e.g., ambiguous instructions, missing guardrails, context confusion)
-- **Contributing Factors**: What else made this failure more likely?
+## Categorization Summary
+- **Primary category**: [Environment/Tooling | Agent Setup | Both]
+- **Confidence**: [High | Medium | Low]
+- **Severity**: [Critical | Major | Gap | Minor]
 
-### 3. Recommendations
-- **Prompt/Instruction Changes**: How should the agent's instructions be modified?
-- **Guardrails to Add**: What safety checks should be added to prevent similar failures?
-- **Training Data**: Should this failure pattern be documented for future reference?`
+## Timeline
+| # | Event | Action | Result | Category Signal |
+|---|---|---|---|---|
+| 1 | ... | ... | ... | ... |
+
+## Environment/Tooling Findings
+| ID | Finding | Evidence | Verification Performed | Severity | Recommendation |
+|---|---|---|---|---|---|
+| E1 | ... | ... | ... | ... | ... |
+
+## Agent Setup Findings
+| ID | Finding | Evidence | Prompt/Instruction Analysis | Severity | Recommendation |
+|---|---|---|---|---|---|
+| A1 | ... | ... | ... | ... | ... |
+
+## Recommendations Summary
+| Priority | ID | Category | Recommendation | Expected Impact |
+|---|---|---|---|---|
+| 1 | ... | ... | ... | ... |
+
+## Risks and Caveats
+- ...
+` + "```"
 
 // DefaultApplyInvestigationPromptTemplate is the default prompt for apply investigation agents.
-// This template focuses on SAFELY IMPLEMENTING fixes recommended by a prior investigation.
+// This template implements fixes from investigation reports organized by category.
 // Dynamic data (investigation run ID, CLI commands) is injected separately by the orchestrator.
 const DefaultApplyInvestigationPromptTemplate = `# Apply Investigation Recommendations
 
-## CRITICAL: What You Are Doing
-**You are applying fixes recommended by a prior investigation run.** Your job is to implement
-changes safely, verify they work, and document what you changed.
+Implement fixes from an investigation report, organized by category, with per-change verification.
 
-Think of yourself as a careful surgeon implementing a treatment plan, not a detective investigating the problem.
-- ✅ CORRECT: "I'll modify the prompt to add a file size check as recommended"
-- ❌ WRONG: "Let me investigate why the agent failed" (that's already been done)
+## Scope Boundaries
 
-**DO NOT:**
-- Make changes beyond what the investigation recommended
-- Skip verification steps
-- Introduce new features or refactors not in the recommendations
-- Apply fixes blindly without understanding the context
-- Re-investigate the original problem (focus on implementing fixes)
+**In scope:** Implementing investigation recommendations, fixing configs/paths/tools, modifying prompts/instructions, verifying fixes.
+**Out of scope:** Re-investigating, adding unrecommended improvements, completing original task.
 
-**DO:**
-- Review the investigation report thoroughly before making changes
-- Implement only the specific fixes recommended
-- Verify each change works as expected
-- Document what you changed and why
-- Be conservative - when in doubt, make smaller changes
+## Inputs
 
-## Safety Protocol
+Context attachments are provided automatically (investigation run summary, events, original run data, custom context).
 
-### 1. Understand Before Acting
-Read the full investigation report first. Understand:
-- What behavioral failure occurred
-- What root cause was identified
-- What specific fixes are recommended
-
-### 2. Minimal Changes Only
-Only implement what's recommended. Do not:
-- Add "nice to have" improvements
-- Refactor surrounding code
-- Fix unrelated issues you notice
-- Expand scope beyond recommendations
-
-### 3. Verify Changes Work
-After each change:
-- Confirm the file was modified correctly
-- Check for syntax errors
-- Verify the change addresses the recommendation
-
-### 4. Rollback Awareness
-Know that your changes can be reverted via git. If something seems wrong:
-- Stop and document the issue
-- Don't try to "fix the fix"
-
-## Required Steps
-
-### Step 1: Review Investigation Report
-Read the investigation report attachments carefully. Extract:
-- The specific recommendations to implement
-- The priority/order of recommendations
-- Any warnings or caveats mentioned
-
-### Step 2: Plan Changes
-Before making any edits, list out:
-- Which files need to be modified
-- What specific changes each file needs
-- The order of changes (dependencies)
-
-### Step 3: Implement Each Recommendation
-For each recommendation:
-1. **Locate** the file(s) to modify
-2. **Read** the current content to understand context
-3. **Plan** the minimal change needed
-4. **Implement** the change
-5. **Verify** the change is correct
-
-### Step 4: Document Changes
-Create a summary of:
-- What recommendations were applied
-- What files were modified
-- What specific changes were made
-- Any recommendations NOT applied and why
-
-## How to Fetch Investigation Data
-If you need full details beyond the attachments, use the agent-manager CLI:
+For additional data, use the agent-manager CLI:
 ` + "```bash\n" + `agent-manager run get <investigation-run-id>      # Full investigation run details
 agent-manager run events <investigation-run-id>   # All events from investigation
 agent-manager run diff <investigation-run-id>     # Any code changes investigation made
 ` + "```\n" + `
-## Common Fix Categories
+## Apply Workflow
 
-### Prompt/Instruction Changes
-- Modify CLAUDE.md or instruction files
-- Add explicit warnings or constraints
-- Clarify ambiguous instructions
-- Add examples of correct behavior
+### Step 1: Parse and Prioritize
+Parse investigation report, extract recommendations by category, order by priority. Apply Environment/Tooling fixes first.
 
-### Guardrail Additions
-- Add file size checks before reading
-- Add output length limits
-- Add loop detection/limits
-- Add explicit scope boundaries
+### Step 2: Apply Environment/Tooling Fixes
+For each recommendation: read target file/config, plan minimal change, implement, verify.
+Common fixes: fix config syntax/values, correct paths, create missing files, fix tool settings.
 
-### Code Fixes
-- Fix error handling
-- Add validation
-- Improve logging
-- Fix resource cleanup
+### Step 3: Apply Agent Setup Fixes
+For each recommendation: read target prompt/instruction file, plan minimal change, implement, verify.
+Common fixes: add guardrails, clarify instructions, resolve contradictions, add examples.
 
-### Configuration Updates
-- Adjust timeouts
-- Modify tool permissions
-- Update limits or thresholds
+### Step 4: Cross-Category Verification
+Check that Environment/Tooling fixes don't conflict with Agent Setup changes. Verify prompt changes reference tools/configs that now exist correctly.
 
-## ⚠️ SAFETY WARNINGS
+### Step 5: Produce Change Report
+Document all changes using the report format below.
 
-**DO NOT:**
-- Delete or overwrite large sections of code without understanding them
-- Modify files outside the scenario being fixed
-- Change system configuration files
-- Remove existing safety checks (only add to them)
-- Make changes that could affect other agents or scenarios
+## Fix Order Decision
 
-**IF UNSURE:**
-- Document the uncertainty in your report
-- Apply only the changes you're confident about
-- Leave questionable recommendations for manual review
+| Situation | Action |
+|---|---|
+| Both categories have recommendations | Apply Environment/Tooling first, then Agent Setup |
+| Only one category | Apply and verify each in priority order |
+| A fix depends on another fix | Apply the dependency first regardless of category |
+
+## Verification Decision Table
+
+| Change Type | Verification Method |
+|---|---|
+| Config file change | Parse/validate the file format |
+| Path correction | Verify the path exists and is accessible |
+| Missing file creation | Verify file exists with expected content |
+| Prompt wording change | Read the full prompt and check for internal consistency |
+| Guardrail addition | Verify it doesn't conflict with existing instructions |
+
+## Safety Guardrails
+
+- Only implement listed recommendations
+- Verify each change individually
+- Don't remove existing safety checks (only add to them)
+- Git-revertible changes only
+- If unclear, use conservative interpretation
+- If fix causes new problem, stop and document -- don't "fix the fix"
 
 ## Required Report Format
 
-### 1. Summary
-Brief overview of what was accomplished.
+` + "```markdown\n" + `# Apply Investigation Report
 
-### 2. Changes Applied
-For each change:
-- **Recommendation**: Which recommendation this addresses
-- **File**: Path to modified file
-- **Change**: Description of what was changed
-- **Verification**: How you verified it's correct
+## Summary
+- **Recommendations received**: [count]
+- **Applied successfully**: [count]
+- **Not applied**: [count]
+- **Verification failures**: [count]
 
-### 3. Recommendations Not Applied
-For any recommendations not implemented:
-- **Recommendation**: What wasn't applied
-- **Reason**: Why (unclear, out of scope, requires manual review, etc.)
-- **Suggestion**: What should happen next
+## Environment/Tooling Changes
+| ID | Recommendation | File | Change | Verification | Status |
+|---|---|---|---|---|---|
+| E1 | ... | ... | ... | ... | Applied |
 
-### 4. Follow-up Actions
-Any additional steps needed:
-- Manual verification required
-- Tests to run
-- Documentation to update`
+## Agent Setup Changes
+| ID | Recommendation | File | Change | Verification | Status |
+|---|---|---|---|---|---|
+| A1 | ... | ... | ... | ... | Applied |
+
+## Not Applied
+| ID | Recommendation | Reason |
+|---|---|---|
+| ... | ... | ... |
+
+## Cross-Category Verification
+- **Conflicts found**: [Yes/No]
+- **Details**: ...
+
+## Follow-Up Actions
+- ...
+` + "```"
 
 // DefaultInvestigationSettings returns the default investigation settings.
+// Prompt templates are populated separately by the orchestration layer from
+// prompt-manager skills (with hardcoded constants as fallback).
 func DefaultInvestigationSettings() *InvestigationSettings {
 	return &InvestigationSettings{
 		PromptTemplate:            DefaultInvestigationPromptTemplate,

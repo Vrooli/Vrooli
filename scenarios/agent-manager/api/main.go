@@ -24,6 +24,7 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/pricing/providers"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/toolexecution"
 	"agent-manager/internal/toolregistry"
@@ -280,6 +281,9 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		}
 	}
 
+	// Create prompt-manager client for investigation prompt skills
+	promptClient := promptmanager.NewHTTPClient()
+
 	// Create recommendation extractor for investigation outputs
 	recommendationExtractor := recommendation.NewOllamaExtractor()
 
@@ -300,6 +304,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithModelRegistry(modelRegistryStore),
 		orchestration.WithRecommendationExtractor(recommendationExtractor),
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
+		orchestration.WithPromptClient(promptClient),
 		orchestration.WithFlagValidator(flagValidator),
 	)
 

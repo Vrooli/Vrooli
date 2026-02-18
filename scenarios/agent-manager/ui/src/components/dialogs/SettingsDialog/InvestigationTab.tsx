@@ -311,6 +311,17 @@ export function InvestigationTab({
                   Base instruction for investigation agents. Dynamic info (depth, scenarios, runs)
                   is provided as separate context attachments.
                 </p>
+                <p className="text-xs text-muted-foreground/70">
+                  Managed by Prompt Manager &mdash;{" "}
+                  <a
+                    href="/prompt-manager/skills/agent-manager-process-investigation"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    Open in Prompt Manager
+                  </a>
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -359,6 +370,17 @@ export function InvestigationTab({
                 <p className="text-xs text-muted-foreground">
                   Base instruction for apply investigation agents. The investigation run ID and
                   CLI commands are injected automatically.
+                </p>
+                <p className="text-xs text-muted-foreground/70">
+                  Managed by Prompt Manager &mdash;{" "}
+                  <a
+                    href="/prompt-manager/skills/agent-manager-process-investigation-apply"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    Open in Prompt Manager
+                  </a>
                 </p>
               </CardContent>
             </Card>

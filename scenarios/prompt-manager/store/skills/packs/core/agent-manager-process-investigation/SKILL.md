@@ -1,72 +1,205 @@
-# Agent-Manager Investigation
+## Meta focus: Agent-Manager Process Investigation
 
-## CRITICAL: What You Are Investigating
-**You are investigating THE AGENT'S BEHAVIOR, NOT the technical problem it was working on.**
+Diagnose why an agent run failed by classifying the root cause as Environment/Tooling, Agent Setup, or both, through active codebase exploration. Produce a structured report with evidence-backed findings and prioritized recommendations.
 
-Think of yourself as an internal affairs investigator, not a detective trying to solve the same case.
-- ✅ CORRECT: "The agent made a bad decision when it tried to read a 50MB log file"
-- ❌ WRONG: "The bufio.Scanner buffer limit is too small" (this is the problem the agent was investigating)
+Required reading:
+- `prompt-manager skill read skill-principles`
+- `prompt-manager skill read conversation-friction-analysis`
 
-**DO NOT:**
-- Continue or redo the task the failed agent was working on
-- Investigate the same technical problem the agent was investigating
-- Try to fix code issues the agent discovered (that's for a separate apply run)
-- Reproduce actions that caused the agent to fail (you might fail the same way!)
+---
 
-**DO:**
-- Analyze the agent's decision-making process
-- Identify where the agent got confused or made mistakes
-- Find patterns in agent behavior that led to failure
-- Recommend prompt/instruction improvements to prevent similar failures
+### 1. Scope Boundaries
 
-## Your Mission
-You are an expert in AI agent behavior analysis. Your job is to understand WHY THE AGENT BEHAVED THE WAY IT DID.
-Analyze the agent's tool usage, reasoning, and decision points to identify behavioral failures.
+**In scope:**
+- Classifying failures into Environment/Tooling, Agent Setup, or both
+- Exploring the codebase, configs, tools, and file system to gather evidence
+- Analyzing prompts and instructions for conflicts, gaps, and ambiguity
+- Producing structured recommendations for the apply skill to implement
 
-## Required Investigation Steps
-1. **Review the run events chronologically** - understand the sequence of agent actions
-2. **Identify the decision point** - find where the agent made a choice that led to failure
-3. **Analyze the agent's reasoning** - look at what information the agent had and what it concluded
-4. **Check for confusion signals** - repeated attempts, backtracking, tool misuse, ignoring instructions
-5. **Identify behavioral root cause** - why did the agent make this decision? Missing context? Bad prompt? Misunderstanding?
+**Out of scope:**
+- Fixing problems (that is the apply skill's job)
+- Completing or re-attempting the failed task
+- Architecture redesign or feature work
+- Investigating problems unrelated to the failed run
 
-## Common Agent Behavioral Failures
-- **Scope Creep**: Agent went beyond its assigned task or investigated the wrong thing
-- **Dangerous Reproduction**: Agent reproduced an action that broke a previous agent (self-harm)
-- **Tool Misuse**: Agent used tools incorrectly (unbounded searches, reading huge files, etc.)
-- **Instruction Blindness**: Agent ignored explicit warnings or instructions in its prompt
-- **Context Confusion**: Agent confused what it was supposed to investigate vs. what it was given as data
-- **Infinite Loops**: Agent kept retrying the same failing approach
-- **Missing Safeguards**: Agent didn't check file sizes, output lengths, or resource limits before acting
+---
 
-## ⚠️ SAFETY WARNING
-**DO NOT reproduce actions from the failed run's event log.** If the agent failed because it:
-- Read a huge file → DO NOT read that file yourself
-- Ran an unbounded search → DO NOT run that search yourself
-- Made an API call that hung → DO NOT make that call yourself
+### 2. Failure Categories
 
-You can ANALYZE the events without REPRODUCING them. Look at what happened, don't re-do it.
+Failures fall into two categories:
 
-## How to Fetch Additional Run Data
-If you need full details beyond the attachments, use the agent-manager CLI:
+| Category | Definition | Example Signals |
+|---|---|---|
+| **Environment/Tooling** | Tools, configs, paths, or services are broken, missing, or misconfigured | Tool errors, missing files, service unreachable, permission denied, command not found, wrong versions |
+| **Agent Setup** | The agent's prompt, context, or instructions are malformed, insufficient, or conflicting | Agent looping on contradictory instructions, misinterpreting task scope, ignoring available tools, missing guardrails, prompt ambiguity |
+
+When both categories apply, **investigate Environment/Tooling first** -- a broken environment makes Agent Setup analysis unreliable.
+
+---
+
+### 3. Inputs
+
+Context attachments provided automatically:
+- **Investigation metadata**: depth, run IDs, timestamp
+- **Investigation context**: project root, scope paths
+- **Run summaries**: status, timing, configuration per run
+- **Run events**: chronological tool calls, reasoning, outputs
+- **Run diffs**: code changes made during runs
+- **Custom context**: user-provided additional information
+
+For additional data beyond attachments, use the agent-manager CLI:
 ```bash
 agent-manager run get <run-id>      # Full run details
 agent-manager run events <run-id>   # All events with tool calls
 agent-manager run diff <run-id>     # Code changes made
 ```
 
-## Required Report Format
-Provide your findings in this structure:
+---
 
-### 1. Executive Summary
-One-paragraph summary of what behavioral mistake the agent made and why.
+### 4. Investigation Workflow
 
-### 2. Behavioral Analysis
-- **Decision Timeline**: Key decision points where the agent went wrong (cite event sequence numbers)
-- **Root Behavioral Cause**: Why did the agent make this decision? (e.g., ambiguous instructions, missing guardrails, context confusion)
-- **Contributing Factors**: What else made this failure more likely?
+#### Phase 1: Categorize (all depths)
 
-### 3. Recommendations
-- **Prompt/Instruction Changes**: How should the agent's instructions be modified?
-- **Guardrails to Add**: What safety checks should be added to prevent similar failures?
-- **Training Data**: Should this failure pattern be documented for future reference?
+1. **Build timeline**: Extract chronological sequence of agent actions from run events. Note tool calls, their results, reasoning steps, and decision points.
+2. **Extract failure signals**: Identify where progress stopped, reversed, or looped. Use the Signal Classification Table below.
+3. **Classify signals**: Map each signal to Environment/Tooling, Agent Setup, or both.
+4. **Determine primary category**: Use the Category Priority Decision flow.
+
+#### Phase 2: Deep Investigation (standard and deep only)
+
+Apply the `conversation-friction-analysis` methodology across both categories:
+- Use its friction detection patterns (retries, command mismatches, dead-end loops) to find failure points
+- Use its root-cause attribution layers (`CLI/tool output`, `Tool capability`, `Skill design`, `Docs/discovery`, `Process/policy`, `Intent/inputs`) to classify causes
+- Use its severity scoring (Critical/Major/Gap/Minor) to prioritize findings
+
+**Environment/Tooling investigation:**
+- Verify tool availability: run `which <tool>`, check version output
+- Check config files: read relevant configs, validate syntax
+- Test commands: run safe diagnostic commands (with timeouts)
+- Check file existence and permissions for referenced paths
+- Look for missing dependencies or version mismatches
+- Verify service connectivity where relevant
+
+**Agent Setup investigation:**
+- Read the agent's prompt/instructions (CLAUDE.md, skill files, task description)
+- Identify contradictions between instruction sources
+- Find gaps where the agent needed guidance but had none
+- Check for ambiguous instructions that could be misinterpreted
+- Look for missing guardrails that would have prevented the failure
+- Assess whether context attachments provided sufficient information
+
+#### Phase 3: Synthesize (all depths)
+
+For each finding, document:
+- **Evidence**: specific event references, file contents, command outputs
+- **Root cause**: what specifically caused this failure
+- **Severity**: Critical, Major, Gap, or Minor (per `conversation-friction-analysis` severity model)
+- **Recommendation**: specific, actionable fix for the apply skill to implement
+
+---
+
+### 5. Convergence Patterns
+
+#### Signal Classification Table
+
+| Signal | Primary Category | Example |
+|---|---|---|
+| Tool returns error/not found | Environment/Tooling | `command not found: gofumpt` |
+| File missing or inaccessible | Environment/Tooling | `no such file or directory: /path/to/config` |
+| Service unreachable | Environment/Tooling | `connection refused on port 5432` |
+| Permission denied | Environment/Tooling | `EACCES: permission denied` |
+| Wrong tool version | Environment/Tooling | API changed between versions |
+| Config syntax invalid | Environment/Tooling | Malformed YAML/JSON/TOML |
+| Agent retries same failing approach | Agent Setup | 3+ attempts with identical strategy |
+| Agent contradicts its own instructions | Agent Setup | Prompt says X, agent does Y |
+| Agent misinterprets task scope | Agent Setup | Investigates unrelated subsystem |
+| Agent ignores available tools | Agent Setup | Manual work when tool exists |
+| Agent lacks needed guardrails | Agent Setup | No file size check before reading |
+| Prompt contains contradictory guidance | Agent Setup | Two instructions conflict |
+
+#### Category Priority Decision
+
+```
+Has environment-blocking signal? (tool error, missing file, service down)
+  ├─ Yes → Investigate Environment/Tooling first
+  │        └─ Environment issues resolved/documented?
+  │             └─ Yes → Then investigate Agent Setup if signals exist
+  └─ No  → Investigate Agent Setup as primary category
+```
+
+#### Depth Guidance
+
+| Depth | Phase 1 | Phase 2 | Expected effort |
+|---|---|---|---|
+| Quick | Full categorization | Minimal spot-checking of primary category only | 2-3 minutes |
+| Standard | Full categorization | Targeted deep-dive into primary failure category | 5-10 minutes |
+| Deep | Full categorization | Thorough investigation of all applicable categories | 15-20 minutes |
+
+---
+
+### 6. Safety Guardrails
+
+**DO actively explore:**
+- Read files (check size first -- skip files over 1MB unless essential)
+- Run diagnostic commands with timeouts
+- Test tool availability and versions
+- Inspect configurations and prompt files
+
+**DO NOT:**
+- Modify any files or state (that is the apply skill's job)
+- Re-run commands that caused the original failure without safeguards
+- Read files the failed agent struggled with without checking size first
+- Run unbounded searches or commands without timeouts
+- Execute commands that could affect running services
+
+Scope constraint: limit exploration to the project root and paths referenced in run events.
+
+---
+
+### 7. Output Expectations
+
+Produce this report:
+
+```markdown
+# Investigation Report
+
+## Categorization Summary
+- **Primary category**: [Environment/Tooling | Agent Setup | Both]
+- **Confidence**: [High | Medium | Low]
+- **Severity**: [Critical | Major | Gap | Minor]
+
+## Timeline
+| # | Event | Action | Result | Category Signal |
+|---|---|---|---|---|
+| 1 | ... | ... | ... | ... |
+
+## Environment/Tooling Findings
+| ID | Finding | Evidence | Verification Performed | Severity | Recommendation |
+|---|---|---|---|---|---|
+| E1 | ... | ... | ... | ... | ... |
+
+## Agent Setup Findings
+| ID | Finding | Evidence | Prompt/Instruction Analysis | Severity | Recommendation |
+|---|---|---|---|---|---|
+| A1 | ... | ... | ... | ... | ... |
+
+## Recommendations Summary
+| Priority | ID | Category | Recommendation | Expected Impact |
+|---|---|---|---|---|
+| 1 | ... | ... | ... | ... |
+
+## Risks and Caveats
+- ...
+```
+
+If a category has no findings, include the section header with "No findings in this category."
+
+---
+
+### 8. Troubleshooting & Edge Cases
+
+- **Empty or minimal events**: If run events are empty or contain only a start event, check if the run was killed before producing output. Note this in the report and base analysis on available metadata.
+- **Inaccessible project root**: If the project root doesn't exist or is inaccessible, document this as an Environment/Tooling finding and proceed with analysis based on run events alone.
+- **Both categories critical**: When both categories have Critical severity findings, document all findings but recommend Environment/Tooling fixes be applied first in the recommendations summary.
+- **Transient failures**: If evidence suggests a transient issue (network blip, resource contention), note the transience and recommend monitoring rather than code changes. Mark severity as Gap unless it caused data loss.
+- **Insufficient evidence**: If you cannot determine root cause with confidence, set confidence to Low and list what additional information would be needed.
