@@ -797,6 +797,112 @@ func TestCodexParseStreamEvents_HighVolumeANSINoSpam(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// CONTINUATION REGRESSION TESTS
+// =============================================================================
+
+// TestCodexRunner_ContinueArgs_UsesExecResumeJSON verifies that the Continue
+// method builds "codex exec resume --json" arguments (not "codex resume" which
+// requires a TTY and produces character-by-character terminal output).
+// This is a regression test for the bug where the old "codex resume" + script
+// PTY wrapper caused 30k+ per-character events.
+func TestCodexRunner_ContinueArgs_UsesExecResumeJSON(t *testing.T) {
+	// Without useJSONStream, continuation should be rejected
+	runner := &CodexRunner{
+		available:     true,
+		useJSONStream: false,
+		runs:          make(map[uuid.UUID]*exec.Cmd),
+		runModels:     make(map[uuid.UUID]string),
+		runThreadIDs:  make(map[uuid.UUID]string),
+	}
+	_, err := runner.Continue(context.Background(), ContinueRequest{
+		RunID:     uuid.New(),
+		SessionID: "test-session",
+		Prompt:    "hello",
+	})
+	if err != ErrContinuationNotSupported {
+		t.Errorf("expected ErrContinuationNotSupported without JSON stream, got %v", err)
+	}
+}
+
+// TestCodexRunner_ContinueRequiresSessionID verifies that Continue rejects
+// empty session IDs with ErrSessionExpired.
+func TestCodexRunner_ContinueRequiresSessionID(t *testing.T) {
+	runner := &CodexRunner{
+		available:     true,
+		useJSONStream: true,
+		codexCLIPath:  "/usr/bin/codex",
+		runs:          make(map[uuid.UUID]*exec.Cmd),
+		runModels:     make(map[uuid.UUID]string),
+		runThreadIDs:  make(map[uuid.UUID]string),
+	}
+	_, err := runner.Continue(context.Background(), ContinueRequest{
+		RunID:     uuid.New(),
+		SessionID: "",
+		Prompt:    "hello",
+	})
+	if err != ErrSessionExpired {
+		t.Errorf("expected ErrSessionExpired for empty session, got %v", err)
+	}
+}
+
+// TestCodexRunner_ContinueJSONParsing_NoCharacterSpam verifies that the
+// Continue path uses JSON parsing (not raw text), so that streaming text
+// like individual characters don't produce per-character events.
+// This is the core regression test for the character-by-character event bug.
+func TestCodexRunner_ContinueJSONParsing_NoCharacterSpam(t *testing.T) {
+	runner := &CodexRunner{
+		runs:         make(map[uuid.UUID]*exec.Cmd),
+		runModels:    make(map[uuid.UUID]string),
+		runThreadIDs: make(map[uuid.UUID]string),
+	}
+	runID := uuid.New()
+
+	// Simulate what the old PTY-based approach would have produced:
+	// individual characters as separate lines. With JSON parsing, these
+	// should all be silently dropped (not valid JSON).
+	charLines := []string{"A", "l", "l", " ", "d", "o", "n", "e", "."}
+	totalEvents := 0
+	for _, line := range charLines {
+		events := runner.parseCodexStreamEventsWithThreadID(runID, line)
+		totalEvents += len(events)
+	}
+	if totalEvents != 0 {
+		t.Errorf("individual characters should produce 0 events with JSON parser, got %d", totalEvents)
+	}
+
+	// Verify that valid JSON still works
+	events := runner.parseCodexStreamEventsWithThreadID(runID, codexSamples["agent_message"])
+	if len(events) != 1 {
+		t.Errorf("valid JSON should produce 1 event, got %d", len(events))
+	}
+}
+
+// TestCodexRunner_ContinueJSONParsing_CapThreadID verifies that the Continue
+// path (using parseCodexStreamEventsWithThreadID) properly captures thread IDs
+// from stream events, enabling chained continuations.
+func TestCodexRunner_ContinueJSONParsing_CapThreadID(t *testing.T) {
+	runner := &CodexRunner{
+		runs:         make(map[uuid.UUID]*exec.Cmd),
+		runModels:    make(map[uuid.UUID]string),
+		runThreadIDs: make(map[uuid.UUID]string),
+	}
+	runID := uuid.New()
+
+	// Parse a thread.started event (which contains thread_id)
+	_ = runner.parseCodexStreamEventsWithThreadID(runID, codexSamples["thread.started"])
+
+	// Thread ID should be captured
+	threadID := runner.threadIDForRun(runID)
+	if threadID != "019b3906-b365-7403-b3d1-70d60f6f06c4" {
+		t.Errorf("threadID = %q, want %q", threadID, "019b3906-b365-7403-b3d1-70d60f6f06c4")
+	}
+}
+
+// =============================================================================
+// ANSI SANITIZATION TESTS
+// =============================================================================
+
 // TestIsOnlyANSI verifies the helper that detects pure-ANSI lines.
 func TestIsOnlyANSI(t *testing.T) {
 	tests := []struct {

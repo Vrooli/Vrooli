@@ -1060,7 +1060,9 @@ func (r *CodexRunner) threadIDForRun(runID uuid.UUID) string {
 }
 
 // Continue resumes an existing session with a follow-up message.
-// Uses Codex's "resume" command to continue the conversation.
+// Uses "codex exec resume --json" for structured JSONL output, matching the
+// Execute path. This avoids the PTY/script wrapper that caused character-by-
+// character event spam when using the interactive "codex resume" command.
 func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
 	if !r.available {
 		return nil, &domain.RunnerError{
@@ -1076,33 +1078,32 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	}
 
 	if !r.useJSONStream {
-		// Resume requires direct codex CLI
+		// exec resume --json requires direct codex CLI
 		return nil, ErrContinuationNotSupported
 	}
 
 	startTime := time.Now()
 
-	// Build command arguments for codex resume.
-	// codex resume expects the prompt as an argument (stdin is ignored).
-	codexArgs := []string{"resume"}
-	if req.WorkingDir != "" {
-		codexArgs = append(codexArgs, "-C", req.WorkingDir)
+	// Build command arguments for "codex exec resume --json".
+	// This is the non-interactive equivalent of "codex resume" and emits
+	// structured JSONL events on stdout — no PTY wrapper needed.
+	codexArgs := []string{
+		"exec", "resume",
+		"--json",
+		"--skip-git-repo-check",
+		"--full-auto",
 	}
-	codexArgs = append(codexArgs, "--full-auto", req.SessionID)
+	// Note: "codex exec resume" does not support -C/--cd; the working
+	// directory is set via cmd.Dir below instead.
+	codexArgs = append(codexArgs, req.SessionID)
 	if strings.TrimSpace(req.Prompt) != "" {
 		codexArgs = append(codexArgs, req.Prompt)
 	}
 
-	// codex resume requires a TTY; wrap it with `script` to allocate a pseudo-terminal.
-	scriptPath, err := exec.LookPath("script")
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "continue",
-			Cause:      fmt.Errorf("script not found for TTY allocation: %w", err),
-		}
-	}
-	cmd := exec.CommandContext(ctx, scriptPath, "-q", "/dev/null", "-c", shellEscapeCommand(r.codexCLIPath, codexArgs...))
+	// Create command using direct codex CLI (same pattern as executeWithJSONStream).
+	tag := fmt.Sprintf("codex-continue-%s", req.RunID.String()[:8])
+	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, codexArgs...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
 	if req.WorkingDir != "" {
 		cmd.Dir = req.WorkingDir
 	}
@@ -1163,10 +1164,9 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		))
 	}
 
-	// Process streaming output
+	// Process streaming JSON output (same as executeWithJSONStream)
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
-	var outputBuilder strings.Builder
 	var errorOutput strings.Builder
 
 	// Read stderr in background
@@ -1178,38 +1178,59 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}()
 
-	// Read stdout (codex resume does not emit JSON) — strip ANSI and skip pure-formatting lines
+	// Parse streaming JSONL output using the same parser as Execute
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if line == "" || isOnlyANSI(line) {
+		if line == "" {
 			continue
 		}
-		cleaned := stripANSI(line)
-		if strings.TrimSpace(cleaned) == "" {
+
+		// Parse the streaming event(s) and capture thread_id
+		events := r.parseCodexStreamEventsWithThreadID(req.RunID, line)
+		if len(events) == 0 {
 			continue
 		}
-		outputBuilder.WriteString(cleaned)
-		outputBuilder.WriteString("\n")
-		if req.EventSink != nil {
-			_ = req.EventSink.Emit(domain.NewLogEvent(
-				req.RunID,
-				"info",
-				cleaned,
-			))
+
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			// Update metrics based on event
+			r.updateCodexMetrics(event, &metrics, &lastAssistantMessage)
+
+			// Emit to sink
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(event)
+			}
 		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID,
+			"warn",
+			fmt.Sprintf("Codex continuation scan error: %v", scanErr),
+		))
 	}
 
 	// Wait for command to complete
 	err = cmd.Wait()
 	duration := time.Since(startTime)
 
+	// Capture thread ID (may have been updated during continuation)
+	sessionID := r.threadIDForRun(req.RunID)
+	defer r.clearThreadID(req.RunID)
+	if sessionID == "" {
+		sessionID = req.SessionID // Preserve the original if no new one was emitted
+	}
+
 	// Determine result
 	result := &ExecuteResult{
 		Duration:  duration,
 		Metrics:   metrics,
-		SessionID: req.SessionID, // Preserve the session ID for further continuations
+		SessionID: sessionID,
 	}
 
 	if err != nil {
@@ -1233,20 +1254,11 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	} else {
 		result.Success = true
 		result.ExitCode = 0
-		output := strings.TrimSpace(outputBuilder.String())
-		if output != "" {
-			lastAssistantMessage = output
-		}
-		if lastAssistantMessage != "" {
-			result.Summary = &domain.RunSummary{
-				Description:  lastAssistantMessage,
-				TurnsUsed:    metrics.TurnsUsed,
-				TokensUsed:   TotalTokens(metrics),
-				CostEstimate: metrics.CostEstimateUSD,
-			}
-		}
-		if req.EventSink != nil && output != "" {
-			_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "assistant", output))
+		result.Summary = &domain.RunSummary{
+			Description:  lastAssistantMessage,
+			TurnsUsed:    metrics.TurnsUsed,
+			TokensUsed:   TotalTokens(metrics),
+			CostEstimate: metrics.CostEstimateUSD,
 		}
 	}
 
@@ -1266,25 +1278,6 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	}
 
 	return result, nil
-}
-
-func shellEscapeCommand(command string, args ...string) string {
-	escaped := make([]string, 0, len(args)+1)
-	escaped = append(escaped, shellEscapeArg(command))
-	for _, arg := range args {
-		escaped = append(escaped, shellEscapeArg(arg))
-	}
-	return strings.Join(escaped, " ")
-}
-
-func shellEscapeArg(arg string) string {
-	if arg == "" {
-		return "''"
-	}
-	if strings.ContainsAny(arg, " \t\n'\"\\$`") {
-		return "'" + strings.ReplaceAll(arg, "'", "'\"'\"'") + "'"
-	}
-	return arg
 }
 
 // parseCodexStreamEventsWithThreadID is like parseCodexStreamEvents but also captures thread_id.
