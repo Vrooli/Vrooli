@@ -42,16 +42,19 @@
     "api": {
       "env_var": "API_PORT",
       "description": "Go API server",
+      "port": 18800,
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
+      "port": 36238,
       "range": "35000-39999"
     },
     "websocket": {
       "env_var": "WS_PORT",
       "description": "WebSocket channel",
+      "port": 25100,
       "range": "25000-29999"
     }
   },

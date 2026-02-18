@@ -7,7 +7,7 @@
  * - Dirty indicators
  * - Checkbox selection for combine mode
  */
-// AI_CHECK: SIDEBAR_TREE_RESELECT_RENDER=1 | LAST: 2026-02-17
+// AI_CHECK: SIDEBAR_TREE_RESELECT_RENDER=2 | LAST: 2026-02-18
 
 import { memo, type ReactNode } from 'react'
 import { ChevronRight, ChevronDown, FolderOpen, Check, Minus } from 'lucide-react'
@@ -240,9 +240,57 @@ function areEqual(prev: TreeNodeProps, next: TreeNodeProps): boolean {
   if (prev.onCategoryContextMenu !== next.onCategoryContextMenu) return false
   if (prev.onSkillContextMenu !== next.onSkillContextMenu) return false
 
-  if ((prev.expandedNodes.has(prev.node.id)) !== (next.expandedNodes.has(next.node.id))) return false
+  const wasExpanded = prev.expandedNodes.has(prev.node.id)
+  const isExpanded = next.expandedNodes.has(next.node.id)
+  if (wasExpanded !== isExpanded) return false
   if ((prev.dirtyCountByNodeId.get(prev.node.id) ?? 0) !== (next.dirtyCountByNodeId.get(next.node.id) ?? 0)) return false
   if ((prev.selectionStateByNodeId?.get(prev.node.id) ?? 'none') !== (next.selectionStateByNodeId?.get(next.node.id) ?? 'none')) return false
+
+  if (prev.node.isCategory && isExpanded) {
+    if (prev.skillsById !== next.skillsById) return false
+    if (prev.editedNameById !== next.editedNameById) return false
+    if (prev.dirtyItemIds !== next.dirtyItemIds) return false
+
+    const hasItemInSubtree = (node: TreeNodeType, itemId: string): boolean => {
+      for (const child of node.children) {
+        if (child.isCategory) {
+          if (hasItemInSubtree(child, itemId)) return true
+        } else if (child.itemId === itemId) {
+          return true
+        }
+      }
+      return false
+    }
+
+    if (prev.selectedItemId !== next.selectedItemId) {
+      const prevSelectedInSubtree = prev.selectedItemId
+        ? hasItemInSubtree(prev.node, prev.selectedItemId)
+        : false
+      const nextSelectedInSubtree = next.selectedItemId
+        ? hasItemInSubtree(next.node, next.selectedItemId)
+        : false
+      if (prevSelectedInSubtree || nextSelectedInSubtree) return false
+    }
+
+    const hasExpandedDescendantDelta = (
+      node: TreeNodeType,
+      prevExpandedSet: Set<string>,
+      nextExpandedSet: Set<string>
+    ): boolean => {
+      for (const child of node.children) {
+        if (!child.isCategory) continue
+        if (prevExpandedSet.has(child.id) !== nextExpandedSet.has(child.id)) {
+          return true
+        }
+        if (hasExpandedDescendantDelta(child, prevExpandedSet, nextExpandedSet)) {
+          return true
+        }
+      }
+      return false
+    }
+
+    if (hasExpandedDescendantDelta(prev.node, prev.expandedNodes, next.expandedNodes)) return false
+  }
 
   if (!prev.node.isCategory && prev.node.itemId) {
     const id = prev.node.itemId

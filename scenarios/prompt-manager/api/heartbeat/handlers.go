@@ -1093,6 +1093,23 @@ func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
 		opts.Offset = parsed
 	}
 
+	// agent-manager list-runs filters by agent_profile_id (UUID), not profile_key.
+	// Resolve profile_key to ID before forwarding so UI profile scoping works.
+	if opts.ProfileKey != "" {
+		resolved, err := h.agentClient.EnsureProfile(r.Context(), &EnsureProfileRequest{
+			ProfileKey: opts.ProfileKey,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if resolved == nil || resolved.Profile == nil || resolved.Profile.ID == "" {
+			http.Error(w, "failed to resolve profile_key to profile id", http.StatusBadGateway)
+			return
+		}
+		opts.AgentProfileID = resolved.Profile.ID
+	}
+
 	result, err := h.agentClient.ListRuns(r.Context(), opts)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)

@@ -51,6 +51,7 @@ type ProfileRef struct {
 // AgentProfile defines the configuration for running an agent.
 // JSON tags use snake_case to match agent-manager's protojson schema.
 type AgentProfile struct {
+	ID                   string   `json:"id,omitempty"`
 	Name                 string   `json:"name"`
 	ProfileKey           string   `json:"profile_key"`
 	Description          string   `json:"description,omitempty"`
@@ -126,6 +127,7 @@ type ListRunsOptions struct {
 	Status                    string
 	TagPrefix                 string
 	ProfileKey                string
+	AgentProfileID            string
 	TaskID                    string
 	InvestigatesRunID         string
 	AppliesInvestigationRunID string
@@ -368,8 +370,8 @@ func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions)
 	if opts.TagPrefix != "" {
 		params = append(params, "tag_prefix="+opts.TagPrefix)
 	}
-	if opts.ProfileKey != "" {
-		params = append(params, "profile_key="+opts.ProfileKey)
+	if opts.AgentProfileID != "" {
+		params = append(params, "agent_profile_id="+opts.AgentProfileID)
 	}
 	if opts.TaskID != "" {
 		params = append(params, "task_id="+opts.TaskID)

@@ -7,16 +7,18 @@
  * - Polls every 10s when active runs exist
  * - Returns { runs, loading, error, refetch }
  */
-// AI_CHECK: RUN_POLL_STATE_CHURN=1 | LAST: 2026-02-17
+// AI_CHECK: RUN_POLL_STATE_CHURN=2 | LAST: 2026-02-18
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { listRuns, type RunDetails } from '@/services/heartbeatService'
 
 const POLL_INTERVAL = 10_000
+const DEFAULT_PROFILE_KEY = 'prompt-manager-heartbeat'
 
 interface UseRunDataOptions {
   status?: string
   tagPrefix?: string
+  profileKey?: string
 }
 
 interface UseRunDataResult {
@@ -66,6 +68,7 @@ export function useRunData(opts?: UseRunDataOptions): UseRunDataResult {
       const response = await listRuns({
         status: opts?.status,
         tagPrefix: opts?.tagPrefix,
+        profileKey: opts?.profileKey ?? DEFAULT_PROFILE_KEY,
         limit: 100,
       })
       // Avoid rerendering the runs tab when polled data is unchanged.
@@ -81,7 +84,7 @@ export function useRunData(opts?: UseRunDataOptions): UseRunDataResult {
         isFirstLoad.current = false
       }
     }
-  }, [opts?.status, opts?.tagPrefix])
+  }, [opts?.status, opts?.tagPrefix, opts?.profileKey])
 
   // Initial fetch
   useEffect(() => {

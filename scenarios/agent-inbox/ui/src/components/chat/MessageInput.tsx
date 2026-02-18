@@ -474,7 +474,8 @@ export function MessageInput({
         }
       }
 
-      if (e.key === "Enter" && !e.shiftKey) {
+      // Ctrl+Enter (or Cmd+Enter on Mac) submits; bare Enter inserts newline
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         handleSubmit();
       }
@@ -731,7 +732,8 @@ export function MessageInput({
   })();
 
   // Build send button tooltip
-  let sendTooltip = isEditMode ? "Save edit (Enter)" : "Send message (Enter)";
+  const modKey = typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘" : "Ctrl";
+  let sendTooltip = isEditMode ? `Save edit (${modKey}+Enter)` : `Send message (${modKey}+Enter)`;
   if (loading) {
     sendTooltip = "AI is responding...";
   } else if (disableSend) {
@@ -936,14 +938,14 @@ export function MessageInput({
           <p className="text-xs text-slate-400">
             {isEditMode ? (
               <>
-                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
+                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+Enter</kbd> to
                 save, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Escape</kbd>{" "}
                 to cancel
               </>
             ) : (
               <>
-                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
-                send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd>{" "}
+                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+Enter</kbd> to
+                send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd>{" "}
                 for new line
               </>
             )}

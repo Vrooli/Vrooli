@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "16 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-02-16T23:16:00Z",
-    "endedAt": "2026-02-16T23:16:15Z",
-    "status": "completed",
-    "runId": "2630a6fb-76ee-4dd2-bbb1-116ec9e4535f",
-    "logPath": "../store/teams/director-swarm/members/director/logs/2026-02-16T23-16-00Z.log"
+    "startedAt": "2026-02-17T23:16:00Z",
+    "endedAt": "2026-02-17T23:16:05Z",
+    "status": "failed",
+    "runId": "23f4f0c1-e2d3-4da5-ba5b-89cec727d541",
+    "logPath": "../store/teams/director-swarm/members/director/logs/2026-02-17T23-16-00Z.log",
+    "error": "Runner codex is temporarily unavailable. Please try again."
   },
-  "revision": 56,
+  "revision": 59,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-16T23:16:15Z"
+  "updatedAt": "2026-02-17T23:16:05Z"
 }

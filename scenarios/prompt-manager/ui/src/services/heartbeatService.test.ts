@@ -3,6 +3,7 @@ import {
   createInvestigationRun,
   getHeartbeat,
   listHeartbeats,
+  listRuns,
   resetHeartbeatServiceCachesForTests,
 } from './heartbeatService'
 
@@ -117,5 +118,35 @@ describe('heartbeatService listHeartbeats coalescing', () => {
     expect(b).toEqual(payload)
     expect(c).toEqual(payload)
     expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('heartbeatService listRuns filters', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+    resetHeartbeatServiceCachesForTests()
+  })
+
+  it('forwards profile_key and task_id filters', async () => {
+    mockFetchResponse(
+      new Response(JSON.stringify({ runs: [], total: 0, has_more: false }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    await listRuns({
+      profileKey: 'prompt-manager-heartbeat',
+      taskId: 'task-123',
+      limit: 10,
+    })
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    const [url] = vi.mocked(fetch).mock.calls[0] ?? []
+    expect(String(url)).toContain('/runs?')
+    expect(String(url)).toContain('profile_key=prompt-manager-heartbeat')
+    expect(String(url)).toContain('task_id=task-123')
+    expect(String(url)).toContain('limit=10')
   })
 })

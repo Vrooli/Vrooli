@@ -36,7 +36,8 @@ const shortcutCategories: ShortcutCategory[] = [
     icon: <MessageSquare className="h-4 w-4" />,
     shortcuts: [
       { keys: [modKey, "N"], description: "New chat" },
-      { keys: ["Shift", "Enter"], description: "New line in message" },
+      { keys: [modKey, "Enter"], description: "Send message" },
+      { keys: ["Enter"], description: "New line in message" },
       { keys: [modKey, "S"], description: "Toggle star on current chat" },
       { keys: [modKey, "E"], description: "Archive current chat" },
     ],

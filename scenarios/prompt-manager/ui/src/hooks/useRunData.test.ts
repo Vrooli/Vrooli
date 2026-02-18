@@ -76,4 +76,23 @@ describe('useRunData', () => {
       expect(result.current.runs).toHaveLength(1)
     })
   })
+
+  it('scopes run fetches to prompt-manager profile by default', async () => {
+    vi.mocked(listRuns).mockResolvedValue({
+      runs: [],
+      total: 0,
+      hasMore: false,
+    })
+
+    renderHook(() => useRunData())
+
+    await waitFor(() => {
+      expect(listRuns).toHaveBeenCalledWith({
+        status: undefined,
+        tagPrefix: undefined,
+        profileKey: 'prompt-manager-heartbeat',
+        limit: 100,
+      })
+    })
+  })
 })

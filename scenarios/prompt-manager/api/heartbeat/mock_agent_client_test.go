@@ -18,6 +18,9 @@ type mockAgentClient struct {
 	ensureProfileResp *EnsureProfileResponse
 	ensureProfileErr  error
 
+	listRunsResp *ListRunsResponse
+	listRunsErr  error
+
 	createTaskResp *Task
 	createTaskErr  error
 
@@ -41,6 +44,8 @@ type mockAgentClient struct {
 	createRunCalls  []*CreateRunRequest
 	getRunCalls     []string
 	stopRunCalls    []string
+	ensureProfileCalls []*EnsureProfileRequest
+	listRunsCalls      []ListRunsOptions
 }
 
 func newMockAgentClient() *mockAgentClient {
@@ -67,6 +72,26 @@ func (m *mockAgentClient) WithCreateRunResponse(run *Run) *mockAgentClient {
 
 func (m *mockAgentClient) WithCreateRunError(err error) *mockAgentClient {
 	m.createRunErr = err
+	return m
+}
+
+func (m *mockAgentClient) WithEnsureProfileResponse(resp *EnsureProfileResponse) *mockAgentClient {
+	m.ensureProfileResp = resp
+	return m
+}
+
+func (m *mockAgentClient) WithEnsureProfileError(err error) *mockAgentClient {
+	m.ensureProfileErr = err
+	return m
+}
+
+func (m *mockAgentClient) WithListRunsResponse(resp *ListRunsResponse) *mockAgentClient {
+	m.listRunsResp = resp
+	return m
+}
+
+func (m *mockAgentClient) WithListRunsError(err error) *mockAgentClient {
+	m.listRunsErr = err
 	return m
 }
 
@@ -109,7 +134,16 @@ func (m *mockAgentClient) Health(_ context.Context) (bool, error) {
 	return m.healthOK, m.healthErr
 }
 
-func (m *mockAgentClient) EnsureProfile(_ context.Context, _ *EnsureProfileRequest) (*EnsureProfileResponse, error) {
+func (m *mockAgentClient) EnsureProfile(_ context.Context, req *EnsureProfileRequest) (*EnsureProfileResponse, error) {
+	m.mu.Lock()
+	if req != nil {
+		reqCopy := *req
+		m.ensureProfileCalls = append(m.ensureProfileCalls, &reqCopy)
+	} else {
+		m.ensureProfileCalls = append(m.ensureProfileCalls, nil)
+	}
+	m.mu.Unlock()
+
 	if m.ensureProfileErr != nil {
 		return nil, m.ensureProfileErr
 	}
@@ -200,7 +234,17 @@ func (m *mockAgentClient) GetRunEvents(_ context.Context, _ string, _ int64, _ i
 	return []byte("[]"), nil
 }
 
-func (m *mockAgentClient) ListRuns(_ context.Context, _ ListRunsOptions) (*ListRunsResponse, error) {
+func (m *mockAgentClient) ListRuns(_ context.Context, opts ListRunsOptions) (*ListRunsResponse, error) {
+	m.mu.Lock()
+	m.listRunsCalls = append(m.listRunsCalls, opts)
+	m.mu.Unlock()
+
+	if m.listRunsErr != nil {
+		return nil, m.listRunsErr
+	}
+	if m.listRunsResp != nil {
+		return m.listRunsResp, nil
+	}
 	return &ListRunsResponse{Runs: []*Run{}, Total: 0, HasMore: false}, nil
 }
 

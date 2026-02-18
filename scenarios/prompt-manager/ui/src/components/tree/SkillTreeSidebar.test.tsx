@@ -258,6 +258,76 @@ describe('SkillTreeSidebar', () => {
 
       expect(onToggleNode).toHaveBeenCalledWith('development')
     })
+
+    it('should update selected file highlight after rerender without refresh', () => {
+      const skill1 = createTestSkill({ id: 'p1', name: 'Skill One', modes: ['development'] })
+      const skills = [skill1]
+      const treeNodes: TreeNode[] = [
+        createCategoryNode('development', 'development', [
+          createItemNode('item-p1', 'Skill One', 'p1', 1),
+        ]),
+      ]
+
+      const { rerender } = render(
+        <SkillTreeSidebar
+          {...defaultProps}
+          treeNodes={treeNodes}
+          skills={skills}
+          selectedItemId={null}
+          expandedNodes={new Set(['development'])}
+        />
+      )
+
+      const skillRowBefore = screen.getByRole('button', { name: 'Skill One' })
+      expect(skillRowBefore.className).not.toContain('bg-primary/30')
+
+      rerender(
+        <SkillTreeSidebar
+          {...defaultProps}
+          treeNodes={treeNodes}
+          skills={skills}
+          selectedItemId="p1"
+          expandedNodes={new Set(['development'])}
+        />
+      )
+
+      const skillRowAfter = screen.getByRole('button', { name: 'Skill One' })
+      expect(skillRowAfter.className).toContain('bg-primary/30')
+    })
+
+    it('should apply nested folder collapse state changes after rerender', () => {
+      const skill1 = createTestSkill({ id: 'p1', name: 'Skill One', modes: ['development', 'react'] })
+      const skills = [skill1]
+      const treeNodes: TreeNode[] = [
+        createCategoryNode('development', 'development', [
+          createCategoryNode('development/react', 'react', [
+            createItemNode('item-p1', 'Skill One', 'p1', 2),
+          ], 1),
+        ]),
+      ]
+
+      const { rerender } = render(
+        <SkillTreeSidebar
+          {...defaultProps}
+          treeNodes={treeNodes}
+          skills={skills}
+          expandedNodes={new Set(['development', 'development/react'])}
+        />
+      )
+
+      expect(screen.getByText('Skill One')).toBeInTheDocument()
+
+      rerender(
+        <SkillTreeSidebar
+          {...defaultProps}
+          treeNodes={treeNodes}
+          skills={skills}
+          expandedNodes={new Set(['development'])}
+        />
+      )
+
+      expect(screen.queryByText('Skill One')).not.toBeInTheDocument()
+    })
   })
 
   describe('search', () => {
