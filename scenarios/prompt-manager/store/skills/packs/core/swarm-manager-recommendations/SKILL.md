@@ -46,7 +46,7 @@ That's it! Don't queue any tasks - all backlog execution is controlled by swarm-
 Example (debug team -> `fix`):
 
 ```bash
-swarm-manager backlog create '{
+swarm-manager backlog create --data '{
   "kind":"fix",
   "name":"scenario-x-auth-timeout-regression",
   "title":"Fix auth timeout regression",
@@ -74,7 +74,7 @@ Keep evidence factual and reproducible.
 ### 7. Verification Commands
 
 ```bash
-swarm-manager backlog get <kind> <name>
+swarm-manager backlog get --kind <kind> --name <name>
 swarm-manager execution list --backlog-kind <kind> --backlog-name <name>
-swarm-manager execution get <execution-id>
+swarm-manager execution get --id <execution-id>
 ```

@@ -278,14 +278,15 @@ export function FilePathMenu({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'flex items-center gap-1 px-2 py-0.5 rounded text-xs',
+          'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded text-xs',
           'text-foreground hover:bg-muted transition-colors',
           'border border-transparent hover:border-border'
         )}
         title="Click to view path details"
+        aria-label={`Open file path menu for ${safeFile}`}
       >
         {triggerIcon ?? <StorageIcon className="h-3 w-3 text-muted-foreground" />}
-        <span className="font-medium">{safeFile}</span>
+        <span className="hidden sm:inline font-medium">{safeFile}</span>
       </button>
 
       {/* Dropdown menu - fixed position for viewport awareness */}

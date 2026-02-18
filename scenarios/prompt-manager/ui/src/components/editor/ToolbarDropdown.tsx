@@ -5,7 +5,7 @@
  * Provides click-outside-to-close behavior.
  */
 
-import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +43,9 @@ export function ToolbarDropdown({
 }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 180 })
 
   // Close on click outside
   useEffect(() => {
@@ -59,6 +62,35 @@ export function ToolbarDropdown({
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isOpen])
+
+  useLayoutEffect(() => {
+    if (!isOpen || !triggerRef.current) return
+
+    const trigger = triggerRef.current.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const measuredWidth = panelRef.current?.scrollWidth ?? 180
+    const width = viewportWidth < 640
+      ? viewportWidth - 16
+      : Math.min(Math.max(trigger.width, measuredWidth), viewportWidth - 16)
+    const estimatedHeight = Math.min(panelRef.current?.scrollHeight ?? 260, viewportHeight - 16)
+
+    let left = align === 'right' ? trigger.right - width : trigger.left
+    let top = trigger.bottom + 4
+
+    if (left + width > viewportWidth - 8) {
+      left = viewportWidth - width - 8
+    }
+    if (left < 8) {
+      left = 8
+    }
+
+    if (top + estimatedHeight > viewportHeight - 8) {
+      top = Math.max(8, trigger.top - estimatedHeight - 4)
+    }
+
+    setPosition({ top, left, width })
+  }, [isOpen, align])
 
   // Close on Escape key
   useEffect(() => {
@@ -80,6 +112,7 @@ export function ToolbarDropdown({
     <div ref={dropdownRef} className="relative">
       {/* Trigger button */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
@@ -102,9 +135,17 @@ export function ToolbarDropdown({
       {/* Dropdown panel */}
       {isOpen && (
         <div
+          ref={panelRef}
+          style={{
+            position: 'fixed',
+            top: position.top,
+            left: position.left,
+            width: position.width,
+            maxWidth: 'calc(100vw - 16px)',
+            maxHeight: 'calc(100vh - 16px)',
+          }}
           className={cn(
-            'absolute top-full mt-1 z-50',
-            align === 'right' ? 'right-0' : 'left-0',
+            'z-50 overflow-y-auto',
             'bg-card border border-border rounded-lg shadow-lg',
             'py-1 min-w-[120px]'
           )}

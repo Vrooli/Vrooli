@@ -27,7 +27,7 @@ Propose thoughtful improvements, alternative approaches, and enhancements that c
 
 Write output via CLI:
 ```bash
-swarm-manager backlog file-upload <kind> <name> suggest/suggestions.json <content>
+swarm-manager backlog file-upload --kind <kind> --name <name> --path suggest/suggestions.json --content '<content>'
 ```
 
 ### Categories
@@ -65,8 +65,8 @@ You are suggesting improvements for a Swarm Manager backlog item. Your goal is t
 1. **Read all available context**
 
    ```bash
-   swarm-manager backlog get {{ITEM_KIND}} {{ITEM_NAME}}
-   swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
+   swarm-manager backlog get --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
+   swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
    ```
 
    Then read each available artifact, starting with the most refined:
@@ -136,13 +136,13 @@ You are suggesting improvements for a Swarm Manager backlog item. Your goal is t
 
    Write the suggestions file via CLI (see `swarm-manager-backlog-tools` for the full schema):
    ```bash
-   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} suggest/suggestions.json '<json content>'
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path suggest/suggestions.json --content '<json content>'
    ```
 
 7. **Verify**
 
    ```bash
-   swarm-manager backlog file-get {{ITEM_KIND}} {{ITEM_NAME}} suggest/suggestions.json
+   swarm-manager backlog file-get --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path suggest/suggestions.json
    ```
 
    Confirm the file was written correctly and the suggestion count is within budget.
@@ -213,7 +213,7 @@ You are suggesting improvements for a Swarm Manager backlog item. Your goal is t
 | Problem | Solution |
 |---------|----------|
 | `file-get` returns 404 for `suggest/suggestions.json` | Normal on first run — generate fresh suggestions |
-| `file-upload` fails | Check that kind and name match an existing backlog item: `swarm-manager backlog get <kind> <name>` |
+| `file-upload` fails | Check that kind and name match an existing backlog item: `swarm-manager backlog get --kind <kind> --name <name>` |
 | Clarify questions are unanswered | Suggestions can still be generated — note that some may become irrelevant once questions are answered |
 | Archive contains a detailed PRD | Focus suggestions on gaps or improvements beyond what the PRD covers |
 | All existing suggestions are already accepted/rejected | Only add new suggestions if genuinely novel opportunities exist |

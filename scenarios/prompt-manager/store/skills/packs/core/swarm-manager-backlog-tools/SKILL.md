@@ -211,24 +211,24 @@ When sources conflict, apply this precedence (highest to lowest):
 
 ### Read item metadata
 ```bash
-swarm-manager backlog get <kind> <name>
+swarm-manager backlog get --kind <kind> --name <name>
 ```
 
 ### List files in item folder
 ```bash
-swarm-manager backlog files <kind> <name>
+swarm-manager backlog files --kind <kind> --name <name>
 ```
 
 ### Read a specific file
 ```bash
-swarm-manager backlog file-get <kind> <name> <relative-path>
-# Example: swarm-manager backlog file-get idea my-feature clarify/questions.json
+swarm-manager backlog file-get --kind <kind> --name <name> --path <relative-path>
+# Example: swarm-manager backlog file-get --kind idea --name my-feature --path clarify/questions.json
 ```
 
 ### Upload a file
 ```bash
-swarm-manager backlog file-upload <kind> <name> <relative-path> <content>
-# Example: swarm-manager backlog file-upload idea my-feature clarify/questions.json '{"questions":[]}'
+swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --content '<content>'
+# Example: swarm-manager backlog file-upload --kind idea --name my-feature --path clarify/questions.json --content '{"questions":[]}'
 ```
 
 ## Mutation Rules

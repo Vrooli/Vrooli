@@ -37,7 +37,7 @@ Synthesize clarifications, accepted suggestions, research findings, and archive 
 
 Write all outputs via CLI:
 ```bash
-swarm-manager backlog file-upload <kind> <name> <relative-path> <content>
+swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --content '<content>'
 ```
 
 ### The Staging Role of `enhance/`
@@ -78,8 +78,8 @@ You are creating the enhanced specification for a Swarm Manager backlog item. Yo
 1. **Read all available context**
 
    ```bash
-   swarm-manager backlog get {{ITEM_KIND}} {{ITEM_NAME}}
-   swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
+   swarm-manager backlog get --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
+   swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
    ```
 
    Read artifacts in refinement order — start with the most refined source:
@@ -180,22 +180,22 @@ You are creating the enhanced specification for a Swarm Manager backlog item. Yo
 
    ```bash
    # Primary plan
-   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} enhance/summary.md '<content>'
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/summary.md --content '<content>'
 
    # Staging artifacts
-   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} enhance/prd-context.md '<content>'
-   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} enhance/requirements-context.md '<content>'  # if applicable
-   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} enhance/doc-outlines.md '<content>'  # if applicable
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/prd-context.md --content '<content>'
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/requirements-context.md --content '<content>'  # if applicable
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/doc-outlines.md --content '<content>'  # if applicable
 
    # Update spec.json if enhanced description differs significantly
-   swarm-manager backlog update {{ITEM_KIND}} {{ITEM_NAME}} '{"enhanced_description": "...", "enhanced_at": "ISO-8601"}'
+   swarm-manager backlog update --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --data '{"enhanced_description": "...", "enhanced_at": "ISO-8601"}'
    ```
 
 7. **Verify**
 
    ```bash
-   swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
-   swarm-manager backlog file-get {{ITEM_KIND}} {{ITEM_NAME}} enhance/summary.md
+   swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
+   swarm-manager backlog file-get --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/summary.md
    ```
 
    Confirm all expected files exist in `enhance/` and the summary is coherent.

@@ -800,5 +800,175 @@ func TestClaudeCodeRunner_DetectRateLimit_NoLimit(t *testing.T) {
 }
 
 // =============================================================================
+// ANSI ESCAPE SEQUENCE FILTERING TESTS
+// Regression tests for: ANSI-decorated terminal output from Claude Code's
+// --verbose mode must not create spurious events or leak into event content.
+// =============================================================================
+
+func TestStripANSI_BasicCSI(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name:   "reset colors and box drawing",
+			input:  "\x1b[39;49m\x1b[K\x1b[2m└\x1b[39m\x1b[49m\x1b[0m",
+			expect: "└",
+		},
+		{
+			name:   "no escape sequences",
+			input:  "Hello, world!",
+			expect: "Hello, world!",
+		},
+		{
+			name:   "empty string",
+			input:  "",
+			expect: "",
+		},
+		{
+			name:   "bold and color codes wrapping text",
+			input:  "\x1b[1m\x1b[31mError:\x1b[0m something failed",
+			expect: "Error: something failed",
+		},
+		{
+			name:   "cursor movement and erase",
+			input:  "\x1b[2K\x1b[1G\x1b[36m>\x1b[0m Processing...",
+			expect: "> Processing...",
+		},
+		{
+			name:   "OSC sequence (window title)",
+			input:  "\x1b]0;My Title\x07rest of text",
+			expect: "rest of text",
+		},
+		{
+			name:   "mixed ANSI in multiline",
+			input:  "\x1b[32m✓\x1b[0m Pass\n\x1b[31m✗\x1b[0m Fail",
+			expect: "✓ Pass\n✗ Fail",
+		},
+		{
+			name:   "trailing ESC",
+			input:  "hello\x1b",
+			expect: "hello",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stripANSI(tc.input)
+			if got != tc.expect {
+				t.Errorf("stripANSI(%q) = %q, want %q", tc.input, got, tc.expect)
+			}
+		})
+	}
+}
+
+func TestParseStreamEvents_ANSILinesSkipped(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	// These are real ANSI escape sequences from Claude Code's terminal UI
+	// that appeared on stdout when stderr was merged via 2>&1.
+	ansiLines := []string{
+		"\x1b[39;49m\x1b[K\x1b[2m└\x1b[39m\x1b[49m\x1b[0m",
+		"\x1b[2K\x1b[1G\x1b[36m⠋\x1b[0m Thinking...",
+		"\x1b[1A\x1b[2K\x1b[1G",
+		"\x1b[?25h", // show cursor
+		"\x1b[?25l", // hide cursor
+		"\x1b[38;5;240m│\x1b[0m",
+		"\x1b[0m",
+	}
+
+	for i, line := range ansiLines {
+		events, err := runner.parseStreamEvents(runID, line)
+		if err != nil {
+			t.Errorf("line %d: unexpected error: %v", i, err)
+		}
+		if len(events) > 0 {
+			t.Errorf("line %d: expected no events for ANSI line %q, got %d events (type=%s)",
+				i, line, len(events), events[0].EventType)
+		}
+	}
+}
+
+func TestParseStreamEvents_ANSIInMessageContent(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// Simulate an assistant message where tool output leaked ANSI into text
+	ansiMsg := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Output:\n\u001b[32m✓ Pass\u001b[0m\n\u001b[31m✗ Fail\u001b[0m"}]}}`
+
+	events, err := runner.parseStreamEvents(runID, ansiMsg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected at least one event")
+	}
+
+	// Find the message event
+	for _, evt := range events {
+		if msgData, ok := evt.Data.(*domain.MessageEventData); ok {
+			if msgData.Content != "Output:\n✓ Pass\n✗ Fail" {
+				t.Errorf("ANSI not stripped from message content:\ngot:  %q\nwant: %q",
+					msgData.Content, "Output:\n✓ Pass\n✗ Fail")
+			}
+			return
+		}
+	}
+	t.Error("no message event found in parsed events")
+}
+
+func TestParseStreamEvents_ANSIInToolResult(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// Simulate a tool result with ANSI-decorated bash output
+	toolResultMsg := `{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_abc","content":"\u001b[1m\u001b[32mSuccess\u001b[0m: file created"}]}}`
+
+	events, err := runner.parseStreamEvents(runID, toolResultMsg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, evt := range events {
+		if resultData, ok := evt.Data.(*domain.ToolResultEventData); ok {
+			if resultData.Output != "Success: file created" {
+				t.Errorf("ANSI not stripped from tool result:\ngot:  %q\nwant: %q",
+					resultData.Output, "Success: file created")
+			}
+			return
+		}
+	}
+	t.Error("no tool result event found in parsed events")
+}
+
+func TestParseStreamEvents_HighVolumeANSINoEventSpam(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	// Simulate 1000 ANSI lines (typical verbose output during a long conversation)
+	// None should create events.
+	ansiPattern := "\x1b[39;49m\x1b[K\x1b[2m└\x1b[39m\x1b[49m\x1b[0m"
+	totalEvents := 0
+	for i := 0; i < 1000; i++ {
+		events, err := runner.parseStreamEvents(runID, ansiPattern)
+		if err != nil {
+			t.Fatalf("iteration %d: unexpected error: %v", i, err)
+		}
+		totalEvents += len(events)
+	}
+	if totalEvents > 0 {
+		t.Errorf("expected 0 events from 1000 ANSI lines, got %d", totalEvents)
+	}
+}
+
+// =============================================================================
 // NOTE: ExtractTextContent and ExtractToolUses tests are in claude_message_test.go
 // =============================================================================

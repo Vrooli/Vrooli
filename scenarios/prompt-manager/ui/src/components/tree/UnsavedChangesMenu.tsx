@@ -8,7 +8,7 @@
  * - Save or discard all changes at once
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react'
 import { ChevronDown, Save, X, FileText, User, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Skill } from '@/types'
@@ -78,6 +78,9 @@ export function UnsavedChangesMenu({
 }: UnsavedChangesMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 320 })
 
   // Build list of unsaved items
   const unsavedItems: UnsavedItem[] = []
@@ -134,6 +137,32 @@ export function UnsavedChangesMenu({
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isOpen])
+
+  useLayoutEffect(() => {
+    if (!isOpen || !triggerRef.current) return
+
+    const trigger = triggerRef.current.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const width = viewportWidth < 640 ? viewportWidth - 16 : Math.min(320, viewportWidth - 16)
+    const estimatedHeight = Math.min(dropdownRef.current?.scrollHeight ?? 420, viewportHeight - 16)
+
+    let left = trigger.left
+    let top = trigger.bottom + 4
+
+    if (left + width > viewportWidth - 8) {
+      left = viewportWidth - width - 8
+    }
+    if (left < 8) {
+      left = 8
+    }
+
+    if (top + estimatedHeight > viewportHeight - 8) {
+      top = Math.max(8, trigger.top - estimatedHeight - 4)
+    }
+
+    setPosition({ top, left, width })
+  }, [isOpen, dirtyCount])
 
   // Close on Escape key
   useEffect(() => {
@@ -206,6 +235,7 @@ export function UnsavedChangesMenu({
     <div ref={menuRef} className={cn('relative', className)}>
       {/* Trigger button - the unsaved badge */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
@@ -222,10 +252,18 @@ export function UnsavedChangesMenu({
       {/* Dropdown menu */}
       {isOpen && (
         <div
+          ref={dropdownRef}
+          style={{
+            position: 'fixed',
+            top: position.top,
+            left: position.left,
+            width: position.width,
+            maxWidth: 'calc(100vw - 16px)',
+            maxHeight: 'calc(100vh - 16px)',
+          }}
           className={cn(
-            'absolute left-0 top-full mt-1 z-50',
+            'z-50 overflow-y-auto',
             'bg-card border border-border rounded-lg shadow-lg',
-            'min-w-[280px] max-w-[320px]',
             'animate-in fade-in-0 zoom-in-95 duration-100'
           )}
         >

@@ -1033,7 +1033,7 @@ export function SkillTreeSidebar({
                   isOpen={isTagPopoverOpen}
                   onClose={() => setIsTagPopoverOpen(false)}
                   onApply={onSelectedTagsChange}
-                  className="left-0 top-full"
+                  anchorRef={tagFilterRef}
                 />
               </div>
               {searchMode === 'quick' && (

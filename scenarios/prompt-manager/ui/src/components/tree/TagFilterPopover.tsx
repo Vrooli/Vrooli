@@ -4,7 +4,7 @@
  * Multi-select list of all available tags with quick search.
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { Search, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -33,6 +33,7 @@ export function TagFilterPopover({
   isOpen,
   onClose,
   onApply,
+  anchorRef,
   className,
 }: TagFilterPopoverProps) {
   // Local state for pending selections
@@ -40,6 +41,7 @@ export function TagFilterPopover({
   const [searchQuery, setSearchQuery] = useState('')
   const popoverRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 224 })
 
   // Reset pending tags when popover opens
   useEffect(() => {
@@ -74,6 +76,35 @@ export function TagFilterPopover({
       document.removeEventListener('keydown', handleEscape)
     }
   }, [isOpen, onClose])
+
+  useLayoutEffect(() => {
+    if (!isOpen) return
+
+    const anchor = anchorRef?.current ?? popoverRef.current?.parentElement
+    if (!anchor) return
+
+    const trigger = anchor.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const width = viewportWidth < 640 ? viewportWidth - 16 : Math.min(256, viewportWidth - 16)
+    const estimatedHeight = Math.min(popoverRef.current?.scrollHeight ?? 360, viewportHeight - 16)
+
+    let left = trigger.left
+    let top = trigger.bottom + 4
+
+    if (left + width > viewportWidth - 8) {
+      left = viewportWidth - width - 8
+    }
+    if (left < 8) {
+      left = 8
+    }
+
+    if (top + estimatedHeight > viewportHeight - 8) {
+      top = Math.max(8, trigger.top - estimatedHeight - 4)
+    }
+
+    setPosition({ top, left, width })
+  }, [isOpen, anchorRef, availableTags.length, searchQuery])
 
   // Filter tags by search query
   const filteredTags = searchQuery
@@ -111,8 +142,16 @@ export function TagFilterPopover({
   return (
     <div
       ref={popoverRef}
+      style={{
+        position: 'fixed',
+        top: position.top,
+        left: position.left,
+        width: position.width,
+        maxWidth: 'calc(100vw - 16px)',
+        maxHeight: 'calc(100vh - 16px)',
+      }}
       className={cn(
-        'absolute z-50 mt-1 w-56',
+        'z-50 overflow-y-auto',
         'bg-popover border border-border rounded-lg shadow-lg',
         'animate-in fade-in-0 zoom-in-95 duration-100',
         className

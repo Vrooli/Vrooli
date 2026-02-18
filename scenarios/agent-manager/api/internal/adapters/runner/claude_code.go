@@ -842,6 +842,9 @@ type ClaudeContentItem struct {
 
 // ExtractTextContent extracts text content from a ClaudeMessage.
 // Handles both string content and array of content blocks.
+// ANSI escape sequences are stripped as defense-in-depth: even if the
+// resource-claude-code wrapper correctly separates stderr from stdout,
+// tool results (e.g., Bash output) may still embed terminal formatting.
 func (m *ClaudeMessage) ExtractTextContent() string {
 	if len(m.Content) == 0 {
 		return ""
@@ -850,7 +853,7 @@ func (m *ClaudeMessage) ExtractTextContent() string {
 	// Try parsing as a simple string first
 	var simpleString string
 	if err := json.Unmarshal(m.Content, &simpleString); err == nil {
-		return simpleString
+		return stripANSI(simpleString)
 	}
 
 	// Try parsing as an array of content blocks
@@ -859,7 +862,7 @@ func (m *ClaudeMessage) ExtractTextContent() string {
 		var textParts []string
 		for _, block := range contentBlocks {
 			if block.Type == "text" && block.Text != "" {
-				textParts = append(textParts, block.Text)
+				textParts = append(textParts, stripANSI(block.Text))
 			}
 		}
 		return strings.Join(textParts, "\n")
@@ -903,6 +906,8 @@ func (m *ClaudeMessage) ExtractToolResults() []ClaudeContentItem {
 	var toolResults []ClaudeContentItem
 	for _, block := range contentBlocks {
 		if block.Type == "tool_result" {
+			// Strip ANSI from tool result content (Bash output often has terminal formatting)
+			block.Content = stripANSI(block.Content)
 			toolResults = append(toolResults, block)
 		}
 	}
@@ -1015,7 +1020,7 @@ func (r *ClaudeCodeRunner) flushStreamMessage(runID uuid.UUID, state *claudeStre
 	if state.textBuffer.Len() == 0 {
 		return nil
 	}
-	message := state.textBuffer.String()
+	message := stripANSI(state.textBuffer.String())
 	state.textBuffer.Reset()
 	state.lastAssistant = message
 	return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", message)}
@@ -1187,6 +1192,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		if streamEvent.Result != nil {
 			_ = json.Unmarshal(streamEvent.Result, &resultStr)
 		}
+		resultStr = stripANSI(resultStr)
 		return []*domain.RunEvent{domain.NewToolResultEvent(
 			runID,
 			"", // tool name not always available in result
@@ -1470,6 +1476,55 @@ func (r *ClaudeCodeRunner) updateMetrics(event *domain.RunEvent, metrics *Execut
 		// Rate limit detected - this will cause execution to fail
 		// The error is handled in the Execute function
 	}
+}
+
+// stripANSI removes ANSI escape sequences from a string.
+// Handles CSI sequences (ESC[...<letter>), OSC sequences (ESC]...ST),
+// and simple two-byte escapes (ESC<letter>).
+func stripANSI(s string) string {
+	// Fast path: no escape characters at all
+	if !strings.Contains(s, "\x1b") {
+		return s
+	}
+
+	result := strings.Builder{}
+	result.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\x1b' {
+			result.WriteByte(s[i])
+			continue
+		}
+		// ESC found — determine the sequence type
+		if i+1 >= len(s) {
+			continue // trailing ESC, skip
+		}
+		switch s[i+1] {
+		case '[': // CSI: ESC[ <params> <letter>
+			i += 2 // skip ESC and [
+			for i < len(s) {
+				c := s[i]
+				if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') {
+					break // terminating letter
+				}
+				i++
+			}
+		case ']': // OSC: ESC] ... (ST = ESC\ or BEL)
+			i += 2
+			for i < len(s) {
+				if s[i] == '\x07' { // BEL terminator
+					break
+				}
+				if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '\\' {
+					i++ // skip the backslash of ST
+					break
+				}
+				i++
+			}
+		default:
+			i++ // simple two-byte escape (ESC + letter), skip both
+		}
+	}
+	return result.String()
 }
 
 // Verify interface compliance

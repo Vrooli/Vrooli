@@ -5,7 +5,7 @@
  * Adapted from agent-inbox with prompt-relevant icon set.
  */
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react'
 import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ICONS, getIcon } from '@/lib/icons'
@@ -26,6 +26,9 @@ export function IconSelector({ value, onChange, disabled, isLoading, className }
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 256 })
 
   // Filter icons by search
   const filteredIcons = useMemo(() => {
@@ -69,6 +72,32 @@ export function IconSelector({ value, onChange, disabled, isLoading, className }
     }
   }, [isOpen])
 
+  useLayoutEffect(() => {
+    if (!isOpen || !triggerRef.current) return
+
+    const trigger = triggerRef.current.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const width = viewportWidth < 640 ? viewportWidth - 16 : Math.min(320, viewportWidth - 16)
+    const estimatedHeight = Math.min(dropdownRef.current?.scrollHeight ?? 360, viewportHeight - 16)
+
+    let left = trigger.left
+    let top = trigger.bottom + 4
+
+    if (left + width > viewportWidth - 8) {
+      left = viewportWidth - width - 8
+    }
+    if (left < 8) {
+      left = 8
+    }
+
+    if (top + estimatedHeight > viewportHeight - 8) {
+      top = Math.max(8, trigger.top - estimatedHeight - 4)
+    }
+
+    setPosition({ top, left, width })
+  }, [isOpen, filteredIcons.length, value])
+
   if (isLoading) {
     return <Skeleton className={cn('w-10 h-10 rounded-lg', className)} />
   }
@@ -77,6 +106,7 @@ export function IconSelector({ value, onChange, disabled, isLoading, className }
     <div ref={containerRef} className={cn('relative', className)}>
       {/* Trigger button */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
@@ -93,8 +123,17 @@ export function IconSelector({ value, onChange, disabled, isLoading, className }
       {/* Dropdown */}
       {isOpen && (
         <div
+          ref={dropdownRef}
+          style={{
+            position: 'fixed',
+            top: position.top,
+            left: position.left,
+            width: position.width,
+            maxWidth: 'calc(100vw - 16px)',
+            maxHeight: 'calc(100vh - 16px)',
+          }}
           className={cn(
-            'absolute z-50 mt-1 p-2 w-64',
+            'z-50 p-2 overflow-y-auto',
             'bg-slate-900 border border-white/10 rounded-lg shadow-xl',
             'animate-in fade-in-0 zoom-in-95 duration-100'
           )}

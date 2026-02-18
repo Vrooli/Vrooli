@@ -141,7 +141,7 @@ You are processing an idea to create or improve a Vrooli scenario. Your role is 
 
    **If `enhance/prd-context.md` exists** (preferred path):
    ```bash
-   swarm-manager backlog file-get {{ITEM_KIND}} {{ITEM_NAME}} enhance/prd-context.md > /tmp/prd_context_<name>.md
+   swarm-manager backlog file-get --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/prd-context.md > /tmp/prd_context_<name>.md
    ```
 
    **Fallback: synthesize from raw sources** (if enhance staging is unavailable):
@@ -195,7 +195,7 @@ You are processing an idea to create or improve a Vrooli scenario. Your role is 
 
    If `enhance/requirements-context.md` exists:
    ```bash
-   swarm-manager backlog file-get {{ITEM_KIND}} {{ITEM_NAME}} enhance/requirements-context.md > /tmp/requirements_context_<name>.md
+   swarm-manager backlog file-get --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/requirements-context.md > /tmp/requirements_context_<name>.md
    ```
 
    Otherwise, optionally write a context file:

@@ -27,7 +27,7 @@ Generate targeted clarifying questions to reduce ambiguity, uncover hidden requi
 
 Write output via CLI:
 ```bash
-swarm-manager backlog file-upload <kind> <name> clarify/questions.json <content>
+swarm-manager backlog file-upload --kind <kind> --name <name> --path clarify/questions.json --content '<content>'
 ```
 
 ### Categories
@@ -65,8 +65,8 @@ You are generating clarifying questions for a Swarm Manager backlog item. Your g
 1. **Read all available context**
 
    ```bash
-   swarm-manager backlog get {{ITEM_KIND}} {{ITEM_NAME}}
-   swarm-manager backlog files {{ITEM_KIND}} {{ITEM_NAME}}
+   swarm-manager backlog get --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
+   swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
    ```
 
    Then read each available artifact, starting with the most refined:
@@ -120,13 +120,13 @@ You are generating clarifying questions for a Swarm Manager backlog item. Your g
 
    Write the questions file via CLI (see `swarm-manager-backlog-tools` for the full schema):
    ```bash
-   swarm-manager backlog file-upload {{ITEM_KIND}} {{ITEM_NAME}} clarify/questions.json '<json content>'
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path clarify/questions.json --content '<json content>'
    ```
 
 6. **Verify**
 
    ```bash
-   swarm-manager backlog file-get {{ITEM_KIND}} {{ITEM_NAME}} clarify/questions.json
+   swarm-manager backlog file-get --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path clarify/questions.json
    ```
 
    Confirm the file was written correctly and the question count is within budget.
@@ -196,7 +196,7 @@ You are generating clarifying questions for a Swarm Manager backlog item. Your g
 | Problem | Solution |
 |---------|----------|
 | `file-get` returns 404 for `clarify/questions.json` | Normal on first run — generate fresh questions |
-| `file-upload` fails | Check that kind and name match an existing backlog item: `swarm-manager backlog get <kind> <name>` |
+| `file-upload` fails | Check that kind and name match an existing backlog item: `swarm-manager backlog get --kind <kind> --name <name>` |
 | Archive contains a full PRD with detailed requirements | Many questions may already be answered — focus only on genuine gaps |
 | All critical questions are already answered by context | Generate fewer questions (minimum 3) focused on nice-to-have clarity |
 | Prior run has 10 questions, all still relevant | Do not add more — respect the budget ceiling |
