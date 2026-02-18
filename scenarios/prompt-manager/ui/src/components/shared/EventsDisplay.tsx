@@ -231,6 +231,10 @@ interface EventsDisplayProps {
   className?: string
   /** Error context shown when no events exist */
   errorMessage?: string
+  /** Show live/header controls above the list */
+  showHeader?: boolean
+  /** Emits filtered events currently rendered in the list */
+  onFilteredEventsChange?: (events: RunEvent[]) => void
 }
 
 export function EventsDisplay({
@@ -241,6 +245,8 @@ export function EventsDisplay({
   searchQuery,
   className,
   errorMessage,
+  showHeader = true,
+  onFilteredEventsChange,
 }: EventsDisplayProps) {
   const [fetchedEvents, setFetchedEvents] = useState<RunEvent[]>([])
   const [loading, setLoading] = useState(!externalEvents)
@@ -323,6 +329,10 @@ export function EventsDisplay({
     })
   }
 
+  useEffect(() => {
+    onFilteredEventsChange?.(filteredEvents)
+  }, [filteredEvents, onFilteredEventsChange])
+
   if (loading) {
     return (
       <div className={cn('flex items-center justify-center py-12', className)}>
@@ -356,23 +366,24 @@ export function EventsDisplay({
 
   return (
     <div className={className}>
-      {/* Header row: live indicator + copy all */}
-      <div className="flex items-center justify-between mb-4">
-        {live ? (
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </span>
-            <span className="text-xs font-medium text-emerald-400">Live</span>
-          </div>
-        ) : <div />}
-        <CopyButton
-          text={JSON.stringify(filteredEvents, null, 2)}
-          label="Copy JSON"
-          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700"
-        />
-      </div>
+      {showHeader && (
+        <div className="flex items-center justify-between mb-4">
+          {live ? (
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <span className="text-xs font-medium text-emerald-400">Live</span>
+            </div>
+          ) : <div />}
+          <CopyButton
+            text={JSON.stringify(filteredEvents, null, 2)}
+            label="Copy JSON"
+            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700"
+          />
+        </div>
+      )}
 
       {/* Event list */}
       <div

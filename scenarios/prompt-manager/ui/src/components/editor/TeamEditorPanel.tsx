@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen } from 'lucide-react'
+import { Menu, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -58,6 +58,8 @@ interface TeamEditorPanelProps {
   onSetRoles: (roles: TeamRole[]) => Promise<TeamRole[]>
   /** Callback to close the editor */
   onClose: () => void
+  /** Optional callback to open sidebar (used on mobile) */
+  onOpenSidebar?: () => void
   /** Callback to trigger team deletion */
   onDelete: () => void
   /** Whether a delete operation is in progress */
@@ -84,6 +86,7 @@ export function TeamEditorPanel({
   onRemoveMember,
   onSetRoles,
   onClose,
+  onOpenSidebar,
   onDelete,
   isDeleting = false,
   onNavigateToAgentFiles,
@@ -352,12 +355,12 @@ export function TeamEditorPanel({
             {/* Close button */}
             <button
               type="button"
-              onClick={onClose}
+              onClick={onOpenSidebar ?? onClose}
               className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              aria-label="Close editor"
-              title="Close (Esc)"
+              aria-label={onOpenSidebar ? 'Open sidebar' : 'Close editor'}
+              title={onOpenSidebar ? 'Open sidebar' : 'Close (Esc)'}
             >
-              <X className="h-5 w-5" />
+              <Menu className="h-5 w-5" />
             </button>
 
             {/* Team icon */}

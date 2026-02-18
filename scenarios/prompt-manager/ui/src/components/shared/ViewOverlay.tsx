@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X } from 'lucide-react'
+import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
@@ -20,6 +20,7 @@ import { FloatingPanel } from './FloatingPanel'
 import { FPSOverlay } from '@/components/world/performance'
 
 interface ViewOverlayProps {
+  onOpenMobileSidebar?: () => void
   leftPanelContent?: ReactNode
   settingsContent: ReactNode
   settingsTitle?: string
@@ -28,6 +29,7 @@ interface ViewOverlayProps {
 }
 
 export function ViewOverlay({
+  onOpenMobileSidebar,
   leftPanelContent,
   settingsContent,
   settingsTitle = 'Settings',
@@ -81,7 +83,19 @@ export function ViewOverlay({
         {/* Top-left: stats + optional left panel content */}
         <div className="absolute top-4 left-4 pointer-events-auto">
           {isMobile ? (
-            <div className="flex items-center gap-1">
+            <div className="flex flex-col items-start gap-1">
+              {onOpenMobileSidebar && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onOpenMobileSidebar}
+                  className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
+                  title="Open sidebar"
+                  data-testid={selectors.viewOverlay.mobileSidebarButton}
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="icon"

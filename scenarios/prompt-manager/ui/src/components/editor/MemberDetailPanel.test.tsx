@@ -28,6 +28,7 @@ vi.mock('@/services/heartbeatService', async () => {
     getResponsibilities: vi.fn(),
     getHeartbeatInstructions: vi.fn(),
     getHeartbeat: vi.fn(),
+    listLogs: vi.fn(),
     triggerHeartbeat: vi.fn(),
   }
 })
@@ -47,6 +48,7 @@ describe('MemberDetailPanel', () => {
       createdAt: '2026-02-18T00:00:00Z',
       updatedAt: '2026-02-18T00:00:00Z',
     })
+    vi.mocked(heartbeatService.listLogs).mockResolvedValue([])
     vi.mocked(heartbeatService.triggerHeartbeat).mockResolvedValue({
       teamId: 'team-1',
       agentId: 'agent-1',

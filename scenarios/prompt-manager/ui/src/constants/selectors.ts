@@ -89,6 +89,7 @@ const literalSelectors = {
     viewToggle: 'view-overlay-view-toggle',
     settingsButton: 'view-overlay-settings-button',
     helpButton: 'view-overlay-help-button',
+    mobileSidebarButton: 'view-overlay-mobile-sidebar-button',
     mobileStatsButton: 'view-overlay-mobile-stats-button',
     mobileLeftPanelButton: 'view-overlay-mobile-left-panel-button',
     mobilePanelBackdrop: 'view-overlay-mobile-panel-backdrop',

@@ -16,7 +16,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { toast } from '@/hooks/use-toast'
-import { Menu, X, GripVertical, Settings } from 'lucide-react'
+import { Home, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { DeleteTeamDialog } from '../shared/DeleteTeamDialog'
@@ -1127,6 +1127,13 @@ export function SkillManagerLayout() {
     ? highlightRequest.line
     : scrollToLine
 
+  const handleGoToHomeView = useCallback(() => {
+    setSelectedSkillId(null)
+    setSelectedAgentId(null)
+    setSelectedTeamId(null)
+    setSelectedRunId(null)
+  }, [setSelectedSkillId, setSelectedAgentId, setSelectedTeamId, setSelectedRunId])
+
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
     <PanelErrorBoundary panelName="Skill Tree" className="h-full">
@@ -1242,34 +1249,6 @@ export function SkillManagerLayout() {
 
       {/* Main content area */}
       <div className={`flex-1 flex flex-col min-w-0 ${isResizing ? 'select-none' : ''}`}>
-        {/* Mobile header with menu button */}
-        {isMobile && (
-          <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border bg-card/50">
-            <button
-              type="button"
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Open menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <h1 className="flex-1 text-lg font-semibold text-foreground">Skill Manager</h1>
-            {dirtyCount > 0 && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400 rounded-full">
-                {dirtyCount} unsaved
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowSettingsDialog(true)}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Settings"
-            >
-              <Settings className="h-5 w-5" />
-            </button>
-          </header>
-        )}
-
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">
@@ -1277,6 +1256,7 @@ export function SkillManagerLayout() {
               <RunEditorPanel
                 runId={selectedRunId}
                 onClose={() => setSelectedRunId(null)}
+                onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 className="h-full"
               />
             ) : selectedTeamId ? (
@@ -1313,6 +1293,7 @@ export function SkillManagerLayout() {
                   throw new Error('No team selected')
                 }}
                 onClose={() => setSelectedTeamId(null)}
+                onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 onDelete={() => setShowDeleteTeamDialog(true)}
                 isDeleting={isTeamDeleting}
                 highlightRequest={highlightRequest}
@@ -1339,6 +1320,7 @@ export function SkillManagerLayout() {
                 onDelete={() => setShowDeleteAgentDialog(true)}
                 onDuplicate={() => void handleDuplicateAgent()}
                 onClose={() => setSelectedAgentId(null)}
+                onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 isSaving={isAgentSaving}
                 isDeleting={isAgentDeleting}
                 highlightRequest={highlightRequest}
@@ -1377,6 +1359,8 @@ export function SkillManagerLayout() {
                   }
                 }}
                 onNavigateToXRef={handleNavigateToXRef}
+                onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
+                onOpenMobileSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 className="h-full"
               />
             )}
@@ -1396,15 +1380,38 @@ export function SkillManagerLayout() {
           {/* Sidebar drawer */}
           <div className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-card shadow-2xl animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold text-foreground">Skills</h2>
-              <button
-                type="button"
-                onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Close menu"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleGoToHomeView()
+                    setIsMobileSidebarOpen(false)
+                  }}
+                  className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Go to world or grid view"
+                >
+                  <Home className="h-5 w-5" />
+                </button>
+                <h2 className="text-sm font-semibold text-foreground truncate">Skills</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsDialog(true)}
+                  className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Settings"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Close menu"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div className="h-[calc(100%-53px)]">
               <SkillTreeSidebar
@@ -1412,7 +1419,10 @@ export function SkillManagerLayout() {
                 skills={skills}
                 agents={agents}
                 selectedItemId={selectedSkillId}
-                onSelectItem={handleSelectItem}
+                onSelectItem={(id, lineNumber) => {
+                  handleSelectItem(id, lineNumber)
+                  setIsMobileSidebarOpen(false)
+                }}
                 dirtyItemIds={combinedDirtyIds}
                 dirtySkillIds={dirtyItemIds}
                 dirtyAgentIds={dirtyAgentIds}
@@ -1464,6 +1474,10 @@ export function SkillManagerLayout() {
                 }}
                 onSelectTeamFromMenu={(id) => {
                   setSelectedTeamId(id)
+                  setIsMobileSidebarOpen(false)
+                }}
+                onSelectRunFromMenu={(id) => {
+                  setSelectedRunId(id)
                   setIsMobileSidebarOpen(false)
                 }}
                 onSaveSkill={handleSaveSkillById}

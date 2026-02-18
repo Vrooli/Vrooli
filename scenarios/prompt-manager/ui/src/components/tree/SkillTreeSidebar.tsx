@@ -319,6 +319,8 @@ interface SkillTreeSidebarProps {
   onSelectAgentFromMenu?: (agentId: string) => void
   /** Callback to select/open a team from sidebar (wraps selection + sidebar close on mobile) */
   onSelectTeamFromMenu?: (teamId: string) => void
+  /** Callback to select/open a run from sidebar (wraps selection + sidebar close on mobile) */
+  onSelectRunFromMenu?: (runId: string) => void
   /** Callback to save a specific skill */
   onSaveSkill?: (skillId: string) => Promise<void>
   /** Callback to discard changes for a specific skill */
@@ -411,6 +413,7 @@ export function SkillTreeSidebar({
   onSelectSkillFromMenu,
   onSelectAgentFromMenu,
   onSelectTeamFromMenu,
+  onSelectRunFromMenu,
   onSaveSkill,
   onDiscardSkill,
   onSaveAgent,
@@ -1387,7 +1390,7 @@ export function SkillTreeSidebar({
         <Tabs.Content value="runs" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
           <RunListPanel
             selectedRunId={selectedRunId}
-            onSelectRun={setSelectedRunId}
+            onSelectRun={onSelectRunFromMenu ?? setSelectedRunId}
             searchQuery={runSearchQuery}
             className="flex-1"
           />

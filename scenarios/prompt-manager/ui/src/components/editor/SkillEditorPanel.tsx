@@ -19,7 +19,7 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -95,6 +95,8 @@ interface SkillEditorPanelProps {
 
   /** Called when a cross-reference is clicked, for highlight navigation */
   onNavigateToXRef?: (ref: Reference) => void
+  onOpenSidebar?: () => void
+  onOpenMobileSidebar?: () => void
 
   className?: string
 }
@@ -129,6 +131,8 @@ export function SkillEditorPanel({
   scrollToLine,
   onScrollToLineHandled,
   onNavigateToXRef,
+  onOpenSidebar,
+  onOpenMobileSidebar,
   className,
 }: SkillEditorPanelProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
@@ -138,6 +142,10 @@ export function SkillEditorPanel({
 
   // Handle close - return to skill tree view
   const handleClose = () => {
+    if (onOpenSidebar) {
+      onOpenSidebar()
+      return
+    }
     setSelectedSkillId(null)
   }
 
@@ -162,6 +170,7 @@ export function SkillEditorPanel({
           </PanelErrorBoundary>
         )}
         <ViewOverlay
+          onOpenMobileSidebar={onOpenMobileSidebar}
           leftPanelContent={graphViewActive ? (
             <>
               <PanelErrorBoundary panelName="Graph Queries">
@@ -197,10 +206,10 @@ export function SkillEditorPanel({
                 type="button"
                 onClick={handleClose}
                 className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                aria-label="Close editor and return to world"
-                title="Close (Esc)"
+                aria-label={onOpenSidebar ? 'Open sidebar' : 'Close editor and return to world'}
+                title={onOpenSidebar ? 'Open sidebar' : 'Close (Esc)'}
               >
-                <X className="h-5 w-5" />
+                <Menu className="h-5 w-5" />
               </button>
 
               {/* Icon selector */}

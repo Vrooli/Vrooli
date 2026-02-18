@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye } from 'lucide-react'
+import { Menu, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
@@ -66,6 +66,8 @@ interface AgentEditorPanelProps {
   onDuplicate: () => void
   /** Callback to close the editor */
   onClose: () => void
+  /** Optional callback to open sidebar (used on mobile) */
+  onOpenSidebar?: () => void
   /** Whether the agent is being saved */
   isSaving?: boolean
   /** Whether the agent is being deleted */
@@ -103,6 +105,7 @@ export function AgentEditorPanel({
   onDelete,
   onDuplicate,
   onClose,
+  onOpenSidebar,
   isSaving = false,
   isDeleting = false,
   highlightRequest,
@@ -145,12 +148,12 @@ export function AgentEditorPanel({
           {/* Close button */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={onOpenSidebar ?? onClose}
             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            aria-label="Close editor"
-            title="Close (Esc)"
+            aria-label={onOpenSidebar ? 'Open sidebar' : 'Close editor'}
+            title={onOpenSidebar ? 'Open sidebar' : 'Close (Esc)'}
           >
-            <X className="h-5 w-5" />
+            <Menu className="h-5 w-5" />
           </button>
 
           {/* Agent color badge - uses form state */}

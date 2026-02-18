@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Info, List, Search, Loader2 } from 'lucide-react'
+import { Menu, Info, List, Search, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getRunDetails, type RunDetails } from '@/services/heartbeatService'
 import { selectors } from '@/constants/selectors'
@@ -20,6 +20,7 @@ import { RunInvestigationTab } from './runTabs/RunInvestigationTab'
 interface RunEditorPanelProps {
   runId: string
   onClose: () => void
+  onOpenSidebar?: () => void
   className?: string
 }
 
@@ -50,6 +51,7 @@ function computeDuration(startedAt?: string, endedAt?: string): string | null {
 export function RunEditorPanel({
   runId,
   onClose,
+  onOpenSidebar,
   className,
 }: RunEditorPanelProps) {
   const [activeTab, setActiveTab] = useState('info')
@@ -115,12 +117,12 @@ export function RunEditorPanel({
           {/* Close button */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={onOpenSidebar ?? onClose}
             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            aria-label="Close editor"
-            title="Close (Esc)"
+            aria-label={onOpenSidebar ? 'Open sidebar' : 'Close editor'}
+            title={onOpenSidebar ? 'Open sidebar' : 'Close (Esc)'}
           >
-            <X className="h-5 w-5" />
+            <Menu className="h-5 w-5" />
           </button>
 
           {/* Status badge */}

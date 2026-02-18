@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Clock, Play, Save, X, Loader2 } from 'lucide-react'
+import { Clock, Play, Save, X, Loader2, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 
@@ -26,6 +26,10 @@ interface MemberScheduleSectionProps {
   isRunning?: boolean
   /** Duration string for the current run (e.g. "2m 34s") */
   runDuration?: string
+  /** Run ID for currently running heartbeat (if known) */
+  runningRunId?: string | null
+  /** Open the run view for a run ID */
+  onOpenRun?: (runId: string) => void
 }
 
 const DAY_OPTIONS = [
@@ -230,6 +234,8 @@ export function MemberScheduleSection({
   onSetHeartbeatEnabled,
   isRunning = false,
   runDuration,
+  runningRunId = null,
+  onOpenRun,
 }: MemberScheduleSectionProps) {
   const [isScheduleEditing, setIsScheduleEditing] = useState(false)
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('custom')
@@ -359,11 +365,28 @@ export function MemberScheduleSection({
       </div>
 
       {isRunning && (
-        <div className="flex items-center gap-2 px-2 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-md">
-          <Loader2 className="h-3.5 w-3.5 text-purple-500 animate-spin" />
-          <span className="text-xs font-medium text-purple-500">
-            Currently running{runDuration ? ` (${runDuration})` : ''}
-          </span>
+        <div className="flex items-center justify-between gap-2 px-2 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-md">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-3.5 w-3.5 text-purple-500 animate-spin" />
+            <span className="text-xs font-medium text-purple-500">
+              Currently running{runDuration ? ` (${runDuration})` : ''}
+            </span>
+          </div>
+          {runningRunId && onOpenRun && (
+            <button
+              type="button"
+              onClick={() => onOpenRun(runningRunId)}
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded-md',
+                'bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 transition-colors'
+              )}
+              aria-label="Open run view"
+              title="Open run view"
+            >
+              <ExternalLink className="h-3 w-3" />
+              <span>Open Run</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -390,9 +413,11 @@ export function MemberScheduleSection({
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 )}
+                aria-label="Run now"
+                title="Run now"
               >
                 <Play className="h-3.5 w-3.5" />
-                Run now
+                <span className="hidden sm:inline">Run now</span>
               </button>
               <button
                 type="button"

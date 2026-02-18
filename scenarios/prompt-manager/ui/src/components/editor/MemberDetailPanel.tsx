@@ -8,8 +8,8 @@
  * - Remove member button
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, PanelRightClose } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, PanelRightClose, Clock, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
@@ -60,6 +60,22 @@ const statusStyles: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
 }
 
+function formatRelativePastTime(date: Date) {
+  const diffMs = Date.now() - date.getTime()
+  if (Number.isNaN(diffMs) || diffMs < 0) return 'Just now'
+  if (diffMs < 60000) return 'Just now'
+  if (diffMs < 3600000) {
+    const mins = Math.round(diffMs / 60000)
+    return `${mins} min${mins !== 1 ? 's' : ''} ago`
+  }
+  if (diffMs < 86400000) {
+    const hrs = Math.round(diffMs / 3600000)
+    return `${hrs} hour${hrs !== 1 ? 's' : ''} ago`
+  }
+  const days = Math.round(diffMs / 86400000)
+  return `${days} day${days !== 1 ? 's' : ''} ago`
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -105,7 +121,9 @@ export function MemberDetailPanel({
   const [heartbeatInstructions, setHeartbeatInstructions] = useState('')
   const [heartbeatConfig, setHeartbeatConfig] = useState<HeartbeatConfig | null>(null)
   const [schedule, setSchedule] = useState('0 */6 * * *')
+  const [recentHeartbeatLogs, setRecentHeartbeatLogs] = useState<heartbeatService.LogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingRecentHeartbeats, setIsLoadingRecentHeartbeats] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -121,6 +139,7 @@ export function MemberDetailPanel({
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
+      setIsLoadingRecentHeartbeats(true)
       setError(null)
       try {
         const [resp, instr, config] = await Promise.all([
@@ -134,9 +153,20 @@ export function MemberDetailPanel({
         setSchedule(config?.schedule ?? '0 */6 * * *')
         setIsResponsibilitiesDirty(false)
         setIsInstructionsDirty(false)
+
+        try {
+          const logs = await heartbeatService.listLogs(team.id, member.agentId)
+          setRecentHeartbeatLogs(logs)
+        } catch (logErr) {
+          console.warn('Failed to load member heartbeat logs:', logErr)
+          setRecentHeartbeatLogs([])
+        } finally {
+          setIsLoadingRecentHeartbeats(false)
+        }
       } catch (err) {
         console.warn('Failed to load member data:', err)
         setError('Failed to load member data')
+        setIsLoadingRecentHeartbeats(false)
       } finally {
         setIsLoading(false)
       }
@@ -267,11 +297,60 @@ export function MemberDetailPanel({
       })
       const updated = await heartbeatService.getHeartbeat(team.id, member.agentId)
       if (updated) setHeartbeatConfig(updated)
+      const logs = await heartbeatService.listLogs(team.id, member.agentId)
+      setRecentHeartbeatLogs(logs)
     } catch (err) {
       console.error('Failed to trigger heartbeat:', err)
       toast({ title: 'Failed to trigger heartbeat', variant: 'destructive' })
     }
   }, [team.id, member.agentId])
+
+  const recentHeartbeats = useMemo(() => {
+    const entries: {
+      startedAt: Date
+      status: string
+      runId?: string
+      error?: string
+      source: 'execution' | 'log'
+    }[] = []
+
+    const lastExecution = heartbeatConfig?.lastExecution
+    if (lastExecution?.startedAt) {
+      const startedAt = new Date(lastExecution.startedAt)
+      if (!Number.isNaN(startedAt.getTime())) {
+        entries.push({
+          startedAt,
+          status: lastExecution.status,
+          runId: lastExecution.runId,
+          error: lastExecution.error,
+          source: 'execution',
+        })
+      }
+    }
+
+    for (const log of recentHeartbeatLogs) {
+      const startedAt = new Date(log.timestamp)
+      if (Number.isNaN(startedAt.getTime())) continue
+      entries.push({
+        startedAt,
+        status: (log.status ?? 'completed').toLowerCase(),
+        source: 'log',
+      })
+    }
+
+    const deduped = new Map<string, (typeof entries)[number]>()
+    for (const entry of entries) {
+      const key = `${entry.startedAt.toISOString()}-${entry.status}`
+      const existing = deduped.get(key)
+      if (!existing || (existing.source === 'log' && entry.source === 'execution')) {
+        deduped.set(key, entry)
+      }
+    }
+
+    return Array.from(deduped.values())
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+      .slice(0, 5)
+  }, [heartbeatConfig?.lastExecution, recentHeartbeatLogs])
 
   // Handle remove member
   const handleRemove = useCallback(async () => {
@@ -464,7 +543,74 @@ export function MemberDetailPanel({
               onSetHeartbeatEnabled={(enabled) => void handleSetHeartbeatEnabled(enabled)}
               isRunning={!!runningAgent}
               runDuration={runningAgent?.duration}
+              runningRunId={runningAgent?.runId}
+              onOpenRun={(runId) => useSelectionStore.getState().setSelectedRunId(runId)}
             />
+
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-foreground">Recent Heartbeats</h3>
+                <span className="text-xs text-muted-foreground">Last 5</span>
+              </div>
+              {isLoadingRecentHeartbeats ? (
+                <p className="text-sm text-muted-foreground">Loading recent heartbeats...</p>
+              ) : recentHeartbeats.length === 0 ? (
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">No recent heartbeat executions.</p>
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">
+                      Heartbeat history will appear here after this member runs their first heartbeat.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {recentHeartbeats.map((entry) => (
+                    <li key={`${entry.startedAt.toISOString()}-${entry.status}`}>
+                      <div className="flex items-center gap-1">
+                        <div className="flex-1 flex items-start justify-between gap-4 px-3 py-2 bg-muted rounded-lg text-left">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={cn(
+                                'inline-block h-2 w-2 rounded-full flex-shrink-0',
+                                entry.status === 'completed' && 'bg-emerald-500',
+                                entry.status === 'failed' && 'bg-red-500',
+                                entry.status === 'cancelled' && 'bg-slate-400',
+                                entry.status === 'running' && 'bg-amber-500 animate-pulse'
+                              )}
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{member.displayName}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 capitalize">{entry.status}</p>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm text-foreground">{entry.startedAt.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">{formatRelativePastTime(entry.startedAt)}</p>
+                          </div>
+                        </div>
+                        {entry.runId && (
+                          <button
+                            type="button"
+                            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                            title="Open full run view"
+                            onClick={() => useSelectionStore.getState().setSelectedRunId(entry.runId!)}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {(entry.status === 'failed' || entry.status === 'cancelled') && entry.error && (
+                        <p className="text-xs text-red-400 mt-1 px-3 truncate" title={entry.error}>
+                          {entry.error}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
             {/* Heartbeat Instructions */}
             <CollapsibleSection

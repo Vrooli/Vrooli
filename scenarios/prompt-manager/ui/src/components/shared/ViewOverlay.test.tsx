@@ -56,14 +56,19 @@ describe('ViewOverlay', () => {
 
   it('shows compact mobile controls and opens/closes stats + queries sheets', () => {
     vi.mocked(useIsMobile).mockReturnValue(true)
+    const onOpenMobileSidebar = vi.fn()
 
     render(
       <ViewOverlay
+        onOpenMobileSidebar={onOpenMobileSidebar}
         leftPanelContent={<div>Query Body</div>}
         settingsContent={<div>Settings Body</div>}
         helpContent={<div>Help Body</div>}
       />,
     )
+
+    fireEvent.click(screen.getByTestId('view-overlay-mobile-sidebar-button'))
+    expect(onOpenMobileSidebar).toHaveBeenCalledTimes(1)
 
     expect(screen.getByTestId('view-overlay-mobile-stats-button')).toBeInTheDocument()
     expect(screen.getByTestId('view-overlay-mobile-left-panel-button')).toBeInTheDocument()
