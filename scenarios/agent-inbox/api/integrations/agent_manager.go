@@ -39,6 +39,7 @@ type AgentManagerClientInterface interface {
 	GetEvents(ctx context.Context, runID string, afterSequence int64) ([]*TranslatedEvent, error)
 	GetRunStatus(ctx context.Context, runID string) (*AgentRunStatus, error)
 	StopRun(ctx context.Context, runID string) error
+	ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResult, error)
 }
 
 // AgentManagerClient provides direct REST API access to agent-manager.
@@ -373,6 +374,33 @@ func IsTerminalRunStatus(status string) bool {
 	return !IsActiveRunStatus(status) && status != ""
 }
 
+// ListRunsOptions contains filter/pagination parameters for listing runs.
+type ListRunsOptions struct {
+	Status    string `json:"status,omitempty"`
+	TagPrefix string `json:"tag_prefix,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
+	Offset    int    `json:"offset,omitempty"`
+}
+
+// AgentRunSummary is a lightweight representation of a run for list views.
+type AgentRunSummary struct {
+	RunID           string    `json:"run_id"`
+	TaskID          string    `json:"task_id"`
+	Tag             string    `json:"tag,omitempty"`
+	Status          RunStatus `json:"status"`
+	Phase           string    `json:"phase,omitempty"`
+	ProgressPercent int       `json:"progress_percent"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// ListRunsResult contains paginated run listing results.
+type ListRunsResult struct {
+	Runs    []AgentRunSummary `json:"runs"`
+	Total   int               `json:"total"`
+	HasMore bool              `json:"has_more"`
+}
+
 // AgentRunStatus contains the status info for a run.
 type AgentRunStatus struct {
 	RunID           string    `json:"run_id"`
@@ -701,6 +729,66 @@ func (c *AgentManagerClient) GetRunStatus(ctx context.Context, runID string) (*A
 		ProgressPercent: int(run.GetProgressPercent()),
 		SessionID:       run.GetSessionId(),
 		ErrorMsg:        run.GetErrorMsg(),
+	}, nil
+}
+
+// ListRuns retrieves a paginated list of runs from agent-manager.
+func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResult, error) {
+	path := "/api/v1/runs?"
+	params := make([]string, 0, 4)
+	if opts.Status != "" {
+		params = append(params, "status="+opts.Status)
+	}
+	if opts.TagPrefix != "" {
+		params = append(params, "tag_prefix="+opts.TagPrefix)
+	}
+	if opts.Limit > 0 {
+		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))
+	}
+	if opts.Offset > 0 {
+		params = append(params, fmt.Sprintf("offset=%d", opts.Offset))
+	}
+	path += strings.Join(params, "&")
+
+	resp, err := c.doWithRetry(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to agent-manager: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list runs failed: %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result apipb.ListRunsResponse
+	if err := protoUnmarshalOpts.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse list runs response: %w", err)
+	}
+
+	runs := make([]AgentRunSummary, 0, len(result.GetRuns()))
+	for _, run := range result.GetRuns() {
+		summary := AgentRunSummary{
+			RunID:           run.GetId(),
+			TaskID:          run.GetTaskId(),
+			Tag:             run.GetTag(),
+			Status:          ProtoRunStatusToLocal(run.GetStatus()),
+			Phase:           protoRunPhaseToString(run.GetPhase()),
+			ProgressPercent: int(run.GetProgressPercent()),
+		}
+		if ts := run.GetCreatedAt(); ts != nil {
+			summary.CreatedAt = ts.AsTime()
+		}
+		if ts := run.GetUpdatedAt(); ts != nil {
+			summary.UpdatedAt = ts.AsTime()
+		}
+		runs = append(runs, summary)
+	}
+
+	return &ListRunsResult{
+		Runs:    runs,
+		Total:   int(result.GetTotal()),
+		HasMore: result.GetHasMore(),
 	}, nil
 }
 

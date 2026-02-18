@@ -407,19 +407,26 @@ type GetEventsCall struct {
 	AfterSequence int64
 }
 
+// ListRunsCall records a call to ListRuns.
+type ListRunsCall struct {
+	Options integrations.ListRunsOptions
+}
+
 // MockAgentManagerClient provides a controllable agent-manager client for testing.
 type MockAgentManagerClient struct {
 	mu sync.Mutex
 
 	// Configurable return values
-	StartResult  *integrations.AgentChatSession
-	StartError   error
-	ContinueErr  error
-	EventsResult []*integrations.TranslatedEvent
-	EventsError  error
-	StatusResult *integrations.AgentRunStatus
-	StatusError  error
-	StopError    error
+	StartResult    *integrations.AgentChatSession
+	StartError     error
+	ContinueErr    error
+	EventsResult   []*integrations.TranslatedEvent
+	EventsError    error
+	StatusResult   *integrations.AgentRunStatus
+	StatusError    error
+	StopError      error
+	ListRunsResult *integrations.ListRunsResult
+	ListRunsError  error
 
 	// Call tracking
 	StartCalls    []StartAgentChatCall
@@ -427,6 +434,7 @@ type MockAgentManagerClient struct {
 	EventsCalls   []GetEventsCall
 	StatusCalls   []string // runIDs
 	StopCalls     []string // runIDs
+	ListRunsCalls []ListRunsCall
 
 	// Custom func hooks (override default behavior when set)
 	StartFunc    func(ctx context.Context, message string, cfg integrations.AgentChatConfig) (*integrations.AgentChatSession, error)
@@ -434,6 +442,7 @@ type MockAgentManagerClient struct {
 	EventsFunc   func(ctx context.Context, runID string, afterSequence int64) ([]*integrations.TranslatedEvent, error)
 	StatusFunc   func(ctx context.Context, runID string) (*integrations.AgentRunStatus, error)
 	StopFunc     func(ctx context.Context, runID string) error
+	ListRunsFunc func(ctx context.Context, opts integrations.ListRunsOptions) (*integrations.ListRunsResult, error)
 }
 
 // StartAgentChat implements AgentManagerClientInterface.
@@ -491,6 +500,17 @@ func (m *MockAgentManagerClient) StopRun(ctx context.Context, runID string) erro
 	return m.StopError
 }
 
+// ListRuns implements AgentManagerClientInterface.
+func (m *MockAgentManagerClient) ListRuns(ctx context.Context, opts integrations.ListRunsOptions) (*integrations.ListRunsResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ListRunsCalls = append(m.ListRunsCalls, ListRunsCall{Options: opts})
+	if m.ListRunsFunc != nil {
+		return m.ListRunsFunc(ctx, opts)
+	}
+	return m.ListRunsResult, m.ListRunsError
+}
+
 // Reset clears all recorded calls and return values.
 func (m *MockAgentManagerClient) Reset() {
 	m.mu.Lock()
@@ -500,4 +520,5 @@ func (m *MockAgentManagerClient) Reset() {
 	m.EventsCalls = nil
 	m.StatusCalls = nil
 	m.StopCalls = nil
+	m.ListRunsCalls = nil
 }

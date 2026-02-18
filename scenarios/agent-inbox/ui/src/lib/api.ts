@@ -2500,3 +2500,107 @@ export async function clearAgentMode(
 
   return jsonResponse<{ success: boolean; chat_mode: "llm" }>(res);
 }
+
+/** Summary of an agent run for list views */
+export interface AgentRunSummary {
+  run_id: string;
+  task_id: string;
+  tag?: string;
+  status: AgentRunStatus;
+  phase?: string;
+  progress_percent: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Paginated response from listing agent runs */
+export interface ListAgentRunsResponse {
+  runs: AgentRunSummary[];
+  total: number;
+  has_more: boolean;
+}
+
+/** Options for filtering/paginating agent runs */
+export interface ListAgentRunsOptions {
+  status?: string;
+  tag_prefix?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * List runs from agent-manager.
+ */
+export async function listAgentRuns(
+  options?: ListAgentRunsOptions
+): Promise<ListAgentRunsResponse> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set("status", options.status);
+  if (options?.tag_prefix) params.set("tag_prefix", options.tag_prefix);
+  if (options?.limit) params.set("limit", String(options.limit));
+  if (options?.offset) params.set("offset", String(options.offset));
+
+  const query = params.toString();
+  const url = buildApiUrl(`/agent-runs${query ? `?${query}` : ""}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
+    const detail = body?.error?.details?.user_message;
+    const msg = detail || body?.error?.message || `Failed to list agent runs: ${res.status}`;
+    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
+  }
+
+  return jsonResponse<ListAgentRunsResponse>(res);
+}
+
+/**
+ * Get events for an agent-manager run directly by run ID (no chat required).
+ * Used for previewing runs before attaching them.
+ */
+export async function getRunEvents(
+  runId: string,
+  afterSequence: number = 0
+): Promise<AgentEventsResponse> {
+  const url = buildApiUrl(`/agent-runs/${runId}/events?after_sequence=${afterSequence}`, {
+    baseUrl: API_BASE
+  });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get run events: ${res.status}`);
+  }
+
+  return jsonResponse<AgentEventsResponse>(res);
+}
+
+/**
+ * Attach an existing agent-manager run to a chat.
+ */
+export async function attachAgentRun(
+  chatId: string,
+  runId: string,
+  taskId: string
+): Promise<AgentModeResponse> {
+  const url = buildApiUrl(`/chats/${chatId}/agent-mode/attach`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run_id: runId, task_id: taskId })
+  });
+
+  if (!res.ok) {
+    const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
+    const detail = body?.error?.details?.user_message;
+    const msg = detail || body?.error?.message || `Failed to attach agent run: ${res.status}`;
+    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
+  }
+
+  return jsonResponse<AgentModeResponse>(res);
+}

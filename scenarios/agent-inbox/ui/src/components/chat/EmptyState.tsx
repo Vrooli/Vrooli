@@ -3,13 +3,16 @@ import { MessageSquare, Sparkles, Zap, Shield } from "lucide-react";
 import { MessageInput, type MessagePayload } from "./MessageInput";
 import { ModeSelector, type ChatMode } from "./ModeSelector";
 import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
+import { AttachRunModal } from "./AttachRunModal";
 import { useAgentSettings } from "../../hooks/useAgentSettings";
 import { selectorsManifest } from "../../consts/selectors";
-import type { Model } from "../../lib/api";
+import type { Model, AgentRunSummary } from "../../lib/api";
 
 interface EmptyStateProps {
   onStartChat: (payload: MessagePayload) => void;
   onStartAgentChat: (payload: MessagePayload, config: AgentStartConfig) => void;
+  /** Called when user selects a run to attach. Creates a chat and attaches the run. */
+  onAttachRun?: (run: AgentRunSummary) => void;
   onOpenAgentSettings?: () => void;
   isCreating: boolean;
   models: Model[];
@@ -18,6 +21,7 @@ interface EmptyStateProps {
 export function EmptyState({
   onStartChat,
   onStartAgentChat,
+  onAttachRun,
   onOpenAgentSettings,
   isCreating,
   models,
@@ -43,6 +47,8 @@ export function EmptyState({
     localStorage.setItem(CHAT_MODE_KEY, mode);
   };
   const [showAgentConfig, setShowAgentConfig] = useState(false);
+  const [showAttachModal, setShowAttachModal] = useState(false);
+  const [isAttaching, setIsAttaching] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<MessagePayload | null>(null);
 
   // Agent settings from localStorage
@@ -84,6 +90,18 @@ export function EmptyState({
     setShowAgentConfig(false);
   };
 
+  // Handle attaching an existing run
+  const handleAttachRun = async (run: AgentRunSummary) => {
+    if (!onAttachRun) return;
+    setIsAttaching(true);
+    try {
+      onAttachRun(run);
+      setShowAttachModal(false);
+    } finally {
+      setIsAttaching(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid={emptyStateTestIds.container}>
       <div className="w-full max-w-2xl">
@@ -94,7 +112,7 @@ export function EmptyState({
               <MessageSquare className="h-8 w-8 sm:h-10 sm:w-10 text-indigo-400" />
             </div>
             <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-500 flex items-center justify-center">
-              <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
+              <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:h-3 text-white" />
             </div>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-2" data-testid={emptyStateTestIds.title}>
@@ -113,6 +131,7 @@ export function EmptyState({
               onModeChange={setSelectedMode}
               disabled={isCreating}
               onOpenAgentSettings={onOpenAgentSettings}
+              onOpenAttachModal={onAttachRun ? () => setShowAttachModal(true) : undefined}
             />
             {selectedMode === "agent" && !agentSettings.defaultProjectPath && (
               <span className="text-xs text-amber-400" data-testid={emptyStateTestIds.modeHint}>
@@ -168,6 +187,14 @@ export function EmptyState({
         onStart={handleAgentConfigConfirm}
         defaultSettings={agentSettings}
         isLoading={isCreating}
+      />
+
+      {/* Attach Run Modal */}
+      <AttachRunModal
+        isOpen={showAttachModal}
+        onClose={() => setShowAttachModal(false)}
+        onAttach={handleAttachRun}
+        isLoading={isAttaching}
       />
     </div>
   );

@@ -12,6 +12,8 @@ import (
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/middleware"
+
+	"github.com/gorilla/mux"
 )
 
 // getAgentClient returns the agent-manager client or writes an error response if unavailable.
@@ -21,6 +23,114 @@ func (h *Handlers) getAgentClient(w http.ResponseWriter, r *http.Request) integr
 		return nil
 	}
 	return h.AgentClient
+}
+
+// ListAgentRuns returns a paginated list of runs from agent-manager.
+// GET /api/v1/agent-runs?status=X&tag_prefix=X&limit=N&offset=N
+func (h *Handlers) ListAgentRuns(w http.ResponseWriter, r *http.Request) {
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
+		return
+	}
+
+	opts := integrations.ListRunsOptions{
+		Status:    r.URL.Query().Get("status"),
+		TagPrefix: r.URL.Query().Get("tag_prefix"),
+	}
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+			opts.Limit = v
+		}
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if v, err := strconv.Atoi(offsetStr); err == nil && v >= 0 {
+			opts.Offset = v
+		}
+	}
+
+	result, err := agentClient.ListRuns(r.Context(), opts)
+	if err != nil {
+		log.Printf("[ERROR] [%s] ListAgentRuns ListRuns failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrExternalService("agent-manager", err.Error()))
+		return
+	}
+
+	h.JSONResponse(w, result, http.StatusOK)
+}
+
+// AttachAgentRunRequest is the request body for attaching an existing run to a chat.
+type AttachAgentRunRequest struct {
+	RunID  string `json:"run_id"`
+	TaskID string `json:"task_id"`
+}
+
+// AttachAgentRun attaches an existing agent-manager run to a chat.
+// POST /api/v1/chats/{id}/agent-mode/attach
+func (h *Handlers) AttachAgentRun(w http.ResponseWriter, r *http.Request) {
+	chatID := h.ParseUUID(w, r, "id")
+	if chatID == "" {
+		return
+	}
+
+	var req AttachAgentRunRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.WriteAppError(w, r, domain.ErrInvalidJSON())
+		return
+	}
+
+	if req.RunID == "" {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("run_id is required"))
+		return
+	}
+	if req.TaskID == "" {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("task_id is required"))
+		return
+	}
+
+	// Verify chat exists
+	chat, err := h.Repo.GetChat(r.Context(), chatID)
+	if err != nil {
+		log.Printf("[ERROR] [%s] AttachAgentRun GetChat failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("get chat", err))
+		return
+	}
+	if chat == nil {
+		h.WriteAppError(w, r, domain.ErrChatNotFound(chatID))
+		return
+	}
+
+	// Check if already in agent mode with an active run
+	if chat.ChatMode == domain.ChatModeAgent && chat.AgentRunID != "" {
+		h.WriteAppError(w, r, domain.ErrAgentAlreadyActive(chatID))
+		return
+	}
+
+	// Get agent-manager client
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
+		return
+	}
+
+	// Verify the run exists in agent-manager
+	_, err = agentClient.GetRunStatus(r.Context(), req.RunID)
+	if err != nil {
+		log.Printf("[ERROR] [%s] AttachAgentRun GetRunStatus failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrExternalService("agent-manager", "run not found: "+err.Error()))
+		return
+	}
+
+	// Update chat to agent mode
+	if err := h.Repo.SetAgentMode(r.Context(), chatID, req.TaskID, req.RunID); err != nil {
+		log.Printf("[ERROR] [%s] AttachAgentRun SetAgentMode failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("update chat", err))
+		return
+	}
+
+	h.JSONResponse(w, AgentModeResponse{
+		ChatID: chatID,
+		TaskID: req.TaskID,
+		RunID:  req.RunID,
+	}, http.StatusOK)
 }
 
 // StartAgentModeRequest is the request body for starting agent mode.
@@ -398,6 +508,41 @@ func (h *Handlers) GetAgentStatus(w http.ResponseWriter, r *http.Request) {
 		"progress_percent": status.ProgressPercent,
 		"session_id":       status.SessionID,
 		"error_msg":        status.ErrorMsg,
+	}, http.StatusOK)
+}
+
+// GetRunEvents retrieves events for an agent-manager run directly by run ID.
+// Unlike GetAgentEvents, this does not require the run to be attached to a chat.
+// GET /api/v1/agent-runs/{run_id}/events?after_sequence=N
+func (h *Handlers) GetRunEvents(w http.ResponseWriter, r *http.Request) {
+	runID := mux.Vars(r)["run_id"]
+	if runID == "" {
+		h.WriteAppError(w, r, domain.ErrMissingField("run_id"))
+		return
+	}
+
+	afterSequence := int64(0)
+	if seqStr := r.URL.Query().Get("after_sequence"); seqStr != "" {
+		if seq, err := strconv.ParseInt(seqStr, 10, 64); err == nil {
+			afterSequence = seq
+		}
+	}
+
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
+		return
+	}
+
+	events, err := agentClient.GetEvents(r.Context(), runID, afterSequence)
+	if err != nil {
+		log.Printf("[ERROR] [%s] GetRunEvents GetEvents failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrExternalService("agent-manager", err.Error()))
+		return
+	}
+
+	h.JSONResponse(w, map[string]interface{}{
+		"events": events,
+		"run_id": runID,
 	}, http.StatusOK)
 }
 

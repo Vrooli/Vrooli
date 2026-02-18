@@ -44,11 +44,13 @@ import {
   deleteArchivedChats,
   markAllChatsAsRead,
   startAgentMode,
+  attachAgentRun,
   deleteChat as deleteChatAPI,
   AgentModeError,
   createChat as createChatAPI,
   exportChat,
 } from "./lib/api";
+import type { AgentRunSummary } from "./lib/api";
 import type { AgentStartConfig } from "./components/chat/AgentStartModal";
 import type { MessagePayload } from "./components/chat/MessageInput";
 import { getDefaultModel } from "./components/settings/Settings";
@@ -456,6 +458,36 @@ function AppContent() {
         const msg = error instanceof AgentModeError
           ? error.message
           : error instanceof Error ? error.message : "Failed to start agent chat";
+        addToast(msg, "error", 8000);
+      }
+    },
+    [selectChat, queryClient, addToast]
+  );
+
+  // Handle attaching an existing run from EmptyState (creates a chat first)
+  const handleAttachRunFromEmpty = useCallback(
+    async (run: AgentRunSummary) => {
+      let chatId: string | undefined;
+      try {
+        const defaultModel = getDefaultModel();
+        const newChat = await createChatAPI({ model: defaultModel, chat_mode: "agent" });
+        chatId = newChat.id;
+        selectChat(chatId);
+
+        await attachAgentRun(chatId, run.run_id, run.task_id);
+
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      } catch (error) {
+        console.error("Failed to attach run:", error);
+        if (chatId) {
+          try { await deleteChatAPI(chatId); } catch { /* best effort */ }
+          selectChat("");
+          queryClient.invalidateQueries({ queryKey: ["chats"] });
+        }
+        const msg = error instanceof AgentModeError
+          ? error.message
+          : error instanceof Error ? error.message : "Failed to attach run";
         addToast(msg, "error", 8000);
       }
     },
@@ -1128,6 +1160,7 @@ function AppContent() {
             <EmptyState
               onStartChat={createChatWithMessage}
               onStartAgentChat={handleStartAgentChat}
+              onAttachRun={handleAttachRunFromEmpty}
               onOpenAgentSettings={handleOpenAgentSettings}
               isCreating={isCreatingChat}
               models={models}

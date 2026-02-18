@@ -8,11 +8,13 @@ import { AsyncStatusBar } from "./AsyncStatusBar";
 import { AsyncOperationDrawer } from "./AsyncOperationDrawer";
 import { ModeSelector, type ChatMode } from "./ModeSelector";
 import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
+import { AttachRunModal } from "./AttachRunModal";
 import { AgentEventList, type AgentMetric } from "./agent/AgentEventList";
 import { AgentStatusIndicator } from "./agent/AgentStatusIndicator";
 import type { AsyncResultReference } from "./AsyncResultChip";
 import type { ChatWithMessages, Model, Label, Message, AgentChatConfig } from "../../lib/api";
-import { startAgentMode, sendAgentMessage, stopAgentMode, AgentModeError } from "../../lib/api";
+import { startAgentMode, sendAgentMessage, stopAgentMode, attachAgentRun, AgentModeError } from "../../lib/api";
+import type { AgentRunSummary } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import type { ViewMode } from "../settings/Settings";
@@ -146,6 +148,8 @@ export function ChatView({
   const [pendingAgentMessage, setPendingAgentMessage] = useState<string>("");
   const [agentError, setAgentError] = useState<{ message: string; recovery?: string } | null>(null);
   const [queuedMessage, setQueuedMessage] = useState<MessagePayload | null>(null);
+  const [showAttachModal, setShowAttachModal] = useState(false);
+  const [isAttaching, setIsAttaching] = useState(false);
 
   // Sync chatMode with server state when chat data loads or changes.
   // Without this, chatMode stays "llm" because useState initializer runs once
@@ -296,6 +300,28 @@ export function ChatView({
     }
   }, [chatData?.chat?.id, onRefreshChat]);
 
+  // Handle attaching an existing run
+  const handleAttachRun = useCallback(async (run: AgentRunSummary) => {
+    if (!chatData?.chat?.id) return;
+
+    setIsAttaching(true);
+    setAgentError(null);
+
+    try {
+      await attachAgentRun(chatData.chat.id, run.run_id, run.task_id);
+      setShowAttachModal(false);
+      onRefreshChat?.();
+    } catch (e) {
+      if (e instanceof AgentModeError) {
+        setAgentError({ message: e.message, recovery: e.recovery });
+      } else {
+        setAgentError({ message: e instanceof Error ? e.message : "Failed to attach run" });
+      }
+    } finally {
+      setIsAttaching(false);
+    }
+  }, [chatData?.chat?.id, onRefreshChat]);
+
   // Handle sending message - route to agent or LLM based on mode
   const handleSendMessage = useCallback((payload: MessagePayload) => {
     if (chatMode === "agent") {
@@ -431,6 +457,7 @@ export function ChatView({
           disabled={isStartingAgent}
           isAgentActive={isAgentActive}
           onOpenAgentSettings={onOpenAgentSettings}
+          onOpenAttachModal={() => setShowAttachModal(true)}
         />
         {agentError && (
           <span className="text-xs text-red-400 truncate">
@@ -560,6 +587,14 @@ export function ChatView({
         onStart={handleStartAgent}
         defaultSettings={agentSettings}
         isLoading={isStartingAgent}
+      />
+
+      {/* Attach run modal */}
+      <AttachRunModal
+        isOpen={showAttachModal}
+        onClose={() => setShowAttachModal(false)}
+        onAttach={handleAttachRun}
+        isLoading={isAttaching}
       />
     </div>
   );
