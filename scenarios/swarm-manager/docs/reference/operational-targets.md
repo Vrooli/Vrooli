@@ -34,7 +34,7 @@ References:
 - [CODE: ui/src/components/backlog/idea-clarify-panel.tsx]
 - [CODE: ui/src/components/backlog/idea-suggestions-panel.tsx]
 - [CODE: api/internal/backlog/handler.go]
-- [CODE: api/internal/prompttrace/trace.go]
+- [CODE: api/internal/prompttrace/model.go]
 
 ### OT-P1-005 - visited-tracker integration
 Status: Draft.
@@ -109,6 +109,6 @@ References:
 ### OT-P05-006 - Backlog prompt trace
 Status: Implemented.
 References:
-- [CODE: api/internal/prompttrace/trace.go]
+- [CODE: api/internal/prompttrace/model.go]
 - [CODE: cli/cmd_backlog.go]
 - [CODE: cli/cmd_execution.go]

@@ -155,6 +155,54 @@ func TestRunner_AbsolutePathAllowlist(t *testing.T) {
 	}
 }
 
+func TestRunner_ExcludesArchivedMarkdownByGlob(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "# Active Docs\n")
+	writeFile(t, filepath.Join(dir, "ideas/web-console-archived/README.md"), "broken [link](missing.md)\n")
+
+	settings := DefaultSettings()
+	settings.ScanPaths.ExcludeGlobs = []string{"ideas/*-archived/**"}
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     settings,
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected success with archived docs excluded, got failure: %+v", result)
+	}
+	if result.Summary.FilesChecked != 1 {
+		t.Fatalf("expected only 1 markdown file checked, got %d", result.Summary.FilesChecked)
+	}
+}
+
+func TestRunner_ExcludesArchivedCodeFromDocRefScan(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "README.md"), "# Active Docs\n")
+	writeFile(t, filepath.Join(dir, "ideas/web-console-archived/helper.go"), "package archived\n// DOC: docs/missing.md\n")
+
+	settings := DefaultSettings()
+	settings.ScanPaths.ExcludeGlobs = []string{"ideas/*-archived/**"}
+	strict := true
+	settings.References.Strict = &strict
+
+	runner := New(Config{
+		ScenarioDir:  dir,
+		ScenarioName: "demo",
+		Settings:     settings,
+	})
+
+	result := runner.Run(context.Background())
+	if !result.Success {
+		t.Fatalf("expected success with excluded code refs, got failure: %+v", result)
+	}
+	if result.Summary.DocRefsFound != 0 {
+		t.Fatalf("expected no doc refs found due to exclusion, got %d", result.Summary.DocRefsFound)
+	}
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -809,6 +857,10 @@ func TestLoadSettings_FromFile(t *testing.T) {
 			"links": {
 				"max_concurrency": 10,
 				"timeout_ms": 10000
+			},
+			"paths": {
+				"exclude_dirs": ["ideas"],
+				"exclude_globs": ["ideas/*-archived/**"]
 			}
 		}
 	}`
@@ -828,6 +880,12 @@ func TestLoadSettings_FromFile(t *testing.T) {
 	}
 	if settings.Links.TimeoutMs != 10000 {
 		t.Errorf("expected timeout_ms=10000, got %d", settings.Links.TimeoutMs)
+	}
+	if len(settings.scanExcludeDirs()) != 1 || settings.scanExcludeDirs()[0] != "ideas" {
+		t.Errorf("expected paths.exclude_dirs to load, got %#v", settings.scanExcludeDirs())
+	}
+	if len(settings.scanExcludeGlobs()) != 1 || settings.scanExcludeGlobs()[0] != "ideas/*-archived/**" {
+		t.Errorf("expected paths.exclude_globs to load, got %#v", settings.scanExcludeGlobs())
 	}
 }
 
@@ -1692,16 +1750,16 @@ func TestIsDigits(t *testing.T) {
 		input    string
 		expected bool
 	}{
-		{"", true},       // empty string - all chars are digits (vacuously true)
+		{"", true}, // empty string - all chars are digits (vacuously true)
 		{"0", true},
 		{"123", true},
 		{"0123456789", true},
 		{"1a2", false},
 		{"abc", false},
-		{"-1", false},    // negative sign
-		{"1.5", false},   // decimal point
-		{" 1", false},    // leading space
-		{"1 ", false},    // trailing space
+		{"-1", false},  // negative sign
+		{"1.5", false}, // decimal point
+		{" 1", false},  // leading space
+		{"1 ", false},  // trailing space
 	}
 
 	for _, tt := range tests {
@@ -2021,10 +2079,10 @@ func TestExtractFilePath(t *testing.T) {
 		{"path/to/file.go", "path/to/file.go"},
 		{"path/to/file.go#FunctionName", "path/to/file.go"},
 		{"path/to/file.go:42", "path/to/file.go"},
-		{"path/to/file.go#Method:42", "path/to/file.go"},  // anchor takes precedence
+		{"path/to/file.go#Method:42", "path/to/file.go"},               // anchor takes precedence
 		{"path/to/file:with:colons.go", "path/to/file:with:colons.go"}, // colons in filename
-		{"file.go:", "file.go:"},  // trailing colon, no digits
-		{"  file.go  ", "file.go"}, // whitespace trimmed
+		{"file.go:", "file.go:"},                                       // trailing colon, no digits
+		{"  file.go  ", "file.go"},                                     // whitespace trimmed
 	}
 
 	for _, tt := range tests {

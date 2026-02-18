@@ -208,4 +208,4 @@ The `researching` status is set while any Idea Agent phase is running.
 - `swarm-manager-clarify-idea` — clarify phase skill
 - `swarm-manager-suggest-idea` — suggest phase skill
 - `swarm-manager-enhance-idea` — enhance phase skill
-- [DOC: prompts/README.md] — prompt structure, variables, and output schemas
+- [DOC: docs/guides/research-notes.md#references] — prompt-manager and integration references

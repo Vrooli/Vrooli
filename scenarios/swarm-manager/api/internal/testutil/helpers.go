@@ -1,3 +1,5 @@
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/concepts/ARCHITECTURE.md
 // Package testutil provides shared testing utilities for API handlers.
 //
 // This package consolidates common test patterns:

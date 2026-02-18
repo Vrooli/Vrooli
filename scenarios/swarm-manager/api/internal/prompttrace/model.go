@@ -1,6 +1,10 @@
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/concepts/ARCHITECTURE.md
 package prompttrace
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -12,12 +16,13 @@ import (
 
 // Trace captures the prompt selected and rendered for a specific run.
 type Trace struct {
-	SkillID      string            `json:"skill_id"`
-	Purpose      string            `json:"purpose"`
-	Variables    map[string]string `json:"variables,omitempty"`
-	Prompt       string            `json:"prompt"`
-	UsedFallback bool              `json:"used_fallback"`
-	CapturedAt   string            `json:"captured_at"`
+	SkillID        string            `json:"skill_id"`
+	Purpose        string            `json:"purpose"`
+	Variables      map[string]string `json:"variables,omitempty"`
+	Prompt         string            `json:"prompt"`
+	PromptRevision string            `json:"prompt_revision,omitempty"`
+	UsedFallback   bool              `json:"used_fallback"`
+	CapturedAt     string            `json:"captured_at"`
 }
 
 func NowRFC3339() string {
@@ -28,7 +33,15 @@ func Save(path string, trace Trace) error {
 	if strings.TrimSpace(trace.CapturedAt) == "" {
 		trace.CapturedAt = NowRFC3339()
 	}
+	if strings.TrimSpace(trace.PromptRevision) == "" {
+		trace.PromptRevision = PromptRevision(trace.Prompt)
+	}
 	return storage.WriteJSONAtomic(path, trace)
+}
+
+func PromptRevision(prompt string) string {
+	sum := sha256.Sum256([]byte(prompt))
+	return "sha256:" + hex.EncodeToString(sum[:8])
 }
 
 func Load(path string) (Trace, error) {

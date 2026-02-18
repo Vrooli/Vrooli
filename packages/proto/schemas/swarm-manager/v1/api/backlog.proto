@@ -98,6 +98,34 @@ message BacklogFileResponse {
   BacklogFile file = 1;
 }
 
+// BacklogFileOperationRequest applies a filesystem operation within a backlog item.
+message BacklogFileOperationRequest {
+  // Operation to apply.
+  // @constraint one of: rename, move, copy, delete
+  string operation = 1 [(buf.validate.field).string = { in: [
+    "rename",
+    "move",
+    "copy",
+    "delete"
+  ] }];
+
+  // Source path relative to backlog item root.
+  string source_path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Destination path relative to backlog item root.
+  // Required for rename/move/copy. Ignored for delete.
+  optional string destination_path = 3;
+}
+
+// BacklogFileOperationResponse reports the result of a file operation.
+message BacklogFileOperationResponse {
+  // Result file node for rename/move/copy operations.
+  optional BacklogFile file = 1;
+
+  // Deleted path for delete operations.
+  optional string deleted_path = 2;
+}
+
 // QueueBacklogItemRequest queues a backlog item for processing.
 message QueueBacklogItemRequest {
   // Optional operation hint for idea processing.
@@ -108,6 +136,12 @@ message QueueBacklogItemRequest {
   optional int64 delay_seconds = 3 [(buf.validate.field).int64.gte = 0];
   // Human or agent identifier that initiated the queue action.
   optional string started_by = 4;
+  // Explicit confirmation to execute queue mutation. If false or unset, request
+  // is treated as a preview/dry-run and no mutation occurs.
+  optional bool confirm = 5;
+  // Override queue readiness feedback gates (unanswered questions / pending
+  // suggestions). API-level safety checks remain for non-overridable constraints.
+  optional bool force = 6;
 }
 
 // QueueBacklogItemResponse returns queue results.
@@ -117,6 +151,18 @@ message QueueBacklogItemResponse {
   string run_id = 3 [(buf.validate.field).string.min_len = 1];
   string base_url = 4 [(buf.validate.field).string.min_len = 1];
   string created = 5 [(buf.validate.field).string.min_len = 1];
+  // True when request ran in preview mode and no mutation occurred.
+  bool dry_run = 6;
+  // True when a queue mutation actually occurred.
+  bool queued = 7;
+  // Human-readable summary of outcome.
+  string message = 8;
+  // Blocking reasons when queue did not execute.
+  repeated string blocking_reasons = 9;
+  // Number of unanswered clarification questions detected.
+  int32 unanswered_questions = 10;
+  // Number of suggestions still pending user decision.
+  int32 pending_suggestions = 11;
 }
 
 // BacklogResearchRequest captures optional fields for spawning a research agent.

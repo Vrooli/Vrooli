@@ -90,8 +90,18 @@ claude_code::setup_agent_cleanup() {
 # Run Claude with a single prompt
 #######################################
 claude_code::run() {
+    # When OUTPUT_FORMAT=stream-json, the calling process (e.g., agent-manager Go
+    # backend) reads our stdout as a JSON stream. Any non-JSON output on stdout
+    # (log:: messages, warnings, debug lines) contaminates the stream. Redirect
+    # all log/diagnostic output to stderr so only the JSON stream flows on stdout.
+    if [[ "$OUTPUT_FORMAT" == "stream-json" ]]; then
+        # Save original stdout (fd 1) as fd 3, then redirect stdout to stderr.
+        # The execution block later restores fd 1 for the actual JSON stream.
+        exec 3>&1 1>&2
+    fi
+
     log::header "🤖 Running Claude Code"
-    
+
     if ! claude_code::is_installed; then
         log::error "Claude Code is not installed. Run: $0 --action install"
         return 1
@@ -231,15 +241,33 @@ claude_code::run() {
     local exit_code
     local temp_output_file
     temp_output_file=$(mktemp)
-    
+
     # Use timeout with streaming to prevent hanging, capture minimal output for error handling
     # Pass prompt via stdin to avoid argument length limits
     # Claude reads from stdin automatically when using --print with no prompt argument
-    {
-        echo "$PROMPT" | timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1
-        echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
-    } | tee "$temp_output_file"
-    
+    #
+    # IMPORTANT: When OUTPUT_FORMAT=stream-json, we must NOT merge stderr into stdout
+    # (via 2>&1) because --verbose mode causes Claude Code to write ANSI-formatted
+    # terminal UI rendering (box-drawing chars, color codes, status lines) to stderr.
+    # Merging these into stdout contaminates the JSON stream, causing the calling
+    # process to receive thousands of non-JSON ANSI lines alongside valid events.
+    # For text mode, 2>&1 is fine since there's no structured stream to protect.
+    if [[ "$OUTPUT_FORMAT" == "stream-json" ]]; then
+        local stderr_file
+        stderr_file=$(mktemp)
+        # Restore original stdout (fd 3) so the JSON stream goes to the calling
+        # process's pipe, not to stderr where we redirected log output earlier.
+        {
+            echo "$PROMPT" | timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>"$stderr_file"
+            echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
+        } | tee "$temp_output_file" >&3
+    else
+        {
+            echo "$PROMPT" | timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1
+            echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
+        } | tee "$temp_output_file"
+    fi
+
     exit_code=$(cat "${temp_output_file}.exit" 2>/dev/null || echo "124")
     
     # Handle timeout specifically (exit code 124)
@@ -247,7 +275,8 @@ claude_code::run() {
         log::error "Claude execution timed out after ${TIMEOUT:-600} seconds"
         log::info "Try increasing timeout with: --timeout <seconds>"
         log::info "Or use a simpler prompt that requires less processing"
-        rm -f "$temp_output_file" "${temp_output_file}.exit"
+        rm -f "$temp_output_file" "${temp_output_file}.exit" "${stderr_file:-}"
+        [[ "$OUTPUT_FORMAT" == "stream-json" ]] && exec 3>&-
         return $exit_code
     fi
     
@@ -255,6 +284,11 @@ claude_code::run() {
     if [[ $exit_code -ne 0 ]] || [[ -s "$temp_output_file" ]]; then
         local output
         output=$(cat "$temp_output_file" 2>/dev/null || echo "")
+        # In stream-json mode, error messages are in the stderr file (not mixed
+        # into stdout). Append stderr content so error detection patterns work.
+        if [[ -n "${stderr_file:-}" && -s "$stderr_file" ]]; then
+            output="$output"$'\n'"$(cat "$stderr_file" 2>/dev/null || echo "")"
+        fi
         
         # First check if the output is a JSON error response (even if exit_code is 0)
         # This handles the case where Claude returns JSON with is_error:true
@@ -270,22 +304,22 @@ claude_code::run() {
                 # This is a JSON usage limit error - handle it specially
                 # Use advanced rate limit detection
                 local rate_info=$(claude_code::detect_rate_limit "$output" "$exit_code")
-                
+
                 # Record the rate limit encounter
                 claude_code::record_rate_limit "$rate_info"
-                
+
                 local temp_rate
                 temp_rate=$(mktemp)
                 echo "$rate_info" > "$temp_rate"
-                
+
                 local limit_type=$(jq -r '.limit_type' "$temp_rate")
                 local reset_time=$(jq -r '.reset_time' "$temp_rate")
                 local retry_after=$(jq -r '.retry_after' "$temp_rate")
-                
+
                 rm -f "$temp_rate"
-                
+
                 log::error "Rate/Usage limit reached (type: $limit_type)"
-                
+
                 # Attempt automatic fallback to LiteLLM
                 local adapter_dir="${CLAUDE_CODE_CLI_DIR:-${APP_ROOT}/resources/claude-code}/adapters/litellm"
                 if [[ -f "$adapter_dir/execute.sh" ]]; then
@@ -295,7 +329,8 @@ claude_code::run() {
                         log::info "🔄 Retrying with LiteLLM backend..."
                         # Retry the original prompt through LiteLLM
                         if litellm::execute_with_fallback; then
-                            rm -f "$temp_output_file" "${temp_output_file}.exit"
+                            rm -f "$temp_output_file" "${temp_output_file}.exit" "${stderr_file:-}"
+                            [[ "$OUTPUT_FORMAT" == "stream-json" ]] && exec 3>&-
                             return 0
                         else
                             log::warn "LiteLLM retry failed"
@@ -339,7 +374,8 @@ claude_code::run() {
                 log::info "  - Check your usage at claude.ai"
                 
                 # Cleanup and exit with error
-                rm -f "$temp_output_file" "${temp_output_file}.exit"
+                rm -f "$temp_output_file" "${temp_output_file}.exit" "${stderr_file:-}"
+                [[ "$OUTPUT_FORMAT" == "stream-json" ]] && exec 3>&-
                 return 1
             fi
         fi
@@ -378,27 +414,27 @@ claude_code::run() {
             local temp_ri
             temp_ri=$(mktemp)
             echo "$rate_info" > "$temp_ri"
-            
+
             local is_rate_limited=$(jq -r '.detected' "$temp_ri")
-            
+
             rm -f "$temp_ri"
-            
+
             if [[ "$is_rate_limited" == "true" ]]; then
                 # Record the rate limit encounter
                 claude_code::record_rate_limit "$rate_info"
-                
+
                 local temp_rate
                 temp_rate=$(mktemp)
                 echo "$rate_info" > "$temp_rate"
-                
+
                 local limit_type=$(jq -r '.limit_type' "$temp_rate")
                 local reset_time=$(jq -r '.reset_time' "$temp_rate")
                 local retry_after=$(jq -r '.retry_after' "$temp_rate")
-                
+
                 rm -f "$temp_rate"
-                
+
                 log::error "Rate/Usage limit reached (type: $limit_type)"
-                
+
                 # Attempt automatic fallback to LiteLLM
                 local adapter_dir="${CLAUDE_CODE_CLI_DIR:-${APP_ROOT}/resources/claude-code}/adapters/litellm"
                 if [[ -f "$adapter_dir/execute.sh" ]]; then
@@ -408,7 +444,8 @@ claude_code::run() {
                         log::info "🔄 Retrying with LiteLLM backend..."
                         # Retry the original prompt through LiteLLM
                         if litellm::execute_with_fallback; then
-                            rm -f "$temp_output_file" "${temp_output_file}.exit"
+                            rm -f "$temp_output_file" "${temp_output_file}.exit" "${stderr_file:-}"
+                            [[ "$OUTPUT_FORMAT" == "stream-json" ]] && exec 3>&-
                             return 0
                         else
                             log::warn "LiteLLM retry failed"
@@ -474,13 +511,17 @@ claude_code::run() {
         fi
         
         # Cleanup temp files
-        rm -f "$temp_out" "$temp_output_file" "${temp_output_file}.exit"
+        rm -f "$temp_out" "$temp_output_file" "${temp_output_file}.exit" "${stderr_file:-}"
+        # Close fd 3 if we opened it for stream-json mode
+        [[ "$OUTPUT_FORMAT" == "stream-json" ]] && exec 3>&-
         export CLAUDE_CODE_LAST_EXIT=$exit_code
         return $exit_code
     fi
 
     # Cleanup temp files on success
-    rm -f "$temp_output_file" "${temp_output_file}.exit"
+    rm -f "$temp_output_file" "${temp_output_file}.exit" "${stderr_file:-}"
+    # Close fd 3 if we opened it for stream-json mode
+    [[ "$OUTPUT_FORMAT" == "stream-json" ]] && exec 3>&-
 
     # Unregister agent on success
     if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then

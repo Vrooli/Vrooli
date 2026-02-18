@@ -4,7 +4,7 @@
 >
 > Current implementation direction is documented in `docs/internal/GREENFIELD_EXECUTION_CONTROL_PLAN.md` and centers on backlog + execution control without a Swarm Manager recommendation subsystem.
 
-## Purpose
+## Legacy Purpose
 
 Provide a concrete, implementation-ready plan to upgrade swarm-manager’s agent-manager
 integration to match the mature patterns used in `scenario-to-cloud` and `test-genie`.

@@ -59,6 +59,33 @@ func parsePolicyOptions(mode *string, delay *int64) (executionOptions, error) {
 	return opts, nil
 }
 
+func (a *App) resolveExecutionMode(mode string) (string, error) {
+	if strings.TrimSpace(mode) != "" {
+		return mode, nil
+	}
+
+	body, err := a.getV1("/execution/policy", nil)
+	if err != nil {
+		return "", fmt.Errorf("resolve execution mode from policy: %w", err)
+	}
+	var response struct {
+		Policy struct {
+			DefaultMode string `json:"default_mode"`
+		} `json:"policy"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("decode execution policy: %w", err)
+	}
+	resolved := strings.ToLower(strings.TrimSpace(response.Policy.DefaultMode))
+	if resolved == "" {
+		return "", fmt.Errorf("execution policy default mode is empty; provide --mode manual|scheduled|yolo")
+	}
+	if resolved != "manual" && resolved != "scheduled" && resolved != "yolo" {
+		return "", fmt.Errorf("execution policy returned invalid default mode %q", resolved)
+	}
+	return resolved, nil
+}
+
 func (a *App) cmdExecutionList(args []string) error {
 	fs := flag.NewFlagSet("execution list", flag.ContinueOnError)
 	status := fs.String("status", "", "Filter by status")
@@ -209,11 +236,15 @@ func (a *App) cmdExecutionCreate(args []string) error {
 	if err != nil {
 		return err
 	}
+	resolvedMode, err := a.resolveExecutionMode(opts.mode)
+	if err != nil {
+		return err
+	}
 
 	payload := map[string]any{
 		"backlog_kind":  strings.TrimSpace(*kind),
 		"backlog_name":  strings.TrimSpace(*name),
-		"mode":          opts.mode,
+		"mode":          resolvedMode,
 		"delay_seconds": opts.delaySeconds,
 		"operation":     opts.operation,
 		"started_by":    opts.startedBy,

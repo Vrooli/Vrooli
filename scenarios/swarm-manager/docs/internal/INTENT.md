@@ -73,7 +73,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 | `app.go` | Command registration, thin API wrappers | HTTP implementation (uses cli-core) | [CODE: cli/app.go] |
 | `main.go` | Entry point | Application logic | [CODE: cli/main.go] |
 
-## Key Flows
+## Operational Flows
 
 ### Flow 1: Viewing the Backlog
 

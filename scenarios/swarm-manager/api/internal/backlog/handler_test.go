@@ -35,16 +35,27 @@ type backlogFileResponse struct {
 }
 
 type backlogQueueResponse struct {
-	Item    BacklogItem `json:"item"`
-	TaskID  string      `json:"task_id"`
-	RunID   string      `json:"run_id"`
-	BaseURL string      `json:"base_url"`
-	Created string      `json:"created"`
+	Item                BacklogItem `json:"item"`
+	TaskID              string      `json:"task_id"`
+	RunID               string      `json:"run_id"`
+	BaseURL             string      `json:"base_url"`
+	Created             string      `json:"created"`
+	DryRun              bool        `json:"dry_run"`
+	Queued              bool        `json:"queued"`
+	Message             string      `json:"message"`
+	BlockingReasons     []string    `json:"blocking_reasons"`
+	UnansweredQuestions int         `json:"unanswered_questions"`
+	PendingSuggestions  int         `json:"pending_suggestions"`
 }
 
 type backlogFileOperationResponse struct {
 	File        *BacklogFile `json:"file,omitempty"`
 	DeletedPath *string      `json:"deleted_path,omitempty"`
+}
+
+type processPreflightEnvelope struct {
+	Item      BacklogItem    `json:"item"`
+	Preflight map[string]any `json:"preflight"`
 }
 
 // setupTestHandler creates a handler with a temporary root directory.
@@ -503,7 +514,7 @@ func TestOperateFile_DestinationConflict(t *testing.T) {
 	}
 }
 
-func TestQueue_SpawnsAgent(t *testing.T) {
+func TestQueue_DefaultIsPreviewAndDoesNotSpawn(t *testing.T) {
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
 	}
@@ -526,14 +537,17 @@ func TestQueue_SpawnsAgent(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Queue(w, req)
-	testutil.AssertStatus(t, w, http.StatusAccepted)
+	testutil.AssertStatusOK(t, w)
 
 	resp := testutil.DecodeJSON[backlogQueueResponse](t, w)
-	if resp.Item.Status != StatusQueued {
-		t.Errorf("expected queued status, got %s", resp.Item.Status)
+	if resp.Item.Status != StatusBacklog {
+		t.Errorf("expected unchanged backlog status, got %s", resp.Item.Status)
 	}
-	if agent.lastReq == nil || agent.lastReq.Purpose != "process" {
-		t.Errorf("expected agent spawn for processing")
+	if !resp.DryRun || resp.Queued {
+		t.Errorf("expected dry_run preview response, got dry_run=%t queued=%t", resp.DryRun, resp.Queued)
+	}
+	if agent.lastReq != nil {
+		t.Errorf("expected no agent spawn for preview mode")
 	}
 }
 
@@ -555,7 +569,7 @@ func TestQueue_ManualMode_DoesNotSpawnImmediately(t *testing.T) {
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 
-	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator"}`)
+	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator","confirm":true}`)
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-manual-test/queue", reqBody)
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "queue-manual-test"})
@@ -594,7 +608,7 @@ func TestQueue_ScheduledMode_DoesNotSpawnImmediately(t *testing.T) {
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 
-	reqBody := bytes.NewBufferString(`{"mode":"scheduled","delay_seconds":60}`)
+	reqBody := bytes.NewBufferString(`{"mode":"scheduled","delay_seconds":60,"confirm":true}`)
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-scheduled-test/queue", reqBody)
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "queue-scheduled-test"})
@@ -634,7 +648,7 @@ func TestQueue_AllowsArchivedIdea(t *testing.T) {
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 
-	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator"}`)
+	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator","confirm":true}`)
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/archived-idea/queue", reqBody)
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "archived-idea"})
@@ -642,6 +656,88 @@ func TestQueue_AllowsArchivedIdea(t *testing.T) {
 
 	h.Queue(w, req)
 	testutil.AssertStatus(t, w, http.StatusAccepted)
+}
+
+func TestProcessPreflight_BlocksUnansweredCriticalQuestions(t *testing.T) {
+	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentService{})
+
+	item := BacklogItem{
+		Name:        "archived-preflight",
+		Title:       "[Archived] web-console",
+		Description: "",
+		Status:      StatusArchived,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+		Kind:        KindIdea,
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "archived-preflight", "spec.json"), `{
+  "name":"archived-preflight",
+  "title":"[Archived] web-console",
+  "description":"",
+  "status":"archived",
+  "priority":3,
+  "tags":[],
+  "created":"2026-01-28T00:00:00Z",
+  "updated":"2026-01-28T00:00:00Z",
+  "kind":"idea",
+  "sourceScenarioName":"web-console"
+}`)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "archived-preflight", "clarify", "questions.json"), `{
+  "questions":[
+    {"id":"Q1","importance":"critical","question":"q1","answer":null}
+  ]
+}`)
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog/idea/archived-preflight/process-preflight", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "archived-preflight"})
+	w := httptest.NewRecorder()
+
+	h.ProcessPreflight(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[processPreflightEnvelope](t, w)
+	if ready, ok := resp.Preflight["ready"].(bool); !ok || ready {
+		t.Fatalf("expected preflight ready=false, got %#v", resp.Preflight["ready"])
+	}
+	if target, _ := resp.Preflight["resolved_target_scenario_id"].(string); target != "web-console" {
+		t.Fatalf("expected resolved target web-console, got %q", target)
+	}
+}
+
+func TestQueue_BlocksWhenProcessPreflightFails(t *testing.T) {
+	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentService{})
+
+	item := BacklogItem{
+		Name:        "blocked-queue",
+		Title:       "[Archived] web-console",
+		Description: "",
+		Status:      StatusArchived,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+		Kind:        KindIdea,
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "blocked-queue", "clarify", "questions.json"), `{
+  "questions":[
+    {"id":"Q1","importance":"critical","question":"q1","answer":null}
+  ]
+}`)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/blocked-queue/queue", bytes.NewBufferString(`{"mode":"manual","confirm":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "blocked-queue"})
+	w := httptest.NewRecorder()
+
+	h.Queue(w, req)
+	testutil.AssertStatusOK(t, w)
+	if !strings.Contains(w.Body.String(), "blocking_reasons") {
+		t.Fatalf("expected blocking reasons in response, got %s", w.Body.String())
+	}
 }
 
 func TestQueue_DryRun_DoesNotMutateState(t *testing.T) {
@@ -682,6 +778,45 @@ func TestQueue_DryRun_DoesNotMutateState(t *testing.T) {
 	if updated.Status != StatusBacklog {
 		t.Fatalf("expected status backlog after dry-run, got %s", updated.Status)
 	}
+}
+
+func TestQueue_BlocksOnPendingSuggestionsUnlessForced(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:        "pending-suggest",
+		Title:       "Pending Suggest",
+		Description: "",
+		Status:      StatusReady,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+		Kind:        KindIdea,
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "pending-suggest", "suggest", "suggestions.json"), `{
+  "suggestions":[
+    {"id":"S1","status":"pending","suggestion":"keep pending"}
+  ]
+}`)
+
+	blockedReq := httptest.NewRequest("POST", "/api/v1/backlog/idea/pending-suggest/queue", bytes.NewBufferString(`{"mode":"manual","confirm":true}`))
+	blockedReq.Header.Set("Content-Type", "application/json")
+	blockedReq = mux.SetURLVars(blockedReq, map[string]string{"kind": "idea", "name": "pending-suggest"})
+	blockedW := httptest.NewRecorder()
+	h.Queue(blockedW, blockedReq)
+	testutil.AssertStatusOK(t, blockedW)
+
+	forcedReq := httptest.NewRequest("POST", "/api/v1/backlog/idea/pending-suggest/queue", bytes.NewBufferString(`{"mode":"manual","confirm":true,"force":true}`))
+	forcedReq.Header.Set("Content-Type", "application/json")
+	forcedReq = mux.SetURLVars(forcedReq, map[string]string{"kind": "idea", "name": "pending-suggest"})
+	forcedW := httptest.NewRecorder()
+	h.Queue(forcedW, forcedReq)
+	testutil.AssertStatus(t, forcedW, http.StatusAccepted)
 }
 
 func TestResearch_SpawnsAgent(t *testing.T) {

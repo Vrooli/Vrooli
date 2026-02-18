@@ -2,6 +2,8 @@ package execution
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -135,6 +137,10 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if !isQueueableStatus(item.Kind, item.Status) {
 		return Record{}, fmt.Errorf("backlog item cannot be queued from current status: %s", item.Status)
 	}
+	preflight := s.processPreflightForItem(item, true)
+	if !preflight.Ready && (!req.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
+		return Record{}, fmt.Errorf("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
+	}
 
 	records, err := s.store.Load()
 	if err != nil {
@@ -151,6 +157,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		Status:         StatusPending,
 		StartedBy:      strings.TrimSpace(req.StartedBy),
 		Operation:      normalizeOperation(req.Operation),
+		Force:          req.Force,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
@@ -253,12 +260,13 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		prompt = "Read the implementation code in this scenario and update all spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior."
 	}
 	record.PromptTrace = &PromptTrace{
-		SkillID:      skillID,
-		Purpose:      "spec-sync",
-		Variables:    vars,
-		Prompt:       prompt,
-		UsedFallback: promptErr != nil,
-		CapturedAt:   now,
+		SkillID:        skillID,
+		Purpose:        "spec-sync",
+		Variables:      vars,
+		Prompt:         prompt,
+		PromptRevision: promptRevision(prompt),
+		UsedFallback:   promptErr != nil,
+		CapturedAt:     now,
 	}
 
 	// Spawn agent targeting the scenario directory
@@ -340,6 +348,10 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	if err != nil {
 		return Record{}, err
 	}
+	preflight := s.processPreflightForItem(item, false)
+	if !preflight.Ready && (!record.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
+		return Record{}, fmt.Errorf("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
+	}
 
 	selection, promptErr := s.fetchProcessingPrompt(ctx, item, record.Operation)
 	prompt := selection.Prompt
@@ -348,12 +360,13 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		prompt = "Use the backlog item folder as context and complete the requested work."
 	}
 	record.PromptTrace = &PromptTrace{
-		SkillID:      selection.SkillID,
-		Purpose:      "process",
-		Variables:    selection.Variables,
-		Prompt:       prompt,
-		UsedFallback: promptErr != nil,
-		CapturedAt:   nowRFC3339(),
+		SkillID:        selection.SkillID,
+		Purpose:        "process",
+		Variables:      selection.Variables,
+		Prompt:         prompt,
+		PromptRevision: promptRevision(prompt),
+		UsedFallback:   promptErr != nil,
+		CapturedAt:     nowRFC3339(),
 	}
 
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
@@ -406,8 +419,8 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.store.Save(records); err != nil {
 			return Record{}, err
 		}
-		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-			_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
+		if err := s.restoreBacklogStatusForRecord(record); err != nil {
+			return Record{}, err
 		}
 		return record, nil
 	case StatusRunning:
@@ -427,13 +440,24 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.store.Save(records); err != nil {
 			return Record{}, err
 		}
-		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-			_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
+		if err := s.restoreBacklogStatusForRecord(record); err != nil {
+			return Record{}, err
 		}
 		return record, nil
 	default:
 		return Record{}, fmt.Errorf("only pending/scheduled/running executions can be canceled")
 	}
+}
+
+func (s *Service) restoreBacklogStatusForRecord(record Record) error {
+	item, err := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
+	if err != nil {
+		return fmt.Errorf("failed to load backlog item for cancel restore: %w", err)
+	}
+	if err := s.updateBacklogStatus(item, restoreBacklogStatus(record)); err != nil {
+		return fmt.Errorf("failed to restore backlog status after cancel: %w", err)
+	}
+	return nil
 }
 
 // Retry retries a failed run immediately.
@@ -757,16 +781,17 @@ func restoreBacklogStatus(record Record) string {
 }
 
 type backlogItem struct {
-	Name           string   `json:"name"`
-	Title          string   `json:"title"`
-	Description    string   `json:"description"`
-	Status         string   `json:"status"`
-	Priority       int      `json:"priority"`
-	Tags           []string `json:"tags"`
-	Created        string   `json:"created"`
-	Updated        string   `json:"updated"`
-	Kind           string   `json:"kind"`
-	ResearchTarget string   `json:"research_target,omitempty"`
+	Name               string   `json:"name"`
+	Title              string   `json:"title"`
+	Description        string   `json:"description"`
+	Status             string   `json:"status"`
+	Priority           int      `json:"priority"`
+	Tags               []string `json:"tags"`
+	Created            string   `json:"created"`
+	Updated            string   `json:"updated"`
+	Kind               string   `json:"kind"`
+	ResearchTarget     string   `json:"research_target,omitempty"`
+	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {
@@ -834,6 +859,10 @@ func (s *Service) itemDir(kind, name string) string {
 	return filepath.Join(s.kindDir(kind), strings.TrimSpace(name))
 }
 
+func (s *Service) scenariosRootDir() string {
+	return filepath.Dir(s.rootDir)
+}
+
 func isQueueableStatus(kind, status string) bool {
 	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
 	switch strings.ToLower(strings.TrimSpace(status)) {
@@ -878,16 +907,20 @@ func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, o
 	if skillID == "" {
 		skillID = "swarm-manager-process-execute"
 	}
+	targetScenarioID, archivedRevival := resolveTargetScenario(item)
 
 	vars := map[string]string{
-		"ITEM_NAME":        item.Name,
-		"ITEM_TITLE":       item.Title,
-		"ITEM_DESCRIPTION": item.Description,
-		"ITEM_KIND":        item.Kind,
-		"ITEM_STATUS":      item.Status,
-		"ITEM_PRIORITY":    fmt.Sprintf("%d", item.Priority),
-		"ITEM_TAGS":        strings.Join(item.Tags, ", "),
-		"ITEM_FOLDER":      s.itemDir(item.Kind, item.Name),
+		"ITEM_NAME":            item.Name,
+		"ITEM_TITLE":           item.Title,
+		"ITEM_DESCRIPTION":     item.Description,
+		"ITEM_KIND":            item.Kind,
+		"ITEM_STATUS":          item.Status,
+		"ITEM_PRIORITY":        fmt.Sprintf("%d", item.Priority),
+		"ITEM_TAGS":            strings.Join(item.Tags, ", "),
+		"ITEM_FOLDER":          s.itemDir(item.Kind, item.Name),
+		"TARGET_SCENARIO_ID":   targetScenarioID,
+		"ARCHIVED_REVIVAL":     fmt.Sprintf("%t", archivedRevival),
+		"SOURCE_SCENARIO_NAME": strings.TrimSpace(item.SourceScenarioName),
 	}
 
 	prompt, err := s.promptClient.ReadSkill(ctx, skillID, vars, false)
@@ -906,4 +939,138 @@ func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, o
 		Variables: vars,
 		Prompt:    prompt,
 	}, nil
+}
+
+// ProcessPreflight evaluates whether a backlog item is ready for processing.
+func (s *Service) ProcessPreflight(_ context.Context, backlogKind, backlogName string) (ProcessPreflight, error) {
+	item, err := s.loadBacklogItem(backlogKind, backlogName)
+	if err != nil {
+		return ProcessPreflight{}, err
+	}
+	return s.processPreflightForItem(item, true), nil
+}
+
+func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool) ProcessPreflight {
+	targetScenarioID, archivedRevival := resolveTargetScenario(item)
+	targetScenarioExists := false
+	if strings.TrimSpace(targetScenarioID) != "" {
+		targetScenarioExists = scenarioExists(filepath.Join(s.scenariosRootDir(), targetScenarioID))
+	}
+
+	preflight := ProcessPreflight{
+		BacklogKind:              strings.TrimSpace(item.Kind),
+		BacklogName:              strings.TrimSpace(item.Name),
+		Ready:                    true,
+		ArchivedRevival:          archivedRevival,
+		ResolvedTargetScenarioID: targetScenarioID,
+		TargetScenarioExists:     targetScenarioExists,
+		SuggestedOperation:       "generator",
+		SuggestedSteerProfileID:  "rapid-mvp",
+	}
+	if targetScenarioExists {
+		preflight.SuggestedOperation = "improver"
+		preflight.SuggestedSteerProfileID = "production-ready"
+	}
+
+	if checkQueueable && !isQueueableStatus(item.Kind, item.Status) {
+		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status))
+	}
+
+	if strings.EqualFold(strings.TrimSpace(item.Kind), "research") {
+		preflight.BlockingReasons = append(preflight.BlockingReasons, "research items must be converted before processing")
+	}
+
+	questionsPath := filepath.Join(s.itemDir(item.Kind, item.Name), "clarify", "questions.json")
+	blockingQuestions := loadBlockingQuestions(questionsPath)
+	if len(blockingQuestions) > 0 {
+		preflight.BlockingQuestions = blockingQuestions
+		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("%d critical clarify question(s) remain unanswered", len(blockingQuestions)))
+	}
+
+	preflight.Ready = len(preflight.BlockingReasons) == 0
+	return preflight
+}
+
+type clarifyQuestionsFile struct {
+	Questions []clarifyQuestion `json:"questions"`
+}
+
+type clarifyQuestion struct {
+	ID         string `json:"id"`
+	Importance string `json:"importance"`
+	Question   string `json:"question"`
+	Answer     any    `json:"answer"`
+}
+
+func loadBlockingQuestions(path string) []ProcessBlockingQuestion {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var parsed clarifyQuestionsFile
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil
+	}
+	blocking := make([]ProcessBlockingQuestion, 0)
+	for _, q := range parsed.Questions {
+		if !strings.EqualFold(strings.TrimSpace(q.Importance), "critical") {
+			continue
+		}
+		if isQuestionAnswered(q.Answer) {
+			continue
+		}
+		blocking = append(blocking, ProcessBlockingQuestion{
+			ID:         strings.TrimSpace(q.ID),
+			Importance: strings.TrimSpace(q.Importance),
+			Question:   strings.TrimSpace(q.Question),
+		})
+	}
+	return blocking
+}
+
+func isQuestionAnswered(answer any) bool {
+	switch v := answer.(type) {
+	case nil:
+		return false
+	case string:
+		return strings.TrimSpace(v) != ""
+	case []any:
+		return len(v) > 0
+	case map[string]any:
+		return len(v) > 0
+	default:
+		return true
+	}
+}
+
+func resolveTargetScenario(item backlogItem) (string, bool) {
+	source := strings.TrimSpace(item.SourceScenarioName)
+	if source != "" {
+		return source, true
+	}
+	return strings.TrimSpace(item.Name), strings.EqualFold(strings.TrimSpace(item.Status), "archived")
+}
+
+func hasNonForceableExecutionReasons(reasons []string) bool {
+	for _, reason := range reasons {
+		normalized := strings.ToLower(strings.TrimSpace(reason))
+		if normalized == "" {
+			continue
+		}
+		if strings.Contains(normalized, "clarify question") || strings.Contains(normalized, "suggestion") {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func scenarioExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func promptRevision(prompt string) string {
+	sum := sha256.Sum256([]byte(prompt))
+	return "sha256:" + hex.EncodeToString(sum[:8])
 }

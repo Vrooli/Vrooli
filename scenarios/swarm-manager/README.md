@@ -4,7 +4,7 @@ Central command center for managing the Vrooli scenario ecosystem - orchestratin
 
 ## Purpose
 
-Swarm Manager is the **staging and review layer** between agent teams and scenario execution. Agent teams in [prompt-manager](../prompt-manager/) analyze codebases and produce plans (fixes, ideas, refactors), but instead of executing directly, they deposit those plans as backlog items here. This gives operators a single place to:
+Swarm Manager is the **staging and review layer** between agent teams and scenario execution. Agent teams in [prompt-manager](../prompt-manager/README.md) analyze codebases and produce plans (fixes, ideas, refactors), but instead of executing directly, they deposit those plans as backlog items here. This gives operators a single place to:
 
 - **Review** all agent-generated plans before anything executes
 - **Refine** plans using the built-in Idea Agent (clarify → suggest → enhance)
@@ -116,7 +116,7 @@ swarm-manager backlog delete --kind <kind> --name <name>
 swarm-manager backlog files --kind <kind> --name <name>
 swarm-manager backlog file-get --kind <kind> --name <name> --path <path> [--out local-path]
 swarm-manager backlog file-upload --kind <kind> --name <name> --path <path> --file <local-file>
-swarm-manager backlog queue --kind <kind> --name <name> [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver]
+swarm-manager backlog queue --kind <kind> --name <name> [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver]
 swarm-manager backlog research --kind <kind> --name <name> --data '<json>'
 swarm-manager backlog convert --kind <kind> --name <name> --target-kind <target-kind> [--target-name target-name]
 swarm-manager backlog prompt-trace --kind <kind> --name <name>
@@ -159,6 +159,13 @@ swarm-manager prompts skill-revert --id <skill-id> --version <version>
 swarm-manager prompts preview --id <skill-id> [--vars KEY=VALUE,...] [--with-scope]
 swarm-manager prompts simulate --kind <kind> [--mode MODE] [--operation OP] [--item-title TITLE] [--item-folder PATH]
 ```
+
+CLI usage guardrail:
+- Use the installed binary from `~/.vrooli/bin/swarm-manager` (or your PATH entry), not scenario-local binaries in `scenarios/swarm-manager/cli/`.
+- Reinstall canonical binary with:
+  ```bash
+  cd scenarios/swarm-manager/cli && ./install.sh
+  ```
 
 ## Integration Points
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -303,6 +304,12 @@ func (r *Runner) collectMarkdownFiles() ([]string, error) {
 	err := filepath.WalkDir(r.config.ScenarioDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if r.shouldExcludePath(path, d.IsDir()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			if _, skip := skipDirs[d.Name()]; skip {
@@ -717,6 +724,68 @@ func matchPattern(pattern, value string) bool {
 	return strings.HasPrefix(value, pattern)
 }
 
+func (r *Runner) shouldExcludePath(targetPath string, isDir bool) bool {
+	rel, err := filepath.Rel(r.config.ScenarioDir, targetPath)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." || rel == "" {
+		return false
+	}
+
+	for _, excluded := range r.settings.scanExcludeDirs() {
+		excluded = filepath.ToSlash(strings.TrimSpace(excluded))
+		excluded = strings.Trim(excluded, "/")
+		if excluded == "" {
+			continue
+		}
+		// If the configured value looks like a path, apply prefix matching.
+		if strings.Contains(excluded, "/") {
+			if rel == excluded || strings.HasPrefix(rel, excluded+"/") {
+				return true
+			}
+			continue
+		}
+		// Otherwise treat it as a directory name match on any segment.
+		for _, seg := range strings.Split(rel, "/") {
+			if seg == excluded {
+				return true
+			}
+		}
+	}
+
+	for _, glob := range r.settings.scanExcludeGlobs() {
+		glob = filepath.ToSlash(strings.TrimSpace(glob))
+		if glob == "" {
+			continue
+		}
+		if doublestarMatch(glob, rel) {
+			return true
+		}
+		// For directory checks, also allow glob to match the directory prefix.
+		if isDir && doublestarMatch(glob, rel+"/") {
+			return true
+		}
+	}
+
+	return false
+}
+
+func doublestarMatch(glob, value string) bool {
+	quoted := regexp.QuoteMeta(glob)
+	quoted = strings.ReplaceAll(quoted, `\*\*`, "<<<DOUBLESTAR>>>")
+	quoted = strings.ReplaceAll(quoted, `\*`, `[^/]*`)
+	quoted = strings.ReplaceAll(quoted, `\?`, `[^/]`)
+	quoted = strings.ReplaceAll(quoted, "<<<DOUBLESTAR>>>", ".*")
+	re, err := regexp.Compile("^" + quoted + "$")
+	if err != nil {
+		ok, _ := path.Match(glob, value)
+		return ok
+	}
+	return re.MatchString(value)
+}
+
 // extractCodeRefs extracts [CODE: ...] references from markdown content.
 func extractCodeRefs(file, content string) []codeRefTarget {
 	var refs []codeRefTarget
@@ -867,6 +936,12 @@ func (r *Runner) scanCodeFilesForDocRefs(ctx context.Context) ([]docRefTarget, i
 		// Check for context cancellation
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		if r.shouldExcludePath(path, d.IsDir()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 
 		if d.IsDir() {

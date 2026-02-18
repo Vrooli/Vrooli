@@ -104,6 +104,7 @@ func TestBacklogCommandsRegistered(t *testing.T) {
 		{"backlog list no-api", []string{"backlog", "list"}, true},
 		{"backlog get no-args", []string{"backlog", "get"}, true},
 		{"backlog queue no-args", []string{"backlog", "queue"}, true},
+		{"backlog process-preflight no-args", []string{"backlog", "process-preflight"}, true},
 		{"backlog research no-args", []string{"backlog", "research"}, true},
 		{"backlog convert no-args", []string{"backlog", "convert"}, true},
 	}
@@ -292,6 +293,21 @@ func TestCmdBacklogQueueValidation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid mode") {
 		t.Errorf("Error should contain 'invalid mode', got: %v", err)
+	}
+}
+
+func TestCmdBacklogProcessPreflightValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdBacklogProcessPreflight([]string{})
+	if err == nil {
+		t.Error("cmdBacklogProcessPreflight with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
 	}
 }
 
@@ -863,5 +879,81 @@ func TestCmdStatus_ParsesNestedDependencies(t *testing.T) {
 	}
 	if err := app.cmdStatus([]string{}); err != nil {
 		t.Fatalf("cmdStatus returned error: %v", err)
+	}
+}
+
+func TestCmdBacklogQueueOmitsModeWhenUnset(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/backlog/idea/test-item/queue" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if _, exists := payload["mode"]; exists {
+			t.Fatalf("expected mode to be omitted when unset, payload=%v", payload)
+		}
+		_, _ = w.Write([]byte(`{"dry_run":true,"queued":false,"message":"ok"}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdBacklogQueue([]string{"--kind", "idea", "--name", "test-item"}); err != nil {
+		t.Fatalf("cmdBacklogQueue returned error: %v", err)
+	}
+}
+
+func TestCmdExecutionCreateResolvesModeFromPolicyWhenUnset(t *testing.T) {
+	policyRequested := false
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/execution/policy":
+			policyRequested = true
+			_, _ = w.Write([]byte(`{"policy":{"default_mode":"manual","default_delay_seconds":0}}`))
+		case "/api/v1/execution":
+			if r.Method != http.MethodPost {
+				t.Fatalf("unexpected method: %s", r.Method)
+			}
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read request body: %v", err)
+			}
+			var payload map[string]any
+			if err := json.Unmarshal(body, &payload); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+			if got := payload["mode"]; got != "manual" {
+				t.Fatalf("expected mode=manual from policy, got %v", got)
+			}
+			_, _ = w.Write([]byte(`{"execution":{"execution_id":"ex-1","backlog_kind":"idea","backlog_name":"test-item","status":"queued","mode":"manual"}}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdExecutionCreate([]string{"--kind", "idea", "--name", "test-item"}); err != nil {
+		t.Fatalf("cmdExecutionCreate returned error: %v", err)
+	}
+	if !policyRequested {
+		t.Fatal("expected execution policy endpoint to be requested when --mode is unset")
 	}
 }

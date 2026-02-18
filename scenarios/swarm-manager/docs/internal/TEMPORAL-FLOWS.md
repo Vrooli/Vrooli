@@ -254,7 +254,7 @@ The `api-core/server` package handles:
 - In-flight request completion (with timeout)
 - Database connection cleanup
 
-## Configuration Reference
+## Timing Configuration Reference
 
 ### Timing Constants
 

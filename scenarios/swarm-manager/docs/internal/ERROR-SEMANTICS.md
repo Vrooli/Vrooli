@@ -316,7 +316,7 @@ will be designed with idempotency in mind:
 
 ---
 
-## Change Log
+## Error Semantics Change Log
 
 | Date | Author | Changes |
 |------|--------|---------|

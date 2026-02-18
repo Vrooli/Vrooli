@@ -23,7 +23,7 @@ Swarm Manager is designed for local Vrooli deployments with filesystem-backed st
 2. Use scheduled/manual modes where operational risk is high.
 3. Keep path validation and request validation tests in CI.
 
-## Code References
+## Security Code References
 
 - [CODE: api/internal/pathutil/root.go]
 - [CODE: api/internal/httputil/response.go]

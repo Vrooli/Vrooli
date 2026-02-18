@@ -12,5 +12,45 @@
     "operation": "generator",
     "created_at": "2026-02-13T23:36:13Z",
     "updated_at": "2026-02-13T23:36:13Z"
+  },
+  {
+    "execution_id": "54fa526fed82be52",
+    "backlog_kind": "idea",
+    "backlog_name": "web-console-archived",
+    "previous_status": "archived",
+    "status": "canceled",
+    "mode": "manual",
+    "finished_at": "2026-02-18T17:41:13Z",
+    "started_by": "swarm-manager",
+    "operation": "generator",
+    "created_at": "2026-02-18T17:41:03Z",
+    "updated_at": "2026-02-18T17:41:13Z"
+  },
+  {
+    "execution_id": "6e19e2f815de4354",
+    "backlog_kind": "idea",
+    "backlog_name": "web-console-archived",
+    "previous_status": "archived",
+    "status": "canceled",
+    "mode": "manual",
+    "finished_at": "2026-02-18T18:03:36Z",
+    "started_by": "swarm-manager",
+    "operation": "generator",
+    "created_at": "2026-02-18T18:03:27Z",
+    "updated_at": "2026-02-18T18:03:36Z"
+  },
+  {
+    "execution_id": "437575500d2afc0e",
+    "backlog_kind": "idea",
+    "backlog_name": "web-console-archived",
+    "previous_status": "archived",
+    "status": "canceled",
+    "mode": "manual",
+    "finished_at": "2026-02-18T18:05:59Z",
+    "started_by": "swarm-manager",
+    "operation": "generator",
+    "force": true,
+    "created_at": "2026-02-18T18:05:53Z",
+    "updated_at": "2026-02-18T18:05:59Z"
   }
 ]

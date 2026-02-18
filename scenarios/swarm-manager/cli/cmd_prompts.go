@@ -519,6 +519,9 @@ func printPromptTraceSummary(header, subject string, trace PromptTrace) {
 	if strings.TrimSpace(trace.CapturedAt) != "" {
 		fmt.Printf("  Captured: %s\n", trace.CapturedAt)
 	}
+	if strings.TrimSpace(trace.PromptRevision) != "" {
+		fmt.Printf("  Prompt Revision: %s\n", trace.PromptRevision)
+	}
 	fmt.Printf("  Used Fallback: %v\n", trace.UsedFallback)
 	fmt.Printf("  Variables: %d\n", len(trace.Variables))
 	if strings.TrimSpace(trace.Prompt) != "" {

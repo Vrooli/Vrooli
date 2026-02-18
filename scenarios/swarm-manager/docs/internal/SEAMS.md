@@ -4,7 +4,7 @@
 >
 > Historical note: Some lower sections preserve pre-greenfield recommendation-era references for audit history only.
 
-## Overview
+## Seam Overview
 
 This document captures the architecture seams (integration points, boundaries) and internal implementation details for Swarm Manager. It serves as a living record of design decisions and drift from the documented mental model.
 
@@ -1216,7 +1216,7 @@ Critical signals are tested to ensure stable observation:
 | Recovery paths | `error-utils.test.ts` | Each category has appropriate guidance |
 | HTTP status codes | `handler_test.go` | Correct codes for each scenario (201, 204, 400, 404, 409, 500) |
 
-### Audit Trail
+### Seam Change Trail
 
 | Date | Author | Change |
 |------|--------|--------|

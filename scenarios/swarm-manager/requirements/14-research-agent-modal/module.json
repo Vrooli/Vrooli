@@ -22,7 +22,7 @@
         {
           "notes": "Prompt trace captured to .swarm/last-research-prompt-trace.json",
           "phase": "unit",
-          "ref": "api/internal/prompttrace/trace.go",
+          "ref": "api/internal/prompttrace/model.go",
           "status": "passing",
           "type": "test"
         },

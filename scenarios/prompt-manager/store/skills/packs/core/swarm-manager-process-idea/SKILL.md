@@ -29,8 +29,9 @@ Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-
 
 ### For New Scenario
 - Scenario scaffolded from appropriate template
-- PRD generated via `prd-control-tower` incorporating all backlog context
-- Requirements registry generated from PRD operational targets
+- Existing structured artifacts preserved first: `archive/PRD.md` and `archive/requirements/` copied into the scenario when present
+- PRD validated (and fixed if needed) via `prd-control-tower`; regenerate only as fallback when no viable baseline exists
+- Requirements validated (and fixed if needed) via `prd-control-tower`; regenerate only as fallback when no viable baseline exists
 - Archive materials incorporated into scenario docs/configuration
 - Validation loop passed (status, completeness, auditor)
 - Ecosystem-manager improvement task created with appropriate steering
@@ -38,7 +39,8 @@ Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-
 - `notes.md` in item folder documenting initialization summary, task ID, steering strategy, and rationale
 
 ### For Scenario Improvement
-- Staging/archive materials incorporated into scenario PRD, requirements, and docs (if materials exist)
+- Staging/archive materials incorporated into scenario PRD, requirements, and docs using merge-with-backup by default
+- Existing scenario artifacts are not overwritten silently; conflicts are documented in `notes.md`
 - Ecosystem-manager task created targeting existing scenario
 - Queue processor running
 - `notes.md` in item folder documenting materials incorporated, task ID, steering strategy, and rationale
@@ -49,9 +51,9 @@ Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-
 - [ ] Operation type determined (new vs improve)
 - [ ] **If new scenario:**
   - [ ] Template selected and scenario scaffolded
-  - [ ] PRD context brief synthesized from all backlog artifacts (including archive)
-  - [ ] PRD generated and published via `prd-control-tower`
-  - [ ] Requirements registry generated and validated
+  - [ ] Archive baseline artifacts copied first when available (`archive/PRD.md`, `archive/requirements/`)
+  - [ ] PRD validated/fixed after copy; generation used only as fallback
+  - [ ] Requirements validated/fixed after copy; generation used only as fallback
   - [ ] Archive materials incorporated into scenario
   - [ ] Validation loop passed
 - [ ] Steering strategy selected with clear rationale
@@ -132,87 +134,52 @@ You are processing an idea to create or improve a Vrooli scenario. Your role is 
 
    Follow the template's post-generation checklist (dependency installs, `go mod tidy`, etc.).
 
-   #### 3c. Prepare PRD context brief
+   #### 3c. Preserve-first PRD transfer (required)
 
-   The PRD context brief tells `prd-control-tower` what to generate. Use the best available source:
+   Before generating anything, check for structured baseline artifacts in `archive/`:
 
    ```
-   Does enhance/prd-context.md exist?
-     → Yes → Use it directly (it already synthesizes all backlog context)
-     → No  → Synthesize from raw sources (see fallback table below)
+   Does archive/PRD.md exist?
+     → Yes → Copy it to scenarios/<name>/PRD.md as the baseline
+     → No  → Build PRD context for generation (fallback path)
    ```
 
-   **If `enhance/prd-context.md` exists** (preferred path):
+   If baseline PRD exists, validate/fix in-place first:
    ```bash
-   swarm-manager backlog file-get --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/prd-context.md > /tmp/prd_context_<name>.md
+   prd-control-tower prd validate <name> --json
+   prd-control-tower prd fix <name> --auto --json
+   prd-control-tower prd validate <name> --json
    ```
 
-   **Fallback: synthesize from raw sources** (if enhance staging is unavailable):
-
-   Combine all backlog artifacts into a single free-form brief:
-
-   | Source | Maps to PRD Section |
-   |--------|-------------------|
-   | `enhance/summary.md` — Overview & Refined Scope | Overview, value proposition, target users |
-   | `enhance/summary.md` — Success Criteria | P0 operational targets (core capabilities) |
-   | `enhance/summary.md` — Implementation Notes | Tech direction, non-goals |
-   | Accepted suggestions (`suggest/suggestions.json`) | P1/P2 targets depending on impact |
-   | Answered questions (`clarify/questions.json`) | Constraints, tech choices, integration details |
-   | `research/summary.md` — Dependency Analysis | Dependencies & launch plan |
-   | `research/summary.md` — Implementation Approaches | Tech direction snapshot |
-   | `archive/` files (see below) | Relevant sections based on file type |
-
-   **Handling raw `archive/` materials (fallback only):**
-
-   | Archive Content | Incorporation |
-   |----------------|---------------|
-   | Requirements documents | Extract into P0/P1/P2 operational targets |
-   | Design mockups / wireframes | Reference in UX & branding section |
-   | API specs / schemas | Reference in tech direction snapshot |
-   | Prior research / market analysis | Fold into overview and competitive context |
-   | Reference implementations / code samples | Note in tech direction as reference patterns |
-   | Configuration / environment docs | Note in dependencies & launch plan |
-
-   Write the brief:
-   ```bash
-   cat > /tmp/prd_context_<name>.md <<'EOF'
-   <synthesized brief incorporating all sources above>
-   EOF
-   ```
-
-   > **Decision hierarchy reminder:** Answered questions are definitive. Accepted suggestions must be included. Rejected suggestions must NOT appear. `enhance/summary.md` supersedes `spec.json`. Research findings are advisory.
-
-   #### 3d. Generate PRD
-
+   Only if baseline is missing or still invalid after fix attempts, run generation:
    ```bash
    prd-control-tower prd generate <name> --context-file /tmp/prd_context_<name>.md --publish --json
    ```
 
-   #### 3e. Generate requirements registry
+   #### 3d. Preserve-first requirements transfer (required)
+
+   Before generating requirements, check for a structured requirements baseline:
 
    ```
-   Does enhance/requirements-context.md exist?
-     → Yes → Use it as the context file
-     → No  → Optionally write one if archive materials contain validation criteria or technical constraints
+   Does archive/requirements/index.json exist?
+     → Yes → Copy archive/requirements/ into scenarios/<name>/requirements/ as baseline
+     → No  → Generate requirements from PRD (fallback path)
    ```
 
-   If `enhance/requirements-context.md` exists:
+   If baseline requirements exist, validate/fix in-place first:
    ```bash
-   swarm-manager backlog file-get --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/requirements-context.md > /tmp/requirements_context_<name>.md
+   prd-control-tower requirements validate <name> --json
+   prd-control-tower requirements fix <name> --json
+   prd-control-tower requirements validate <name> --json
    ```
 
-   Otherwise, optionally write a context file:
-   ```bash
-   cat > /tmp/requirements_context_<name>.md <<'EOF'
-   <context from archive materials, testing strategy, technical constraints>
-   EOF
-   ```
-
-   Generate and validate:
+   Only if baseline is missing or still invalid after fix attempts, run generation:
    ```bash
    prd-control-tower requirements generate <name> --context-file /tmp/requirements_context_<name>.md --json
    prd-control-tower requirements validate <name> --json
    ```
+
+   > **Decision hierarchy reminder:** Answered questions are definitive. Accepted suggestions must be included. Rejected suggestions must NOT appear. `enhance/summary.md` supersedes `spec.json`. Research findings are advisory.
 
    #### 3f. Incorporate remaining materials
 
@@ -255,7 +222,7 @@ You are processing an idea to create or improve a Vrooli scenario. Your role is 
 
 ### Improvement Path (steps 5–10)
 
-5. **Incorporate materials into existing scenario**
+5. **Incorporate materials into existing scenario (merge + backup default)**
 
    Even for existing scenarios, the backlog item may contain refined materials that should update the scenario's PRD, requirements, or documentation before the improvement task runs. This supports the "idea as staging area" workflow — users create ideas to refine plans and then process them to update an existing scenario.
 
@@ -268,15 +235,27 @@ You are processing an idea to create or improve a Vrooli scenario. Your role is 
    ```
 
    When materials exist:
-   - **PRD update**: If `enhance/prd-context.md` or archive contains PRD-relevant content, regenerate the scenario's PRD:
-     ```bash
-     prd-control-tower prd generate <name> --context-file /tmp/prd_context_<name>.md --publish --json
-     ```
-   - **Requirements update**: If `enhance/requirements-context.md` or archive contains requirements content, regenerate requirements:
-     ```bash
-     prd-control-tower requirements generate <name> --context-file /tmp/requirements_context_<name>.md --json
-     ```
+   - Create backups before editing scenario PRD/requirements.
+   - **PRD update**:
+     - If archive provides `PRD.md`, merge it into current `scenarios/<name>/PRD.md` (do not blind overwrite).
+     - Validate/fix after merge:
+       ```bash
+       prd-control-tower prd validate <name> --json
+       prd-control-tower prd fix <name> --auto --json
+       prd-control-tower prd validate <name> --json
+       ```
+     - Only use `prd generate` as fallback when no viable baseline exists.
+   - **Requirements update**:
+     - If archive provides `requirements/`, merge into current `scenarios/<name>/requirements/` (do not blind overwrite).
+     - Validate/fix after merge:
+       ```bash
+       prd-control-tower requirements validate <name> --json
+       prd-control-tower requirements fix <name> --json
+       prd-control-tower requirements validate <name> --json
+       ```
+     - Only use `requirements generate` as fallback when no viable baseline exists.
    - **Documentation update**: If `enhance/doc-outlines.md` or archive contains documentation, update the scenario's docs accordingly.
+   - If merge conflicts or ambiguous mappings appear, stop and document the conflict decisions in `notes.md`.
 
    > **Why this matters:** Without this step, creating an idea for an existing scenario, refining it through clarify/suggest/enhance, and processing it would only create an improvement task — but the scenario's PRD and requirements would remain stale. This step ensures the scenario's spec stays in sync with the refined plan.
 

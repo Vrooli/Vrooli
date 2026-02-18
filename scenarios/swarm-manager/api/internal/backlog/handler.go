@@ -278,6 +278,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.UploadFile).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.OperateFile).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
@@ -1202,6 +1203,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	if pbReq.GetOperation() != "" {
 		operation = strings.ToLower(strings.TrimSpace(pbReq.GetOperation()))
 	}
+	confirm := pbReq.GetConfirm()
+	force := pbReq.GetForce()
 	mode := execution.ModeYOLO
 	if pbReq.GetMode() != "" {
 		mode = execution.Mode(strings.ToLower(strings.TrimSpace(pbReq.GetMode())))
@@ -1216,39 +1219,78 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if httputil.IsDryRun(r) {
-		resp := map[string]any{
-			"item": map[string]any{
-				"name":        item.Name,
-				"title":       item.Title,
-				"description": item.Description,
-				"status":      item.Status,
-				"priority":    item.Priority,
-				"tags":        item.Tags,
-				"created":     item.Created,
-				"updated":     item.Updated,
-				"kind":        item.Kind,
-			},
-			"task_id":   "dry-run-task",
-			"run_id":    "",
-			"base_url":  "",
-			"created":   time.Now().UTC().Format(time.RFC3339),
-			"dry_run":   true,
-			"mode":      string(mode),
-			"operation": operation,
-		}
-		if err := httputil.JSONWithStatus(w, http.StatusOK, resp); err != nil {
-			httputil.InternalError(w, "[backlog] queue", "failed to encode dry-run response")
-		}
-		return
-	}
-
 	executionService := execution.NewService(execution.ServiceConfig{
 		RootDir:      h.rootDir,
 		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
 		PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
 		AgentService: h.agentService,
 	})
+	preflight, preflightErr := executionService.ProcessPreflight(r.Context(), string(kind), name)
+	if preflightErr != nil {
+		if os.IsNotExist(preflightErr) {
+			httputil.NotFound(w, "[backlog] queue", "backlog item not found")
+			return
+		}
+		log.Printf("[backlog] queue: process preflight failed for %s/%s: %v", kind, name, preflightErr)
+		httputil.InternalError(w, "[backlog] queue", "failed to evaluate process preflight")
+		return
+	}
+	if !preflight.Ready {
+		// Keep evaluating feedback gates and force overrides below so callers
+		// receive one canonical queue response shape with clear next actions.
+	}
+
+	unansweredQuestions := countUnansweredQuestions(filepath.Join(h.itemDir(kind, item.Name), "clarify", "questions.json"))
+	pendingSuggestions := countPendingSuggestions(filepath.Join(h.itemDir(kind, item.Name), "suggest", "suggestions.json"))
+	blockingReasons := append([]string{}, preflight.BlockingReasons...)
+	if unansweredQuestions > 0 && !containsQueueReasonSnippet(blockingReasons, "clarify question") {
+		blockingReasons = append(blockingReasons, fmt.Sprintf("%d unanswered clarify question(s) remain", unansweredQuestions))
+	}
+	if pendingSuggestions > 0 {
+		blockingReasons = append(blockingReasons, fmt.Sprintf("%d suggestion(s) still pending decision", pendingSuggestions))
+	}
+	blockingReasons = dedupeQueueReasons(blockingReasons)
+
+	buildQueueResponse := func(dryRun, queued bool, message string, taskID, runID, created string) *apipb.QueueBacklogItemResponse {
+		return &apipb.QueueBacklogItemResponse{
+			Item:                backlogToProto(item),
+			TaskId:              taskID,
+			RunId:               runID,
+			BaseUrl:             "",
+			Created:             created,
+			DryRun:              dryRun,
+			Queued:              queued,
+			Message:             message,
+			BlockingReasons:     blockingReasons,
+			UnansweredQuestions: int32(unansweredQuestions),
+			PendingSuggestions:  int32(pendingSuggestions),
+		}
+	}
+
+	if !confirm || httputil.IsDryRun(r) {
+		message := "Queue request validated. No changes applied."
+		if !confirm {
+			message = "Preview only. Re-run with confirm=true (CLI: --execute) to queue."
+		}
+		if len(blockingReasons) > 0 {
+			message = "Queue blocked by readiness checks. Resolve blockers or use force=true (CLI: --force) for feedback-gate overrides."
+		}
+		resp := buildQueueResponse(true, false, message, "dry-run-task", "", time.Now().UTC().Format(time.RFC3339))
+		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+			httputil.InternalError(w, "[backlog] queue", "failed to encode dry-run response")
+		}
+		return
+	}
+
+	if len(blockingReasons) > 0 {
+		if !force || hasNonForceableQueueReasons(blockingReasons) {
+			resp := buildQueueResponse(true, false, "Queue blocked by readiness checks.", "", "", time.Now().UTC().Format(time.RFC3339))
+			if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+				httputil.InternalError(w, "[backlog] queue", "failed to encode blocked response")
+			}
+			return
+		}
+	}
 	record, err := executionService.QueueBacklog(r.Context(), execution.CreateRequest{
 		BacklogKind:  string(kind),
 		BacklogName:  name,
@@ -1256,6 +1298,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		DelaySeconds: pbReq.GetDelaySeconds(),
 		StartedBy:    startedBy,
 		Operation:    operation,
+		Force:        force,
 	})
 	if err != nil {
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
@@ -1266,7 +1309,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			httputil.NotFound(w, "[backlog] queue", "backlog item not found")
 			return
 		}
-		if strings.Contains(err.Error(), "cannot be queued") {
+		if strings.Contains(err.Error(), "cannot be queued") || strings.Contains(err.Error(), "process preflight failed") {
 			httputil.BadRequest(w, "[backlog] queue", err.Error())
 			return
 		}
@@ -1284,14 +1327,108 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[backlog] queued: %q (kind=%s, status=%s, taskId=%s, executionId=%s)", name, kind, item.Status, record.TaskID, record.ExecutionID)
 
 	resp := &apipb.QueueBacklogItemResponse{
-		Item:    backlogToProto(item),
-		TaskId:  record.TaskID,
-		RunId:   record.RunID,
-		BaseUrl: "",
-		Created: record.CreatedAt,
+		Item:                backlogToProto(item),
+		TaskId:              record.TaskID,
+		RunId:               record.RunID,
+		BaseUrl:             "",
+		Created:             record.CreatedAt,
+		DryRun:              false,
+		Queued:              true,
+		Message:             "Queue created successfully.",
+		BlockingReasons:     []string{},
+		UnansweredQuestions: int32(unansweredQuestions),
+		PendingSuggestions:  int32(pendingSuggestions),
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
 		httputil.InternalError(w, "[backlog] queue", "failed to encode response")
+	}
+}
+
+func dedupeQueueReasons(reasons []string) []string {
+	if len(reasons) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(reasons))
+	result := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		trimmed := strings.TrimSpace(reason)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
+}
+
+func containsQueueReasonSnippet(reasons []string, snippet string) bool {
+	needle := strings.ToLower(strings.TrimSpace(snippet))
+	if needle == "" {
+		return false
+	}
+	for _, reason := range reasons {
+		if strings.Contains(strings.ToLower(reason), needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasNonForceableQueueReasons(reasons []string) bool {
+	for _, reason := range reasons {
+		if !isForceableQueueReason(reason) {
+			return true
+		}
+	}
+	return false
+}
+
+func isForceableQueueReason(reason string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(reason))
+	return strings.Contains(normalized, "clarify question") || strings.Contains(normalized, "suggestion")
+}
+
+// ProcessPreflight evaluates whether a backlog item is ready for processing.
+func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "process-preflight")
+	if !ok {
+		return
+	}
+
+	item, err := h.loadItem(kind, name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "[backlog] process-preflight", "backlog item not found")
+			return
+		}
+		httputil.InternalError(w, "[backlog] process-preflight", "failed to load backlog item")
+		return
+	}
+
+	executionService := execution.NewService(execution.ServiceConfig{
+		RootDir:      h.rootDir,
+		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+		PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
+		AgentService: h.agentService,
+	})
+	preflight, err := executionService.ProcessPreflight(r.Context(), string(kind), name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "[backlog] process-preflight", "backlog item not found")
+			return
+		}
+		httputil.InternalError(w, "[backlog] process-preflight", "failed to evaluate preflight")
+		return
+	}
+
+	if err := httputil.JSON(w, map[string]any{
+		"item":      item,
+		"preflight": preflight,
+	}); err != nil {
+		httputil.InternalError(w, "[backlog] process-preflight", "failed to encode response")
 	}
 }
 

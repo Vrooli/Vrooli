@@ -1,3 +1,5 @@
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/concepts/ARCHITECTURE.md
 package scenarios
 
 import (

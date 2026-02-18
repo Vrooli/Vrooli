@@ -324,17 +324,80 @@ func (a *App) cmdBacklogFiles(args []string) error {
 	return nil
 }
 
+func (a *App) cmdBacklogProcessPreflight(args []string) error {
+	fs := flag.NewFlagSet("backlog process-preflight", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog process-preflight --kind KIND --name NAME [--json]\n\n%s", err)
+	}
+
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
+	body, err := a.getV1("/backlog/"+kind+"/"+name+"/process-preflight", nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[ProcessPreflightResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Summary")
+	fmt.Printf("  Readiness: %t\n", response.Preflight.Ready)
+	fmt.Printf("  Item: %s/%s\n", response.Item.Kind, response.Item.Name)
+	if response.Preflight.ResolvedTargetScenarioID != "" {
+		fmt.Printf("  Target Scenario: %s\n", response.Preflight.ResolvedTargetScenarioID)
+	}
+	fmt.Printf("  Target Exists: %t\n", response.Preflight.TargetScenarioExists)
+	if response.Preflight.SuggestedOperation != "" {
+		fmt.Printf("  Suggested Operation: %s\n", response.Preflight.SuggestedOperation)
+	}
+	if response.Preflight.SuggestedSteerProfileID != "" {
+		fmt.Printf("  Suggested Steer Profile: %s\n", response.Preflight.SuggestedSteerProfileID)
+	}
+
+	if len(response.Preflight.BlockingReasons) > 0 {
+		printSection("Blocking Reasons")
+		for _, reason := range response.Preflight.BlockingReasons {
+			fmt.Printf("  - %s\n", reason)
+		}
+	}
+	if len(response.Preflight.BlockingQuestions) > 0 {
+		printSection("Blocking Questions")
+		for _, q := range response.Preflight.BlockingQuestions {
+			fmt.Printf("  - %s: %s\n", q.ID, q.Question)
+		}
+	}
+
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "queue", "--kind", kind, "--name", name, "--execute", "--operation", response.Preflight.SuggestedOperation),
+		cliCommand("backlog", "get", "--kind", kind, "--name", name),
+	})
+	return nil
+}
+
 func (a *App) cmdBacklogQueue(args []string) error {
 	fs := flag.NewFlagSet("backlog queue", flag.ContinueOnError)
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
+	executeFlag := fs.Bool("execute", false, "Execute queue mutation (default is preview-only)")
+	forceFlag := fs.Bool("force", false, "Override unanswered feedback gates (questions/suggestions)")
 	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
 	}
 
 	opts, err := parseExecutionOptions(mode, delaySeconds, operation, startedBy, false)
@@ -344,12 +407,17 @@ func (a *App) cmdBacklogQueue(args []string) error {
 
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
-	payload, err := json.Marshal(map[string]any{
+	payloadMap := map[string]any{
 		"operation":     opts.operation,
-		"mode":          opts.mode,
 		"delay_seconds": opts.delaySeconds,
 		"started_by":    opts.startedBy,
-	})
+		"confirm":       *executeFlag,
+		"force":         *forceFlag,
+	}
+	if opts.mode != "" {
+		payloadMap["mode"] = opts.mode
+	}
+	payload, err := json.Marshal(payloadMap)
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
@@ -367,19 +435,39 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return err
 	}
 
-	if response.DryRun {
-		printSection("Result")
-		fmt.Printf("  Dry-run validated queue request for: %s/%s\n", kind, name)
-		printSection("What Would Change")
-		fmt.Printf("  Mode: %s\n", opts.mode)
-		fmt.Printf("  Operation: %s\n", opts.operation)
-		if opts.mode == "scheduled" {
-			fmt.Printf("  Delay Seconds: %d\n", opts.delaySeconds)
+	if response.DryRun || !response.Queued {
+		printSection("Status")
+		message := strings.TrimSpace(response.Message)
+		if message == "" {
+			message = "Queue request validated with no mutation."
 		}
-		printCommandListSection("Next Steps", []string{
-			cliCommand("backlog", "queue", "--kind", kind, "--name", name),
+		fmt.Printf("  %s\n", message)
+		fmt.Printf("  Item: %s/%s\n", kind, name)
+		fmt.Printf("  Queued: %t\n", response.Queued)
+		if response.UnansweredQuestions > 0 || response.PendingSuggestions > 0 {
+			fmt.Printf("  Feedback Gates: %d unanswered question(s), %d pending suggestion(s)\n", response.UnansweredQuestions, response.PendingSuggestions)
+		}
+
+		printSection("Triage")
+		if len(response.BlockingReasons) == 0 {
+			fmt.Println("  No blockers detected.")
+		} else {
+			for _, reason := range response.BlockingReasons {
+				fmt.Printf("  - %s\n", reason)
+			}
+		}
+
+		nextCommands := []string{
+			cliCommand("backlog", "queue", "--kind", kind, "--name", name, "--execute", "--operation", opts.operation),
 			cliCommand("execution", "list", "--backlog-kind", kind, "--backlog-name", name),
-		})
+		}
+		if len(response.BlockingReasons) > 0 {
+			nextCommands = []string{
+				cliCommand("backlog", "queue", "--kind", kind, "--name", name, "--execute", "--force", "--operation", opts.operation),
+				cliCommand("backlog", "get", "--kind", kind, "--name", name),
+			}
+		}
+		printCommandListSection("Next Steps", nextCommands)
 		return nil
 	}
 

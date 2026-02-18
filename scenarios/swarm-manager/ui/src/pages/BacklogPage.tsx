@@ -168,6 +168,7 @@ export function BacklogPage() {
         mode,
         delaySeconds,
         startedBy: "swarm-manager-ui",
+        confirm: true,
       }),
     onSuccess: () => {
       void fetchBacklog({ force: true });
@@ -192,6 +193,7 @@ export function BacklogPage() {
             mode,
             delaySeconds,
             startedBy: "swarm-manager-ui",
+            confirm: true,
           });
           queuedCount += 1;
         } catch {

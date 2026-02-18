@@ -52,6 +52,7 @@ type Record struct {
 	FailureReason  string          `json:"failure_reason,omitempty"`
 	StartedBy      string          `json:"started_by,omitempty"`
 	Operation      string          `json:"operation,omitempty"`
+	Force          bool            `json:"force,omitempty"`
 	PromptTrace    *PromptTrace    `json:"prompt_trace,omitempty"`
 	ArchiveContext *ArchiveContext `json:"archive_context,omitempty"`
 	CreatedAt      string          `json:"created_at"`
@@ -60,12 +61,34 @@ type Record struct {
 
 // PromptTrace captures prompt details used to launch the execution.
 type PromptTrace struct {
-	SkillID      string            `json:"skill_id"`
-	Purpose      string            `json:"purpose"`
-	Variables    map[string]string `json:"variables,omitempty"`
-	Prompt       string            `json:"prompt"`
-	UsedFallback bool              `json:"used_fallback"`
-	CapturedAt   string            `json:"captured_at"`
+	SkillID        string            `json:"skill_id"`
+	Purpose        string            `json:"purpose"`
+	Variables      map[string]string `json:"variables,omitempty"`
+	Prompt         string            `json:"prompt"`
+	PromptRevision string            `json:"prompt_revision,omitempty"`
+	UsedFallback   bool              `json:"used_fallback"`
+	CapturedAt     string            `json:"captured_at"`
+}
+
+// ProcessPreflight summarizes whether a backlog item can be processed safely.
+type ProcessPreflight struct {
+	BacklogKind              string                    `json:"backlog_kind"`
+	BacklogName              string                    `json:"backlog_name"`
+	Ready                    bool                      `json:"ready"`
+	ArchivedRevival          bool                      `json:"archived_revival"`
+	ResolvedTargetScenarioID string                    `json:"resolved_target_scenario_id,omitempty"`
+	TargetScenarioExists     bool                      `json:"target_scenario_exists"`
+	SuggestedOperation       string                    `json:"suggested_operation,omitempty"`
+	SuggestedSteerProfileID  string                    `json:"suggested_steer_profile_id,omitempty"`
+	BlockingReasons          []string                  `json:"blocking_reasons,omitempty"`
+	BlockingQuestions        []ProcessBlockingQuestion `json:"blocking_questions,omitempty"`
+}
+
+// ProcessBlockingQuestion represents an unanswered critical question.
+type ProcessBlockingQuestion struct {
+	ID         string `json:"id,omitempty"`
+	Importance string `json:"importance,omitempty"`
+	Question   string `json:"question,omitempty"`
 }
 
 // CreateRequest creates an execution record.
@@ -76,6 +99,7 @@ type CreateRequest struct {
 	DelaySeconds int64  `json:"delay_seconds,omitempty"`
 	StartedBy    string `json:"started_by,omitempty"`
 	Operation    string `json:"operation,omitempty"`
+	Force        bool   `json:"force,omitempty"`
 }
 
 // Policy controls default execution behavior when callers do not provide mode/delay.

@@ -108,6 +108,10 @@ The docs phase validates bidirectional references between code and documentation
       "enabled": true,
       "allow": ["/api/"]
     },
+    "paths": {
+      "exclude_dirs": ["archive"],
+      "exclude_globs": ["ideas/*-archived/**"]
+    },
     "references": {
       "enabled": true,
       "validate_code_refs": true,
@@ -137,6 +141,8 @@ The docs phase validates bidirectional references between code and documentation
 | `links.strict_external` | `false` | Treat external timeouts/errors as failures (vs warnings) |
 | `absolute_paths.enabled` | `true` | Toggle absolute filesystem path detection |
 | `absolute_paths.allow` | `[]` | Allowlisted absolute prefixes |
+| `paths.exclude_dirs` | `[]` | Exclude directories by name or relative path prefix from docs scanning |
+| `paths.exclude_globs` | `[]` | Exclude scenario-relative path globs (supports `**`) from docs scanning |
 | `references.enabled` | `true` | Toggle bidirectional reference validation |
 | `references.validate_code_refs` | `true` | Check `[CODE: ...]` references in docs |
 | `references.validate_doc_refs` | `true` | Check `// DOC:` comments in code |
@@ -160,6 +166,7 @@ The docs phase validates bidirectional references between code and documentation
 - External link checks ignore localhost/127.0.0.1 by default to avoid false alarms from dev-only endpoints.
 - Root-relative URLs (e.g., `/api/v1/health`) are permitted; only OS-rooted filesystem paths fail unless allowlisted.
 - Bidirectional reference validation skips common directories (node_modules, dist, .git, etc.) by default.
+- Use `docs.paths.exclude_globs` for archived snapshots (for example `ideas/*-archived/**`) so active docs remain strict without historical-link noise.
 
 ## Implementation
 

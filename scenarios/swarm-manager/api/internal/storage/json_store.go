@@ -1,3 +1,5 @@
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/concepts/ARCHITECTURE.md
 // Package storage provides shared filesystem utilities for JSON persistence.
 //
 // This package centralizes atomic read/write behaviors so handlers can

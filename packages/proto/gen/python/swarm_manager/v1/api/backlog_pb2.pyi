@@ -66,31 +66,65 @@ class BacklogFileResponse(_message.Message):
     file: _backlog_pb2.BacklogFile
     def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ...) -> None: ...
 
+class BacklogFileOperationRequest(_message.Message):
+    __slots__ = ("operation", "source_path", "destination_path")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_PATH_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    source_path: str
+    destination_path: str
+    def __init__(self, operation: _Optional[str] = ..., source_path: _Optional[str] = ..., destination_path: _Optional[str] = ...) -> None: ...
+
+class BacklogFileOperationResponse(_message.Message):
+    __slots__ = ("file", "deleted_path")
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    DELETED_PATH_FIELD_NUMBER: _ClassVar[int]
+    file: _backlog_pb2.BacklogFile
+    deleted_path: str
+    def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., deleted_path: _Optional[str] = ...) -> None: ...
+
 class QueueBacklogItemRequest(_message.Message):
-    __slots__ = ("operation", "mode", "delay_seconds", "started_by")
+    __slots__ = ("operation", "mode", "delay_seconds", "started_by", "confirm", "force")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     DELAY_SECONDS_FIELD_NUMBER: _ClassVar[int]
     STARTED_BY_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
     operation: str
     mode: str
     delay_seconds: int
     started_by: str
-    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., delay_seconds: _Optional[int] = ..., started_by: _Optional[str] = ...) -> None: ...
+    confirm: bool
+    force: bool
+    def __init__(self, operation: _Optional[str] = ..., mode: _Optional[str] = ..., delay_seconds: _Optional[int] = ..., started_by: _Optional[str] = ..., confirm: _Optional[bool] = ..., force: _Optional[bool] = ...) -> None: ...
 
 class QueueBacklogItemResponse(_message.Message):
-    __slots__ = ("item", "task_id", "run_id", "base_url", "created")
+    __slots__ = ("item", "task_id", "run_id", "base_url", "created", "dry_run", "queued", "message", "blocking_reasons", "unanswered_questions", "pending_suggestions")
     ITEM_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     BASE_URL_FIELD_NUMBER: _ClassVar[int]
     CREATED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    QUEUED_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_REASONS_FIELD_NUMBER: _ClassVar[int]
+    UNANSWERED_QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    PENDING_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
     item: _backlog_pb2.BacklogItem
     task_id: str
     run_id: str
     base_url: str
     created: str
-    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ...) -> None: ...
+    dry_run: bool
+    queued: bool
+    message: str
+    blocking_reasons: _containers.RepeatedScalarFieldContainer[str]
+    unanswered_questions: int
+    pending_suggestions: int
+    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., queued: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[str]] = ..., unanswered_questions: _Optional[int] = ..., pending_suggestions: _Optional[int] = ...) -> None: ...
 
 class BacklogResearchRequest(_message.Message):
     __slots__ = ("prompt", "scope_path", "project_root", "mode", "target_kind", "context_paths", "context_target_ids", "context_requirement_ids")

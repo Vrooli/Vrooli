@@ -62,13 +62,42 @@ type BacklogFileResponse struct {
 	File BacklogFile `json:"file"`
 }
 
+type ProcessPreflightResponse struct {
+	Item      BacklogItem      `json:"item"`
+	Preflight ProcessPreflight `json:"preflight"`
+}
+
+type ProcessPreflight struct {
+	BacklogKind              string                    `json:"backlog_kind"`
+	BacklogName              string                    `json:"backlog_name"`
+	Ready                    bool                      `json:"ready"`
+	ArchivedRevival          bool                      `json:"archived_revival"`
+	ResolvedTargetScenarioID string                    `json:"resolved_target_scenario_id,omitempty"`
+	TargetScenarioExists     bool                      `json:"target_scenario_exists"`
+	SuggestedOperation       string                    `json:"suggested_operation,omitempty"`
+	SuggestedSteerProfileID  string                    `json:"suggested_steer_profile_id,omitempty"`
+	BlockingReasons          []string                  `json:"blocking_reasons,omitempty"`
+	BlockingQuestions        []ProcessBlockingQuestion `json:"blocking_questions,omitempty"`
+}
+
+type ProcessBlockingQuestion struct {
+	ID         string `json:"id,omitempty"`
+	Importance string `json:"importance,omitempty"`
+	Question   string `json:"question,omitempty"`
+}
+
 type QueueBacklogResponse struct {
-	Item    BacklogItem `json:"item"`
-	TaskID  string      `json:"task_id"`
-	RunID   string      `json:"run_id"`
-	BaseURL string      `json:"base_url"`
-	Created string      `json:"created"`
-	DryRun  bool        `json:"dry_run,omitempty"`
+	Item                BacklogItem `json:"item"`
+	TaskID              string      `json:"task_id"`
+	RunID               string      `json:"run_id"`
+	BaseURL             string      `json:"base_url"`
+	Created             string      `json:"created"`
+	DryRun              bool        `json:"dry_run,omitempty"`
+	Queued              bool        `json:"queued,omitempty"`
+	Message             string      `json:"message,omitempty"`
+	BlockingReasons     []string    `json:"blocking_reasons,omitempty"`
+	UnansweredQuestions int         `json:"unanswered_questions,omitempty"`
+	PendingSuggestions  int         `json:"pending_suggestions,omitempty"`
 }
 
 type ResearchResponse struct {
@@ -190,12 +219,13 @@ type PromptTraceResponse struct {
 }
 
 type PromptTrace struct {
-	SkillID      string            `json:"skill_id"`
-	Purpose      string            `json:"purpose"`
-	Variables    map[string]string `json:"variables,omitempty"`
-	Prompt       string            `json:"prompt"`
-	UsedFallback bool              `json:"used_fallback"`
-	CapturedAt   string            `json:"captured_at"`
+	SkillID        string            `json:"skill_id"`
+	Purpose        string            `json:"purpose"`
+	Variables      map[string]string `json:"variables,omitempty"`
+	Prompt         string            `json:"prompt"`
+	PromptRevision string            `json:"prompt_revision,omitempty"`
+	UsedFallback   bool              `json:"used_fallback"`
+	CapturedAt     string            `json:"captured_at"`
 }
 
 type PromptBinding struct {

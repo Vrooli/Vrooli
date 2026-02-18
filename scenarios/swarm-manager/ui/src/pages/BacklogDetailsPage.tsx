@@ -369,6 +369,7 @@ export function BacklogDetailsPage() {
         mode,
         delaySeconds,
         startedBy: "swarm-manager-ui",
+        confirm: true,
       });
     },
     onSuccess: (result) => {

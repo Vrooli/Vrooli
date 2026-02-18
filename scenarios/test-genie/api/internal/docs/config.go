@@ -13,6 +13,7 @@ type Settings struct {
 	Mermaid    MermaidSettings   `json:"mermaid"`
 	Links      LinkSettings      `json:"links"`
 	Paths      PathSettings      `json:"absolute_paths"`
+	ScanPaths  ScanPathSettings  `json:"paths"`
 	References *ReferencesConfig `json:"references"`
 	Manifest   *ManifestConfig   `json:"manifest"`
 }
@@ -47,6 +48,14 @@ type PathSettings struct {
 	Enabled *bool `json:"enabled"`
 	// Allow lists absolute path prefixes that are permitted (e.g., "/api/").
 	Allow []string `json:"allow"`
+}
+
+// ScanPathSettings controls filesystem traversal filters for docs validation.
+type ScanPathSettings struct {
+	// ExcludeDirs skips directories by name or by relative path prefix.
+	ExcludeDirs []string `json:"exclude_dirs"`
+	// ExcludeGlobs skips files/dirs by scenario-relative glob. Supports **.
+	ExcludeGlobs []string `json:"exclude_globs"`
 }
 
 // ReferencesConfig controls bidirectional code↔documentation reference validation.
@@ -213,6 +222,20 @@ func (s *Settings) referencesSkipDirs() []string {
 		return nil
 	}
 	return s.References.SkipDirs
+}
+
+func (s *Settings) scanExcludeDirs() []string {
+	if s == nil {
+		return nil
+	}
+	return s.ScanPaths.ExcludeDirs
+}
+
+func (s *Settings) scanExcludeGlobs() []string {
+	if s == nil {
+		return nil
+	}
+	return s.ScanPaths.ExcludeGlobs
 }
 
 func (s *Settings) manifestEnabled() bool {

@@ -16,6 +16,13 @@
       "node": {}
     }
   },
+  "docs": {
+    "paths": {
+      "exclude_globs": [
+        "ideas/*-archived/**"
+      ]
+    }
+  },
   "business": {
     "checks": {
       "endpoints": {

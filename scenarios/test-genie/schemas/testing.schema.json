@@ -333,6 +333,147 @@
         }
       }
     },
+    "docs": {
+      "type": "object",
+      "description": "Docs phase configuration. Controls markdown/link/reference validation behavior.",
+      "properties": {
+        "markdown": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "mermaid": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "strict": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "links": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "ignore": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "max_concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 6
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5000
+            },
+            "strict_external": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "absolute_paths": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "paths": {
+          "type": "object",
+          "properties": {
+            "exclude_dirs": {
+              "type": "array",
+              "description": "Directory names or relative directory prefixes to exclude from docs traversal",
+              "items": {
+                "type": "string"
+              }
+            },
+            "exclude_globs": {
+              "type": "array",
+              "description": "Scenario-relative path globs to exclude from docs traversal (supports **)",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "references": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "validate_code_refs": {
+              "type": "boolean",
+              "default": true
+            },
+            "validate_doc_refs": {
+              "type": "boolean",
+              "default": true
+            },
+            "code_extensions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "strict": {
+              "type": "boolean",
+              "default": false
+            },
+            "skip_dirs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "manifest": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "require_all_docs_registered": {
+              "type": "boolean",
+              "default": false
+            },
+            "manifest_path": {
+              "type": "string",
+              "default": "docs/manifest.json"
+            }
+          }
+        }
+      }
+    },
     "business": {
       "type": "object",
       "description": "Business logic validation phase configuration. Validates that core business capabilities are implemented and wired correctly. Uses .vrooli/endpoints.json as primary source of truth.",

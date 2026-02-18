@@ -59,6 +59,6 @@ Execution modes (`manual`, `scheduled`, `yolo`) balance speed and risk:
 
 ## References
 
-- [prompt-manager skill: swarm-manager-recommendations](../../prompt-manager/store/skills/packs/core/swarm-manager-recommendations/SKILL.md)
-- [agent-manager PRD](../../agent-manager/PRD.md)
-- [ecosystem-manager PRD](../../ecosystem-manager/PRD.md)
+- [prompt-manager skill: swarm-manager-recommendations](../../../prompt-manager/store/skills/packs/core/swarm-manager-recommendations/SKILL.md)
+- [agent-manager PRD](../../../agent-manager/PRD.md)
+- [ecosystem-manager PRD](../../../ecosystem-manager/PRD.md)

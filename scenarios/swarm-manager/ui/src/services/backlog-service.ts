@@ -98,6 +98,8 @@ export interface IBacklogService {
       mode?: "manual" | "scheduled" | "yolo";
       delaySeconds?: number;
       startedBy?: string;
+      confirm?: boolean;
+      force?: boolean;
     }
   ): Promise<QueueResponse>;
   research(
@@ -283,18 +285,22 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
     async queue(
       kind: BacklogKind,
       name: string,
-      options?: {
-        operation?: "generator" | "improver";
-        mode?: "manual" | "scheduled" | "yolo";
-        delaySeconds?: number;
-        startedBy?: string;
-      }
-    ): Promise<QueueResponse> {
+    options?: {
+      operation?: "generator" | "improver";
+      mode?: "manual" | "scheduled" | "yolo";
+      delaySeconds?: number;
+      startedBy?: string;
+      confirm?: boolean;
+      force?: boolean;
+    }
+  ): Promise<QueueResponse> {
       const msg = buildMessage(QueueBacklogItemRequestSchema, {
         operation: options?.operation ?? "generator",
         mode: options?.mode ?? "yolo",
         ...(options?.delaySeconds !== undefined ? { delaySeconds: BigInt(options.delaySeconds) } : {}),
         ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
+        ...(options?.confirm !== undefined ? { confirm: options.confirm } : {}),
+        ...(options?.force !== undefined ? { force: options.force } : {}),
       });
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.backlogQueue(kind, name),

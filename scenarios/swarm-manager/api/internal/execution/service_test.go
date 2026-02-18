@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
@@ -296,6 +297,93 @@ func TestCancel_RestoresArchivedStatus(t *testing.T) {
 	}
 }
 
+func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "archived-cancel-forced", map[string]any{
+		"name":          "archived-cancel-forced",
+		"title":         "Archived Cancel Forced",
+		"description":   "desc",
+		"status":        "archived",
+		"priority":      3,
+		"tags":          []string{},
+		"archiveReason": "scenario deleted with archive=true",
+	})
+	mustWriteClarifyQuestions(t, root, "idea", "archived-cancel-forced", map[string]any{
+		"questions": []map[string]any{
+			{
+				"id":         "q1",
+				"importance": "critical",
+				"question":   "Should this be revived under original scenario?",
+				"answer":     "",
+			},
+		},
+	})
+
+	service := NewService(ServiceConfig{
+		RootDir:   root,
+		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+	})
+
+	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind: "idea",
+		BacklogName: "archived-cancel-forced",
+		Mode:        ModeManual,
+		Force:       true,
+	})
+	if err != nil {
+		t.Fatalf("QueueBacklog error: %v", err)
+	}
+
+	_, err = service.Cancel(context.Background(), record.ExecutionID)
+	if err != nil {
+		t.Fatalf("Cancel error: %v", err)
+	}
+
+	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "archived-cancel-forced", "spec.json"))
+	if storedItem["status"] != "archived" {
+		t.Fatalf("expected archived status after cancel, got %#v", storedItem["status"])
+	}
+}
+
+func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "cancel-restore-error", map[string]any{
+		"name":        "cancel-restore-error",
+		"title":       "Cancel Restore Error",
+		"description": "desc",
+		"status":      "backlog",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	service := NewService(ServiceConfig{
+		RootDir:   root,
+		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+	})
+
+	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind: "idea",
+		BacklogName: "cancel-restore-error",
+		Mode:        ModeManual,
+	})
+	if err != nil {
+		t.Fatalf("QueueBacklog error: %v", err)
+	}
+
+	specPath := filepath.Join(root, "ideas", "cancel-restore-error", "spec.json")
+	if err := os.Remove(specPath); err != nil {
+		t.Fatalf("remove spec for restore failure simulation: %v", err)
+	}
+
+	_, err = service.Cancel(context.Background(), record.ExecutionID)
+	if err == nil {
+		t.Fatal("expected cancel restore error")
+	}
+	if !strings.Contains(err.Error(), "failed to load backlog item for cancel restore") {
+		t.Fatalf("expected restore load error, got %v", err)
+	}
+}
+
 func TestUpdatePolicy_RejectsInvalidScheduledDefaults(t *testing.T) {
 	root := t.TempDir()
 	service := NewService(ServiceConfig{
@@ -361,6 +449,30 @@ func mustWritePolicy(t *testing.T, path string, payload map[string]any) {
 	}
 	if err := os.WriteFile(path, bytes, 0o644); err != nil {
 		t.Fatalf("write policy file: %v", err)
+	}
+}
+
+func mustWriteClarifyQuestions(t *testing.T, root, kind, name string, payload map[string]any) {
+	t.Helper()
+	kindDir := "ideas"
+	switch kind {
+	case "research":
+		kindDir = "research"
+	case "fix":
+		kindDir = "fix"
+	case "execute":
+		kindDir = "execute"
+	}
+	dir := filepath.Join(root, kindDir, name, "clarify")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir clarify dir: %v", err)
+	}
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal clarify payload: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "questions.json"), bytes, 0o644); err != nil {
+		t.Fatalf("write questions file: %v", err)
 	}
 }
 

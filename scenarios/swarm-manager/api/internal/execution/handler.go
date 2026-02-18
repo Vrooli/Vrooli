@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
 )
 
@@ -151,27 +153,55 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot be queued") ||
-			strings.Contains(err.Error(), "required") ||
-			strings.Contains(err.Error(), "mode must") ||
-			strings.Contains(err.Error(), "delay_seconds") {
-			httputil.BadRequest(w, "[execution] create", err.Error())
-			return
-		}
-		if strings.Contains(err.Error(), "not available") {
-			httputil.ServiceUnavailable(w, "[execution] create", "agent-manager is not available")
-			return
-		}
-		if errors.Is(err, errNotFound) {
-			httputil.NotFound(w, "[execution] create", "backlog item not found")
-			return
-		}
-		httputil.InternalError(w, "[execution] create", "failed to create execution")
+		log.Printf("[execution] create: queue backlog failed: %v", err)
+		h.mapCreateError(w, err)
 		return
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
 		httputil.InternalError(w, "[execution] create", "failed to encode response")
 	}
+}
+
+func (h *Handler) mapCreateError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errNotFound):
+		httputil.NotFound(w, "[execution] create", "backlog item not found")
+	case errors.Is(err, agentmanager.ErrNotAvailable):
+		httputil.ServiceUnavailable(w, "[execution] create", "agent-manager is not available")
+	case errors.Is(err, agentmanager.ErrRequestFailed):
+		httputil.Error(w, "[execution] create", "agent-manager request failed; check agent-manager health/logs and retry", http.StatusBadGateway)
+	case isCreateBadRequestError(err):
+		httputil.BadRequest(w, "[execution] create", err.Error())
+	default:
+		httputil.InternalError(w, "[execution] create", "failed to create execution: "+summarizeCreateError(err))
+	}
+}
+
+func isCreateBadRequestError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(msg, "cannot be queued") ||
+		strings.Contains(msg, "required") ||
+		strings.Contains(msg, "mode must") ||
+		strings.Contains(msg, "delay_seconds") ||
+		strings.Contains(msg, "process preflight failed")
+}
+
+func summarizeCreateError(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+	msg := strings.Join(strings.Fields(strings.TrimSpace(err.Error())), " ")
+	if msg == "" {
+		return "unknown"
+	}
+	const maxLen = 240
+	if len(msg) > maxLen {
+		return msg[:maxLen] + "..."
+	}
+	return msg
 }
 
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +256,8 @@ func (h *Handler) mapMutationError(w http.ResponseWriter, prefix string, err err
 	switch {
 	case errors.Is(err, errNotFound):
 		httputil.NotFound(w, prefix, "execution not found")
+	case isCancelRestoreError(err):
+		httputil.Conflict(w, prefix, "execution canceled but backlog status restore failed; fix the backlog item status and retry")
 	case strings.Contains(err.Error(), "required"),
 		strings.Contains(err.Error(), "cannot"),
 		strings.Contains(err.Error(), "only"):
@@ -235,6 +267,15 @@ func (h *Handler) mapMutationError(w http.ResponseWriter, prefix string, err err
 	default:
 		httputil.InternalError(w, prefix, "execution operation failed")
 	}
+}
+
+func isCancelRestoreError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(message, "failed to load backlog item for cancel restore") ||
+		strings.Contains(message, "failed to restore backlog status after cancel")
 }
 
 func (h *Handler) GetPolicy(w http.ResponseWriter, r *http.Request) {

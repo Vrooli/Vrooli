@@ -4,6 +4,7 @@
   "archivedBy": "matthalloran8",
   "created": "2026-02-16T04:14:56Z",
   "description": "Remote-first terminal console with quick command shortcuts",
+  "kind": "idea",
   "name": "web-console-archived",
   "preservePresetOrCustom": "custom",
   "preservedFiles": [
@@ -25,5 +26,5 @@
     "from-scenario"
   ],
   "title": "[Archived] web-console",
-  "updated": "2026-02-16T04:14:56Z"
+  "updated": "2026-02-18T18:06:30Z"
 }
