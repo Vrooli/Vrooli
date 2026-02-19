@@ -59,6 +59,10 @@ func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Req
 				"min": settings.MinCooldownSeconds,
 				"max": settings.MaxCooldownSeconds,
 			},
+			"execution_limit": map[string]int{
+				"min": settings.MinExecutionLimit,
+				"max": settings.MaxExecutionLimit,
+			},
 			"max_turns": map[string]int{
 				"min": settings.MinMaxTurns,
 				"max": settings.MaxMaxTurns,

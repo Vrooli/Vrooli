@@ -108,3 +108,54 @@ func TestFinalizeTaskStatusEnqueuesRecyclerOnlyWhenAutoRequeue(t *testing.T) {
 		t.Fatalf("expected recycler not to enqueue when auto-requeue is false")
 	}
 }
+
+// TestFinalizeTaskStatusToPendingCleansUpInProgress verifies that when a task
+// in in-progress/ is finalized to "pending" (e.g., steering requeue or rate
+// limit), the stale in-progress/ copy is removed and the task exists only in
+// pending/.  This is a regression test for the bug where finalizeTaskStatus
+// used the in-memory task.Status (already set to "pending" by the caller)
+// instead of querying the filesystem for the actual location, causing a
+// duplicate file that lingered until the next execution cycle.
+func TestFinalizeTaskStatusToPendingCleansUpInProgress(t *testing.T) {
+	restore := ensureSettings(t, func(s settings.Settings) settings.Settings {
+		s.CooldownSeconds = 0
+		return s
+	})
+	defer restore()
+
+	processor, _, storage, cleanup := newTestProcessorWithRecycler(t)
+	defer cleanup()
+
+	// Task is on disk in in-progress/, but the caller (handleRateLimitedExecution
+	// or handleSteeringContinuation) has already set task.Status = "pending".
+	task := tasks.TaskItem{
+		ID:                   "requeue-task",
+		Type:                 "scenario",
+		Operation:            "improver",
+		Status:               "pending", // in-memory status set by caller
+		ProcessorAutoRequeue: true,
+		CreatedAt:            "2025-01-01T00:00:00Z",
+		UpdatedAt:            "2025-01-01T00:00:00Z",
+	}
+	// Save to in-progress/ on disk (the real location before finalization).
+	if err := storage.SaveQueueItem(task, "in-progress"); err != nil {
+		t.Fatalf("save task to in-progress: %v", err)
+	}
+
+	// Finalize to pending — this is the path taken by rate-limit and steering requeue.
+	if err := processor.finalizeTaskStatus(&task, "pending"); err != nil {
+		t.Fatalf("finalize to pending: %v", err)
+	}
+
+	// Verify: task must exist in pending/
+	pendingPath := filepath.Join(storage.QueueDir, "pending", "requeue-task.yaml")
+	if _, err := os.Stat(pendingPath); err != nil {
+		t.Fatalf("expected task in pending/ but got: %v", err)
+	}
+
+	// Verify: task must NOT exist in in-progress/ (the stale copy)
+	inProgressPath := filepath.Join(storage.QueueDir, "in-progress", "requeue-task.yaml")
+	if _, err := os.Stat(inProgressPath); err == nil {
+		t.Fatalf("stale task file found in in-progress/ — duplicate not cleaned up")
+	}
+}

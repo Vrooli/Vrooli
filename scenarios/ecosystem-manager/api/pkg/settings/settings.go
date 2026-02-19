@@ -28,9 +28,10 @@ type Settings struct {
 	CondensedMode bool   `json:"condensed_mode"`
 
 	// Queue processor settings
-	Slots           int  `json:"slots"`
+	Slots          int  `json:"slots"`
 	CooldownSeconds int  `json:"cooldown_seconds"`
-	Active          bool `json:"active"`
+	ExecutionLimit int  `json:"execution_limit"` // Auto-stop after this many task completions (0 = unlimited)
+	Active         bool `json:"active"`
 
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
@@ -53,8 +54,9 @@ func newDefaultSettings() Settings {
 	return Settings{
 		Theme:           "light",
 		CondensedMode:   DefaultCondensedMode,
-		Slots:           DefaultSlots,
+		Slots:          DefaultSlots,
 		CooldownSeconds: DefaultCooldownSeconds,
+		ExecutionLimit: DefaultExecutionLimit,
 		Active:          DefaultActive, // ALWAYS start/reset inactive for safety
 		MaxTurns:        DefaultMaxTurns,
 		AllowedTools:    DefaultAllowedTools,
@@ -133,6 +135,9 @@ func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
 	}
 	if s.CooldownSeconds < MinCooldownSeconds || s.CooldownSeconds > MaxCooldownSeconds {
 		return previous, fmt.Errorf("Cooldown must be between %d and %d seconds", MinCooldownSeconds, MaxCooldownSeconds)
+	}
+	if s.ExecutionLimit < MinExecutionLimit || s.ExecutionLimit > MaxExecutionLimit {
+		return previous, fmt.Errorf("Execution limit must be between %d and %d", MinExecutionLimit, MaxExecutionLimit)
 	}
 	if s.MaxTurns < MinMaxTurns || s.MaxTurns > MaxMaxTurns {
 		return previous, fmt.Errorf("Max turns must be between %d and %d", MinMaxTurns, MaxMaxTurns)

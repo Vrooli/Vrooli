@@ -241,6 +241,9 @@ export function mapProtoQueueStatus(proto: ProtoQueueStatus): QueueStatus {
     rate_limited: proto.isRateLimitPaused,
     rate_limit_retry_after: 0,
     rate_limit_pause_until: proto.rateLimitResumeAt || undefined,
+    executions_completed: (proto as any).executionsCompleted ?? 0,
+    execution_limit: (proto as any).executionLimit ?? 0,
+    execution_limit_reached: (proto as any).executionLimitReached ?? false,
   };
 }
 
@@ -313,7 +316,7 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionH
 
 // Default settings fallback
 const DEFAULT_SETTINGS: Settings = {
-  processor: { concurrent_slots: 1, cooldown_seconds: 30, active: false },
+  processor: { concurrent_slots: 1, cooldown_seconds: 30, execution_limit: 0, active: false },
   agent: {
     max_turns: 60,
     allowed_tools: "Read,Write,Edit,Bash,LS,Glob,Grep",
@@ -345,6 +348,7 @@ export function mapProtoSettings(proto: ProtoSettings): Settings {
     processor: {
       concurrent_slots: proto.slots || DEFAULT_SETTINGS.processor.concurrent_slots,
       cooldown_seconds: proto.cooldownSeconds || DEFAULT_SETTINGS.processor.cooldown_seconds,
+      execution_limit: (proto as any).executionLimit ?? DEFAULT_SETTINGS.processor.execution_limit,
       active: proto.active,
     },
     agent: {
@@ -386,6 +390,7 @@ export function mapUiSettingsToProtoJson(settings: Settings): Record<string, unk
     condensed_mode: settings.display.condensed_mode,
     slots: settings.processor.concurrent_slots,
     cooldown_seconds: settings.processor.cooldown_seconds,
+    execution_limit: settings.processor.execution_limit,
     active: settings.processor.active,
     max_turns: settings.agent.max_turns,
     allowed_tools: settings.agent.allowed_tools,
@@ -454,6 +459,7 @@ export function mapProtoActiveTarget(proto: ProtoActiveTarget): ActiveTarget {
 const DEFAULT_CONSTRAINTS: SettingsConstraints = {
   slots: { min: 1, max: 5 },
   cooldown_seconds: { min: 5, max: 300 },
+  execution_limit: { min: 0, max: 10000 },
   max_turns: { min: 5, max: 500 },
   task_timeout: { min: 5, max: 240 },
   idle_timeout_cap: { min: 2, max: 240 },
@@ -482,6 +488,7 @@ function parseConstraints(raw: unknown): SettingsConstraints {
   return {
     slots: parseConstraintRange(r.slots, DEFAULT_CONSTRAINTS.slots),
     cooldown_seconds: parseConstraintRange(r.cooldown_seconds, DEFAULT_CONSTRAINTS.cooldown_seconds),
+    execution_limit: parseConstraintRange(r.execution_limit, DEFAULT_CONSTRAINTS.execution_limit),
     max_turns: parseConstraintRange(r.max_turns, DEFAULT_CONSTRAINTS.max_turns),
     task_timeout: parseConstraintRange(r.task_timeout, DEFAULT_CONSTRAINTS.task_timeout),
     idle_timeout_cap: parseConstraintRange(r.idle_timeout_cap, DEFAULT_CONSTRAINTS.idle_timeout_cap),
@@ -508,7 +515,13 @@ export function parseSettingsResponse(raw: unknown): { settings: Settings; const
     const source = wrapper?.settings ?? raw;
     const result = settingsProtoSchema.safeParse(source);
     if (result.success) {
-      return { settings: mapProtoSettings(result.data), constraints };
+      const settings = mapProtoSettings(result.data);
+      // Merge fields not in the proto schema from the raw source
+      const s = source as Record<string, unknown>;
+      if (typeof s.execution_limit === "number") {
+        settings.processor.execution_limit = s.execution_limit;
+      }
+      return { settings, constraints };
     }
   } catch {
     // fall through to defaults
@@ -670,7 +683,13 @@ export function parseQueueStatusResponse(raw: unknown): QueueStatus {
   }
   const result = queueStatusProtoSchema.safeParse(raw);
   if (result.success) {
-    return mapProtoQueueStatus(result.data);
+    const status = mapProtoQueueStatus(result.data);
+    // Merge fields not in the proto schema from the raw source
+    const r = raw as Record<string, unknown>;
+    if (typeof r.executions_completed === "number") status.executions_completed = r.executions_completed;
+    if (typeof r.execution_limit === "number") status.execution_limit = r.execution_limit;
+    if (typeof r.execution_limit_reached === "boolean") status.execution_limit_reached = r.execution_limit_reached;
+    return status;
   }
   // Fallback: direct field mapping for snake_case responses
   const r = raw as any;
@@ -686,6 +705,9 @@ export function parseQueueStatusResponse(raw: unknown): QueueStatus {
     rate_limited: r.is_rate_limit_paused ?? r.rate_limited ?? r.rate_limit_info?.paused ?? false,
     rate_limit_retry_after: r.rate_limit_retry_after ?? r.rate_limit_info?.remaining_secs ?? 0,
     rate_limit_pause_until: r.rate_limit_resume_at ?? r.rate_limit_pause_until ?? r.rate_limit_info?.pause_until,
+    executions_completed: r.executions_completed ?? 0,
+    execution_limit: r.execution_limit ?? 0,
+    execution_limit_reached: r.execution_limit_reached ?? false,
   };
 }
 

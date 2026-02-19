@@ -116,6 +116,9 @@ export interface QueueStatus {
   rate_limited?: boolean;
   rate_limit_retry_after?: number;
   rate_limit_pause_until?: string;
+  executions_completed?: number;
+  execution_limit?: number;
+  execution_limit_reached?: boolean;
 }
 
 export interface RunningProcess {
@@ -138,6 +141,7 @@ export interface ConstraintRange {
 export interface SettingsConstraints {
   slots: ConstraintRange;
   cooldown_seconds: ConstraintRange;
+  execution_limit: ConstraintRange;
   max_turns: ConstraintRange;
   task_timeout: ConstraintRange;
   idle_timeout_cap: ConstraintRange;
@@ -162,6 +166,7 @@ export interface Settings {
 export interface ProcessorSettings {
   concurrent_slots: number;
   cooldown_seconds: number;
+  execution_limit: number;
   active: boolean;
 }
 
@@ -486,6 +491,7 @@ export type WebSocketMessageType =
   | 'rate_limit_resume'
   | 'rate_limit_manual_reset'
   | 'rate_limit_hit'
+  | 'execution_limit_reached'
   | 'log_entry'
   | string;
 

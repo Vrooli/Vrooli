@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,7 +22,7 @@ import (
 type taskExecution struct {
 	taskID    string
 	agentTag  string
-	runID     string    // agent-manager run ID for StopRun calls
+	runID     string // agent-manager run ID for StopRun calls
 	started   time.Time
 	timeoutAt time.Time // When this execution will timeout
 	timedOut  bool      // Whether timeout has already occurred
@@ -136,6 +135,11 @@ type Processor struct {
 
 	// Timeout watchdog for enforcing task timeouts
 	watchdog *TimeoutWatchdog
+
+	// Execution limit tracking (runtime only, not persisted)
+	executionsCompletedMu sync.Mutex
+	executionsCompleted   int
+	executionLimitReached bool
 
 	// Lifecycle control for background workers
 	ctx    context.Context
@@ -425,6 +429,7 @@ func (qp *Processor) Start() {
 		return
 	}
 
+	qp.resetExecutionCounter()
 	qp.isRunning = true
 	go qp.processLoop()
 	qp.Wake()
@@ -624,6 +629,11 @@ func (qp *Processor) ProcessQueue() {
 		return
 	}
 
+	// Check if execution limit has been reached
+	if qp.ExecutionLimitReached() {
+		return
+	}
+
 	// Check if rate limit paused (includes auto-expiration and broadcasting)
 	if status := qp.rateLimiter.CheckLimit(); status.IsPaused {
 		return
@@ -712,11 +722,16 @@ func (qp *Processor) ProcessQueue() {
 
 func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) error {
 	// Persist latest task payload to its current bucket so ApplyTransition sees updated fields (results, metadata).
-	currentStatus := task.Status
-	if strings.TrimSpace(currentStatus) == "" {
-		if status, err := qp.storage.CurrentStatus(task.ID); err == nil {
-			currentStatus = status
-		}
+	// IMPORTANT: Always query disk for the real location. The in-memory task.Status may have been changed
+	// by callers (e.g., handleSteeringContinuation sets it to "pending" while the file is still in
+	// in-progress/). Using the wrong directory creates a duplicate that the subsequent no-op transition
+	// never cleans up.
+	currentStatus := ""
+	if status, err := qp.storage.CurrentStatus(task.ID); err == nil {
+		currentStatus = status
+	}
+	if currentStatus == "" {
+		currentStatus = task.Status
 	}
 	if currentStatus == "" {
 		currentStatus = toStatus
@@ -790,6 +805,26 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 		qp.recycler.Enqueue(task.ID)
 	}
 
+	// Track execution count for terminal statuses and check execution limit
+	if toStatus == "completed" || toStatus == "failed" {
+		if qp.incrementExecutionCount() {
+			go func() {
+				qp.Stop()
+				s := settings.GetSettings()
+				s.Active = false
+				settings.UpdateSettings(s)
+				if err := settings.SaveToDisk(); err != nil {
+					log.Printf("Failed to persist settings after execution limit reached: %v", err)
+				}
+				qp.broadcastUpdate("execution_limit_reached", map[string]any{
+					"executions_completed": qp.ExecutionsCompleted(),
+					"execution_limit":      s.ExecutionLimit,
+				})
+				log.Printf("Execution limit reached (%d tasks); processor auto-stopped", s.ExecutionLimit)
+			}()
+		}
+	}
+
 	return nil
 }
 
@@ -855,6 +890,41 @@ func (qp *Processor) computeSlotSnapshot(internalRunning, externalActive map[str
 		Running:   running,
 		Available: available,
 	}
+}
+
+// ExecutionsCompleted returns the current execution count since last start/reset.
+func (qp *Processor) ExecutionsCompleted() int {
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	return qp.executionsCompleted
+}
+
+// ExecutionLimitReached returns whether the execution limit has been hit.
+func (qp *Processor) ExecutionLimitReached() bool {
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	return qp.executionLimitReached
+}
+
+// resetExecutionCounter resets the execution counter and limit-reached flag.
+func (qp *Processor) resetExecutionCounter() {
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	qp.executionsCompleted = 0
+	qp.executionLimitReached = false
+}
+
+// incrementExecutionCount increments the counter and returns true if the limit was just reached.
+func (qp *Processor) incrementExecutionCount() bool {
+	limit := settings.GetSettings().ExecutionLimit
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	qp.executionsCompleted++
+	if limit > 0 && qp.executionsCompleted >= limit && !qp.executionLimitReached {
+		qp.executionLimitReached = true
+		return true
+	}
+	return false
 }
 
 // UpdateAgentProfiles propagates current settings to agent-manager profiles.

@@ -40,6 +40,10 @@ const (
 	MinRecyclerBatchSize = 1
 	MaxRecyclerBatchSize = 10
 
+	// Execution limit constraints (0 = unlimited)
+	MinExecutionLimit = 0
+	MaxExecutionLimit = 10000
+
 	// Recycler limit constraints
 	MinRecyclerLimit = 1
 	MaxRecyclerLimit = 100
@@ -66,6 +70,9 @@ const (
 	DefaultActive          = false
 	DefaultCondensedMode   = false
 	DefaultRunnerType      = "claude-code"
+
+	// Execution limit default (0 = unlimited)
+	DefaultExecutionLimit = 0
 
 	// Recycler defaults
 	DefaultRecyclerEnabledFor          = "off"

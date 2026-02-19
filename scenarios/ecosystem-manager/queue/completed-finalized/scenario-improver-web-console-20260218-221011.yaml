@@ -1,0 +1,750 @@
+id: scenario-improver-web-console-20260218-221011
+title: Improve scenario web-console
+type: scenario
+operation: improver
+target: web-console
+targets:
+    - web-console
+category: improvement
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed-finalized
+current_phase: completed-finalized
+started_at: "2026-02-19T06:47:43-05:00"
+completed_at: "2026-02-19T06:47:47-05:00"
+cooldown_until: "2026-02-19T06:53:00-05:00"
+completion_count: 89
+last_completed_at: "2026-02-19T06:47:47-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2026-02-18T22:10:11-05:00"
+updated_at: "2026-02-19T06:48:00-05:00"
+tags: []
+notes: ""
+results:
+    completed_at: "2026-02-19T06:47:47-05:00"
+    execution_time: 4s
+    output: |
+        You are executing a **scenario improvement** task for the Ecosystem Manager.
+
+        ## Boundaries & Focus
+        - Work strictly inside `/home/matthalloran8/Vrooli/scenarios/web-console/` (and its `.vrooli/`, `docs/`, and `requirements/` folders). If you uncover problems elsewhere, record them in your notes instead of editing unrelated paths.
+        - Respect the generator’s scaffold. Follow the current steering focus, avoid regressions, and stay within the existing architecture rather than redesigning the scenario from scratch.
+
+        ## Before You Start (self-orientation)
+        - Run `vrooli scenario status web-console` to see failing checks and remediation hints.
+        - Run `scenario-completeness-scoring score web-console` (or with `--json`) to understand current quality/coverage and recommendations.
+        - Read the latest execution output if available: `/home/matthalloran8/Vrooli/scenarios/ecosystem-manager/logs/task-runs/scenario-improver-web-console-20260218-221011/executions/2026-02-19_064726/output.log` (skip if not available). Use it to understand what the last run did and any errors.
+
+        ## Quick Validation Loop (repeat until green)
+        1. `vrooli scenario status web-console`
+           - Shows failing checks, missing files, stale ports, and remediation hints. Use it to prioritize work and verify progress before handoff.
+        2. `scenario-completeness-scoring score web-console`
+           - Shows objective quality score (0-100) with breakdown of quality, coverage, quantity, and UI metrics. Review recommendations to identify gaps (missing tests, template UI, low routing complexity, etc.). Re-run after changes to verify improvements. Target 80+ for production readiness.
+        3. `scenario-auditor audit web-console --timeout 240`
+           - Capture the JSON (or summary) and explain any remaining security/standards violations.
+        4. `vrooli scenario test web-console {all|structure|dependencies|unit|integration|e2e|business|performance}`
+           - Tests must pass after your change, or you must clearly explain why they remain failing. Phase scripts automatically sync requirement coverage when full test suite run.
+        5. `vrooli scenario ui-smoke web-console`
+           - Ensures the production UI bundle loads, the iframe bridge is ready, and Browserless captures artifacts (screenshot, console, network).
+
+        ## Working with PRD & Requirements
+        - `/home/matthalloran8/Vrooli/scenarios/web-console/PRD.md` is read-only unless the task explicitly grants edit access. Fix code/tests so the PRD reflects reality; don’t toggle checkboxes manually.
+        - Operational targets (P0/P1/P2) gain ✅ status automatically when their linked requirements’ tests pass. Confirm each target you touch is mapped to requirement IDs in `requirements/index.json` under the numbered operational-target folders (e.g. `01-<first-target-name>`, `02-<second-target-name>`, …). Add/link requirements if needed and keep the filesystem mirror of the PRD targets intact (no duplicate compatibility shims).
+        - `/home/matthalloran8/Vrooli/scenarios/web-console/bas/` mirrors the same target layout under `cases/<target>/<surface>/` plus an additional `flows/` folder to validate user journeys. When adding/editing workflows, place them in the correct folder, tag selectors via `ui/src/consts/selectors.ts`, refresh the README if the structure changes, and never leave temporary copies in legacy directories.
+        - When you run tests, ensure the commands cover the `[REQ:ID]` tags for the target you’re improving. Document the commands in PRD/Test Commands and your summary so future agents can reproduce the evidence. Running the full suite triggers automatic requirement sync.
+
+        ## Documentation Updates
+        - **docs/PROGRESS.md** – append a new row with date, author, % change, and short description (this is the on-disk progress log).
+        - **docs/PROBLEMS.md** – log unresolved issues or follow-up tasks under the existing sections.
+        - **docs/RESEARCH.md** – add any new references or learnings if you discover them while fixing the scenario.
+        - **README.md** – update run/test instructions or dependencies if your change alters how the scenario operates.
+        - **requirements/README.md** – keep module descriptions current when you add requirement files. If you reorganize modules, update the README and ensure the numbered folders still align with PRD targets without adding bridge directories.
+        - **bas/README.md** – document any new surfaces or flow folders you add and ensure the per-target structure matches the requirements. Re-run `test-genie registry build` after changes.
+        These files are the canonical documentation sources for future scenario improvement agents to read.
+
+        ## Implementation & Stack Expectations
+        - Honor the existing architecture. If you add UI, default to React + TypeScript + Vite + shadcn/ui + lucide unless the scenario already uses another stack.
+        - Keep changes scoped to the current steering focus, prove results with requirements-linked tests, log the result in `/home/matthalloran8/Vrooli/scenarios/web-console/docs/PROGRESS.md`, and leave TODOs for remaining gaps.
+        - Preserve `[REQ:ID]` annotations in tests so requirement tracking stays accurate.
+
+        ## Security & Standards Guardrails
+        - `scenario-auditor` output defines pass/fail. If violations remain, explain why and what follow-up is required.
+        - Health checks must include `timeout 5` and meaningful responses; ports must stay within the scenario’s allocation range.
+
+        ## Failure Recovery Snapshot
+        - If you cannot finish a fix, log it (component, severity 1-5, attempts, blockers) in your summary and `docs/PROGRESS.md`. Future agents depend on this context.
+        - Never ignore a failing test—either resolve it or document why it cannot yet be fixed.
+
+        ## Cross-Scenario Awareness
+        - Before changing APIs/CLI outputs, search the repo and review `scenario status` to see who consumes them. Prefer additive or versioned endpoints.
+        - For integration testing, resolve other scenarios’ ports dynamically via `vrooli scenario port <name> API_PORT`.
+
+        ## Final Handoff (Required Format)
+        1. **Validation Evidence** – Re-run the Quick Validation Loop (status, completeness, auditor, tests, ui-smoke) and list the exact commands plus where logs/output are stored. Include the completeness score before/after your changes and highlight which metrics improved.
+        2. **Changes & Files** – Enumerate the operational targets/requirements you advanced and which files you touched (PRD notes, README, requirements modules, docs/PROGRESS.md, code/tests).
+        3. **Current Scenario Health** – State what now works, what still fails, and any regressions you observed.
+        4. **Next Steps / Risks** – Capture follow-up tasks, blockers, or recommendations so the next agent can pick up instantly.
+
+        Use this structure for your final response; ecosystem-manager relies on it to track progress and plan the next iteration.
+
+        ## Steer focus: E2E Testing with Browser Automation Studio
+
+        Prioritize **end-to-end test coverage** for critical user journeys using BAS workflows.
+        Do **not** break functionality or regress existing tests; all changes must maintain or improve completeness.
+
+        Focus on validating **requirements and user-visible behavior**, not implementation details.
+
+        For CLI commands and artifact analysis, see the **browser-automation-studio** skill.
+
+        Required reading:
+        - `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
+
+        Optional reading:
+        - `prompt-manager skills read browser-automation-studio`
+
+        ---
+
+        ### **1. When to Use E2E Testing**
+
+        #### Decision Table
+
+        | Question | If YES | If NO |
+        |----------|--------|-------|
+        | Does it involve user-visible UI interaction? | E2E candidate | Unit/integration test |
+        | Does it span multiple components/services? | E2E candidate | Unit test |
+        | Is it a critical user journey (login, checkout, onboarding)? | E2E required | Consider cost/benefit |
+        | Can it be fully validated without a browser? | Unit/integration test | E2E candidate |
+        | Is it testing API contracts only? | Integration test | Continue evaluation |
+
+        #### Testing Pyramid Position
+
+        ```
+                  ╱╲
+                 ╱E2E╲           ← BAS workflows (few, critical paths)
+                ╱──────╲
+               ╱Integration╲      ← API tests, component integration
+              ╱──────────────╲
+             ╱   Unit Tests    ╲   ← Most tests live here (fast, isolated)
+            ╱────────────────────╲
+        ```
+
+        **Principle:** E2E tests validate that the system works **for users**. They should be:
+        - **Few** - Only critical paths
+        - **Focused** - One journey per test case
+        - **Supplemental** - Not replacing faster unit/integration tests
+
+        ---
+
+        ### **2. Workflow Hierarchy & Organization**
+
+        ```
+        scenarios/{{TARGET}}/bas/
+        ├── registry.json          # Auto-generated manifest (DO NOT edit)
+        ├── cases/                 # Test cases WITH assertions
+        │   ├── 01-foundation/     # Core functionality
+        │   │   ├── 01-auth/       # Authentication flows
+        │   │   │   ├── login-success.json
+        │   │   │   └── login-failure.json
+        │   │   └── 02-navigation/ # Basic navigation
+        │   └── 02-features/       # Feature-specific tests
+        │       └── 01-dashboard/
+        ├── flows/                 # Reusable user journeys (NO assertions)
+        │   └── complete-checkout.json
+        └── actions/               # Atomic operations (NO assertions)
+            ├── login.json
+            └── open-project.json
+        ```
+
+        #### Hierarchy Rules
+
+        | Level | Contains Assertions | Reusable | Purpose |
+        |-------|---------------------|----------|---------|
+        | `actions/` | NO | YES | Atomic steps (login, navigate, fill form) |
+        | `flows/` | NO | YES | Multi-step journeys (checkout process) |
+        | `cases/` | YES | NO | Requirement validation with assertions |
+
+        #### Ordering Convention
+
+        - Use **two-digit prefixes** for folders: `01-foundation/`, `02-features/`
+        - This controls execution order during test runs
+        - Foundation tests run first to catch basic failures early
+
+        #### Debug Order (Critical)
+
+        When test suites fail, debug **bottom-up**:
+
+        1. **Actions first** - Are atomic operations working?
+        2. **Flows second** - Do composed journeys complete?
+        3. **Cases last** - Are assertions correct for the current behavior?
+
+        ---
+
+        ### **3. Selector Registry Integration**
+
+        All UI selectors **must** be defined in a central registry to ensure maintainability.
+
+        #### Single Source of Truth
+
+        ```typescript
+        // ui/src/constants/selectors.ts
+        const literalSelectors = {
+          dashboard: {
+            container: "dashboard-container",
+            newProjectButton: "dashboard-new-project-button",
+            projectList: "dashboard-project-list",
+          },
+          auth: {
+            loginForm: "auth-login-form",
+            emailInput: "auth-email-input",
+            passwordInput: "auth-password-input",
+            submitButton: "auth-submit-button",
+            errorMessage: "auth-error-message",
+          },
+        } as const;
+        ```
+
+        #### Component Usage
+
+        ```tsx
+        import { selectors } from '@/constants/selectors';
+
+        <button data-testid={selectors.dashboard.newProjectButton}>
+          New Project
+        </button>
+        ```
+
+        #### Workflow Reference
+
+        In BAS workflows, reference selectors with `@selector/` prefix:
+
+        ```json
+        {
+          "type": "click",
+          "data": {
+            "selector": "@selector/dashboard.newProjectButton"
+          }
+        }
+        ```
+
+        #### Dynamic Selectors
+
+        For elements that need parameters:
+
+        ```typescript
+        // In selectors.ts
+        const dynamicSelectorDefinitions = {
+          projects: {
+            cardByName: defineDynamicSelector({
+              description: "Project card by name",
+              selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
+              params: { name: { type: "string" } },
+            }),
+          },
+        } as const;
+        ```
+
+        In workflows:
+
+        ```json
+        {
+          "type": "click",
+          "data": {
+            "selector": "@selector/projects.cardByName(name=My Project)"
+          }
+        }
+        ```
+
+        **Benefits:**
+        - Workflows survive UI refactors
+        - Single place to update when selectors change
+        - Type-safe references catch typos early
+
+        ---
+
+        ### **4. Requirements Integration**
+
+        Link E2E tests to requirements using the `automation` validation type.
+
+        #### In Requirements JSON
+
+        ```json
+        {
+          "id": "REQ-AUTH-001",
+          "description": "User can log in with valid credentials",
+          "validation": [
+            {
+              "type": "automation",
+              "ref": "bas/cases/01-foundation/01-auth/login-success.json",
+              "scenario": "{{TARGET}}",
+              "phase": "integration",
+              "status": "implemented"
+            }
+          ]
+        }
+        ```
+
+        #### In Workflow Metadata
+
+        ```json
+        {
+          "metadata": {
+            "description": "Verify successful login flow",
+            "labels": {
+              "requirements_json": "[\"REQ-AUTH-001\"]"
+            }
+          }
+        }
+        ```
+
+        #### Validation Types
+
+        | Type | Tool | When to Use |
+        |------|------|-------------|
+        | `automation` | BAS workflow | UI interactions, visual validation |
+        | `test` | Unit/integration test | Code-level behavior |
+        | `manual` | Human verification | Last resort only |
+
+        **If using manual validation**, log it with:
+        ```bash
+        vrooli scenario requirements manual-log {{TARGET}} REQ-XXX "Reason for manual check"
+        ```
+        Then build a BAS workflow as soon as possible.
+
+        ---
+
+        ### **5. Workflow Authoring Patterns**
+
+        #### Minimal Workflow Structure
+
+        ```json
+        {
+          "metadata": {
+            "description": "Verify login success redirects to dashboard",
+            "version": 1,
+            "reset": "none"
+          },
+          "settings": {
+            "executionViewport": {
+              "width": 1440,
+              "height": 900,
+              "preset": "desktop"
+            }
+          },
+          "nodes": [
+            {
+              "id": "navigate-login",
+              "type": "navigate",
+              "position": { "x": 0, "y": 0 },
+              "data": {
+                "label": "Go to login page",
+                "destinationType": "scenario",
+                "scenario": "{{TARGET}}",
+                "scenarioPath": "/login",
+                "waitUntil": "networkidle0"
+              }
+            },
+            {
+              "id": "type-email",
+              "type": "type",
+              "position": { "x": 220, "y": 0 },
+              "data": {
+                "label": "Enter email",
+                "selector": "@selector/auth.emailInput",
+                "text": "test@example.com",
+                "clearExisting": true
+              }
+            },
+            {
+              "id": "type-password",
+              "type": "type",
+              "position": { "x": 440, "y": 0 },
+              "data": {
+                "label": "Enter password",
+                "selector": "@selector/auth.passwordInput",
+                "text": "password123",
+                "clearExisting": true
+              }
+            },
+            {
+              "id": "click-submit",
+              "type": "click",
+              "position": { "x": 660, "y": 0 },
+              "data": {
+                "label": "Click submit",
+                "selector": "@selector/auth.submitButton"
+              }
+            },
+            {
+              "id": "assert-dashboard",
+              "type": "assert",
+              "position": { "x": 880, "y": 0 },
+              "data": {
+                "label": "Verify dashboard visible",
+                "selector": "@selector/dashboard.container",
+                "assertMode": "exists",
+                "timeoutMs": 10000,
+                "failureMessage": "Dashboard should be visible after login"
+              }
+            }
+          ],
+          "edges": [
+            { "id": "e1", "source": "navigate-login", "target": "type-email", "type": "smoothstep" },
+            { "id": "e2", "source": "type-email", "target": "type-password", "type": "smoothstep" },
+            { "id": "e3", "source": "type-password", "target": "click-submit", "type": "smoothstep" },
+            { "id": "e4", "source": "click-submit", "target": "assert-dashboard", "type": "smoothstep" }
+          ]
+        }
+        ```
+
+        #### Node Types Quick Reference
+
+        | Type | Purpose | Key Data Fields |
+        |------|---------|-----------------|
+        | `navigate` | Go to URL/scenario | `scenario`, `scenarioPath`, `waitUntil` |
+        | `click` | Click element | `selector`, `clickCount` |
+        | `type` | Enter text | `selector`, `text`, `clearExisting` |
+        | `assert` | Verify condition | `selector`, `assertMode`, `expectedText` |
+        | `wait` | Pause execution | `durationMs` or `selector` + `state` |
+        | `screenshot` | Capture state | `fullPage`, `captureDomSnapshot` |
+        | `evaluate` | Run JavaScript | `expression`, `store_result` |
+
+        #### Assert Modes
+
+        | Mode | Validates |
+        |------|-----------|
+        | `exists` | Element is present in DOM |
+        | `not_exists` | Element is NOT in DOM |
+        | `visible` | Element is visible (not hidden) |
+        | `contains_text` | Element contains expected text |
+        | `exact_text` | Element text matches exactly |
+
+        #### Resilience Settings
+
+        For flaky elements or slow pages:
+
+        ```json
+        {
+          "type": "click",
+          "data": {
+            "selector": "@selector/cta.primary",
+            "resilience": {
+              "maxAttempts": 3,
+              "delayMs": 1500,
+              "backoffFactor": 1.5,
+              "preconditionSelector": "@selector/app.ready",
+              "preconditionTimeoutMs": 10000,
+              "successSelector": "@selector/nextStep.visible",
+              "successTimeoutMs": 15000
+            }
+          }
+        }
+        ```
+
+        ---
+
+        ### **6. Authenticated Testing Patterns**
+
+        For tests requiring authentication, use **shared sign-in actions** rather than persisted session profiles. This ensures test isolation and reproducibility.
+
+        #### Shared Sign-In Action Pattern
+
+        Sign-in is an **atomic operation** that lives in `actions/login.json`:
+
+        ```json
+        {
+          "metadata": {
+            "description": "Sign in with provided credentials",
+            "version": 1
+          },
+          "nodes": [
+            {
+              "id": "navigate-login",
+              "type": "navigate",
+              "data": { "destinationType": "scenario", "scenarioPath": "/login" }
+            },
+            {
+              "id": "type-email",
+              "type": "type",
+              "data": { "selector": "@selector/auth.emailInput", "text": "${@params/username}", "clearExisting": true }
+            },
+            {
+              "id": "type-password",
+              "type": "type",
+              "data": { "selector": "@selector/auth.passwordInput", "text": "${@params/password}", "clearExisting": true }
+            },
+            {
+              "id": "click-submit",
+              "type": "click",
+              "data": { "selector": "@selector/auth.submitButton" }
+            },
+            {
+              "id": "wait-redirect",
+              "type": "wait",
+              "data": { "selector": "@selector/dashboard.container", "state": "visible", "timeoutMs": 10000 }
+            }
+          ],
+          "edges": [
+            { "id": "e1", "source": "navigate-login", "target": "type-email" },
+            { "id": "e2", "source": "type-email", "target": "type-password" },
+            { "id": "e3", "source": "type-password", "target": "click-submit" },
+            { "id": "e4", "source": "click-submit", "target": "wait-redirect" }
+          ]
+        }
+        ```
+
+        #### Test Cases Call Sign-In as Subflow
+
+        Cases that need authentication call the shared action:
+
+        ```json
+        {
+          "nodes": [
+            {
+              "id": "sign-in",
+              "type": "subflow",
+              "data": {
+                "workflowPath": "actions/login.json",
+                "params": {
+                  "username": "${@params/username}",
+                  "password": "${@params/password}"
+                }
+              }
+            },
+            {
+              "id": "assert-dashboard",
+              "type": "assert",
+              "data": { "selector": "@selector/dashboard.container", "assertMode": "exists" }
+            }
+          ],
+          "edges": [
+            { "id": "e1", "source": "sign-in", "target": "assert-dashboard" }
+          ]
+        }
+        ```
+
+        #### Test Isolation
+
+        - Each test run gets a **fresh browser context** (no session profiles)
+        - Credentials passed via `--initial-params`
+        - Session state is **not persisted** between test runs
+
+        #### CLI Usage
+
+        ```bash
+        browser-automation-studio workflow execute \
+          --from-file bas/cases/01-foundation/01-auth/login-success.json \
+          --initial-params '{"username":"test@example.com","password":"secret"}' \
+          --wait
+        ```
+
+        #### Example Directory Structure
+
+        ```
+        bas/
+          actions/
+            login.json                    # Atomic sign-in action (params: username, password)
+            logout.json
+            open-project.json
+          flows/
+            complete-checkout.json        # Multi-step journey using actions
+          cases/
+            01-foundation/01-auth/
+              login-success.json          # Calls actions/login.json, then asserts dashboard
+              login-failure.json          # Tests invalid credentials
+            02-features/
+              admin-dashboard.json        # Calls login with admin creds, tests admin features
+        ```
+
+        #### Why Not Session Profiles for Tests?
+
+        | Session Profiles | Subflow-Based Auth |
+        |------------------|-------------------|
+        | State may be stale (expired cookies) | Always fresh login |
+        | Test depends on profile existence | Test is self-contained |
+        | Harder to debug failures | Full login flow in trace |
+        | Not CI-friendly | Works anywhere |
+
+        **Rule:** Session profiles are for **manual testing and debugging**, not automated test suites.
+
+        ---
+
+        ### **7. Memory Management with Visited Tracker**
+
+        Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}/bas` and TAG set to `e2e`.
+
+        ---
+
+        ### **8. Documentation**
+
+        Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **E2E Issues** section with your findings (critical user journeys lacking coverage, flaky tests and root causes, selector registry gaps, requirement validation status).
+
+        ---
+
+        ### **10. Output Expectations**
+
+        You may update:
+        * Workflow JSON files in `bas/cases/`, `bas/flows/`, `bas/actions/`
+        * Selector registry in `ui/src/constants/selectors.ts`
+        * Component `data-testid` attributes
+        * Requirements validation references
+        * Test documentation via `knowledge-observatory-tools`
+
+        You **must**:
+        * Keep workflows focused on user-visible behavior
+        * Link workflows to requirements where applicable
+        * Use selector registry (never hardcode selectors in workflows)
+        * Document coverage gaps
+        * Avoid testing implementation details
+        * Maintain debug order: actions → flows → cases
+
+        Focus this loop on delivering **practical, high-impact e2e coverage** that validates critical user journeys and catches regressions before they reach users.
+
+        **Avoid superficial workflows that increase coverage numbers without validating real user behavior. Only add tests that would catch meaningful regressions.**
+
+        ### Phase Progress
+
+        Phase 33 of 33
+        Iteration: 10 of 10 (max)
+
+        ### Completed Phases
+
+        The following phases have been completed:
+
+        **Phase 1: Boundary of Responsibility Enforcement** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 2: Seam Discovery & Enforcement** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 3: Control Surface & Tunable Levers** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 4: Failure Topography & Graceful Degradation** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 5: Error Semantics & Recovery Path** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 6: Intent Clarification** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 7: Change Axis & Evolution Resilience** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 8: Documentation Health** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 9: React Stability** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 10: React Coherence** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 11: Utils Unification** (2 iterations)
+        - Completed: max_iterations
+
+        **Phase 12: Progress** (3 iterations)
+        - Completed: max_iterations
+
+        **Phase 13: Decision Boundary Extraction** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 14: Cognitive Load Reduction** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 15: Progress** (3 iterations)
+        - Improvements: Unit Test Coverage +12.5
+        - Completed: max_iterations
+
+        **Phase 16: Screaming Architecture** (2 iterations)
+        - Completed: max_iterations
+
+        **Phase 17: Temporal Flow Audit** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 18: Idempotency & Replay Safety** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 19: Signal & Feedback Surface Design** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 20: Progress** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 21: Utils Unification** (2 iterations)
+        - Completed: max_iterations
+
+        **Phase 22: Refactor** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 23: Seam Discovery & Enforcement** (1 iterations)
+        - Completed: max_iterations
+
+        **Phase 24: Test** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 25: Progress** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 26: React Stability** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 27: React Coherence** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 28: Experience Architecture Audit** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 29: Navigation Integrity Audit** (2 iterations)
+        - Completed: max_iterations
+
+        **Phase 30: Refactor** (5 iterations)
+        - Completed: max_iterations
+
+        **Phase 31: Test** (5 iterations)
+        - Completed: max_iterations
+
+        ### Important Reminders
+
+        1. Stay aligned with this phase’s focus; if you defer target advancement, state why and keep existing targets passing
+        2. Continue in this phase until stop conditions are met or max iterations reached
+        3. Protect operational targets and passing tests—no regressions
+        4. Document changes and reasoning for the next phase
+
+        ## Task Context
+
+        **Task ID**: scenario-improver-web-console-20260218-221011
+        **Title**: Improve scenario web-console
+        **Type**: scenario
+        **Operation**: improver
+        **Priority**: medium
+        **Category**: improvement
+        **Status**: in-progress
+        **Current Phase**: in-progress
+
+        ### Notes
+
+        *Notes are shared across multiple chat sessions, so any issues mentioned in notes may already be resolved. Investigate before addressing them.*
+
+        No notes provided.
+
+        phase: Initializing execution environment
+        phase: Creating isolated workspace
+        phase: Acquiring agent runner
+        phase: Agent is executing
+        System context received
+        phase: Collecting results and artifacts
+    prompt_size: 24825 chars (24.24 KB)
+    started_at: "2026-02-19T06:47:43-05:00"
+    success: true
+    timeout_allowed: 2h5m0s
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false
+auto_steer_profile_id: 8c3e5043-0b33-44e1-aa73-a044f6ac22c2

@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Clock, AlertCircle, RotateCcw, Gauge, SlidersHorizontal } from 'lucide-react';
+import { Clock, AlertCircle, RotateCcw, Gauge, SlidersHorizontal, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +39,9 @@ export function RateLimitsTab({ settings, onChange, constraints }: RateLimitsTab
   const availableSlots = queueStatus?.available_slots ?? Math.max(maxConcurrent - slotsUsed, 0);
   const tasksRemaining = queueStatus?.tasks_remaining ?? 0;
   const cooldownSeconds = queueStatus?.cooldown_seconds ?? settings.cooldown_seconds ?? 0;
+
+  const executionLimit = queueStatus?.execution_limit ?? settings.execution_limit ?? 0;
+  const executionsCompleted = queueStatus?.executions_completed ?? 0;
 
   const utilization = useMemo(() => {
     if (maxConcurrent <= 0) return 0;
@@ -114,117 +117,160 @@ export function RateLimitsTab({ settings, onChange, constraints }: RateLimitsTab
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Queue usage */}
+      {/* Queue usage */}
+      <div className="rounded-xl border border-white/5 bg-slate-900/60 p-5 shadow-inner">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Queue usage</p>
+            <h3 className="text-lg font-semibold text-white mt-1">
+              {slotsUsed}/{maxConcurrent} slots in use
+            </h3>
+          </div>
+          <div className="rounded-full bg-slate-800/80 p-3">
+            <Gauge className="h-5 w-5 text-emerald-400" />
+          </div>
+        </div>
+        <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-orange-400 transition-all duration-500"
+            style={{ width: `${utilization}%` }}
+          />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-slate-300">
+          <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+            <p className="text-slate-400">Available</p>
+            <p className="text-sm font-semibold text-white">{availableSlots} slots</p>
+          </div>
+          <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+            <p className="text-slate-400">Queued</p>
+            <p className="text-sm font-semibold text-white">{tasksRemaining} tasks</p>
+          </div>
+          <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+            <p className="text-slate-400">Throttle</p>
+            <p className="text-sm font-semibold text-white">
+              {settings.cooldown_seconds}s cooldown
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Execution progress (only when limit is set) */}
+      {executionLimit > 0 && (
         <div className="rounded-xl border border-white/5 bg-slate-900/60 p-5 shadow-inner">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs uppercase tracking-wide text-slate-400">Queue usage</p>
+              <p className="text-xs uppercase tracking-wide text-slate-400">Execution progress</p>
               <h3 className="text-lg font-semibold text-white mt-1">
-                {slotsUsed}/{maxConcurrent} slots in use
+                {executionsCompleted}/{executionLimit} completed
               </h3>
             </div>
             <div className="rounded-full bg-slate-800/80 p-3">
-              <Gauge className="h-5 w-5 text-emerald-400" />
+              <Target className="h-5 w-5 text-blue-400" />
             </div>
           </div>
           <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-orange-400 transition-all duration-500"
-              style={{ width: `${utilization}%` }}
+              className={`h-full transition-all duration-500 ${
+                queueStatus?.execution_limit_reached
+                  ? 'bg-emerald-400'
+                  : 'bg-gradient-to-r from-blue-400 to-indigo-400'
+              }`}
+              style={{
+                width: `${Math.min(100, (executionsCompleted / (executionLimit || 1)) * 100)}%`,
+              }}
             />
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-slate-300">
+          <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-300">
             <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-              <p className="text-slate-400">Available</p>
-              <p className="text-sm font-semibold text-white">{availableSlots} slots</p>
-            </div>
-            <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-              <p className="text-slate-400">Queued</p>
-              <p className="text-sm font-semibold text-white">{tasksRemaining} tasks</p>
-            </div>
-            <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-              <p className="text-slate-400">Throttle</p>
+              <p className="text-slate-400">Remaining</p>
               <p className="text-sm font-semibold text-white">
-                {settings.cooldown_seconds}s cooldown
+                {Math.max(0, executionLimit - executionsCompleted)} tasks
+              </p>
+            </div>
+            <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+              <p className="text-slate-400">Status</p>
+              <p className={`text-sm font-semibold ${
+                queueStatus?.execution_limit_reached ? 'text-emerald-400' : 'text-white'
+              }`}>
+                {queueStatus?.execution_limit_reached ? 'Limit reached' : 'In progress'}
               </p>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Rate limit status */}
-        <div className={`rounded-xl border p-5 shadow-inner ${
-          isRateLimited
-            ? 'border-amber-400/30 bg-amber-500/10'
-            : 'border-emerald-400/20 bg-emerald-500/5'
-        }`}>
-          <div className="flex items-start gap-4">
-            <div className={`p-3 rounded-full ${
-              isRateLimited ? 'bg-amber-500/20' : 'bg-emerald-500/15'
-            }`}>
-              {isRateLimited ? (
-                <AlertCircle className="h-6 w-6 text-amber-300" />
-              ) : (
-                <Clock className="h-6 w-6 text-emerald-300" />
+      {/* Rate limit status */}
+      <div className={`rounded-xl border p-5 shadow-inner ${
+        isRateLimited
+          ? 'border-amber-400/30 bg-amber-500/10'
+          : 'border-emerald-400/20 bg-emerald-500/5'
+      }`}>
+        <div className="flex items-start gap-4">
+          <div className={`p-3 rounded-full ${
+            isRateLimited ? 'bg-amber-500/20' : 'bg-emerald-500/15'
+          }`}>
+            {isRateLimited ? (
+              <AlertCircle className="h-6 w-6 text-amber-300" />
+            ) : (
+              <Clock className="h-6 w-6 text-emerald-300" />
+            )}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold">
+                {isRateLimited ? 'Provider rate limit active' : 'No active provider limits'}
+              </h3>
+              {isRateLimited && (
+                <span className="rounded-full bg-amber-500/20 px-2 py-1 text-[11px] font-medium text-amber-200">
+                  Paused
+                </span>
               )}
             </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-lg font-semibold">
-                  {isRateLimited ? 'Provider rate limit active' : 'No active provider limits'}
-                </h3>
-                {isRateLimited && (
-                  <span className="rounded-full bg-amber-500/20 px-2 py-1 text-[11px] font-medium text-amber-200">
-                    Paused
+            <p className="text-sm text-slate-200 mt-1 mb-3">
+              {isRateLimited
+                ? 'The processor is temporarily paused by the provider. We will resume automatically once the cooldown expires.'
+                : 'All clear. The processor is running under the current throttle without provider-imposed pauses.'}
+            </p>
+
+            {isRateLimited && countdown > 0 && (
+              <div className="bg-black/30 border border-white/10 rounded-md px-4 py-3 mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-300">Time until retry</span>
+                  <span className="text-2xl font-mono font-bold text-amber-200">
+                    {formatTime(countdown)}
                   </span>
-                )}
+                </div>
+                <div className="mt-2 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-300 transition-all duration-1000"
+                    style={{
+                      width: `${retryAfter > 0 ? ((retryAfter - countdown) / retryAfter) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Auto-resume {pauseUntil ? `around ${pauseUntil.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'after cooldown'}</span>
+                  <span>{formatDuration(retryAfter)} remaining</span>
+                </div>
               </div>
-              <p className="text-sm text-slate-200 mt-1 mb-3">
-                {isRateLimited
-                  ? 'The processor is temporarily paused by the provider. We will resume automatically once the cooldown expires.'
-                  : 'All clear. The processor is running under the current throttle without provider-imposed pauses.'}
-              </p>
+            )}
 
-              {isRateLimited && countdown > 0 && (
-                <div className="bg-black/30 border border-white/10 rounded-md px-4 py-3 mb-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-300">Time until retry</span>
-                    <span className="text-2xl font-mono font-bold text-amber-200">
-                      {formatTime(countdown)}
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-amber-300 transition-all duration-1000"
-                      style={{
-                        width: `${retryAfter > 0 ? ((retryAfter - countdown) / retryAfter) * 100 : 0}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                    <span>Auto-resume {pauseUntil ? `around ${pauseUntil.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'after cooldown'}</span>
-                    <span>{formatDuration(retryAfter)} remaining</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 text-xs text-slate-300">
-                <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-                  <p className="text-slate-400">Current throttle</p>
-                  <p className="text-sm font-semibold text-white">
-                    {maxConcurrent} concurrent · {settings.cooldown_seconds}s cooldown
-                  </p>
-                </div>
-                <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-                  <p className="text-slate-400">Resume target</p>
-                  <p className="text-sm font-semibold text-white">
-                    {isRateLimited
-                      ? (pauseUntil
-                        ? pauseUntil.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                        : formatDuration(retryAfter))
-                      : 'Not paused'}
-                  </p>
-                </div>
+            <div className="grid grid-cols-2 gap-3 text-xs text-slate-300">
+              <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+                <p className="text-slate-400">Current throttle</p>
+                <p className="text-sm font-semibold text-white">
+                  {maxConcurrent} concurrent · {settings.cooldown_seconds}s cooldown
+                </p>
+              </div>
+              <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+                <p className="text-slate-400">Resume target</p>
+                <p className="text-sm font-semibold text-white">
+                  {isRateLimited
+                    ? (pauseUntil
+                      ? pauseUntil.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                      : formatDuration(retryAfter))
+                    : 'Not paused'}
+                </p>
               </div>
             </div>
           </div>
@@ -286,6 +332,34 @@ export function RateLimitsTab({ settings, onChange, constraints }: RateLimitsTab
             />
             <p className="text-xs text-slate-500">
               Delay before the recycler revisits completed/failed tasks. Longer cooldowns reduce churn after errors.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="limit-execution">Execution limit</Label>
+              <span className="text-sm font-medium text-slate-200">
+                {settings.execution_limit === 0 ? 'Unlimited' : settings.execution_limit}
+              </span>
+            </div>
+            <Input
+              id="limit-execution"
+              type="number"
+              min={constraints?.execution_limit?.min ?? 0}
+              max={constraints?.execution_limit?.max ?? 10000}
+              step={1}
+              value={settings.execution_limit}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                if (Number.isNaN(val)) return;
+                const min = constraints?.execution_limit?.min ?? 0;
+                const max = constraints?.execution_limit?.max ?? 10000;
+                onChange({ execution_limit: Math.max(min, Math.min(max, val)) });
+              }}
+              className="bg-slate-950/70"
+            />
+            <p className="text-xs text-slate-500">
+              Auto-stop after this many task completions. 0 = unlimited.
             </p>
           </div>
         </div>

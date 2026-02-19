@@ -134,6 +134,8 @@ func (qp *Processor) ResetForResume() ResumeResetSummary {
 func (qp *Processor) ResumeWithReset() ResumeResetSummary {
 	summary := qp.ResetForResume()
 
+	qp.resetExecutionCounter()
+
 	qp.mu.Lock()
 	defer qp.mu.Unlock()
 
@@ -279,6 +281,11 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 		"ready_in_progress":         readyInProgress,
 		"processor_running":         processorActive,
 		"timestamp":                 time.Now().Unix(),
+
+		// Execution limit tracking
+		"executions_completed":    qp.ExecutionsCompleted(),
+		"execution_limit":         currentSettings.ExecutionLimit,
+		"execution_limit_reached": qp.ExecutionLimitReached(),
 	}
 }
 
