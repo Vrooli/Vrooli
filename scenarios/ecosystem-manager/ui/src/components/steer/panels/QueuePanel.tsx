@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -16,46 +16,35 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, GripVertical, ListOrdered, Loader2, X } from 'lucide-react';
+import { Check, ChevronDown, GripVertical, ListOrdered, Loader2, X } from 'lucide-react';
 import { PhasePicker } from '../PhasePicker';
-import { getPhaseDisplayName } from '@/lib/utils';
+import { getQueueStepDisplay } from '@/lib/utils';
 import type { PhaseInfo } from '@/types/api';
 
 type ItemStatus = 'completed' | 'current' | 'pending';
 
 interface QueuePanelProps {
-  value: string[];
-  onChange: (queue: string[]) => void;
+  value: string[][];
+  onChange: (queue: string[][]) => void;
   phaseNames: PhaseInfo[];
   isLoading?: boolean;
-  /** Current execution position (0-indexed) */
   currentIndex?: number;
-  /** Whether the queue is fully processed */
   isExhausted?: boolean;
-  /** Disables editing controls when true */
   readOnly?: boolean;
-  /** Called when user clicks an item to jump to that position */
   onPositionChange?: (position: number) => void;
-  /** Position currently being changed to (shows loading state) */
   pendingPosition?: number | null;
 }
 
 interface SortableQueueItemProps {
   id: string;
-  label: string;
+  step: string[];
   index: number;
+  phaseNames: PhaseInfo[];
   onRemove: () => void;
+  onClick?: () => void;
   status?: ItemStatus;
-  onClick?: () => void;
   isPending?: boolean;
-}
-
-interface ReadOnlyQueueItemProps {
-  label: string;
-  index: number;
-  status: ItemStatus;
-  onClick?: () => void;
-  isPending?: boolean;
+  readOnly?: boolean;
 }
 
 function getStatusStyles(status: ItemStatus): string {
@@ -70,174 +59,153 @@ function getStatusStyles(status: ItemStatus): string {
   }
 }
 
-function ReadOnlyQueueItem({ label, index, status, onClick, isPending }: ReadOnlyQueueItemProps) {
+function QueueItemContent({
+  step,
+  index,
+  phaseNames,
+  status = 'pending',
+  isPending,
+  onClick,
+}: {
+  step: string[];
+  index: number;
+  phaseNames: PhaseInfo[];
+  status?: ItemStatus;
+  isPending?: boolean;
+  onClick?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const summary = getQueueStepDisplay(step, phaseNames);
   const isClickable = !!onClick && !isPending;
-  const clickableStyles = isClickable
-    ? 'cursor-pointer hover:bg-cyan-500/15 hover:border-cyan-500/40 transition-colors'
-    : '';
-  const pendingStyles = isPending
-    ? 'ring-2 ring-amber-500/50 bg-amber-500/10 border-amber-500/40'
-    : '';
 
   return (
-    <div
-      className={`
-        flex items-center gap-2 px-3 py-2 rounded-md border
-        ${isPending ? pendingStyles : getStatusStyles(status)}
-        ${clickableStyles}
-      `}
-      onClick={isClickable ? onClick : undefined}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onKeyDown={
-        isClickable
-          ? (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      {isPending ? (
-        <div className="flex h-4 w-4 items-center justify-center">
-          <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" />
-        </div>
-      ) : status === 'completed' ? (
-        <div className="flex h-4 w-4 items-center justify-center">
-          <Check className="h-3.5 w-3.5 text-green-500" />
-        </div>
-      ) : status === 'current' ? (
-        <div className="flex h-4 w-4 items-center justify-center">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
-          </span>
-        </div>
-      ) : (
-        <div className="w-4" />
-      )}
-      <span className="text-xs text-slate-500 font-mono w-5">{index + 1}.</span>
-      <span
-        className={`flex-1 text-sm ${
-          isPending
-            ? 'text-amber-200 font-medium'
-            : status === 'completed'
-              ? 'text-slate-400 line-through'
-              : status === 'current'
-                ? 'text-cyan-100 font-medium'
-                : 'text-cyan-200'
-        }`}
+    <div className="flex-1 min-w-0">
+      <div
+        className={isClickable ? 'cursor-pointer' : undefined}
+        onClick={isClickable ? onClick : undefined}
+        role={isClickable ? 'button' : undefined}
       >
-        {label}
-      </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 font-mono w-5">{index + 1}.</span>
+          <span
+            className={`flex-1 text-sm ${
+              isPending
+                ? 'text-amber-200 font-medium'
+                : status === 'completed'
+                  ? 'text-slate-400 line-through'
+                  : status === 'current'
+                    ? 'text-cyan-100 font-medium'
+                    : 'text-cyan-200'
+            }`}
+            title={summary.tooltip}
+          >
+            {summary.label}
+          </span>
+          {step.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+              }}
+              className="text-slate-500 hover:text-slate-300"
+              title={expanded ? 'Collapse set' : 'Expand set'}
+            >
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-2 ml-7 flex flex-wrap gap-1.5">
+          {step.map((skillId, idx) => (
+            <span
+              key={`${skillId}-${idx}`}
+              className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-cyan-500/10 text-cyan-200 border border-cyan-500/20"
+            >
+              {getQueueStepDisplay([skillId], phaseNames).label}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function SortableQueueItem({ id, label, index, onRemove, status, onClick, isPending }: SortableQueueItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const isClickable = !!onClick && !isPending;
-
-  // Combine base styles with status-specific styles
-  const getContainerStyles = () => {
-    const base = 'flex items-center gap-2 px-3 py-2 rounded-md border';
-    const drag = isDragging ? 'opacity-50 shadow-lg ring-2 ring-cyan-500/50' : '';
-
-    if (isPending) {
-      return `${base} ring-2 ring-amber-500/50 bg-amber-500/10 border-amber-500/40 ${drag}`;
-    }
-    if (!status || status === 'pending') {
-      return `${base} bg-cyan-500/5 border-cyan-500/20 ${drag}`;
-    }
-    if (status === 'completed') {
-      return `${base} bg-slate-800/30 border-slate-700/50 opacity-60 ${drag}`;
-    }
-    if (status === 'current') {
-      return `${base} bg-cyan-500/10 border-cyan-500/40 ring-2 ring-cyan-500/50 ${drag}`;
-    }
-    return `${base} bg-cyan-500/5 border-cyan-500/20 ${drag}`;
-  };
-
-  const getTextStyles = () => {
-    if (isPending) {
-      return 'flex-1 text-sm text-amber-200 font-medium';
-    }
-    const base = `flex-1 text-sm ${
-      status === 'completed'
-        ? 'text-slate-400 line-through'
-        : status === 'current'
-          ? 'text-cyan-100 font-medium'
-          : 'text-cyan-200'
-    }`;
-    if (isClickable) {
-      return `${base} cursor-pointer hover:text-cyan-50 transition-colors`;
-    }
-    return base;
-  };
+function SortableQueueItem({
+  id,
+  step,
+  index,
+  phaseNames,
+  onRemove,
+  onClick,
+  status,
+  isPending,
+  readOnly,
+}: SortableQueueItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <div ref={setNodeRef} style={style} className={getContainerStyles()}>
-      <button
-        type="button"
-        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-300 touch-none"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-      {/* Status indicator */}
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-start gap-2 px-3 py-2 rounded-md border ${
+        isPending
+          ? 'ring-2 ring-amber-500/50 bg-amber-500/10 border-amber-500/40'
+          : getStatusStyles(status ?? 'pending')
+      } ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-cyan-500/50' : ''}`}
+    >
+      {!readOnly && (
+        <button
+          type="button"
+          className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-300 touch-none mt-0.5"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
+
       {isPending ? (
-        <div className="flex h-4 w-4 items-center justify-center">
+        <div className="flex h-4 w-4 items-center justify-center mt-0.5">
           <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" />
         </div>
       ) : status === 'completed' ? (
-        <div className="flex h-4 w-4 items-center justify-center">
+        <div className="flex h-4 w-4 items-center justify-center mt-0.5">
           <Check className="h-3.5 w-3.5 text-green-500" />
         </div>
       ) : status === 'current' ? (
-        <div className="flex h-4 w-4 items-center justify-center">
+        <div className="flex h-4 w-4 items-center justify-center mt-0.5">
           <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500" />
           </span>
         </div>
-      ) : null}
-      <span className="text-xs text-slate-500 font-mono w-5">{index + 1}.</span>
-      <span
-        className={getTextStyles()}
-        onClick={isClickable ? onClick : undefined}
-        role={isClickable ? 'button' : undefined}
-        tabIndex={isClickable ? 0 : undefined}
-        onKeyDown={
-          isClickable
-            ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onClick();
-                }
-              }
-            : undefined
-        }
-      >
-        {label}
-      </span>
-      <button
-        type="button"
-        onClick={onRemove}
-        className="p-1 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-colors"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+      ) : (
+        <div className="w-4 mt-0.5" />
+      )}
+
+      <QueueItemContent
+        step={step}
+        index={index}
+        phaseNames={phaseNames}
+        status={status}
+        isPending={isPending}
+        onClick={onClick}
+      />
+
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="p-1 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-colors"
+          title="Remove step"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -253,46 +221,31 @@ export function QueuePanel({
   onPositionChange,
   pendingPosition,
 }: QueuePanelProps) {
-  const getPhaseLabel = useMemo(
-    () => (mode: string) => getPhaseDisplayName(mode, phaseNames) ?? mode,
-    [phaseNames]
-  );
-
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Generate unique IDs for each queue item (mode + index for uniqueness)
-  const itemIds = value.map((mode, idx) => `${mode}-${idx}`);
+  const itemIds = useMemo(
+    () => value.map((step, idx) => `${step.join('|') || 'empty'}-${idx}`),
+    [value]
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-
     if (over && active.id !== over.id) {
       const oldIndex = itemIds.indexOf(active.id as string);
       const newIndex = itemIds.indexOf(over.id as string);
-
       if (oldIndex !== -1 && newIndex !== -1) {
         onChange(arrayMove(value, oldIndex, newIndex));
       }
     }
   };
 
-  const handleAddMode = (mode: string | undefined) => {
-    if (mode) {
-      onChange([...value, mode]);
+  const handleAddSet = (set: string[]) => {
+    if (set.length > 0) {
+      onChange([...value, set]);
     }
-  };
-
-  const handleRemove = (index: number) => {
-    onChange(value.filter((_, i) => i !== index));
   };
 
   const getItemStatus = (index: number): ItemStatus => {
@@ -313,64 +266,50 @@ export function QueuePanel({
           <div>
             <h3 className="text-sm font-medium text-slate-200">Steering Queue</h3>
             <p className="text-sm text-slate-400 mt-0.5">
-              Build an ordered list of focus modes. Each mode runs once in sequence, then the task
-              completes.
+              Build an ordered list of steering skill sets. Each set runs once in sequence.
             </p>
           </div>
         </div>
       )}
 
-      {/* Add mode controls - only in edit mode */}
       {!readOnly && (
         <PhasePicker
-          value={undefined}
-          onChange={handleAddMode}
+          values={[]}
+          onChange={handleAddSet}
           phaseNames={phaseNames}
           isLoading={isLoading}
-          placeholder="Add a phase to queue..."
-          dialogTitle="Add Phase to Queue"
-          dialogDescription="Select a phase to add to the steering queue."
+          selectionMode="multiple"
+          placeholder="Add a skill set to queue..."
+          dialogTitle="Add Queue Step"
+          dialogDescription="Select one or more skills for this queue step."
+          confirmLabel="Add Step"
         />
       )}
 
-      {/* Queue list */}
       <div className={readOnly ? '' : 'min-h-[120px]'}>
         {value.length === 0 ? (
           !readOnly && (
             <div className="flex flex-col items-center justify-center py-8 border border-dashed border-slate-700 rounded-md">
               <ListOrdered className="h-8 w-8 text-slate-600 mb-2" />
-              <p className="text-sm text-slate-500">Add modes to build your queue</p>
+              <p className="text-sm text-slate-500">Add skill sets to build your queue</p>
             </div>
           )
-        ) : readOnly ? (
-          // Read-only mode: simple list with status indicators
-          <div className="space-y-2">
-            {value.map((mode, index) => (
-              <ReadOnlyQueueItem
-                key={`${mode}-${index}`}
-                label={getPhaseLabel(mode)}
-                index={index}
-                status={getItemStatus(index)}
-                onClick={onPositionChange ? () => onPositionChange(index) : undefined}
-                isPending={pendingPosition === index}
-              />
-            ))}
-          </div>
         ) : (
-          // Edit mode: drag-and-drop sortable list
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
-                {value.map((mode, index) => (
+                {value.map((step, index) => (
                   <SortableQueueItem
                     key={itemIds[index]}
                     id={itemIds[index]}
-                    label={getPhaseLabel(mode)}
+                    step={step}
                     index={index}
-                    onRemove={() => handleRemove(index)}
+                    phaseNames={phaseNames}
+                    onRemove={() => onChange(value.filter((_, i) => i !== index))}
                     status={getItemStatus(index)}
                     onClick={onPositionChange ? () => onPositionChange(index) : undefined}
                     isPending={pendingPosition === index}
+                    readOnly={readOnly}
                   />
                 ))}
               </div>
@@ -379,20 +318,21 @@ export function QueuePanel({
         )}
       </div>
 
-      {/* Preview - only in edit mode */}
       {!readOnly && value.length > 0 && (
         <div className="text-xs text-slate-500 border-t border-slate-700/50 pt-3">
           <span className="font-medium text-slate-400">Order: </span>
-          {value.map((mode, idx) => (
-            <span key={idx}>
-              <span className="text-cyan-400">{getPhaseLabel(mode)}</span>
-              {idx < value.length - 1 && <span className="text-slate-600"> → </span>}
-            </span>
-          ))}
+          {value.map((step, idx) => {
+            const summary = getQueueStepDisplay(step, phaseNames);
+            return (
+              <span key={idx}>
+                <span className="text-cyan-400" title={summary.tooltip}>{summary.label}</span>
+                {idx < value.length - 1 && <span className="text-slate-600"> → </span>}
+              </span>
+            );
+          })}
         </div>
       )}
 
-      {/* Progress summary - show when there's progress data */}
       {currentIndex !== undefined && (
         <div className="text-xs text-slate-500 border-t border-slate-700/50 pt-3">
           {isExhausted ? (

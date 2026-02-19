@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from ecosystem_manager.v1.domain import prompt_pb2 as ecosystem__manager_dot_v1_dot_domain_dot_prompt__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&ecosystem-manager/v1/api/prompts.proto\x12\x14\x65\x63osystem_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a(ecosystem-manager/v1/domain/prompt.proto\"U\n\x17ListPromptFilesResponse\x12:\n\x05\x66iles\x18\x01 \x03(\x0b\x32$.ecosystem_manager.v1.PromptFileInfoR\x05\x66iles\"J\n\x12PromptFileResponse\x12\x34\n\x04\x66ile\x18\x01 \x01(\x0b\x32 .ecosystem_manager.v1.PromptFileR\x04\x66ile\"P\n\x17\x43reatePromptFileRequest\x12\x1b\n\x04path\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04path\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"3\n\x17UpdatePromptFileRequest\x12\x18\n\x07\x63ontent\x18\x01 \x01(\tR\x07\x63ontent\"\xd3\x01\n\x14PromptPreviewRequest\x12-\n\x04type\x18\x01 \x01(\tB\x19\xbaH\x16r\x14R\x08resourceR\x08scenarioR\x04type\x12\x38\n\toperation\x18\x02 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\x08improverR\toperation\x12\x1f\n\x06target\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06target\x12\"\n\nsteer_mode\x18\x04 \x01(\tH\x00R\tsteerMode\x88\x01\x01\x42\r\n\x0b_steer_mode\"_\n\x15PromptPreviewResponse\x12\x16\n\x06prompt\x18\x01 \x01(\tR\x06prompt\x12\x12\n\x04size\x18\x02 \x01(\x05R\x04size\x12\x1a\n\x08sections\x18\x03 \x03(\tR\x08sectionsBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&ecosystem-manager/v1/api/prompts.proto\x12\x14\x65\x63osystem_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a(ecosystem-manager/v1/domain/prompt.proto\"U\n\x17ListPromptFilesResponse\x12:\n\x05\x66iles\x18\x01 \x03(\x0b\x32$.ecosystem_manager.v1.PromptFileInfoR\x05\x66iles\"J\n\x12PromptFileResponse\x12\x34\n\x04\x66ile\x18\x01 \x01(\x0b\x32 .ecosystem_manager.v1.PromptFileR\x04\x66ile\"P\n\x17\x43reatePromptFileRequest\x12\x1b\n\x04path\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04path\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"3\n\x17UpdatePromptFileRequest\x12\x18\n\x07\x63ontent\x18\x01 \x01(\tR\x07\x63ontent\"\xbd\x01\n\x14PromptPreviewRequest\x12-\n\x04type\x18\x01 \x01(\tB\x19\xbaH\x16r\x14R\x08resourceR\x08scenarioR\x04type\x12\x38\n\toperation\x18\x02 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\x08improverR\toperation\x12\x1f\n\x06target\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06target\x12\x1b\n\tsteer_set\x18\x04 \x03(\tR\x08steerSet\"_\n\x15PromptPreviewResponse\x12\x16\n\x06prompt\x18\x01 \x01(\tR\x06prompt\x12\x12\n\x04size\x18\x02 \x01(\x05R\x04size\x12\x1a\n\x08sections\x18\x03 \x03(\tR\x08sectionsBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -51,7 +51,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_UPDATEPROMPTFILEREQUEST']._serialized_start=380
   _globals['_UPDATEPROMPTFILEREQUEST']._serialized_end=431
   _globals['_PROMPTPREVIEWREQUEST']._serialized_start=434
-  _globals['_PROMPTPREVIEWREQUEST']._serialized_end=645
-  _globals['_PROMPTPREVIEWRESPONSE']._serialized_start=647
-  _globals['_PROMPTPREVIEWRESPONSE']._serialized_end=742
+  _globals['_PROMPTPREVIEWREQUEST']._serialized_end=623
+  _globals['_PROMPTPREVIEWRESPONSE']._serialized_start=625
+  _globals['_PROMPTPREVIEWRESPONSE']._serialized_end=720
 # @@protoc_insertion_point(module_scope)

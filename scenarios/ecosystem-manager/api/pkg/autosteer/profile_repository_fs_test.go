@@ -23,7 +23,7 @@ func TestFileProfileRepository_CRUD(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 3,
 				StopConditions: []StopCondition{
@@ -94,7 +94,7 @@ func TestFileProfileRepository_ListAndTemplates(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-template",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 1,
 				StopConditions: []StopCondition{
@@ -118,7 +118,7 @@ func TestFileProfileRepository_ListAndTemplates(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-profile",
-				SkillID:       "ux",
+				SkillIDs:      []string{"ux"},
 				SkillName:     "UX",
 				MaxIterations: 2,
 				StopConditions: []StopCondition{
@@ -193,7 +193,7 @@ func TestFileProfileRepository_ValidateMetadataMismatch(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 1,
 				StopConditions: []StopCondition{

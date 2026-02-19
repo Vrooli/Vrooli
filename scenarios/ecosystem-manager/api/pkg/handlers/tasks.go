@@ -115,9 +115,9 @@ type taskWithRuntime struct {
 	tasks.TaskItem
 	CurrentProcess           *queue.ProcessInfo `json:"current_process,omitempty"`
 	AutoSteerPhaseIndex      *int               `json:"auto_steer_phase_index,omitempty"`
-	AutoSteerCurrentMode     string             `json:"auto_steer_mode,omitempty"`
+	AutoSteerCurrentSet      []string           `json:"auto_steer_set,omitempty"`
 	SteeringQueueIndex       *int               `json:"steering_queue_index,omitempty"`
-	SteeringQueueMode        string             `json:"steering_queue_mode,omitempty"`
+	SteeringQueueSet         []string           `json:"steering_queue_set,omitempty"`
 	SteeringQueueTotal       int                `json:"steering_queue_total,omitempty"`
 	SteeringQueueIsExhausted bool               `json:"steering_queue_exhausted,omitempty"`
 }
@@ -148,12 +148,12 @@ func attachRuntime(task tasks.TaskItem, runtime map[string]queue.ProcessInfo) ta
 
 type autoSteerRuntime struct {
 	phaseIndex *int
-	mode       string
+	skillSet   []string
 }
 
 type queueSteeringRuntime struct {
 	index       *int
-	mode        string
+	skillSet    []string
 	total       int
 	isExhausted bool
 }
@@ -177,7 +177,7 @@ func (h *TaskHandlers) buildQueueSteeringRuntime(taskItems []tasks.TaskItem) map
 			idx := 0
 			result[task.ID] = queueSteeringRuntime{
 				index:       &idx,
-				mode:        task.SteeringQueue[0],
+				skillSet:    task.SteeringQueue[0],
 				total:       len(task.SteeringQueue),
 				isExhausted: false,
 			}
@@ -186,20 +186,19 @@ func (h *TaskHandlers) buildQueueSteeringRuntime(taskItems []tasks.TaskItem) map
 
 		idx := state.CurrentIndex
 
-		// Use task.SteeringQueue (the source of truth) for mode, total, and exhausted check,
-		// not state.Queue (which is a snapshot from when execution started).
-		// This ensures UI reflects any queue edits the user made.
+		// Use task.SteeringQueue (the source of truth) for set, total, and exhausted check.
+		// This ensures runtime state reflects queue edits from task payload updates.
 		queueLen := len(task.SteeringQueue)
 		isExhausted := idx >= queueLen
 
-		var mode string
+		var skillSet []string
 		if !isExhausted && idx >= 0 && idx < queueLen {
-			mode = task.SteeringQueue[idx]
+			skillSet = task.SteeringQueue[idx]
 		}
 
 		result[task.ID] = queueSteeringRuntime{
 			index:       &idx,
-			mode:        mode,
+			skillSet:    skillSet,
 			total:       queueLen,
 			isExhausted: isExhausted,
 		}
@@ -238,11 +237,11 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 		idx := state.CurrentPhaseIndex
 		idxPtr = &idx
 
-		mode, _ := orchestrator.GetCurrentMode(task.ID)
+		skillSet, _ := orchestrator.GetCurrentSet(task.ID)
 
 		result[task.ID] = autoSteerRuntime{
 			phaseIndex: idxPtr,
-			mode:       string(mode),
+			skillSet:   skillSet,
 		}
 	}
 
@@ -462,74 +461,91 @@ func (h *TaskHandlers) validateTaskTypeAndOperation(task *tasks.TaskItem, w http
 	return true
 }
 
-// normalizeSteerMode trims and lowercases a provided steer mode string, treating "none" as empty.
-func normalizeSteerMode(raw string) autosteer.SteerMode {
+func normalizeSkillID(raw string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(raw))
 	if trimmed == "none" {
 		return ""
 	}
-	return autosteer.SteerMode(trimmed)
+	return trimmed
 }
 
-// validateAndNormalizeSteerMode ensures the steer mode is supported for the task shape and valid.
-func validateAndNormalizeSteerMode(task *tasks.TaskItem, w http.ResponseWriter) bool {
-	mode := normalizeSteerMode(task.SteerMode)
-	if mode == "" {
-		task.SteerMode = ""
+func allowedSteerSkillSet() map[string]struct{} {
+	allowed := make(map[string]struct{})
+	for _, mode := range autosteer.AllowedSteerModes() {
+		allowed[string(mode)] = struct{}{}
+	}
+	return allowed
+}
+
+func normalizeSteerSet(raw []string, allowed map[string]struct{}) ([]string, error) {
+	normalized := make([]string, 0, len(raw))
+	for _, skillID := range raw {
+		normalizedID := normalizeSkillID(skillID)
+		if normalizedID == "" {
+			continue
+		}
+		if _, ok := allowed[normalizedID]; !ok {
+			return nil, fmt.Errorf("invalid skill id %q", skillID)
+		}
+		normalized = append(normalized, normalizedID)
+	}
+	return normalized, nil
+}
+
+func validateAndNormalizeSteerSet(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if len(task.SteerSet) == 0 {
 		return true
 	}
-
 	if task.Type != "scenario" || task.Operation != "improver" {
-		writeError(w, "Manual steering (--steer-mode/--steer-queue) is only supported for improver tasks. Use --steer-profile instead, or switch to 'task improve'", http.StatusBadRequest)
+		writeError(w, "Manual steering (--steer-set/--steering-queue) is only supported for improver tasks. Use --steer-profile instead, or switch to 'task improve'", http.StatusBadRequest)
 		return false
 	}
-
-	if !mode.IsValid() {
-		writeError(w, fmt.Sprintf("Invalid steer_mode: %s. Must be one of: %v", mode, autosteer.AllowedSteerModes()), http.StatusBadRequest)
+	normalized, err := normalizeSteerSet(task.SteerSet, allowedSteerSkillSet())
+	if err != nil {
+		writeError(w, fmt.Sprintf("Invalid steer_set: %v. Must be one of: %v", err, autosteer.AllowedSteerModes()), http.StatusBadRequest)
 		return false
 	}
-
-	task.SteerMode = string(mode)
+	if len(normalized) == 0 {
+		task.SteerSet = nil
+		return true
+	}
+	task.SteerSet = normalized
 	return true
 }
 
-// validateAndNormalizeSteeringQueue ensures the steering queue entries are valid steer modes
-// and that queue steering is only used on scenario improver tasks.
+// validateAndNormalizeSteeringQueue ensures queue entries are non-empty valid skill sets.
 func validateAndNormalizeSteeringQueue(task *tasks.TaskItem, w http.ResponseWriter) bool {
 	if len(task.SteeringQueue) == 0 {
 		return true
 	}
 
 	if task.Type != "scenario" || task.Operation != "improver" {
-		writeError(w, "Steering queue (--steer-queue) is only supported for scenario improver tasks. Use --steer-profile instead, or switch to 'task improve scenario <name>'", http.StatusBadRequest)
+		writeError(w, "Steering queue (--steering-queue) is only supported for scenario improver tasks. Use --steer-profile instead, or switch to 'task improve scenario <name>'", http.StatusBadRequest)
 		return false
 	}
 
-	normalized := make([]string, 0, len(task.SteeringQueue))
-	for _, raw := range task.SteeringQueue {
-		mode := normalizeSteerMode(raw)
-		if mode == "" {
-			continue
-		}
-		if !mode.IsValid() {
-			writeError(w, fmt.Sprintf("Invalid mode in steering_queue: %s. Must be one of: %v", raw, autosteer.AllowedSteerModes()), http.StatusBadRequest)
+	allowed := allowedSteerSkillSet()
+	normalizedQueue := make([][]string, 0, len(task.SteeringQueue))
+	for i, rawSet := range task.SteeringQueue {
+		normalizedSet, err := normalizeSteerSet(rawSet, allowed)
+		if err != nil {
+			writeError(w, fmt.Sprintf("Invalid skill in steering_queue[%d]: %v. Must be one of: %v", i, err, autosteer.AllowedSteerModes()), http.StatusBadRequest)
 			return false
 		}
-		normalized = append(normalized, string(mode))
+		if len(normalizedSet) == 0 {
+			writeError(w, fmt.Sprintf("steering_queue[%d] cannot be empty", i), http.StatusBadRequest)
+			return false
+		}
+		normalizedQueue = append(normalizedQueue, normalizedSet)
 	}
 
-	if len(normalized) == 0 {
-		task.SteeringQueue = nil
-		return true
-	}
-
-	task.SteeringQueue = normalized
+	task.SteeringQueue = normalizedQueue
 	return true
 }
 
 // preserveUnsetFields copies non-zero values from current to updated for fields that are unset.
 // This helper consolidates field preservation logic used when updating tasks.
-func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode bool) {
+func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerSet bool) {
 	if updated.Title == "" {
 		updated.Title = current.Title
 	}
@@ -555,8 +571,8 @@ func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode boo
 		updated.Targets = current.Targets
 		updated.Target = current.Target
 	}
-	if preserveSteerMode && updated.SteerMode == "" && current.SteerMode != "" {
-		updated.SteerMode = current.SteerMode
+	if preserveSteerSet && len(updated.SteerSet) == 0 && len(current.SteerSet) > 0 {
+		updated.SteerSet = append([]string(nil), current.SteerSet...)
 	}
 }
 
@@ -575,7 +591,7 @@ func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvi
 	dst.Target = src.Target
 	dst.Targets = src.Targets
 	dst.Tags = src.Tags
-	dst.SteerMode = src.SteerMode
+	dst.SteerSet = src.SteerSet
 	dst.AutoSteerProfileID = src.AutoSteerProfileID
 	dst.SteeringQueue = src.SteeringQueue
 	dst.ProcessorAutoRequeue = src.ProcessorAutoRequeue
@@ -697,13 +713,13 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 		enrichedTask := attachRuntime(item, runtimeIndex)
 		if steer, ok := autoSteerIndex[item.ID]; ok {
 			enrichedTask.AutoSteerPhaseIndex = steer.phaseIndex
-			if strings.TrimSpace(steer.mode) != "" {
-				enrichedTask.AutoSteerCurrentMode = steer.mode
+			if len(steer.skillSet) > 0 {
+				enrichedTask.AutoSteerCurrentSet = steer.skillSet
 			}
 		}
 		if queueSteer, ok := queueSteerIndex[item.ID]; ok {
 			enrichedTask.SteeringQueueIndex = queueSteer.index
-			enrichedTask.SteeringQueueMode = queueSteer.mode
+			enrichedTask.SteeringQueueSet = queueSteer.skillSet
 			enrichedTask.SteeringQueueTotal = queueSteer.total
 			enrichedTask.SteeringQueueIsExhausted = queueSteer.isExhausted
 		}
@@ -742,7 +758,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if !validateAndNormalizeSteerMode(&task, w) {
+	if !validateAndNormalizeSteerSet(&task, w) {
 		return
 	}
 
@@ -942,7 +958,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	taskID := currentTask.ID
 
 	updatedTask.Targets, updatedTask.Target = tasks.NormalizeTargets(updatedTask.Target, updatedTask.Targets)
-	steerModeCleared := strings.EqualFold(strings.TrimSpace(updatedTask.SteerMode), "none")
+	steerSetCleared := len(updatedTask.SteerSet) == 1 && strings.EqualFold(strings.TrimSpace(updatedTask.SteerSet[0]), "none")
 
 	// Preserve certain fields that shouldn't be changed via general update
 	updatedTask.ID = taskID
@@ -971,14 +987,14 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Preserve all other fields if they weren't provided in the update
-	preserveUnsetFields(&updatedTask, currentTask, !steerModeCleared)
+	preserveUnsetFields(&updatedTask, currentTask, !steerSetCleared)
 
 	// Notes: only preserve when not provided; allow explicit clearing
 	if !notesProvided {
 		updatedTask.Notes = currentTask.Notes
 	}
 
-	if !validateAndNormalizeSteerMode(&updatedTask, w) {
+	if !validateAndNormalizeSteerSet(&updatedTask, w) {
 		return
 	}
 
@@ -1204,10 +1220,10 @@ func (h *TaskHandlers) SetQueuePositionHandler(w http.ResponseWriter, r *http.Re
 
 	if isDryRun(r) {
 		writeJSON(w, map[string]any{
-			"success":  true,
-			"dry_run":  true,
-			"position": req.Position,
-			"mode":     task.SteeringQueue[req.Position],
+			"success":   true,
+			"dry_run":   true,
+			"position":  req.Position,
+			"steer_set": task.SteeringQueue[req.Position],
 		}, http.StatusOK)
 		return
 	}
@@ -1226,15 +1242,15 @@ func (h *TaskHandlers) SetQueuePositionHandler(w http.ResponseWriter, r *http.Re
 	// Broadcast update
 	if h.wsManager != nil {
 		h.wsManager.BroadcastUpdate("queue_position_changed", map[string]any{
-			"task_id":  task.ID,
-			"position": req.Position,
-			"mode":     task.SteeringQueue[req.Position],
+			"task_id":   task.ID,
+			"position":  req.Position,
+			"steer_set": task.SteeringQueue[req.Position],
 		})
 	}
 
 	writeJSON(w, map[string]any{
-		"success":  true,
-		"position": req.Position,
-		"mode":     task.SteeringQueue[req.Position],
+		"success":   true,
+		"position":  req.Position,
+		"steer_set": task.SteeringQueue[req.Position],
 	}, http.StatusOK)
 }

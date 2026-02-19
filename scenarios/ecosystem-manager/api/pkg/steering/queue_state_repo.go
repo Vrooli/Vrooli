@@ -2,8 +2,6 @@ package steering
 
 import (
 	"time"
-
-	"github.com/ecosystem-manager/api/pkg/autosteer"
 )
 
 // QueueStateRepository defines the interface for persisting steering queue state.
@@ -28,11 +26,11 @@ type QueueStateRepository interface {
 }
 
 // NewQueueState creates a new QueueState for a task.
-func NewQueueState(taskID string, queue []autosteer.SteerMode) *QueueState {
+func NewQueueState(taskID string, queueLength int) *QueueState {
 	now := time.Now().Format(time.RFC3339)
 	return &QueueState{
 		TaskID:       taskID,
-		Queue:        queue,
+		QueueLength:  queueLength,
 		CurrentIndex: 0,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -58,7 +56,7 @@ func (q *QueueState) Position() string {
 	if q.IsExhausted() {
 		return "done"
 	}
-	return formatPosition(q.CurrentIndex+1, len(q.Queue))
+	return formatPosition(q.CurrentIndex+1, q.QueueLength)
 }
 
 // formatPosition formats position as "current/total".

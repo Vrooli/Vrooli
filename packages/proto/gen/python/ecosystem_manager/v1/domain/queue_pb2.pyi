@@ -1,12 +1,14 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
+from collections.abc import Iterable as _Iterable
 from typing import ClassVar as _ClassVar, Optional as _Optional
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ExecutionRecord(_message.Message):
-    __slots__ = ("task_id", "task_title", "task_type", "task_operation", "execution_id", "agent_tag", "process_id", "start_time", "end_time", "duration", "success", "exit_reason", "prompt_size", "prompt_path", "output_path", "clean_output_path", "last_message_path", "transcript_path", "auto_steer_profile_id", "auto_steer_iteration", "steer_mode", "steer_phase_index", "steer_phase_iteration", "steering_source", "steering_queue_total", "timeout_allowed", "rate_limited", "retry_after")
+    __slots__ = ("task_id", "task_title", "task_type", "task_operation", "execution_id", "agent_tag", "process_id", "start_time", "end_time", "duration", "success", "exit_reason", "prompt_size", "prompt_path", "output_path", "clean_output_path", "last_message_path", "transcript_path", "auto_steer_profile_id", "auto_steer_iteration", "steer_skill_ids", "steer_set_label", "steer_phase_index", "steer_phase_iteration", "steering_source", "steering_queue_total", "timeout_allowed", "rate_limited", "retry_after")
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     TASK_TITLE_FIELD_NUMBER: _ClassVar[int]
     TASK_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -27,7 +29,8 @@ class ExecutionRecord(_message.Message):
     TRANSCRIPT_PATH_FIELD_NUMBER: _ClassVar[int]
     AUTO_STEER_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     AUTO_STEER_ITERATION_FIELD_NUMBER: _ClassVar[int]
-    STEER_MODE_FIELD_NUMBER: _ClassVar[int]
+    STEER_SKILL_IDS_FIELD_NUMBER: _ClassVar[int]
+    STEER_SET_LABEL_FIELD_NUMBER: _ClassVar[int]
     STEER_PHASE_INDEX_FIELD_NUMBER: _ClassVar[int]
     STEER_PHASE_ITERATION_FIELD_NUMBER: _ClassVar[int]
     STEERING_SOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -55,7 +58,8 @@ class ExecutionRecord(_message.Message):
     transcript_path: str
     auto_steer_profile_id: str
     auto_steer_iteration: int
-    steer_mode: str
+    steer_skill_ids: _containers.RepeatedScalarFieldContainer[str]
+    steer_set_label: str
     steer_phase_index: int
     steer_phase_iteration: int
     steering_source: str
@@ -63,7 +67,7 @@ class ExecutionRecord(_message.Message):
     timeout_allowed: str
     rate_limited: bool
     retry_after: int
-    def __init__(self, task_id: _Optional[str] = ..., task_title: _Optional[str] = ..., task_type: _Optional[str] = ..., task_operation: _Optional[str] = ..., execution_id: _Optional[str] = ..., agent_tag: _Optional[str] = ..., process_id: _Optional[int] = ..., start_time: _Optional[str] = ..., end_time: _Optional[str] = ..., duration: _Optional[str] = ..., success: _Optional[bool] = ..., exit_reason: _Optional[str] = ..., prompt_size: _Optional[int] = ..., prompt_path: _Optional[str] = ..., output_path: _Optional[str] = ..., clean_output_path: _Optional[str] = ..., last_message_path: _Optional[str] = ..., transcript_path: _Optional[str] = ..., auto_steer_profile_id: _Optional[str] = ..., auto_steer_iteration: _Optional[int] = ..., steer_mode: _Optional[str] = ..., steer_phase_index: _Optional[int] = ..., steer_phase_iteration: _Optional[int] = ..., steering_source: _Optional[str] = ..., steering_queue_total: _Optional[int] = ..., timeout_allowed: _Optional[str] = ..., rate_limited: _Optional[bool] = ..., retry_after: _Optional[int] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., task_title: _Optional[str] = ..., task_type: _Optional[str] = ..., task_operation: _Optional[str] = ..., execution_id: _Optional[str] = ..., agent_tag: _Optional[str] = ..., process_id: _Optional[int] = ..., start_time: _Optional[str] = ..., end_time: _Optional[str] = ..., duration: _Optional[str] = ..., success: _Optional[bool] = ..., exit_reason: _Optional[str] = ..., prompt_size: _Optional[int] = ..., prompt_path: _Optional[str] = ..., output_path: _Optional[str] = ..., clean_output_path: _Optional[str] = ..., last_message_path: _Optional[str] = ..., transcript_path: _Optional[str] = ..., auto_steer_profile_id: _Optional[str] = ..., auto_steer_iteration: _Optional[int] = ..., steer_skill_ids: _Optional[_Iterable[str]] = ..., steer_set_label: _Optional[str] = ..., steer_phase_index: _Optional[int] = ..., steer_phase_iteration: _Optional[int] = ..., steering_source: _Optional[str] = ..., steering_queue_total: _Optional[int] = ..., timeout_allowed: _Optional[str] = ..., rate_limited: _Optional[bool] = ..., retry_after: _Optional[int] = ...) -> None: ...
 
 class QueueStatus(_message.Message):
     __slots__ = ("is_active", "is_paused", "is_rate_limit_paused", "rate_limit_resume_at", "pending_count", "in_progress_count", "running_processes", "available_slots", "max_slots", "last_processed_at", "cooldown_seconds", "task_timeout_minutes")

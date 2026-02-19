@@ -1,4 +1,4 @@
-import { cn, getPhaseDisplayName } from '@/lib/utils';
+import { cn, formatSkillSetLabel } from '@/lib/utils';
 import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
 import type { AutoSteerProfile, ExecutionHistory, PhaseInfo } from '@/types/api';
 
@@ -105,16 +105,17 @@ const formatSteerInfo = (
   const phaseIndex = typeof execution.steer_phase_index === 'number' ? execution.steer_phase_index : undefined;
   const phaseArrayIndex = typeof phaseIndex === 'number' && phaseIndex > 0 ? phaseIndex - 1 : undefined;
 
-  let modeLabel: string | undefined;
+  let setLabel: string | undefined;
   if (execution.auto_steer_profile_id && typeof phaseArrayIndex === 'number') {
     const profile = profilesById[execution.auto_steer_profile_id];
-    modeLabel = profile?.phases?.[phaseArrayIndex]?.skill_name;
+    const skillIds = profile?.phases?.[phaseArrayIndex]?.skill_ids ?? [];
+    setLabel = formatSkillSetLabel(skillIds, phaseNames, { maxVisible: 1, emptyLabel: '' });
   }
-  if (!modeLabel && execution.steer_mode) {
-    modeLabel = getPhaseDisplayName(execution.steer_mode, phaseNames) ?? execution.steer_mode;
+  if (!setLabel && execution.steer_skill_ids && execution.steer_skill_ids.length > 0) {
+    setLabel = formatSkillSetLabel(execution.steer_skill_ids, phaseNames, { maxVisible: 1, emptyLabel: '' });
   }
 
-  const label = modeLabel ?? execution.steering_source ?? '';
+  const label = setLabel ?? execution.steer_set_label ?? execution.steering_source ?? '';
   const phase = phaseIndex ? ` • phase ${phaseIndex}` : '';
   const iteration = execution.steer_phase_iteration ? ` • iteration ${execution.steer_phase_iteration}` : '';
   return label ? `${label}${phase}${iteration}` : '—';

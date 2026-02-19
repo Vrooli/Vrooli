@@ -159,3 +159,102 @@ func TestFinalizeTaskStatusToPendingCleansUpInProgress(t *testing.T) {
 		t.Fatalf("stale task file found in in-progress/ — duplicate not cleaned up")
 	}
 }
+
+func TestFinalizeTaskStatusCountsCompletedFinalized(t *testing.T) {
+	restore := ensureSettings(t, func(s settings.Settings) settings.Settings {
+		s.ExecutionLimit = 100
+		return s
+	})
+	defer restore()
+
+	processor, _, storage, cleanup := newTestProcessorWithRecycler(t)
+	defer cleanup()
+
+	task := tasks.TaskItem{
+		ID:                   "count-finalized-task",
+		Type:                 "scenario",
+		Operation:            "improver",
+		Status:               "in-progress",
+		CurrentPhase:         tasks.StatusCompleted,
+		ProcessorAutoRequeue: false,
+		CreatedAt:            "2025-01-01T00:00:00Z",
+		UpdatedAt:            "2025-01-01T00:00:00Z",
+	}
+	if err := storage.SaveQueueItem(task, "in-progress"); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	if err := processor.finalizeTaskStatus(&task, tasks.StatusCompletedFinalized); err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+
+	if got := processor.ExecutionsCompleted(); got != 1 {
+		t.Fatalf("expected executions_completed to increment for completed-finalized, got %d", got)
+	}
+}
+
+func TestFinalizeTaskStatusCountsCompletedRequeueToPending(t *testing.T) {
+	restore := ensureSettings(t, func(s settings.Settings) settings.Settings {
+		s.ExecutionLimit = 100
+		return s
+	})
+	defer restore()
+
+	processor, _, storage, cleanup := newTestProcessorWithRecycler(t)
+	defer cleanup()
+
+	task := tasks.TaskItem{
+		ID:                   "count-requeue-task",
+		Type:                 "scenario",
+		Operation:            "improver",
+		Status:               "pending",
+		CurrentPhase:         tasks.StatusCompleted,
+		ProcessorAutoRequeue: true,
+		CreatedAt:            "2025-01-01T00:00:00Z",
+		UpdatedAt:            "2025-01-01T00:00:00Z",
+	}
+	if err := storage.SaveQueueItem(task, "in-progress"); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	if err := processor.finalizeTaskStatus(&task, tasks.StatusPending); err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+
+	if got := processor.ExecutionsCompleted(); got != 1 {
+		t.Fatalf("expected executions_completed to increment for completed requeue, got %d", got)
+	}
+}
+
+func TestFinalizeTaskStatusDoesNotCountRateLimitedRequeue(t *testing.T) {
+	restore := ensureSettings(t, func(s settings.Settings) settings.Settings {
+		s.ExecutionLimit = 100
+		return s
+	})
+	defer restore()
+
+	processor, _, storage, cleanup := newTestProcessorWithRecycler(t)
+	defer cleanup()
+
+	task := tasks.TaskItem{
+		ID:                   "no-count-rate-limit-task",
+		Type:                 "scenario",
+		Operation:            "improver",
+		Status:               "pending",
+		CurrentPhase:         "rate_limited",
+		ProcessorAutoRequeue: true,
+		CreatedAt:            "2025-01-01T00:00:00Z",
+		UpdatedAt:            "2025-01-01T00:00:00Z",
+	}
+	if err := storage.SaveQueueItem(task, "in-progress"); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	if err := processor.finalizeTaskStatus(&task, tasks.StatusPending); err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+
+	if got := processor.ExecutionsCompleted(); got != 0 {
+		t.Fatalf("expected executions_completed to stay at 0 for rate-limited requeue, got %d", got)
+	}
+}

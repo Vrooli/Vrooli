@@ -14,6 +14,8 @@ export interface PromptPreviewInput {
   notes?: string;
   target?: string;
   targets?: string[];
+  steer_set?: string[];
+  steering_queue?: string[][];
   auto_steer_profile_id?: string;
   auto_steer_phase_index?: number;
 }

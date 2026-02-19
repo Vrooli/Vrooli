@@ -5,7 +5,7 @@
   "phases": [
     {
       "id": "rapid-mvp-progress",
-      "skill_id": "progress",
+      "skill_ids": ["progress"],
       "skill_name": "Progress",
       "modes": [],
       "stop_conditions": [
@@ -20,7 +20,7 @@
     },
     {
       "id": "rapid-mvp-test",
-      "skill_id": "test",
+      "skill_ids": ["test"],
       "skill_name": "Test",
       "modes": [],
       "stop_conditions": [
@@ -35,7 +35,7 @@
     },
     {
       "id": "rapid-mvp-polish",
-      "skill_id": "polish",
+      "skill_ids": ["polish"],
       "skill_name": "Polish",
       "modes": [],
       "stop_conditions": [

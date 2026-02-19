@@ -89,8 +89,11 @@ message ExecutionRecord {
   // Global iteration counter for Auto Steer.
   int32 auto_steer_iteration = 20;
 
-  // Active steering mode (phase).
-  string steer_mode = 21;
+  // Active steering skill set (phase).
+  repeated string steer_skill_ids = 21;
+
+  // Optional steering set label.
+  string steer_set_label = 29;
 
   // 1-based phase index (0 when unknown).
   int32 steer_phase_index = 22;

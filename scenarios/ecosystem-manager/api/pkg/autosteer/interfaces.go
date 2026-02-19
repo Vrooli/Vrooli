@@ -61,8 +61,8 @@ var _ IterationEvaluatorAPI = (*IterationEvaluator)(nil)
 // PromptEnhancerAPI defines the contract for generating Auto Steer prompt sections.
 // Enables unit testing of ExecutionOrchestrator without filesystem access.
 type PromptEnhancerAPI interface {
-	// GenerateModeSection renders a standalone section for a specific mode.
-	GenerateModeSection(mode SteerMode) string
+	// GenerateSkillSetSection renders a standalone section for a specific skill set.
+	GenerateSkillSetSection(skillIDs []string, withScope bool, scope string) string
 
 	// GenerateAutoSteerSection generates the full Auto Steer section for agent prompts.
 	GenerateAutoSteerSection(state *ProfileExecutionState, profile *AutoSteerProfile, evaluator ConditionEvaluatorAPI) string

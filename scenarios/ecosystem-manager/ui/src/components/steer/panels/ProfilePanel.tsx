@@ -7,6 +7,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import type { AutoSteerProfile } from '@/types/api';
 
 interface ProfilePanelProps {
@@ -18,6 +20,7 @@ interface ProfilePanelProps {
 
 export function ProfilePanel({ value, onChange, profiles, isLoading }: ProfilePanelProps) {
   const selectedProfile = profiles.find((p) => p.id === value);
+  const { data: phaseNames = [] } = useMergedPhaseNames();
 
   return (
     <div className="space-y-4">
@@ -79,8 +82,9 @@ export function ProfilePanel({ value, onChange, profiles, isLoading }: ProfilePa
                 <span
                   key={phase.id || idx}
                   className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
+                  title={formatSkillSetTooltip(phase.skill_ids, phaseNames)}
                 >
-                  {phase.skill_name}
+                  {formatSkillSetLabel(phase.skill_ids, phaseNames, { maxVisible: 1, emptyLabel: phase.skill_name || 'Skill set' })}
                 </span>
               ))}
             </div>

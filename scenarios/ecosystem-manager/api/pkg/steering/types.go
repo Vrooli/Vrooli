@@ -1,9 +1,5 @@
 package steering
 
-import (
-	"github.com/ecosystem-manager/api/pkg/autosteer"
-)
-
 // SteeringStrategy identifies which strategy controls a task's steering behavior.
 type SteeringStrategy string
 
@@ -24,8 +20,8 @@ const (
 // SteeringDecision represents the outcome of a steering provider's evaluation
 // after a task execution completes.
 type SteeringDecision struct {
-	// Mode is the current (or next) steering mode to apply.
-	Mode autosteer.SteerMode
+	// SkillSet is the current (or next) steering set to apply.
+	SkillSet []string
 
 	// ShouldRequeue indicates whether the task should be requeued for another iteration.
 	// This is combined with ProcessorAutoRequeue on the task - both must be true to requeue.
@@ -54,14 +50,14 @@ type SteeringConfig struct {
 	// Strategy indicates which steering strategy to use.
 	Strategy SteeringStrategy
 
-	// Mode is the steering mode for StrategyManual.
-	Mode autosteer.SteerMode
+	// SkillSet is the steering set for StrategyManual.
+	SkillSet []string
 
 	// ProfileID is the Auto Steer profile ID for StrategyProfile.
 	ProfileID string
 
-	// Queue is the ordered list of modes for StrategyQueue.
-	Queue []autosteer.SteerMode
+	// Queue is the ordered list of steering sets for StrategyQueue.
+	Queue [][]string
 }
 
 // QueueState tracks progress through a steering queue.
@@ -69,8 +65,8 @@ type QueueState struct {
 	// TaskID is the unique identifier for the task.
 	TaskID string `json:"task_id"`
 
-	// Queue is the ordered list of steering modes.
-	Queue []autosteer.SteerMode `json:"queue"`
+	// QueueLength is the number of configured queue steps on the task.
+	QueueLength int `json:"queue_length"`
 
 	// CurrentIndex is the position in the queue (0-indexed).
 	CurrentIndex int `json:"current_index"`
@@ -84,20 +80,12 @@ type QueueState struct {
 
 // IsExhausted returns true if the queue has been fully processed.
 func (q *QueueState) IsExhausted() bool {
-	return q.CurrentIndex >= len(q.Queue)
-}
-
-// CurrentMode returns the current mode in the queue, or empty string if exhausted.
-func (q *QueueState) CurrentMode() autosteer.SteerMode {
-	if q.IsExhausted() {
-		return ""
-	}
-	return q.Queue[q.CurrentIndex]
+	return q.CurrentIndex >= q.QueueLength
 }
 
 // Remaining returns the number of items left in the queue (including current).
 func (q *QueueState) Remaining() int {
-	remaining := len(q.Queue) - q.CurrentIndex
+	remaining := q.QueueLength - q.CurrentIndex
 	if remaining < 0 {
 		return 0
 	}

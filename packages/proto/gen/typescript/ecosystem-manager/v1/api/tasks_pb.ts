@@ -5,7 +5,7 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { ProcessInfo, Task } from "../domain/task_pb";
+import type { ProcessInfo, SteerSet, Task } from "../domain/task_pb";
 import { file_ecosystem_manager_v1_domain_task } from "../domain/task_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ecosystem-manager/v1/api/tasks.proto.
  */
 export const file_ecosystem_manager_v1_api_tasks: GenFile = /*@__PURE__*/
-  fileDesc("CiRlY29zeXN0ZW0tbWFuYWdlci92MS9hcGkvdGFza3MucHJvdG8SFGVjb3N5c3RlbV9tYW5hZ2VyLnYxItcEChFUYXNrQ3JlYXRlUmVxdWVzdBIZCgV0aXRsZRgBIAEoCUIKukgHcgUQARjIARInCgR0eXBlGAIgASgJQhm6SBZyFFIIcmVzb3VyY2VSCHNjZW5hcmlvEi0KCW9wZXJhdGlvbhgDIAEoCUIaukgXchVSCWdlbmVyYXRvclIIaW1wcm92ZXISEwoGdGFyZ2V0GAQgASgJSACIAQESDwoHdGFyZ2V0cxgFIAMoCRIVCghjYXRlZ29yeRgGIAEoCUgBiAEBEjsKCHByaW9yaXR5GAcgASgJQiS6SCFyH1IAUgNsb3dSBm1lZGl1bVIEaGlnaFIIY3JpdGljYWxIAogBARIcCg9lZmZvcnRfZXN0aW1hdGUYCCABKAlIA4gBARIUCgd1cmdlbmN5GAkgASgJSASIAQESFAoMZGVwZW5kZW5jaWVzGAogAygJEhkKEXJlbGF0ZWRfc2NlbmFyaW9zGAsgAygJEhkKEXJlbGF0ZWRfcmVzb3VyY2VzGAwgAygJEgwKBHRhZ3MYDSADKAkSEgoFbm90ZXMYDiABKAlIBYgBARIXCgpzdGVlcl9tb2RlGA8gASgJSAaIAQESIgoVYXV0b19zdGVlcl9wcm9maWxlX2lkGBAgASgJSAeIAQFCCQoHX3RhcmdldEILCglfY2F0ZWdvcnlCCwoJX3ByaW9yaXR5QhIKEF9lZmZvcnRfZXN0aW1hdGVCCgoIX3VyZ2VuY3lCCAoGX25vdGVzQg0KC19zdGVlcl9tb2RlQhgKFl9hdXRvX3N0ZWVyX3Byb2ZpbGVfaWQivwMKEVRhc2tVcGRhdGVSZXF1ZXN0EhIKBXRpdGxlGAEgASgJSACIAQESOwoIcHJpb3JpdHkYAiABKAlCJLpIIXIfUgBSA2xvd1IGbWVkaXVtUgRoaWdoUghjcml0aWNhbEgBiAEBEnQKBnN0YXR1cxgDIAEoCUJfukhcclpSAFIHcGVuZGluZ1ILaW4tcHJvZ3Jlc3NSCWNvbXBsZXRlZFIGZmFpbGVkUhNjb21wbGV0ZWQtZmluYWxpemVkUg5mYWlsZWQtYmxvY2tlZFIIYXJjaGl2ZWRIAogBARITCgZ0YXJnZXQYBCABKAlIA4gBARIPCgd0YXJnZXRzGAUgAygJEgwKBHRhZ3MYBiADKAkSEgoFbm90ZXMYByABKAlIBIgBARIXCgpzdGVlcl9tb2RlGAggASgJSAWIAQESIgoVYXV0b19zdGVlcl9wcm9maWxlX2lkGAkgASgJSAaIAQFCCAoGX3RpdGxlQgsKCV9wcmlvcml0eUIJCgdfc3RhdHVzQgkKB190YXJnZXRCCAoGX25vdGVzQg0KC19zdGVlcl9tb2RlQhgKFl9hdXRvX3N0ZWVyX3Byb2ZpbGVfaWQiWwoQVGFza0xpc3RSZXNwb25zZRIpCgV0YXNrcxgBIAMoCzIaLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlRhc2sSDQoFY291bnQYAiABKAUSDQoFdG90YWwYAyABKAUi0wEKElRhc2tEZXRhaWxSZXNwb25zZRIoCgR0YXNrGAEgASgLMhouZWNvc3lzdGVtX21hbmFnZXIudjEuVGFzaxI/Cg9jdXJyZW50X3Byb2Nlc3MYAiABKAsyIS5lY29zeXN0ZW1fbWFuYWdlci52MS5Qcm9jZXNzSW5mb0gAiAEBEiMKFmF1dG9fc3RlZXJfcGhhc2VfaW5kZXgYAyABKAVIAYgBAUISChBfY3VycmVudF9wcm9jZXNzQhkKF19hdXRvX3N0ZWVyX3BoYXNlX2luZGV4IlYKElRhc2tBY3Rpb25SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg8KB21lc3NhZ2UYAiABKAkSDwoHdGFza19pZBgDIAEoCRINCgVlcnJvchgEIAEoCUJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Vjb3N5c3RlbS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_ecosystem_manager_v1_domain_task]);
+  fileDesc("CiRlY29zeXN0ZW0tbWFuYWdlci92MS9hcGkvdGFza3MucHJvdG8SFGVjb3N5c3RlbV9tYW5hZ2VyLnYxIvoEChFUYXNrQ3JlYXRlUmVxdWVzdBIZCgV0aXRsZRgBIAEoCUIKukgHcgUQARjIARInCgR0eXBlGAIgASgJQhm6SBZyFFIIcmVzb3VyY2VSCHNjZW5hcmlvEi0KCW9wZXJhdGlvbhgDIAEoCUIaukgXchVSCWdlbmVyYXRvclIIaW1wcm92ZXISEwoGdGFyZ2V0GAQgASgJSACIAQESDwoHdGFyZ2V0cxgFIAMoCRIVCghjYXRlZ29yeRgGIAEoCUgBiAEBEjsKCHByaW9yaXR5GAcgASgJQiS6SCFyH1IAUgNsb3dSBm1lZGl1bVIEaGlnaFIIY3JpdGljYWxIAogBARIcCg9lZmZvcnRfZXN0aW1hdGUYCCABKAlIA4gBARIUCgd1cmdlbmN5GAkgASgJSASIAQESFAoMZGVwZW5kZW5jaWVzGAogAygJEhkKEXJlbGF0ZWRfc2NlbmFyaW9zGAsgAygJEhkKEXJlbGF0ZWRfcmVzb3VyY2VzGAwgAygJEgwKBHRhZ3MYDSADKAkSEgoFbm90ZXMYDiABKAlIBYgBARIRCglzdGVlcl9zZXQYDyADKAkSIgoVYXV0b19zdGVlcl9wcm9maWxlX2lkGBAgASgJSAaIAQESNgoOc3RlZXJpbmdfcXVldWUYESADKAsyHi5lY29zeXN0ZW1fbWFuYWdlci52MS5TdGVlclNldEIJCgdfdGFyZ2V0QgsKCV9jYXRlZ29yeUILCglfcHJpb3JpdHlCEgoQX2VmZm9ydF9lc3RpbWF0ZUIKCghfdXJnZW5jeUIICgZfbm90ZXNCGAoWX2F1dG9fc3RlZXJfcHJvZmlsZV9pZCLiAwoRVGFza1VwZGF0ZVJlcXVlc3QSEgoFdGl0bGUYASABKAlIAIgBARI7Cghwcmlvcml0eRgCIAEoCUIkukghch9SAFIDbG93UgZtZWRpdW1SBGhpZ2hSCGNyaXRpY2FsSAGIAQESdAoGc3RhdHVzGAMgASgJQl+6SFxyWlIAUgdwZW5kaW5nUgtpbi1wcm9ncmVzc1IJY29tcGxldGVkUgZmYWlsZWRSE2NvbXBsZXRlZC1maW5hbGl6ZWRSDmZhaWxlZC1ibG9ja2VkUghhcmNoaXZlZEgCiAEBEhMKBnRhcmdldBgEIAEoCUgDiAEBEg8KB3RhcmdldHMYBSADKAkSDAoEdGFncxgGIAMoCRISCgVub3RlcxgHIAEoCUgEiAEBEhEKCXN0ZWVyX3NldBgIIAMoCRIiChVhdXRvX3N0ZWVyX3Byb2ZpbGVfaWQYCSABKAlIBYgBARI2Cg5zdGVlcmluZ19xdWV1ZRgKIAMoCzIeLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlN0ZWVyU2V0QggKBl90aXRsZUILCglfcHJpb3JpdHlCCQoHX3N0YXR1c0IJCgdfdGFyZ2V0QggKBl9ub3Rlc0IYChZfYXV0b19zdGVlcl9wcm9maWxlX2lkIlsKEFRhc2tMaXN0UmVzcG9uc2USKQoFdGFza3MYASADKAsyGi5lY29zeXN0ZW1fbWFuYWdlci52MS5UYXNrEg0KBWNvdW50GAIgASgFEg0KBXRvdGFsGAMgASgFItMBChJUYXNrRGV0YWlsUmVzcG9uc2USKAoEdGFzaxgBIAEoCzIaLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlRhc2sSPwoPY3VycmVudF9wcm9jZXNzGAIgASgLMiEuZWNvc3lzdGVtX21hbmFnZXIudjEuUHJvY2Vzc0luZm9IAIgBARIjChZhdXRvX3N0ZWVyX3BoYXNlX2luZGV4GAMgASgFSAGIAQFCEgoQX2N1cnJlbnRfcHJvY2Vzc0IZChdfYXV0b19zdGVlcl9waGFzZV9pbmRleCJWChJUYXNrQWN0aW9uUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIPCgdtZXNzYWdlGAIgASgJEg8KB3Rhc2tfaWQYAyABKAkSDQoFZXJyb3IYBCABKAlCTVpLZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9lY29zeXN0ZW0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_ecosystem_manager_v1_domain_task]);
 
 /**
  * TaskCreateRequest defines the payload for creating a new task.
@@ -120,11 +120,11 @@ export type TaskCreateRequest = Message<"ecosystem_manager.v1.TaskCreateRequest"
   notes?: string;
 
   /**
-   * Manual steering mode.
+   * Manual steering skill set.
    *
-   * @generated from field: optional string steer_mode = 15;
+   * @generated from field: repeated string steer_set = 15;
    */
-  steerMode?: string;
+  steerSet: string[];
 
   /**
    * Auto Steer profile ID.
@@ -132,6 +132,13 @@ export type TaskCreateRequest = Message<"ecosystem_manager.v1.TaskCreateRequest"
    * @generated from field: optional string auto_steer_profile_id = 16;
    */
   autoSteerProfileId?: string;
+
+  /**
+   * Ordered queue of steering skill sets.
+   *
+   * @generated from field: repeated ecosystem_manager.v1.SteerSet steering_queue = 17;
+   */
+  steeringQueue: SteerSet[];
 };
 
 /**
@@ -197,11 +204,11 @@ export type TaskUpdateRequest = Message<"ecosystem_manager.v1.TaskUpdateRequest"
   notes?: string;
 
   /**
-   * Updated steering mode.
+   * Updated steering skill set.
    *
-   * @generated from field: optional string steer_mode = 8;
+   * @generated from field: repeated string steer_set = 8;
    */
-  steerMode?: string;
+  steerSet: string[];
 
   /**
    * Updated Auto Steer profile ID.
@@ -209,6 +216,13 @@ export type TaskUpdateRequest = Message<"ecosystem_manager.v1.TaskUpdateRequest"
    * @generated from field: optional string auto_steer_profile_id = 9;
    */
   autoSteerProfileId?: string;
+
+  /**
+   * Updated queue of steering skill sets.
+   *
+   * @generated from field: repeated ecosystem_manager.v1.SteerSet steering_queue = 10;
+   */
+  steeringQueue: SteerSet[];
 };
 
 /**

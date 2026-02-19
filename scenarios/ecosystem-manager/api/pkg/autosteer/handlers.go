@@ -30,7 +30,7 @@ type ExecutionEngineAPI interface {
 	SeekExecution(taskID, profileID, scenarioName string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error)
 	AdvancePhase(taskID, scenarioName string) (*PhaseAdvanceResult, error)
 	GetExecutionState(taskID string) (*ProfileExecutionState, error)
-	GetCurrentMode(taskID string) (SteerMode, error)
+	GetCurrentSet(taskID string) ([]string, error)
 }
 
 // HistoryServiceAPI defines history operations used by HTTP handlers.

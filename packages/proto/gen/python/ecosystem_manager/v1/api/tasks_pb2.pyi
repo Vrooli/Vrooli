@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class TaskCreateRequest(_message.Message):
-    __slots__ = ("title", "type", "operation", "target", "targets", "category", "priority", "effort_estimate", "urgency", "dependencies", "related_scenarios", "related_resources", "tags", "notes", "steer_mode", "auto_steer_profile_id")
+    __slots__ = ("title", "type", "operation", "target", "targets", "category", "priority", "effort_estimate", "urgency", "dependencies", "related_scenarios", "related_resources", "tags", "notes", "steer_set", "auto_steer_profile_id", "steering_queue")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
@@ -24,8 +24,9 @@ class TaskCreateRequest(_message.Message):
     RELATED_RESOURCES_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
     NOTES_FIELD_NUMBER: _ClassVar[int]
-    STEER_MODE_FIELD_NUMBER: _ClassVar[int]
+    STEER_SET_FIELD_NUMBER: _ClassVar[int]
     AUTO_STEER_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    STEERING_QUEUE_FIELD_NUMBER: _ClassVar[int]
     title: str
     type: str
     operation: str
@@ -40,12 +41,13 @@ class TaskCreateRequest(_message.Message):
     related_resources: _containers.RepeatedScalarFieldContainer[str]
     tags: _containers.RepeatedScalarFieldContainer[str]
     notes: str
-    steer_mode: str
+    steer_set: _containers.RepeatedScalarFieldContainer[str]
     auto_steer_profile_id: str
-    def __init__(self, title: _Optional[str] = ..., type: _Optional[str] = ..., operation: _Optional[str] = ..., target: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., priority: _Optional[str] = ..., effort_estimate: _Optional[str] = ..., urgency: _Optional[str] = ..., dependencies: _Optional[_Iterable[str]] = ..., related_scenarios: _Optional[_Iterable[str]] = ..., related_resources: _Optional[_Iterable[str]] = ..., tags: _Optional[_Iterable[str]] = ..., notes: _Optional[str] = ..., steer_mode: _Optional[str] = ..., auto_steer_profile_id: _Optional[str] = ...) -> None: ...
+    steering_queue: _containers.RepeatedCompositeFieldContainer[_task_pb2.SteerSet]
+    def __init__(self, title: _Optional[str] = ..., type: _Optional[str] = ..., operation: _Optional[str] = ..., target: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., priority: _Optional[str] = ..., effort_estimate: _Optional[str] = ..., urgency: _Optional[str] = ..., dependencies: _Optional[_Iterable[str]] = ..., related_scenarios: _Optional[_Iterable[str]] = ..., related_resources: _Optional[_Iterable[str]] = ..., tags: _Optional[_Iterable[str]] = ..., notes: _Optional[str] = ..., steer_set: _Optional[_Iterable[str]] = ..., auto_steer_profile_id: _Optional[str] = ..., steering_queue: _Optional[_Iterable[_Union[_task_pb2.SteerSet, _Mapping]]] = ...) -> None: ...
 
 class TaskUpdateRequest(_message.Message):
-    __slots__ = ("title", "priority", "status", "target", "targets", "tags", "notes", "steer_mode", "auto_steer_profile_id")
+    __slots__ = ("title", "priority", "status", "target", "targets", "tags", "notes", "steer_set", "auto_steer_profile_id", "steering_queue")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -53,8 +55,9 @@ class TaskUpdateRequest(_message.Message):
     TARGETS_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
     NOTES_FIELD_NUMBER: _ClassVar[int]
-    STEER_MODE_FIELD_NUMBER: _ClassVar[int]
+    STEER_SET_FIELD_NUMBER: _ClassVar[int]
     AUTO_STEER_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    STEERING_QUEUE_FIELD_NUMBER: _ClassVar[int]
     title: str
     priority: str
     status: str
@@ -62,9 +65,10 @@ class TaskUpdateRequest(_message.Message):
     targets: _containers.RepeatedScalarFieldContainer[str]
     tags: _containers.RepeatedScalarFieldContainer[str]
     notes: str
-    steer_mode: str
+    steer_set: _containers.RepeatedScalarFieldContainer[str]
     auto_steer_profile_id: str
-    def __init__(self, title: _Optional[str] = ..., priority: _Optional[str] = ..., status: _Optional[str] = ..., target: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., tags: _Optional[_Iterable[str]] = ..., notes: _Optional[str] = ..., steer_mode: _Optional[str] = ..., auto_steer_profile_id: _Optional[str] = ...) -> None: ...
+    steering_queue: _containers.RepeatedCompositeFieldContainer[_task_pb2.SteerSet]
+    def __init__(self, title: _Optional[str] = ..., priority: _Optional[str] = ..., status: _Optional[str] = ..., target: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., tags: _Optional[_Iterable[str]] = ..., notes: _Optional[str] = ..., steer_set: _Optional[_Iterable[str]] = ..., auto_steer_profile_id: _Optional[str] = ..., steering_queue: _Optional[_Iterable[_Union[_task_pb2.SteerSet, _Mapping]]] = ...) -> None: ...
 
 class TaskListResponse(_message.Message):
     __slots__ = ("tasks", "count", "total")

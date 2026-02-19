@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import type { PromptFileInfo, PromptFile, PhaseInfo } from '@/types/api';
-import { normalizeSteerMode } from '@/lib/utils';
+import { normalizeSkillId } from '@/lib/utils';
 
 export function usePromptFiles() {
   return useQuery<PromptFileInfo[]>({
@@ -57,18 +57,18 @@ export function useMergedPhaseNames() {
     const skills = skillsQuery.data ?? [];
 
     return skills
-      .filter((skill) => normalizeSteerMode(skill.modes?.[0]) === 'steer')
+      .filter((skill) => normalizeSkillId(skill.modes?.[0]) === 'steer')
       .map((skill) => {
         const modes = (skill.modes ?? []).slice(1).map((mode) => mode.trim()).filter(Boolean);
         return {
-          id: normalizeSteerMode(skill.id),
+          id: normalizeSkillId(skill.id),
           name: skill.name,
           description: skill.description,
           modes,
           source: 'prompt-manager' as const,
         };
       })
-      .filter((phase) => phase.id && normalizeSteerMode(phase.name));
+      .filter((phase) => phase.id && normalizeSkillId(phase.name));
   }, [skillsQuery.data]);
 
   return {

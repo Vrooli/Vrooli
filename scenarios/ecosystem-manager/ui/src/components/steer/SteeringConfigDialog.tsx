@@ -47,9 +47,13 @@ function isValidConfig(config: SteeringConfig): boolean {
     case 'none':
       return true;
     case 'manual':
-      return !!config.manualMode;
+      return Array.isArray(config.manualSet) && config.manualSet.length > 0;
     case 'queue':
-      return Array.isArray(config.queue) && config.queue.length > 0;
+      return (
+        Array.isArray(config.queue) &&
+        config.queue.length > 0 &&
+        config.queue.every((step) => Array.isArray(step) && step.length > 0)
+      );
     case 'profile':
       return !!config.profileId;
     default:
@@ -129,8 +133,8 @@ export function SteeringConfigDialog({
 
             <TabsContent value="manual" className="m-0">
               <ManualPanel
-                value={localConfig.manualMode}
-                onChange={(mode) => setLocalConfig((prev) => ({ ...prev, manualMode: mode }))}
+                value={localConfig.manualSet || []}
+                onChange={(manualSet) => setLocalConfig((prev) => ({ ...prev, manualSet }))}
                 phaseNames={phaseNames}
                 isLoading={isLoadingPhases}
               />

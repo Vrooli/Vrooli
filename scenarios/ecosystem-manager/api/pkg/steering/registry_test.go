@@ -3,7 +3,6 @@ package steering
 import (
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
@@ -22,23 +21,23 @@ func TestRegistry_DetermineStrategy(t *testing.T) {
 			name: "profile ID takes priority",
 			task: &tasks.TaskItem{
 				AutoSteerProfileID: "profile-123",
-				SteerMode:          "ux",
-				SteeringQueue:      []string{"test", "refactor"},
+				SteerSet:           []string{"ux"},
+				SteeringQueue:      [][]string{{"test"}, {"refactor"}},
 			},
 			expected: StrategyProfile,
 		},
 		{
 			name: "queue takes priority over manual",
 			task: &tasks.TaskItem{
-				SteerMode:     "ux",
-				SteeringQueue: []string{"test", "refactor"},
+				SteerSet:      []string{"ux"},
+				SteeringQueue: [][]string{{"test"}, {"refactor"}},
 			},
 			expected: StrategyQueue,
 		},
 		{
 			name: "manual mode when no profile or queue",
 			task: &tasks.TaskItem{
-				SteerMode: "ux",
+				SteerSet: []string{"ux"},
 			},
 			expected: StrategyManual,
 		},
@@ -53,22 +52,22 @@ func TestRegistry_DetermineStrategy(t *testing.T) {
 			name: "whitespace profile ID treated as empty",
 			task: &tasks.TaskItem{
 				AutoSteerProfileID: "   ",
-				SteerMode:          "test",
+				SteerSet:           []string{"test"},
 			},
 			expected: StrategyManual,
 		},
 		{
 			name: "whitespace steer mode treated as empty",
 			task: &tasks.TaskItem{
-				SteerMode: "   ",
+				SteerSet: []string{},
 			},
 			expected: StrategyNone,
 		},
 		{
 			name: "empty queue treated as no queue",
 			task: &tasks.TaskItem{
-				SteerMode:     "ux",
-				SteeringQueue: []string{},
+				SteerSet:      []string{"ux"},
+				SteeringQueue: [][]string{},
 			},
 			expected: StrategyManual,
 		},
@@ -110,14 +109,14 @@ func TestRegistry_GetProvider(t *testing.T) {
 		{
 			name: "returns manual provider for manual task",
 			task: &tasks.TaskItem{
-				SteerMode: "ux",
+				SteerSet: []string{"ux"},
 			},
 			expected: mockManual,
 		},
 		{
 			name: "returns queue provider for queue task",
 			task: &tasks.TaskItem{
-				SteeringQueue: []string{"test", "refactor"},
+				SteeringQueue: [][]string{{"test"}, {"refactor"}},
 			},
 			expected: mockQueue,
 		},
@@ -185,7 +184,7 @@ func TestRegistry_RegisterProvider(t *testing.T) {
 		t.Error("Provider should be registered")
 	}
 
-	result := registry.GetProvider(&tasks.TaskItem{SteerMode: "ux"})
+	result := registry.GetProvider(&tasks.TaskItem{SteerSet: []string{"ux"}})
 	if result != mockManual {
 		t.Errorf("GetProvider() = %v, want %v", result, mockManual)
 	}
@@ -196,10 +195,8 @@ type mockProvider struct {
 	strategy SteeringStrategy
 }
 
-func (m *mockProvider) Strategy() SteeringStrategy { return m.strategy }
-func (m *mockProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
-	return "", nil
-}
+func (m *mockProvider) Strategy() SteeringStrategy                           { return m.strategy }
+func (m *mockProvider) GetCurrentSet(task *tasks.TaskItem) ([]string, error) { return nil, nil }
 func (m *mockProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement, error) {
 	return nil, nil
 }

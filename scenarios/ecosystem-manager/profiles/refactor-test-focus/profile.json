@@ -5,7 +5,7 @@
   "phases": [
     {
       "id": "refactor-test-focus-test",
-      "skill_id": "test",
+      "skill_ids": ["test"],
       "skill_name": "Test",
       "modes": [],
       "stop_conditions": [
@@ -32,7 +32,7 @@
     },
     {
       "id": "refactor-test-focus-refactor",
-      "skill_id": "refactor",
+      "skill_ids": ["refactor"],
       "skill_name": "Refactor",
       "modes": [],
       "stop_conditions": [
@@ -47,7 +47,7 @@
     },
     {
       "id": "refactor-test-focus-test-stability",
-      "skill_id": "test",
+      "skill_ids": ["test"],
       "skill_name": "Test",
       "modes": [],
       "stop_conditions": [

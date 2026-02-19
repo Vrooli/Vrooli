@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ecosystem-manager/v1/domain/autosteer.proto.
  */
 export const file_ecosystem_manager_v1_domain_autosteer: GenFile = /*@__PURE__*/
-  fileDesc("CitlY29zeXN0ZW0tbWFuYWdlci92MS9kb21haW4vYXV0b3N0ZWVyLnByb3RvEhRlY29zeXN0ZW1fbWFuYWdlci52MSK6AQoNU3RvcENvbmRpdGlvbhIlCgR0eXBlGAEgASgJQhe6SBRyElIGc2ltcGxlUghjb21wb3VuZBIQCghvcGVyYXRvchgCIAEoCRI3Cgpjb25kaXRpb25zGAMgAygLMiMuZWNvc3lzdGVtX21hbmFnZXIudjEuU3RvcENvbmRpdGlvbhIOCgZtZXRyaWMYBCABKAkSGAoQY29tcGFyZV9vcGVyYXRvchgFIAEoCRINCgV2YWx1ZRgGIAEoASL2AQoKU3RlZXJQaGFzZRITCgJpZBgBIAEoCUIHukgEcgIQARIZCghza2lsbF9pZBgCIAEoCUIHukgEcgIQARISCgpza2lsbF9uYW1lGAMgASgJEg0KBW1vZGVzGAQgAygJEhIKCndpdGhfc2NvcGUYBSABKAgSDQoFc2NvcGUYBiABKAkSPAoPc3RvcF9jb25kaXRpb25zGAcgAygLMiMuZWNvc3lzdGVtX21hbmFnZXIudjEuU3RvcENvbmRpdGlvbhIfCg5tYXhfaXRlcmF0aW9ucxgIIAEoBUIHukgEGgIoARITCgtkZXNjcmlwdGlvbhgJIAEoCSKkAQoLUXVhbGl0eUdhdGUSFQoEbmFtZRgBIAEoCUIHukgEcgIQARI2Cgljb25kaXRpb24YAiABKAsyIy5lY29zeXN0ZW1fbWFuYWdlci52MS5TdG9wQ29uZGl0aW9uEjUKDmZhaWx1cmVfYWN0aW9uGAMgASgJQh26SBpyGFIEaGFsdFIKc2tpcF9waGFzZVIEd2FybhIPCgdtZXNzYWdlGAQgASgJIvUBChBBdXRvU3RlZXJQcm9maWxlEhMKAmlkGAEgASgJQge6SARyAhABEhUKBG5hbWUYAiABKAlCB7pIBHICEAESEwoLZGVzY3JpcHRpb24YAyABKAkSMAoGcGhhc2VzGAQgAygLMiAuZWNvc3lzdGVtX21hbmFnZXIudjEuU3RlZXJQaGFzZRI4Cg1xdWFsaXR5X2dhdGVzGAUgAygLMiEuZWNvc3lzdGVtX21hbmFnZXIudjEuUXVhbGl0eUdhdGUSEgoKY3JlYXRlZF9hdBgGIAEoCRISCgp1cGRhdGVkX2F0GAcgASgJEgwKBHRhZ3MYCCADKAkiwQEKCVVYTWV0cmljcxIbChNhY2Nlc3NpYmlsaXR5X3Njb3JlGAEgASgBEhgKEHVpX3Rlc3RfY292ZXJhZ2UYAiABKAESHgoWcmVzcG9uc2l2ZV9icmVha3BvaW50cxgDIAEoBRIeChZ1c2VyX2Zsb3dzX2ltcGxlbWVudGVkGAQgASgFEhwKFGxvYWRpbmdfc3RhdGVzX2NvdW50GAUgASgFEh8KF2Vycm9yX2hhbmRsaW5nX2NvdmVyYWdlGAYgASgBIqMBCg9SZWZhY3Rvck1ldHJpY3MSIQoZY3ljbG9tYXRpY19jb21wbGV4aXR5X2F2ZxgBIAEoARIeChZkdXBsaWNhdGlvbl9wZXJjZW50YWdlGAIgASgBEhwKFHN0YW5kYXJkc192aW9sYXRpb25zGAMgASgFEhYKDnRpZGluZXNzX3Njb3JlGAQgASgBEhcKD3RlY2hfZGVidF9pdGVtcxgFIAEoBSKzAQoLVGVzdE1ldHJpY3MSGgoSdW5pdF90ZXN0X2NvdmVyYWdlGAEgASgBEiEKGWludGVncmF0aW9uX3Rlc3RfY292ZXJhZ2UYAiABKAESGAoQdWlfdGVzdF9jb3ZlcmFnZRgDIAEoARIaChJlZGdlX2Nhc2VzX2NvdmVyZWQYBCABKAUSEwoLZmxha3lfdGVzdHMYBSABKAUSGgoSdGVzdF9xdWFsaXR5X3Njb3JlGAYgASgBIn0KElBlcmZvcm1hbmNlTWV0cmljcxIWCg5idW5kbGVfc2l6ZV9rYhgBIAEoARIcChRpbml0aWFsX2xvYWRfdGltZV9tcxgCIAEoBRIOCgZsY3BfbXMYAyABKAUSDgoGZmlkX21zGAQgASgFEhEKCWNsc19zY29yZRgFIAEoASKRAQoPU2VjdXJpdHlNZXRyaWNzEhsKE3Z1bG5lcmFiaWxpdHlfY291bnQYASABKAUSIQoZaW5wdXRfdmFsaWRhdGlvbl9jb3ZlcmFnZRgCIAEoARIhChlhdXRoX2ltcGxlbWVudGF0aW9uX3Njb3JlGAMgASgBEhsKE3NlY3VyaXR5X3NjYW5fc2NvcmUYBCABKAEitgQKD01ldHJpY3NTbmFwc2hvdBIRCgl0aW1lc3RhbXAYASABKAkSEwoLcGhhc2VfbG9vcHMYAiABKAUSEwoLdG90YWxfbG9vcHMYAyABKAUSFAoMYnVpbGRfc3RhdHVzGAQgASgFEiEKGW9wZXJhdGlvbmFsX3RhcmdldHNfdG90YWwYBSABKAUSIwobb3BlcmF0aW9uYWxfdGFyZ2V0c19wYXNzaW5nGAYgASgFEiYKHm9wZXJhdGlvbmFsX3RhcmdldHNfcGVyY2VudGFnZRgHIAEoARIwCgJ1eBgIIAEoCzIfLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlVYTWV0cmljc0gAiAEBEjwKCHJlZmFjdG9yGAkgASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuUmVmYWN0b3JNZXRyaWNzSAGIAQESNAoEdGVzdBgKIAEoCzIhLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlRlc3RNZXRyaWNzSAKIAQESQgoLcGVyZm9ybWFuY2UYCyABKAsyKC5lY29zeXN0ZW1fbWFuYWdlci52MS5QZXJmb3JtYW5jZU1ldHJpY3NIA4gBARI8CghzZWN1cml0eRgMIAEoCzIlLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlNlY3VyaXR5TWV0cmljc0gEiAEBQgUKA191eEILCglfcmVmYWN0b3JCBwoFX3Rlc3RCDgoMX3BlcmZvcm1hbmNlQgsKCV9zZWN1cml0eSLYAgoOUGhhc2VFeGVjdXRpb24SEAoIcGhhc2VfaWQYASABKAkSEAoIc2tpbGxfaWQYAiABKAkSEgoKc2tpbGxfbmFtZRgDIAEoCRINCgVtb2RlcxgEIAMoCRISCgp3aXRoX3Njb3BlGAUgASgIEg0KBXNjb3BlGAYgASgJEhIKCml0ZXJhdGlvbnMYByABKAUSPAoNc3RhcnRfbWV0cmljcxgIIAEoCzIlLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLk1ldHJpY3NTbmFwc2hvdBI6CgtlbmRfbWV0cmljcxgJIAEoCzIlLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLk1ldHJpY3NTbmFwc2hvdBIPCgdjb21taXRzGAogAygJEhIKCnN0YXJ0ZWRfYXQYCyABKAkSFAoMY29tcGxldGVkX2F0GAwgASgJEhMKC3N0b3BfcmVhc29uGA0gASgJIqcDChVQcm9maWxlRXhlY3V0aW9uU3RhdGUSGAoHdGFza19pZBgBIAEoCUIHukgEcgIQARIbCgpwcm9maWxlX2lkGAIgASgJQge6SARyAhABEhsKE2N1cnJlbnRfcGhhc2VfaW5kZXgYAyABKAUSHwoXY3VycmVudF9waGFzZV9pdGVyYXRpb24YBCABKAUSHAoUYXV0b19zdGVlcl9pdGVyYXRpb24YBSABKAUSGAoQcGhhc2Vfc3RhcnRlZF9hdBgGIAEoCRI7Cg1waGFzZV9oaXN0b3J5GAcgAygLMiQuZWNvc3lzdGVtX21hbmFnZXIudjEuUGhhc2VFeGVjdXRpb24SNgoHbWV0cmljcxgIIAEoCzIlLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLk1ldHJpY3NTbmFwc2hvdBJCChNwaGFzZV9zdGFydF9tZXRyaWNzGAkgASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90EhIKCnN0YXJ0ZWRfYXQYCiABKAkSFAoMbGFzdF91cGRhdGVkGAsgASgJIooCChBQaGFzZVBlcmZvcm1hbmNlEhAKCHNraWxsX2lkGAEgASgJEhIKCnNraWxsX25hbWUYAiABKAkSDQoFbW9kZXMYAyADKAkSEgoKaXRlcmF0aW9ucxgEIAEoBRJPCg1tZXRyaWNfZGVsdGFzGAUgAygLMjguZWNvc3lzdGVtX21hbmFnZXIudjEuUGhhc2VQZXJmb3JtYW5jZS5NZXRyaWNEZWx0YXNFbnRyeRIQCghkdXJhdGlvbhgGIAEoAxIVCg1lZmZlY3RpdmVuZXNzGAcgASgBGjMKEU1ldHJpY0RlbHRhc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiUQoMVXNlckZlZWRiYWNrEhkKBnJhdGluZxgBIAEoBUIJukgGGgQYBSgBEhAKCGNvbW1lbnRzGAIgASgJEhQKDHN1Ym1pdHRlZF9hdBgDIAEoCSLOAQoWRXhlY3V0aW9uRmVlZGJhY2tFbnRyeRITCgJpZBgBIAEoCUIHukgEcgIQARIZCghjYXRlZ29yeRgCIAEoCUIHukgEcgIQARIZCghzZXZlcml0eRgDIAEoCUIHukgEcgIQARIYChBzdWdnZXN0ZWRfYWN0aW9uGAQgASgJEhAKCGNvbW1lbnRzGAUgASgJEikKCG1ldGFkYXRhGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBISCgpjcmVhdGVkX2F0GAcgASgJIoYEChJQcm9maWxlUGVyZm9ybWFuY2USEwoCaWQYASABKAlCB7pIBHICEAESEgoKcHJvZmlsZV9pZBgCIAEoCRIVCg1zY2VuYXJpb19uYW1lGAMgASgJEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRI8Cg1zdGFydF9tZXRyaWNzGAUgASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90EjoKC2VuZF9tZXRyaWNzGAYgASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90Ej8KD3BoYXNlX2JyZWFrZG93bhgHIAMoCzImLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlBoYXNlUGVyZm9ybWFuY2USGAoQdG90YWxfaXRlcmF0aW9ucxgIIAEoBRIWCg50b3RhbF9kdXJhdGlvbhgJIAEoAxI+Cg11c2VyX2ZlZWRiYWNrGAogASgLMiIuZWNvc3lzdGVtX21hbmFnZXIudjEuVXNlckZlZWRiYWNrSACIAQESRgoQZmVlZGJhY2tfZW50cmllcxgLIAMoCzIsLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLkV4ZWN1dGlvbkZlZWRiYWNrRW50cnkSEwoLZXhlY3V0ZWRfYXQYDCABKAlCEAoOX3VzZXJfZmVlZGJhY2siTgoTSXRlcmF0aW9uRXZhbHVhdGlvbhITCgtzaG91bGRfc3RvcBgBIAEoCBIOCgZyZWFzb24YAiABKAkSEgoKbmV4dF9waGFzZRgDIAEoBSJjChJQaGFzZUFkdmFuY2VSZXN1bHQSDwoHc3VjY2VzcxgBIAEoCBIYChBuZXh0X3BoYXNlX2luZGV4GAIgASgFEhEKCWNvbXBsZXRlZBgDIAEoCBIPCgdtZXNzYWdlGAQgASgJIlcKEVF1YWxpdHlHYXRlUmVzdWx0EhEKCWdhdGVfbmFtZRgBIAEoCRIOCgZwYXNzZWQYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIOCgZhY3Rpb24YBCABKAlCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9lY29zeXN0ZW0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("CitlY29zeXN0ZW0tbWFuYWdlci92MS9kb21haW4vYXV0b3N0ZWVyLnByb3RvEhRlY29zeXN0ZW1fbWFuYWdlci52MSK6AQoNU3RvcENvbmRpdGlvbhIlCgR0eXBlGAEgASgJQhe6SBRyElIGc2ltcGxlUghjb21wb3VuZBIQCghvcGVyYXRvchgCIAEoCRI3Cgpjb25kaXRpb25zGAMgAygLMiMuZWNvc3lzdGVtX21hbmFnZXIudjEuU3RvcENvbmRpdGlvbhIOCgZtZXRyaWMYBCABKAkSGAoQY29tcGFyZV9vcGVyYXRvchgFIAEoCRINCgV2YWx1ZRgGIAEoASLfAQoKU3RlZXJQaGFzZRITCgJpZBgBIAEoCUIHukgEcgIQARIRCglza2lsbF9pZHMYAiADKAkSEgoKc2tpbGxfbmFtZRgDIAEoCRISCgp3aXRoX3Njb3BlGAQgASgIEg0KBXNjb3BlGAUgASgJEjwKD3N0b3BfY29uZGl0aW9ucxgGIAMoCzIjLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlN0b3BDb25kaXRpb24SHwoObWF4X2l0ZXJhdGlvbnMYByABKAVCB7pIBBoCKAESEwoLZGVzY3JpcHRpb24YCCABKAkipAEKC1F1YWxpdHlHYXRlEhUKBG5hbWUYASABKAlCB7pIBHICEAESNgoJY29uZGl0aW9uGAIgASgLMiMuZWNvc3lzdGVtX21hbmFnZXIudjEuU3RvcENvbmRpdGlvbhI1Cg5mYWlsdXJlX2FjdGlvbhgDIAEoCUIdukgachhSBGhhbHRSCnNraXBfcGhhc2VSBHdhcm4SDwoHbWVzc2FnZRgEIAEoCSL1AQoQQXV0b1N0ZWVyUHJvZmlsZRITCgJpZBgBIAEoCUIHukgEcgIQARIVCgRuYW1lGAIgASgJQge6SARyAhABEhMKC2Rlc2NyaXB0aW9uGAMgASgJEjAKBnBoYXNlcxgEIAMoCzIgLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlN0ZWVyUGhhc2USOAoNcXVhbGl0eV9nYXRlcxgFIAMoCzIhLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlF1YWxpdHlHYXRlEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCRIMCgR0YWdzGAggAygJIsEBCglVWE1ldHJpY3MSGwoTYWNjZXNzaWJpbGl0eV9zY29yZRgBIAEoARIYChB1aV90ZXN0X2NvdmVyYWdlGAIgASgBEh4KFnJlc3BvbnNpdmVfYnJlYWtwb2ludHMYAyABKAUSHgoWdXNlcl9mbG93c19pbXBsZW1lbnRlZBgEIAEoBRIcChRsb2FkaW5nX3N0YXRlc19jb3VudBgFIAEoBRIfChdlcnJvcl9oYW5kbGluZ19jb3ZlcmFnZRgGIAEoASKjAQoPUmVmYWN0b3JNZXRyaWNzEiEKGWN5Y2xvbWF0aWNfY29tcGxleGl0eV9hdmcYASABKAESHgoWZHVwbGljYXRpb25fcGVyY2VudGFnZRgCIAEoARIcChRzdGFuZGFyZHNfdmlvbGF0aW9ucxgDIAEoBRIWCg50aWRpbmVzc19zY29yZRgEIAEoARIXCg90ZWNoX2RlYnRfaXRlbXMYBSABKAUiswEKC1Rlc3RNZXRyaWNzEhoKEnVuaXRfdGVzdF9jb3ZlcmFnZRgBIAEoARIhChlpbnRlZ3JhdGlvbl90ZXN0X2NvdmVyYWdlGAIgASgBEhgKEHVpX3Rlc3RfY292ZXJhZ2UYAyABKAESGgoSZWRnZV9jYXNlc19jb3ZlcmVkGAQgASgFEhMKC2ZsYWt5X3Rlc3RzGAUgASgFEhoKEnRlc3RfcXVhbGl0eV9zY29yZRgGIAEoASJ9ChJQZXJmb3JtYW5jZU1ldHJpY3MSFgoOYnVuZGxlX3NpemVfa2IYASABKAESHAoUaW5pdGlhbF9sb2FkX3RpbWVfbXMYAiABKAUSDgoGbGNwX21zGAMgASgFEg4KBmZpZF9tcxgEIAEoBRIRCgljbHNfc2NvcmUYBSABKAEikQEKD1NlY3VyaXR5TWV0cmljcxIbChN2dWxuZXJhYmlsaXR5X2NvdW50GAEgASgFEiEKGWlucHV0X3ZhbGlkYXRpb25fY292ZXJhZ2UYAiABKAESIQoZYXV0aF9pbXBsZW1lbnRhdGlvbl9zY29yZRgDIAEoARIbChNzZWN1cml0eV9zY2FuX3Njb3JlGAQgASgBIrYECg9NZXRyaWNzU25hcHNob3QSEQoJdGltZXN0YW1wGAEgASgJEhMKC3BoYXNlX2xvb3BzGAIgASgFEhMKC3RvdGFsX2xvb3BzGAMgASgFEhQKDGJ1aWxkX3N0YXR1cxgEIAEoBRIhChlvcGVyYXRpb25hbF90YXJnZXRzX3RvdGFsGAUgASgFEiMKG29wZXJhdGlvbmFsX3RhcmdldHNfcGFzc2luZxgGIAEoBRImCh5vcGVyYXRpb25hbF90YXJnZXRzX3BlcmNlbnRhZ2UYByABKAESMAoCdXgYCCABKAsyHy5lY29zeXN0ZW1fbWFuYWdlci52MS5VWE1ldHJpY3NIAIgBARI8CghyZWZhY3RvchgJIAEoCzIlLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlJlZmFjdG9yTWV0cmljc0gBiAEBEjQKBHRlc3QYCiABKAsyIS5lY29zeXN0ZW1fbWFuYWdlci52MS5UZXN0TWV0cmljc0gCiAEBEkIKC3BlcmZvcm1hbmNlGAsgASgLMiguZWNvc3lzdGVtX21hbmFnZXIudjEuUGVyZm9ybWFuY2VNZXRyaWNzSAOIAQESPAoIc2VjdXJpdHkYDCABKAsyJS5lY29zeXN0ZW1fbWFuYWdlci52MS5TZWN1cml0eU1ldHJpY3NIBIgBAUIFCgNfdXhCCwoJX3JlZmFjdG9yQgcKBV90ZXN0Qg4KDF9wZXJmb3JtYW5jZUILCglfc2VjdXJpdHkiygIKDlBoYXNlRXhlY3V0aW9uEhAKCHBoYXNlX2lkGAEgASgJEhEKCXNraWxsX2lkcxgCIAMoCRISCgpza2lsbF9uYW1lGAMgASgJEhIKCndpdGhfc2NvcGUYBCABKAgSDQoFc2NvcGUYBSABKAkSEgoKaXRlcmF0aW9ucxgGIAEoBRI8Cg1zdGFydF9tZXRyaWNzGAcgASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90EjoKC2VuZF9tZXRyaWNzGAggASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90Eg8KB2NvbW1pdHMYCSADKAkSEgoKc3RhcnRlZF9hdBgKIAEoCRIUCgxjb21wbGV0ZWRfYXQYCyABKAkSEwoLc3RvcF9yZWFzb24YDCABKAkipwMKFVByb2ZpbGVFeGVjdXRpb25TdGF0ZRIYCgd0YXNrX2lkGAEgASgJQge6SARyAhABEhsKCnByb2ZpbGVfaWQYAiABKAlCB7pIBHICEAESGwoTY3VycmVudF9waGFzZV9pbmRleBgDIAEoBRIfChdjdXJyZW50X3BoYXNlX2l0ZXJhdGlvbhgEIAEoBRIcChRhdXRvX3N0ZWVyX2l0ZXJhdGlvbhgFIAEoBRIYChBwaGFzZV9zdGFydGVkX2F0GAYgASgJEjsKDXBoYXNlX2hpc3RvcnkYByADKAsyJC5lY29zeXN0ZW1fbWFuYWdlci52MS5QaGFzZUV4ZWN1dGlvbhI2CgdtZXRyaWNzGAggASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90EkIKE3BoYXNlX3N0YXJ0X21ldHJpY3MYCSABKAsyJS5lY29zeXN0ZW1fbWFuYWdlci52MS5NZXRyaWNzU25hcHNob3QSEgoKc3RhcnRlZF9hdBgKIAEoCRIUCgxsYXN0X3VwZGF0ZWQYCyABKAki/AEKEFBoYXNlUGVyZm9ybWFuY2USEQoJc2tpbGxfaWRzGAEgAygJEhIKCnNraWxsX25hbWUYAiABKAkSEgoKaXRlcmF0aW9ucxgDIAEoBRJPCg1tZXRyaWNfZGVsdGFzGAQgAygLMjguZWNvc3lzdGVtX21hbmFnZXIudjEuUGhhc2VQZXJmb3JtYW5jZS5NZXRyaWNEZWx0YXNFbnRyeRIQCghkdXJhdGlvbhgFIAEoAxIVCg1lZmZlY3RpdmVuZXNzGAYgASgBGjMKEU1ldHJpY0RlbHRhc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiUQoMVXNlckZlZWRiYWNrEhkKBnJhdGluZxgBIAEoBUIJukgGGgQYBSgBEhAKCGNvbW1lbnRzGAIgASgJEhQKDHN1Ym1pdHRlZF9hdBgDIAEoCSLOAQoWRXhlY3V0aW9uRmVlZGJhY2tFbnRyeRITCgJpZBgBIAEoCUIHukgEcgIQARIZCghjYXRlZ29yeRgCIAEoCUIHukgEcgIQARIZCghzZXZlcml0eRgDIAEoCUIHukgEcgIQARIYChBzdWdnZXN0ZWRfYWN0aW9uGAQgASgJEhAKCGNvbW1lbnRzGAUgASgJEikKCG1ldGFkYXRhGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBISCgpjcmVhdGVkX2F0GAcgASgJIoYEChJQcm9maWxlUGVyZm9ybWFuY2USEwoCaWQYASABKAlCB7pIBHICEAESEgoKcHJvZmlsZV9pZBgCIAEoCRIVCg1zY2VuYXJpb19uYW1lGAMgASgJEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRI8Cg1zdGFydF9tZXRyaWNzGAUgASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90EjoKC2VuZF9tZXRyaWNzGAYgASgLMiUuZWNvc3lzdGVtX21hbmFnZXIudjEuTWV0cmljc1NuYXBzaG90Ej8KD3BoYXNlX2JyZWFrZG93bhgHIAMoCzImLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLlBoYXNlUGVyZm9ybWFuY2USGAoQdG90YWxfaXRlcmF0aW9ucxgIIAEoBRIWCg50b3RhbF9kdXJhdGlvbhgJIAEoAxI+Cg11c2VyX2ZlZWRiYWNrGAogASgLMiIuZWNvc3lzdGVtX21hbmFnZXIudjEuVXNlckZlZWRiYWNrSACIAQESRgoQZmVlZGJhY2tfZW50cmllcxgLIAMoCzIsLmVjb3N5c3RlbV9tYW5hZ2VyLnYxLkV4ZWN1dGlvbkZlZWRiYWNrRW50cnkSEwoLZXhlY3V0ZWRfYXQYDCABKAlCEAoOX3VzZXJfZmVlZGJhY2siTgoTSXRlcmF0aW9uRXZhbHVhdGlvbhITCgtzaG91bGRfc3RvcBgBIAEoCBIOCgZyZWFzb24YAiABKAkSEgoKbmV4dF9waGFzZRgDIAEoBSJjChJQaGFzZUFkdmFuY2VSZXN1bHQSDwoHc3VjY2VzcxgBIAEoCBIYChBuZXh0X3BoYXNlX2luZGV4GAIgASgFEhEKCWNvbXBsZXRlZBgDIAEoCBIPCgdtZXNzYWdlGAQgASgJIlcKEVF1YWxpdHlHYXRlUmVzdWx0EhEKCWdhdGVfbmFtZRgBIAEoCRIOCgZwYXNzZWQYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIOCgZhY3Rpb24YBCABKAlCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9lY29zeXN0ZW0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct]);
 
 /**
  * StopCondition represents a condition for stopping a phase.
@@ -88,11 +88,11 @@ export type SteerPhase = Message<"ecosystem_manager.v1.SteerPhase"> & {
   id: string;
 
   /**
-   * Skill identifier to use.
+   * Skill identifiers to use as a set.
    *
-   * @generated from field: string skill_id = 2;
+   * @generated from field: repeated string skill_ids = 2;
    */
-  skillId: string;
+  skillIds: string[];
 
   /**
    * Skill display name.
@@ -102,44 +102,37 @@ export type SteerPhase = Message<"ecosystem_manager.v1.SteerPhase"> & {
   skillName: string;
 
   /**
-   * Steering modes for this phase.
-   *
-   * @generated from field: repeated string modes = 4;
-   */
-  modes: string[];
-
-  /**
    * Whether to include default scope from skill.
    *
-   * @generated from field: bool with_scope = 5;
+   * @generated from field: bool with_scope = 4;
    */
   withScope: boolean;
 
   /**
    * Explicit scope skill override.
    *
-   * @generated from field: string scope = 6;
+   * @generated from field: string scope = 5;
    */
   scope: string;
 
   /**
    * Conditions that trigger phase completion.
    *
-   * @generated from field: repeated ecosystem_manager.v1.StopCondition stop_conditions = 7;
+   * @generated from field: repeated ecosystem_manager.v1.StopCondition stop_conditions = 6;
    */
   stopConditions: StopCondition[];
 
   /**
    * Maximum iterations before forced phase completion.
    *
-   * @generated from field: int32 max_iterations = 8;
+   * @generated from field: int32 max_iterations = 7;
    */
   maxIterations: number;
 
   /**
    * Phase description.
    *
-   * @generated from field: string description = 9;
+   * @generated from field: string description = 8;
    */
   description: string;
 };
@@ -623,11 +616,11 @@ export type PhaseExecution = Message<"ecosystem_manager.v1.PhaseExecution"> & {
   phaseId: string;
 
   /**
-   * Skill identifier used.
+   * Skill identifiers used.
    *
-   * @generated from field: string skill_id = 2;
+   * @generated from field: repeated string skill_ids = 2;
    */
-  skillId: string;
+  skillIds: string[];
 
   /**
    * Skill display name.
@@ -637,51 +630,44 @@ export type PhaseExecution = Message<"ecosystem_manager.v1.PhaseExecution"> & {
   skillName: string;
 
   /**
-   * Steering modes used.
-   *
-   * @generated from field: repeated string modes = 4;
-   */
-  modes: string[];
-
-  /**
    * Whether scope was included.
    *
-   * @generated from field: bool with_scope = 5;
+   * @generated from field: bool with_scope = 4;
    */
   withScope: boolean;
 
   /**
    * Scope skill that was used.
    *
-   * @generated from field: string scope = 6;
+   * @generated from field: string scope = 5;
    */
   scope: string;
 
   /**
    * Number of iterations executed.
    *
-   * @generated from field: int32 iterations = 7;
+   * @generated from field: int32 iterations = 6;
    */
   iterations: number;
 
   /**
    * Metrics at phase start.
    *
-   * @generated from field: ecosystem_manager.v1.MetricsSnapshot start_metrics = 8;
+   * @generated from field: ecosystem_manager.v1.MetricsSnapshot start_metrics = 7;
    */
   startMetrics?: MetricsSnapshot;
 
   /**
    * Metrics at phase end.
    *
-   * @generated from field: ecosystem_manager.v1.MetricsSnapshot end_metrics = 9;
+   * @generated from field: ecosystem_manager.v1.MetricsSnapshot end_metrics = 8;
    */
   endMetrics?: MetricsSnapshot;
 
   /**
    * Git commits made during phase.
    *
-   * @generated from field: repeated string commits = 10;
+   * @generated from field: repeated string commits = 9;
    */
   commits: string[];
 
@@ -689,7 +675,7 @@ export type PhaseExecution = Message<"ecosystem_manager.v1.PhaseExecution"> & {
    * RFC3339 timestamp when phase started.
    * @format rfc3339
    *
-   * @generated from field: string started_at = 11;
+   * @generated from field: string started_at = 10;
    */
   startedAt: string;
 
@@ -697,7 +683,7 @@ export type PhaseExecution = Message<"ecosystem_manager.v1.PhaseExecution"> & {
    * RFC3339 timestamp when phase completed (empty if still running).
    * @format rfc3339
    *
-   * @generated from field: string completed_at = 12;
+   * @generated from field: string completed_at = 11;
    */
   completedAt: string;
 
@@ -705,7 +691,7 @@ export type PhaseExecution = Message<"ecosystem_manager.v1.PhaseExecution"> & {
    * Reason the phase stopped.
    * @constraint one of: max_iterations, condition_met, quality_gate_failed
    *
-   * @generated from field: string stop_reason = 13;
+   * @generated from field: string stop_reason = 12;
    */
   stopReason: string;
 };
@@ -818,11 +804,11 @@ export const ProfileExecutionStateSchema: GenMessage<ProfileExecutionState> = /*
  */
 export type PhasePerformance = Message<"ecosystem_manager.v1.PhasePerformance"> & {
   /**
-   * Skill identifier.
+   * Skill identifiers.
    *
-   * @generated from field: string skill_id = 1;
+   * @generated from field: repeated string skill_ids = 1;
    */
-  skillId: string;
+  skillIds: string[];
 
   /**
    * Skill display name.
@@ -832,37 +818,30 @@ export type PhasePerformance = Message<"ecosystem_manager.v1.PhasePerformance"> 
   skillName: string;
 
   /**
-   * Steering modes used.
-   *
-   * @generated from field: repeated string modes = 3;
-   */
-  modes: string[];
-
-  /**
    * Number of iterations.
    *
-   * @generated from field: int32 iterations = 4;
+   * @generated from field: int32 iterations = 3;
    */
   iterations: number;
 
   /**
    * Metric deltas (metric_name -> change).
    *
-   * @generated from field: map<string, double> metric_deltas = 5;
+   * @generated from field: map<string, double> metric_deltas = 4;
    */
   metricDeltas: { [key: string]: number };
 
   /**
    * Duration in milliseconds.
    *
-   * @generated from field: int64 duration = 6;
+   * @generated from field: int64 duration = 5;
    */
   duration: bigint;
 
   /**
    * Calculated effectiveness score.
    *
-   * @generated from field: double effectiveness = 7;
+   * @generated from field: double effectiveness = 6;
    */
   effectiveness: number;
 };

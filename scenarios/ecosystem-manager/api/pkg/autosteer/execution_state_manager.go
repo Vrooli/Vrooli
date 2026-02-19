@@ -184,9 +184,10 @@ func (m *ExecutionStateManager) RecordPhaseCompletion(state *ProfileExecutionSta
 
 	phaseExecution := PhaseExecution{
 		PhaseID:      phase.ID,
-		SkillID:      phase.SkillID,
+		SkillIDs:     append([]string(nil), phase.SkillIDs...),
 		SkillName:    phase.SkillName,
-		Modes:        append([]string(nil), phase.Modes...),
+		WithScope:    phase.WithScope,
+		Scope:        phase.Scope,
 		Iterations:   state.CurrentPhaseIteration,
 		StartMetrics: state.PhaseStartMetrics,
 		EndMetrics:   state.Metrics,
@@ -229,9 +230,8 @@ func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, 
 		}
 
 		phaseBreakdown[i] = PhasePerformance{
-			SkillID:       phase.SkillID,
+			SkillIDs:      append([]string(nil), phase.SkillIDs...),
 			SkillName:     phase.SkillName,
-			Modes:         append([]string(nil), phase.Modes...),
 			Iterations:    phase.Iterations,
 			MetricDeltas:  calculateMetricDeltas(phase.StartMetrics, phase.EndMetrics),
 			Duration:      duration,

@@ -225,8 +225,8 @@ type PromptPreviewRequest struct {
 	Operation string `protobuf:"bytes,2,opt,name=operation,proto3" json:"operation,omitempty"`
 	// Target name.
 	Target string `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
-	// Optional steering mode.
-	SteerMode     *string `protobuf:"bytes,4,opt,name=steer_mode,json=steerMode,proto3,oneof" json:"steer_mode,omitempty"`
+	// Optional steering skill set.
+	SteerSet      []string `protobuf:"bytes,4,rep,name=steer_set,json=steerSet,proto3" json:"steer_set,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -282,11 +282,11 @@ func (x *PromptPreviewRequest) GetTarget() string {
 	return ""
 }
 
-func (x *PromptPreviewRequest) GetSteerMode() string {
-	if x != nil && x.SteerMode != nil {
-		return *x.SteerMode
+func (x *PromptPreviewRequest) GetSteerSet() []string {
+	if x != nil {
+		return x.SteerSet
 	}
-	return ""
+	return nil
 }
 
 // PromptPreviewResponse returns the assembled prompt preview.
@@ -366,14 +366,12 @@ const file_ecosystem_manager_v1_api_prompts_proto_rawDesc = "" +
 	"\x04path\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\"3\n" +
 	"\x17UpdatePromptFileRequest\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\tR\acontent\"\xd3\x01\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\"\xbd\x01\n" +
 	"\x14PromptPreviewRequest\x12-\n" +
 	"\x04type\x18\x01 \x01(\tB\x19\xbaH\x16r\x14R\bresourceR\bscenarioR\x04type\x128\n" +
 	"\toperation\x18\x02 \x01(\tB\x1a\xbaH\x17r\x15R\tgeneratorR\bimproverR\toperation\x12\x1f\n" +
-	"\x06target\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06target\x12\"\n" +
-	"\n" +
-	"steer_mode\x18\x04 \x01(\tH\x00R\tsteerMode\x88\x01\x01B\r\n" +
-	"\v_steer_mode\"_\n" +
+	"\x06target\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06target\x12\x1b\n" +
+	"\tsteer_set\x18\x04 \x03(\tR\bsteerSet\"_\n" +
 	"\x15PromptPreviewResponse\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x05R\x04size\x12\x1a\n" +
@@ -417,7 +415,6 @@ func file_ecosystem_manager_v1_api_prompts_proto_init() {
 	if File_ecosystem_manager_v1_api_prompts_proto != nil {
 		return
 	}
-	file_ecosystem_manager_v1_api_prompts_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

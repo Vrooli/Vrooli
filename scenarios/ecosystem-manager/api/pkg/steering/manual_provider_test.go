@@ -10,201 +10,99 @@ import (
 func TestManualProvider_Strategy(t *testing.T) {
 	provider := NewManualProvider(nil)
 	if provider.Strategy() != StrategyManual {
-		t.Errorf("Strategy() = %v, want %v", provider.Strategy(), StrategyManual)
+		t.Fatalf("Strategy() = %v, want %v", provider.Strategy(), StrategyManual)
 	}
 }
 
-func TestManualProvider_GetCurrentMode(t *testing.T) {
+func TestManualProvider_GetCurrentSet_ValidAndFallback(t *testing.T) {
 	provider := NewManualProvider(nil)
 
-	task := &tasks.TaskItem{
-		ID:        "task-1",
-		SteerMode: "ux",
-	}
+	t.Run("valid set", func(t *testing.T) {
+		set, err := provider.GetCurrentSet(&tasks.TaskItem{SteerSet: []string{"ux", "test"}})
+		if err != nil {
+			t.Fatalf("GetCurrentSet() error = %v", err)
+		}
+		if len(set) != 2 || set[0] != "ux" || set[1] != "test" {
+			t.Fatalf("GetCurrentSet() = %#v, want [ux test]", set)
+		}
+	})
 
-	mode, err := provider.GetCurrentMode(task)
-	if err != nil {
-		t.Errorf("GetCurrentMode() error = %v", err)
-	}
-	if mode != "ux" {
-		t.Errorf("GetCurrentMode() = %v, want ux", mode)
-	}
-}
+	t.Run("invalid values filtered", func(t *testing.T) {
+		set, err := provider.GetCurrentSet(&tasks.TaskItem{SteerSet: []string{"invalid_xyz", "progress"}})
+		if err != nil {
+			t.Fatalf("GetCurrentSet() error = %v", err)
+		}
+		if len(set) != 1 || set[0] != "progress" {
+			t.Fatalf("GetCurrentSet() = %#v, want [progress]", set)
+		}
+	})
 
-func TestManualProvider_GetCurrentMode_InvalidMode(t *testing.T) {
-	provider := NewManualProvider(nil)
-
-	task := &tasks.TaskItem{
-		ID:        "task-1",
-		SteerMode: "invalid_xyz",
-	}
-
-	mode, err := provider.GetCurrentMode(task)
-	if err != nil {
-		t.Errorf("GetCurrentMode() error = %v", err)
-	}
-	// Should fall back to progress for invalid mode
-	if mode != "progress" {
-		t.Errorf("GetCurrentMode() = %v, want progress (fallback)", mode)
-	}
-}
-
-func TestManualProvider_GetCurrentMode_NilTask(t *testing.T) {
-	provider := NewManualProvider(nil)
-
-	mode, err := provider.GetCurrentMode(nil)
-	if err != nil {
-		t.Errorf("GetCurrentMode() error = %v", err)
-	}
-	// Should fall back to progress for nil task
-	if mode != "progress" {
-		t.Errorf("GetCurrentMode() = %v, want progress (fallback for nil)", mode)
-	}
+	t.Run("fallback progress", func(t *testing.T) {
+		set, err := provider.GetCurrentSet(nil)
+		if err != nil {
+			t.Fatalf("GetCurrentSet() error = %v", err)
+		}
+		if len(set) != 1 || set[0] != string(autosteer.ModeProgress) {
+			t.Fatalf("GetCurrentSet() = %#v, want [progress]", set)
+		}
+	})
 }
 
 func TestManualProvider_EnhancePrompt(t *testing.T) {
-	enhancer := &mockPromptEnhancer{
-		modeSection: "## Test Section\nFocus on progress",
-	}
+	enhancer := &mockPromptEnhancer{skillSetSection: "## Test Section\nFocus"}
 	provider := NewManualProvider(enhancer)
 
-	task := &tasks.TaskItem{
-		ID:        "task-1",
-		SteerMode: "progress",
-	}
-
-	enhancement, err := provider.EnhancePrompt(task)
+	enhancement, err := provider.EnhancePrompt(&tasks.TaskItem{ID: "task-1", SteerSet: []string{"progress", "ux"}})
 	if err != nil {
 		t.Fatalf("EnhancePrompt() error = %v", err)
 	}
 	if enhancement == nil {
-		t.Fatal("EnhancePrompt() returned nil enhancement")
+		t.Fatal("EnhancePrompt() returned nil")
 	}
-	if enhancement.Section != "## Test Section\nFocus on progress" {
-		t.Errorf("EnhancePrompt().Section = %v, want test section", enhancement.Section)
+	if enhancement.Source != "manual:progress,ux" {
+		t.Fatalf("EnhancePrompt().Source = %q, want manual:progress,ux", enhancement.Source)
 	}
-	if enhancement.Source != "manual:progress" {
-		t.Errorf("EnhancePrompt().Source = %v, want manual:progress", enhancement.Source)
-	}
-}
-
-func TestManualProvider_EnhancePrompt_InvalidMode(t *testing.T) {
-	enhancer := &mockPromptEnhancer{
-		modeSection: "## Progress Section\nDefault fallback",
-	}
-	provider := NewManualProvider(enhancer)
-
-	task := &tasks.TaskItem{
-		ID:        "task-1",
-		SteerMode: "invalid_mode_xyz",
-	}
-
-	enhancement, err := provider.EnhancePrompt(task)
-	if err != nil {
-		t.Fatalf("EnhancePrompt() error = %v", err)
-	}
-	if enhancement == nil {
-		t.Fatal("EnhancePrompt() returned nil, should fall back to progress")
-	}
-	// Should fall back to progress mode
-	if enhancement.Source != "manual:progress" {
-		t.Errorf("EnhancePrompt().Source = %v, want manual:progress (fallback)", enhancement.Source)
-	}
-}
-
-func TestManualProvider_EnhancePrompt_NilEnhancer(t *testing.T) {
-	provider := NewManualProvider(nil)
-
-	task := &tasks.TaskItem{
-		ID:        "task-1",
-		SteerMode: "progress",
-	}
-
-	enhancement, err := provider.EnhancePrompt(task)
-	if err != nil {
-		t.Fatalf("EnhancePrompt() error = %v", err)
-	}
-	if enhancement != nil {
-		t.Error("EnhancePrompt() should return nil when promptEnhancer is nil")
-	}
-}
-
-func TestManualProvider_EnhancePrompt_NilTask(t *testing.T) {
-	enhancer := &mockPromptEnhancer{
-		modeSection: "## Progress Section",
-	}
-	provider := NewManualProvider(enhancer)
-
-	enhancement, err := provider.EnhancePrompt(nil)
-	if err != nil {
-		t.Fatalf("EnhancePrompt() error = %v", err)
-	}
-	// Should default to progress mode for nil task
-	if enhancement != nil && enhancement.Source != "manual:progress" {
-		t.Errorf("EnhancePrompt().Source = %v, want manual:progress for nil task", enhancement.Source)
+	if enhancement.Section == "" {
+		t.Fatal("EnhancePrompt().Section should not be empty")
 	}
 }
 
 func TestManualProvider_AfterExecution(t *testing.T) {
 	provider := NewManualProvider(nil)
-
-	task := &tasks.TaskItem{
-		ID:        "task-1",
-		SteerMode: "ux",
-	}
-
-	decision, err := provider.AfterExecution(task, "test-scenario")
+	decision, err := provider.AfterExecution(&tasks.TaskItem{ID: "task-1", SteerSet: []string{"ux"}}, "scenario")
 	if err != nil {
 		t.Fatalf("AfterExecution() error = %v", err)
 	}
-	if decision == nil {
-		t.Fatal("AfterExecution() returned nil decision")
+	if !decision.ShouldRequeue || decision.Exhausted {
+		t.Fatalf("AfterExecution() invalid decision: %#v", decision)
 	}
-	if decision.Mode != "ux" {
-		t.Errorf("AfterExecution().Mode = %v, want ux", decision.Mode)
+	if len(decision.SkillSet) != 1 || decision.SkillSet[0] != "ux" {
+		t.Fatalf("AfterExecution().SkillSet = %#v, want [ux]", decision.SkillSet)
 	}
-	if !decision.ShouldRequeue {
-		t.Error("AfterExecution().ShouldRequeue should be true for manual mode")
-	}
-	if decision.Exhausted {
-		t.Error("AfterExecution().Exhausted should be false (manual never exhausts)")
-	}
-	if decision.Reason != "manual_mode_continues" {
-		t.Errorf("AfterExecution().Reason = %v, want manual_mode_continues", decision.Reason)
+	if decision.Reason != "manual_set_continues" {
+		t.Fatalf("AfterExecution().Reason = %q", decision.Reason)
 	}
 }
 
-func TestManualProvider_Initialize(t *testing.T) {
+func TestManualProvider_NilEnhancer(t *testing.T) {
 	provider := NewManualProvider(nil)
-
-	task := &tasks.TaskItem{
-		ID:        "task-1",
-		SteerMode: "progress",
-	}
-
-	err := provider.Initialize(task)
+	enhancement, err := provider.EnhancePrompt(&tasks.TaskItem{SteerSet: []string{"progress"}})
 	if err != nil {
-		t.Errorf("Initialize() error = %v, want nil (no-op)", err)
+		t.Fatalf("EnhancePrompt() error = %v", err)
+	}
+	if enhancement != nil {
+		t.Fatal("EnhancePrompt() expected nil when no enhancer")
 	}
 }
 
-func TestManualProvider_Reset(t *testing.T) {
-	provider := NewManualProvider(nil)
-
-	err := provider.Reset("task-1")
-	if err != nil {
-		t.Errorf("Reset() error = %v, want nil (no-op)", err)
-	}
-}
-
-// mockPromptEnhancer is a test double for autosteer.PromptEnhancerAPI
+// mockPromptEnhancer is a test double for autosteer.PromptEnhancerAPI.
 type mockPromptEnhancer struct {
-	modeSection      string
+	skillSetSection  string
 	autoSteerSection string
 }
 
-func (m *mockPromptEnhancer) GenerateModeSection(mode autosteer.SteerMode) string {
-	return m.modeSection
+func (m *mockPromptEnhancer) GenerateSkillSetSection(skillIDs []string, withScope bool, scope string) string {
+	return m.skillSetSection
 }
 
 func (m *mockPromptEnhancer) GenerateAutoSteerSection(state *autosteer.ProfileExecutionState, profile *autosteer.AutoSteerProfile, evaluator autosteer.ConditionEvaluatorAPI) string {

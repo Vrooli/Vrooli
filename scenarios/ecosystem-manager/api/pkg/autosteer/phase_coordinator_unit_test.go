@@ -14,10 +14,10 @@ type MockConditionEvaluator struct {
 	FormatResult string
 
 	// Call tracking
-	EvaluateCalls       int
+	EvaluateCalls        int
 	FormatConditionCalls int
-	LastCondition       StopCondition
-	LastMetrics         MetricsSnapshot
+	LastCondition        StopCondition
+	LastMetrics          MetricsSnapshot
 }
 
 func (m *MockConditionEvaluator) Evaluate(condition StopCondition, metrics MetricsSnapshot) (bool, error) {
@@ -41,7 +41,7 @@ func TestPhaseCoordinator_ShouldAdvancePhase_MaxIterations(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		SkillID:       "progress",
+		SkillIDs:      []string{"progress"},
 		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{
@@ -72,7 +72,7 @@ func TestPhaseCoordinator_ShouldAdvancePhase_ConditionMet(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		SkillID:       "progress",
+		SkillIDs:      []string{"progress"},
 		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{
@@ -102,7 +102,7 @@ func TestPhaseCoordinator_ShouldAdvancePhase_Continue(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		SkillID:       "progress",
+		SkillIDs:      []string{"progress"},
 		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{
@@ -131,7 +131,7 @@ func TestPhaseCoordinator_ShouldAdvancePhase_UnavailableMetric(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		SkillID:       "progress",
+		SkillIDs:      []string{"progress"},
 		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{

@@ -7,8 +7,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
-// ManualProvider implements steering for tasks with a manually-selected mode.
-// The mode is stored on the task's SteerMode field and repeats indefinitely.
+// ManualProvider implements steering for tasks with a manually-selected skill set.
 type ManualProvider struct {
 	promptEnhancer autosteer.PromptEnhancerAPI
 }
@@ -28,52 +27,58 @@ func (p *ManualProvider) Strategy() SteeringStrategy {
 	return StrategyManual
 }
 
-// GetCurrentMode returns the mode from the task's SteerMode field.
-// Falls back to Progress if the mode is invalid.
-func (p *ManualProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
-	return p.getModeFromTask(task), nil
+// GetCurrentSet returns the skill set from task.SteerSet.
+func (p *ManualProvider) GetCurrentSet(task *tasks.TaskItem) ([]string, error) {
+	return p.getSkillSetFromTask(task), nil
 }
 
-// getModeFromTask extracts and validates the steering mode from a task.
-func (p *ManualProvider) getModeFromTask(task *tasks.TaskItem) autosteer.SteerMode {
+func (p *ManualProvider) getSkillSetFromTask(task *tasks.TaskItem) []string {
 	if task == nil {
-		return autosteer.ModeProgress
+		return []string{string(autosteer.ModeProgress)}
 	}
-
-	mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(task.SteerMode)))
-	if !mode.IsValid() {
-		return autosteer.ModeProgress
+	out := make([]string, 0, len(task.SteerSet))
+	for _, raw := range task.SteerSet {
+		normalized := strings.ToLower(strings.TrimSpace(raw))
+		if normalized == "" {
+			continue
+		}
+		if !autosteer.SteerMode(normalized).IsValid() {
+			continue
+		}
+		out = append(out, normalized)
 	}
-	return mode
+	if len(out) == 0 {
+		return []string{string(autosteer.ModeProgress)}
+	}
+	return out
 }
 
-// EnhancePrompt generates a mode section for the task's configured SteerMode.
+// EnhancePrompt generates a steering section for the task's configured SteerSet.
 func (p *ManualProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement, error) {
 	if p.promptEnhancer == nil {
 		return nil, nil
 	}
 
-	mode := p.getModeFromTask(task)
-	section := p.promptEnhancer.GenerateModeSection(mode)
+	skillSet := p.getSkillSetFromTask(task)
+	section := generateSectionFromSet(p.promptEnhancer, skillSet, false, "")
 	if section == "" {
 		return nil, nil
 	}
 
 	return &PromptEnhancement{
 		Section: section,
-		Source:  "manual:" + string(mode),
+		Source:  "manual:" + strings.Join(skillSet, ","),
 	}, nil
 }
 
-// AfterExecution always indicates the task can continue with the same mode.
-// Manual mode never exhausts - it repeats indefinitely.
+// AfterExecution always indicates the task can continue with the same set.
 func (p *ManualProvider) AfterExecution(task *tasks.TaskItem, scenarioName string) (*SteeringDecision, error) {
-	mode := p.getModeFromTask(task)
+	skillSet := p.getSkillSetFromTask(task)
 	return &SteeringDecision{
-		Mode:          mode,
+		SkillSet:      skillSet,
 		ShouldRequeue: true,
 		Exhausted:     false,
-		Reason:        "manual_mode_continues",
+		Reason:        "manual_set_continues",
 	}, nil
 }
 

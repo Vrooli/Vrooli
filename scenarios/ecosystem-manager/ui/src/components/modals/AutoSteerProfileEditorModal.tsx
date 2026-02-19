@@ -21,7 +21,7 @@ import { useCreateAutoSteerProfile, useUpdateAutoSteerProfile } from '@/hooks/us
 import type { AutoSteerProfile } from '@/types/api';
 import { PhaseList } from './autosteer/PhaseList';
 import { TagEditor } from './autosteer/TagEditor';
-import { getApiErrorMessage, normalizeSteerMode } from '@/lib/utils';
+import { getApiErrorMessage, normalizeSkillId } from '@/lib/utils';
 
 interface AutoSteerProfileEditorModalProps {
   open: boolean;
@@ -41,7 +41,7 @@ function normalizeProfileModes(source: Partial<AutoSteerProfile>): Partial<AutoS
   if (clone.phases) {
     clone.phases = clone.phases.map((phase) => ({
       ...phase,
-      skill_id: normalizeSteerMode(phase.skill_id),
+      skill_ids: (phase.skill_ids ?? []).map((skillId) => normalizeSkillId(skillId)).filter(Boolean),
       skill_name: phase.skill_name?.trim() ?? '',
       modes: (phase.modes ?? []).map((mode) => mode.trim()).filter(Boolean),
     }));
@@ -105,8 +105,8 @@ export function AutoSteerProfileEditorModal({
 
     // Validate each phase
     for (const phase of normalizedProfile.phases) {
-      if (!phase.skill_id || !phase.skill_name) {
-        alert('Each phase must have a skill selected');
+      if (!phase.skill_ids || phase.skill_ids.length === 0) {
+        alert('Each phase must have at least one skill selected');
         return;
       }
       if (!phase.max_iterations || phase.max_iterations < 1) {

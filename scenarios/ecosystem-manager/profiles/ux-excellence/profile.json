@@ -5,7 +5,7 @@
   "phases": [
     {
       "id": "ux-excellence-progress",
-      "skill_id": "progress",
+      "skill_ids": ["progress"],
       "skill_name": "Progress",
       "modes": [],
       "stop_conditions": [
@@ -20,7 +20,7 @@
     },
     {
       "id": "ux-excellence-explore",
-      "skill_id": "explore",
+      "skill_ids": ["explore"],
       "skill_name": "Explore",
       "modes": [],
       "stop_conditions": [
@@ -36,7 +36,7 @@
     },
     {
       "id": "ux-excellence-ux",
-      "skill_id": "ux",
+      "skill_ids": ["ux"],
       "skill_name": "UX",
       "modes": [],
       "stop_conditions": [
@@ -69,7 +69,7 @@
     },
     {
       "id": "ux-excellence-performance",
-      "skill_id": "performance",
+      "skill_ids": ["performance"],
       "skill_name": "Performance",
       "modes": [],
       "stop_conditions": [
@@ -85,7 +85,7 @@
     },
     {
       "id": "ux-excellence-polish",
-      "skill_id": "polish",
+      "skill_ids": ["polish"],
       "skill_name": "Polish",
       "modes": [],
       "stop_conditions": [
@@ -100,7 +100,7 @@
     },
     {
       "id": "ux-excellence-test",
-      "skill_id": "test",
+      "skill_ids": ["test"],
       "skill_name": "Test",
       "modes": [],
       "stop_conditions": [

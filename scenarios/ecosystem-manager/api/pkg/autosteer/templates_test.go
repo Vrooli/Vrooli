@@ -57,8 +57,8 @@ func validatePhase(t *testing.T, phase SteerPhase, index int, templateName strin
 	}
 
 	// Validate skill identifiers
-	if phase.SkillID == "" {
-		t.Errorf("%s: missing skill_id", prefix())
+	if firstSkill(phase.SkillIDs) == "" {
+		t.Errorf("%s: missing skill_ids", prefix())
 	}
 	if phase.SkillName == "" {
 		t.Errorf("%s: missing skill_name", prefix())
@@ -168,6 +168,13 @@ func newValidationError(format string, args ...interface{}) error {
 	return &validationError{format: format, args: args}
 }
 
+func firstSkill(skillIDs []string) string {
+	if len(skillIDs) == 0 {
+		return ""
+	}
+	return skillIDs[0]
+}
+
 type validationError struct {
 	format string
 	args   []interface{}
@@ -200,7 +207,7 @@ func TestTemplates_BalancedTemplate(t *testing.T) {
 	// Should include progress phase
 	hasProgress := false
 	for _, phase := range template.Phases {
-		if phase.SkillID == "progress" {
+		if firstSkill(phase.SkillIDs) == "progress" {
 			hasProgress = true
 			break
 		}
@@ -223,7 +230,7 @@ func TestTemplates_RapidMVPTemplate(t *testing.T) {
 	}
 
 	// Should start with progress phase
-	if len(template.Phases) > 0 && template.Phases[0].SkillID != "progress" {
+	if len(template.Phases) > 0 && firstSkill(template.Phases[0].SkillIDs) != "progress" {
 		t.Error("Expected Rapid MVP to start with Progress phase")
 	}
 
@@ -251,10 +258,10 @@ func TestTemplates_ProductionReadyTemplate(t *testing.T) {
 	hasSecurity := false
 	hasTesting := false
 	for _, phase := range template.Phases {
-		if phase.SkillID == "security" {
+		if firstSkill(phase.SkillIDs) == "security" {
 			hasSecurity = true
 		}
-		if phase.SkillID == "test" {
+		if firstSkill(phase.SkillIDs) == "test" {
 			hasTesting = true
 		}
 	}
@@ -283,10 +290,10 @@ func TestTemplates_RefactorTestFocusTemplate(t *testing.T) {
 	hasTest := false
 	hasRefactor := false
 	for _, phase := range template.Phases {
-		if phase.SkillID == "test" {
+		if firstSkill(phase.SkillIDs) == "test" {
 			hasTest = true
 		}
-		if phase.SkillID == "refactor" {
+		if firstSkill(phase.SkillIDs) == "refactor" {
 			hasRefactor = true
 		}
 	}
@@ -310,7 +317,7 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 	hasUX := false
 	uxPhaseIndex := -1
 	for i, phase := range template.Phases {
-		if phase.SkillID == "ux" {
+		if firstSkill(phase.SkillIDs) == "ux" {
 			hasUX = true
 			uxPhaseIndex = i
 			break
@@ -332,7 +339,7 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 	// Should likely include explore phase for creativity
 	hasExplore := false
 	for _, phase := range template.Phases {
-		if phase.SkillID == "explore" {
+		if firstSkill(phase.SkillIDs) == "explore" {
 			hasExplore = true
 			break
 		}
@@ -349,7 +356,7 @@ func TestTemplates_ModeCoverage(t *testing.T) {
 	modeUsage := make(map[string]int)
 	for _, template := range templates {
 		for _, phase := range template.Phases {
-			modeUsage[phase.SkillID]++
+			modeUsage[firstSkill(phase.SkillIDs)]++
 		}
 	}
 

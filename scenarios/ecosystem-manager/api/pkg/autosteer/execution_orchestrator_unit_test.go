@@ -20,7 +20,7 @@ func TestStartExecution_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	if err := profileRepo.CreateProfile(profile); err != nil {
@@ -103,7 +103,7 @@ func TestStartExecution_MetricsCollectionError(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -224,8 +224,8 @@ func TestAdvancePhase_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
-			{ID: "phase-2", SkillID: "refactor", SkillName: "Refactor", MaxIterations: 3},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-2", SkillIDs: []string{"refactor"}, SkillName: "Refactor", MaxIterations: 3},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -277,7 +277,7 @@ func TestAdvancePhase_CompleteExecution(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -325,7 +325,7 @@ func TestGetEnhancedPrompt_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -359,8 +359,8 @@ func TestGetEnhancedPrompt_Success(t *testing.T) {
 	}
 }
 
-// TestGenerateModeSection_DelegatesToPromptEnhancer tests mode section generation.
-func TestGenerateModeSection_DelegatesToPromptEnhancer(t *testing.T) {
+// TestGenerateSkillSetSection_DelegatesToPromptEnhancer tests skill-set section generation.
+func TestGenerateSkillSetSection_DelegatesToPromptEnhancer(t *testing.T) {
 	stateRepo := NewMockExecutionStateRepository()
 	profileRepo := NewMockProfileRepository()
 	metricsProvider := NewMockMetricsProvider()
@@ -368,7 +368,7 @@ func TestGenerateModeSection_DelegatesToPromptEnhancer(t *testing.T) {
 	iterEval := NewMockIterationEvaluatorAPI()
 	promptEnhancer := NewMockPromptEnhancerAPI()
 
-	promptEnhancer.ModeSectionResult = "## Progress Mode\nFocus on progress."
+	promptEnhancer.SkillSetSectionResult = "## Progress Mode\nFocus on progress."
 
 	orch := NewExecutionOrchestrator(
 		stateRepo,
@@ -379,13 +379,13 @@ func TestGenerateModeSection_DelegatesToPromptEnhancer(t *testing.T) {
 		promptEnhancer,
 	)
 
-	result := orch.GenerateModeSection(ModeProgress)
+	result := orch.GenerateSkillSetSection([]string{"progress"}, false, "")
 
 	if result != "## Progress Mode\nFocus on progress." {
 		t.Errorf("expected mocked mode section, got '%s'", result)
 	}
-	if promptEnhancer.LastMode != ModeProgress {
-		t.Errorf("expected LastMode to be ModeProgress, got '%s'", promptEnhancer.LastMode)
+	if len(promptEnhancer.LastSkillSet) != 1 || promptEnhancer.LastSkillSet[0] != "progress" {
+		t.Errorf("expected LastSkillSet to be [progress], got '%v'", promptEnhancer.LastSkillSet)
 	}
 }
 

@@ -27,18 +27,19 @@ func (p *NoneProvider) Strategy() SteeringStrategy {
 	return StrategyNone
 }
 
-// GetCurrentMode returns Progress as the default mode.
-func (p *NoneProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
-	return autosteer.ModeProgress, nil
+// GetCurrentSet returns Progress as the default skill set.
+func (p *NoneProvider) GetCurrentSet(task *tasks.TaskItem) ([]string, error) {
+	return []string{string(autosteer.ModeProgress)}, nil
 }
 
-// EnhancePrompt generates a Progress mode section for the prompt.
+// EnhancePrompt generates a Progress section for the prompt.
 func (p *NoneProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement, error) {
 	if p.promptEnhancer == nil {
 		return nil, nil
 	}
 
-	section := p.promptEnhancer.GenerateModeSection(autosteer.ModeProgress)
+	skillSet := []string{string(autosteer.ModeProgress)}
+	section := generateSectionFromSet(p.promptEnhancer, skillSet, false, "")
 	if section == "" {
 		return nil, nil
 	}
@@ -53,7 +54,7 @@ func (p *NoneProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement, 
 // Actual continuation is controlled by ProcessorAutoRequeue on the task.
 func (p *NoneProvider) AfterExecution(task *tasks.TaskItem, scenarioName string) (*SteeringDecision, error) {
 	return &SteeringDecision{
-		Mode:          autosteer.ModeProgress,
+		SkillSet:      []string{string(autosteer.ModeProgress)},
 		ShouldRequeue: true,
 		Exhausted:     false,
 		Reason:        "none_strategy_continues",

@@ -40,7 +40,7 @@ func TestIterationEvaluator_Evaluate_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -99,7 +99,7 @@ func TestIterationEvaluator_Evaluate_ShouldStop(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -145,7 +145,7 @@ func TestIterationEvaluator_Evaluate_AllPhasesCompleted(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -185,7 +185,7 @@ func TestIterationEvaluator_Evaluate_MetricsError(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -238,7 +238,7 @@ func TestIterationEvaluator_EvaluateWithoutMetrics_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -315,7 +315,7 @@ func TestIterationEvaluator_StateUpdatedCorrectly(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 10},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 10},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)

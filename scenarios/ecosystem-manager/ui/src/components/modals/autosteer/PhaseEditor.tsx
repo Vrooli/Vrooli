@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { AVAILABLE_METRICS } from './ConditionNode';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { PhasePicker } from '@/components/steer/PhasePicker';
-import { getPhaseDisplayName } from '@/lib/utils';
+import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
 
 interface PhaseEditorProps {
   phase: AutoSteerPhase;
@@ -30,13 +30,6 @@ interface PhaseEditorProps {
   onToggleCollapse?: () => void;
   dragHandleProps?: HTMLAttributes<HTMLButtonElement>;
   isDragging?: boolean;
-}
-
-function toTitleCase(str: string): string {
-  return str
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
 }
 
 export function PhaseEditor({
@@ -57,7 +50,7 @@ export function PhaseEditor({
   const [isConditionBuilderOpen, setIsConditionBuilderOpen] = useState(false);
   const { data: phaseNames = [], isLoading: phasesLoading } = useMergedPhaseNames();
 
-  const updateField = (field: keyof AutoSteerPhase, value: any) => {
+  const updateField = (field: keyof AutoSteerPhase, value: unknown) => {
     onChange({ ...phase, [field]: value });
   };
 
@@ -69,30 +62,23 @@ export function PhaseEditor({
   const conditionCount = phase.stop_conditions?.length || 0;
   const conditionSummary = (phase.stop_conditions || []).map((condition) => summarizeCondition(condition));
 
-  const selectedPhase = phase.skill_id ? phaseNames.find((p) => p.id === phase.skill_id) : undefined;
-  const modeLabel =
-    phase.skill_name || getPhaseDisplayName(phase.skill_id, phaseNames) || 'Select a phase';
-  const modeDescription = selectedPhase?.description || `Phase: ${modeLabel}`;
+  const selectedSkills = phase.skill_ids ?? [];
+  const modeLabel = formatSkillSetLabel(selectedSkills, phaseNames, {
+    maxVisible: isCollapsed ? 1 : 2,
+    emptyLabel: 'Select skills',
+  });
+  const modeDescription =
+    phase.description ||
+    formatSkillSetTooltip(selectedSkills, phaseNames) ||
+    `Skill set: ${modeLabel}`;
   const maxIterations = phase.max_iterations || 10;
 
-  const handlePhaseSelect = (phaseId?: string) => {
-    if (!phaseId) {
-      onChange({ ...phase, skill_id: '', skill_name: '', modes: [] });
-      return;
-    }
-
-    const selected = phaseNames.find((p) => p.id === phaseId);
-    const displayName = getPhaseDisplayName(phaseId, phaseNames) ?? '';
-    if (!selected) {
-      onChange({ ...phase, skill_id: phaseId, skill_name: displayName, modes: [] });
-      return;
-    }
-
+  const handlePhaseSelect = (skillIds: string[]) => {
     onChange({
       ...phase,
-      skill_id: selected.id,
-      skill_name: selected.name,
-      modes: selected.modes ?? [],
+      skill_ids: skillIds,
+      skill_name: formatSkillSetLabel(skillIds, phaseNames, { maxVisible: 1, emptyLabel: '' }),
+      modes: [],
     });
   };
 
@@ -134,7 +120,6 @@ export function PhaseEditor({
 
   return (
     <div className={containerClasses}>
-      {/* Header */}
       <div
         className="flex items-center justify-between gap-3"
         onClick={onToggleCollapse ? handleToggleCollapse : undefined}
@@ -157,15 +142,16 @@ export function PhaseEditor({
 
           {isCollapsed && (
             <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap" onClick={stopPropagation}>
-              <div className="min-w-[180px] flex-1">
+              <div className="min-w-[220px] flex-1">
                 <PhasePicker
-                  value={phase.skill_id}
+                  values={selectedSkills}
                   onChange={handlePhaseSelect}
                   phaseNames={phaseNames}
                   isLoading={phasesLoading}
-                  placeholder="Select a phase"
-                  dialogTitle="Select Phase Mode"
-                  dialogDescription="Choose a steering phase for this profile step."
+                  selectionMode="multiple"
+                  placeholder="Select skills"
+                  dialogTitle="Select Phase Skills"
+                  dialogDescription="Choose one or more steering skills for this phase."
                   variant="compact"
                 />
               </div>
@@ -254,21 +240,21 @@ export function PhaseEditor({
             Use the arrows to reorder phases; duplicate to branch small variations quickly.
           </p>
 
-          {/* Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Mode *</Label>
+              <Label>Skills *</Label>
               <PhasePicker
-                value={phase.skill_id}
+                values={selectedSkills}
                 onChange={handlePhaseSelect}
                 phaseNames={phaseNames}
                 isLoading={phasesLoading}
-                placeholder="Select a phase"
-                dialogTitle="Select Phase Mode"
-                dialogDescription="Choose a steering phase for this profile step."
+                selectionMode="multiple"
+                placeholder="Select skills"
+                dialogTitle="Select Phase Skills"
+                dialogDescription="Choose one or more steering skills for this phase."
               />
               {modeDescription && (
-                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{modeDescription}</p>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-2" title={modeDescription}>{modeDescription}</p>
               )}
             </div>
 
@@ -310,7 +296,6 @@ export function PhaseEditor({
             />
           </div>
 
-          {/* Stop Conditions */}
           <div>
             <Label>Stop Conditions</Label>
             <div className="flex items-center gap-2">
@@ -344,7 +329,6 @@ export function PhaseEditor({
         </>
       )}
 
-      {/* Condition Builder Modal */}
       <ConditionBuilderModal
         open={isConditionBuilderOpen}
         onOpenChange={setIsConditionBuilderOpen}
@@ -358,18 +342,16 @@ export function PhaseEditor({
 function summarizeCondition(condition: any): string {
   if (!condition) return 'Unknown condition';
 
-  if (condition.type === 'simple') {
-    const metricLabel =
-      AVAILABLE_METRICS.find((m) => m.value === condition.metric)?.label ||
-      condition.metric ||
-      'Metric';
-    return `${metricLabel} ${condition.compare_operator || '>'} ${condition.value ?? 0}`;
+  if (condition.type === 'compound') {
+    const operator = condition.operator || 'AND';
+    const nested = Array.isArray(condition.conditions) ? condition.conditions.length : 0;
+    return `${operator} group with ${nested} condition${nested === 1 ? '' : 's'}`;
   }
 
-  if (condition.type === 'compound' && condition.conditions?.length) {
-    const inner = condition.conditions.map((child: any) => summarizeCondition(child)).join(' • ');
-    return `${condition.operator || 'AND'}: ${inner}`;
-  }
-
-  return 'Empty condition';
+  const metric = condition.metric || 'metric';
+  const metricMeta = AVAILABLE_METRICS.find((item) => item.value === metric);
+  const metricLabel = metricMeta?.label || metric;
+  const operator = condition.compare_operator || condition.operator || '=';
+  const value = condition.value ?? '0';
+  return `${metricLabel} ${operator} ${value}`;
 }

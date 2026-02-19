@@ -2,6 +2,7 @@ package steering
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -19,8 +20,8 @@ type AutoSteerIntegrationAPI interface {
 	// ShouldContinueTask determines if a task should continue (requeue) after execution.
 	ShouldContinueTask(task *tasks.TaskItem, scenarioName string) (bool, error)
 
-	// GetCurrentMode returns the current Auto Steer mode for a task.
-	GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error)
+	// GetCurrentSet returns the current Auto Steer skill set for a task.
+	GetCurrentSet(task *tasks.TaskItem) ([]string, error)
 
 	// ExecutionOrchestrator returns the underlying orchestrator for advanced operations.
 	ExecutionOrchestrator() *autosteer.ExecutionOrchestrator
@@ -47,12 +48,12 @@ func (p *ProfileProvider) Strategy() SteeringStrategy {
 	return StrategyProfile
 }
 
-// GetCurrentMode returns the current mode from the Auto Steer profile.
-func (p *ProfileProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
+// GetCurrentSet returns the current skill set from the Auto Steer profile.
+func (p *ProfileProvider) GetCurrentSet(task *tasks.TaskItem) ([]string, error) {
 	if p.integration == nil || task == nil {
-		return "", nil
+		return nil, nil
 	}
-	return p.integration.GetCurrentMode(task)
+	return p.integration.GetCurrentSet(task)
 }
 
 // EnhancePrompt delegates to AutoSteerIntegration for profile-based prompt enhancement.
@@ -77,11 +78,11 @@ func (p *ProfileProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancemen
 		return nil, nil
 	}
 
-	// Get current mode for source attribution
-	mode, _ := orchestrator.GetCurrentMode(task.ID)
+	// Get current set for source attribution
+	skillSet, _ := orchestrator.GetCurrentSet(task.ID)
 	source := "profile"
-	if mode != "" {
-		source = "profile:" + string(mode)
+	if len(skillSet) > 0 {
+		source = "profile:" + strings.Join(skillSet, ",")
 	}
 
 	return &PromptEnhancement{
@@ -105,11 +106,11 @@ func (p *ProfileProvider) AfterExecution(task *tasks.TaskItem, scenarioName stri
 		return nil, fmt.Errorf("profile evaluation failed: %w", err)
 	}
 
-	mode, _ := p.integration.GetCurrentMode(task)
+	skillSet, _ := p.GetCurrentSet(task)
 
 	if !shouldContinue {
 		return &SteeringDecision{
-			Mode:          mode,
+			SkillSet:      skillSet,
 			ShouldRequeue: false,
 			Exhausted:     true,
 			Reason:        "profile_completed",
@@ -117,7 +118,7 @@ func (p *ProfileProvider) AfterExecution(task *tasks.TaskItem, scenarioName stri
 	}
 
 	return &SteeringDecision{
-		Mode:          mode,
+		SkillSet:      skillSet,
 		ShouldRequeue: true,
 		Exhausted:     false,
 		Reason:        "profile_continues",

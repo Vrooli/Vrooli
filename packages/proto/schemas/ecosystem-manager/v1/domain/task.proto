@@ -25,6 +25,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-ma
 //
 // =============================================================================
 
+message SteerSet {
+  repeated string skill_ids = 1;
+}
+
 // Task represents a unified task in the ecosystem.
 message Task {
   // Unique task identifier.
@@ -138,15 +142,14 @@ message Task {
   // Whether the processor should auto-requeue after completion.
   bool processor_auto_requeue = 31;
 
-  // Manual steering mode when Auto Steer profile is not set.
-  // @constraint built-in: progress, ux, refactor, test, explore, polish, performance, security (plus custom)
-  string steer_mode = 32;
+  // Manual steering skill set when Auto Steer profile is not set.
+  repeated string steer_set = 32;
 
   // Auto Steer profile ID to use.
   string auto_steer_profile_id = 33;
 
-  // Ordered list of modes for queue steering.
-  repeated string steering_queue = 34;
+  // Ordered list of steering skill sets for queue steering.
+  repeated SteerSet steering_queue = 34;
 }
 
 // ProcessInfo contains information about a running agent process.

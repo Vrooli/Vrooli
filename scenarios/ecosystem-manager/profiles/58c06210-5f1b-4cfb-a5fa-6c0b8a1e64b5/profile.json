@@ -5,7 +5,7 @@
   "phases": [
     {
       "id": "phase-1769528342943-0",
-      "skill_id": "react-stability",
+      "skill_ids": ["react-stability"],
       "skill_name": "React Stability",
       "modes": [
         "React"
@@ -15,7 +15,7 @@
     },
     {
       "id": "phase-1769543424868-1",
-      "skill_id": "react-coherence",
+      "skill_ids": ["react-coherence"],
       "skill_name": "React Coherence",
       "modes": [
         "React"
@@ -25,7 +25,7 @@
     },
     {
       "id": "phase-1769543458065-2",
-      "skill_id": "code-cleanup",
+      "skill_ids": ["code-cleanup"],
       "skill_name": "Code Cleanup",
       "modes": [
         "Cleanup"
@@ -35,7 +35,7 @@
     },
     {
       "id": "phase-1769543533546-3",
-      "skill_id": "utils-unification",
+      "skill_ids": ["utils-unification"],
       "skill_name": "Utils Unification",
       "modes": [
         "Architecture",

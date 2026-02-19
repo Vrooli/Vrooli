@@ -160,7 +160,7 @@ type executionDetailData struct {
 	Output       string
 	LastMessage  string
 	Prompt       string
-	SteerMode    string
+	SteerSet     []string
 	SteerProfile string
 	SteerPhase   int
 	SteerIter    int
@@ -176,7 +176,7 @@ func (qp *Processor) loadExecutionDetails(executions []ExecutionHistory) ([]exec
 			ExitReason:   exec.ExitReason,
 			Duration:     exec.Duration,
 			StartTime:    exec.StartTime,
-			SteerMode:    exec.SteerMode,
+			SteerSet:     exec.SteerSkillIDs,
 			SteerProfile: exec.AutoSteerProfileID,
 			SteerPhase:   exec.SteerPhaseIndex,
 			SteerIter:    exec.SteerPhaseIteration,
@@ -301,8 +301,8 @@ func buildExecutionDetails(details []executionDetailData) string {
 		if detail.SteerProfile != "" {
 			buf.WriteString(fmt.Sprintf("**Auto Steer**: Profile %s, Phase %d, Iteration %d\n",
 				detail.SteerProfile, detail.SteerPhase, detail.SteerIter))
-		} else if detail.SteerMode != "" {
-			buf.WriteString(fmt.Sprintf("**Steering**: %s\n", detail.SteerMode))
+		} else if len(detail.SteerSet) > 0 {
+			buf.WriteString(fmt.Sprintf("**Steering**: %s\n", strings.Join(detail.SteerSet, ", ")))
 		}
 
 		if detail.LastMessage != "" {

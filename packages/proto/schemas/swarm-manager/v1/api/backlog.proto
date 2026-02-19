@@ -147,10 +147,10 @@ message QueueBacklogItemRequest {
 // QueueBacklogItemResponse returns queue results.
 message QueueBacklogItemResponse {
   BacklogItem item = 1;
-  string task_id = 2 [(buf.validate.field).string.min_len = 1];
-  string run_id = 3 [(buf.validate.field).string.min_len = 1];
-  string base_url = 4 [(buf.validate.field).string.min_len = 1];
-  string created = 5 [(buf.validate.field).string.min_len = 1];
+  string task_id = 2;
+  string run_id = 3;
+  string base_url = 4;
+  string created = 5;
   // True when request ran in preview mode and no mutation occurred.
   bool dry_run = 6;
   // True when a queue mutation actually occurred.

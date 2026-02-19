@@ -326,8 +326,8 @@ func (em *ExecutionManager) enrichSteeringMetadataProfile(task *tasks.TaskItem, 
 				history.SteeringSource = "auto_steer"
 			}
 
-			if mode, err := orchestrator.GetCurrentMode(task.ID); err == nil && mode != "" {
-				history.SteerMode = string(mode)
+			if skillSet, err := orchestrator.GetCurrentSet(task.ID); err == nil && len(skillSet) > 0 {
+				history.SteerSkillIDs = append([]string(nil), skillSet...)
 				if history.SteeringSource == "none" {
 					history.SteeringSource = "auto_steer"
 				}
@@ -343,9 +343,9 @@ func (em *ExecutionManager) enrichSteeringMetadataQueue(task *tasks.TaskItem, hi
 		return
 	}
 
-	mode, err := provider.GetCurrentMode(task)
-	if err == nil && mode != "" {
-		history.SteerMode = string(mode)
+	skillSet, err := getCurrentSet(provider, task)
+	if err == nil && len(skillSet) > 0 {
+		history.SteerSkillIDs = append([]string(nil), skillSet...)
 	}
 	history.SteeringSource = "steering_queue"
 
@@ -354,7 +354,7 @@ func (em *ExecutionManager) enrichSteeringMetadataQueue(task *tasks.TaskItem, hi
 		if state, err := qp.GetQueueState(task.ID); err == nil && state != nil {
 			history.SteerPhaseIndex = state.CurrentIndex + 1
 			history.SteerPhaseIteration = 1
-			history.SteeringQueueTotal = len(state.Queue)
+			history.SteeringQueueTotal = len(task.SteeringQueue)
 			return
 		}
 	}
@@ -364,14 +364,27 @@ func (em *ExecutionManager) enrichSteeringMetadataQueue(task *tasks.TaskItem, hi
 	history.SteerPhaseIteration = 1
 }
 
+func getCurrentSet(provider steering.SteeringProvider, task *tasks.TaskItem) ([]string, error) {
+	if provider == nil {
+		return nil, nil
+	}
+	return provider.GetCurrentSet(task)
+}
+
 // enrichSteeringMetadataManual populates history for manual steering.
 func (em *ExecutionManager) enrichSteeringMetadataManual(task *tasks.TaskItem, history *ExecutionHistory) {
-	mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(task.SteerMode)))
-	if mode.IsValid() {
-		history.SteerMode = string(mode)
-		history.SteeringSource = "manual_mode"
+	normalizedSet := make([]string, 0, len(task.SteerSet))
+	for _, skillID := range task.SteerSet {
+		normalized := strings.ToLower(strings.TrimSpace(skillID))
+		if normalized != "" {
+			normalizedSet = append(normalizedSet, normalized)
+		}
+	}
+	if len(normalizedSet) > 0 {
+		history.SteerSkillIDs = normalizedSet
+		history.SteeringSource = "manual_set"
 	} else {
-		history.SteerMode = string(autosteer.ModeProgress)
+		history.SteerSkillIDs = []string{string(autosteer.ModeProgress)}
 		history.SteeringSource = "default_progress"
 	}
 	history.SteerPhaseIndex = 1
@@ -380,7 +393,7 @@ func (em *ExecutionManager) enrichSteeringMetadataManual(task *tasks.TaskItem, h
 
 // enrichSteeringMetadataNone populates history when no steering is configured.
 func (em *ExecutionManager) enrichSteeringMetadataNone(task *tasks.TaskItem, history *ExecutionHistory) {
-	history.SteerMode = string(autosteer.ModeProgress)
+	history.SteerSkillIDs = []string{string(autosteer.ModeProgress)}
 	history.SteeringSource = "default_progress"
 	history.SteerPhaseIndex = 1
 	history.SteerPhaseIteration = 1

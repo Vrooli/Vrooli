@@ -35,10 +35,11 @@ type ExecutionHistory struct {
 	TranscriptPath      string    `json:"transcript_path,omitempty"`       // Relative path to transcript JSONL (if available)
 	AutoSteerProfileID  string    `json:"auto_steer_profile_id,omitempty"` // Active Auto Steer profile at execution time
 	AutoSteerIteration  int       `json:"auto_steer_iteration,omitempty"`  // Global iteration counter for Auto Steer
-	SteerMode           string    `json:"steer_mode,omitempty"`            // Active steering mode (phase)
+	SteerSkillIDs       []string  `json:"steer_skill_ids,omitempty"`       // Active steering skill set (phase)
+	SteerSetLabel       string    `json:"steer_set_label,omitempty"`       // Optional label for display
 	SteerPhaseIndex     int       `json:"steer_phase_index,omitempty"`     // 1-based phase index (0 when unknown)
 	SteerPhaseIteration int       `json:"steer_phase_iteration,omitempty"` // 1-based iteration within the active phase
-	SteeringSource      string    `json:"steering_source,omitempty"`       // auto_steer | manual_mode | default_progress | steering_queue | none
+	SteeringSource      string    `json:"steering_source,omitempty"`       // auto_steer | manual_set | default_progress | steering_queue | none
 	SteeringQueueTotal  int       `json:"steering_queue_total,omitempty"`  // Total items in steering queue (for queue steering)
 	TimeoutAllowed      string    `json:"timeout_allowed"`                 // Configured timeout
 	RateLimited         bool      `json:"rate_limited"`                    // Whether rate limit was hit

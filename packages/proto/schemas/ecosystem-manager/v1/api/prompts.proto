@@ -62,8 +62,8 @@ message PromptPreviewRequest {
   // Target name.
   string target = 3 [(buf.validate.field).string.min_len = 1];
 
-  // Optional steering mode.
-  optional string steer_mode = 4;
+  // Optional steering skill set.
+  repeated string steer_set = 4;
 }
 
 // PromptPreviewResponse returns the assembled prompt preview.

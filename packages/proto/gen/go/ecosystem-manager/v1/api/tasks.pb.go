@@ -54,12 +54,14 @@ type TaskCreateRequest struct {
 	Tags []string `protobuf:"bytes,13,rep,name=tags,proto3" json:"tags,omitempty"`
 	// Free-form notes.
 	Notes *string `protobuf:"bytes,14,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
-	// Manual steering mode.
-	SteerMode *string `protobuf:"bytes,15,opt,name=steer_mode,json=steerMode,proto3,oneof" json:"steer_mode,omitempty"`
+	// Manual steering skill set.
+	SteerSet []string `protobuf:"bytes,15,rep,name=steer_set,json=steerSet,proto3" json:"steer_set,omitempty"`
 	// Auto Steer profile ID.
 	AutoSteerProfileId *string `protobuf:"bytes,16,opt,name=auto_steer_profile_id,json=autoSteerProfileId,proto3,oneof" json:"auto_steer_profile_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Ordered queue of steering skill sets.
+	SteeringQueue []*domain.SteerSet `protobuf:"bytes,17,rep,name=steering_queue,json=steeringQueue,proto3" json:"steering_queue,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TaskCreateRequest) Reset() {
@@ -190,11 +192,11 @@ func (x *TaskCreateRequest) GetNotes() string {
 	return ""
 }
 
-func (x *TaskCreateRequest) GetSteerMode() string {
-	if x != nil && x.SteerMode != nil {
-		return *x.SteerMode
+func (x *TaskCreateRequest) GetSteerSet() []string {
+	if x != nil {
+		return x.SteerSet
 	}
-	return ""
+	return nil
 }
 
 func (x *TaskCreateRequest) GetAutoSteerProfileId() string {
@@ -202,6 +204,13 @@ func (x *TaskCreateRequest) GetAutoSteerProfileId() string {
 		return *x.AutoSteerProfileId
 	}
 	return ""
+}
+
+func (x *TaskCreateRequest) GetSteeringQueue() []*domain.SteerSet {
+	if x != nil {
+		return x.SteeringQueue
+	}
+	return nil
 }
 
 // TaskUpdateRequest defines the payload for updating an existing task.
@@ -221,12 +230,14 @@ type TaskUpdateRequest struct {
 	Tags []string `protobuf:"bytes,6,rep,name=tags,proto3" json:"tags,omitempty"`
 	// Updated notes.
 	Notes *string `protobuf:"bytes,7,opt,name=notes,proto3,oneof" json:"notes,omitempty"`
-	// Updated steering mode.
-	SteerMode *string `protobuf:"bytes,8,opt,name=steer_mode,json=steerMode,proto3,oneof" json:"steer_mode,omitempty"`
+	// Updated steering skill set.
+	SteerSet []string `protobuf:"bytes,8,rep,name=steer_set,json=steerSet,proto3" json:"steer_set,omitempty"`
 	// Updated Auto Steer profile ID.
 	AutoSteerProfileId *string `protobuf:"bytes,9,opt,name=auto_steer_profile_id,json=autoSteerProfileId,proto3,oneof" json:"auto_steer_profile_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Updated queue of steering skill sets.
+	SteeringQueue []*domain.SteerSet `protobuf:"bytes,10,rep,name=steering_queue,json=steeringQueue,proto3" json:"steering_queue,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TaskUpdateRequest) Reset() {
@@ -308,11 +319,11 @@ func (x *TaskUpdateRequest) GetNotes() string {
 	return ""
 }
 
-func (x *TaskUpdateRequest) GetSteerMode() string {
-	if x != nil && x.SteerMode != nil {
-		return *x.SteerMode
+func (x *TaskUpdateRequest) GetSteerSet() []string {
+	if x != nil {
+		return x.SteerSet
 	}
-	return ""
+	return nil
 }
 
 func (x *TaskUpdateRequest) GetAutoSteerProfileId() string {
@@ -320,6 +331,13 @@ func (x *TaskUpdateRequest) GetAutoSteerProfileId() string {
 		return *x.AutoSteerProfileId
 	}
 	return ""
+}
+
+func (x *TaskUpdateRequest) GetSteeringQueue() []*domain.SteerSet {
+	if x != nil {
+		return x.SteeringQueue
+	}
+	return nil
 }
 
 // TaskListResponse returns a list of tasks with metadata.
@@ -527,7 +545,7 @@ var File_ecosystem_manager_v1_api_tasks_proto protoreflect.FileDescriptor
 
 const file_ecosystem_manager_v1_api_tasks_proto_rawDesc = "" +
 	"\n" +
-	"$ecosystem-manager/v1/api/tasks.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&ecosystem-manager/v1/domain/task.proto\"\x8b\x06\n" +
+	"$ecosystem-manager/v1/api/tasks.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&ecosystem-manager/v1/domain/task.proto\"\xbc\x06\n" +
 	"\x11TaskCreateRequest\x12 \n" +
 	"\x05title\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xc8\x01R\x05title\x12-\n" +
@@ -544,19 +562,18 @@ const file_ecosystem_manager_v1_api_tasks_proto_rawDesc = "" +
 	"\x11related_scenarios\x18\v \x03(\tR\x10relatedScenarios\x12+\n" +
 	"\x11related_resources\x18\f \x03(\tR\x10relatedResources\x12\x12\n" +
 	"\x04tags\x18\r \x03(\tR\x04tags\x12\x19\n" +
-	"\x05notes\x18\x0e \x01(\tH\x05R\x05notes\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"steer_mode\x18\x0f \x01(\tH\x06R\tsteerMode\x88\x01\x01\x126\n" +
-	"\x15auto_steer_profile_id\x18\x10 \x01(\tH\aR\x12autoSteerProfileId\x88\x01\x01B\t\n" +
+	"\x05notes\x18\x0e \x01(\tH\x05R\x05notes\x88\x01\x01\x12\x1b\n" +
+	"\tsteer_set\x18\x0f \x03(\tR\bsteerSet\x126\n" +
+	"\x15auto_steer_profile_id\x18\x10 \x01(\tH\x06R\x12autoSteerProfileId\x88\x01\x01\x12E\n" +
+	"\x0esteering_queue\x18\x11 \x03(\v2\x1e.ecosystem_manager.v1.SteerSetR\rsteeringQueueB\t\n" +
 	"\a_targetB\v\n" +
 	"\t_categoryB\v\n" +
 	"\t_priorityB\x12\n" +
 	"\x10_effort_estimateB\n" +
 	"\n" +
 	"\b_urgencyB\b\n" +
-	"\x06_notesB\r\n" +
-	"\v_steer_modeB\x18\n" +
-	"\x16_auto_steer_profile_id\"\x95\x04\n" +
+	"\x06_notesB\x18\n" +
+	"\x16_auto_steer_profile_id\"\xc6\x04\n" +
 	"\x11TaskUpdateRequest\x12\x19\n" +
 	"\x05title\x18\x01 \x01(\tH\x00R\x05title\x88\x01\x01\x12E\n" +
 	"\bpriority\x18\x02 \x01(\tB$\xbaH!r\x1fR\x00R\x03lowR\x06mediumR\x04highR\bcriticalH\x01R\bpriority\x88\x01\x01\x12|\n" +
@@ -564,16 +581,16 @@ const file_ecosystem_manager_v1_api_tasks_proto_rawDesc = "" +
 	"\x06target\x18\x04 \x01(\tH\x03R\x06target\x88\x01\x01\x12\x18\n" +
 	"\atargets\x18\x05 \x03(\tR\atargets\x12\x12\n" +
 	"\x04tags\x18\x06 \x03(\tR\x04tags\x12\x19\n" +
-	"\x05notes\x18\a \x01(\tH\x04R\x05notes\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"steer_mode\x18\b \x01(\tH\x05R\tsteerMode\x88\x01\x01\x126\n" +
-	"\x15auto_steer_profile_id\x18\t \x01(\tH\x06R\x12autoSteerProfileId\x88\x01\x01B\b\n" +
+	"\x05notes\x18\a \x01(\tH\x04R\x05notes\x88\x01\x01\x12\x1b\n" +
+	"\tsteer_set\x18\b \x03(\tR\bsteerSet\x126\n" +
+	"\x15auto_steer_profile_id\x18\t \x01(\tH\x05R\x12autoSteerProfileId\x88\x01\x01\x12E\n" +
+	"\x0esteering_queue\x18\n" +
+	" \x03(\v2\x1e.ecosystem_manager.v1.SteerSetR\rsteeringQueueB\b\n" +
 	"\x06_titleB\v\n" +
 	"\t_priorityB\t\n" +
 	"\a_statusB\t\n" +
 	"\a_targetB\b\n" +
-	"\x06_notesB\r\n" +
-	"\v_steer_modeB\x18\n" +
+	"\x06_notesB\x18\n" +
 	"\x16_auto_steer_profile_id\"p\n" +
 	"\x10TaskListResponse\x120\n" +
 	"\x05tasks\x18\x01 \x03(\v2\x1a.ecosystem_manager.v1.TaskR\x05tasks\x12\x14\n" +
@@ -610,18 +627,21 @@ var file_ecosystem_manager_v1_api_tasks_proto_goTypes = []any{
 	(*TaskListResponse)(nil),   // 2: ecosystem_manager.v1.TaskListResponse
 	(*TaskDetailResponse)(nil), // 3: ecosystem_manager.v1.TaskDetailResponse
 	(*TaskActionResponse)(nil), // 4: ecosystem_manager.v1.TaskActionResponse
-	(*domain.Task)(nil),        // 5: ecosystem_manager.v1.Task
-	(*domain.ProcessInfo)(nil), // 6: ecosystem_manager.v1.ProcessInfo
+	(*domain.SteerSet)(nil),    // 5: ecosystem_manager.v1.SteerSet
+	(*domain.Task)(nil),        // 6: ecosystem_manager.v1.Task
+	(*domain.ProcessInfo)(nil), // 7: ecosystem_manager.v1.ProcessInfo
 }
 var file_ecosystem_manager_v1_api_tasks_proto_depIdxs = []int32{
-	5, // 0: ecosystem_manager.v1.TaskListResponse.tasks:type_name -> ecosystem_manager.v1.Task
-	5, // 1: ecosystem_manager.v1.TaskDetailResponse.task:type_name -> ecosystem_manager.v1.Task
-	6, // 2: ecosystem_manager.v1.TaskDetailResponse.current_process:type_name -> ecosystem_manager.v1.ProcessInfo
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 0: ecosystem_manager.v1.TaskCreateRequest.steering_queue:type_name -> ecosystem_manager.v1.SteerSet
+	5, // 1: ecosystem_manager.v1.TaskUpdateRequest.steering_queue:type_name -> ecosystem_manager.v1.SteerSet
+	6, // 2: ecosystem_manager.v1.TaskListResponse.tasks:type_name -> ecosystem_manager.v1.Task
+	6, // 3: ecosystem_manager.v1.TaskDetailResponse.task:type_name -> ecosystem_manager.v1.Task
+	7, // 4: ecosystem_manager.v1.TaskDetailResponse.current_process:type_name -> ecosystem_manager.v1.ProcessInfo
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_ecosystem_manager_v1_api_tasks_proto_init() }

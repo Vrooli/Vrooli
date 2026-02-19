@@ -20,6 +20,7 @@ import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
 import type { ExecutionHistory, LogEntry, ProfilePerformance } from '@/types/api';
 import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
 
@@ -559,7 +560,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                       {filteredExecutions.map((exec) => {
                         const isSelected = exec.id === selectedExecutionId;
                         const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, phaseNames);
-                        const hasSteerFocus = Boolean(steerFocus.autoSteerProfileName || steerFocus.manualSteerMode);
+                        const hasSteerFocus = Boolean(steerFocus.autoSteerProfileName || steerFocus.manualSetLabel);
                         return (
                           <tr
                             key={exec.id}
@@ -797,12 +798,14 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                               .join(', ');
 
                             return (
-                              <div key={`${phase.skill_id}-${idx}`} className="border border-white/5 rounded-md p-3 bg-slate-800/60">
+                              <div key={`${(phase.skill_ids || []).join('-')}-${idx}`} className="border border-white/5 rounded-md p-3 bg-slate-800/60">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="flex items-center gap-3">
                                     <span className="text-xs text-slate-400">Phase {idx + 1}</span>
                                     <span className="px-2 py-1 text-xs rounded border border-white/10 bg-white/5">
-                                      {phase.skill_name}
+                                      <span title={formatSkillSetTooltip(phase.skill_ids, phaseNames)}>
+                                        {formatSkillSetLabel(phase.skill_ids, phaseNames, { maxVisible: 1, emptyLabel: 'Skill set' })}
+                                      </span>
                                     </span>
                                   </div>
                                   <div className="text-xs text-slate-300">

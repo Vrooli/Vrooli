@@ -35,16 +35,16 @@ class UpdatePromptFileRequest(_message.Message):
     def __init__(self, content: _Optional[str] = ...) -> None: ...
 
 class PromptPreviewRequest(_message.Message):
-    __slots__ = ("type", "operation", "target", "steer_mode")
+    __slots__ = ("type", "operation", "target", "steer_set")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
-    STEER_MODE_FIELD_NUMBER: _ClassVar[int]
+    STEER_SET_FIELD_NUMBER: _ClassVar[int]
     type: str
     operation: str
     target: str
-    steer_mode: str
-    def __init__(self, type: _Optional[str] = ..., operation: _Optional[str] = ..., target: _Optional[str] = ..., steer_mode: _Optional[str] = ...) -> None: ...
+    steer_set: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, type: _Optional[str] = ..., operation: _Optional[str] = ..., target: _Optional[str] = ..., steer_set: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class PromptPreviewResponse(_message.Message):
     __slots__ = ("prompt", "size", "sections")

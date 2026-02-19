@@ -85,9 +85,9 @@ type TaskItem struct {
 	ConsecutiveCompletionClaims float64        `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
 	ConsecutiveFailures         int            `json:"consecutive_failures" yaml:"consecutive_failures"`
 	ProcessorAutoRequeue        bool           `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
-	SteerMode                   string         `json:"steer_mode,omitempty" yaml:"steer_mode,omitempty"`                       // Optional manual steering mode when Auto Steer profile is not set
+	SteerSet                    []string       `json:"steer_set,omitempty" yaml:"steer_set,omitempty"`                         // Optional manual steering skill set when Auto Steer profile is not set
 	AutoSteerProfileID          string         `json:"auto_steer_profile_id,omitempty" yaml:"auto_steer_profile_id,omitempty"` // Auto Steer profile to use
-	SteeringQueue               []string       `json:"steering_queue,omitempty" yaml:"steering_queue,omitempty"`              // Ordered list of modes for queue steering
+	SteeringQueue               [][]string     `json:"steering_queue,omitempty" yaml:"steering_queue,omitempty"`               // Ordered list of steering skill sets for queue steering
 	// Ephemeral prompt context (not persisted)
 	LatestOutputPath string `json:"-" yaml:"-"`
 }

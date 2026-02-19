@@ -721,6 +721,11 @@ func (qp *Processor) ProcessQueue() {
 }
 
 func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) error {
+	preTransitionPhase := ""
+	if task != nil {
+		preTransitionPhase = task.CurrentPhase
+	}
+
 	// Persist latest task payload to its current bucket so ApplyTransition sees updated fields (results, metadata).
 	// IMPORTANT: Always query disk for the real location. The in-memory task.Status may have been changed
 	// by callers (e.g., handleSteeringContinuation sets it to "pending" while the file is still in
@@ -805,8 +810,9 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 		qp.recycler.Enqueue(task.ID)
 	}
 
-	// Track execution count for terminal statuses and check execution limit
-	if toStatus == "completed" || toStatus == "failed" {
+	// Track execution count for completed execution outcomes and check execution limit.
+	// This includes successful requeues (to pending with completed phase) and finalized buckets.
+	if shouldCountExecution(toStatus, preTransitionPhase) {
 		if qp.incrementExecutionCount() {
 			go func() {
 				qp.Stop()
@@ -826,6 +832,18 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 	}
 
 	return nil
+}
+
+func shouldCountExecution(toStatus, preTransitionPhase string) bool {
+	switch toStatus {
+	case tasks.StatusCompleted, tasks.StatusFailed, tasks.StatusCompletedFinalized, tasks.StatusFailedBlocked:
+		return true
+	case tasks.StatusPending:
+		// Successful steering continuation requeues to pending after a completed execution.
+		return preTransitionPhase == tasks.StatusCompleted
+	default:
+		return false
+	}
 }
 
 // cleanupOldPromptFiles removes temporary prompt files older than 24 hours from /tmp

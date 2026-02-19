@@ -4,11 +4,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -16,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn, normalizeSteerMode } from '@/lib/utils';
+import { cn, normalizeSkillId } from '@/lib/utils';
 import { usePhaseUsage, type SortOption } from '@/hooks/usePhaseUsage';
 import { useSteerSkills, useSyncSkills } from '@/hooks/useSkills';
 import type { PhaseInfo } from '@/types/api';
@@ -24,12 +26,14 @@ import type { PhaseInfo } from '@/types/api';
 interface PhasePickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  value?: string;
-  onSelect: (phaseName: string) => void;
+  values?: string[];
+  onConfirm: (phaseIds: string[]) => void;
   phaseNames: PhaseInfo[];
   isLoading?: boolean;
   title?: string;
   description?: string;
+  selectionMode?: 'single' | 'multiple';
+  confirmLabel?: string;
 }
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -49,26 +53,48 @@ const BUILT_IN_PHASES: PhaseInfo[] = [
   { id: 'security', name: 'Security', description: 'Reduce vulnerabilities and tighten validation.', modes: [], source: 'builtin' },
 ];
 
+export function prioritizeSelectedPhases(
+  phases: PhaseInfo[],
+  selectedSkillIds: string[],
+): PhaseInfo[] {
+  if (phases.length === 0 || selectedSkillIds.length === 0) {
+    return phases;
+  }
+
+  const selected = new Set(selectedSkillIds.map((id) => normalizeSkillId(id)));
+  return [...phases].sort((a, b) => {
+    const aSelected = selected.has(normalizeSkillId(a.id)) ? 1 : 0;
+    const bSelected = selected.has(normalizeSkillId(b.id)) ? 1 : 0;
+    return bSelected - aSelected;
+  });
+}
+
 export function PhasePickerDialog({
   open,
   onOpenChange,
-  value,
-  onSelect,
+  values,
+  onConfirm,
   phaseNames,
   isLoading,
-  title = 'Select Phase',
-  description = 'Choose a steering phase for task execution.',
+  title = 'Select Focus Modes',
+  description = 'Choose one or more steering skills for this set.',
+  selectionMode = 'single',
+  confirmLabel = 'Confirm',
 }: PhasePickerDialogProps) {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [draftSelection, setDraftSelection] = useState<string[]>(values ?? []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const { data: steerSkills = [], isLoading: skillsLoading, isError: skillsError } = useSteerSkills();
   const syncSkills = useSyncSkills();
   const { trackUsage, sortByRecent, sortByFrequency, sortByName } = usePhaseUsage();
-  const normalizedValue = normalizeSteerMode(value);
+  const normalizedSelection = useMemo(
+    () => draftSelection.map((id) => normalizeSkillId(id)).filter(Boolean),
+    [draftSelection]
+  );
   const promptIsLoading = typeof isLoading === 'boolean' ? isLoading : skillsLoading;
   const promptHasError = skillsError;
   const promptHasData = phaseNames.length > 0 || steerSkills.length > 0;
@@ -77,12 +103,12 @@ export function PhasePickerDialog({
     (phases: PhaseInfo[]) => {
       if (!search.trim()) return phases;
       const searchLower = search.toLowerCase();
-    return phases.filter((phase) => {
-      const nameLower = phase.name.toLowerCase();
-      const descLower = (phase.description || '').toLowerCase();
-      const modesLower = (phase.modes || []).join(' ').toLowerCase();
-      return nameLower.includes(searchLower) || descLower.includes(searchLower) || modesLower.includes(searchLower);
-    });
+      return phases.filter((phase) => {
+        const nameLower = phase.name.toLowerCase();
+        const descLower = (phase.description || '').toLowerCase();
+        const modesLower = (phase.modes || []).join(' ').toLowerCase();
+        return nameLower.includes(searchLower) || descLower.includes(searchLower) || modesLower.includes(searchLower);
+      });
     },
     [search]
   );
@@ -106,12 +132,18 @@ export function PhasePickerDialog({
   const filteredBuiltInPhases = useMemo(() => filterPhases(BUILT_IN_PHASES), [filterPhases]);
 
   const sortedPromptPhases = useMemo(
-    () => sortPhases(filteredPromptPhases),
-    [filteredPromptPhases, sortPhases]
+    () => {
+      const sorted = sortPhases(filteredPromptPhases);
+      return prioritizeSelectedPhases(sorted, normalizedSelection);
+    },
+    [filteredPromptPhases, normalizedSelection, sortPhases]
   );
   const sortedBuiltInPhases = useMemo(
-    () => sortPhases(filteredBuiltInPhases),
-    [filteredBuiltInPhases, sortPhases]
+    () => {
+      const sorted = sortPhases(filteredBuiltInPhases);
+      return prioritizeSelectedPhases(sorted, normalizedSelection);
+    },
+    [filteredBuiltInPhases, normalizedSelection, sortPhases]
   );
 
   const combinedPhases = useMemo(
@@ -119,38 +151,48 @@ export function PhasePickerDialog({
     [sortedPromptPhases, sortedBuiltInPhases]
   );
 
-  // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setSearch('');
       setFocusedIndex(0);
-      // Focus search input after a short delay
+      setDraftSelection(values ?? []);
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
-  }, [open]);
+  }, [open, values]);
 
-  // Keep focused index in bounds
   useEffect(() => {
     if (focusedIndex >= combinedPhases.length) {
       setFocusedIndex(Math.max(0, combinedPhases.length - 1));
     }
   }, [combinedPhases.length, focusedIndex]);
 
-  const handleSelect = useCallback(
+  const toggleSelection = useCallback(
     (phaseId: string) => {
-      const normalized = normalizeSteerMode(phaseId);
+      const normalized = normalizeSkillId(phaseId);
+      setDraftSelection((prev) => {
+        if (selectionMode === 'single') {
+          return [normalized];
+        }
+        const has = prev.some((id) => normalizeSkillId(id) === normalized);
+        return has ? prev.filter((id) => normalizeSkillId(id) !== normalized) : [...prev, normalized];
+      });
       trackUsage(normalized);
-      onSelect(normalized);
-      onOpenChange(false);
     },
-    [trackUsage, onSelect, onOpenChange]
+    [selectionMode, trackUsage]
   );
 
-  // Grid has 2 columns on sm+ screens, 1 column on smaller
-  // We'll assume 2 columns for keyboard nav since that's the common case
+  const handleConfirm = () => {
+    onConfirm(normalizedSelection);
+    onOpenChange(false);
+  };
+
+  const handleCancel = () => {
+    setDraftSelection(values ?? []);
+    onOpenChange(false);
+  };
+
   const GRID_COLUMNS = 2;
 
-  // Keyboard navigation with grid support
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (combinedPhases.length === 0) return;
@@ -158,28 +200,25 @@ export function PhasePickerDialog({
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          // Move down one row (skip GRID_COLUMNS items)
           setFocusedIndex((prev) => Math.min(prev + GRID_COLUMNS, combinedPhases.length - 1));
           break;
         case 'ArrowUp':
           e.preventDefault();
-          // Move up one row (skip GRID_COLUMNS items)
           setFocusedIndex((prev) => Math.max(prev - GRID_COLUMNS, 0));
           break;
         case 'ArrowRight':
           e.preventDefault();
-          // Move to next item
           setFocusedIndex((prev) => Math.min(prev + 1, combinedPhases.length - 1));
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          // Move to previous item
           setFocusedIndex((prev) => Math.max(prev - 1, 0));
           break;
         case 'Enter':
+        case ' ':
           e.preventDefault();
           if (combinedPhases[focusedIndex]) {
-            handleSelect(combinedPhases[focusedIndex].id);
+            toggleSelection(combinedPhases[focusedIndex].id);
           }
           break;
         case 'Escape':
@@ -188,10 +227,9 @@ export function PhasePickerDialog({
           break;
       }
     },
-    [combinedPhases, focusedIndex, handleSelect, onOpenChange]
+    [combinedPhases, focusedIndex, onOpenChange, toggleSelection]
   );
 
-  // Scroll focused item into view
   useEffect(() => {
     if (!gridRef.current) return;
     const focusedElement = gridRef.current.querySelector(`[data-index="${focusedIndex}"]`);
@@ -207,22 +245,22 @@ export function PhasePickerDialog({
   const promptUnavailable = promptHasError || promptEmpty;
   const builtInFilteredEmpty = filteredBuiltInPhases.length === 0 && search.trim().length > 0;
   const totalDisplayed = combinedPhases.length;
+  const hasSelection = normalizedSelection.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {/* Search and Sort Controls */}
         <div className="flex gap-2 mt-2" onKeyDown={handleKeyDown}>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               ref={searchInputRef}
-              placeholder="Search phases..."
+              placeholder="Search skills..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -243,10 +281,9 @@ export function PhasePickerDialog({
           </Select>
         </div>
 
-        {/* Phase Grid */}
         <div
           ref={gridRef}
-          className="flex-1 overflow-y-auto mt-4 min-h-[300px] max-h-[400px]"
+          className="flex-1 overflow-y-auto mt-4 min-h-[280px] max-h-[420px]"
           onKeyDown={handleKeyDown}
           tabIndex={-1}
         >
@@ -259,7 +296,7 @@ export function PhasePickerDialog({
                   ) : (
                     <Cloud className="h-3.5 w-3.5 text-emerald-400" />
                   )}
-                  <span>Prompt-manager phases</span>
+                  <span>Prompt-manager skills</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {promptIsLoading && (
@@ -283,7 +320,7 @@ export function PhasePickerDialog({
 
               {promptIsLoading && !promptHasData ? (
                 <div className="flex items-center justify-center h-32 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
-                  Loading prompt-manager phases...
+                  Loading prompt-manager skills...
                 </div>
               ) : promptHasError ? (
                 <div className="flex flex-col items-center justify-center gap-2 h-32 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
@@ -299,7 +336,7 @@ export function PhasePickerDialog({
                 </div>
               ) : promptEmpty ? (
                 <div className="flex flex-col items-center justify-center gap-2 h-32 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
-                  <span>No prompt-manager phases synced yet.</span>
+                  <span>No prompt-manager skills synced yet.</span>
                   <Button
                     type="button"
                     size="sm"
@@ -311,91 +348,81 @@ export function PhasePickerDialog({
                 </div>
               ) : promptFilteredEmpty ? (
                 <div className="flex items-center justify-center h-24 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
-                  No prompt-manager phases match "{search}"
+                  No prompt-manager skills match "{search}"
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {sortedPromptPhases.map((phase, index) => (
-                    <button
-                      key={`${phase.id}-${index}`}
-                      data-index={index}
-                      type="button"
-                      onClick={() => handleSelect(phase.id)}
-                      className={cn(
-                        'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
-                        'hover:bg-slate-800 hover:border-slate-600',
-                        normalizedValue === phase.id && 'border-blue-500 bg-blue-500/10',
-                        index === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
-                      )}
-                    >
-                      <div className="flex items-center gap-2 w-full">
-                        <span className="font-medium text-sm text-slate-100">
-                          {phase.name}
-                        </span>
-                        {normalizedValue === phase.id && (
-                          <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
+                  {sortedPromptPhases.map((phase, index) => {
+                    const normalizedId = normalizeSkillId(phase.id);
+                    const isSelected = normalizedSelection.includes(normalizedId);
+                    return (
+                      <button
+                        key={`${phase.id}-${index}`}
+                        data-index={index}
+                        type="button"
+                        onClick={() => toggleSelection(phase.id)}
+                        className={cn(
+                          'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
+                          'hover:bg-slate-800 hover:border-slate-600',
+                          isSelected && 'border-blue-500 bg-blue-500/10',
+                          index === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
                         )}
-                      </div>
-                      {phase.description && (
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                          {phase.description}
-                        </p>
-                      )}
-                      {phase.modes && phase.modes.length > 0 && (
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          {phase.modes.join(' > ')}
-                        </p>
-                      )}
-                    </button>
-                  ))}
+                      >
+                        <Checkbox checked={isSelected} className="mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 w-full">
+                            <span className="font-medium text-sm text-slate-100 truncate">{phase.name}</span>
+                            {isSelected && <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />}
+                          </div>
+                          {phase.description && (
+                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{phase.description}</p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
-                <span>Built-in phases</span>
+                <span>Built-in skills</span>
               </div>
 
               {builtInFilteredEmpty ? (
                 <div className="flex items-center justify-center h-24 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
-                  No built-in phases match "{search}"
+                  No built-in skills match "{search}"
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {sortedBuiltInPhases.map((phase, index) => {
                     const combinedIndex = sortedPromptPhases.length + index;
+                    const normalizedId = normalizeSkillId(phase.id);
+                    const isSelected = normalizedSelection.includes(normalizedId);
                     return (
                       <button
                         key={phase.id}
                         data-index={combinedIndex}
                         type="button"
-                        onClick={() => handleSelect(phase.id)}
+                        onClick={() => toggleSelection(phase.id)}
                         className={cn(
-                          'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
+                          'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
                           'hover:bg-slate-800 hover:border-slate-600',
-                          normalizedValue === phase.id && 'border-blue-500 bg-blue-500/10',
+                          isSelected && 'border-blue-500 bg-blue-500/10',
                           combinedIndex === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
                         )}
                       >
-                        <div className="flex items-center gap-2 w-full">
-                          <span className="font-medium text-sm text-slate-100">
-                            {phase.name}
-                          </span>
-                          {normalizedValue === phase.id && (
-                            <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
+                        <Checkbox checked={isSelected} className="mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 w-full">
+                            <span className="font-medium text-sm text-slate-100 truncate">{phase.name}</span>
+                            {isSelected && <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />}
+                          </div>
+                          {phase.description && (
+                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{phase.description}</p>
                           )}
                         </div>
-                        {phase.description && (
-                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                            {phase.description}
-                          </p>
-                        )}
-                        {phase.modes && phase.modes.length > 0 && (
-                          <p className="text-[11px] text-slate-500 mt-1">
-                            {phase.modes.join(' > ')}
-                          </p>
-                        )}
                       </button>
                     );
                   })}
@@ -405,20 +432,27 @@ export function PhasePickerDialog({
 
             {totalDisplayed === 0 && !promptIsLoading && !promptHasError && (
               <div className="flex flex-col items-center justify-center h-28 text-slate-400">
-                <p>No phases found</p>
+                <p>No skills found</p>
                 {search && <p className="text-sm mt-1">Try a different search term</p>}
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer with count */}
         <div className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-700">
-          {totalDisplayed} of {promptTotal + builtInTotal} phases
-          {` • ${sortedPromptPhases.length} prompt-manager`}
-          {` • ${sortedBuiltInPhases.length} built-in`}
+          {totalDisplayed} of {promptTotal + builtInTotal} skills
+          {` • ${normalizedSelection.length} selected`}
           {search && ` • matching "${search}"`}
         </div>
+
+        <DialogFooter className="mt-2">
+          <Button type="button" variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleConfirm} disabled={!hasSelection}>
+            {confirmLabel}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

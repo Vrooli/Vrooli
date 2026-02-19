@@ -9,8 +9,8 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
-// QueueProvider implements steering for tasks using an ordered queue of modes.
-// Each mode in the queue runs exactly once before advancing to the next.
+// QueueProvider implements steering for tasks using an ordered queue of skill sets.
+// Each queue step runs exactly once before advancing to the next.
 // When the queue is exhausted, the task completes.
 type QueueProvider struct {
 	stateRepo      QueueStateRepository
@@ -33,22 +33,27 @@ func (p *QueueProvider) Strategy() SteeringStrategy {
 	return StrategyQueue
 }
 
-// GetCurrentMode returns the current mode from the queue.
-func (p *QueueProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
+// GetCurrentSet returns the current skill set from the queue.
+func (p *QueueProvider) GetCurrentSet(task *tasks.TaskItem) ([]string, error) {
 	if p.stateRepo == nil || task == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	state, err := p.stateRepo.Get(task.ID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get queue state: %w", err)
+		return nil, fmt.Errorf("failed to get queue state: %w", err)
 	}
 
-	if state == nil || state.IsExhausted() {
-		return "", nil
+	if state == nil {
+		return nil, nil
 	}
 
-	return state.CurrentMode(), nil
+	state.QueueLength = len(task.SteeringQueue)
+	if state.IsExhausted() || state.CurrentIndex < 0 || state.CurrentIndex >= len(task.SteeringQueue) {
+		return nil, nil
+	}
+
+	return normalizedSkillSet(task.SteeringQueue[state.CurrentIndex]), nil
 }
 
 // GetQueueState returns the current queue state for a task.
@@ -60,7 +65,7 @@ func (p *QueueProvider) GetQueueState(taskID string) (*QueueState, error) {
 	return p.stateRepo.Get(taskID)
 }
 
-// EnhancePrompt generates a steering section for the current queue mode.
+// EnhancePrompt generates a steering section for the current queue skill set.
 func (p *QueueProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement, error) {
 	if p.stateRepo == nil || p.promptEnhancer == nil {
 		return nil, nil
@@ -82,42 +87,45 @@ func (p *QueueProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement,
 		}
 	}
 
-	if state.IsExhausted() {
+	state.QueueLength = len(task.SteeringQueue)
+	if state.IsExhausted() || state.CurrentIndex < 0 || state.CurrentIndex >= len(task.SteeringQueue) {
 		return nil, nil
 	}
 
-	mode := state.CurrentMode()
-	section := p.promptEnhancer.GenerateModeSection(mode)
+	skillSet := normalizedSkillSet(task.SteeringQueue[state.CurrentIndex])
+	section := generateSectionFromSet(p.promptEnhancer, skillSet, false, "")
 	if section == "" {
 		return nil, nil
 	}
 
 	// Add queue progress info to the section
-	section = p.addQueueProgressInfo(section, state)
+	section = p.addQueueProgressInfo(section, state, task)
 
 	return &PromptEnhancement{
 		Section: section,
-		Source:  fmt.Sprintf("queue:%s[%s]", mode, state.Position()),
+		Source:  fmt.Sprintf("queue:%s[%s]", strings.Join(skillSet, ","), state.Position()),
 	}, nil
 }
 
 // addQueueProgressInfo appends queue progress information to the section.
-func (p *QueueProvider) addQueueProgressInfo(section string, state *QueueState) string {
+func (p *QueueProvider) addQueueProgressInfo(section string, state *QueueState, task *tasks.TaskItem) string {
 	var sb strings.Builder
 	sb.WriteString(section)
 	sb.WriteString("\n\n---\n\n")
 	sb.WriteString("## Queue Progress\n\n")
 	sb.WriteString(fmt.Sprintf("**Position:** %s\n", state.Position()))
-	sb.WriteString(fmt.Sprintf("**Current Focus:** %s\n", state.CurrentMode()))
+	if state.CurrentIndex >= 0 && state.CurrentIndex < len(task.SteeringQueue) {
+		sb.WriteString(fmt.Sprintf("**Current Focus:** %s\n", strings.Join(task.SteeringQueue[state.CurrentIndex], ", ")))
+	}
 
 	if state.Remaining() > 1 {
 		sb.WriteString(fmt.Sprintf("**Remaining:** %d more items after this\n", state.Remaining()-1))
 		sb.WriteString("\n**Upcoming:**\n")
-		for i := state.CurrentIndex + 1; i < len(state.Queue) && i < state.CurrentIndex+4; i++ {
-			sb.WriteString(fmt.Sprintf("- %s\n", state.Queue[i]))
+		for i := state.CurrentIndex + 1; i < len(task.SteeringQueue) && i < state.CurrentIndex+4; i++ {
+			sb.WriteString(fmt.Sprintf("- %s\n", strings.Join(task.SteeringQueue[i], ", ")))
 		}
-		if len(state.Queue)-state.CurrentIndex > 4 {
-			sb.WriteString(fmt.Sprintf("- ... and %d more\n", len(state.Queue)-state.CurrentIndex-4))
+		if len(task.SteeringQueue)-state.CurrentIndex > 4 {
+			sb.WriteString(fmt.Sprintf("- ... and %d more\n", len(task.SteeringQueue)-state.CurrentIndex-4))
 		}
 	}
 
@@ -148,7 +156,11 @@ func (p *QueueProvider) AfterExecution(task *tasks.TaskItem, scenarioName string
 		}, nil
 	}
 
-	currentMode := state.CurrentMode()
+	state.QueueLength = len(task.SteeringQueue)
+	var currentSet []string
+	if state.CurrentIndex >= 0 && state.CurrentIndex < len(task.SteeringQueue) {
+		currentSet = normalizedSkillSet(task.SteeringQueue[state.CurrentIndex])
+	}
 
 	// Advance to next item in queue
 	hasMore := state.Advance()
@@ -158,9 +170,9 @@ func (p *QueueProvider) AfterExecution(task *tasks.TaskItem, scenarioName string
 
 	if !hasMore {
 		// Queue exhausted
-		log.Printf("Queue exhausted for task %s after mode %s", task.ID, currentMode)
+		log.Printf("Queue exhausted for task %s after skill set %v", task.ID, currentSet)
 		return &SteeringDecision{
-			Mode:          currentMode,
+			SkillSet:      currentSet,
 			ShouldRequeue: false,
 			Exhausted:     true,
 			Reason:        "queue_exhausted",
@@ -168,11 +180,14 @@ func (p *QueueProvider) AfterExecution(task *tasks.TaskItem, scenarioName string
 	}
 
 	// More items in queue
-	nextMode := state.CurrentMode()
-	log.Printf("Queue advanced for task %s: %s -> %s (%s)", task.ID, currentMode, nextMode, state.Position())
+	var nextSet []string
+	if state.CurrentIndex >= 0 && state.CurrentIndex < len(task.SteeringQueue) {
+		nextSet = normalizedSkillSet(task.SteeringQueue[state.CurrentIndex])
+	}
+	log.Printf("Queue advanced for task %s: %v -> %v (%s)", task.ID, currentSet, nextSet, state.Position())
 
 	return &SteeringDecision{
-		Mode:          nextMode,
+		SkillSet:      nextSet,
 		ShouldRequeue: true,
 		Exhausted:     false,
 		Reason:        fmt.Sprintf("queue_advance_%s", state.Position()),
@@ -201,25 +216,16 @@ func (p *QueueProvider) Initialize(task *tasks.TaskItem) error {
 		return nil
 	}
 
-	// Convert string queue to SteerMode queue
-	queue := make([]autosteer.SteerMode, 0, len(task.SteeringQueue))
-	for _, s := range task.SteeringQueue {
-		mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(s)))
-		if mode != "" {
-			queue = append(queue, mode)
-		}
-	}
-
-	if len(queue) == 0 {
+	if len(task.SteeringQueue) == 0 {
 		return fmt.Errorf("steering queue is empty")
 	}
 
-	state := NewQueueState(task.ID, queue)
+	state := NewQueueState(task.ID, len(task.SteeringQueue))
 	if err := p.stateRepo.Save(state); err != nil {
 		return fmt.Errorf("failed to save queue state: %w", err)
 	}
 
-	log.Printf("Queue initialized for task %s with %d items: %v", task.ID, len(queue), queue)
+	log.Printf("Queue initialized for task %s with %d items", task.ID, len(task.SteeringQueue))
 	return nil
 }
 
@@ -230,4 +236,26 @@ func (p *QueueProvider) Reset(taskID string) error {
 	}
 
 	return p.stateRepo.Delete(taskID)
+}
+
+func normalizedSkillSet(set []string) []string {
+	out := make([]string, 0, len(set))
+	for _, raw := range set {
+		normalized := strings.ToLower(strings.TrimSpace(raw))
+		if normalized == "" {
+			continue
+		}
+		out = append(out, normalized)
+	}
+	return out
+}
+
+func generateSectionFromSet(enhancer autosteer.PromptEnhancerAPI, skillSet []string, withScope bool, scope string) string {
+	if enhancer == nil {
+		return ""
+	}
+	if len(skillSet) == 0 {
+		return ""
+	}
+	return enhancer.GenerateSkillSetSection(skillSet, withScope, scope)
 }

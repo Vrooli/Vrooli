@@ -254,28 +254,29 @@ func (o *ExecutionOrchestrator) AdvancePhase(taskID string, scenarioName string)
 	}, nil
 }
 
-// GetCurrentMode returns the current steering mode for a task.
+// GetCurrentSet returns the current steering skill set for a task.
 // Implements ExecutionEngineAPI.
-func (o *ExecutionOrchestrator) GetCurrentMode(taskID string) (SteerMode, error) {
+func (o *ExecutionOrchestrator) GetCurrentSet(taskID string) ([]string, error) {
 	state, err := o.stateManager.Get(taskID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get execution state: %w", err)
+		return nil, fmt.Errorf("failed to get execution state: %w", err)
 	}
 
 	if state == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	profile, err := o.profileService.GetProfile(state.ProfileID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get profile: %w", err)
+		return nil, fmt.Errorf("failed to get profile: %w", err)
 	}
 
 	if state.CurrentPhaseIndex >= len(profile.Phases) {
-		return "", nil
+		return nil, nil
 	}
 
-	return SteerMode(profile.Phases[state.CurrentPhaseIndex].SkillID), nil
+	phase := profile.Phases[state.CurrentPhaseIndex]
+	return append([]string(nil), phase.SkillIDs...), nil
 }
 
 // DeleteExecutionState removes any active execution state for a task.
@@ -307,12 +308,12 @@ func (o *ExecutionOrchestrator) GetEnhancedPrompt(taskID string) (string, error)
 	return promptSection, nil
 }
 
-// GenerateModeSection renders a standalone mode block.
-func (o *ExecutionOrchestrator) GenerateModeSection(mode SteerMode) string {
+// GenerateSkillSetSection renders a standalone skill-set block.
+func (o *ExecutionOrchestrator) GenerateSkillSetSection(skillIDs []string, withScope bool, scope string) string {
 	if o == nil || o.promptEnhancer == nil {
 		return ""
 	}
-	return o.promptEnhancer.GenerateModeSection(mode)
+	return o.promptEnhancer.GenerateSkillSetSection(skillIDs, withScope, scope)
 }
 
 // IsAutoSteerActive checks if a task has an active Auto Steer profile.

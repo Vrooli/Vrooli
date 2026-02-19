@@ -68,11 +68,14 @@ message TaskCreateRequest {
   // Free-form notes.
   optional string notes = 14;
 
-  // Manual steering mode.
-  optional string steer_mode = 15;
+  // Manual steering skill set.
+  repeated string steer_set = 15;
 
   // Auto Steer profile ID.
   optional string auto_steer_profile_id = 16;
+
+  // Ordered queue of steering skill sets.
+  repeated SteerSet steering_queue = 17;
 }
 
 // TaskUpdateRequest defines the payload for updating an existing task.
@@ -107,11 +110,14 @@ message TaskUpdateRequest {
   // Updated notes.
   optional string notes = 7;
 
-  // Updated steering mode.
-  optional string steer_mode = 8;
+  // Updated steering skill set.
+  repeated string steer_set = 8;
 
   // Updated Auto Steer profile ID.
   optional string auto_steer_profile_id = 9;
+
+  // Updated queue of steering skill sets.
+  repeated SteerSet steering_queue = 10;
 }
 
 // TaskListResponse returns a list of tasks with metadata.

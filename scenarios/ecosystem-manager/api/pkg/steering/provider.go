@@ -1,9 +1,6 @@
 package steering
 
-import (
-	"github.com/ecosystem-manager/api/pkg/autosteer"
-	"github.com/ecosystem-manager/api/pkg/tasks"
-)
+import "github.com/ecosystem-manager/api/pkg/tasks"
 
 // SteeringProvider is the unified interface that all steering strategies implement.
 // It abstracts the decision-making for prompt enhancement and task continuation.
@@ -11,9 +8,8 @@ type SteeringProvider interface {
 	// Strategy returns which steering strategy this provider implements.
 	Strategy() SteeringStrategy
 
-	// GetCurrentMode returns the mode to use for the current execution.
-	// Returns empty string if the strategy has no mode to provide.
-	GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error)
+	// GetCurrentSet returns the current steering set for the task.
+	GetCurrentSet(task *tasks.TaskItem) ([]string, error)
 
 	// EnhancePrompt generates the steering content to inject into the agent prompt.
 	// Returns nil if no enhancement is needed.

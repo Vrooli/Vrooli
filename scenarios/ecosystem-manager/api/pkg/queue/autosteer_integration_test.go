@@ -56,16 +56,16 @@ func TestInitializeAutoSteerResetsOnProfileChange(t *testing.T) {
 		ID:   "profile-old",
 		Name: "Old Profile",
 		Phases: []autosteer.SteerPhase{
-			{ID: "p1", SkillID: "progress", SkillName: "Progress", MaxIterations: 10},
-			{ID: "p2", SkillID: "test", SkillName: "Test", MaxIterations: 5},
+			{ID: "p1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 10},
+			{ID: "p2", SkillIDs: []string{"test"}, SkillName: "Test", MaxIterations: 5},
 		},
 	}
 	profileNew := &autosteer.AutoSteerProfile{
 		ID:   "profile-new",
 		Name: "New Profile",
 		Phases: []autosteer.SteerPhase{
-			{ID: "n1", SkillID: "screaming-architecture-audit", SkillName: "Screaming Architecture", MaxIterations: 1},
-			{ID: "n2", SkillID: "progress", SkillName: "Progress", MaxIterations: 3},
+			{ID: "n1", SkillIDs: []string{"screaming-architecture-audit"}, SkillName: "Screaming Architecture", MaxIterations: 1},
+			{ID: "n2", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 3},
 		},
 	}
 
@@ -149,7 +149,7 @@ func TestInitializeAutoSteerPreservesStateWhenProfileUnchanged(t *testing.T) {
 		ID:   "profile-same",
 		Name: "Same Profile",
 		Phases: []autosteer.SteerPhase{
-			{ID: "p1", SkillID: "progress", SkillName: "Progress", MaxIterations: 10},
+			{ID: "p1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 10},
 		},
 	}
 

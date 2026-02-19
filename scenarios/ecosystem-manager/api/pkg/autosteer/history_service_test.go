@@ -90,7 +90,7 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 
 	phaseBreakdown := []PhasePerformance{
 		{
-			SkillID:    "progress",
+			SkillIDs:   []string{"progress"},
 			SkillName:  "Progress",
 			Iterations: 10,
 			MetricDeltas: map[string]float64{
@@ -100,7 +100,7 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 			Effectiveness: 3.0,
 		},
 		{
-			SkillID:    "ux",
+			SkillIDs:   []string{"ux"},
 			SkillName:  "UX",
 			Iterations: 5,
 			MetricDeltas: map[string]float64{

@@ -1,18 +1,19 @@
 import { Compass } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { PhasePicker } from '../PhasePicker';
-import { getPhaseDisplayName } from '@/lib/utils';
+import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
 import type { PhaseInfo } from '@/types/api';
 
 interface ManualPanelProps {
-  value?: string;
-  onChange: (mode: string | undefined) => void;
+  value: string[];
+  onChange: (set: string[]) => void;
   phaseNames: PhaseInfo[];
   isLoading?: boolean;
 }
 
 export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPanelProps) {
-  const displayName = value ? getPhaseDisplayName(value, phaseNames) ?? value : undefined;
+  const displayName = formatSkillSetLabel(value, phaseNames, { maxVisible: 1, emptyLabel: '' });
+  const displayTooltip = formatSkillSetTooltip(value, phaseNames);
 
   return (
     <div className="space-y-4">
@@ -23,26 +24,27 @@ export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPa
         <div>
           <h3 className="text-sm font-medium text-slate-200">Manual Steering</h3>
           <p className="text-sm text-slate-400 mt-0.5">
-            Select a single focus mode. The task will use this mode for every execution until
+            Select one or more focus skills. The task will use this skill set for every execution until
             changed.
           </p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label>Focus Mode</Label>
+        <Label>Focus Skills</Label>
         <PhasePicker
-          value={value}
+          values={value}
           onChange={onChange}
           phaseNames={phaseNames}
           isLoading={isLoading}
-          placeholder="Select a focus mode"
-          dialogTitle="Select Focus Mode"
-          dialogDescription="Choose a steering phase for manual mode."
+          selectionMode="multiple"
+          placeholder="Select focus skills"
+          dialogTitle="Select Focus Skills"
+          dialogDescription="Choose one or more steering skills for manual mode."
         />
-        {value && displayName && (
+        {value.length > 0 && displayName && (
           <p className="text-xs text-slate-500">
-            The task will focus on <span className="text-amber-400">{displayName}</span>{' '}
+            The task will focus on <span className="text-amber-400" title={displayTooltip}>{displayName}</span>{' '}
             improvements.
           </p>
         )}

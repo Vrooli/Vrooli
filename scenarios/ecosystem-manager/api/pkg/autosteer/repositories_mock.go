@@ -259,9 +259,10 @@ func (r *MockExecutionStateRepository) RecordPhaseCompletion(state *ProfileExecu
 	now := time.Now()
 	phaseExecution := PhaseExecution{
 		PhaseID:      phase.ID,
-		SkillID:      phase.SkillID,
+		SkillIDs:     append([]string(nil), phase.SkillIDs...),
 		SkillName:    phase.SkillName,
-		Modes:        append([]string(nil), phase.Modes...),
+		WithScope:    phase.WithScope,
+		Scope:        phase.Scope,
 		Iterations:   state.CurrentPhaseIteration,
 		StartMetrics: state.PhaseStartMetrics,
 		EndMetrics:   state.Metrics,
@@ -443,17 +444,17 @@ type MockPromptEnhancerAPI struct {
 	mu sync.Mutex
 
 	// Configurable return values
-	ModeSectionResult       string
+	SkillSetSectionResult   string
 	AutoSteerSectionResult  string
 	PhaseTransitionResult   string
 	CompletionMessageResult string
 
 	// Call tracking
-	GenerateModeSectionCallCount       int
+	GenerateSkillSetSectionCallCount   int
 	GenerateAutoSteerSectionCallCount  int
 	GeneratePhaseTransitionCallCount   int
 	GenerateCompletionMessageCallCount int
-	LastMode                           SteerMode
+	LastSkillSet                       []string
 }
 
 // Compile-time interface assertion
@@ -462,22 +463,22 @@ var _ PromptEnhancerAPI = (*MockPromptEnhancerAPI)(nil)
 // NewMockPromptEnhancerAPI creates a new mock prompt enhancer.
 func NewMockPromptEnhancerAPI() *MockPromptEnhancerAPI {
 	return &MockPromptEnhancerAPI{
-		ModeSectionResult:       "## Mock Mode Section\nFocus on testing.",
+		SkillSetSectionResult:   "## Mock Skill Set Section\nFocus on testing.",
 		AutoSteerSectionResult:  "## Auto Steer\nMock steering instructions.",
 		PhaseTransitionResult:   "## Phase Transition\nMock transition message.",
 		CompletionMessageResult: "## Complete\nMock completion message.",
 	}
 }
 
-// GenerateModeSection renders a standalone section for a specific mode.
-func (m *MockPromptEnhancerAPI) GenerateModeSection(mode SteerMode) string {
+// GenerateSkillSetSection renders a standalone section for a specific skill set.
+func (m *MockPromptEnhancerAPI) GenerateSkillSetSection(skillIDs []string, withScope bool, scope string) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.GenerateModeSectionCallCount++
-	m.LastMode = mode
+	m.GenerateSkillSetSectionCallCount++
+	m.LastSkillSet = append([]string(nil), skillIDs...)
 
-	return m.ModeSectionResult
+	return m.SkillSetSectionResult
 }
 
 // GenerateAutoSteerSection generates the full Auto Steer section for agent prompts.
@@ -514,11 +515,11 @@ func (m *MockPromptEnhancerAPI) GenerateCompletionMessage(profile *AutoSteerProf
 func (m *MockPromptEnhancerAPI) Reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.GenerateModeSectionCallCount = 0
+	m.GenerateSkillSetSectionCallCount = 0
 	m.GenerateAutoSteerSectionCallCount = 0
 	m.GeneratePhaseTransitionCallCount = 0
 	m.GenerateCompletionMessageCallCount = 0
-	m.LastMode = ""
+	m.LastSkillSet = nil
 }
 
 // MockPhaseCoordinatorAPI is a mock implementation of PhaseCoordinatorAPI for testing.

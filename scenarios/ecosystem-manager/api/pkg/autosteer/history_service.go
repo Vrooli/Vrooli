@@ -351,23 +351,23 @@ func (s *HistoryService) SubmitFeedbackEntry(executionID string, req ExecutionFe
 
 // ProfileAnalytics represents aggregated analytics for a profile
 type ProfileAnalytics struct {
-	ProfileID       string                   `json:"profile_id"`
-	TotalExecutions int                      `json:"total_executions"`
-	AvgRating       float64                  `json:"avg_rating"`
-	AvgIterations   float64                  `json:"avg_iterations"`
-	AvgDuration     int64                    `json:"avg_duration"`
-	PhaseStats      map[string]PhaseStats    `json:"phase_stats"`
-	ScenarioStats   []ScenarioStats          `json:"scenario_stats"`
+	ProfileID       string                `json:"profile_id"`
+	TotalExecutions int                   `json:"total_executions"`
+	AvgRating       float64               `json:"avg_rating"`
+	AvgIterations   float64               `json:"avg_iterations"`
+	AvgDuration     int64                 `json:"avg_duration"`
+	PhaseStats      map[string]PhaseStats `json:"phase_stats"`
+	ScenarioStats   []ScenarioStats       `json:"scenario_stats"`
 }
 
 // PhaseStats represents statistics for a specific mode
 type PhaseStats struct {
-	SkillID         string  `json:"skill_id"`
-	SkillName       string  `json:"skill_name"`
-	TotalExecutions  int     `json:"total_executions"`
-	AvgIterations    float64 `json:"avg_iterations"`
-	AvgDuration      int64   `json:"avg_duration"`
-	AvgEffectiveness float64 `json:"avg_effectiveness"`
+	SkillIDs         []string `json:"skill_ids"`
+	SkillName        string   `json:"skill_name"`
+	TotalExecutions  int      `json:"total_executions"`
+	AvgIterations    float64  `json:"avg_iterations"`
+	AvgDuration      int64    `json:"avg_duration"`
+	AvgEffectiveness float64  `json:"avg_effectiveness"`
 }
 
 // ScenarioStats represents statistics for a specific scenario
@@ -435,12 +435,13 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 
 		// Phase statistics
 		for _, phase := range exec.PhaseBreakdown {
-			data := phaseData[phase.SkillID]
+			key := strings.Join(phase.SkillIDs, ",")
+			data := phaseData[key]
 			data.count++
 			data.iterations += phase.Iterations
 			data.duration += phase.Duration
 			data.effectiveness += phase.Effectiveness
-			phaseData[phase.SkillID] = data
+			phaseData[key] = data
 		}
 
 		// Scenario statistics
@@ -464,12 +465,14 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 	}
 
 	// Build phase stats
-	for skillID, data := range phaseData {
+	for skillKey, data := range phaseData {
 		skillName := ""
+		skillIDs := []string{}
 		for _, exec := range history {
 			for _, phase := range exec.PhaseBreakdown {
-				if phase.SkillID == skillID {
+				if strings.Join(phase.SkillIDs, ",") == skillKey {
 					skillName = phase.SkillName
+					skillIDs = append([]string(nil), phase.SkillIDs...)
 					break
 				}
 			}
@@ -478,9 +481,9 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 			}
 		}
 
-		analytics.PhaseStats[skillID] = PhaseStats{
-			SkillID:         skillID,
-			SkillName:       skillName,
+		analytics.PhaseStats[skillKey] = PhaseStats{
+			SkillIDs:         skillIDs,
+			SkillName:        skillName,
 			TotalExecutions:  data.count,
 			AvgIterations:    float64(data.iterations) / float64(data.count),
 			AvgDuration:      data.duration / int64(data.count),

@@ -56,29 +56,26 @@ message SteerPhase {
   // Phase identifier.
   string id = 1 [(buf.validate.field).string.min_len = 1];
 
-  // Skill identifier to use.
-  string skill_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Skill identifiers to use as a set.
+  repeated string skill_ids = 2;
 
   // Skill display name.
   string skill_name = 3;
 
-  // Steering modes for this phase.
-  repeated string modes = 4;
-
   // Whether to include default scope from skill.
-  bool with_scope = 5;
+  bool with_scope = 4;
 
   // Explicit scope skill override.
-  string scope = 6;
+  string scope = 5;
 
   // Conditions that trigger phase completion.
-  repeated StopCondition stop_conditions = 7;
+  repeated StopCondition stop_conditions = 6;
 
   // Maximum iterations before forced phase completion.
-  int32 max_iterations = 8 [(buf.validate.field).int32.gte = 1];
+  int32 max_iterations = 7 [(buf.validate.field).int32.gte = 1];
 
   // Phase description.
-  string description = 9;
+  string description = 8;
 }
 
 // QualityGate represents a validation check between phases.
@@ -256,44 +253,41 @@ message PhaseExecution {
   // Phase identifier.
   string phase_id = 1;
 
-  // Skill identifier used.
-  string skill_id = 2;
+  // Skill identifiers used.
+  repeated string skill_ids = 2;
 
   // Skill display name.
   string skill_name = 3;
 
-  // Steering modes used.
-  repeated string modes = 4;
-
   // Whether scope was included.
-  bool with_scope = 5;
+  bool with_scope = 4;
 
   // Scope skill that was used.
-  string scope = 6;
+  string scope = 5;
 
   // Number of iterations executed.
-  int32 iterations = 7;
+  int32 iterations = 6;
 
   // Metrics at phase start.
-  MetricsSnapshot start_metrics = 8;
+  MetricsSnapshot start_metrics = 7;
 
   // Metrics at phase end.
-  MetricsSnapshot end_metrics = 9;
+  MetricsSnapshot end_metrics = 8;
 
   // Git commits made during phase.
-  repeated string commits = 10;
+  repeated string commits = 9;
 
   // RFC3339 timestamp when phase started.
   // @format rfc3339
-  string started_at = 11;
+  string started_at = 10;
 
   // RFC3339 timestamp when phase completed (empty if still running).
   // @format rfc3339
-  string completed_at = 12;
+  string completed_at = 11;
 
   // Reason the phase stopped.
   // @constraint one of: max_iterations, condition_met, quality_gate_failed
-  string stop_reason = 13;
+  string stop_reason = 12;
 }
 
 // ProfileExecutionState tracks the current state of an active profile execution.
@@ -337,26 +331,23 @@ message ProfileExecutionState {
 
 // PhasePerformance tracks metrics for a completed phase.
 message PhasePerformance {
-  // Skill identifier.
-  string skill_id = 1;
+  // Skill identifiers.
+  repeated string skill_ids = 1;
 
   // Skill display name.
   string skill_name = 2;
 
-  // Steering modes used.
-  repeated string modes = 3;
-
   // Number of iterations.
-  int32 iterations = 4;
+  int32 iterations = 3;
 
   // Metric deltas (metric_name -> change).
-  map<string, double> metric_deltas = 5;
+  map<string, double> metric_deltas = 4;
 
   // Duration in milliseconds.
-  int64 duration = 6;
+  int64 duration = 5;
 
   // Calculated effectiveness score.
-  double effectiveness = 7;
+  double effectiveness = 6;
 }
 
 // UserFeedback represents user rating and comments for an execution.

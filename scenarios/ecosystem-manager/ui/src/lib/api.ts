@@ -197,8 +197,8 @@ class ApiClient {
   async setQueuePosition(
     taskId: string,
     position: number
-  ): Promise<{ success: boolean; position: number; mode: string }> {
-    return this.fetchJSON<{ success: boolean; position: number; mode: string }>(
+  ): Promise<{ success: boolean; position: number; set_label?: string }> {
+    return this.fetchJSON<{ success: boolean; position: number; set_label?: string }>(
       `/api/tasks/${taskId}/queue-position`,
       {
         method: 'PUT',

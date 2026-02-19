@@ -39,8 +39,8 @@ func (r *Registry) GetProvider(task *tasks.TaskItem) SteeringProvider {
 // DetermineStrategy inspects task fields to determine which steering strategy applies.
 // Priority order:
 // 1. Profile (AutoSteerProfileID set) - most specific configuration
-// 2. Queue (SteeringQueue has items) - ordered list of modes
-// 3. Manual (SteerMode set) - single mode selection
+// 2. Queue (SteeringQueue has items) - ordered list of skill sets
+// 3. Manual (SteerSet set) - single set selection
 // 4. None (default) - no explicit steering
 func (r *Registry) DetermineStrategy(task *tasks.TaskItem) SteeringStrategy {
 	if task == nil {
@@ -52,13 +52,13 @@ func (r *Registry) DetermineStrategy(task *tasks.TaskItem) SteeringStrategy {
 		return StrategyProfile
 	}
 
-	// Queue comes next - ordered list of modes
+	// Queue comes next - ordered list of skill sets
 	if len(task.SteeringQueue) > 0 {
 		return StrategyQueue
 	}
 
-	// Manual mode - single mode selection
-	if strings.TrimSpace(task.SteerMode) != "" {
+	// Manual - single set selection
+	if len(task.SteerSet) > 0 {
 		return StrategyManual
 	}
 

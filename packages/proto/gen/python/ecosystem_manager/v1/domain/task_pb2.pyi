@@ -8,8 +8,14 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class SteerSet(_message.Message):
+    __slots__ = ("skill_ids",)
+    SKILL_IDS_FIELD_NUMBER: _ClassVar[int]
+    skill_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, skill_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class Task(_message.Message):
-    __slots__ = ("id", "title", "type", "operation", "target", "targets", "category", "priority", "effort_estimate", "urgency", "dependencies", "blocks", "related_scenarios", "related_resources", "status", "current_phase", "started_at", "completed_at", "cooldown_until", "completion_count", "last_completed_at", "validation_criteria", "created_by", "created_at", "updated_at", "tags", "notes", "results", "consecutive_completion_claims", "consecutive_failures", "processor_auto_requeue", "steer_mode", "auto_steer_profile_id", "steering_queue")
+    __slots__ = ("id", "title", "type", "operation", "target", "targets", "category", "priority", "effort_estimate", "urgency", "dependencies", "blocks", "related_scenarios", "related_resources", "status", "current_phase", "started_at", "completed_at", "cooldown_until", "completion_count", "last_completed_at", "validation_criteria", "created_by", "created_at", "updated_at", "tags", "notes", "results", "consecutive_completion_claims", "consecutive_failures", "processor_auto_requeue", "steer_set", "auto_steer_profile_id", "steering_queue")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -41,7 +47,7 @@ class Task(_message.Message):
     CONSECUTIVE_COMPLETION_CLAIMS_FIELD_NUMBER: _ClassVar[int]
     CONSECUTIVE_FAILURES_FIELD_NUMBER: _ClassVar[int]
     PROCESSOR_AUTO_REQUEUE_FIELD_NUMBER: _ClassVar[int]
-    STEER_MODE_FIELD_NUMBER: _ClassVar[int]
+    STEER_SET_FIELD_NUMBER: _ClassVar[int]
     AUTO_STEER_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     STEERING_QUEUE_FIELD_NUMBER: _ClassVar[int]
     id: str
@@ -75,10 +81,10 @@ class Task(_message.Message):
     consecutive_completion_claims: float
     consecutive_failures: int
     processor_auto_requeue: bool
-    steer_mode: str
+    steer_set: _containers.RepeatedScalarFieldContainer[str]
     auto_steer_profile_id: str
-    steering_queue: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., type: _Optional[str] = ..., operation: _Optional[str] = ..., target: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., priority: _Optional[str] = ..., effort_estimate: _Optional[str] = ..., urgency: _Optional[str] = ..., dependencies: _Optional[_Iterable[str]] = ..., blocks: _Optional[_Iterable[str]] = ..., related_scenarios: _Optional[_Iterable[str]] = ..., related_resources: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., current_phase: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., cooldown_until: _Optional[str] = ..., completion_count: _Optional[int] = ..., last_completed_at: _Optional[str] = ..., validation_criteria: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., notes: _Optional[str] = ..., results: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., consecutive_completion_claims: _Optional[float] = ..., consecutive_failures: _Optional[int] = ..., processor_auto_requeue: _Optional[bool] = ..., steer_mode: _Optional[str] = ..., auto_steer_profile_id: _Optional[str] = ..., steering_queue: _Optional[_Iterable[str]] = ...) -> None: ...
+    steering_queue: _containers.RepeatedCompositeFieldContainer[SteerSet]
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., type: _Optional[str] = ..., operation: _Optional[str] = ..., target: _Optional[str] = ..., targets: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., priority: _Optional[str] = ..., effort_estimate: _Optional[str] = ..., urgency: _Optional[str] = ..., dependencies: _Optional[_Iterable[str]] = ..., blocks: _Optional[_Iterable[str]] = ..., related_scenarios: _Optional[_Iterable[str]] = ..., related_resources: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., current_phase: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., cooldown_until: _Optional[str] = ..., completion_count: _Optional[int] = ..., last_completed_at: _Optional[str] = ..., validation_criteria: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., notes: _Optional[str] = ..., results: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., consecutive_completion_claims: _Optional[float] = ..., consecutive_failures: _Optional[int] = ..., processor_auto_requeue: _Optional[bool] = ..., steer_set: _Optional[_Iterable[str]] = ..., auto_steer_profile_id: _Optional[str] = ..., steering_queue: _Optional[_Iterable[_Union[SteerSet, _Mapping]]] = ...) -> None: ...
 
 class ProcessInfo(_message.Message):
     __slots__ = ("task_id", "agent_tag", "run_id", "started_at", "is_timed_out")

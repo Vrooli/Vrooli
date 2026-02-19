@@ -123,22 +123,20 @@ type SteerPhase struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Phase identifier.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Skill identifier to use.
-	SkillId string `protobuf:"bytes,2,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	// Skill identifiers to use as a set.
+	SkillIds []string `protobuf:"bytes,2,rep,name=skill_ids,json=skillIds,proto3" json:"skill_ids,omitempty"`
 	// Skill display name.
 	SkillName string `protobuf:"bytes,3,opt,name=skill_name,json=skillName,proto3" json:"skill_name,omitempty"`
-	// Steering modes for this phase.
-	Modes []string `protobuf:"bytes,4,rep,name=modes,proto3" json:"modes,omitempty"`
 	// Whether to include default scope from skill.
-	WithScope bool `protobuf:"varint,5,opt,name=with_scope,json=withScope,proto3" json:"with_scope,omitempty"`
+	WithScope bool `protobuf:"varint,4,opt,name=with_scope,json=withScope,proto3" json:"with_scope,omitempty"`
 	// Explicit scope skill override.
-	Scope string `protobuf:"bytes,6,opt,name=scope,proto3" json:"scope,omitempty"`
+	Scope string `protobuf:"bytes,5,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Conditions that trigger phase completion.
-	StopConditions []*StopCondition `protobuf:"bytes,7,rep,name=stop_conditions,json=stopConditions,proto3" json:"stop_conditions,omitempty"`
+	StopConditions []*StopCondition `protobuf:"bytes,6,rep,name=stop_conditions,json=stopConditions,proto3" json:"stop_conditions,omitempty"`
 	// Maximum iterations before forced phase completion.
-	MaxIterations int32 `protobuf:"varint,8,opt,name=max_iterations,json=maxIterations,proto3" json:"max_iterations,omitempty"`
+	MaxIterations int32 `protobuf:"varint,7,opt,name=max_iterations,json=maxIterations,proto3" json:"max_iterations,omitempty"`
 	// Phase description.
-	Description   string `protobuf:"bytes,9,opt,name=description,proto3" json:"description,omitempty"`
+	Description   string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -180,11 +178,11 @@ func (x *SteerPhase) GetId() string {
 	return ""
 }
 
-func (x *SteerPhase) GetSkillId() string {
+func (x *SteerPhase) GetSkillIds() []string {
 	if x != nil {
-		return x.SkillId
+		return x.SkillIds
 	}
-	return ""
+	return nil
 }
 
 func (x *SteerPhase) GetSkillName() string {
@@ -192,13 +190,6 @@ func (x *SteerPhase) GetSkillName() string {
 		return x.SkillName
 	}
 	return ""
-}
-
-func (x *SteerPhase) GetModes() []string {
-	if x != nil {
-		return x.Modes
-	}
-	return nil
 }
 
 func (x *SteerPhase) GetWithScope() bool {
@@ -987,33 +978,31 @@ type PhaseExecution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Phase identifier.
 	PhaseId string `protobuf:"bytes,1,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
-	// Skill identifier used.
-	SkillId string `protobuf:"bytes,2,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	// Skill identifiers used.
+	SkillIds []string `protobuf:"bytes,2,rep,name=skill_ids,json=skillIds,proto3" json:"skill_ids,omitempty"`
 	// Skill display name.
 	SkillName string `protobuf:"bytes,3,opt,name=skill_name,json=skillName,proto3" json:"skill_name,omitempty"`
-	// Steering modes used.
-	Modes []string `protobuf:"bytes,4,rep,name=modes,proto3" json:"modes,omitempty"`
 	// Whether scope was included.
-	WithScope bool `protobuf:"varint,5,opt,name=with_scope,json=withScope,proto3" json:"with_scope,omitempty"`
+	WithScope bool `protobuf:"varint,4,opt,name=with_scope,json=withScope,proto3" json:"with_scope,omitempty"`
 	// Scope skill that was used.
-	Scope string `protobuf:"bytes,6,opt,name=scope,proto3" json:"scope,omitempty"`
+	Scope string `protobuf:"bytes,5,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Number of iterations executed.
-	Iterations int32 `protobuf:"varint,7,opt,name=iterations,proto3" json:"iterations,omitempty"`
+	Iterations int32 `protobuf:"varint,6,opt,name=iterations,proto3" json:"iterations,omitempty"`
 	// Metrics at phase start.
-	StartMetrics *MetricsSnapshot `protobuf:"bytes,8,opt,name=start_metrics,json=startMetrics,proto3" json:"start_metrics,omitempty"`
+	StartMetrics *MetricsSnapshot `protobuf:"bytes,7,opt,name=start_metrics,json=startMetrics,proto3" json:"start_metrics,omitempty"`
 	// Metrics at phase end.
-	EndMetrics *MetricsSnapshot `protobuf:"bytes,9,opt,name=end_metrics,json=endMetrics,proto3" json:"end_metrics,omitempty"`
+	EndMetrics *MetricsSnapshot `protobuf:"bytes,8,opt,name=end_metrics,json=endMetrics,proto3" json:"end_metrics,omitempty"`
 	// Git commits made during phase.
-	Commits []string `protobuf:"bytes,10,rep,name=commits,proto3" json:"commits,omitempty"`
+	Commits []string `protobuf:"bytes,9,rep,name=commits,proto3" json:"commits,omitempty"`
 	// RFC3339 timestamp when phase started.
 	// @format rfc3339
-	StartedAt string `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	StartedAt string `protobuf:"bytes,10,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// RFC3339 timestamp when phase completed (empty if still running).
 	// @format rfc3339
-	CompletedAt string `protobuf:"bytes,12,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	CompletedAt string `protobuf:"bytes,11,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	// Reason the phase stopped.
 	// @constraint one of: max_iterations, condition_met, quality_gate_failed
-	StopReason    string `protobuf:"bytes,13,opt,name=stop_reason,json=stopReason,proto3" json:"stop_reason,omitempty"`
+	StopReason    string `protobuf:"bytes,12,opt,name=stop_reason,json=stopReason,proto3" json:"stop_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1055,11 +1044,11 @@ func (x *PhaseExecution) GetPhaseId() string {
 	return ""
 }
 
-func (x *PhaseExecution) GetSkillId() string {
+func (x *PhaseExecution) GetSkillIds() []string {
 	if x != nil {
-		return x.SkillId
+		return x.SkillIds
 	}
-	return ""
+	return nil
 }
 
 func (x *PhaseExecution) GetSkillName() string {
@@ -1067,13 +1056,6 @@ func (x *PhaseExecution) GetSkillName() string {
 		return x.SkillName
 	}
 	return ""
-}
-
-func (x *PhaseExecution) GetModes() []string {
-	if x != nil {
-		return x.Modes
-	}
-	return nil
 }
 
 func (x *PhaseExecution) GetWithScope() bool {
@@ -1281,20 +1263,18 @@ func (x *ProfileExecutionState) GetLastUpdated() string {
 // PhasePerformance tracks metrics for a completed phase.
 type PhasePerformance struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Skill identifier.
-	SkillId string `protobuf:"bytes,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	// Skill identifiers.
+	SkillIds []string `protobuf:"bytes,1,rep,name=skill_ids,json=skillIds,proto3" json:"skill_ids,omitempty"`
 	// Skill display name.
 	SkillName string `protobuf:"bytes,2,opt,name=skill_name,json=skillName,proto3" json:"skill_name,omitempty"`
-	// Steering modes used.
-	Modes []string `protobuf:"bytes,3,rep,name=modes,proto3" json:"modes,omitempty"`
 	// Number of iterations.
-	Iterations int32 `protobuf:"varint,4,opt,name=iterations,proto3" json:"iterations,omitempty"`
+	Iterations int32 `protobuf:"varint,3,opt,name=iterations,proto3" json:"iterations,omitempty"`
 	// Metric deltas (metric_name -> change).
-	MetricDeltas map[string]float64 `protobuf:"bytes,5,rep,name=metric_deltas,json=metricDeltas,proto3" json:"metric_deltas,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	MetricDeltas map[string]float64 `protobuf:"bytes,4,rep,name=metric_deltas,json=metricDeltas,proto3" json:"metric_deltas,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
 	// Duration in milliseconds.
-	Duration int64 `protobuf:"varint,6,opt,name=duration,proto3" json:"duration,omitempty"`
+	Duration int64 `protobuf:"varint,5,opt,name=duration,proto3" json:"duration,omitempty"`
 	// Calculated effectiveness score.
-	Effectiveness float64 `protobuf:"fixed64,7,opt,name=effectiveness,proto3" json:"effectiveness,omitempty"`
+	Effectiveness float64 `protobuf:"fixed64,6,opt,name=effectiveness,proto3" json:"effectiveness,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1329,11 +1309,11 @@ func (*PhasePerformance) Descriptor() ([]byte, []int) {
 	return file_ecosystem_manager_v1_domain_autosteer_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *PhasePerformance) GetSkillId() string {
+func (x *PhasePerformance) GetSkillIds() []string {
 	if x != nil {
-		return x.SkillId
+		return x.SkillIds
 	}
-	return ""
+	return nil
 }
 
 func (x *PhasePerformance) GetSkillName() string {
@@ -1341,13 +1321,6 @@ func (x *PhasePerformance) GetSkillName() string {
 		return x.SkillName
 	}
 	return ""
-}
-
-func (x *PhasePerformance) GetModes() []string {
-	if x != nil {
-		return x.Modes
-	}
-	return nil
 }
 
 func (x *PhasePerformance) GetIterations() int32 {
@@ -1914,20 +1887,19 @@ const file_ecosystem_manager_v1_domain_autosteer_proto_rawDesc = "" +
 	"conditions\x12\x16\n" +
 	"\x06metric\x18\x04 \x01(\tR\x06metric\x12)\n" +
 	"\x10compare_operator\x18\x05 \x01(\tR\x0fcompareOperator\x12\x14\n" +
-	"\x05value\x18\x06 \x01(\x01R\x05value\"\xd3\x02\n" +
+	"\x05value\x18\x06 \x01(\x01R\x05value\"\xb6\x02\n" +
 	"\n" +
 	"SteerPhase\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\"\n" +
-	"\bskill_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\askillId\x12\x1d\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n" +
+	"\tskill_ids\x18\x02 \x03(\tR\bskillIds\x12\x1d\n" +
 	"\n" +
-	"skill_name\x18\x03 \x01(\tR\tskillName\x12\x14\n" +
-	"\x05modes\x18\x04 \x03(\tR\x05modes\x12\x1d\n" +
+	"skill_name\x18\x03 \x01(\tR\tskillName\x12\x1d\n" +
 	"\n" +
-	"with_scope\x18\x05 \x01(\bR\twithScope\x12\x14\n" +
-	"\x05scope\x18\x06 \x01(\tR\x05scope\x12L\n" +
-	"\x0fstop_conditions\x18\a \x03(\v2#.ecosystem_manager.v1.StopConditionR\x0estopConditions\x12.\n" +
-	"\x0emax_iterations\x18\b \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\rmaxIterations\x12 \n" +
-	"\vdescription\x18\t \x01(\tR\vdescription\"\xcd\x01\n" +
+	"with_scope\x18\x04 \x01(\bR\twithScope\x12\x14\n" +
+	"\x05scope\x18\x05 \x01(\tR\x05scope\x12L\n" +
+	"\x0fstop_conditions\x18\x06 \x03(\v2#.ecosystem_manager.v1.StopConditionR\x0estopConditions\x12.\n" +
+	"\x0emax_iterations\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\rmaxIterations\x12 \n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\"\xcd\x01\n" +
 	"\vQualityGate\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12A\n" +
 	"\tcondition\x18\x02 \x01(\v2#.ecosystem_manager.v1.StopConditionR\tcondition\x12D\n" +
@@ -1997,28 +1969,27 @@ const file_ecosystem_manager_v1_domain_autosteer_proto_rawDesc = "" +
 	"\t_refactorB\a\n" +
 	"\x05_testB\x0e\n" +
 	"\f_performanceB\v\n" +
-	"\t_security\"\xe1\x03\n" +
+	"\t_security\"\xcd\x03\n" +
 	"\x0ePhaseExecution\x12\x19\n" +
-	"\bphase_id\x18\x01 \x01(\tR\aphaseId\x12\x19\n" +
-	"\bskill_id\x18\x02 \x01(\tR\askillId\x12\x1d\n" +
+	"\bphase_id\x18\x01 \x01(\tR\aphaseId\x12\x1b\n" +
+	"\tskill_ids\x18\x02 \x03(\tR\bskillIds\x12\x1d\n" +
 	"\n" +
-	"skill_name\x18\x03 \x01(\tR\tskillName\x12\x14\n" +
-	"\x05modes\x18\x04 \x03(\tR\x05modes\x12\x1d\n" +
+	"skill_name\x18\x03 \x01(\tR\tskillName\x12\x1d\n" +
 	"\n" +
-	"with_scope\x18\x05 \x01(\bR\twithScope\x12\x14\n" +
-	"\x05scope\x18\x06 \x01(\tR\x05scope\x12\x1e\n" +
+	"with_scope\x18\x04 \x01(\bR\twithScope\x12\x14\n" +
+	"\x05scope\x18\x05 \x01(\tR\x05scope\x12\x1e\n" +
 	"\n" +
-	"iterations\x18\a \x01(\x05R\n" +
+	"iterations\x18\x06 \x01(\x05R\n" +
 	"iterations\x12J\n" +
-	"\rstart_metrics\x18\b \x01(\v2%.ecosystem_manager.v1.MetricsSnapshotR\fstartMetrics\x12F\n" +
-	"\vend_metrics\x18\t \x01(\v2%.ecosystem_manager.v1.MetricsSnapshotR\n" +
+	"\rstart_metrics\x18\a \x01(\v2%.ecosystem_manager.v1.MetricsSnapshotR\fstartMetrics\x12F\n" +
+	"\vend_metrics\x18\b \x01(\v2%.ecosystem_manager.v1.MetricsSnapshotR\n" +
 	"endMetrics\x12\x18\n" +
-	"\acommits\x18\n" +
-	" \x03(\tR\acommits\x12\x1d\n" +
+	"\acommits\x18\t \x03(\tR\acommits\x12\x1d\n" +
 	"\n" +
-	"started_at\x18\v \x01(\tR\tstartedAt\x12!\n" +
-	"\fcompleted_at\x18\f \x01(\tR\vcompletedAt\x12\x1f\n" +
-	"\vstop_reason\x18\r \x01(\tR\n" +
+	"started_at\x18\n" +
+	" \x01(\tR\tstartedAt\x12!\n" +
+	"\fcompleted_at\x18\v \x01(\tR\vcompletedAt\x12\x1f\n" +
+	"\vstop_reason\x18\f \x01(\tR\n" +
 	"stopReason\"\xca\x04\n" +
 	"\x15ProfileExecutionState\x12 \n" +
 	"\atask_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12&\n" +
@@ -2034,18 +2005,17 @@ const file_ecosystem_manager_v1_domain_autosteer_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\n" +
 	" \x01(\tR\tstartedAt\x12!\n" +
-	"\flast_updated\x18\v \x01(\tR\vlastUpdated\"\xe4\x02\n" +
-	"\x10PhasePerformance\x12\x19\n" +
-	"\bskill_id\x18\x01 \x01(\tR\askillId\x12\x1d\n" +
+	"\flast_updated\x18\v \x01(\tR\vlastUpdated\"\xd0\x02\n" +
+	"\x10PhasePerformance\x12\x1b\n" +
+	"\tskill_ids\x18\x01 \x03(\tR\bskillIds\x12\x1d\n" +
 	"\n" +
-	"skill_name\x18\x02 \x01(\tR\tskillName\x12\x14\n" +
-	"\x05modes\x18\x03 \x03(\tR\x05modes\x12\x1e\n" +
+	"skill_name\x18\x02 \x01(\tR\tskillName\x12\x1e\n" +
 	"\n" +
-	"iterations\x18\x04 \x01(\x05R\n" +
+	"iterations\x18\x03 \x01(\x05R\n" +
 	"iterations\x12]\n" +
-	"\rmetric_deltas\x18\x05 \x03(\v28.ecosystem_manager.v1.PhasePerformance.MetricDeltasEntryR\fmetricDeltas\x12\x1a\n" +
-	"\bduration\x18\x06 \x01(\x03R\bduration\x12$\n" +
-	"\reffectiveness\x18\a \x01(\x01R\reffectiveness\x1a?\n" +
+	"\rmetric_deltas\x18\x04 \x03(\v28.ecosystem_manager.v1.PhasePerformance.MetricDeltasEntryR\fmetricDeltas\x12\x1a\n" +
+	"\bduration\x18\x05 \x01(\x03R\bduration\x12$\n" +
+	"\reffectiveness\x18\x06 \x01(\x01R\reffectiveness\x1a?\n" +
 	"\x11MetricDeltasEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"p\n" +

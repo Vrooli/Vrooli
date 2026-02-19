@@ -12,7 +12,24 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ecosystem-manager/v1/domain/task.proto.
  */
 export const file_ecosystem_manager_v1_domain_task: GenFile = /*@__PURE__*/
-  fileDesc("CiZlY29zeXN0ZW0tbWFuYWdlci92MS9kb21haW4vdGFzay5wcm90bxIUZWNvc3lzdGVtX21hbmFnZXIudjEixwcKBFRhc2sSEwoCaWQYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESJwoEdHlwZRgDIAEoCUIZukgWchRSCHJlc291cmNlUghzY2VuYXJpbxItCglvcGVyYXRpb24YBCABKAlCGrpIF3IVUglnZW5lcmF0b3JSCGltcHJvdmVyEg4KBnRhcmdldBgFIAEoCRIPCgd0YXJnZXRzGAYgAygJEhAKCGNhdGVnb3J5GAcgASgJEjQKCHByaW9yaXR5GAggASgJQiK6SB9yHVIIY3JpdGljYWxSBGhpZ2hSBm1lZGl1bVIDbG93EhcKD2VmZm9ydF9lc3RpbWF0ZRgJIAEoCRIPCgd1cmdlbmN5GAogASgJEhQKDGRlcGVuZGVuY2llcxgLIAMoCRIOCgZibG9ja3MYDCADKAkSGQoRcmVsYXRlZF9zY2VuYXJpb3MYDSADKAkSGQoRcmVsYXRlZF9yZXNvdXJjZXMYDiADKAkSbQoGc3RhdHVzGA8gASgJQl26SFpyWFIHcGVuZGluZ1ILaW4tcHJvZ3Jlc3NSCWNvbXBsZXRlZFIGZmFpbGVkUhNjb21wbGV0ZWQtZmluYWxpemVkUg5mYWlsZWQtYmxvY2tlZFIIYXJjaGl2ZWQSFQoNY3VycmVudF9waGFzZRgQIAEoCRISCgpzdGFydGVkX2F0GBEgASgJEhQKDGNvbXBsZXRlZF9hdBgSIAEoCRIWCg5jb29sZG93bl91bnRpbBgTIAEoCRIYChBjb21wbGV0aW9uX2NvdW50GBQgASgFEhkKEWxhc3RfY29tcGxldGVkX2F0GBUgASgJEhsKE3ZhbGlkYXRpb25fY3JpdGVyaWEYFiADKAkSEgoKY3JlYXRlZF9ieRgXIAEoCRISCgpjcmVhdGVkX2F0GBggASgJEhIKCnVwZGF0ZWRfYXQYGSABKAkSDAoEdGFncxgaIAMoCRINCgVub3RlcxgbIAEoCRIoCgdyZXN1bHRzGBwgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIlCh1jb25zZWN1dGl2ZV9jb21wbGV0aW9uX2NsYWltcxgdIAEoARIcChRjb25zZWN1dGl2ZV9mYWlsdXJlcxgeIAEoBRIeChZwcm9jZXNzb3JfYXV0b19yZXF1ZXVlGB8gASgIEhIKCnN0ZWVyX21vZGUYICABKAkSHQoVYXV0b19zdGVlcl9wcm9maWxlX2lkGCEgASgJEhYKDnN0ZWVyaW5nX3F1ZXVlGCIgAygJInQKC1Byb2Nlc3NJbmZvEhgKB3Rhc2tfaWQYASABKAlCB7pIBHICEAESEQoJYWdlbnRfdGFnGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRISCgpzdGFydGVkX2F0GAQgASgJEhQKDGlzX3RpbWVkX291dBgFIAEoCCJgCgxBY3RpdmVUYXJnZXQSFwoGdGFyZ2V0GAEgASgJQge6SARyAhABEhgKB3Rhc2tfaWQYAiABKAlCB7pIBHICEAESDgoGc3RhdHVzGAMgASgJEg0KBXRpdGxlGAQgASgJQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZWNvc3lzdGVtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("CiZlY29zeXN0ZW0tbWFuYWdlci92MS9kb21haW4vdGFzay5wcm90bxIUZWNvc3lzdGVtX21hbmFnZXIudjEiHQoIU3RlZXJTZXQSEQoJc2tpbGxfaWRzGAEgAygJIuYHCgRUYXNrEhMKAmlkGAEgASgJQge6SARyAhABEhYKBXRpdGxlGAIgASgJQge6SARyAhABEicKBHR5cGUYAyABKAlCGbpIFnIUUghyZXNvdXJjZVIIc2NlbmFyaW8SLQoJb3BlcmF0aW9uGAQgASgJQhq6SBdyFVIJZ2VuZXJhdG9yUghpbXByb3ZlchIOCgZ0YXJnZXQYBSABKAkSDwoHdGFyZ2V0cxgGIAMoCRIQCghjYXRlZ29yeRgHIAEoCRI0Cghwcmlvcml0eRgIIAEoCUIiukgfch1SCGNyaXRpY2FsUgRoaWdoUgZtZWRpdW1SA2xvdxIXCg9lZmZvcnRfZXN0aW1hdGUYCSABKAkSDwoHdXJnZW5jeRgKIAEoCRIUCgxkZXBlbmRlbmNpZXMYCyADKAkSDgoGYmxvY2tzGAwgAygJEhkKEXJlbGF0ZWRfc2NlbmFyaW9zGA0gAygJEhkKEXJlbGF0ZWRfcmVzb3VyY2VzGA4gAygJEm0KBnN0YXR1cxgPIAEoCUJdukhaclhSB3BlbmRpbmdSC2luLXByb2dyZXNzUgljb21wbGV0ZWRSBmZhaWxlZFITY29tcGxldGVkLWZpbmFsaXplZFIOZmFpbGVkLWJsb2NrZWRSCGFyY2hpdmVkEhUKDWN1cnJlbnRfcGhhc2UYECABKAkSEgoKc3RhcnRlZF9hdBgRIAEoCRIUCgxjb21wbGV0ZWRfYXQYEiABKAkSFgoOY29vbGRvd25fdW50aWwYEyABKAkSGAoQY29tcGxldGlvbl9jb3VudBgUIAEoBRIZChFsYXN0X2NvbXBsZXRlZF9hdBgVIAEoCRIbChN2YWxpZGF0aW9uX2NyaXRlcmlhGBYgAygJEhIKCmNyZWF0ZWRfYnkYFyABKAkSEgoKY3JlYXRlZF9hdBgYIAEoCRISCgp1cGRhdGVkX2F0GBkgASgJEgwKBHRhZ3MYGiADKAkSDQoFbm90ZXMYGyABKAkSKAoHcmVzdWx0cxgcIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSJQodY29uc2VjdXRpdmVfY29tcGxldGlvbl9jbGFpbXMYHSABKAESHAoUY29uc2VjdXRpdmVfZmFpbHVyZXMYHiABKAUSHgoWcHJvY2Vzc29yX2F1dG9fcmVxdWV1ZRgfIAEoCBIRCglzdGVlcl9zZXQYICADKAkSHQoVYXV0b19zdGVlcl9wcm9maWxlX2lkGCEgASgJEjYKDnN0ZWVyaW5nX3F1ZXVlGCIgAygLMh4uZWNvc3lzdGVtX21hbmFnZXIudjEuU3RlZXJTZXQidAoLUHJvY2Vzc0luZm8SGAoHdGFza19pZBgBIAEoCUIHukgEcgIQARIRCglhZ2VudF90YWcYAiABKAkSDgoGcnVuX2lkGAMgASgJEhIKCnN0YXJ0ZWRfYXQYBCABKAkSFAoMaXNfdGltZWRfb3V0GAUgASgIImAKDEFjdGl2ZVRhcmdldBIXCgZ0YXJnZXQYASABKAlCB7pIBHICEAESGAoHdGFza19pZBgCIAEoCUIHukgEcgIQARIOCgZzdGF0dXMYAyABKAkSDQoFdGl0bGUYBCABKAlCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9lY29zeXN0ZW0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct]);
+
+/**
+ * @generated from message ecosystem_manager.v1.SteerSet
+ */
+export type SteerSet = Message<"ecosystem_manager.v1.SteerSet"> & {
+  /**
+   * @generated from field: repeated string skill_ids = 1;
+   */
+  skillIds: string[];
+};
+
+/**
+ * Describes the message ecosystem_manager.v1.SteerSet.
+ * Use `create(SteerSetSchema)` to create a new message.
+ */
+export const SteerSetSchema: GenMessage<SteerSet> = /*@__PURE__*/
+  messageDesc(file_ecosystem_manager_v1_domain_task, 0);
 
 /**
  * Task represents a unified task in the ecosystem.
@@ -248,12 +265,11 @@ export type Task = Message<"ecosystem_manager.v1.Task"> & {
   processorAutoRequeue: boolean;
 
   /**
-   * Manual steering mode when Auto Steer profile is not set.
-   * @constraint built-in: progress, ux, refactor, test, explore, polish, performance, security (plus custom)
+   * Manual steering skill set when Auto Steer profile is not set.
    *
-   * @generated from field: string steer_mode = 32;
+   * @generated from field: repeated string steer_set = 32;
    */
-  steerMode: string;
+  steerSet: string[];
 
   /**
    * Auto Steer profile ID to use.
@@ -263,11 +279,11 @@ export type Task = Message<"ecosystem_manager.v1.Task"> & {
   autoSteerProfileId: string;
 
   /**
-   * Ordered list of modes for queue steering.
+   * Ordered list of steering skill sets for queue steering.
    *
-   * @generated from field: repeated string steering_queue = 34;
+   * @generated from field: repeated ecosystem_manager.v1.SteerSet steering_queue = 34;
    */
-  steeringQueue: string[];
+  steeringQueue: SteerSet[];
 };
 
 /**
@@ -275,7 +291,7 @@ export type Task = Message<"ecosystem_manager.v1.Task"> & {
  * Use `create(TaskSchema)` to create a new message.
  */
 export const TaskSchema: GenMessage<Task> = /*@__PURE__*/
-  messageDesc(file_ecosystem_manager_v1_domain_task, 0);
+  messageDesc(file_ecosystem_manager_v1_domain_task, 1);
 
 /**
  * ProcessInfo contains information about a running agent process.
@@ -325,7 +341,7 @@ export type ProcessInfo = Message<"ecosystem_manager.v1.ProcessInfo"> & {
  * Use `create(ProcessInfoSchema)` to create a new message.
  */
 export const ProcessInfoSchema: GenMessage<ProcessInfo> = /*@__PURE__*/
-  messageDesc(file_ecosystem_manager_v1_domain_task, 1);
+  messageDesc(file_ecosystem_manager_v1_domain_task, 2);
 
 /**
  * ActiveTarget represents a target currently being worked on.
@@ -367,5 +383,5 @@ export type ActiveTarget = Message<"ecosystem_manager.v1.ActiveTarget"> & {
  * Use `create(ActiveTargetSchema)` to create a new message.
  */
 export const ActiveTargetSchema: GenMessage<ActiveTarget> = /*@__PURE__*/
-  messageDesc(file_ecosystem_manager_v1_domain_task, 2);
+  messageDesc(file_ecosystem_manager_v1_domain_task, 3);
 

@@ -5,7 +5,7 @@
   "phases": [
     {
       "id": "production-ready-progress",
-      "skill_id": "progress",
+      "skill_ids": ["progress"],
       "skill_name": "Progress",
       "modes": [],
       "stop_conditions": [
@@ -20,7 +20,7 @@
     },
     {
       "id": "production-ready-ux",
-      "skill_id": "ux",
+      "skill_ids": ["ux"],
       "skill_name": "UX",
       "modes": [],
       "stop_conditions": [
@@ -53,7 +53,7 @@
     },
     {
       "id": "production-ready-test",
-      "skill_id": "test",
+      "skill_ids": ["test"],
       "skill_name": "Test",
       "modes": [],
       "stop_conditions": [
@@ -92,7 +92,7 @@
     },
     {
       "id": "production-ready-refactor",
-      "skill_id": "refactor",
+      "skill_ids": ["refactor"],
       "skill_name": "Refactor",
       "modes": [],
       "stop_conditions": [
@@ -125,7 +125,7 @@
     },
     {
       "id": "production-ready-security",
-      "skill_id": "security",
+      "skill_ids": ["security"],
       "skill_name": "Security",
       "modes": [],
       "stop_conditions": [
@@ -152,7 +152,7 @@
     },
     {
       "id": "production-ready-performance",
-      "skill_id": "performance",
+      "skill_ids": ["performance"],
       "skill_name": "Performance",
       "modes": [],
       "stop_conditions": [
@@ -167,7 +167,7 @@
     },
     {
       "id": "production-ready-polish",
-      "skill_id": "polish",
+      "skill_ids": ["polish"],
       "skill_name": "Polish",
       "modes": [],
       "stop_conditions": [

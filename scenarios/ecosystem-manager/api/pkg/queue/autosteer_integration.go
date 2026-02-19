@@ -111,8 +111,8 @@ func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt st
 	enhancedPrompt := autosteer.InjectSteeringSection(basePrompt, autoSteerSection)
 
 	// Log for debugging
-	currentMode, _ := a.executionOrchestrator.GetCurrentMode(task.ID)
-	log.Printf("Enhanced prompt with Auto Steer (%s mode) for task %s", currentMode, task.ID)
+	currentSet, _ := a.executionOrchestrator.GetCurrentSet(task.ID)
+	log.Printf("Enhanced prompt with Auto Steer (%v skill set) for task %s", currentSet, task.ID)
 
 	return enhancedPrompt, nil
 }
@@ -226,13 +226,13 @@ func (a *AutoSteerIntegration) ShouldContinueTask(task *tasks.TaskItem, scenario
 	return false, nil
 }
 
-// GetCurrentMode returns the current Auto Steer mode for a task
-func (a *AutoSteerIntegration) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
+// GetCurrentSet returns the current Auto Steer skill set for a task
+func (a *AutoSteerIntegration) GetCurrentSet(task *tasks.TaskItem) ([]string, error) {
 	if !a.isEligible(task) {
-		return "", nil
+		return nil, nil
 	}
 
-	return a.executionOrchestrator.GetCurrentMode(task.ID)
+	return a.executionOrchestrator.GetCurrentSet(task.ID)
 }
 
 // IsActive checks if Auto Steer is active for a task

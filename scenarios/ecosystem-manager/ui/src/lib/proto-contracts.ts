@@ -202,10 +202,12 @@ export function mapProtoTask(proto: ProtoTask, runtime?: {
     status: isTaskStatus(proto.status) ? proto.status : "pending",
     target: targets.filter(Boolean),
     notes: proto.notes || undefined,
-    steer_mode: proto.steerMode || undefined,
+    steer_set: proto.steerSet.length > 0 ? proto.steerSet : undefined,
     auto_steer_profile_id: proto.autoSteerProfileId || undefined,
     auto_steer_phase_index: runtime?.autoSteerPhaseIndex,
-    steering_queue: proto.steeringQueue.length > 0 ? proto.steeringQueue : undefined,
+    steering_queue: proto.steeringQueue.length > 0
+      ? proto.steeringQueue.map((step) => step.skillIds)
+      : undefined,
     auto_requeue: proto.processorAutoRequeue,
     created_at: proto.createdAt,
     updated_at: proto.updatedAt,
@@ -303,7 +305,8 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionH
     transcript_path: proto.transcriptPath || undefined,
     auto_steer_profile_id: proto.autoSteerProfileId || undefined,
     auto_steer_iteration: proto.autoSteerIteration || undefined,
-    steer_mode: proto.steerMode || undefined,
+    steer_skill_ids: proto.steerSkillIds.length > 0 ? proto.steerSkillIds : undefined,
+    steer_set_label: proto.steerSetLabel || undefined,
     steer_phase_index: proto.steerPhaseIndex || undefined,
     steer_phase_iteration: proto.steerPhaseIteration || undefined,
     steering_source: proto.steeringSource || undefined,
@@ -553,10 +556,9 @@ export function parseTaskResponse(raw: unknown): Task {
     }
     if (r.execution_count != null) task.execution_count = r.execution_count;
     if (r.steering_queue_index != null) task.steering_queue_index = r.steering_queue_index;
-    if (r.steering_queue_mode != null) task.steering_queue_mode = r.steering_queue_mode;
+    if (r.steering_queue_set_label != null) task.steering_queue_set_label = r.steering_queue_set_label;
     if (r.steering_queue_total != null) task.steering_queue_total = r.steering_queue_total;
     if (r.steering_queue_exhausted != null) task.steering_queue_exhausted = r.steering_queue_exhausted;
-    if (r.auto_steer_mode != null) task.auto_steer_mode = r.auto_steer_mode;
     if (r.auto_steer_phase_index != null) task.auto_steer_phase_index = r.auto_steer_phase_index;
     return task;
   }
@@ -577,6 +579,29 @@ function normalizeProcessInfo(raw: any): ProcessInfo | undefined {
   };
 }
 
+function parseSkillSet(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const ids = value
+    .map((id) => (typeof id === "string" ? id.trim() : ""))
+    .filter(Boolean);
+  return ids.length > 0 ? ids : undefined;
+}
+
+function parseSteeringQueue(value: unknown): string[][] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const queue = value
+    .map((step) => {
+      if (Array.isArray(step)) return parseSkillSet(step);
+      if (step && typeof step === "object") {
+        const record = step as Record<string, unknown>;
+        return parseSkillSet(record.skill_ids ?? record.skillIds);
+      }
+      return undefined;
+    })
+    .filter((step): step is string[] => Array.isArray(step) && step.length > 0);
+  return queue.length > 0 ? queue : undefined;
+}
+
 function fallbackNormalizeTask(raw: any): Task {
   const targets = Array.isArray(raw.targets) ? raw.targets
     : Array.isArray(raw.target) ? raw.target
@@ -592,11 +617,10 @@ function fallbackNormalizeTask(raw: any): Task {
     status: isTaskStatus(raw.status) ? raw.status : "pending",
     target: targets.filter(Boolean),
     notes: raw.notes,
-    steer_mode: raw.steer_mode ?? raw.steerMode,
+    steer_set: parseSkillSet(raw.steer_set ?? raw.steerSet),
     auto_steer_profile_id: raw.auto_steer_profile_id ?? raw.autoSteerProfileId,
-    auto_steer_mode: raw.auto_steer_mode ?? raw.autoSteerMode,
     auto_steer_phase_index: raw.auto_steer_phase_index ?? raw.autoSteerPhaseIndex,
-    steering_queue: raw.steering_queue ?? raw.steeringQueue,
+    steering_queue: parseSteeringQueue(raw.steering_queue ?? raw.steeringQueue),
     auto_requeue: raw.auto_requeue ?? raw.processor_auto_requeue ?? raw.processorAutoRequeue ?? true,
     created_at: raw.created_at ?? raw.createdAt ?? "",
     updated_at: raw.updated_at ?? raw.updatedAt ?? "",
@@ -659,7 +683,8 @@ function fallbackNormalizeExecution(raw: any): ExecutionHistory {
     transcript_path: raw?.transcript_path ?? raw?.transcriptPath,
     auto_steer_profile_id: raw?.auto_steer_profile_id ?? raw?.autoSteerProfileId,
     auto_steer_iteration: raw?.auto_steer_iteration ?? raw?.autoSteerIteration,
-    steer_mode: raw?.steer_mode ?? raw?.steerMode,
+    steer_skill_ids: parseSkillSet(raw?.steer_skill_ids ?? raw?.steerSkillIds),
+    steer_set_label: raw?.steer_set_label ?? raw?.steerSetLabel,
     steer_phase_index: raw?.steer_phase_index ?? raw?.steerPhaseIndex,
     steer_phase_iteration: raw?.steer_phase_iteration ?? raw?.steerPhaseIteration,
     steering_source: raw?.steering_source ?? raw?.steeringSource,

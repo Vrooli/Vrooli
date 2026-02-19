@@ -57,41 +57,20 @@ func (p *PromptEnhancer) GetPromptLoader() *PromptLoader {
 	return p.promptLoader
 }
 
-// GenerateModeSection renders a standalone section for a specific mode (no Auto Steer framing).
-func (p *PromptEnhancer) GenerateModeSection(mode SteerMode) string {
+// GenerateSkillSetSection renders a standalone section for a steering skill set.
+// XML content is sourced from prompt-manager via api-core discovery through PromptLoader.
+func (p *PromptEnhancer) GenerateSkillSetSection(skillIDs []string, withScope bool, scope string) string {
 	if p == nil {
 		return ""
 	}
-	return p.renderModeContent(mode)
-}
-
-// renderModeContent returns the markdown for a mode with success criteria and tools appended.
-func (p *PromptEnhancer) renderModeContent(mode SteerMode) string {
-	data, ok := p.promptLoader.loadPrompt(mode)
-	if !ok {
-		// Graceful degradation: return empty content when prompt-manager unavailable
+	if len(skillIDs) == 0 {
 		return ""
 	}
-
-	var b strings.Builder
-
-	b.WriteString(strings.TrimSpace(data.Instructions))
-
-	if len(data.SuccessCriteria) > 0 {
-		b.WriteString("\n\n**Success Criteria:**\n")
-		for _, criterion := range data.SuccessCriteria {
-			b.WriteString(fmt.Sprintf("- %s\n", criterion))
-		}
+	combined, err := p.promptLoader.ReadSkillsWithScope(skillIDs, withScope, scope)
+	if err != nil {
+		return ""
 	}
-
-	if len(data.ToolRecommendations) > 0 {
-		b.WriteString("\n**Recommended Tools:**\n")
-		for _, tool := range data.ToolRecommendations {
-			b.WriteString(fmt.Sprintf("- %s\n", tool))
-		}
-	}
-
-	return strings.TrimSpace(b.String())
+	return strings.TrimSpace(combined)
 }
 
 // GenerateAutoSteerSection generates the Auto Steer section for agent prompts
@@ -109,14 +88,15 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 	}
 
 	currentPhase := profile.Phases[state.CurrentPhaseIndex]
+	currentSkillIDs := currentPhase.SkillIDs
 
 	var output strings.Builder
 
-	// Mode-specific instructions first (phase markdown owns the heading)
-	modeContent := p.renderModeContent(SteerMode(currentPhase.SkillID))
-	if strings.TrimSpace(modeContent) != "" {
+	// Skill-set instructions first.
+	skillContent := p.GenerateSkillSetSection(currentSkillIDs, currentPhase.WithScope, currentPhase.Scope)
+	if strings.TrimSpace(skillContent) != "" {
 		output.WriteString("\n")
-		output.WriteString(modeContent)
+		output.WriteString(skillContent)
 		output.WriteString("\n\n")
 	}
 
@@ -233,7 +213,7 @@ func (p *PromptEnhancer) getKeyImprovements(phaseExec PhaseExecution) []string {
 func (p *PromptEnhancer) formatImprovement(metric string, delta float64) string {
 	// Format metric name nicely
 	metricName := strings.ReplaceAll(metric, "_", " ")
-		metricName = titleize(metricName)
+	metricName = titleize(metricName)
 
 	// Format delta with sign and appropriate precision
 	sign := "+"
@@ -280,7 +260,7 @@ Continue building on the work from previous phases while focusing on the new obj
 		phaseNumber,
 		totalPhases,
 		oldPhase.SkillName,
-		p.promptLoader.GetInstructions(SteerMode(newPhase.SkillID)),
+		p.GenerateSkillSetSection(newPhase.SkillIDs, newPhase.WithScope, newPhase.Scope),
 	)
 }
 

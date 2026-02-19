@@ -18,14 +18,21 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 	}
 
 	for i, phase := range profile.Phases {
-		normalizedID := strings.TrimSpace(phase.SkillID)
-		if normalizedID == "" {
-			return fmt.Errorf("phase %d must have a skill_id", i)
+		if len(phase.SkillIDs) == 0 {
+			return fmt.Errorf("phase %d must have non-empty skill_ids", i)
 		}
 		if strings.TrimSpace(phase.SkillName) == "" {
 			return fmt.Errorf("phase %d must have a skill_name", i)
 		}
-		profile.Phases[i].SkillID = normalizedID
+		normalizedIDs := make([]string, 0, len(phase.SkillIDs))
+		for _, raw := range phase.SkillIDs {
+			normalizedID := strings.TrimSpace(raw)
+			if normalizedID == "" {
+				return fmt.Errorf("phase %d has an empty skill_id", i)
+			}
+			normalizedIDs = append(normalizedIDs, normalizedID)
+		}
+		profile.Phases[i].SkillIDs = normalizedIDs
 
 		if phase.MaxIterations <= 0 {
 			return fmt.Errorf("phase %d must have maxIterations > 0", i)

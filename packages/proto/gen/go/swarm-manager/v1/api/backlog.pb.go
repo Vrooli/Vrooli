@@ -1270,13 +1270,13 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\v_started_byB\n" +
 	"\n" +
 	"\b_confirmB\b\n" +
-	"\x06_force\"\xb0\x03\n" +
+	"\x06_force\"\x8c\x03\n" +
 	"\x18QueueBacklogItemResponse\x121\n" +
-	"\x04item\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogItemR\x04item\x12 \n" +
-	"\atask_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n" +
-	"\x06run_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n" +
-	"\bbase_url\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abaseUrl\x12!\n" +
-	"\acreated\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\x12\x17\n" +
+	"\x04item\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogItemR\x04item\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12\x19\n" +
+	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12\x18\n" +
+	"\acreated\x18\x05 \x01(\tR\acreated\x12\x17\n" +
 	"\adry_run\x18\x06 \x01(\bR\x06dryRun\x12\x16\n" +
 	"\x06queued\x18\a \x01(\bR\x06queued\x12\x18\n" +
 	"\amessage\x18\b \x01(\tR\amessage\x12)\n" +

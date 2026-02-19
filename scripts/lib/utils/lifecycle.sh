@@ -313,6 +313,23 @@ lifecycle::start_tracked_process() {
         port="$UI_PORT"
     fi
     
+    # Kill stale processes on our port before starting (prevents EADDRINUSE from orphans)
+    if [[ -n "$port" ]]; then
+        local stale_pids
+        stale_pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+        if [[ -n "$stale_pids" ]]; then
+            log::warning "Port $port in use by stale process(es) ($stale_pids) — killing before start"
+            kill -TERM $stale_pids 2>/dev/null || true
+            sleep 1
+            # Force kill survivors
+            stale_pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+            if [[ -n "$stale_pids" ]]; then
+                kill -KILL $stale_pids 2>/dev/null || true
+                sleep 0.5
+            fi
+        fi
+    fi
+
     # Start process in new process group with identifiable environment
     (
         cd "$(pwd)"
@@ -383,8 +400,14 @@ EOF_JSON
                 done
         fi
 
-        rm -f "$process_dir/${step_name}.json" "$process_dir/${step_name}.pid"
-        lifecycle::_remove_port_lock_if_owned_by "$app_name" "$port"
+        # Mark as failed instead of deleting — preserves port info so stop can
+        # find and clean up orphaned processes on this port.
+        if [[ -f "$process_dir/${step_name}.json" ]]; then
+            local tmp_json
+            tmp_json=$(jq '.status = "failed" | .failed_at = (now | todate)' \
+                "$process_dir/${step_name}.json" 2>/dev/null) && \
+                echo "$tmp_json" > "$process_dir/${step_name}.json"
+        fi
         return 1
     fi
 
@@ -501,7 +524,8 @@ lifecycle::stop_scenario_processes() {
                         ((stopped_count++))
                     fi
                 else
-                    log::debug "Process group $pgid already stopped"
+                    log::debug "Process group $pgid already stopped — cleaning up stale metadata"
+                    rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
                 fi
             fi
         done

@@ -163,7 +163,7 @@ func CreateTestProfile(t *testing.T, name string, mode SteerMode, maxIterations 
 		Phases: []SteerPhase{
 			{
 				ID:            uuid.New().String(),
-				SkillID:       string(mode),
+				SkillIDs:      []string{string(mode)},
 				SkillName:     skillName,
 				MaxIterations: maxIterations,
 				StopConditions: []StopCondition{

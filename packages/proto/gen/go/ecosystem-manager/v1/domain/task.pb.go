@@ -23,6 +23,50 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SteerSet struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SkillIds      []string               `protobuf:"bytes,1,rep,name=skill_ids,json=skillIds,proto3" json:"skill_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SteerSet) Reset() {
+	*x = SteerSet{}
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SteerSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SteerSet) ProtoMessage() {}
+
+func (x *SteerSet) ProtoReflect() protoreflect.Message {
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SteerSet.ProtoReflect.Descriptor instead.
+func (*SteerSet) Descriptor() ([]byte, []int) {
+	return file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SteerSet) GetSkillIds() []string {
+	if x != nil {
+		return x.SkillIds
+	}
+	return nil
+}
+
 // Task represents a unified task in the ecosystem.
 type Task struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -98,20 +142,19 @@ type Task struct {
 	ConsecutiveFailures int32 `protobuf:"varint,30,opt,name=consecutive_failures,json=consecutiveFailures,proto3" json:"consecutive_failures,omitempty"`
 	// Whether the processor should auto-requeue after completion.
 	ProcessorAutoRequeue bool `protobuf:"varint,31,opt,name=processor_auto_requeue,json=processorAutoRequeue,proto3" json:"processor_auto_requeue,omitempty"`
-	// Manual steering mode when Auto Steer profile is not set.
-	// @constraint built-in: progress, ux, refactor, test, explore, polish, performance, security (plus custom)
-	SteerMode string `protobuf:"bytes,32,opt,name=steer_mode,json=steerMode,proto3" json:"steer_mode,omitempty"`
+	// Manual steering skill set when Auto Steer profile is not set.
+	SteerSet []string `protobuf:"bytes,32,rep,name=steer_set,json=steerSet,proto3" json:"steer_set,omitempty"`
 	// Auto Steer profile ID to use.
 	AutoSteerProfileId string `protobuf:"bytes,33,opt,name=auto_steer_profile_id,json=autoSteerProfileId,proto3" json:"auto_steer_profile_id,omitempty"`
-	// Ordered list of modes for queue steering.
-	SteeringQueue []string `protobuf:"bytes,34,rep,name=steering_queue,json=steeringQueue,proto3" json:"steering_queue,omitempty"`
+	// Ordered list of steering skill sets for queue steering.
+	SteeringQueue []*SteerSet `protobuf:"bytes,34,rep,name=steering_queue,json=steeringQueue,proto3" json:"steering_queue,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Task) Reset() {
 	*x = Task{}
-	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[0]
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -123,7 +166,7 @@ func (x *Task) String() string {
 func (*Task) ProtoMessage() {}
 
 func (x *Task) ProtoReflect() protoreflect.Message {
-	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[0]
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -136,7 +179,7 @@ func (x *Task) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Task.ProtoReflect.Descriptor instead.
 func (*Task) Descriptor() ([]byte, []int) {
-	return file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP(), []int{0}
+	return file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Task) GetId() string {
@@ -356,11 +399,11 @@ func (x *Task) GetProcessorAutoRequeue() bool {
 	return false
 }
 
-func (x *Task) GetSteerMode() string {
+func (x *Task) GetSteerSet() []string {
 	if x != nil {
-		return x.SteerMode
+		return x.SteerSet
 	}
-	return ""
+	return nil
 }
 
 func (x *Task) GetAutoSteerProfileId() string {
@@ -370,7 +413,7 @@ func (x *Task) GetAutoSteerProfileId() string {
 	return ""
 }
 
-func (x *Task) GetSteeringQueue() []string {
+func (x *Task) GetSteeringQueue() []*SteerSet {
 	if x != nil {
 		return x.SteeringQueue
 	}
@@ -397,7 +440,7 @@ type ProcessInfo struct {
 
 func (x *ProcessInfo) Reset() {
 	*x = ProcessInfo{}
-	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[1]
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -409,7 +452,7 @@ func (x *ProcessInfo) String() string {
 func (*ProcessInfo) ProtoMessage() {}
 
 func (x *ProcessInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[1]
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -422,7 +465,7 @@ func (x *ProcessInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessInfo.ProtoReflect.Descriptor instead.
 func (*ProcessInfo) Descriptor() ([]byte, []int) {
-	return file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP(), []int{1}
+	return file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ProcessInfo) GetTaskId() string {
@@ -477,7 +520,7 @@ type ActiveTarget struct {
 
 func (x *ActiveTarget) Reset() {
 	*x = ActiveTarget{}
-	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[2]
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -489,7 +532,7 @@ func (x *ActiveTarget) String() string {
 func (*ActiveTarget) ProtoMessage() {}
 
 func (x *ActiveTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[2]
+	mi := &file_ecosystem_manager_v1_domain_task_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,7 +545,7 @@ func (x *ActiveTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActiveTarget.ProtoReflect.Descriptor instead.
 func (*ActiveTarget) Descriptor() ([]byte, []int) {
-	return file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP(), []int{2}
+	return file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ActiveTarget) GetTarget() string {
@@ -537,8 +580,9 @@ var File_ecosystem_manager_v1_domain_task_proto protoreflect.FileDescriptor
 
 const file_ecosystem_manager_v1_domain_task_proto_rawDesc = "" +
 	"\n" +
-	"&ecosystem-manager/v1/domain/task.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xfb\n" +
-	"\n" +
+	"&ecosystem-manager/v1/domain/task.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"'\n" +
+	"\bSteerSet\x12\x1b\n" +
+	"\tskill_ids\x18\x01 \x03(\tR\bskillIds\"\x99\v\n" +
 	"\x04Task\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12-\n" +
@@ -575,11 +619,10 @@ const file_ecosystem_manager_v1_domain_task_proto_rawDesc = "" +
 	"\aresults\x18\x1c \x01(\v2\x17.google.protobuf.StructR\aresults\x12B\n" +
 	"\x1dconsecutive_completion_claims\x18\x1d \x01(\x01R\x1bconsecutiveCompletionClaims\x121\n" +
 	"\x14consecutive_failures\x18\x1e \x01(\x05R\x13consecutiveFailures\x124\n" +
-	"\x16processor_auto_requeue\x18\x1f \x01(\bR\x14processorAutoRequeue\x12\x1d\n" +
-	"\n" +
-	"steer_mode\x18  \x01(\tR\tsteerMode\x121\n" +
-	"\x15auto_steer_profile_id\x18! \x01(\tR\x12autoSteerProfileId\x12%\n" +
-	"\x0esteering_queue\x18\" \x03(\tR\rsteeringQueue\"\xa4\x01\n" +
+	"\x16processor_auto_requeue\x18\x1f \x01(\bR\x14processorAutoRequeue\x12\x1b\n" +
+	"\tsteer_set\x18  \x03(\tR\bsteerSet\x121\n" +
+	"\x15auto_steer_profile_id\x18! \x01(\tR\x12autoSteerProfileId\x12E\n" +
+	"\x0esteering_queue\x18\" \x03(\v2\x1e.ecosystem_manager.v1.SteerSetR\rsteeringQueue\"\xa4\x01\n" +
 	"\vProcessInfo\x12 \n" +
 	"\atask_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1b\n" +
 	"\tagent_tag\x18\x02 \x01(\tR\bagentTag\x12\x15\n" +
@@ -606,20 +649,22 @@ func file_ecosystem_manager_v1_domain_task_proto_rawDescGZIP() []byte {
 	return file_ecosystem_manager_v1_domain_task_proto_rawDescData
 }
 
-var file_ecosystem_manager_v1_domain_task_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_ecosystem_manager_v1_domain_task_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_ecosystem_manager_v1_domain_task_proto_goTypes = []any{
-	(*Task)(nil),            // 0: ecosystem_manager.v1.Task
-	(*ProcessInfo)(nil),     // 1: ecosystem_manager.v1.ProcessInfo
-	(*ActiveTarget)(nil),    // 2: ecosystem_manager.v1.ActiveTarget
-	(*structpb.Struct)(nil), // 3: google.protobuf.Struct
+	(*SteerSet)(nil),        // 0: ecosystem_manager.v1.SteerSet
+	(*Task)(nil),            // 1: ecosystem_manager.v1.Task
+	(*ProcessInfo)(nil),     // 2: ecosystem_manager.v1.ProcessInfo
+	(*ActiveTarget)(nil),    // 3: ecosystem_manager.v1.ActiveTarget
+	(*structpb.Struct)(nil), // 4: google.protobuf.Struct
 }
 var file_ecosystem_manager_v1_domain_task_proto_depIdxs = []int32{
-	3, // 0: ecosystem_manager.v1.Task.results:type_name -> google.protobuf.Struct
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	4, // 0: ecosystem_manager.v1.Task.results:type_name -> google.protobuf.Struct
+	0, // 1: ecosystem_manager.v1.Task.steering_queue:type_name -> ecosystem_manager.v1.SteerSet
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_ecosystem_manager_v1_domain_task_proto_init() }
@@ -633,7 +678,7 @@ func file_ecosystem_manager_v1_domain_task_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ecosystem_manager_v1_domain_task_proto_rawDesc), len(file_ecosystem_manager_v1_domain_task_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

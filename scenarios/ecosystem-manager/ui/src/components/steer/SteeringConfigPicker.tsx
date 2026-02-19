@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Circle, Compass, ListOrdered, Zap, ChevronRight } from 'lucide-react';
-import { cn, getPhaseDisplayName } from '@/lib/utils';
+import { cn, formatSkillSetLabel, getQueueStepDisplay } from '@/lib/utils';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { SteeringConfigDialog } from './SteeringConfigDialog';
@@ -11,13 +11,9 @@ interface SteeringConfigPickerProps {
   onChange: (config: SteeringConfig) => void;
   disabled?: boolean;
   className?: string;
-  /** Queue progress: current execution position (0-indexed) */
   queueIndex?: number;
-  /** Queue progress: whether the queue is fully processed */
   queueExhausted?: boolean;
-  /** Callback to change queue position (for running tasks) */
   onQueuePositionChange?: (position: number) => void;
-  /** Position currently being changed to (shows loading state) */
   pendingQueuePosition?: number | null;
 }
 
@@ -46,8 +42,8 @@ function getStrategyDisplay(
       };
     }
     case 'queue': {
-      const items = config.queue || [];
-      if (items.length === 0) {
+      const steps = config.queue || [];
+      if (steps.length === 0) {
         return {
           label: 'Queue',
           sublabel: 'Empty',
@@ -55,24 +51,20 @@ function getStrategyDisplay(
           colorClasses: 'bg-cyan-500/10 text-cyan-100 border-cyan-500/30 hover:bg-cyan-500/20',
         };
       }
-      const preview = items
-        .slice(0, 3)
-        .map((mode) => getPhaseDisplayName(mode, phaseNames) ?? mode)
-        .join(' → ');
-      const more = items.length > 3 ? ` +${items.length - 3}` : '';
+      const first = getQueueStepDisplay(steps[0], phaseNames).label;
+      const more = steps.length > 1 ? ` +${steps.length - 1} more` : '';
       return {
-        label: preview + more,
-        sublabel: `${items.length} item${items.length === 1 ? '' : 's'}`,
+        label: `${first}${more}`,
+        sublabel: `${steps.length} step${steps.length === 1 ? '' : 's'}`,
         icon: ListOrdered,
         colorClasses: 'bg-cyan-500/10 text-cyan-100 border-cyan-500/30 hover:bg-cyan-500/20',
       };
     }
     case 'manual': {
-      const mode = config.manualMode;
-      const modeLabel = mode ? getPhaseDisplayName(mode, phaseNames) ?? mode : undefined;
+      const set = config.manualSet ?? [];
       return {
-        label: modeLabel ?? 'Manual',
-        sublabel: mode ? 'Manual focus' : 'Select a mode',
+        label: formatSkillSetLabel(set, phaseNames, { maxVisible: 1, emptyLabel: 'Manual' }),
+        sublabel: set.length > 0 ? `${set.length} skill${set.length === 1 ? '' : 's'}` : 'Select skills',
         icon: Compass,
         colorClasses: 'bg-amber-500/10 text-amber-50 border-amber-500/30 hover:bg-amber-500/20',
       };
@@ -81,7 +73,7 @@ function getStrategyDisplay(
     default:
       return {
         label: 'Default',
-        sublabel: 'Progress mode',
+        sublabel: 'Progress set',
         icon: Circle,
         colorClasses: 'bg-slate-500/10 text-slate-300 border-slate-500/30 hover:bg-slate-500/20',
       };
@@ -146,13 +138,11 @@ export function SteeringConfigPicker({
   );
 }
 
-// Helper function to derive SteeringConfig from task data
 export function deriveSteeringConfig(task: {
   auto_steer_profile_id?: string;
-  steering_queue?: string[];
-  steer_mode?: string;
+  steering_queue?: string[][];
+  steer_set?: string[];
 }): SteeringConfig {
-  // Priority: Profile > Queue > Manual > None (matches backend)
   if (task.auto_steer_profile_id) {
     return {
       strategy: 'profile',
@@ -165,10 +155,10 @@ export function deriveSteeringConfig(task: {
       queue: task.steering_queue,
     };
   }
-  if (task.steer_mode) {
+  if (task.steer_set && task.steer_set.length > 0) {
     return {
       strategy: 'manual',
-      manualMode: task.steer_mode,
+      manualSet: task.steer_set,
     };
   }
   return {
@@ -176,35 +166,34 @@ export function deriveSteeringConfig(task: {
   };
 }
 
-// Helper function to extract task fields from SteeringConfig
 export function extractSteeringFields(config: SteeringConfig): {
-  steer_mode?: string;
+  steer_set?: string[];
   auto_steer_profile_id?: string;
-  steering_queue?: string[];
+  steering_queue?: string[][];
 } {
   switch (config.strategy) {
     case 'profile':
       return {
         auto_steer_profile_id: config.profileId,
-        steer_mode: undefined,
+        steer_set: undefined,
         steering_queue: undefined,
       };
     case 'queue':
       return {
         steering_queue: config.queue,
-        steer_mode: undefined,
+        steer_set: undefined,
         auto_steer_profile_id: undefined,
       };
     case 'manual':
       return {
-        steer_mode: config.manualMode,
+        steer_set: config.manualSet,
         auto_steer_profile_id: undefined,
         steering_queue: undefined,
       };
     case 'none':
     default:
       return {
-        steer_mode: undefined,
+        steer_set: undefined,
         auto_steer_profile_id: undefined,
         steering_queue: undefined,
       };

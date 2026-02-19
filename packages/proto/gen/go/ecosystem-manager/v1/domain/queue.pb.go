@@ -68,8 +68,10 @@ type ExecutionRecord struct {
 	AutoSteerProfileId string `protobuf:"bytes,19,opt,name=auto_steer_profile_id,json=autoSteerProfileId,proto3" json:"auto_steer_profile_id,omitempty"`
 	// Global iteration counter for Auto Steer.
 	AutoSteerIteration int32 `protobuf:"varint,20,opt,name=auto_steer_iteration,json=autoSteerIteration,proto3" json:"auto_steer_iteration,omitempty"`
-	// Active steering mode (phase).
-	SteerMode string `protobuf:"bytes,21,opt,name=steer_mode,json=steerMode,proto3" json:"steer_mode,omitempty"`
+	// Active steering skill set (phase).
+	SteerSkillIds []string `protobuf:"bytes,21,rep,name=steer_skill_ids,json=steerSkillIds,proto3" json:"steer_skill_ids,omitempty"`
+	// Optional steering set label.
+	SteerSetLabel string `protobuf:"bytes,29,opt,name=steer_set_label,json=steerSetLabel,proto3" json:"steer_set_label,omitempty"`
 	// 1-based phase index (0 when unknown).
 	SteerPhaseIndex int32 `protobuf:"varint,22,opt,name=steer_phase_index,json=steerPhaseIndex,proto3" json:"steer_phase_index,omitempty"`
 	// 1-based iteration within the active phase.
@@ -259,9 +261,16 @@ func (x *ExecutionRecord) GetAutoSteerIteration() int32 {
 	return 0
 }
 
-func (x *ExecutionRecord) GetSteerMode() string {
+func (x *ExecutionRecord) GetSteerSkillIds() []string {
 	if x != nil {
-		return x.SteerMode
+		return x.SteerSkillIds
+	}
+	return nil
+}
+
+func (x *ExecutionRecord) GetSteerSetLabel() string {
+	if x != nil {
+		return x.SteerSetLabel
 	}
 	return ""
 }
@@ -466,7 +475,7 @@ var File_ecosystem_manager_v1_domain_queue_proto protoreflect.FileDescriptor
 
 const file_ecosystem_manager_v1_domain_queue_proto_rawDesc = "" +
 	"\n" +
-	"'ecosystem-manager/v1/domain/queue.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x9f\b\n" +
+	"'ecosystem-manager/v1/domain/queue.proto\x12\x14ecosystem_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd0\b\n" +
 	"\x0fExecutionRecord\x12 \n" +
 	"\atask_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1d\n" +
 	"\n" +
@@ -495,9 +504,9 @@ const file_ecosystem_manager_v1_domain_queue_proto_rawDesc = "" +
 	"\x11last_message_path\x18\x11 \x01(\tR\x0flastMessagePath\x12'\n" +
 	"\x0ftranscript_path\x18\x12 \x01(\tR\x0etranscriptPath\x121\n" +
 	"\x15auto_steer_profile_id\x18\x13 \x01(\tR\x12autoSteerProfileId\x120\n" +
-	"\x14auto_steer_iteration\x18\x14 \x01(\x05R\x12autoSteerIteration\x12\x1d\n" +
-	"\n" +
-	"steer_mode\x18\x15 \x01(\tR\tsteerMode\x12*\n" +
+	"\x14auto_steer_iteration\x18\x14 \x01(\x05R\x12autoSteerIteration\x12&\n" +
+	"\x0fsteer_skill_ids\x18\x15 \x03(\tR\rsteerSkillIds\x12&\n" +
+	"\x0fsteer_set_label\x18\x1d \x01(\tR\rsteerSetLabel\x12*\n" +
 	"\x11steer_phase_index\x18\x16 \x01(\x05R\x0fsteerPhaseIndex\x122\n" +
 	"\x15steer_phase_iteration\x18\x17 \x01(\x05R\x13steerPhaseIteration\x12'\n" +
 	"\x0fsteering_source\x18\x18 \x01(\tR\x0esteeringSource\x120\n" +

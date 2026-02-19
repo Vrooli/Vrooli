@@ -38,7 +38,7 @@ func TestHandlers_CreateProfile(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					SkillID:       "progress",
+					SkillIDs:      []string{"progress"},
 					SkillName:     "Progress",
 					MaxIterations: 10,
 					StopConditions: []StopCondition{
@@ -94,7 +94,7 @@ func TestHandlers_CreateProfile(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					SkillID:       "progress",
+					SkillIDs:      []string{"progress"},
 					SkillName:     "Progress",
 					MaxIterations: 10,
 					StopConditions: []StopCondition{
@@ -133,7 +133,7 @@ func TestHandlers_ListProfiles(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
@@ -154,7 +154,7 @@ func TestHandlers_ListProfiles(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				SkillID:       "ux",
+				SkillIDs:      []string{"ux"},
 				SkillName:     "UX",
 				MaxIterations: 5,
 				StopConditions: []StopCondition{
@@ -239,7 +239,7 @@ func TestHandlers_GetProfile(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
@@ -304,7 +304,7 @@ func TestHandlers_UpdateProfile(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
@@ -329,7 +329,7 @@ func TestHandlers_UpdateProfile(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					SkillID:       "ux",
+					SkillIDs:      []string{"ux"},
 					SkillName:     "UX",
 					MaxIterations: 15,
 					StopConditions: []StopCondition{
@@ -378,7 +378,7 @@ func TestHandlers_DeleteProfile(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
@@ -418,7 +418,7 @@ func TestHandlers_GetTemplates(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-template",
-				SkillID:       "progress",
+				SkillIDs:      []string{"progress"},
 				SkillName:     "Progress",
 				MaxIterations: 1,
 				StopConditions: []StopCondition{

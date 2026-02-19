@@ -26,8 +26,8 @@ export function formatPhaseName(name: string): string {
     .join(' ');
 }
 
-export function normalizeSteerMode(mode?: string): string {
-  return (mode ?? '').trim().toLowerCase();
+export function normalizeSkillId(skillId?: string): string {
+  return (skillId ?? '').trim().toLowerCase();
 }
 
 export function getPhaseDisplayName(
@@ -35,9 +35,43 @@ export function getPhaseDisplayName(
   phases: Array<{ id: string; name: string }> = []
 ): string | undefined {
   if (!phaseId) return undefined;
-  const normalized = normalizeSteerMode(phaseId);
-  const match = phases.find((phase) => normalizeSteerMode(phase.id) === normalized);
+  const normalized = normalizeSkillId(phaseId);
+  const match = phases.find((phase) => normalizeSkillId(phase.id) === normalized);
   return match?.name ?? BUILT_IN_PHASE_LABELS[normalized] ?? formatPhaseName(phaseId);
+}
+
+export function formatSkillSetLabel(
+  skillIds: string[] = [],
+  phases: Array<{ id: string; name: string }> = [],
+  options: { maxVisible?: number; emptyLabel?: string } = {}
+): string {
+  const maxVisible = options.maxVisible ?? 1;
+  const emptyLabel = options.emptyLabel ?? 'Default';
+  if (!Array.isArray(skillIds) || skillIds.length === 0) return emptyLabel;
+
+  const labels = skillIds.map((id) => getPhaseDisplayName(id, phases) ?? id);
+  const visible = labels.slice(0, Math.max(1, maxVisible));
+  const hiddenCount = Math.max(0, labels.length - visible.length);
+
+  return hiddenCount > 0 ? `${visible.join(', ')} +${hiddenCount} more` : visible.join(', ');
+}
+
+export function formatSkillSetTooltip(
+  skillIds: string[] = [],
+  phases: Array<{ id: string; name: string }> = []
+): string | undefined {
+  if (!Array.isArray(skillIds) || skillIds.length === 0) return undefined;
+  return skillIds.map((id) => getPhaseDisplayName(id, phases) ?? id).join(', ');
+}
+
+export function getQueueStepDisplay(
+  step: string[] = [],
+  phases: Array<{ id: string; name: string }> = []
+): { label: string; tooltip?: string } {
+  return {
+    label: formatSkillSetLabel(step, phases, { maxVisible: 1, emptyLabel: 'Empty set' }),
+    tooltip: formatSkillSetTooltip(step, phases),
+  };
 }
 
 export function getApiErrorMessage(error: unknown): string {

@@ -45,6 +45,7 @@ import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfil
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import { QueuePanel } from '@/components/steer/panels/QueuePanel';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
 
 interface TaskDetailsModalProps {
@@ -512,9 +513,9 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const formatSteerSummary = (focus?: SteerFocusInfo) => {
     if (!focus) return '';
     if (focus.autoSteerProfileName) {
-      return focus.phaseMode ? `${focus.autoSteerProfileName} • ${focus.phaseMode}` : focus.autoSteerProfileName;
+      return focus.phaseSetLabel ? `${focus.autoSteerProfileName} • ${focus.phaseSetLabel}` : focus.autoSteerProfileName;
     }
-    return focus.manualSteerMode ?? '';
+    return focus.manualSetLabel ?? '';
   };
 
   const formatExecutionSummary = (execution: ExecutionHistory, focus?: SteerFocusInfo) => {
@@ -563,8 +564,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const currentPhaseNumber = autoSteerState ? toNumber(autoSteerState.current_phase_index) + 1 : 0;
   const totalPhases = activeProfile?.phases?.length ?? 0;
   const currentMode =
-    activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.skill_name ??
-    (activeProfile?.phases?.[0]?.skill_name ?? undefined);
+    formatSkillSetLabel(
+      activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.skill_ids ??
+        (activeProfile?.phases?.[0]?.skill_ids ?? []),
+      phaseNames,
+      { maxVisible: 1, emptyLabel: '' }
+    ) || undefined;
   const completedPhaseIterations =
     autoSteerState?.phase_history?.reduce((sum, phase) => sum + toNumber(phase?.iterations), 0) ?? 0;
   const currentPhaseIteration = toNumber(autoSteerState?.current_phase_iteration);
@@ -971,7 +976,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             const isActive = idx === phaseDraft;
                             return (
                               <button
-                                key={phase.id ?? `${phase.skill_id}-${idx}`}
+                                key={phase.id ?? `${(phase.skill_ids || []).join('-')}-${idx}`}
                                 type="button"
                                 className={`
                                   px-3 py-2 rounded-md border text-left transition-all
@@ -983,7 +988,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                                 }}
                               >
                                 <div className="text-[11px] uppercase text-slate-400">Phase {idx + 1}</div>
-                                <div className="text-sm font-semibold">{phase.skill_name}</div>
+                                <div
+                                  className="text-sm font-semibold"
+                                  title={formatSkillSetTooltip(phase.skill_ids, phaseNames)}
+                                >
+                                  {formatSkillSetLabel(phase.skill_ids, phaseNames, { maxVisible: 1, emptyLabel: 'Skill set' })}
+                                </div>
                                 <div className="text-[11px] text-slate-500">
                                   Max iterations: {phase.max_iterations}
                                 </div>
@@ -1255,7 +1265,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             </Button>
                           </div>
                         </div>
-                        {(steerFocus.autoSteerProfileName || steerFocus.manualSteerMode) && (
+                        {(steerFocus.autoSteerProfileName || steerFocus.manualSetLabel) && (
                           <div className="mt-3">
                             <SteerFocusBadge {...steerFocus} />
                           </div>
