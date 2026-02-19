@@ -40,8 +40,7 @@ type App struct {
 func NewApp() (*App, error) {
 	applyLegacyAPIEnv()
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars:     []string{"BROWSER_AUTOMATION_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
-		ExtraAPIPortEnvVars: []string{"API_PORT"},
+		ExtraAPIEnvVars: []string{"BROWSER_AUTOMATION_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
 	})
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,

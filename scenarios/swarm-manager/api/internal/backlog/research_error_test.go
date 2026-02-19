@@ -29,6 +29,10 @@ func (m *mockAgentErrorService) SpawnBacklog(_ context.Context, _ agentmanager.B
 func (m *mockAgentErrorService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }
+func (m *mockAgentErrorService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
+	return agentmanager.RunState{}, nil
+}
+func (m *mockAgentErrorService) StopRun(_ context.Context, _ string) error { return nil }
 
 func TestResearch_InvalidJSON(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentErrorService{err: nil})

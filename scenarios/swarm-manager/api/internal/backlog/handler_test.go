@@ -1000,6 +1000,10 @@ func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.Back
 func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }
+func (m *mockAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
+	return agentmanager.RunState{}, nil
+}
+func (m *mockAgentService) StopRun(_ context.Context, _ string) error { return nil }
 
 func TestGetFileContent_PathIsDirectory(t *testing.T) {
 	h, rootDir := setupTestHandler(t)

@@ -124,4 +124,15 @@ describe("MainLayout", () => {
     expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
     expect(screen.getAllByText("Swarm Manager")).toHaveLength(1);
   });
+
+  it("renders agents running dropdown in desktop header", () => {
+    renderWithRouter("/backlog");
+
+    const toggle = screen.getByTestId("layout-agents-toggle");
+    expect(toggle).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(screen.getByTestId("layout-agents-dropdown")).toBeInTheDocument();
+    expect(screen.getByText("No agents are currently running.")).toBeInTheDocument();
+  });
 });

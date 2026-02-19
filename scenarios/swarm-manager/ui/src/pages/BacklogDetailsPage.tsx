@@ -38,6 +38,7 @@ import {
   Play,
   Search,
   Sparkles,
+  Square,
   Tags,
   Trash2,
   Upload,
@@ -76,7 +77,7 @@ import {
   parseClarifyQuestionsFile,
   parseSuggestionsFile,
 } from "../lib";
-import { backlogService, promptService } from "../services";
+import { backlogService } from "../services";
 import type { QueueResponse } from "../services";
 import { selectors } from "../consts/selectors";
 import {
@@ -95,9 +96,9 @@ import type {
   IdeaAgentMode,
   IdeaClarificationQuestion,
   IdeaSuggestion,
-  PromptTrace,
+  ResearchResponse,
 } from "../types";
-import { useBacklogStore } from "../stores";
+import { selectLatestRunForBacklog, useAgentRunsStore, useBacklogStore } from "../stores";
 
 const RECENT_FILES_LIMIT = 5;
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
@@ -151,6 +152,17 @@ const buildFollowupPrompt = (mode: IdeaAgentMode): string => {
   return "Use clarify/questions.json answers to refine the idea and produce an enhanced plan. If suggestions exist, apply accepted ones and ignore rejected ones.";
 };
 
+const formatDuration = (seconds?: number): string => {
+  if (!seconds || seconds <= 0) return "Unknown";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+};
+
 const getParentPath = (path: string): string => {
   const slashIndex = path.lastIndexOf("/");
   return slashIndex > -1 ? path.slice(0, slashIndex) : "";
@@ -185,11 +197,19 @@ const remapSelectedPath = (
 
 export function BacklogDetailsPage() {
   const { kind, name } = useParams<{ kind: string; name: string }>();
+  const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const upsertItem = useBacklogStore((state) => state.upsertItem);
   const removeItem = useBacklogStore((state) => state.removeItem);
+  const upsertSpawnedRun = useAgentRunsStore((state) => state.upsertSpawnedRun);
+  const refreshRun = useAgentRunsStore((state) => state.refreshRun);
+  const stopRun = useAgentRunsStore((state) => state.stopRun);
+  const latestAgentRun = useAgentRunsStore((state) => {
+    if (!backlogKind || !name) return null;
+    return selectLatestRunForBacklog(state, backlogKind, name);
+  });
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const headerFileActionsRef = useRef<HTMLDivElement | null>(null);
   const [filesPanelWidth, setFilesPanelWidth] = useState(320);
@@ -215,8 +235,6 @@ export function BacklogDetailsPage() {
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
   const [queueBlockedResult, setQueueBlockedResult] = useState<QueueResponse | null>(null);
-
-  const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
 
   const {
     data: item,
@@ -282,27 +300,6 @@ export function BacklogDetailsPage() {
       return backlogService.getFileContent(backlogKind, name, IDEA_AGENT_FILE_PATHS.suggest);
     },
     enabled: !!backlogKind && !!name && !!suggestionsFile,
-    ...defaultQueryOptions,
-  });
-
-  const {
-    data: promptTrace,
-    refetch: refetchPromptTrace,
-  } = useQuery({
-    queryKey: ["backlog", backlogKind, name, "prompt-trace"],
-    queryFn: async (): Promise<PromptTrace | null> => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      try {
-        return await promptService.getBacklogPromptTrace(backlogKind, name);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (message.includes("404") || message.toLowerCase().includes("not found")) {
-          return null;
-        }
-        throw err;
-      }
-    },
-    enabled: !!backlogKind && !!name,
     ...defaultQueryOptions,
   });
 
@@ -449,14 +446,31 @@ export function BacklogDetailsPage() {
         contextRequirementIds,
       });
     },
-    onSuccess: () => {
+    onSuccess: (result: ResearchResponse, variables) => {
       setShowAgentDialog(false);
-      void refetchPromptTrace();
+      if (!backlogKind || !name) return;
+      upsertSpawnedRun({
+        runId: result.runId,
+        taskId: result.taskId,
+        baseUrl: result.baseUrl,
+        createdAt: result.created,
+        backlogKind,
+        backlogName: name,
+        backlogTitle: item?.title ?? name,
+        mode: variables.mode ?? "research",
+      });
+      void refreshRun(result.runId);
     },
   });
 
   const clarifyMutation = useMutation({
-    mutationFn: async ({ questions, nextMode }: { questions: IdeaClarificationQuestion[]; nextMode: IdeaAgentMode | "none" }) => {
+    mutationFn: async ({
+      questions,
+      nextMode,
+    }: {
+      questions: IdeaClarificationQuestion[];
+      nextMode: IdeaAgentMode | "none";
+    }): Promise<ResearchResponse | null> => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       const content = buildClarifyQuestionsContent(clarifyParsed.raw, questions);
       await backlogService.saveFileContent(
@@ -467,13 +481,14 @@ export function BacklogDetailsPage() {
         "application/json"
       );
       if (nextMode !== "none") {
-        await backlogService.research(backlogKind, name, {
+        return backlogService.research(backlogKind, name, {
           mode: nextMode,
           prompt: buildFollowupPrompt(nextMode),
         });
       }
+      return null;
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       if (!backlogKind || !name) return;
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
       queryClient.invalidateQueries({
@@ -481,12 +496,24 @@ export function BacklogDetailsPage() {
       });
       void refetchFiles();
       void refetchClarifyContent();
-      void refetchPromptTrace();
+      if (result) {
+        upsertSpawnedRun({
+          runId: result.runId,
+          taskId: result.taskId,
+          baseUrl: result.baseUrl,
+          createdAt: result.created,
+          backlogKind,
+          backlogName: name,
+          backlogTitle: item?.title ?? name,
+          mode: variables.nextMode,
+        });
+        void refreshRun(result.runId);
+      }
     },
   });
 
   const suggestionsMutation = useMutation({
-    mutationFn: async (updatedSuggestions: IdeaSuggestion[]) => {
+    mutationFn: async (updatedSuggestions: IdeaSuggestion[]): Promise<ResearchResponse> => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       const content = buildSuggestionsContent(suggestionsParsed.raw, updatedSuggestions);
       await backlogService.saveFileContent(
@@ -496,13 +523,13 @@ export function BacklogDetailsPage() {
         content,
         "application/json"
       );
-      await backlogService.research(backlogKind, name, {
+      return backlogService.research(backlogKind, name, {
         mode: "enhance",
         prompt:
           "Use suggest/suggestions.json decisions to enhance this idea. Apply accepted suggestions, ignore rejected ones, and reference clarify/questions.json answers if available.",
       });
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       if (!backlogKind || !name) return;
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
       queryClient.invalidateQueries({
@@ -510,7 +537,17 @@ export function BacklogDetailsPage() {
       });
       void refetchFiles();
       void refetchSuggestionsContent();
-      void refetchPromptTrace();
+      upsertSpawnedRun({
+        runId: result.runId,
+        taskId: result.taskId,
+        baseUrl: result.baseUrl,
+        createdAt: result.created,
+        backlogKind,
+        backlogName: name,
+        backlogTitle: item?.title ?? name,
+        mode: "enhance",
+      });
+      void refreshRun(result.runId);
     },
   });
 
@@ -1406,13 +1443,42 @@ export function BacklogDetailsPage() {
         </div>
         {renderActionButtons(false)}
       </Card>
-      {promptTrace && (
+      {latestAgentRun && (
         <Card padding="sm" className="space-y-2 rounded-lg border-cyan-500/30 bg-cyan-500/10">
-          <p className="font-mono text-xs text-cyan-300">{promptTrace.skill_id}</p>
-          <p className="text-xs text-slate-300">Captured {formatRelativeTime(promptTrace.captured_at)}</p>
-          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-950/70 p-2 font-mono text-[11px] text-slate-100">
-            {promptTrace.prompt}
-          </pre>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-slate-100">Last Agent Run</p>
+            <span className="rounded-full bg-slate-900/70 px-2 py-0.5 text-xs text-cyan-200">
+              {latestAgentRun.status.replace("_", " ")}
+            </span>
+          </div>
+          <p className="font-mono text-xs text-cyan-300">{latestAgentRun.runId}</p>
+          <p className="text-xs text-slate-300">Spawned {formatRelativeTime(latestAgentRun.createdAt)}</p>
+          <p className="text-xs text-slate-300">Duration {formatDuration(latestAgentRun.durationSeconds)}</p>
+          {latestAgentRun.errorMessage ? (
+            <p className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
+              {latestAgentRun.errorMessage}
+            </p>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refreshRun(latestAgentRun.runId)}
+            >
+              Refresh
+            </Button>
+            {latestAgentRun.active && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void stopRun(latestAgentRun.runId)}
+                disabled={latestAgentRun.isStopping}
+              >
+                <Square className="mr-2 h-3.5 w-3.5" />
+                {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+              </Button>
+            )}
+          </div>
         </Card>
       )}
       {detailsPanel}
@@ -1681,13 +1747,42 @@ export function BacklogDetailsPage() {
                 )}
               </div>
             )}
-            {promptTrace && (
+            {latestAgentRun && (
               <div className="mt-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2">
-                <p className="font-mono text-xs text-cyan-300">{promptTrace.skill_id}</p>
-                <p className="text-xs text-slate-300">Captured {formatRelativeTime(promptTrace.captured_at)}</p>
-                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-950/70 p-2 font-mono text-[11px] text-slate-100">
-                  {promptTrace.prompt}
-                </pre>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-100">Last Agent Run</p>
+                  <span className="rounded-full bg-slate-900/70 px-2 py-0.5 text-xs text-cyan-200">
+                    {latestAgentRun.status.replace("_", " ")}
+                  </span>
+                </div>
+                <p className="mt-1 font-mono text-xs text-cyan-300">{latestAgentRun.runId}</p>
+                <p className="text-xs text-slate-300">Spawned {formatRelativeTime(latestAgentRun.createdAt)}</p>
+                <p className="text-xs text-slate-300">Duration {formatDuration(latestAgentRun.durationSeconds)}</p>
+                {latestAgentRun.errorMessage ? (
+                  <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
+                    {latestAgentRun.errorMessage}
+                  </p>
+                ) : null}
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void refreshRun(latestAgentRun.runId)}
+                  >
+                    Refresh
+                  </Button>
+                  {latestAgentRun.active && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void stopRun(latestAgentRun.runId)}
+                      disabled={latestAgentRun.isStopping}
+                    >
+                      <Square className="mr-2 h-3.5 w-3.5" />
+                      {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </Card>

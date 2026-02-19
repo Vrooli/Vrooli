@@ -1,7 +1,10 @@
 package agentmanager
 
 import (
+	"errors"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -24,6 +27,8 @@ func NewHandler(service Service) *Handler {
 // RegisterRoutes registers agent-manager endpoints.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-manager/status", h.Status).Methods("GET")
+	r.HandleFunc("/api/v1/agent-manager/runs/{runID}", h.GetRun).Methods("GET")
+	r.HandleFunc("/api/v1/agent-manager/runs/{runID}/stop", h.StopRun).Methods("POST")
 }
 
 // Status returns agent-manager availability.
@@ -45,4 +50,131 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, response); err != nil {
 		httputil.InternalError(w, "[agent-manager] status", "failed to encode response")
 	}
+}
+
+type runStatusResponse struct {
+	RunID           string  `json:"run_id"`
+	TaskID          string  `json:"task_id,omitempty"`
+	Status          string  `json:"status"`
+	StartedAt       string  `json:"started_at,omitempty"`
+	FinishedAt      string  `json:"finished_at,omitempty"`
+	ErrorMessage    string  `json:"error_message,omitempty"`
+	DurationSeconds float64 `json:"duration_seconds,omitempty"`
+	Active          bool    `json:"active"`
+}
+
+type stopRunResponse struct {
+	RunID   string `json:"run_id"`
+	Stopped bool   `json:"stopped"`
+	Status  string `json:"status"`
+}
+
+// GetRun returns agent-manager lifecycle state for a run.
+func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
+	if h.service == nil || !h.service.IsEnabled() {
+		httputil.ServiceUnavailable(w, "[agent-manager] run", "agent-manager is not available")
+		return
+	}
+
+	runID := strings.TrimSpace(mux.Vars(r)["runID"])
+	if runID == "" {
+		httputil.BadRequest(w, "[agent-manager] run", "run_id is required")
+		return
+	}
+
+	state, err := h.service.GetRunState(r.Context(), runID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotAvailable):
+			httputil.ServiceUnavailable(w, "[agent-manager] run", "agent-manager is not available")
+		case strings.Contains(err.Error(), "status 404"):
+			httputil.NotFound(w, "[agent-manager] run", "run not found")
+		case errors.Is(err, ErrRequestFailed):
+			httputil.Error(w, "[agent-manager] run", "failed to load run status", http.StatusBadGateway)
+		default:
+			httputil.InternalError(w, "[agent-manager] run", "failed to load run status")
+		}
+		return
+	}
+
+	response := runStatusResponse{
+		RunID:        state.RunID,
+		TaskID:       state.TaskID,
+		Status:       state.Status,
+		StartedAt:    state.StartedAt,
+		FinishedAt:   state.FinishedAt,
+		ErrorMessage: state.ErrorMsg,
+		Active:       isActiveStatus(state.Status),
+	}
+	if duration := durationSeconds(state.StartedAt, state.FinishedAt); duration > 0 {
+		response.DurationSeconds = duration
+	}
+	if err := httputil.JSON(w, response); err != nil {
+		httputil.InternalError(w, "[agent-manager] run", "failed to encode response")
+	}
+}
+
+// StopRun requests cancellation for a run.
+func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
+	if h.service == nil || !h.service.IsEnabled() {
+		httputil.ServiceUnavailable(w, "[agent-manager] run stop", "agent-manager is not available")
+		return
+	}
+
+	runID := strings.TrimSpace(mux.Vars(r)["runID"])
+	if runID == "" {
+		httputil.BadRequest(w, "[agent-manager] run stop", "run_id is required")
+		return
+	}
+	if err := h.service.StopRun(r.Context(), runID); err != nil {
+		switch {
+		case errors.Is(err, ErrNotAvailable):
+			httputil.ServiceUnavailable(w, "[agent-manager] run stop", "agent-manager is not available")
+		case strings.Contains(err.Error(), "status 404"):
+			httputil.NotFound(w, "[agent-manager] run stop", "run not found")
+		case errors.Is(err, ErrRequestFailed):
+			httputil.Error(w, "[agent-manager] run stop", "failed to stop run", http.StatusBadGateway)
+		default:
+			httputil.InternalError(w, "[agent-manager] run stop", "failed to stop run")
+		}
+		return
+	}
+
+	if err := httputil.JSON(w, stopRunResponse{
+		RunID:   runID,
+		Stopped: true,
+		Status:  "stop_requested",
+	}); err != nil {
+		httputil.InternalError(w, "[agent-manager] run stop", "failed to encode response")
+	}
+}
+
+func isActiveStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "pending", "starting", "running", "needs_review":
+		return true
+	default:
+		return false
+	}
+}
+
+func durationSeconds(startedAt, finishedAt string) float64 {
+	started, err := time.Parse(time.RFC3339, startedAt)
+	if err != nil {
+		return 0
+	}
+	end := time.Now().UTC()
+	if strings.TrimSpace(finishedAt) != "" {
+		if parsedEnd, parseErr := time.Parse(time.RFC3339, finishedAt); parseErr == nil {
+			end = parsedEnd
+		}
+	}
+	if end.Before(started) {
+		return 0
+	}
+	seconds := end.Sub(started).Seconds()
+	if seconds <= 0 {
+		return 0
+	}
+	return seconds
 }

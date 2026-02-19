@@ -53,6 +53,8 @@ export const literalSelectors = {
     header: "header",
     desktopTabs: "desktop-tabs",
     mobileNav: "mobile-nav",
+    agentsToggle: "layout-agents-toggle",
+    agentsDropdown: "layout-agents-dropdown",
   },
   // Error state selectors (shared across pages)
   error: {

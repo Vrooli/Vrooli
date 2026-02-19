@@ -35,6 +35,8 @@ export const API_ENDPOINTS = {
   scenarioStop: (name: string) => `/scenarios/${name}/stop`,
   scenarioRestart: (name: string) => `/scenarios/${name}/restart`,
   agentManagerStatus: "/agent-manager/status",
+  agentManagerRun: (runId: string) => `/agent-manager/runs/${runId}`,
+  agentManagerStopRun: (runId: string) => `/agent-manager/runs/${runId}/stop`,
   settings: "/settings",
   execution: "/execution",
   executionPolicy: "/execution/policy",

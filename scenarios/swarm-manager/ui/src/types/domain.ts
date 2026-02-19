@@ -292,6 +292,27 @@ export interface SpecSyncArchiveResponse {
 
 export type AgentManagerStatus = ProtoMessage<ProtoAgentManagerStatusResponse>;
 
+export type AgentRunStatus =
+  | "pending"
+  | "starting"
+  | "running"
+  | "needs_review"
+  | "complete"
+  | "failed"
+  | "cancelled"
+  | "unspecified";
+
+export interface AgentRunState {
+  runId: string;
+  taskId?: string;
+  status: AgentRunStatus;
+  startedAt?: string;
+  finishedAt?: string;
+  errorMessage?: string;
+  durationSeconds?: number;
+  active: boolean;
+}
+
 // ============================================================================
 // Settings Domain
 // ============================================================================
